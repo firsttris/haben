@@ -50,7 +50,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
   TEST_DATABASE_URL=postgres://…/haben_test bun run test
   bun run build
   E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e   # wenn die Oberfläche betroffen ist; Name endet auf „e2e“
-  mkdocs build --strict                                # wenn docs/ oder mkdocs.yml geändert sind
+  zensical build --strict                              # wenn docs/ oder mkdocs.yml geändert sind
   ```
 
   Ohne Bun auf dem Rechner oder ohne PostgreSQL: dieselben Prüfungen im Dev-Container (Skill `checks`). Übersprungene Tests im Abschlusskommentar nennen.

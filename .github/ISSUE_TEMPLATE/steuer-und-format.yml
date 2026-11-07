@@ -1,5 +1,5 @@
 name: Steuerfall oder Format
-description: Haben bucht, meldet oder exportiert einen Sachverhalt fachlich anders als erwartet. Mit Quelle.
+description: Haben bucht, meldet oder exportiert einen Sachverhalt fachlich anders als erwartet. Am besten mit Quelle.
 labels: ["steuer"]
 body:
   - type: markdown
@@ -53,7 +53,7 @@ body:
     id: unsicher
     attributes:
       label: Wo bist du unsicher?
-      description: Haben ist keine Steuerberatung. Schreib ruhig dazu, was du nicht sicher weißt oder mit der Steuerberatung klären willst.
+      description: Haben ist keine Steuerberatung. Schreibe ruhig dazu, was du nicht sicher weißt oder mit der Steuerberatung klären willst.
   - type: textarea
     id: kriterien
     attributes:

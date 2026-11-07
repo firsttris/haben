@@ -110,7 +110,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
-| `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
+| `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
@@ -219,9 +219,16 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 5. Einen Kontoauszug importieren und die Umsätze zuordnen.
 6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
 
-Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur, bis auf `steuerberatung.spec.ts`, das einen Zugang für die Steuerberatung anlegt und wieder sperrt. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts`, `langsame-anfrage.spec.ts` und `beenden.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `beenden.spec.ts` startet den gebauten Server ein zweites Mal und prüft, dass er sich auf SIGTERM innerhalb von acht Sekunden beendet, bevor `podman stop` oder `docker stop` nach zehn Sekunden SIGKILL schickt. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
+Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen Auftrag im Archiv, eine eigene Seite, einen Mitarbeiter und einen Dauerbeleg. Alles andere spielen zwei weitere Durchläufe mit eigenem Server und eigener Datenbank daneben durch, damit diese Kette kurz bleibt:
 
-`apps/web/e2e/gmbh.spec.ts` spielt dasselbe für eine GmbH durch (Projekt `gmbh`): Einrichtung mit Rechtsform und SKR04, manuelle Buchung mit Storno, Lohnabrechnung des Gesellschafter-Geschäftsführers mit PDF, Lohnkonto, Lohnsteuer-Anmeldung und Storno, ein Minijob mit Ausfüllliste für das SV-Meldeportal und Vermerk der Abgabe. Weil die Rechtsform ab der ersten Buchung fest ist, läuft es gegen einen zweiten Server auf `E2E_PORT` + 1 mit eigener Datenbank, deren Name aus `E2E_DATABASE_URL` folgt (`haben_e2e` → `haben_gmbh_e2e`). `e2e/reset-db.ts` legt sie beim ersten Lauf an; dafür braucht der Datenbanknutzer das Recht `CREATEDB`.
+- `rechnungen.spec.ts`: Rechnungen, Angebote, Versand per E-Mail, Kasse, REST-API und CSV-Import.
+- `belege-steuern.spec.ts`: Belege, Bankabgleich, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen.
+
+Beide richten sich mit `e2e/einrichtung.ts` dasselbe Unternehmen ein und prüfen am Ende die Seiten mit ihren Daten wie `barrierefreiheit.spec.ts` und `seiten.spec.ts`: axe am Desktop und am Handy, kein waagrechtes Scrollen auf dem Handy. Ports und Datenbanken der Durchläufe stehen in `e2e/durchlaeufe.ts`. Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht.
+
+Am Ende speichert `app.spec.ts` die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur, bis auf `steuerberatung.spec.ts`, das einen Zugang für die Steuerberatung anlegt und wieder sperrt. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts`, `langsame-anfrage.spec.ts` und `beenden.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `beenden.spec.ts` startet den gebauten Server ein zweites Mal und prüft, dass er sich auf SIGTERM innerhalb von acht Sekunden beendet, bevor `podman stop` oder `docker stop` nach zehn Sekunden SIGKILL schickt. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
+
+`apps/web/e2e/gmbh.spec.ts` spielt dasselbe für eine GmbH durch (Projekt `gmbh`): Einrichtung mit Rechtsform und SKR04, manuelle Buchung mit Storno, Lohnabrechnung des Gesellschafter-Geschäftsführers mit PDF, Lohnkonto, Lohnsteuer-Anmeldung und Storno, ein Minijob mit Ausfüllliste für das SV-Meldeportal und Vermerk der Abgabe. Weil die Rechtsform ab der ersten Buchung fest ist, läuft es wie die beiden anderen Durchläufe gegen einen eigenen Server (`E2E_PORT` + 1, + 2, + 3) mit eigener Datenbank, deren Name aus `E2E_DATABASE_URL` folgt (`haben_e2e` → `haben_gmbh_e2e`, `haben_rechnungen_e2e`, `haben_belege_steuern_e2e`). `e2e/reset-db.ts` legt sie beim ersten Lauf an; dafür braucht der Datenbanknutzer das Recht `CREATEDB`.
 
 `apps/web/e2e/seiten.spec.ts` lädt jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
 - Die Seite antwortet ohne Fehler und hat eine Überschrift.
@@ -229,7 +236,7 @@ Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen m
 - Am Handy ist die Seite nicht breiter als der Bildschirm.
 - Das Handy-Menü lässt sich öffnen und bedienen.
 
-Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab. Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
+Screenshots macht der Test nicht; die Bilder für README und Doku entstehen getrennt (siehe unten). Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
 
 `apps/web/e2e/barrierefreiheit.spec.ts` prüft mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Eine einzelne Datei startest du mit `bun run e2e barrierefreiheit`; Playwright lässt `app.spec.ts` dann davor laufen, weil das Projekt `mit-daten` davon abhängt.
 
@@ -240,7 +247,9 @@ E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run e2e
 
 Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="bun .output/server/index.mjs"` nach `bun run build`). Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-In der CI läuft der Job `e2e` bei jedem Pull Request. Screenshots, Playwright-Bericht und bei Fehlern Traces hängen als Artefakt `e2e-screenshots` am Lauf. So sieht man zu jeder Änderung, wie alle Seiten aussehen.
+In der CI laufen die Tests bei jedem Pull Request in drei Teilen parallel (Jobs `e2e-teil`, `bun run e2e --shard=<n>/3`). Jeder Teil mit Tests aus `mit-daten` spielt `app.spec.ts` vorher selbst durch. Der Job `e2e` fasst die Teile zu einem Ergebnis zusammen; ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso, etwa `bun run e2e --shard=2/3`.
+
+Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-bericht-teil-<n>` am Lauf.
 
 ### Bilder für README und Doku
 
@@ -467,7 +476,7 @@ Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pul
 
 ### Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Meist ist nur ein Feld Pflicht, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Jedes Formular hat nur ein Pflichtfeld, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau beschreiben will, folgt derselben Gliederung ausführlicher (Claude Code: Skill `issue-schreiben` in `.claude/skills/`):
 
@@ -477,9 +486,9 @@ Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau b
 | Stand in Haben | Was Haben heute tut, **auf dem aktuellen `main` geprüft**, mit Commit und Links auf Doku oder Code. Nicht aus dem Gedächtnis. |
 | Vorschlag | Was sich ändern soll, bei Bedarf in Stufen. Grenzen nennen: was ausdrücklich nicht dazugehört. |
 | Akzeptanzkriterien | Drei bis sechs prüfbare Punkte als `- [ ]`, zu denen ein Test oder ein Blick in die Oberfläche Ja oder Nein sagt. Bei Buchungen und Steuer: SKR03 und SKR04, Ist und Soll. |
-| Bezug und Quellen | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. |
+| Bezug | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
 
-Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Die Reihenfolge in der Roadmap legt der Maintainer fest.
+Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Der Titel nennt das Ergebnis, nicht den Anlass. Vor dem Schreiben suchen Agenten auch in den Pull Requests (`gh pr list --state all --search …`), weil Erledigtes oft nur dort steht. Der Ist-Stand wird nach `git fetch origin` auf `origin/main` gelesen, der geprüfte Commit genannt und mit Permalinks (`https://github.com/firsttris/haben/blob/<commit>/<pfad>#L<n>`) belegt. Gibt es das Thema schon, bekommt der Nutzer den Fund gemeldet; ein Issue entsteht nur zum fehlenden Teil. Ein Issue, das ein Agent geschrieben hat (außer einer bloßen Korrektur), endet nach einer Trennlinie mit dem Hinweis auf das Werkzeug, z. B. `_Generated with [Claude Code](https://claude.com/claude-code)_`. Anlegen und Kommentieren tut ein Agent nur auf Anweisung des Nutzers; beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`), weitere Labels und den Platz in der Roadmap setzt der Maintainer.
 
 ### Review
 

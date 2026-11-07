@@ -1,11 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
-import { mkdirSync } from "node:fs";
-import { ANONYMOUS, day, fakeEigeneSeite, firstLink, fullPageScreenshot, SESSION, SHOTS, YEAR } from "./daten.ts";
+import { day, fakeEigeneSeite, firstLink, SESSION, YEAR } from "./daten.ts";
 
 /**
- * Von jeder Seite ein Screenshot (Desktop und Handy) unter test-results/screenshots, mit den Daten aus
- * app.spec.ts. Jede Seite muss laden, eine Überschrift haben und darf auf dem Handy nicht breiter sein als
- * der Bildschirm. Eine neue Seite gehört in ROUTES.
+ * Lädt jede Seite (Desktop und Handy) mit den Daten aus app.spec.ts: Jede Seite muss laden, eine Überschrift
+ * haben und darf auf dem Handy nicht breiter sein als der Bildschirm. Eine neue Seite gehört in ROUTES.
+ * Bilder für README und Doku macht zz-doku-screenshots.spec.ts.
  */
 
 test.use({ storageState: SESSION });
@@ -87,18 +86,18 @@ for (const [device, viewport] of [
   ["mobil", { width: 390, height: 844 }],
 ] as const) {
   for (const half of HALVES) {
-    test(`Screenshots aller Seiten (${device}, Teil ${half + 1})`, async ({ page }) => {
+    test(`Alle Seiten laden (${device}, Teil ${half + 1})`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await fakeEigeneSeite(page);
-      mkdirSync(`${SHOTS}/${device}`, { recursive: true });
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       const all = await routes(page);
       const middle = Math.ceil(all.length / 2);
-      for (const [index, [name, path]] of all.entries()) {
+      for (const [index, [, path]] of all.entries()) {
         if (!path || index < middle !== (half === 0)) continue;
         const response = await page.goto(path);
         expect(response?.status(), `${path} lädt`).toBeLessThan(400);
+        // Erst wenn das Netz ruht, ist die Seite hydriert; sonst entgingen späte Fehler im Browser (pageerror)
         await page.waitForLoadState("networkidle");
         await expect(page.getByRole("heading", { level: 1 }).first(), `${path} hat eine Überschrift`).toBeVisible();
         // Kein waagrechtes Scrollen der ganzen Seite auf dem Handy
@@ -106,7 +105,6 @@ for (const [device, viewport] of [
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
           expect.soft(overflow, `${path} ist nicht breiter als das Handy`).toBeLessThanOrEqual(1);
         }
-        await fullPageScreenshot(page, { path: `${SHOTS}/${device}/${String(index + 1).padStart(2, "0")}-${name}.png` });
       }
       if (device === "mobil" && half === 1) {
         // Menü auf dem Handy: aufklappen, Seite wählen, schließt wieder
@@ -114,7 +112,6 @@ for (const [device, viewport] of [
         await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "Menü" }).click();
         await expect(page.getByRole("link", { name: "Konten" })).toBeVisible();
-        await page.screenshot({ path: `${SHOTS}/mobil/00-menue.png` });
         await page.getByRole("link", { name: "Konten" }).click();
         await page.waitForURL(/\/konten/);
         await expect(page.getByRole("link", { name: "Einstellungen" })).toBeHidden();
@@ -123,14 +120,6 @@ for (const [device, viewport] of [
     });
   }
 }
-
-test("Screenshot der Anmeldeseite ohne Sitzung", async ({ browser }) => {
-  const anonymous = await browser.newPage({ ...ANONYMOUS, viewport: { width: 1440, height: 900 } });
-  mkdirSync(`${SHOTS}/desktop`, { recursive: true });
-  await anonymous.goto("/login");
-  await anonymous.screenshot({ path: `${SHOTS}/desktop/00-login.png` });
-  await anonymous.close();
-});
 
 /** Gültige UUID, zu der es nichts gibt */
 const UNBEKANNT = "00000000-0000-4000-8000-000000000000";

@@ -37,7 +37,7 @@ Update what the change affects, in the same pull request, and only that:
 - bookings and tax: test cases for SKR03 and SKR04 and for Ist and Soll;
 - the docs in `docs/` that describe it, in German;
 - the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
-- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/seiten.spec.ts`;
+- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the route list in `e2e/seiten.spec.ts`;
 - a change to the look (UI/UX): screenshots before and after in the pull request description, in a light and
   a dark theme, desktop and phone where it matters. Take the "before" pictures first, before touching the UI,
   so the old state need not be rebuilt later; skill `pr-screenshots` has the steps and how to upload them;
@@ -54,7 +54,7 @@ bun run typecheck
 TEST_DATABASE_URL=postgres://…/haben_test bun run test     # without it the Postgres tests are skipped
 bun run build
 E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e         # name must end in "e2e"; it is emptied
-mkdocs build --strict                                   # when docs/ or mkdocs.yml changed
+zensical build --strict                                 # when docs/ or mkdocs.yml changed
 ```
 
 Both databases are wiped by the tests, and `bun run test` also creates and drops `<name>_vorlage` and
@@ -105,10 +105,14 @@ Skill `checks` has the details:
 ## Issues
 
 Write issues in German with the headings Anlass, Stand in Haben, Vorschlag, Akzeptanzkriterien, Bezug.
-Check "Stand in Haben" against the current `main` and link commit, docs or code; name sources with
-links; invented amounts, no real receipts, tax numbers, IBANs or credentials. Steps and detail level:
+Search issues and pull requests first (done work often lives only in a pull request). Check
+"Stand in Haben" against the current `main` and link commit, docs or code; name sources with links;
+invented amounts, no real receipts, tax numbers, IBANs or credentials. End an agent-written issue (not a mere
+correction) with a rule and `_Generated with [Claude Code](https://claude.com/claude-code)_` (or the
+agent's own name). Create or comment on issues only when the user says so. Steps and detail level:
 skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
-(Issues schreiben). Roadmap order and labels are the maintainer's call.
+(Issues schreiben). The type label (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`) is set when creating
+the issue; other labels and the roadmap order are the maintainer's call.
 
 ## Working rules
 
