@@ -49,25 +49,40 @@ export function createOrderPdfImporter(actor: string, client: SevdeskClient, sig
       .where(eq(schema.legacyOrderFiles.orderId, document.id))
       .limit(1);
     if (file) return false;
+    const stop = (error: unknown): never => {
+      stopped = true;
+      if (signal.aborted || authenticationFailure(error)) throw error;
+      throw new OrderArchiveError(`${message(error)} Weitere automatische Auftrags-PDFs sind für diesen Abruf ausgesetzt.`);
+    };
+    let before: SevOrder;
     try {
       const version = await client.bookkeepingSystemVersion();
       if (version !== "1.0")
         throw new OrderArchiveError(
           `Kein automatischer Auftrags-PDF-Abruf: Buchhaltungsversion ${version || "unbekannt"} ist nicht geprüft. Original-PDFs können manuell ergänzt werden.`,
         );
-      return await retrievePdf(actor, client, document);
+      before = await client.order(document.externalId);
     } catch (error) {
-      stopped = true;
-      if (signal.aborted || authenticationFailure(error)) throw error;
-      throw new OrderArchiveError(`${message(error)} Weitere automatische Auftrags-PDFs sind für diesen Abruf ausgesetzt.`);
+      return stop(error);
+    }
+    // Bis hier wurde kein PDF angefragt: die Abweichung betrifft nur dieses Dokument und setzt die übrigen nicht aus,
+    // sonst sperrt ein einziges später bearbeitetes Dokument den Nachabruf bei jedem neuen Lauf.
+    if (changes(document.raw.order as SevOrder, before).length)
+      throw new OrderArchiveError("sevDesk-Dokument seit Archivierung verändert. PDF dem archivierten Stand nach Prüfung manuell zuordnen.");
+    try {
+      return await retrievePdf(actor, client, document, before);
+    } catch (error) {
+      return stop(error);
     }
   };
 }
 
-async function retrievePdf(actor: string, client: SevdeskClient, document: typeof schema.legacyOrderDocuments.$inferSelect): Promise<boolean> {
-  const before = await client.order(document.externalId);
-  if (changes(document.raw.order as SevOrder, before).length)
-    throw new OrderArchiveError("sevDesk-Dokument seit Archivierung verändert. PDF dem archivierten Stand nach Prüfung manuell zuordnen.");
+async function retrievePdf(
+  actor: string,
+  client: SevdeskClient,
+  document: typeof schema.legacyOrderDocuments.$inferSelect,
+  before: SevOrder,
+): Promise<boolean> {
   let after: SevOrder | null = null;
   let pdf: Awaited<ReturnType<SevdeskClient["orderPdf"]>> = null;
   let failure: unknown;
