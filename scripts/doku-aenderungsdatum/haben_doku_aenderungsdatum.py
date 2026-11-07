@@ -51,10 +51,11 @@ def with_date(lines: list[str], iso: str | None) -> list[str]:
     text = format_date(iso) if iso else None
     if text is None:
         return lines
+    # data-search-exclude: Zensical lässt das Datum aus dem Suchindex, sonst fände „Update“ jede Seite
     return [
         *lines,
         "",
-        f'<p class="aenderungsdatum"><small>Letztes Update: <time datetime="{iso}">{text}</time></small></p>',
+        f'<p class="aenderungsdatum" data-search-exclude><small>Letztes Update: <time datetime="{iso}">{text}</time></small></p>',
     ]
 
 
