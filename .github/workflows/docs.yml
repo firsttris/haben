@@ -50,8 +50,9 @@ jobs:
       - run: grep -q 'class="aenderungsdatum"' site/index.html
       # Das Datum gehört nicht in den Suchindex, sonst findet die Suche nach „Update“ jede Seite
       - run: "! grep -q 'Letztes Update' site/search.json"
-      # Jeder Hinweis im GitHub-Stil ist ein Kasten; ein übrig gebliebener Marker hieße, pymdownx.quotes fehlt
-      - run: "! grep -rlE '\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\]' site --include='*.html'"
+      # Jeder Hinweis im GitHub-Stil ist ein Kasten; ein Absatz, der mit dem Marker beginnt, hieße, pymdownx.quotes
+      # fehlt. Nur am Anfang eines Absatzes: als Code (`> [!NOTE]` in entwicklung.md) darf der Marker stehen
+      - run: "! grep -rlE '<p>\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\]' site --include='*.html'"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
