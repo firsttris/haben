@@ -24,9 +24,6 @@ export const YEAR = base.getUTCFullYear();
 /** Datum `offset` Tage vom Bezugstag aus, als YYYY-MM-DD */
 export const day = (offset: number) => new Date(base.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
 
-/** Ordner für die Screenshots im Artefakt der CI */
-export const SHOTS = "test-results/screenshots";
-
 /** Erste verlinkte Detailseite einer Liste, z. B. /rechnungen/<id> */
 export async function firstLink(p: Page, list: string, pattern: RegExp): Promise<string | null> {
   await p.goto(list);

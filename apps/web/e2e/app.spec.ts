@@ -1,9 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
-import { mkdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import postgres from "postgres";
-import { day, EIGENE_SEITE, fakeEigeneSeite, firstLink, fullPageScreenshot, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
+import { day, EIGENE_SEITE, fakeEigeneSeite, firstLink, SESSION, USER, YEAR } from "./daten.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -513,13 +513,10 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await berechtigung.getByRole("button", { name: "Berechtigung beantragen" }).click();
   await expect(vast.getByRole("status")).toContainText("Erika bekommt von ELSTER einen Brief");
   await expect(berechtigung).toContainText("beantragt, wartet auf Freischaltung");
-  await vast.screenshot({ path: `${SHOTS}/desktop/16c-berechtigung-beantragt.png` });
   await vast.getByLabel("Zertifikats-PIN").fill("123456");
   await berechtigung.getByLabel("Freischaltcode aus dem Brief").fill("ABCD-EFGH-1234");
   await berechtigung.getByRole("button", { name: "Freischalten" }).click();
   await expect(berechtigung).toContainText("genehmigt");
-  mkdirSync(`${SHOTS}/desktop`, { recursive: true });
-  await vast.screenshot({ path: `${SHOTS}/desktop/16b-belege-elster.png` });
 });
 
 test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
@@ -543,7 +540,6 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await expect(form.getByText(/N \(Erika\)/)).toBeVisible();
   await expect(form.getByText("Bereits einbehalten (Lohnsteuer, Soli, KiSt)")).toBeVisible();
   await expect(form.getByText("6.123,40\u00a0€").first()).toBeVisible();
-  await n.screenshot({ path: `${SHOTS}/desktop/17-anlage-n.png` });
 });
 
 test("Seiten nur von derselben Origin einbettbar", async () => {
@@ -841,7 +837,6 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   const antwort = page.getByRole("region", { name: /Antwort des Kunden/ });
   await expect(antwort).toContainText("Offen", { timeout: 30_000 });
   await expect(page.getByText("2.094,40\u00a0€").first()).toBeVisible();
-  await fullPageScreenshot(page, { path: `${SHOTS}/desktop/03b-angebot.png` });
 
   // Abschlag aus dem Angebot: Rechnungsart und Angebot vorbelegt, den Betrag trägt man selbst ein; danach wieder verwerfen
   const angebotUrl = page.url();
@@ -1018,7 +1013,6 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await expect(formular.getByLabel("Betreff", { exact: true })).toHaveValue(/^Rechnung \d{4}-\d{3} von Mustermann IT/);
   await expect(formular.getByText(/Anhang: Rechnung-\d{4}-\d{3}\.pdf/)).toBeVisible();
   await formular.getByLabel("An", { exact: true }).fill("buchhaltung@nordwerk.example");
-  await fullPageScreenshot(page, { path: `${SHOTS}/desktop/04b-rechnung-email.png` });
   await formular.getByRole("button", { name: "Jetzt senden" }).click();
   await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
   await page.reload();
