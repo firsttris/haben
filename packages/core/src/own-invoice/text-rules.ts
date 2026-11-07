@@ -1,5 +1,5 @@
 import { isOwnUstId, mentionsOwnName, ownSteuernummerDigits } from "./company-match.ts";
-import { compactId, occurrences, ustIdsIn } from "./identifiers.ts";
+import { compactId, digitsOf, occurrences, ustIdsIn } from "./identifiers.ts";
 import { signal } from "./signal.ts";
 import { DEBIT_TERMS, DIRECT_DEBIT_TERMS, mentions, normalizeText, roleBefore } from "./terms.ts";
 import type { OwnCompany, OwnInvoiceRule, OwnInvoiceSignal, TextLine } from "./types.ts";
@@ -146,6 +146,29 @@ export const otherUstIdRule: OwnInvoiceRule = ({ lines }, company) => {
   return [];
 };
 
+/** Eine beschriftete Steuernummer: „Steuernummer 99/123/45678“, „St.-Nr.: 2181508150“; nicht in „Versicherungsteuer-Nr.“ */
+const STEUERNUMMER = /(?<!\p{L})(?:steuer[-\s]?(?:nummer|nr\.?)|st\.?[-\s]?nr\.?)\s*:?\s*(\d[\d/]{8,15}\d)/giu;
+
+/**
+ * Eine andere Steuernummer in der Fußzeile oder als Angabe des Rechnungsstellers: Dann hat ein anderer die Rechnung
+ * ausgestellt (Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG, oft statt der USt-IdNr.). Die eigene Steuernummer steht dann
+ * z. B. im Betreff einer Rechnung der Steuerberatung.
+ */
+export const otherSteuernummerRule: OwnInvoiceRule = ({ lines }, company) => {
+  const own = ownSteuernummerDigits(company);
+  if (!lines || own.length === 0) return [];
+  const other = lines.findIndex((line, index) =>
+    [...line.text.matchAll(STEUERNUMMER)].some((match) => {
+      const digits = digitsOf(match[1]!);
+      if (digits.length < 10 || digits.length > 13 || own.includes(digits)) return false;
+      return regionOf(line) === "footer" || roleOf(lines, index, match.index) === "seller";
+    }),
+  );
+  return other >= 0
+    ? [signal("andere-steuernummer", "foreign", 0.65, "In der Fußzeile bzw. beim Rechnungssteller steht eine andere Steuernummer als deine.")]
+    : [];
+};
+
 /**
  * Der eigene Firmenname in Fußzeile, Briefkopf oder Absenderzeile (eine Zeile mit Name und eigener PLZ über dem
  * Anschriftfeld) spricht für den Absender, im Anschriftfeld für den Empfänger.
@@ -168,4 +191,4 @@ function nameSignal(line: TextLine, company: OwnCompany): OwnInvoiceSignal[] {
   return [];
 }
 
-export const TEXT_RULES: OwnInvoiceRule[] = [ustIdInTextRule, steuernummerInTextRule, ibanInTextRule, otherUstIdRule, nameInTextRule];
+export const TEXT_RULES: OwnInvoiceRule[] = [ustIdInTextRule, steuernummerInTextRule, ibanInTextRule, otherUstIdRule, otherSteuernummerRule, nameInTextRule];
