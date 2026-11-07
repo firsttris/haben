@@ -39,7 +39,8 @@ Update what the change affects, in the same pull request, and only that:
 - the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
 - a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/seiten.spec.ts`;
 - a change to the look (UI/UX): screenshots before and after in the pull request description, in a light and
-  a dark theme, desktop and phone where it matters;
+  a dark theme, desktop and phone where it matters. Take the "before" pictures first, before touching the UI,
+  so the old state need not be rebuilt later; skill `pr-screenshots` has the steps and how to upload them;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
   look at the new pictures.
 
@@ -60,9 +61,29 @@ Both databases are wiped by the tests, and `bun run test` also creates and drops
 `<name>_<n>` next to the test database; never point them at a server with real data. In a container without
 PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl … -o '-p 5433'`).
 
+Skill `checks` has the details:
+
+- No Bun on the machine: run the checks in the dev container from `compose.yml`
+  (`docker compose run --rm -u bun app …`, see `docs/entwicklung.md`, "Prüfungen ohne Bun auf dem Rechner"),
+  not in ad-hoc containers of your own.
+- In a git worktree or next to a running environment: an own compose project and free ports
+  (`HABEN_DEV_PORT=3001 HABEN_DEV_DB_PORT=5433 docker compose -p haben-<branch> …`); never touch the
+  user's `haben-dev` project. Clean it up with `down -v` when done.
+- Some tests skip without a tool (`TEST_DATABASE_URL`, `pdftotext`, `cc`, ERiC, network; table in
+  `docs/entwicklung.md`, Tests). Report what was skipped; a skipped test proves nothing.
+
 ## Pull requests
 
-- One feature per pull request; it carries only its own commits.
+- One feature per pull request; it carries only its own commits. Skill `beitrag` has the steps from branch
+  to draft.
+- Branch in `firsttris/haben` with write access, otherwise in a fork; never push to `main`. Pull requests
+  start as drafts when the user wants to look first; CI skips drafts until "Ready for review".
+- Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
+  Commits inside a pull request: Conventional Commits types with a German description
+  (`fix(belege): …`, `test: …`). A recommendation, no lint.
+- Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
+  each commit, and a "🤖 Generated with <tool>" line in the pull request description. Using agents is
+  welcome; the person who opens the pull request stays responsible for it.
 - Before every push check whether the branch's pull request is still open. If it is merged, start
   again from the current `origin/main` and open a **new** pull request.
 - Merge method: squash for own pull requests. A contributor's pull request is taken over unchanged

@@ -11,7 +11,7 @@ Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, di
 
 Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
-- **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, keine eigene Einschätzung. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Laufen mehrere Reviews parallel, je einen eigenen Worktree und eine eigene Test-Datenbank. Danach weiter mit Schritt 5.
+- **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, keine eigene Einschätzung. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Der Subagent arbeitet in einem eigenen Worktree auf dem Branch des PR und mit einer eigenen Compose-Instanz samt Test-Datenbank (Skill `checks`, Schritt 2: eigener Projektname und Ports), nie im Checkout oder in der `haben-dev`-Umgebung der Person; am Ende räumt er beides ab. Bei mehreren parallelen Reviews je eine eigene Instanz. Danach weiter mit Schritt 5.
 - **Frische Session, nur ein PR genannt:** Diese Session ist unabhängig; direkt mit Schritt 1 beginnen.
 
 ## 1. Direkt reviewen
@@ -26,7 +26,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 - Für jeden Verdacht einen neuen Test schreiben, der das erwartete Verhalten beschreibt, und nur diesen Test ausführen:
   - Fachlogik ohne Datenbank: Vitest neben dem Modul in `packages/*`.
-  - Server mit Datenbank: Postgres-Test neben dem Modul in `apps/web/src/server/modules/`, mit `TEST_DATABASE_URL` (ohne die Variable wird er übersprungen und beweist nichts).
+  - Server mit Datenbank: Postgres-Test neben dem Modul in `apps/web/src/server/modules/`, mit `TEST_DATABASE_URL` (ohne die Variable wird er übersprungen und beweist nichts; ohne Bun im Dev-Container nach Skill `checks`).
   - Was ein Nutzer klickt: Playwright in `apps/web/e2e/`, nur wenn es nicht anders geht.
 - **Nur ein Test, der auf dem Stand des PR rot ist, ist ein Finding.**
 - Bleibt der Test grün oder lässt sich der Verdacht nicht testen, wird er verworfen (höchstens als Notiz unter „Nicht belegt“).
@@ -53,6 +53,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
   mkdocs build --strict                                # wenn docs/ oder mkdocs.yml geändert sind
   ```
 
+  Ohne Bun auf dem Rechner oder ohne PostgreSQL: dieselben Prüfungen im Dev-Container (Skill `checks`). Übersprungene Tests im Abschlusskommentar nennen.
   Beide Datenbanken werden geleert; nie auf einen Server mit echten Daten zeigen lassen. Ohne PostgreSQL 18 im Container geht das installierte PostgreSQL (`initdb`, `pg_ctl … -o '-p 5433'`). Der E2E-Server nutzt Port 3100.
 - Auf den PR-Branch pushen.
 

@@ -63,6 +63,37 @@ docker compose exec db createdb -U haben haben_e2e
 
 `docker compose down` hält die Umgebung an, die Daten bleiben erhalten. `docker compose down -v` löscht Datenbank, Belege und Schlüssel.
 
+### Prüfungen ohne Bun auf dem Rechner
+
+Ist Bun nicht installiert, laufen die Prüfungen im selben Container. `run` startet dafür einen eigenen Container neben dem Dev-Server und die Datenbank mit; `-u bun` sorgt dafür, dass neue Dateien dir gehören:
+
+```sh
+docker compose run --rm -u bun app bun install --frozen-lockfile   # einmal, wenn `docker compose up` noch nie lief
+docker compose run --rm -u bun app bun run lint
+docker compose run --rm -u bun app bun run typecheck
+docker compose run --rm -u bun app bun run build
+docker compose exec db createdb -U haben haben_test                 # einmal, die Datenbank muss laufen
+docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:5432/haben_test app bun run test
+```
+
+Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
+
+Die Doku baut ein Container mit Python, aus dem Hauptordner des Klons gestartet. Aus einem Git-Worktree heraus scheitert er, weil das Plugin für das Änderungsdatum dort das Repository nicht findet:
+
+```sh
+docker run --rm -v "$PWD":/docs -w /docs python:3.13-slim sh -c 'apt-get update -qq && apt-get install -qq -y git >/dev/null && git config --global --add safe.directory /docs && pip install -q -r requirements-docs.txt && mkdocs build --strict'
+```
+
+### Mehrere Umgebungen nebeneinander
+
+`compose.yml` heißt fest `haben-dev`; ein zweiter Klon oder ein Git-Worktree mit demselben Namen würde Container und Datenbank des ersten übernehmen. Für jede weitere Umgebung deshalb einen eigenen Projektnamen und freie Ports wählen:
+
+```sh
+HABEN_DEV_PORT=3001 HABEN_DEV_DB_PORT=5433 docker compose -p haben-mein-branch up
+```
+
+Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `run`, `exec` und `down`. Das gilt auch für `run`: Es startet die Datenbank mit und gibt ihren Port frei, auf dem Standardport stößt es sonst mit einer laufenden Umgebung zusammen. `docker compose -p haben-mein-branch down -v` räumt die Umgebung samt Daten wieder ab.
+
 ## Befehle
 
 | Befehl | Was er tut |
@@ -99,6 +130,18 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohn
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
 
 Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kompilieren eine kleine C-Bibliothek mit `cc`. Gibt es keinen Compiler, werden sie übersprungen.
+
+Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
+
+| Fehlt | Folge | Im Dev-Container | In der CI |
+| --- | --- | --- | --- |
+| `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
+| `pdftotext`, `pdftoppm` (poppler-utils) | Textebene und Seitenbilder von PDFs übersprungen | ja | ja |
+| `zip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
+| `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
+| ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
+| Netz | Schema der Deutschen Kreditwirtschaft für SEPA übersprungen | ja | ja, sonst Fehler |
+| Java | nur `kosit` (eigener Befehl, kein Test) | nein | eigener Job |
 
 ### Tests mit echtem ERiC
 
@@ -388,7 +431,7 @@ Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffs
 
 ## Mitwirken
 
-Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen:
+Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen (ohne Bun auf dem Rechner siehe [Prüfungen ohne Bun auf dem Rechner](#prüfungen-ohne-bun-auf-dem-rechner)):
 
 ```sh
 bun run lint
@@ -401,7 +444,23 @@ bun run build
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy.
+- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub. Ein Branch nur für Bilder ist eine Notlösung: nur im eigenen Fork, nie im Haupt-Repository (jeder Klon lädt ihn sonst mit), nur neue Commits, und mit dem Branch oder Fork verschwinden auch die Bilder.
+
+### Branches, Titel und Commits
+
+- **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“.
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Eigene Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
+- **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
+
+### Mit KI-Werkzeugen
+
+Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Haben ist so entstanden. Der Transparenz halber wird es gekennzeichnet, mehr nicht:
+
+- im Commit mit einer Zeile `Co-Authored-By: <Werkzeug oder Modell> <Adresse>`, wie sie die Werkzeuge meist selbst setzen;
+- in der Beschreibung des Pull Requests mit einer Zeile wie „🤖 Generated with <Werkzeug>“.
+
+Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
 ### Review
 

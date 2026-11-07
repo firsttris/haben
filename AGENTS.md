@@ -8,3 +8,7 @@ Every pull request gets an independent TDD review before it is merged: a finding
 that fails on the pull request, fixes go on top as their own commits. The steps are in
 [`docs/entwicklung.md`](docs/entwicklung.md#review); Claude Code has them as the skill
 [`.claude/skills/tdd-review`](.claude/skills/tdd-review/SKILL.md).
+
+Further skills for Claude Code in [`.claude/skills`](.claude/skills); other agents follow the same steps from the
+files: `checks` (checks with and without Bun, own compose project per worktree), `beitrag` (branch, commits, draft
+pull request) and `pr-screenshots` (pictures before and after a change to the look).
