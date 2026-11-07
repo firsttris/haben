@@ -28,8 +28,20 @@ CREATE TABLE "legacy_order_files" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "legacy_order_pdf_attempts" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_id" uuid NOT NULL,
+	"bookkeeping_version" text NOT NULL,
+	"before" jsonb NOT NULL,
+	"after" jsonb,
+	"error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "legacy_order_documents" ADD CONSTRAINT "legacy_order_documents_import_id_lexoffice_imports_id_fk" FOREIGN KEY ("import_id") REFERENCES "public"."lexoffice_imports"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "legacy_order_documents" ADD CONSTRAINT "legacy_order_documents_contact_id_contacts_id_fk" FOREIGN KEY ("contact_id") REFERENCES "public"."contacts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "legacy_order_files" ADD CONSTRAINT "legacy_order_files_order_id_legacy_order_documents_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."legacy_order_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "legacy_order_pdf_attempts" ADD CONSTRAINT "legacy_order_pdf_attempts_order_id_legacy_order_documents_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."legacy_order_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "legacy_order_documents_date" ON "legacy_order_documents" USING btree ("date");--> statement-breakpoint
-CREATE UNIQUE INDEX "legacy_order_files_unique" ON "legacy_order_files" USING btree ("order_id","sha256");
+CREATE UNIQUE INDEX "legacy_order_files_unique" ON "legacy_order_files" USING btree ("order_id","sha256");--> statement-breakpoint
+CREATE INDEX "legacy_order_pdf_attempts_order" ON "legacy_order_pdf_attempts" USING btree ("order_id");

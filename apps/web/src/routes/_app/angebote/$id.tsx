@@ -67,6 +67,7 @@ function QuotePage() {
         letterIssues={data.letterIssues}
         issues={data.issues}
         numberCounters={data.numberCounters}
+        numberRunning={data.numberRunning}
         numberFormat={data.numberFormat}
         corrects={null}
         bundesland={data.bundesland}

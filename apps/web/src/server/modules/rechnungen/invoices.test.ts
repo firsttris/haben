@@ -149,7 +149,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   });
 
   it("Festschreiben vergibt lückenlose Nummern, erzeugt PDF und XML und bucht", async () => {
-    await invoices.setNextNumber(actor, 2026, 34);
+    await invoices.setNextNumber(actor, "2026-03-02", 34);
     const first = await invoices.createDraft(actor, draft());
     const second = await invoices.createDraft(actor, draft());
 

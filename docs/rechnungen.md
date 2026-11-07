@@ -15,7 +15,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 ## So gehst du vor
 
 1. Unter **Rechnungen** auf **Neue Rechnung** klicken.
-2. **Kunde** wählen. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um.
+2. **Kunde** wählen. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um. Fehlt der Kunde noch, legst du ihn mit **Neuen Kontakt anlegen** an, ohne den Entwurf zu verlassen: Im Dialog ist die Rolle **Kunde** angehakt, nach dem Speichern ist er gewählt, und die Eingaben im Entwurf bleiben stehen, auch wenn du abbrichst. Gibt es schon einen Kontakt mit derselben USt-IdNr., bietet der Dialog ihn an, statt eine Dublette anzulegen. Das gilt ebenso im Angebot.
 3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum (siehe [Fälligkeit](#fälligkeit)). Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
    Optional **Skonto**: je Stufe Satz und Frist in Tagen, vorbelegt vom Kunden oder aus den Firmendaten (siehe [Skonto](#skonto)).
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
@@ -524,7 +524,7 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 ## Kontakte
 
-Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kundennummer, E-Mail und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
+Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kundennummer, E-Mail, Telefon und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
 
 | Feld | Hinweis |
 | --- | --- |
@@ -533,6 +533,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
 | Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. Mit einem Format unter **Einstellungen › Rechnungen › Kundennummern** vergibt Haben sie beim Anlegen selbst, wenn du das Feld leer lässt (siehe unten). |
 | E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
+| Telefon | Frei, mit Ziffern, Leerzeichen und `+ ( ) / - .`, z. B. `+49 941 123456`. Steht in der Kontaktliste unter der E-Mail und lässt sich suchen, aber nicht auf Rechnungen. |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
 | Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
 | USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. |

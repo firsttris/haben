@@ -95,6 +95,7 @@ function InvoicePage() {
         letterIssues={data.letterIssues}
         issues={data.issues}
         numberCounters={data.numberCounters}
+        numberRunning={data.numberRunning}
         numberFormat={data.numberFormat}
         corrects={data.corrects}
         bundesland={data.bundesland}

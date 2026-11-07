@@ -7,7 +7,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveCustomerNumberingSettings } from "../server/functions/company.ts";
 
 /** Kundennummern automatisch beim Anlegen eines Kontakts, etwa K-0001; leeres Format = von Hand */
-export function CustomerNumberCard({ format, next, year }: { format: string; next: number; year: number }) {
+export function CustomerNumberCard({ format, next, date }: { format: string; next: number; date: string }) {
   const router = useRouter();
   const save = useServerFn(saveCustomerNumberingSettings);
   const { busy, notice, run } = useAction();
@@ -54,7 +54,7 @@ export function CustomerNumberCard({ format, next, year }: { format: string; nex
             {problem ??
               (trimmed && counterValid ? (
                 <>
-                  Nächste: <span className="mono">{formatDocumentNumber(trimmed, year, counter)}</span>
+                  Nächste: <span className="mono">{formatDocumentNumber(trimmed, date, counter)}</span>
                 </>
               ) : (
                 "Aus: Nummern von Hand"

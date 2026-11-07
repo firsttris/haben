@@ -253,11 +253,11 @@ Lehnt die Datenbank eine Umstellung ab, weil gleichzeitig gebucht wurde, siehst 
 
 ## Rechnungsnummern
 
-Rechnungsnummern haben ab Werk die Form `JAHR-NNN`, zum Beispiel `2026-034`; das Format lässt sich ändern (siehe unten). Der Zähler läuft je Jahr; das Jahr kommt aus dem Rechnungsdatum. Eine Nummer vergibt Haben erst beim Festschreiben, in derselben Transaktion wie PDF, XML und Buchung. Schlägt dabei etwas fehl, wird keine Nummer verbraucht. Entwürfe haben noch keine Nummer, deshalb entstehen keine Lücken.
+Rechnungsnummern haben ab Werk die Form `JAHR-NNN`, zum Beispiel `2026-034`; das Format lässt sich ändern (siehe unten). Der Zähler beginnt ab Werk jedes Jahr bei 1 oder läuft auf Wunsch weiter (siehe [Zähler](#zähler)); das Jahr kommt aus dem Rechnungsdatum. Eine Nummer vergibt Haben erst beim Festschreiben, in derselben Transaktion wie PDF, XML und Buchung. Schlägt dabei etwas fehl, wird keine Nummer verbraucht. Entwürfe haben noch keine Nummer, deshalb entstehen keine Lücken.
 
 Lückenlos und fortlaufend sollen die Nummern sein, damit das Finanzamt bei einer Prüfung sieht, dass keine Rechnung fehlt.
 
-Unter **Einstellungen › Rechnungen › Rechnungsnummern** siehst du die nächste Nummer des laufenden Jahres. Kommst du aus Lexoffice, trägst du dort die nächste laufende Nummer ein (z. B. `35`, wenn die letzte Lexoffice-Rechnung `2026-034` war). Der Wert muss größer sein als die zuletzt vergebene Nummer; zurücksetzen geht nicht. Die letzte Lexoffice-Nummer zeigt dir auch der Abgleich in [Umzug aus Lexoffice](lexoffice.md).
+Unter **Einstellungen › Rechnungen › Rechnungsnummern** siehst du die nächste Nummer des laufenden Jahres, bei durchlaufendem Zähler die nächste überhaupt; **Angebotsnummern** darunter dasselbe für Angebote. Kommst du aus Lexoffice oder sevDesk, trägst du dort die nächste laufende Nummer ein (z. B. `35`, wenn die letzte Rechnung `2026-034` war). Der Wert muss größer sein als die zuletzt vergebene Nummer; zurücksetzen geht nicht. Die letzte Lexoffice-Nummer zeigt dir auch der Abgleich in [Umzug aus Lexoffice](lexoffice.md).
 
 ### Nummernformat
 
@@ -267,13 +267,26 @@ Unter **Einstellungen › Rechnungen › Nummernformat** legst du fest, wie Rech
 | --- | --- |
 | `{JJJJ}` | Jahr des Rechnungs- bzw. Angebotsdatums, z. B. `2026` |
 | `{JJ}` | dasselbe zweistellig, z. B. `26` |
+| `{MM}` | Monat des Rechnungs- bzw. Angebotsdatums zweistellig, z. B. `10` |
 | `{N}` bis `{NNNNNN}` | laufende Nummer mit mindestens so vielen Stellen, vorne mit Nullen aufgefüllt; mehr Stellen werden nie abgeschnitten |
 
-Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034`.
+Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034`, `RE-{JJJJ}-{MM}-{NNNN}` ergibt `RE-2026-10-0034`.
 
-- Die laufende Nummer muss genau einmal vorkommen, das Jahr mindestens einmal: Der Zähler beginnt jedes Jahr bei 1, erst mit dem Jahr bleibt jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG).
+- Jahr und Monat kommen aus dem Rechnungs- bzw. Angebotsdatum, nicht aus dem Tag des Festschreibens: Eine Rechnung vom 31. Oktober, die du am 2. November festschreibst, heißt `RE-2026-10-…`. Die Überschrift im Editor zeigt die voraussichtliche Nummer schon so.
+- Die laufende Nummer muss genau einmal vorkommen. Beginnt der Zähler jedes Jahr neu, gehört auch das Jahr dazu, erst damit bleibt jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG); der Monat allein reicht nicht.
 - Außerhalb der Platzhalter gehen Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt, insgesamt höchstens 30 Zeichen. Leerzeichen und Schrägstrich gehen nicht, weil die Nummer auch im Dateinamen und im Verwendungszweck steht.
 - Unter dem Feld steht ein Beispiel oder, was am Format nicht passt.
+
+#### Zähler
+
+Neben jedem Format wählst du für Rechnungen und Angebote getrennt, wie der Zähler läuft:
+
+| Zähler | Verhalten |
+| --- | --- |
+| beginnt jedes Jahr neu (ab Werk) | Im Januar wieder bei 1: `RE-2026-0412`, dann `RE-2027-0001`. Das Jahr muss im Format stehen. |
+| läuft weiter | Über den Jahreswechsel hinweg: `RE-2026-12-0412`, dann `RE-2027-01-0413`. Das Jahr im Format ist frei, `RE-{NNNN}` geht auch. |
+
+Beides ist zulässig; eine Rechnungsnummer muss nur einmalig sein (UStAE 14.5 Abs. 10). Schaltest du auf **läuft weiter**, zählt Haben hinter der letzten Nummer des jüngsten Jahres weiter; die nächste Nummer kannst du danach unter **Rechnungsnummern** bzw. **Angebotsnummern** setzen, etwa auf die nächste aus sevDesk. Zurück auf **beginnt jedes Jahr neu** geht nur mit dem Jahr im Format; der Zähler des Jahres steht dann, wo er vor dem Umschalten stand. Ergibt das eine schon vergebene Nummer, meldet Haben sie wie bei einem Formatwechsel (unten). Storno und Korrektur zählen im selben Kreis wie Rechnungen.
 - Das Format gilt für alles, was ab dann festgeschrieben wird; schon vergebene Nummern bleiben, wie sie sind. Der Zähler läuft beim Wechsel einfach weiter.
 - Ergibt das neue Format eine Nummer, die es schon gibt, schreibt Haben nicht fest, sondern meldet „Die Nummer … ist schon vergeben“; der Zähler bleibt stehen. Das passiert nur bei sehr ähnlichen Formaten.
 - Der Bankabgleich findet die Nummer im Verwendungszweck in jedem Format.

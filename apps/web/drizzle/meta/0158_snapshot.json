@@ -1,6 +1,6 @@
 {
-  "id": "576c7c75-642a-4ace-bdde-5454d12b5e73",
-  "prevId": "9b498f48-3124-4781-bd0e-1e3d13eb2e95",
+  "id": "350d1141-a705-4f41-9422-bd9a3bd310bc",
+  "prevId": "8e65b2f5-39b3-4064-8fa8-63e104e2b2b8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2383,6 +2383,20 @@
           "notNull": true,
           "default": "'AN-{JJJJ}-{NNN}'"
         },
+        "invoice_counter_running": {
+          "name": "invoice_counter_running",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "quote_counter_running": {
+          "name": "quote_counter_running",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "customer_number_format": {
           "name": "customer_number_format",
           "type": "text",
@@ -2690,6 +2704,13 @@
         },
         "email": {
           "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "telefon": {
+          "name": "telefon",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

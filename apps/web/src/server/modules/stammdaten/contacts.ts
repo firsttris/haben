@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { joinEmails, MAX_EMAIL_RECIPIENTS, skontoProblem, skontoStufenSchema, sortSkonto, splitEmails } from "@haben/core";
+import { joinEmails, MAX_EMAIL_RECIPIENTS, normalizeTelefon, skontoProblem, skontoStufenSchema, sortSkonto, splitEmails, telefonProblem } from "@haben/core";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -24,6 +24,15 @@ export const contactSchema = z.object({
     .refine((value) => splitEmails(value).length <= MAX_EMAIL_RECIPIENTS, `Höchstens ${MAX_EMAIL_RECIPIENTS} E-Mail-Adressen`)
     .refine((value) => splitEmails(value).every((v) => z.email().safeParse(v).success), "Keine gültige E-Mail-Adresse")
     .transform((value) => joinEmails(splitEmails(value))),
+  /** Fehlt = leer, wie bei Kontakten von vor #322 */
+  telefon: z
+    .string()
+    .default("")
+    .superRefine((value, ctx) => {
+      const problem = telefonProblem(value);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    })
+    .transform(normalizeTelefon),
   ustId: z.union([
     z.literal(""),
     z
@@ -96,6 +105,7 @@ function clean(input: ContactInput) {
     lieferantennummer: input.lieferantennummer?.trim() || null,
     kundennummer: input.kundennummer || null,
     email: joinEmails(splitEmails(input.email)),
+    telefon: normalizeTelefon(input.telefon ?? ""),
     ustId: input.ustId.replace(/\s/g, "").toUpperCase(),
     iban: input.iban.replace(/\s/g, "").toUpperCase(),
     ...(input.skonto === undefined ? {} : { skonto: input.skonto && sortSkonto(input.skonto) }),

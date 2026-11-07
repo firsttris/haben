@@ -16,6 +16,7 @@ import {
   type QuoteLineKind,
   formatDecimal,
   formatEuro,
+  counterCircle,
   formatDocumentNumber,
   formatQuantity,
   invoiceDueDate,
@@ -46,6 +47,8 @@ import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../s
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
+import { ContactDialog } from "./ContactDialog.tsx";
+import type { SavedContact } from "./ContactForm.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 import { LineExtras } from "./LineExtras.tsx";
@@ -67,6 +70,8 @@ interface ContactOption {
   skonto: SkontoStufe[] | null;
   /** Nur Kunden stehen zur Auswahl; ein schon gewählter Kontakt bleibt sichtbar */
   isCustomer: boolean;
+  /** Für den Hinweis auf eine Dublette beim Anlegen im Dialog */
+  ustId: string;
 }
 
 interface ArticleOption {
@@ -198,6 +203,7 @@ export function InvoiceEditor({
   issues,
   numberCounters,
   numberFormat,
+  numberRunning = false,
   corrects,
   bundesland,
   kleinunternehmer,
@@ -222,10 +228,12 @@ export function InvoiceEditor({
   /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
   letterIssues?: string[];
   issues: string[];
-  /** Letzte vergebene Nummer je Jahr */
+  /** Letzte vergebene Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
   numberCounters: Record<number, number>;
-  /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{NNN}" */
+  /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{MM}-{NNN}" */
   numberFormat: string;
+  /** Zähler läuft über den Jahreswechsel weiter (#328) */
+  numberRunning?: boolean;
   corrects: { number: string | null; issueDate: string } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
@@ -265,6 +273,7 @@ export function InvoiceEditor({
   const editable = kind === "rechnung" || quote;
 
   const [contactId, setContactId] = useState(initial.contactId ?? "");
+  const [newContactOpen, setNewContactOpen] = useState(false);
   const [issueDate, setIssueDate] = useState(initial.issueDate);
   const [serviceFrom, setServiceFrom] = useState(initial.serviceFrom ?? "");
   const [serviceTo, setServiceTo] = useState(initial.serviceTo ?? "");
@@ -335,8 +344,10 @@ export function InvoiceEditor({
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
-  const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
-  const nextNumber = formatDocumentNumber(numberFormat, numberYear, (numberCounters[numberYear] ?? 0) + 1);
+  // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
+  const numberDate = issueDate || initial.issueDate;
+  const circle = counterCircle(numberRunning, numberDate);
+  const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const skontoAllowed = kind === "rechnung" && !foreign;
@@ -439,12 +450,13 @@ export function InvoiceEditor({
     if (value !== "regulaer") setLines((prev) => prev.map((line) => ({ ...line, taxRate: 0 })));
   }
 
-  function chooseContact(value: string) {
+  /** saved: gerade im Dialog angelegt, steht also noch nicht in contacts */
+  function chooseContact(value: string, saved?: SavedContact) {
     touch(setContactId)(value);
-    const chosen = contacts.find((c) => c.id === value);
+    const chosen = saved ?? contacts.find((c) => c.id === value);
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
-    if (chosen) setLanguage(chosen.language);
+    if (chosen) setLanguage(chosen.language ?? "de");
     // Skonto des Kunden, sonst aus den Firmendaten; Fristen über das Zahlungsziel hinaus entfallen (wie defaultSkonto)
     if (chosen && kind === "rechnung") {
       setSkontoRows(toSkontoRows((chosen.skonto ?? companySkonto).filter((s) => !termValid || s.days <= term)));
@@ -568,6 +580,19 @@ export function InvoiceEditor({
 
   return (
     <>
+      <ContactDialog
+        open={newContactOpen}
+        title="Neuen Kunden anlegen"
+        prefill={{ isCustomer: true, isSupplier: false }}
+        existing={contacts}
+        onSaved={(saved) => {
+          chooseContact(saved.id, saved);
+          // Die Liste der Kunden neu laden; die Eingaben im Entwurf bleiben, der Editor wird nicht neu aufgebaut
+          void router.invalidate();
+        }}
+        onPickExisting={(id) => chooseContact(id)}
+        onClose={() => setNewContactOpen(false)}
+      />
       <div className="page-head">
         <div>
           <div className="eyebrow">{quote ? <Link to="/angebote">Angebote</Link> : <Link to="/rechnungen">Rechnungen</Link>} › Entwurf</div>
@@ -654,6 +679,13 @@ export function InvoiceEditor({
                     ))}
                 </select>
               </label>
+              {editable && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <button type="button" className="btn" onClick={() => setNewContactOpen(true)}>
+                    Neuen Kontakt anlegen
+                  </button>
+                </div>
+              )}
               {kind === "rechnung" && (variant || quoteId) && (
                 <label className="field" style={{ gridColumn: "1 / -1" }}>
                   Angebot

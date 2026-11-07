@@ -53,7 +53,7 @@ Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welche
 
 **Festschreiben** vergibt die Nummer und erzeugt das PDF:
 
-- Angebote haben einen eigenen Nummernkreis: ab Werk `AN-2026-001`, `AN-2026-002` und so weiter, je Jahr neu. Das Format lässt sich ändern, siehe [Nummernformat](einrichtung.md#nummernformat).
+- Angebote haben einen eigenen Nummernkreis: ab Werk `AN-2026-001`, `AN-2026-002` und so weiter, je Jahr neu oder auf Wunsch durchlaufend. Das Format lässt sich ändern, siehe [Nummernformat](einrichtung.md#nummernformat).
 - Die Rechnungsnummern bleiben davon unberührt.
 - Das PDF hat dasselbe Layout wie die Rechnung, mit Angebotsnummer, Gültigkeit und dem Satz „Dieses Angebot gilt bis zum …“.
 - Ein E-Rechnungs-XML gibt es für Angebote nicht.

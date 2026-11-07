@@ -165,6 +165,18 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(row).toMatchObject({ is_customer: false, is_supplier: true, lieferantennummer: "L-7", kundennummer: null });
     });
 
+    it("liest und schreibt die Telefonnummer; PATCH ohne Telefon behält sie (#322)", async () => {
+      const t = await token(["kontakte:schreiben"]);
+      const created = await call(t, "POST", "/kontakte", { ...kunde, telefon: "+49 941 123456" });
+      expect(created.status).toBe(201);
+      const contact = schemas.contactSchema.parse(created.json);
+      expect(contact.telefon).toBe("+49 941 123456");
+      const patched = await call(t, "PATCH", `/kontakte/${contact.id}`, { email: "einkauf@example.com" });
+      expect(schemas.contactSchema.parse(patched.json).telefon).toBe("+49 941 123456");
+      const invalid = await call(t, "PATCH", `/kontakte/${contact.id}`, { telefon: "bitte anrufen" });
+      expect(invalid.status).toBe(400);
+    });
+
     it("legt an, liest, sucht und ändert; die Antwort passt zum Schema der OpenAPI-Beschreibung", async () => {
       const t = await token(["kontakte:schreiben"]);
       const created = await call(t, "POST", "/kontakte", kunde);

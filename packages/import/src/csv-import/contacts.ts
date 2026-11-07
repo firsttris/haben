@@ -1,4 +1,4 @@
-import { isValidGermanUstId, isValidIban, joinEmails, normalizeUstId, splitEmails } from "@haben/core";
+import { isValidGermanUstId, isValidIban, joinEmails, normalizeTelefon, normalizeUstId, splitEmails, telefonProblem } from "@haben/core";
 import { type ColumnMapping, type ImportField, rowReader } from "./mapping.ts";
 import { duplicateKey, type RowCandidate } from "./plan.ts";
 import type { CsvTable } from "./read.ts";
@@ -51,6 +51,12 @@ export const CONTACT_FIELDS = [
     aliases: ["E-Mail", "Email", "E-Mail-Adresse", "E-Mail geschäftlich", "Geschäftlich (E-Mail)", "E-Mail 1", "Mail", "emailAddress"],
   },
   {
+    key: "telefon",
+    label: "Telefon",
+    // „Geschäftlich (Rufnummer)“ in der Vorlage, „Telefon 1“ im Export von Lexware Office
+    aliases: ["Telefon", "Telefonnummer", "Tel.", "Rufnummer", "Geschäftlich (Rufnummer)", "Telefon 1", "Telefon geschäftlich", "phoneNumber", "phone"],
+  },
+  {
     key: "ustId",
     label: "USt-IdNr.",
     // „Umsatzsteuer ID“ in der Vorlage, „Umsatzsteuernummer“ im Export von Lexware Office (dort die USt-IdNr.)
@@ -75,6 +81,7 @@ export interface ContactRow {
   ort: string;
   land: string;
   email: string;
+  telefon: string;
   ustId: string;
   iban: string;
   leitwegId: string;
@@ -127,6 +134,9 @@ export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowC
     if (ustProblem) errors.push(ustProblem);
     const rawIban = read.raw("iban");
     if (rawIban && !isValidIban(rawIban)) errors.push(`IBAN: „${rawIban}“ ist ungültig (Prüfziffer oder Länge)`);
+    const telefon = read.text("telefon");
+    const telefonFehler = telefonProblem(telefon);
+    if (telefonFehler) errors.push(telefonFehler);
     const role = roles(read.raw("rolle"), kundennummer, lieferantennummer, supplierFile);
     if (typeof role === "string") errors.push(role);
     // Mehrere Adressen in einer Zelle getrennt mit Komma oder Semikolon, gespeichert wie im Formular mit „, “
@@ -144,6 +154,7 @@ export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowC
             ...address,
             land: land.value,
             email: emails,
+            telefon: normalizeTelefon(telefon),
             ustId,
             iban: rawIban.replace(/\s+/g, "").toUpperCase(),
             ...role,
