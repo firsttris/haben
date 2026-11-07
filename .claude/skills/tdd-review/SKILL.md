@@ -41,7 +41,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
-- **Commits von Beitragenden nie ändern, umschreiben oder rebasen**; Fixes kommen als neue Commits obendrauf, kein Force-Push auf fremde Branches. Ist der PR ein Fork, auf einem eigenen Branch von dessen Stand weiterarbeiten und dafür einen eigenen PR öffnen.
+- **Commits von Beitragenden nie ändern, umschreiben oder rebasen**; Fixes kommen als neue Commits obendrauf, kein Force-Push auf fremde Branches. Fixes direkt auf den Branch des Pull Requests pushen: bei Collaborators liegt er im Repo, bei einem Fork geht es, wenn „Allow edits by maintainers“ an ist. Nur wenn das nicht geht, auf einem eigenen Branch von dessen Stand weiterarbeiten und dafür einen eigenen PR öffnen. Liegt der Branch nur hinter `main`, ohne dass etwas zu ändern ist: „Update branch“ am PR (Merge von `main`), kein eigener Branch.
 - Dann alle Prüfungen aus CLAUDE.md:
 
   ```sh
