@@ -41,7 +41,6 @@ const SOURCES = {
       "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) und den IDEA-Export aus Lexware Office hoch, dazu die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
     save: saveLexofficeKey,
     remove: removeLexofficeKey,
-    start: startLexofficeImport,
     cancel: cancelLexofficeImport,
   },
   sevdesk: {
@@ -50,18 +49,17 @@ const SOURCES = {
     keyHelp: "Den API-Token findest du in sevDesk unter Einstellungen → Benutzer, beim jeweiligen Benutzer. Haben liest nur, es ändert nichts in sevDesk.",
     removeLabel: "Token entfernen",
     importHelp:
-      "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Je Beleg sind mehrere Anfragen nötig; bei einigen hundert Belegen dauert das eine Weile, du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
+      "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Angebote, Auftragsbestätigungen und Lieferscheine werden zusätzlich als Archivkopien übernommen. Je Dokument sind mehrere Anfragen nötig; du kannst die Seite währenddessen verlassen. Auftrags-PDFs werden derzeit nicht automatisch abgerufen und können manuell ergänzt werden.",
     exportsHelp:
       "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) aus sevDesk hoch, dazu den Datenexport für die Betriebsprüfung (GoBD, als „IDEA-Export“ ablegen), die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
     save: saveSevdeskToken,
     remove: removeSevdeskToken,
-    start: startSevdeskImport,
     cancel: cancelSevdeskImport,
   },
 } as const;
 
 export function Migration({ data }: { data: MigrationData }) {
-  const ready = data.years.length > 0 && data.years.every((y) => y.ready);
+  const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
   const [source, setSource] = useState<Source>(
     (data.sevdeskConnection || data.sevdeskImport) && !(data.connection || data.lastImport) ? "sevdesk" : "lexoffice",
   );
@@ -69,6 +67,14 @@ export function Migration({ data }: { data: MigrationData }) {
   const lastImport = source === "sevdesk" ? data.sevdeskImport : data.lastImport;
   return (
     <div className="stack">
+      {data.orderArchive.count > 0 && (
+        <p className="banner banner-info" role="status">
+          {data.orderArchive.count} Auftragsdokumente aus sevdesk archiviert; {data.orderArchive.withoutPdf} ohne PDF.{" "}
+          <Link to="/archiv" search={{ ansicht: "auftraege" }}>
+            Auftragsdokumente ansehen
+          </Link>
+        </p>
+      )}
       <div className="banner banner-info" role="note">
         Haben übernimmt alle Jahre aus {config.product}, damit du nach der Kündigung jede Frage des Finanzamts aus Haben beantworten kannst. Kündige erst, wenn
         der Abgleich unten für jedes Jahr aufgeht. Alles, was hier landet, ist danach unveränderlich.
@@ -222,7 +228,8 @@ const PHASES = { kontakte: "Kontakte", liste: "Belegliste", belege: "Belege und 
 function ImportCard({ source, connected, initial }: { source: Source; connected: boolean; initial: ImportRow | null }) {
   const router = useRouter();
   const config = SOURCES[source];
-  const start = useServerFn(config.start);
+  const startLexoffice = useServerFn(startLexofficeImport);
+  const startSevdesk = useServerFn(startSevdeskImport);
   const cancel = useServerFn(config.cancel);
   const poll = useServerFn(getImportStatus);
   const [run, setRun] = useState<ImportRow | null>(initial);
@@ -246,7 +253,8 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
 
   const onStart = () =>
     action.run(async () => {
-      await start();
+      if (source === "sevdesk") await startSevdesk();
+      else await startLexoffice();
       setRun(await poll({ data: { source } }));
     });
 
@@ -281,7 +289,7 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
               <strong>{progress.contactsLinked}</strong>
             </div>
             <div>
-              <span className="small muted">Belege gefunden</span>
+              <span className="small muted">{source === "sevdesk" ? "Dokumente gefunden" : "Belege gefunden"}</span>
               <strong>{progress.listed}</strong>
             </div>
             <div>
@@ -312,7 +320,7 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
           )}
           {progress.failed.length > 0 && (
             <details>
-              <summary className="small">{progress.failed.length} Belege nicht übernommen – ein neuer Abruf versucht sie erneut</summary>
+              <summary className="small">{progress.failed.length} offene Punkte beim Abruf</summary>
               <ul className="small" style={{ margin: "8px 0 0", paddingLeft: 20 }}>
                 {progress.failed.slice(0, 50).map((f) => (
                   <li key={f.lexofficeId}>

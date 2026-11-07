@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf abbrechen (Postgres)", () => {
       const list = (objects: unknown[]) => json({ objects: url.searchParams.get("offset") === "0" ? objects : [] });
       if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "2.0" } });
       if (path === "/Invoice") return list(INVOICES);
-      if (["/Contact", "/ContactAddress", "/CommunicationWay", "/CreditNote", "/Voucher"].includes(path)) return list([]);
+      if (["/Contact", "/ContactAddress", "/CommunicationWay", "/CreditNote", "/Voucher", "/Order"].includes(path)) return list([]);
       if (/^\/Invoice\/\d+\/getPositions$/.test(path)) {
         // Benutzer klickt beim ersten Beleg auf „Abbrechen“
         if (!cancelled) {

@@ -7,6 +7,7 @@ export type {
   SevDocumentPos,
   SevFile,
   SevInvoice,
+  SevOrder,
   SevVoucher,
   SevVoucherPos,
 } from "./types.ts";

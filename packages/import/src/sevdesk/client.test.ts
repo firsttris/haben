@@ -33,6 +33,25 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 }
 
 describe("SevdeskClient", () => {
+  it("erhält lückenhafte Objekt-Schlüssel der Beziehungen teilberechneter Aufträge", async () => {
+    const related = {
+      "0": { id: "81", objectName: "Invoice", invoiceNumber: "RE-2026-1", status: "1000" },
+      "3": { id: "92", objectName: "Order", orderType: "LI", orderNumber: "LS-2026-1" },
+    };
+    const { client, calls } = setup(() => json({ objects: related }));
+    expect(await client.orderRelatedObjects("75")).toEqual(related);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url.search).toBe("");
+  });
+
+  it("liest Auftragsarten, Positionen und Verknüpfungen ohne PDF-Aufruf", async () => {
+    const { client, calls } = setup((url) => json({ objects: url.pathname.endsWith("/Order") ? [{ id: "1", orderType: "AN", status: "200" }] : [] }));
+    expect(await collect(client.orders())).toMatchObject([{ id: "1", orderType: "AN" }]);
+    await client.orderPositions("1");
+    await client.orderRelatedObjects("1");
+    expect(calls.map((c) => c.url.pathname)).toEqual(["/api/v1/Order", "/api/v1/Order/1/getPositions", "/api/v1/Order/1/getRelatedObjects"]);
+  });
+
   it("schickt den Token unverändert und blättert mit limit und offset", async () => {
     const all = Array.from({ length: 150 }, (_, i) => ({ id: String(i + 1), name: `Kontakt ${i + 1}` }));
     const { client, calls } = setup((url) => {

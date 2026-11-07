@@ -12,6 +12,8 @@ import {
   type sevFileBodySchema,
   sevFileResponseSchema,
   sevInvoiceSchema,
+  sevOrderSchema,
+  sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
   sevVoucherSchema,
   type SevCommunicationWay,
@@ -21,6 +23,7 @@ import {
   type SevDocumentPos,
   type SevFile,
   type SevInvoice,
+  type SevOrder,
   type SevVoucher,
   type SevVoucherPos,
 } from "./types.ts";
@@ -129,6 +132,19 @@ export class SevdeskClient {
 
   vouchers(): AsyncGenerator<SevVoucher> {
     return this.#pages("/Voucher", {}, sevVoucherSchema);
+  }
+
+  orders(): AsyncGenerator<SevOrder> {
+    return this.#pages("/Order", {}, sevOrderSchema);
+  }
+
+  async orderPositions(orderId: string): Promise<SevDocumentPos[]> {
+    return this.#all(`/Order/${enc(orderId)}/getPositions`, {}, sevDocumentPosSchema);
+  }
+
+  async orderRelatedObjects(orderId: string) {
+    const data = await this.#json(`/Order/${enc(orderId)}/getRelatedObjects`, {}, sevRelatedObjectsResponseSchema);
+    return data.objects;
   }
 
   async invoicePositions(invoiceId: string): Promise<SevDocumentPos[]> {

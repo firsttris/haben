@@ -98,6 +98,7 @@ function fakeApi(options: { failVoucher?: boolean } = {}) {
       case "/Invoice":
         return list(INVOICES);
       case "/CreditNote":
+      case "/Order":
         return list([]);
       case "/Voucher":
         return list(VOUCHERS);

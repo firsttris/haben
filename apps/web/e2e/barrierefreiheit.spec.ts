@@ -64,6 +64,8 @@ const PAGES = [
   "/archiv",
   // Altbelege aus der Web-Sicherung in app.spec.ts, mit den Filtern Richtung und „Ohne Datei“
   "/archiv?ansicht=belege",
+  "/archiv?ansicht=auftraege",
+  "/archiv/auftrag/723bf34b-f8ab-48f0-b391-656af4b72a96",
   "/archiv?ansicht=belege&richtung=ausgabe&ohneDatei=true",
   "/textbausteine",
   "/einstellungen",

@@ -4,11 +4,13 @@ import { ArchiveFiles } from "../../../components/archiv/ArchiveFiles.tsx";
 import { DatevBookings } from "../../../components/archiv/DatevBookings.tsx";
 import { EXACT_SEARCH, LegacyVouchers } from "../../../components/archiv/LegacyVouchers.tsx";
 import { Migration } from "../../../components/archiv/Migration.tsx";
-import { getDatevBookings, getLegacyVouchers, getMigration } from "../../../server/functions/archive.ts";
+import { OrderDocuments } from "../../../components/archiv/OrderDocuments.tsx";
+import { getDatevBookings, getLegacyVouchers, getMigration, getOrderDocuments } from "../../../server/functions/archive.ts";
 import styles from "../../../styles/archiv.css?url";
 
 const searchSchema = z.object({
-  ansicht: z.optional(z.enum(["umzug", "belege", "buchungen", "dateien"])),
+  ansicht: z.optional(z.enum(["umzug", "belege", "auftraege", "buchungen", "dateien"])),
+  dokumentart: z.optional(z.enum(["AN", "AB", "LI"])),
   jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))),
   richtung: z.optional(z.enum(["alle", "einnahme", "ausgabe"])),
   suche: z.optional(z.string().check(z.maxLength(100))),
@@ -27,8 +29,12 @@ export const Route = createFileRoute("/_app/archiv/")({
   loader: async ({ deps }) => {
     const view = deps.ansicht ?? "umzug";
     const migration = await getMigration({ data: { stichtag: deps.stichtag } });
-    const years = migration.years.map((y) => y.year);
+    const years = [...new Set([...migration.years.map((y) => y.year), ...migration.orderArchive.years])].sort((a, b) => b - a);
     const year = deps.jahr ?? years[0] ?? new Date().getFullYear() - 1;
+    if (view === "auftraege") {
+      const orders = await getOrderDocuments({ data: { year, search: deps.suche ?? "", kind: deps.dokumentart } });
+      return { view, year, years, migration, orders } as const;
+    }
     if (view === "belege") {
       const vouchers = await getLegacyVouchers({
         data: { year, direction: deps.richtung ?? "alle", search: deps.suche ?? "", ohneDatei: deps.ohneDatei ?? false },
@@ -50,6 +56,7 @@ export const Route = createFileRoute("/_app/archiv/")({
 const VIEWS = [
   { value: "umzug", label: "Umzug" },
   { value: "belege", label: "Belege" },
+  { value: "auftraege", label: "Auftragsdokumente" },
   { value: "buchungen", label: "DATEV-Buchungen" },
   { value: "dateien", label: "Originaldateien" },
 ] as const;
@@ -82,6 +89,7 @@ function ArchivePage() {
       </div>
       {data.view === "umzug" && <Migration data={data.migration} />}
       {data.view === "belege" && <LegacyVouchers year={data.year} years={data.years} rows={data.vouchers} search={search} />}
+      {data.view === "auftraege" && <OrderDocuments year={data.year} years={data.years} rows={data.orders} search={search} />}
       {data.view === "buchungen" && <DatevBookings year={data.year} years={data.years} data={data.bookings} search={search} />}
       {data.view === "dateien" && <ArchiveFiles files={data.migration.files} kinds={data.migration.kinds} />}
     </>

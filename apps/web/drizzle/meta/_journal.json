@@ -1086,6 +1086,20 @@
       "when": 1793991534647,
       "tag": "0154_darlehen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1794044373560,
+      "tag": "0155_sevdesk_auftragsarchiv",
+      "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1794044374006,
+      "tag": "0156_auftragsarchiv_trigger",
+      "breakpoints": true
     }
   ]
 }

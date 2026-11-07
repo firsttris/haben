@@ -183,6 +183,29 @@ export const sevVoucherPosSchema = z.looseObject({
 });
 export type SevVoucherPos = z.infer<typeof sevVoucherPosSchema>;
 
+/** Order umfasst Angebote (AN), Auftragsbestätigungen (AB) und Lieferscheine (LI). */
+export const sevOrderSchema = z.looseObject({
+  id,
+  objectName: str,
+  orderType: str,
+  orderNumber: str,
+  orderDate: str,
+  create: str,
+  status: numeric,
+  contact: ref,
+  address: str,
+  currency: str,
+  sumNet: numeric,
+  sumTax: numeric,
+  sumGross: numeric,
+});
+export type SevOrder = z.infer<typeof sevOrderSchema>;
+// V1 liefert bei Beziehungen teils ein Objekt mit lückenhaften Zahlenschlüsseln, sonst eine Liste.
+// Die Form und alle unbekannten Felder bleiben für die unveränderte Archivantwort erhalten.
+export const sevRelatedObjectsResponseSchema = z.looseObject({
+  objects: z.union([z.array(z.record(z.string(), z.unknown())), z.record(z.string(), z.unknown())]),
+});
+
 // ---------------------------------------------------------------- Dateien
 
 /** getPdf und Document/download: Datei als Base64 in JSON, teils in objects verpackt */

@@ -2007,6 +2007,49 @@ export type LegacyTaxRow = { rate: number; net: number; tax: number };
 export type LegacyCategoryRow = { categoryId: string; name: string; rate: number; net: number; tax: number };
 export type LegacyPayment = { status: string; openAmount: number; paidDate: string | null; items: { type: string; date: string; amount: number }[] };
 
+/** Kaufmännische Dokumente ohne Buchungswirkung. Der Quellstand bleibt unverändert; Dateien sind getrennte Nachträge. */
+export const legacyOrderDocuments = pgTable(
+  "legacy_order_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    externalId: text("external_id").notNull().unique(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    kind: text("kind", { enum: ["AN", "AB", "LI"] }).notNull(),
+    number: text("number").notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    status: text("status").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    contactName: text("contact_name").notNull(),
+    currency: text("currency").notNull(),
+    net: integer("net"),
+    tax: integer("tax"),
+    gross: integer("gross"),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_order_documents_date").on(t.date)],
+);
+
+/** Manuell nachgereichte Original-PDFs; jeder Dateistand bleibt erhalten. */
+export const legacyOrderFiles = pgTable(
+  "legacy_order_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => legacyOrderDocuments.id),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    origin: text("origin", { enum: ["sevdesk", "manuell"] }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
+);
+
 /**
  * Rechnungen, Gutschriften und Belege aus Lexoffice oder sevDesk, so wie die API sie geliefert hat. Nur anhängen.
  * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".

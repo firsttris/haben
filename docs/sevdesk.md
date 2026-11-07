@@ -7,7 +7,7 @@ Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md
 Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege** und der Jahresexport behandeln beide Quellen gleich.
 
 > [!NOTE]
-> Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Ein Lauf gegen ein echtes Konto steht noch aus. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
+> Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
 
 ## Voraussetzungen
 
@@ -17,7 +17,7 @@ Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffic
 
 ## Schritt 1: Verbindung zu sevDesk
 
-Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Haben liest nur. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
+Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Auftragsdokumente werden zunächst ohne automatischen PDF-Abruf archiviert, siehe unten. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
 
 ## Schritt 2: Kontakte, Rechnungen und Belege abrufen
 
@@ -79,11 +79,25 @@ Bei **Ist-Versteuerung** sperrt Haben den monatlichen Altbestandsabgleich für j
 
 Der Schutz greift auch für bereits importierte, zu einer Zahlung verdichtete Daten; das Zahldatum liest Haben dort aus den gespeicherten sevDesk-Originaldaten. Diese bleiben unverändert; die Verdichtung erscheint nicht mehr als belegte Einzelzahlung. Eine verlässliche Zahlungsrekonstruktion und die Reparatur bereits aktiv übernommener Posten sind noch nicht umgesetzt. Bereits übernommene Posten mit dem sevDesk-Bestand abgleichen; Haben korrigiert ihre versiegelten Buchungen nicht rückwirkend.
 
-### Was die API nicht liefert
+### Angebote, Auftragsbestätigungen und Lieferscheine
+
+Haben archiviert die drei Auftragsarten aus sevDesk (`Order`: `AN`, `AB`, `LI`) getrennt von Rechnungen und Buchungsbelegen. Unter **Archiv → Auftragsdokumente** suchst du nach Nummer oder Kontakt und filterst nach Dokumentart und Jahr. Datum, Quellstatus, Positionen, Folgebeziehungen und die vollständigen API-Antworten bleiben erhalten. Auch **Entwürfe**, angenommene, abgelehnte und teilweise oder vollständig berechnete Vorgänge sind enthalten. Es entstehen keine bearbeitbaren Haben-Angebote und keine eigenen Nummern.
+
+**Teilweise berechnet:** Der Quellstatus `750` und die Beziehungen zu Rechnungen oder anderen Auftragsdokumenten bleiben erhalten. Haben erzeugt aus einer Auftragsbestätigung weder eine zusätzliche Forderung noch eine Zahlung und berechnet keinen vermeintlichen Restbetrag. Rechnungen werden über ihren eigenen Import übernommen. Die Quellbeziehungen können in V1 als Liste oder als Objekt mit lückenhaften Zahlenschlüsseln geliefert werden; beide Formen bleiben unverändert erhalten.
+
+**PDF-Abruf noch ausgesetzt:** Die [sevDesk-API](https://api.sevdesk.de/#tag/Order) beschreibt `getPdf` mit „commit the order“. `preventSendBy=true` sichert nicht ausdrücklich zu, dass sämtliche Quellfelder unverändert bleiben. Deshalb ruft dieser Import für Auftragsdokumente ausschließlich Metadaten, Positionen und Beziehungen ab. Es gibt keine pauschale Zustimmung zu möglichen Quelländerungen.
+
+Sieben gezielte V1-Proben mit Angeboten, Auftragsbestätigungen und Lieferscheinen einschließlich Entwürfen, abgelehntem Angebot und teilberechneter Auftragsbestätigung lieferten gültige PDFs. Status, Version, Versanddatum/-art und Änderungszeit waren jeweils vor und nach dem Abruf identisch; der Angebotsentwurf blieb laut Nutzer bearbeitbar. Der Verlauf in der sevDesk-Oberfläche und die weitere Bearbeitbarkeit der anderen Entwürfe sind noch nicht vollständig geprüft. Der automatische PDF-Abruf braucht diesen zusätzlichen Nachweis; die Ergebnisse gelten nicht automatisch für Buchhaltungsversion 2.0.
+
+**Manuell ergänzen:** Auf der Detailseite kannst du ein Original-PDF bis 20 MB anhängen. Es erscheint als „manuell nachgereicht“ mit Zeitpunkt und Prüfsumme; frühere Dateien und Quelldaten werden nicht ersetzt. Fehlende PDFs bleiben sichtbar und verhindern den Vollständigkeitshinweis zum Umzug. Ein Anhang erzeugt weder eine Buchung noch einen aktiven offenen Posten. Diese Ergänzung betrifft nur Auftragsdokumente; das allgemeine Nachreichen von Unterlagen zu Belegen und Darlehen bleibt eine eigene Erweiterung.
+
+Der Jahresexport enthält `sevdesk/auftraege.csv` sowie angehängte PDFs und Quelldaten unter `sevdesk/auftraege/`. Die Auftragsdaten verändern keine Umsatz-, Steuer- oder OP-Summen. Für KI-Assistenten stehen eigene lesende Archivwerkzeuge bereit.
+
+### Grenzen des aktuellen Imports
 
 - **Keine Buchungen und keine Bankumsätze.** Lade den DATEV-Export aus sevDesk hoch (Schritt 4).
 - **Keine Kategorienamen.** Je Beleg-Position steht nur die ID des Buchungskontos. Übernommene offene Ausgabebelege bekommen deshalb die Kategorie „Sonstiges“; ändere sie bei Bedarf in Haben. Aus demselben Grund erkennt der Abgleich bei GmbH und UG Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen aus sevDesk nicht ([Einordnung](lexoffice.md#einordnung-bei-gmbh-und-ug)); sie zählen dort als Einnahme bzw. Ausgabe. Ziehe sie beim Vergleich mit sevDesk selbst ab.
-- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)), keine Angebote, Aufträge und Lieferscheine.
+- Keine übermittelten Voranmeldungen, kein Anlagenverzeichnis ([Anlagen übernehmen](anlagen.md)), keine Mahnungen oder wiederkehrenden Vorlagen. Entwürfe von Rechnungen, Gutschriften und Belegen bleiben ebenfalls ausgeschlossen.
 
 ## Schritt 3 bis 5
 
@@ -101,6 +115,7 @@ Haben spricht standardmäßig mit `https://my.sevdesk.de/api/v1`. Mit der Umgebu
 
 - [ ] Abruf ist fertig, die Liste der fehlgeschlagenen Belege ist leer
 - [ ] Jeder Beleg hat eine Datei (Abgleich je Jahr)
+- [ ] Alle Auftragsdokumente sind vorhanden und deren Original-PDFs ergänzt
 - [ ] Für jedes Geschäftsjahr: DATEV-Export, GoBD-Export, ELSTER-Protokolle und Kontoauszüge abgelegt, jeweils mit Jahr
 - [ ] Einnahmen, Ausgaben, Umsatz- und Vorsteuer je Jahr mit sevDesk verglichen
 - [ ] Offene Posten übernommen oder die Gründe geklärt

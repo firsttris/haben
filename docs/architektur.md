@@ -206,6 +206,8 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `lexoffice_imports` | Abrufe aus Lexoffice oder sevDesk (`source`) mit fortlaufend geschriebenem Fortschritt; höchstens einer läuft | Audit beim Anlegen |
 | `lexoffice_vouchers` | Rechnungen und Belege aus Lexoffice oder sevDesk (`source`) mit vollständiger API-Antwort | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
+| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk mit Positionen und Quellantwort; ohne Buchungswirkung | nur anhängen, Audit |
+| `legacy_order_files` | Manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
 
 ### Protokoll und Anmeldung
 
