@@ -15,8 +15,6 @@ body:
         - DATEV-Buchungsstapel
         - CSV-Import (Kontakte, Artikel, Anlagen)
         - Anderes Programm
-    validations:
-      required: true
   - type: input
     id: tarif
     attributes:

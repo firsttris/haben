@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Für Sachverhalte aus Umsatzsteuer, Einkommensteuer, Bilanz, Lohn oder aus Formaten wie DATEV, XRechnung, ZUGFeRD und ELSTER. Erfundene Beträge genügen. Keine echten Belege oder Steuernummern.
+        Für Sachverhalte aus Umsatzsteuer, Einkommensteuer, Bilanz, Lohn oder aus Formaten wie DATEV, XRechnung, ZUGFeRD und ELSTER. Erfundene Beträge genügen. Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
   - type: textarea
     id: fall
     attributes:

@@ -67,8 +67,7 @@ body:
     id: logs
     attributes:
       label: Server-Meldungen oder Screenshot
-      description: Zum Beispiel `docker compose logs haben`. Vorher alles Persönliche entfernen.
-      render: shell
+      description: Zum Beispiel `docker compose logs app`. Vorher alles Persönliche entfernen.
   - type: textarea
     id: bezug
     attributes:
