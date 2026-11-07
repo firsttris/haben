@@ -2,3 +2,5 @@
 zensical==0.1.0
 # Änderungsdatum unter jeder Seite, bis Zensical es selbst kann (mkdocs.yml, markdown_extensions)
 ./scripts/doku-aenderungsdatum
+# Deutsche Titel der Hinweiskästen (mkdocs.yml, markdown_extensions)
+./scripts/doku-hinweise

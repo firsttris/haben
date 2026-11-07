@@ -13,6 +13,7 @@ on:
       - 'overrides/**'
       - 'requirements-docs.txt'
       - 'scripts/doku-aenderungsdatum/**'
+      - 'scripts/doku-hinweise/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -40,6 +41,7 @@ jobs:
           cache-dependency-path: requirements-docs.txt
       - run: pip install -r requirements-docs.txt
       - run: python -m unittest discover -s scripts/doku-aenderungsdatum
+      - run: python -m unittest discover -s scripts/doku-hinweise
       - uses: actions/configure-pages@v6
         with:
           enablement: true
@@ -48,6 +50,8 @@ jobs:
       - run: grep -q 'class="aenderungsdatum"' site/index.html
       # Das Datum gehört nicht in den Suchindex, sonst findet die Suche nach „Update“ jede Seite
       - run: "! grep -q 'Letztes Update' site/search.json"
+      # Jeder Hinweis im GitHub-Stil ist ein Kasten; ein übrig gebliebener Marker hieße, pymdownx.quotes fehlt
+      - run: "! grep -rlE '\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\]' site --include='*.html'"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

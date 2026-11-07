@@ -22,6 +22,19 @@
 .md-typeset table:not([class]) {
   font-size: .75rem;
 }
+/* Hinweis „Wichtig“ (> [!IMPORTANT]): Zensical kennt den Typ nicht und zeigt ihn sonst wie „Hinweis“.
+   Lila und Sprechblase mit Ausrufezeichen wie auf GitHub, Icon lucide message-square-warning wie die übrigen */
+:root {
+  --md-admonition-icon--important: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' viewBox='0 0 24 24'><path d='M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2zM12 15h.01M12 7v4'/></svg>");
+}
+.md-typeset .admonition.important {
+  background-color: #7c4dff1a;
+}
+.md-typeset .important > .admonition-title::before {
+  background-color: #7c4dff;
+  -webkit-mask-image: var(--md-admonition-icon--important);
+  mask-image: var(--md-admonition-icon--important);
+}
 /* Änderungsdatum unter jeder Seite (scripts/doku-aenderungsdatum), dezent wie früher bei MkDocs Material */
 .md-typeset .aenderungsdatum {
   margin-top: 2.5em;
