@@ -6,14 +6,17 @@ Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md
 
 Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege** und der Jahresexport behandeln beide Quellen gleich.
 
-> [!NOTE]
+> [!WARNING]
 > Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
 
 ## Voraussetzungen
 
-- Einen **API-Token** von sevDesk. Du findest ihn unter **Einstellungen → Benutzer**, beim jeweiligen Benutzer. Er gibt Zugriff auf alles, was dieser Benutzer sieht.
+- Einen **API-Token** von sevDesk. Du findest ihn unter **Einstellungen → Benutzer**, beim jeweiligen Benutzer.
 - Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) sind in Haben eingerichtet, wie in sevDesk ([Einrichtung](einrichtung.md)).
 - Der Server braucht Zugriff auf `https://my.sevdesk.de`.
+
+> [!IMPORTANT]
+> Der API-Token gibt Zugriff auf alles, was dieser Benutzer in sevDesk sieht. Entferne ihn nach dem Umzug (siehe [Vor der Kündigung](#vor-der-kündigung)).
 
 ## Schritt 1: Verbindung zu sevDesk
 
