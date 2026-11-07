@@ -1068,7 +1068,7 @@ test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steh
 });
 
 // Die Seiten in seiten.spec.ts zeigen ein Einzelunternehmen; was nur eine GmbH hat, steht dort als Hinweis. Für den Blick
-// auf die GmbH-Ansichten (CI-Artefakt e2e-screenshots) hier dieselben Seiten mit den Daten dieses Durchlaufs.
+// auf die GmbH-Ansichten (CI-Artefakte e2e-screenshots-teil-<n>) hier dieselben Seiten mit den Daten dieses Durchlaufs.
 test("Screenshots der GmbH-Seiten", async () => {
   const jahr = new Date().getFullYear();
   const seiten: [string, string][] = [

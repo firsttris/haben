@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Lint und Typecheck brauchen keine Datenbank; gebaut wird im Job e2e
+  # Lint und Typecheck brauchen keine Datenbank; gebaut wird in den Jobs e2e-teil
   check:
     # Draft-Pull-Requests bauen nicht; "Ready for review" startet den Lauf
     if: ${{ !github.event.pull_request.draft }}
@@ -73,9 +73,16 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
 
-  e2e:
+  # Drei Teile parallel (Playwright --shard). Jeder Teil, der Tests aus „mit-daten“ hat, spielt vorher
+  # app.spec.ts („ablauf“) selbst durch, weil diese Tests auf dessen Daten aufbauen; der dritte Teil hat nur
+  # „ohne-daten“. Gebaut wird in jedem Teil, das läuft parallel und braucht kein Artefakt dazwischen
+  e2e-teil:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        teil: [1, 2, 3]
     services:
       postgres:
         image: postgres:18
@@ -115,20 +122,30 @@ jobs:
         run: docker exec ${{ job.services.postgres.id }} psql -U haben -d haben_e2e -qc "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
       - run: bun run build
       # Vier Worker (playwright.config.ts), so viele Kerne hat der Runner
-      - name: Ende-zu-Ende-Tests mit Screenshots aller Seiten
-        run: bun run e2e
+      - name: Ende-zu-Ende-Tests, Teil ${{ matrix.teil }} von 3
+        run: bun run e2e --shard=${{ matrix.teil }}/3
         env:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_e2e
           # Der gebaute Server statt des Entwicklungsservers
           E2E_SERVER_COMMAND: bun .output/server/index.mjs
+          # Screenshots aller Seiten (seiten.spec.ts) nur auf main, im Pull Request kosten sie nur Zeit
+          SEITEN_SCREENSHOTS: ${{ github.event_name == 'push' && '1' || '' }}
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-screenshots
+          name: e2e-screenshots-teil-${{ matrix.teil }}
           path: |
             apps/web/test-results
             apps/web/playwright-report
           if-no-files-found: ignore
+
+  # Ein Ergebnis für die Regeln auf main (geforderter Check „e2e“), egal in wie viele Teile die Tests zerfallen
+  e2e:
+    if: ${{ always() && !github.event.pull_request.draft }}
+    needs: e2e-teil
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.e2e-teil.result }}" = success
 
   kosit:
     if: ${{ !github.event.pull_request.draft }}
