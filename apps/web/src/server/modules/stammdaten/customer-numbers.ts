@@ -17,7 +17,7 @@ export class CustomerNumberError extends UserError {}
 export async function customerNumbering(): Promise<{ format: string; next: number; preview: string | null }> {
   const { customerNumberFormat: format, customerNumberNext: next } = await loadCompany(db);
   // Dieselbe Suche wie beim Anlegen, damit die Vorschau vergebene Nummern auch überspringt
-  return { format, next, preview: format ? formatDocumentNumber(format, currentYear(), await firstFree(db, format, next)) : null };
+  return { format, next, preview: format ? formatDocumentNumber(format, today(), await firstFree(db, format, next)) : null };
 }
 
 export async function saveCustomerNumbering(actor: string, input: { format: string; next: number }): Promise<void> {
@@ -49,17 +49,13 @@ export async function takeCustomerNumber(tx: Tx, own: string | null): Promise<st
     .update(schema.company)
     .set({ customerNumberNext: counter + 1 })
     .where(eq(schema.company.id, 1));
-  return formatDocumentNumber(company.format, currentYear(), counter);
-}
-
-function currentYear(): number {
-  return Number(today().slice(0, 4));
+  return formatDocumentNumber(company.format, today(), counter);
 }
 
 /** Erster Zähler ab `start`, dessen Nummer noch kein Kontakt trägt */
 async function firstFree(q: Db | Tx, format: string, start: number): Promise<number> {
   let counter = start;
-  while (await taken(q, formatDocumentNumber(format, currentYear(), counter))) counter++;
+  while (await taken(q, formatDocumentNumber(format, today(), counter))) counter++;
   return counter;
 }
 

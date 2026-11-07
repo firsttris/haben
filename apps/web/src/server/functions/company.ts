@@ -39,7 +39,9 @@ export const saveCompany = createServerFn({ method: "POST" })
 /** Nummernformate für Rechnungen und Angebote; die Regeln prüft saveNumberFormats */
 export const saveNumberFormatSettings = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ invoice: z.string().max(100), quote: z.string().max(100) }))
+  .validator(
+    z.object({ invoice: z.string().max(100), quote: z.string().max(100), invoiceRunning: z.boolean().optional(), quoteRunning: z.boolean().optional() }),
+  )
   .handler(async ({ data, context }) => {
     await saveNumberFormats(context.user.id, data);
     return { ok: true };

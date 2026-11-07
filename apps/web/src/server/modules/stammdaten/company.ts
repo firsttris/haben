@@ -233,7 +233,9 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     /** Vorlagen für den Zahlungsplan im Angebot */
     planTemplates: company.paymentPlanTemplates,
     numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
+    /** Letzte Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
+    numberRunning: kind === "rechnung" ? company.invoiceCounterRunning : company.quoteCounterRunning,
   };
 }
 

@@ -1,0 +1,2 @@
+ALTER TABLE "company" ADD COLUMN "invoice_counter_running" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "company" ADD COLUMN "quote_counter_running" boolean DEFAULT false NOT NULL;

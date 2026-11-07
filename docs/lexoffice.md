@@ -219,7 +219,7 @@ Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren 
 | --- | --- |
 | Fremdwährung | Von Hand in Haben erfassen |
 | nach dem Stichtag ausgestellt | Der Beleg gehört in die Bücher von Haben, nicht in die alten: in Haben als Rechnung bzw. Beleg erfassen, oder im Einzelunternehmen den Stichtag später setzen |
-| bis zum Stichtag teilweise bezahlt | Den Rest in Lexware Office ausgleichen oder die Zahlung in Haben ohne Rechnung buchen |
+| bis zum Stichtag teilweise bezahlt | Den Rest in Lexware Office ausgleichen oder die Zahlung in Haben direkt buchen |
 | Stand am Stichtag unklar | Nach dem Stichtag steht eine Zahlung ohne Datum oder eine Zahlungsart, die Haben nicht kennt; in Lexware Office prüfen und von Hand erfassen |
 | Steuersatz, den Haben nicht kennt | Haben kennt 19 %, 7 % und 0 % |
 | Umsatzsteuer an das Finanzamt | Die Zahlung im Bankabgleich als „Umsatzsteuer an das Finanzamt“ zuordnen (eine Sondervorauszahlung als „Sondervorauszahlung (Dauerfristverlängerung)“), siehe oben |

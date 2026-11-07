@@ -28,6 +28,7 @@ import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "..
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
+import { ContactDialog } from "../../../components/ContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
@@ -286,6 +287,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [supplierName, setSupplierName] = useState(doc.supplierName);
   const [supplierUstId, setSupplierUstId] = useState(doc.supplierUstId);
   const [supplierContactId, setSupplierContactId] = useState<string | null>(doc.supplierContactId);
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState(doc.invoiceNumber);
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
@@ -579,6 +581,30 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <input value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />
           </label>
           <SupplierPicker suppliers={data.suppliers} value={supplierContactId} onPick={touch(pickSupplier)} />
+          {!readOnly && (
+            <div>
+              <button type="button" className="btn" onClick={() => setNewSupplierOpen(true)}>
+                Neuen Lieferanten anlegen
+              </button>
+            </div>
+          )}
+          <ContactDialog
+            open={newSupplierOpen}
+            title="Neuen Lieferanten anlegen"
+            // Name und USt-IdNr. stehen schon am Beleg, etwa aus der Auslesung; die IBAN übernimmt Haben nicht (#330)
+            prefill={{ name: supplierName, ustId: supplierUstId, isCustomer: false, isSupplier: true }}
+            existing={data.suppliers}
+            onSaved={(saved) => {
+              touch(pickSupplier)({ id: saved.id, name: saved.name, ustId: saved.ustId });
+              // Die Lieferantenliste neu laden; die übrigen Eingaben am Beleg bleiben stehen
+              void router.invalidate();
+            }}
+            onPickExisting={(id) => {
+              const supplier = data.suppliers.find((s) => s.id === id);
+              if (supplier) touch(pickSupplier)(supplier);
+            }}
+            onClose={() => setNewSupplierOpen(false)}
+          />
           <label className="field">
             Rechnungsnummer
             <input value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />

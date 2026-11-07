@@ -179,14 +179,19 @@ export const correctFinalInvoice = createServerFn({ method: "POST" })
     return { id: draft.id };
   });
 
+/** Nummernkreise für Rechnungen und Angebote, heute: im Jahr oder durchlaufend */
 export const getNumbering = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(() => numbering(Number(today().slice(0, 4))));
+  .handler(async () => {
+    const date = today();
+    const [invoice, quote] = await Promise.all([numbering(date, "rechnung"), numbering(date, "angebot")]);
+    return { invoice, quote };
+  });
 
 export const saveNextNumber = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ next: z.number().int().min(1).max(99_999) }))
+  .validator(z.object({ kind: z.enum(["rechnung", "angebot"]).default("rechnung"), next: z.number().int().min(1).max(999_999) }))
   .handler(async ({ data, context }) => {
-    await setNextNumber(context.user.id, Number(today().slice(0, 4)), data.next);
+    await setNextNumber(context.user.id, today(), data.next, data.kind);
     return { ok: true };
   });

@@ -34,6 +34,7 @@ describe("Kontakte", () => {
       ort: "Köln",
       land: "DE",
       email: "rechnung@mueller-soehne.example",
+      telefon: "",
       ustId: "DE136695976",
       iban: "DE89370400440532013000",
       leitwegId: "",
@@ -69,6 +70,7 @@ describe("Kontakte", () => {
       ort: "Ort (Rechnungsadresse)",
       land: "Land (Rechnungsadresse)",
       email: "Geschäftlich (E-Mail)",
+      telefon: "Geschäftlich (Rufnummer)",
       ustId: "Umsatzsteuer ID",
       iban: "IBAN",
       leitwegId: null,
@@ -118,12 +120,13 @@ describe("Kontakte", () => {
     ];
     const mapping = suggestMapping(header, CONTACT_FIELDS);
     const column = (key: string) => (mapping[key] === null || mapping[key] === undefined ? null : header[mapping[key]!]);
-    expect([column("strasse"), column("plz"), column("ort"), column("land"), column("email"), column("ustId")]).toEqual([
+    expect([column("strasse"), column("plz"), column("ort"), column("land"), column("email"), column("telefon"), column("ustId")]).toEqual([
       "Straße 1",
       "PLZ 1",
       "Ort 1",
       "Land 1",
       "E-Mail 1",
+      "Telefon 1",
       "Umsatzsteuernummer",
     ]);
   });
@@ -156,6 +159,13 @@ describe("Kontakte", () => {
     expect(rows[0]!.errors).toEqual([expect.stringContaining("3 Werte, die Kopfzeile 2 Spalten")]);
     // Ein leerer Wert am Ende, wie ihn manche Programme schreiben, verschiebt nichts
     expect(rows[1]!.errors).toEqual([]);
+  });
+
+  it("übernimmt die Telefonnummer und meldet eine mit Buchstaben (#322)", () => {
+    const { t, mapping } = mapped("Firmenname;Telefon\nA GmbH;+49  941 123456\nB GmbH;Zentrale\n", CONTACT_FIELDS);
+    const rows = contactCandidates(t, mapping);
+    expect(rows[0]!.value).toMatchObject({ telefon: "+49 941 123456" });
+    expect(rows[1]!.errors).toEqual(["Telefon: nur Ziffern, Leerzeichen und + ( ) / - ."]);
   });
 
   it("liest die Rolle aus der Spalte, auch beides", () => {

@@ -683,3 +683,8 @@ summary { cursor: pointer; min-height: 24px; }
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }
 }
+
+/* Kontakt im Beleg oder Rechnungsentwurf anlegen (ContactDialog) */
+.contact-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--ground); color: var(--ink); }
+.contact-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+.contact-dialog > h2 { margin-top: 0; }

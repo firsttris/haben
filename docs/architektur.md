@@ -262,7 +262,7 @@ Belege aus der API (`POST /api/v1/belege`, multipart/form-data mit eigener Grenz
 3. In dieser Transaktion:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
    - Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats prüfen (`finalizeIssues`, dieselbe Prüfung wie in der Oberfläche, hier mit der Transaktion),
-   - den Nummernkreis des Jahres sperren und die nächste Nummer nur lesen (`peekNumber` in `server/modules/rechnungen/number-counter.ts`, Advisory Lock je Kreis und Jahr),
+   - den Nummernkreis sperren und die nächste Nummer nur lesen (`peekNumber` in `server/modules/rechnungen/number-counter.ts`, Advisory Lock je Kreis); ein Kreis ist das Jahr des Rechnungsdatums oder, bei durchlaufendem Zähler, `0` (`counterCircle`), so steht er auch in den Zählertabellen und in `number_year`,
    - PDF und XML aus Positionen und den gespeicherten Steuerzeilen (`invoice_taxes`) erzeugen (siehe unten); bis hierhin hat die Transaktion nichts mit Audit-Eintrag geschrieben, die Hash-Kette ist also frei,
    - den Zähler auf diese Nummer setzen (`takeNumber`; ab hier ist die Kette gesperrt),
    - Rechnung auf `final` setzen, mit Verkäufer- und Käuferdaten, Summen, PDF, XML, SHA-256 und `locked_at`,

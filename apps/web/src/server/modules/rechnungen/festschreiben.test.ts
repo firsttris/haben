@@ -146,8 +146,11 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     const created = await invoices.createDraft(actor, draft());
     let change: Promise<string> | undefined;
     rendering.hook = async () => {
+      // Nur beim ersten Festschreiben: Sonst startete das zweite unten ein weiteres setNextNumber, auf das niemand
+      // wartet und das noch läuft, wenn der nächste Test die Tabellen leert (Deadlock mit TRUNCATE)
+      rendering.hook = null;
       // Während gerendert wird, hält das Festschreiben den Nummernkreis; setNextNumber wartet bis zum Commit
-      change = invoices.setNextNumber(actor, year, 1).then(
+      change = invoices.setNextNumber(actor, `${year}-01-15`, 1).then(
         () => "gesetzt",
         (error: Error) => error.message,
       );
@@ -155,7 +158,7 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     };
     await invoices.finalizeInvoice(actor, created.id);
     expect(await change).toMatch(new RegExp(`größer als ${year}-001`));
-    await invoices.setNextNumber(actor, year, 40);
+    await invoices.setNextNumber(actor, `${year}-01-15`, 40);
     const next = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
     expect(next.number).toBe(`${year}-040`);
   }, 30_000);

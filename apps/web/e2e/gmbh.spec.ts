@@ -726,7 +726,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
     .click();
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { name: "Erika Gesellschafter" })).toBeVisible();
-  await page.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  await page.getByRole("button", { name: "Direkt buchen" }).click();
   await page.getByLabel("Buchen als").selectOption({ label: "Lohn/Gehalt an Mitarbeiter" });
   expect(await axe(), "/bank Lohnzahlung").toEqual([]);
   await page.getByRole("button", { name: "Buchen", exact: true }).click();
@@ -1046,7 +1046,7 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
     .first()
     .click();
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  await page.getByRole("button", { name: "Direkt buchen" }).click();
   await page.getByLabel("Buchen als").selectOption({ label: "Gesellschafter (Verrechnungskonto)" });
   await page.getByRole("button", { name: "Buchen", exact: true }).click();
   const zuordnung = page.getByRole("complementary", { name: "Zuordnung" });

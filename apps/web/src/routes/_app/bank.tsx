@@ -80,7 +80,13 @@ const KIND_LABEL = {
   darlehen: "Darlehen",
 } as const;
 
-/** „Ohne Rechnung buchen“: Buchungsarten ohne Beleg und die Steuerzahlung mit Steuerart, Bezugsjahr und Teil */
+/**
+ * Hinweis zu „Direkt buchen“ (früher „Ohne Rechnung buchen“, #312): Unterlagen sind nicht nur Rechnungen, sondern auch
+ * Steuerbescheide, Kreditverträge oder Abrechnungen; den Zahlungsnachweis bildet der Bankumsatz selbst.
+ */
+const DIRECT_HINT = "Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen.";
+
+/** „Direkt buchen“: Buchungsarten ohne Beleg und die Steuerzahlung mit Steuerart, Bezugsjahr und Teil */
 type DirectChoice = DirectBooking | "steuer" | "darlehen";
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
 const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
@@ -1150,6 +1156,7 @@ function AllocationPanel({
                   </option>
                 ))}
               </select>
+              <span className="small muted">{DIRECT_HINT}</span>
               {tx.amount < 0 && (
                 <span className="small">
                   Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
@@ -1254,8 +1261,8 @@ function AllocationPanel({
             </div>
           )}
           {mode !== "direct" && (
-            <button type="button" className="btn" onClick={() => setMode("direct")} disabled={busy}>
-              Ohne Rechnung buchen
+            <button type="button" className="btn" onClick={() => setMode("direct")} disabled={busy} title={DIRECT_HINT}>
+              Direkt buchen
             </button>
           )}
           <button
@@ -1398,7 +1405,7 @@ function SplitForm({
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="Ohne Rechnung">
+              <optgroup label="Direkt buchen">
                 {[...directKinds, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                   <option key={k.value} value={k.value}>
                     {k.label}

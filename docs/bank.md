@@ -213,7 +213,7 @@ Beispiel: Rechnung über 4.760,00 €, PayPal zahlt 4.700,00 € aus.
 
 Auf der Bank bleiben 4.700,00 €, die Rechnung steht auf „Bezahlt“. Bei Ist-Versteuerung kommt wie bei jedem Zahlungseingang die Umbuchung der Umsatzsteuer auf den vollen Rechnungsbetrag dazu (siehe [Buchungen](#buchungen)).
 
-**Frei aufteilen:** Mit **Aufteilen** verteilst du den offenen Teil eines Umsatzes auf beliebig viele Teile. Jeder Teil hat ein Ziel (Rechnung, gebuchter Beleg oder eine Art aus **Ohne Rechnung buchen**) und einen Betrag mit dem Vorzeichen, mit dem er das Konto bewegt: Zahlungseingänge positiv, Gebühren und Ausgänge negativ. Zur Auswahl stehen auch Posten in Gegenrichtung, etwa ein gebuchter Gebührenbeleg des Dienstleisters in einer Auszahlung; so laufen Vorsteuer bzw. § 13b über den Beleg. **Aufteilen und buchen** ist erst möglich, wenn die Teile zusammen genau den offenen Betrag ergeben. Jeder Teil wird einzeln gebucht, alle in einem Schritt.
+**Frei aufteilen:** Mit **Aufteilen** verteilst du den offenen Teil eines Umsatzes auf beliebig viele Teile. Jeder Teil hat ein Ziel (Rechnung, gebuchter Beleg oder eine Art aus **Direkt buchen**) und einen Betrag mit dem Vorzeichen, mit dem er das Konto bewegt: Zahlungseingänge positiv, Gebühren und Ausgänge negativ. Zur Auswahl stehen auch Posten in Gegenrichtung, etwa ein gebuchter Gebührenbeleg des Dienstleisters in einer Auszahlung; so laufen Vorsteuer bzw. § 13b über den Beleg. **Aufteilen und buchen** ist erst möglich, wenn die Teile zusammen genau den offenen Betrag ergeben. Jeder Teil wird einzeln gebucht, alle in einem Schritt.
 
 Teile einer Aufteilung hebst du nur gemeinsam auf (**Aufteilung aufheben**): Allein ergäbe ein Teil nicht mehr den Umsatz, etwa bliebe die Gebühr ohne den Erlös stehen.
 
@@ -270,9 +270,9 @@ Greift keine dieser Regeln, schlägt Haben die Buchungsart vor, mit der du früh
 
 Bei einem Geldtransit sucht Haben auf dem anderen Konto die Gegenbuchung: gleicher Betrag mit umgekehrtem Vorzeichen, höchstens fünf Tage auseinander, noch ganz offen, und als Gegenkonto das Ausgangskonto (fehlt die Gegen-IBAN, nimmt Haben sie nur, wenn es keine mit passender IBAN gibt). Eine fremde Zahlung über denselben Betrag, etwa eine Erstattung des Finanzamts, ist nie die Gegenbuchung. Gibt es sie, bucht **Beide Seiten als Geldtransit buchen** beide Umsätze in einem Schritt über das Geldtransitkonto (1360 bzw. 1460), wo sie sich aufheben. Das monatliche Zurücklegen der Umsatzsteuer erzeugt so nur noch einen Klick statt zwei Zuordnungen.
 
-### Ohne Rechnung buchen
+### Direkt buchen
 
-Für Umsätze ohne Rechnung oder Beleg klickst du **Ohne Rechnung buchen**, wählst unter **Buchen als** die Art und klickst **Buchen**.
+Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen“; bis Version 0.6 hieß die Schaltfläche „Ohne Rechnung buchen“), wählst unter **Buchen als** die Art und klickst **Buchen**.
 
 | Auswahl | Gegenkonto SKR03 | Gegenkonto SKR04 |
 | --- | --- | --- |
@@ -307,7 +307,7 @@ Im Einzelunternehmen ist die einbehaltene Steuer eine Entnahme, angerechnet wird
 
 ### Steuerzahlungen
 
-Zahlungen an das Finanzamt oder die Gemeinde und Erstattungen von dort, die keine Voranmeldung sind, buchst du unter **Ohne Rechnung buchen** als **Steuerzahlung oder Erstattung**. Dazu gibst du drei Dinge an:
+Zahlungen an das Finanzamt oder die Gemeinde und Erstattungen von dort, die keine Voranmeldung sind, buchst du unter **Direkt buchen** als **Steuerzahlung oder Erstattung**. Dazu gibst du drei Dinge an:
 
 - **Steuerart:** Umsatzsteuer, Gewerbesteuer, im Einzelunternehmen Einkommensteuer, Kirchensteuer und Solidaritätszuschlag, in GmbH und UG Körperschaftsteuer und Solidaritätszuschlag, dazu die von der Bank einbehaltene Kapitalertragsteuer (siehe oben).
 - **Bezugsjahr:** das Jahr, für das die Steuer festgesetzt ist, etwa 2024 für den Bescheid über die Gewerbesteuer 2024. Es bleibt am Vorgang stehen; gezählt wird die Zahlung trotzdem am Tag der Zahlung (§ 11 EStG).
@@ -359,7 +359,7 @@ Erstattungszinsen zur Gewerbesteuer sind Betriebseinnahmen wie die zur Umsatzste
 
 Ein aufgenommenes Darlehen legst du unter **Geld › Darlehen** an: Name, **Darlehensgeber** (Kreditinstitut oder anderer Darlehensgeber; Darlehen von Gesellschaftern laufen weiter über das Gesellschafter-Verrechnungskonto), **Restlaufzeit** und **Verwendung** (laufender Betrieb oder Finanzierung von Anlagevermögen). Ein laufendes Darlehen bringt seine **Restschuld** zum Stichtag mit, etwa beim Umzug in Haben; ein neues beginnt bei null und bekommt seinen Bestand mit der Auszahlung. Die Restschuld gilt nach Tagesabschluss: Auszahlungen und Tilgungen bis einschließlich des Stichtags stecken schon darin, deshalb lehnt Haben es ab, einen Bankumsatz von diesem Tag oder früher als Auszahlung oder Tilgung zuzuordnen. Zinsen und Gebühren aus dieser Zeit lassen sich weiter zuordnen. Die Seite zeigt je Darlehen das Konto und den **Bestand**: Restschuld beim Anlegen plus Auszahlungen minus Tilgungen aus dem Bankabgleich. Nach der ersten Zuordnung sind Geber, Restlaufzeit, Verwendung und Restschuld fest, weil sie die Konten der gebuchten Zahlungen bestimmen; der Name bleibt änderbar.
 
-Im Bankabgleich ordnest du unter **Ohne Rechnung buchen** bzw. mit **Aufteilen** „Darlehen“ zu, mit dem Darlehen und dem Teil:
+Im Bankabgleich ordnest du unter **Direkt buchen** bzw. mit **Aufteilen** „Darlehen“ zu, mit dem Darlehen und dem Teil:
 
 | Teil | Buchung | EÜR (Einzelunternehmen) |
 | --- | --- | --- |

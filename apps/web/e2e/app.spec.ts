@@ -20,7 +20,7 @@ const SETUP_CODE = "e2e-einrichtungscode";
 const dkb = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(2, 4)}`;
 
 const CUSTOMERS = [
-  { name: "Nordwerk Software GmbH", street: "Hafenstraße 5", zip: "20457", city: "Hamburg" },
+  { name: "Nordwerk Software GmbH", street: "Hafenstraße 5", zip: "20457", city: "Hamburg", phone: "+49 40 123456-0" },
   { name: "Alpenblick Media AG", street: "Sonnenstraße 12", zip: "80331", city: "München" },
   { name: "Rheinpixel GmbH", street: "Mediapark 8", zip: "50670", city: "Köln" },
 ];
@@ -134,17 +134,24 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
 
   const format = page.getByRole("form", { name: "Nummernformat" });
-  await format.getByLabel("Rechnungen").fill("RE-{NNN}");
+  const rechnungen = format.getByRole("group", { name: "Rechnungen" });
+  await rechnungen.getByLabel("Format").fill("RE-{NNN}");
   await expect(format.getByText(/braucht das Jahr/)).toBeVisible();
   await expect(format.getByRole("button", { name: "Format speichern" })).toBeDisabled();
-  await format.getByLabel("Rechnungen").fill("RE-{JJJJ}-{NNNN}");
-  await expect(format).toContainText(/Beispiel: RE-\d{4}-0001, RE-\d{4}-0002/);
+  // Läuft der Zähler weiter, ist das Jahr frei; das Beispiel zeigt den Jahreswechsel (#328)
+  await rechnungen.getByLabel("Zähler").selectOption({ label: "läuft weiter" });
+  await expect(format).toContainText("Beispiel: RE-412, RE-413");
+  await rechnungen.getByLabel("Zähler").selectOption({ label: "beginnt jedes Jahr neu" });
+  await rechnungen.getByLabel("Format").fill("RE-{JJJJ}-{MM}-{NNNN}");
+  await expect(format).toContainText(/Beispiel: RE-\d{4}-\d{2}-0001, RE-\d{4}-\d{2}-0002/);
   await format.getByRole("button", { name: "Format speichern" }).click();
   await expect(format.getByRole("status")).toContainText("Nummernformat gespeichert.");
-  await expect(page.getByRole("form", { name: /^Rechnungsnummern/ })).toContainText(/Nächste Nummer: RE-\d{4}-0001/);
+  await expect(page.getByRole("form", { name: /^Rechnungsnummern/ })).toContainText(/Nächste Nummer: RE-\d{4}-\d{2}-0001/);
+  await expect(page.getByRole("form", { name: /^Angebotsnummern/ })).toContainText(/Nächste Nummer: AN-\d{4}-001/);
   // Die folgenden Tests rechnen mit den Nummern ab Werk
   await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
-  await expect(format.getByLabel("Rechnungen")).toHaveValue("{JJJJ}-{NNN}");
+  await expect(rechnungen.getByLabel("Format")).toHaveValue("{JJJJ}-{NNN}");
+  await expect(rechnungen.getByLabel("Zähler")).toHaveValue("jaehrlich");
 
   const akzent = page.getByRole("form", { name: "Akzentfarbe" });
   await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
@@ -169,8 +176,10 @@ test("Kunden anlegen", async () => {
     await page.getByLabel("Straße und Hausnummer").fill(c.street);
     await page.getByLabel("PLZ").fill(c.zip);
     await page.getByLabel("Ort").fill(c.city);
+    if ("phone" in c) await page.getByLabel("Telefon").fill(c.phone);
     await page.getByRole("button", { name: "Kontakt anlegen" }).click();
     await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+    if ("phone" in c) await expect(page.getByLabel("Telefon")).toHaveValue(c.phone);
   }
   await go("/kontakte");
   for (const c of CUSTOMERS) await expect(page.getByText(c.name).first()).toBeVisible();
@@ -179,6 +188,10 @@ test("Kunden anlegen", async () => {
   await page.getByPlaceholder(/^Suchen:/).fill("hamburg");
   await expect(liste.getByRole("link")).toHaveCount(1);
   await expect(liste).toContainText("Nordwerk Software GmbH");
+  // Auch nach der Telefonnummer (#322), die unter der E-Mail steht
+  await page.getByPlaceholder(/^Suchen:/).fill("123456-0");
+  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(liste).toContainText("+49 40 123456-0");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");
 });
@@ -222,6 +235,34 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await page.getByLabel("Kunde").selectOption({ label: "Harbour Labs Ltd · London" });
   await expect(sprache).toHaveValue("en");
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
+});
+
+test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Workshop Barrierefreiheit");
+  const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Kunde", { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("Lieferant", { exact: true })).not.toBeChecked();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
+
+  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await dialog.getByLabel("Name oder Firma").fill("Dialogkunde GmbH");
+  await dialog.getByLabel("Ort").fill("Bremen");
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Kunde")).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByLabel("Kunde").locator("option:checked")).toHaveText("Dialogkunde GmbH · Bremen");
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
+
+  // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Dialogkunde GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
 test("Rechnungen schreiben und festschreiben", async () => {
@@ -1279,14 +1320,39 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hetzner Online GmbH · DE812871812" });
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
-  // Nicht buchen: Beleg löschen und den Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
+
+  // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
+  await page.getByLabel("Rechnungsnummer").fill("H-2026-77");
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Hetzner Online GmbH");
+  await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
+  // Gleiche USt-IdNr.: Haben bietet den vorhandenen Kontakt an, statt eine Dublette anzulegen
+  await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
+  await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+
+  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
+  await dialog.getByLabel("USt-IdNr.").fill("");
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" }).locator("option:checked")).toHaveText("Druckerei Süd GmbH");
+  await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
+  // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
   await page.waitForURL(/\/belege$/);
-  await go("/kontakte?rolle=lieferant");
-  await page.getByRole("link", { name: /Hetzner Online GmbH/ }).click();
-  await page.getByRole("button", { name: "Archivieren" }).click();
-  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
+    await go("/kontakte?rolle=lieferant");
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await page.getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  }
 });
 
 test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () => {
@@ -2453,7 +2519,7 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
   await page.waitForLoadState("networkidle");
   // Erst weiter, wenn rechts der gewählte Umsatz steht; sonst gehört das Formular noch zum vorigen
   await expect(panel.getByText("Auszahlung Darlehen 4711")).toBeVisible();
-  if (await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).isVisible()) await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("darlehen");
   await expect(panel.getByLabel("Teil der Rate")).toHaveValue("auszahlung");
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
