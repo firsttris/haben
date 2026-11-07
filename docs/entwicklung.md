@@ -208,9 +208,10 @@ Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-beri
 ### Bilder für README und Doku
 
 Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
-läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und fotografiert Übersicht, Rechnungseditor,
-Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
-`DOKU_SCREENSHOTS=1` überspringt es sich selbst, die normalen Tests bleiben unverändert.
+läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und ergänzt zuerst, was nur die Bilder
+brauchen: Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen. Dann fotografiert es Übersicht,
+Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
+`DOKU_SCREENSHOTS=1` überspringt es sich selbst; die CI legt diese Daten also nie an und wird dadurch nicht langsamer.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
