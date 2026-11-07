@@ -41,7 +41,7 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 - Hast du seit dem letzten Speichern etwas geändert, heißt der Knopf **Speichern und als PDF**: Er speichert zuerst, damit das PDF zeigt, was im Formular steht. Jeder weitere Download zeigt den neuen Stand.
 - Der Download vergibt keine Nummer, bucht nichts, versendet nichts und bettet kein XML ein. Das endgültige PDF beim Festschreiben hat keinen Vermerk.
 
-Das Entwurfs-PDF lädt, wer den Entwurf auch in Haben sieht, also auch die [Steuerberatung](steuerberatung.md) mit Lesezugriff. Auftragsbestätigung und Lieferschein haben keinen Entwurf: Sie entstehen aus festgeschriebenen Angeboten und Rechnungen.
+Das Entwurfs-PDF lädt nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht Entwürfe nicht und bekommt das PDF von dir. Auftragsbestätigung und Lieferschein haben keinen Entwurf: Sie entstehen aus festgeschriebenen Angeboten und Rechnungen.
 
 ### Positionen
 

@@ -5,14 +5,14 @@ import { fileResponse } from "../../../server/file-response.ts";
 import { DraftPdfError, invoiceDraftPdf } from "../../../server/modules/rechnungen/index.ts";
 
 /**
- * Rechnungsentwurf als PDF mit dem Vermerk „ENTWURF“: /api/entwurf/rechnung/<id>, mit ?download als Datei. Lesen darf
- * ihn, wer den Entwurf in Haben sieht, also auch die Steuerberatung zur Prüfung vor dem Festschreiben (Issue #342).
+ * Rechnungsentwurf als PDF mit dem Vermerk „ENTWURF“: /api/entwurf/rechnung/<id>, mit ?download als Datei. Nur für den
+ * Inhaber: Entwürfe sind sein Arbeitsstand, die Steuerberatung sieht sie auch in Liste und Detail nicht (Issue #342).
  */
 export const Route = createFileRoute("/api/entwurf/rechnung/$id")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const user = await requireUser(request, "lesen");
+        const user = await requireUser(request, "inhaber");
         if (user instanceof Response) return user;
         const id = z.uuid().safeParse(params.id);
         if (!id.success) return new Response("Nicht gefunden", { status: 404 });
