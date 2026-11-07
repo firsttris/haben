@@ -1492,6 +1492,8 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
       await tx`insert into legacy_order_documents (id, external_id, import_id, kind, number, date, status, contact_name, currency, net, tax, gross, raw)
         values (${id}, 'e2e-order-1', ${run!.id}, 'AN', 'AN-ARCHIV-1', ${`${YEAR}-06-01`}, '300', 'Archivkunde GmbH', 'EUR', 10000, 1900, 11900,
         '{"order":{},"positions":[{"id":"1","name":"Archivleistung","quantity":"2","price":"50"}],"relatedObjects":[]}')`;
+      await tx`insert into legacy_order_pdf_attempts (order_id, bookkeeping_version, "before", "after", error)
+        values (${id}, '1.0', '{"status":"300"}', '{"status":"300"}', 'Original-PDF war beim Abruf nicht verfügbar.')`;
     });
   } finally {
     await sql.end();
@@ -1503,6 +1505,10 @@ test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunter
   await expect(page.getByRole("heading", { name: "AN-ARCHIV-1" })).toBeVisible();
   await expect(page.getByText("Archivleistung")).toBeVisible();
   await expect(page.getByText("Abgelehnt", { exact: true })).toBeVisible();
+  const attempts = page.getByRole("region", { name: "PDF-Abrufprotokoll" });
+  await attempts.getByText(/Buchhaltungsversion 1.0/).click();
+  await expect(attempts.locator("pre")).toContainText('"status": "300"');
+  await attempts.getByText(/Buchhaltungsversion 1.0/).click();
   const preview = await browser.newPage();
   await preview.setContent("<h1>Beispielangebot AN-ARCHIV-1</h1><p>Archivkunde GmbH</p><p>Archivleistung: 2 Stück, 100,00 EUR netto, 119,00 EUR brutto</p>");
   const pdf = await preview.pdf({ format: "A4" });

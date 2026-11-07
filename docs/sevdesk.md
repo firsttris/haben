@@ -17,7 +17,7 @@ Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffic
 
 ## Schritt 1: Verbindung zu sevDesk
 
-Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Auftragsdokumente werden zunächst ohne automatischen PDF-Abruf archiviert, siehe unten. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
+Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit die Version der Buchhaltung ab (`/Tools/bookkeepingSystemVersion`); klappt das, ist der Token gültig. Er wird wie der Lexoffice-Schlüssel mit AES-256-GCM verschlüsselt gespeichert und taucht weder im Änderungsprotokoll noch im Jahresexport auf. Auftrags-PDFs werden ausschließlich bei frisch ermittelter Buchhaltungsversion 1.0 automatisch abgerufen, siehe unten. Nach dem Umzug entfernst du den Token mit „Token entfernen“.
 
 ## Schritt 2: Kontakte, Rechnungen und Belege abrufen
 
@@ -87,13 +87,17 @@ Haben archiviert die drei Auftragsarten aus sevDesk (`Order`: `AN`, `AB`, `LI`) 
 
 **Fremdwährung:** Für einen Auftrag in Fremdwährung zeigt und exportiert Haben die `sum*ForeignCurrency`-Summen aus sevDesk. Fehlen sie, bleiben die entsprechenden Beträge leer; EUR-Basisbeträge werden nicht mit einem Fremdwährungscode ausgegeben. Die vollständigen Quellbeträge bleiben in den Originaldaten erhalten.
 
-**PDF-Abruf noch ausgesetzt:** Die [sevDesk-API](https://api.sevdesk.de/#tag/Order) beschreibt `getPdf` mit „commit the order“. `preventSendBy=true` sichert nicht ausdrücklich zu, dass sämtliche Quellfelder unverändert bleiben. Deshalb ruft dieser Import für Auftragsdokumente ausschließlich Metadaten, Positionen und Beziehungen ab. Es gibt keine pauschale Zustimmung zu möglichen Quelländerungen.
+**Automatische PDFs nur für Buchhaltungsversion 1.0:** Haben ermittelt vor jedem fehlenden Auftrags-PDF die Version frisch über `/Tools/bookkeepingSystemVersion`. Nur exakt `1.0` ist freigegeben. Bei `2.0`, unbekannter Version oder fehlgeschlagener Versionsprüfung werden die Metadaten weiter archiviert; die PDFs bleiben als fehlend markiert und können manuell ergänzt werden. Die Adresse `/api/v1` unterscheidet diese Buchhaltungsversionen nicht. Eine gespeicherte frühere V1-Verbindung oder zusätzliche Aufrufdaten heben die Sperre nicht auf.
 
-Sieben gezielte V1-Proben mit Angeboten, Auftragsbestätigungen und Lieferscheinen einschließlich Entwürfen, abgelehntem Angebot und teilberechneter Auftragsbestätigung lieferten gültige PDFs. Status, Version, Versanddatum/-art und Änderungszeit waren jeweils vor und nach dem Abruf identisch; der Angebotsentwurf blieb laut Nutzer bearbeitbar. Der Verlauf in der sevDesk-Oberfläche und die weitere Bearbeitbarkeit der anderen Entwürfe sind noch nicht vollständig geprüft. Der automatische PDF-Abruf braucht diesen zusätzlichen Nachweis; die Ergebnisse gelten nicht automatisch für Buchhaltungsversion 2.0.
+Die [sevDesk-API](https://api.sevdesk.de/#tag/Order) beschreibt `getPdf` mit „commit the order“. Deshalb wurde `preventSendBy=true` gezielt an sieben V1-Dokumenten geprüft: AN, AB und LI, einschließlich Entwürfen, abgelehntem Angebot und teilberechneter AB. Status, Version, Versanddatum/-art und Änderungszeit blieben unverändert. Laut Nutzerrückmeldung blieben auch alle getesteten Entwürfe weiter bearbeitbar; sichtbare Änderungs-/Verlaufseinträge entstanden nicht. Diese Ergebnisse gelten für die geprüften Fälle und **nicht für Buchhaltungsversion 2.0**.
+
+**Nachweise und Fehler:** Vor einem PDF-Abruf vergleicht Haben den aktuellen Quellstand mit der Archivkopie. Bei Abweichungen wird das PDF nicht dem alten Stand zugeordnet. Nach jedem begonnenen PDF-Abruf folgt eine Nachkontrolle, auch nach einer fehlgeschlagenen Antwort. Vorher-/Nachher-Antworten und Fehler bleiben unveränderlich im PDF-Abrufprotokoll erhalten. Eine PDF-Anfrage wird nicht automatisch wiederholt und folgt keiner Weiterleitung. Bei unerwarteten Änderungen, PDF-Fehlern oder fehlender Nachkontrolle setzt Haben weitere automatische Auftrags-PDFs im laufenden Import aus; die Metadaten werden weiter archiviert. Ein auffälliges PDF wird nicht als erfolgreiche Originaldatei zugeordnet. Der offene Punkt steht im Import und im Abrufprotokoll.
+
+Ein neuer Abruf lädt fehlende PDFs nach, soweit die Versions- und Quellstandsprüfung das erlauben. Vorhandene Dateien, auch manuelle Nachträge, und archivierte Metadaten werden nicht ersetzt.
 
 **Manuell ergänzen:** Auf der Detailseite kannst du ein Original-PDF bis 20 MB anhängen. Es erscheint als „manuell nachgereicht“ mit Zeitpunkt und Prüfsumme; frühere Dateien und Quelldaten werden nicht ersetzt. Fehlende PDFs bleiben sichtbar und verhindern den Vollständigkeitshinweis zum Umzug. Ein Anhang erzeugt weder eine Buchung noch einen aktiven offenen Posten. Diese Ergänzung betrifft nur Auftragsdokumente; das allgemeine Nachreichen von Unterlagen zu Belegen und Darlehen bleibt eine eigene Erweiterung.
 
-Der Jahresexport enthält `sevdesk/auftraege.csv` sowie angehängte PDFs und Quelldaten unter `sevdesk/auftraege/`. Die Auftragsdaten verändern keine Umsatz-, Steuer- oder OP-Summen. Für KI-Assistenten stehen eigene lesende Archivwerkzeuge bereit.
+Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF-Abrufprotokolle unter `sevdesk/auftraege/`. Die Auftragsdaten verändern keine Umsatz-, Steuer- oder OP-Summen. Für KI-Assistenten stehen eigene lesende Archivwerkzeuge bereit.
 
 ### Grenzen des aktuellen Imports
 

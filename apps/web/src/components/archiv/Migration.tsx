@@ -49,7 +49,7 @@ const SOURCES = {
     keyHelp: "Den API-Token findest du in sevDesk unter Einstellungen → Benutzer, beim jeweiligen Benutzer. Haben liest nur, es ändert nichts in sevDesk.",
     removeLabel: "Token entfernen",
     importHelp:
-      "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Angebote, Auftragsbestätigungen und Lieferscheine werden zusätzlich als Archivkopien übernommen. Je Dokument sind mehrere Anfragen nötig; du kannst die Seite währenddessen verlassen. Auftrags-PDFs werden derzeit nicht automatisch abgerufen und können manuell ergänzt werden.",
+      "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Angebote, Auftragsbestätigungen und Lieferscheine werden zusätzlich als Archivkopien übernommen. Auftrags-PDFs werden nur bei frisch bestätigter Buchhaltungsversion 1.0 automatisch abgerufen; bei Version 2.0 oder unbekannter Version können sie manuell ergänzt werden. Du kannst die Seite währenddessen verlassen.",
     exportsHelp:
       "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) aus sevDesk hoch, dazu den Datenexport für die Betriebsprüfung (GoBD, als „IDEA-Export“ ablegen), die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
     save: saveSevdeskToken,

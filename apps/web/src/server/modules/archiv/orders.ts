@@ -118,6 +118,11 @@ export async function orderDocumentDetail(id: string) {
   const [document] = await db.select().from(schema.legacyOrderDocuments).where(eq(schema.legacyOrderDocuments.id, id));
   if (!document) return null;
   const files = await db.select().from(schema.legacyOrderFiles).where(eq(schema.legacyOrderFiles.orderId, id)).orderBy(schema.legacyOrderFiles.createdAt);
+  const attempts = await db
+    .select()
+    .from(schema.legacyOrderPdfAttempts)
+    .where(eq(schema.legacyOrderPdfAttempts.orderId, id))
+    .orderBy(schema.legacyOrderPdfAttempts.createdAt);
   const { raw, ...fields } = document;
   const text = (value: unknown) => (typeof value === "string" || typeof value === "number" ? String(value) : "");
   const positions = Array.isArray(raw.positions)
@@ -135,6 +140,7 @@ export async function orderDocumentDetail(id: string) {
   return {
     document: { ...fields, positions, relatedObjects: JSON.stringify(raw.relatedObjects ?? []) },
     files,
+    attempts: attempts.map(({ before, after, ...attempt }) => ({ ...attempt, states: JSON.stringify({ before, after }, null, 2) })),
   };
 }
 

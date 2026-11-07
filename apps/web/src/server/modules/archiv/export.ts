@@ -1178,6 +1178,12 @@ async function* orderFiles(year: number, problems: string[]): AsyncGenerator<Arc
     yield { path: `${base}/quelle.json`, content: encoder.encode(JSON.stringify(document.raw, null, 2)), compress: true };
     const attached = byDocument.get(document.id) ?? [];
     yield { path: `${base}/dateien.json`, content: encoder.encode(JSON.stringify(attached, null, 2)), compress: true };
+    const attempts = await db
+      .select()
+      .from(schema.legacyOrderPdfAttempts)
+      .where(eq(schema.legacyOrderPdfAttempts.orderId, document.id))
+      .orderBy(schema.legacyOrderPdfAttempts.createdAt);
+    if (attempts.length) yield { path: `${base}/pdf-abrufe.json`, content: encoder.encode(JSON.stringify(attempts, null, 2)), compress: true };
     if (!attached.length) problems.push(`sevdesk-Auftragsdokument ${document.number || document.externalId}: PDF fehlt.`);
     for (const file of attached) {
       const path = `${base}/${file.id.slice(0, 8)}_${safeName(file.filename, 100, "dokument.pdf")}`;

@@ -1100,6 +1100,20 @@
       "when": 1794044374006,
       "tag": "0156_auftragsarchiv_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1794047411016,
+      "tag": "0157_sevdesk_auftrags_pdf",
+      "breakpoints": true
+    },
+    {
+      "idx": 158,
+      "version": "7",
+      "when": 1794047411568,
+      "tag": "0158_auftrags_pdf_trigger",
+      "breakpoints": true
     }
   ]
 }

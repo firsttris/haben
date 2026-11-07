@@ -2050,6 +2050,23 @@ export const legacyOrderFiles = pgTable(
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
 );
 
+/** Nachweis jedes begonnenen automatischen PDF-Abrufs, auch wenn kein PDF übernommen werden konnte. */
+export const legacyOrderPdfAttempts = pgTable(
+  "legacy_order_pdf_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => legacyOrderDocuments.id),
+    bookkeepingVersion: text("bookkeeping_version").notNull(),
+    before: jsonb("before").$type<Record<string, unknown>>().notNull(),
+    after: jsonb("after").$type<Record<string, unknown>>(),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("legacy_order_pdf_attempts_order").on(t.orderId)],
+);
+
 /**
  * Rechnungen, Gutschriften und Belege aus Lexoffice oder sevDesk, so wie die API sie geliefert hat. Nur anhängen.
  * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".

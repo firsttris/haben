@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/archiv/auftrag/$id")({
 });
 
 function OrderDocumentPage() {
-  const { document, files } = Route.useLoaderData();
+  const { document, files, attempts } = Route.useLoaderData();
   return (
     <>
       <div className="page-head">
@@ -35,6 +35,20 @@ function OrderDocumentPage() {
         <OrderFiles files={files} id={document.id} />
         <OrderFacts document={document} />
       </div>
+      {attempts.length > 0 && (
+        <section className="card stack" aria-label="PDF-Abrufprotokoll">
+          <h2>PDF-Abrufprotokoll</h2>
+          {attempts.map((attempt) => (
+            <details key={attempt.id}>
+              <summary>
+                {formatDateTime(attempt.createdAt)} · Buchhaltungsversion {attempt.bookkeepingVersion} · {attempt.error ? "Nicht übernommen" : "Erfolgreich"}
+              </summary>
+              {attempt.error && <p className="banner banner-info">{attempt.error}</p>}
+              <pre className="archive-proof">{attempt.states}</pre>
+            </details>
+          ))}
+        </section>
+      )}
     </>
   );
 }

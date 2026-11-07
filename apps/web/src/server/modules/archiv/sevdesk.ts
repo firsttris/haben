@@ -30,6 +30,7 @@ import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { importOrder, isImportableOrder } from "./orders.ts";
+import { createOrderPdfImporter } from "./order-pdfs.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -254,6 +255,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
   );
 
   // 3. Je Beleg Positionen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf
+  const importOrderPdf = createOrderPdfImporter(actor, client, signal);
   progress.phase = "belege";
   await save(true);
   for (const item of listed) {
@@ -266,6 +268,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
       // false: ein gleichzeitiger Lauf hat den Beleg schon übernommen
       if (await importVoucher(actor, importId, client, item, progress)) progress.imported += 1;
       else progress.skipped += 1;
+      if (item.kind === "order" && (await importOrderPdf(item.id))) progress.files += 1;
     } catch (error) {
       // Token ungültig oder abgebrochen: weitermachen ist sinnlos
       if (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403)) throw error;
