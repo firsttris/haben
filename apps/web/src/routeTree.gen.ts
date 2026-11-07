@@ -85,6 +85,7 @@ import { Route as ApiUeberweisungIdRouteImport } from './routes/api/ueberweisung
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as ApiVastIdRouteImport } from './routes/api/vast/$id'
+import { Route as AppArchivAuftragIdRouteImport } from './routes/_app/archiv/auftrag.$id'
 import { Route as AppArchivBelegIdRouteImport } from './routes/_app/archiv/beleg.$id'
 import { Route as AppLohnAnmeldungIndexRouteImport } from './routes/_app/lohn/anmeldung.index'
 import { Route as AppLohnAnmeldungZeitraumRouteImport } from './routes/_app/lohn/anmeldung.$zeitraum'
@@ -97,6 +98,7 @@ import { Route as AppRechnungenWiederkehrendIndexRouteImport } from './routes/_a
 import { Route as AppRechnungenWiederkehrendIdRouteImport } from './routes/_app/rechnungen/wiederkehrend/$id'
 import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app/rechnungen/wiederkehrend/neu'
 import { Route as AppUmsatzsteuerZmQuartalRouteImport } from './routes/_app/umsatzsteuer/zm.$quartal'
+import { Route as ApiArchivAuftragsdateiIdRouteImport } from './routes/api/archiv/auftragsdatei.$id'
 import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art.$id'
 import { Route as ApiLohnAbrechnungIdRouteImport } from './routes/api/lohn/abrechnung.$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
@@ -484,6 +486,11 @@ const ApiVastIdRoute = ApiVastIdRouteImport.update({
   path: '/api/vast/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppArchivAuftragIdRoute = AppArchivAuftragIdRouteImport.update({
+  id: '/archiv/auftrag/$id',
+  path: '/archiv/auftrag/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppArchivBelegIdRoute = AppArchivBelegIdRouteImport.update({
   id: '/archiv/beleg/$id',
   path: '/archiv/beleg/$id',
@@ -551,6 +558,12 @@ const AppUmsatzsteuerZmQuartalRoute =
     id: '/umsatzsteuer/zm/$quartal',
     path: '/umsatzsteuer/zm/$quartal',
     getParentRoute: () => AppRoute,
+  } as any)
+const ApiArchivAuftragsdateiIdRoute =
+  ApiArchivAuftragsdateiIdRouteImport.update({
+    id: '/api/archiv/auftragsdatei/$id',
+    path: '/api/archiv/auftragsdatei/$id',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiDokumentArtIdRoute = ApiDokumentArtIdRouteImport.update({
   id: '/api/dokument/$art/$id',
@@ -662,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/rechnungen/': typeof AppRechnungenIndexRoute
   '/textbausteine/': typeof AppTextbausteineIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
+  '/archiv/auftrag/$id': typeof AppArchivAuftragIdRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
   '/lohn/anmeldung/$zeitraum': typeof AppLohnAnmeldungZeitraumRoute
   '/lohn/bescheinigung/$jahr': typeof AppLohnBescheinigungJahrRoute
@@ -671,6 +685,7 @@ export interface FileRoutesByFullPath {
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
+  '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
@@ -757,6 +772,7 @@ export interface FileRoutesByTo {
   '/rechnungen': typeof AppRechnungenIndexRoute
   '/textbausteine': typeof AppTextbausteineIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
+  '/archiv/auftrag/$id': typeof AppArchivAuftragIdRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
   '/lohn/anmeldung/$zeitraum': typeof AppLohnAnmeldungZeitraumRoute
   '/lohn/bescheinigung/$jahr': typeof AppLohnBescheinigungJahrRoute
@@ -766,6 +782,7 @@ export interface FileRoutesByTo {
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
+  '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
@@ -854,6 +871,7 @@ export interface FileRoutesById {
   '/_app/rechnungen/': typeof AppRechnungenIndexRoute
   '/_app/textbausteine/': typeof AppTextbausteineIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
+  '/_app/archiv/auftrag/$id': typeof AppArchivAuftragIdRoute
   '/_app/archiv/beleg/$id': typeof AppArchivBelegIdRoute
   '/_app/lohn/anmeldung/$zeitraum': typeof AppLohnAnmeldungZeitraumRoute
   '/_app/lohn/bescheinigung/$jahr': typeof AppLohnBescheinigungJahrRoute
@@ -863,6 +881,7 @@ export interface FileRoutesById {
   '/_app/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/_app/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/_app/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
+  '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
@@ -951,6 +970,7 @@ export interface FileRouteTypes {
     | '/rechnungen/'
     | '/textbausteine/'
     | '/umsatzsteuer/'
+    | '/archiv/auftrag/$id'
     | '/archiv/beleg/$id'
     | '/lohn/anmeldung/$zeitraum'
     | '/lohn/bescheinigung/$jahr'
@@ -960,6 +980,7 @@ export interface FileRouteTypes {
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
     | '/umsatzsteuer/zm/$quartal'
+    | '/api/archiv/auftragsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
@@ -1046,6 +1067,7 @@ export interface FileRouteTypes {
     | '/rechnungen'
     | '/textbausteine'
     | '/umsatzsteuer'
+    | '/archiv/auftrag/$id'
     | '/archiv/beleg/$id'
     | '/lohn/anmeldung/$zeitraum'
     | '/lohn/bescheinigung/$jahr'
@@ -1055,6 +1077,7 @@ export interface FileRouteTypes {
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
     | '/umsatzsteuer/zm/$quartal'
+    | '/api/archiv/auftragsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
@@ -1142,6 +1165,7 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/'
     | '/_app/textbausteine/'
     | '/_app/umsatzsteuer/'
+    | '/_app/archiv/auftrag/$id'
     | '/_app/archiv/beleg/$id'
     | '/_app/lohn/anmeldung/$zeitraum'
     | '/_app/lohn/bescheinigung/$jahr'
@@ -1151,6 +1175,7 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/wiederkehrend/$id'
     | '/_app/rechnungen/wiederkehrend/neu'
     | '/_app/umsatzsteuer/zm/$quartal'
+    | '/api/archiv/auftragsdatei/$id'
     | '/api/dokument/$art/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
@@ -1193,6 +1218,7 @@ export interface RootRouteChildren {
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
+  ApiArchivAuftragsdateiIdRoute: typeof ApiArchivAuftragsdateiIdRoute
   ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
   ApiLohnAbrechnungIdRoute: typeof ApiLohnAbrechnungIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
@@ -1735,6 +1761,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVastIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/archiv/auftrag/$id': {
+      id: '/_app/archiv/auftrag/$id'
+      path: '/archiv/auftrag/$id'
+      fullPath: '/archiv/auftrag/$id'
+      preLoaderRoute: typeof AppArchivAuftragIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/archiv/beleg/$id': {
       id: '/_app/archiv/beleg/$id'
       path: '/archiv/beleg/$id'
@@ -1818,6 +1851,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/umsatzsteuer/zm/$quartal'
       preLoaderRoute: typeof AppUmsatzsteuerZmQuartalRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/archiv/auftragsdatei/$id': {
+      id: '/api/archiv/auftragsdatei/$id'
+      path: '/api/archiv/auftragsdatei/$id'
+      fullPath: '/api/archiv/auftragsdatei/$id'
+      preLoaderRoute: typeof ApiArchivAuftragsdateiIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/dokument/$art/$id': {
       id: '/api/dokument/$art/$id'
@@ -1911,6 +1951,7 @@ interface AppRouteChildren {
   AppRechnungenIndexRoute: typeof AppRechnungenIndexRoute
   AppTextbausteineIndexRoute: typeof AppTextbausteineIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
+  AppArchivAuftragIdRoute: typeof AppArchivAuftragIdRoute
   AppArchivBelegIdRoute: typeof AppArchivBelegIdRoute
   AppLohnAnmeldungZeitraumRoute: typeof AppLohnAnmeldungZeitraumRoute
   AppLohnBescheinigungJahrRoute: typeof AppLohnBescheinigungJahrRoute
@@ -1972,6 +2013,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRechnungenIndexRoute: AppRechnungenIndexRoute,
   AppTextbausteineIndexRoute: AppTextbausteineIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,
+  AppArchivAuftragIdRoute: AppArchivAuftragIdRoute,
   AppArchivBelegIdRoute: AppArchivBelegIdRoute,
   AppLohnAnmeldungZeitraumRoute: AppLohnAnmeldungZeitraumRoute,
   AppLohnBescheinigungJahrRoute: AppLohnBescheinigungJahrRoute,
@@ -2019,6 +2061,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUstvaIdRoute: ApiUstvaIdRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,
   ApiVastIdRoute: ApiVastIdRoute,
+  ApiArchivAuftragsdateiIdRoute: ApiArchivAuftragsdateiIdRoute,
   ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
   ApiLohnAbrechnungIdRoute: ApiLohnAbrechnungIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,

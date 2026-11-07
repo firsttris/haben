@@ -12,6 +12,8 @@ import {
   type sevFileBodySchema,
   sevFileResponseSchema,
   sevInvoiceSchema,
+  sevOrderSchema,
+  sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
   sevVoucherSchema,
   type SevCommunicationWay,
@@ -21,6 +23,7 @@ import {
   type SevDocumentPos,
   type SevFile,
   type SevInvoice,
+  type SevOrder,
   type SevVoucher,
   type SevVoucherPos,
 } from "./types.ts";
@@ -131,6 +134,32 @@ export class SevdeskClient {
     return this.#pages("/Voucher", {}, sevVoucherSchema);
   }
 
+  orders(): AsyncGenerator<SevOrder> {
+    return this.#pages("/Order", {}, sevOrderSchema);
+  }
+
+  async order(orderId: string): Promise<SevOrder> {
+    const path = `/Order/${enc(orderId)}`;
+    const data = await this.#json(path, {}, listSchema(sevOrderSchema));
+    if (data.objects.length !== 1 || String(data.objects[0]!.id) !== orderId)
+      throw new SevdeskApiError("Auftragsdokument nicht eindeutig gefunden.", 200, path);
+    return data.objects[0]!;
+  }
+
+  /** Nur nach frischer V1-Prüfung im Import; preventSendBy, keine Wiederholung und keine Weiterleitung. */
+  orderPdf(orderId: string): Promise<SevFile | null> {
+    return this.#optionalFile(`/Order/${enc(orderId)}/getPdf`, { preventSendBy: "true" }, { maxRetries: 0, redirect: "error" });
+  }
+
+  async orderPositions(orderId: string): Promise<SevDocumentPos[]> {
+    return this.#all(`/Order/${enc(orderId)}/getPositions`, {}, sevDocumentPosSchema);
+  }
+
+  async orderRelatedObjects(orderId: string) {
+    const data = await this.#json(`/Order/${enc(orderId)}/getRelatedObjects`, {}, sevRelatedObjectsResponseSchema);
+    return data.objects;
+  }
+
   async invoicePositions(invoiceId: string): Promise<SevDocumentPos[]> {
     return this.#all(`/Invoice/${enc(invoiceId)}/getPositions`, {}, sevDocumentPosSchema);
   }
@@ -214,10 +243,10 @@ export class SevdeskClient {
     return parseJson(res, path, schema);
   }
 
-  async #optionalFile(path: string, query: Record<string, string>): Promise<SevFile | null> {
+  async #optionalFile(path: string, query: Record<string, string>, options: { maxRetries?: number; redirect?: "error" } = {}): Promise<SevFile | null> {
     let res: RawResponse;
     try {
-      res = await this.#request(path, query, "application/json, application/pdf, */*");
+      res = await this.#request(path, query, "application/json, application/pdf, */*", options);
     } catch (e) {
       if (isStatus(e, 400, 404)) return null;
       throw e;
@@ -243,9 +272,10 @@ export class SevdeskClient {
     };
   }
 
-  async #request(path: string, query: Record<string, string>, accept: string): Promise<RawResponse> {
+  async #request(path: string, query: Record<string, string>, accept: string, options: { maxRetries?: number; redirect?: "error" } = {}): Promise<RawResponse> {
     const params = new URLSearchParams(query).toString();
     const url = this.#baseUrl + path + (params ? `?${params}` : "");
+    const maxRetries = options.maxRetries ?? this.#maxRetries;
     for (let attempt = 0; ; attempt++) {
       this.#checkAborted(path);
       await this.#throttle();
@@ -256,12 +286,13 @@ export class SevdeskClient {
           method: "GET",
           headers: { Authorization: this.#apiKey, Accept: accept },
           signal: this.#signal,
+          redirect: options.redirect ?? "follow",
         });
       } catch (cause) {
         if (this.#signal?.aborted || isAbortError(cause)) {
           throw new SevdeskApiError("Import abgebrochen", 0, path, { cause });
         }
-        if (attempt < this.#maxRetries) {
+        if (attempt < maxRetries) {
           await this.#sleep(backoff(attempt));
           continue;
         }
@@ -274,7 +305,7 @@ export class SevdeskClient {
       }
 
       const body = await res.text().catch(() => "");
-      if (RETRY_STATUSES.has(res.status) && attempt < this.#maxRetries) {
+      if (RETRY_STATUSES.has(res.status) && attempt < maxRetries) {
         const retryAfter = parseRetryAfter(res.headers.get("retry-after"), this.#now());
         await this.#sleep(retryAfter ?? backoff(attempt));
         continue;

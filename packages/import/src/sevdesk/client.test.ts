@@ -33,6 +33,51 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 }
 
 describe("SevdeskClient", () => {
+  it("liest einen Quellstand und dekodiert das geprüfte V1-Auftrags-PDF mit preventSendBy", async () => {
+    const { client, calls } = setup((url) =>
+      json({
+        objects: url.pathname.endsWith("/getPdf")
+          ? { filename: "angebot.pdf", mimetype: "application/pdf", base64Encoded: true, content: Buffer.from("%PDF-1.4 Test").toString("base64") }
+          : [{ id: "1", orderType: "AN", status: "100", version: "0" }],
+      }),
+    );
+    expect(await client.order("1")).toMatchObject({ id: "1", status: "100" });
+    expect(new TextDecoder().decode((await client.orderPdf("1"))!.bytes)).toBe("%PDF-1.4 Test");
+    expect(calls[1]!.url.searchParams.get("preventSendBy")).toBe("true");
+  });
+
+  it.each(["netzwerk", "503"])("wiederholt Auftrags-PDF-Anfragen nach %s nicht", async (kind) => {
+    const { client, calls, sleeps } = setup(
+      () => {
+        if (kind === "netzwerk") throw new TypeError("Verbindung unterbrochen");
+        return json({}, 503);
+      },
+      { maxRetries: 3 },
+    );
+    await expect(client.orderPdf("1")).rejects.toBeInstanceOf(SevdeskApiError);
+    expect(calls).toHaveLength(1);
+    expect(sleeps).toHaveLength(0);
+  });
+
+  it("erhält lückenhafte Objekt-Schlüssel der Beziehungen teilberechneter Aufträge", async () => {
+    const related = {
+      "0": { id: "81", objectName: "Invoice", invoiceNumber: "RE-2026-1", status: "1000" },
+      "3": { id: "92", objectName: "Order", orderType: "LI", orderNumber: "LS-2026-1" },
+    };
+    const { client, calls } = setup(() => json({ objects: related }));
+    expect(await client.orderRelatedObjects("75")).toEqual(related);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url.search).toBe("");
+  });
+
+  it("liest Auftragsarten, Positionen und Verknüpfungen ohne PDF-Aufruf", async () => {
+    const { client, calls } = setup((url) => json({ objects: url.pathname.endsWith("/Order") ? [{ id: "1", orderType: "AN", status: "200" }] : [] }));
+    expect(await collect(client.orders())).toMatchObject([{ id: "1", orderType: "AN" }]);
+    await client.orderPositions("1");
+    await client.orderRelatedObjects("1");
+    expect(calls.map((c) => c.url.pathname)).toEqual(["/api/v1/Order", "/api/v1/Order/1/getPositions", "/api/v1/Order/1/getRelatedObjects"]);
+  });
+
   it("schickt den Token unverändert und blättert mit limit und offset", async () => {
     const all = Array.from({ length: 150 }, (_, i) => ({ id: String(i + 1), name: `Kontakt ${i + 1}` }));
     const { client, calls } = setup((url) => {

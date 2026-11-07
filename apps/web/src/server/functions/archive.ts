@@ -11,6 +11,10 @@ import {
   listDatevBookings,
   MAX_ARCHIVE_SIZE,
   type ArchiveKind,
+  attachOrderPdf,
+  listOrderDocuments,
+  orderArchiveOverview,
+  orderDocumentDetail,
 } from "../modules/archiv/index.ts";
 import {
   cancelImport,
@@ -45,13 +49,14 @@ export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema.optional() }))
   .handler(async ({ data }) => {
-    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport] = await Promise.all([
+    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport, orderArchive] = await Promise.all([
       connectionStatus(),
       reconciliation(),
       listArchiveFiles(),
       openItemsOverview(data.stichtag),
       sevdeskConnectionStatus(),
       latestSevdeskImport(),
+      orderArchiveOverview(),
     ]);
     return {
       connection,
@@ -61,6 +66,7 @@ export const getMigration = createServerFn({ method: "GET" })
       cutoff,
       cutoffError,
       ...check,
+      orderArchive,
       files: files.map(({ meta, ...file }) => ({
         ...file,
         bookings: typeof meta?.bookings === "number" ? meta.bookings : null,
@@ -215,3 +221,32 @@ export const takeOverAllOpenItems = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema }))
   .handler(async ({ data, context }) => takeOverAll(context.user.id, data.stichtag));
+
+export const getOrderDocuments = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, search: z.string().max(100).default(""), kind: z.enum(["AN", "AB", "LI"]).optional() }))
+  .handler(async ({ data }) => listOrderDocuments(data));
+
+export const getOrderDocument = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(({ id }: { id: string }) => ({ id: detailId(id) }))
+  .handler(async ({ data }) => {
+    const detail = await orderDocumentDetail(data.id);
+    if (!detail) throw notFound();
+    return detail;
+  });
+
+export const uploadOrderPdf = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => {
+    if (!(input instanceof FormData)) throw new UserError("FormData erwartet.");
+    const file = input.get("file");
+    if (!(file instanceof File) || file.size > 20 * 1024 * 1024) throw new UserError("Bitte ein PDF mit höchstens 20 MB auswählen.");
+    return { id: z.uuid().parse(input.get("id")), file };
+  })
+  .handler(async ({ data, context }) =>
+    attachOrderPdf(context.user.id, data.id, {
+      filename: data.file.name,
+      bytes: new Uint8Array(await data.file.arrayBuffer()),
+    }),
+  );

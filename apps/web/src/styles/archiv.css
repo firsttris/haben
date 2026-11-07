@@ -18,6 +18,8 @@
 .data-table tr.unmatched td { background: var(--warn-soft); }
 .data-table a { color: var(--accent-ink); }
 .table-scroll { overflow-x: auto; }
+.archive-fingerprint { overflow-wrap: anywhere; }
+.archive-proof { white-space: pre-wrap; overflow-wrap: anywhere; }
 .legacy-cols { grid-template-columns: 96px 140px minmax(0, 1fr) 110px 110px 60px; }
 .archive-file-cols { grid-template-columns: 60px 170px minmax(0, 1fr) 90px 150px; }
 .archive-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

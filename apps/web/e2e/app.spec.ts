@@ -1547,6 +1547,50 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
 
+test("Auftragsarchiv: suchen, Original-PDF nachreichen und unverändert herunterladen", async ({ browser }) => {
+  const sql = postgres(process.env.E2E_DATABASE_URL!, { max: 1 });
+  const id = "723bf34b-f8ab-48f0-b391-656af4b72a96";
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('haben.actor', 'e2e', true)`;
+      const [run] = await tx`insert into lexoffice_imports (source, status, progress)
+        values ('sevdesk', 'fertig', '{"phase":"fertig","contacts":0,"contactsLinked":0,"listed":1,"imported":1,"skipped":0,"files":0,"failed":[]}') returning id`;
+      await tx`insert into legacy_order_documents (id, external_id, import_id, kind, number, date, status, contact_name, currency, net, tax, gross, raw)
+        values (${id}, 'e2e-order-1', ${run!.id}, 'AN', 'AN-ARCHIV-1', ${`${YEAR}-06-01`}, '300', 'Archivkunde GmbH', 'EUR', 10000, 1900, 11900,
+        '{"order":{},"positions":[{"id":"1","name":"Archivleistung","quantity":"2","price":"50"}],"relatedObjects":[]}')`;
+      await tx`insert into legacy_order_pdf_attempts (order_id, bookkeeping_version, "before", "after", error)
+        values (${id}, '1.0', '{"status":"300"}', '{"status":"300"}', 'Original-PDF war beim Abruf nicht verfügbar.')`;
+    });
+  } finally {
+    await sql.end();
+  }
+  await go(`/archiv?ansicht=auftraege&jahr=${YEAR}`);
+  await page.getByLabel("Nummer oder Kontakt").fill("AN-ARCHIV-1");
+  await page.getByRole("button", { name: "Suchen", exact: true }).click();
+  await page.getByRole("link", { name: "AN-ARCHIV-1", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "AN-ARCHIV-1" })).toBeVisible();
+  await expect(page.getByText("Archivleistung")).toBeVisible();
+  await expect(page.getByText("Abgelehnt", { exact: true })).toBeVisible();
+  const attempts = page.getByRole("region", { name: "PDF-Abrufprotokoll" });
+  await attempts.getByText(/Buchhaltungsversion 1.0/).click();
+  await expect(attempts.locator("pre")).toContainText('"status": "300"');
+  await attempts.getByText(/Buchhaltungsversion 1.0/).click();
+  const preview = await browser.newPage();
+  await preview.setContent("<h1>Beispielangebot AN-ARCHIV-1</h1><p>Archivkunde GmbH</p><p>Archivleistung: 2 Stück, 100,00 EUR netto, 119,00 EUR brutto</p>");
+  const pdf = await preview.pdf({ format: "A4" });
+  await preview.close();
+  await page.getByLabel("Original-PDF ergänzen").setInputFiles({ name: "Originalangebot.pdf", mimeType: "application/pdf", buffer: pdf });
+  await page.getByRole("button", { name: "PDF anhängen" }).click();
+  const download = page.getByRole("link", { name: "PDF herunterladen" });
+  await expect(download).toBeVisible();
+  const response = await page.request.get((await download.getAttribute("href"))!);
+  expect(response.status()).toBe(200);
+  expect(await response.body()).toEqual(pdf);
+  await expect(page.getByText(/Manuell nachgereicht/)).toBeVisible();
+  await go(`/archiv?ansicht=auftraege&jahr=${YEAR}`);
+  await expect(page.getByRole("row").filter({ hasText: "AN-ARCHIV-1" })).toContainText("1 vorhanden");
+});
+
 test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async () => {
   await go("/umsatzsteuer");
   const save = page.getByRole("button", { name: "Entwurf speichern" });

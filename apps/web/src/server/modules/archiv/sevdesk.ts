@@ -17,6 +17,7 @@ import {
   type SevdeskClientOptions,
   type SevFile,
   type SevInvoice,
+  type SevOrder,
   type SevMappedVoucher,
   type SevVoucher,
 } from "@haben/import";
@@ -28,6 +29,8 @@ import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
+import { importOrder, isImportableOrder } from "./orders.ts";
+import { createOrderPdfImporter } from "./order-pdfs.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -151,7 +154,8 @@ export function cancelSevdeskImport(id: string): boolean {
 type Listed =
   | { kind: "invoice"; id: string; number: string; raw: SevInvoice }
   | { kind: "creditnote"; id: string; number: string; raw: SevCreditNote }
-  | { kind: "voucher"; id: string; number: string; raw: SevVoucher };
+  | { kind: "voucher"; id: string; number: string; raw: SevVoucher }
+  | { kind: "order"; id: string; number: string; raw: SevOrder };
 
 async function runImport(actor: string, importId: string, client: SevdeskClient, progress: LexofficeImportProgress, signal: AbortSignal) {
   let lastSave = 0;
@@ -235,6 +239,15 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
   for await (const raw of client.vouchers()) {
     if (isSevVoucherImportable(raw)) await add({ kind: "voucher", id: String(raw.id), number: raw.description ?? "", raw });
   }
+  try {
+    for await (const raw of client.orders()) {
+      if (isImportableOrder(raw)) await add({ kind: "order", id: String(raw.id), number: raw.orderNumber ?? "", raw });
+    }
+  } catch (error) {
+    if (signal.aborted || (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403))) throw error;
+    // Zusätzliche Auftragsdaten dürfen den bisherigen Rechnungs-/Belegimport nicht verhindern.
+    progress.failed.push({ lexofficeId: "order", number: "Auftragsdokumente", message: progressMessage(error) });
+  }
   const done = new Set(
     (await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.source, "sevdesk"))).map(
       (r) => r.id,
@@ -242,6 +255,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
   );
 
   // 3. Je Beleg Positionen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf
+  const importOrderPdf = createOrderPdfImporter(actor, client, signal);
   progress.phase = "belege";
   await save(true);
   for (const item of listed) {
@@ -254,6 +268,16 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
       // false: ein gleichzeitiger Lauf hat den Beleg schon übernommen
       if (await importVoucher(actor, importId, client, item, progress)) progress.imported += 1;
       else progress.skipped += 1;
+      if (item.kind === "order") {
+        try {
+          if (await importOrderPdf(item.id)) progress.files += 1;
+        } catch (error) {
+          // Archivkopie steht schon; nur das PDF fehlt. Abbruchgründe gehen an die äußere Behandlung.
+          if (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403)) throw error;
+          if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+          progress.failed.push({ lexofficeId: externalId, number: item.number, message: `Dokument importiert, PDF fehlt: ${progressMessage(error)}` });
+        }
+      }
     } catch (error) {
       // Token ungültig oder abgebrochen: weitermachen ist sinnlos
       if (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403)) throw error;
@@ -267,6 +291,7 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
 }
 
 async function importVoucher(actor: string, importId: string, client: SevdeskClient, item: Listed, progress: LexofficeImportProgress): Promise<boolean> {
+  if (item.kind === "order") return importOrder(actor, importId, client, item.raw);
   let mapped: SevMappedVoucher;
   let positions: unknown[];
   const files: { role: "pdf" | "xml" | "anhang"; fileId: string | null; file: SevFile }[] = [];

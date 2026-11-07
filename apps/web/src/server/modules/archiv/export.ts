@@ -265,6 +265,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     union select extract(year from booking_date)::int from bank_transactions
     union select year::int from vat_returns
     union select extract(year from date)::int from lexoffice_vouchers
+    union select extract(year from date)::int from legacy_order_documents
     union select extract(year from date)::int from datev_bookings
     union select year::int from archive_files where year is not null`);
   const current = Number(today(now).slice(0, 4));
@@ -1064,6 +1065,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
 
   // Altbestand aus Lexoffice und sevDesk ----------------------------------------
   yield* legacyFiles(year, problems);
+  yield* orderFiles(year, problems);
 
   // Stammdaten ------------------------------------------------------------
   const contacts = await db.select().from(schema.contacts).orderBy(asc(schema.contacts.name), asc(schema.contacts.id));
@@ -1153,7 +1155,68 @@ const LEGACY_TYPE_LABELS: Record<string, string> = {
   purchasecreditnote: "Ausgabe-Gutschrift",
 };
 
-/** Aus Lexoffice oder sevDesk übernommene Belege, DATEV-Buchungen und Originalexporte des Jahres; der Ordner heißt für beide lexoffice/ */
+/** Auftragskopien bleiben im Export von steuerwirksamen Altbelegen getrennt. */
+async function* orderFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
+  const documents = await db
+    .select()
+    .from(schema.legacyOrderDocuments)
+    .where(between(schema.legacyOrderDocuments.date, yearStart(year), yearEnd(year)))
+    .orderBy(asc(schema.legacyOrderDocuments.date), asc(schema.legacyOrderDocuments.id));
+  if (!documents.length) return;
+  const files = await db
+    .select()
+    .from(schema.legacyOrderFiles)
+    .where(
+      inArray(
+        schema.legacyOrderFiles.orderId,
+        documents.map((d) => d.id),
+      ),
+    )
+    .orderBy(asc(schema.legacyOrderFiles.createdAt), asc(schema.legacyOrderFiles.id));
+  const byDocument = groupBy(files, (f) => f.orderId);
+  const rows: CsvValue[][] = [];
+  for (const document of documents) {
+    const base = `sevdesk/auftraege/${document.date}_${safeName(document.number || document.externalId)}_${document.id.slice(0, 8)}`;
+    yield { path: `${base}/quelle.json`, content: encoder.encode(JSON.stringify(document.raw, null, 2)), compress: true };
+    const attached = byDocument.get(document.id) ?? [];
+    yield { path: `${base}/dateien.json`, content: encoder.encode(JSON.stringify(attached, null, 2)), compress: true };
+    const attempts = await db
+      .select()
+      .from(schema.legacyOrderPdfAttempts)
+      .where(eq(schema.legacyOrderPdfAttempts.orderId, document.id))
+      .orderBy(schema.legacyOrderPdfAttempts.createdAt);
+    if (attempts.length) yield { path: `${base}/pdf-abrufe.json`, content: encoder.encode(JSON.stringify(attempts, null, 2)), compress: true };
+    if (!attached.length) problems.push(`sevdesk-Auftragsdokument ${document.number || document.externalId}: PDF fehlt.`);
+    for (const file of attached) {
+      const path = `${base}/${file.id.slice(0, 8)}_${safeName(file.filename, 100, "dokument.pdf")}`;
+      try {
+        yield { path, content: new Uint8Array(await loadFile(file.sha256)), compress: false };
+      } catch {
+        problems.push(`sevdesk-Auftragsdokument ${document.number || document.externalId}: PDF ${file.filename} nicht lesbar.`);
+      }
+    }
+    rows.push([
+      document.date,
+      document.kind,
+      document.number,
+      document.contactName,
+      document.status,
+      document.currency,
+      money(document.net),
+      money(document.tax),
+      money(document.gross),
+      document.externalId,
+      attached.map((f) => f.sha256).join(" | "),
+      attached.map((f) => `${f.origin}: ${f.filename}`).join(" | "),
+    ]);
+  }
+  yield {
+    path: "sevdesk/auftraege.csv",
+    content: csv(["Datum", "Art", "Nummer", "Kontakt", "Quellstatus", "Währung", "Netto", "Steuer", "Brutto", "Quell-ID", "SHA-256", "Dateien"], rows),
+    compress: true,
+  };
+}
+
 async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
   const vouchers = await db
     .select()
