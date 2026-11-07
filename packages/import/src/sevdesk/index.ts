@@ -1,5 +1,6 @@
 export { SevdeskClient, SevdeskApiError, SEVDESK_DEFAULT_BASE_URL, type SevdeskClientOptions } from "./client.ts";
 export type {
+  SevCheckAccountTransactionLog,
   SevCommunicationWay,
   SevContact,
   SevContactAddress,
@@ -20,8 +21,10 @@ export {
   mapSevContact,
   mapSevCreditNote,
   mapSevInvoice,
+  mapSevPaymentLogs,
   mapSevVoucher,
   sevNumber,
   type SevImportedContact,
   type SevMappedVoucher,
+  type SevPaymentItem,
 } from "./map.ts";
