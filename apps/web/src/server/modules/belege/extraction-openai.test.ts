@@ -12,6 +12,8 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 const ANSWER: Extraction = {
   lieferant: "Hetzner Online GmbH",
   lieferantUstId: "DE812871812",
+  empfaenger: null,
+  empfaengerUstId: null,
   rechnungsnummer: "R0018834512",
   belegdatum: "2026-09-30",
   faelligAm: null,

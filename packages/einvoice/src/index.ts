@@ -19,6 +19,7 @@ export {
   readEInvoice,
   type IncomingInvoice,
   type IncomingLine,
+  type IncomingBuyer,
   type IncomingSeller,
   type IncomingTax,
 } from "./incoming.ts";

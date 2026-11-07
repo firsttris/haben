@@ -30,6 +30,7 @@ import {
   type AssetKind,
   type AssetMethod,
   type Cents,
+  type OwnInvoiceVerdict,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
@@ -45,6 +46,8 @@ import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
+import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
+import { pdfTextLines } from "./pdf-text.ts";
 import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, splitLines, type DocumentSplit } from "./splits.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
@@ -244,8 +247,11 @@ async function applyFields(
   extractedBy: "zugferd" | "xrechnung" | "ki",
   raw: Record<string, unknown>,
   categoryKnown: boolean,
+  ownInvoice: OwnInvoiceVerdict | null = null,
 ) {
-  const category = (await guessCategory(fields.supplierName, fields.supplierUstId)) ?? (categoryKnown ? fields.category : null);
+  // Eigene Ausgangsrechnung: keine Ausgabe vorschlagen, also keine Kategorie, auch nicht die des Lieferanten (= wir selbst)
+  const hint = ownInvoice && ownInvoiceHint(ownInvoice);
+  const category = hint ? null : ((await guessCategory(fields.supplierName, fields.supplierUstId)) ?? (categoryKnown ? fields.category : null));
   // Fremdwährung: die ausgelesenen Beträge sind die Originalbeträge; Euro mit dem USt-Kurs des Monats, sobald es ihn gibt
   const company = await loadCompany();
   const rate = await resolveRate(
@@ -256,7 +262,8 @@ async function applyFields(
   );
   const extracted = amountsByRate(fields.amounts).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax }));
   // Mit dem Kurs des Monats ist der Hinweis auf den fehlenden Kurs erledigt
-  const warnings = rate.exchangeRate ? fields.warnings.filter((w) => !w.startsWith(`Währung ${fields.currency}`)) : fields.warnings;
+  const rateWarnings = rate.exchangeRate ? fields.warnings.filter((w) => !w.startsWith(`Währung ${fields.currency}`)) : fields.warnings;
+  const warnings = hint ? [hint, ...rateWarnings] : rateWarnings;
   // Privatanteil aus den Vorgaben der Firmendaten, z. B. Telefon 20 %
   const { privateShares } = company;
   const privateShare = category ? (privateShares[category] ?? 0) : 0;
@@ -289,11 +296,38 @@ async function applyFields(
         extractedBy,
         extractionStatus: "fertig",
         extractionError: warnings.length > 0 ? warnings.join(" · ") : null,
-        extraction: raw,
+        extraction: hint ? { ...raw, eigeneRechnung: ownInvoiceRecord(ownInvoice) } : raw,
         updatedAt: new Date(),
       })
       .where(eq(schema.documents.id, id));
   });
+}
+
+/**
+ * Ohne Felder aus E-Rechnung oder KI: nur der Hinweis auf die eigene Ausgangsrechnung aus der Textebene des PDFs;
+ * ohne Erkennung bleibt der Beleg, wie er ist.
+ */
+async function applyOwnInvoiceHint(actor: string, id: string, verdict: OwnInvoiceVerdict): Promise<void> {
+  const hint = ownInvoiceHint(verdict);
+  if (!hint) return;
+  await withActor(actor, (tx) =>
+    tx
+      .update(schema.documents)
+      .set({
+        category: null,
+        privateShare: 0,
+        extractionStatus: "fertig",
+        extractionError: hint,
+        extraction: { eigeneRechnung: ownInvoiceRecord(verdict) },
+        updatedAt: new Date(),
+      })
+      .where(and(eq(schema.documents.id, id), sql`${schema.documents.lockedAt} is null`)),
+  );
+}
+
+/** Textebene eines PDFs für die Erkennung eigener Rechnungen; Fotos haben keine */
+function textLinesOf(bytes: Uint8Array, kind: string) {
+  return kind === "pdf" ? pdfTextLines(bytes) : Promise.resolve(null);
 }
 
 async function setExtractionState(actor: string, id: string, status: "laeuft" | "fehler" | "keine", error: string | null) {
@@ -328,8 +362,10 @@ async function extract(actor: string, doc: Document): Promise<void> {
     const bytes = await loadFile(doc.sha256);
     const sniffed = sniff(bytes);
     if (!sniffed) throw new DocumentError("Dateityp unbekannt");
-    const { extraction, fields } = await extractDocument(bytes, sniffed.kind);
-    await applyFields(actor, id, fields, "ki", extraction, true);
+    const [{ extraction, fields }, lines] = await Promise.all([extractDocument(bytes, sniffed.kind), textLinesOf(bytes, sniffed.kind)]);
+    const gross = totalsOf(fields.amounts).gross;
+    const ownInvoice = await detectOwnInvoiceFor({ parties: partiesOfExtraction(extraction), lines, invoiceNumber: fields.invoiceNumber, gross });
+    await applyFields(actor, id, fields, "ki", extraction, true, ownInvoice);
   } catch (error) {
     await setExtractionState(actor, id, "fehler", describeExtractionError(error));
   }
@@ -429,7 +465,10 @@ export async function uploadDocument(
     try {
       const einvoice = await readEInvoice({ bytes: file.bytes, mimeType: type.mimeType, filename: file.filename });
       if (einvoice) {
-        await applyFields(actor, id, fieldsFromEInvoice(einvoice.invoice), einvoice.source, { ...einvoice.invoice }, false);
+        const { invoice } = einvoice;
+        const lines = await textLinesOf(file.bytes, type.kind);
+        const ownInvoice = await detectOwnInvoiceFor({ parties: partiesOfEInvoice(invoice), lines, invoiceNumber: invoice.number, gross: invoice.gross });
+        await applyFields(actor, id, fieldsFromEInvoice(invoice), einvoice.source, { ...invoice }, false, ownInvoice);
         return { id, duplicate: false };
       }
     } catch (error) {
@@ -439,6 +478,13 @@ export async function uploadDocument(
         return { id, duplicate: false };
       }
     }
+  }
+
+  if (!extractionAvailable() && type.kind === "pdf") {
+    // Ohne KI-Auslesung bleibt der Beleg leer; eine eigene Rechnung lässt sich trotzdem an der Textebene erkennen
+    const lines = await pdfTextLines(file.bytes);
+    if (lines) await applyOwnInvoiceHint(actor, id, await detectOwnInvoiceFor({ lines }));
+    return { id, duplicate: false };
   }
 
   if (extractionAvailable() && (type.kind === "pdf" || type.kind === "jpeg" || type.kind === "png" || type.kind === "webp")) {

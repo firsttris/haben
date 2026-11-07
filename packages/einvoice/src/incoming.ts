@@ -14,6 +14,8 @@ export interface IncomingInvoice {
   dueDate?: string;
   currency: string;
   seller: IncomingSeller;
+  /** Käufer (BG-7), soweit für die Erkennung eigener Rechnungen nötig: Name (BT-44) und USt-IdNr. (BT-48) */
+  buyer?: IncomingBuyer;
   buyerReference?: string;
   serviceFrom?: string;
   serviceTo?: string;
@@ -42,6 +44,11 @@ export interface IncomingSeller {
   land?: string;
   email?: string;
   iban?: string;
+}
+
+export interface IncomingBuyer {
+  name?: string;
+  ustId?: string;
 }
 
 export interface IncomingTax {
@@ -265,6 +272,10 @@ function parseCii(root: unknown): IncomingInvoice {
     iban,
   };
 
+  const buyerNode = one(agreement, "BuyerTradeParty");
+  const buyerVat = text(all(buyerNode, "SpecifiedTaxRegistration", "ID").find((r) => attr(r, "schemeID") === "VA"));
+  const buyer: IncomingBuyer = { name: textAt(buyerNode, "Name"), ustId: buyerVat };
+
   const taxes = all(settlement, "ApplicableTradeTax")
     .filter((t) => (textAt(t, "TypeCode") ?? "VAT") === "VAT")
     .map((t) => ({
@@ -307,6 +318,7 @@ function parseCii(root: unknown): IncomingInvoice {
     dueDate: isoDate(textAt(settlement, "SpecifiedTradePaymentTerms", "DueDateDateTime", "DateTimeString")),
     currency,
     seller,
+    buyer,
     buyerReference: textAt(agreement, "BuyerReference"),
     serviceFrom: isoDate(textAt(period, "StartDateTime", "DateTimeString")) ?? deliveryDate,
     serviceTo: isoDate(textAt(period, "EndDateTime", "DateTimeString")) ?? deliveryDate,
@@ -344,6 +356,13 @@ function parseUbl(root: unknown, creditNote: boolean): IncomingInvoice {
     land: textAt(address, "Country", "IdentificationCode"),
     email: textAt(party, "Contact", "ElectronicMail") ?? (attr(endpoint, "schemeID") === "EM" ? text(endpoint) : undefined),
     iban,
+  };
+
+  const customer = one(root, "AccountingCustomerParty", "Party");
+  const customerVat = all(customer, "PartyTaxScheme").find((s) => textAt(s, "TaxScheme", "ID") === "VAT");
+  const buyer: IncomingBuyer = {
+    name: textAt(customer, "PartyLegalEntity", "RegistrationName") ?? textAt(customer, "PartyName", "Name"),
+    ustId: textAt(customerVat, "CompanyID"),
   };
 
   const taxTotals = all(root, "TaxTotal");
@@ -384,6 +403,7 @@ function parseUbl(root: unknown, creditNote: boolean): IncomingInvoice {
     dueDate: isoDate(textAt(root, "DueDate") ?? paymentMeans.map((m) => textAt(m, "PaymentDueDate")).find(Boolean)),
     currency,
     seller,
+    buyer,
     buyerReference: textAt(root, "BuyerReference"),
     serviceFrom: isoDate(textAt(period, "StartDate")) ?? deliveryDate,
     serviceTo: isoDate(textAt(period, "EndDate")) ?? deliveryDate,
