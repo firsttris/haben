@@ -16,5 +16,5 @@ coverage/
 test-results/
 playwright-report/
 
-# MkDocs build (mkdocs build)
+# Dokumentation (zensical build)
 site/

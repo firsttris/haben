@@ -50,7 +50,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
   TEST_DATABASE_URL=postgres://…/haben_test bun run test
   bun run build
   E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e   # wenn die Oberfläche betroffen ist; Name endet auf „e2e“
-  mkdocs build --strict                                # wenn docs/ oder mkdocs.yml geändert sind
+  zensical build --strict                              # wenn docs/ oder mkdocs.yml geändert sind
   ```
 
   Beide Datenbanken werden geleert; nie auf einen Server mit echten Daten zeigen lassen. Ohne PostgreSQL 18 im Container geht das installierte PostgreSQL (`initdb`, `pg_ctl … -o '-p 5433'`). Der E2E-Server nutzt Port 3100.

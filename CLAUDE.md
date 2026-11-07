@@ -53,7 +53,7 @@ bun run typecheck
 TEST_DATABASE_URL=postgres://…/haben_test bun run test     # without it the Postgres tests are skipped
 bun run build
 E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e         # name must end in "e2e"; it is emptied
-mkdocs build --strict                                   # when docs/ or mkdocs.yml changed
+zensical build --strict                                 # when docs/ or mkdocs.yml changed
 ```
 
 Both databases are wiped by the tests, and `bun run test` also creates and drops `<name>_vorlage` and
