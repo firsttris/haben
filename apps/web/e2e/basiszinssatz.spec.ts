@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
@@ -38,15 +39,35 @@ const serverFnResult = (month: string, basisPoints: number, current: boolean) =>
 /** Laufender Monat in Europe/Berlin, JJJJ-MM: gehört immer zum laufenden Halbjahr */
 const thisMonth = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit" }).format(new Date());
 
-/** Knopf drücken; nur dieser eine Aufruf geht an die Attrappe, alles andere an den Server */
+/** Name, unter dem TanStack Start die Server-Funktion fetchBaseRateFn (src/server/functions/dunning.ts) übersetzt */
+const BASE_RATE_FN = { file: "src/server/functions/dunning.ts", export: "fetchBaseRateFn_createServerFn_handler" };
+
+/**
+ * Ist dieser Aufruf fetchBaseRateFn? Im gebauten Server ist die ID sha256(„<Datei>--<Export>“), im Entwicklungsserver
+ * Base64url-JSON mit Datei und Export (start-plugin-core, start-compiler/compiler.js).
+ */
+function isBaseRateFn(url: string): boolean {
+  const id = new URL(url).pathname.split("/").pop() ?? "";
+  if (id === createHash("sha256").update(`${BASE_RATE_FN.file}--${BASE_RATE_FN.export}`).digest("hex")) return true;
+  try {
+    const fn = JSON.parse(Buffer.from(id, "base64url").toString("utf8")) as { file?: string; export?: string };
+    return fn.export === BASE_RATE_FN.export && (fn.file ?? "").includes(BASE_RATE_FN.file);
+  } catch {
+    return false;
+  }
+}
+
+/** Knopf drücken; nur der Aufruf von fetchBaseRateFn geht an die Attrappe, alles andere an den Server */
 async function lookUp(page: Page, body: string) {
   let calls = 0;
   await page.route("**/_serverFn/**", (route) => {
-    if (route.request().method() !== "POST") return route.continue();
+    const request = route.request();
+    if (request.method() !== "POST" || !isBaseRateFn(request.url())) return route.continue();
     calls += 1;
     return route.fulfill({ status: 200, headers: { "content-type": "application/json", "x-tss-serialized": "true" }, body });
   });
   await page.getByRole("button", { name: "Bei der Bundesbank abrufen" }).click();
+  // Ruft der Knopf eine andere Server-Funktion auf, bleibt calls bei 0 und der Test schlägt hier fehl
   await expect.poll(() => calls).toBe(1);
   await page.unroute("**/_serverFn/**");
 }
