@@ -32,6 +32,8 @@ import {
   type EstAngaben,
   type EuerFigureKey,
   type EuerFigures,
+  type EuerOffeneZeilen,
+  EUER_OFFENE_ZEILEN,
   type UstErklaerungFigures,
 } from "@haben/elster";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
@@ -175,11 +177,10 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
 const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhrumsatzsteuer">, EuerFigureKey> = {
   software: "edv",
   edv: "edv",
-  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150). Die
-  // ELSTER-Feldkennungen dieser Zeilen sind nicht am ERiC-Schema belegt; bis dahin übrige Betriebsausgaben mit Hinweis
-  // (OHNE_EIGENE_ZEILE)
-  reparatur: "uebrige",
-  miete: "uebrige",
+  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150). Ohne
+  // geprüfte Kennung in EUER_OFFENE_ZEILEN übrige Betriebsausgaben mit Hinweis (zeileFuer, OHNE_EIGENE_ZEILE)
+  reparatur: "erhaltung",
+  miete: "miete",
   hardware: "gwg",
   telefon: "telekommunikation",
   internet: "telekommunikation",
@@ -214,11 +215,17 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhru
   sonstiges: "uebrige",
 };
 
-/** Kategorien, deren amtliche Zeile Haben noch nicht übermittelt: Zeile und Kennzahl im Vordruck der Anlage EÜR 2025 */
+/** Kategorien mit einer Zeile aus EUER_OFFENE_ZEILEN: Zeile und Kennzahl im Vordruck der Anlage EÜR 2025 */
 const OHNE_EIGENE_ZEILE = [
-  ["miete", "Miete für Geschäftsräume", "Zeile 39", "Kz 150"],
-  ["reparatur", "Reparatur und Instandhaltung", "Zeile 48", "Kz 225"],
-] as const satisfies readonly (readonly [ExpenseCategory, string, string, string])[];
+  ["miete", "miete", "Miete für Geschäftsräume", "Zeile 39", "Kz 150"],
+  ["reparatur", "erhaltung", "Reparatur und Instandhaltung", "Zeile 48", "Kz 225"],
+] as const satisfies readonly (readonly [ExpenseCategory, keyof EuerOffeneZeilen, string, string, string])[];
+
+/** Zeile einer Kategorie; eine Zeile, deren Kennung noch nicht eingetragen ist, geht in die übrigen Betriebsausgaben */
+function zeileFuer(category: ExpenseCategory, offeneZeilen: EuerOffeneZeilen): EuerFigureKey {
+  const field = category in EUER_CATEGORY_FIELDS ? EUER_CATEGORY_FIELDS[category as keyof typeof EUER_CATEGORY_FIELDS] : "uebrige";
+  return (field === "miete" || field === "erhaltung") && !offeneZeilen[field] ? "uebrige" : field;
+}
 
 /** Pauschalen ohne Beleg: Homeoffice als Tagespauschale, Fahrten als Nutzungseinlage, Verpflegung als beschränkt abziehbar */
 const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
@@ -228,7 +235,7 @@ const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
 };
 
 /** Verteilt die EÜR von Haben auf die Zeilen der Anlage EÜR. Summen und Gewinn bleiben gleich. */
-function euerFigures(euer: EuerResult): EuerFigures {
+function euerFigures(euer: EuerResult, offeneZeilen: EuerOffeneZeilen): EuerFigures {
   const figures: EuerFigures = {};
   const add = (key: EuerFigureKey, cents: Cents) => {
     if (cents !== 0) figures[key] = (figures[key] ?? 0) + cents;
@@ -236,7 +243,7 @@ function euerFigures(euer: EuerResult): EuerFigures {
   for (const line of [...euer.einnahmen, ...euer.ausgaben]) {
     if (line.key.startsWith("ausgabe:")) {
       const category = line.key.slice("ausgabe:".length) as ExpenseCategory;
-      add(category in EUER_CATEGORY_FIELDS ? EUER_CATEGORY_FIELDS[category as keyof typeof EUER_CATEGORY_FIELDS] : "uebrige", line.amount);
+      add(zeileFuer(category, offeneZeilen), line.amount);
       continue;
     }
     if (line.key.startsWith("pauschale:")) {
@@ -327,7 +334,8 @@ export interface EuerYear {
   ohneEigeneZeile: { label: string; zeile: string; kz: string; amount: Cents }[];
 }
 
-export async function euerYear(year: number): Promise<EuerYear> {
+/** offeneZeilen: Elemente der Zeilen 39 und 48 aus dem ERiC-Schema (EUER_OFFENE_ZEILEN), übergeben für Tests */
+export async function euerYear(year: number, offeneZeilen: EuerOffeneZeilen = EUER_OFFENE_ZEILEN): Promise<EuerYear> {
   const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
@@ -335,7 +343,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
     lohnZahlungenUmJahreswechsel(year),
     umsatzsteuerVorjahreUmJahreswechsel(year),
   ]);
-  const figures: EuerFigures = { ...euerFigures(euer), ...movements };
+  const figures: EuerFigures = { ...euerFigures(euer, offeneZeilen), ...movements };
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
     .map((a) => ({
@@ -351,12 +359,14 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  const ohneEigeneZeile = OHNE_EIGENE_ZEILE.map(([category, label, zeile, kz]) => ({
-    label,
-    zeile,
-    kz,
-    amount: euer.ausgaben.find((l) => l.key === `ausgabe:${category}`)?.amount ?? 0,
-  })).filter((z) => z.amount !== 0);
+  const ohneEigeneZeile = OHNE_EIGENE_ZEILE.filter(([, field]) => !offeneZeilen[field])
+    .map(([category, , label, zeile, kz]) => ({
+      label,
+      zeile,
+      kz,
+      amount: euer.ausgaben.find((l) => l.key === `ausgabe:${category}`)?.amount ?? 0,
+    }))
+    .filter((z) => z.amount !== 0);
   return {
     figures,
     ...euerTotals(figures),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkXml } from "./fake-client.ts";
-import { buildEuerXml, buildUstErklaerungXml, euerTotals, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
+import { buildEuerXml, buildUstErklaerungXml, EUER_OFFENE_ZEILEN, euerTotals, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
 import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 
 const base = {
@@ -264,6 +264,34 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
       /<Werbung>[\s\S]*<\/Werbung>\s*<Schuldzins_AnlageVerm>\s*<Sum>\s*<E6004202>480,00<\/E6004202>[\s\S]*<Schuldzins_Uebrige>\s*<Sum>\s*<E6004303>240,00<\/E6004303>\s*<\/Sum>\s*<\/Schuldzins_Uebrige>\s*<Vorsteuer>/,
     );
     expect(euerTotals(mitZinsen).ausgaben).toBe(euerTotals({ ...mitZinsen, schuldzinsenAnlage: 0, schuldzinsen: 0 }).ausgaben + 72_000);
+  });
+
+  describe("Zeilen 39 und 48 (Miete, Erhaltungsaufwendungen), deren Kennung aus dem ERiC-Schema einzutragen ist (#312)", () => {
+    const mitMiete = { ...figures, miete: 1_200_00, erhaltung: 300_00 };
+
+    it("ohne eingetragene Kennung: kein Wert in diesen Zeilen; kommt doch einer an, bricht der Export ab statt zu raten", () => {
+      expect(EUER_OFFENE_ZEILEN).toEqual({ miete: null, erhaltung: null });
+      expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, miete: 1_200_00 }, anlagen: [] })).toThrow(
+        "Zeile 39 der Anlage EÜR (Kz 150): Elementpfad und Kennung aus dem ERiC-Schema fehlen",
+      );
+    });
+
+    it("mit eingetragener Kennung: Element unter BAus vor dem angegebenen Nachbarn, in Summe und Gewinn", () => {
+      // Pfad, Kennung und Nachbar sind hier Beispielwerte; die echten stehen im Schema E77 des ERiC-Pakets
+      const zeilen = {
+        miete: { pfad: ["Raumkosten", "Miete_Pacht"], kz: "E6099901", vor: "Sonst_unbeschraenkt" },
+        erhaltung: { pfad: ["Sonst_unbeschraenkt", "Erhaltung"], kz: "E6099902", vor: "Vorsteuer" },
+      } as const;
+      const xml = buildEuerXml({ ...base, allgemein, figures: mitMiete, anlagen: [] }, zeilen);
+      expect(xml).toMatch(
+        /<Raumkosten>\s*<Miete_Pacht>\s*<Sum>\s*<E6099901>1200,00<\/E6099901>\s*<\/Sum>\s*<\/Miete_Pacht>\s*<\/Raumkosten>\s*<Sonst_unbeschraenkt>/,
+      );
+      // In einen vorhandenen Abschnitt eingefügt, nicht als zweiter Abschnitt gleichen Namens
+      expect(xml.match(/<Sonst_unbeschraenkt>/g)).toHaveLength(1);
+      expect(xml).toMatch(/<Erhaltung>\s*<Sum>\s*<E6099902>300,00<\/E6099902>\s*<\/Sum>\s*<\/Erhaltung>\s*<Vorsteuer>/);
+      expect(tag(xml, "E6005301")).toBe(tag(buildEuerXml({ ...base, allgemein, figures: { ...figures, uebrige: 1_500_00 }, anlagen: [] }), "E6005301"));
+      expect(euerTotals(mitMiete).ausgaben).toBe(euerTotals(figures).ausgaben + 1_500_00);
+    });
   });
 
   it("lässt die AVEÜR ohne Anlagen weg", () => {

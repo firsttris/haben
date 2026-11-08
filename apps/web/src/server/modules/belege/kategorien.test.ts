@@ -110,6 +110,16 @@ describe.skipIf(!testDatabaseUrl)("Weitere Ausgabekategorien (Postgres)", () => 
       ],
     ]);
 
+    // Mit eingetragenen Elementen aus dem ERiC-Schema (hier Beispielwerte): eigene Zeilen, kein Hinweis mehr
+    const zeilen = {
+      miete: { pfad: ["Raumkosten", "Miete_Pacht"], kz: "E6099901", vor: "Sonst_unbeschraenkt" },
+      erhaltung: { pfad: ["Sonst_unbeschraenkt", "Erhaltung"], kz: "E6099902", vor: "Vorsteuer" },
+    } as const;
+    const mitZeilen = await annual.euerYear(2026, zeilen);
+    expect([mitZeilen.figures.miete, mitZeilen.figures.erhaltung, mitZeilen.figures.uebrige]).toEqual([100_00, 100_00, undefined]);
+    expect(mitZeilen.ohneEigeneZeile).toEqual([]);
+    expect(mitZeilen.ausgaben).toBe((await annual.euerYear(2026)).ausgaben);
+
     await reset("SKR03", "ist");
     await beleg("betriebsbedarf");
     expect((await annual.annualOverview(2026, "2027-02-01")).euer.issues.filter((i) => /Zeile 39|Zeile 48/.test(i.text))).toEqual([]);
