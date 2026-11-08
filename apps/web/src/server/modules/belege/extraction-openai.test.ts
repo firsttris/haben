@@ -5,6 +5,7 @@ import type { ExtractionConfig } from "./extraction-config.ts";
 import { extractWithOpenAiCompatible, parseExtraction } from "./extraction-openai.ts";
 import type { Extraction } from "./extraction-schema.ts";
 import type { PdfToImages } from "./pdf-pages.ts";
+import type { PdfToPageTexts } from "./pdf-seitentext.ts";
 import { completion, startTestService, unusedPort, type TestService } from "./test-ki-dienst.ts";
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
@@ -31,6 +32,14 @@ const noPdf: PdfToImages = vi.fn(async () => {
   throw new Error("kein PDF erwartet");
 });
 
+/** Ohne Textschicht, etwa ein Scan */
+const noText: PdfToPageTexts = vi.fn(async () => null);
+
+const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+const SEITE = "Netzwerk Hosting GmbH  Rechnung RE-2026/0815  Webhosting Business 154,32 EUR  Umsatzsteuer 19 % 29,32 EUR";
+type UserPart = { type: string; text?: string; image_url?: { url: string } };
+const userParts = (request: { body: Record<string, unknown> }) => (request.body.messages as { role: string; content: UserPart[] }[])[1]!.content;
+
 describe("OpenAI-kompatibler Dienst", () => {
   let service: TestService;
   let config: OpenAiConfig;
@@ -44,6 +53,8 @@ describe("OpenAI-kompatibler Dienst", () => {
       apiKey: null,
       timeoutMs: 5_000,
       maxPages: 2,
+      // Wie bisher nur Bilder; den Text der PDF-Seiten prüfen die Tests zu #329 unten
+      input: "bild",
     };
   });
 
@@ -56,8 +67,71 @@ describe("OpenAI-kompatibler Dienst", () => {
     await service.close();
   });
 
-  const extract = (overrides: Partial<OpenAiConfig> = {}, bytes = JPEG, kind: "jpeg" | "pdf" | "heic" = "jpeg", pdfToImages = noPdf) =>
-    extractWithOpenAiCompatible({ ...config, ...overrides }, bytes, kind, { fetch, pdfToImages });
+  const extract = (
+    overrides: Partial<OpenAiConfig> = {},
+    bytes = JPEG,
+    kind: "jpeg" | "pdf" | "heic" = "jpeg",
+    pdfToImages = noPdf,
+    pdfToText: PdfToPageTexts = noText,
+  ) => extractWithOpenAiCompatible({ ...config, ...overrides }, bytes, kind, { fetch, pdfToImages, pdfToText });
+
+  describe("Text der PDF-Seiten (#329)", () => {
+    const images = vi.fn(async () => ({ pages: [new Uint8Array([1]), new Uint8Array([2])], truncated: false }));
+
+    it("Text und Bild: der Text der Seiten geht zusammen mit den Seitenbildern an das Modell", async () => {
+      const text = vi.fn(async () => ({ pages: [SEITE, "KOPIE"], truncated: false }));
+      const result = await extract({ input: "text-und-bild" }, PDF, "pdf", images, text);
+      expect(text).toHaveBeenCalledWith(expect.any(Uint8Array), 2);
+      const parts = userParts(service.requests[0]!);
+      expect(parts.filter((p) => p.type === "image_url")).toHaveLength(2);
+      const textPart = parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+      expect(textPart).toContain("--- Seite 1 ---");
+      expect(textPart).toContain("Rechnung RE-2026/0815");
+      // Neben den Bildern ist eine Seite ohne Text kein Grund für einen Hinweis
+      expect(result.warnings).toEqual([]);
+    });
+
+    it("Text und Bild ohne Textschicht (Scan): nur die Bilder, wie bisher", async () => {
+      await extract({ input: "text-und-bild" }, PDF, "pdf", images, noText);
+      const parts = userParts(service.requests[0]!);
+      expect(parts.filter((p) => p.type === "image_url")).toHaveLength(2);
+      expect(
+        parts
+          .filter((p) => p.type === "text")
+          .map((p) => p.text)
+          .join(""),
+      ).not.toContain("--- Seite");
+    });
+
+    it("nur Text: keine Bilder im Request, fehlende Seiten und mehr Seiten als erlaubt am Beleg gemeldet", async () => {
+      const text = vi.fn(async () => ({ pages: [SEITE, " "], truncated: true }));
+      const result = await extract({ input: "text" }, PDF, "pdf", noPdf, text);
+      const parts = userParts(service.requests[0]!);
+      expect(parts.some((p) => p.type === "image_url")).toBe(false);
+      expect(JSON.stringify(service.requests[0]!.body)).not.toContain("data:image");
+      expect(parts.map((p) => p.text).join("\n")).toContain("Rechnung RE-2026/0815");
+      expect(result.warnings).toEqual([
+        "Das PDF hat mehr als 2 Seiten; ausgelesen wurden nur die ersten 2.",
+        "Seite 2 hat keinen auslesbaren Text und fehlt in der Auslesung.",
+      ]);
+    });
+
+    it("nur Text ohne Textschicht: verständliche Meldung, nichts geht an den Dienst", async () => {
+      await expect(extract({ input: "text" }, PDF, "pdf", noPdf, noText)).rejects.toMatchObject({
+        reason: "kein-text",
+        message: expect.stringMatching(/keine auslesbare Textschicht/),
+      });
+      expect(service.requests).toHaveLength(0);
+    });
+
+    it("nur Text und ein Foto: kein Bild an ein reines Textmodell", async () => {
+      await expect(extract({ input: "text" })).rejects.toMatchObject({ reason: "kein-text", message: expect.stringMatching(/Fotos/) });
+      expect(service.requests).toHaveLength(0);
+    });
+  });
 
   it("schickt das Foto als Bild mit JSON-Schema und liest die Antwort nach dem gemeinsamen Schema", async () => {
     const result = await extract();
@@ -193,8 +267,9 @@ describe("Umleitungen des Dienstes", () => {
         apiKey: "geheim-123",
         timeoutMs: 5_000,
         maxPages: 2,
+        input: "bild",
       };
-      const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf }).catch((e: unknown) => e);
+      const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf, pdfToText: noText }).catch((e: unknown) => e);
       expect(received).toEqual([]);
       expect(error).toMatchObject({ reason: "umleitung" });
       expect((error as Error).message).not.toContain("geheim");
@@ -224,10 +299,11 @@ describe("Meldungen des Dienstes", () => {
       apiKey: "geheim-123",
       timeoutMs: 5_000,
       maxPages: 2,
+      input: "bild",
     };
     for (const status of [400, 500]) {
       service.reply(() => ({ status, body: { error: { message: "upstream rejected Authorization: Bearer geheim-123" } } }));
-      const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf }).catch((e: unknown) => e);
+      const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf, pdfToText: noText }).catch((e: unknown) => e);
       expect((error as Error).message).toMatch(new RegExp(`HTTP ${status}`));
       expect((error as Error).message).not.toContain("geheim-123");
     }

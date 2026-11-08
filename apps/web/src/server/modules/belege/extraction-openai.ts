@@ -1,14 +1,24 @@
 import { z } from "zod";
 import type { DocumentKind } from "../../storage.ts";
 import { publicEndpoint, type ExtractionConfig } from "./extraction-config.ts";
-import { EXTRACTION_INSTRUCTIONS, EXTRACTION_REQUEST, ExtractionError, extractionSchema, readableKind, type ProviderResult } from "./extraction-schema.ts";
+import {
+  EXTRACTION_INSTRUCTIONS,
+  EXTRACTION_REQUEST,
+  ExtractionError,
+  extractionSchema,
+  readableKind,
+  type ProviderResult,
+  type ReadableKind,
+} from "./extraction-schema.ts";
 import { pdfToPageImages, type PdfToImages } from "./pdf-pages.ts";
+import { pdfPageTexts, textForModel, type PdfToPageTexts } from "./pdf-seitentext.ts";
 
 /*
  * Selbst betriebener Dienst mit OpenAI-kompatibler Schnittstelle (POST /v1/chat/completions), z. B. Ollama, LM Studio,
  * vLLM oder Docker Model Runner. Referenz: https://platform.openai.com/docs/api-reference/chat/create und
  * https://docs.ollama.com/api/openai-compatibility. Bilder gehen als data:-URL im Teil „image_url“, PDFs vorher als
- * Seitenbilder. Strukturierte Ausgabe über response_format „json_schema“; lehnt der Dienst das ab, fragt Haben denselben
+ * Seitenbilder. Hat ein PDF eine Textschicht, geht ihr Text mit (pdftotext, #329), mit EXTRACTION_INPUT=text statt der
+ * Bilder für ein reines Textmodell. Strukturierte Ausgabe über response_format „json_schema“; lehnt der Dienst das ab, fragt Haben denselben
  * Dienst ohne und prüft die Antwort selbst gegen das Schema. Einen Ausweg zu einem anderen Anbieter gibt es nicht.
  */
 
@@ -17,9 +27,10 @@ type OpenAiConfig = Extract<ExtractionConfig, { provider: "openai-compatible" }>
 export interface OpenAiDeps {
   fetch: typeof fetch;
   pdfToImages: PdfToImages;
+  pdfToText: PdfToPageTexts;
 }
 
-const defaultDeps: OpenAiDeps = { fetch: (...args) => fetch(...args), pdfToImages: pdfToPageImages };
+const defaultDeps: OpenAiDeps = { fetch: (...args) => fetch(...args), pdfToImages: pdfToPageImages, pdfToText: pdfPageTexts };
 
 /** Größere Antworten sind keine Belegfelder mehr */
 const MAX_RESPONSE_CHARS = 1_000_000;
@@ -37,32 +48,64 @@ export async function extractWithOpenAiCompatible(
   kind: DocumentKind,
   deps: OpenAiDeps = defaultDeps,
 ): Promise<ProviderResult> {
-  const readable = readableKind(kind);
-  const warnings: string[] = [];
-  let images: string[];
-  if (readable === "pdf") {
-    const { pages, truncated } = await deps.pdfToImages(bytes, config.maxPages);
-    if (truncated) warnings.push(`Das PDF hat mehr als ${config.maxPages} Seiten; ausgelesen wurden nur die ersten ${config.maxPages}.`);
-    images = pages.map((page) => dataUrl("image/png", page));
-  } else {
-    images = [dataUrl(`image/${readable}`, bytes)];
-  }
-
+  const { images, text, warnings } = await modelInput(config, bytes, readableKind(kind), deps);
   const signal = AbortSignal.timeout(config.timeoutMs);
-  let response = await post(config, deps, requestBody(config.model, images, true), signal);
+  let response = await post(config, deps, requestBody(config.model, images, text, true), signal);
   if (!response.ok && (await rejectsStructuredOutput(response))) {
-    response = await post(config, deps, requestBody(config.model, images, false), signal);
+    response = await post(config, deps, requestBody(config.model, images, text, false), signal);
   }
   if (!response.ok) throw await httpError(config, response);
   const content = await answerText(response, signal, config);
   return { extraction: parseExtraction(content), warnings };
 }
 
+const truncatedWarning = (maxPages: number) => `Das PDF hat mehr als ${maxPages} Seiten; ausgelesen wurden nur die ersten ${maxPages}.`;
+
+/**
+ * Was an das Modell geht: Seitenbilder und/oder der Text der Seiten. Im reinen Textmodus gehen nie Bilder mit; fehlt
+ * dort der Text (Scan, Foto), sagt Haben das, statt ein Bild an ein Textmodell oder still anderswohin zu schicken.
+ */
+async function modelInput(config: OpenAiConfig, bytes: Uint8Array, readable: ReadableKind, deps: OpenAiDeps) {
+  const warnings: string[] = [];
+  if (readable !== "pdf") {
+    if (config.input === "text") {
+      throw new ExtractionError(
+        "Fotos kann ein reines Textmodell nicht lesen (EXTRACTION_INPUT=text). Bitte als PDF mit Textschicht hochladen oder von Hand ausfüllen.",
+        "kein-text",
+      );
+    }
+    return { images: [dataUrl(`image/${readable}`, bytes)], text: null, warnings };
+  }
+  let text: string | null = null;
+  if (config.input !== "bild") {
+    const pageTexts = await deps.pdfToText(bytes, config.maxPages);
+    const forModel = textForModel(pageTexts?.pages ?? []);
+    text = forModel.text;
+    if (config.input === "text") {
+      if (!text) {
+        throw new ExtractionError(
+          "Das PDF hat keine auslesbare Textschicht, etwa weil es ein Scan ist. Ein reines Textmodell kann es nicht lesen (EXTRACTION_INPUT=text); bitte von Hand ausfüllen.",
+          "kein-text",
+        );
+      }
+      if (pageTexts?.truncated) warnings.push(truncatedWarning(config.maxPages));
+      for (const page of forModel.missingPages) warnings.push(`Seite ${page} hat keinen auslesbaren Text und fehlt in der Auslesung.`);
+      if (forModel.cut) warnings.push("Der Text des PDFs war sehr lang und wurde gekürzt.");
+      return { images: [], text, warnings };
+    }
+    if (forModel.cut) warnings.push("Der Text des PDFs war sehr lang und wurde gekürzt.");
+  }
+  const { pages, truncated } = await deps.pdfToImages(bytes, config.maxPages);
+  if (truncated) warnings.push(truncatedWarning(config.maxPages));
+  return { images: pages.map((page) => dataUrl("image/png", page)), text, warnings };
+}
+
 function dataUrl(mediaType: string, bytes: Uint8Array): string {
   return `data:${mediaType};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
-function requestBody(model: string, images: string[], structured: boolean) {
+function requestBody(model: string, images: string[], text: string | null, structured: boolean) {
+  const pageText = text ? [{ type: "text", text: `Text des Belegs aus der Textschicht des PDFs:\n${text}` }] : [];
   return {
     model,
     stream: false,
@@ -71,7 +114,7 @@ function requestBody(model: string, images: string[], structured: boolean) {
       { role: "system", content: INSTRUCTIONS },
       {
         role: "user",
-        content: [{ type: "text", text: EXTRACTION_REQUEST }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))],
+        content: [{ type: "text", text: EXTRACTION_REQUEST }, ...pageText, ...images.map((url) => ({ type: "image_url", image_url: { url } }))],
       },
     ],
     ...(structured ? { response_format: { type: "json_schema", json_schema: { name: "beleg", strict: true, schema: JSON_SCHEMA } } } : {}),
