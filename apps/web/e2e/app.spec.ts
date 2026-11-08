@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import { day, EIGENE_SEITE, fakeEigeneSeite, SESSION, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { CUSTOMERS, dkb, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
+import { bestaetigen, CUSTOMERS, dkb, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -162,7 +162,7 @@ test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer
   await expect(page.getByRole("button", { name: "Festschreiben" })).toBeVisible();
 
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
 });
 
@@ -218,7 +218,7 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await page.getByLabel("Kategorie").selectOption("telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   // Bis zur Zahlung steht der Beleg in der Übersicht unter den offenen Verbindlichkeiten
@@ -542,8 +542,8 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await edit.getByRole("button", { name: "Speichern" }).click();
   await expect(menu.getByRole("link", { name: "Abholung" })).toBeVisible();
   await expect(menu.getByRole("link", { name: "Lager" })).toHaveCount(0);
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Abholung entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(page.getByText("Seite entfernt.")).toBeVisible();
   // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);

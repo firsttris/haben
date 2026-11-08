@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { bestaetigen } from "./einrichtung.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -117,8 +118,7 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
   const storno = journal.getByRole("button", { name: "Stammkapital, eingezahlt vom Gesellschafter stornieren" });
   await storno.click();
-  await expect(storno).toHaveText("Jetzt stornieren");
-  await storno.click();
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByText("Storniert: Stammkapital, eingezahlt vom Gesellschafter")).toBeVisible();
   await expect(journal.getByRole("row").filter({ hasText: "Storno: Stammkapital" })).toContainText("Gegenbuchung");
   await expect(row).toContainText("storniert");
@@ -184,7 +184,7 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   await go(`/abschluss/${year - 1}`);
   const close = page.getByRole("button", { name: `${year - 1} abschließen` });
   await close.click();
-  await page.getByRole("button", { name: `Jetzt ${year - 1} endgültig abschließen` }).click();
+  await bestaetigen(page, `${year - 1} abschließen`);
   await expect(page.getByText(`Das Jahr ${year - 1} ist abgeschlossen.`)).toBeVisible();
   await expect(page.getByRole("region", { name: "Jahr abschließen" })).toContainText("Die Buchungen sind seitdem unverändert.");
 
@@ -406,7 +406,7 @@ test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, 
     await journal.getByRole("row").filter({ hasText: text, hasNotText: "Storno:" }).getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
     const storno = journal.getByRole("button", { name: `${text} stornieren` });
     await storno.click();
-    await storno.click();
+    await bestaetigen(page, "Stornieren");
     await expect(page.getByText(`Storniert: ${text}`)).toBeVisible();
   }
 
@@ -422,8 +422,7 @@ test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, 
   expect(await axe(), "/buchungen/neu mit Vorschlag").toEqual([]);
   const buchen = vorschlag.getByRole("button", { name: "Eröffnung buchen" });
   await buchen.click();
-  await expect(vorschlag.getByRole("button", { name: "Jetzt buchen" })).toBeVisible();
-  await vorschlag.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
 
   await page.waitForURL(/\/buchungen\?/);
   await expect(
@@ -469,13 +468,13 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   // Wie im Anlass (#237): der Bruttobetrag im Feld „Netto“
   await page.getByLabel("Netto", { exact: true }).fill("119,00");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   await page.getByRole("button", { name: "Beleg stornieren" }).click();
-  await expect(page.getByRole("alert")).toContainText(/bucht den Beleg zum \d{2}\.\d{2}\.\d{4} zurück/);
+  await expect(page.getByRole("dialog")).toContainText(/bucht den Beleg zum \d{2}\.\d{2}\.\d{4} zurück/);
   await page.getByLabel("Grund (optional)").fill("Brutto als Netto erfasst");
-  await page.getByRole("button", { name: "Jetzt stornieren" }).click();
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByText(/Storniert mit einer Gegenbuchung zum .* Grund: Brutto als Netto erfasst/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Gegenbuchung" })).toBeVisible();
   await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
@@ -490,7 +489,7 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   await page.getByLabel("Netto", { exact: true }).fill("100,00");
   await page.getByLabel("Vorsteuer", { exact: true }).fill("19,00");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   // Der stornierte Beleg führt jetzt zur Neuerfassung
@@ -543,7 +542,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   await expect(page.getByLabel("Vorschau der Rechnung")).toContainText(fuss);
   expect(await axe(), "/rechnungen/… Entwurf der GmbH").toEqual([]);
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
 
   const id = entwurf.split("/").pop();
@@ -651,7 +650,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   expect((await entwurfPdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
-  await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
   await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const pdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entgeltabrechnung (PDF)" }).getAttribute("href"))!);
@@ -739,9 +738,8 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat; die Buchung wird gegengebucht
   await go(lohnSeite);
   await abrechnung.getByRole("button", { name: "Stornieren" }).click();
-  const storno = page.getByRole("form", { name: "Abrechnung stornieren" });
-  await storno.getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
-  await storno.getByRole("button", { name: "Jetzt stornieren" }).click();
+  await page.getByRole("dialog").getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
+  await bestaetigen(page, "Stornieren");
   await expect(mitarbeiterin.getByText(/^storniert am/)).toBeVisible();
   await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);
   await expect(mitarbeiterin.getByText("Grund des Stornos: Gehalt rückwirkend geändert")).toBeVisible();
@@ -804,7 +802,7 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await expect(page.getByText("2 Entwürfe angelegt.")).toBeVisible();
   const max = page.getByRole("region", { name: "Max Kurzzeit" }).getByRole("region", { name: /^1\. Abrechnung Stufe A/ });
   await max.getByRole("button", { name: "Festschreiben" }).click();
-  await max.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(max.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
   await erika.getByRole("button", { name: "Entwurf löschen" }).click();
@@ -901,7 +899,7 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
   await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
   const abrechnung = page.getByRole("region", { name: "Mia Aushilfe" }).getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
-  await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
 
   await page

@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { bestaetigen, dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -227,7 +227,7 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(liste.getByRole("row")).toHaveCount(4);
   const zeile = liste.getByRole("row").filter({ hasText: "Karlsruhe" });
   await zeile.getByRole("button", { name: "Stornieren" }).click();
-  await zeile.getByRole("button", { name: "Wirklich stornieren" }).click();
+  await bestaetigen(page, "Stornieren");
   await expect(zeile.getByText("storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
@@ -298,10 +298,11 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   // Esc bricht nur die Rückfrage ab und bleibt beim Beleg
   const url = page.url();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Löschen", exact: true })).toBeVisible();
   expect(page.url()).toBe(url);
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -392,7 +393,7 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern; Buchung, EÜR, UStVA und DATEV prüfen die
   // Integrationstests in server/modules/belege/splits.test.ts
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -452,7 +453,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
     await go("/kontakte?rolle=lieferant");
@@ -616,7 +617,7 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
 
   // Die Voranmeldung des Monats verweist auf die Meldung des Quartals
@@ -655,7 +656,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
 
   await go(`/umsatzsteuer/${next}-05`);
@@ -700,7 +701,7 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
   await page.getByRole("button", { name: "Löschen" }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -775,7 +776,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   const invoicePath = new URL(page.url()).pathname;
   await axe(invoicePath, (p) => expect(p.getByLabel("Stufe 1: Skonto in %")).toHaveValue("3"));
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/\d{4}-\d{3}/)?.[0] ?? "";
   expect(number).not.toBe("");

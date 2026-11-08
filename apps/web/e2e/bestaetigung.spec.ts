@@ -71,7 +71,10 @@ for (const [name, viewport] of [
       const ausloeser = await neuerEntwurf(page);
       await ausloeser.click();
       await expect(rueckfrage(page)).toBeVisible();
-      const { violations } = await new AxeBuilder({ page }).include("dialog").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      const { violations } = await new AxeBuilder({ page })
+        .include("dialog")
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+        .analyze();
       expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
