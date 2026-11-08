@@ -216,6 +216,25 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 0 }]);
   });
 
+  it("lässt nach Storno und Neuerfassung eines gebuchten Belegs ohne Lieferanten den Export zu, wie die Doku es verspricht", async () => {
+    // docs/auswertungen.md, Personenkonten: „Für einen gebuchten Beleg ohne Lieferanten hilft nur Storno und neu erfassen“
+    await reset("SKR03", "soll");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const lieferant = await contacts.createContact(actor, contactInput("Papierwerk Süd AG", { isCustomer: false, isSupplier: true, kreditorNr: 70001 }));
+    const ohneLieferant = await beleg(null, 119_00);
+    const { cancelDocument } = await import("../belege/cancellation.ts");
+    await cancelDocument(actor, ohneLieferant, { reason: "Lieferant fehlte" }, "2026-05-11");
+    await beleg(lieferant.id, 119_00);
+
+    const { bytes } = await datev.datevExport(2026, new Date(2026, 9, 4), actor);
+    const stack = parseDatevBuchungsstapel(bytes);
+    const saldo = (konto: string) =>
+      stack.bookings.reduce((sum, b) => sum + (b.account === konto ? b.amount : 0) - (b.contraAccount === konto ? b.amount : 0), 0);
+    // Der stornierte Beleg hebt sich auf dem Sammelkonto auf; der neu erfasste steht beim Kreditor
+    expect(saldo("1600")).toBe(0);
+    expect(saldo("70001")).toBe(-119_00);
+  });
+
   it("ändert den Schalter für Jahre mit Buchungen bis heute nur mit Bestätigung, nie still rückwirkend", async () => {
     await reset("SKR04", "ist");
     const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH", { debitorNr: 10001 }));
