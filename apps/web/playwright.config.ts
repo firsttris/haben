@@ -81,6 +81,7 @@ export default defineConfig({
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "kopfzeile.spec.ts",
+        "knopfreihenfolge.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
         "steuerberatung.spec.ts",
