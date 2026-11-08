@@ -101,6 +101,8 @@ export async function datevExport(year: number, now = new Date(), actor?: string
   const journal = entries.map((e) => {
     const vorgang = vorgaenge.get(e.sourceId);
     return {
+      id: e.id,
+      reversesId: e.reversesId,
       date: e.date,
       description: e.description,
       voucher: vorgang?.voucher ?? "",

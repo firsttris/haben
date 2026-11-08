@@ -7,7 +7,9 @@ import type { DatevExportEntry } from "./datev-export.ts";
  * die Nummer des Kontakts der Quelle ein: Rechnung → Debitor des Kunden, Beleg → Kreditor des Lieferanten, Zahlung und
  * Ausbuchung über die zugeordnete Rechnung bzw. den Beleg. Maßgeblich ist die Herkunft, nicht das Vorzeichen; jede
  * Zeile wird ersetzt, nicht ergänzt, so steht jeder Betrag nur einmal im Stapel. Fehlt eine Angabe, lehnt der Export
- * mit der Liste der Vorgänge ab, statt still auf das Sammelkonto zu buchen.
+ * mit der Liste der Vorgänge ab, statt still auf das Sammelkonto zu buchen. Ausgenommen sind Buchung und Gegenbuchung
+ * (Storno), die beide im Stapel stehen: Ohne Personenkonto bleiben sie auf dem Sammelkonto und heben sich dort auf, so
+ * gibt Storno und Neuerfassung eines gebuchten Belegs ohne Lieferanten den Export frei.
  */
 
 export interface PersonenkontoBezug {
@@ -55,17 +57,34 @@ function personenkonto(
   return { rolle, nummer: bezug!.kontakt.nummer };
 }
 
-export function personenkontenEinsetzen<T extends DatevExportEntry & { bezug: PersonenkontoBezug | null }>(
+/** Kennung der Buchung und der Buchung, die sie storniert; aus journal_entries.id und reverses_id */
+export interface Gegenbuchung {
+  id?: string;
+  reversesId?: string | null;
+}
+
+/** Buchungen, deren Gegenbuchung bzw. Original ebenfalls im Stapel steht */
+function stornoPaare(entries: readonly Gegenbuchung[]): Set<string> {
+  const ids = new Set(entries.flatMap((e) => (e.id ? [e.id] : [])));
+  const paare = new Set<string>();
+  for (const e of entries) {
+    if (e.id && e.reversesId && ids.has(e.reversesId)) paare.add(e.id).add(e.reversesId);
+  }
+  return paare;
+}
+
+export function personenkontenEinsetzen<T extends DatevExportEntry & Gegenbuchung & { bezug: PersonenkontoBezug | null }>(
   entries: readonly T[],
   sammelkonten: Sammelkonten,
 ): PersonenkontenErgebnis<T> {
   const probleme: string[] = [];
   const verwendet = new Map<string, { rolle: PersonenkontoRolle; nummer: number }>();
+  const paare = stornoPaare(entries);
   const result = entries.map((entry) => {
     const konto = personenkonto(entry, entry.bezug, sammelkonten);
     if (konto === null) return entry;
     if (typeof konto === "string") {
-      if (!probleme.includes(konto)) probleme.push(konto);
+      if (!(entry.id && paare.has(entry.id)) && !probleme.includes(konto)) probleme.push(konto);
       return entry;
     }
     verwendet.set(`${konto.rolle}:${konto.nummer}`, konto);
