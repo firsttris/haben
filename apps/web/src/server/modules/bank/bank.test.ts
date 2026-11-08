@@ -181,14 +181,14 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     const third = await id(-510);
     expect((await bank.transactionDetail(third))?.direct).toEqual({
       kind: "gebuehren",
-      reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht"],
+      reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht, zuletzt am 01.08.2026"],
       counterpart: null,
     });
     // Eine abweichende Buchung ändert die Mehrheit nicht (2 von 3), eine aufgehobene zählt nicht
     await bank.allocate(actor, { kind: "privat", transactionId: third, amount: -510 });
     expect((await bank.transactionDetail(await id(-520)))?.direct).toMatchObject({
       kind: "gebuehren",
-      reasons: ["2 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht"],
+      reasons: ["2 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht, zuletzt am 01.08.2026"],
     });
     const [privat] = await sql`select id from allocations where transaction_id = ${third}`;
     await bank.reverseAllocation(actor, privat!.id);
@@ -203,14 +203,19 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await bank.allocate(actor, { kind: "privat", transactionId: await id(-30_000), amount: -30_000 });
     await bank.allocate(actor, { kind: "privat", transactionId: await id(-31_000), amount: -31_000 });
     const learned = await bank.learnedDirectSuggestions(
-      (await sql`select id, amount, counterparty_iban, counterparty_name from bank_transactions where amount in (-6000, -32000)`).map((r) => ({
-        id: r.id as string,
-        amount: r.amount as number,
-        counterpartyIban: r.counterparty_iban as string | null,
-        counterpartyName: r.counterparty_name as string,
-      })),
+      (await sql`select id, amount, booking_date::text, counterparty_iban, counterparty_name from bank_transactions where amount in (-6000, -32000)`).map(
+        (r) => ({
+          id: r.id as string,
+          amount: r.amount as number,
+          bookingDate: r.booking_date as string,
+          counterpartyIban: r.counterparty_iban as string | null,
+          counterpartyName: r.counterparty_name as string,
+        }),
+      ),
     );
-    expect([...learned.entries()]).toEqual([[await id(-6_000), { kind: "privat", reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht"] }]]);
+    expect([...learned.entries()]).toEqual([
+      [await id(-6_000), { kind: "privat", reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am 02.08.2026"] }],
+    ]);
     expect((await bank.transactionDetail(await id(-32_000)))?.direct).toBeNull();
   }, 30_000);
 
@@ -280,7 +285,9 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-500), amount: -500 });
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-510), amount: -510 });
     // Drei frühere Umsätze mit dieser IBAN, alle (teils) Gebühren
-    expect((await bank.transactionDetail(await id(-520)))?.direct?.reasons).toEqual(["3 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht"]);
+    expect((await bank.transactionDetail(await id(-520)))?.direct?.reasons).toEqual([
+      "3 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht, zuletzt am 01.09.2026",
+    ]);
   }, 30_000);
 
   it("Gelernte Buchungsart: die von einer Auszahlung abgezogene Gebühr macht die nächste Auszahlung nicht zur Gebühr", async () => {
@@ -348,13 +355,15 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     for (const amount of [-10_000, -20_000, 30_000, 40_000]) await bank.allocate(actor, { kind: "privat", transactionId: await id(amount), amount });
     expect((await bank.transactionDetail(await id(50_000)))?.direct).toMatchObject({
       kind: "privat",
-      reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht"],
+      reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am 02.08.2026"],
     });
     expect((await bank.transactionDetail(await id(-60_000)))?.direct).toMatchObject({
       kind: "privat",
-      reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht"],
+      reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht, zuletzt am 01.08.2026"],
     });
-    const list = await bank.learnedDirectSuggestions([{ id: "x", amount: 0, counterpartyIban: MAX, counterpartyName: "Max Mustermann" }]);
+    const list = await bank.learnedDirectSuggestions([
+      { id: "x", amount: 0, bookingDate: "2026-09-05", counterpartyIban: MAX, counterpartyName: "Max Mustermann" },
+    ]);
     expect(list.size).toBe(0);
   }, 30_000);
 

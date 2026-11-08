@@ -1202,6 +1202,57 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
   await expect(page.getByRole("row", { name: /Hausbank Investitionskredit/ })).toContainText("9.200,00");
 });
 
+test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit Begründung, übernehmen auf Klick (#295)", async ({ browser }) => {
+  const beleg = async (n: number) => {
+    await go("/belege");
+    await page
+      .locator("input[type=file][multiple]")
+      .setInputFiles([{ name: `kiosk-${n}.jpg`, mimeType: "image/jpeg", buffer: await receiptJpeg(browser, `Kiosk am Markt ${n}`) }]);
+    await expect(page.getByText(`kiosk-${n}.jpg: abgelegt.`)).toBeVisible();
+    await page
+      .getByRole("link", { name: new RegExp(`kiosk-${n}\\.jpg`) })
+      .first()
+      .click();
+    await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Lieferant", { exact: true }).fill("Kiosk am Markt");
+    await page.getByLabel("Rechnungsnummer").fill(`Q-${n}`);
+    await page.getByLabel("Belegdatum").fill(day(-3));
+    await page.getByLabel("Netto", { exact: true }).fill("10,00");
+  };
+  // Zwei Belege als Telefon, privat bezahlt
+  for (const n of [1, 2]) {
+    await beleg(n);
+    await page.getByLabel("Kategorie").selectOption("telefon");
+    await page.getByLabel("Privat bezahlt (Privateinlage)").check();
+    await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+    await page.getByRole("button", { name: "Jetzt buchen" }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
+  }
+  // Der dritte: Hinweise mit Anzahl und Tag der letzten Buchung, gewählt wird erst mit „übernehmen“
+  await beleg(3);
+  await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+  await page.waitForLoadState("networkidle");
+  const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
+  const kategorie = page.getByLabel("Kategorie").locator("xpath=ancestor::label");
+  await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
+  const bezahlung = page.getByRole("group", { name: "Bezahlung" });
+  await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);
+  await expect(bezahlung.getByLabel("Über das Geschäftskonto (Zuordnung beim Bankabgleich)")).toBeChecked();
+  await bezahlung.getByRole("button", { name: "übernehmen" }).click();
+  await expect(bezahlung.getByLabel("Privat bezahlt (Privateinlage)")).toBeChecked();
+  await expect(bezahlung.getByRole("button", { name: "übernehmen" })).toBeHidden();
+  await kategorie.getByRole("button", { name: "übernehmen" }).click();
+  await expect(page.getByLabel("Kategorie")).toHaveValue("telefon");
+  // Nichts ist gebucht, bis bestätigt wird
+  await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeHidden();
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
+});
+
 test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Ausgabe ohne Vorsteuer (#324)", async () => {
   const zeile = (name: string, zweck: string, betrag: string) =>
     [dkb(day(0)), dkb(day(0)), "Gebucht", betrag.startsWith("-") ? "Max Mustermann" : name, betrag.startsWith("-") ? name : "Max Mustermann", zweck]
@@ -1261,6 +1312,123 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await page.waitForURL(/\/bank\?/);
   await page.waitForLoadState("networkidle");
   await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
+});
+
+test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründung, gebucht erst auf Klick (#295)", async () => {
+  // „Kiosk am Markt“ ist aus dem Test davor einmal als Telefon gebucht; zwei weitere Aufladungen kommen dazu
+  const zeile = (datum: string, zweck: string, betrag: string) =>
+    [datum, datum, "Gebucht", "Max Mustermann", "Kiosk am Markt", zweck, "Ausgang", "", betrag, "", "", ""].map((v) => `"${v}"`).join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile(dkb(day(0)), "Prepaid-Aufladung Mai", "-15,00")}\n${zeile(dkb(day(1)), "Prepaid-Aufladung Juli", "-20,00")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "kiosk.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  // Erst ein Telefon-Umsatz: noch kein Vorschlag (nur eine frühere Zuordnung), also von Hand
+  await page
+    .getByRole("link", { name: /Prepaid-Aufladung Mai/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Mai")).toBeVisible();
+  await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeHidden();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Danach: zweimal so gebucht, die Liste zeigt „Vorschlag“, rechts Begründung und vorbelegte Felder
+  await expect(page.getByRole("link", { name: /Prepaid-Aufladung Juli/ }).first()).toContainText("Vorschlag");
+  await page
+    .getByRole("link", { name: /Prepaid-Aufladung Juli/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
+  await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeVisible();
+  await expect(panel.getByText("Ausgabe: Telefon")).toBeVisible();
+  await expect(panel.getByText(`2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am ${day(0).split("-").reverse().join(".")}`)).toBeVisible();
+  await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("telefon");
+  // Nichts ist gebucht, bis bestätigt wird
+  await expect(panel.getByText("Direkt: Telefon")).toBeHidden();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  // Danach springt die Auswahl zum nächsten offenen Umsatz; unter „Alle“ steht der gebuchte mit seiner Zuordnung
+  await go("/bank?filter=alle");
+  await page
+    .getByRole("link", { name: /Prepaid-Aufladung Juli/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
+  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+});
+
+test("Gelernte Erlöse als Kleinunternehmer, § 19 inzwischen aufgegeben: das Formular zeigt, was gebucht wird (#295)", async () => {
+  // Drei Zahlungen eines Privatkunden im Vormonat, als noch die Kleinunternehmerregelung galt
+  const datum = day(-40);
+  const zeile = (zweck: string, betrag: string) =>
+    [dkb(datum), dkb(datum), "Gebucht", "Paula Privat", "Max Mustermann", zweck, "Eingang", "DE02100100100006820199", betrag, "", "", ""]
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Fenster putzen 1", "100,00")}\n${zeile("Fenster putzen 2", "200,00")}\n${zeile("Fenster putzen 3", "300,00")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "paula.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/3 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+
+  // Stand im Änderungsprotokoll: im Vormonat Kleinunternehmer, heute nicht mehr (Ausschalten geht jederzeit).
+  // Zwei Zahlungen von damals als Erlöse ohne Steuer zugeordnet.
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`insert into audit_log (at, actor, table_name, row_id, action, new_value)
+      values (${`${datum}T12:00:00Z`}::timestamptz, 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: true })}),
+             (now(), 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: false })})`;
+    for (const zweck of ["Fenster putzen 1", "Fenster putzen 2"]) {
+      await sql`insert into allocations (transaction_id, kind, amount, category, tax_rate)
+        select id, 'kategorie', amount, 'erloese', 0 from bank_transactions where purpose = ${zweck}`;
+    }
+  } finally {
+    await sql.end();
+  }
+
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Fenster putzen 3/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Fenster putzen 3")).toBeVisible();
+  // Vorgeschlagen und vorbelegt sind Erlöse ohne Steuer; das Formular darf nicht „19 %“ zeigen
+  await expect(panel.getByText("Einnahme: Erlöse (Kleinunternehmer)")).toBeVisible();
+  await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).not.toHaveValue("1900");
+  await expect(panel.getByText("Als Kleinunternehmer ohne Umsatzsteuer (§ 19 UStG).")).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  // Gebucht wie angezeigt: ohne Steuer, wie am Tag der Zahlung
+  await go("/bank?filter=alle");
+  await page
+    .getByRole("link", { name: /Fenster putzen 3/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Fenster putzen 3")).toBeVisible();
+  await expect(panel.getByText("Direkt: Erlöse (Kleinunternehmer)")).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

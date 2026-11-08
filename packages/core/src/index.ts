@@ -35,6 +35,7 @@ export * from "./afa.ts";
 export * from "./afa-methoden.ts";
 export * from "./private-use.ts";
 export * from "./recurring.ts";
+export * from "./beleg-vorschlag.ts";
 export * from "./dauerbeleg.ts";
 export * from "./base-rate.ts";
 export * from "./dunning.ts";
