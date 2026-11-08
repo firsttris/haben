@@ -584,12 +584,13 @@ ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nu
 Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund 25 Sekunden statt einer, fast alles davon das Laden von ERiC. Für gelegentliche Meldungen reicht das; nach 120 Sekunden bricht Haben einen Aufruf ab.
 
 1. **QEMU besorgen:** ein statisch gebautes `qemu-x86_64` (User-Mode) ab Version 9; mit 8.2 stürzt Bun schon beim Start ab. Debian ab 13 hat es im Paket `qemu-user` (`/usr/bin/qemu-x86_64`), ältere Systeme wie Ubuntu 24.04 nur 8.2 in `qemu-user-static`. Das Programm aus dem Debian-Paket läuft auch dort, z. B. mit `apt-get download qemu-user` in einem Container mit `debian:trixie` und `dpkg-deb -x`.
-2. **Laufzeit anlegen:** auf dem Host als root, mit derselben Version wie das App-Image:
+2. **Laufzeit anlegen:** auf dem Host als root, mit derselben Version wie das App-Image. Das Skript kommt vom Tag dieser Version, damit Skript und App zusammenpassen:
    ```sh
-   curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/eric-x86_64/einrichten.sh
-   sudo QEMU=/pfad/zu/qemu-x86_64 sh einrichten.sh 0.6.3 /opt/haben-x86_64
+   VERSION=x.y.z   # Version deines App-Images
+   curl -O https://raw.githubusercontent.com/firsttris/haben/v$VERSION/deploy/eric-x86_64/einrichten.sh
+   sudo QEMU=/pfad/zu/qemu-x86_64 sh einrichten.sh $VERSION /opt/haben-x86_64
    ```
-   Das Skript lädt das amd64-Image von Haben, entpackt es nach `/opt/haben-x86_64/root` (rund 730 MB), kopiert QEMU daneben und legt `worker.sh` an, den Befehl für `ERIC_WORKER_COMMAND`.
+   Das Skript lädt das amd64-Image von Haben, entpackt es nach `/opt/haben-x86_64/root` (rund 730 MB), kopiert QEMU daneben und legt `worker.sh` an, den Befehl für `ERIC_WORKER_COMMAND`. Den lokalen Tag des Images setzt es danach zurück: Lag das Image der App schon auf dem Rechner, zeigt der Tag wieder darauf, sonst wird er entfernt. So startet die App beim nächsten Mal nicht das amd64-Image.
 3. **In der App einbinden** und neu starten:
 
    | | Compose | Quadlet |
@@ -599,6 +600,8 @@ Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund
    | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
 4. **ERiC laden** wie oben unter [ERiC einbinden](#eric-einbinden); mit `ERIC_WORKER_COMMAND` bietet Haben den Download auch auf arm64 an.
+
+Ausprobiert sind so bisher Prüfen, Belegabruf, Berechtigungen und Postfach mit echtem ERiC. **Eine echte Übermittlung an ELSTER unter QEMU hat noch niemand getestet.** Der Weg ist derselbe wie beim Prüfen, nur mit Zertifikat und Netz. Prüfe deine erste Meldung danach im ELSTER-Portal.
 
 Nach jedem Update von Haben `einrichten.sh` mit der neuen Version wiederholen. `worker.sh` vergleicht beide Versionen und startet nicht, wenn sie verschieden sind; Haben zeigt dann „x86_64-Laufzeit für ERiC ist Version …“ an.
 
