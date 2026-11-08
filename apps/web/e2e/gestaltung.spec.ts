@@ -9,6 +9,9 @@ import { HANDY } from "./kopfzeile.ts";
  * Mit der Sitzung aus app.spec.ts (Projekt „mit-daten“). Die Tests setzen die Gestaltung am Ende zurück.
  */
 
+// Alle Tests ändern dasselbe Standardprofil und dasselbe Logo; nebeneinander überschrieben sie sich gegenseitig
+test.describe.configure({ mode: "default" });
+
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
 const SCHMAL = { width: 1400, height: 800 };
 const BREIT = { width: 1920, height: 1080 };
