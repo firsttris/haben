@@ -305,3 +305,17 @@ test("Überblendung: Das Mausrad bewegt die Seite dahinter nicht", async ({ brow
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await page.context().close();
 });
+
+test("Überblendung: Eine Textauswahl, die neben dem Blatt endet, schließt sie nicht", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  await vorschauKnopf(page).click();
+  const lage = await lageNachDerFahrt(page);
+  // Der Browser meldet den Klick am gemeinsamen Vorfahren von Drücken und Loslassen: dem Dialog, wie beim Klick daneben
+  await page.mouse.move(lage.left + 200, 400);
+  await page.mouse.down();
+  await page.mouse.move(4, 400, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForTimeout(700);
+  await expect(dialog(page)).toBeVisible();
+  await page.context().close();
+});
