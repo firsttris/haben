@@ -440,14 +440,14 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 @starting-style { .preview-dialog[open]::backdrop { background: rgb(0 0 0 / 0); } }
 /* Der Rahmen steht, das Blatt läuft an der Kante aus, hinter der es weitergeht. Das Blatt ist in jedem Theme weiß: Weiß
    über ihm blendet die Schrift aus, ein Hauch Schwarz macht die Kante sichtbar. Ausblenden per mask zeigte im dunklen
-   Theme den Hintergrund durch und wurde dort hart. Die Deckkraft fällt quadratisch, sonst ist das Ende als Kante zu sehen. */
+   Theme den Hintergrund durch und wurde dort hart. Die Deckkraft fällt quadratisch, sonst ist das Ende als Kante zu sehen.
+   Sie folgt der Scrollposition (SheetScroll) statt einem Übergang: Der hielte das Weiß noch über dem leeren Rand, wenn die Blattkante schon im Bild ist. */
 .preview-pane-body:focus-visible, .preview-dialog-body:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .sheet-frame { --sheet-pad: 20px; position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .preview-pane .sheet-frame { --sheet-pad: 12px; }
-.sheet-frame::before, .sheet-frame::after { content: ""; position: absolute; inset-inline: 0; z-index: 1; height: 72px; padding-inline: var(--sheet-pad); pointer-events: none; opacity: 0; transition: opacity 150ms; background-clip: border-box, content-box; }
-.sheet-frame::before { top: 0; background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent), linear-gradient(to bottom, #fff, rgb(255 255 255 / 0.56) 25%, rgb(255 255 255 / 0.25) 50%, rgb(255 255 255 / 0.06) 75%, rgb(255 255 255 / 0)); }
-.sheet-frame::after { bottom: 0; background-image: linear-gradient(to top, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent), linear-gradient(to top, #fff, rgb(255 255 255 / 0.56) 25%, rgb(255 255 255 / 0.25) 50%, rgb(255 255 255 / 0.06) 75%, rgb(255 255 255 / 0)); }
-.sheet-frame:has(> [data-fade-top])::before, .sheet-frame:has(> [data-fade-bottom])::after { opacity: 1; }
+.sheet-frame::before, .sheet-frame::after { content: ""; position: absolute; inset-inline: 0; z-index: 1; height: 72px; padding-inline: var(--sheet-pad); pointer-events: none; background-clip: border-box, content-box; }
+.sheet-frame::before { top: 0; opacity: var(--fade-top, 0); background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent), linear-gradient(to bottom, #fff, rgb(255 255 255 / 0.56) 25%, rgb(255 255 255 / 0.25) 50%, rgb(255 255 255 / 0.06) 75%, rgb(255 255 255 / 0)); }
+.sheet-frame::after { bottom: 0; opacity: var(--fade-bottom, 0); background-image: linear-gradient(to top, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent), linear-gradient(to top, #fff, rgb(255 255 255 / 0.56) 25%, rgb(255 255 255 / 0.25) 50%, rgb(255 255 255 / 0.06) 75%, rgb(255 255 255 / 0)); }
 .preview-dialog-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
 .preview-dialog-head h2 { margin: 0 0 2px; font-size: 18px; }
 .preview-dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 16px 20px 24px; }

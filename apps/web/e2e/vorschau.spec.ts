@@ -143,6 +143,7 @@ test("Laptop: per Tastatur anheften, steht beim Scrollen fest, bleibt nach Neula
   await body.evaluate((el) => el.scrollTo(0, 4));
   await page.waitForTimeout(100);
   await expect(body).not.toHaveAttribute("data-fade-top");
+  expect(await body.evaluate((el) => getComputedStyle(el.parentElement as Element, "::before").opacity)).toBe("0");
   await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
   await expect(body).toHaveAttribute("data-fade-top", "");
   await expect(body).not.toHaveAttribute("data-fade-bottom");

@@ -331,6 +331,11 @@ function SheetScroll({ className, children }: { className: string; children: Rea
     setScrolls(element.scrollHeight > element.clientHeight + 1);
     setAbove(element.scrollTop > parseFloat(paddingTop));
     setBelow(remaining > parseFloat(paddingBottom));
+    // Direkt am Rahmen statt über den Zustand: Das läuft bei jedem Scrollschritt
+    const hiddenAbove = element.scrollTop - parseFloat(paddingTop);
+    const hiddenBelow = remaining - parseFloat(paddingBottom);
+    element.parentElement?.style.setProperty("--fade-top", fadeStrength(hiddenAbove));
+    element.parentElement?.style.setProperty("--fade-bottom", fadeStrength(hiddenBelow));
   }, []);
 
   useEffect(() => {
@@ -360,6 +365,13 @@ function SheetScroll({ className, children }: { className: string; children: Rea
       </div>
     </div>
   );
+}
+
+/** Volle Stärke erst, wenn so viele Pixel des Blatts abgeschnitten sind; bis dahin wächst der Verlauf mit dem Scrollen */
+const FADE_RAMP = 48;
+
+function fadeStrength(hiddenPixels: number): string {
+  return String(Math.min(Math.max(hiddenPixels / FADE_RAMP, 0), 1));
 }
 
 /** Chrome mit gesperrten Websitedaten wirft schon beim Zugriff auf window.localStorage; dann gilt die Wahl bis zum Neuladen */
