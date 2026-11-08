@@ -724,7 +724,7 @@ summary { cursor: pointer; min-height: 24px; }
 .contact-dialog[open] { display: flex; flex-direction: column; }
 .contact-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .contact-dialog > h2 { flex: none; padding: 20px 24px 16px; font-size: 24px; border-bottom: 1px solid var(--line); }
-.contact-dialog > .contact-form { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; border: 0; border-radius: 0; background: none; scroll-padding-bottom: calc(var(--dialog-footer) + 16px); }
+.contact-dialog > .contact-form { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; border: 0; border-radius: 0; background: none; scroll-padding-top: 16px; scroll-padding-bottom: calc(var(--dialog-footer) + 16px); }
 .contact-dialog .form-footer { position: sticky; bottom: 0; min-height: var(--dialog-footer); margin-top: auto; background: var(--surface); }
 @media (max-width: 640px) {
   .contact-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
