@@ -237,3 +237,10 @@ describe("buildUstvaUpload (XML-Import in Mein ELSTER)", () => {
     expect(() => upload({ period: { year: 2026, month: 13 } })).toThrow("Ungültiger Zeitraum: 13");
   });
 });
+
+describe("Erstellungsdatum", () => {
+  it("ist der Tag in Deutschland, unabhängig von der Zeitzone des Prozesses", () => {
+    // 31.03.2026 22:30 UTC ist in Deutschland schon der 1. April (MESZ)
+    expect(tag(buildUstvaXml({ ...base, erstellungsdatum: new Date("2026-03-31T22:30:00Z") }), "Erstellungsdatum")).toBe("20260401");
+  });
+});

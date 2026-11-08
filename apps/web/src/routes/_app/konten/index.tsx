@@ -1,4 +1,4 @@
-import { formatEuro, kontenkennzahlen, kontenklasse } from "@haben/core";
+import { currentYear, formatEuro, kontenkennzahlen, kontenklasse } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod/mini";
@@ -15,7 +15,7 @@ const search = z.object({
 export const Route = createFileRoute("/_app/konten/")({
   validateSearch: search,
   loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => getSaldenliste({ data: { year: deps.jahr ?? new Date().getFullYear(), period: deps.zeitraum ?? "jahr" } }),
+  loader: ({ deps }) => getSaldenliste({ data: { year: deps.jahr ?? currentYear(), period: deps.zeitraum ?? "jahr" } }),
   head: () => ({ meta: [{ title: "Konten · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: KontenPage,
 });

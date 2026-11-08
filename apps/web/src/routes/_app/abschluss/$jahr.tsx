@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
@@ -30,7 +31,7 @@ function AbschlussPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
   const selectId = useId();
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const years = [...new Set([data.year, thisYear, thisYear - 1, thisYear - 2])].sort((a, b) => b - a);
   return (
     <>

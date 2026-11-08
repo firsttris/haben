@@ -1,5 +1,6 @@
 import { UserError } from "../../errors.ts";
 import {
+  currentYear,
   ACCOUNTS,
   ASSET_ACCOUNTS,
   ASSET_KIND_KEYS,
@@ -187,7 +188,7 @@ export async function getAsset(id: string) {
   const booked = (await bookedYears([id])).get(id) ?? [];
   return {
     asset,
-    schedule: scheduleOf(asset, new Date().getFullYear()),
+    schedule: scheduleOf(asset, currentYear()),
     bookedYears: booked.sort((a, b) => a - b),
   };
 }

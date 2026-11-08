@@ -108,3 +108,10 @@ describe("Lohnsteuer-Anmeldung", () => {
     expect(liste.felder.at(-1)).toEqual({ kennung: "Kz86", bezeichnung: "Zahl der Arbeitnehmer (Kz 86)", eingabe: "1" });
   });
 });
+
+describe("Erstellungsdatum der Lohnsteuer-Anmeldung", () => {
+  it("ist der Tag in Deutschland, unabhängig von der Zeitzone des Prozesses", () => {
+    // 02.12.2026 23:30 UTC ist in Deutschland schon der 3. Dezember
+    expect(buildLStAXml({ ...basis, erstellungsdatum: new Date("2026-12-02T23:30:00Z") })).toContain("<Erstellungsdatum>20261203</Erstellungsdatum>");
+  });
+});

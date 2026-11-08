@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { checkFormats, isValidIdnr } from "@haben/elster";
@@ -48,7 +49,7 @@ export const checkElsterFormats = createServerFn({ method: "POST" })
       geburtsdatum: own ? a.geburtsdatum : "1985-04-12",
       datenlieferant: (own ? `${a.vorname} ${a.name}` : company.name) || "Haben",
       herstellerId: zugang(elsterClient(), "validate", env().ELSTER_HERSTELLER_ID).herstellerId,
-      veranlagungsjahr: new Date().getFullYear() - 1,
+      veranlagungsjahr: currentYear() - 1,
       produktVersion: PRODUKT_VERSION,
     });
     return { mode: elsterMode(), results };
