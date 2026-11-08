@@ -39,11 +39,16 @@ const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage" | "einfu
   software: `${OC}.concessLicenses.nonallocable`,
   // DATEV 4806/6495 „Wartungskosten für Hard- und Software“
   edv: `${OC}.fixing`,
+  // Erhaltungsaufwand für andere Anlagen und Betriebs- und Geschäftsausstattung (DATEV 4805/6470)
+  reparatur: `${OC}.fixing`,
+  // Miete für unbewegliche Wirtschaftsgüter an Dritte (DATEV 4210/6310); an Gesellschafter wäre leaseFix.shareholders
+  miete: `${OC}.leaseFix.other`,
   telefon: `${OC}.communication`,
   internet: `${OC}.communication`,
   porto: `${OC}.communication`,
   buero: `${OC}.administration`,
   literatur: `${OC}.administration`,
+  betriebsbedarf: `${OC}.miscellaneous`,
   fortbildung: `${OC}.training`,
   // Reisekosten Unternehmer: die Taxonomie kennt nur Reisekosten Arbeitnehmer
   fahrtkosten: `${OC}.miscellaneous`,
@@ -63,9 +68,13 @@ const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage" | "einfu
   kfzVersicherung: `${OC}.vehicles`,
   kfzReparatur: `${OC}.vehicles`,
   kfzLeasing: `${OC}.vehicles`,
+  kfzSonstige: `${OC}.vehicles`,
   kfzSteuer: "is.netIncome.otherTaxes.other",
   versicherung: `${OC}.insurance`,
   beitraege: `${OC}.insurance`,
+  // Soziale Abgaben bzw. Altersversorgung der Arbeitnehmer (§ 275 Abs. 2 Nr. 6b HGB)
+  berufsgenossenschaft: "is.netIncome.regular.operatingTC.staff.social.socExp.other",
+  versorgungskassen: "is.netIncome.regular.operatingTC.staff.social.pensions.other",
   sonstiges: `${OC}.miscellaneous`,
 };
 
