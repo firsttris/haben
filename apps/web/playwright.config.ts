@@ -78,6 +78,7 @@ export default defineConfig({
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
         "basiszinssatz.spec.ts",
+        "kopfzeile.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
         "steuerberatung.spec.ts",

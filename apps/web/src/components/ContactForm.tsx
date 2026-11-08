@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
@@ -67,6 +67,12 @@ export function ContactForm({
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
   const { busy, notice, setNotice, run } = useAction();
+  // Die Knöpfe stehen im Dialog fest unter dem scrollenden Formular (#356): die Meldung am Ende des Formulars ins Bild
+  // holen, sonst bliebe ein Klick auf „Kontakt anlegen“ scheinbar ohne Antwort
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (notice) noticeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [notice]);
   const [ustId, setUstId] = useState(contact?.ustId ?? prefill?.ustId ?? "");
   const sameUstId = compactUstId(ustId) ? existing.find((c) => c.id !== contact?.id && compactUstId(c.ustId) === compactUstId(ustId)) : undefined;
   // Skonto: null = Vorgabe aus den Einstellungen; eigene Stufen, leer = ohne Skonto
@@ -276,7 +282,7 @@ export function ContactForm({
           )}
         </div>
       )}
-      <NoticeBanner notice={notice} />
+      <NoticeBanner notice={notice} ref={noticeRef} />
       <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {contact ? "Speichern" : "Kontakt anlegen"}

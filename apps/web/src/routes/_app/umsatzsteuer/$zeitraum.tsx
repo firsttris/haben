@@ -103,7 +103,10 @@ function VatPeriodPage() {
       <div className="page-head">
         <div>
           <div className="eyebrow">Umsatzsteuer › Voranmeldung</div>
-          <h1>{periodLabel(data.period)}</h1>
+          <div className="title-with-status">
+            <h1>{periodLabel(data.period)}</h1>
+            <StatusPill current={data.current} filing={data.filings.find((f) => f.vatReturnId === data.current?.id)} />
+          </div>
         </div>
         <label className="field" htmlFor={selectId}>
           Zeitraum
@@ -360,10 +363,7 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
   return (
     <div className="grid-main">
       <form className="card" onSubmit={onSave} aria-labelledby="kz-heading">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 id="kz-heading">Kennzahlen</h2>
-          <StatusPill current={current} filing={data.filings.find((f) => f.vatReturnId === current?.id)} />
-        </div>
+        <h2 id="kz-heading">Kennzahlen</h2>
         {data.kleinunternehmer && (
           <div className="banner banner-info" role="status">
             <Icon name="info" />

@@ -57,4 +57,5 @@ Für neue Oberflächen gilt:
 - Jedes Eingabefeld hat ein `<label>` oder ein `aria-label`, auch versteckte Dateiauswahlen.
 - Farben über die Variablen in `styles.css`: Text in Akzentfarbe mit `var(--link)`, nicht `var(--accent)`, sonst fällt der Kontrast in den dunklen Themes durch.
 - Wer `outline: none` setzt, zeigt den Fokus anders (z. B. `:focus-within` am umgebenden Element).
+- Was beim Scrollen stehen bleibt, verdeckt kein Element mit Fokus (WCAG 2.4.11): Unter dem festen Seitenkopf beginnt es bei `var(--below-head)`, `scroll-padding-top` an `html` rechnet den Kopf schon ein. Bleibt darunter noch etwas stehen (am Handy die Bereiche der Einstellungen), bekommt es eine feste Höhe, die `scroll-padding-top` dazurechnet. Im Kontaktdialog hält `scroll-padding-bottom` Felder mit Fokus über den stehenden Knöpfen. `kopfzeile.spec.ts` tabbt dazu durch den langen Rechnungsentwurf und den Kontaktdialog.
 - Verschwindet das Element mit dem Fokus (ein Knopf, der ein Formular aufklappt), bekommt das nächste sinnvolle Element den Fokus.
