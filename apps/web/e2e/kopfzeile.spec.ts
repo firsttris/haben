@@ -246,6 +246,22 @@ test("Aktionen unter dem Titel stehen rechtsbündig, wenn der Kopf umbricht", as
   expect(Math.abs(ende - rechts)).toBeLessThanOrEqual(1);
 });
 
+test("Bank: Importknöpfe unter dem Titel stehen rechtsbündig, wenn der Kopf umbricht", async ({ page }) => {
+  // Mit Seitenleiste (ab 861 px) zu schmal für Titel, Kontowahl und Knöpfe in einer Zeile
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.goto("/bank");
+  const head = page.locator(".main > .page-head");
+  const titel = head.getByRole("heading", { level: 1 });
+  const importieren = head.getByRole("button", { name: "CSV / CAMT importieren" });
+  await expect(importieren).toBeVisible();
+  const titelBox = await titel.boundingBox();
+  const knopfBox = await importieren.boundingBox();
+  // Sonst prüft der Test nichts: die Knöpfe müssen wirklich unter dem Titel stehen
+  expect(knopfBox?.y).toBeGreaterThanOrEqual((titelBox?.y ?? 0) + (titelBox?.height ?? 0));
+  const { rechts } = await kopfInnen(head);
+  expect(Math.abs((knopfBox?.x ?? 0) + (knopfBox?.width ?? 0) - rechts)).toBeLessThanOrEqual(1);
+});
+
 test("Aktionen am Handy füllen weiter die volle Breite des Kopfes", async ({ page }) => {
   await page.setViewportSize(HANDY);
   await page.goto("/rechnungen/neu");
