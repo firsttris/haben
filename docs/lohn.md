@@ -47,7 +47,7 @@ Wähle Monat und Jahr, trage den **Zahltag** ein und klicke **Monat abrechnen**.
 
 Der Entwurf zeigt Brutto, Steuern, den Anteil zur Sozialversicherung, Netto, Auszahlung und was der Arbeitgeber zusätzlich trägt. **Entwurf ansehen (PDF)** zeigt die Entgeltabrechnung mit dem Vermerk „Entwurf“ im Kopf und groß und schräg über jeder Seite, wie bei [Rechnungsentwürfen](rechnungen.md#entwurf-als-pdf). Ändern sich danach die Stammdaten, rechnest du den Entwurf neu; ein Entwurf lässt sich auch löschen.
 
-**Festschreiben** (zur Sicherheit ein zweiter Klick auf **Jetzt festschreiben**) setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe und Beitragsgruppen, bei Beschäftigten in Stufe C dazu die Krankenkasse mit Betriebsnummer als Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
+**Festschreiben** (zur Sicherheit mit einer Rückfrage im Dialog) setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe und Beitragsgruppen, bei Beschäftigten in Stufe C dazu die Krankenkasse mit Betriebsnummer als Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
 
 Mit dem Festschreiben bucht Haben die Abrechnung ins Journal (siehe [Buchung](#buchung)). Lässt sie sich nicht buchen, etwa weil das Jahr abgeschlossen ist, bleibt sie ein Entwurf.
 
@@ -83,7 +83,7 @@ Nicht gebucht werden die Beiträge zur Berufsgenossenschaft (jährlich nach Besc
 
 ## Lohnsteuer-Anmeldung
 
-Die einbehaltene Lohnsteuer meldest du dem Finanzamt bis zum 10. nach Ablauf jedes Anmeldungszeitraums an und zahlst sie (§ 41a Abs. 1 EStG). Unter **Personal › Lohn › Lohnsteuer-Anmeldung** rechnet Haben die Anmeldung aus den festgeschriebenen Abrechnungen, prüft und sendet sie über ELSTER wie die [Voranmeldung](umsatzsteuer.md#übermitteln-an-elster): **Nur prüfen**, **Prüfen und testweise senden**, dann echt mit zweiter Bestätigung. Das Übertragungsprotokoll liegt als PDF im Verlauf; die [Frist](fristen.md) ist danach erledigt.
+Die einbehaltene Lohnsteuer meldest du dem Finanzamt bis zum 10. nach Ablauf jedes Anmeldungszeitraums an und zahlst sie (§ 41a Abs. 1 EStG). Unter **Personal › Lohn › Lohnsteuer-Anmeldung** rechnet Haben die Anmeldung aus den festgeschriebenen Abrechnungen, prüft und sendet sie über ELSTER wie die [Voranmeldung](umsatzsteuer.md#übermitteln-an-elster): **Nur prüfen**, **Prüfen und testweise senden**, dann echt nach der Rückfrage im Dialog. Das Übertragungsprotokoll liegt als PDF im Verlauf; die [Frist](fristen.md) ist danach erledigt.
 
 ### Anmeldungszeitraum
 
