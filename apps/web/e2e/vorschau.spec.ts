@@ -293,3 +293,15 @@ test("Gesperrter Speicher: Der Editor öffnet, Anheften gilt bis zum Neuladen", 
   expect(pageErrors).toEqual([]);
   await context.close();
 });
+
+test("Überblendung: Das Mausrad bewegt die Seite dahinter nicht", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeGreaterThan(200);
+  await vorschauKnopf(page).click();
+  await lageNachDerFahrt(page);
+  await page.mouse.move(4, 400);
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await page.context().close();
+});
