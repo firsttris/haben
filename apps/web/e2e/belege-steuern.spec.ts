@@ -910,6 +910,9 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText("Entwurf gespeichert.")).toBeVisible();
 
   const vermerk = page.getByRole("form", { name: "Außerhalb von Haben abgegeben" });
+  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443)
+  await vermerk.getByLabel("Tag der Abgabe").fill("");
+  await expect(vermerk.getByRole("button", { name: "Abgabe vermerken" })).toBeDisabled();
   await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
   await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
   await vermerk.getByLabel("Übermittlungsprotokoll (PDF)").setInputFiles({
