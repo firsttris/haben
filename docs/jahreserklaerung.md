@@ -65,6 +65,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Kontoführung und Gebühren, Sonstiger Aufwand, Sonstiger Betriebsbedarf | Übrige Betriebsausgaben |
 | Miete für Geschäftsräume, Reparatur und Instandhaltung | amtlich Zeile 39 „Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke“ (Kz 150) bzw. Zeile 48 „Erhaltungsaufwendungen“ (Kz 225); Haben überträgt sie vorerst als übrige Betriebsausgaben (Zeile 60) und weist in der Vorprüfung darauf hin, weil die ELSTER-Feldkennungen dieser Zeilen noch nicht am ERiC-Schema geprüft sind. Gewinn und Summen stimmen; die genaue Zeile trägst du bei Bedarf im ELSTER-Portal um |
 | Beiträge zur Berufsgenossenschaft, Versorgungskassen | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer) |
+| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |

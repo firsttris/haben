@@ -241,6 +241,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   steuer: "Steuerzahlung",
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
+  kategorie: "Direkt auf Kategorie",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",
