@@ -55,6 +55,9 @@
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
 /* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
 html { scroll-padding-top: calc(var(--below-head) + 16px); }
+/* 400 % Zoom (WCAG 1.4.10: 320×256, ein Fenster mit 1280×720 ergibt 320×180): Der Kopf füllte das Fenster, er scrollt
+   hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
+@media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
 
 /* Themes: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald. */
 :root { color-scheme: light; }
@@ -169,10 +172,17 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
    Innenabstand von .main bis an die Ränder, damit der Inhalt darunter verschwindet; die negativen Ränder lassen ihn
    ungescrollt an derselben Stelle wie ohne Fläche. Die Trennlinie erst, wenn die Seite gescrollt ist (useScrolled). */
 .page-head { position: sticky; top: var(--nav-height); z-index: 10; margin: -12px calc(-1 * var(--main-pad-x)); padding: 12px var(--main-pad-x); background: var(--ground); }
+@media (max-height: 300px) { .page-head { position: static; } }
 .shell[data-scrolled] .page-head { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
 .page-head > .actions, .page-head > .field { align-self: flex-end; }
+/* Bricht der Kopf um, bleiben die Aktionen rechts. Am Handy (bis 720 px) füllen sie die Spalte in voller Breite */
+@media (min-width: 721px) {
+  .page-head > .actions, .page-head > .stack { margin-left: auto; }
+  .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
+}
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.doc-actions > .banner { flex: 0 0 100%; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 /* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
 .card-link { color: inherit; text-decoration: none; }
