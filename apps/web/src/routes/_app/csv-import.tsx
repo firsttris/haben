@@ -268,12 +268,12 @@ function PreviewCard({ preview, busy, meta, onImport }: { preview: Preview; busy
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy || counts.neu === 0 || preview.problem !== null} onClick={onImport}>
-          {counts.neu} {counts.neu === 1 ? meta.singular : meta.plural} übernehmen
-        </button>
         <Link to={meta.list} className="btn">
           {meta.back}
         </Link>
+        <button type="button" className="btn btn-primary" disabled={busy || counts.neu === 0 || preview.problem !== null} onClick={onImport}>
+          {counts.neu} {counts.neu === 1 ? meta.singular : meta.plural} übernehmen
+        </button>
       </div>
     </section>
   );

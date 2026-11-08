@@ -174,11 +174,21 @@ export function MailCard({ data }: { data: Data }) {
       </div>
       <TemplateEditor templates={templates} onChange={setTemplates} />
       <div className="actions" style={{ flexWrap: "wrap" }}>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          Speichern
-        </button>
         {s && (
           <>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await remove();
+                  return { tone: "ok", text: "E-Mail-Zugang entfernt." };
+                })
+              }
+            >
+              Entfernen
+            </button>
             <button
               type="button"
               className="btn"
@@ -194,21 +204,11 @@ export function MailCard({ data }: { data: Data }) {
             >
               Test-Mail senden
             </button>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await remove();
-                  return { tone: "ok", text: "E-Mail-Zugang entfernt." };
-                })
-              }
-            >
-              Entfernen
-            </button>
           </>
         )}
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          Speichern
+        </button>
       </div>
       <NoticeBanner notice={notice} />
       {data.last.length > 0 && (

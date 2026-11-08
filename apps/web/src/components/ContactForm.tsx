@@ -343,9 +343,6 @@ export function ContactForm({
       )}
       <NoticeBanner notice={notice ?? (saved ? SAVED_NOTICE : null)} />
       <div className="actions form-footer">
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {contact ? "Speichern" : "Kontakt anlegen"}
-        </button>
         {onCancel ? (
           <button type="button" className="btn" onClick={onCancel} disabled={busy}>
             Abbrechen
@@ -355,6 +352,9 @@ export function ContactForm({
             Abbrechen
           </Link>
         )}
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {contact ? "Speichern" : "Kontakt anlegen"}
+        </button>
       </div>
     </form>
   );

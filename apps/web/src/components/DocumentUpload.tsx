@@ -89,11 +89,11 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
           {aiAvailable ? ", andere Belege liest die KI vor; du bestätigst immer selbst." : "; andere Belege füllst du von Hand aus."}
         </p>
         <div className="actions" style={{ justifyContent: "center" }}>
-          <button type="button" className="btn btn-primary" onClick={() => fileInput.current?.click()} disabled={busy}>
-            Dateien auswählen
-          </button>
           <button type="button" className="btn camera-only" onClick={() => cameraInput.current?.click()} disabled={busy}>
             Foto aufnehmen
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => fileInput.current?.click()} disabled={busy}>
+            Dateien auswählen
           </button>
         </div>
         <input

@@ -1042,8 +1042,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         <div className="actions doc-actions">
           {/* In der stehenden Leiste: davor läge die Meldung beim Scrollen hinter ihr. Jede Aktion mit Meldung sitzt hier */}
           <NoticeBanner notice={notice} />
-          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
-            Bestätigen und buchen
+          <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
+            Löschen
           </button>
           <button type="submit" className="btn" disabled={busy || running || !valid || !dirty}>
             Speichern
@@ -1053,8 +1053,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
-            Löschen
+          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
+            Bestätigen und buchen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
             <input type="checkbox" checked={continueAfterBooking} onChange={(e) => writeContinuePreference(e.target.checked)} />
