@@ -623,7 +623,7 @@ export function InvoiceEditor({
             {title} {nextNumber}
           </h1>
         </div>
-        <div className="actions">
+        <div className="actions editor-actions">
           <button
             type="button"
             className="btn"
