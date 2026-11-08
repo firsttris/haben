@@ -82,6 +82,7 @@ export default defineConfig({
         "rechtsform.spec.ts",
         "seiten.spec.ts",
         "steuerberatung.spec.ts",
+        "vorschau.spec.ts",
         "zz-doku-screenshots.spec.ts",
       ],
       dependencies: ["ablauf"],

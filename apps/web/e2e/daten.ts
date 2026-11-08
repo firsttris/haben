@@ -1,4 +1,4 @@
-import type { Page, PageScreenshotOptions } from "@playwright/test";
+import type { BrowserContext, Page, PageScreenshotOptions } from "@playwright/test";
 
 /**
  * Was app.spec.ts anlegt und die Tests im Projekt „mit-daten“ (playwright.config.ts) danach lesen.
@@ -17,6 +17,21 @@ export const SESSION = "test-results/.sitzung.json";
 const today = new Date();
 const startOfYear = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
 const base = today.getTime() - startOfYear.getTime() < 50 * 86_400_000 ? new Date(Date.UTC(today.getUTCFullYear() - 1, 11, 20)) : today;
+
+/**
+ * Die Durchläufe sehen beim Tippen auf die Vorschau der Belegeditoren: angeheftet steht sie neben dem Formular
+ * (#357). Am 1440 px breiten Testfenster wäre die Vorgabe sonst die Überblendung; die prüft vorschau.spec.ts.
+ * Der Schlüssel ist PREVIEW_MODE_KEY aus src/lib/vorschau.ts.
+ */
+export async function vorschauAnheften(target: BrowserContext | Page): Promise<void> {
+  await target.addInitScript(() => {
+    try {
+      localStorage.setItem("haben-vorschau", "angeheftet");
+    } catch {
+      // about:blank hat keinen localStorage
+    }
+  });
+}
 
 /** Das Jahr, in dem app.spec.ts bucht */
 export const YEAR = base.getUTCFullYear();

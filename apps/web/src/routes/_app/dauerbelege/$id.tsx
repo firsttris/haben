@@ -7,6 +7,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { dauerbelegFormData } from "../../../lib/dauerbeleg.ts";
 import { formatDate, formatDateTime, formatSize } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
+import { useRevealWhen } from "../../../lib/use-page-head.ts";
 import { changeDauerbelegStatus, getDauerbelegDetail, removeDauerbeleg, saveDauerbeleg } from "../../../server/functions/dauerbelege.ts";
 
 export const Route = createFileRoute("/_app/dauerbelege/$id")({
@@ -31,6 +32,7 @@ function DauerbelegDetailPage() {
   const remove = useServerFn(removeDauerbeleg);
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState<"loeschen" | "beenden" | null>(null);
+  const beendenHinweis = useRevealWhen<HTMLDivElement>(confirming === "beenden");
 
   const status = (aktion: "pausieren" | "fortsetzen" | "beenden", done: string) =>
     run(async () => {
@@ -106,7 +108,7 @@ function DauerbelegDetailPage() {
         </div>
       </div>
       {confirming === "beenden" && (
-        <div className="banner" role="status">
+        <div className="banner" role="status" ref={beendenHinweis}>
           Beenden ist endgültig: Es entstehen keine Belege mehr, auch nicht nach einer Änderung. Vorübergehend anhalten geht mit Pausieren.
         </div>
       )}

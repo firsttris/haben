@@ -55,6 +55,9 @@
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
 /* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
 html { scroll-padding-top: calc(var(--below-head) + 16px); }
+/* 400 % Zoom (WCAG 1.4.10: 320×256, ein Fenster mit 1280×720 ergibt 320×180): Der Kopf füllte das Fenster, er scrollt
+   hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
+@media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
 
 /* Themes: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald. */
 :root { color-scheme: light; }
@@ -169,10 +172,17 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
    Innenabstand von .main bis an die Ränder, damit der Inhalt darunter verschwindet; die negativen Ränder lassen ihn
    ungescrollt an derselben Stelle wie ohne Fläche. Die Trennlinie erst, wenn die Seite gescrollt ist (useScrolled). */
 .page-head { position: sticky; top: var(--nav-height); z-index: 10; margin: -12px calc(-1 * var(--main-pad-x)); padding: 12px var(--main-pad-x); background: var(--ground); }
+@media (max-height: 300px) { .page-head { position: static; } }
 .shell[data-scrolled] .page-head { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
 .page-head > .actions, .page-head > .field { align-self: flex-end; }
+/* Bricht der Kopf um, bleiben die Aktionen rechts. Am Handy (bis 720 px) füllen sie die Spalte in voller Breite */
+@media (min-width: 721px) {
+  .page-head > .actions, .page-head > .stack { margin-left: auto; }
+  .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
+}
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.doc-actions > .banner { flex: 0 0 100%; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 /* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
 .card-link { color: inherit; text-decoration: none; }
@@ -410,6 +420,72 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Vorschau der Belegeditoren (#357): angeheftet als zweite Spalte, sonst hat das Formular die volle Breite. Die
+   Mindestbreiten sind FORM_MIN_WIDTH und PREVIEW_MIN_WIDTH aus lib/vorschau.ts; darunter bietet der Editor kein Anheften an */
+/* clip statt hidden: kein Scrollbereich, die Vorschau bleibt sticky; die Fahrt von rechts zieht die Seite nicht in die Breite */
+.preview-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; overflow-x: clip; }
+.preview-layout[data-pinned] { grid-template-columns: minmax(640px, 3fr) minmax(420px, 2fr); }
+/* Steht unter dem festen Seitenkopf und scrollt in sich, wenn das Blatt höher ist als das Fenster */
+.preview-pane { position: sticky; top: calc(var(--below-head) + 16px); max-height: var(--viewer-height); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Nur die Spalte fährt (transform); das Formular wechselt seine Breite einmal, statt bei jedem Bild neu umzubrechen */
+.preview-pane[data-motion="in"] { transition: transform var(--sheet-in); }
+@starting-style { .preview-pane[data-motion="in"] { transform: translateX(100%); } }
+.preview-pane[data-motion="out"] { transform: translateX(100%); transition: transform var(--sheet-out); }
+.preview-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.preview-pane-actions { display: flex; gap: 8px; }
+/* Das Blatt liegt in einer Karte und scrollt in ihr, statt am unteren Rand der Spalte abgeschnitten zu wirken */
+.preview-pane .sheet-frame { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.preview-pane-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
+/* Überblendung: dieselbe Seitenansicht, aber über dem Formular und breiter als angeheftet („Vergrößern“); sie fährt von
+   rechts herein, am Handy von unten. Ohne Anlaufpause und lange weich auslaufend (Material 3 „standard“), hinaus dieselbe Kurve kürzer; der Übergang
+   gilt jeweils für den Zustand, in den es geht. Ohne
+   Bewegung (prefers-reduced-motion) schaltet die Regel weiter unten die Übergänge ab */
+:root { --sheet-in-time: 400ms; --sheet-out-time: 300ms; --sheet-curve: cubic-bezier(0.2, 0, 0, 1); --sheet-in: var(--sheet-in-time) var(--sheet-curve); --sheet-out: var(--sheet-out-time) var(--sheet-curve); }
+.preview-dialog { --sheet-hidden: translateX(100%); width: min(960px, calc(100vw - 96px)); max-width: none; height: 100dvh; max-height: none; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1px solid var(--line); border-radius: 12px 0 0 12px; background: var(--ground); color: var(--ink); box-shadow: -12px 0 32px rgb(0 0 0 / 0.2); flex-direction: column; overflow: hidden; transform: var(--sheet-hidden); transition: transform var(--sheet-out), overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
+.preview-dialog[open] { display: flex; transform: none; transition: transform var(--sheet-in), overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
+@starting-style { .preview-dialog[open] { transform: var(--sheet-hidden); } }
+/* Modal sperrt nur Fokus und Klicks, nicht das Mausrad: Die Seite dahinter behält ihre Scrollposition. Der Innenabstand
+   ersetzt die weggefallene Scrollleiste, damit nichts springt; scrollbar-gutter verkleinerte das Fenster, die Leiste
+   endete dann vor dem Rand. Ohne [open]: Auch während der Fahrt hinaus bleibt alles stehen. */
+html:has(.preview-dialog) { overflow: hidden; }
+html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
+/* Abdunkeln gleichmäßig: mit der vorn geladenen Kurve des Blatts spränge die Helligkeit der ganzen Seite gleich am Anfang */
+.preview-dialog::backdrop { background: rgb(0 0 0 / 0); transition: background-color var(--sheet-out-time) linear, overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
+.preview-dialog[open]::backdrop { background: rgb(0 0 0 / 0.4); transition: background-color var(--sheet-in-time) linear, overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
+@starting-style { .preview-dialog[open]::backdrop { background: rgb(0 0 0 / 0); } }
+/* Der Rahmen steht, das Blatt läuft an der Kante aus, hinter der es weitergeht: Es wird durchsichtig (mask), ein Hauch Schwarz
+   macht die Kante auch auf hellem Grund sichtbar. Die Deckkraft fällt quadratisch, sonst ist das Ende als Kante zu sehen.
+   Sie folgt der Scrollposition (SheetScroll) und ist voll, sobald die Blattkante den Rand erreicht.
+   Der Fokusring sitzt am Rahmen, weil die mask ihn am Bereich mit ausblenden würde. */
+.preview-pane-body, .preview-dialog-body { mask-image: linear-gradient(to bottom, rgb(0 0 0 / calc(1 - 1 * var(--fade-top, 0))) 0, rgb(0 0 0 / calc(1 - 0.56 * var(--fade-top, 0))) 18px, rgb(0 0 0 / calc(1 - 0.25 * var(--fade-top, 0))) 36px, rgb(0 0 0 / calc(1 - 0.06 * var(--fade-top, 0))) 54px, #000 72px, #000 calc(100% - 72px), rgb(0 0 0 / calc(1 - 0.06 * var(--fade-bottom, 0))) calc(100% - 54px), rgb(0 0 0 / calc(1 - 0.25 * var(--fade-bottom, 0))) calc(100% - 36px), rgb(0 0 0 / calc(1 - 0.56 * var(--fade-bottom, 0))) calc(100% - 18px), rgb(0 0 0 / calc(1 - 1 * var(--fade-bottom, 0))) 100%); }
+.preview-pane-body:focus-visible, .preview-dialog-body:focus-visible { outline: none; }
+.sheet-frame:has(> :focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sheet-frame { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.sheet-frame::before, .sheet-frame::after { content: ""; position: absolute; inset-inline: 0; z-index: 1; height: 72px; pointer-events: none; }
+.sheet-frame::before { top: 0; opacity: var(--fade-top, 0); background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent); }
+.sheet-frame::after { bottom: 0; opacity: var(--fade-bottom, 0); background-image: linear-gradient(to top, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent); }
+.preview-dialog-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
+.preview-dialog-head h2 { margin: 0 0 2px; font-size: 18px; }
+.preview-dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 16px 20px 24px; }
+/* Handy: von unten, oben bleibt ein Streifen der Seite sichtbar */
+@media (max-width: 720px) {
+  .preview-dialog { --sheet-hidden: translateY(100%); width: 100vw; height: calc(100dvh - 12px); margin: auto 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 12px 12px 0 0; box-shadow: 0 -12px 32px rgb(0 0 0 / 0.2); }
+  .preview-dialog-head { padding: 12px; }
+  .preview-dialog-body { padding: 12px; }
+}
+/* Split-Button: Hauptaktion und Pfeil teilen sich einen Rahmen, das Menü hängt rechtsbündig darunter */
+.split-btn { position: relative; display: inline-flex; }
+/* Ohne Pfeil zählt der Knopf wie seine Nachbarn in der Aktionszeile */
+.split-btn-solo { display: contents; }
+.split-btn > .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-btn > .split-btn-arrow { margin-left: -1px; padding: 0 10px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.split-btn > .btn:hover, .split-btn > .btn:focus-visible { position: relative; z-index: 1; }
+.split-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 280px; padding: 4px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
+.split-menu [role="menuitem"] { display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--control-h); padding: 8px 12px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; white-space: nowrap; cursor: pointer; }
+.split-menu [role="menuitem"]:hover, .split-menu [role="menuitem"]:focus-visible { background: var(--accent-soft); }
+.split-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.split-menu [role="menuitem"] > svg { flex-shrink: 0; color: var(--muted); }
+.split-menu-text { display: flex; flex-direction: column; gap: 2px; }
 /* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar */
 @media (min-width: 1201px) {
   /* Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte */
@@ -603,14 +679,14 @@ fieldset.card > legend + * { clear: both; }
   .page-head .eyebrow { margin-bottom: 2px; }
   .page-head .actions { display: flex; flex-wrap: nowrap; gap: 8px; align-self: stretch; overflow: auto hidden; scrollbar-width: none; margin: -4px; padding: 4px; }
   .page-head .actions > * { flex: 0 0 auto; }
-  .page-head .actions > .btn { flex: 1 0 auto; justify-content: center; }
+  .page-head .actions > .btn, .page-head .actions > .split-btn-solo > .btn { flex: 1 0 auto; justify-content: center; }
   .page-head .actions > .field { flex: 1 0 140px; }
   /* Ein Feld direkt im Kopf (Zeitraum, Jahr) nimmt wie die Aktionszeile die ganze Breite, statt halb breit am Rand zu stehen */
   .page-head > .field { align-self: stretch; }
-  /* Belegeditor: Entwurf als PDF, Entwurf speichern und Festschreiben passen nicht in eine Zeile (seit #382); seitlich
-     gescrollt verschwände Festschreiben. Dort umbrechen, je zwei Knöpfe in einer Zeile */
+  /* Belegeditor: Vorschau, Entwurf als PDF, Entwurf speichern und Festschreiben passen nicht in eine Zeile (#357);
+     seitlich gescrollt verschwänden Speichern und Festschreiben. Dort zwei Zeilen zu je zwei Knöpfen */
   .page-head .editor-actions { flex-wrap: wrap; overflow: visible; }
-  .page-head .editor-actions > .btn { flex: 1 1 calc(50% - 4px); min-width: 0; padding: 4px 8px; white-space: normal; text-align: center; line-height: 1.2; }
+  .page-head .editor-actions > .btn, .page-head .editor-actions > .split-btn-solo > .btn { flex: 1 1 calc(50% - 4px); min-width: 0; padding: 4px 8px; white-space: normal; text-align: center; line-height: 1.2; }
   /* Kacheln: zwei Spalten, kleinere Zahlen, letzte allein über die volle Breite */
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .kpi-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
