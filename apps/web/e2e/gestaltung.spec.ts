@@ -233,3 +233,92 @@ test("Spalte Gestaltung ohne Befund von axe", async ({ browser }) => {
   expect(violations.map((v) => v.id)).toEqual([]);
   await page.context().close();
 });
+
+const einstellungenNav = (p: Page) => p.getByRole("navigation", { name: "Bereiche der Einstellungen" });
+
+async function bereichHinUndZurueck(page: Page): Promise<void> {
+  await einstellungenNav(page)
+    .getByRole("link", { name: /^Rechnungen/ })
+    .click();
+  await expect(page.getByRole("form", { name: "Nummernformat" })).toBeVisible();
+  await einstellungenNav(page)
+    .getByRole("link", { name: /^Beleggestaltung/ })
+    .click();
+  await expect(page.getByRole("region", { name: "Logo und Blatt" })).toBeVisible();
+}
+
+test("Eine gespeicherte Logo-Größe steht nach dem Wechsel des Bereichs noch da", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Logo und Blatt" });
+  const groesse = karte.getByRole("group", { name: "Größe des Logos" });
+  await groesse.getByRole("button", { name: "L", exact: true }).click();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+  await bereichHinUndZurueck(page);
+  try {
+    await expect(groesse.getByRole("button", { name: "L", exact: true })).toHaveAttribute("aria-pressed", "true");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await groesse.getByRole("button", { name: "M", exact: true }).click();
+    await karte.getByRole("button", { name: "Speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+    await page.context().close();
+  }
+});
+
+test("Ein hochgeladenes Logo steht nach dem Wechsel des Bereichs noch da", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Logo und Blatt" });
+  const entfernen = karte.getByRole("button", { name: "Entfernen" });
+  if (await entfernen.isVisible()) {
+    await entfernen.click();
+    await expect(karte.getByText("Noch kein Logo.")).toBeVisible();
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+  }
+  await karte.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
+  await bereichHinUndZurueck(page);
+  await expect(karte.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
+  await page.context().close();
+});
+
+test("Die Vorschau im Editor zeigt die in den Einstellungen gespeicherte Farbe, auch nach Zurück im Browser", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.getByRole("link", { name: "Einstellungen" }).first().click();
+  await einstellungenNav(page)
+    .getByRole("link", { name: /^Beleggestaltung/ })
+    .click();
+  const akzent = page.getByRole("form", { name: "Akzentfarbe" });
+  const vorher = await akzent.getByLabel("Hex-Wert").inputValue();
+  await akzent.getByLabel("Hex-Wert").fill("#123456");
+  await akzent.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
+  try {
+    await page.goBack();
+    await page.goBack();
+    await page.waitForLoadState("networkidle");
+    await gestaltungOeffnen(page);
+    await expect.poll(() => brand(page)).toBe("#123456");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await akzent.getByLabel("Hex-Wert").fill(vorher);
+    await akzent.getByRole("button", { name: "Übernehmen" }).click();
+    await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
+    await page.context().close();
+  }
+});
+
+test("Die Knöpfe der Logo-Größe tragen ihre sichtbare Beschriftung im zugänglichen Namen (WCAG 2.5.3)", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await gestaltungOeffnen(page);
+  const gruppe = panel(page).getByRole("group", { name: "Größe des Logos" });
+  for (const sichtbar of ["S", "M", "L"]) await expect(gruppe.getByRole("button", { name: sichtbar, exact: true })).toHaveCount(1);
+  await page.context().close();
+});
