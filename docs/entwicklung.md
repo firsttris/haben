@@ -266,7 +266,7 @@ E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screensh
 
 Nach einer Änderung am Aussehen den Workflow **Update screenshots** (Actions → Run workflow) auf dem
 Branch starten: er nimmt die Bilder im offiziellen Playwright-Image mit einer eigenen Datenbank auf und
-committet, was sich geändert hat.
+committet, was sich geändert hat. Auf `main` pusht er wie *Bump version* mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, weil das Ruleset dort Pushes mit dem `GITHUB_TOKEN` ablehnt; der Commit startet dann die CI auf `main`.
 
 ## Migrationen
 
