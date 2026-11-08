@@ -62,7 +62,7 @@ test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden 
   await page.unroute(/_serverFn/, abbrechen);
   // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
   await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
-  await page.locator(".doc-actions").getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   if (vorher) await page.setViewportSize(vorher);
 });
