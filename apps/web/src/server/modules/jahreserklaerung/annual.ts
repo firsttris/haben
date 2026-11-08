@@ -8,7 +8,6 @@ import {
   type Prognose,
   type EuerResult,
   type ExpenseCategory,
-  formatEuro,
   type PauschaleArt,
   frequencyAt,
   homeofficeSatz,
@@ -32,8 +31,6 @@ import {
   type EstAngaben,
   type EuerFigureKey,
   type EuerFigures,
-  type EuerOffeneZeilen,
-  EUER_OFFENE_ZEILEN,
   type UstErklaerungFigures,
 } from "@haben/elster";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
@@ -177,8 +174,7 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
 const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhrumsatzsteuer">, EuerFigureKey> = {
   software: "edv",
   edv: "edv",
-  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150). Ohne
-  // geprüfte Kennung in EUER_OFFENE_ZEILEN übrige Betriebsausgaben mit Hinweis (zeileFuer, OHNE_EIGENE_ZEILE)
+  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150)
   reparatur: "erhaltung",
   miete: "miete",
   hardware: "gwg",
@@ -215,18 +211,6 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhru
   sonstiges: "uebrige",
 };
 
-/** Kategorien mit einer Zeile aus EUER_OFFENE_ZEILEN: Zeile und Kennzahl im Vordruck der Anlage EÜR 2025 */
-const OHNE_EIGENE_ZEILE = [
-  ["miete", "miete", "Miete für Geschäftsräume", "Zeile 39", "Kz 150"],
-  ["reparatur", "erhaltung", "Reparatur und Instandhaltung", "Zeile 48", "Kz 225"],
-] as const satisfies readonly (readonly [ExpenseCategory, keyof EuerOffeneZeilen, string, string, string])[];
-
-/** Zeile einer Kategorie; eine Zeile, deren Kennung noch nicht eingetragen ist, geht in die übrigen Betriebsausgaben */
-function zeileFuer(category: ExpenseCategory, offeneZeilen: EuerOffeneZeilen): EuerFigureKey {
-  const field = category in EUER_CATEGORY_FIELDS ? EUER_CATEGORY_FIELDS[category as keyof typeof EUER_CATEGORY_FIELDS] : "uebrige";
-  return (field === "miete" || field === "erhaltung") && !offeneZeilen[field] ? "uebrige" : field;
-}
-
 /** Pauschalen ohne Beleg: Homeoffice als Tagespauschale, Fahrten als Nutzungseinlage, Verpflegung als beschränkt abziehbar */
 const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
   homeoffice: "tagespauschale",
@@ -235,7 +219,7 @@ const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
 };
 
 /** Verteilt die EÜR von Haben auf die Zeilen der Anlage EÜR. Summen und Gewinn bleiben gleich. */
-function euerFigures(euer: EuerResult, offeneZeilen: EuerOffeneZeilen): EuerFigures {
+function euerFigures(euer: EuerResult): EuerFigures {
   const figures: EuerFigures = {};
   const add = (key: EuerFigureKey, cents: Cents) => {
     if (cents !== 0) figures[key] = (figures[key] ?? 0) + cents;
@@ -243,7 +227,7 @@ function euerFigures(euer: EuerResult, offeneZeilen: EuerOffeneZeilen): EuerFigu
   for (const line of [...euer.einnahmen, ...euer.ausgaben]) {
     if (line.key.startsWith("ausgabe:")) {
       const category = line.key.slice("ausgabe:".length) as ExpenseCategory;
-      add(zeileFuer(category, offeneZeilen), line.amount);
+      add(category in EUER_CATEGORY_FIELDS ? EUER_CATEGORY_FIELDS[category as keyof typeof EUER_CATEGORY_FIELDS] : "uebrige", line.amount);
       continue;
     }
     if (line.key.startsWith("pauschale:")) {
@@ -330,12 +314,9 @@ export interface EuerYear {
   lohnUmJahreswechsel: number;
   /** Umsatzsteuer früherer Jahre um den Jahreswechsel, siehe umsatzsteuerVorjahreUmJahreswechsel */
   ustUmJahreswechsel: number;
-  /** Beträge der Kategorien ohne eigene Zeile in der Übermittlung (OHNE_EIGENE_ZEILE), mit Bezeichnung */
-  ohneEigeneZeile: { label: string; zeile: string; kz: string; amount: Cents }[];
 }
 
-/** offeneZeilen: Elemente der Zeilen 39 und 48 aus dem ERiC-Schema (EUER_OFFENE_ZEILEN), übergeben für Tests */
-export async function euerYear(year: number, offeneZeilen: EuerOffeneZeilen = EUER_OFFENE_ZEILEN): Promise<EuerYear> {
+export async function euerYear(year: number): Promise<EuerYear> {
   const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
@@ -343,7 +324,7 @@ export async function euerYear(year: number, offeneZeilen: EuerOffeneZeilen = EU
     lohnZahlungenUmJahreswechsel(year),
     umsatzsteuerVorjahreUmJahreswechsel(year),
   ]);
-  const figures: EuerFigures = { ...euerFigures(euer, offeneZeilen), ...movements };
+  const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
     .map((a) => ({
@@ -359,23 +340,7 @@ export async function euerYear(year: number, offeneZeilen: EuerOffeneZeilen = EU
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  const ohneEigeneZeile = OHNE_EIGENE_ZEILE.filter(([, field]) => !offeneZeilen[field])
-    .map(([category, , label, zeile, kz]) => ({
-      label,
-      zeile,
-      kz,
-      amount: euer.ausgaben.find((l) => l.key === `ausgabe:${category}`)?.amount ?? 0,
-    }))
-    .filter((z) => z.amount !== 0);
-  return {
-    figures,
-    ...euerTotals(figures),
-    anlagen,
-    pendingAssets: assets.filter((a) => a.pending).length,
-    lohnUmJahreswechsel,
-    ustUmJahreswechsel,
-    ohneEigeneZeile,
-  };
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel, ustUmJahreswechsel };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -396,15 +361,6 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
       tone: "hinweis",
       text: `${data.lohnUmJahreswechsel === 1 ? "Eine Lohnzahlung liegt" : `${data.lohnUmJahreswechsel} Lohnzahlungen liegen`} zwischen 22. Dezember und 10. Januar. Regelmäßig wiederkehrende Ausgaben gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG), etwa die Lohnsteuer für Dezember. Haben zählt sie am Tag der Zahlung; prüfe die Zuordnung mit der Steuerberatung.`,
       link: "/bank",
-    });
-  }
-  if (data.ohneEigeneZeile.length > 0) {
-    const [erste, ...weitere] = data.ohneEigeneZeile;
-    const betrag = (z: typeof erste) => `${z!.label} (${formatEuro(z!.amount)})`;
-    const rest = weitere.map((z) => `, ${betrag(z)} in ${z.zeile} (${z.kz})`).join("");
-    issues.push({
-      tone: "hinweis",
-      text: `${betrag(erste)} gehört in ${erste!.zeile} der Anlage EÜR (${erste!.kz})${rest}. Haben überträgt ${weitere.length > 0 ? "beides" : "den Betrag"} vorerst mit den übrigen Betriebsausgaben (Zeile 60); Gewinn und Summen stimmen. Willst du die Zeilen genau haben, trage die Beträge im ELSTER-Portal um.`,
     });
   }
   if (data.ustUmJahreswechsel > 0) {

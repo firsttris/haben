@@ -288,7 +288,7 @@ export interface EuerFigures {
   kfzLeasing?: Cents;
   kfzSteuerVersicherung?: Cents;
   kfzSonstige?: Cents;
-  /** Zeile 39 (Kz 150) und Zeile 48 (Kz 225); nur gesetzt, wenn EUER_OFFENE_ZEILEN die Kennung kennt */
+  /** Zeile 39 (Kz 150) und Zeile 48 (Kz 225) */
   miete?: Cents;
   erhaltung?: Cents;
   /** Fahrten mit dem Privatfahrzeug (Kilometersatz), als Nutzungseinlage */
@@ -307,10 +307,12 @@ export const EUER_AUSGABEN = [
   "gwg",
   "sammelposten",
   "restbuchwert",
+  "miete",
   "telekommunikation",
   "reisekosten",
   "fortbildung",
   "beratung",
+  "erhaltung",
   "beitraegeVersicherungen",
   "edv",
   "arbeitsmittel",
@@ -328,36 +330,9 @@ export const EUER_AUSGABEN = [
   "kfzSteuerVersicherung",
   "kfzSonstige",
   "fahrtNutzungseinlage",
-  "miete",
-  "erhaltung",
 ] as const;
 
 export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGABEN)[number];
-
-/**
- * Zeilen der Anlage EÜR 2025, deren Element im XML noch nicht am ERiC-Schema geprüft ist (#312): Zeile 39 „Miete/Pacht für
- * Geschäftsräume und betrieblich genutzte Grundstücke“ (Kz 150) und Zeile 48 „Erhaltungsaufwendungen (z. B. Instandhaltung,
- * Wartung, Reparatur; ohne solche für Gebäude und Kfz)“ (Kz 225), laut Vordruck im BMF-Schreiben vom 29.08.2025.
- *
- * Einzutragen aus dem Schema E77 im ERiC-Paket (wie die übrigen Kennungen hier), je Zeile:
- * - pfad: Elemente unter /EUER/BAus bis vor „Sum“, z. B. ["Sonst_unbeschraenkt", "<Element>"]; vorhandene Abschnitte werden
- *   wiederverwendet;
- * - kz: die Kennung im Element „Sum“ (E600…);
- * - vor: das Nachbarelement, vor dem das erste neue Element in der Reihenfolge des Schemas steht.
- * Solange null, gehen die Beträge in die übrigen Betriebsausgaben (Zeile 60), mit Hinweis in der Vorprüfung
- * (apps/web/src/server/modules/jahreserklaerung/annual.ts). ERiC prüft das XML vor jedem Senden gegen das Schema.
- */
-export interface EuerZeileImSchema {
-  pfad: readonly [string, ...string[]];
-  kz: string;
-  vor: string;
-}
-
-export type EuerOffeneZeilen = Record<"miete" | "erhaltung", EuerZeileImSchema | null>;
-
-export const EUER_OFFENE_ZEILEN: EuerOffeneZeilen = { miete: null, erhaltung: null };
-
-const OFFENE_ZEILE_TEXT = { miete: "Zeile 39 der Anlage EÜR (Kz 150)", erhaltung: "Zeile 48 der Anlage EÜR (Kz 225)" } as const;
 
 /** Zeile der Anlage EÜR 2025 und amtlicher Text, für die Vorschau */
 export const EUER_FIELDS: Record<
@@ -403,9 +378,10 @@ export const EUER_FIELDS: Record<
   kfzLeasing: { kz: "E6005801", label: "Leasingkosten für Kraftfahrzeuge" },
   kfzSteuerVersicherung: { kz: "E6005903", label: "Steuern, Versicherungen und Maut für Kraftfahrzeuge" },
   kfzSonstige: { kz: "E6006003", label: "Sonstige tatsächliche Fahrtkosten ohne AfA und Zinsen" },
-  // Nur in Gebrauch, wenn EUER_OFFENE_ZEILEN die Kennung kennt
-  miete: { kz: EUER_OFFENE_ZEILEN.miete?.kz ?? "", label: "Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke" },
-  erhaltung: { kz: EUER_OFFENE_ZEILEN.erhaltung?.kz ?? "", label: "Erhaltungsaufwendungen (ohne Gebäude und Kfz)" },
+  // Schema E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0: /EUER/BAus/Raumkosten_u_sonst/Miete_Pacht/Sum/E6003201
+  // (Zeile 39, Kz 150) und /EUER/BAus/Sonst_unbeschraenkt/Erhaltungsaufwand/Sum/E6004313 (Zeile 48, Kz 225)
+  miete: { kz: "E6003201", label: "Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke" },
+  erhaltung: { kz: "E6004313", label: "Erhaltungsaufwendungen (z. B. Instandhaltung, Wartung, Reparatur; ohne solche für Gebäude und Kfz)" },
   // Kennungen und Reihenfolge wie im EÜR-Formular 2025 von EasyCash&Tax, das ECTElster in dieser Reihenfolge übermittelt
   geschenke: { kz: "E6004002", label: "Geschenke (abziehbar)" },
   bewirtung: { kz: "E6004102", label: "Bewirtungsaufwendungen (abziehbar)" },
@@ -598,42 +574,14 @@ const RECHTSFORM = { gewerbe: "120", selbstaendig: "140" } as const;
 /** Einkunftsart: 2 = Gewerbebetrieb, 3 = selbständige Arbeit */
 const EINKUNFTSART = { gewerbe: "2", selbstaendig: "3" } as const;
 
-// Ohne Betrag bleibt das Element mit Namen und ohne Inhalt stehen: render lässt es weg, einfuegen findet es als Nachbarn
-const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode => [kontext, cents ? [["Sum", [[kz, elsterDecimal(cents)]]]] : undefined];
+const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode | null => (cents ? [kontext, [["Sum", [[kz, elsterDecimal(cents)]]]]] : null);
 
-type XmlChild = XmlNode | null | undefined | false;
-
-/** Fügt ein Blatt unter dem Pfad ein; vorhandene Abschnitte werden wiederverwendet, ein neuer steht vor `vor` */
-function einfuegen(children: readonly XmlChild[], pfad: readonly string[], blatt: XmlNode, vor: string): XmlChild[] {
-  const [name, ...rest] = pfad;
-  const i = children.findIndex((c) => c && c[0] === name);
-  if (i >= 0) {
-    const inner = children[i] as XmlNode;
-    const content = Array.isArray(inner[1]) ? (inner[1] as readonly XmlChild[]) : [];
-    return children.map((c, j) => (j === i ? ([name!, rest.length > 0 ? einfuegen(content, rest, blatt, vor) : [...content, blatt]] as XmlNode) : c));
-  }
-  const neu = [name!, ...rest].reverse().reduce<XmlNode>((acc, n) => [n, [acc]], blatt);
-  const k = children.findIndex((c) => c && c[0] === vor);
-  if (k < 0) throw new Error(`Anlage EÜR: Nachbarelement „${vor}“ für „${name}“ nicht gefunden`);
-  return [...children.slice(0, k), neu, ...children.slice(k)];
-}
-
-export function buildEuerXml(input: EuerXmlInput, offeneZeilen: EuerOffeneZeilen = EUER_OFFENE_ZEILEN): string {
+export function buildEuerXml(input: EuerXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "EUER" };
   checkEnvelope(envelopeInput);
   const f = input.figures;
   const { einnahmen, ausgaben, gewinn } = euerTotals(f);
   const kz = (key: EuerFigureKey) => EUER_FIELDS[key].kz;
-  // Zeilen ohne geprüfte Kennung: lieber abbrechen als ein Element raten (EUER_OFFENE_ZEILEN)
-  const offen = (["miete", "erhaltung"] as const).filter((key) => (f[key] ?? 0) !== 0);
-  for (const key of offen) {
-    if (!offeneZeilen[key]) throw new Error(`${OFFENE_ZEILE_TEXT[key]}: Elementpfad und Kennung aus dem ERiC-Schema fehlen`);
-  }
-  const bausZusatz = (children: XmlChild[]) =>
-    offen.reduce((acc, key) => {
-      const zeile = offeneZeilen[key]!;
-      return einfuegen(acc, zeile.pfad, ["Sum", [[zeile.kz, elsterDecimal(f[key]!)]]], zeile.vor);
-    }, children);
 
   const euer: XmlNode = [
     "EUER",
@@ -667,7 +615,7 @@ export function buildEuerXml(input: EuerXmlInput, offeneZeilen: EuerOffeneZeilen
       ],
       [
         "BAus",
-        bausZusatz([
+        [
           sumNode("Ware_Rohstoff_Hilfsstoff", kz("waren"), f.waren),
           sumNode("Fremdleistung", kz("fremdleistungen"), f.fremdleistungen),
           sumNode("Personal", kz("personal"), f.personal),
@@ -685,6 +633,8 @@ export function buildEuerXml(input: EuerXmlInput, offeneZeilen: EuerOffeneZeilen
               ],
             ],
           ],
+          // Zeile 39; im Schema zwischen AfA und den sonstigen unbeschränkt abziehbaren Betriebsausgaben
+          ["Raumkosten_u_sonst", [sumNode("Miete_Pacht", kz("miete"), f.miete)]],
           [
             "Sonst_unbeschraenkt",
             [
@@ -692,6 +642,8 @@ export function buildEuerXml(input: EuerXmlInput, offeneZeilen: EuerOffeneZeilen
               sumNode("Auswertstaetigkeit", kz("reisekosten"), f.reisekosten),
               sumNode("Fortbildung", kz("fortbildung"), f.fortbildung),
               sumNode("Rechtsberatung_StB_Buchf", kz("beratung"), f.beratung),
+              // Zeile 48; im Schema nach Miete/Leasing beweglicher Wirtschaftsgüter, vor den Beiträgen
+              sumNode("Erhaltungsaufwand", kz("erhaltung"), f.erhaltung),
               sumNode("Beitrag_Gebuehr_Abgabe_Versicherung", kz("beitraegeVersicherungen"), f.beitraegeVersicherungen),
               sumNode("EDV", kz("edv"), f.edv),
               sumNode("Arbeitsmittel", kz("arbeitsmittel"), f.arbeitsmittel),
@@ -741,7 +693,7 @@ export function buildEuerXml(input: EuerXmlInput, offeneZeilen: EuerOffeneZeilen
             ],
           ],
           ["Summe_BAus", [["E6005301", elsterDecimal(ausgaben)]]],
-        ]),
+        ],
       ],
       [
         "Ermittlung_Gewinn",

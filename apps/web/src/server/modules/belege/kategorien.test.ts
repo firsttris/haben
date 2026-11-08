@@ -9,9 +9,9 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  */
 
 const KATEGORIEN = {
-  miete: { SKR03: "4210", SKR04: "6310", zeile: "uebrige" },
+  miete: { SKR03: "4210", SKR04: "6310", zeile: "miete" },
   betriebsbedarf: { SKR03: "4980", SKR04: "6850", zeile: "uebrige" },
-  reparatur: { SKR03: "4805", SKR04: "6470", zeile: "uebrige" },
+  reparatur: { SKR03: "4805", SKR04: "6470", zeile: "erhaltung" },
   kfzSonstige: { SKR03: "4580", SKR04: "6570", zeile: "kfzSonstige" },
   berufsgenossenschaft: { SKR03: "4138", SKR04: "6120", zeile: "personal" },
   versorgungskassen: { SKR03: "4160", SKR04: "6150", zeile: "personal" },
@@ -89,39 +89,13 @@ describe.skipIf(!testDatabaseUrl)("Weitere Ausgabekategorien (Postgres)", () => 
     const euer = await reports.euerForYear(2026);
     for (const kategorie of Object.keys(KATEGORIEN)) expect(euer.ausgaben.find((l) => l.key === `ausgabe:${kategorie}`)?.amount, kategorie).toBe(100_00);
 
-    // Anlage EÜR: Berufsgenossenschaft und Versorgungskassen beim Personal, sonstige Kfz-Kosten bei den Fahrtkosten
+    // Anlage EÜR: Berufsgenossenschaft und Versorgungskassen beim Personal, sonstige Kfz-Kosten bei den Fahrtkosten, Miete in
+    // Zeile 39, Reparatur in Zeile 48, Betriebsbedarf bei den übrigen Betriebsausgaben
     const { figures: anlage } = await annual.euerYear(2026);
     expect(anlage.personal).toBe(200_00);
     expect(anlage.kfzSonstige).toBe(100_00);
-    expect(anlage.uebrige).toBe(300_00);
+    expect([anlage.miete, anlage.erhaltung, anlage.uebrige]).toEqual([100_00, 100_00, 100_00]);
     expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 6 })).zeilen)).toEqual([]);
     expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
-  });
-
-  it("Miete und Reparaturen: Hinweis, dass sie amtlich in Zeile 39 bzw. 48 der Anlage EÜR gehören", async () => {
-    await reset("SKR03", "ist");
-    await beleg("miete");
-    await beleg("reparatur");
-    const hinweise = (await annual.annualOverview(2026, "2027-02-01")).euer.issues.filter((i) => /Zeile 39|Zeile 48/.test(i.text));
-    expect(hinweise.map((i) => [i.tone, i.text])).toEqual([
-      [
-        "hinweis",
-        "Miete für Geschäftsräume (100,00\u00a0€) gehört in Zeile 39 der Anlage EÜR (Kz 150), Reparatur und Instandhaltung (100,00\u00a0€) in Zeile 48 (Kz 225). Haben überträgt beides vorerst mit den übrigen Betriebsausgaben (Zeile 60); Gewinn und Summen stimmen. Willst du die Zeilen genau haben, trage die Beträge im ELSTER-Portal um.",
-      ],
-    ]);
-
-    // Mit eingetragenen Elementen aus dem ERiC-Schema (hier Beispielwerte): eigene Zeilen, kein Hinweis mehr
-    const zeilen = {
-      miete: { pfad: ["Raumkosten", "Miete_Pacht"], kz: "E6099901", vor: "Sonst_unbeschraenkt" },
-      erhaltung: { pfad: ["Sonst_unbeschraenkt", "Erhaltung"], kz: "E6099902", vor: "Vorsteuer" },
-    } as const;
-    const mitZeilen = await annual.euerYear(2026, zeilen);
-    expect([mitZeilen.figures.miete, mitZeilen.figures.erhaltung, mitZeilen.figures.uebrige]).toEqual([100_00, 100_00, undefined]);
-    expect(mitZeilen.ohneEigeneZeile).toEqual([]);
-    expect(mitZeilen.ausgaben).toBe((await annual.euerYear(2026)).ausgaben);
-
-    await reset("SKR03", "ist");
-    await beleg("betriebsbedarf");
-    expect((await annual.annualOverview(2026, "2027-02-01")).euer.issues.filter((i) => /Zeile 39|Zeile 48/.test(i.text))).toEqual([]);
   });
 });
