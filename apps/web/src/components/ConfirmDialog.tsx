@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -64,7 +64,8 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
           onClick={(event) => {
             // Der zweite Klick eines Doppelklicks auf den Auslöser kann hier landen, wenn der Knopf über ihm liegt
             if (event.detail > 1) return;
-            onClose();
+            // Erst schließen und den Fokus zurückgeben: Die Aktion sperrt den Auslöser, einen gesperrten Knopf kann der Effekt nicht mehr fokussieren
+            flushSync(onClose);
             onConfirm();
           }}
         >
