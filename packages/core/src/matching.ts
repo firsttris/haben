@@ -392,16 +392,16 @@ export function findTransferCounterpart<
 }
 
 /**
- * Häufigster Wert mit Anzahl, bei Gleichstand der zuletzt verwendete. Für Vorschläge aus früheren Buchungen: die Kategorie
- * eines Lieferanten, die Buchungsart einer Gegenpartei. `last` ist ein sortierbarer Zeitstempel (ISO).
+ * Häufigster Wert mit Anzahl und letzter Verwendung, bei Gleichstand der zuletzt verwendete. Für Vorschläge aus früheren
+ * Buchungen: die Kategorie eines Lieferanten, die Buchungsart einer Gegenpartei. `last` ist ein sortierbarer Zeitstempel (ISO).
  */
 export function mostFrequent<T>(
   rows: { value: T; count: number; last: string }[],
   /** Zahl der Fälle, wenn ein Fall mehrere Werte haben kann (aufgeteilter Umsatz); sonst die Summe der Anzahlen */
   total = rows.reduce((s, r) => s + r.count, 0),
-): { value: T; count: number; total: number } | null {
+): { value: T; count: number; total: number; last: string } | null {
   const best = [...rows].sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))[0];
-  return best ? { value: best.value, count: best.count, total } : null;
+  return best ? { value: best.value, count: best.count, total, last: best.last } : null;
 }
 
 /** Arten ohne Rechnung, die Haben aus früheren Buchungen vorschlägt */

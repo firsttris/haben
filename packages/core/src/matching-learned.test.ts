@@ -8,13 +8,13 @@ describe("mostFrequent", () => {
         { value: "a", count: 2, last: "2026-05-01" },
         { value: "b", count: 3, last: "2026-01-01" },
       ]),
-    ).toEqual({ value: "b", count: 3, total: 5 });
+    ).toEqual({ value: "b", count: 3, total: 5, last: "2026-01-01" });
     expect(
       mostFrequent([
         { value: "a", count: 2, last: "2026-05-01" },
         { value: "b", count: 2, last: "2026-06-01" },
       ]),
-    ).toEqual({ value: "b", count: 2, total: 4 });
+    ).toEqual({ value: "b", count: 2, total: 4, last: "2026-06-01" });
     expect(mostFrequent([])).toBeNull();
   });
 });
