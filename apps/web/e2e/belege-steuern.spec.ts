@@ -1497,6 +1497,39 @@ test("Gelernte Erlöse als Kleinunternehmer, § 19 inzwischen aufgegeben: das Fo
   await expect(panel.getByText("Direkt: Erlöse (Kleinunternehmer)")).toBeVisible();
 });
 
+test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vorschlag zum Übernehmen (#329)", async () => {
+  await go("/belege");
+  // Eigene Rechnungsnummer, damit die Datei keine Dublette eines anderen Tests ist
+  const xml = readFileSync(new URL("../../../packages/einvoice/test-fixtures/incoming/cii-prefixes.xml", import.meta.url), "utf8").replaceAll(
+    "RE-2026/0815",
+    "RE-2026/0816",
+  );
+  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "RE-2026-0816.xml", mimeType: "application/xml", buffer: Buffer.from(xml) }]);
+  await expect(page.getByText("RE-2026-0816.xml: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /Netzwerk Hosting GmbH RE-2026\/0816/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Netzwerk Hosting GmbH");
+  await expect(dialog.getByLabel("Straße und Hausnummer")).not.toHaveValue("");
+  await expect(dialog.getByLabel("PLZ")).not.toHaveValue("");
+  await expect(dialog.getByLabel("Ort")).not.toHaveValue("");
+  // Die IBAN steht nicht von selbst im Feld, nur als Vorschlag mit Herkunft und Prüfziffer
+  const iban = dialog.getByLabel("IBAN");
+  await expect(iban).toHaveValue("");
+  await expect(dialog.getByText(/Vorschlag vom Beleg: DE02 1203 0000 0000 2020 51, aus der E-Rechnung \(BT-84\)\. Prüfziffer stimmt\./)).toBeVisible();
+  await dialog.getByRole("button", { name: "IBAN übernehmen" }).click();
+  await expect(iban).toHaveValue("DE02120300000000202051");
+  await expect(iban).toBeFocused();
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+});
+
 test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Hosting Süd GmbH");
@@ -1521,6 +1554,8 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await page.waitForLoadState("networkidle");
   await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hosting Süd GmbH" });
   await page.getByLabel("Kategorie").selectOption("software");
+  // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
+  await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await page.getByRole("button", { name: "Jetzt buchen" }).click();
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();

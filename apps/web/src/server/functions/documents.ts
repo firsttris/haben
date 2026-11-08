@@ -26,7 +26,7 @@ import {
   updateDocument,
   uploadDocument,
 } from "../modules/belege/index.ts";
-import { extractionAvailable, extractionSettings } from "../modules/belege/index.ts";
+import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
 import { documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
@@ -91,6 +91,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       paymentHint: result.document.lockedAt ? null : await supplierPayment(result.document),
       aiAvailable: extractionAvailable(),
       categories: categoryOptions,
+      // Vorschlag für „Neuen Lieferanten anlegen“ aus E-Rechnung oder Auslesung; die IBAN nur zum ausdrücklichen Übernehmen (#329)
+      supplierSuggestion: result.document.lockedAt ? null : await supplierSuggestion(data),
       // Lieferanten aus den Kontakten zur Auswahl im Beleg
       suppliers: (await listContacts(false, "lieferant")).map(({ id, name, ustId }) => ({ id, name, ustId })),
       // Aus einem Dauerbeleg angelegt: Name der Vorlage für den Verweis

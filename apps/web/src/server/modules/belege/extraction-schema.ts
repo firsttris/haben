@@ -13,6 +13,13 @@ import type { DocumentKind } from "../../storage.ts";
 export const extractionSchema = z.object({
   lieferant: z.string().nullable().describe("Name des Rechnungsstellers"),
   lieferantUstId: z.string().nullable().describe("USt-IdNr. des Rechnungsstellers, z. B. DE123456789"),
+  // Nur als Vorschlag für den Kontakt (#329), nie am Beleg oder in einer Überweisung; ältere Antworten ohne die Felder gelten
+  lieferantIban: z.string().nullable().default(null).describe("IBAN des Rechnungsstellers für die Zahlung, genau wie auf dem Beleg, sonst null"),
+  lieferantIbanFundstelle: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("Wörtlicher kurzer Textausschnitt des Belegs, in dem diese IBAN steht, z. B. die Zeile mit der Bankverbindung"),
   // Für die Erkennung eigener Ausgangsrechnungen (own-invoice.ts): Wer die Rechnung bekommt
   empfaenger: z.string().nullable().describe("Name des Rechnungsempfängers (Anschriftfeld)"),
   empfaengerUstId: z.string().nullable().describe("USt-IdNr. des Rechnungsempfängers, falls angegeben"),
@@ -35,7 +42,8 @@ export const extractionSchema = z.object({
   hinweis: z.string().nullable().describe("Kurzer Hinweis, wenn etwas unklar oder unleserlich ist"),
 });
 
-export type Extraction = z.infer<typeof extractionSchema>;
+/** Antwort nach dem Schema; die Felder mit Vorgabe (IBAN-Vorschlag) dürfen fehlen */
+export type Extraction = z.input<typeof extractionSchema>;
 
 export interface ExtractedFields {
   supplierName: string;
@@ -74,6 +82,7 @@ const CATEGORY_LIST = Object.entries(EXPENSE_CATEGORIES)
 
 export const EXTRACTION_INSTRUCTIONS = `Du liest Eingangsbelege (Rechnungen, Quittungen) eines deutschen Freiberuflers für die Buchhaltung aus.
 Gib nur zurück, was auf dem Beleg steht; rate keine Beträge oder Nummern. Fehlt eine Angabe, setze null.
+Die IBAN des Rechnungsstellers nur, wenn sie als dessen Bankverbindung auf dem Beleg steht, nicht die des Empfängers oder aus einem Lastschrifttext; dazu den Textausschnitt, in dem sie steht.
 Weise die Beträge je Umsatzsteuersatz (19, 7 oder 0 %) aus. Wenn der Beleg nur einen Bruttobetrag und den Steuersatz nennt, rechne Netto und Steuer daraus.
 Wähle die passende Ausgabenkategorie:
 ${CATEGORY_LIST}

@@ -171,7 +171,7 @@ Ein Ablauf für Bestellungen sieht typischerweise so aus:
 
 Ein Dokumentenarchiv, ein Scanner mit eigenem Skript oder ein Werkzeug, das Rechnungen aus einem Postfach oder Kundenportal holt, schickt Eingangsbelege mit `POST /belege` an Haben. Der Beleg geht denselben Weg wie ein Upload unter **Belege**:
 
-- **Formate und Größe** wie beim Upload: PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML (XRechnung, ZUGFeRD), höchstens 20 MB. Haben erkennt das Format am Inhalt, nicht am Dateinamen. Genau eine Datei je Anfrage, im Feld `datei`.
+- **Formate und Größe** wie beim Upload: PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML (XRechnung, ZUGFeRD), höchstens 20 MB. Haben erkennt das Format am Inhalt, nicht am Dateinamen. Genau eine Datei je Anfrage, im Feld `datei` oder `file` (für Werkzeuge mit festem Feldnamen wie [Paperless-ngx](#paperless-ngx)); beide zugleich lehnt die API mit `400` ab.
 - **Auslesen:** Eine E-Rechnung liest Haben sofort, die Antwort enthält dann schon Lieferant, Nummer, Datum und Beträge. Andere PDFs und Fotos liest die [KI-Auslesung](belege.md#ki-auslesung) im Hintergrund, wenn sie eingerichtet ist; bis dahin steht `extractionStatus` auf `laeuft`.
 - **Nichts wird gebucht.** Der Beleg steht unter Belege als „Zu prüfen“ (`status: "neu"`). Kategorie, Zahlungsweg und Buchen bleiben in Haben.
 - **Vorbelegen** lässt sich nur eine Notiz (`note`). Lieferant, Nummer, Datum und Beträge nimmt die API bewusst nicht an: Sie kommen aus der E-Rechnung oder der Auslesung, die sie sonst überschriebe, und geprüft werden sie ohnehin in Haben.
@@ -224,6 +224,16 @@ curl -s "$HABEN/belege/0c9a…" -H "Authorization: Bearer $TOKEN"
 ```
 
 `status` ist `neu` („Zu prüfen“) oder `gebucht`, `booked` und `bookedAt` sagen dasselbe als Wahrheitswert und Zeitpunkt. Ein stornierter Beleg bleibt `gebucht`; `cancelledOn` nennt dann das Datum der Gegenbuchung (sonst `null`; siehe [Stornieren](belege.md#stornieren-und-neu-erfassen)), und in der Einzelansicht zeigt `replacedById` auf seine Neuerfassung, `replacesId` umgekehrt von der Neuerfassung auf den stornierten Beleg ([Stornieren und neu erfassen](belege.md#stornieren-und-neu-erfassen)). Ein gebuchter Beleg ist gesperrt und versiegelt, mit seiner Referenz ([Hash-Kette und Siegel](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)); dieselbe Referenz liefert dann weiter diesen Beleg. Löschst du einen ungebuchten Beleg in Haben, ist seine Referenz wieder frei. Die Datei selbst gibt die API nicht heraus, und ändern oder löschen lässt sich ein Beleg nur in Haben.
+
+### Paperless-ngx
+
+Paperless-ngx schickt neue Dokumente mit einem Workflow ohne eigenen Code an Haben. Die Workflow-Aktion „Webhook“ hängt die Datei fest im Feld `file` an (`execute_webhook_action` in `src/documents/workflows/actions.py` von Paperless-ngx); Haben nimmt sie dort wie im Feld `datei` an.
+
+- **Auslöser:** „Dokument hinzugefügt“, gefiltert etwa auf einen Tag oder Dokumenttyp wie „Eingangsrechnung“.
+- **Aktion „Webhook“:** URL `https://<haben>/api/v1/belege`, Header `Authorization: Bearer <Token>` (Token mit `belege:anlegen`), Parameter statt JSON-Body, „Dokument anhängen“ an.
+- **Parameter:** `externalSource` = `paperless`, `externalId` = `{{ doc_id }}`, `note` = `Paperless: {{ doc_title }} ({{ correspondent }}) {{ doc_url }}`. Die Platzhalter rendert Paperless mit Jinja, also in doppelten geschweiften Klammern.
+
+Über `externalSource` und `externalId` legt ein doppelt ausgelöster Workflow nichts doppelt an (siehe oben). Die Platzhalter im Header ersetzt Paperless nicht; das Token steht dort im Klartext, also nur ein Token mit `belege:anlegen`.
 
 ## Sicherheit
 
