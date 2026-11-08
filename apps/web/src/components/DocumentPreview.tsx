@@ -262,8 +262,6 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
       Vorschau
     </button>
   );
-  if (!preview.canPin) return main;
-
   const onArrowKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -294,23 +292,31 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
     else preview.pin();
   };
 
+  // Immer dieselbe Hülle: Sonst baute React den Knopf neu auf, sobald der Pfeil entfällt, und der Fokus wäre weg (auch beim Zoomen)
   return (
-    <div ref={group} className="split-btn" role="group" aria-label="Vorschau">
+    <div
+      ref={group}
+      className={preview.canPin ? "split-btn" : "split-btn-solo"}
+      role={preview.canPin ? "group" : undefined}
+      aria-label={preview.canPin ? "Vorschau" : undefined}
+    >
       {main}
-      <button
-        ref={arrow}
-        type="button"
-        className="btn split-btn-arrow"
-        aria-label="Weitere Vorschau-Optionen"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        aria-controls={menuOpen ? menuId : undefined}
-        onClick={() => setMenuOpen((open) => !open)}
-        onKeyDown={onArrowKey}
-      >
-        <Icon name="chevron-down" size={16} />
-      </button>
-      {menuOpen && (
+      {preview.canPin && (
+        <button
+          ref={arrow}
+          type="button"
+          className="btn split-btn-arrow"
+          aria-label="Weitere Vorschau-Optionen"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
+          onClick={() => setMenuOpen((open) => !open)}
+          onKeyDown={onArrowKey}
+        >
+          <Icon name="chevron-down" size={16} />
+        </button>
+      )}
+      {preview.canPin && menuOpen && (
         <div ref={menu} id={menuId} role="menu" aria-label="Vorschau" className="split-menu" onKeyDown={onMenuKey}>
           <button type="button" role="menuitem" tabIndex={-1} aria-describedby={hintId} onClick={toggle}>
             <Icon name={preview.pinned ? "eye-off" : "pin"} />
