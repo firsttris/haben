@@ -219,3 +219,42 @@ for (const [geraet, viewport] of [
     await page.keyboard.press("Escape");
   });
 }
+
+/** Breite des Inhalts im Kopf, ohne dessen Innenabstand */
+const kopfInnen = (head: Locator) =>
+  head.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const stil = getComputedStyle(el);
+    return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+  });
+
+test("Aktionen unter dem Titel stehen rechtsbündig, wenn der Kopf umbricht", async ({ page }) => {
+  // Oberhalb der Handy-Ansicht (721 px), aber zu schmal für Titel und Aktionen in einer Zeile
+  await page.setViewportSize({ width: 740, height: 800 });
+  await page.goto("/rechnungen/neu");
+  const head = page.locator(".main > .page-head");
+  const titel = head.getByRole("heading", { level: 1 });
+  const aktionen = head.locator("> .actions");
+  await expect(titel).toBeVisible();
+  const titelBox = await titel.boundingBox();
+  const aktionenBox = await aktionen.boundingBox();
+  // Sonst prüft der Test nichts: die Aktionen müssen wirklich unter dem Titel stehen
+  expect(aktionenBox?.y).toBeGreaterThanOrEqual((titelBox?.y ?? 0) + (titelBox?.height ?? 0));
+  const { rechts } = await kopfInnen(head);
+  // Rechte Kante des letzten Knopfs, nicht des Containers: der kann die volle Breite einnehmen
+  const ende = await aktionen.locator("> *").evaluateAll((kinder) => Math.max(...kinder.map((k) => k.getBoundingClientRect().right)));
+  expect(Math.abs(ende - rechts)).toBeLessThanOrEqual(1);
+});
+
+test("Aktionen am Handy füllen weiter die volle Breite des Kopfes", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/rechnungen/neu");
+  const head = page.locator(".main > .page-head");
+  const aktionen = head.locator("> .actions");
+  await expect(aktionen).toBeVisible();
+  const { links, rechts } = await kopfInnen(head);
+  const box = await aktionen.boundingBox();
+  // styles.css: margin -4px, damit der Fokusrahmen in der scrollenden Zeile Platz hat
+  expect(box?.x).toBeLessThanOrEqual(links);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThanOrEqual(rechts);
+});
