@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { firstLink, SESSION, YEAR } from "./daten.ts";
 import { HANDY, kopfUnterkante, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 
@@ -217,6 +217,128 @@ for (const [geraet, viewport] of [
     }
     expect(abgeschnitten, "Fokusrahmen oben abgeschnitten").toEqual([]);
     await page.keyboard.press("Escape");
+  });
+}
+
+async function entwurfAusfuellen(page: Page): Promise<void> {
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+}
+
+/** Der Server antwortet nicht: geschrieben wird nichts, die Aktion endet mit einer Fehlermeldung */
+const serverAntwortetNicht = (page: Page) => page.route(/_serverFn/, (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+
+for (const [geraet, viewport] of [
+  ["Laptop", LAPTOP],
+  ["Handy", HANDY],
+] as const) {
+  for (const knopf of ["Entwurf speichern", "Speichern und als PDF"]) {
+    test(`Entwurf am ${geraet}: Fehler nach „${knopf}“ im stehenden Kopf erscheint im Fenster`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await entwurfAusfuellen(page);
+      await zumEnde(page);
+      await serverAntwortetNicht(page);
+      await page.locator(".main > .page-head").getByRole("button", { name: knopf }).click();
+      await sichtbar(page.locator(".main").getByRole("alert"));
+    });
+  }
+}
+
+test("Kontakt am Handy: Fehler nach „Archivieren“ im stehenden Kopf erscheint im Fenster", async ({ page }) => {
+  const pfad = await firstLink(page, "/kontakte", /^\/kontakte\/[0-9a-f-]{36}$/);
+  expect(pfad).not.toBeNull();
+  await page.setViewportSize(HANDY);
+  await page.goto(pfad as string, { waitUntil: "networkidle" });
+  await zumEnde(page);
+  await serverAntwortetNicht(page);
+  await page.locator(".main > .page-head").getByRole("button", { name: "Archivieren" }).click();
+  await sichtbar(page.locator(".main").getByRole("alert"));
+});
+
+for (const [geraet, viewport] of [
+  ["Laptop", { width: LAPTOP.width, height: 600 }],
+  ["Handy", HANDY],
+] as const) {
+  test(`Dauerbeleg am ${geraet}: Hinweis nach „Beenden“ im stehenden Kopf erscheint im Fenster`, async ({ page }) => {
+    const pfad = await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/);
+    expect(pfad).not.toBeNull();
+    await page.setViewportSize(viewport);
+    await page.goto(pfad as string, { waitUntil: "networkidle" });
+    await zumEnde(page);
+    // Nur der erste Klick: er fragt nach, geschrieben wird nichts
+    await page.locator(".main > .page-head").getByRole("button", { name: "Beenden" }).click();
+    await expect(page.getByRole("button", { name: "Endgültig beenden" })).toBeVisible();
+    await sichtbar(page.getByText("Beenden ist endgültig"));
+  });
+}
+
+/** Der längere Knopf der Rückfrage bricht die Aktionen um: Der Kopf wächst im selben Moment, in dem der Hinweis ins Bild kommt */
+async function hinweisBleibtUnterWachsendemKopf(page: Page, knopf: string, hinweis: Locator): Promise<void> {
+  await zumEnde(page);
+  const head = page.locator(".main > .page-head");
+  const hoehe = () => head.evaluate((el) => el.getBoundingClientRect().height);
+  const vorher = await hoehe();
+  await head.getByRole("button", { name: knopf, exact: true }).click();
+  await expect(hinweis).toBeAttached();
+  // Sonst prüft der Test nichts: Bei dieser Breite muss der Kopf wirklich wachsen
+  await expect.poll(hoehe).toBeGreaterThan(vorher);
+  await expect.poll(async () => (await hinweis.evaluate((el) => el.getBoundingClientRect().top)) - (await kopfUnterkante(page))).toBeGreaterThanOrEqual(0);
+}
+
+test("Dauerbeleg: Der Hinweis nach „Beenden“ steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
+  const pfad = await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/);
+  expect(pfad).not.toBeNull();
+  await page.setViewportSize({ width: 880, height: 600 });
+  await page.goto(pfad as string, { waitUntil: "networkidle" });
+  await hinweisBleibtUnterWachsendemKopf(page, "Beenden", page.getByText("Beenden ist endgültig"));
+});
+
+test("Rechnungsentwurf: Die Rückfrage zum Festschreiben steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
+  await page.setViewportSize({ width: 1080, height: 600 });
+  await entwurfAusfuellen(page);
+  await hinweisBleibtUnterWachsendemKopf(page, "Festschreiben", page.getByRole("alert").filter({ hasText: "Noch einmal klicken" }));
+});
+
+// 400 % Zoom: WCAG 1.4.10 rechnet mit 320×256, ein Fenster mit 1280×720 ergibt 320×180
+for (const viewport of [
+  { width: 320, height: 256 },
+  { width: 320, height: 180 },
+]) {
+  test(`Entwurf bei 400 % Zoom (${viewport.width}×${viewport.height}): der Kopf verdeckt kein Feld mit Fokus`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+    await page.locator("#invoice-form").locator("select, input").first().focus();
+    const verdeckt: string[] = [];
+    let geprueft = 0;
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press("Tab");
+      const fokus = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement;
+        if (!el.closest("#invoice-form")) return null;
+        const box = el.getBoundingClientRect();
+        return {
+          name: el.getAttribute("aria-label") ?? el.closest("label")?.textContent?.trim().slice(0, 30) ?? el.tagName,
+          top: box.top,
+          bottom: box.bottom,
+          mehrzeilig: el.tagName === "TEXTAREA",
+        };
+      });
+      if (!fokus) continue;
+      geprueft++;
+      const navigation = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")));
+      const kopf = Math.max(await kopfUnterkante(page), navigation);
+      // Zu hohe Felder können nicht ganz im Bild stehen, und bei Textfeldern holt der Browser nur die Schreibmarke:
+      // dann zählt, dass der Anfang zu sehen ist
+      const passt = !fokus.mehrzeilig && fokus.bottom - fokus.top <= viewport.height - navigation;
+      if (fokus.top < kopf - 1 || fokus.top >= viewport.height || (passt && fokus.bottom > viewport.height + 1)) {
+        verdeckt.push(`${fokus.name}: ${Math.round(fokus.top)}–${Math.round(fokus.bottom)} (frei ab ${Math.round(kopf)})`);
+      }
+    }
+    expect(geprueft).toBeGreaterThan(5);
+    expect(verdeckt, "Feld mit Fokus verdeckt oder außerhalb").toEqual([]);
   });
 }
 

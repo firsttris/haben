@@ -1,9 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -29,6 +30,41 @@ const go = (path: string) => gehe(page, path);
 
 test("Einrichtung", async () => {
   await einrichten(page);
+});
+
+test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden Knöpfen (#356)", async ({ browser }) => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(LAPTOP);
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "meldung.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("meldung.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /meldung\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
+  await page.getByLabel("Rechnungsnummer").fill("MF-0816");
+  await page.getByLabel("Belegdatum").fill(day(-9));
+  await page.getByLabel("Kategorie").selectOption("telefon");
+  await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  // Oben im Formular, das in seiner Spalte scrollt; nur dann stehen die Knöpfe über dessen Ende
+  const spalte = page.locator(".doc-editor > .stack");
+  await spalte.evaluate((el) => el.scrollTo(0, 0));
+  expect(await spalte.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(200);
+  const abbrechen = (route: Route) => (route.request().method() === "POST" ? route.abort() : route.continue());
+  await page.route(/_serverFn/, abbrechen);
+  await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+  await sichtbar(page.locator(".doc-editor .banner-danger"));
+  await page.unroute(/_serverFn/, abbrechen);
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await page.locator(".doc-actions").getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+  if (vorher) await page.setViewportSize(vorher);
 });
 
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
