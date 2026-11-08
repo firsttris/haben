@@ -5,7 +5,19 @@ import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import { day, EIGENE_SEITE, fakeEigeneSeite, SESSION, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { bestaetigen, CUSTOMERS, dkb, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
+import {
+  bestaetigen,
+  faktenZeigen,
+  CUSTOMERS,
+  dkb,
+  durchlaufSeite,
+  einrichten,
+  gehe,
+  INVOICES,
+  kontaktAnlegen,
+  receiptJpeg,
+  rechnungFestschreiben,
+} from "./einrichtung.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -218,6 +230,7 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await page.getByLabel("Kategorie").selectOption("telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await faktenZeigen(page, "Betrag");
   await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 

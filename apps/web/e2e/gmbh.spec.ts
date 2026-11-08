@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { bestaetigen } from "./einrichtung.ts";
+import { bestaetigen, faktenZeigen } from "./einrichtung.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -118,6 +118,7 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
   const storno = journal.getByRole("button", { name: "Stammkapital, eingezahlt vom Gesellschafter stornieren" });
   await storno.click();
+  await faktenZeigen(page, "Datum", "Betrag");
   await bestaetigen(page, "Stornieren");
   await expect(page.getByText("Storniert: Stammkapital, eingezahlt vom Gesellschafter")).toBeVisible();
   await expect(journal.getByRole("row").filter({ hasText: "Storno: Stammkapital" })).toContainText("Gegenbuchung");
@@ -478,6 +479,7 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   await page.getByRole("button", { name: "Beleg stornieren" }).click();
   await expect(page.getByRole("dialog")).toContainText(/bucht den Beleg zum \d{2}\.\d{2}\.\d{4} zurück/);
   await page.getByLabel("Grund (optional)").fill("Brutto als Netto erfasst");
+  await faktenZeigen(page, "Betrag");
   await bestaetigen(page, "Stornieren");
   await expect(page.getByText(/Storniert mit einer Gegenbuchung zum .* Grund: Brutto als Netto erfasst/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Gegenbuchung" })).toBeVisible();
@@ -654,6 +656,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   expect((await entwurfPdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
+  await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
   await bestaetigen(page, "Festschreiben");
   await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
   await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
@@ -743,6 +746,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   await go(lohnSeite);
   await abrechnung.getByRole("button", { name: "Stornieren" }).click();
   await page.getByRole("dialog").getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
+  await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
   await bestaetigen(page, "Stornieren");
   await expect(mitarbeiterin.getByText(/^storniert am/)).toBeVisible();
   await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);

@@ -4,6 +4,7 @@ import { day, firstLink, YEAR } from "./daten.ts";
 import { statusBleibtSichtbar } from "./kopfzeile.ts";
 import {
   bestaetigen,
+  faktenZeigen,
   CUSTOMERS,
   durchlaufSeite,
   einrichten,
@@ -562,6 +563,7 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
   await expect(liste).toContainText("Wechselgeld");
   const stornieren = liste.getByRole("button", { name: "Nr. 1 stornieren" });
   await stornieren.click();
+  await faktenZeigen(page, "Nummer", "Text", "Betrag");
   await bestaetigen(page, "Stornieren");
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr. 2" })).toBeVisible();
   await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
@@ -585,6 +587,11 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
   expect(number).not.toBe("");
   const zahlungen = page.getByRole("region", { name: "Zahlungen" });
   await expect(zahlungen).toContainText("Noch keine Zahlung");
+
+  // Das Storno nennt, was storniert würde; hier nur ansehen
+  await page.getByRole("button", { name: "Stornieren" }).click();
+  await faktenZeigen(page, "Nummer", "Kunde", "Betrag");
+  await page.getByRole("dialog").getByRole("button", { name: "Abbrechen" }).click();
 
   // Teilzahlung in der Kasse: 50,00 € von 119,00 €
   await go("/kasse");

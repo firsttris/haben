@@ -121,6 +121,11 @@ export async function bestaetigen(page: Page, aktion: string): Promise<void> {
   await page.getByRole("dialog").getByRole("button", { name: aktion, exact: true }).click();
 }
 
+/** Die Zeilen über den Folgen im offenen ConfirmDialog, in dieser Reihenfolge (weitere dürfen dazwischen stehen) */
+export async function faktenZeigen(page: Page, ...zeilen: string[]): Promise<void> {
+  await expect(page.getByRole("dialog").locator("dt")).toContainText(zeilen);
+}
+
 /** Die Breiten aus barrierefreiheit.spec.ts (Desktop, Handy mit 320 px nach WCAG 1.4.10) und seiten.spec.ts (390 px) */
 const DESKTOP = { width: 1440, height: 900 };
 const HANDY_AXE = { width: 320, height: 720 };
