@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chatCompletionsUrl, extractionConfig, extractionSettings } from "./extraction-config.ts";
 
-const base = { EXTRACTION_TIMEOUT_SECONDS: 300, EXTRACTION_MAX_PAGES: 4 };
+const base = { EXTRACTION_TIMEOUT_SECONDS: 300, EXTRACTION_MAX_PAGES: 4, EXTRACTION_INPUT: "text-und-bild" as const };
 
 describe("Anbieterwahl der Belegauslesung", () => {
   it("ohne Einrichtung keine Auslesung", () => {
@@ -26,8 +26,16 @@ describe("Anbieterwahl der Belegauslesung", () => {
       apiKey: null,
       timeoutMs: 300_000,
       maxPages: 4,
+      // PDF-Text zuerst (#329): Text der Seiten zusammen mit den Bildern
+      input: "text-und-bild",
     });
     expect(JSON.stringify(config)).not.toContain("sk-ant");
+  });
+
+  it("Eingabe für den eigenen Dienst: nur Text für ein reines Textmodell (#329)", () => {
+    const local = { EXTRACTION_BASE_URL: "http://ollama:11434/v1", EXTRACTION_MODEL: "qwen3:8b" };
+    expect(extractionConfig({ ...base, ...local, EXTRACTION_INPUT: "text" })).toMatchObject({ input: "text" });
+    expect(extractionSettings(extractionConfig({ ...base, ...local, EXTRACTION_INPUT: "bild" }))).toMatchObject({ input: "bild" });
   });
 
   it("ausdrücklich gewählter Anbieter gilt", () => {
@@ -64,6 +72,7 @@ describe("Anbieterwahl der Belegauslesung", () => {
       keySet: true,
       maxPages: 4,
       timeoutSeconds: 300,
+      input: "text-und-bild",
     });
     expect(extractionSettings(extractionConfig({ ...base, ANTHROPIC_API_KEY: "sk-ant-x" }))).toMatchObject({ provider: "anthropic", keySet: true });
     expect(JSON.stringify(extractionSettings(extractionConfig({ ...base, ANTHROPIC_API_KEY: "sk-ant-x" })))).not.toContain("sk-ant");

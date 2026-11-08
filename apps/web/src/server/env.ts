@@ -14,6 +14,8 @@ const envSchema = z
     ERIC_HOME: z.string().optional(),
     ERIC_LOG_DIR: z.string().optional(),
     ERIC_WORKER_PATH: z.string().optional(),
+    /** Befehl für den ERiC-Worker statt der eigenen Laufzeit, z. B. ein Skript, das ihn unter QEMU als x86_64 startet (arm64) */
+    ERIC_WORKER_COMMAND: z.string().optional(),
     /** Ziel für ERiC, das Haben selbst herunterlädt; gilt, wenn ERIC_HOME nicht gesetzt ist. Im Image ein Volume */
     ERIC_DIR: z.string().default("data/eric"),
     /** Andere Download-Adresse für ERiC, nur zum Testen */
@@ -44,6 +46,11 @@ const envSchema = z
     EXTRACTION_TIMEOUT_SECONDS: z.coerce.number().int().min(5).max(3600).default(300),
     /** Höchstens so viele PDF-Seiten gehen als Bild an den OpenAI-kompatiblen Dienst */
     EXTRACTION_MAX_PAGES: z.coerce.number().int().min(1).max(20).default(4),
+    /**
+     * Was bei PDFs an den OpenAI-kompatiblen Dienst geht (#329): „text-und-bild“ Text der Seiten aus der Textschicht und
+     * Seitenbilder, „text“ nur den Text für ein reines Textmodell, „bild“ nur Seitenbilder wie früher
+     */
+    EXTRACTION_INPUT: z.enum(["text-und-bild", "text", "bild"]).default("text-und-bild"),
     /** Basis-URL der Lexware-Office-API, nur zum Testen oder falls Lexware die Adresse ändert */
     LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
     /** Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert */

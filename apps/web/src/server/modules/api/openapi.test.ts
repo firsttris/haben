@@ -81,13 +81,18 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
     expect(Object.keys(post.responses)).toEqual(expect.arrayContaining(["200", "201", "409", "413", "415"]));
     const upload = doc.components.schemas.DocumentUpload as {
       additionalProperties: boolean;
-      required: string[];
+      required?: string[];
       properties: Record<string, { type?: string; contentMediaType?: string; description?: string }>;
     };
     expect(upload.additionalProperties).toBe(false);
-    expect(upload.required).toEqual(["datei"]);
+    // Die Datei in datei oder file (Paperless-ngx, #104), genau eines davon
+    expect(upload.required ?? []).toEqual([]);
     expect(upload.properties.datei).toMatchObject({ type: "string", contentMediaType: "application/octet-stream" });
     expect(upload.properties.datei!.description).toMatch(/20 MB/);
+    expect(upload.properties.file).toMatchObject({ type: "string", contentMediaType: "application/octet-stream" });
+    expect(upload.properties.file!.description).toMatch(/Paperless/);
+    const encoding = (post.requestBody.content["multipart/form-data"] as unknown as { encoding: Record<string, unknown> }).encoding;
+    expect(Object.keys(encoding).sort()).toEqual(["datei", "file"]);
     expect(upload.properties).toHaveProperty("externalSource");
     expect(upload.properties).not.toHaveProperty("supplierName");
     const get = (doc.paths["/belege/{id}"] as Record<string, { security: unknown }>).get!;

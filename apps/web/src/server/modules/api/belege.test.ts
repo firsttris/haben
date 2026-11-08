@@ -274,6 +274,49 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/belege (Postgres)", () => {
       expect(broken.status).toBe(400);
       expect(await count()).toBe(0);
     });
+
+    it("nimmt die Datei auch im Feld file an, wie die Webhook-Aktion von Paperless-ngx sie schickt (#104)", async () => {
+      const t = await token(["belege:anlegen"]);
+      const form = new FormData();
+      form.append("file", new File([jpeg(50)], "paperless.jpg"));
+      form.append("externalSource", "paperless");
+      form.append("externalId", "4711");
+      const created = await send(t, "POST", "/belege", { body: form });
+      expect(created.status).toBe(201);
+      expect(schemas.documentSchema.parse(created.json)).toMatchObject({ filename: "paperless.jpg", externalSource: "paperless", externalId: "4711" });
+      // Ein doppelt ausgelöster Workflow legt nichts doppelt an
+      const again = new FormData();
+      again.append("file", new File([jpeg(50)], "paperless.jpg"));
+      again.append("externalSource", "paperless");
+      again.append("externalId", "4711");
+      expect((await send(t, "POST", "/belege", { body: again })).status).toBe(200);
+      expect(await count()).toBe(1);
+    });
+
+    it("lehnt eine Anfrage mit datei und file zugleich ab: eine Datei je Anfrage (#104)", async () => {
+      const t = await token(["belege:anlegen"]);
+      const form = new FormData();
+      form.append("datei", new File([jpeg(51)], "a.jpg"));
+      form.append("file", new File([jpeg(52)], "b.jpg"));
+      const both = await send(t, "POST", "/belege", { body: form });
+      expect(both.status).toBe(400);
+      expect(both.json!.error).toMatchObject({ code: "validation_failed" });
+      expect(both.json!.error!.message).toMatch(/datei oder file, nicht beide/);
+      expect(await count()).toBe(0);
+      // Ohne Datei nennt die Meldung beide Felder
+      const missing = await upload(t, null, { note: "ohne Datei" });
+      expect(missing.json!.error!.message).toMatch(/datei.*file|file.*datei/);
+    });
+
+    it("nennt bei einer leeren Datei im Feld file dieses Feld, nicht datei (#104)", async () => {
+      const t = await token(["belege:anlegen"]);
+      const form = new FormData();
+      form.append("file", new File([new Uint8Array()], "leer.pdf"));
+      const empty = await send(t, "POST", "/belege", { body: form });
+      expect(empty.status).toBe(400);
+      expect((empty.json!.error as unknown as { issues: { path: string }[] }).issues.map((i) => i.path)).toEqual(["file"]);
+      expect(await count()).toBe(0);
+    });
   });
 
   describe("Lesen", () => {

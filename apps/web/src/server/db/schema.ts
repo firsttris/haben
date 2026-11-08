@@ -1303,6 +1303,25 @@ export const quoteAttachments = pgTable(
   ],
 );
 
+/**
+ * Standardanhänge für Angebote (#415), etwa AGB oder Widerrufsbelehrung, einmal in den Einstellungen hinterlegt. Jedes
+ * neue Angebot bekommt sie als eigene Zeilen in quote_attachments; so ist sie beim Senden vorausgewählt und bleibt mit
+ * dem Angebot festgeschrieben, auch wenn sich die Einstellung später ändert. Die Datei liegt unter ihrem SHA-256.
+ */
+export const quoteDefaultAttachments = pgTable(
+  "quote_default_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Dieselbe Datei höchstens einmal; der Index dient auch der Frage, ob eine Datei im Speicher noch gebraucht wird
+  (t) => [uniqueIndex("quote_default_attachments_file").on(t.sha256)],
+);
+
 /** Firmenlogo für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile */
 export const companyLogo = pgTable(
   "company_logo",
@@ -1792,6 +1811,34 @@ export const sepaTransferItems = pgTable(
     remittance: text("remittance").notNull(),
   },
   (t) => [index("sepa_transfer_items_document").on(t.documentId), check("sepa_transfer_items_amount", sql`${t.amount} > 0 and ${t.skonto} >= 0`)],
+);
+
+/**
+ * Entscheidung je Beleg, welche IBAN gilt, wenn die E-Rechnung (BT-84) eine andere nennt als der Kontakt (#410): die
+ * des Kontakts oder die der E-Rechnung nur für diesen Beleg. Gilt nur für genau dieses Paar; ändert sich eine der
+ * beiden, ist neu zu entscheiden. Nur anhängbar, auch nach dem Buchen (Trigger in drizzle/); die jüngste gilt.
+ */
+export const documentIbanDecisions = pgTable(
+  "document_iban_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id),
+    /** IBAN im Kontakt beim Entscheiden, ohne Leerzeichen */
+    kontaktIban: text("kontakt_iban").notNull(),
+    /** IBAN aus der E-Rechnung, ohne Leerzeichen */
+    rechnungsIban: text("rechnungs_iban").notNull(),
+    wahl: text("wahl", { enum: ["kontakt", "e-rechnung"] }).notNull(),
+    /** Wer entschieden hat (Benutzer-ID wie im Audit-Log) */
+    decidedBy: text("decided_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("document_iban_decisions_document").on(t.documentId),
+    check("document_iban_decisions_wahl", sql`${t.wahl} in ('kontakt', 'e-rechnung')`),
+    check("document_iban_decisions_abweichend", sql`${t.kontaktIban} <> ${t.rechnungsIban}`),
+  ],
 );
 
 export const allocationKindEnum = pgEnum("allocation_kind", [

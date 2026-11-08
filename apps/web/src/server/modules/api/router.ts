@@ -93,7 +93,9 @@ function formFields(form: FormData): Record<string, unknown> {
 async function readMultipart(request: Request, limit: number): Promise<{ body: unknown } | { failure: ApiResult }> {
   const type = request.headers.get("content-type") ?? "";
   if (!/^multipart\/form-data\b/i.test(type)) {
-    return { failure: fail("unsupported_media_type", "Body bitte als multipart/form-data mit der Datei im Feld datei, z. B. curl -F datei=@rechnung.pdf.") };
+    return {
+      failure: fail("unsupported_media_type", "Body bitte als multipart/form-data mit der Datei im Feld datei (oder file), z. B. curl -F datei=@rechnung.pdf."),
+    };
   }
   const tooLarge = () => ({ failure: fail("payload_too_large", `Body ist größer als ${Math.floor(limit / 1024 / 1024)} MB.`) });
   if (Number(request.headers.get("content-length") ?? 0) > limit) return tooLarge();

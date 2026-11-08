@@ -576,6 +576,39 @@ test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand
   await expect(page.getByRole("region", { name: "Anhänge" }).getByRole("button", { name: "AGB.pdf entfernen" })).toBeVisible();
 });
 
+test("Standardanhänge: AGB in den Einstellungen, jedes neue Angebot hat sie, im Entwurf abwählbar (#415)", async () => {
+  await go("/einstellungen?bereich=rechnungen");
+  const standard = page.getByRole("region", { name: "Standardanhänge für Angebote" });
+  await standard.getByLabel("PDF-Anhänge auswählen").setInputFiles([
+    { name: "AGB.pdf", mimeType: "application/pdf", buffer: attachmentPdf("AGB Stand 2026") },
+    { name: "Widerrufsbelehrung.pdf", mimeType: "application/pdf", buffer: attachmentPdf("Widerruf") },
+  ]);
+  await expect(standard.getByText("AGB.pdf: angehängt.")).toBeVisible();
+  await expect(standard.getByRole("link", { name: "Widerrufsbelehrung.pdf", exact: true })).toBeVisible();
+
+  await go("/angebote/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await page.getByLabel("Beschreibung Position 1").fill("Konzeption Website");
+  await page.getByLabel("Menge Position 1").fill("10");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("120,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const anhaenge = page.getByRole("region", { name: "Anhänge" });
+  await expect(anhaenge.getByRole("link", { name: "AGB.pdf", exact: true })).toBeVisible();
+  // Für dieses Angebot ohne Widerrufsbelehrung; die Einstellung bleibt
+  await anhaenge.getByRole("button", { name: "Widerrufsbelehrung.pdf entfernen" }).click();
+  await expect(anhaenge.getByText("Widerrufsbelehrung.pdf: entfernt.")).toBeVisible();
+
+  // Die Standardanhänge wieder herausnehmen, damit die folgenden Tests Angebote ohne sie anlegen
+  await go("/einstellungen?bereich=rechnungen");
+  for (const name of ["AGB.pdf", "Widerrufsbelehrung.pdf"]) {
+    await standard.getByRole("button", { name: `${name} entfernen` }).click();
+    await expect(standard.getByText(`${name}: entfernt.`)).toBeVisible();
+  }
+  await expect(standard).toContainText("Keine Standardanhänge.");
+});
+
 test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async () => {
   await go("/rechnungen/neu");
   await page.getByRole("combobox", { name: /^Rechnungsart/ }).selectOption("abschlag");

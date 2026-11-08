@@ -24,10 +24,10 @@ Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 
 ## Voraussetzungen
 
-- Ein Linux-Server (x86_64, wenn du ERiC nutzen willst) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
+- Ein Linux-Server (x86_64, wenn du ERiC nutzen willst; auf arm64 geht ELSTER emuliert, siehe [ELSTER auf arm64](#elster-auf-arm64)) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
 - Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst. Hast du schon einen Reverse Proxy (Caddy, nginx, Nginx Proxy Manager, Traefik), nutzt du den, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy).
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
-- Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)).
+- Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)). Auf arm64 (Raspberry Pi, Ampere, Jetson) zusätzlich ein statisches QEMU ab Version 9 und rund 750 MB Platz, siehe [ELSTER auf arm64](#elster-auf-arm64).
 
 > [!NOTE]
 > Nur Podman: Rootless Podman darf Ports unter 1024 standardmäßig nicht öffnen. Entweder du senkst die Grenze (`sysctl net.ipv4.ip_unprivileged_port_start=80`) oder du veröffentlichst Caddy auf anderen Ports und leitest weiter. Damit die Dienste ohne angemeldete Sitzung laufen, braucht der Nutzer außerdem `loginctl enable-linger`.
@@ -78,7 +78,7 @@ In `.env` trägst du ein:
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | optional, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
-| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `ENABLE_BANKING_APP_ID` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
+| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `ENABLE_BANKING_APP_ID` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
 
 ```sh
 docker compose up -d
@@ -319,6 +319,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ERIC_SHA256` | nein | Erwartete SHA-256 des ERiC-Pakets (64 Hex-Zeichen). Stimmt sie nicht, bricht die Installation ab. Die Prüfsumme eines Downloads steht danach im Log und in `HABEN_ERIC_SHA256` im ERiC-Verzeichnis | `3f5a…` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
+| `ERIC_WORKER_COMMAND` | nein | Befehl, der den ERiC-Worker statt der eigenen Laufzeit startet; `worker.ts` kommt als letztes Argument dazu. Mehrere Wörter durch Leerzeichen getrennt, ohne Anführungszeichen. Für ELSTER auf arm64 das Skript aus `deploy/eric-x86_64/einrichten.sh`, siehe [ELSTER auf arm64](#elster-auf-arm64) | `/opt/haben-x86_64/worker.sh` |
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen mit Claude ein | `sk-ant-…` |
@@ -328,6 +329,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `EXTRACTION_PROVIDER` | nein | Anbieter ausdrücklich wählen: `anthropic` oder `openai-compatible`. Ohne Angabe gilt der eigene Dienst, sobald `EXTRACTION_BASE_URL` gesetzt ist | `openai-compatible` |
 | `EXTRACTION_TIMEOUT_SECONDS` | nein | Wartezeit auf den eigenen Dienst je Beleg, 5 bis 3600. Standard `300` | `600` |
 | `EXTRACTION_MAX_PAGES` | nein | So viele PDF-Seiten gehen höchstens als Bild an den eigenen Dienst, 1 bis 20. Standard `4` | `2` |
+| `EXTRACTION_INPUT` | nein | Was bei PDFs an den eigenen Dienst geht: `text-und-bild` (Text der Seiten aus der Textschicht und Seitenbilder), `text` (nur Text, für ein reines Textmodell) oder `bild` (nur Seitenbilder). Standard `text-und-bild`, siehe [KI-Auslesung](belege.md#ki-auslesung) | `text` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (u. a. wiederkehrende Rechnungen, Dauerbelege, Kontoabruf, ELSTER-Postfach, Umrechnungskurse, Belege per E-Mail, Fristen-Erinnerungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
 | `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
@@ -576,6 +578,36 @@ ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet ein
 
 Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
+### ELSTER auf arm64
+
+ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nur für Linux x86_64; selbst übersetzen lässt sie sich nicht. Auf einem arm64-Server (Raspberry Pi, Ampere, Jetson) läuft Haben trotzdem nativ: Emuliert wird nur der kurzlebige Kindprozess, der für jede Prüfung und Übermittlung ERiC lädt. `ERIC_WORKER_COMMAND` startet ihn mit QEMU als x86_64-Prozess, mit Bun und den Bibliotheken aus dem amd64-Image derselben Haben-Version.
+
+Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund 25 Sekunden statt einer, fast alles davon das Laden von ERiC. Für gelegentliche Meldungen reicht das; nach 120 Sekunden bricht Haben einen Aufruf ab.
+
+1. **QEMU besorgen:** ein statisch gebautes `qemu-x86_64` (User-Mode) ab Version 9; mit 8.2 stürzt Bun schon beim Start ab. Debian ab 13 hat es im Paket `qemu-user` (`/usr/bin/qemu-x86_64`), ältere Systeme wie Ubuntu 24.04 nur 8.2 in `qemu-user-static`. Das Programm aus dem Debian-Paket läuft auch dort, z. B. mit `apt-get download qemu-user` in einem Container mit `debian:trixie` und `dpkg-deb -x`.
+2. **Laufzeit anlegen:** auf dem Host als root, mit derselben Version wie das App-Image. Das Skript kommt vom Tag dieser Version, damit Skript und App zusammenpassen:
+   ```sh
+   VERSION=x.y.z   # Version deines App-Images
+   curl -O https://raw.githubusercontent.com/firsttris/haben/v$VERSION/deploy/eric-x86_64/einrichten.sh
+   sudo QEMU=/pfad/zu/qemu-x86_64 sh einrichten.sh $VERSION /opt/haben-x86_64
+   ```
+   Das Skript lädt das amd64-Image von Haben, entpackt es nach `/opt/haben-x86_64/root` (rund 730 MB), kopiert QEMU daneben und legt `worker.sh` an, den Befehl für `ERIC_WORKER_COMMAND`. Den lokalen Tag des Images setzt es danach zurück: Lag das Image der App schon auf dem Rechner, zeigt der Tag wieder darauf, sonst wird er entfernt. So startet die App beim nächsten Mal nicht das amd64-Image.
+3. **In der App einbinden** und neu starten:
+
+   | | Compose | Quadlet |
+   | --- | --- | --- |
+   | Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
+   | Variable | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `.env` | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `haben.env` einkommentieren |
+   | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
+
+4. **ERiC laden** wie oben unter [ERiC einbinden](#eric-einbinden); mit `ERIC_WORKER_COMMAND` bietet Haben den Download auch auf arm64 an.
+
+Ausprobiert sind so bisher Prüfen, Belegabruf, Berechtigungen und Postfach mit echtem ERiC. **Eine echte Übermittlung an ELSTER unter QEMU hat noch niemand getestet.** Der Weg ist derselbe wie beim Prüfen, nur mit Zertifikat und Netz. Prüfe deine erste Meldung danach im ELSTER-Portal.
+
+Nach jedem Update von Haben `einrichten.sh` mit der neuen Version wiederholen. `worker.sh` vergleicht beide Versionen und startet nicht, wenn sie verschieden sind; Haben zeigt dann „x86_64-Laufzeit für ERiC ist Version …“ an.
+
+Warum ein Skript statt nur QEMU: `worker.sh` setzt vorher `ulimit -s unlimited`. Dann vergibt Linux den Speicher von unten, unterhalb der 47-Bit-Grenze, die Bun (JavaScriptCore) auf x86_64 voraussetzt; sonst landet er unter QEMU an höheren Adressen, und Bun bricht mit „MemoryExhaustion“ ab. Außerdem startet es `worker.ts` aus der x86_64-Laufzeit, weil deren `node_modules` koffi für x86_64 enthalten.
+
 ## KI-Auslesung (Anthropic)
 
 Optional. Ist `ANTHROPIC_API_KEY` gesetzt, liest Haben Belege, die keine E-Rechnung sind, mit Claude aus:
@@ -616,7 +648,7 @@ EXTRACTION_API_KEY=sk-or-…                      # Quadlets: als Secret haben-e
 Was dabei passiert:
 
 - **Nur dieser Dienst.** Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege ausschließlich an diese Adresse, auch wenn zusätzlich `ANTHROPIC_API_KEY` gesetzt ist. Ist der Dienst nicht erreichbar, zu langsam oder antwortet er falsch, steht der Fehler am Beleg; Haben weicht nie auf Anthropic oder einen anderen Anbieter aus. Leitet der Dienst auf eine andere Adresse um (HTTP 3xx), folgt Haben dem nicht und meldet es am Beleg.
-- **Fotos** (JPEG, PNG, WebP) gehen als Bild an den Dienst. **PDFs** wandelt Haben vorher lokal mit `pdftoppm` (poppler-utils, im Image enthalten) in Seitenbilder um, höchstens `EXTRACTION_MAX_PAGES` Seiten (Standard 4, längere Seite 1600 Pixel); hat das PDF mehr Seiten, steht ein Hinweis am Beleg. HEIC-Fotos und XML-Dateien gehen nicht an den Dienst.
+- **Fotos** (JPEG, PNG, WebP) gehen als Bild an den Dienst. **PDFs** wandelt Haben vorher lokal mit `pdftoppm` (poppler-utils, im Image enthalten) in Seitenbilder um, höchstens `EXTRACTION_MAX_PAGES` Seiten (Standard 4, längere Seite 1600 Pixel); hat das PDF mehr Seiten, steht ein Hinweis am Beleg. HEIC-Fotos und XML-Dateien gehen nicht an den Dienst. Hat ein PDF eine Textschicht, liest Haben sie mit `pdftotext` aus und schickt den Text mit; mit `EXTRACTION_INPUT=text` nur den Text, ohne Bilder, für ein reines Textmodell (etwa `qwen3:8b` in Ollama). Ein Scan oder ein Foto geht dann gar nicht an den Dienst.
 - **Daten.** Ein Beleg geht genau an die eingetragene Adresse. Bei einem selbst betriebenen Modell verlässt er deinen Server nicht; bei einem Dienst in der Cloud liest ihn dieser Anbieter und, bei Vermittlern wie OpenRouter, der Anbieter des gewählten Modells. Was sie speichern oder zum Training nutzen, regeln deren Bedingungen und Einstellungen, nicht Haben.
 - **Antwortformat.** Haben verlangt strukturierte Ausgabe nach einem JSON-Schema (`response_format` mit `json_schema`); Ollama, LM Studio und vLLM können das, bei Cloud-Diensten hängt es vom Modell ab. Lehnt der Dienst das ab, fragt Haben denselben Dienst noch einmal ohne und prüft die Antwort selbst gegen dasselbe Schema. Ein JSON-Schema garantiert keine richtigen Werte: Haben prüft Beträge, Daten und Summen wie bei Claude.
 - **Authentifizierung.** Ohne `EXTRACTION_API_KEY` schickt Haben keinen Schlüssel. Verlangt der Dienst einen (jeder Cloud-Dienst wie OpenRouter, vLLM mit `--api-key`, ein Proxy davor), setze ihn; bei den Quadlets als Secret `haben-extraction-key` (Zeile in `haben-app.container` einkommentieren). Er steht nirgends in der Oberfläche oder im Log.
@@ -739,6 +771,8 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 **„download.elster.de nicht erreichbar: …“, obwohl der Server ins Internet kommt.** In Klammern steht der Grund. `EAI_AGAIN` oder `ENOTFOUND` heißt: Der Container löst keine Namen auf. Prüfen mit `podman exec haben-app bun -e 'require("dns").promises.lookup("download.elster.de").then(console.log,console.error)'` (Compose: `docker compose exec app bun -e …`). Kommt `EAI_AGAIN`, beantwortet der DNS-Dienst des Podman-Netzes (aardvark-dns) zwar `haben-db`, leitet externe Namen aber nicht weiter. Das passiert, wenn sich nach dem Start die DNS-Server des Hosts ändern (`/etc/resolv.conf`, z. B. nach einem Netzwerk-Neustart). Sofort hilft `podman network reload --all` (rootful) bzw. ein Neustart der Container. Dauerhaft trägst du in `haben.network` einen festen DNS-Server ein, etwa deinen Router: `DNS=192.168.178.1`. Danach Container stoppen, `podman network rm haben` und neu starten. `ECONNREFUSED` oder `ETIMEDOUT` deuten auf eine Firewall oder einen Proxy, ein Zertifikatsfehler auf einen TLS-Proxy mit eigener CA. Dieselben Gründe nennt Haben auch, wenn Enable Banking nicht erreichbar ist.
 
 **ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Bei einem von Hand eingebundenen ERiC prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins/` (ältere Versionen: `lib/plugins2/`) liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
+
+**Auf arm64: „ERiC-Prozess abgestürzt“ mit `ERIC_WORKER_COMMAND`.** Steht „x86_64-Laufzeit für ERiC ist Version …“ dabei, `einrichten.sh` mit der Version der App wiederholen. „QEMU internal SIGSEGV“ heißt: QEMU ist älter als Version 9. „MemoryExhaustion“ kommt, wenn der Worker ohne `worker.sh` direkt mit QEMU gestartet wird. Exit-Code 127: Der Pfad in `ERIC_WORKER_COMMAND` stimmt nicht oder das Verzeichnis ist nicht gemountet. Siehe [ELSTER auf arm64](#elster-auf-arm64).
 
 **Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
 

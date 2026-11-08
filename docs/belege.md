@@ -8,7 +8,7 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 
 1. Beleg hochladen (siehe unten).
 2. Den Beleg in der Liste öffnen. Ist er aus einer E-Rechnung oder von der KI vorbefüllt, steht dort „Vorbefüllt aus … Bitte prüfen und bestätigen.“
-3. **Lieferant**, **Rechnungsnummer**, **USt-IdNr. des Lieferanten**, **Belegdatum**, **Fällig am** und **Kategorie** prüfen oder eintragen. Ist der Lieferant schon in den Kontakten (Rolle **Lieferant**), wählst du ihn unter **Aus den Kontakten**; Haben übernimmt Name und USt-IdNr. Änderst du den Namen danach von Hand, fällt die Verknüpfung weg. Ein neuer Lieferant lässt sich wie bisher einfach eintippen, oder du legst ihn mit **Neuen Lieferanten anlegen** gleich als Kontakt an: Der Dialog übernimmt Name und USt-IdNr. vom Beleg und hakt die Rolle **Lieferant** an; nach dem Speichern ist er unter **Aus den Kontakten** gewählt. Abbrechen oder ein Fehler im Dialog lassen alle Eingaben am Beleg stehen. Gibt es schon einen Lieferanten mit derselben USt-IdNr., bietet der Dialog ihn zum Wählen an, statt einen zweiten anzulegen; zusammengeführt wird nichts. Eine IBAN vom Beleg übernimmt der Dialog nicht in den Kontakt.
+3. **Lieferant**, **Rechnungsnummer**, **USt-IdNr. des Lieferanten**, **Belegdatum**, **Fällig am** und **Kategorie** prüfen oder eintragen. Ist der Lieferant schon in den Kontakten (Rolle **Lieferant**), wählst du ihn unter **Aus den Kontakten**; Haben übernimmt Name und USt-IdNr. Änderst du den Namen danach von Hand, fällt die Verknüpfung weg. Ein neuer Lieferant lässt sich wie bisher einfach eintippen, oder du legst ihn mit **Neuen Lieferanten anlegen** gleich als Kontakt an: Der Dialog übernimmt Name und USt-IdNr. vom Beleg und hakt die Rolle **Lieferant** an; nach dem Speichern ist er unter **Aus den Kontakten** gewählt. Abbrechen oder ein Fehler im Dialog lassen alle Eingaben am Beleg stehen. Gibt es schon einen Lieferanten mit derselben USt-IdNr., bietet der Dialog ihn zum Wählen an, statt einen zweiten anzulegen; zusammengeführt wird nichts. Bei einer E-Rechnung füllt der Dialog außerdem Anschrift und E-Mail des Verkäufers vor. Eine IBAN vom Beleg, aus der E-Rechnung (BT-84) oder der KI-Auslesung, steht nur als **Vorschlag** unter dem Feld IBAN (bei einer Gutschrift nicht: dort ist BT-84 das Konto des Käufers): mit Herkunft, bei der KI mit dem Textausschnitt, in dem sie steht, und ob die Prüfziffer stimmt. Ins Feld kommt sie erst mit **IBAN übernehmen**; prüfe sie vorher beim Lieferanten. Einen bestehenden Kontakt ändert der Beleg nie.
 4. Unter **Beträge je Steuersatz** Netto und Vorsteuer je Satz prüfen. Mit **+ Steuersatz** kommt eine Zeile für einen weiteren Satz dazu (höchstens 19 %, 7 % und 0 % je einmal). Gehören Teile der Rechnung in verschiedene Kategorien, teilst du sie mit **Auf mehrere Kategorien aufteilen** auf (siehe [Auf mehrere Kategorien aufteilen](#auf-mehrere-kategorien-aufteilen)).
 5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto, privat oder bar aus der Kasse bezahlt wurde (siehe [Bezahlung](#bezahlung)).
 6. **Bestätigen und buchen**, dann im Dialog **Buchen**. Ungespeicherte Änderungen werden dabei vorher gespeichert.
@@ -57,7 +57,7 @@ Jede abgeholte Mail steht mit ihrer Message-ID im Abrufprotokoll (nur anhängen)
 
 ## Belege aus der REST-API
 
-Liegen deine Belege schon in einem anderen System, etwa einem Dokumentenarchiv, oder holt ein eigenes Skript sie aus Kundenportalen, dann liefert es sie über die [REST-API](api.md#belege) an Haben: `POST /api/v1/belege` mit der Datei im Feld `datei`, angemeldet mit einem API-Token, das das Recht „Belege lesen und hochladen“ (`belege:anlegen`) hat. Ein Token mit `belege:lesen` sieht nur den Stand.
+Liegen deine Belege schon in einem anderen System, etwa einem Dokumentenarchiv, oder holt ein eigenes Skript sie aus Kundenportalen, dann liefert es sie über die [REST-API](api.md#belege) an Haben: `POST /api/v1/belege` mit der Datei im Feld `datei` (oder `file`, so schickt sie etwa [Paperless-ngx](api.md#paperless-ngx)), angemeldet mit einem API-Token, das das Recht „Belege lesen und hochladen“ (`belege:anlegen`) hat. Ein Token mit `belege:lesen` sieht nur den Stand.
 
 - **Derselbe Weg wie beim Hochladen:** gleiche Formate und 20 MB je Datei, Ablage unter dem SHA-256, E-Rechnungen werden sofort gelesen, sonst greift die KI-Auslesung, wenn sie eingerichtet ist.
 - **Der Beleg landet als „Zu prüfen“** in der Liste, gebucht wird nichts. Du prüfst und buchst ihn wie jeden anderen. Im Änderungsprotokoll steht als Akteur der Name des Tokens (`api:Dokumentenarchiv`).
@@ -146,7 +146,17 @@ Die KI-Auslesung ist optional. Sie liest entweder Claude über die Anthropic-API
 
 **Was gesendet wird:** die Belegdatei selbst zusammen mit einer festen Anweisung und der Liste der Ausgabenkategorien. Sonst nichts aus deiner Buchhaltung. An Claude geht ein PDF als Dokument, JPEG, PNG oder WebP als Bild. An einen OpenAI-kompatiblen Dienst gehen Fotos als Bild und PDFs als Seitenbilder, die Haben vorher auf dem Server erzeugt (höchstens `EXTRACTION_MAX_PAGES` Seiten, Standard 4). HEIC-Fotos und XML-Dateien gehen nicht an die KI.
 
-**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsempfänger und dessen USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Fehlen in der Antwort nur Rechnungsempfänger und dessen USt-IdNr., gelten sie als unbekannt. Passt sie sonst nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
+**PDF-Text zuerst (eigener Dienst):** Hat ein PDF eine Textschicht, etwa eine Rechnung aus einem Programm statt eines Scans, liest Haben den Text der Seiten lokal mit `pdftotext` aus (poppler-utils, im Image enthalten) und gibt ihn dem Modell mit; Seitenreihenfolge und Spalten bleiben erhalten. Was genau an den Dienst geht, bestimmt `EXTRACTION_INPUT` ([Installation](installation.md#umgebungsvariablen)):
+
+| `EXTRACTION_INPUT` | Was bei PDFs an den Dienst geht |
+| --- | --- |
+| `text-und-bild` (Standard) | Text der Seiten und die Seitenbilder; ohne Textschicht nur die Bilder |
+| `text` | Nur der Text, keine Bilder: für ein reines Textmodell ohne Bildverarbeitung |
+| `bild` | Nur die Seitenbilder, wie vor Haben 0.7 |
+
+Eine Seite gilt nur dann als lesbar, wenn ihr Text mehr ist als ein Stempel, ein Wasserzeichen oder eine Seitenzahl (mindestens 40 Buchstaben und Ziffern). Mit `text` gilt: Fehlt einer Seite der Text, steht „Seite 2 hat keinen auslesbaren Text und fehlt in der Auslesung“ am Beleg; hat das PDF gar keinen (Scan) oder ist der Beleg ein Foto, schickt Haben nichts an den Dienst und sagt das am Beleg, statt ein Bild an ein Textmodell oder still anderswohin zu senden. Eine Texterkennung (OCR) für Scans gibt es nicht; solche Belege füllst du von Hand aus oder nimmst `text-und-bild` mit einem Vision-Modell. Sehr langer Text wird gekürzt, auch das steht am Beleg. Claude über die Anthropic-API bekommt das PDF wie bisher als Dokument und liest den Text selbst.
+
+**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsempfänger und dessen USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten; dazu die IBAN des Lieferanten mit dem Textausschnitt, in dem sie steht. Diese IBAN ist nur ein Vorschlag für einen neuen Kontakt (siehe [So gehst du vor](#so-gehst-du-vor)): Sie steht nicht am Beleg und geht nie in eine Überweisung. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Fehlen in der Antwort nur Rechnungsempfänger und dessen USt-IdNr. oder die IBAN, gelten sie als unbekannt. Passt sie sonst nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
 
 Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 
@@ -154,7 +164,7 @@ Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 - Ein Betrag ist nicht lesbar.
 - Die Währung ist nicht Euro und der Kurs des Monats ist noch nicht veröffentlicht: Die Beträge stehen dann als Originalbeträge am Beleg, der Kurs fehlt noch.
 - Der Hinweis der KI zu unklaren Stellen.
-- Beim eigenen Modell: Das PDF hatte mehr Seiten als ausgelesen wurden.
+- Beim eigenen Modell: Das PDF hatte mehr Seiten als ausgelesen wurden; mit `EXTRACTION_INPUT=text` auch Seiten ohne Text und ein gekürzter Text.
 
 Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, Zeitüberschreitung, unbekanntes Modell, Antwort im falschen Format, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
 
@@ -370,12 +380,27 @@ In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über
 | Angabe | Woher |
 | --- | --- |
 | Empfänger | Lieferant am Beleg |
-| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst aus der E-Rechnung (BT-84) |
+| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
 | Betrag | Offener Betrag, mit Skonto abzüglich Skonto |
 | Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
 | Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |
 
-Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), mit einer IBAN außerhalb des Europäischen Wirtschaftsraums (EU, Island, Liechtenstein, Norwegen), ohne Lieferant oder in Fremdwährung kann Haben nicht überweisen; außerhalb des EWR verlangt SEPA BIC und Anschrift des Empfängers oder gilt gar nicht, solche Zahlungen gibst du direkt im Online-Banking ein; der Grund steht in der Zeile, der Haken ist gesperrt. Die IBAN trägst du im [Kontakt](rechnungen.md#kontakte) des Lieferanten ein und wählst ihn am Beleg. Nennt die E-Rechnung eine andere IBAN als der Kontakt, überweist Haben auf die des Kontakts und zeigt einen Hinweis: Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug.
+Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), mit einer IBAN außerhalb des Europäischen Wirtschaftsraums (EU, Island, Liechtenstein, Norwegen), ohne Lieferant oder in Fremdwährung kann Haben nicht überweisen; außerhalb des EWR verlangt SEPA BIC und Anschrift des Empfängers oder gilt gar nicht, solche Zahlungen gibst du direkt im Online-Banking ein; der Grund steht in der Zeile, der Haken ist gesperrt. Die IBAN trägst du im [Kontakt](rechnungen.md#kontakte) des Lieferanten ein und wählst ihn am Beleg. Nennt die E-Rechnung eine andere IBAN als der Kontakt, ist der Beleg gesperrt, bis du am Beleg entschieden hast, welche gilt (siehe unten).
+
+### Abweichende IBAN in der E-Rechnung
+
+Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug: Jemand fängt die Rechnung ab und tauscht die IBAN aus. Haben gleicht deshalb die IBAN einer E-Rechnung (ZUGFeRD oder XRechnung, BT-84) mit der im Kontakt des Lieferanten ab, sobald der Kontakt am Beleg hängt, vor und nach dem Buchen. Verglichen wird ohne Leerzeichen und Groß- und Kleinschreibung; dieselbe IBAN, anders geschrieben, gilt als gleich.
+
+- **Abweichend:** Oben auf der Belegseite steht **Bankverbindung prüfen** mit beiden IBANs in Vierergruppen. Prüfe die Bankverbindung über einen bekannten Weg beim Lieferanten, nicht über Telefonnummer oder E-Mail aus dieser Rechnung. Nach dem Buchen entscheidest du (ein offener Beleg lässt sich noch löschen, deshalb erst dann):
+    - **IBAN des Kontakts behalten**, oder
+    - **IBAN der E-Rechnung nur für diesen Beleg**.
+
+    Der Kontakt bleibt in beiden Fällen unverändert; die IBAN dort änderst du, wenn nötig, selbst im [Kontakt](rechnungen.md#kontakte). Die Belegseite zeigt danach, welche IBAN gilt, wer entschieden hat und wann. Eine spätere Entscheidung ersetzt die frühere.
+- **Ohne Entscheidung** ist der Beleg unter **Überweisungen** nicht auswählbar, auch nicht über **Alle auswählen**; die Zeile nennt den Grund und führt mit **Zum Beleg** dorthin. Auch der Server lehnt ihn in einer SEPA-Datei ab. Nach der Entscheidung geht die Überweisung an die gewählte IBAN, und die Zeile nennt die Entscheidung.
+- **Neu entscheiden:** Die Entscheidung gilt nur für genau dieses Paar aus Kontakt- und Rechnungs-IBAN. Ändert sich die IBAN im Kontakt (oder steht ein anderer Kontakt am Beleg), ist neu zu entscheiden.
+- **Kontakt ohne IBAN:** Es gibt nichts abzugleichen. Die Belegseite sagt nur, dass die IBAN ungeprüft aus der E-Rechnung stammt; überwiesen wird an sie, ohne Sperre.
+
+Die Entscheidungen stehen in einer eigenen, nur anhängbaren Tabelle mit Eintrag im Änderungsprotokoll; Sperre und Siegel des gebuchten Belegs bleiben unberührt. IBANs aus der KI-Auslesung oder dem PDF-Text gleicht Haben nicht ab, nur die der E-Rechnung. Entscheiden kann nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht den Hinweis.
 
 ### Skonto
 

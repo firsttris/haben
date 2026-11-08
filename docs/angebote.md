@@ -62,6 +62,8 @@ Mit einem Angebot gehen oft weitere Unterlagen mit: AGB, Widerrufsbelehrung, ein
 2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
 3. **Entfernen** nimmt einen Anhang wieder vom Angebot, solange es ein Entwurf ist.
 
+Was mit fast jedem Angebot mitgeht, etwa AGB oder Widerrufsbelehrung, hinterlegst du einmal als [Standardanhang](einrichtung.md#standardanhänge-für-angebote): Jedes neue Angebot hat diese Dateien dann schon beim ersten Speichern unter **Anhänge**, beim Senden sind sie vorausgewählt, und im Entwurf nimmst du heraus, was für dieses Angebot nicht passt.
+
 Es gelten dieselben Regeln wie bei Rechnungen: nur PDF-Dateien bis 20 MB, höchstens zehn je Angebot, den Typ erkennt Haben am Inhalt, dieselbe Datei hängt nur einmal am selben Angebot. Die Dateien liegen unter ihrem SHA-256 im Belegverzeichnis; hängt dieselbe Datei an mehreren Angeboten oder Rechnungen, liegt sie nur einmal dort.
 
 Mit dem Festschreiben sind die Anhänge zusammen mit dem Angebot gesperrt: Die Datenbank lehnt Hinzufügen, Ändern und Entfernen ab. Auf der Seite des festgeschriebenen Angebots stehen sie weiter unter **Anhänge** zum Ansehen und Herunterladen. Das PDF des Angebots bleibt, wie es ist; die Anhänge gehen nur als eigene Dateien in der E-Mail mit. In die Rechnung aus dem Angebot gehen sie nicht über.

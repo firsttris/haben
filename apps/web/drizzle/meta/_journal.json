@@ -1156,6 +1156,34 @@
       "when": 1794162711010,
       "tag": "0164_angebotsanhaenge_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 165,
+      "version": "7",
+      "when": 1794163938088,
+      "tag": "0165_standardanhaenge",
+      "breakpoints": true
+    },
+    {
+      "idx": 166,
+      "version": "7",
+      "when": 1794163939634,
+      "tag": "0166_standardanhaenge_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 167,
+      "version": "7",
+      "when": 1794173387706,
+      "tag": "0167_iban_entscheidung",
+      "breakpoints": true
+    },
+    {
+      "idx": 168,
+      "version": "7",
+      "when": 1794173389065,
+      "tag": "0168_iban_entscheidung_trigger",
+      "breakpoints": true
     }
   ]
 }

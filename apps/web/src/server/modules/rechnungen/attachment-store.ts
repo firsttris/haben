@@ -74,6 +74,14 @@ export async function removeFiles(hashes: string[]): Promise<void> {
   }
 }
 
+/** Legt die geprüfte Datei unter der Sperre auf ihren Hash ab (siehe add); liefert, was eine neue Zeile braucht */
+export async function storeAttachmentFile(tx: Tx, file: AttachmentFile): Promise<{ filename: string; sha256: string; size: number }> {
+  const sha256 = sha256Of(file.bytes);
+  await lockFileUse(tx, sha256);
+  await storeFile(file.bytes);
+  return { filename: attachmentFilename(file.filename), sha256, size: file.bytes.byteLength };
+}
+
 /** Die Funktionen für die Anhänge einer Belegart */
 export function attachmentStore(spec: AttachmentOwner) {
   const { table, owner, fail } = spec;
@@ -112,16 +120,14 @@ export function attachmentStore(spec: AttachmentOwner) {
   async function add(actor: string, ownerId: string, file: AttachmentFile): Promise<{ id: string; duplicate: boolean }> {
     const problem = attachmentFileProblem(file);
     if (problem) throw fail(problem);
-    const sha256 = sha256Of(file.bytes);
     return withActor(actor, async (tx) => {
       await spec.lockDraft(tx, ownerId);
-      await lockFileUse(tx, sha256);
-      await storeFile(file.bytes);
+      const stored = await storeAttachmentFile(tx, file);
       const existing = await list(ownerId, tx);
-      const same = existing.find((a) => a.sha256 === sha256);
+      const same = existing.find((a) => a.sha256 === stored.sha256);
       if (same) return { id: same.id, duplicate: true };
       if (existing.length >= MAX_INVOICE_ATTACHMENTS) throw fail(`Höchstens ${MAX_INVOICE_ATTACHMENTS} Anhänge ${spec.perOwner}.`);
-      return { id: await insert(tx, ownerId, { filename: attachmentFilename(file.filename), sha256, size: file.bytes.byteLength }), duplicate: false };
+      return { id: await insert(tx, ownerId, stored), duplicate: false };
     });
   }
 
@@ -145,14 +151,20 @@ export function attachmentStore(spec: AttachmentOwner) {
   }
 
   /**
-   * Übernimmt die Anhänge eines Belegs in einen neuen Entwurf (Kopieren), in derselben Transaktion. Die Dateien liegen
-   * schon im Speicher; die Sperre auf den Hash hält ein gleichzeitiges Entfernen ab, bis die neuen Zeilen sichtbar sind.
-   * Der Zeitpunkt des Anhängens bleibt der des Originals, sonst stünden alle Kopien gleichzeitig und ohne Reihenfolge.
+   * Übernimmt die Anhänge eines Belegs in einen neuen Entwurf (Kopieren), in derselben Transaktion. Der Zeitpunkt des Anhängens bleibt der des Originals, sonst stünden alle Kopien gleichzeitig und ohne Reihenfolge.
    */
   async function copy(tx: Tx, fromId: string, toId: string): Promise<void> {
-    for (const attachment of await list(fromId, tx)) {
-      await lockFileUse(tx, attachment.sha256);
-      await insert(tx, toId, attachment);
+    await attachStored(tx, toId, await list(fromId, tx));
+  }
+
+  /**
+   * Hängt Dateien, die schon im Speicher liegen (Kopie, Standardanhänge), an einen neuen Entwurf, in der Transaktion,
+   * die ihn anlegt; die Sperre auf den Hash hält ein gleichzeitiges Entfernen ab, bis die neuen Zeilen sichtbar sind.
+   */
+  async function attachStored(tx: Tx, ownerId: string, rows: { filename: string; sha256: string; size: number; createdAt?: Date }[]): Promise<void> {
+    for (const row of rows) {
+      await lockFileUse(tx, row.sha256);
+      await insert(tx, ownerId, row);
     }
   }
 
@@ -178,5 +190,5 @@ export function attachmentStore(spec: AttachmentOwner) {
     return result;
   }
 
-  return { list, add, remove, files, copy, load, forMail };
+  return { list, add, remove, files, copy, attachStored, load, forMail };
 }
