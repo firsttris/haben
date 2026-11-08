@@ -20,7 +20,7 @@ Was der Assistent über die Werkzeuge liest, geht an den Anbieter des Modells. B
 
 Tokens legt nur der Inhaber an; ein [Zugang für die Steuerberatung](steuerberatung.md) sieht sie nicht und kann keine anlegen.
 
-Jeder Assistent sollte sein eigenes Token bekommen. **Widerrufen** sperrt ein Token sofort; abgelaufene und widerrufene bleiben zur Nachvollziehbarkeit in der Liste. Wer den Zugang wieder ausschaltet, sperrt alle Tokens auf einmal, auch die für die REST-API. Ein Token ohne `haben:lesen` lehnt `/api/mcp` mit 403 ab.
+Jeder Assistent sollte sein eigenes Token bekommen. **Widerrufen** sperrt ein Token nach einer Rückfrage sofort; abgelaufene und widerrufene bleiben zur Nachvollziehbarkeit in der Liste. Wer den Zugang wieder ausschaltet, sperrt alle Tokens auf einmal, auch die für die REST-API. Ein Token ohne `haben:lesen` lehnt `/api/mcp` mit 403 ab.
 
 ### Claude Code
 

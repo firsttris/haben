@@ -46,7 +46,19 @@ function auszug(zeilen: [string, string, string][]): string {
   const tag = dkb(day(-2));
   return `﻿${kopf}${zeilen
     .map(([partei, zweck, betrag]) =>
-      [tag, tag, "Gebucht", partei, "Nordlicht Software GmbH", zweck, betrag.startsWith("-") ? "Ausgang" : "Eingang", "DE02120300000000202051", betrag, "", "", ""]
+      [
+        tag,
+        tag,
+        "Gebucht",
+        ...(betrag.startsWith("-") ? ["Nordlicht Software GmbH", partei] : [partei, "Nordlicht Software GmbH"]),
+        zweck,
+        betrag.startsWith("-") ? "Ausgang" : "Eingang",
+        "DE02120300000000202051",
+        betrag,
+        "",
+        "",
+        "",
+      ]
         .map((v) => `"${v}"`)
         .join(";"),
     )
@@ -125,7 +137,11 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
   await page.getByRole("link", { name: /Hanse Logistik GmbH/ }).first().click();
   await page.waitForLoadState("networkidle");
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  // Nach dem Zuordnen springt der Abgleich zum nächsten offenen Umsatz, also zurück zu diesem
+  const ersterUmsatz = page.url();
   await panel.getByRole("button", { name: /^Zuordnen/ }).first().click();
+  await expect(panel.getByRole("heading", { name: "Stadtkasse Bremen" })).toBeVisible();
+  await go(ersterUmsatz);
   const aufheben = panel.getByRole("button", { name: "Aufheben", exact: true });
   await expect(aufheben).toBeVisible();
   await aufheben.click();
@@ -158,7 +174,6 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
     await row.getByLabel("Betrag").fill(betrag);
   }
   await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
-  await page.waitForLoadState("networkidle");
   const aufteilung = panel.getByRole("button", { name: "Aufteilung aufheben" });
   await expect(aufteilung).toBeVisible();
   await aufteilung.click();
@@ -171,7 +186,7 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
   await expect(panel.getByText("aufgehoben")).toHaveCount(0);
   await aufteilung.click();
   await bestaetigen(page, "Aufteilung aufheben");
-  await expect(panel.getByText("aufgehoben", { exact: true }).first()).toBeVisible();
+  await expect(panel.getByText("aufgehoben · Teil einer Aufteilung").first()).toBeVisible();
 });
 
 test("Ausbuchung aufheben fragt mit Art und Betrag nach", async () => {

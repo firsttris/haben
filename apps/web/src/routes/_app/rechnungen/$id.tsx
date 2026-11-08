@@ -538,6 +538,7 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
   const [kind, setKind] = useState<"skonto" | "forderungsausfall">("forderungsausfall");
   const [amount, setAmount] = useState(formatDecimal(open));
   const [date, setDate] = useState(today);
+  const [reversing, setReversing] = useState<WriteOffRow | null>(null);
   const parsed = parseEuro(amount);
 
   function onSubmit(event: FormEvent) {
@@ -552,6 +553,24 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
   return (
     <section className="card" aria-labelledby="writeoff-heading">
       <h2 id="writeoff-heading">Ausbuchen</h2>
+      <ConfirmDialog
+        open={reversing !== null}
+        title="Ausbuchung aufheben?"
+        confirmLabel="Ausbuchung aufheben"
+        danger
+        facts={reversing ? [{ label: "Art", value: WRITE_OFF_KINDS[reversing.kind] }, { label: "Betrag", value: formatEuro(reversing.amount), strong: true }] : []}
+        onConfirm={() => {
+          if (!reversing) return;
+          const { id } = reversing;
+          void run(async () => {
+            await reverseFn({ data: id });
+            await router.invalidate();
+          });
+        }}
+        onClose={() => setReversing(null)}
+      >
+        <p>Haben erzeugt dafür eine Gegenbuchung. Der Betrag ist danach wieder offen, Erlöse und Umsatzsteuer werden entsprechend korrigiert.</p>
+      </ConfirmDialog>
       {writeOffs.map((w) => (
         <div key={w.id} className="history-row">
           <span style={{ textDecoration: w.reversed ? "line-through" : undefined }}>
@@ -569,12 +588,7 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
                   type="button"
                   className="link-button"
                   disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      await reverseFn({ data: w.id });
-                      await router.invalidate();
-                    })
-                  }
+                  onClick={() => setReversing(w)}
                 >
                   Aufheben
                 </button>

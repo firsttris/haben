@@ -33,6 +33,7 @@ import {
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
+import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/_app/bank")({
 
 type Data = Awaited<ReturnType<typeof getBankOverview>>;
 type Detail = NonNullable<Data["detail"]>;
+type Allocation = Detail["allocations"][number];
 
 const HINT = {
   vorschlag: { text: "Vorschlag", tone: "pill-info" },
@@ -88,6 +90,31 @@ const KIND_LABEL = {
  * Steuerbescheide, Kreditverträge oder Abrechnungen; den Zahlungsnachweis bildet der Bankumsatz selbst.
  */
 const DIRECT_HINT = "Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen.";
+
+/** Wie die Zuordnung in der Liste und in der Rückfrage heißt */
+function zuordnungText(a: Allocation, gesellschaft: boolean): string {
+  return [
+    a.kind === "privat" && gesellschaft ? "Gesellschafter" : KIND_LABEL[a.kind],
+    a.invoiceNumber ? ` ${a.invoiceNumber}` : "",
+    a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : "",
+    a.vatReturnLabel ? ` ${a.vatReturnLabel}` : "",
+    a.steuerLabel ? `: ${a.steuerLabel}` : "",
+    a.darlehenLabel ? `: ${a.darlehenLabel}` : "",
+    a.kategorieLabel ? `: ${a.kategorieLabel}` : "",
+  ].join("");
+}
+
+/** Bei einer Aufteilung hebt der Server alle Teile auf, also nennt die Rückfrage auch alle */
+function zuAufhebendeZuordnung(a: Allocation, allocations: Allocation[], gesellschaft: boolean): AufzuhebendeZuordnung {
+  const teile = a.splitId ? allocations.filter((other) => other.splitId === a.splitId && !other.reversed) : [a];
+  return {
+    id: a.id,
+    bezeichnung: a.splitId ? `Aufteilung in ${teile.length} Teile` : zuordnungText(a, gesellschaft),
+    betrag: teile.reduce((summe, teil) => summe + teil.amount, 0),
+    aufteilung: a.splitId !== null,
+    mitBeleg: teile.some((teil) => teil.kind === "invoice" || teil.kind === "document"),
+  };
+}
 
 /** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
 type DirectChoice = DirectBooking | "kategorie" | "steuer" | "darlehen";
@@ -885,6 +912,7 @@ function AllocationPanel({
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
+  const [reversing, setReversing] = useState<AufzuhebendeZuordnung | null>(null);
   const primaryButton = useRef<HTMLButtonElement>(null);
 
   const parsedAmount = parseEuro(amount);
@@ -1015,13 +1043,7 @@ function AllocationPanel({
             <div key={a.id} className="history-row">
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ textDecoration: a.reversed ? "line-through" : undefined }}>
-                  {a.kind === "privat" && gesellschaft ? "Gesellschafter" : KIND_LABEL[a.kind]}
-                  {a.invoiceNumber ? ` ${a.invoiceNumber}` : ""}
-                  {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
-                  {a.vatReturnLabel ? ` ${a.vatReturnLabel}` : ""}
-                  {a.steuerLabel ? `: ${a.steuerLabel}` : ""}
-                  {a.darlehenLabel ? `: ${a.darlehenLabel}` : ""}
-                  {a.kategorieLabel ? `: ${a.kategorieLabel}` : ""}
+                  {zuordnungText(a, gesellschaft)}
                 </span>
                 <span className="small muted">
                   {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
@@ -1029,7 +1051,7 @@ function AllocationPanel({
                 </span>
               </div>
               {!a.reversed && (!a.splitId || firstOfSplit.has(a.id)) && (
-                <button type="button" className="btn btn-sm btn-danger" onClick={() => run(() => reverseFn({ data: a.id }))} disabled={busy}>
+                <button type="button" className="btn btn-sm btn-danger" onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))} disabled={busy}>
                   {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
                 </button>
               )}
@@ -1039,6 +1061,7 @@ function AllocationPanel({
       )}
 
       <NoticeBanner notice={notice} />
+      <ZuordnungAufheben ziel={reversing} onConfirm={(id) => void run(() => reverseFn({ data: id }))} onClose={() => setReversing(null)} />
 
       {tx.open !== 0 && mode === "split" && (
         <SplitForm

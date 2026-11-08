@@ -2,6 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useRef, useState } from "react";
 import { errorMessage, formatSize } from "../lib/format.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { removeInvoiceAttachmentFn, uploadInvoiceAttachments } from "../server/functions/invoice-attachments.ts";
 
 export interface AttachmentRow {
@@ -26,6 +27,7 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
   const hintId = useId();
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [removing, setRemoving] = useState<AttachmentRow | null>(null);
 
   async function work(action: () => Promise<Message[]>) {
     setBusy(true);
@@ -69,6 +71,18 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
   return (
     <section className="card" aria-labelledby={headingId}>
       <h2 id={headingId}>Anhänge</h2>
+      <ConfirmDialog
+        open={removing !== null}
+        title={`${removing?.filename} entfernen?`}
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() => {
+          if (removing) onRemove(removing);
+        }}
+        onClose={() => setRemoving(null)}
+      >
+        <p>Die Datei wird aus Haben gelöscht. Hast du sie nur hier, lade sie vorher herunter.</p>
+      </ConfirmDialog>
       {attachments.length > 0 ? (
         <ul className="stack" style={{ gap: 8, listStyle: "none", margin: 0, padding: 0 }} aria-label="Zusätzliche Anhänge">
           {attachments.map((row) => (
@@ -84,7 +98,7 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
                 {editable && (
                   <>
                     {" · "}
-                    <button type="button" className="link-button" disabled={busy} onClick={() => onRemove(row)} aria-label={`${row.filename} entfernen`}>
+                    <button type="button" className="link-button" disabled={busy} onClick={() => setRemoving(row)} aria-label={`${row.filename} entfernen`}>
                       Entfernen
                     </button>
                   </>

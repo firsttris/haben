@@ -30,7 +30,7 @@ Direkt danach bietet Haben an, einen Passkey hinzuzufügen. Damit meldest du dic
 
 Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort verwenden“ meldest du dich mit E-Mail und Passwort an. Unterstützt der Browser Passkey-Autofill, schlägt er den Passkey dort auch direkt im Feld E-Mail vor.
 
-Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
+Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
 ## Zugang für die Steuerberatung
 

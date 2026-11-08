@@ -2,8 +2,10 @@ import { formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
+import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { fileVatReturnElsewhere } from "../../server/functions/vat.ts";
+import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 
 /**
@@ -32,11 +34,16 @@ export function AbgabeVermerken({
   // Bewusst leer: abgetippt aus dem Protokoll, damit eine Abweichung auffällt
   const [zahllast, setZahllast] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const parsed = parseEuro(zahllast);
   const ready = !blocked && filedOn !== "" && ticket.trim() !== "" && zahllast.trim() !== "" && parsed !== null && file !== null;
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (ready) setConfirming(true);
+  };
+
+  const abgabeVermerken = () => {
     if (!ready || !file) return;
     void action.run(async () => {
       const form = new FormData();
@@ -89,6 +96,20 @@ export function AbgabeVermerken({
         </button>
       </div>
       <NoticeBanner notice={action.notice} />
+      <ConfirmDialog
+        open={confirming}
+        title="Voranmeldung als abgegeben vermerken?"
+        confirmLabel="Abgabe vermerken"
+        facts={[
+          { label: "Tag der Abgabe", value: formatDate(filedOn) },
+          { label: "Transferticket", value: ticket.trim() },
+          { label: "Kz 83", value: formatEuro(parsed ?? 0), strong: true },
+        ]}
+        onConfirm={abgabeVermerken}
+        onClose={() => setConfirming(false)}
+      >
+        <p>Haben schreibt die Voranmeldung fest. Ändern lässt sie sich danach nicht mehr; Korrekturen gehen nur über eine berichtigte Anmeldung.</p>
+      </ConfirmDialog>
     </form>
   );
 }

@@ -2,6 +2,7 @@ import { tageBis } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { formatDate } from "../../lib/format.ts";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { useAction } from "../../lib/use-action.ts";
@@ -160,6 +161,7 @@ function KalenderAbo() {
   const [url, setUrl] = useState<string | null>(null);
   const { busy, notice, run } = useAction();
   const [copied, setCopied] = useState(false);
+  const [rueckfrage, setRueckfrage] = useState<"neu" | "beenden" | null>(null);
 
   const neu = () =>
     run(async () => {
@@ -203,23 +205,43 @@ function KalenderAbo() {
             Das Abo ist eingerichtet. Den Link zeigt Haben aus Sicherheitsgründen nur beim Erzeugen.
           </p>
           <div className="actions" style={{ flexWrap: "wrap" }}>
-            <button type="button" className="btn" disabled={busy} onClick={() => void neu()}>
+            <button type="button" className="btn" disabled={busy} onClick={() => setRueckfrage("neu")}>
               Neuen Link erzeugen
             </button>
             <button
               type="button"
               className="btn btn-danger"
               disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await revoke();
-                  await router.invalidate();
-                })
-              }
+              onClick={() => setRueckfrage("beenden")}
             >
               Abo beenden
             </button>
           </div>
+          <ConfirmDialog
+            open={rueckfrage === "neu"}
+            title="Neuen Abo-Link erzeugen?"
+            confirmLabel="Neuen Link erzeugen"
+            danger
+            onConfirm={() => void neu()}
+            onClose={() => setRueckfrage(null)}
+          >
+            <p>Der bisherige Link wird sofort ungültig. Jeder Kalender muss danach den neuen Link abonnieren.</p>
+          </ConfirmDialog>
+          <ConfirmDialog
+            open={rueckfrage === "beenden"}
+            title="Kalender-Abo beenden?"
+            confirmLabel="Abo beenden"
+            danger
+            onConfirm={() =>
+              void run(async () => {
+                await revoke();
+                await router.invalidate();
+              })
+            }
+            onClose={() => setRueckfrage(null)}
+          >
+            <p>Der Link wird sofort ungültig, abonnierte Kalender bekommen die Fristen nicht mehr. Ein neues Abo muss jeder Kalender wieder einrichten.</p>
+          </ConfirmDialog>
         </>
       ) : (
         <div className="actions">

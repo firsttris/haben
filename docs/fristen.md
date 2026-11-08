@@ -29,7 +29,7 @@ Die Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen erscheinen
 **Kalender-Abo einrichten** erzeugt einen geheimen Link, den du in deinem Kalender abonnierst (iPhone: Einstellungen › Kalender › Accounts › Kalenderabo; Android über Google Kalender im Browser › Weitere Kalender › Per URL; Thunderbird, Outlook). Jede offene Frist ist ein ganztägiger Termin mit Erinnerung drei Tage vorher und am Morgen des Tages; Erledigtes verschwindet beim nächsten Abgleich.
 
 - Den Link zeigt Haben nur beim Erzeugen; gespeichert ist nur sein SHA-256-Hash. Wer den Link kennt, sieht deine Fristen, sonst nichts.
-- **Neuen Link erzeugen** macht den alten ungültig, **Abo beenden** schaltet das Abo ab.
+- **Neuen Link erzeugen** macht den alten ungültig, **Abo beenden** schaltet das Abo ab. Beides fragt vorher nach, denn jeder Kalender muss danach neu abonnieren.
 - Manche Kalender übernehmen Erinnerungen aus Abos nicht (etwa Google); dort stellst du sie für den abonnierten Kalender selbst ein.
 - Die Links in den Terminen zeigen auf `BETTER_AUTH_URL`.
 

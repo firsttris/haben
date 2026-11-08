@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { authClient } from "../lib/auth-client.ts";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 /** Passkeys des angemeldeten Kontos (Einstellungen des Inhabers, Startseite der Steuerberatung) */
@@ -9,6 +11,7 @@ export function PasskeysCard() {
   const passkeys = authClient.useListPasskeys().data ?? [];
   const action = useAction();
   const { busy, notice } = action;
+  const [removing, setRemoving] = useState<(typeof passkeys)[number] | null>(null);
 
   // better-auth meldet Fehler im Ergebnis statt per Exception
   const run = (work: () => Promise<{ error?: { message?: string } | null } | undefined>, success: string) =>
@@ -35,7 +38,7 @@ export function PasskeysCard() {
               type="button"
               className="btn btn-danger"
               disabled={busy}
-              onClick={() => run(() => authClient.passkey.deletePasskey({ id: passkey.id }), "Passkey entfernt.")}
+              onClick={() => setRemoving(passkey)}
             >
               Entfernen
             </button>
@@ -52,6 +55,18 @@ export function PasskeysCard() {
           Passkey hinzufügen
         </button>
       </div>
+      <ConfirmDialog
+        open={removing !== null}
+        title={removing?.name ? `Passkey „${removing.name}“ entfernen?` : "Passkey entfernen?"}
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() => {
+          if (removing) void run(() => authClient.passkey.deletePasskey({ id: removing.id }), "Passkey entfernt.");
+        }}
+        onClose={() => setRemoving(null)}
+      >
+        <p>Mit diesem Passkey kannst du dich danach nicht mehr anmelden. Die Anmeldung mit Passwort oder einem anderen Passkey bleibt möglich.</p>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
     </section>
   );
