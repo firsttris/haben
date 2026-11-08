@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { PIN_DEFAULT_WIDTH, PIN_MIN_WIDTH, PREVIEW_MODE_KEY, parsePreviewMode, previewLayout, readPreviewMode, writePreviewMode } from "./vorschau.ts";
+import {
+  PIN_DEFAULT_WIDTH,
+  PIN_MIN_WIDTH,
+  PREVIEW_MODE_KEY,
+  parsePreviewMode,
+  previewLayout,
+  readPreviewMode,
+  returnsFocusOnClose,
+  writePreviewMode,
+} from "./vorschau.ts";
 
 describe("previewLayout", () => {
   it("bietet Anheften erst an, wenn Formular und Vorschau ihre Mindestbreite haben", () => {
@@ -56,5 +65,24 @@ describe("gespeicherte Wahl", () => {
     expect(readPreviewMode(blocked)).toBeNull();
     expect(() => writePreviewMode(blocked, "angeheftet")).not.toThrow();
     expect(readPreviewMode(undefined)).toBeNull();
+  });
+});
+
+// Nach Escape ist der Dialog sofort zu, das Ereignis „close“ kommt erst danach als eigener Task (HTML, „close the dialog“).
+// Wer in dieser Lücke ins Formular klickt, behält den Fokus; zurück auf den Auslöser nur aus der Leiste oder von nirgends.
+describe("returnsFocusOnClose", () => {
+  const body = { name: "body" };
+  const inOverlay = { name: "Schließen" };
+  const formField = { name: "Beschreibung Position 1" };
+  const overlayContains = (el: unknown) => el === inOverlay;
+
+  it("holt den Fokus aus der Leiste oder von nirgends zurück auf den Auslöser", () => {
+    expect(returnsFocusOnClose(inOverlay, body, overlayContains)).toBe(true);
+    expect(returnsFocusOnClose(body, body, overlayContains)).toBe(true);
+    expect(returnsFocusOnClose(null, body, overlayContains)).toBe(true);
+  });
+
+  it("lässt einen Fokus stehen, den man während der Fahrt hinaus schon gesetzt hat", () => {
+    expect(returnsFocusOnClose(formField, body, overlayContains)).toBe(false);
   });
 });
