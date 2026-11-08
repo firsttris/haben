@@ -166,3 +166,56 @@ for (const [geraet, viewport] of [
     await expect(dialog).toBeHidden();
   });
 }
+
+for (const [geraet, viewport] of [
+  ["Laptop", LAPTOP],
+  ["Handy", HANDY],
+] as const) {
+  test(`Kontaktdialog am ${geraet}: Fehlermeldung nach Klick auf den stehenden Knopf ist sichtbar`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    // Erst nach der Hydration klicken, sonst öffnet der Knopf den Dialog nicht
+    await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+    const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+    await dialog.getByLabel("Name").first().fill("Prüfkunde");
+    // Ganz oben im Formular beide Rollen abwählen, dann den stehenden Knopf klicken: die Meldung steht am Ende des
+    // Formulars und muss ins Bild kommen; gespeichert wird nichts
+    for (const box of await dialog.getByRole("checkbox").all()) if (await box.isChecked()) await box.uncheck();
+    await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+    const meldung = dialog.getByRole("alert");
+    await expect(meldung).toHaveText("Ein Kontakt ist Kunde oder Lieferant oder beides.");
+    await sichtbar(meldung);
+    await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  });
+}
+
+for (const [geraet, viewport] of [
+  ["Laptop", LAPTOP],
+  ["Handy", HANDY],
+  ["Handy quer", { width: HANDY.height, height: HANDY.width }],
+] as const) {
+  test(`Kontaktdialog am ${geraet}, rückwärts tabben: der Fokusrahmen wird oben nicht abgeschnitten`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    // Erst nach der Hydration klicken, sonst öffnet der Knopf den Dialog nicht
+    await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+    const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Kontakt anlegen" }).focus();
+    const abgeschnitten: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      await page.keyboard.press("Shift+Tab");
+      const fokus = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement;
+        const form = el.closest<HTMLElement>(".contact-dialog > .contact-form");
+        if (!form || el.closest(".form-footer")) return null;
+        // Fokusrahmen: 2 px Linie mit 2 px Abstand (styles.css, :focus-visible)
+        const oben = el.getBoundingClientRect().top - 4 - (form.getBoundingClientRect().top + form.clientTop);
+        return { name: el.getAttribute("name") ?? el.textContent?.trim() ?? el.tagName, oben };
+      });
+      if (fokus && fokus.oben < -0.5) abgeschnitten.push(`${fokus.name}: ${fokus.oben.toFixed(1)} px`);
+    }
+    expect(abgeschnitten, "Fokusrahmen oben abgeschnitten").toEqual([]);
+    await page.keyboard.press("Escape");
+  });
+}
