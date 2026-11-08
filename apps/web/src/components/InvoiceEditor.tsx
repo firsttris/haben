@@ -53,6 +53,7 @@ import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { ContactDialog } from "./ContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
+import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
@@ -331,6 +332,8 @@ export function InvoiceEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
   const preview = useDocumentPreview();
+  const designDraft = useDesignDraft(seller.design);
+  const [logo, setLogo] = useState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
@@ -705,6 +708,17 @@ export function InvoiceEditor({
 
       <PreviewLayout
         preview={preview}
+        design={{
+          panel: (
+            <DesignPanel
+              draft={designDraft}
+              vatRates={new Set(parsed.filter((l) => l.valid && !(quote && l.kind)).map((l) => l.taxRate)).size}
+              logo={logo}
+              onLogoChanged={setLogo}
+            />
+          ),
+          onClosed: designDraft.discard,
+        }}
         label="Vorschau"
         caption={
           <>
@@ -721,7 +735,7 @@ export function InvoiceEditor({
             validUntil={quote ? validUntil || null : null}
             serviceFrom={serviceFrom || null}
             serviceTo={serviceTo || null}
-            seller={seller}
+            seller={{ ...seller, logo, accent: designDraft.design.accent, design: designDraft.design }}
             buyer={contact}
             lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
             discount={discountIssue ? null : discount}

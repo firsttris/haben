@@ -66,6 +66,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["archiv-auftraege", "/archiv?ansicht=auftraege"],
     ["archiv-auftrag", "/archiv/auftrag/723bf34b-f8ab-48f0-b391-656af4b72a96"],
     ["einstellungen", "/einstellungen"],
+    ["einstellungen-gestaltung", "/einstellungen?bereich=gestaltung"],
     ["einstellungen-elster", "/einstellungen?bereich=elster"],
     ["einstellungen-email", "/einstellungen?bereich=email"],
     ["einstellungen-bank", "/einstellungen?bereich=bank"],

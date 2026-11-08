@@ -1,7 +1,7 @@
 import { DUNNING_LEVELS, formatEuro, type DunningAmounts, type DunningLevel } from "@haben/core";
 import { accountHolder, formatDate, formatIban } from "./format.ts";
 import { TEXTS } from "./i18n.ts";
-import { addressLines, asDraft, draftFilename, footerData, renderDunningPdf, type DraftPdf } from "./pdf.ts";
+import { addressLines, asDraft, draftFilename, footerData, renderDunningPdf, showsCustomerNumber, type DraftPdf } from "./pdf.ts";
 import { girocodeSvg } from "./qr.ts";
 import type { Buyer, Letterhead, Seller } from "./types.ts";
 
@@ -31,7 +31,7 @@ export function dunningPdfData(doc: DunningDocument) {
     { label: "Datum", value: formatDate(doc.date) },
     { label: "Rechnungsnummer", value: doc.invoice.number },
   ];
-  if (buyer.kundennummer) meta.push({ label: "Kundennummer", value: buyer.kundennummer });
+  if (showsCustomerNumber(doc)) meta.push({ label: "Kundennummer", value: buyer.kundennummer! });
 
   const rows = [{ label: "Offener Rechnungsbetrag", value: formatEuro(amounts.open) }];
   // Mit Pauschale ist amounts.fee nur der Teil der Mahngebühr, der die Pauschale übersteigt (§ 288 Abs. 5 Satz 3 BGB)
@@ -69,15 +69,16 @@ export function dunningPdfData(doc: DunningDocument) {
       `Bitte überweisen Sie ${formatEuro(amounts.total)} bis zum ${formatDate(doc.dueDate)}${account} unter Angabe der Rechnungsnummer ${doc.invoice.number}.`,
       ...(doc.invoice.skontoExpired ? ["Das Skonto aus der Rechnung ist mit Ablauf der Skontofrist entfallen."] : []),
     ].join(" "),
-    qr: seller.iban
-      ? girocodeSvg({
-          name: accountHolder(seller),
-          iban: seller.iban,
-          ...(seller.bic ? { bic: seller.bic } : {}),
-          amount: amounts.total,
-          text: `Rechnung ${doc.invoice.number}`,
-        })
-      : null,
+    qr:
+      seller.iban && doc.options?.giroCode !== false
+        ? girocodeSvg({
+            name: accountHolder(seller),
+            iban: seller.iban,
+            ...(seller.bic ? { bic: seller.bic } : {}),
+            amount: amounts.total,
+            text: `Rechnung ${doc.invoice.number}`,
+          })
+        : null,
     closing: doc.closing.trim(),
     greeting: `Mit freundlichen Grüßen\n${seller.name}`,
     ...footerData(seller),

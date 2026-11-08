@@ -12,6 +12,8 @@
 #let rule = rgb(d.palette.rule)
 // Akzentfarbe aus den Einstellungen (Überschriften, Linien), immer gesetzt
 #let accent = rgb(d.accent)
+// Logo und Marken aus dem Briefkopf-Profil, Maße in mm (templateInputs in pdf.ts)
+#let look = d.at("look", default: (logoHeight: 18, logoWidth: 60, logoLeft: false, foldMarks: true))
 
 // Die Plex-TTFs tragen Medium und SemiBold als eigene Familien
 #let medium(body) = text(font: "IBM Plex Sans Medm", body)
@@ -37,7 +39,7 @@
   foreground: entwurf-vermerk(d.at("draft", default: none)),
   // Fest statt 30 % des Rands: Wächst der Rand um die Pflichtangaben, bekommt der Fuß den ganzen Zuwachs
   footer-descent: 10.2mm,
-  background: {
+  background: if look.foldMarks {
     // Falz- und Lochmarken (Form B)
     place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
     place(top + left, dx: 4mm, dy: 148.5mm, line(length: 6mm, stroke: 0.4pt + rule))
@@ -71,11 +73,11 @@
   doc
 }
 
-// Logo oben rechts im Briefkopf, höchstens 18 mm hoch und 60 mm breit
+// Logo oben im Briefkopf, Seite und größte Maße aus dem Profil
 #if d.at("logo", default: none) != none {
-  place(top + right, context {
-    let hoch = image(d.logo, height: 18mm)
-    if measure(hoch).width > 60mm { image(d.logo, width: 60mm) } else { hoch }
+  place(top + if look.logoLeft { left } else { right }, context {
+    let hoch = image(d.logo, height: look.logoHeight * 1mm)
+    if measure(hoch).width > look.logoWidth * 1mm { image(d.logo, width: look.logoWidth * 1mm) } else { hoch }
   })
 }
 
