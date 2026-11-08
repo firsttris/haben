@@ -48,6 +48,7 @@ import {
   type MailTemplates,
   type SkontoStufe,
   type TaxShare,
+  type DirektKategorie,
   BESCHAEFTIGUNGSARTEN,
   KONFESSIONEN,
   type Beschaeftigungsart,
@@ -1769,6 +1770,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "zinsertrag",
   // Auszahlung, Tilgung, Zinsen und Gebühren eines Darlehens (loans)
   "darlehen",
+  // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz (Roadmap Platz 1, #324)
+  "kategorie",
 ]);
 
 /**
@@ -1829,6 +1832,13 @@ export const allocations = pgTable(
     /** Nur bei Darlehen (kind „darlehen“): das Darlehen und der Teil (Auszahlung, Tilgung, Zinsen, Gebühren) */
     loanId: uuid("loan_id").references(() => loans.id),
     loanPart: text("loan_part", { enum: DARLEHEN_TEIL_KEYS }),
+    /**
+     * Nur bei „Direkt buchen“ auf eine Kategorie (kind „kategorie“): Einnahme- oder Ausgabekategorie und Steuersatz in
+     * Basispunkten, siehe packages/core/src/direkt-kategorie.ts. Voranmeldung und EÜR lesen sie von hier; die Gegenzeile
+     * trägt dieselben Angaben. Kein Enum: Die Ausgabekategorien wachsen, gebuchte Werte bleiben gültig.
+     */
+    category: text("category").$type<DirektKategorie>(),
+    taxRate: integer("tax_rate"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1839,6 +1849,10 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    check(
+      "allocations_kategorie",
+      sql`case when ${t.kind}::text = 'kategorie' then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
+    ),
     check(
       "allocations_loan",
       sql`case when ${t.kind}::text = 'darlehen' then ${t.loanId} is not null and ${t.loanPart} is not null else ${t.loanId} is null and ${t.loanPart} is null end`,

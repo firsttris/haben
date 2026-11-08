@@ -1,6 +1,7 @@
 import {
   ACCOUNT_PURPOSES,
   directBookingsFor,
+  direktKategorienFuer,
   PAYMENT_PROVIDERS,
   directBookingLabel,
   paymentProviderAccount,
@@ -108,6 +109,9 @@ export const getBankOverview = createServerFn({ method: "GET" })
       /** Steuerzahlung: Steuerarten der Rechtsform und Teile (Steuer, Zinsen, Zuschläge) */
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
+      /** Direkt buchen auf eine Kategorie: Einnahmen und die Ausgabekategorien, die ohne Beleg gehen (#324) */
+      kategorien: direktKategorienFuer(),
+      kleinunternehmer: (await loadCompany()).kleinunternehmer,
       /** Darlehen mit Bestand und die Teile einer Rate */
       loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
       loanParts: DARLEHEN_TEIL_KEYS.map((value) => ({ value, label: DARLEHEN_TEILE[value] })),

@@ -1120,6 +1120,67 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
   await expect(page.getByRole("row", { name: /Hausbank Investitionskredit/ })).toContainText("9.200,00");
 });
 
+test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Ausgabe ohne Vorsteuer (#324)", async () => {
+  const zeile = (name: string, zweck: string, betrag: string) =>
+    [dkb(day(0)), dkb(day(0)), "Gebucht", betrag.startsWith("-") ? "Max Mustermann" : name, betrag.startsWith("-") ? name : "Max Mustermann", zweck]
+      .concat([betrag.startsWith("-") ? "Ausgang" : "Eingang", "", betrag, "", "", ""])
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Erika Beispiel", "Reparatur Notebook", "119,00")}\n${zeile("Kiosk am Markt", "Prepaid-Aufladung", "-35,70")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "direkt.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  // Eingang: Erlöse mit 19 %, Netto und Steuer werden angezeigt
+  await page
+    .getByRole("link", { name: /Erika Beispiel/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByRole("heading", { name: "Erika Beispiel" })).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
+  await expect(panel.getByText("100,00 € netto, 19,00 € Umsatzsteuer")).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Ausgang: Telefon, brutto ohne Vorsteuer; einen Steuersatz gibt es dort nicht
+  await page
+    .getByRole("link", { name: /Kiosk am Markt/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByRole("heading", { name: "Kiosk am Markt" })).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await expect(panel.getByText(/ohne Vorsteuer/)).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+
+  // In der Voranmeldung des Monats als Direktbuchung unter Kz 81, verlinkt auf den Bankumsatz mit seiner Zuordnung
+  await go(`/umsatzsteuer/${day(0).slice(0, 7)}`);
+  await page
+    .getByRole("button", { name: /Direktbuchung/ })
+    .first()
+    .click();
+  await page.getByRole("link", { name: "Direkt gebucht · Erika Beispiel" }).click();
+  await page.waitForURL(/\/bank\?/);
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",

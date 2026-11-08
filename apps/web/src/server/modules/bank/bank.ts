@@ -33,6 +33,8 @@ import {
   skontoZahlfristen,
   suggestMatches,
   type DirectBooking,
+  type DirektKategorie,
+  kategorieText,
   type InvoiceTotals,
   type OpenItem,
   type OwnAccount,
@@ -61,6 +63,7 @@ import { today } from "../../today.ts";
 import { documentPayees, payeeIbans } from "./document-payees.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
+import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 
 export class BankError extends UserError {}
 
@@ -595,6 +598,8 @@ export async function transactionDetail(id: string) {
       taxItem: schema.allocations.taxItem,
       loanName: schema.loans.name,
       loanPart: schema.allocations.loanPart,
+      category: schema.allocations.category,
+      taxRate: schema.allocations.taxRate,
     })
     .from(schema.allocations)
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
@@ -613,6 +618,7 @@ export async function transactionDetail(id: string) {
       vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
       steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
       darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
+      kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
     }));
 
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
@@ -956,6 +962,8 @@ export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("steuer"), transactionId: z.uuid(), amount: z.number().int(), steuer: steuerangabeSchema }),
   // Auszahlung, Tilgung, Zinsen oder Gebühren eines Darlehens
   z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: z.number().int(), darlehen: loanPartSchema }),
+  // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz
+  z.object({ kind: z.literal("kategorie"), transactionId: z.uuid(), amount: z.number().int(), kategorie: kategorieAngabeSchema }),
 ]);
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
@@ -968,6 +976,7 @@ const splitPartSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.enum(DIRECT_KINDS), amount: z.number().int() }),
   z.object({ kind: z.literal("steuer"), amount: z.number().int(), steuer: steuerangabeSchema }),
   z.object({ kind: z.literal("darlehen"), amount: z.number().int(), darlehen: loanPartSchema }),
+  z.object({ kind: z.literal("kategorie"), amount: z.number().int(), kategorie: kategorieAngabeSchema }),
 ]);
 
 export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(splitPartSchema).min(2).max(20) });
@@ -1016,6 +1025,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     taxItem?: SteuerPosten;
     loanId?: string;
     loanPart?: DarlehenTeil;
+    category?: DirektKategorie;
+    taxRate?: number;
   } = {};
 
   if (part.kind === "invoice") {
@@ -1072,6 +1083,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     ({ lines, description, target } = await darlehenBuchung(tx, company.kontenrahmen, bank, part.darlehen.loanId, part.darlehen.part, part.amount));
   } else if (part.kind === "steuer") {
     ({ lines, description, target } = await steuerbuchung(tx, company, bank, part.steuer, part.amount));
+  } else if (part.kind === "kategorie") {
+    ({ lines, description, target } = await kategoriebuchung(tx, company.kontenrahmen, bank, part.kategorie, part.amount));
   } else if (part.kind === "kursdifferenz") {
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
@@ -1198,6 +1211,8 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       taxItem: allocation.taxItem,
       loanId: allocation.loanId,
       loanPart: allocation.loanPart,
+      category: allocation.category,
+      taxRate: allocation.taxRate,
       amount: -allocation.amount,
       splitId: allocation.splitId,
       reversesId: allocation.id,
