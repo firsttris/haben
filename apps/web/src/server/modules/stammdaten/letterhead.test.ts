@@ -98,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
     expect((await letterhead.loadLetterhead()).options?.footerColumns).toBeNull();
   });
   describe("Briefpapier", () => {
-    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    const png = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64"));
 
     it("gehört nach dem Speichern zum Briefkopf und nennt Format und Prüfsumme", async () => {
       await background.saveBackground(actor, png);

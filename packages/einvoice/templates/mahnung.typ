@@ -34,6 +34,18 @@
 // Pflichtangaben über die ganze Breite unter den Spalten des Fußes
 #let legal-foot = if legal == none { none } else { pad(top: 2mm, footer-col((legal,))) }
 
+#let foot-spalten = {
+  set block(spacing: 0pt)
+  line(length: 100%, stroke: 0.4pt + rule)
+  v(3mm)
+  grid(
+    columns: d.footer.map(_ => 1fr),
+    column-gutter: 6mm,
+    ..d.footer.map(footer-col),
+  )
+  if legal-foot != none { legal-foot }
+}
+
 #set page(
   paper: "a4",
   margin: (top: 20mm, bottom: 34mm, left: 25mm, right: 20mm),
@@ -55,15 +67,7 @@
     }
   },
   footer: context {
-    set block(spacing: 0pt)
-    line(length: 100%, stroke: 0.4pt + rule)
-    v(3mm)
-    grid(
-      columns: d.footer.map(_ => 1fr),
-      column-gutter: 6mm,
-      ..d.footer.map(footer-col),
-    )
-    if legal-foot != none { legal-foot }
+    foot-spalten
     let total = counter(page).final().first()
     if total > 1 {
       v(2.5mm)
@@ -72,11 +76,15 @@
   },
 )
 
-// Der Fuß hängt oben im unteren Rand und wächst nach unten: Bricht die Zeile mit den Pflichtangaben um, liefe er mit
-// festem Rand über das Blatt. Darum wächst der Rand um ihre gemessene Höhe (Satzspiegel 210 − 25 − 20 = 165 mm).
+// Der Fuß hängt oben im unteren Rand und wächst nach unten: Mit festem Rand liefe er über das Blatt, wenn die Zeile mit den
+// Pflichtangaben oder eigene Spalten umbrechen. Darum wächst der Rand mit (Satzspiegel 210 − 25 − 20 = 165 mm).
+#let satzbreite = 165mm
+#let hoehe(inhalt) = measure(block(width: satzbreite, inhalt)).height
 #show: doc => context {
-  if legal-foot == none { return doc }
-  set page(margin: (top: 20mm, bottom: 34mm + measure(block(width: 165mm, legal-foot)).height, left: 25mm, right: 20mm))
+  let pflicht = if legal-foot == none { 0mm } else { hoehe(legal-foot) }
+  // 5 mm für die Seitenzahl, 10,2 mm wie footer-descent
+  let rand = calc.max((34mm + pflicht).to-absolute(), hoehe(foot-spalten) + 5mm + 10.2mm)
+  set page(margin: (top: 20mm, bottom: rand, left: 25mm, right: 20mm))
   doc
 }
 

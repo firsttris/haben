@@ -32,11 +32,13 @@ export function FooterCard({ columns, seller }: { columns: string[] | null; sell
   const [own, setOwn] = useState(columns !== null);
   const [texts, setTexts] = useState<string[]>(columns ?? [...DEFAULT_FOOTER_COLUMNS]);
   const [count, setCount] = useState((columns ?? DEFAULT_FOOTER_COLUMNS).length);
-  const [active, setActive] = useState(0);
+  const [focused, setActive] = useState(0);
   const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   // Weniger Spalten behalten den Text der übrigen: Wer zurückschaltet, verliert nichts
   const shown = Array.from({ length: count }, (_, i) => texts[i] ?? "");
+  // Nach dem Verringern kann die zuletzt fokussierte Spalte verborgen sein
+  const active = Math.min(focused, count - 1);
   const issues = own ? footerIssues(shown) : [];
   const preview = customFooter(shown, footerValues(seller));
   const noBank = own && !shown.some((text) => text.includes("{iban}"));

@@ -6,6 +6,8 @@ import { accountHolder, collectedByDirectDebit, countryName, formatIban, payment
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
+  needsSellerVatId,
+  type TaxTreatment,
   LETTERHEAD_FONTS,
   accentPalette,
   DEFAULT_ACCENT,
@@ -31,6 +33,7 @@ const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL(".."
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
+const IMAGE_PROBE_TEMPLATE = join(PACKAGE_DIR, "templates", "bildprobe.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
 const FONT_FILES = [
   ...["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].flatMap((weight) => [`IBMPlexSans-${weight}.ttf`, `IBMPlexSerif-${weight}.ttf`]),
@@ -154,7 +157,7 @@ export function documentPdfData(
     note: doc.note?.trim() ? doc.note.trim() : null,
     introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
     noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
-    ...footerData(seller, t, doc.options),
+    ...footerData(seller, t, doc.options, treatment),
   };
 }
 
@@ -324,9 +327,13 @@ export function legalLine(info: LegalInfo | undefined, t: Texts = TEXTS.de): str
 }
 
 /** Fuß für die Vorlagen: drei Spalten und die Pflichtangaben der Gesellschaft */
-export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, options?: LetterheadOptions) {
+export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, options?: LetterheadOptions, treatment: TaxTreatment = "regulaer") {
   const footer = options?.footerColumns
-    ? customFooter(options.footerColumns, { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" })
+    ? customFooter(
+        options.footerColumns,
+        { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" },
+        { labels: { taxNumber: t.taxNumber, vatId: t.vatId }, needsVatId: needsSellerVatId(treatment) },
+      )
     : footerColumns(seller, t);
   return { footer, legal: legalLine(seller.legalInfo, t) };
 }
@@ -376,6 +383,22 @@ function compilePdf(template: string, data: object, date: string, label: string,
     return compileWith(typst, template, templateInputs(data, letterhead), date, label);
   } finally {
     for (const [path] of shadows) typst.unmapShadow(path);
+  }
+}
+
+/** Ob Typst das Bild in ein PDF/A einbetten kann; CMYK und beschädigte Dateien scheitern erst dabei und verhinderten sonst jedes spätere PDF */
+export function embedsInPdf(image: Logo): boolean {
+  const typst = getCompiler();
+  const file = `bildprobe.${image.format}`;
+  const path = join(PACKAGE_DIR, "templates", file);
+  typst.mapShadow(path, Buffer.from(image.data));
+  try {
+    compileWith(typst, IMAGE_PROBE_TEMPLATE, { file }, "2026-01-01", "Die Bildprobe");
+    return true;
+  } catch {
+    return false;
+  } finally {
+    typst.unmapShadow(path);
   }
 }
 

@@ -1,4 +1,4 @@
-import { logoFormat, type Logo } from "@haben/einvoice";
+import { embedsInPdf, logoFormat, type Logo } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
@@ -28,6 +28,8 @@ export async function saveBackground(actor: string, data: Uint8Array): Promise<v
   if (data.length > MAX_BACKGROUND_BYTES) throw new BackgroundError("Das Briefpapier darf höchstens 2 MB groß sein.");
   const format = logoFormat(data);
   if (!format) throw new BackgroundError("Als Briefpapier gehen PNG und JPEG.");
+  if (!embedsInPdf({ data, format }))
+    throw new BackgroundError("Das Bild lässt sich nicht in ein PDF einbetten. Die Datei ist beschädigt oder im Farbraum CMYK; bitte als RGB speichern.");
   const values = { background: Buffer.from(data), format, sha256: createHash("sha256").update(data).digest("hex"), createdAt: new Date() };
   await withActor(actor, (tx) =>
     tx

@@ -144,7 +144,7 @@ Pflichtangaben und Summen lassen sich nicht ausblenden.
 
 Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hinter den Beleg, etwa deinen gedruckten Briefbogen als Scan.
 
-- Es geht PNG oder JPEG bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist.
+- Es geht PNG oder JPEG bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
 - Ein PDF als Hintergrund geht nicht: Die Belege sind PDF/A-3, und ein eingebettetes PDF ließe sich darin nicht zuverlässig als gültig ausgeben.
 - **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Das Blatt in der Vorschau zeigt die erste Seite.
 - Logo, Fußzeile und Falzmarken bleiben, soweit eingeschaltet, und liegen über dem Bild. Hat dein Briefbogen schon ein Logo, nimm das hochgeladene heraus.
@@ -157,6 +157,8 @@ Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der a
 - Du wählst zwei bis vier Spalten mit je höchstens fünf Zeilen und schreibst freien Text mit Platzhaltern: `{firma}`, `{strasse}`, `{plz}`, `{ort}`, `{email}`, `{telefon}`, `{bank}`, `{kontoinhaber}`, `{iban}`, `{bic}`, `{steuernummer}`, `{ustid}`. Unten in der Karte siehst du, wie sie auf dem Blatt steht.
 - Fehlt der Wert zu einem Platzhalter, entfällt die ganze Zeile: Ohne Telefonnummer erscheint keine Zeile „Telefon“.
 - Steuernummer oder USt-IdNr. muss auf der Rechnung stehen (§ 14 Abs. 4 Nr. 2 UStG). Haben speichert die Fußzeile nur, wenn `{steuernummer}` oder `{ustid}` vorkommt. Die Pflichtangaben einer GmbH oder UG stehen weiter darunter.
+- Hat deine Firma die genannte Nummer nicht, setzt Haben die vorhandene ans Ende der letzten Spalte. Bei Reverse Charge und innergemeinschaftlicher Lieferung steht die USt-IdNr. immer auf der Rechnung (§ 14a UStG).
+- Bricht eine Zeile um oder sind die Spalten hoch, wächst der untere Rand mit; es steht dann weniger Inhalt auf der Seite.
 - Dein Text wird nicht übersetzt: Auf englischen Belegen steht er so, wie du ihn schreibst.
 - Sie gilt wie die übrige Gestaltung für alles, was ab dann erzeugt wird.
 

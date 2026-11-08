@@ -61,6 +61,8 @@ export function footerValues(seller: FooterSeller): FooterValues {
   };
 }
 
+const TAX_PLACEHOLDER = /\{(steuernummer|ustid)\}/;
+
 const placeholdersIn = (text: string): string[] => [...text.matchAll(/\{([^{}\s]*)\}/g)].map((match) => match[1]!);
 
 const isPlaceholder = (name: string): name is FooterPlaceholder => (FOOTER_PLACEHOLDERS as readonly string[]).includes(name);
@@ -69,11 +71,11 @@ const isPlaceholder = (name: string): name is FooterPlaceholder => (FOOTER_PLACE
 export function footerIssues(columns: readonly string[]): string[] {
   const issues: string[] = [];
   // Sonst nennt sie auf der Rechnung niemand: § 14 Abs. 4 Nr. 2 UStG verlangt eine von beiden
-  if (!columns.some((column) => /\{(steuernummer|ustid)\}/.test(column)))
-    issues.push("Steuernummer oder USt-IdNr. fehlt: Bitte {steuernummer} oder {ustid} einfügen");
+  if (!columns.some((column) => TAX_PLACEHOLDER.test(column))) issues.push("Steuernummer oder USt-IdNr. fehlt: Bitte {steuernummer} oder {ustid} einfügen");
   const unknown = [...new Set(columns.flatMap(placeholdersIn).filter((name) => !isPlaceholder(name)))];
   if (unknown.length > 0) issues.push(`Unbekannte Platzhalter: ${unknown.map((name) => `{${name}}`).join(", ")}`);
   if (columns.some((column) => column.split("\n").length > MAX_FOOTER_LINES)) issues.push(`Höchstens ${MAX_FOOTER_LINES} Zeilen je Spalte`);
+  if (columns.some((column) => column.length > MAX_FOOTER_TEXT)) issues.push(`Höchstens ${MAX_FOOTER_TEXT} Zeichen je Spalte`);
   return issues;
 }
 
@@ -91,7 +93,31 @@ export function fillFooterColumn(text: string, values: FooterValues): string[] {
     .filter((line): line is string => Boolean(line));
 }
 
-/** Spalten mit eingesetzten Werten; dass die Pflichtangabe vorkommt, prüft footerIssues beim Speichern */
-export function customFooter(columns: readonly string[], values: FooterValues): string[][] {
-  return columns.map((column) => fillFooterColumn(column, values));
+/**
+ * Pflichtangabe, die auf dem Blatt noch fehlt: footerIssues sieht beim Speichern nur den Text, ob die Firma die genannte Nummer
+ * hat, zeigt sich erst hier. Die USt-IdNr. geht vor; Reverse Charge und innergemeinschaftliche Lieferung verlangen sie (§ 14a UStG).
+ */
+function missingTaxLine(filled: readonly string[], values: FooterValues, labels: FooterTaxLabels, needsVatId: boolean): string | null {
+  const shown = (value: string) => Boolean(value) && filled.some((line) => line.includes(value));
+  if (shown(values.ustid) || (!needsVatId && shown(values.steuernummer))) return null;
+  if (values.ustid) return `${labels.vatId} ${values.ustid}`;
+  return values.steuernummer && !shown(values.steuernummer) ? `${labels.taxNumber} ${values.steuernummer}` : null;
+}
+
+export interface FooterTaxLabels {
+  taxNumber: string;
+  vatId: string;
+}
+
+/** Spalten mit eingesetzten Werten; was Pflicht ist und fehlt, kommt ans Ende der letzten Spalte */
+export function customFooter(
+  columns: readonly string[],
+  values: FooterValues,
+  { labels = { taxNumber: "Steuernummer", vatId: "USt-IdNr." }, needsVatId = false }: { labels?: FooterTaxLabels; needsVatId?: boolean } = {},
+): string[][] {
+  const filled = columns.map((column) => fillFooterColumn(column, values));
+  // Spalten ganz ohne Platzhalter dafür weist footerIssues schon beim Speichern ab
+  if (!columns.some((column) => TAX_PLACEHOLDER.test(column))) return filled;
+  const line = missingTaxLine(filled.flat(), values, labels, needsVatId);
+  return line ? filled.map((column, index) => (index === filled.length - 1 ? [...column, line] : column)) : filled;
 }

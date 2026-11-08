@@ -104,6 +104,7 @@ export function InvoicePreview({
   note,
   priceMode = "netto",
   taxNote,
+  needsVatId = false,
   corrects,
   title,
   currency = "EUR",
@@ -129,6 +130,8 @@ export function InvoicePreview({
   priceMode?: PriceMode;
   /** Pflichthinweis bei Rechnungen ohne Steuerausweis; dann keine Steuerspalte */
   taxNote?: string | null;
+  /** Reverse Charge oder innergemeinschaftliche Lieferung: Die USt-IdNr. muss in den Fuß (§ 14a UStG) */
+  needsVatId?: boolean;
   corrects?: { number: string | null; issueDate: string } | null;
   /** Abweichender Titel, z. B. Abschlagsrechnung */
   title?: string;
@@ -198,7 +201,7 @@ export function InvoicePreview({
     ],
     [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
   ].map((column) => column.filter(Boolean));
-  const footer = options.footerColumns ? customFooter(options.footerColumns, footerValues(seller)) : automaticFooter;
+  const footer = options.footerColumns ? customFooter(options.footerColumns, footerValues(seller), { needsVatId }) : automaticFooter;
 
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (
