@@ -423,8 +423,8 @@ Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Ima
 
 Den Tag legt einer von zwei Wegen an, nach demselben Schema wie in den anderen Projekten:
 
-- ohne Checkout: Actions → *Bump version* → patch, minor oder major (`bump.yml`). Erhöht die Version in der `package.json`, committet sie als `Release vX.Y.Z` auf `main`, taggt und startet `release.yml` auf dem Tag.
-- lokal:
+- ohne Checkout: Actions → *Bump version* → patch, minor oder major (`bump.yml`). Erhöht die Version in der `package.json`, committet sie als `Release vX.Y.Z` auf `main` und taggt; der Tag startet `release.yml`. Weil das Ruleset auf `main` Pull Request und grüne Checks verlangt, pusht der Workflow mit einem Deploy Key, der auf der Bypass-Liste des Rulesets steht (Secret `BUMP_DEPLOY_KEY`, Einrichtung in der [README von firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Der Release-Commit startet dabei auch die CI auf `main`.
+- lokal, nur wer auf der Bypass-Liste des Rulesets steht:
 
 ```sh
 bun run release:patch   # oder :minor, :major: erhöht die Version, legt Commit und Tag an und pusht beides
