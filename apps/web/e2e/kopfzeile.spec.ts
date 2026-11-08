@@ -297,7 +297,8 @@ test("Dauerbeleg: Der Hinweis nach „Beenden“ steht unter dem Kopf, auch wenn
 });
 
 test("Rechnungsentwurf: Die Rückfrage zum Festschreiben steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
-  await page.setViewportSize({ width: 1080, height: 600 });
+  // Breite, bei der die Knöpfe samt „Vorschau“ gerade noch in eine Zeile passen, „Jetzt festschreiben“ aber nicht mehr
+  await page.setViewportSize({ width: 1220, height: 600 });
   await entwurfAusfuellen(page);
   await hinweisBleibtUnterWachsendemKopf(page, "Festschreiben", page.getByRole("alert").filter({ hasText: "Noch einmal klicken" }));
 });
