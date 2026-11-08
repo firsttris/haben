@@ -9,7 +9,7 @@ on:
 
 jobs:
   screenshots:
-    uses: firsttris/workflows/.github/workflows/screenshots.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # v1
+    uses: firsttris/workflows/.github/workflows/screenshots.yml@e3bd4641b5a30e09cf9551d6bdf49f4521252718 # main
     with:
       lockfile: bun.lock
       bun: true
@@ -26,5 +26,9 @@ jobs:
         docs/screenshot-*.png
         docs/social-preview.png
       commit-message: Screenshots erneuert
+    # Wie in bump.yml: das Ruleset auf main lehnt Pushes mit dem GITHUB_TOKEN ab, der Deploy Key
+    # steht auf seiner Bypass-Liste. Der Commit mit den Bildern startet dann die CI auf main.
+    secrets:
+      deploy-key: ${{ secrets.BUMP_DEPLOY_KEY }}
     permissions:
       contents: write
