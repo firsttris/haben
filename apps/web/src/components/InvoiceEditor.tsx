@@ -119,6 +119,8 @@ interface LineState {
   description: string;
   /** Mehrzeilige Beschreibung unter der Bezeichnung */
   detail: string;
+  /** Artikelnummer (BT-155), aus dem Artikel kopiert und änderbar */
+  itemNumber: string;
   quantity: string;
   unit: UnitLabel;
   unitPrice: string;
@@ -150,6 +152,7 @@ function toLineState(line: EditorLine): LineState {
     key: nextKey++,
     description: line.description,
     detail: line.detail ?? "",
+    itemNumber: line.itemNumber ?? "",
     quantity: formatQuantity(line.quantity),
     unit: line.unit,
     unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
@@ -164,6 +167,7 @@ const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
   key: nextKey++,
   description: "",
   detail: "",
+  itemNumber: "",
   quantity: "1",
   unit,
   unitPrice: "",
@@ -172,7 +176,14 @@ const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
   kind: null,
 });
 
-type ParsedLine = InvoiceLineInput & { detail: string; discount: Discount | null; kind: QuoteLineKind | null; valid: boolean; discountError: boolean };
+type ParsedLine = InvoiceLineInput & {
+  detail: string;
+  itemNumber: string;
+  discount: Discount | null;
+  kind: QuoteLineKind | null;
+  valid: boolean;
+  discountError: boolean;
+};
 
 function parseLine(line: LineState): ParsedLine {
   const quantity = parseQuantity(line.quantity);
@@ -181,6 +192,7 @@ function parseLine(line: LineState): ParsedLine {
   const parsed = {
     description: line.description.trim(),
     detail: line.detail.trim(),
+    itemNumber: line.itemNumber.trim(),
     quantity: quantity ?? 0,
     unit: line.unit,
     unitPrice: unitPrice ?? 0,
@@ -419,6 +431,8 @@ export function InvoiceEditor({
             description: article.description,
             // Ein Artikel ohne Text lässt einen schon eingegebenen Text der Position stehen
             detail: article.detail || line.detail,
+            // Die Position merkt sich die Nummer, nicht den Artikel (#388)
+            itemNumber: article.number,
             unit: article.unit as UnitLabel,
             unitPrice: articlePrice(article),
             taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
@@ -433,7 +447,15 @@ export function InvoiceEditor({
       await storeArticle({
         data: {
           id: null,
-          article: { description: p.description, detail: p.detail, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices },
+          article: {
+            number: p.itemNumber,
+            description: p.description,
+            detail: p.detail,
+            unit: p.unit,
+            unitPrice: p.unitPrice,
+            taxRate: p.taxRate,
+            priceIncludesTax: grossPrices,
+          },
         },
       });
       await router.invalidate();
@@ -448,6 +470,7 @@ export function InvoiceEditor({
       ...emptyLine(article.unit as UnitLabel, special ? 0 : (article.taxRate as 1900 | 700 | 0)),
       description: article.description,
       detail: article.detail,
+      itemNumber: article.number,
       unitPrice: articlePrice(article),
     };
     setLines((prev) => (prev.length === 1 && !prev[0]!.description.trim() && !prev[0]!.unitPrice.trim() ? [line] : [...prev, line]));
@@ -1048,6 +1071,7 @@ export function InvoiceEditor({
                 (a) =>
                   sameText(a.description, p.description) &&
                   sameText(a.detail, p.detail) &&
+                  a.number === p.itemNumber &&
                   a.unitPrice === p.unitPrice &&
                   a.unit === p.unit &&
                   a.priceIncludesTax === grossPrices,
@@ -1166,6 +1190,8 @@ export function InvoiceEditor({
                   </div>
                   <LineExtras
                     index={index}
+                    itemNumber={line.itemNumber}
+                    onItemNumber={(value) => updateLine(line.key, { itemNumber: value })}
                     discount={line.discount}
                     discountError={showError(line.key) && p.discountError}
                     onDiscount={(value) => updateLine(line.key, { discount: value })}

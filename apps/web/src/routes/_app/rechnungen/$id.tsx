@@ -87,6 +87,7 @@ function InvoicePage() {
             .map((line) => ({
               description: line.description,
               detail: line.detail,
+              itemNumber: line.itemNumber,
               quantity: line.quantity,
               unit: line.unit as UnitLabel,
               unitPrice: line.unitPrice,

@@ -38,7 +38,7 @@ export interface RecurringValues {
   taxTreatment: TaxTreatment;
   exemptionReason: string;
   priceMode: PriceMode;
-  lines: { description: string; detail: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
+  lines: { description: string; detail: string; itemNumber?: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
   intervalMonths: RecurringInterval;
   nextDate: string;
   endDate: string | null;
@@ -52,6 +52,8 @@ interface LineState {
   description: string;
   /** Mehrzeilige Beschreibung unter der Bezeichnung */
   detail: string;
+  /** Artikelnummer (BT-155), geht in jede Rechnung aus der Vorlage */
+  itemNumber: string;
   quantity: string;
   unit: UnitLabel;
   unitPrice: string;
@@ -101,6 +103,7 @@ export function RecurringForm({
       key: nextKey++,
       description: line.description,
       detail: line.detail,
+      itemNumber: line.itemNumber ?? "",
       quantity: formatQuantity(line.quantity),
       unit: line.unit,
       unitPrice: line.unitPrice ? formatDecimal(line.unitPrice) : "",
@@ -118,6 +121,7 @@ export function RecurringForm({
     return {
       description: line.description.trim(),
       detail: line.detail.trim(),
+      itemNumber: line.itemNumber.trim(),
       quantity: quantity ?? 0,
       unit: line.unit,
       unitPrice: unitPrice ?? 0,
@@ -399,6 +403,20 @@ export function RecurringForm({
               >
                 <Icon name="close" size={16} />
               </button>
+              <div className="line-extra">
+                <label>
+                  Art.-Nr.
+                  <input
+                    className="mono"
+                    value={line.itemNumber}
+                    maxLength={100}
+                    size={10}
+                    autoComplete="off"
+                    aria-label={`Artikelnummer Position ${index + 1} (optional)`}
+                    onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
+                  />
+                </label>
+              </div>
             </div>
           );
         })}
@@ -413,6 +431,7 @@ export function RecurringForm({
                   key: nextKey++,
                   description: "",
                   detail: "",
+                  itemNumber: "",
                   quantity: "1",
                   unit: prev.at(-1)?.unit ?? "Psch.",
                   unitPrice: "",
