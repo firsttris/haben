@@ -15,6 +15,8 @@ type Message = { tone: "ok" | "info" | "danger"; text: string };
 /** Was sich je Belegart unterscheidet: Download-Route und Wortlaut */
 const KINDS = {
   rechnung: {
+    heading: "Anhänge",
+    empty: "Keine zusätzlichen Anhänge.",
     href: "/api/rechnungsanhang",
     owner: "dieser Rechnung",
     examples: "Etwa Stundenzettel oder Leistungsnachweise",
@@ -22,17 +24,29 @@ const KINDS = {
     lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit der Rechnung gesperrt; PDF und E-Rechnung bleiben unverändert.",
   },
   angebot: {
+    heading: "Anhänge",
+    empty: "Keine zusätzlichen Anhänge.",
     href: "/api/angebotsanhang",
     owner: "diesem Angebot",
     examples: "Etwa AGB, Widerrufsbelehrung oder eine Leistungsbeschreibung",
     locked: "Mit dem Angebot festgeschrieben.",
     lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit dem Angebot gesperrt; das PDF des Angebots bleibt unverändert.",
   },
+  standard: {
+    heading: "Standardanhänge für Angebote",
+    empty: "Keine Standardanhänge.",
+    href: "/api/standardanhang",
+    owner: "den Standardanhängen",
+    examples: "Etwa AGB oder Widerrufsbelehrung",
+    locked: "",
+    lockHint:
+      "Jedes neue Angebot bekommt sie als Anhänge; im Entwurf lassen sie sich dort entfernen, beim Versand sind sie vorausgewählt. Bestehende Angebote bleiben, wie sie sind.",
+  },
 } as const;
 
 /**
- * Zusätzliche PDF-Anhänge einer Rechnung (#272) oder eines Angebots (#415). Im Entwurf hinzufügen und entfernen, nach
- * dem Festschreiben nur noch ansehen und herunterladen. Die Dateiauswahl lädt sofort hoch, ein eigenes Formular gibt
+ * Zusätzliche PDF-Anhänge einer Rechnung (#272) oder eines Angebots (#415), dazu die Standardanhänge für Angebote in
+ * den Einstellungen. Im Entwurf hinzufügen und entfernen, nach dem Festschreiben nur noch ansehen und herunterladen. Die Dateiauswahl lädt sofort hoch, ein eigenes Formular gibt
  * es nicht: Im Editor steht der Abschnitt im Formular des Belegs.
  */
 export function InvoiceAttachments({
@@ -42,7 +56,8 @@ export function InvoiceAttachments({
   editable,
 }: {
   kind?: AttachmentKind;
-  ownerId: string;
+  /** Rechnung oder Angebot; leer bei den Standardanhängen */
+  ownerId?: string;
   attachments: AttachmentRow[];
   editable: boolean;
 }) {
@@ -75,7 +90,7 @@ export function InvoiceAttachments({
     void work(async () => {
       const form = new FormData();
       form.append("kind", kind);
-      form.append("ownerId", ownerId);
+      if (ownerId) form.append("ownerId", ownerId);
       for (const file of files) form.append("files", file);
       const results = await upload({ data: form });
       return results.map((r) =>
@@ -98,7 +113,7 @@ export function InvoiceAttachments({
 
   return (
     <section className="card" aria-labelledby={headingId}>
-      <h2 id={headingId}>Anhänge</h2>
+      <h2 id={headingId}>{text.heading}</h2>
       {attachments.length > 0 ? (
         <ul className="stack" style={{ gap: 8, listStyle: "none", margin: 0, padding: 0 }} aria-label="Zusätzliche Anhänge">
           {attachments.map((row) => (
@@ -125,13 +140,13 @@ export function InvoiceAttachments({
         </ul>
       ) : (
         <p className="small muted" style={{ margin: 0 }}>
-          Keine zusätzlichen Anhänge.
+          {text.empty}
         </p>
       )}
       {editable ? (
         <>
           <p id={hintId} className="small muted" style={{ margin: 0 }}>
-            {text.examples}: nur PDF, bis 20 MB je Datei. Beim Versand per E-Mail wählst du, welche mitgehen. {text.lockHint}
+            {text.examples}: nur PDF, bis 20 MB je Datei.{kind === "standard" ? "" : " Beim Versand per E-Mail wählst du, welche mitgehen."} {text.lockHint}
           </p>
           <div className="actions">
             <button type="button" className="btn" onClick={() => fileInput.current?.click()} disabled={busy} aria-describedby={hintId}>

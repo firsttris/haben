@@ -15,6 +15,12 @@ export {
 } from "./attachments.ts";
 export { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 export { addQuoteAttachment, listQuoteAttachments, loadQuoteAttachment, removeQuoteAttachment, type QuoteAttachment } from "./quote-attachments.ts";
+export {
+  addQuoteDefaultAttachment,
+  listQuoteDefaultAttachments,
+  loadQuoteDefaultAttachment,
+  removeQuoteDefaultAttachment,
+} from "./quote-default-attachments.ts";
 export { fetchBaseRate } from "./base-rate.ts";
 export { runDueBaseRate } from "./base-rate-job.ts";
 export { createDunning, dunningDraft, dunningDraftPdf, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";

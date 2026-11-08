@@ -6,6 +6,7 @@ import {
   ericMeldungen,
   FakeElsterClient,
   hatJahresPlugin,
+  parseWorkerCommand,
   type ElsterResult,
   type PostfachOptions,
   type PostfachResult,
@@ -19,7 +20,7 @@ import {
  * Datenart-Versionen, für die das ERiC kein Plugin hat (etwa Bilanz_6.10 mit ERiC 44).
  */
 const ericHome = process.env.ERIC_HOME?.trim() || ericHomeIn(resolve(process.env.ERIC_DIR || "data/eric"));
-const echt = ericHome ? new EricProcessClient({ ericHome }) : null;
+const echt = ericHome ? new EricProcessClient({ ericHome, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) }) : null;
 
 /** ERiC sperrt die Test-Hersteller-ID 74931 auch für die lokale Prüfung */
 const mitPruefId = (xml: string) =>
