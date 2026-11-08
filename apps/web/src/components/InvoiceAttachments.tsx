@@ -20,7 +20,8 @@ const KINDS = {
     empty: "Keine zusätzlichen Anhänge.",
     href: "/api/rechnungsanhang",
     owner: "dieser Rechnung",
-    removeHint: "Der Anhang verschwindet aus diesem Entwurf. Nutzt sonst nichts die Datei, wird sie aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.",
+    removeHint:
+      "Der Anhang verschwindet aus diesem Entwurf. Nutzt sonst nichts die Datei, wird sie aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.",
     examples: "Etwa Stundenzettel oder Leistungsnachweise",
     locked: "Mit der Rechnung festgeschrieben.",
     lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit der Rechnung gesperrt; PDF und E-Rechnung bleiben unverändert.",
@@ -30,7 +31,8 @@ const KINDS = {
     empty: "Keine zusätzlichen Anhänge.",
     href: "/api/angebotsanhang",
     owner: "diesem Angebot",
-    removeHint: "Der Anhang verschwindet aus diesem Entwurf. Nutzt sonst nichts die Datei, wird sie aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.",
+    removeHint:
+      "Der Anhang verschwindet aus diesem Entwurf. Nutzt sonst nichts die Datei, wird sie aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.",
     examples: "Etwa AGB, Widerrufsbelehrung oder eine Leistungsbeschreibung",
     locked: "Mit dem Angebot festgeschrieben.",
     lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit dem Angebot gesperrt; das PDF des Angebots bleibt unverändert.",

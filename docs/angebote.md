@@ -60,7 +60,7 @@ Mit einem Angebot gehen oft weitere Unterlagen mit: AGB, Widerrufsbelehrung, ein
 
 1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
 2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
-3. **Entfernen** nimmt einen Anhang wieder vom Angebot, solange es ein Entwurf ist.
+3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder vom Angebot, solange es ein Entwurf ist.
 
 Was mit fast jedem Angebot mitgeht, etwa AGB oder Widerrufsbelehrung, hinterlegst du einmal als [Standardanhang](einrichtung.md#standardanhänge-für-angebote): Jedes neue Angebot hat diese Dateien dann schon beim ersten Speichern unter **Anhänge**, beim Senden sind sie vorausgewählt, und im Entwurf nimmst du heraus, was für dieses Angebot nicht passt.
 
