@@ -1,6 +1,7 @@
 import { DUNNING_LEVELS, formatEuro, type DunningAmounts, type DunningLevel } from "@haben/core";
 import { accountHolder, formatDate, formatIban } from "./format.ts";
-import { addressLines, footerData, renderDunningPdf } from "./pdf.ts";
+import { TEXTS } from "./i18n.ts";
+import { addressLines, asDraft, draftFilename, footerData, renderDunningPdf, type DraftPdf } from "./pdf.ts";
 import { girocodeSvg } from "./qr.ts";
 import type { Buyer, Letterhead, Seller } from "./types.ts";
 
@@ -85,4 +86,10 @@ export function dunningPdfData(doc: DunningDocument) {
 
 export function buildDunningPdf(doc: DunningDocument): Uint8Array {
   return renderDunningPdf(dunningPdfData(doc), doc.date, doc);
+}
+
+/** Mahnung als Entwurf: „ENTWURF“ über jeder Seite, statt des GiroCodes ein Platzhalter; Mahnungen sind deutsch */
+export function buildDunningDraftPdf(doc: DunningDocument): DraftPdf {
+  const data = dunningPdfData(doc);
+  return { pdf: renderDunningPdf(asDraft(data, TEXTS.de), doc.date, doc), filename: draftFilename(data.title, doc.date, TEXTS.de) };
 }

@@ -190,6 +190,35 @@ export function renderInvoicePdf(doc: InvoiceDocument): Uint8Array {
   return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF", doc);
 }
 
+/** Entwurfs-PDF und sein Dateiname */
+export interface DraftPdf {
+  pdf: Uint8Array;
+  filename: string;
+}
+
+/**
+ * Daten der Vorlage als Entwurf (Issue #342): „ENTWURF“ über jeder Seite (templates/entwurf.typ), statt des GiroCodes
+ * ein Platzhalter gleicher Größe, damit niemand einen Entwurf bezahlt
+ */
+export function asDraft<T extends object>(data: T & { qr?: string | null }, t: Pick<Texts, "draft">) {
+  return { ...data, qr: null, draft: t.draft.mark, qrPlaceholder: data.qr ? t.draft.girocode : null };
+}
+
+/** Dateiname eines Entwurfs, z. B. „Rechnung-Entwurf-2026-10-02.pdf“ oder „Invoice-Draft-2026-10-02.pdf“ */
+export function draftFilename(title: string, date: string, t: Pick<Texts, "draft">): string {
+  return `${title.replace(/\s+/g, "-")}-${t.draft.file}-${date}.pdf`;
+}
+
+/**
+ * Rechnungsentwurf als PDF/A-3b aus derselben Vorlage wie die festgeschriebene Rechnung, ohne eingebettetes XML;
+ * statt der Nummer steht „ENTWURF“ im Kopf
+ */
+export function renderInvoiceDraftPdf(doc: Omit<InvoiceDocument, "number">): DraftPdf {
+  const t = texts(doc.language, doc.currency);
+  const data = pdfData({ ...doc, number: t.draft.mark });
+  return { pdf: compilePdf(TEMPLATE, asDraft(data, t), doc.issueDate, "Entwurfs-PDF", doc), filename: draftFilename(data.title, doc.issueDate, t) };
+}
+
 /** Angebot als PDF/A-3b; die Daten kommen fertig formatiert aus quotePdfData */
 export function renderQuotePdfData(data: object, date: string, letterhead: Letterhead): Uint8Array {
   return compilePdf(TEMPLATE, data, date, "Angebots-PDF", letterhead);

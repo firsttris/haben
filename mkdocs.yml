@@ -117,6 +117,12 @@ markdown_extensions:
   # Änderungsdatum aus git unter jeder Seite (scripts/doku-aenderungsdatum, über requirements-docs.txt)
   - haben_doku_aenderungsdatum
   - admonition
+  # Hinweise im Stil von GitHub (> [!NOTE]) als Kasten, auf GitHub wie auf der Website
+  # (https://zensical.org/docs/authoring/admonitions/#github-callouts); ohne das stand „[!NOTE]“ als Text im Zitat
+  - pymdownx.quotes:
+      callouts: true
+  # Deutsche Titel der Kästen statt „Note“, „Important“ (scripts/doku-hinweise, über requirements-docs.txt)
+  - haben_doku_hinweise
   - attr_list
   - md_in_html
   - tables

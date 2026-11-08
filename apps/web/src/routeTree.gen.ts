@@ -100,6 +100,8 @@ import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app
 import { Route as AppUmsatzsteuerZmQuartalRouteImport } from './routes/_app/umsatzsteuer/zm.$quartal'
 import { Route as ApiArchivAuftragsdateiIdRouteImport } from './routes/api/archiv/auftragsdatei.$id'
 import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art.$id'
+import { Route as ApiEntwurfAngebotIdRouteImport } from './routes/api/entwurf/angebot.$id'
+import { Route as ApiEntwurfRechnungIdRouteImport } from './routes/api/entwurf/rechnung.$id'
 import { Route as ApiLohnAbrechnungIdRouteImport } from './routes/api/lohn/abrechnung.$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
 import { Route as ApiSteuerbescheinigungIdNrRouteImport } from './routes/api/steuerbescheinigung/$id.$nr'
@@ -570,6 +572,16 @@ const ApiDokumentArtIdRoute = ApiDokumentArtIdRouteImport.update({
   path: '/api/dokument/$art/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEntwurfAngebotIdRoute = ApiEntwurfAngebotIdRouteImport.update({
+  id: '/api/entwurf/angebot/$id',
+  path: '/api/entwurf/angebot/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEntwurfRechnungIdRoute = ApiEntwurfRechnungIdRouteImport.update({
+  id: '/api/entwurf/rechnung/$id',
+  path: '/api/entwurf/rechnung/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLohnAbrechnungIdRoute = ApiLohnAbrechnungIdRouteImport.update({
   id: '/api/lohn/abrechnung/$id',
   path: '/api/lohn/abrechnung/$id',
@@ -687,6 +699,8 @@ export interface FileRoutesByFullPath {
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
+  '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
+  '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
   '/api/steuerbescheinigung/$id/$nr': typeof ApiSteuerbescheinigungIdNrRoute
@@ -784,6 +798,8 @@ export interface FileRoutesByTo {
   '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
+  '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
+  '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
   '/api/steuerbescheinigung/$id/$nr': typeof ApiSteuerbescheinigungIdNrRoute
@@ -883,6 +899,8 @@ export interface FileRoutesById {
   '/_app/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/archiv/auftragsdatei/$id': typeof ApiArchivAuftragsdateiIdRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
+  '/api/entwurf/angebot/$id': typeof ApiEntwurfAngebotIdRoute
+  '/api/entwurf/rechnung/$id': typeof ApiEntwurfRechnungIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
   '/api/steuerbescheinigung/$id/$nr': typeof ApiSteuerbescheinigungIdNrRoute
@@ -982,6 +1000,8 @@ export interface FileRouteTypes {
     | '/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
     | '/api/dokument/$art/$id'
+    | '/api/entwurf/angebot/$id'
+    | '/api/entwurf/rechnung/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
     | '/api/steuerbescheinigung/$id/$nr'
@@ -1079,6 +1099,8 @@ export interface FileRouteTypes {
     | '/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
     | '/api/dokument/$art/$id'
+    | '/api/entwurf/angebot/$id'
+    | '/api/entwurf/rechnung/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
     | '/api/steuerbescheinigung/$id/$nr'
@@ -1177,6 +1199,8 @@ export interface FileRouteTypes {
     | '/_app/umsatzsteuer/zm/$quartal'
     | '/api/archiv/auftragsdatei/$id'
     | '/api/dokument/$art/$id'
+    | '/api/entwurf/angebot/$id'
+    | '/api/entwurf/rechnung/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
     | '/api/steuerbescheinigung/$id/$nr'
@@ -1220,6 +1244,8 @@ export interface RootRouteChildren {
   ApiVastIdRoute: typeof ApiVastIdRoute
   ApiArchivAuftragsdateiIdRoute: typeof ApiArchivAuftragsdateiIdRoute
   ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
+  ApiEntwurfAngebotIdRoute: typeof ApiEntwurfAngebotIdRoute
+  ApiEntwurfRechnungIdRoute: typeof ApiEntwurfRechnungIdRoute
   ApiLohnAbrechnungIdRoute: typeof ApiLohnAbrechnungIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
   ApiSteuerbescheinigungIdNrRoute: typeof ApiSteuerbescheinigungIdNrRoute
@@ -1866,6 +1892,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDokumentArtIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/entwurf/angebot/$id': {
+      id: '/api/entwurf/angebot/$id'
+      path: '/api/entwurf/angebot/$id'
+      fullPath: '/api/entwurf/angebot/$id'
+      preLoaderRoute: typeof ApiEntwurfAngebotIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/entwurf/rechnung/$id': {
+      id: '/api/entwurf/rechnung/$id'
+      path: '/api/entwurf/rechnung/$id'
+      fullPath: '/api/entwurf/rechnung/$id'
+      preLoaderRoute: typeof ApiEntwurfRechnungIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/lohn/abrechnung/$id': {
       id: '/api/lohn/abrechnung/$id'
       path: '/api/lohn/abrechnung/$id'
@@ -2063,6 +2103,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVastIdRoute: ApiVastIdRoute,
   ApiArchivAuftragsdateiIdRoute: ApiArchivAuftragsdateiIdRoute,
   ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
+  ApiEntwurfAngebotIdRoute: ApiEntwurfAngebotIdRoute,
+  ApiEntwurfRechnungIdRoute: ApiEntwurfRechnungIdRoute,
   ApiLohnAbrechnungIdRoute: ApiLohnAbrechnungIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
   ApiSteuerbescheinigungIdNrRoute: ApiSteuerbescheinigungIdNrRoute,

@@ -1,6 +1,7 @@
 import type { LstbWerte } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { buildLstbAusdruckPdf, lstbAusdruckPdfData, type LstbAusdruckDocument } from "./lohnsteuerbescheinigung.ts";
+import { draftLayers } from "./test-pdf.ts";
 
 /** Ausdruck nach dem amtlichen Muster 2026 (BMF-Schreiben vom 29.8.2025): Zeilen, Kopf, Merkmale, Entwurf */
 
@@ -118,5 +119,10 @@ describe("lstbAusdruckPdfData", () => {
         .toString("latin1")
         .slice(0, 5),
     ).toBe("%PDF-");
+  });
+
+  it("der Entwurf trägt den Vermerk über dem Inhalt, der übermittelte Ausdruck keinen", async () => {
+    expect((await draftLayers(buildLstbAusdruckPdf({ ...doc, uebermittlung: null }))).every((l) => l.marked && l.overContent)).toBe(true);
+    expect((await draftLayers(buildLstbAusdruckPdf(doc))).some((l) => l.marked)).toBe(false);
   });
 });

@@ -14,7 +14,8 @@ import { useState, type FormEvent } from "react";
 import { formatDate } from "../../../../lib/format.ts";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
-import { createDunningFn, getDunningDraft } from "../../../../server/functions/dunning.ts";
+import { saveBase64File } from "../../../../lib/download.ts";
+import { createDunningFn, dunningDraftPdfFn, getDunningDraft } from "../../../../server/functions/dunning.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
   loader: ({ params }) => getDunningDraft({ data: params.id }),
@@ -29,6 +30,7 @@ function NewDunningPage() {
   const draft = Route.useLoaderData();
   const navigate = useNavigate();
   const create = useServerFn(createDunningFn);
+  const draftPdf = useServerFn(dunningDraftPdfFn);
   const [level, setLevel] = useState<DunningLevel>(draft.level);
   const [dueDate, setDueDate] = useState(draft.dueDate);
   const [fee, setFee] = useState(draft.fee ? formatDecimal(draft.fee) : "");
@@ -56,13 +58,19 @@ function NewDunningPage() {
     setClosing(draft.texts[next].closing);
   }
 
+  const input = () => ({ invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing });
+
+  // Prüfausdruck mit dem Vermerk ENTWURF; gespeichert wird nichts, die Stufe bleibt frei
+  function onDraftPdf() {
+    if (!valid) return;
+    void run(async () => saveBase64File(await draftPdf({ data: input() }), "application/pdf"));
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!valid) return;
     void run(async () => {
-      const result = await create({
-        data: { invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing },
-      });
+      const result = await create({ data: input() });
       window.open(`/api/mahnung/${result.id}`, "_blank", "noopener");
       await navigate({ to: "/rechnungen/$id", params: { id: draft.invoice.id } });
     });
@@ -175,6 +183,9 @@ function NewDunningPage() {
             du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
           </p>
           <div className="actions">
+            <button type="button" className="btn" disabled={busy || !valid} onClick={onDraftPdf}>
+              Entwurf als PDF
+            </button>
             <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
               {DUNNING_LEVELS[level].label} erstellen
             </button>

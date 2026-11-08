@@ -773,7 +773,7 @@ export function buyerFrom(contact: Contact): Buyer {
   };
 }
 
-function documentFor(
+export function documentFor(
   invoice: Invoice,
   lines: InvoiceLine[],
   totals: InvoiceTotals,
@@ -849,7 +849,7 @@ export function invoiceDiscountOf(invoice: { discountPercent: number | null; dis
 const deductionIds = (lines: InvoiceLine[]) => [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
 
 /** Nummer und Datum der Abschlagsrechnungen, die eine Schlussrechnung abzieht, in Reihenfolge der Positionen */
-async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
+export async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
   const ids = deductionIds(lines);
   if (ids.length === 0) return [];
   const rows = await q
