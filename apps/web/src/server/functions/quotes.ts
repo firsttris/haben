@@ -2,7 +2,7 @@ import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { editorContext } from "../modules/stammdaten/index.ts";
-import { abschlagFromPlan, mailsForQuote, quotePlanOverview, quotesSentByMail } from "../modules/rechnungen/index.ts";
+import { abschlagFromPlan, listQuoteAttachments, mailsForQuote, quotePlanOverview, quotesSentByMail } from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
   copyQuote,
@@ -48,6 +48,7 @@ export const getQuoteDetail = createServerFn({ method: "GET" })
       issues: draft ? await quoteIssues(data) : [],
       mails: draft ? [] : await mailsForQuote(data),
       plan: draft ? null : await quotePlanOverview(data, today()),
+      attachments: (await listQuoteAttachments(data)).map(({ id, filename, size }) => ({ id, filename, size })),
       ...(await editorContext("angebot")),
     };
   });

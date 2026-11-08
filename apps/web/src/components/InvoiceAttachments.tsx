@@ -2,8 +2,8 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useRef, useState } from "react";
 import { errorMessage, formatSize } from "../lib/format.ts";
+import { removeInvoiceAttachmentFn, uploadInvoiceAttachments, type AttachmentKind } from "../server/functions/invoice-attachments.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
-import { removeInvoiceAttachmentFn, uploadInvoiceAttachments } from "../server/functions/invoice-attachments.ts";
 
 export interface AttachmentRow {
   id: string;
@@ -13,12 +13,41 @@ export interface AttachmentRow {
 
 type Message = { tone: "ok" | "info" | "danger"; text: string };
 
+/** Was sich je Belegart unterscheidet: Download-Route und Wortlaut */
+const KINDS = {
+  rechnung: {
+    href: "/api/rechnungsanhang",
+    owner: "dieser Rechnung",
+    examples: "Etwa Stundenzettel oder Leistungsnachweise",
+    locked: "Mit der Rechnung festgeschrieben.",
+    lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit der Rechnung gesperrt; PDF und E-Rechnung bleiben unverändert.",
+  },
+  angebot: {
+    href: "/api/angebotsanhang",
+    owner: "diesem Angebot",
+    examples: "Etwa AGB, Widerrufsbelehrung oder eine Leistungsbeschreibung",
+    locked: "Mit dem Angebot festgeschrieben.",
+    lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit dem Angebot gesperrt; das PDF des Angebots bleibt unverändert.",
+  },
+} as const;
+
 /**
- * Zusätzliche PDF-Anhänge einer Rechnung (#272). Im Entwurf hinzufügen und entfernen, nach dem Festschreiben nur noch
- * ansehen und herunterladen. Die Dateiauswahl lädt sofort hoch, ein eigenes Formular gibt es nicht: Im Editor steht
- * der Abschnitt im Formular der Rechnung.
+ * Zusätzliche PDF-Anhänge einer Rechnung (#272) oder eines Angebots (#415). Im Entwurf hinzufügen und entfernen, nach
+ * dem Festschreiben nur noch ansehen und herunterladen. Die Dateiauswahl lädt sofort hoch, ein eigenes Formular gibt
+ * es nicht: Im Editor steht der Abschnitt im Formular des Belegs.
  */
-export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoiceId: string; attachments: AttachmentRow[]; editable: boolean }) {
+export function InvoiceAttachments({
+  kind = "rechnung",
+  ownerId,
+  attachments,
+  editable,
+}: {
+  kind?: AttachmentKind;
+  ownerId: string;
+  attachments: AttachmentRow[];
+  editable: boolean;
+}) {
+  const text = KINDS[kind];
   const router = useRouter();
   const upload = useServerFn(uploadInvoiceAttachments);
   const remove = useServerFn(removeInvoiceAttachmentFn);
@@ -47,14 +76,15 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
     if (files.length === 0) return;
     void work(async () => {
       const form = new FormData();
-      form.append("invoiceId", invoiceId);
+      form.append("kind", kind);
+      form.append("ownerId", ownerId);
       for (const file of files) form.append("files", file);
       const results = await upload({ data: form });
       return results.map((r) =>
         r.error
           ? { tone: "danger" as const, text: r.error }
           : r.duplicate
-            ? { tone: "info" as const, text: `${r.filename}: hängt schon an dieser Rechnung.` }
+            ? { tone: "info" as const, text: `${r.filename}: hängt schon an ${text.owner}.` }
             : { tone: "ok" as const, text: `${r.filename}: angehängt.` },
       );
     });
@@ -62,7 +92,7 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
 
   const onRemove = (row: AttachmentRow) =>
     void work(async () => {
-      await remove({ data: { invoiceId, id: row.id } });
+      await remove({ data: { kind, ownerId, id: row.id } });
       return [{ tone: "ok", text: `${row.filename}: entfernt.` }];
     });
 
@@ -87,12 +117,12 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
         <ul className="stack" style={{ gap: 8, listStyle: "none", margin: 0, padding: 0 }} aria-label="Zusätzliche Anhänge">
           {attachments.map((row) => (
             <li key={row.id} className="history-row">
-              <a href={`/api/rechnungsanhang/${row.id}`} target="_blank" rel="noreferrer" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+              <a href={`${text.href}/${row.id}`} target="_blank" rel="noreferrer" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                 {row.filename}
               </a>
               <span className="small muted">
                 {formatSize(row.size)}{" "}
-                <a className="link-button" href={`/api/rechnungsanhang/${row.id}?download`} aria-label={`${row.filename} herunterladen`}>
+                <a className="link-button" href={`${text.href}/${row.id}?download`} aria-label={`${row.filename} herunterladen`}>
                   Herunterladen
                 </a>
                 {editable && (
@@ -115,8 +145,7 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
       {editable ? (
         <>
           <p id={hintId} className="small muted" style={{ margin: 0 }}>
-            Etwa Stundenzettel oder Leistungsnachweise: nur PDF, bis 20 MB je Datei. Beim Versand per E-Mail wählst du, welche mitgehen. Mit dem Festschreiben
-            werden die Anhänge zusammen mit der Rechnung gesperrt; PDF und E-Rechnung bleiben unverändert.
+            {text.examples}: nur PDF, bis 20 MB je Datei. Beim Versand per E-Mail wählst du, welche mitgehen. {text.lockHint}
           </p>
           <div className="actions">
             <button type="button" className="btn" onClick={() => fileInput.current?.click()} disabled={busy} aria-describedby={hintId}>
@@ -137,7 +166,7 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
         </>
       ) : (
         <p className="small muted" style={{ margin: 0 }}>
-          Mit der Rechnung festgeschrieben.
+          {text.locked}
         </p>
       )}
       {messages.length > 0 && (

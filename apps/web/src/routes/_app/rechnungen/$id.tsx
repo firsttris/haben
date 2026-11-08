@@ -116,7 +116,7 @@ function InvoicePage() {
         rateInfo={
           invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null
         }
-        attachments={<InvoiceAttachments invoiceId={invoice.id} attachments={data.attachments} editable />}
+        attachments={<InvoiceAttachments ownerId={invoice.id} attachments={data.attachments} editable />}
         // Korrektur einer Schlussrechnung: Ihre Abzüge bleiben fest und außerhalb der Grundlage des Gesamtrabatts
         keptDeductions={
           invoice.kind === "rechnung"
@@ -341,7 +341,7 @@ function FinalInvoice({ data }: { data: Detail }) {
             </p>
           </section>
 
-          <InvoiceAttachments invoiceId={invoice.id} attachments={data.attachments} editable={false} />
+          <InvoiceAttachments ownerId={invoice.id} attachments={data.attachments} editable={false} />
 
           <section className="card" aria-labelledby="mail-heading">
             <h2 id="mail-heading">Per E-Mail</h2>

@@ -3,6 +3,7 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Icon } from "../../../components/Icon.tsx";
+import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { QuoteChoices } from "../../../components/QuoteChoices.tsx";
 import { QuotePlan } from "../../../components/QuotePlan.tsx";
@@ -80,6 +81,7 @@ function QuotePage() {
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
         textBlocks={data.textBlocks}
+        attachments={<InvoiceAttachments kind="angebot" ownerId={quote.id} attachments={data.attachments} editable />}
       />
     );
   }
@@ -328,6 +330,8 @@ function FinalQuote({ data }: { data: Detail }) {
             </dl>
           </section>
 
+          <InvoiceAttachments kind="angebot" ownerId={quote.id} attachments={data.attachments} editable={false} />
+
           <section className="card" aria-labelledby="mail-heading">
             <h2 id="mail-heading">Per E-Mail</h2>
             {data.mails.length > 0 ? (
@@ -339,6 +343,11 @@ function FinalQuote({ data }: { data: Detail }) {
                       {formatDateTime(m.createdAt)}
                       {!m.ok && ` · ${m.error}`}
                     </span>
+                    {m.attachments.length > 0 && (
+                      <span className="small muted" style={{ display: "block" }}>
+                        Anhang: {m.attachments.join(", ")}
+                      </span>
+                    )}
                   </span>
                   <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
                 </div>

@@ -20,6 +20,7 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - **Positionsrabatt** und **Gesamtrabatt** in Prozent oder als Betrag wie bei der [Rechnung](rechnungen.md#rabatte); die Rechnung aus dem Angebot übernimmt beide
 - je Position die **Art**: zählt zur Summe, **optional** oder **Alternative** zur Position davor (Auswahl hinter der Bezeichnung, siehe unten)
 - optional ein **Zahlungsplan** (siehe unten)
+- optional **Anhänge**: weitere PDF-Dateien wie AGB oder eine Leistungsbeschreibung (siehe unten)
 
 **Vorschau** im Kopf zeigt das Angebot, von rechts über das Formular oder neben ihm angeheftet ([wie bei der Rechnung](rechnungen.md#vorschau)). Der Entwurf lässt sich beliebig speichern, ändern und löschen. **Entwurf als PDF** lädt ihn als PDF aus der Vorlage des festgeschriebenen Angebots, mit „ENTWURF“ über jeder Seite und statt der Nummer, ohne eine Nummer zu vergeben ([wie bei der Rechnung](rechnungen.md#entwurf-als-pdf)).
 
@@ -53,6 +54,18 @@ Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welche
 
 **Mehrere Steuersätze:** Jede Zahlung teilt sich anteilig je Steuersatz auf. Ein Prozentsatz gilt für jeden Satz gleich, ein fester Betrag im Verhältnis der Nettobeträge je Satz; den Rundungsrest trägt der größte Satz. Bei einem Angebot über 7.000 € zu 19 % und 3.000 € zu 7 % ergeben 30 % also 2.100 € und 900 €, ein fester Abschlag von 2.000 € 1.400 € und 600 €.
 
+### Anhänge
+
+Mit einem Angebot gehen oft weitere Unterlagen mit: AGB, Widerrufsbelehrung, eine Leistungsbeschreibung oder eine auftragsspezifische Vereinbarung. Solche PDF-Dateien hängst du im Entwurf an das Angebot, genau wie [an eine Rechnung](rechnungen.md#zusätzliche-anhänge); beim Versand per E-Mail wählst du, welche mitgehen.
+
+1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
+2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
+3. **Entfernen** nimmt einen Anhang wieder vom Angebot, solange es ein Entwurf ist.
+
+Es gelten dieselben Regeln wie bei Rechnungen: nur PDF-Dateien bis 20 MB, höchstens zehn je Angebot, den Typ erkennt Haben am Inhalt, dieselbe Datei hängt nur einmal am selben Angebot. Die Dateien liegen unter ihrem SHA-256 im Belegverzeichnis; hängt dieselbe Datei an mehreren Angeboten oder Rechnungen, liegt sie nur einmal dort.
+
+Mit dem Festschreiben sind die Anhänge zusammen mit dem Angebot gesperrt: Die Datenbank lehnt Hinzufügen, Ändern und Entfernen ab. Auf der Seite des festgeschriebenen Angebots stehen sie weiter unter **Anhänge** zum Ansehen und Herunterladen. Das PDF des Angebots bleibt, wie es ist; die Anhänge gehen nur als eigene Dateien in der E-Mail mit. In die Rechnung aus dem Angebot gehen sie nicht über.
+
 **Festschreiben** vergibt die Nummer und erzeugt das PDF:
 
 - Angebote haben einen eigenen Nummernkreis: ab Werk `AN-2026-001`, `AN-2026-002` und so weiter, je Jahr neu oder auf Wunsch durchlaufend. Das Format lässt sich ändern, siehe [Nummernformat](einrichtung.md#nummernformat).
@@ -62,15 +75,16 @@ Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welche
 
 Gebucht wird nichts: Ein Angebot ist kein Geschäftsvorfall.
 
-Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen (samt Art und Rabatt), Hinweis, Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Sprache, Gesamtrabatt und Zahlungsplan. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich; der Leistungszeitraum bleibt leer.
+Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen (samt Art und Rabatt), Hinweis, Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Sprache, Gesamtrabatt, Zahlungsplan und [Anhängen](#anhänge); im neuen Entwurf lassen sich die Anhänge wieder ändern. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich; der Leistungszeitraum bleibt leer.
 
 ## Per E-Mail senden
 
 **Angebot senden** schickt das PDF über deinen [E-Mail-Zugang](einrichtung.md):
 
 - Empfänger, Betreff und Text sind vorbelegt und lassen sich ändern. Betreff und Text kommen aus der Vorlage Angebot (siehe [Vorlagen](rechnungen.md#per-e-mail-versenden)).
+- Hat das Angebot [Anhänge](#anhänge), stehen sie unter **Zusätzliche Anhänge mitsenden**, alle angehakt. Was nicht mitgehen soll, hakst du ab; sie kommen nach dem PDF des Angebots in die E-Mail.
 - Auf Wunsch geht eine Blindkopie an dich.
-- Jeder Versand steht beim Angebot und in der Liste (✉).
+- Jeder Versand steht beim Angebot mit Empfänger und den Dateinamen der tatsächlich versandten Anhänge, in der Liste markiert ✉ versendete Angebote.
 
 Für Kunden mit Sprache Englisch sind Angebot und E-Mail englisch, siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch).
 
@@ -122,5 +136,5 @@ Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und 
 
 Angebote sind Handelsbriefe (§ 257 HGB, § 147 AO) und werden sechs Jahre aufbewahrt.
 
-- In der Datenbank sind sie nach dem Festschreiben gesperrt, mit Rabatten, Art der Positionen und Zahlungsplan. Ein Trigger lässt nur noch die Antwort des Kunden und den Verweis auf die Rechnung zu. Die Auswahl des Kunden steht in einer eigenen Tabelle mit Änderungsprotokoll und ist fest, sobald eine Rechnung zum Angebot festgeschrieben ist.
-- Im [Jahresarchiv](auswertungen.md#jahresexport) liegen sie unter `angebote/`: die PDFs plus `angebote.csv` mit Beträgen, Antwort, Rechnungsnummer und SHA-256.
+- In der Datenbank sind sie nach dem Festschreiben gesperrt, mit Rabatten, Art der Positionen, Zahlungsplan und Anhängen. Ein Trigger lässt nur noch die Antwort des Kunden und den Verweis auf die Rechnung zu. Die Auswahl des Kunden steht in einer eigenen Tabelle mit Änderungsprotokoll und ist fest, sobald eine Rechnung zum Angebot festgeschrieben ist.
+- Im [Jahresarchiv](auswertungen.md#jahresexport) liegen sie unter `angebote/`: die PDFs plus `angebote.csv` mit Beträgen, Antwort, Rechnungsnummer und SHA-256, die Anhänge unter `angebote/anhaenge/` mit `anhaenge.csv`.

@@ -481,6 +481,8 @@ Mit dem Festschreiben sind die Anhänge zusammen mit der Rechnung gesperrt: Die 
 
 PDF, XML und E-Rechnung bleiben, wie sie sind: Die Anhänge stecken weder im ZUGFeRD-PDF noch in der XRechnung (keine BG-24 „Rechnungsbegründende Unterlagen“), sie gehen nur als eigene Dateien in der E-Mail mit.
 
+Dieselben Anhänge gibt es auch am [Angebot](angebote.md#anhänge), etwa für AGB oder eine Leistungsbeschreibung.
+
 ## Ausbuchen
 
 Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschnitt **Ausbuchen**. Dort buchst du einen Rest aus, den du nicht mehr bekommst: **Forderungsausfall** (uneinbringlich, etwa bei Insolvenz) oder **Skonto gewährt**, jeweils mit Datum und Betrag (vorbelegt: der ganze offene Betrag). Haben mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG) und bucht

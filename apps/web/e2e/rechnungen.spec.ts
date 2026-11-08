@@ -528,6 +528,61 @@ test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim
   await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText(new RegExp(`Anhang: Rechnung-${number}\\.pdf(?!, )`));
 });
 
+test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand auswählen, beim Kopieren übernehmen (#415)", async () => {
+  await go("/angebote/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await page.getByLabel("Beschreibung Position 1").fill("Wartungsvertrag");
+  await page.getByLabel("Menge Position 1").fill("12");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("150,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+
+  const anhaenge = page.getByRole("region", { name: "Anhänge" });
+  const auswahl = page.getByLabel("PDF-Anhänge auswählen");
+  await auswahl.setInputFiles([
+    { name: "AGB.pdf", mimeType: "application/pdf", buffer: attachmentPdf("AGB") },
+    { name: "intern.pdf", mimeType: "application/pdf", buffer: attachmentPdf("Intern") },
+  ]);
+  await expect(anhaenge.getByText("AGB.pdf: angehängt.")).toBeVisible();
+  await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toBeVisible();
+  // Dieselbe Datei ein zweites Mal hängt nicht doppelt
+  await auswahl.setInputFiles([{ name: "AGB-Kopie.pdf", mimeType: "application/pdf", buffer: attachmentPdf("AGB") }]);
+  await expect(anhaenge.getByText("AGB-Kopie.pdf: hängt schon an diesem Angebot.")).toBeVisible();
+  await anhaenge.getByRole("button", { name: "intern.pdf entfernen" }).click();
+  await expect(anhaenge.getByText("intern.pdf: entfernt.")).toBeVisible();
+  await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Angebot ", "").trim();
+  await expect(anhaenge).toContainText("Mit dem Angebot festgeschrieben.");
+  await expect(anhaenge.getByRole("button", { name: /entfernen/ })).toHaveCount(0);
+  const download = await page.request.get((await anhaenge.getByRole("link", { name: "AGB.pdf herunterladen" }).getAttribute("href"))!);
+  expect(download.headers()["content-type"]).toBe("application/pdf");
+  expect((await download.body()).toString()).toContain("AGB");
+
+  // Der Zugang aus den Tests davor zeigt auf einen Port ohne Mailserver: der Versand scheitert, das Protokoll nennt die Dateien
+  const bereich = page.getByRole("region", { name: "Per E-Mail" });
+  await bereich.getByRole("button", { name: "Angebot senden" }).click();
+  const formular = bereich.getByRole("form", { name: "Angebot per E-Mail senden" });
+  await expect(formular.getByRole("group", { name: "Zusätzliche Anhänge mitsenden" }).getByRole("checkbox", { name: "AGB.pdf" })).toBeChecked();
+  await formular.getByLabel("An", { exact: true }).fill("einkauf@rheinpixel.example");
+  await formular.getByRole("button", { name: "Jetzt senden" }).click();
+  await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText(`Anhang: Angebot-${number}.pdf, AGB.pdf`);
+
+  // Kopieren legt einen Entwurf mit denselben Anhängen an, die sich dort wieder ändern lassen
+  const original = page.url();
+  await page.getByRole("button", { name: "Kopieren" }).click();
+  await page.waitForURL((url) => /angebote\/[0-9a-f-]{36}$/.test(url.pathname) && url.href !== original);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Anhänge" }).getByRole("button", { name: "AGB.pdf entfernen" })).toBeVisible();
+});
+
 test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async () => {
   await go("/rechnungen/neu");
   await page.getByRole("combobox", { name: /^Rechnungsart/ }).selectOption("abschlag");
