@@ -387,6 +387,29 @@ test("Eigene Fußzeile: Platzhalter, Prüfung und Übernahme aufs Blatt", async 
   await page.context().close();
 });
 
+test("Eine Fußzeile über 400 Zeichen meldet das verständlich auf Deutsch", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 1").fill(`{steuernummer} ${"x".repeat(380)}`);
+  await karte.getByLabel("Spalte 1").focus();
+  // Das maxLength des Felds wirkt nur beim Tippen: Die Platzhalter-Knöpfe kommen darüber hinweg
+  await karte.getByRole("button", { name: "{kontoinhaber}" }).click();
+  await karte.getByRole("button", { name: "{kontoinhaber}" }).click();
+  const speichern = karte.getByRole("button", { name: "Fußzeile speichern" });
+  if (await speichern.isEnabled()) await speichern.click();
+  const meldung = karte.locator(".banner-danger, [role=alert]").first();
+  try {
+    await expect(meldung).toBeVisible();
+    await expect(meldung).not.toContainText("Too big");
+    await expect(meldung).toContainText(/Zeichen/);
+  } finally {
+    await page.context().close();
+  }
+});
+
 test("Die Schrift wirkt sofort aufs Blatt", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await gestaltungOeffnen(page);
@@ -426,4 +449,22 @@ test("Briefpapier: hochladen, auf dem Blatt sehen, entfernen", async ({ browser 
   await karte.getByRole("button", { name: "Entfernen" }).click();
   await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
   await page.context().close();
+});
+
+test("Nach dem Verringern der Spalten fügt ein Platzhalter-Knopf in eine sichtbare Spalte ein", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByRole("button", { name: "4", exact: true }).click();
+  await karte.getByLabel("Spalte 4").click();
+  await karte.getByRole("button", { name: "2", exact: true }).click();
+
+  await karte.getByRole("button", { name: "{email}" }).click();
+
+  const sichtbar = `${await karte.getByLabel("Spalte 1").inputValue()}\n${await karte.getByLabel("Spalte 2").inputValue()}`;
+  await page.context().close();
+  // Die Vorgabe in Spalte 1 hat schon ein {email}; der Klick muss ein zweites bringen
+  expect((sichtbar.match(/\{email\}/g) ?? []).length).toBe(2);
 });
