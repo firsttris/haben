@@ -249,8 +249,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       // Zinsen und Gebühren als Schuldzinsen, wenn sie abfließen; Auszahlung und Tilgung sind erfolgsneutral
       payments.push({ kind: "darlehen", date: a.date, amount: a.amount, zweck: a.loanPurpose, teil: a.loanPart, group });
     } else if (a.kind === "kategorie" && a.directCategory && a.directTaxRate !== null) {
-      // Direkt auf eine Kategorie (#324): Einnahme netto und Umsatzsteuer, Ausgabe brutto, am Tag der Zahlung
-      payments.push({ kind: "kategorie", date: a.date, amount: a.amount, kategorie: a.directCategory, steuersatz: a.directTaxRate, group });
+      // Direkt auf eine Kategorie (#324): Einnahme netto und Umsatzsteuer, Ausgabe brutto, am Tag der Zahlung. Je Teil mit
+      // seiner Gegenzeile verrechnet, nicht je Umsatz: Journal und Voranmeldung runden die Steuer je Teil
+      payments.push({
+        kind: "kategorie",
+        date: a.date,
+        amount: a.amount,
+        kategorie: a.directCategory,
+        steuersatz: a.directTaxRate,
+        group: a.reversesId ?? a.id,
+      });
     } else if (isLohnZahlung(a.kind)) {
       // Lohn, Lohnsteuer und Beiträge: Ausgaben für Personal, wenn sie von der Bank abfließen (§ 11 Abs. 2 Satz 1 EStG)
       payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });
