@@ -119,6 +119,8 @@ curl -s -X POST "$HABEN/rechnungen" -H "Authorization: Bearer $TOKEN" -H "Conten
 }'
 ```
 
+Je Position nimmt die API optional `detail` (Text unter der Bezeichnung, BT-154) und `itemNumber` (Artikelnummer, BT-155, bis 100 Zeichen) an.
+
 Die Antwort enthält Summen, Positionen und `url`, den Link auf den Entwurf in Haben:
 
 ```json
@@ -133,7 +135,7 @@ Die Antwort enthält Summen, Positionen und `url`, den Link auf den Entwurf in H
   "externalSource": "etsy",
   "externalId": "3141592653",
   "url": "https://haben.example.de/rechnungen/5f3e…",
-  "lines": [{ "position": 1, "description": "Keramikbecher handgemacht", "quantity": 2000, "unit": "Stk.", "unitPrice": 2400, "taxRate": 1900, "net": 4800, "detail": "" }]
+  "lines": [{ "position": 1, "description": "Keramikbecher handgemacht", "quantity": 2000, "unit": "Stk.", "unitPrice": 2400, "taxRate": 1900, "net": 4800, "detail": "", "itemNumber": "" }]
 }
 ```
 
