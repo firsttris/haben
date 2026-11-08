@@ -15,12 +15,19 @@ export type DocumentPreview = {
   triggerRef: RefObject<HTMLButtonElement | null>;
   canPin: boolean;
   pinned: boolean;
+  /** Die angeheftete Vorschau fährt gerade; nur auf Zuruf, beim Laden und beim Ändern der Fenstergröße steht sie einfach da */
+  paneMotion: PaneMotion;
+  paneSettled: () => void;
   overlayOpen: boolean;
+  /** Zählt jedes Öffnen: Wer klickt, während die Leiste noch hinausfährt, bekommt eine neue, statt ins Leere zu klicken */
+  overlayRun: number;
   openOverlay: () => void;
   closeOverlay: () => void;
   pin: () => void;
   unpin: () => void;
 };
+
+type PaneMotion = "in" | "out" | null;
 
 export function useDocumentPreview(): DocumentPreview {
   const layoutRef = useRef<HTMLDivElement>(null);
@@ -29,6 +36,8 @@ export function useDocumentPreview(): DocumentPreview {
   const [width, setWidth] = useState<number | null>(null);
   const [stored, setStored] = useState<PreviewMode | null>(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [overlayRun, setOverlayRun] = useState(0);
+  const [paneMotion, setPaneMotion] = useState<PaneMotion>(null);
 
   // Erst im Browser: localStorage und die Breite gibt es auf dem Server nicht
   useEffect(() => setStored(readPreviewMode(browserStorage())), []);
@@ -42,6 +51,13 @@ export function useDocumentPreview(): DocumentPreview {
 
   const { canPin, pinned } = previewLayout(stored, width);
 
+  // Falls das Ende der Fahrt nie gemeldet wird (Tab im Hintergrund), steht sonst dauerhaft eine leere Spalte da
+  useEffect(() => {
+    if (!paneMotion) return;
+    const settle = window.setTimeout(() => setPaneMotion(null), 500);
+    return () => window.clearTimeout(settle);
+  }, [paneMotion]);
+
   const choose = useCallback((mode: PreviewMode) => {
     setStored(mode);
     writePreviewMode(browserStorage(), mode);
@@ -52,9 +68,13 @@ export function useDocumentPreview(): DocumentPreview {
     triggerRef,
     canPin,
     pinned,
+    paneMotion,
+    paneSettled: () => setPaneMotion(null),
     overlayOpen,
+    overlayRun,
     openOverlay: () => {
       returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : triggerRef.current;
+      setOverlayRun((run) => run + 1);
       setOverlayOpen(true);
     },
     closeOverlay: () => {
@@ -62,8 +82,12 @@ export function useDocumentPreview(): DocumentPreview {
       // Zurück auf den Auslöser, ohne dass die Seite dorthin springt (er steht im festen Kopf oder in der Vorschau)
       (returnFocus.current?.isConnected ? returnFocus.current : triggerRef.current)?.focus({ preventScroll: true });
     },
-    pin: () => choose("angeheftet"),
+    pin: () => {
+      setPaneMotion("in");
+      choose("angeheftet");
+    },
     unpin: () => {
+      if (pinned && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) setPaneMotion("out");
       choose("ueberblendung");
       triggerRef.current?.focus({ preventScroll: true });
     },
@@ -84,11 +108,22 @@ export function PreviewLayout({
   sheet: ReactNode;
   children: ReactNode;
 }) {
+  // Hinausfahrend bleibt die Spalte bis zum Schluss: So springt das Formular einmal auf volle Breite, statt mitzufließen
+  const leaving = preview.paneMotion === "out";
+  const showPane = preview.pinned || leaving;
   return (
-    <div ref={preview.layoutRef} className="preview-layout" data-pinned={preview.pinned || undefined}>
+    <div ref={preview.layoutRef} className="preview-layout" data-pinned={showPane || undefined}>
       {children}
-      {preview.pinned && (
-        <section className="preview-pane" aria-label={label}>
+      {showPane && (
+        <section
+          className="preview-pane"
+          aria-label={label}
+          data-motion={preview.paneMotion ?? undefined}
+          inert={leaving}
+          onTransitionEnd={(e) => {
+            if (e.target === e.currentTarget) preview.paneSettled();
+          }}
+        >
           <div className="preview-pane-head">
             <span className="small muted">{caption}</span>
             <div className="preview-pane-actions">
@@ -106,7 +141,7 @@ export function PreviewLayout({
         </section>
       )}
       {preview.overlayOpen && (
-        <PreviewDialog label={label} caption={caption} onClose={preview.closeOverlay}>
+        <PreviewDialog key={preview.overlayRun} label={label} caption={caption} onClose={preview.closeOverlay}>
           {sheet}
         </PreviewDialog>
       )}
@@ -121,10 +156,15 @@ export function PreviewLayout({
 function PreviewDialog({ label, caption, onClose, children }: { label: string; caption: ReactNode; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const replaced = useRef(false);
 
   useEffect(() => {
+    replaced.current = false;
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
+    return () => {
+      replaced.current = true;
+    };
   }, []);
 
   const closed = () => {
@@ -132,7 +172,7 @@ function PreviewDialog({ label, caption, onClose, children }: { label: string; c
     if (!dialog || parseFloat(getComputedStyle(dialog).transitionDuration) === 0) return onClose();
     let done = false;
     const finish = () => {
-      if (done) return;
+      if (done || replaced.current) return;
       done = true;
       onClose();
     };

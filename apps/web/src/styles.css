@@ -412,10 +412,15 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
 /* Vorschau der Belegeditoren (#357): angeheftet als zweite Spalte, sonst hat das Formular die volle Breite. Die
    Mindestbreiten sind FORM_MIN_WIDTH und PREVIEW_MIN_WIDTH aus lib/vorschau.ts; darunter bietet der Editor kein Anheften an */
-.preview-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+/* clip statt hidden: kein Scrollbereich, die Vorschau bleibt sticky; die Fahrt von rechts zieht die Seite nicht in die Breite */
+.preview-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; overflow-x: clip; }
 .preview-layout[data-pinned] { grid-template-columns: minmax(640px, 3fr) minmax(420px, 2fr); }
 /* Steht unter dem festen Seitenkopf und scrollt in sich, wenn das Blatt höher ist als das Fenster */
 .preview-pane { position: sticky; top: calc(var(--below-head) + 16px); max-height: var(--viewer-height); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Nur die Spalte fährt (transform); das Formular wechselt seine Breite einmal, statt bei jedem Bild neu umzubrechen */
+.preview-pane[data-motion="in"] { transition: transform var(--sheet-in); }
+@starting-style { .preview-pane[data-motion="in"] { transform: translateX(100%); } }
+.preview-pane[data-motion="out"] { transform: translateX(100%); transition: transform var(--sheet-out); }
 .preview-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .preview-pane-actions { display: flex; gap: 8px; }
 /* Das Blatt liegt in einer Karte und scrollt in ihr, statt am unteren Rand der Spalte abgeschnitten zu wirken */
@@ -424,7 +429,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
    rechts herein, am Handy von unten. Hinein sanft anlaufend und weich auslaufend (Material „standard“), hinaus kürzer und
    beschleunigend (Material „accelerate“); der Übergang gilt jeweils für den Zustand, in den es geht. Ohne
    Bewegung (prefers-reduced-motion) schaltet die Regel weiter unten die Übergänge ab */
-:root { --sheet-in: 450ms cubic-bezier(0.4, 0, 0.2, 1); --sheet-out: 300ms cubic-bezier(0.4, 0, 1, 1); }
+:root { --sheet-in: 350ms cubic-bezier(0.4, 0, 0.2, 1); --sheet-out: 250ms cubic-bezier(0.4, 0, 1, 1); }
 .preview-dialog { --sheet-hidden: translateX(100%); width: min(960px, calc(100vw - 96px)); max-width: none; height: 100dvh; max-height: none; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1px solid var(--line); border-radius: 12px 0 0 12px; background: var(--ground); color: var(--ink); box-shadow: -12px 0 32px rgb(0 0 0 / 0.2); flex-direction: column; overflow: hidden; transform: var(--sheet-hidden); transition: transform var(--sheet-out), overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
 .preview-dialog[open] { display: flex; transform: none; transition: transform var(--sheet-in), overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
 @starting-style { .preview-dialog[open] { transform: var(--sheet-hidden); } }

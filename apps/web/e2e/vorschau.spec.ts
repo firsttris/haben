@@ -133,10 +133,13 @@ test("Laptop: per Tastatur anheften, steht beim Scrollen fest, bleibt nach Neula
   expect(await seitenansicht(page).evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(LAPTOP.height);
   const body = seitenansicht(page).locator(".preview-pane-body");
   expect(await body.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
-  expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  // Eine einzelne Seite passt am Laptop gerade in die Karte; im niedrigeren Fenster muss sie in sich scrollen
+  await page.setViewportSize({ width: LAPTOP.width, height: 560 });
+  await expect.poll(() => body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   // Scrollt es, ist der Bereich per Tastatur erreichbar (WCAG 2.1.1)
   await expect(body).toHaveAttribute("tabindex", "0");
   expect(await axe(page), "angeheftet").toEqual([]);
+  await page.setViewportSize(LAPTOP);
 
   // Je Gerät gemerkt
   await page.reload();
@@ -159,6 +162,59 @@ test("Laptop: per Tastatur anheften, steht beim Scrollen fest, bleibt nach Neula
   await page.waitForLoadState("networkidle");
   await expect(pfeil(page)).toBeVisible();
   await expect(seitenansicht(page)).toHaveCount(0);
+  await page.context().close();
+});
+
+/** Zählt an <html>, wie oft die angeheftete Vorschau zu fahren beginnt; ab dem nächsten Laden */
+const fahrtenZaehlen = (p: Page) =>
+  p.addInitScript(() => {
+    document.addEventListener(
+      "transitionrun",
+      (event) => {
+        if (!(event.target instanceof Element) || !event.target.matches(".preview-pane")) return;
+        const html = document.documentElement;
+        html.dataset.fahrten = String(Number(html.dataset.fahrten ?? 0) + 1);
+      },
+      true,
+    );
+  });
+const fahrten = (p: Page) => p.evaluate(() => Number(document.documentElement.dataset.fahrten ?? 0));
+
+test("Laptop: angeheftete Vorschau fährt auf Zuruf herein und hinaus, beim Laden und ohne Bewegung nicht", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  await fahrtenZaehlen(page);
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+
+  const anheften = async () => {
+    await pfeil(page).click();
+    await page.getByRole("menuitem", { name: "Neben Formular anheften" }).click();
+    await expect(seitenansicht(page)).toBeVisible();
+  };
+  await anheften();
+  await expect.poll(() => fahrten(page)).toBe(1);
+  // Die Fahrt von rechts zieht die Seite nicht in die Breite
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+  // Beim Laden steht sie einfach da
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(seitenansicht(page)).toBeVisible();
+  await page.waitForTimeout(100);
+  expect(await fahrten(page)).toBe(0);
+
+  // Hinaus: Der Fokus geht sofort zurück, erst nach der Fahrt bekommt das Formular wieder die volle Breite
+  await seitenansicht(page).getByRole("button", { name: "Ausblenden" }).click();
+  await expect(vorschauKnopf(page)).toBeFocused();
+  await expect.poll(() => fahrten(page)).toBe(1);
+  await expect(page.locator(".preview-pane")).toHaveCount(0);
+  await expect.poll(() => page.locator("#invoice-form").evaluate((form) => form.getBoundingClientRect().width)).toBeGreaterThan(1000);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await anheften();
+  await seitenansicht(page).getByRole("button", { name: "Ausblenden" }).click();
+  await expect(page.locator(".preview-pane")).toHaveCount(0);
+  expect(await fahrten(page)).toBe(1);
   await page.context().close();
 });
 
