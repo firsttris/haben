@@ -1263,6 +1263,57 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
 });
 
+test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit Begründung, übernehmen auf Klick (#295)", async ({ browser }) => {
+  const beleg = async (n: number) => {
+    await go("/belege");
+    await page
+      .locator("input[type=file][multiple]")
+      .setInputFiles([{ name: `kiosk-${n}.jpg`, mimeType: "image/jpeg", buffer: await receiptJpeg(browser, `Kiosk am Markt ${n}`) }]);
+    await expect(page.getByText(`kiosk-${n}.jpg: abgelegt.`)).toBeVisible();
+    await page
+      .getByRole("link", { name: new RegExp(`kiosk-${n}\\.jpg`) })
+      .first()
+      .click();
+    await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Lieferant", { exact: true }).fill("Kiosk am Markt");
+    await page.getByLabel("Rechnungsnummer").fill(`Q-${n}`);
+    await page.getByLabel("Belegdatum").fill(day(-3));
+    await page.getByLabel("Netto", { exact: true }).fill("10,00");
+  };
+  // Zwei Belege als Telefon, privat bezahlt
+  for (const n of [1, 2]) {
+    await beleg(n);
+    await page.getByLabel("Kategorie").selectOption("telefon");
+    await page.getByLabel("Privat bezahlt (Privateinlage)").check();
+    await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+    await page.getByRole("button", { name: "Jetzt buchen" }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
+  }
+  // Der dritte: Hinweise mit Anzahl und Tag der letzten Buchung, gewählt wird erst mit „übernehmen“
+  await beleg(3);
+  await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+  await page.waitForLoadState("networkidle");
+  const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
+  const kategorie = page.getByLabel("Kategorie").locator("xpath=ancestor::label");
+  await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
+  const bezahlung = page.getByRole("group", { name: "Bezahlung" });
+  await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);
+  await expect(bezahlung.getByLabel("Über das Geschäftskonto (Zuordnung beim Bankabgleich)")).toBeChecked();
+  await bezahlung.getByRole("button", { name: "übernehmen" }).click();
+  await expect(bezahlung.getByLabel("Privat bezahlt (Privateinlage)")).toBeChecked();
+  await expect(bezahlung.getByRole("button", { name: "übernehmen" })).toBeHidden();
+  await kategorie.getByRole("button", { name: "übernehmen" }).click();
+  await expect(page.getByLabel("Kategorie")).toHaveValue("telefon");
+  // Nichts ist gebucht, bis bestätigt wird
+  await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeHidden();
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",
