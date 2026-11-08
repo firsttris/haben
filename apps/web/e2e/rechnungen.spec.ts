@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { day, firstLink, YEAR } from "./daten.ts";
-import { statusBleibtSichtbar } from "./kopfzeile.ts";
+import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import { CUSTOMERS, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, ohneAxeVerstoesse, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
 
 /**
@@ -819,6 +819,29 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText("1 Anlage übernommen, 1 fehlerhafte Zeile übersprungen.");
   await go(`/anlagen?jahr=${YEAR}`);
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
+});
+
+test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fenster (#356)", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(LAPTOP);
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  const speichern = page.locator(".main > .page-head").getByRole("button", { name: "Entwurf speichern" });
+  await speichern.click();
+  await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}/);
+  await expect(speichern).toBeDisabled();
+  // Nach dem ersten Speichern lädt die Seite neu: eine zu frühe Eingabe ginge dabei verloren
+  await expect(async () => {
+    await page.getByLabel("Beschreibung Position 1").fill("Beratung geändert");
+    await expect(speichern).toBeEnabled({ timeout: 1000 });
+  }).toPass();
+  await zumEnde(page);
+  await speichern.click();
+  await sichtbar(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." }));
+  if (vorher) await page.setViewportSize(vorher);
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
