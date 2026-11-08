@@ -3,6 +3,7 @@ import {
   accentPalette,
   alternativeMain,
   computeInvoice,
+  DEFAULT_OPTIONS,
   discountedLineAmount,
   discountLabel,
   formatEuro,
@@ -11,10 +12,13 @@ import {
   formatRate,
   lineAmount,
   lineDiscountAmount,
+  LOGO_SIZES,
   planShareLabel,
+  showsVatColumn,
   skontoFristen,
   type Discount,
   type InvoiceLineInput,
+  type LetterheadDesign,
   type PriceMode,
   type QuoteLineKind,
   type ScheduledRow,
@@ -42,6 +46,8 @@ export interface PreviewSeller {
   logo?: string | null;
   /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
   accent?: string;
+  /** Gestaltung aus dem Profil oder dem Panel, noch ungespeichert; fehlt = Vorgaben */
+  design?: LetterheadDesign;
 }
 
 export interface PreviewBuyer {
@@ -141,6 +147,7 @@ export function InvoicePreview({
   const positions = valid.map((l, i) => ({ position: i + 1, kind: l.kind ?? null }));
   const quote = kind === "angebot";
   const sender = [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`.trim()].filter(Boolean).join(" · ");
+  const options = seller.design ?? DEFAULT_OPTIONS;
   const meta: [string, string][] = [
     [quote ? "Angebotsnummer" : "Rechnungsnummer", number],
     [quote ? "Angebotsdatum" : "Rechnungsdatum", formatDate(issueDate)],
@@ -153,9 +160,13 @@ export function InvoicePreview({
   } else if (!quote) {
     meta.push(["Leistungsdatum", "entspricht Rechnungsdatum"]);
   }
-  if (buyer?.kundennummer) meta.push(["Kundennummer", buyer.kundennummer]);
+  if (buyer?.kundennummer && options.customerNumber) meta.push(["Kundennummer", buyer.kundennummer]);
   // Wie im PDF: bei mehreren Steuersätzen steht die Bemessungsgrundlage dabei
   const taxes = taxNote ? [] : totals.taxes;
+  const vatColumn = showsVatColumn(options.vatColumn, totals.taxes.length);
+  const logoSize = LOGO_SIZES[options.logoSize];
+  // Wie im PDF (pdfData): GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto; hier als Platzhalter gleicher Größe
+  const giroCode = options.giroCode && kind === "rechnung" && currency === "EUR" && totals.gross > 0 && Boolean(seller.iban);
   const payment = quote
     ? `Dieses Angebot gilt bis zum ${validUntil ? formatDate(validUntil) : "…"}. Wir freuen uns auf Ihren Auftrag.`
     : totals.gross < 0
@@ -188,10 +199,22 @@ export function InvoicePreview({
         aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
         style={seller.accent ? sheetColors(seller.accent) : undefined}
       >
-        <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />
-        <span className="sheet-fold long" style={{ top: "calc(148.5 * var(--mm))" }} />
-        <span className="sheet-fold" style={{ top: "calc(210 * var(--mm))" }} />
-        {seller.logo && <img className="sheet-logo" src={`/api/logo?v=${seller.logo.slice(0, 12)}`} alt="Logo" />}
+        {options.foldMarks && (
+          <>
+            <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />
+            <span className="sheet-fold long" style={{ top: "calc(148.5 * var(--mm))" }} />
+            <span className="sheet-fold" style={{ top: "calc(210 * var(--mm))" }} />
+          </>
+        )}
+        {seller.logo && (
+          <img
+            className="sheet-logo"
+            src={`/api/logo?v=${seller.logo.slice(0, 12)}`}
+            alt="Logo"
+            data-seite={options.logoPosition}
+            style={{ maxHeight: `calc(${logoSize.height} * var(--mm))`, maxWidth: `calc(${logoSize.width} * var(--mm))` }}
+          />
+        )}
         <div className="sheet-address">
           <div className="sheet-sender">{sender || "[Absender]"}</div>
           {buyer ? (
@@ -229,7 +252,7 @@ export function InvoicePreview({
                 <th>Beschreibung</th>
                 <th className="num">Menge</th>
                 <th className="num">Einzelpreis</th>
-                <th className="num">USt</th>
+                {vatColumn && <th className="num">USt</th>}
                 <th className="num">{gross ? "Brutto" : "Netto"}</th>
               </tr>
             </thead>
@@ -256,14 +279,14 @@ export function InvoicePreview({
                     {formatQuantity(line.quantity)} {line.unit}
                   </td>
                   <td className="num">{money(line.unitPrice)}</td>
-                  <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
+                  {vatColumn && <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>}
                   <td className="num">{money(discountedLineAmount(line))}</td>
                 </tr>
               ))}
               {valid.length === 0 && (
                 <tr>
                   <td />
-                  <td className="sheet-muted" colSpan={5}>
+                  <td className="sheet-muted" colSpan={vatColumn ? 5 : 4}>
                     [Positionen]
                   </td>
                 </tr>
@@ -340,7 +363,10 @@ export function InvoicePreview({
             </table>
           )}
           {taxNote && <p className="sheet-strong">{taxNote}</p>}
-          <p>{payment}</p>
+          <div className="sheet-payment">
+            <p>{payment}</p>
+            {giroCode && <div className="sheet-giro">GiroCode</div>}
+          </div>
           {note && <p style={{ whiteSpace: "pre-wrap" }}>{note}</p>}
         </div>
         <div className="sheet-foot">

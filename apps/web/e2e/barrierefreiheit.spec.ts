@@ -70,6 +70,7 @@ const PAGES = [
   "/textbausteine",
   "/einstellungen",
   "/einstellungen?bereich=rechnungen",
+  "/einstellungen?bereich=gestaltung",
   "/einstellungen?bereich=elster",
   "/einstellungen?bereich=email",
   "/einstellungen?bereich=bank",

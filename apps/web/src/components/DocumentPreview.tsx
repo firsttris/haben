@@ -23,6 +23,10 @@ export type DocumentPreview = {
   /** Zählt jedes Öffnen: Wer klickt, während die Leiste noch hinausfährt, bekommt eine neue, statt ins Leere zu klicken */
   overlayRun: number;
   openOverlay: () => void;
+  /** Spalte „Gestaltung“ neben dem Blatt; sie steht nur in der Überblendung, angeheftet wäre neben Formular und Blatt kein Platz */
+  designOpen: boolean;
+  openDesign: () => void;
+  toggleDesign: () => void;
   /** Sofort beim Schließen, nicht erst nach der Fahrt: Wer dann schon im Formular ist, behält dort den Fokus */
   overlayClosing: () => void;
   closeOverlay: () => void;
@@ -40,6 +44,7 @@ export function useDocumentPreview(): DocumentPreview {
   const [stored, setStored] = useState<PreviewMode | null>(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [overlayRun, setOverlayRun] = useState(0);
+  const [designOpen, setDesignOpen] = useState(false);
   const [paneMotion, setPaneMotion] = useState<PaneMotion>(null);
 
   // Erst im Browser: localStorage und die Breite gibt es auf dem Server nicht
@@ -66,6 +71,17 @@ export function useDocumentPreview(): DocumentPreview {
     writePreviewMode(browserStorage(), mode);
   }, []);
 
+  const showOverlay = (withDesign: boolean) => {
+    // Safari und Firefox auf dem Mac fokussieren Knöpfe beim Klick nicht: Dann steht der Fokus auf <body>
+    const active = document.activeElement;
+    returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
+    // Vor der Sperre messen, solange die Scrollleiste noch steht; fährt die Leiste gerade hinaus, ist sie schon weg
+    if (!overlayOpen) document.documentElement.style.setProperty("--page-scrollbar", `${window.innerWidth - document.documentElement.clientWidth}px`);
+    setDesignOpen(withDesign);
+    setOverlayRun((run) => run + 1);
+    setOverlayOpen(true);
+  };
+
   return {
     layoutRef,
     triggerRef,
@@ -75,15 +91,10 @@ export function useDocumentPreview(): DocumentPreview {
     paneSettled: () => setPaneMotion(null),
     overlayOpen,
     overlayRun,
-    openOverlay: () => {
-      // Safari und Firefox auf dem Mac fokussieren Knöpfe beim Klick nicht: Dann steht der Fokus auf <body>
-      const active = document.activeElement;
-      returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
-      // Vor der Sperre messen, solange die Scrollleiste noch steht; fährt die Leiste gerade hinaus, ist sie schon weg
-      if (!overlayOpen) document.documentElement.style.setProperty("--page-scrollbar", `${window.innerWidth - document.documentElement.clientWidth}px`);
-      setOverlayRun((run) => run + 1);
-      setOverlayOpen(true);
-    },
+    openOverlay: () => showOverlay(false),
+    designOpen,
+    openDesign: () => showOverlay(true),
+    toggleDesign: () => setDesignOpen((open) => !open),
     overlayClosing: () => {
       // Zurück auf den Auslöser, ohne dass die Seite dorthin springt (er steht im festen Kopf oder in der Vorschau)
       (returnFocus.current?.isConnected ? returnFocus.current : triggerRef.current)?.focus({ preventScroll: true });
@@ -107,12 +118,15 @@ export function PreviewLayout({
   label,
   caption,
   sheet,
+  design,
   children,
 }: {
   preview: DocumentPreview;
   label: string;
   caption: ReactNode;
   sheet: ReactNode;
+  /** Spalte zum Ändern der Gestaltung; beim Schließen der Überblendung fallen ungespeicherte Änderungen weg, sonst zeigte das Blatt etwas anderes als das PDF */
+  design?: { panel: ReactNode; onClosed: () => void };
   children: ReactNode;
 }) {
   // Hinausfahrend bleibt die Spalte bis zum Schluss: So springt das Formular einmal auf volle Breite, statt mitzufließen
@@ -134,12 +148,17 @@ export function PreviewLayout({
           <div className="preview-pane-head">
             <span className="small muted">{caption}</span>
             <div className="preview-pane-actions">
+              {design && (
+                <button type="button" className="btn btn-sm" aria-label="Gestaltung" aria-haspopup="dialog" onClick={preview.openDesign}>
+                  <Icon name="settings" size={16} />
+                </button>
+              )}
               <button type="button" className="btn btn-sm" aria-haspopup="dialog" onClick={preview.openOverlay}>
                 <Icon name="expand" size={16} />
                 Vergrößern
               </button>
               <button type="button" className="btn btn-sm" onClick={preview.unpin}>
-                <Icon name="close" size={16} />
+                <Icon name="eye-off" size={16} />
                 Ausblenden
               </button>
             </div>
@@ -148,7 +167,19 @@ export function PreviewLayout({
         </section>
       )}
       {preview.overlayOpen && (
-        <PreviewDialog key={preview.overlayRun} label={label} caption={caption} onClosing={preview.overlayClosing} onClose={preview.closeOverlay}>
+        <PreviewDialog
+          key={preview.overlayRun}
+          label={label}
+          caption={caption}
+          onClosing={preview.overlayClosing}
+          onClose={() => {
+            preview.closeOverlay();
+            design?.onClosed();
+          }}
+          designPanel={design?.panel}
+          designOpen={preview.designOpen}
+          onToggleDesign={preview.toggleDesign}
+        >
           {sheet}
         </PreviewDialog>
       )}
@@ -165,12 +196,18 @@ function PreviewDialog({
   caption,
   onClosing,
   onClose,
+  designPanel,
+  designOpen,
+  onToggleDesign,
   children,
 }: {
   label: string;
   caption: ReactNode;
   onClosing: () => void;
   onClose: () => void;
+  designPanel: ReactNode;
+  designOpen: boolean;
+  onToggleDesign: () => void;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -206,6 +243,7 @@ function PreviewDialog({
     <dialog
       ref={ref}
       className="preview-dialog"
+      data-design={designOpen || undefined}
       aria-labelledby={titleId}
       onClose={closed}
       onPointerDown={(e) => {
@@ -221,12 +259,23 @@ function PreviewDialog({
           <h2 id={titleId}>{label}</h2>
           <span className="small muted">{caption}</span>
         </div>
-        <button type="button" className="btn btn-sm" onClick={() => ref.current?.close()}>
-          <Icon name="close" size={16} />
-          Schließen
-        </button>
+        <div className="preview-dialog-actions">
+          {designPanel && (
+            <button type="button" className="btn btn-sm" aria-pressed={designOpen} onClick={onToggleDesign}>
+              <Icon name="settings" size={16} />
+              Gestaltung
+            </button>
+          )}
+          <button type="button" className="btn btn-sm" onClick={() => ref.current?.close()}>
+            <Icon name="close" size={16} />
+            Schließen
+          </button>
+        </div>
       </div>
-      <SheetScroll className="preview-dialog-body">{children}</SheetScroll>
+      <div className="preview-dialog-main" data-design={designOpen || undefined}>
+        <SheetScroll className="preview-dialog-body">{children}</SheetScroll>
+        {designOpen && designPanel}
+      </div>
     </dialog>,
     document.body,
   );
