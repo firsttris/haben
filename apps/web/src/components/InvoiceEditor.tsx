@@ -36,6 +36,7 @@ import {
   type SkontoStufe,
   type TaxTreatment,
   type UnitLabel,
+  distinctVatRates,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -712,7 +713,7 @@ export function InvoiceEditor({
           panel: (
             <DesignPanel
               draft={designDraft}
-              vatRates={new Set(parsed.filter((l) => l.valid && !(quote && l.kind)).map((l) => l.taxRate)).size}
+              vatRates={distinctVatRates(parsed.filter((l) => l.valid))}
               logo={logo}
               onLogoChanged={setLogo}
             />

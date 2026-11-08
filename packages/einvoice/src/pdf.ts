@@ -14,6 +14,7 @@ import {
   lineAmount,
   lineDiscountAmount,
   LOGO_SIZES,
+  distinctVatRates,
   showsVatColumn,
   type Discount,
   type LegalInfo,
@@ -139,7 +140,7 @@ export function documentPdfData(
     grossLabel: (label: string) => (gross ? t.inclVat(label) : label),
     taxNote: t.note(treatment, doc.exemptionReason),
     intro: doc.intro?.trim() ? doc.intro.trim() : null,
-    hideVatColumn: !showsVatColumn(doc.options?.vatColumn ?? true, doc.totals.taxes.length),
+    hideVatColumn: !showsVatColumn(doc.options?.vatColumn ?? true, treatment === "regulaer" ? distinctVatRates(doc.lines) : doc.totals.taxes.length),
     note: doc.note?.trim() ? doc.note.trim() : null,
     ...footerData(seller, t),
   };
