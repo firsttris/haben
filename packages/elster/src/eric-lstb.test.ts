@@ -7,6 +7,7 @@ import { buildLStBStornoXml, buildLStBXml, LSTB_SCHNITTSTELLEN } from "./lstb.ts
 import { LSTB_BASIS, LSTB_STORNO, LSTB_WERTE } from "./lstb.testdaten.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseWorkerCommand } from "./factory.ts";
+import { ericTestTimeout } from "../test-fixtures/eric-zeit.ts";
 
 /**
  * Lohnsteuerbescheinigung mit dem echten ERiC prüfen; gesendet wird nichts. ERiC prüft bei ElsterLohn nur den Umschlag
@@ -42,6 +43,6 @@ describe.skipIf(!ericHome)("Lohnsteuerbescheinigung mit ERiC", () => {
       );
       await pruefe(buildLStBStornoXml({ ...LSTB_STORNO, jahr, herstellerId }));
     },
-    60_000,
+    ericTestTimeout(60_000),
   );
 });

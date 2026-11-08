@@ -8,6 +8,7 @@ import { ericHomeIn } from "./install.ts";
 import { buildNachrichtXml } from "./nachricht.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseWorkerCommand } from "./factory.ts";
+import { ericTestTimeout } from "../test-fixtures/eric-zeit.ts";
 import { computeUstva } from "@haben/core";
 import { buildUstvaXml, datenartVersionFromXml, type UstvaXmlInput } from "./xml.ts";
 import { hatJahresPlugin } from "./eric-plugins.ts";
@@ -579,7 +580,7 @@ describe.skipIf(!ericHome)("Echtes ERiC: Nachrichten lokal prüfen", () => {
       if (meldungen.length === 0 && result.code === ERIC_GLOBAL_PRUEF_FEHLER && ericMeldungen(result.responseXml).length > 0) return;
       expect(result.ok, `${result.code} ${result.message}\n${meldungen.join("\n")}`).toBe(true);
     },
-    60_000,
+    ericTestTimeout(60_000),
   );
 
   it.each([2024, 2025])(
@@ -595,6 +596,6 @@ describe.skipIf(!ericHome)("Echtes ERiC: Nachrichten lokal prüfen", () => {
       });
       expect(results.filter((r) => !r.ok).map((r) => `${r.name}: ${r.code} ${r.message}`)).toEqual([]);
     },
-    120_000,
+    ericTestTimeout(120_000),
   );
 });

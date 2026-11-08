@@ -6,6 +6,7 @@ import { ericHomeIn } from "./install.ts";
 import { buildKstXml, type KstXmlInput } from "./kst.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseWorkerCommand } from "./factory.ts";
+import { ericTestTimeout } from "../test-fixtures/eric-zeit.ts";
 
 /**
  * Erklärungen einer GmbH (Gewerbesteuer E20, Körperschaftsteuer E30) mit dem echten ERiC prüfen; es wird nichts
@@ -83,49 +84,57 @@ describe.skipIf(!ericHome)("Erklärungen der GmbH mit ERiC", () => {
       await pruefe(buildGewStXml(gewst(year, { rechtsform: "ug", gewinn: -250_000 })));
       await pruefe(buildGewStXml(gewst(year, { gewinn: 0 })));
     },
-    60_000,
+    ericTestTimeout(60_000),
   );
 
-  it("Körperschaftsteuer 2025: Gewinn, mit Verlustvortrag und Mindestbesteuerung, Verlustjahr, Gründung der UG", async () => {
-    await pruefe(buildKstXml(kst(2025)));
-    await pruefe(buildKstXml(kst(2025, { verlustvortrag: 1_000_000 })));
-    await pruefe(buildKstXml(kst(2025, { jahresergebnis: 300_000_000, verlustvortrag: 500_000_000 })));
-    await pruefe(
-      buildKstXml(kst(2025, { jahresergebnis: -2_000_000, hinzurechnungen: { kst: 0, soli: 0, kapest: 0, gewst: 0, sonstige: 0 }, verlustvortrag: 500_000 })),
-    );
-    await pruefe(
-      buildKstXml(
-        kst(2025, {
-          rechtsform: "ug",
-          gruendung: "2025-03-15",
-          anteilseigner: [
-            {
-              name: "Erika Gesellschafter",
-              strasse: "Hafenallee 3",
-              plzOrt: "70173 Stuttgart",
-              idnr: "86095742719",
-              beteiligung: 100_000,
-              anteil: 10_000,
-              geaendert: true,
-            },
-          ],
-          vertraege: [],
-        }),
-      ),
-    );
-  }, 60_000);
+  it(
+    "Körperschaftsteuer 2025: Gewinn, mit Verlustvortrag und Mindestbesteuerung, Verlustjahr, Gründung der UG",
+    async () => {
+      await pruefe(buildKstXml(kst(2025)));
+      await pruefe(buildKstXml(kst(2025, { verlustvortrag: 1_000_000 })));
+      await pruefe(buildKstXml(kst(2025, { jahresergebnis: 300_000_000, verlustvortrag: 500_000_000 })));
+      await pruefe(
+        buildKstXml(kst(2025, { jahresergebnis: -2_000_000, hinzurechnungen: { kst: 0, soli: 0, kapest: 0, gewst: 0, sonstige: 0 }, verlustvortrag: 500_000 })),
+      );
+      await pruefe(
+        buildKstXml(
+          kst(2025, {
+            rechtsform: "ug",
+            gruendung: "2025-03-15",
+            anteilseigner: [
+              {
+                name: "Erika Gesellschafter",
+                strasse: "Hafenallee 3",
+                plzOrt: "70173 Stuttgart",
+                idnr: "86095742719",
+                beteiligung: 100_000,
+                anteil: 10_000,
+                geaendert: true,
+              },
+            ],
+            vertraege: [],
+          }),
+        ),
+      );
+    },
+    ericTestTimeout(60_000),
+  );
 
-  it("Körperschaftsteuer 2025 mit Ausschüttungen: aus dem ausschüttbaren Gewinn, über ihn hinaus, mehrere bescheinigte", async () => {
-    const gewinn = { einlagekonto: 500_000, eigenkapital: 5_000_000, nennkapital: 2_500_000 };
-    const leistung = (beschluss: string, brutto: number, ausEinlagekonto: number) => ({
-      beschluss,
-      abfluss: `${beschluss.slice(0, 8)}${String(Number(beschluss.slice(8)) + 1).padStart(2, "0")}`,
-      brutto,
-      ausEinlagekonto,
-    });
-    await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-06-15", 1_000_000, 0)] })));
-    await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-04-01", 2_200_000, 200_000)] })));
-    await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-03-01", 1_500_000, 0), leistung("2025-09-01", 1_000_000, 500_000)] })));
-    await pruefe(buildKstXml(kst(2025, { leistungen: [leistung("2025-06-15", 1_000_000, 0)], eigenkapital: 5_000_000, nennkapital: 2_500_000 })));
-  }, 60_000);
+  it(
+    "Körperschaftsteuer 2025 mit Ausschüttungen: aus dem ausschüttbaren Gewinn, über ihn hinaus, mehrere bescheinigte",
+    async () => {
+      const gewinn = { einlagekonto: 500_000, eigenkapital: 5_000_000, nennkapital: 2_500_000 };
+      const leistung = (beschluss: string, brutto: number, ausEinlagekonto: number) => ({
+        beschluss,
+        abfluss: `${beschluss.slice(0, 8)}${String(Number(beschluss.slice(8)) + 1).padStart(2, "0")}`,
+        brutto,
+        ausEinlagekonto,
+      });
+      await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-06-15", 1_000_000, 0)] })));
+      await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-04-01", 2_200_000, 200_000)] })));
+      await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-03-01", 1_500_000, 0), leistung("2025-09-01", 1_000_000, 500_000)] })));
+      await pruefe(buildKstXml(kst(2025, { leistungen: [leistung("2025-06-15", 1_000_000, 0)], eigenkapital: 5_000_000, nennkapital: 2_500_000 })));
+    },
+    ericTestTimeout(60_000),
+  );
 });

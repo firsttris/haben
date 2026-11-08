@@ -6,6 +6,7 @@ import { buildKapEStAXml, KAPESTA_JAHRE, type KapEStAInput } from "./kapesta.ts"
 import { hatJahresPlugin } from "./eric-plugins.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseWorkerCommand } from "./factory.ts";
+import { ericTestTimeout } from "../test-fixtures/eric-zeit.ts";
 
 /**
  * Kapitalertragsteuer-Anmeldung einer GmbH mit dem echten ERiC prüfen; gesendet wird nichts. Ohne ERiC übersprungen:
@@ -53,6 +54,6 @@ describe.skipIf(!ericHome)("Kapitalertragsteuer-Anmeldung mit ERiC", () => {
         beschluss: { datum: z("2026-06-15"), betrag: 1_000_000 },
       });
     },
-    60_000,
+    ericTestTimeout(60_000),
   );
 });

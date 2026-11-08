@@ -6,6 +6,7 @@ import { ericHomeIn } from "./install.ts";
 import { buildLStAXml, LSTA_JAHRE, type LStAInput } from "./lsta.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseWorkerCommand } from "./factory.ts";
+import { ericTestTimeout } from "../test-fixtures/eric-zeit.ts";
 
 /**
  * Lohnsteuer-Anmeldung mit dem echten ERiC prüfen; gesendet wird nichts. Ohne ERiC übersprungen:
@@ -75,6 +76,6 @@ describe.skipIf(!ericHome)("Lohnsteuer-Anmeldung mit ERiC", () => {
       await pruefe({ ...basis, zeitraum: { year, zeitraum: 19 } });
       await pruefe({ ...basis, zeitraum: { year, zeitraum: 12 } });
     },
-    120_000,
+    ericTestTimeout(120_000),
   );
 });
