@@ -52,6 +52,19 @@ describe("ERiC installieren", () => {
     await expect(installEric({ version: "43.4.6.0", dir: "/gibt/es/nicht", fetch })).rejects.toThrow(/ERIC_WORKER_COMMAND/);
   });
 
+  // Dieselbe Sperre auf jedem Rechner, auch in der CI auf x86_64: process.arch für die Dauer des Tests auf arm64
+  it("verweigert die Installation auf arm64 ohne ERIC_WORKER_COMMAND, bevor etwas geladen wird", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "arch")!;
+    Object.defineProperty(process, "arch", { ...original, value: "arm64" });
+    try {
+      const fetch = (() => Promise.reject(new Error("darf nicht laden"))) as unknown as typeof globalThis.fetch;
+      await expect(installEric({ version: "43.4.6.0", dir: "/gibt/es/nicht", fetch })).rejects.toThrow(/ERIC_WORKER_COMMAND/);
+      await expect(installEric({ version: "43.4.6.0", dir: "/gibt/es/nicht", fetch, workerCommand: "  " })).rejects.toThrow(/ERIC_WORKER_COMMAND/);
+    } finally {
+      Object.defineProperty(process, "arch", original);
+    }
+  });
+
   it("baut die Download-Adresse aus der Version", () => {
     expect(ericDownloadUrl("43.4.6.0")).toBe("https://download.elster.de/download/eric/eric_43/ERiC-43.4.6.0-Linux-x86_64.jar");
     expect(() => ericDownloadUrl("../../etc")).toThrow(/Ungültige/);
