@@ -29,6 +29,7 @@ try {
     dir,
     baseUrl: process.env.ERIC_DOWNLOAD_URL || undefined,
     sha256: process.env.ERIC_SHA256 || undefined,
+    workerCommand: process.env.ERIC_WORKER_COMMAND,
     onProgress: (p) => {
       if (p.phase === "download" && p.bytes - lastShown >= 25 << 20) {
         lastShown = p.bytes;

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { ericDownloadUrl, ericHomeIn, installedEricVersion, installEric, type InstallProgress } from "./install.ts";
+import { ericDownloadUrl, ericHomeIn, ericPlatformSupported, installedEricVersion, installEric, type InstallProgress } from "./install.ts";
 
 const big = randomBytes(3 * 1024 * 1024);
 
@@ -38,6 +38,33 @@ async function tempDir() {
 }
 
 describe("ERiC installieren", () => {
+  it("lässt ERiC nur auf Linux x86_64 zu, auf anderen Rechnern nur mit ERIC_WORKER_COMMAND", () => {
+    expect(ericPlatformSupported(undefined, "linux", "x64")).toBe(true);
+    expect(ericPlatformSupported(undefined, "linux", "arm64")).toBe(false);
+    expect(ericPlatformSupported("   ", "linux", "arm64")).toBe(false);
+    expect(ericPlatformSupported(undefined, "darwin", "x64")).toBe(false);
+    expect(ericPlatformSupported("/opt/haben-x86_64/worker.sh", "linux", "arm64")).toBe(true);
+  });
+
+  // Nur auf Rechnern ohne Linux x86_64 prüfbar (arm64, macOS); die CI läuft auf x86_64
+  it.skipIf(ericPlatformSupported())("verweigert die Installation ohne passende Plattform, bevor etwas geladen wird", async () => {
+    const fetch = (() => Promise.reject(new Error("darf nicht laden"))) as unknown as typeof globalThis.fetch;
+    await expect(installEric({ version: "43.4.6.0", dir: "/gibt/es/nicht", fetch })).rejects.toThrow(/ERIC_WORKER_COMMAND/);
+  });
+
+  // Dieselbe Sperre auf jedem Rechner, auch in der CI auf x86_64: process.arch für die Dauer des Tests auf arm64
+  it("verweigert die Installation auf arm64 ohne ERIC_WORKER_COMMAND, bevor etwas geladen wird", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "arch")!;
+    Object.defineProperty(process, "arch", { ...original, value: "arm64" });
+    try {
+      const fetch = (() => Promise.reject(new Error("darf nicht laden"))) as unknown as typeof globalThis.fetch;
+      await expect(installEric({ version: "43.4.6.0", dir: "/gibt/es/nicht", fetch })).rejects.toThrow(/ERIC_WORKER_COMMAND/);
+      await expect(installEric({ version: "43.4.6.0", dir: "/gibt/es/nicht", fetch, workerCommand: "  " })).rejects.toThrow(/ERIC_WORKER_COMMAND/);
+    } finally {
+      Object.defineProperty(process, "arch", original);
+    }
+  });
+
   it("baut die Download-Adresse aus der Version", () => {
     expect(ericDownloadUrl("43.4.6.0")).toBe("https://download.elster.de/download/eric/eric_43/ERiC-43.4.6.0-Linux-x86_64.jar");
     expect(() => ericDownloadUrl("../../etc")).toThrow(/Ungültige/);

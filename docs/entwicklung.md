@@ -152,6 +152,8 @@ ERiC darf nicht im Repository oder in der CI liegen. Ist es lokal da (`ERIC_HOME
 - `packages/elster/src/eric-echt.test.ts` baut jede Nachricht in vielen Varianten: Voranmeldung 2025 bis 2027 mit allen Kennzahlen, Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuer für 2023 bis 2026 mit allen Feldern, Sonstige Nachricht, Bankverbindung, Belegabruf, Abrufberechtigung und Postfach. Ohne ERiC wird die Datei übersprungen.
 - Die Integrationstests in `apps/web/src/server` nutzen `EricGeprueftClient` (`test-eric.ts`). Mit ERiC lässt er jedes XML, das aus den Szenarien der Datenbank entsteht, zusätzlich von ERiC prüfen.
 
+Auf einem Rechner ohne Linux x86_64 (arm64) laufen `eric-echt.test.ts`, die übrigen `eric-*.test.ts` und `check-formats-cli.ts` mit `ERIC_WORKER_COMMAND`, wie unter [ELSTER auf arm64](installation.md#elster-auf-arm64) beschrieben; der Worker läuft dann emuliert, ein Aufruf dauert rund 25 Sekunden. Die Zeitlimits setzen sich dann von selbst hoch (`testTimeout` in `vitest.config.ts`, `ericTestTimeout` in `packages/elster/test-fixtures/eric-zeit.ts`); alle Dateien zusammen brauchen so rund 40 Minuten.
+
 ```sh
 bun packages/elster/src/install-cli.ts --lizenz-akzeptiert   # einmalig, lädt nach ERIC_DIR (Standard data/eric)
 ERIC_DIR=data/eric bun --bun vitest run packages/elster

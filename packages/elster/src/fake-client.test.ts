@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkXml, FakeElsterClient, fakeProtokollPdf } from "./fake-client.ts";
-import { createElsterClient } from "./factory.ts";
+import { createElsterClient, parseWorkerCommand } from "./factory.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseTransferTicket } from "./ticket.ts";
 import { parseVastBeleg } from "./vast.ts";
@@ -99,5 +99,24 @@ describe("createElsterClient", () => {
 
   it("nimmt ERiC mit ERIC_HOME", () => {
     expect(createElsterClient({ ERIC_HOME: "/opt/eric" })).toBeInstanceOf(EricProcessClient);
+    expect(createElsterClient({ ERIC_HOME: "/opt/eric", ERIC_WORKER_COMMAND: "/opt/haben-x86_64/worker.sh" })).toBeInstanceOf(EricProcessClient);
+  });
+});
+
+describe("parseWorkerCommand", () => {
+  it("zerlegt ERIC_WORKER_COMMAND an Leerzeichen", () => {
+    expect(parseWorkerCommand("/opt/haben-x86_64/worker.sh")).toEqual(["/opt/haben-x86_64/worker.sh"]);
+    expect(parseWorkerCommand("  qemu-x86_64  -L /opt/x86_64\t/opt/x86_64/usr/local/bin/bun ")).toEqual([
+      "qemu-x86_64",
+      "-L",
+      "/opt/x86_64",
+      "/opt/x86_64/usr/local/bin/bun",
+    ]);
+  });
+
+  it("gibt ohne Befehl nichts zurück, dann läuft der Worker mit der eigenen Laufzeit", () => {
+    expect(parseWorkerCommand(undefined)).toBeUndefined();
+    expect(parseWorkerCommand("")).toBeUndefined();
+    expect(parseWorkerCommand("   ")).toBeUndefined();
   });
 });
