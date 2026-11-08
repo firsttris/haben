@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { createPortal } from "react-dom";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -20,6 +20,21 @@ type ConfirmDialogProps = {
 /** Steht ein modaler Dialog offen, gehen Tastenkürzel und Wischgesten der Seite ihn nichts an */
 export function isDialogOpen(): boolean {
   return document.querySelector("dialog[open]") !== null;
+}
+
+/** Die bestätigte Aktion sperrt den Auslöser, solange sie läuft; einen gesperrten Knopf kann niemand fokussieren */
+function returnFocus(trigger: HTMLElement) {
+  if (!trigger.matches(":disabled")) {
+    trigger.focus();
+    return;
+  }
+  const observer = new MutationObserver(() => {
+    if (trigger.matches(":disabled")) return;
+    observer.disconnect();
+    // Hat die Seite den Fokus inzwischen selbst gesetzt, etwa nach einem Seitenwechsel, bleibt er dort
+    if (document.activeElement === document.body) trigger.focus();
+  });
+  observer.observe(trigger, { attributes: true, attributeFilter: ["disabled"] });
 }
 
 /**
@@ -44,7 +59,7 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
     cancel.current?.focus();
     // Der Dialog verschwindet aus dem Dokument, ohne close(): Dann gibt der Browser den Fokus nicht von selbst zurück
     return () => {
-      if (trigger instanceof HTMLElement) trigger.focus();
+      if (trigger instanceof HTMLElement) returnFocus(trigger);
     };
   }, []);
 
@@ -64,8 +79,7 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
           onClick={(event) => {
             // Der zweite Klick eines Doppelklicks auf den Auslöser kann hier landen, wenn der Knopf über ihm liegt
             if (event.detail > 1) return;
-            // Erst schließen und den Fokus zurückgeben: Die Aktion sperrt den Auslöser, einen gesperrten Knopf kann der Effekt nicht mehr fokussieren
-            flushSync(onClose);
+            onClose();
             onConfirm();
           }}
         >
