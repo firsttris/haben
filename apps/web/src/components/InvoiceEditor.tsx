@@ -38,11 +38,12 @@ import {
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
+import { useRevealWhen } from "../lib/use-page-head.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -307,12 +308,7 @@ export function InvoiceEditor({
   const { busy, notice, setNotice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // „Festschreiben“ steht im festen Seitenkopf und lässt sich auch weit unten klicken: die Rückfrage ins Fenster
-  // holen, sonst schriebe der zweite Klick fest, ohne dass der Hinweis zu sehen war
-  const confirmBanner = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (confirming) confirmBanner.current?.scrollIntoView({ block: "nearest" });
-  }, [confirming]);
+  const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);

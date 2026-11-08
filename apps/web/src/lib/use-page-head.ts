@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 /** Seitenkopf als direktes Kind des Inhalts; jede Seite rendert ihn als ersten Baustein */
 const PAGE_HEAD = ":scope > .page-head";
@@ -36,6 +36,18 @@ export function usePageHeadHeight(main: RefObject<HTMLElement | null>): void {
       root.style.removeProperty("--page-head-height");
     };
   }, [main]);
+}
+
+/**
+ * Holt ein Element ins Bild, sobald `active` gesetzt ist. Die Aktionen stehen mit dem Kopf (#356) und lassen sich weit
+ * unten auf der Seite klicken; was sie oben unter dem Kopf melden oder nachfragen, läge sonst außer Sicht.
+ */
+export function useRevealWhen<T extends Element>(active: unknown): RefObject<T | null> {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+  return ref;
 }
 
 /** Ob die Seite gescrollt ist: Erst dann trennt eine Linie den stehenden Kopf vom Inhalt darunter */
