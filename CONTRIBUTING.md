@@ -57,3 +57,5 @@ Ohne Bun auf dem Rechner laufen dieselben Prüfungen im Dev-Container, siehe
 ## Lizenz
 
 Mit einem Beitrag stimmst du zu, dass er unter der [AGPL-3.0](LICENSE) steht.
+
+Test-Änderung, wird nicht gemergt.
