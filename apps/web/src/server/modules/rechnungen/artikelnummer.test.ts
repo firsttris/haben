@@ -179,4 +179,25 @@ describe.skipIf(!testDatabaseUrl)("Artikelnummer in Positionen (Postgres)", () =
   it("weist zu lange Artikelnummern zurück", () => {
     expect(invoices.draftSchema.safeParse(invoiceDraft({ lines: [{ ...lines[0]!, itemNumber: "x".repeat(101) }] })).success).toBe(false);
   });
+
+  it("speichert jede Position mit gültiger Artikelnummer auch als Artikel im Katalog", async () => {
+    // Der Editor schickt die Nummer der Position beim „als Artikel speichern“ an den Katalog; was die Position annimmt,
+    // muss der Katalog auch annehmen (Review #407)
+    const { articleInputSchema } = await import("../stammdaten/articles.ts");
+    const rejected = Array.from({ length: 200 }, (_, i) => "A".repeat(i + 1)).filter((itemNumber) => {
+      const parsed = invoices.draftSchema.safeParse(invoiceDraft({ lines: [{ ...lines[0]!, itemNumber }] }));
+      if (!parsed.success) return false;
+      const line = parsed.data.lines[0]!;
+      const article = articleInputSchema.safeParse({
+        number: line.itemNumber,
+        description: line.description,
+        detail: line.detail,
+        unit: line.unit,
+        unitPrice: line.unitPrice,
+        taxRate: line.taxRate,
+      });
+      return !article.success;
+    });
+    expect(rejected.map((n) => n.length)).toEqual([]);
+  });
 });
