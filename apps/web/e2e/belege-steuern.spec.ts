@@ -1321,6 +1321,65 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
 });
 
+test("Gelernte Erlöse als Kleinunternehmer, § 19 inzwischen aufgegeben: das Formular zeigt, was gebucht wird (#295)", async () => {
+  // Drei Zahlungen eines Privatkunden im Vormonat, als noch die Kleinunternehmerregelung galt
+  const datum = day(-40);
+  const zeile = (zweck: string, betrag: string) =>
+    [dkb(datum), dkb(datum), "Gebucht", "Paula Privat", "Max Mustermann", zweck, "Eingang", "DE02100100100006820199", betrag, "", "", ""]
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Fenster putzen 1", "100,00")}\n${zeile("Fenster putzen 2", "200,00")}\n${zeile("Fenster putzen 3", "300,00")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "paula.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/3 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+
+  // Stand im Änderungsprotokoll: im Vormonat Kleinunternehmer, heute nicht mehr (Ausschalten geht jederzeit).
+  // Zwei Zahlungen von damals als Erlöse ohne Steuer zugeordnet.
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`insert into audit_log (at, actor, table_name, row_id, action, new_value)
+      values (${`${datum}T12:00:00Z`}::timestamptz, 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: true })}),
+             (now(), 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: false })})`;
+    for (const zweck of ["Fenster putzen 1", "Fenster putzen 2"]) {
+      await sql`insert into allocations (transaction_id, kind, amount, category, tax_rate)
+        select id, 'kategorie', amount, 'erloese', 0 from bank_transactions where purpose = ${zweck}`;
+    }
+  } finally {
+    await sql.end();
+  }
+
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Fenster putzen 3/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Fenster putzen 3")).toBeVisible();
+  // Vorgeschlagen und vorbelegt sind Erlöse ohne Steuer; das Formular darf nicht „19 %“ zeigen
+  await expect(panel.getByText("Einnahme: Erlöse (Kleinunternehmer)")).toBeVisible();
+  await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).not.toHaveValue("1900");
+  await expect(panel.getByText("Als Kleinunternehmer ohne Umsatzsteuer (§ 19 UStG).")).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  // Gebucht wie angezeigt: ohne Steuer, wie am Tag der Zahlung
+  await go("/bank?filter=alle");
+  await page
+    .getByRole("link", { name: /Fenster putzen 3/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Fenster putzen 3")).toBeVisible();
+  await expect(panel.getByText("Direkt: Erlöse (Kleinunternehmer)")).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",
