@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   bump:
-    uses: firsttris/workflows/.github/workflows/bump-version.yml@2ef860cd1cbc78263aa5c5ad580624ab8b607c8a # main
+    uses: firsttris/workflows/.github/workflows/bump-version.yml@b66b54d43031638de35c4eb115a7fda258b3f58f # main
     with:
       bump: ${{ inputs.bump }}
     # Das Ruleset auf main (Pull Request, Status-Checks) lehnt Pushes mit dem GITHUB_TOKEN ab (GH013);
