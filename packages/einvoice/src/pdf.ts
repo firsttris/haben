@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
+import { accountHolder, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
@@ -15,7 +15,7 @@ import {
   type Discount,
   type LegalInfo,
 } from "@haben/core";
-import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
+import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
 const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
@@ -86,6 +86,11 @@ function documentDiscountRows(doc: Pick<InvoiceDocument, "lines" | "totals" | "d
   ];
 }
 
+/** Spalte „Art.-Nr.“ (BT-155) nur, wenn mindestens eine Position eine Artikelnummer hat; sonst bleibt die Tabelle wie bisher */
+export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[]): { itemNumbers: boolean } {
+  return { itemNumbers: lines.some((line) => Boolean(line.itemNumber?.trim())) };
+}
+
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
 export function documentPdfData(
   doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount">,
@@ -111,8 +116,10 @@ export function documentPdfData(
     labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
     recipient: [buyer.name, ...addressLines(buyer, t)],
+    ...itemNumberColumn(doc.lines),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
+      itemNumber: line.itemNumber?.trim() ?? "",
       description: line.description,
       detail: line.detail?.trim() ? line.detail.trim() : null,
       quantity: t.quantity(line.quantity, line.unit),
@@ -148,6 +155,7 @@ export function pdfData(doc: InvoiceDocument) {
     meta.push({ label: t.serviceDate, value: date ? t.date(date) : t.serviceDateDefault });
   }
   if (buyer.kundennummer) meta.push({ label: t.customerNumber, value: buyer.kundennummer });
+  meta.push(...referenceMeta(doc.references, t));
   if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId });
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });

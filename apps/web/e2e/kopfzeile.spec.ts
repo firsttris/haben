@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { firstLink, SESSION, YEAR } from "./daten.ts";
 import { HANDY, kopfUnterkante, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 
@@ -218,3 +218,154 @@ for (const [geraet, viewport] of [
     await page.keyboard.press("Escape");
   });
 }
+
+async function entwurfAusfuellen(page: Page): Promise<void> {
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+}
+
+/** Der Server antwortet nicht: geschrieben wird nichts, die Aktion endet mit einer Fehlermeldung */
+const serverAntwortetNicht = (page: Page) => page.route(/_serverFn/, (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+
+for (const [geraet, viewport] of [
+  ["Laptop", LAPTOP],
+  ["Handy", HANDY],
+] as const) {
+  for (const knopf of ["Entwurf speichern", "Speichern und als PDF"]) {
+    test(`Entwurf am ${geraet}: Fehler nach „${knopf}“ im stehenden Kopf erscheint im Fenster`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await entwurfAusfuellen(page);
+      await zumEnde(page);
+      await serverAntwortetNicht(page);
+      await page.locator(".main > .page-head").getByRole("button", { name: knopf }).click();
+      await sichtbar(page.locator(".main").getByRole("alert"));
+    });
+  }
+}
+
+test("Kontakt am Handy: Fehler nach „Archivieren“ im stehenden Kopf erscheint im Fenster", async ({ page }) => {
+  const pfad = await firstLink(page, "/kontakte", /^\/kontakte\/[0-9a-f-]{36}$/);
+  expect(pfad).not.toBeNull();
+  await page.setViewportSize(HANDY);
+  await page.goto(pfad as string, { waitUntil: "networkidle" });
+  await zumEnde(page);
+  await serverAntwortetNicht(page);
+  await page.locator(".main > .page-head").getByRole("button", { name: "Archivieren" }).click();
+  await sichtbar(page.locator(".main").getByRole("alert"));
+});
+
+for (const [geraet, viewport] of [
+  ["Laptop", { width: LAPTOP.width, height: 600 }],
+  ["Handy", HANDY],
+] as const) {
+  test(`Dauerbeleg am ${geraet}: Hinweis nach „Beenden“ im stehenden Kopf erscheint im Fenster`, async ({ page }) => {
+    const pfad = await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/);
+    expect(pfad).not.toBeNull();
+    await page.setViewportSize(viewport);
+    await page.goto(pfad as string, { waitUntil: "networkidle" });
+    await zumEnde(page);
+    // Der Klick fragt nur nach, geschrieben wird nichts
+    await page.locator(".main > .page-head").getByRole("button", { name: "Beenden" }).click();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "Beenden" })).toBeVisible();
+    await sichtbar(page.getByRole("dialog").getByText("Beenden ist endgültig"));
+  });
+}
+
+/** Der längere Knopf der Rückfrage bricht die Aktionen um: Der Kopf wächst im selben Moment, in dem der Hinweis ins Bild kommt */
+// 400 % Zoom: WCAG 1.4.10 rechnet mit 320×256, ein Fenster mit 1280×720 ergibt 320×180
+for (const viewport of [
+  { width: 320, height: 256 },
+  { width: 320, height: 180 },
+]) {
+  test(`Entwurf bei 400 % Zoom (${viewport.width}×${viewport.height}): der Kopf verdeckt kein Feld mit Fokus`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+    await page.locator("#invoice-form").locator("select, input").first().focus();
+    const verdeckt: string[] = [];
+    let geprueft = 0;
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press("Tab");
+      const fokus = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement;
+        if (!el.closest("#invoice-form")) return null;
+        const box = el.getBoundingClientRect();
+        return {
+          name: el.getAttribute("aria-label") ?? el.closest("label")?.textContent?.trim().slice(0, 30) ?? el.tagName,
+          top: box.top,
+          bottom: box.bottom,
+          mehrzeilig: el.tagName === "TEXTAREA",
+        };
+      });
+      if (!fokus) continue;
+      geprueft++;
+      const navigation = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")));
+      const kopf = Math.max(await kopfUnterkante(page), navigation);
+      // Zu hohe Felder können nicht ganz im Bild stehen, und bei Textfeldern holt der Browser nur die Schreibmarke:
+      // dann zählt, dass der Anfang zu sehen ist
+      const passt = !fokus.mehrzeilig && fokus.bottom - fokus.top <= viewport.height - navigation;
+      if (fokus.top < kopf - 1 || fokus.top >= viewport.height || (passt && fokus.bottom > viewport.height + 1)) {
+        verdeckt.push(`${fokus.name}: ${Math.round(fokus.top)}–${Math.round(fokus.bottom)} (frei ab ${Math.round(kopf)})`);
+      }
+    }
+    expect(geprueft).toBeGreaterThan(5);
+    expect(verdeckt, "Feld mit Fokus verdeckt oder außerhalb").toEqual([]);
+  });
+}
+
+/** Breite des Inhalts im Kopf, ohne dessen Innenabstand */
+const kopfInnen = (head: Locator) =>
+  head.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const stil = getComputedStyle(el);
+    return { links: box.left + Number.parseFloat(stil.paddingLeft), rechts: box.right - Number.parseFloat(stil.paddingRight) };
+  });
+
+test("Aktionen unter dem Titel stehen rechtsbündig, wenn der Kopf umbricht", async ({ page }) => {
+  // Oberhalb der Handy-Ansicht (721 px), aber zu schmal für Titel und Aktionen in einer Zeile
+  await page.setViewportSize({ width: 740, height: 800 });
+  await page.goto("/rechnungen/neu");
+  const head = page.locator(".main > .page-head");
+  const titel = head.getByRole("heading", { level: 1 });
+  const aktionen = head.locator("> .actions");
+  await expect(titel).toBeVisible();
+  const titelBox = await titel.boundingBox();
+  const aktionenBox = await aktionen.boundingBox();
+  // Sonst prüft der Test nichts: die Aktionen müssen wirklich unter dem Titel stehen
+  expect(aktionenBox?.y).toBeGreaterThanOrEqual((titelBox?.y ?? 0) + (titelBox?.height ?? 0));
+  const { rechts } = await kopfInnen(head);
+  // Rechte Kante des letzten Knopfs, nicht des Containers: der kann die volle Breite einnehmen
+  const ende = await aktionen.locator("> *").evaluateAll((kinder) => Math.max(...kinder.map((k) => k.getBoundingClientRect().right)));
+  expect(Math.abs(ende - rechts)).toBeLessThanOrEqual(1);
+});
+
+test("Bank: Importknöpfe unter dem Titel stehen rechtsbündig, wenn der Kopf umbricht", async ({ page }) => {
+  // Mit Seitenleiste (ab 861 px) zu schmal für Titel, Kontowahl und Knöpfe in einer Zeile
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.goto("/bank");
+  const head = page.locator(".main > .page-head");
+  const titel = head.getByRole("heading", { level: 1 });
+  const importieren = head.getByRole("button", { name: "CSV / CAMT importieren" });
+  await expect(importieren).toBeVisible();
+  const titelBox = await titel.boundingBox();
+  const knopfBox = await importieren.boundingBox();
+  // Sonst prüft der Test nichts: die Knöpfe müssen wirklich unter dem Titel stehen
+  expect(knopfBox?.y).toBeGreaterThanOrEqual((titelBox?.y ?? 0) + (titelBox?.height ?? 0));
+  const { rechts } = await kopfInnen(head);
+  expect(Math.abs((knopfBox?.x ?? 0) + (knopfBox?.width ?? 0) - rechts)).toBeLessThanOrEqual(1);
+});
+
+test("Aktionen am Handy füllen weiter die volle Breite des Kopfes", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/rechnungen/neu");
+  const head = page.locator(".main > .page-head");
+  const aktionen = head.locator("> .actions");
+  await expect(aktionen).toBeVisible();
+  const { links, rechts } = await kopfInnen(head);
+  const box = await aktionen.boundingBox();
+  // styles.css: margin -4px, damit der Fokusrahmen in der scrollenden Zeile Platz hat
+  expect(box?.x).toBeLessThanOrEqual(links);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThanOrEqual(rechts);
+});

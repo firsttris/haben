@@ -174,12 +174,17 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
 const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhrumsatzsteuer">, EuerFigureKey> = {
   software: "edv",
   edv: "edv",
+  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150)
+  reparatur: "erhaltung",
+  miete: "miete",
   hardware: "gwg",
   telefon: "telekommunikation",
   internet: "telekommunikation",
   buero: "arbeitsmittel",
   literatur: "arbeitsmittel",
   porto: "arbeitsmittel",
+  // Anlage EÜR 2025, Zeile 60 „Übrige unbeschränkt abziehbare Betriebsausgaben“
+  betriebsbedarf: "uebrige",
   fortbildung: "fortbildung",
   fahrtkosten: "kfzSonstige",
   uebernachtung: "reisekosten",
@@ -196,8 +201,13 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhru
   kfzSteuer: "kfzSteuerVersicherung",
   kfzReparatur: "kfzSonstige",
   kfzLeasing: "kfzLeasing",
+  // Zeile 70 „Sonstige tatsächliche Fahrtkosten ohne AfA und Zinsen“; eine Zeile „sonstige Kfz-Kosten“ gibt es nicht
+  kfzSonstige: "kfzSonstige",
   versicherung: "beitraegeVersicherungen",
   beitraege: "beitraegeVersicherungen",
+  // Zeile 30: Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer (Anleitung zur Anlage EÜR 2025)
+  berufsgenossenschaft: "personal",
+  versorgungskassen: "personal",
   sonstiges: "uebrige",
 };
 

@@ -19,17 +19,29 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum (siehe [Fälligkeit](#fälligkeit)). Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
    Optional **Skonto**: je Stufe Satz und Frist in Tagen, vorbelegt vom Kunden oder aus den Firmendaten (siehe [Skonto](#skonto)).
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
+   Optional **Bestellnummer**, **Eigene Auftragsnummer** und **Lieferscheinnummer** (siehe [Bestellnummer, Auftrag und Lieferschein](#bestellnummer-auftrag-und-lieferschein)).
 5. **E-Rechnungsformat** prüfen.
 6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär besteuert“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
 7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
-8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Bestellnummer, Rahmenvertrag oder Anrede. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
+8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
 10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein.
 11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus.
 
-Rechts zeigt die Vorschau die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
+Die [Vorschau](#vorschau) zeigt die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
 
 Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**. Das geht nur, solange er nicht festgeschrieben ist.
+
+### Vorschau
+
+**Vorschau** im Kopf des Editors zeigt die Rechnung so, wie sie gerade im Formular steht: Sie fährt von rechts über das Formular herein, am Handy von unten. **Schließen**, Esc oder ein Klick daneben bringt dich an dieselbe Stelle im Formular zurück; Eingaben und Scrollposition bleiben.
+
+Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet der Pfeil neben **Vorschau** ein Menü:
+
+- **Neben Formular anheften** fährt die Vorschau von rechts neben das Formular. Sie bleibt beim Scrollen stehen und scrollt selbst, wenn die Rechnung länger ist als das Fenster. **Vergrößern** lässt sie breiter über das Formular fahren, **Ausblenden** gibt dem Formular wieder die volle Breite.
+- **Vorschau abheften** macht dasselbe wie **Ausblenden**.
+
+Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
 ### Entwurf als PDF
 
@@ -43,12 +55,34 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 
 Das Entwurfs-PDF lädt nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht Entwürfe nicht und bekommt das PDF von dir. Auftragsbestätigung und Lieferschein haben keinen Entwurf: Sie entstehen aus festgeschriebenen Angeboten und Rechnungen.
 
+### Bestellnummer, Auftrag und Lieferschein
+
+Viele Auftraggeber verlangen ihre Bestellnummer auf jeder Rechnung und weisen Rechnungen ohne sie zurück; ihre Software sucht sie in der E-Rechnung in einem eigenen Feld, nicht im Freitext. Dafür hat die Rechnung drei Felder, jedes optional und bis 100 Zeichen:
+
+| Feld | Im PDF (Kopfblock) | In der E-Rechnung | UBL | CII |
+| --- | --- | --- | --- | --- |
+| Bestellnummer | Ihre Bestellung | BT-13 Bestellreferenz | `cac:OrderReference/cbc:ID` | `ram:BuyerOrderReferencedDocument` |
+| Eigene Auftragsnummer | Unser Auftrag | BT-14 Auftragsreferenz | `cac:OrderReference/cbc:SalesOrderID` | `ram:SellerOrderReferencedDocument` |
+| Lieferscheinnummer | Lieferschein | BT-16 Lieferavisreferenz | `cac:DespatchDocumentReference/cbc:ID` | `ram:DespatchAdviceReferencedDocument` |
+
+- Trag die Nummern hier ein und nicht mehr in die Einleitung: Der Kopftext landet im XML nur als Freitext (BT-22), den keine Software auswertet.
+- Im PDF stehen die Nummern im Kopfblock unter der Kundennummer; auf Englisch „Your order“, „Our order“, „Delivery note“. Eine Rechnung ohne Nummern sieht aus wie bisher.
+- Die Leitweg-ID bzw. Kundennummer in der Käuferreferenz (BT-10) bleibt, wie sie ist.
+- UBL verlangt in `cac:OrderReference` immer eine Bestellnummer. Gibt es nur die Auftragsnummer, steht dort `NA`, wie PEPPOL es vorsieht; im CII entfällt die Bestellnummer dann.
+- ZUGFeRD (Profil EN 16931) erlaubt alle drei Felder, ebenso XRechnung in CII und UBL. Die Bibliothek `@e-invoice-eu/core` verliert in Version 3.4.2 die Bestellnummer im ZUGFeRD und die Lieferscheinnummer in jedem CII; Haben setzt beide selbst an die Stelle, die das Schema vorgibt.
+- Storno und Rechnungskorrektur übernehmen die Nummern der ursprünglichen Rechnung. Eine Rechnung aus einem Angebot übernimmt Bestell- und Lieferscheinnummer des Angebots; als eigene Auftragsnummer die des Angebots oder, wenn dort keine steht, die Angebotsnummer. Das gilt auch für Abschlags- und Schlussrechnungen zum Angebot.
+- Der [Lieferschein](angebote.md#auftragsbestätigung-und-lieferschein) zur Rechnung zeigt Bestell- und Auftragsnummer.
+- Nach dem Festschreiben sind die Nummern Teil der Rechnung, gesperrt und versiegelt.
+- Die Vorschau im Editor zeigt die Nummern noch nicht; das PDF (auch das [Entwurfs-PDF](#entwurf-als-pdf)) zeigt sie.
+- Eine Vorgabe der Bestellnummer am Kontakt und Felder in wiederkehrenden Rechnungen gibt es noch nicht; ebenso keine Vertrags- (BT-12) und Projektnummer (BT-11).
+
 ### Positionen
 
 | Feld | Werte |
 | --- | --- |
 | Beschreibung | Bezeichnung der Position, eine Zeile, z. B. `Beratung Softwarearchitektur`. Pflicht. Steht im XML als Artikelname (BT-153). |
 | Text zu Position | Optional, mehrzeilig, bis 2000 Zeichen, z. B. Leistungsumfang oder Bestellbezug. Steht im PDF in kleinerer Schrift unter der Bezeichnung, die dann halbfett ist, und im XML als Artikelbeschreibung (BT-154). Storno und Rechnungskorrektur übernehmen ihn, ebenso Rechnungen aus einem Angebot oder einer Vorlage und der Lieferschein. Angebote und wiederkehrende Rechnungen haben dasselbe Feld. |
+| Art.-Nr. | Optional, bis 50 Zeichen, z. B. `ET-1042`. Kommt beim Einfügen aus dem [Artikelkatalog](#artikelkatalog) mit und lässt sich in der Position ändern. Im PDF als Spalte „Art.-Nr.“ hinter der Position, nur wenn mindestens eine Position eine Nummer hat; ohne Nummern sieht die Rechnung aus wie bisher. Im XML als Artikelnummer des Verkäufers (BT-155: UBL `cac:SellersItemIdentification`, CII `ram:SellerAssignedID`), im ZUGFeRD (Profil EN 16931) ebenso. Storno, Rechnungskorrektur, Rechnung aus einem Angebot, Serienrechnung und Lieferschein übernehmen sie. Die Position merkt sich die Nummer, nicht den Artikel: Ändert sich die Nummer im Katalog, bleibt die Rechnung, wie sie ist. Angebote und wiederkehrende Rechnungen haben dasselbe Feld. |
 | Menge | Bis zu drei Nachkommastellen, z. B. `0,5` oder `152`. Muss größer als null sein. |
 | Einheit | `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` |
 | Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, für einen Nachlass aber besser der [Rabatt](#rabatte). |
@@ -86,17 +120,17 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 
 - Jeder Artikel hat eine Bezeichnung (eine Zeile), eine Einheit, einen Preis und einen Steuersatz, dazu optional einen **Text zur Position** (mehrzeilig, bis 2000 Zeichen), eine Artikelnummer und eine interne Notiz. Unter **Preis ist** legst du fest, ob der Preis netto oder brutto inklusive Umsatzsteuer gilt; in der Liste steht bei Bruttopreisen „brutto“.
 - Passt der Preis nicht zum Preismodus der Rechnung, rechnet Haben ihn beim Einfügen um, kaufmännisch auf Cent gerundet: Ein Artikel zu 9,80 € brutto steht in einer Netto-Rechnung mit 8,24 €, ein Artikel zu 100,00 € netto in einer Brutto-Rechnung mit 119,00 €. Ohne Steuerausweis übernimmt Haben den Preis unverändert.
-- Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein, mit Bezeichnung und Text. Ist die einzige Zeile noch leer, ersetzt er sie.
-- Beim Tippen der Beschreibung einer Position schlägt der Browser passende Artikel vor (per Tastatur oder Maus auswählbar). Stimmt die Beschreibung mit der Bezeichnung eines Artikels überein, übernimmt die Position dessen Text, Einheit, Preis und Steuersatz; die Menge bleibt, bei einem Artikel ohne Text auch ein schon eingegebener Text der Position.
+- Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein, mit Bezeichnung, Text und Artikelnummer. Ist die einzige Zeile noch leer, ersetzt er sie.
+- Beim Tippen der Beschreibung einer Position schlägt der Browser passende Artikel vor (per Tastatur oder Maus auswählbar). Stimmt die Beschreibung mit der Bezeichnung eines Artikels überein, übernimmt die Position dessen Text, Artikelnummer, Einheit, Preis und Steuersatz; die Menge bleibt, bei einem Artikel ohne Text auch ein schon eingegebener Text der Position.
 - **CSV importieren** übernimmt Artikel aus einer Datei, etwa aus „Produkte und Services“ von Lexware Office ([CSV-Import](csv-import.md#artikel)).
-- Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Text, Einheit, Preis und Steuersatz der Position, bei einer Brutto-Rechnung als Bruttopreis. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
+- Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Text, Artikelnummer, Einheit, Preis und Steuersatz der Position, bei einer Brutto-Rechnung als Bruttopreis. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
 - Artikel, die vor dem eigenen Feld für den Text mehrzeilig angelegt waren, hat das Update geteilt: Die erste Zeile ist die Bezeichnung, der Rest der Text.
 - Text, Menge und Preis passt du danach in der Position an.
 - Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei) setzt Haben den Steuersatz der Position auf 0 %.
 - Änderungen am Katalog wirken nur auf neue Positionen. Festgeschriebene Rechnungen bleiben, wie sie sind.
 - Nicht mehr gebrauchte Artikel archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
-Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht.
+Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht; die Artikelnummer trägst du dort je Position selbst ein.
 
 ### Textbausteine
 
@@ -186,7 +220,7 @@ Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, 
 1. **Nummer ziehen.** Der Zähler je Jahr des Rechnungsdatums wird um eins erhöht. Das Format ist ab Werk `JJJJ-NNN`, also `2026-034`; ändern lässt es sich unter **Einstellungen › Rechnungen › Nummernformat** (siehe [Nummernformat](einrichtung.md#nummernformat)). Ein Datenbank-Trigger verhindert, dass der Zähler zurückgesetzt wird.
 2. **Anschriften einfrieren.** Absender (aus den Firmendaten) und Empfänger (aus dem Kontakt) werden mit der Rechnung gespeichert, dazu die Version des Kontakts. Spätere Änderungen am Kontakt ändern die Rechnung nicht.
 3. **PDF erzeugen.** Die sichtbare Rechnung entsteht mit Typst aus einer Vorlage als PDF/A-3b. Als Erstellungszeit steht das Rechnungsdatum im PDF.
-4. **XML erzeugen.** Die Bibliothek `@e-invoice-eu/core` erzeugt je nach Format Factur-X EN 16931 (und bettet es ins PDF ein), XRechnung CII oder XRechnung UBL.
+4. **XML erzeugen.** Die Bibliothek `@e-invoice-eu/core` erzeugt je nach Format Factur-X EN 16931 (und bettet es ins PDF ein), XRechnung CII oder XRechnung UBL. Was die Bibliothek im CII auslässt (etwa die Lieferscheinnummer), ergänzt Haben danach.
 5. **Prüfsummen.** Von PDF und XML wird je ein SHA-256 gespeichert. Die ersten Zeichen des PDF-Hashes stehen auf der Detailseite.
 6. **Buchen.** Haben legt den Buchungssatz an (siehe unten) und schreibt ihn fest.
 7. **Sperren.** Die Rechnung bekommt einen Festschreibungszeitpunkt. Ab dann lehnen Datenbank-Trigger jede Änderung oder Löschung der Rechnung, ihrer Positionen und ihrer [zusätzlichen Anhänge](#zusätzliche-anhänge) ab. Das Siegel der Rechnung schließt die Anhänge ein.
@@ -249,7 +283,7 @@ Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag
 
 Einen Nachlass gibst du als **Positionsrabatt** auf einzelne Positionen oder als **Gesamtrabatt** auf alles, wie in Lexware Office. Beides gibt es in Rechnung, Angebot und Auftragsbestätigung.
 
-- **Positionsrabatt:** Im Feld **Rabatt** unter der Position `10 %` oder einen Betrag wie `50,00` eintragen. Der Zeilenbetrag ist danach Menge × Einzelpreis abzüglich Rabatt; Prozent rundet Haben kaufmännisch auf Cent. Ein Betrag darf die Position nicht übersteigen. Anders als Lexware Office kennt Haben auch beim Positionsrabatt einen festen Betrag.
+- **Positionsrabatt:** In der Spalte **Rabatt** der Position (zwischen Einzelpreis und USt) `10 %` oder einen Betrag wie `50,00` eintragen. Der Zeilenbetrag ist danach Menge × Einzelpreis abzüglich Rabatt; Prozent rundet Haben kaufmännisch auf Cent. Ein Betrag darf die Position nicht übersteigen. Anders als Lexware Office kennt Haben auch beim Positionsrabatt einen festen Betrag.
 - **Gesamtrabatt:** Unter den Positionen im Feld **Gesamtrabatt** ebenso Prozent oder Betrag. Er gilt für die Summe der Positionen nach ihren Rabatten: erst der Positionsrabatt, dann der Gesamtrabatt.
 - **Netto oder brutto:** Ein Betrag gilt im Preismodus der Rechnung, bei Bruttopreisen also brutto.
 - **Mehrere Steuersätze:** Der Gesamtrabatt teilt sich je Steuersatz auf. Prozent gilt für jeden Satz gleich, ein Betrag im Verhältnis der Summen je Satz; den Rundungsrest trägt der größte Satz. Die Umsatzsteuer rechnet Haben je Satz auf den Betrag nach Rabatt (§ 10 Abs. 1 UStG: Bemessungsgrundlage ist das, was der Kunde aufwendet).
@@ -524,7 +558,7 @@ Für beide gilt:
 
 - Sie bekommen eine eigene Nummer aus demselben Nummernkreis und das heutige Datum.
 - Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
-- Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung.
+- Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung, dazu [Bestell-, Auftrags- und Lieferscheinnummer](#bestellnummer-auftrag-und-lieferschein).
 - PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
 - Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen, das PDF sagt „Der Betrag wird Ihnen erstattet.“
 - Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
@@ -575,7 +609,7 @@ Gebucht werden diese Rechnungen nicht als Erlös, sondern gegen den Saldenvortra
 
 ## Prüfung gegen den KoSIT-Validator
 
-Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator und der XRechnung-Konfiguration; welche Versionen, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG` (Renovate hebt sie). Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, als innergemeinschaftliche Lieferung (mit Leistungszeitraum und mit Lieferdatum, dazu ein Storno), als Ausfuhrlieferung, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen), Rechnungen mit Skonto (zwei Stufen, mit Leitweg-ID), Abschlags- und Schlussrechnung, Rechnungen in Fremdwährung (USD, CHF), ein Absender als GmbH mit Registerangaben und Rechnungen mit Positions- und Gesamtrabatt. Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
+Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator und der XRechnung-Konfiguration; welche Versionen, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG` (Renovate hebt sie). Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, als innergemeinschaftliche Lieferung (mit Leistungszeitraum und mit Lieferdatum, dazu ein Storno), als Ausfuhrlieferung, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen), Rechnungen mit Skonto (zwei Stufen, mit Leitweg-ID), Abschlags- und Schlussrechnung, Rechnungen in Fremdwährung (USD, CHF), ein Absender als GmbH mit Registerangaben, Rechnungen mit Positions- und Gesamtrabatt Rechnungen mit Bestell-, Auftrags- und Lieferscheinnummer (mit Lieferdatum, ohne Bestellnummer und als Storno) und Rechnungen mit Artikelnummer (BT-155), auch als Storno. Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
 
 ## Grenzen
 

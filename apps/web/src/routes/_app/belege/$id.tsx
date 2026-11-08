@@ -35,6 +35,13 @@ import { useAction } from "../../../lib/use-action.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 
+/** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
+function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
+  if (payment === "bank") return "über das Geschäftskonto bezahlt";
+  if (payment === "kasse") return "bar aus der Kasse bezahlt";
+  return gesellschaft ? "vom Gesellschafter ausgelegt" : "privat bezahlt";
+}
+
 export const Route = createFileRoute("/_app/belege/$id")({
   /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
   validateSearch: z.object({ geprueft: z.optional(z.boolean()) }),
@@ -636,7 +643,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   {data.categoryHint.count === data.categoryHint.total
                     ? `${data.categoryHint.count}×`
                     : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
-                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht
+                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht, zuletzt am{" "}
+                  {formatDate(data.categoryHint.last)}
                   {category !== data.categoryHint.category && (
                     <>
                       {" · "}
@@ -685,7 +693,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                     touch(setAssetKind)(kind);
                     setAssetMethod(ASSET_KINDS[kind].method);
                     const years = ASSET_KINDS[kind].usefulLifeYears;
-                    if (years && ASSET_KINDS[kind].method === "linear") setAssetYears(String(years));
+                    // Ohne Vorschlag (sonstige Ausstattung, sonstige Transportmittel) bleibt keine Nutzungsdauer der vorigen Art
+                    // stehen, etwa die sechs Jahre für Pkw, wie im Formular der Anlage (#312)
+                    if (ASSET_KINDS[kind].method === "linear") setAssetYears(years ? String(years) : "");
                   }}
                 >
                   {Object.entries(ASSET_KINDS).map(([value, k]) => (
@@ -960,6 +970,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />
           Bar aus der Kasse (Zeile im Kassenbuch)
         </label>
+        {data.paymentHint && (
+          <span className="small">
+            Bisher{" "}
+            {data.paymentHint.count === data.paymentHint.total
+              ? `${data.paymentHint.count}×`
+              : `${data.paymentHint.count} von ${data.paymentHint.total} Belegen`}{" "}
+            {paymentHintText(data.paymentHint.payment, isKapitalgesellschaft(data.rechtsform))}, zuletzt am {formatDate(data.paymentHint.last)}
+            {payment !== data.paymentHint.payment && (
+              <>
+                {" · "}
+                <button type="button" className="link-button" onClick={() => touch(setPayment)(data.paymentHint!.payment)}>
+                  übernehmen
+                </button>
+              </>
+            )}
+          </span>
+        )}
         <label className="field">
           Notiz
           <textarea value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />
@@ -996,9 +1023,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       >
         <p>Der Beleg und seine Datei werden gelöscht. Das lässt sich nicht rückgängig machen.</p>
       </ConfirmDialog>
-      <NoticeBanner notice={notice} />
       {!readOnly && (
         <div className="actions doc-actions">
+          {/* In der stehenden Leiste: davor läge die Meldung beim Scrollen hinter ihr. Jede Aktion mit Meldung sitzt hier */}
+          <NoticeBanner notice={notice} />
           <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
             Bestätigen und buchen
           </button>

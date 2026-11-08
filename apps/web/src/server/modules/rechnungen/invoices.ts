@@ -49,6 +49,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
+import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -85,6 +86,8 @@ export const draftSchema = z
     /** Einleitung über den Positionen, etwa aus einem Textbaustein */
     intro: z.string().max(2000).default(""),
     note: z.string().max(2000),
+    /** Bestellnummer des Kunden, eigene Auftragsnummer und Lieferschein (BT-13, BT-14, BT-16); leer = keine */
+    ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
     /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
@@ -149,6 +152,7 @@ function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
     position: index + 1,
     description: line.description,
     detail: line.detail?.trim() ?? "",
+    itemNumber: line.itemNumber?.trim() ?? "",
     quantity: line.quantity,
     unit: line.unit,
     unitPrice: line.unitPrice,
@@ -172,6 +176,7 @@ async function keptDeductions(tx: Tx, invoiceId: string): Promise<LineInput[]> {
 const lineInputOf = (line: InvoiceLine): LineInput => ({
   description: line.description,
   detail: line.detail,
+  itemNumber: line.itemNumber,
   quantity: line.quantity,
   unit: line.unit as UnitLabel,
   unitPrice: line.unitPrice,
@@ -529,6 +534,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     format: input.format,
     intro: input.intro ?? "",
     note: input.note,
+    ...referenceColumns(input),
     taxTreatment: input.taxTreatment ?? "regulaer",
     exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
     priceMode,
@@ -811,6 +817,7 @@ export function documentFor(
       position: line.position,
       description: line.description,
       ...(line.detail ? { detail: line.detail } : {}),
+      ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,
@@ -824,6 +831,7 @@ export function documentFor(
     ...(corrects ? { corrects } : {}),
     ...(invoice.intro ? { intro: invoice.intro } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
+    ...documentReferences(invoice),
     ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
     ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
     ...(invoice.priceMode === "brutto" ? { priceMode: invoice.priceMode } : {}),
@@ -1192,6 +1200,8 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
           paymentTermDays: 0,
           format: target.format,
           note: "",
+          // Storno und Korrektur beziehen sich auf dieselbe Bestellung wie die Rechnung (#389)
+          ...referenceColumns(target),
           taxTreatment: target.taxTreatment,
           exemptionReason: target.exemptionReason,
           priceMode: target.priceMode,
@@ -1229,6 +1239,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       paymentTermDays: 0,
       format: invoice.format,
       note: "",
+      ...referenceColumns(invoice),
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
       priceMode: invoice.priceMode,

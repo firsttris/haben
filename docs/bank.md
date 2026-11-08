@@ -266,9 +266,20 @@ Gibt es keinen passenden offenen Posten, schlägt Haben anhand der Kontozwecke e
 - **Gegenkonto ist ein eigenes Konto** (Gegen-IBAN gehört zu einem deiner Konten): Geldtransit; ist eines der beiden ein Privatkonto, Privat.
 - **Steuerkonto, Gegenpartei ist das Finanzamt** (Finanzamt, Finanzkasse, Landeshauptkasse, Bundeskasse und ähnliche) **und der Verwendungszweck nennt die Umsatzsteuer** („USt“, „Umsatzsteuer“, „Voranmeldung“): Umsatzsteuer an das Finanzamt; nennt er die Sondervorauszahlung („Sondervorauszahlung“, „SVZ“, „1/11“), stattdessen Sondervorauszahlung (Dauerfristverlängerung). Nennt er eine andere Steuer (Einkommensteuer, Kirchensteuer, Gewerbesteuer, Kfz-Steuer …) oder gar keine, gibt es keinen Vorschlag: Auf dem Steuerkonto liegt oft auch die Rücklage für die private Einkommensteuer. Auf anderen Konten schlägt Haben die Umsatzsteuer nie vor.
 
-Greift keine dieser Regeln, schlägt Haben die Buchungsart vor, mit der du frühere Umsätze derselben Gegenpartei gebucht hast: gleiche Gegen-IBAN, ohne IBAN gleicher Name, und dieselbe Richtung (die Gebühren von Stripe sind keine Vorlage für dessen Auszahlung). Ein aufgeteilter Umsatz zählt einmal, und zwar mit dem Teil in seiner Richtung: Die von einer Auszahlung abgezogene Gebühr macht die Auszahlung nicht zu einer Gebühr. Vorgeschlagen wird nur, was mindestens zweimal und bei mehr als der Hälfte dieser Umsätze so gebucht wurde, etwa „3 von 4 Umsätzen mit dieser Gegen-IBAN so gebucht“ bei der monatlichen Kontoführungsgebühr. Aufgehobene Zuordnungen zählen nicht. So gelernt werden nur Kontoführung und Bankgebühren, Privat und Mahngebühren; nie Geldtransit (dafür braucht es die Gegenbuchung) und nie etwas mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen.
-
 Bei einem Geldtransit sucht Haben auf dem anderen Konto die Gegenbuchung: gleicher Betrag mit umgekehrtem Vorzeichen, höchstens fünf Tage auseinander, noch ganz offen, und als Gegenkonto das Ausgangskonto (fehlt die Gegen-IBAN, nimmt Haben sie nur, wenn es keine mit passender IBAN gibt). Eine fremde Zahlung über denselben Betrag, etwa eine Erstattung des Finanzamts, ist nie die Gegenbuchung. Gibt es sie, bucht **Beide Seiten als Geldtransit buchen** beide Umsätze in einem Schritt über das Geldtransitkonto (1360 bzw. 1460), wo sie sich aufheben. Das monatliche Zurücklegen der Umsatzsteuer erzeugt so nur noch einen Klick statt zwei Zuordnungen.
+
+### Aus früheren Zuordnungen gelernt
+
+Greift keine der Regeln aus [Vorschläge ohne Rechnung](#vorschläge-ohne-rechnung-und-geldtransit), schlägt Haben die Buchungsart vor, mit der du frühere Umsätze derselben Gegenpartei gebucht hast: gleiche Gegen-IBAN, ohne IBAN gleicher Name, und dieselbe Richtung (die Gebühren von Stripe sind keine Vorlage für dessen Auszahlung). Ein aufgeteilter Umsatz zählt einmal, und zwar mit dem Teil in seiner Richtung: Die von einer Auszahlung abgezogene Gebühr macht die Auszahlung nicht zu einer Gebühr. Vorgeschlagen wird nur, was mindestens zweimal und bei mehr als der Hälfte dieser Umsätze so gebucht wurde. Die Begründung nennt, wie oft und wann zuletzt, etwa „3 von 4 Umsätzen mit dieser Gegen-IBAN so gebucht, zuletzt am 01.10.2026“ bei der monatlichen Kontoführungsgebühr. Aufgehobene Zuordnungen zählen nicht. Ein KI-Modell steckt nicht dahinter, nur das Zählen der eigenen Zuordnungen (siehe [Roadmap](roadmap.md#bewusst-nicht)).
+
+So gelernt werden:
+
+- Kontoführung und Bankgebühren, Privat, Mahngebühren und Zinserträge;
+- [Einnahmen und Ausgaben auf eine Kategorie](#auf-eine-kategorie-buchen), jede Kategorie und jeder Steuersatz für sich: Hast du die Aufladungen beim Kiosk zweimal als Telefon gebucht, steht beim dritten Mal „Ausgabe: Telefon“ als Vorschlag da, und unter **Direkt buchen** sind Art und Kategorie schon gewählt. Zwei Zahlungen eines Privatkunden mit 7 % und eine mit 19 % ergeben „Einnahme: Erlöse 7 %“. Eine Kategorie, die am Tag des Umsatzes so nicht buchbar wäre, schlägt Haben nicht vor, etwa Erlöse mit 19 %, wenn du inzwischen Kleinunternehmer bist.
+
+Nie gelernt werden Geldtransit (dafür braucht es die Gegenbuchung), alles mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen, und Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Dort ändern sich Abrechnung, Steuerart und Jahr oder der Teil der Rate von Zahlung zu Zahlung, und die Regeln oben kennen sie besser.
+
+Gebucht wird ein gelernter Vorschlag wie jeder andere erst mit **Buchen**; Haben bucht nie von selbst.
 
 ### Direkt buchen
 
@@ -285,6 +296,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Mahngebühren und Verzugszinsen (vom Kunden) | 2650 | 7100 |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 |
 | Steuerzahlung oder Erstattung (Finanzamt, Gemeinde), siehe [Steuerzahlungen](#steuerzahlungen) | je nach Steuerart und Teil | je nach Steuerart und Teil |
+| Einnahme oder Ausgabe (Kategorie, Steuersatz), siehe [Auf eine Kategorie buchen](#auf-eine-kategorie-buchen) | Konto der Kategorie | Konto der Kategorie |
 | Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren, siehe [Darlehen](#darlehen) | je nach Darlehen und Teil | je nach Darlehen und Teil |
 | Kapitalertragsteuer an das Finanzamt (Ausschüttung), nur GmbH und UG | 1746 Verbindlichkeiten aus Einbehaltungen | 3760 |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 |
@@ -294,6 +306,33 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 Die drei Lohnzahlungen bezahlen, was eine festgeschriebene [Lohnabrechnung](lohn.md#buchung) als Verbindlichkeit gebucht hat, und höchstens so viel, wie auf dem Konto noch offen ist; ohne festgeschriebene Abrechnung lehnt Haben sie ab. Ein Eingang (Rückzahlung, Erstattung) geht nur, soweit das Konto überzahlt ist. Lohnsteuer, Soli und Kirchensteuer überweist du gemeinsam als „Lohnsteuer an das Finanzamt“, im Minijob die Pauschsteuer mit den Beiträgen an die Minijob-Zentrale. Eine Lastschrift des Finanzamts über genau den Gesamtbetrag (Kz 83) einer übermittelten [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) schlägt Haben als „Lohnsteuer an das Finanzamt“ vor. Im Einzelunternehmen zählen sie in der EÜR am Tag der Zahlung als Ausgaben für Personal.
 
 Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochladen und buchen, dann hier zuordnen. Direkt gebuchte Ausgaben haben keine Vorsteuer.
+
+### Auf eine Kategorie buchen
+
+Eine Einnahme ohne Rechnung, etwa die Zahlung eines Privatkunden, oder eine kleine Ausgabe ohne Beleg buchst du unter **Direkt buchen** als **Einnahme oder Ausgabe (Kategorie, Steuersatz)**. Du wählst die **Kategorie** und bei Einnahmen den **Steuersatz** (19 % oder 7 %); Haben zeigt Netto und Umsatzsteuer des Betrags an. Das geht auch als Teil einer Aufteilung.
+
+Gebucht wird nur auf eine Kategorie, nicht frei auf ein Konto mit Steuerschlüssel: Voranmeldung, EÜR und E-Bilanz hängen an den Kategorien und ihren Konten (siehe [Roadmap](roadmap.md#bewusst-nicht)).
+
+| Kategorie | SKR03 | SKR04 | Voranmeldung | EÜR (Einzelunternehmen) |
+| --- | --- | --- | --- | --- |
+| Erlöse 19 % | 8400, Steuer 1776 | 4400, Steuer 3806 | Kz 81 im Monat der Zahlung, bei Ist und Soll | Einnahme netto, Steuer als vereinnahmte Umsatzsteuer |
+| Erlöse 7 % | 8300, Steuer 1771 | 4300, Steuer 3801 | Kz 86 im Monat der Zahlung, bei Ist und Soll | ebenso |
+| Erlöse als Kleinunternehmer | 8195 | 4185 | – | Einnahme als Kleinunternehmer |
+| Ausgabekategorie, z. B. Telefon | Konto der Kategorie ([Belegkategorien](buchhaltung.md#aufwandskonten-der-belegkategorien)) | ebenso | keine Vorsteuer | Ausgabe brutto in der Zeile der Kategorie |
+
+Beispiel: Ein Privatkunde überweist für eine Reparatur 119,00 €, Erlöse 19 %:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1200 Bank | 1800 Bank | 119,00 | |
+| 8400 Erlöse 19 % USt | 4400 | | 100,00 |
+| 1776 Umsatzsteuer 19 % | 3806 | | 19,00 |
+
+- **Einnahmen:** Die Umsatzsteuer entsteht mit der Leistung, nicht mit einer Rechnung (§ 13 Abs. 1 Nr. 1 UStG); an Privatkunden musst du keine Rechnung ausstellen (§ 14 Abs. 2 Satz 1 Nr. 2 UStG). Ohne Rechnung kennt Haben nur den Tag der Zahlung; daran wird die Steuer fällig, bei Ist- und bei Soll-Versteuerung, und nie auf „Umsatzsteuer nicht fällig“ gebucht. Bei Soll gilt das auch für eine Anzahlung vor der Leistung (§ 13 Abs. 1 Nr. 1 Buchst. a Satz 4 UStG). Liegt die Leistung in einem früheren Monat als die Zahlung, gehört der Umsatz bei Soll in den Monat der Leistung; dann schreibe besser eine Rechnung. Steuerfreie Umsätze, Reverse Charge, innergemeinschaftliche Lieferungen und Ausfuhren gehen nur über eine [Rechnung](rechnungen.md) mit ihren Pflichtangaben. Als Kleinunternehmer gibt es keinen Steuersatz (§ 19 UStG).
+- **Ausgaben:** brutto als Aufwand, ohne Vorsteuer: Die Vorsteuer darfst du nur mit einer Rechnung abziehen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Hast du eine, buche sie als [Beleg](belege.md). Nicht direkt buchen lassen sich Anlagegüter und geringwertige Wirtschaftsgüter (Anlagenverzeichnis), die Einfuhrumsatzsteuer (Bescheid des Zolls), Bewirtung (Bewirtungsbeleg, § 4 Abs. 5 Satz 1 Nr. 2 Satz 2 EStG) und Geschenke (Empfänger, § 4 Abs. 7 EStG); Bankgebühren haben ihre eigene Art.
+- Eine Zahlung in Gegenrichtung, etwa die Erstattung an einen Privatkunden, bucht die Seiten umgekehrt und mindert Erlöse und Umsatzsteuer im Monat der Erstattung.
+
+Kategorie und Steuersatz stehen an der Zuordnung (`allocations.category`, `tax_rate`), gesperrt und versiegelt; eine Aufhebung übernimmt sie in die Gegenzeile. In den Quellen der [Voranmeldung](umsatzsteuer.md#quellen-aufklappen) erscheint die Buchung als „Direktbuchung“ mit Link auf den Bankumsatz.
 
 **Zinserträge** sind Zinsen auf das Guthaben eines betrieblichen Kontos, ohne Umsatzsteuer (§ 4 Nr. 8 Buchst. a UStG); in der EÜR zählen sie bei den umsatzsteuerfreien Betriebseinnahmen. Hat die Bank Kapitalertragsteuer und Solidaritätszuschlag einbehalten, teilst du die Gutschrift mit **Aufteilen** auf: den Bruttozins als Zinserträge (positiv) und die einbehaltenen Steuern als [Steuerzahlung](#steuerzahlungen) mit der Steuerart „Kapitalertragsteuer (von der Bank einbehalten)“ bzw. „Solidaritätszuschlag zur Kapitalertragsteuer“ (negativ). Beispiel: 100,00 € Zinsen, 25,00 € Kapitalertragsteuer und 1,37 € Soli, gutgeschrieben 73,63 €:
 

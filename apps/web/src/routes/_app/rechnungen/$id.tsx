@@ -42,11 +42,13 @@ const titleOf = (invoice: Detail["invoice"]) => invoiceTitle(invoice.kind, invoi
 function InvoicePage() {
   const data = Route.useLoaderData();
   const { invoice } = data;
+  const draftAction = useAction();
   if (invoice.status === "draft") {
     return (
       <InvoiceEditor
         // nach dem Speichern mit den gespeicherten Werten neu aufsetzen
         key={`${invoice.id}-${String(invoice.updatedAt)}`}
+        action={draftAction}
         id={invoice.id}
         kind={invoice.kind}
         initial={{
@@ -59,6 +61,9 @@ function InvoicePage() {
           format: invoice.format,
           intro: invoice.intro,
           note: invoice.note,
+          buyerOrderReference: invoice.buyerOrderReference,
+          sellerOrderReference: invoice.sellerOrderReference,
+          despatchAdviceReference: invoice.despatchAdviceReference,
           taxTreatment: invoice.taxTreatment,
           exemptionReason: invoice.exemptionReason,
           priceMode: invoice.priceMode,
@@ -83,6 +88,7 @@ function InvoicePage() {
             .map((line) => ({
               description: line.description,
               detail: line.detail,
+              itemNumber: line.itemNumber,
               quantity: line.quantity,
               unit: line.unit as UnitLabel,
               unitPrice: line.unitPrice,

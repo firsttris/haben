@@ -41,12 +41,27 @@ export interface Buyer extends Address {
   kundennummer?: string;
 }
 
+/**
+ * Referenzen auf Bestellung, Auftrag und Lieferschein (EN 16931-1): je höchstens eine Nummer, leer = keine.
+ * Im XML an ihrem eigenen Feld statt als Freitext, im PDF im Kopfblock.
+ */
+export interface OrderReferences {
+  /** Bestellnummer des Kunden (BT-13, Purchase order reference) */
+  buyerOrder?: string;
+  /** Eigene Auftragsnummer (BT-14, Sales order reference) */
+  sellerOrder?: string;
+  /** Lieferschein (BT-16, Despatch advice reference) */
+  despatchAdvice?: string;
+}
+
 export interface InvoiceDocumentLine {
   position: number;
   /** Bezeichnung (BT-153) */
   description: string;
   /** Beschreibung unter der Bezeichnung, mehrzeilig (BT-154) */
   detail?: string;
+  /** Artikelnummer des Verkäufers (BT-155), aus dem Artikel übernommen; leer = keine */
+  itemNumber?: string;
   quantity: Millis;
   unit: UnitLabel;
   /** Wie eingegeben: netto, bei Bruttopreisen brutto; bei Storno und Korrektur negativ */
@@ -121,4 +136,6 @@ export interface InvoiceDocument extends Letterhead {
   variant?: InvoiceVariant;
   /** Schlussrechnung: abgezogene Abschlagsrechnungen (BT-25); die Abzüge selbst stehen als negative Positionen in lines */
   deducted?: { number: string; issueDate: string }[];
+  /** Bestell-, Auftrags- und Lieferscheinnummer (BT-13, BT-14, BT-16) */
+  references?: OrderReferences;
 }

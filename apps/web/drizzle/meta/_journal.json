@@ -1121,6 +1121,27 @@
       "when": 1794052062727,
       "tag": "0159_sevdesk_einzelzahlungen",
       "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1794143973721,
+      "tag": "0160_referenzen",
+      "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1794152789662,
+      "tag": "0161_direkt_kategorie",
+      "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794153660213,
+      "tag": "0162_artikelnummer",
+      "breakpoints": true
     }
   ]
 }

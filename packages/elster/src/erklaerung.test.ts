@@ -266,6 +266,23 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(euerTotals(mitZinsen).ausgaben).toBe(euerTotals({ ...mitZinsen, schuldzinsenAnlage: 0, schuldzinsen: 0 }).ausgaben + 72_000);
   });
 
+  it("übermittelt Miete (Zeile 39) und Erhaltungsaufwendungen (Zeile 48) an ihrer Stelle im Schema E77 (#312)", () => {
+    // Schema E77-2023 bis E77-2025 (ERiC 44.3.6.0): Raumkosten_u_sonst zwischen AfA und Sonst_unbeschraenkt, Erhaltungsaufwand
+    // nach Rechtsberatung_StB_Buchf (und Miete_Leasing_bewegl_WG), vor Beitrag_Gebuehr_Abgabe_Versicherung
+    const mitMiete = { ...figures, beratung: 50_00, beitraegeVersicherungen: 80_00, miete: 1_200_00, erhaltung: 300_00 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitMiete, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).toMatch(
+      /<\/AfA>\s*<Raumkosten_u_sonst>\s*<Miete_Pacht>\s*<Sum>\s*<E6003201>1200,00<\/E6003201>\s*<\/Sum>\s*<\/Miete_Pacht>\s*<\/Raumkosten_u_sonst>\s*<Sonst_unbeschraenkt>/,
+    );
+    expect(xml).toMatch(
+      /<\/Rechtsberatung_StB_Buchf>\s*<Erhaltungsaufwand>\s*<Sum>\s*<E6004313>300,00<\/E6004313>\s*<\/Sum>\s*<\/Erhaltungsaufwand>\s*<Beitrag_Gebuehr_Abgabe_Versicherung>/,
+    );
+    expect(euerTotals(mitMiete).ausgaben).toBe(euerTotals({ ...mitMiete, miete: 0, erhaltung: 0 }).ausgaben + 1_500_00);
+    // Ohne Beträge entfällt der Abschnitt ganz
+    expect(buildEuerXml({ ...base, allgemein, figures, anlagen: [] })).not.toContain("Raumkosten_u_sonst");
+  });
+
   it("lässt die AVEÜR ohne Anlagen weg", () => {
     const xml = buildEuerXml({ ...base, allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" }, figures: { steuerpflichtig: 100 }, anlagen: [] });
     expect(xml).not.toContain("<AVEUER>");

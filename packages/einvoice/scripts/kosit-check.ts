@@ -35,6 +35,8 @@ const jar = process.env.KOSIT_JAR ?? standaloneJar("/var/tmp/kosit/validator");
 const config = process.env.KOSIT_CONFIG ?? "/var/tmp/kosit/xr/scenarios.xml";
 const outDir = process.argv[2] ?? join(tmpdir(), "haben-kosit");
 
+const orderReferences = { buyerOrder: "4500012345", sellerOrder: "AN-2026-007", despatchAdvice: "LS-0815" };
+
 const samples: Record<string, InvoiceDocument> = {
   "rechnung-19-zugferd": sampleDocument({ note: "Vielen Dank für die gute Zusammenarbeit." }),
   "rechnung-19-xr-cii": sampleDocument({ format: "xrechnung-cii" }),
@@ -230,6 +232,26 @@ const samples: Record<string, InvoiceDocument> = {
     format: "xrechnung-cii",
     lines: [{ description: "Leistung zum Nullsatz", quantity: 1000, unit: "Psch.", unitPrice: 50000, taxRate: 0 }],
   }),
+  // Bestellnummer (BT-13), Auftragsnummer (BT-14) und Lieferschein (BT-16); BT-16 mit Lieferdatum und ohne
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [`referenzen-${format}`, { ...sampleDocument({ format }), references: orderReferences }],
+      [`referenzen-lieferdatum-${format}`, { ...sampleDocument({ format }), serviceFrom: "2026-09-30", serviceTo: "2026-09-30", references: orderReferences }],
+      // Ohne Bestellnummer: im UBL „NA“ in cac:OrderReference/cbc:ID, im CII kein BT-13
+      [`referenzen-ohne-bestellung-${format}`, { ...sampleDocument({ format }), references: { sellerOrder: "AN-2026-007" } }],
+      [`referenzen-storno-${format}`, { ...sampleDocument({ kind: "storno", format }), references: orderReferences }],
+    ]),
+  ),
+  // Artikelnummer des Verkäufers (BT-155) an der ersten Position, die zweite ohne; auch als Storno
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) =>
+      (["rechnung", "storno"] as const).map((kind) => {
+        const doc = sampleDocument({ kind, format });
+        doc.lines[0]!.itemNumber = "ET-1042";
+        return [`artikelnummer-${kind}-${format}`, doc];
+      }),
+    ),
+  ),
 };
 
 /**

@@ -286,6 +286,18 @@ describe("Anlagen", () => {
     });
   });
 
+  it("erkennt die Art „Sonstige Transportmittel“ (#312), der Transporter bleibt ein Fahrzeug", () => {
+    const rows = assets(
+      [
+        HEAD,
+        "Kofferanhänger;Sonstige Transportmittel;linear;10.04.2024;6.600,00;11;5.850,00;",
+        "Lastenrad;Anhänger und Lastenräder;linear;02.05.2025;4.000,00;7;3.523,81;",
+        "Sprinter;Transporter;linear;01.02.2024;36.000,00;6;26.500,00;",
+      ].join("\n"),
+    );
+    expect(rows.map((r) => r.value?.kind)).toEqual(["transport", "transport", "kfz"]);
+  });
+
   it("übernimmt degressive und Elektro-AfA nur mit dem rechnerischen Restbuchwert zum 01.01.", () => {
     const rows = assets(
       [

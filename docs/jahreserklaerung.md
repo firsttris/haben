@@ -51,7 +51,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Bürobedarf, Fachliteratur, Porto | Arbeitsmittel |
 | Fortbildung | Fortbildungskosten |
 | Reisekosten: Übernachtung | Übernachtungs- und Reisenebenkosten |
-| Reisekosten: Fahrten, Kfz: Laden, Tanken, Wartung, Reparaturen | Sonstige tatsächliche Fahrtkosten |
+| Reisekosten: Fahrten, Kfz: Laden, Tanken, Wartung, Reparaturen, sonstige Kosten | Sonstige tatsächliche Fahrtkosten |
 | Kfz: Versicherung, Steuer | Steuern, Versicherungen und Maut für Kraftfahrzeuge |
 | Kfz: Leasing | Leasingkosten für Kraftfahrzeuge |
 | Rechts- und Beratungskosten, Buchführung und Steuerberatung | Rechts- und Steuerberatung, Buchführung |
@@ -62,7 +62,11 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Wareneinkauf (Handelsware) | Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten |
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Lohn, Lohnsteuer und SV-Beiträge aus dem Bankabgleich ([Lohn](lohn.md#buchung)) | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge). Lohnzahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis (§ 11 Abs. 2 Satz 2 EStG) |
-| Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
+| Kontoführung und Gebühren, Sonstiger Aufwand, Sonstiger Betriebsbedarf | Übrige Betriebsausgaben |
+| Miete für Geschäftsräume | Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke (Zeile 39, Kz 150) |
+| Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz) | Erhaltungsaufwendungen, ohne solche für Gebäude und Kfz (Zeile 48, Kz 225) |
+| Beiträge zur Berufsgenossenschaft, Versorgungskassen | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer) |
+| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
@@ -197,5 +201,7 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 ## Herkunft der Feldkennungen
 
 Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste.
+
+Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.

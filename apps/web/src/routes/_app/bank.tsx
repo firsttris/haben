@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro, type DirectBooking } from "@haben/core";
+import { formatDecimal, formatEuro, isKapitalgesellschaft, kategorieArt, kategorieText, parseEuro, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -9,6 +9,7 @@ import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
+import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
@@ -79,6 +80,7 @@ const KIND_LABEL = {
   steuer: "Steuer",
   zinsertrag: "Zinserträge",
   darlehen: "Darlehen",
+  kategorie: "Direkt",
 } as const;
 
 /**
@@ -87,8 +89,9 @@ const KIND_LABEL = {
  */
 const DIRECT_HINT = "Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen.";
 
-/** „Direkt buchen“: Buchungsarten ohne Beleg und die Steuerzahlung mit Steuerart, Bezugsjahr und Teil */
-type DirectChoice = DirectBooking | "steuer" | "darlehen";
+/** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
+type DirectChoice = DirectBooking | "kategorie" | "steuer" | "darlehen";
+const KATEGORIE_OPTION = { value: "kategorie", label: "Einnahme oder Ausgabe (Kategorie, Steuersatz)" } as const;
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
 const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
 
@@ -263,6 +266,7 @@ function BankPage() {
                 directKinds={data.directKinds}
                 steuerOptionen={{ steuerarten: data.steuerarten, steuerPosten: data.steuerPosten }}
                 darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
+                kategorieOptionen={{ kategorien: data.kategorien, kleinunternehmer: data.kleinunternehmer }}
                 nextOpenId={nextOpenAfter(data.transactions, data.detail.transaction.id)}
               />
             ) : (
@@ -847,12 +851,14 @@ function AllocationPanel({
   directKinds,
   steuerOptionen,
   darlehenOptionen,
+  kategorieOptionen,
   nextOpenId,
 }: {
   detail: Detail;
   directKinds: Data["directKinds"];
   steuerOptionen: SteuerOptionen;
   darlehenOptionen: DarlehenOptionen;
+  kategorieOptionen: KategorieOptionen;
   nextOpenId: string | undefined;
 }) {
   const router = useRouter();
@@ -874,6 +880,8 @@ function AllocationPanel({
   const [directKind, setDirectKind] = useState<DirectChoice>(direct?.kind ?? "privat");
   const [steuer, setSteuer] = useState<SteuerWahl>(() => steuerWahlFuer(steuerOptionen, tx.bookingDate));
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
+  // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
+  const [kategorie, setKategorie] = useState<KategorieWahl>(() => direct?.kategorie ?? kategorieWahlFuer(kategorieOptionen, tx.amount));
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
@@ -909,6 +917,9 @@ function AllocationPanel({
       if (directKind === "darlehen") {
         if (!darlehen.loanId) return;
         return runAndAdvance(() => allocateFn({ data: { kind: "darlehen", transactionId: tx.id, amount: signedAmount, darlehen } }), completes);
+      }
+      if (directKind === "kategorie") {
+        return runAndAdvance(() => allocateFn({ data: { kind: "kategorie", transactionId: tx.id, amount: signedAmount, kategorie } }), completes);
       }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
@@ -1010,6 +1021,7 @@ function AllocationPanel({
                   {a.vatReturnLabel ? ` ${a.vatReturnLabel}` : ""}
                   {a.steuerLabel ? `: ${a.steuerLabel}` : ""}
                   {a.darlehenLabel ? `: ${a.darlehenLabel}` : ""}
+                  {a.kategorieLabel ? `: ${a.kategorieLabel}` : ""}
                 </span>
                 <span className="small muted">
                   {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
@@ -1037,6 +1049,7 @@ function AllocationPanel({
           directKinds={directKinds}
           steuerOptionen={steuerOptionen}
           darlehenOptionen={darlehenOptionen}
+          kategorieOptionen={kategorieOptionen}
           busy={busy}
           onCancel={() => setMode(best ? "best" : candidates.length ? "other" : "direct")}
           onSubmit={(parts) => run(() => splitFn({ data: { transactionId: tx.id, parts } }))}
@@ -1120,7 +1133,11 @@ function AllocationPanel({
             <div className="stack" style={{ gap: 10 }}>
               <div className="section-label">Vorschlag ohne Rechnung</div>
               <div className="match-card">
-                <span style={{ fontWeight: 600 }}>{directKinds.find((k) => k.value === direct.kind)?.label}</span>
+                <span style={{ fontWeight: 600 }}>
+                  {direct.kategorie
+                    ? `${kategorieArt(direct.kategorie.kategorie) === "einnahme" ? "Einnahme" : "Ausgabe"}: ${kategorieText(direct.kategorie)}`
+                    : directKinds.find((k) => k.value === direct.kind)?.label}
+                </span>
                 <ul className="reasons">
                   {direct.reasons.map((reason) => (
                     <li key={reason}>
@@ -1158,14 +1175,14 @@ function AllocationPanel({
             <label className="field">
               Buchen als
               <select value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                {[...directKinds, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                   <option key={k.value} value={k.value}>
                     {k.label}
                   </option>
                 ))}
               </select>
               <span className="small muted">{DIRECT_HINT}</span>
-              {tx.amount < 0 && (
+              {tx.amount < 0 && directKind !== "kategorie" && (
                 <span className="small">
                   Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
                 </span>
@@ -1175,6 +1192,9 @@ function AllocationPanel({
 
           {mode === "direct" && directKind === "steuer" && <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} />}
           {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
+          {mode === "direct" && directKind === "kategorie" && (
+            <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
+          )}
 
           <label className="field">
             Betrag
@@ -1298,6 +1318,7 @@ type SplitPart =
   | { kind: "ustva"; vatReturnId: string; amount: number }
   | { kind: "steuer"; amount: number; steuer: NonNullable<ReturnType<typeof steuerangabe>> }
   | { kind: "darlehen"; amount: number; darlehen: DarlehenWahl }
+  | { kind: "kategorie"; amount: number; kategorie: KategorieWahl }
   | { kind: DirectBooking; amount: number };
 
 interface SplitRow {
@@ -1309,6 +1330,8 @@ interface SplitRow {
   steuer: SteuerWahl;
   /** Nur bei "darlehen": Darlehen und Teil der Rate */
   darlehen: DarlehenWahl;
+  /** Nur bei "kategorie": Kategorie und Steuersatz */
+  kategorie: KategorieWahl;
 }
 
 let nextSplitKey = 1;
@@ -1323,6 +1346,7 @@ function SplitForm({
   directKinds,
   steuerOptionen,
   darlehenOptionen,
+  kategorieOptionen,
   busy,
   onCancel,
   onSubmit,
@@ -1333,21 +1357,24 @@ function SplitForm({
   directKinds: Data["directKinds"];
   steuerOptionen: SteuerOptionen;
   darlehenOptionen: DarlehenOptionen;
+  kategorieOptionen: KategorieOptionen;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (parts: SplitPart[]) => void;
 }) {
   const steuerStart = steuerWahlFuer(steuerOptionen, tx.bookingDate);
   const darlehenStart = darlehenWahlFuer(darlehenOptionen, tx.amount);
+  const kategorieStart = kategorieWahlFuer(kategorieOptionen, tx.amount);
+  const start = { steuer: steuerStart, darlehen: darlehenStart, kategorie: kategorieStart };
   const [rows, setRows] = useState<SplitRow[]>(() =>
     initial
       ? [
-          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), steuer: steuerStart, darlehen: darlehenStart },
-          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open), steuer: steuerStart, darlehen: darlehenStart },
+          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), ...start },
+          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open), ...start },
         ]
       : [
-          { key: nextSplitKey++, target: "", amount: signed(tx.open), steuer: steuerStart, darlehen: darlehenStart },
-          { key: nextSplitKey++, target: "gebuehren", amount: "", steuer: steuerStart, darlehen: darlehenStart },
+          { key: nextSplitKey++, target: "", amount: signed(tx.open), ...start },
+          { key: nextSplitKey++, target: "gebuehren", amount: "", ...start },
         ],
   );
 
@@ -1374,6 +1401,7 @@ function SplitForm({
     const angabe = steuerangabe(row.steuer);
     if (row.target === "steuer" && angabe) return { kind: "steuer", amount, steuer: angabe };
     if (row.target === "darlehen") return { kind: "darlehen", amount, darlehen: row.darlehen };
+    if (row.target === "kategorie") return { kind: "kategorie", amount, kategorie: row.kategorie };
     return { kind: row.target as DirectBooking, amount };
   }
 
@@ -1414,7 +1442,7 @@ function SplitForm({
                 ))}
               </optgroup>
               <optgroup label="Direkt buchen">
-                {[...directKinds, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                   <option key={k.value} value={k.value}>
                     {k.label}
                   </option>
@@ -1455,6 +1483,16 @@ function SplitForm({
               <DarlehenFelder options={darlehenOptionen} value={row.darlehen} onChange={(darlehen) => update(row.key, { darlehen })} />
             </div>
           )}
+          {row.target === "kategorie" && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <KategorieFelder
+                options={kategorieOptionen}
+                value={row.kategorie}
+                amount={parsed[index] ?? null}
+                onChange={(kategorie) => update(row.key, { kategorie })}
+              />
+            </div>
+          )}
         </div>
       ))}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -1462,12 +1500,7 @@ function SplitForm({
           type="button"
           className="btn btn-dashed"
           disabled={rows.length >= 20}
-          onClick={() =>
-            setRows((prev) => [
-              ...prev,
-              { key: nextSplitKey++, target: "", amount: rest !== 0 ? signed(rest) : "", steuer: steuerStart, darlehen: darlehenStart },
-            ])
-          }
+          onClick={() => setRows((prev) => [...prev, { key: nextSplitKey++, target: "", amount: rest !== 0 ? signed(rest) : "", ...start }])}
         >
           + Teil
         </button>

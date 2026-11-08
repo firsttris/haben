@@ -151,6 +151,7 @@ const lineInputSchema = z
     unitPrice: lineFields.unitPrice.check(z.describe("Einzelpreis in Cent, netto oder brutto je nach priceMode")),
     taxRate: lineFields.taxRate.check(z.describe("Steuersatz in Basispunkten: 1900 = 19 %, 700 = 7 %, 0")),
     detail: lineFields.detail.describe("Mehrzeiliger Text unter der Bezeichnung (BT-154)"),
+    itemNumber: lineFields.itemNumber.describe("Artikelnummer des Verkäufers (BT-155); leer = keine"),
   })
   .strict()
   .register(requestSchemas, { id: "InvoiceLineInput" });
@@ -171,6 +172,9 @@ const draftApiFields = {
   format: draftFields.format.describe("Vorgabe: Standardformat des Kontakts, mit Leitweg-ID XRechnung, sonst aus den Firmendaten"),
   intro: draftFields.intro.describe("Kopftext über den Positionen, Vorgabe aus den Firmendaten"),
   note: draftFields.note.describe("Fußtext unter den Summen"),
+  buyerOrderReference: draftFields.buyerOrderReference.describe("Bestellnummer des Kunden, in der E-Rechnung BT-13; leer = keine"),
+  sellerOrderReference: draftFields.sellerOrderReference.describe("Eigene Auftragsnummer, in der E-Rechnung BT-14; leer = keine"),
+  despatchAdviceReference: draftFields.despatchAdviceReference.describe("Lieferscheinnummer, in der E-Rechnung BT-16; leer = keine"),
   taxTreatment: draftFields.taxTreatment,
   exemptionReason: draftFields.exemptionReason,
   priceMode: draftFields.priceMode.describe("Einzelpreise netto oder brutto inkl. USt"),
@@ -205,6 +209,7 @@ const lineSchema = z.object({
   position: z.number().int(),
   description: z.string(),
   detail: z.string(),
+  itemNumber: z.string().describe("Artikelnummer des Verkäufers (BT-155); leer = keine"),
   quantity: z.number().int().describe("Tausendstel"),
   unit: z.string(),
   unitPrice: z.number().int().describe("Cent, wie eingegeben (netto oder brutto)"),
@@ -247,6 +252,9 @@ export const invoiceSchema = z
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),
     note: z.string(),
+    buyerOrderReference: z.string().describe("Bestellnummer des Kunden (BT-13); leer = keine"),
+    sellerOrderReference: z.string().describe("Eigene Auftragsnummer (BT-14); leer = keine"),
+    despatchAdviceReference: z.string().describe("Lieferscheinnummer (BT-16); leer = keine"),
     language: z.enum(["de", "en"]),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS),
     exemptionReason: z.string(),

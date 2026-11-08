@@ -1,9 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { bestaetigen, faktenZeigen, dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -29,6 +30,41 @@ const go = (path: string) => gehe(page, path);
 
 test("Einrichtung", async () => {
   await einrichten(page);
+});
+
+test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden Knöpfen (#356)", async ({ browser }) => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(LAPTOP);
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "meldung.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("meldung.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /meldung\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
+  await page.getByLabel("Rechnungsnummer").fill("MF-0816");
+  await page.getByLabel("Belegdatum").fill(day(-9));
+  await page.getByLabel("Kategorie").selectOption("telefon");
+  await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  // Oben im Formular, das in seiner Spalte scrollt; nur dann stehen die Knöpfe über dessen Ende
+  const spalte = page.locator(".doc-editor > .stack");
+  await spalte.evaluate((el) => el.scrollTo(0, 0));
+  expect(await spalte.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(200);
+  const abbrechen = (route: Route) => (route.request().method() === "POST" ? route.abort() : route.continue());
+  await page.route(/_serverFn/, abbrechen);
+  await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+  await sichtbar(page.locator(".doc-editor .banner-danger"));
+  await page.unroute(/_serverFn/, abbrechen);
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await page.locator(".doc-actions").getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+  if (vorher) await page.setViewportSize(vorher);
 });
 
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
@@ -970,6 +1006,52 @@ test("Elektrofahrzeug übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswer
   await expect(plan.locator(".table-row", { hasText: /^2030/ })).toContainText("799,00");
 });
 
+test("Sonstige Transportmittel übernehmen: Konto 0380, eigene Nutzungsdauer statt der Pkw-Nutzungsdauer, keine Elektro-AfA (#312)", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("Kofferanhänger");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await expect(form.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
+  // Die sechs Jahre für Pkw gehen nicht mit: die Nutzungsdauer kommt vom einzelnen Wirtschaftsgut
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
+  await expect(form.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true }).locator("option[value=elektro]")).toHaveCount(0);
+  await form.getByLabel("Nutzungsdauer in Jahren").fill("11");
+  await form.getByLabel("Anschaffungsdatum").fill("2025-04-10");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("6.600,00");
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  // 2025: 9 von 132 Monaten = 450 €
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("6.150,00");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Konto 0380/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Abschreibungsplan" }).locator(".table-row", { hasText: /^2026/ })).toContainText("600,00");
+});
+
+test("Beleg als Anlagegut: Wechsel von Fahrzeug zu Sonstige Transportmittel lässt die sechs Jahre für Pkw nicht stehen (#312)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "anhaenger.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Anhänger Center") }]);
+  await expect(page.getByText("anhaenger.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /anhaenger\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Kategorie").selectOption("anlage");
+  await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
+  await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
+  await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+});
+
 test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wird ohne Erinnerungswert gespeichert", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });
@@ -1120,6 +1202,235 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
 
   await go("/darlehen");
   await expect(page.getByRole("row", { name: /Hausbank Investitionskredit/ })).toContainText("9.200,00");
+});
+
+test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit Begründung, übernehmen auf Klick (#295)", async ({ browser }) => {
+  const beleg = async (n: number) => {
+    await go("/belege");
+    await page
+      .locator("input[type=file][multiple]")
+      .setInputFiles([{ name: `kiosk-${n}.jpg`, mimeType: "image/jpeg", buffer: await receiptJpeg(browser, `Kiosk am Markt ${n}`) }]);
+    await expect(page.getByText(`kiosk-${n}.jpg: abgelegt.`)).toBeVisible();
+    await page
+      .getByRole("link", { name: new RegExp(`kiosk-${n}\\.jpg`) })
+      .first()
+      .click();
+    await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Lieferant", { exact: true }).fill("Kiosk am Markt");
+    await page.getByLabel("Rechnungsnummer").fill(`Q-${n}`);
+    await page.getByLabel("Belegdatum").fill(day(-3));
+    await page.getByLabel("Netto", { exact: true }).fill("10,00");
+  };
+  // Zwei Belege als Telefon, privat bezahlt
+  for (const n of [1, 2]) {
+    await beleg(n);
+    await page.getByLabel("Kategorie").selectOption("telefon");
+    await page.getByLabel("Privat bezahlt (Privateinlage)").check();
+    await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+    await page.getByRole("button", { name: "Jetzt buchen" }).click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
+  }
+  // Der dritte: Hinweise mit Anzahl und Tag der letzten Buchung, gewählt wird erst mit „übernehmen“
+  await beleg(3);
+  await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+  await page.waitForLoadState("networkidle");
+  const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
+  const kategorie = page.getByLabel("Kategorie").locator("xpath=ancestor::label");
+  await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
+  const bezahlung = page.getByRole("group", { name: "Bezahlung" });
+  await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);
+  await expect(bezahlung.getByLabel("Über das Geschäftskonto (Zuordnung beim Bankabgleich)")).toBeChecked();
+  await bezahlung.getByRole("button", { name: "übernehmen" }).click();
+  await expect(bezahlung.getByLabel("Privat bezahlt (Privateinlage)")).toBeChecked();
+  await expect(bezahlung.getByRole("button", { name: "übernehmen" })).toBeHidden();
+  await kategorie.getByRole("button", { name: "übernehmen" }).click();
+  await expect(page.getByLabel("Kategorie")).toHaveValue("telefon");
+  // Nichts ist gebucht, bis bestätigt wird
+  await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeHidden();
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
+});
+
+test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Ausgabe ohne Vorsteuer (#324)", async () => {
+  const zeile = (name: string, zweck: string, betrag: string) =>
+    [dkb(day(0)), dkb(day(0)), "Gebucht", betrag.startsWith("-") ? "Max Mustermann" : name, betrag.startsWith("-") ? name : "Max Mustermann", zweck]
+      .concat([betrag.startsWith("-") ? "Ausgang" : "Eingang", "", betrag, "", "", ""])
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Erika Beispiel", "Reparatur Notebook", "119,00")}\n${zeile("Kiosk am Markt", "Prepaid-Aufladung", "-35,70")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "direkt.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  // Eingang: Erlöse mit 19 %, Netto und Steuer werden angezeigt
+  await page
+    .getByRole("link", { name: /Erika Beispiel/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByRole("heading", { name: "Erika Beispiel" })).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("erloese");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toHaveValue("1900");
+  await expect(panel.getByText("100,00 € netto, 19,00 € Umsatzsteuer")).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Ausgang: Telefon, brutto ohne Vorsteuer; einen Steuersatz gibt es dort nicht
+  await page
+    .getByRole("link", { name: /Kiosk am Markt/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByRole("heading", { name: "Kiosk am Markt" })).toBeVisible();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).toBeHidden();
+  await expect(panel.getByText(/ohne Vorsteuer/)).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+
+  // In der Voranmeldung des Monats als Direktbuchung unter Kz 81, verlinkt auf den Bankumsatz mit seiner Zuordnung
+  await go(`/umsatzsteuer/${day(0).slice(0, 7)}`);
+  await page
+    .getByRole("button", { name: /Direktbuchung/ })
+    .first()
+    .click();
+  await page.getByRole("link", { name: "Direkt gebucht · Erika Beispiel" }).click();
+  await page.waitForURL(/\/bank\?/);
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
+});
+
+test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründung, gebucht erst auf Klick (#295)", async () => {
+  // „Kiosk am Markt“ ist aus dem Test davor einmal als Telefon gebucht; zwei weitere Aufladungen kommen dazu
+  const zeile = (datum: string, zweck: string, betrag: string) =>
+    [datum, datum, "Gebucht", "Max Mustermann", "Kiosk am Markt", zweck, "Ausgang", "", betrag, "", "", ""].map((v) => `"${v}"`).join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile(dkb(day(0)), "Prepaid-Aufladung Mai", "-15,00")}\n${zeile(dkb(day(1)), "Prepaid-Aufladung Juli", "-20,00")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "kiosk.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  // Erst ein Telefon-Umsatz: noch kein Vorschlag (nur eine frühere Zuordnung), also von Hand
+  await page
+    .getByRole("link", { name: /Prepaid-Aufladung Mai/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Mai")).toBeVisible();
+  await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeHidden();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("kategorie");
+  await panel.getByRole("combobox", { name: "Kategorie", exact: true }).selectOption("telefon");
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Danach: zweimal so gebucht, die Liste zeigt „Vorschlag“, rechts Begründung und vorbelegte Felder
+  await expect(page.getByRole("link", { name: /Prepaid-Aufladung Juli/ }).first()).toContainText("Vorschlag");
+  await page
+    .getByRole("link", { name: /Prepaid-Aufladung Juli/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
+  await expect(panel.getByText("Vorschlag ohne Rechnung")).toBeVisible();
+  await expect(panel.getByText("Ausgabe: Telefon")).toBeVisible();
+  await expect(panel.getByText(`2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am ${day(0).split("-").reverse().join(".")}`)).toBeVisible();
+  await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Kategorie", exact: true })).toHaveValue("telefon");
+  // Nichts ist gebucht, bis bestätigt wird
+  await expect(panel.getByText("Direkt: Telefon")).toBeHidden();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  // Danach springt die Auswahl zum nächsten offenen Umsatz; unter „Alle“ steht der gebuchte mit seiner Zuordnung
+  await go("/bank?filter=alle");
+  await page
+    .getByRole("link", { name: /Prepaid-Aufladung Juli/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
+  await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
+});
+
+test("Gelernte Erlöse als Kleinunternehmer, § 19 inzwischen aufgegeben: das Formular zeigt, was gebucht wird (#295)", async () => {
+  // Drei Zahlungen eines Privatkunden im Vormonat, als noch die Kleinunternehmerregelung galt
+  const datum = day(-40);
+  const zeile = (zweck: string, betrag: string) =>
+    [dkb(datum), dkb(datum), "Gebucht", "Paula Privat", "Max Mustermann", zweck, "Eingang", "DE02100100100006820199", betrag, "", "", ""]
+      .map((v) => `"${v}"`)
+      .join(";");
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zeile("Fenster putzen 1", "100,00")}\n${zeile("Fenster putzen 2", "200,00")}\n${zeile("Fenster putzen 3", "300,00")}\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "paula.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/3 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+
+  // Stand im Änderungsprotokoll: im Vormonat Kleinunternehmer, heute nicht mehr (Ausschalten geht jederzeit).
+  // Zwei Zahlungen von damals als Erlöse ohne Steuer zugeordnet.
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    await sql`insert into audit_log (at, actor, table_name, row_id, action, new_value)
+      values (${`${datum}T12:00:00Z`}::timestamptz, 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: true })}),
+             (now(), 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: false })})`;
+    for (const zweck of ["Fenster putzen 1", "Fenster putzen 2"]) {
+      await sql`insert into allocations (transaction_id, kind, amount, category, tax_rate)
+        select id, 'kategorie', amount, 'erloese', 0 from bank_transactions where purpose = ${zweck}`;
+    }
+  } finally {
+    await sql.end();
+  }
+
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Fenster putzen 3/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Fenster putzen 3")).toBeVisible();
+  // Vorgeschlagen und vorbelegt sind Erlöse ohne Steuer; das Formular darf nicht „19 %“ zeigen
+  await expect(panel.getByText("Einnahme: Erlöse (Kleinunternehmer)")).toBeVisible();
+  await expect(panel.getByLabel("Buchen als")).toHaveValue("kategorie");
+  await expect(panel.getByRole("combobox", { name: "Steuersatz", exact: true })).not.toHaveValue("1900");
+  await expect(panel.getByText("Als Kleinunternehmer ohne Umsatzsteuer (§ 19 UStG).")).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  // Gebucht wie angezeigt: ohne Steuer, wie am Tag der Zahlung
+  await go("/bank?filter=alle");
+  await page
+    .getByRole("link", { name: /Fenster putzen 3/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Fenster putzen 3")).toBeVisible();
+  await expect(panel.getByText("Direkt: Erlöse (Kleinunternehmer)")).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

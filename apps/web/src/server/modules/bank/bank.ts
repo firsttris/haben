@@ -23,6 +23,7 @@ import {
   payoutKey,
   learnedDirectBooking,
   type DirectSuggestion,
+  type LearnedBooking,
   suggestDirectBooking,
   suggestLohnsteuer,
   documentPaymentPosting,
@@ -33,6 +34,8 @@ import {
   skontoZahlfristen,
   suggestMatches,
   type DirectBooking,
+  type DirektKategorie,
+  kategorieText,
   type InvoiceTotals,
   type OpenItem,
   type OwnAccount,
@@ -54,13 +57,14 @@ import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
-import { loadCompany } from "../stammdaten/index.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, payeeIbans } from "./document-payees.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
+import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 
 export class BankError extends UserError {}
 
@@ -595,6 +599,8 @@ export async function transactionDetail(id: string) {
       taxItem: schema.allocations.taxItem,
       loanName: schema.loans.name,
       loanPart: schema.allocations.loanPart,
+      category: schema.allocations.category,
+      taxRate: schema.allocations.taxRate,
     })
     .from(schema.allocations)
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
@@ -613,6 +619,7 @@ export async function transactionDetail(id: string) {
       vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
       steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
       darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
+      kategorieLabel: a.category && a.taxRate !== null ? kategorieText({ kategorie: a.category, steuersatz: a.taxRate }) : null,
     }));
 
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
@@ -674,11 +681,12 @@ export async function transactionDetail(id: string) {
   };
 }
 
-type History = Map<string, { kinds: { value: string; count: number; last: string }[]; total: number }>;
+type History = Map<string, { kinds: { value: LearnedBooking; count: number; last: string }[]; total: number }>;
 
 /**
- * Frühere Zuordnungen je Gegenpartei, Richtung und Art, ohne aufgehobene. Schlüssel ist „IBAN bzw. Name|Vorzeichen“
- * (siehe historyKey); total zählt die Umsätze, nicht die Zuordnungen, damit ein aufgeteilter Umsatz einmal zählt.
+ * Frühere Zuordnungen je Gegenpartei, Richtung und Art, ohne aufgehobene; bei „Direkt buchen“ auf eine Kategorie je
+ * Kategorie und Steuersatz. Schlüssel ist „IBAN bzw. Name|Vorzeichen“ (siehe historyKey); total zählt die Umsätze, nicht
+ * die Zuordnungen, damit ein aufgeteilter Umsatz einmal zählt.
  */
 async function allocationHistory(by: "iban" | "name", keys: string[]): Promise<History> {
   const result: History = new Map();
@@ -686,22 +694,32 @@ async function allocationHistory(by: "iban" | "name", keys: string[]): Promise<H
   const key = by === "iban" ? sql`upper(replace(t.counterparty_iban, ' ', ''))` : sql`lower(btrim(t.counterparty_name))`;
   // Eine Art zählt nur mit dem Vorzeichen des Umsatzes: Die von einer Auszahlung abgezogene Gebühr (Teil mit umgekehrtem
   // Vorzeichen) macht aus der Auszahlung keinen Eingang „Gebühren“. total zählt alle Umsätze der Gegenpartei in der Richtung.
-  const rows = await db.execute<{ key: string; kind: string; count: string; last: string; total: string }>(sql`
+  const rows = await db.execute<{
+    key: string;
+    kind: string;
+    category: string | null;
+    tax_rate: number | null;
+    count: string;
+    last: string;
+    total: string;
+  }>(sql`
     with h as (
-      select ${key} || '|' || sign(t.amount)::int as key, a.kind, t.id, t.booking_date, sign(a.amount) = sign(t.amount) as same
+      select ${key} || '|' || sign(t.amount)::int as key, a.kind, a.category, a.tax_rate, t.id, t.booking_date,
+             sign(a.amount) = sign(t.amount) as same
         from allocations a join bank_transactions t on t.id = a.transaction_id
        where a.reverses_id is null
          and not exists (select 1 from allocations r where r.reverses_id = a.id)
          and ${key} in ${keys}
     ),
     totals as (select key, count(distinct id) as total from h group by key)
-    select h.key, h.kind, count(distinct h.id) as count, max(h.booking_date)::text as last, totals.total
+    select h.key, h.kind, h.category, h.tax_rate, count(distinct h.id) as count, max(h.booking_date)::text as last, totals.total
       from h join totals on totals.key = h.key
      where h.same
-     group by h.key, h.kind, totals.total`);
+     group by h.key, h.kind, h.category, h.tax_rate, totals.total`);
   for (const r of rows) {
     const entry = result.get(r.key) ?? { kinds: [], total: Number(r.total) };
-    entry.kinds.push({ value: r.kind, count: Number(r.count), last: r.last });
+    const kategorie = r.category !== null && r.tax_rate !== null ? { kategorie: r.category as DirektKategorie, steuersatz: r.tax_rate } : undefined;
+    entry.kinds.push({ value: kategorie ? { kind: r.kind, kategorie } : { kind: r.kind }, count: Number(r.count), last: r.last });
     result.set(r.key, entry);
   }
   return result;
@@ -716,19 +734,24 @@ const nameKey = (name: string) => name.trim().toLowerCase() || null;
 /**
  * Vorschläge ohne Rechnung aus früheren Zuordnungen derselben Gegenpartei, je Umsatz (siehe learnedDirectBooking):
  * zuerst über die Gegen-IBAN, ohne Treffer dort über den Namen. Zwei Abfragen für alle Umsätze zusammen, damit die
- * Umsatzliste nicht je Zeile fragt.
+ * Umsatzliste nicht je Zeile fragt. Eine Kategorie nur, wenn sie am Tag des Umsatzes so buchbar ist: Den
+ * Kleinunternehmer-Stand prüft die Buchung für den Monat der Zahlung (kategoriebuchung), der Vorschlag ebenso.
  */
 export async function learnedDirectSuggestions(
-  txs: { id: string; amount: number; counterpartyIban: string | null; counterpartyName: string }[],
+  txs: { id: string; amount: number; bookingDate: string; counterpartyIban: string | null; counterpartyName: string }[],
 ): Promise<Map<string, DirectSuggestion>> {
   const result = new Map<string, DirectSuggestion>();
+  if (txs.length === 0) return result;
+  const kleinunternehmerAm = await kleinunternehmerHistory();
   const byIban = await allocationHistory("iban", [...new Set(txs.flatMap((t) => ibanKey(t.counterpartyIban) ?? []))]);
   const rest = txs.filter((t) => !byIban.has(historyKey(ibanKey(t.counterpartyIban), t.amount)));
   const byName = await allocationHistory("name", [...new Set(rest.flatMap((t) => nameKey(t.counterpartyName) ?? []))]);
   for (const t of txs) {
     const iban = byIban.get(historyKey(ibanKey(t.counterpartyIban), t.amount));
     const name = byName.get(historyKey(nameKey(t.counterpartyName), t.amount));
-    const suggestion = iban ? learnedDirectBooking(t, iban.kinds, iban.total, "iban") : name ? learnedDirectBooking(t, name.kinds, name.total, "name") : null;
+    const history = iban ? { ...iban, basis: "iban" as const } : name ? { ...name, basis: "name" as const } : null;
+    const kleinunternehmer = kleinunternehmerAm(lastDayOfMonth(Number(t.bookingDate.slice(0, 4)), Number(t.bookingDate.slice(5, 7))));
+    const suggestion = history ? learnedDirectBooking(t, history.kinds, history.total, history.basis, kleinunternehmer) : null;
     if (suggestion) result.set(t.id, suggestion);
   }
   return result;
@@ -956,6 +979,8 @@ export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("steuer"), transactionId: z.uuid(), amount: z.number().int(), steuer: steuerangabeSchema }),
   // Auszahlung, Tilgung, Zinsen oder Gebühren eines Darlehens
   z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: z.number().int(), darlehen: loanPartSchema }),
+  // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz
+  z.object({ kind: z.literal("kategorie"), transactionId: z.uuid(), amount: z.number().int(), kategorie: kategorieAngabeSchema }),
 ]);
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
@@ -968,6 +993,7 @@ const splitPartSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.enum(DIRECT_KINDS), amount: z.number().int() }),
   z.object({ kind: z.literal("steuer"), amount: z.number().int(), steuer: steuerangabeSchema }),
   z.object({ kind: z.literal("darlehen"), amount: z.number().int(), darlehen: loanPartSchema }),
+  z.object({ kind: z.literal("kategorie"), amount: z.number().int(), kategorie: kategorieAngabeSchema }),
 ]);
 
 export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(splitPartSchema).min(2).max(20) });
@@ -1016,6 +1042,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     taxItem?: SteuerPosten;
     loanId?: string;
     loanPart?: DarlehenTeil;
+    category?: DirektKategorie;
+    taxRate?: number;
   } = {};
 
   if (part.kind === "invoice") {
@@ -1072,6 +1100,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     ({ lines, description, target } = await darlehenBuchung(tx, company.kontenrahmen, bank, part.darlehen.loanId, part.darlehen.part, part.amount));
   } else if (part.kind === "steuer") {
     ({ lines, description, target } = await steuerbuchung(tx, company, bank, part.steuer, part.amount));
+  } else if (part.kind === "kategorie") {
+    ({ lines, description, target } = await kategoriebuchung(tx, company.kontenrahmen, bank, part.kategorie, part.amount));
   } else if (part.kind === "kursdifferenz") {
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
@@ -1198,6 +1228,8 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       taxItem: allocation.taxItem,
       loanId: allocation.loanId,
       loanPart: allocation.loanPart,
+      category: allocation.category,
+      taxRate: allocation.taxRate,
       amount: -allocation.amount,
       splitId: allocation.splitId,
       reversesId: allocation.id,

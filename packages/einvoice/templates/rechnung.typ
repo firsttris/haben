@@ -120,18 +120,21 @@
 #let head(body) = medium(text(size: 8pt, fill: accent, body))
 // Lieferschein: nur Position, Beschreibung und Menge
 #let noPrices = d.at("noPrices", default: false)
-#let cols = d.at("labels", default: (columns: (pos: "Pos.", description: "Beschreibung", quantity: "Menge", unitPrice: "Einzelpreis", vat: "USt", net: "Netto"))).columns
+#let cols = d.at("labels", default: (columns: (pos: "Pos.", itemNumber: "Art.-Nr.", description: "Beschreibung", quantity: "Menge", unitPrice: "Einzelpreis", vat: "USt", net: "Netto"))).columns
+// Spalte „Art.-Nr.“ hinter der Position, nur wenn eine Position eine Artikelnummer hat (BT-155)
+#let itemNumbers = d.at("itemNumbers", default: false)
+#let withItem(cells, item) = if itemNumbers { (cells.at(0), item) + cells.slice(1) } else { cells }
 #table(
-  columns: if noPrices { (auto, 1fr, auto) } else { (auto, 1fr, auto, auto, auto, auto) },
-  align: if noPrices { (left, left, right) } else { (left, left, right, right, right, right) },
+  columns: withItem(if noPrices { (auto, 1fr, auto) } else { (auto, 1fr, auto, auto, auto, auto) }, auto),
+  align: withItem(if noPrices { (left, left, right) } else { (left, left, right, right, right, right) }, left),
   stroke: (x, y) => if y == 0 { (bottom: 0.6pt + accent) } else { (bottom: 0.4pt + rule) },
   inset: (x: 1.6mm, y: 2.2mm),
   table.header(
-    ..if noPrices {
+    ..withItem(if noPrices {
       (head(cols.pos), head(cols.description), head(cols.quantity))
     } else {
       (head(cols.pos), head(cols.description), head(cols.quantity), head(cols.unitPrice), head(cols.vat), head(cols.net))
-    },
+    }, head(cols.at("itemNumber", default: "Art.-Nr."))),
   ),
   ..d.lines.map(l => {
     // Bezeichnung, darunter die mehrzeilige Beschreibung der Position
@@ -147,7 +150,7 @@
       if discount != none { parts.push(text(size: 8.5pt, fill: muted, discount)) }
       stack(spacing: 1.4mm, ..parts)
     }
-    if noPrices { (l.pos, desc, l.quantity) } else { (l.pos, desc, l.quantity, l.unitPrice, l.rate, l.net) }
+    withItem(if noPrices { (l.pos, desc, l.quantity) } else { (l.pos, desc, l.quantity, l.unitPrice, l.rate, l.net) }, l.at("itemNumber", default: ""))
   }).flatten()
 )
 

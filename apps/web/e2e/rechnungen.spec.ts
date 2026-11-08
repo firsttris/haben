@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { day, firstLink, YEAR } from "./daten.ts";
-import { statusBleibtSichtbar } from "./kopfzeile.ts";
+import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
   bestaetigen,
   faktenZeigen,
@@ -131,6 +131,8 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
   await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
+  // Die Artikelnummer geht in die Position über (BT-155, #388)
+  await expect(page.getByLabel("Artikelnummer Position 1 (optional)")).toHaveValue("B-01");
   // Bereits im Katalog: nicht noch einmal speichern
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
@@ -138,6 +140,7 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("110,00");
+  await expect(page.getByLabel("Artikelnummer Position 2 (optional)")).toHaveValue("B-01");
 
   // Eine neue Position als Artikel speichern; danach steht sie im Katalog
   await page.getByRole("button", { name: "Position hinzufügen" }).click();
@@ -285,6 +288,8 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await page.getByLabel("Text zu Position 1 (optional)").fill("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await page.getByLabel("Menge Position 1").fill("16");
   await page.getByLabel(/Einzelpreis Position 1/).fill("110");
+  // Bestellnummer des Kunden (BT-13) als eigenes Feld; geht in die Rechnung aus dem Angebot über (#389)
+  await page.getByLabel("Bestellnummer (optional)").fill("4500012345");
   await expect(page.getByLabel("Vorschau des Angebots")).toContainText("Dieses Angebot gilt bis zum");
   await page.getByRole("button", { name: "Entwurf speichern" }).click();
   await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
@@ -314,6 +319,9 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   // Der Text zur Position geht aus dem Angebot in die Rechnung über
   await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await expect(page.getByLabel(/Hinweis auf der Rechnung/)).toHaveValue(/^Gemäß unserem Angebot AN-\d{4}-001 vom/);
+  // Bestellnummer aus dem Angebot, als eigene Auftragsnummer (BT-14) dessen Nummer
+  await expect(page.getByLabel("Bestellnummer (optional)")).toHaveValue("4500012345");
+  await expect(page.getByLabel("Eigene Auftragsnummer (optional)")).toHaveValue(/^AN-\d{4}-001$/);
   // Den Entwurf wieder verwerfen; das Angebot lässt sich danach erneut abrechnen
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
   await bestaetigen(page, "Entwurf löschen");
@@ -890,6 +898,29 @@ test("Doppelklick auf Stornieren im Kassenbuch: Liegt der rote Knopf des Dialogs
   await expect(eintrag).not.toContainText("storniert");
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 1440, height: 900 });
+});
+
+test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fenster (#356)", async () => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(LAPTOP);
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  const speichern = page.locator(".main > .page-head").getByRole("button", { name: "Entwurf speichern" });
+  await speichern.click();
+  await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}/);
+  await expect(speichern).toBeDisabled();
+  // Nach dem ersten Speichern lädt die Seite neu: eine zu frühe Eingabe ginge dabei verloren
+  await expect(async () => {
+    await page.getByLabel("Beschreibung Position 1").fill("Beratung geändert");
+    await expect(speichern).toBeEnabled({ timeout: 1000 });
+  }).toPass();
+  await zumEnde(page);
+  await speichern.click();
+  await sichtbar(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." }));
+  if (vorher) await page.setViewportSize(vorher);
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

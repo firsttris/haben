@@ -1,7 +1,8 @@
 import { planShareLabel, type Discount, type InvoiceTotals, type PriceMode, type QuoteLineKind, type ScheduledRow, type TaxTreatment } from "@haben/core";
 import { texts, type Language, type Texts } from "./i18n.ts";
 import { asDraft, documentPdfData, draftFilename, renderQuotePdfData, showsGrossPrices, type DraftPdf } from "./pdf.ts";
-import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
+import { referenceMeta } from "./format.ts";
+import type { Buyer, InvoiceDocumentLine, Letterhead, OrderReferences, Seller } from "./types.ts";
 
 /** Position im Angebot; optionale und alternative zählen nicht zur Summe (help.lexware.de, Artikel 547989) */
 export interface QuoteDocumentLine extends InvoiceDocumentLine {
@@ -35,9 +36,11 @@ export interface QuoteDocument extends Letterhead {
   /** Fehlt = Nettopreise */
   priceMode?: PriceMode;
   language?: Language;
+  /** Bestellnummer des Kunden, eigene Auftragsnummer und Lieferschein; gehen in die Rechnung aus dem Angebot über */
+  references?: OrderReferences;
 }
 
-/** Leistungszeitraum und Kundennummer; auch für die Auftragsbestätigung */
+/** Leistungszeitraum, Kundennummer und Referenzen; auch für die Auftragsbestätigung */
 export function quoteDetails(doc: QuoteDocument, t: Texts): { label: string; value: string }[] {
   const meta: { label: string; value: string }[] = [];
   if (doc.serviceFrom && doc.serviceTo && doc.serviceFrom !== doc.serviceTo) {
@@ -46,6 +49,7 @@ export function quoteDetails(doc: QuoteDocument, t: Texts): { label: string; val
     meta.push({ label: t.serviceDate, value: t.date((doc.serviceFrom ?? doc.serviceTo)!) });
   }
   if (doc.buyer.kundennummer) meta.push({ label: t.customerNumber, value: doc.buyer.kundennummer });
+  meta.push(...referenceMeta(doc.references, t));
   return meta;
 }
 

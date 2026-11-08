@@ -33,7 +33,7 @@ describe("Belege auf Englisch", () => {
     expect(data.payment).toBe("Please transfer the amount by 16 Oct 2026, quoting the invoice number.");
     expect(data.taxNote).toBe("Reverse charge: VAT liability of the recipient (Art. 196 VAT Directive).");
     expect(data.labels).toEqual({
-      columns: { pos: "No.", description: "Description", quantity: "Qty", unitPrice: "Unit price", vat: "VAT", net: "Net" },
+      columns: { pos: "No.", itemNumber: "Item no.", description: "Description", quantity: "Qty", unitPrice: "Unit price", vat: "VAT", net: "Net" },
       page: ["Page", "of", ""],
     });
     expect(data.footer[0]).toContain("Phone +49 30 1234567");

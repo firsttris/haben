@@ -1,4 +1,6 @@
 import {
+  kategorieAnteil,
+  kategorieArt,
   lastMonthOfPeriod,
   monthsOfPeriod,
   paidTaxShares,
@@ -16,10 +18,15 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
-  /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung, ausbuchung = Skonto oder Forderungsausfall (§ 17) */
-  type: "payment" | "invoice" | "entnahme" | "ausbuchung";
+  /**
+   * payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung, ausbuchung = Skonto oder
+   * Forderungsausfall (§ 17), direkt = Bankumsatz direkt auf eine Einnahmekategorie gebucht (Ist und Soll)
+   */
+  type: "payment" | "invoice" | "entnahme" | "ausbuchung" | "direkt";
   /** Bei Entnahmen: das Fahrzeug */
   assetId?: string;
+  /** Bei Direktbuchungen: der Bankumsatz */
+  transactionId?: string;
   date: string;
   invoiceId: string;
   number: string;
@@ -274,6 +281,39 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           tax: share.tax,
         });
       }
+    }
+  }
+
+  // Direkt auf eine Einnahmekategorie gebuchte Bankumsätze (#324): ohne Rechnung am Tag der Zahlung, bei Ist wie bei Soll
+  // (packages/core/src/direkt-kategorie.ts); die Gegenzeile einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen
+  {
+    const rows = await q
+      .select({
+        date: schema.bankTransactions.bookingDate,
+        transactionId: schema.allocations.transactionId,
+        amount: schema.allocations.amount,
+        category: schema.allocations.category,
+        taxRate: schema.allocations.taxRate,
+        counterparty: schema.bankTransactions.counterpartyName,
+      })
+      .from(schema.allocations)
+      .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
+      .where(and(eq(schema.allocations.kind, "kategorie"), gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end)));
+    for (const r of rows) {
+      if (!r.category || r.taxRate === null || kategorieArt(r.category) !== "einnahme") continue;
+      const { base, tax } = kategorieAnteil({ kategorie: r.category, steuersatz: r.taxRate }, r.amount);
+      revenue.push({
+        type: "direkt",
+        date: r.date,
+        invoiceId: "",
+        transactionId: r.transactionId,
+        number: "Direkt gebucht",
+        customer: r.counterparty,
+        treatment: r.taxRate === 0 ? "kleinunternehmer" : "regulaer",
+        rate: r.taxRate,
+        base,
+        tax,
+      });
     }
   }
 

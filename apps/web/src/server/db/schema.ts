@@ -48,6 +48,7 @@ import {
   type MailTemplates,
   type SkontoStufe,
   type TaxShare,
+  type DirektKategorie,
   BESCHAEFTIGUNGSARTEN,
   KONFESSIONEN,
   type Beschaeftigungsart,
@@ -983,6 +984,13 @@ export const invoices = pgTable(
     intro: text("intro").notNull().default(""),
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
+    /**
+     * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
+     * Lieferschein (BT-16). Im XML an ihrem eigenen Feld, im PDF im Kopfblock.
+     */
+    buyerOrderReference: text("buyer_order_reference").notNull().default(""),
+    sellerOrderReference: text("seller_order_reference").notNull().default(""),
+    despatchAdviceReference: text("despatch_advice_reference").notNull().default(""),
     /** Sprache des PDFs */
     language: text("language", { enum: ["de", "en"] })
       .notNull()
@@ -1074,6 +1082,8 @@ export const invoiceLines = pgTable(
     description: text("description").notNull(),
     /** Beschreibung unter der Bezeichnung, mehrzeilig (BT-154); leer = keine */
     detail: text("detail").notNull().default(""),
+    /** Artikelnummer des Verkäufers (BT-155), beim Einfügen aus dem Artikel kopiert; leer = keine (#388) */
+    itemNumber: text("item_number").notNull().default(""),
     /** Tausendstel */
     quantity: integer("quantity").notNull(),
     unit: text("unit").notNull(),
@@ -1170,6 +1180,13 @@ export const quotes = pgTable(
     /** Einleitung über den Positionen (Kopftext) */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
+    /**
+     * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
+     * Lieferschein (BT-16). Gehen in die Rechnung aus dem Angebot über.
+     */
+    buyerOrderReference: text("buyer_order_reference").notNull().default(""),
+    sellerOrderReference: text("seller_order_reference").notNull().default(""),
+    despatchAdviceReference: text("despatch_advice_reference").notNull().default(""),
     language: text("language", { enum: ["de", "en"] })
       .notNull()
       .default("de"),
@@ -1221,6 +1238,8 @@ export const quoteLines = pgTable(
     description: text("description").notNull(),
     /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
     detail: text("detail").notNull().default(""),
+    /** Artikelnummer des Verkäufers wie bei der Rechnung; geht in die Rechnung aus dem Angebot über */
+    itemNumber: text("item_number").notNull().default(""),
     /** Tausendstel */
     quantity: integer("quantity").notNull(),
     unit: text("unit").notNull(),
@@ -1769,6 +1788,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "zinsertrag",
   // Auszahlung, Tilgung, Zinsen und Gebühren eines Darlehens (loans)
   "darlehen",
+  // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz (Roadmap Platz 1, #324)
+  "kategorie",
 ]);
 
 /**
@@ -1829,6 +1850,13 @@ export const allocations = pgTable(
     /** Nur bei Darlehen (kind „darlehen“): das Darlehen und der Teil (Auszahlung, Tilgung, Zinsen, Gebühren) */
     loanId: uuid("loan_id").references(() => loans.id),
     loanPart: text("loan_part", { enum: DARLEHEN_TEIL_KEYS }),
+    /**
+     * Nur bei „Direkt buchen“ auf eine Kategorie (kind „kategorie“): Einnahme- oder Ausgabekategorie und Steuersatz in
+     * Basispunkten, siehe packages/core/src/direkt-kategorie.ts. Voranmeldung und EÜR lesen sie von hier; die Gegenzeile
+     * trägt dieselben Angaben. Kein Enum: Die Ausgabekategorien wachsen, gebuchte Werte bleiben gültig.
+     */
+    category: text("category").$type<DirektKategorie>(),
+    taxRate: integer("tax_rate"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1839,6 +1867,10 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    check(
+      "allocations_kategorie",
+      sql`case when ${t.kind}::text = 'kategorie' then ${t.category} is not null and ${t.taxRate} is not null else ${t.category} is null and ${t.taxRate} is null end`,
+    ),
     check(
       "allocations_loan",
       sql`case when ${t.kind}::text = 'darlehen' then ${t.loanId} is not null and ${t.loanPart} is not null else ${t.loanId} is null and ${t.loanPart} is null end`,
@@ -2277,7 +2309,9 @@ export const recurringInvoices = pgTable(
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     /** detail: Beschreibung unter der Bezeichnung; fehlt bei Vorlagen von vor dem Feld */
-    lines: jsonb("lines").$type<{ description: string; detail?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
+    lines: jsonb("lines")
+      .$type<{ description: string; detail?: string; itemNumber?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>()
+      .notNull(),
     /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
     intervalMonths: smallint("interval_months").notNull(),
     /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */

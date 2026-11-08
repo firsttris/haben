@@ -228,6 +228,33 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(created.headers.get("location")).toBe(`/api/v1/rechnungen/${invoice.id}`);
     });
 
+    it("liest und schreibt Bestell-, Auftrags- und Lieferscheinnummer; PATCH ohne sie behält sie (#389)", async () => {
+      const t = await token(["rechnungen:entwuerfe"]);
+      const refs = { buyerOrderReference: "4500012345", sellerOrderReference: "etsy-1001", despatchAdviceReference: "LS-0815" };
+      const created = await call(t, "POST", "/rechnungen", draft(refs));
+      expect(created.status).toBe(201);
+      const invoice = schemas.invoiceSchema.parse(created.json);
+      expect(invoice).toMatchObject(refs);
+      const patched = await call(t, "PATCH", `/rechnungen/${invoice.id}`, { note: "Danke" });
+      expect(schemas.invoiceSchema.parse(patched.json)).toMatchObject({ ...refs, note: "Danke" });
+      const cleared = await call(t, "PATCH", `/rechnungen/${invoice.id}`, { despatchAdviceReference: "" });
+      expect(cleared.json).toMatchObject({ despatchAdviceReference: "", buyerOrderReference: "4500012345" });
+      expect((await call(t, "POST", "/rechnungen", draft({ buyerOrderReference: "x".repeat(101) }))).status).toBe(400);
+    });
+
+    it("liest und schreibt die Artikelnummer einer Position; PATCH ohne lines behält sie (#388)", async () => {
+      const t = await token(["rechnungen:entwuerfe"]);
+      const line = { description: "Dichtungssatz", itemNumber: "ET-1042", quantity: 3000, unit: "Stk.", unitPrice: 1_250, taxRate: 1900 };
+      const created = await call(t, "POST", "/rechnungen", draft({ lines: [line] }));
+      expect(created.status).toBe(201);
+      const invoice = schemas.invoiceSchema.parse(created.json);
+      expect(invoice.lines).toEqual([expect.objectContaining({ itemNumber: "ET-1042" })]);
+      const patched = schemas.invoiceSchema.parse((await call(t, "PATCH", `/rechnungen/${invoice.id}`, { note: "Danke" })).json);
+      expect(patched.lines).toEqual([expect.objectContaining({ itemNumber: "ET-1042" })]);
+      const plain = schemas.invoiceSchema.parse((await call(t, "POST", "/rechnungen", draft())).json);
+      expect(plain.lines).toEqual([expect.objectContaining({ itemNumber: "" })]);
+    });
+
     it("nimmt Format und Sprache ohne Angabe vom Kontakt wie der Rechnungseditor", async () => {
       const t = await token(["rechnungen:entwuerfe", "kontakte:schreiben"]);
       const amt = (await call(t, "POST", "/kontakte", { name: "Stadt Regensburg", leitwegId: "09362000-12345-67", language: "en" })).json!;

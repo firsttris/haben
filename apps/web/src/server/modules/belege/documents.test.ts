@@ -31,6 +31,7 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x4
 
 describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
   let documents: typeof import("./documents.ts");
+  let vorschlaege: typeof import("./vorschlaege.ts");
   let einvoice: typeof import("@haben/einvoice");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -38,6 +39,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     documents = await import("./documents.ts");
+    vorschlaege = await import("./vorschlaege.ts");
     einvoice = await import("@haben/einvoice");
   }, 30_000);
 
@@ -264,15 +266,16 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     await book(1, "internet");
     await book(2, "telefon");
     // Gleichstand: der zuletzt gebuchte
-    expect(await documents.supplierCategory("Telekom Deutschland GmbH", "")).toEqual({ category: "telefon", count: 1, total: 2 });
+    const lieferant = (supplierName: string, supplierUstId: string) => ({ supplierName, supplierUstId, supplierContactId: null });
+    expect(await vorschlaege.supplierCategory(lieferant("Telekom Deutschland GmbH", ""))).toMatchObject({ category: "telefon", count: 1, total: 2 });
     await book(3, "internet");
     await book(4, "internet");
     // Zuletzt „telefon“, häufiger bleibt „internet“
     await book(5, "telefon");
     // Erkannt an der USt-IdNr. oder am Namen ohne Groß- und Kleinschreibung
-    expect(await documents.supplierCategory("", "DE123475223")).toEqual({ category: "internet", count: 3, total: 5 });
-    expect(await documents.supplierCategory("telekom deutschland gmbh ", "")).toEqual({ category: "internet", count: 3, total: 5 });
-    expect(await documents.supplierCategory("Andere GmbH", "")).toBeNull();
+    expect(await vorschlaege.supplierCategory(lieferant("", "DE123475223"))).toMatchObject({ category: "internet", count: 3, total: 5 });
+    expect(await vorschlaege.supplierCategory(lieferant("telekom deutschland gmbh ", ""))).toMatchObject({ category: "internet", count: 3, total: 5 });
+    expect(await vorschlaege.supplierCategory(lieferant("Andere GmbH", ""))).toBeNull();
     // Auch die Auslesung (KI: „telefon“) überstimmt die häufigste Kategorie
     const next = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 99]), filename: "neu.jpg" });
     expect((await documents.getDocument(next.id))?.document.category).toBe("internet");

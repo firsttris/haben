@@ -120,10 +120,17 @@ export function ownerAccount(kontenrahmen: Kontenrahmen, rechtsform: Rechtsform,
 export const EXPENSE_CATEGORIES = {
   software: { label: "Software und Lizenzen", SKR03: "4964", SKR04: "6837" },
   edv: { label: "Hosting und IT-Dienste", SKR03: "4806", SKR04: "6495" },
+  // DATEV „Reparaturen und Instandhaltung von anderen Anlagen und Betriebs- und Geschäftsausstattung“ (#312); EDV und Kfz
+  // haben eigene Kategorien
+  reparatur: { label: "Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz)", SKR03: "4805", SKR04: "6470" },
+  // DATEV „Miete (unbewegliche Wirtschaftsgüter)“: Geschäftsräume und betrieblich genutzte Grundstücke (#312)
+  miete: { label: "Miete für Geschäftsräume", SKR03: "4210", SKR04: "6310" },
   hardware: { label: "Hardware (GWG bis 800 € netto)", SKR03: "0480", SKR04: "0670" },
   telefon: { label: "Telefon", SKR03: "4920", SKR04: "6805" },
   internet: { label: "Internet", SKR03: "4925", SKR04: "6810" },
   buero: { label: "Bürobedarf", SKR03: "4930", SKR04: "6815" },
+  // DATEV „Sonstiger Betriebsbedarf“: laufendes Verbrauchsmaterial außer Bürobedarf (#312)
+  betriebsbedarf: { label: "Sonstiger Betriebsbedarf", SKR03: "4980", SKR04: "6850" },
   literatur: { label: "Fachliteratur", SKR03: "4940", SKR04: "6820" },
   fortbildung: { label: "Fortbildung", SKR03: "4945", SKR04: "6821" },
   fahrtkosten: { label: "Reisekosten: Fahrten", SKR03: "4673", SKR04: "6673" },
@@ -144,8 +151,15 @@ export const EXPENSE_CATEGORIES = {
   kfzSteuer: { label: "Kfz: Steuer", SKR03: "4510", SKR04: "7685" },
   kfzReparatur: { label: "Kfz: Reparaturen", SKR03: "4540", SKR04: "6540" },
   kfzLeasing: { label: "Kfz: Leasing", SKR03: "4570", SKR04: "6560" },
+  // DATEV „Sonstige Fahrzeugkosten“: was nicht Laden/Tanken, Versicherung, Steuer, Reparatur oder Leasing ist (#312)
+  kfzSonstige: { label: "Kfz: sonstige Kosten", SKR03: "4580", SKR04: "6570" },
   versicherung: { label: "Versicherungen", SKR03: "4360", SKR04: "6400" },
   beitraege: { label: "Beiträge", SKR03: "4380", SKR04: "6420" },
+  // Personalaufwand (soziale Abgaben, § 275 Abs. 2 Nr. 6b HGB), DATEV „Beiträge zur Berufsgenossenschaft“ (#312)
+  berufsgenossenschaft: { label: "Beiträge zur Berufsgenossenschaft", SKR03: "4138", SKR04: "6120" },
+  // DATEV „Versorgungskassen“: betriebliche Altersversorgung der Arbeitnehmer (§ 4c EStG). Die eigene Vorsorge des
+  // Inhabers ist keine Betriebsausgabe (§ 12 Nr. 1 EStG), sie ist eine Entnahme (#312)
+  versorgungskassen: { label: "Versorgungskassen (Altersversorgung der Arbeitnehmer)", SKR03: "4160", SKR04: "6150" },
   sonstiges: { label: "Sonstiger Aufwand", SKR03: "4900", SKR04: "6300" },
   // Kein Aufwand: gebucht wird auf das Anlagekonto der Anlage, abgeschrieben über das Anlagenverzeichnis
   anlage: { label: "Anlagegut (wird abgeschrieben)", SKR03: "0490", SKR04: "0690" },

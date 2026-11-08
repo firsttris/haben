@@ -45,6 +45,7 @@ import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-coun
 import { quoteDraftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
+import { documentReferences, referenceColumns, referenceFieldsSchema, referencesFromQuote } from "./order-references.ts";
 import { defaultSkonto } from "./skonto.ts";
 
 /**
@@ -70,6 +71,8 @@ export const quoteDraftSchema = z
     /** Einleitung über den Positionen, etwa aus einem Textbaustein */
     intro: z.string().max(2000).default(""),
     note: z.string().max(2000),
+    /** Bestellnummer des Kunden, eigene Auftragsnummer und Lieferschein; gehen in die Rechnung aus dem Angebot über */
+    ...referenceFieldsSchema,
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
     /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
@@ -146,6 +149,7 @@ function lineRows(quoteId: string, input: QuoteDraftInput) {
     position: index + 1,
     description: line.description,
     detail: line.detail?.trim() ?? "",
+    itemNumber: line.itemNumber?.trim() ?? "",
     quantity: line.quantity,
     unit: line.unit,
     unitPrice: line.unitPrice,
@@ -168,6 +172,7 @@ function draftValues(input: QuoteDraftInput) {
     serviceTo: input.serviceTo,
     intro: input.intro ?? "",
     note: input.note,
+    ...referenceColumns(input),
     taxTreatment: treatment,
     exemptionReason: treatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
     priceMode,
@@ -364,6 +369,7 @@ export function quoteDocumentFor(
         position: line.position,
         description: line.description,
         ...(line.detail ? { detail: line.detail } : {}),
+        ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
         quantity: line.quantity,
         unit: line.unit as UnitLabel,
         unitPrice: line.unitPrice,
@@ -379,6 +385,7 @@ export function quoteDocumentFor(
     ...(withPlan ? { paymentPlan: planSchedule(quote.paymentPlan, orderRateAmounts(calc.totals, quote.priceMode), quote.priceMode) } : {}),
     ...(quote.intro ? { intro: quote.intro } : {}),
     ...(quote.note ? { note: quote.note } : {}),
+    ...documentReferences(quote),
     ...(quote.taxTreatment !== "regulaer" ? { taxTreatment: quote.taxTreatment } : {}),
     ...(quote.exemptionReason ? { exemptionReason: quote.exemptionReason } : {}),
     ...(quote.priceMode === "brutto" ? { priceMode: quote.priceMode } : {}),
@@ -533,6 +540,7 @@ export async function quoteToInvoice(
         format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
         intro: locked.intro,
         note: texts(locked.language).fromQuote(locked.number ?? "", texts(locked.language).date(locked.issueDate)),
+        ...referencesFromQuote(locked),
         taxTreatment: locked.taxTreatment,
         exemptionReason: locked.exemptionReason,
         priceMode: locked.priceMode,
@@ -548,6 +556,7 @@ export async function quoteToInvoice(
             : lines.map((line) => ({
                 description: line.description,
                 detail: line.detail,
+                itemNumber: line.itemNumber,
                 quantity: line.quantity,
                 unit: line.unit as UnitLabel,
                 unitPrice: line.unitPrice,
@@ -581,6 +590,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     serviceTo: null,
     intro: quote.intro,
     note: quote.note,
+    ...referenceColumns(quote),
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,
     priceMode: quote.priceMode,
@@ -591,6 +601,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     lines: lines.map((line) => ({
       description: line.description,
       detail: line.detail,
+      itemNumber: line.itemNumber,
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,

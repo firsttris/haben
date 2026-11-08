@@ -182,6 +182,8 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen heben sich mit ihrer Gegenzeile auf. |
 | Soll (vereinbarte Entgelte) | Rechnungsdatum | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
+Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“.
+
 Ausbuchungen (§ 17 UStG, gewährtes Skonto und Forderungsausfall, siehe [Bank](bank.md#rest-ausbuchen-skonto-und-forderungsausfall)) mindern bei Soll Kz 81 bzw. 86 und die Steuer im Monat der Ausbuchung, anteilig je Steuersatz. Bei Ist zählt nur, was bezahlt wurde; ausgebuchte Reste kamen nie in die Anmeldung. In den Quellen stehen sie als „Ausbuchung“.
 
 Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen nur regulär besteuerte Rechnungen und, in Kz 81, die private Nutzung von Firmenwagen im Monat der Nutzung ([Anlagen und AfA](anlagen.md#private-nutzung-von-firmenwagen)). Belege mit Privatanteil zählen in Kz 66 nur mit dem betrieblichen Teil. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
@@ -261,7 +263,7 @@ Beispiel: Zahlungseingänge zu 19 % mit 2.345,67 € netto ergeben Kz 81 = 2.345
 
 ### Quellen aufklappen
 
-Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege dahinterstehen. Ein Klick klappt die Liste auf: Datum, Rechnungs- oder Belegnummer mit Kunde bzw. Lieferant, Netto und Steuer, jeweils mit Link zur Rechnung oder zum Beleg. Die Beträge dort sind centgenau, also vor dem Abschneiden.
+Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege dahinterstehen. Ein Klick klappt die Liste auf: Datum, Rechnungs- oder Belegnummer mit Kunde bzw. Lieferant, Netto und Steuer, jeweils mit Link zur Rechnung oder zum Beleg; direkt gebuchte Bankumsätze (Direktbuchungen) verlinken auf den Umsatz im Bankabgleich. Die Beträge dort sind centgenau, also vor dem Abschneiden.
 
 ## Manuell überschreiben
 

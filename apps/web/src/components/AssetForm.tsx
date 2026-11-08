@@ -124,7 +124,9 @@ export function AssetForm({
     // Vorschlag laut AfA-Tabelle
     const suggestion = ASSET_KINDS[value];
     setMethod(suggestion.method);
-    if (suggestion.usefulLifeYears && suggestion.method === "linear") setYears(String(suggestion.usefulLifeYears));
+    // Ohne Vorschlag (sonstige Ausstattung, sonstige Transportmittel) bleibt keine Nutzungsdauer der vorigen Art stehen,
+    // etwa die sechs Jahre für Pkw; sie kommt aus der AfA-Tabelle des einzelnen Wirtschaftsguts (#312)
+    if (suggestion.method === "linear") setYears(suggestion.usefulLifeYears ? String(suggestion.usefulLifeYears) : "");
   }
 
   function submit(event: FormEvent) {

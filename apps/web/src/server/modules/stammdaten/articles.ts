@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { LINE_DETAIL_MAX, UNITS, type UnitLabel } from "@haben/core";
+import { ITEM_NUMBER_MAX, LINE_DETAIL_MAX, UNITS, type UnitLabel } from "@haben/core";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -12,7 +12,7 @@ export type Article = typeof schema.articles.$inferSelect;
 export class ArticleError extends UserError {}
 
 export const articleInputSchema = z.object({
-  number: z.string().trim().max(50).default(""),
+  number: z.string().trim().max(ITEM_NUMBER_MAX).default(""),
   description: z.string().trim().min(1, "Bezeichnung fehlt").max(500),
   /** Text unter der Bezeichnung, mehrzeilig; geht beim Einfügen in den Text der Position */
   detail: z.string().trim().max(LINE_DETAIL_MAX).default(""),
