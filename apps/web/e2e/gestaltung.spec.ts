@@ -169,6 +169,37 @@ test("Speichern gilt nach dem Neuladen und lässt das Formular stehen", async ({
   await page.context().close();
 });
 
+test("Änderungen, die während des Speicherns entstehen, bleiben als ungespeichert stehen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await gestaltungOeffnen(page);
+  const vorher = await brand(page);
+  let weiter = () => {};
+  const gehalten = new Promise<void>((resolve) => {
+    weiter = resolve;
+  });
+  await page.route("**/_serverFn/**", async (route) => {
+    await gehalten;
+    await route.continue();
+  });
+
+  await panel(page).getByRole("button", { name: "Violett" }).click();
+  await panel(page).getByRole("button", { name: "Für alle Belege speichern" }).click();
+  await panel(page).getByRole("button", { name: "Blau" }).click();
+  weiter();
+  await expect(panel(page).getByRole("status")).toContainText("Gespeichert");
+
+  expect(await brand(page)).toBe("#1D4E89");
+  await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeEnabled();
+
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const akzent = page.getByRole("form", { name: "Akzentfarbe" });
+  await akzent.getByLabel("Hex-Wert").fill(vorher.toUpperCase());
+  await akzent.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
+  await page.context().close();
+});
+
 test("Das Zahnrad der angehefteten Vorschau öffnet die Überblendung mit der Spalte", async ({ browser }) => {
   const page = await editor(browser, BREIT, "angeheftet");
   await seitenansicht(page).getByRole("button", { name: "Gestaltung" }).click();
