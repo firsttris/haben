@@ -473,7 +473,7 @@ Manche Kunden wollen mit der Rechnung weitere Unterlagen: Stundenzettel, Leistun
 
 1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
 2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
-3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder von der Rechnung, solange sie ein Entwurf ist. Die Datei ist danach aus Haben gelöscht, hast du sie nur hier, lade sie vorher herunter.
+3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder von der Rechnung, solange sie ein Entwurf ist. Nutzt sonst nichts die Datei, ist sie danach aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.
 
 Erlaubt sind nur PDF-Dateien bis 20 MB, höchstens zehn je Rechnung. Den Typ erkennt Haben am Inhalt, nicht an der Endung: Ein umbenanntes Foto wird abgelehnt. Dieselbe Datei hängt nur einmal an derselben Rechnung. Die Dateien liegen wie Belege unter ihrem SHA-256 im Belegverzeichnis (siehe [Architektur](architektur.md#dateiablage)).
 

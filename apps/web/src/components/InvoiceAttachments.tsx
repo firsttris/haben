@@ -20,6 +20,7 @@ const KINDS = {
     empty: "Keine zusätzlichen Anhänge.",
     href: "/api/rechnungsanhang",
     owner: "dieser Rechnung",
+    removeHint: "Der Anhang verschwindet aus diesem Entwurf. Nutzt sonst nichts die Datei, wird sie aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.",
     examples: "Etwa Stundenzettel oder Leistungsnachweise",
     locked: "Mit der Rechnung festgeschrieben.",
     lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit der Rechnung gesperrt; PDF und E-Rechnung bleiben unverändert.",
@@ -29,6 +30,7 @@ const KINDS = {
     empty: "Keine zusätzlichen Anhänge.",
     href: "/api/angebotsanhang",
     owner: "diesem Angebot",
+    removeHint: "Der Anhang verschwindet aus diesem Entwurf. Nutzt sonst nichts die Datei, wird sie aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.",
     examples: "Etwa AGB, Widerrufsbelehrung oder eine Leistungsbeschreibung",
     locked: "Mit dem Angebot festgeschrieben.",
     lockHint: "Mit dem Festschreiben werden die Anhänge zusammen mit dem Angebot gesperrt; das PDF des Angebots bleibt unverändert.",
@@ -38,6 +40,7 @@ const KINDS = {
     empty: "Keine Standardanhänge.",
     href: "/api/standardanhang",
     owner: "den Standardanhängen",
+    removeHint: "Neue Angebote bekommen die Datei dann nicht mehr. Bestehende Angebote behalten sie.",
     examples: "Etwa AGB oder Widerrufsbelehrung",
     locked: "",
     lockHint:
@@ -126,7 +129,7 @@ export function InvoiceAttachments({
         }}
         onClose={() => setRemoving(null)}
       >
-        <p>Die Datei wird aus Haben gelöscht. Hast du sie nur hier, lade sie vorher herunter.</p>
+        <p>{text.removeHint}</p>
       </ConfirmDialog>
       {attachments.length > 0 ? (
         <ul className="stack" style={{ gap: 8, listStyle: "none", margin: 0, padding: 0 }} aria-label="Zusätzliche Anhänge">

@@ -307,7 +307,7 @@ Wie der Plan im Angebot wirkt, steht unter [Zahlungsplan](angebote.md#zahlungspl
 
 Unter **Einstellungen › Rechnungen › Standardanhänge für Angebote** hinterlegst du einmal PDF-Dateien, die mit fast jedem Angebot mitgehen, etwa AGB oder eine Widerrufsbelehrung. Es gelten dieselben Regeln wie für [Anhänge am Angebot](angebote.md#anhänge): nur PDF, bis 20 MB, höchstens zehn.
 
-- Jedes **neue Angebot** bekommt sie beim ersten Speichern als Anhänge. Beim Versand sind sie vorausgewählt; im Entwurf nimmst du einen mit **Entfernen** heraus, wenn er für dieses Angebot nicht passt.
+- Jedes **neue Angebot** bekommt sie beim ersten Speichern als Anhänge. Beim Versand sind sie vorausgewählt; im Entwurf nimmst du einen mit **Entfernen** nach einer Rückfrage heraus, wenn er für dieses Angebot nicht passt.
 - Mit dem Festschreiben sind sie wie alle Anhänge mit dem Angebot gesperrt. So bleibt nachvollziehbar, welche Fassung der AGB mit welchem Angebot ging.
 - Änderst du die Standardanhänge später, etwa mit neuen AGB, bekommen erst die danach angelegten Angebote die neue Fassung; bestehende Angebote und Entwürfe bleiben, wie sie sind. **Kopieren** übernimmt die Anhänge des kopierten Angebots, nicht die aktuellen Standardanhänge.
 - Jede Änderung steht im Änderungsprotokoll.
