@@ -731,6 +731,7 @@ summary { cursor: pointer; min-height: 24px; }
 .confirm-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .confirm-dialog > h2 { flex: none; margin: 0; padding: 24px 24px 8px; font-size: 18px; }
 .confirm-dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 24px 24px; font-size: 14px; }
+.confirm-dialog-grip { display: none; }
 .confirm-dialog-body p { margin: 0; }
 .confirm-dialog-facts { margin: 0 0 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; border-radius: 8px; background: var(--ground); }
 .confirm-dialog-facts > div { display: flex; justify-content: space-between; gap: 16px; }
@@ -743,8 +744,10 @@ summary { cursor: pointer; min-height: 24px; }
 /* Am Handy ein Blatt von unten (#404): die Knöpfe voll breit in Daumennähe, die Aktion über Abbrechen */
 @media (max-width: 640px) {
   .confirm-dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: 16px 16px 0 0; }
-  .confirm-dialog::before { content: ""; flex: none; width: 40px; height: 4px; margin-top: 8px; align-self: center; border-radius: 2px; background: var(--line-strong); }
-  .confirm-dialog > h2 { padding: 16px 16px 8px; }
+  /* Griff und Titel nehmen die Geste selbst an, statt die Seite zu scrollen */
+  .confirm-dialog-grip { display: flex; flex: none; justify-content: center; padding: 8px 0; touch-action: none; cursor: grab; }
+  .confirm-dialog-grip::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); }
+  .confirm-dialog > h2 { padding: 8px 16px 8px; touch-action: none; }
   .confirm-dialog-body { padding: 0 16px 16px; }
   .confirm-dialog-actions { flex-direction: column-reverse; gap: 8px; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); border-top: 0; }
   .confirm-dialog-actions .btn { width: 100%; min-height: 48px; }

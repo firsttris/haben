@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type PointerEvent, type ReactNode, type RefObject, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /** Eine Zeile über den Folgen; `strong` hebt den Betrag hervor */
@@ -44,6 +44,37 @@ function returnFocus(trigger: HTMLElement) {
   observer.observe(trigger, { attributes: true, attributeFilter: ["disabled"] });
 }
 
+/** Wie die Breite in styles.css, ab der der Dialog ein Blatt von unten ist */
+const SHEET_MEDIA = "(max-width: 640px)";
+const SWIPE_CLOSE_PX = 80;
+
+/** Am Handy zieht man das Blatt an Griff oder Titel nach unten weg; das wirkt wie „Abbrechen“, der Knopf bleibt die Alternative ohne Geste */
+function useSwipeToClose(sheet: RefObject<HTMLDialogElement | null>, onClose: () => void) {
+  const startY = useRef<number | null>(null);
+  const distance = (event: PointerEvent) => Math.max(0, event.clientY - (startY.current ?? event.clientY));
+  const reset = () => {
+    startY.current = null;
+    if (sheet.current) sheet.current.style.translate = "";
+  };
+  return {
+    onPointerDown(event: PointerEvent<HTMLElement>) {
+      if (!window.matchMedia(SHEET_MEDIA).matches) return;
+      startY.current = event.clientY;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    onPointerMove(event: PointerEvent) {
+      if (startY.current !== null && sheet.current) sheet.current.style.translate = `0 ${distance(event)}px`;
+    },
+    onPointerUp(event: PointerEvent) {
+      if (startY.current === null) return;
+      const farEnough = distance(event) >= SWIPE_CLOSE_PX;
+      reset();
+      if (farEnough) onClose();
+    },
+    onPointerCancel: reset,
+  };
+}
+
 /**
  * Rückfrage vor einer folgenreichen Aktion (#404). Ein modaler <dialog> am body wie ContactDialog: Er sperrt die
  * Seite, sodass ein Doppelklick auf den Auslöser nichts ausführen kann. Geschlossen steht er nicht im Dokument.
@@ -59,6 +90,7 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
   const dialog = useRef<HTMLDialogElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const swipe = useSwipeToClose(dialog, onClose);
 
   useEffect(() => {
     const trigger = document.activeElement;
@@ -73,7 +105,10 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
 
   return (
     <dialog ref={dialog} className="confirm-dialog" aria-labelledby={titleId} aria-describedby={bodyId} onClose={onClose}>
-      <h2 id={titleId}>{title}</h2>
+      <div className="confirm-dialog-grip" aria-hidden="true" {...swipe} />
+      <h2 id={titleId} {...swipe}>
+        {title}
+      </h2>
       <div id={bodyId} className="confirm-dialog-body">
         {facts && (
           <dl className="confirm-dialog-facts">
