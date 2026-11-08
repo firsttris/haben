@@ -598,8 +598,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <ContactDialog
             open={newSupplierOpen}
             title="Neuen Lieferanten anlegen"
-            // Name und USt-IdNr. stehen schon am Beleg, etwa aus der Auslesung; die IBAN übernimmt Haben nicht (#330)
-            prefill={{ name: supplierName, ustId: supplierUstId, isCustomer: false, isSupplier: true }}
+            // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
+            prefill={{
+              ...data.supplierSuggestion?.contact,
+              ...(supplierName ? { name: supplierName } : {}),
+              ...(supplierUstId ? { ustId: supplierUstId } : {}),
+              isCustomer: false,
+              isSupplier: true,
+            }}
+            ibanSuggestion={data.supplierSuggestion?.iban ?? null}
             existing={data.suppliers}
             onSaved={(saved) => {
               touch(pickSupplier)({ id: saved.id, name: saved.name, ustId: saved.ustId });
