@@ -481,7 +481,14 @@ test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim
   // Nur PDF, am Inhalt erkannt: ein Bild mit der Endung .pdf wird abgelehnt
   await auswahl.setInputFiles([{ name: "foto.pdf", mimeType: "application/pdf", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]);
   await expect(anhaenge.getByText("foto.pdf: Als Anhang sind nur PDF-Dateien erlaubt.")).toBeVisible();
+  // Die Datei ist danach aus Haben weg, und der Knopf steht am Handy eng neben „Herunterladen“: erst nachfragen
   await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  const anhangRueckfrage = page.getByRole("dialog", { name: "abnahme.pdf entfernen?" });
+  await expect(anhangRueckfrage).toContainText("aus Haben gelöscht");
+  await anhangRueckfrage.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toBeVisible();
+  await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("abnahme.pdf: entfernt.")).toBeVisible();
   await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toHaveCount(0);
 
