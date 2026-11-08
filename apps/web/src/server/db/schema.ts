@@ -1303,6 +1303,25 @@ export const quoteAttachments = pgTable(
   ],
 );
 
+/**
+ * Standardanhänge für Angebote (#415), etwa AGB oder Widerrufsbelehrung, einmal in den Einstellungen hinterlegt. Jedes
+ * neue Angebot bekommt sie als eigene Zeilen in quote_attachments; so ist sie beim Senden vorausgewählt und bleibt mit
+ * dem Angebot festgeschrieben, auch wenn sich die Einstellung später ändert. Die Datei liegt unter ihrem SHA-256.
+ */
+export const quoteDefaultAttachments = pgTable(
+  "quote_default_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Dieselbe Datei höchstens einmal; der Index dient auch der Frage, ob eine Datei im Speicher noch gebraucht wird
+  (t) => [uniqueIndex("quote_default_attachments_file").on(t.sha256)],
+);
+
 /** Firmenlogo für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile */
 export const companyLogo = pgTable(
   "company_logo",
