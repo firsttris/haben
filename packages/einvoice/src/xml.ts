@@ -386,7 +386,7 @@ function paymentTerms(doc: InvoiceDocument): string {
   return `${skontoPaymentTerms(skonto)}${text}`;
 }
 
-/** Entfernt in XML 1.0 unzulässige Zeichen aus allen Texten (etwa ein aus Word kopierter vertikaler Tab), sonst lehnt der Empfänger das XML ab */
+/** Entfernt in XML 1.0 unzulässige Zeichen aus allen Texten (etwa ein aus Word kopierter vertikaler Tab), sonst lehnt der Empfänger das XML ab; auch aus den Referenzen, die der CII-Post-Processor danach einsetzt */
 function withoutInvalidXmlChars<T>(value: T): T {
   if (typeof value === "string") {
     return value.replace(
@@ -434,7 +434,7 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
       lang: "de-de",
       pdf: { buffer: visual, filename: `${doc.number}.pdf`, mimetype: "application/pdf" },
       noWarnings: true,
-      postProcessor: ciiPostProcessor(doc.references),
+      postProcessor: ciiPostProcessor(withoutInvalidXmlChars(doc.references)),
     });
     const xml = typeof pdf === "string" ? null : extractFacturXXml(pdf);
     if (typeof pdf === "string" || !xml) throw new Error("ZUGFeRD-Erzeugung lieferte kein PDF mit factur-x.xml");
@@ -450,7 +450,7 @@ async function generateXml(data: Invoice, format: string, doc: InvoiceDocument):
     format,
     lang: "de-de",
     noWarnings: true,
-    postProcessor: ciiPostProcessor(doc.references),
+    postProcessor: ciiPostProcessor(withoutInvalidXmlChars(doc.references)),
   });
   if (typeof result !== "string") throw new Error(`${format} lieferte kein XML`);
   return result;
