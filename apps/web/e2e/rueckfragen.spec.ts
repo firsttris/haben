@@ -320,3 +320,34 @@ test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", as
   await expect(page.getByLabel("API-Schlüssel", { exact: true })).toBeVisible();
   await expect(entfernen).toHaveCount(0);
 });
+
+test("Umzug: Die Frage eines inzwischen beendeten Abrufs kommt beim nächsten Abruf nicht von selbst wieder", async () => {
+  await sql`insert into lexoffice_connection (ciphertext, organization_name) values (${Buffer.from([0])}, 'Testfirma')`;
+  const fortschritt = '{"phase":"belege","contacts":0,"contactsLinked":0,"listed":10,"imported":3,"skipped":0,"files":0,"failed":[]}';
+  const [lauf] = await sql<{ id: string }[]>`insert into lexoffice_imports (source, status, progress)
+    values ('lexoffice', 'laeuft', ${fortschritt}::jsonb) returning id`;
+  await go("/archiv");
+
+  await page.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(rueckfrage("Abruf abbrechen?")).toBeVisible();
+
+  // Der Lauf endet, während die Frage offen steht: Die Frage verschwindet, ohne dass jemand sie beantwortet hat
+  const statusAntwort = page.waitForResponse((r) => r.url().includes("_serverFn") && r.request().method() === "GET", { timeout: 10_000 });
+  await sql`update lexoffice_imports set status = 'fertig', finished_at = now() where id = ${lauf!.id}`;
+  const antwort = await statusAntwort;
+  await expect(rueckfrage("Abruf abbrechen?")).toHaveCount(0, { timeout: 10_000 });
+
+  // Später ein neuer Abruf. Der Start-Aufruf bräuchte einen echten Schlüssel; hier legt er nur den Lauf an wie der Server
+  await page.route(
+    (url) => url.pathname.includes("_serverFn"),
+    async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      await sql`insert into lexoffice_imports (source, status, progress) values ('lexoffice', 'laeuft', ${fortschritt}::jsonb)`;
+      return route.continue({ url: antwort.url(), method: "GET" });
+    },
+  );
+  await page.getByRole("button", { name: "Erneut abrufen" }).click();
+  await expect(page.getByText("Läuft: Belege und Dateien")).toBeVisible({ timeout: 10_000 });
+
+  await expect(rueckfrage("Abruf abbrechen?")).toHaveCount(0);
+});
