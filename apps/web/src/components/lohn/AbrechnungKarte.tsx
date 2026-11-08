@@ -6,6 +6,7 @@ import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { entwurfLoeschenFn, entwurfNeuBerechnenFn, festschreibenFn, nachbuchenFn, stornierenFn, type getLohn } from "../../server/functions/lohn.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
+import { ConfirmDialog } from "../ConfirmDialog.tsx";
 
 /*
  * Eine Abrechnung im Monat: Beträge, Hinweise und je nach Stand die Aktionen. Ein Entwurf lässt sich neu rechnen (auf
@@ -112,27 +113,24 @@ function EntwurfAktionen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
         </label>
       )}
       <div className="actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy || sperre}
-          onClick={() =>
-            bestaetigen
-              ? void run(async () => {
-                  await fest({ data: { id: p.id, gegengeprueft: geprueft } });
-                  await router.invalidate();
-                }, "Abrechnung festgeschrieben.")
-              : setBestaetigen(true)
-          }
-        >
-          {bestaetigen ? "Jetzt festschreiben" : "Festschreiben"}
+        <button type="button" className="btn btn-primary" disabled={busy || sperre} onClick={() => setBestaetigen(true)}>
+          Festschreiben
         </button>
       </div>
-      {bestaetigen && (
-        <p className="small muted" style={{ margin: 0 }}>
-          Festgeschrieben ist die Abrechnung unveränderbar und gebucht; korrigieren geht dann nur mit Storno.
-        </p>
-      )}
+      <ConfirmDialog
+        open={bestaetigen}
+        title={`Abrechnung mit Zahltag ${formatDate(p.zahltag)} festschreiben?`}
+        confirmLabel="Festschreiben"
+        onConfirm={() =>
+          void run(async () => {
+            await fest({ data: { id: p.id, gegengeprueft: geprueft } });
+            await router.invalidate();
+          }, "Abrechnung festgeschrieben.")
+        }
+        onClose={() => setBestaetigen(false)}
+      >
+        <p>Festgeschrieben ist die Abrechnung unveränderbar und gebucht; korrigieren geht dann nur mit Storno.</p>
+      </ConfirmDialog>
     </div>
   );
 }
@@ -171,39 +169,35 @@ function Storno({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
   const [offen, setOffen] = useState(false);
   const [grund, setGrund] = useState("");
   const grundId = useId();
-  if (!offen) {
-    return (
-      <div className="actions">
-        <button type="button" className="btn btn-sm btn-danger" onClick={() => setOffen(true)}>
-          Stornieren
-        </button>
-      </div>
-    );
-  }
   return (
-    <form
-      className="stack"
-      style={{ gap: 8 }}
-      aria-label="Abrechnung stornieren"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void run(async () => {
-          const r = await storno({ data: { id: p.id, grund } });
-          await router.invalidate();
-          if (r.meldung) throw new Error(`Storniert. Eine neue Abrechnung ließ sich nicht rechnen: ${r.meldung}`);
-        }, "Storniert; die neue Abrechnung steht als Entwurf bereit.");
-      }}
-    >
-      <label className="field" htmlFor={grundId}>
-        Grund des Stornos
-        <input id={grundId} value={grund} onChange={(e) => setGrund(e.target.value)} maxLength={500} />
-      </label>
-      <div className="actions">
-        <button type="submit" className="btn btn-sm btn-danger" disabled={busy}>
-          Jetzt stornieren
-        </button>
-      </div>
-    </form>
+    <div className="actions">
+      <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setOffen(true)}>
+        Stornieren
+      </button>
+      <ConfirmDialog
+        open={offen}
+        title={`Abrechnung mit Zahltag ${formatDate(p.zahltag)} stornieren?`}
+        confirmLabel="Stornieren"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            const r = await storno({ data: { id: p.id, grund } });
+            await router.invalidate();
+            if (r.meldung) throw new Error(`Storniert. Eine neue Abrechnung ließ sich nicht rechnen: ${r.meldung}`);
+          }, "Storniert; die neue Abrechnung steht als Entwurf bereit.")
+        }
+        onClose={() => setOffen(false)}
+      >
+        <p>
+          Haben hält das Storno mit Tag und Grund fest, lässt die Abrechnung unverändert, bucht gegen und legt gleich einen neuen Entwurf für denselben Monat
+          an.
+        </p>
+        <label className="field" htmlFor={grundId}>
+          Grund des Stornos
+          <input id={grundId} value={grund} onChange={(e) => setGrund(e.target.value)} maxLength={500} />
+        </label>
+      </ConfirmDialog>
+    </div>
   );
 }
 

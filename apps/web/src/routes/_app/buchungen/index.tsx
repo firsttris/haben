@@ -9,6 +9,7 @@ import { useAction } from "../../../lib/use-action.ts";
 import { getJournal, reverseManualEntryFn } from "../../../server/functions/journal.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../../lib/jahre.ts";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/buchungen/")({
   validateSearch: z.object({ jahr: z.optional(z.int()), monat: z.optional(z.int().check(z.minimum(1), z.maximum(12))) }),
@@ -98,19 +99,25 @@ function Accounts({ lines, period }: { lines: Entry["lines"]; period: VatPeriod 
   );
 }
 
-/** Storno einer manuellen Buchung, mit Rückfrage beim ersten Klick */
+/** Storno einer manuellen Buchung, mit Rückfrage im Dialog */
 function ReverseButton({ entry, busy, onConfirm }: { entry: Entry; busy: boolean; onConfirm: () => void }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <button
-      type="button"
-      className="btn btn-sm"
-      disabled={busy}
-      onClick={() => (confirming ? onConfirm() : setConfirming(true))}
-      aria-label={`${entry.description} stornieren`}
-    >
-      {confirming ? "Jetzt stornieren" : "Stornieren"}
-    </button>
+    <>
+      <button type="button" className="btn btn-sm" disabled={busy} onClick={() => setConfirming(true)} aria-label={`${entry.description} stornieren`}>
+        Stornieren
+      </button>
+      <ConfirmDialog
+        open={confirming}
+        title={`Buchung „${entry.description}“ stornieren?`}
+        confirmLabel="Stornieren"
+        danger
+        onConfirm={onConfirm}
+        onClose={() => setConfirming(false)}
+      >
+        <p>Die Buchung bleibt stehen; Haben legt eine Gegenbuchung an.</p>
+      </ConfirmDialog>
+    </>
   );
 }
 

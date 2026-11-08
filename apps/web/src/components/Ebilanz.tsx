@@ -87,7 +87,8 @@ export function Ebilanz({ year, ebilanz, setup, closed }: { year: number; ebilan
         busy={busy}
         notice={notice}
         lockedHint={lockedHint}
-        confirmText={`Die E-Bilanz ${year} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.`}
+        confirmTitle={`E-Bilanz ${year} verbindlich senden?`}
+        confirmText={`Die E-Bilanz ${year} geht verbindlich an das Finanzamt.`}
         footer="„Nur prüfen“ lässt ERiC die E-Bilanz gegen die Taxonomie und die Plausibilitätsregeln prüfen, ohne zu senden. Die PIN wird nicht gespeichert."
         onSubmit={(kind, pin) =>
           run(async () => {

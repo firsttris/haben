@@ -5,6 +5,7 @@ import { submitKind, type ElsterKind } from "../lib/elster.ts";
 import type { Notice } from "../lib/use-action.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 /** Was eine Seite über ERiC und das Zertifikat aus dem Loader mitbringt */
 export interface ElsterSetup {
@@ -79,7 +80,10 @@ export function ElsterSubmit({
   busy,
   notice = null,
   lockedHint,
+  confirmTitle,
   confirmText,
+  confirmLabel = "Verbindlich senden",
+  confirmDanger = false,
   footer,
   onSubmit,
 }: {
@@ -90,7 +94,12 @@ export function ElsterSubmit({
   busy: boolean;
   notice?: Notice;
   lockedHint?: string;
+  /** Frage im Bestätigungsdialog vor der Echtübermittlung, mit dem Objekt */
+  confirmTitle: string;
+  /** Die Folgen, bei ELSTER samt dem Hinweis auf die verbindliche Übermittlung */
   confirmText: string;
+  confirmLabel?: string;
+  confirmDanger?: boolean;
   footer: ReactNode;
   onSubmit: (kind: ElsterKind, pin?: string) => Promise<unknown>;
 }) {
@@ -100,15 +109,15 @@ export function ElsterSubmit({
   const [confirming, setConfirming] = useState(false);
   const live = submitKind(testOnly, setup.herstellerIdConfigured && !lockedHint) === "send";
 
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (live && !confirming) {
-      setConfirming(true);
-      return;
-    }
+  async function transmit() {
     await onSubmit(live ? "send" : "test", pin);
     setPin("");
-    setConfirming(false);
+  }
+
+  function send(event: FormEvent) {
+    event.preventDefault();
+    if (live) setConfirming(true);
+    else void transmit();
   }
 
   return (
@@ -119,24 +128,21 @@ export function ElsterSubmit({
         Zertifikats-PIN
         <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />
       </label>
-      <TestOnlyToggle
-        setup={setup}
-        testOnly={testOnly}
-        lockedHint={lockedHint}
-        onChange={(value) => {
-          setTestOnly(value);
-          setConfirming(false);
-        }}
-      />
-      {confirming && (
-        <div className="banner" role="alert">
-          {confirmText}
-        </div>
-      )}
+      <TestOnlyToggle setup={setup} testOnly={testOnly} lockedHint={lockedHint} onChange={setTestOnly} />
+      <ConfirmDialog
+        open={confirming}
+        title={confirmTitle}
+        confirmLabel={confirmLabel}
+        danger={confirmDanger}
+        onConfirm={() => void transmit()}
+        onClose={() => setConfirming(false)}
+      >
+        <p>{confirmText}</p>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || !ready || !setup.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
-          {busy ? "Läuft …" : confirming ? "Jetzt verbindlich senden" : live ? "Prüfen und senden" : "Prüfen und testweise senden"}
+          {busy ? "Läuft …" : live ? "Prüfen und senden" : "Prüfen und testweise senden"}
         </button>
         <button type="button" className="btn" disabled={busy || !ready} onClick={() => void onSubmit("validate")}>
           Nur prüfen

@@ -297,7 +297,8 @@ function Senden({ data }: { data: Data }) {
           busy={action.busy}
           notice={action.notice}
           lockedHint={data.abgelaufen ? undefined : "Echt senden geht erst nach Ablauf des Zeitraums."}
-          confirmText={`Die ${naechste.berichtigt ? "berichtigte " : ""}Lohnsteuer-Anmeldung ${data.label} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.`}
+          confirmTitle={`${naechste.berichtigt ? "Berichtigte " : ""}Lohnsteuer-Anmeldung ${data.label} verbindlich senden?`}
+          confirmText={`Die ${naechste.berichtigt ? "berichtigte " : ""}Lohnsteuer-Anmeldung ${data.label} geht verbindlich an das Finanzamt.`}
           footer="Lohnsteuer-Anmeldung (Datenart LStA) über ERiC. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert."
           onSubmit={onSubmit}
         />

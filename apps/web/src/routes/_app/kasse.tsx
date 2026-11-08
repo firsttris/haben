@@ -8,6 +8,7 @@ import { CashInvoiceFields } from "../../components/CashInvoiceFields.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import type { Notice } from "../../lib/use-action.ts";
 import { createCashEntryFn, createCashInvoiceEntryFn, getCashBook, reverseCashEntryFn } from "../../server/functions/cash.ts";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/kasse")({
   validateSearch: z.object({
@@ -197,14 +198,9 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
 function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => void }) {
   const router = useRouter();
   const reverse = useServerFn(reverseCashEntryFn);
-  const [confirming, setConfirming] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<(typeof data.entries)[number] | null>(null);
 
-  async function onReverse(id: string) {
-    if (confirming !== id) {
-      setConfirming(id);
-      return;
-    }
-    setConfirming(null);
+  async function reverseNow(id: string) {
     try {
       const result = await reverse({ data: id });
       await router.invalidate();
@@ -216,6 +212,16 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
 
   return (
     <section className="card" aria-label="Kassenbuch">
+      <ConfirmDialog
+        open={confirming !== null}
+        title={`Eintrag Nr. ${confirming?.number} stornieren?`}
+        confirmLabel="Stornieren"
+        danger
+        onConfirm={() => confirming && void reverseNow(confirming.id)}
+        onClose={() => setConfirming(null)}
+      >
+        <p>Haben schreibt eine Gegenzeile mit neuer Nummer und heutigem Datum und bucht gegen.</p>
+      </ConfirmDialog>
       {data.entries.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           Keine Einträge in {data.year}.
@@ -259,8 +265,8 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
               <div className="num muted">{formatEuro(e.balance)}</div>
               <div style={{ justifySelf: "end" }}>
                 {e.kind !== "beleg" && !e.reversesId && !e.reversed && (
-                  <button type="button" className="btn btn-sm" onClick={() => void onReverse(e.id)} aria-label={`Nr. ${e.number} stornieren`}>
-                    {confirming === e.id ? "Jetzt stornieren" : "Stornieren"}
+                  <button type="button" className="btn btn-sm" onClick={() => setConfirming(e)} aria-label={`Nr. ${e.number} stornieren`}>
+                    Stornieren
                   </button>
                 )}
               </div>

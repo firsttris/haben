@@ -16,6 +16,7 @@ import {
   submitKapEStFn,
 } from "../../server/functions/ausschuettung.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/ausschuettungen")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
@@ -337,7 +338,8 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
             busy={busy}
             notice={notice}
             lockedHint={a.angemeldet ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
-            confirmText="Die Kapitalertragsteuer-Anmeldung geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden."
+            confirmTitle={`Kapitalertragsteuer-Anmeldung vom ${formatDate(a.zufluss)} verbindlich senden?`}
+            confirmText="Die Kapitalertragsteuer-Anmeldung geht verbindlich an das Finanzamt."
             footer="Die einbehaltenen Steuern überweist du bis zum 10. des Folgemonats; im Bankabgleich ordnest du die Zahlung „Kapitalertragsteuer an das Finanzamt“ zu."
             onSubmit={(kind, pin) =>
               run(async () => {
@@ -367,21 +369,24 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
       )}
       {!a.storniert && !a.angemeldet && (
         <div className="actions" style={{ marginTop: 16 }}>
-          <button
-            type="button"
-            className="btn btn-sm btn-danger"
-            disabled={busy}
-            onClick={() =>
-              confirming
-                ? void run(async () => {
-                    await reverse({ data: { id: a.id } });
-                    await router.invalidate();
-                  }, "Ausschüttung storniert.")
-                : setConfirming(true)
-            }
-          >
-            {confirming ? "Jetzt stornieren" : `${titel} stornieren`}
+          <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirming(true)}>
+            {titel} stornieren
           </button>
+          <ConfirmDialog
+            open={confirming}
+            title={`${titel} stornieren?`}
+            confirmLabel="Stornieren"
+            danger
+            onConfirm={() =>
+              void run(async () => {
+                await reverse({ data: { id: a.id } });
+                await router.invalidate();
+              }, "Ausschüttung storniert.")
+            }
+            onClose={() => setConfirming(false)}
+          >
+            <p>Haben bucht die Ausschüttung gegen; sie bleibt als storniert stehen.</p>
+          </ConfirmDialog>
         </div>
       )}
       {a.storniert && <NoticeBanner notice={notice} />}

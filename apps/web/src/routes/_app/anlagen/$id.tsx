@@ -7,6 +7,7 @@ import { formatDate } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { deleteAssetFn, getAssetDetail, updateAssetFn } from "../../../server/functions/assets.ts";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/anlagen/$id")({
   loader: ({ params }) => getAssetDetail({ data: params.id }),
@@ -42,20 +43,24 @@ function AssetPage() {
         </div>
         {deletable && (
           <div className="actions">
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => {
-                if (!confirmingDelete) return setConfirmingDelete(true);
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
+              Löschen
+            </button>
+            <ConfirmDialog
+              open={confirmingDelete}
+              title={`${asset.name} löschen?`}
+              confirmLabel="Anlage löschen"
+              danger
+              onConfirm={() =>
                 run(async () => {
                   await remove({ data: asset.id });
                   await navigate({ to: "/anlagen" });
-                });
-              }}
+                })
+              }
+              onClose={() => setConfirmingDelete(false)}
             >
-              {confirmingDelete ? "Endgültig löschen" : "Löschen"}
-            </button>
+              <p>Die Anlage wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
+            </ConfirmDialog>
           </div>
         )}
       </div>

@@ -33,6 +33,7 @@ import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
+import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/belege/$id")({
   /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
@@ -100,7 +101,7 @@ function DocumentPage() {
   const running = doc.extractionStatus === "laeuft";
   // Das Formular meldet ungespeicherte Änderungen; beim Wechsel des Belegs setzt es sich mit false neu auf
   const [dirty, setDirty] = useState(false);
-  // Ungespeicherte Änderungen: erst nachfragen, der zweite Klick wechselt und verwirft sie
+  // Ungespeicherte Änderungen: erst nachfragen, der Dialog wechselt und verwirft sie
   const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
   const pendingId = pending?.from === doc.id ? pending.to : null;
 
@@ -110,24 +111,23 @@ function DocumentPage() {
     return () => clearInterval(timer);
   }, [running, router]);
 
+  function leaveTo(id: string) {
+    if (id === "liste") void navigate({ to: "/belege" });
+    else void navigate({ to: "/belege/$id", params: { id } });
+  }
+
   /** Zu einem anderen Beleg oder ("liste") zurück zur Liste; bei ungespeicherten Änderungen erst nachfragen */
   function go(id: string | null) {
     if (!id) return;
-    if (dirty && pendingId !== id) {
-      setPending({ from: doc.id, to: id });
-      return;
-    }
-    if (id === "liste") void navigate({ to: "/belege" });
-    else void navigate({ to: "/belege/$id", params: { id } });
+    if (dirty) setPending({ from: doc.id, to: id });
+    else leaveTo(id);
   }
 
   // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
-      if (target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
-      // Esc bricht zuerst eine Rückfrage im Formular ab (DocumentForm hört in der Capture-Phase und ruft preventDefault)
-      if (event.key === "Escape" && event.defaultPrevented) return;
+      if (isDialogOpen() || target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
       const id =
         event.key === "j" || event.key === "ArrowRight"
           ? navigation.nextId
@@ -151,7 +151,9 @@ function DocumentPage() {
       const target = event.target as HTMLElement;
       const touch = event.touches[0];
       start =
-        event.touches.length === 1 && touch && !target.closest("input, select, textarea, [contenteditable]") ? { x: touch.clientX, y: touch.clientY } : null;
+        event.touches.length === 1 && touch && !isDialogOpen() && !target.closest("input, select, textarea, [contenteditable]")
+          ? { x: touch.clientX, y: touch.clientY }
+          : null;
     }
     function onEnd(event: TouchEvent) {
       const touch = event.changedTouches[0];
@@ -204,12 +206,16 @@ function DocumentPage() {
           </a>
         </div>
       </div>
-      {pendingId && (
-        <div className="banner" role="alert">
-          <Icon name="alert" />
-          <span>Der Beleg hat ungespeicherte Änderungen. Noch einmal klicken, um ohne Speichern zu wechseln.</span>
-        </div>
-      )}
+      <ConfirmDialog
+        open={pendingId !== null}
+        title="Ohne Speichern wechseln?"
+        confirmLabel="Ohne Speichern wechseln"
+        danger
+        onConfirm={() => pendingId && leaveTo(pendingId)}
+        onClose={() => setPending(null)}
+      >
+        <p>Der Beleg hat ungespeicherte Änderungen. Beim Wechsel gehen sie verloren.</p>
+      </ConfirmDialog>
       {data.sepaTransfers.map((t) => (
         <div key={t.endToEndId} className="banner" role="status">
           <Icon name="bank" />
@@ -393,8 +399,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     return (value: T) => {
       setter(value);
       setDirty(true);
-      setConfirming(false);
-      setConfirmingDelete(false);
     };
   }
 
@@ -412,8 +416,6 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       }),
     );
     setDirty(true);
-    setConfirming(false);
-    setConfirmingDelete(false);
   }
 
   /** Gewählter Kontakt: Name und USt-IdNr. übernehmen; „frei eingetragen“ lässt die Felder stehen */
@@ -478,15 +480,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
   };
 
-  const onBook = () => {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  const bookNow = () => {
     void run(async () => {
       if (dirty) await persist();
       await book({ data: doc.id });
-      setConfirming(false);
       // Weiter zum nächsten Beleg „Zu prüfen“; der gebuchte rückt in der Liste zu den gebuchten nach hinten
       if (continueAfterBooking && navigation.nextOpenId) {
         await navigate({ to: "/belege/$id", params: { id: navigation.nextOpenId } });
@@ -498,13 +495,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
   };
 
-  // Wie beim Buchen: erst nachfragen, der zweite Klick löscht
-  const onDelete = () => {
-    if (!confirmingDelete) {
-      setConfirmingDelete(true);
-      setConfirming(false);
-      return;
-    }
+  const deleteNow = () => {
     void run(async () => {
       await remove({ data: doc.id });
       // Weiter zum nächsten Beleg „Zu prüfen“; sind keine mehr offen, zurück zur Liste statt auf einen gebuchten
@@ -513,23 +504,18 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     });
   };
 
-  // Strg+Enter (Mac: Cmd+Enter) wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld;
-  // Esc bricht eine offene Rückfrage ab
+  // Strg+Enter (Mac: Cmd+Enter) wie ein Klick auf „Bestätigen und buchen“, auch aus einem Eingabefeld; gebucht wird
+  // erst im Dialog, nicht mit einem zweiten Strg+Enter, das den Hinweis überginge
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (readOnly) return;
+      if (readOnly || isDialogOpen()) return;
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        if (!busy && !running && valid) onBook();
-      } else if (event.key === "Escape" && (confirming || confirmingDelete)) {
-        event.preventDefault();
-        setConfirming(false);
-        setConfirmingDelete(false);
+        if (!busy && !running && valid) setConfirming(true);
       }
     }
-    // capture: läuft immer vor dem Esc-Handler der Seite, egal in welcher Reihenfolge die Listener neu angemeldet werden
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   });
 
   const onReextract = () =>
@@ -986,23 +972,30 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <span>Vor dem Buchen: {issues.join(", ")}.</span>
         </div>
       )}
-      {confirming && (
-        <div className="banner" role="alert">
-          <Icon name="alert" />
-          <span>Der Beleg wird gebucht und festgeschrieben; danach ist er nicht mehr änderbar. Noch einmal klicken zum Buchen.</span>
-        </div>
-      )}
-      {confirmingDelete && (
-        <div className="banner" role="alert">
-          <Icon name="alert" />
-          <span>Der Beleg und seine Datei werden gelöscht. Zum Löschen noch einmal auf „Endgültig löschen“ klicken.</span>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title={supplierName.trim() ? `Beleg von ${supplierName.trim()} buchen?` : "Beleg buchen?"}
+        confirmLabel="Buchen"
+        onConfirm={bookNow}
+        onClose={() => setConfirming(false)}
+      >
+        <p>Der Beleg wird gebucht und festgeschrieben; danach ist er nicht mehr änderbar.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmingDelete}
+        title={supplierName.trim() ? `Beleg von ${supplierName.trim()} löschen?` : "Beleg löschen?"}
+        confirmLabel="Beleg löschen"
+        danger
+        onConfirm={deleteNow}
+        onClose={() => setConfirmingDelete(false)}
+      >
+        <p>Der Beleg und seine Datei werden gelöscht. Das lässt sich nicht rückgängig machen.</p>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
       {!readOnly && (
         <div className="actions doc-actions">
-          <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || running || !valid} title="Strg+Enter">
-            {confirming ? "Jetzt buchen" : "Bestätigen und buchen"}
+          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
+            Bestätigen und buchen
           </button>
           <button type="submit" className="btn" disabled={busy || running || !valid || !dirty}>
             Speichern
@@ -1012,8 +1005,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-danger" onClick={onDelete} disabled={busy || running}>
-            {confirmingDelete ? "Endgültig löschen" : "Löschen"}
+          <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
+            Löschen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
             <input type="checkbox" checked={continueAfterBooking} onChange={(e) => writeContinuePreference(e.target.checked)} />

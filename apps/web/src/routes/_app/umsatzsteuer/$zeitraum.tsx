@@ -708,7 +708,8 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             title="An ELSTER übermitteln"
             ready={valid && data.companyIssues.length === 0}
             busy={busy}
-            confirmText="Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben. Noch einmal klicken zum Senden."
+            confirmTitle="Voranmeldung verbindlich senden?"
+            confirmText="Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben."
             footer="ERiC prüft die Daten vor dem Versand. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert."
             onSubmit={onSubmit}
           />

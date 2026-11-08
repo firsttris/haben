@@ -217,7 +217,8 @@ function EricSenden({ data, m }: { data: Data; m: Mitarbeiter }) {
       ready={data.firmenfehler.length === 0}
       busy={action.busy}
       notice={action.notice}
-      confirmText={`Die ${korrektur ? "Korrektur der " : ""}Lohnsteuerbescheinigung ${data.year} von ${m.name} geht verbindlich an die Finanzverwaltung. Noch einmal klicken zum Senden.`}
+      confirmTitle={`${korrektur ? "Korrektur der " : ""}Lohnsteuerbescheinigung ${data.year} für ${m.name} verbindlich senden?`}
+      confirmText={`Die ${korrektur ? "Korrektur der " : ""}Lohnsteuerbescheinigung ${data.year} von ${m.name} geht verbindlich an die Finanzverwaltung.`}
       footer="Datenart LStB im Verfahren ElsterLohn über ERiC. ERiC prüft dabei nur den Umschlag; Fehler in den Daten meldet die Finanzverwaltung im Verarbeitungsprotokoll. Die PIN wird nicht gespeichert."
       onSubmit={onSubmit}
     />
@@ -242,7 +243,10 @@ function EricStorno({ data, m }: { data: Data; m: Mitarbeiter }) {
       ready
       busy={action.busy}
       notice={action.notice}
-      confirmText={`Die Lohnsteuerbescheinigung ${data.year} von ${m.name} wird bei der Finanzverwaltung storniert. Noch einmal klicken zum Senden.`}
+      confirmTitle={`Lohnsteuerbescheinigung ${data.year} von ${m.name} stornieren?`}
+      confirmText={`Die Lohnsteuerbescheinigung ${data.year} von ${m.name} wird bei der Finanzverwaltung storniert.`}
+      confirmLabel="Storno senden"
+      confirmDanger
       footer="Nur, wenn die Bescheinigung nicht hätte übermittelt werden dürfen, etwa für den falschen Arbeitnehmer; falsche Werte korrigierst du mit einer Korrektur (§ 93c Abs. 3 AO)."
       onSubmit={onSubmit}
     />

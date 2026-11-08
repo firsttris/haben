@@ -7,6 +7,7 @@ import type { getDocumentDetail } from "../server/functions/documents.ts";
 import { cancelDocumentFn, reenterDocumentFn } from "../server/functions/documents.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 
@@ -101,41 +102,26 @@ function CancelForm({ documentId, issues, date, today }: { documentId: string; i
   if (issues.length > 0) {
     return <p className="small muted">{issues.join(" ")}</p>;
   }
-  const onCancel = () => {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  const cancelNow = () => {
     void run(async () => {
       await cancel({ data: { id: documentId, cancellation: { reason } } });
-      setConfirming(false);
       await router.invalidate();
     });
   };
   return (
     <>
-      {confirming && (
-        <div className="stack">
-          <div className="banner" role="alert">
-            <Icon name="alert" />
-            <span>{cancellationNotice(date, today)} Noch einmal klicken zum Stornieren.</span>
-          </div>
-          <label className="field">
-            Grund (optional)
-            <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
-          </label>
-        </div>
-      )}
+      <ConfirmDialog open={confirming} title="Beleg stornieren?" confirmLabel="Stornieren" danger onConfirm={cancelNow} onClose={() => setConfirming(false)}>
+        <p>{cancellationNotice(date, today)}</p>
+        <label className="field">
+          Grund (optional)
+          <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
+        </label>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
       <div className="actions doc-actions">
-        <button type="button" className="btn btn-danger" onClick={onCancel} disabled={busy}>
-          {confirming ? "Jetzt stornieren" : "Beleg stornieren"}
+        <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)} disabled={busy}>
+          Beleg stornieren
         </button>
-        {confirming && (
-          <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={busy}>
-            Abbrechen
-          </button>
-        )}
       </div>
     </>
   );

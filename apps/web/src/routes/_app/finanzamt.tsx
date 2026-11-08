@@ -299,7 +299,8 @@ function MessageForm({
     <SendPanel
       data={data}
       ready={ready}
-      confirmText="Die Nachricht geht an das Finanzamt. Noch einmal klicken zum Senden."
+      confirmTitle="Nachricht an das Finanzamt senden?"
+      confirmText="Die Nachricht geht an das Finanzamt."
       footer="Die Antwort des Finanzamts kommt als Brief oder in dein ELSTER-Postfach. Die PIN wird nicht gespeichert."
       send={(kind, pin) => send({ data: { topic, betreff, text, figures: figures ?? null, kind, pin } })}
     >
@@ -341,7 +342,8 @@ function BankChangeForm({ data }: { data: Data }) {
     <SendPanel
       data={data}
       ready={ready}
-      confirmText="Das Finanzamt nutzt danach dieses Konto für alle Steuerarten. Noch einmal klicken zum Senden."
+      confirmTitle="Bankverbindung an das Finanzamt senden?"
+      confirmText="Das Finanzamt nutzt danach dieses Konto für alle Steuerarten."
       footer="Gilt für Erstattungen und, falls du eine Lastschrift erteilt hast, für den Einzug. Die PIN wird nicht gespeichert."
       send={(kind, pin) => send({ data: { iban: compact, kind, pin } })}
     >
@@ -382,6 +384,7 @@ function BankChangeForm({ data }: { data: Data }) {
 function SendPanel({
   data,
   ready,
+  confirmTitle,
   confirmText,
   footer,
   send,
@@ -389,6 +392,7 @@ function SendPanel({
 }: {
   data: Data;
   ready: boolean;
+  confirmTitle: string;
   confirmText: string;
   footer: string;
   send: (kind: ElsterKind, pin?: string) => Promise<SendResult>;
@@ -405,6 +409,7 @@ function SendPanel({
         ready={ready}
         busy={busy}
         notice={notice}
+        confirmTitle={confirmTitle}
         confirmText={confirmText}
         footer={footer}
         onSubmit={(kind, pin) =>

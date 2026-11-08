@@ -22,6 +22,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { useAction, type Notice } from "../../lib/use-action.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -379,17 +380,12 @@ function VerpflegungForm({ data, onNotice }: { data: Data; onNotice: (n: Notice)
 function Liste({ data }: { data: Data }) {
   const router = useRouter();
   const reverse = useServerFn(reversePauschaleFn);
-  const [confirm, setConfirm] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<(typeof data.entries)[number] | null>(null);
   const { busy, notice, run } = useAction();
 
-  async function storno(id: string) {
-    if (confirm !== id) {
-      setConfirm(id);
-      return;
-    }
-    await run(async () => {
+  function storno(id: string) {
+    void run(async () => {
       await reverse({ data: id });
-      setConfirm(null);
       await router.invalidate();
     });
   }
@@ -400,6 +396,16 @@ function Liste({ data }: { data: Data }) {
         Eingetragen in {data.year} <span className="small muted">({data.entries.length})</span>
       </h2>
       <NoticeBanner notice={notice} />
+      <ConfirmDialog
+        open={confirm !== null}
+        title={`${confirm ? PAUSCHALE_LABEL[confirm.art] : ""} stornieren?`}
+        confirmLabel="Stornieren"
+        danger
+        onConfirm={() => confirm && storno(confirm.id)}
+        onClose={() => setConfirm(null)}
+      >
+        <p>Haben schreibt eine Gegenzeile mit negativem Betrag und eine Gegenbuchung am selben Tag. Das Original bleibt durchgestrichen stehen.</p>
+      </ConfirmDialog>
       {data.entries.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           Noch keine Pauschalen für {data.year}.
@@ -442,8 +448,8 @@ function Liste({ data }: { data: Data }) {
                   {e.storniert ? (
                     <span className="pill">storniert</span>
                   ) : (
-                    <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => void storno(e.id)}>
-                      {confirm === e.id ? "Wirklich stornieren" : "Stornieren"}
+                    <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirm(e)}>
+                      Stornieren
                     </button>
                   )}
                 </td>
