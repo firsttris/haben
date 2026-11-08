@@ -831,6 +831,60 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
 });
 
+test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {
+  const name = "Warenwirtschaftsbestelluebersichtsseiten"; // 40 Zeichen, mehr nimmt das Formular nicht
+  await go("/einstellungen?bereich=seiten");
+  const form = page.getByRole("form", { name: "Neue eigene Seite" });
+  await form.getByLabel("Name im Menü").fill(name);
+  await form.getByLabel("Adresse").fill("https://n8n.example.com/form");
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  const entfernen = page.getByRole("button", { name: `${name} entfernen` });
+  await expect(entfernen).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await entfernen.click();
+  const dialog = page.getByRole("dialog", { name: /aus dem Menü entfernen\?$/ });
+  const titel = dialog.getByRole("heading");
+  await expect(titel).toBeVisible();
+  const passt = await titel.evaluate((element) => element.scrollWidth <= element.clientWidth);
+  await dialog.getByRole("button", { name: "Entfernen" }).click();
+  await expect(entfernen).toHaveCount(0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(passt).toBe(true);
+});
+
+test("Doppelklick auf Stornieren im Kassenbuch: Liegt der rote Knopf des Dialogs darunter, bestätigt der zweite Klick nicht", async () => {
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByLabel("Betrag (€)").fill("20");
+  await form.getByLabel("Text (optional)").fill("Doppelklick");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  const eintrag = page.getByRole("region", { name: "Kassenbuch" }).locator(".table-row").filter({ hasText: "Doppelklick" });
+  await expect(eintrag).toBeVisible();
+
+  // Handy: Der Knopf der Zeile steht rechts wie die Aktion im Dialog; ob sie sich decken, hängt nur noch an der Höhe
+  await page.setViewportSize({ width: 375, height: 812 });
+  const stornieren = eintrag.getByRole("button", { name: /stornieren$/ });
+  await stornieren.click();
+  const dialog = page.getByRole("dialog", { name: /stornieren\?$/ });
+  const aktion = (await dialog.getByRole("button", { name: "Stornieren" }).boundingBox())!;
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const unterDerAktion = aktion.y + aktion.height / 2 - 812 / 2;
+  const zeile = (await stornieren.boundingBox())!;
+  const mitte = { x: zeile.x + zeile.width / 2, y: zeile.y + zeile.height / 2 };
+  expect(mitte.x).toBeGreaterThan(aktion.x);
+  expect(mitte.x).toBeLessThan(aktion.x + aktion.width);
+  await page.setViewportSize({ width: 375, height: Math.round(2 * (mitte.y - unterDerAktion)) });
+
+  await page.mouse.dblclick(mitte.x, mitte.y);
+  await expect(dialog).toBeVisible();
+  await expect(eintrag).not.toContainText("storniert");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",

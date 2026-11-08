@@ -80,3 +80,29 @@ for (const [name, viewport] of [
     });
   }
 }
+
+test("Scheitert die bestätigte Aktion, steht der Fokus wieder auf dem Auslöser", async ({ page }) => {
+  const ausloeser = await neuerEntwurf(page);
+  await ausloeser.focus();
+  await page.keyboard.press("Enter");
+  await expect(rueckfrage(page)).toBeVisible();
+  await page.route("**/_serverFn/**", (route) => route.abort());
+  await rueckfrage(page).getByRole("button", { name: "Festschreiben" }).click();
+  await expect(rueckfrage(page)).toHaveCount(0);
+  await expect(page.locator(".main").getByRole("alert").first()).toBeVisible();
+  await expect(ausloeser).toBeEnabled();
+  await expect(ausloeser).toBeFocused();
+});
+
+test("Scheitert Festschreiben weit unten im Formular, steht die Meldung im Fenster", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 500 });
+  const ausloeser = await neuerEntwurf(page);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  await ausloeser.click();
+  await expect(rueckfrage(page)).toBeVisible();
+  await page.route("**/_serverFn/**", (route) => route.abort());
+  await rueckfrage(page).getByRole("button", { name: "Festschreiben" }).click();
+  await expect(ausloeser).toBeEnabled();
+  await expect(page.locator(".main").getByRole("alert").first()).toBeInViewport();
+});
