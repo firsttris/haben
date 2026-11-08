@@ -991,6 +991,29 @@ test("Sonstige Transportmittel übernehmen: Konto 0380, eigene Nutzungsdauer sta
   await expect(page.getByRole("region", { name: "Abschreibungsplan" }).locator(".table-row", { hasText: /^2026/ })).toContainText("600,00");
 });
 
+test("Beleg als Anlagegut: Wechsel von Fahrzeug zu Sonstige Transportmittel lässt die sechs Jahre für Pkw nicht stehen (#312)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "anhaenger.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Anhänger Center") }]);
+  await expect(page.getByText("anhaenger.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /anhaenger\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Kategorie").selectOption("anlage");
+  await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
+  await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
+  await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+});
+
 test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wird ohne Erinnerungswert gespeichert", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });
