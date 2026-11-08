@@ -1,11 +1,12 @@
 import { UserError } from "../../errors.ts";
-import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type Seller } from "@haben/einvoice";
+import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type OrderReferences, type Seller } from "@haben/einvoice";
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany, loadLetterhead } from "../stammdaten/index.ts";
 import { withCurrentLegalInfo } from "./invoices.ts";
 import { quoteChoices } from "./quote-choices.ts";
+import { documentReferences, type ReferenceColumns } from "./order-references.ts";
 import { orderLines, quoteDocumentFor } from "./quotes.ts";
 import { today } from "../../today.ts";
 
@@ -50,6 +51,8 @@ interface DeliverySource {
   buyer: Buyer;
   language: "de" | "en";
   lines: { description: string; detail: string; quantity: number; unit: string }[];
+  /** Bestellnummer des Kunden und eigene Auftragsnummer; die Lieferscheinnummer nennt der Lieferschein nicht noch einmal */
+  references: OrderReferences;
 }
 
 async function deliverySource(source: "angebot" | "rechnung", id: string): Promise<DeliverySource> {
@@ -65,6 +68,7 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
       buyer: quote.buyer,
       language: quote.language,
       lines: orderLines(lines, choices),
+      references: orderReferencesOf(quote),
     };
   }
   const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));
@@ -82,7 +86,13 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
     language: invoice.language,
     // Abzüge einer Schlussrechnung sind keine Lieferung
     lines: lines.filter((l) => !l.deductionOf),
+    references: orderReferencesOf(invoice),
   };
+}
+
+function orderReferencesOf(row: ReferenceColumns): OrderReferences {
+  const { despatchAdvice: _despatchAdvice, ...references } = documentReferences(row).references ?? {};
+  return references;
 }
 
 /** Lieferschein zu einem angenommenen Angebot oder einer festgeschriebenen Rechnung */
@@ -96,6 +106,7 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
     seller: withCurrentLegalInfo(base.seller, await loadCompany()),
     buyer: base.buyer,
     language: base.language,
+    references: base.references,
     lines: base.lines.map((l, i) => ({
       position: i + 1,
       description: l.description,

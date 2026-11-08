@@ -1,6 +1,6 @@
 import { skontoFristen, type SkontoFrist } from "@haben/core";
 import { TEXTS, type Texts } from "./i18n.ts";
-import type { InvoiceDocument, Seller } from "./types.ts";
+import type { InvoiceDocument, OrderReferences, Seller } from "./types.ts";
 
 /** "2026-10-02" → "02.10.2026" */
 export function formatDate(isoDate: string): string {
@@ -53,4 +53,26 @@ export function countryName(code: string, locale = "de"): string {
 /** Name für GiroCode und Zahlungskonto (BT-85): der Kontoinhaber, sonst der Firmenname */
 export function accountHolder(seller: Pick<Seller, "name" | "kontoinhaber">): string {
   return seller.kontoinhaber?.trim() || seller.name;
+}
+
+const REFERENCE_KEYS = ["buyerOrder", "sellerOrder", "despatchAdvice"] as const;
+
+/**
+ * Nur die gesetzten Referenzen, getrimmt und ohne Steuerzeichen; Leerzeichen allein zählen als keine. Steuerzeichen (etwa
+ * aus einer kopierten Bestellnummer) verbietet XML 1.0 (Production [2] Char), und keine Schrift kann sie im PDF/A setzen.
+ */
+export function presentReferences(references: OrderReferences | undefined): OrderReferences {
+  const present: OrderReferences = {};
+  for (const key of REFERENCE_KEYS) {
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
+    const value = references?.[key]?.replace(/[\u0000-\u001F\u007F]/g, "").trim();
+    if (value) present[key] = value;
+  }
+  return present;
+}
+
+/** Zeilen für den Kopfblock im PDF: „Ihre Bestellung 4500012345“ usw., in der Reihenfolge Bestellung, Auftrag, Lieferschein */
+export function referenceMeta(references: OrderReferences | undefined, t: Pick<Texts, "orderReferences">): { label: string; value: string }[] {
+  const present = presentReferences(references);
+  return REFERENCE_KEYS.flatMap((key) => (present[key] ? [{ label: t.orderReferences[key], value: present[key] }] : []));
 }

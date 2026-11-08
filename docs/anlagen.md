@@ -18,8 +18,11 @@ In der EÜR steht die AfA schon vorher, sobald die Anlage im Verzeichnis ist.
 | Computer, Hardware und Software | Nutzungsdauer 1 Jahr | 0420 / 0650 | 4830 / 6220 |
 | Büromöbel und Büroeinrichtung | linear, 13 Jahre | 0420 / 0650 | 4830 / 6220 |
 | Sonstige Betriebs- und Geschäftsausstattung | linear, Nutzungsdauer selbst eintragen | 0490 / 0690 | 4830 / 6220 |
+| Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot) | linear, Nutzungsdauer selbst eintragen | 0380 / 0560 | 4832 / 6222 |
 
 Die Vorschläge folgen der amtlichen AfA-Tabelle. Du kannst Abschreibung und Nutzungsdauer ändern.
+
+**Sonstige Transportmittel** sind bewegliche Transportmittel, die kein Pkw oder Lkw sind, etwa Anhänger, Lastenräder, Boote oder Gabelstapler. Die Konten folgen dem DATEV-Kontenrahmen 2026 (SKR03 0380, SKR04 0560 „Sonstige Transportmittel“, in der Gruppe der Fahrzeuge); abgeschrieben wird auf „Abschreibungen auf Fahrzeuge“ (4832 / 6222), weil 4830 / 6220 die AfA auf Fahrzeuge ausnimmt. Die Nutzungsdauer trägst du für das einzelne Wirtschaftsgut nach der AfA-Tabelle ein (Anhänger etwa 11 Jahre, Fahrräder 7 Jahre); die sechs Jahre für Pkw schlägt Haben hier nicht vor. Privatnutzung nach der Listenpreismethode und die AfA für Elektrofahrzeuge (§ 7 Abs. 2a EStG) gibt es nur für die Art **Fahrzeug**. Zugang, AfA, Abgang und Verkauf laufen wie bei jeder Anlage; in der Anlage AVEÜR stehen sie bei den übrigen beweglichen Wirtschaftsgütern, in der E-Bilanz unter „sonstige Transportmittel“.
 
 | Abschreibung | Wie Haben rechnet |
 |---|---|

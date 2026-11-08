@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { day, fullPageScreenshot, USER, YEAR } from "./daten.ts";
+import { day, fullPageScreenshot, USER, vorschauAnheften, YEAR } from "./daten.ts";
 import { dkb, type Rechnung, rechnungFestschreiben } from "./einrichtung.ts";
 
 /**
@@ -23,6 +23,8 @@ let page: Page;
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage({ viewport: DESKTOP, locale: "de-DE", timezoneId: "Europe/Berlin" });
+  // Das Bild „Rechnung schreiben mit Vorschau“ zeigt Formular und Vorschau nebeneinander
+  await vorschauAnheften(page);
   await page.goto("/login");
   // Erst nach dem Hydrieren reagiert der Knopf
   await page.waitForLoadState("networkidle");

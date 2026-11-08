@@ -1,9 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -29,6 +30,41 @@ const go = (path: string) => gehe(page, path);
 
 test("Einrichtung", async () => {
   await einrichten(page);
+});
+
+test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden Knöpfen (#356)", async ({ browser }) => {
+  const vorher = page.viewportSize();
+  await page.setViewportSize(LAPTOP);
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "meldung.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Funknetz Mobil GmbH") }]);
+  await expect(page.getByText("meldung.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /meldung\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
+  await page.getByLabel("Rechnungsnummer").fill("MF-0816");
+  await page.getByLabel("Belegdatum").fill(day(-9));
+  await page.getByLabel("Kategorie").selectOption("telefon");
+  await page.getByLabel("Netto", { exact: true }).fill("38,57");
+  // Oben im Formular, das in seiner Spalte scrollt; nur dann stehen die Knöpfe über dessen Ende
+  const spalte = page.locator(".doc-editor > .stack");
+  await spalte.evaluate((el) => el.scrollTo(0, 0));
+  expect(await spalte.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(200);
+  const abbrechen = (route: Route) => (route.request().method() === "POST" ? route.abort() : route.continue());
+  await page.route(/_serverFn/, abbrechen);
+  await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
+  await sichtbar(page.locator(".doc-editor .banner-danger"));
+  await page.unroute(/_serverFn/, abbrechen);
+  // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
+  await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
+  await page.locator(".doc-actions").getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+  if (vorher) await page.setViewportSize(vorher);
 });
 
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
@@ -966,6 +1002,52 @@ test("Elektrofahrzeug übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswer
   await expect(plan.locator(".table-row", { hasText: /^2026/ })).toContainText("4.000,00");
   // Letztes Jahr der Staffel: 2 % abzüglich des Erinnerungswerts
   await expect(plan.locator(".table-row", { hasText: /^2030/ })).toContainText("799,00");
+});
+
+test("Sonstige Transportmittel übernehmen: Konto 0380, eigene Nutzungsdauer statt der Pkw-Nutzungsdauer, keine Elektro-AfA (#312)", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("Kofferanhänger");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await expect(form.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
+  // Die sechs Jahre für Pkw gehen nicht mit: die Nutzungsdauer kommt vom einzelnen Wirtschaftsgut
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
+  await expect(form.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true }).locator("option[value=elektro]")).toHaveCount(0);
+  await form.getByLabel("Nutzungsdauer in Jahren").fill("11");
+  await form.getByLabel("Anschaffungsdatum").fill("2025-04-10");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("6.600,00");
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  // 2025: 9 von 132 Monaten = 450 €
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("6.150,00");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Konto 0380/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Abschreibungsplan" }).locator(".table-row", { hasText: /^2026/ })).toContainText("600,00");
+});
+
+test("Beleg als Anlagegut: Wechsel von Fahrzeug zu Sonstige Transportmittel lässt die sechs Jahre für Pkw nicht stehen (#312)", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "anhaenger.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Anhänger Center") }]);
+  await expect(page.getByText("anhaenger.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /anhaenger\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Kategorie").selectOption("anlage");
+  await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
+  await page.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
+  await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
 });
 
 test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wird ohne Erinnerungswert gespeichert", async () => {
