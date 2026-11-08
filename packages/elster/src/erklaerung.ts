@@ -598,7 +598,8 @@ const RECHTSFORM = { gewerbe: "120", selbstaendig: "140" } as const;
 /** Einkunftsart: 2 = Gewerbebetrieb, 3 = selbständige Arbeit */
 const EINKUNFTSART = { gewerbe: "2", selbstaendig: "3" } as const;
 
-const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode | null => (cents ? [kontext, [["Sum", [[kz, elsterDecimal(cents)]]]]] : null);
+// Ohne Betrag bleibt das Element mit Namen und ohne Inhalt stehen: render lässt es weg, einfuegen findet es als Nachbarn
+const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode => [kontext, cents ? [["Sum", [[kz, elsterDecimal(cents)]]]] : undefined];
 
 type XmlChild = XmlNode | null | undefined | false;
 
