@@ -6,6 +6,7 @@ import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import { steuerEuerWirkung, type Steuerart, type SteuerPosten } from "./steuerzahlung.ts";
 import { darlehenEuerZeile, type DarlehenTeil, type DarlehenZweck } from "./darlehen.ts";
 import type { TaxTreatment } from "./treatment.ts";
+import { kategorieAnteil, kategorieArt, type DirektKategorie } from "./direkt-kategorie.ts";
 
 /**
  * Einnahmen-Überschuss-Rechnung (§ 4 Abs. 3 EStG) nach Zufluss und Abfluss, Bruttomethode
@@ -89,6 +90,18 @@ export type EuerPayment =
       zweck: DarlehenZweck;
       teil: DarlehenTeil;
       group?: string;
+    }
+  | {
+      /**
+       * Direkt auf eine Kategorie gebuchter Teil eines Bankumsatzes (direkt-kategorie.ts), Vorzeichen wie auf dem Konto:
+       * Einnahme netto und Umsatzsteuer, Ausgabe brutto ohne Vorsteuer
+       */
+      kind: "kategorie";
+      date: string;
+      amount: Cents;
+      kategorie: DirektKategorie;
+      steuersatz: number;
+      group?: string;
     };
 
 export type EuerLineKey =
@@ -168,7 +181,14 @@ const monthIndex = (date: string) => Number(date.slice(5, 7)) - 1;
 type Netted = EuerPayment & { sum: Cents };
 
 /** Gruppe zum Verrechnen: Zahlung und Gegenzeile derselben Art, bei Steuerzahlungen auch derselben Steuerart und desselben Teils */
-const groupKey = (p: EuerPayment) => (p.kind === "steuer" ? `steuer|${p.art}|${p.posten}` : p.kind === "darlehen" ? `darlehen|${p.zweck}|${p.teil}` : p.kind);
+const groupKey = (p: EuerPayment) =>
+  p.kind === "steuer"
+    ? `steuer|${p.art}|${p.posten}`
+    : p.kind === "darlehen"
+      ? `darlehen|${p.zweck}|${p.teil}`
+      : p.kind === "kategorie"
+        ? `kategorie|${p.kategorie}|${p.steuersatz}`
+        : p.kind;
 
 /** Addiert Zahlungen derselben Gruppe; ohne Gruppe bleibt jede Zahlung für sich. */
 function netGroups(payments: EuerPayment[]): Netted[] {
@@ -313,6 +333,19 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
         const zeile = darlehenEuerZeile(p.zweck, p.teil);
         if (zeile) {
           add(zeile, -p.sum);
+          monthlyOut[month]! -= p.sum;
+        }
+        break;
+      }
+      case "kategorie": {
+        // Zufluss bzw. Abfluss am Tag der Zahlung (§ 11 EStG); die Gegenrichtung (Erstattung) mindert die Zeile
+        const { base, tax } = kategorieAnteil({ kategorie: p.kategorie, steuersatz: p.steuersatz }, p.sum);
+        if (kategorieArt(p.kategorie) === "einnahme") {
+          add(p.steuersatz === 0 ? "einnahmenKleinunternehmer" : "einnahmenSteuerpflichtig", base);
+          add("vereinnahmteUst", tax);
+          monthlyIn[month]! += base;
+        } else if (kategorieArt(p.kategorie) === "ausgabe") {
+          add(`ausgabe:${p.kategorie as ExpenseCategory}`, -p.sum);
           monthlyOut[month]! -= p.sum;
         }
         break;
