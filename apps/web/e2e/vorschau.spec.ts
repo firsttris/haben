@@ -357,3 +357,17 @@ test("Laptop: Der Fokus bleibt auf „Vorschau“, wenn der Pfeil beim Verkleine
   await expect(vorschauKnopf(page)).toBeFocused();
   await page.context().close();
 });
+
+test("Überblendung: Ein Fokus, den man während der Fahrt hinaus setzt, bleibt", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  await vorschauKnopf(page).click();
+  await lageNachDerFahrt(page);
+  await page.keyboard.press("Escape");
+  // Die Leiste fährt noch; wer schon ins Formular klickt, tippt sonst ins Leere
+  const feld = page.getByLabel("Beschreibung Position 1");
+  await feld.focus();
+  await expect(dialog(page)).toHaveCount(0);
+  await page.waitForTimeout(600);
+  await expect(feld).toBeFocused();
+  await page.context().close();
+});
