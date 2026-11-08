@@ -726,7 +726,7 @@ summary { cursor: pointer; min-height: 24px; }
 
 /* Kontakt im Beleg oder Rechnungsentwurf anlegen (ContactDialog) */
 /* Rückfrage: wie .contact-dialog, schmal und mit Knopfleiste, die stehen bleibt, wenn der Inhalt scrollt */
-.confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; }
+.confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; overflow-wrap: anywhere; }
 .confirm-dialog[open] { display: flex; flex-direction: column; }
 .confirm-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .confirm-dialog > h2 { flex: none; margin: 0; padding: 24px 24px 8px; font-size: 18px; }
