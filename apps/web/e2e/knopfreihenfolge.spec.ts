@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { firstLink, SESSION } from "./daten.ts";
 import { gehe } from "./einrichtung.ts";
 
@@ -36,6 +36,13 @@ async function abweichungen(page: Page): Promise<string[]> {
   });
 }
 
+/** Abstand der rechten Kante von `knopf` zum rechten Innenrand (ohne padding) von `zeile`, in Pixeln */
+async function abstandZumRand(zeile: Locator, knopf: Locator): Promise<number> {
+  const innen = await zeile.evaluate((el) => el.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(el).paddingRight));
+  const box = await knopf.boundingBox();
+  return innen - ((box?.x ?? 0) + (box?.width ?? 0));
+}
+
 test("Neuer Kontakt: Abbrechen links, Kontakt anlegen rechts, Tab in derselben Folge", async ({ page }) => {
   await gehe(page, "/kontakte/neu");
   const abbrechen = page.getByRole("link", { name: "Abbrechen" });
@@ -59,6 +66,19 @@ test("Kontaktdialog im Rechnungsentwurf: Hauptaktion zuletzt", async ({ page }) 
   await page.keyboard.press("Tab");
   await expect(anlegen).toBeFocused();
   expect(await abweichungen(page)).toEqual([]);
+  // Im Dialog rechtsbündig: die Hauptaktion schließt mit dem Innenrand der Fußzeile ab
+  expect(await abstandZumRand(dialog.locator(".form-footer"), anlegen)).toBeLessThanOrEqual(1);
+});
+
+test("Handy: Knöpfe füllen die Zeile, Hauptaktion rechts am Rand", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await gehe(page, "/kontakte/neu");
+  const footer = page.locator(".form-footer");
+  const abbrechen = footer.getByRole("link", { name: "Abbrechen" });
+  const anlegen = footer.getByRole("button", { name: "Kontakt anlegen" });
+  const [a, b] = [await abbrechen.boundingBox(), await anlegen.boundingBox()];
+  expect(Math.abs((a?.y ?? 0) - (b?.y ?? 1)), "beide in einer Zeile").toBeLessThan(1);
+  expect(await abstandZumRand(footer, anlegen)).toBeLessThanOrEqual(1);
 });
 
 test("Formulare für Artikel und Textbausteine: Hauptaktion zuletzt", async ({ page }) => {
