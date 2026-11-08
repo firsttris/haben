@@ -98,6 +98,15 @@ describe.skipIf(!testDatabaseUrl)("Lieferantenvorschlag und IBAN als Vorschlag (
     expect(result.iban).toEqual({ iban: "DE02120300000000202051", source: "e-rechnung", fundstelle: null, valid: true });
   });
 
+  it("E-Rechnung als Gutschrift: BT-84 ist das Konto des Käufers, kein IBAN-Vorschlag für den Lieferanten", async () => {
+    // EN 16931 BT-84: Konto, auf das gezahlt wird; bei einer Gutschrift (381) zahlt der Verkäufer an den Käufer
+    const xml = readFileSync(new URL("../../../../../../packages/einvoice/test-fixtures/incoming/ubl-creditnote-cbc-default.xml", import.meta.url));
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array(xml), filename: "GS-2026-12.xml" });
+    const result = await suggestion.supplierSuggestion(id);
+    expect(result.contact.name).toBeTruthy();
+    expect(result.iban).toBeNull();
+  });
+
   it("ein von Hand angelegter Beleg hat keinen Vorschlag", async () => {
     service.reply(() => ({ status: 500, body: "kaputt" }));
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, ++counter]), filename: "x.jpg" });
