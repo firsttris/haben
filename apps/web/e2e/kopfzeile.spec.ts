@@ -275,6 +275,33 @@ for (const [geraet, viewport] of [
   });
 }
 
+/** Der längere Knopf der Rückfrage bricht die Aktionen um: Der Kopf wächst im selben Moment, in dem der Hinweis ins Bild kommt */
+async function hinweisBleibtUnterWachsendemKopf(page: Page, knopf: string, hinweis: Locator): Promise<void> {
+  await zumEnde(page);
+  const head = page.locator(".main > .page-head");
+  const hoehe = () => head.evaluate((el) => el.getBoundingClientRect().height);
+  const vorher = await hoehe();
+  await head.getByRole("button", { name: knopf, exact: true }).click();
+  await expect(hinweis).toBeAttached();
+  // Sonst prüft der Test nichts: Bei dieser Breite muss der Kopf wirklich wachsen
+  await expect.poll(hoehe).toBeGreaterThan(vorher);
+  await expect.poll(async () => (await hinweis.evaluate((el) => el.getBoundingClientRect().top)) - (await kopfUnterkante(page))).toBeGreaterThanOrEqual(0);
+}
+
+test("Dauerbeleg: Der Hinweis nach „Beenden“ steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
+  const pfad = await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/);
+  expect(pfad).not.toBeNull();
+  await page.setViewportSize({ width: 880, height: 600 });
+  await page.goto(pfad as string, { waitUntil: "networkidle" });
+  await hinweisBleibtUnterWachsendemKopf(page, "Beenden", page.getByText("Beenden ist endgültig"));
+});
+
+test("Rechnungsentwurf: Die Rückfrage zum Festschreiben steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
+  await page.setViewportSize({ width: 1080, height: 600 });
+  await entwurfAusfuellen(page);
+  await hinweisBleibtUnterWachsendemKopf(page, "Festschreiben", page.getByRole("alert").filter({ hasText: "Noch einmal klicken" }));
+});
+
 // 400 % Zoom: WCAG 1.4.10 rechnet mit 320×256, ein Fenster mit 1280×720 ergibt 320×180
 for (const viewport of [
   { width: 320, height: 256 },
