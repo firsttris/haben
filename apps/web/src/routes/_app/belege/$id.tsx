@@ -35,6 +35,13 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 
+/** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
+function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
+  if (payment === "bank") return "über das Geschäftskonto bezahlt";
+  if (payment === "kasse") return "bar aus der Kasse bezahlt";
+  return gesellschaft ? "vom Gesellschafter ausgelegt" : "privat bezahlt";
+}
+
 export const Route = createFileRoute("/_app/belege/$id")({
   /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
   validateSearch: z.object({ geprueft: z.optional(z.boolean()) }),
@@ -652,7 +659,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   {data.categoryHint.count === data.categoryHint.total
                     ? `${data.categoryHint.count}×`
                     : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
-                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht
+                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht, zuletzt am{" "}
+                  {formatDate(data.categoryHint.last)}
                   {category !== data.categoryHint.category && (
                     <>
                       {" · "}
@@ -978,6 +986,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />
           Bar aus der Kasse (Zeile im Kassenbuch)
         </label>
+        {data.paymentHint && (
+          <span className="small">
+            Bisher{" "}
+            {data.paymentHint.count === data.paymentHint.total
+              ? `${data.paymentHint.count}×`
+              : `${data.paymentHint.count} von ${data.paymentHint.total} Belegen`}{" "}
+            {paymentHintText(data.paymentHint.payment, isKapitalgesellschaft(data.rechtsform))}, zuletzt am {formatDate(data.paymentHint.last)}
+            {payment !== data.paymentHint.payment && (
+              <>
+                {" · "}
+                <button type="button" className="link-button" onClick={() => touch(setPayment)(data.paymentHint!.payment)}>
+                  übernehmen
+                </button>
+              </>
+            )}
+          </span>
+        )}
         <label className="field">
           Notiz
           <textarea value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />

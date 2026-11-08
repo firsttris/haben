@@ -138,7 +138,7 @@ Im PDF sucht Haben zuerst nach den Anhängen `factur-x.xml`, `zugferd-invoice.xm
 
 Lässt sich eine hochgeladene XML-Datei nicht als E-Rechnung lesen, steht der Fehler am Beleg. Bei einem PDF, dessen eingebettetes XML nicht lesbar ist, geht Haben weiter zur KI-Auslesung.
 
-Eine E-Rechnung bringt keine Kategorie mit. Haben schlägt die Kategorie vor, unter der du Belege desselben Lieferanten bisher am häufigsten gebucht hast; gibt es keinen, bleibt das Feld leer.
+Eine E-Rechnung bringt keine Kategorie mit. Haben schlägt die Kategorie vor, unter der du Belege desselben Lieferanten bisher am häufigsten gebucht hast; gibt es keinen, bleibt das Feld leer. Ebenso die Bezahlung (siehe [Vorschläge aus früheren Belegen](#vorschläge-aus-früheren-belegen)).
 
 ## KI-Auslesung
 
@@ -158,7 +158,18 @@ Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 
 Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, Zeitüberschreitung, unbekanntes Modell, Antwort im falschen Format, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
 
-Bei der Kategorie haben die gebuchten Belege desselben Lieferanten Vorrang vor dem Vorschlag der KI: Haben nimmt die Kategorie, unter der sie am häufigsten gebucht sind, bei Gleichstand die zuletzt gebuchte. So wechselt der Vorschlag nicht, nur weil ein Lieferant wie Amazon einmal etwas anderes geliefert hat. Erkannt wird der Lieferant an der USt-IdNr. oder am Namen (ohne Groß- und Kleinschreibung). Unter dem Feld **Kategorie** steht, wie oft, etwa „Bisher 7 von 9 Belegen als Software und Lizenzen gebucht“; hast du eine andere gewählt, übernimmst du die bisherige mit **übernehmen**.
+Bei der Kategorie haben die gebuchten Belege desselben Lieferanten Vorrang vor dem Vorschlag der KI: Haben nimmt die Kategorie, unter der sie am häufigsten gebucht sind, bei Gleichstand die zuletzt gebuchte. So wechselt der Vorschlag nicht, nur weil ein Lieferant wie Amazon einmal etwas anderes geliefert hat. Wie das gezählt wird, steht unter [Vorschläge aus früheren Belegen](#vorschläge-aus-früheren-belegen).
+
+## Vorschläge aus früheren Belegen
+
+Kategorie und Bezahlung schlägt Haben aus allen gebuchten Belegen desselben Lieferanten vor, ohne KI-Modell: Gezählt werden nur deine eigenen Buchungen (siehe [Roadmap](roadmap.md#bewusst-nicht)). Erkannt wird der Lieferant am gewählten Kontakt, an der USt-IdNr. oder am Namen (ohne Groß- und Kleinschreibung). Stornierte Belege zählen nicht.
+
+- **Kategorie:** die häufigste, bei Gleichstand die zuletzt gebuchte. Ein [aufgeteilter Beleg](#auf-mehrere-kategorien-aufteilen) zählt bei jeder seiner Kategorien, insgesamt aber einmal.
+- **Bezahlung:** über das Geschäftskonto, privat (in GmbH und UG vom Gesellschafter ausgelegt) oder bar aus der Kasse, nur wenn sie mindestens zweimal und bei mehr als der Hälfte der Belege so gebucht wurde. Die Vorgabe „Über das Geschäftskonto“ stellt also kein einzelner privat bezahlter Beleg um.
+
+Unter dem Feld **Kategorie** bzw. unter **Bezahlung** steht, wie oft und wann zuletzt, etwa „Bisher 7 von 9 Belegen als Software und Lizenzen gebucht, zuletzt am 03.11.2026“ oder „Bisher 2× privat bezahlt, zuletzt am 05.11.2026“. Hast du etwas anderes gewählt, übernimmst du den Vorschlag mit **übernehmen**. Liest Haben einen Beleg aus einer E-Rechnung oder mit der KI aus, trägt es Kategorie und Bezahlung gleich so ein. Gebucht wird der Beleg trotzdem erst mit **Bestätigen und buchen**; bis dahin bleibt er „Zu prüfen“.
+
+Für Bankumsätze ohne Beleg lernt der Bankabgleich auf dieselbe Weise aus früheren Zuordnungen (siehe [Bank](bank.md#vorschläge-ohne-rechnung-und-geldtransit)).
 
 ## Eigene Ausgangsrechnung erkennen
 

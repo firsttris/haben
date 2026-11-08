@@ -1,3 +1,4 @@
+import { kategorieFehler, type KategorieAngabe } from "./direkt-kategorie.ts";
 import { formatEuro, type Cents } from "./money.ts";
 import type { VatPeriod } from "./period.ts";
 import { formatPercent, skontoGezogen, type SkontoZahlfrist } from "./skonto.ts";
@@ -260,8 +261,10 @@ export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp |
 }
 
 export interface DirectSuggestion {
-  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "lohnsteuer";
+  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "lohnsteuer" | "zinsertrag" | "kategorie";
   reasons: string[];
+  /** Nur bei „kategorie“: Kategorie und Steuersatz, wie früher direkt gebucht (#324) */
+  kategorie?: KategorieAngabe;
   /**
    * Nur mit Gegenbuchung vorschlagen: Gegenpartei „PayPal“ auf der Bank kann auch ein mit PayPal bezahlter Einkauf sein;
    * Geldtransit ist es erst, wenn im Konto des Dienstleisters die passende Auszahlung steht.
@@ -392,40 +395,67 @@ export function findTransferCounterpart<
 }
 
 /**
- * Häufigster Wert mit Anzahl, bei Gleichstand der zuletzt verwendete. Für Vorschläge aus früheren Buchungen: die Kategorie
- * eines Lieferanten, die Buchungsart einer Gegenpartei. `last` ist ein sortierbarer Zeitstempel (ISO).
+ * Häufigster Wert mit Anzahl und letzter Verwendung, bei Gleichstand der zuletzt verwendete. Für Vorschläge aus früheren
+ * Buchungen: die Kategorie eines Lieferanten, die Buchungsart einer Gegenpartei. `last` ist ein sortierbarer Zeitstempel (ISO).
  */
 export function mostFrequent<T>(
   rows: { value: T; count: number; last: string }[],
   /** Zahl der Fälle, wenn ein Fall mehrere Werte haben kann (aufgeteilter Umsatz); sonst die Summe der Anzahlen */
   total = rows.reduce((s, r) => s + r.count, 0),
-): { value: T; count: number; total: number } | null {
+): { value: T; count: number; total: number; last: string } | null {
   const best = [...rows].sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))[0];
-  return best ? { value: best.value, count: best.count, total } : null;
+  return best ? { value: best.value, count: best.count, total, last: best.last } : null;
 }
 
-/** Arten ohne Rechnung, die Haben aus früheren Buchungen vorschlägt */
-const LEARNED_KINDS = new Set(["privat", "gebuehren", "mahnerloes"]);
+/**
+ * Eine frühere Zuordnung, wie sie die Historie zählt: die Art (invoice, document, privat, gebuehren, kategorie …), bei
+ * „kategorie“ mit Kategorie und Steuersatz, damit jede Kategorie und jeder Satz für sich zählt.
+ */
+export interface LearnedBooking {
+  kind: string;
+  kategorie?: KategorieAngabe;
+}
+
+/**
+ * Arten ohne Rechnung, die Haben aus früheren Buchungen vorschlägt. Nicht dabei: was die Regeln der Kontozwecke besser
+ * wissen oder was eine Angabe braucht, die sich je Zahlung ändert (Steuerart und Jahr, Teil einer Darlehensrate, die
+ * offene Lohnverbindlichkeit).
+ */
+const LEARNED_KINDS = new Set(["privat", "gebuehren", "mahnerloes", "zinsertrag", "kategorie"]);
+
+/** „2026-09-30“ → „30.09.2026“; `last` kann ein Zeitstempel sein, gezählt wird der Tag */
+const tagText = (iso: string) => iso.slice(0, 10).split("-").reverse().join(".");
 
 /**
  * Buchungsart ohne Rechnung aus früheren Zuordnungen derselben Gegenpartei (gleiche Gegen-IBAN, sonst gleicher Name) in
  * derselben Richtung: Abbuchungen lernen nur aus Abbuchungen, Eingänge nur aus Eingängen (die Gebühr von Stripe ist keine
- * Vorlage für dessen Auszahlung). `history` zählt je Art (invoice, document, privat, gebuehren …) die früheren Umsätze,
- * `total` die Umsätze insgesamt (ein aufgeteilter Umsatz zählt bei jeder seiner Arten, aber nur einmal insgesamt).
- * Vorgeschlagen wird nur, wenn die häufigste Art mindestens zweimal vorkam und mehr als die Hälfte der Umsätze ausmacht.
+ * Vorlage für dessen Auszahlung). `history` zählt je Art die früheren Umsätze, bei „Direkt buchen“ auf eine Kategorie je
+ * Kategorie und Steuersatz; `total` zählt die Umsätze insgesamt (ein aufgeteilter Umsatz zählt bei jeder seiner Arten,
+ * aber nur einmal insgesamt). Vorgeschlagen wird nur, wenn die häufigste Art mindestens zweimal vorkam und mehr als die
+ * Hälfte der Umsätze ausmacht. Eine Kategorie nur, wenn sie heute noch so direkt buchbar wäre (kategorieFehler): Nach dem
+ * Wechsel zum Kleinunternehmer etwa sind Erlöse mit 19 % kein Vorschlag mehr.
  * Nicht gelernt werden:
  * - Geldtransit: braucht die Gegenbuchung, die die Regeln zu eigenen Konten finden
  * - Umsatzsteuer und alles mit dem Finanzamt: über dieselbe IBAN laufen Umsatzsteuer und private Steuern
+ * - Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Abrechnung, Steuerart oder Teil der Rate ändern sich je Zahlung
  */
 export function learnedDirectBooking(
   tx: Pick<MatchTransaction, "counterpartyName">,
-  history: { value: string; count: number; last: string }[],
+  history: { value: LearnedBooking; count: number; last: string }[],
   total: number,
   basis: "iban" | "name",
+  /** Kleinunternehmer heute; entscheidet, ob eine gelernte Erlöskategorie mit oder ohne Steuer noch buchbar ist */
+  kleinunternehmer = false,
 ): DirectSuggestion | null {
   if (TAX_OFFICE.test(tx.counterpartyName)) return null;
   const top = mostFrequent(history, total);
-  if (!top || !LEARNED_KINDS.has(top.value) || top.count < 2 || top.count * 2 <= top.total) return null;
+  if (!top || !LEARNED_KINDS.has(top.value.kind) || top.count < 2 || top.count * 2 <= top.total) return null;
+  const { kategorie } = top.value;
+  if (top.value.kind === "kategorie" && (!kategorie || kategorieFehler(kategorie, kleinunternehmer))) return null;
   const from = basis === "iban" ? "mit dieser Gegen-IBAN" : "von dieser Gegenpartei";
-  return { kind: top.value as DirectSuggestion["kind"], reasons: [`${top.count} von ${top.total} Umsätzen ${from} so gebucht`] };
+  return {
+    kind: top.value.kind as DirectSuggestion["kind"],
+    ...(kategorie ? { kategorie } : {}),
+    reasons: [`${top.count} von ${top.total} Umsätzen ${from} so gebucht, zuletzt am ${tagText(top.last)}`],
+  };
 }

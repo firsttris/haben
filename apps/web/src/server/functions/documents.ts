@@ -19,6 +19,7 @@ import {
   dauerbelegName,
   getDocument,
   supplierCategory,
+  supplierPayment,
   listDocuments,
   MAX_DOCUMENT_SIZE,
   runExtraction,
@@ -85,8 +86,9 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       amounts: result.amounts,
       splits: result.splits,
       issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts, today(), result.splits),
-      // Bisherige Kategorie des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist
-      categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document.supplierName, result.document.supplierUstId),
+      // Bisherige Kategorie und Bezahlung des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist (#295)
+      categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document),
+      paymentHint: result.document.lockedAt ? null : await supplierPayment(result.document),
       aiAvailable: extractionAvailable(),
       categories: categoryOptions,
       // Lieferanten aus den Kontakten zur Auswahl im Beleg

@@ -36,6 +36,10 @@ export function KategorieFelder({
 }) {
   const einnahme = options.kategorien.find((k) => k.value === value.kategorie)?.art === "einnahme";
   const anteil = amount !== null && einnahme && value.steuersatz !== 0 ? kategorieAnteil(value, amount) : null;
+  // Auswahl und Hinweis nach dem gewählten Satz, nicht nach dem Stand von heute: Ein gelernter Vorschlag (#295) kann aus
+  // einem Monat mit anderem Kleinunternehmer-Stand stammen; gebucht wird, was hier steht (Stand am Tag der Zahlung prüft der Server)
+  const ohneSteuer = einnahme && value.steuersatz === 0;
+  const mitAuswahl = einnahme && !(options.kleinunternehmer && ohneSteuer);
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="form-row cols-2">
@@ -61,12 +65,13 @@ export function KategorieFelder({
             ))}
           </select>
         </label>
-        {einnahme && !options.kleinunternehmer && (
+        {mitAuswahl && (
           <label className="field">
             Steuersatz
             <select value={value.steuersatz} onChange={(e) => onChange({ ...value, steuersatz: Number(e.target.value) })}>
               <option value={1900}>19 %</option>
               <option value={700}>7 %</option>
+              {(options.kleinunternehmer || ohneSteuer) && <option value={0}>ohne (Kleinunternehmer)</option>}
             </select>
           </label>
         )}
@@ -76,7 +81,7 @@ export function KategorieFelder({
           <>
             Gebucht brutto als Ausgabe, ohne Vorsteuer: Die gibt es nur mit Rechnung. Mit Rechnung den Beleg unter <Link to="/belege">Belege</Link> buchen.
           </>
-        ) : options.kleinunternehmer ? (
+        ) : ohneSteuer ? (
           "Als Kleinunternehmer ohne Umsatzsteuer (§ 19 UStG)."
         ) : (
           `Bank an Erlöse und Umsatzsteuer, fällig mit der Zahlung, bei Ist- wie bei Soll-Versteuerung${
