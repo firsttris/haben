@@ -219,7 +219,10 @@ export function InvoiceEditor({
   attachments = null,
   planTemplates = [],
   keptDeductions = [],
+  action: sharedAction,
 }: {
+  /** Vom Aufrufer, wenn er den Editor nach dem Speichern per `key` neu aufsetzt: sonst ginge die Meldung dabei verloren */
+  action?: ReturnType<typeof useAction>;
   id: string | null;
   kind: keyof typeof KIND_TITLE;
   /** Beim Angebot zusätzlich Gültigkeit und Zahlungsplan; Zahlungsziel und Format spielen dort keine Rolle */
@@ -305,7 +308,8 @@ export function InvoiceEditor({
   const [attempted, setAttempted] = useState(false);
   const showError = (key: number) => attempted || touched.has(key);
   const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-  const { busy, notice, setNotice, run } = useAction();
+  const ownAction = useAction();
+  const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
