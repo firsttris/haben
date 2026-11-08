@@ -148,6 +148,25 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
     }
   }
 
+  it.each([
+    ["SKR03", "ist", "4210", "1576", "1600"],
+    ["SKR04", "soll", "6310", "1406", "3300"],
+  ] as const)("%s, %s: Kategorie „Miete für Geschäftsräume“ bucht auf das Mietkonto (#312)", async (kontenrahmen, versteuerung, aufwand, vorsteuer, verb) => {
+    await reset(kontenrahmen, versteuerung);
+    const vorlage = await dauer.createDauerbeleg(actor, miete({ category: "miete", nextDate: "2026-10-31" }), vertrag());
+    expect(vorlage.category).toBe("miete");
+    await lauf.runDueDauerbelege("2026-11-05");
+    const [beleg] = await belege(vorlage.id);
+    await documents.bookDocument(actor, beleg!.id as string);
+    const lines = await sql`select l.account, l.debit, l.credit from journal_lines l order by l.debit desc, l.account`;
+    expect(lines.map((l) => ({ ...l }))).toEqual([
+      { account: aufwand, debit: 100_000, credit: 0 },
+      { account: vorsteuer, debit: 19_000, credit: 0 },
+      { account: verb, debit: 0, credit: 119_000 },
+    ]);
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(19_000);
+  });
+
   it("Kleinunternehmer: Steuer wird Teil des Aufwands, keine Vorsteuer", async () => {
     await reset("SKR03", "ist", true);
     const vorlage = await dauer.createDauerbeleg(actor, miete({ nextDate: "2026-10-31" }), vertrag());

@@ -609,7 +609,8 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await page.getByLabel("Bezeichnung").fill("Büromiete Hafenstraße");
   await page.getByLabel("Lieferant", { exact: true }).fill("Hafen Immobilien GmbH");
   await page.getByLabel("Vertrags- oder Kundennummer (optional)").fill("MV-2026-17");
-  await page.getByLabel("Kategorie").selectOption({ label: "Sonstiger Aufwand" });
+  // Eigene Kategorie für Miete (#312): DATEV 4210 bzw. 6310
+  await page.getByLabel("Kategorie").selectOption({ label: "Miete für Geschäftsräume" });
   await page.getByLabel("Erster Beleg am").fill(termin);
   await page.getByLabel("Fällig Tage nach dem Termin").fill("3");
   await page
@@ -632,6 +633,7 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await page.getByRole("button", { name: "1 fällige jetzt anlegen" }).click();
   await expect(page.getByText("1 Beleg zum Prüfen angelegt.")).toBeVisible();
   await expect(page.getByRole("link", { name: /Büromiete Hafenstraße/ })).toContainText("1 zu prüfen");
+  await expect(page.getByRole("link", { name: /Büromiete Hafenstraße/ })).toContainText("Miete für Geschäftsräume");
   await go("/belege");
   await expect(page.getByRole("link", { name: /Hafen Immobilien GmbH/ })).toContainText("Dauerbeleg");
   await expect(page.getByRole("link", { name: /Hafen Immobilien GmbH/ })).toContainText("Zu prüfen");
