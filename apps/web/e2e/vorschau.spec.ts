@@ -332,3 +332,17 @@ test("Menü: Ein Klick auf „Vorschau“ schließt es", async ({ browser }) => 
   await expect(pfeil(page)).toHaveAttribute("aria-expanded", "false");
   await page.context().close();
 });
+
+test("Überblendung: Der Fokus kehrt zurück, auch wenn der Browser Knöpfe beim Klick nicht fokussiert", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  // Safari und Firefox auf dem Mac: Der Klick lässt den Fokus auf <body>; in Chromium nachgestellt
+  await vorschauKnopf(page).evaluate((button) => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    (button as HTMLElement).click();
+  });
+  await expect(dialog(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(vorschauKnopf(page)).toBeFocused();
+  await page.context().close();
+});
