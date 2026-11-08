@@ -32,6 +32,45 @@ test("Der Dialog ist modal, nennt die Folgen und hat den Fokus auf Abbrechen, di
   await expect(page.getByRole("button", { name: "Jetzt festschreiben" })).toHaveCount(0);
 });
 
+test("Festschreiben nennt Nummer, Kunde und Betrag über den Folgen", async ({ page }) => {
+  const ausloeser = await neuerEntwurf(page);
+  const kunde = (await page.getByLabel("Kunde").locator("option:checked").textContent())?.trim() ?? "";
+  await ausloeser.click();
+  const dialog = rueckfrage(page);
+  await expect(dialog.locator("dt")).toHaveText(["Nummer", "Kunde", "Betrag"]);
+  await expect(dialog.locator("dd").nth(0)).toHaveText(/\d/);
+  await expect(dialog.locator("dd").nth(1)).toContainText(kunde);
+  await expect(dialog.locator("dd").nth(2)).toHaveText(/^\d[\d.]*,\d\d\s€$/);
+  await expect(dialog.getByRole("heading", { name: "Rechnung festschreiben?" })).toBeVisible();
+});
+
+test("Am Handy ist der Dialog ein Blatt von unten, die Aktion steht über Abbrechen", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const ausloeser = await neuerEntwurf(page);
+  await ausloeser.click();
+  const dialog = rueckfrage(page);
+  await expect(dialog).toBeVisible();
+  const blatt = await dialog.boundingBox();
+  expect(blatt).toMatchObject({ x: 0, width: 390 });
+  expect(Math.round((blatt?.y ?? 0) + (blatt?.height ?? 0))).toBe(844);
+  const aktion = await dialog.getByRole("button", { name: "Festschreiben" }).boundingBox();
+  const abbrechen = await dialog.getByRole("button", { name: "Abbrechen" }).boundingBox();
+  expect(aktion?.y ?? 0).toBeLessThan(abbrechen?.y ?? 0);
+  expect(aktion?.width).toBe(abbrechen?.width);
+  expect(aktion?.width).toBeGreaterThan(340);
+  expect(aktion?.height).toBeGreaterThanOrEqual(48);
+  await expect(dialog.getByRole("button", { name: "Abbrechen" })).toBeFocused();
+});
+
+test("Am Desktop bleibt der Dialog mittig", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const ausloeser = await neuerEntwurf(page);
+  await ausloeser.click();
+  const box = await rueckfrage(page).boundingBox();
+  expect(Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2)).toBe(720);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThan(900);
+});
+
 test("Esc schließt ohne Aktion, der Fokus geht zurück auf den Auslöser", async ({ page }) => {
   const ausloeser = await neuerEntwurf(page);
   await ausloeser.focus();

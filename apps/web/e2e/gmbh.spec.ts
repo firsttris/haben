@@ -184,6 +184,10 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   await go(`/abschluss/${year - 1}`);
   const close = page.getByRole("button", { name: `${year - 1} abschließen` });
   await close.click();
+  // Der Knopf wird erst mit dem Häkchen frei (#404)
+  const rueckfrage = page.getByRole("dialog");
+  await expect(rueckfrage.getByRole("button", { name: `${year - 1} abschließen`, exact: true })).toBeDisabled();
+  await rueckfrage.getByRole("checkbox", { name: /nicht mehr änderbar/ }).check();
   await bestaetigen(page, `${year - 1} abschließen`);
   await expect(page.getByText(`Das Jahr ${year - 1} ist abgeschlossen.`)).toBeVisible();
   await expect(page.getByRole("region", { name: "Jahr abschließen" })).toContainText("Die Buchungen sind seitdem unverändert.");
