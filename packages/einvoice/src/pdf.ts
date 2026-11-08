@@ -8,7 +8,9 @@ import { girocodeSvg } from "./qr.ts";
 import {
   accentPalette,
   DEFAULT_ACCENT,
+  customFooter,
   DEFAULT_OPTIONS,
+  footerValues,
   discountedLineAmount,
   documentAllowances,
   lineAmount,
@@ -18,6 +20,7 @@ import {
   showsVatColumn,
   type Discount,
   type LegalInfo,
+  type LetterheadOptions,
 } from "@haben/core";
 import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
@@ -142,7 +145,7 @@ export function documentPdfData(
     intro: doc.intro?.trim() ? doc.intro.trim() : null,
     hideVatColumn: !showsVatColumn(doc.options?.vatColumn ?? true, treatment === "regulaer" ? distinctVatRates(doc.lines) : doc.totals.taxes.length),
     note: doc.note?.trim() ? doc.note.trim() : null,
-    ...footerData(seller, t),
+    ...footerData(seller, t, doc.options),
   };
 }
 
@@ -306,8 +309,11 @@ export function legalLine(info: LegalInfo | undefined, t: Texts = TEXTS.de): str
 }
 
 /** Fuß für die Vorlagen: drei Spalten und die Pflichtangaben der Gesellschaft */
-export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de) {
-  return { footer: footerColumns(seller, t), legal: legalLine(seller.legalInfo, t) };
+export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, options?: LetterheadOptions) {
+  const footer = options?.footerColumns
+    ? customFooter(options.footerColumns, { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" })
+    : footerColumns(seller, t);
+  return { footer, legal: legalLine(seller.legalInfo, t) };
 }
 
 /** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */

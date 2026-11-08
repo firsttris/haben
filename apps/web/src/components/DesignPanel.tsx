@@ -67,7 +67,7 @@ const SWATCHES = [
   { hex: "#3F4A44", name: "Grau" },
 ];
 
-function Segmented<T extends string>({
+export function Segmented<T extends string>({
   label,
   options,
   value,

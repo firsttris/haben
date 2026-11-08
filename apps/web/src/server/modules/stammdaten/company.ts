@@ -198,7 +198,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     logoInfo(),
     loadDesign(),
   ]);
-  const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
+  const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
     contacts,
     articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
@@ -218,6 +218,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       plz,
       ort,
       email,
+      telefon,
       steuernummer,
       ustId,
       iban,

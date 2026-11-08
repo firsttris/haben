@@ -50,11 +50,9 @@
     line(length: 100%, stroke: 0.4pt + rule)
     v(3mm)
     grid(
-      columns: (1fr, 1fr, 1fr),
+      columns: d.footer.map(_ => 1fr),
       column-gutter: 6mm,
-      footer-col(d.footer.at(0)),
-      footer-col(d.footer.at(1)),
-      footer-col(d.footer.at(2)),
+      ..d.footer.map(footer-col),
     )
     if legal-foot != none { legal-foot }
     let total = counter(page).final().first()

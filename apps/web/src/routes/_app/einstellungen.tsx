@@ -24,6 +24,7 @@ import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LayoutsCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
+import { FooterCard } from "../../components/FooterCard.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { NumberingCard } from "../../components/NumberingCard.tsx";
@@ -201,6 +202,7 @@ function SettingsPage() {
             <>
               <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
               <AccentColorCard color={design.accent} />
+              <FooterCard key={JSON.stringify(design.footerColumns)} columns={design.footerColumns} seller={company} />
               <LayoutsCard design={design} />
             </>
           )}

@@ -83,7 +83,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     qr: null,
     taxNote: null,
     note: doc.note?.trim() ? doc.note.trim() : null,
-    ...footerData(seller, t),
+    ...footerData(seller, t, doc.options),
   };
 }
 
