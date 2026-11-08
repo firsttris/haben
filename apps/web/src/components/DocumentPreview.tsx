@@ -172,10 +172,8 @@ export function PreviewLayout({
           label={label}
           caption={caption}
           onClosing={preview.overlayClosing}
-          onClose={() => {
-            preview.closeOverlay();
-            design?.onClosed();
-          }}
+          onDismissed={() => design?.onClosed()}
+          onClose={preview.closeOverlay}
           designPanel={design?.panel}
           designOpen={preview.designOpen}
           onToggleDesign={preview.toggleDesign}

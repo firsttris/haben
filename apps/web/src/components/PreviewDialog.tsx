@@ -12,6 +12,7 @@ export function PreviewDialog({
   label,
   caption,
   onClosing,
+  onDismissed,
   onClose,
   designPanel,
   designOpen,
@@ -21,6 +22,8 @@ export function PreviewDialog({
   label: string;
   caption: ReactNode;
   onClosing: () => void;
+  /** Sofort beim Schließen, nicht erst nach der Fahrt: Wer schnell wieder öffnet, ersetzt den Dialog, bevor onClose käme */
+  onDismissed: () => void;
   onClose: () => void;
   designPanel: ReactNode;
   designOpen: boolean;
@@ -42,6 +45,7 @@ export function PreviewDialog({
   }, []);
 
   const closed = () => {
+    onDismissed();
     const dialog = ref.current;
     if (returnsFocusOnClose(document.activeElement, document.body, (element) => dialog?.contains(element) ?? false)) onClosing();
     if (!dialog || parseFloat(getComputedStyle(dialog).transitionDuration) === 0) return onClose();
