@@ -74,6 +74,32 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
 });
 
+test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebene Nummer meldet das Formular (#327)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Musterpartner GmbH");
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("Kundennummer").fill("K-42");
+  await page.getByLabel("DATEV-Debitor").fill("10042");
+  await page.getByLabel("DATEV-Kreditor").fill("70087");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Kundennummer")).toHaveValue("K-42");
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10042");
+  await expect(page.getByLabel("DATEV-Kreditor")).toHaveValue("70087");
+  // Archivieren: Die folgenden Tests rechnen nicht mit einem Lieferanten
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Zweiter Partner");
+  await page.getByLabel("DATEV-Debitor").fill("70087");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
+  await page.getByLabel("DATEV-Debitor").fill("10042");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor 10042 hat schon „Musterpartner GmbH“.")).toBeVisible();
+});
+
 test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {
   await go("/rechnungen/neu");
   await page.getByLabel("Beschreibung Position 1").fill("Workshop Barrierefreiheit");

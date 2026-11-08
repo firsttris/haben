@@ -901,41 +901,54 @@ export const seals = pgTable(
 );
 
 /** Kunden und Lieferanten. Jede Änderung legt per Trigger eine Version in contact_versions ab. */
-export const contacts = pgTable("contacts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  kundennummer: text("kundennummer"),
-  /** Rollen: ein Kontakt kann Kunde, Lieferant oder beides sein; bestehende Kontakte sind Kunden */
-  isCustomer: boolean("is_customer").notNull().default(true),
-  isSupplier: boolean("is_supplier").notNull().default(false),
-  /** Nummer beim Lieferanten bzw. eigene Lieferantennummer, frei */
-  lieferantennummer: text("lieferantennummer"),
-  name: text("name").notNull(),
-  strasse: text("strasse").notNull().default(""),
-  plz: text("plz").notNull().default(""),
-  ort: text("ort").notNull().default(""),
-  land: text("land").notNull().default("DE"),
-  email: text("email").notNull().default(""),
-  /** Telefonnummer, wie eingegeben (#322) */
-  telefon: text("telefon").notNull().default(""),
-  ustId: text("ust_id").notNull().default(""),
-  iban: text("iban").notNull().default(""),
-  leitwegId: text("leitweg_id").notNull().default(""),
-  defaultFormat: invoiceFormatEnum("default_format"),
-  /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
-  skonto: jsonb("skonto").$type<SkontoStufe[]>(),
-  /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
-  language: text("language", { enum: ["de", "en"] })
-    .notNull()
-    .default("de"),
-  /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
-  lexofficeId: text("lexoffice_id").unique(),
-  /** Herkunft aus dem sevDesk-Import */
-  sevdeskId: text("sevdesk_id").unique(),
-  version: integer("version").notNull().default(1),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kundennummer: text("kundennummer"),
+    /** Rollen: ein Kontakt kann Kunde, Lieferant oder beides sein; bestehende Kontakte sind Kunden */
+    isCustomer: boolean("is_customer").notNull().default(true),
+    isSupplier: boolean("is_supplier").notNull().default(false),
+    /** Nummer beim Lieferanten bzw. eigene Lieferantennummer, frei */
+    lieferantennummer: text("lieferantennummer"),
+    name: text("name").notNull(),
+    strasse: text("strasse").notNull().default(""),
+    plz: text("plz").notNull().default(""),
+    ort: text("ort").notNull().default(""),
+    land: text("land").notNull().default("DE"),
+    email: text("email").notNull().default(""),
+    /** Telefonnummer, wie eingegeben (#322) */
+    telefon: text("telefon").notNull().default(""),
+    ustId: text("ust_id").notNull().default(""),
+    iban: text("iban").notNull().default(""),
+    leitwegId: text("leitweg_id").notNull().default(""),
+    defaultFormat: invoiceFormatEnum("default_format"),
+    /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
+    skonto: jsonb("skonto").$type<SkontoStufe[]>(),
+    /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
+    language: text("language", { enum: ["de", "en"] })
+      .notNull()
+      .default("de"),
+    /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
+    lexofficeId: text("lexoffice_id").unique(),
+    /** Herkunft aus dem sevDesk-Import */
+    sevdeskId: text("sevdesk_id").unique(),
+    /**
+     * DATEV-Personenkonten für den Buchungsstapel (#327), getrennt von Kunden- und Lieferantennummer; beide an einem
+     * Kontakt möglich. Bereiche bei vierstelligen Sachkonten nach DATEV-Kontenrahmen SKR 03/04 2026, S. 36.
+     */
+    debitorNr: integer("debitor_nr").unique(),
+    kreditorNr: integer("kreditor_nr").unique(),
+    version: integer("version").notNull().default(1),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
+    check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
+  ],
+);
 
 /** Stand eines Kontakts je Version, nur anhängen */
 export const contactVersions = pgTable(
