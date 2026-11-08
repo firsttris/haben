@@ -4,6 +4,7 @@ import { dunningPdfData } from "./dunning.ts";
 import { pdfData, renderInvoicePdf, templateInputs } from "./pdf.ts";
 import { mixedRateLines, sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
 import { buildEInvoice } from "./index.ts";
+import { quotePdfData } from "./quote.ts";
 
 /** Schalter der Gestaltung (#113): Sie ändern das Blatt, nie die Pflichtangaben oder das XML */
 const withOptions = (changes: Partial<LetterheadOptions>, sample: Parameters<typeof sampleDocument>[0] = {}) => ({
@@ -12,6 +13,31 @@ const withOptions = (changes: Partial<LetterheadOptions>, sample: Parameters<typ
 });
 
 const labels = (data: { meta: { label: string }[] }) => data.meta.map((m) => m.label);
+
+describe("Spalte USt im Angebot", () => {
+  const quote = (optionalRate: number) => {
+    const sample = sampleDocument();
+    const [first] = sample.lines;
+    return quotePdfData({
+      number: "AN-2026-007",
+      issueDate: "2026-09-01",
+      validUntil: "2026-10-01",
+      seller: sampleSeller,
+      buyer: sampleBuyer,
+      lines: [{ ...first! }, { ...first!, description: "Option", taxRate: optionalRate, kind: "optional" }],
+      totals: { ...sample.totals, taxes: sample.totals.taxes.slice(0, 1) },
+      options: { ...DEFAULT_OPTIONS, vatColumn: false },
+    });
+  };
+
+  it("bleibt stehen, wenn nur eine optionale Position einen anderen Steuersatz hat", () => {
+    expect(quote(700).hideVatColumn).toBe(false);
+  });
+
+  it("entfällt, wenn auch die optionale Position denselben Steuersatz hat", () => {
+    expect(quote(1900).hideVatColumn).toBe(true);
+  });
+});
 
 describe("Schalter der Gestaltung im PDF", () => {
   it("ab Werk bleibt alles wie bisher", () => {
