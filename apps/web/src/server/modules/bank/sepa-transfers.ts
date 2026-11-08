@@ -57,9 +57,11 @@ function payeeAccount(
 ): Pick<TransferCandidate, "iban" | "ibanSource" | "problem" | "warning" | "ibanDecisionNeeded"> {
   const geltend = geltendeIban({ kontaktIban: payee?.contactIban ?? null, rechnungsIban: payee?.einvoiceIban ?? null }, decisions);
   if (geltend.iban === null) {
-    const problem = geltend.offen
-      ? "Die E-Rechnung nennt eine andere IBAN als der Kontakt: am Beleg entscheiden, welche gilt"
-      : "IBAN fehlt: im Kontakt des Lieferanten eintragen";
+    const problem = !geltend.offen
+      ? "IBAN fehlt: im Kontakt des Lieferanten eintragen"
+      : payee?.contactIban
+        ? "Die E-Rechnung nennt eine andere IBAN als der Kontakt: am Beleg entscheiden, welche gilt"
+        : "Die IBAN aus der E-Rechnung ist noch nicht bestätigt: am Beleg übernehmen";
     return { iban: null, ibanSource: null, problem, warning: null, ibanDecisionNeeded: geltend.offen === true };
   }
   const { iban, herkunft: ibanSource } = geltend;
