@@ -1,13 +1,11 @@
-import { ITEM_NUMBER_MAX, type QuoteLineKind } from "@haben/core";
+import type { QuoteLineKind } from "@haben/core";
 
 /**
- * Zusatzangaben unter einer Position: Artikelnummer (BT-155), Positionsrabatt („10 %“ oder „50,00“) und im Angebot die Art – normal, optional
+ * Zusatzangaben unter einer Position: Positionsrabatt („10 %“ oder „50,00“) und im Angebot die Art – normal, optional
  * oder Alternative zur Position davor (help.lexware.de, Artikel 547984 und 547989).
  */
 export function LineExtras({
   index,
-  itemNumber,
-  onItemNumber,
   discount,
   discountError,
   onDiscount,
@@ -16,9 +14,6 @@ export function LineExtras({
   onKind,
 }: {
   index: number;
-  /** Artikelnummer der Position, beim Einfügen aus dem Artikel kopiert */
-  itemNumber: string;
-  onItemNumber: (value: string) => void;
   discount: string;
   discountError: boolean;
   onDiscount: (value: string) => void;
@@ -30,18 +25,6 @@ export function LineExtras({
   const n = index + 1;
   return (
     <div className="line-extra">
-      <label>
-        Art.-Nr.
-        <input
-          className="mono"
-          value={itemNumber}
-          maxLength={ITEM_NUMBER_MAX}
-          size={10}
-          autoComplete="off"
-          aria-label={`Artikelnummer Position ${n} (optional)`}
-          onChange={(e) => onItemNumber(e.target.value)}
-        />
-      </label>
       <label>
         Rabatt
         <input

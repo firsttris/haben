@@ -1,5 +1,6 @@
 import {
   computeInvoice,
+  ITEM_NUMBER_MAX,
   convertPrice,
   CURRENCY_CODE,
   discountedLineAmount,
@@ -1078,17 +1079,28 @@ export function InvoiceEditor({
               );
               return (
                 <div className="line-row" key={line.key}>
-                  <input
-                    className="line-desc"
-                    placeholder={`Beschreibung Position ${index + 1}`}
-                    aria-label={`Beschreibung Position ${index + 1}`}
-                    value={line.description}
-                    list={articles.length > 0 ? "artikel-vorschlaege" : undefined}
-                    autoComplete="off"
-                    onChange={(e) => changeDescription(line, e.target.value)}
-                    onBlur={() => markTouched(line.key)}
-                    aria-invalid={showError(line.key) && line.description.trim() === ""}
-                  />
+                  <div className="line-title">
+                    <input
+                      className="line-item"
+                      placeholder="Art.-Nr."
+                      aria-label={`Artikelnummer Position ${index + 1} (optional)`}
+                      value={line.itemNumber}
+                      maxLength={ITEM_NUMBER_MAX}
+                      autoComplete="off"
+                      onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
+                    />
+                    <input
+                      className="line-desc"
+                      placeholder={`Beschreibung Position ${index + 1}`}
+                      aria-label={`Beschreibung Position ${index + 1}`}
+                      value={line.description}
+                      list={articles.length > 0 ? "artikel-vorschlaege" : undefined}
+                      autoComplete="off"
+                      onChange={(e) => changeDescription(line, e.target.value)}
+                      onBlur={() => markTouched(line.key)}
+                      aria-invalid={showError(line.key) && line.description.trim() === ""}
+                    />
+                  </div>
                   <textarea
                     className="line-detail"
                     rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
@@ -1190,8 +1202,6 @@ export function InvoiceEditor({
                   </div>
                   <LineExtras
                     index={index}
-                    itemNumber={line.itemNumber}
-                    onItemNumber={(value) => updateLine(line.key, { itemNumber: value })}
                     discount={line.discount}
                     discountError={showError(line.key) && p.discountError}
                     onDiscount={(value) => updateLine(line.key, { discount: value })}

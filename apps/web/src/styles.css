@@ -505,7 +505,8 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 }
 /* Position: Beschreibung über die volle Breite, darunter die Zahlen */
 .line-row { display: grid; grid-template-columns: minmax(52px, 0.7fr) minmax(72px, 0.9fr) minmax(0, 1.3fr) minmax(64px, 0.8fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
-.line-row > .line-desc { grid-column: 1 / -1; }
+/* Artikelnummer (BT-155) als schmales Feld vor der Bezeichnung, wie die Spalte „Art.-Nr.“ im PDF */
+.line-row > .line-title { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr); gap: 8px; }
 .line-row > .line-detail { grid-column: 1 / -1; padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 13px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
 .line-row input, .line-row select { min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; }
 .line-row input.num { font-family: var(--mono); }
@@ -520,10 +521,12 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 @media (max-width: 720px) {
   /* Handy: Beschreibung, dann Menge | Einheit, Einzelpreis | USt, Netto | Entfernen */
   .line-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .line-row > .line-net { grid-column: 1; text-align: left; font-weight: 500; }
-  .line-row .line-net-label { display: inline; color: var(--muted); font-family: var(--sans); font-size: 12px; font-weight: 400; }
+  /* Betrag in derselben Schrift wie seine Bezeichnung, Ziffern gleich breit */
+  .line-row > .line-net { grid-column: 1; text-align: left; font-family: var(--sans); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .line-row .line-net-label { display: inline; color: var(--muted); font-size: 13px; font-weight: 400; margin-right: 4px; }
   .line-row > .line-actions { justify-self: end; }
   .line-row.head { display: none; }
+  .line-row > .line-title { grid-template-columns: 6.5em minmax(0, 1fr); }
 }
 textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); background-color: var(--surface); resize: vertical; min-height: 72px; }
 
@@ -790,7 +793,7 @@ summary { cursor: pointer; min-height: 24px; }
 /* Zusatzangaben einer Position: Rabatt und im Angebot die Art */
 .line-row > .line-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .line-extra label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.line-extra input { width: 9.5em; }
+.line-extra input { width: 11.5em; }
 .line-row .line-extra select { width: auto; }
 @media (max-width: 720px) {
   /* Handy: Bezeichnungen (Art.-Nr., Rabatt, Art) in einer Spalte, die Felder bündig daneben über die übrige Breite */

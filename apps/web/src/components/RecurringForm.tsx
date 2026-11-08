@@ -341,14 +341,25 @@ export function RecurringForm({
           const p = parsed[index]!;
           return (
             <div className="line-row" key={line.key}>
-              <input
-                className="line-desc"
-                placeholder={`Beschreibung Position ${index + 1}, z. B. Wartung {monat} {jahr}`}
-                aria-label={`Beschreibung Position ${index + 1}`}
-                value={line.description}
-                onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                aria-invalid={line.description.trim() === ""}
-              />
+              <div className="line-title">
+                <input
+                  className="line-item"
+                  placeholder="Art.-Nr."
+                  aria-label={`Artikelnummer Position ${index + 1} (optional)`}
+                  value={line.itemNumber}
+                  maxLength={ITEM_NUMBER_MAX}
+                  autoComplete="off"
+                  onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
+                />
+                <input
+                  className="line-desc"
+                  placeholder={`Beschreibung Position ${index + 1}, z. B. Wartung {monat} {jahr}`}
+                  aria-label={`Beschreibung Position ${index + 1}`}
+                  value={line.description}
+                  onChange={(e) => updateLine(line.key, { description: e.target.value })}
+                  aria-invalid={line.description.trim() === ""}
+                />
+              </div>
               <textarea
                 className="line-detail"
                 rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
@@ -404,20 +415,6 @@ export function RecurringForm({
               >
                 <Icon name="close" size={16} />
               </button>
-              <div className="line-extra">
-                <label>
-                  Art.-Nr.
-                  <input
-                    className="mono"
-                    value={line.itemNumber}
-                    maxLength={ITEM_NUMBER_MAX}
-                    size={10}
-                    autoComplete="off"
-                    aria-label={`Artikelnummer Position ${index + 1} (optional)`}
-                    onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
-                  />
-                </label>
-              </div>
             </div>
           );
         })}
