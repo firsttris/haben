@@ -273,6 +273,8 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await page.getByLabel("Text zu Position 1 (optional)").fill("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await page.getByLabel("Menge Position 1").fill("16");
   await page.getByLabel(/Einzelpreis Position 1/).fill("110");
+  // Bestellnummer des Kunden (BT-13) als eigenes Feld; geht in die Rechnung aus dem Angebot über (#389)
+  await page.getByLabel("Bestellnummer (optional)").fill("4500012345");
   await expect(page.getByLabel("Vorschau des Angebots")).toContainText("Dieses Angebot gilt bis zum");
   await page.getByRole("button", { name: "Entwurf speichern" }).click();
   await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
@@ -302,6 +304,9 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   // Der Text zur Position geht aus dem Angebot in die Rechnung über
   await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await expect(page.getByLabel(/Hinweis auf der Rechnung/)).toHaveValue(/^Gemäß unserem Angebot AN-\d{4}-001 vom/);
+  // Bestellnummer aus dem Angebot, als eigene Auftragsnummer (BT-14) dessen Nummer
+  await expect(page.getByLabel("Bestellnummer (optional)")).toHaveValue("4500012345");
+  await expect(page.getByLabel("Eigene Auftragsnummer (optional)")).toHaveValue(/^AN-\d{4}-001$/);
   // Den Entwurf wieder verwerfen (zweiter Klick bestätigt); das Angebot lässt sich danach erneut abrechnen
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
   await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();

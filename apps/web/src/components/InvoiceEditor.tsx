@@ -55,6 +55,7 @@ import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPrev
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 import { LineExtras } from "./LineExtras.tsx";
+import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
 import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
@@ -287,6 +288,7 @@ export function InvoiceEditor({
   const [validUntil, setValidUntil] = useState(initial.validUntil ?? "");
   const [format, setFormat] = useState(initial.format);
   const [intro, setIntro] = useState(initial.intro ?? "");
+  const [references, setReferences] = useState(() => orderReferenceValues(initial));
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
@@ -502,6 +504,7 @@ export function InvoiceEditor({
       format,
       intro,
       note,
+      ...references,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
       priceMode: grossPrices ? "brutto" : "netto",
@@ -824,6 +827,7 @@ export function InvoiceEditor({
                 Leistung bis
                 <input type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />
               </label>
+              <OrderReferenceFields value={references} onChange={touch(setReferences)} disabled={!editable} />
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Sprache
                 <select

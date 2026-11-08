@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
+import { accountHolder, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
@@ -148,6 +148,7 @@ export function pdfData(doc: InvoiceDocument) {
     meta.push({ label: t.serviceDate, value: date ? t.date(date) : t.serviceDateDefault });
   }
   if (buyer.kundennummer) meta.push({ label: t.customerNumber, value: buyer.kundennummer });
+  meta.push(...referenceMeta(doc.references, t));
   if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId });
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
