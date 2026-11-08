@@ -5,7 +5,7 @@ import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { ElsterSubmit } from "../../components/ElsterSubmit.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice } from "../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt } from "../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
@@ -339,6 +339,11 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
             notice={notice}
             lockedHint={a.angemeldet ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
             confirmTitle={`Kapitalertragsteuer-Anmeldung vom ${formatDate(a.zufluss)} verbindlich senden?`}
+            confirmFacts={[
+              { label: "Steuerart", value: "Kapitalertragsteuer-Anmeldung" },
+              { label: "Zufluss", value: formatDate(a.zufluss) },
+              zahllastFakt(a.empfaenger.reduce((summe, e) => summe + e.kapest + e.soli + e.kist, 0)),
+            ]}
             confirmText="Die Kapitalertragsteuer-Anmeldung geht verbindlich an das Finanzamt."
             footer="Die einbehaltenen Steuern überweist du bis zum 10. des Folgemonats; im Bankabgleich ordnest du die Zahlung „Kapitalertragsteuer an das Finanzamt“ zu."
             onSubmit={(kind, pin) =>

@@ -130,6 +130,7 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
               title={`Jahr ${data.year} endgültig abschließen?`}
               confirmLabel={`${data.year} abschließen`}
               danger
+              acknowledge="Mir ist klar, dass das Jahr danach nicht mehr änderbar ist."
               onConfirm={() =>
                 void run(async () => {
                   await close({ data: { year: data.year } });

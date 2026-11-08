@@ -29,7 +29,7 @@ Haben sendet über ERiC, die Bibliothek der Finanzverwaltung, mit deinem Zertifi
 | Zertifikatsdatei (`.pfx`) und PIN | ELSTER-Benutzerkonto mit Anmeldeart „Zertifikatsdatei“; ELSTER Secure geht hier nicht |
 | bestätigte Datenschutzhinweise | **Einstellungen › ELSTER › ERiC** |
 
-Auf der Seite der Voranmeldung bzw. Jahreserklärung: **Nur prüfen**, dann **Prüfen und testweise senden**, dann echt senden nach der Rückfrage im Dialog. Danach:
+Auf der Seite der Voranmeldung bzw. Jahreserklärung: **Nur prüfen**, dann **Prüfen und testweise senden**, dann echt senden nach der Rückfrage im Dialog, der nennt, was gesendet wird (Steuerart, Zeitraum und, wo es sie gibt, die Zahllast). Danach:
 
 - Die Voranmeldung bzw. Erklärung ist festgeschrieben, mit Transfer-Ticket und Übermittlungsprotokoll (PDF) im Verlauf.
 - Die [Frist](fristen.md) ist erledigt.

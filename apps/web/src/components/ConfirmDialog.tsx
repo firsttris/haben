@@ -1,5 +1,8 @@
-import { type ReactNode, useEffect, useId, useRef } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+
+/** Eine Zeile über den Folgen; `strong` hebt den Betrag hervor */
+export type ConfirmFact = { label: string; value: string; strong?: boolean };
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -13,6 +16,10 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
   /** Esc, „Abbrechen“ und das Schließen nach dem Bestätigen */
   onClose: () => void;
+  /** Wo es um Geld oder das Finanzamt geht: was gerade bestätigt wird */
+  facts?: readonly ConfirmFact[];
+  /** Nur für das Seltenste und Endgültigste: Text eines Häkchens, ohne das die Aktion gesperrt bleibt */
+  acknowledge?: string;
   /** Die Folgen, als ein oder mehrere Absätze */
   children: ReactNode;
 };
@@ -46,11 +53,12 @@ export function ConfirmDialog({ open, ...props }: ConfirmDialogProps) {
   return createPortal(<OpenConfirmDialog {...props} />, document.body);
 }
 
-function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onClose, children }: Omit<ConfirmDialogProps, "open">) {
+function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onClose, facts, acknowledge, children }: Omit<ConfirmDialogProps, "open">) {
   const titleId = useId();
   const bodyId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   useEffect(() => {
     const trigger = document.activeElement;
@@ -67,7 +75,23 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
     <dialog ref={dialog} className="confirm-dialog" aria-labelledby={titleId} aria-describedby={bodyId} onClose={onClose}>
       <h2 id={titleId}>{title}</h2>
       <div id={bodyId} className="confirm-dialog-body">
+        {facts && (
+          <dl className="confirm-dialog-facts">
+            {facts.map(({ label, value, strong }) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd className={strong ? "confirm-dialog-fact-strong" : undefined}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {children}
+        {acknowledge && (
+          <label className="checkbox">
+            <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
+            {acknowledge}
+          </label>
+        )}
       </div>
       <div className="confirm-dialog-actions">
         <button ref={cancel} type="button" className="btn" onClick={onClose}>
@@ -76,6 +100,7 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
         <button
           type="button"
           className={danger ? "btn btn-destructive" : "btn btn-primary"}
+          disabled={Boolean(acknowledge) && !acknowledged}
           onClick={(event) => {
             // Der zweite Klick eines Doppelklicks auf den Auslöser kann hier landen, wenn der Knopf über ihm liegt
             if (event.detail > 1) return;

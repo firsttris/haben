@@ -595,19 +595,24 @@ export function InvoiceEditor({
     <>
       <ConfirmDialog
         open={confirming}
-        title={`${quote ? "Angebot" : "Rechnung"} ${nextNumber} festschreiben?`}
+        title={`${quote ? "Angebot" : "Rechnung"} festschreiben?`}
         confirmLabel="Festschreiben"
+        facts={[
+          { label: "Nummer", value: nextNumber },
+          ...(contact ? [{ label: "Kunde", value: contact.name }] : []),
+          { label: "Betrag", value: formatEuro(previewGross), strong: true },
+        ]}
         onConfirm={finalizeNow}
         onClose={() => setConfirming(false)}
       >
         {quote ? (
           <>
-            <p>Das Angebot bekommt die Nummer {nextNumber} und sein PDF. Gebucht wird nichts.</p>
+            <p>Das Angebot bekommt sein PDF. Gebucht wird nichts.</p>
             <p>Danach ist es nicht mehr änderbar; für ein geändertes Angebot kopierst du es.</p>
           </>
         ) : (
           <>
-            <p>Die Rechnung bekommt die Nummer {nextNumber}, PDF und XML werden erzeugt und gebucht.</p>
+            <p>PDF und XML werden erzeugt und gebucht.</p>
             <p>Danach ist sie nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>
         )}

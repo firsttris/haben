@@ -662,6 +662,10 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
         notice={notice}
         lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
         confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
+        confirmFacts={[
+          { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
+          { label: "Zeitraum", value: String(data.year) },
+        ]}
         confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt.`}
         footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
         onSubmit={(kind, pin) =>

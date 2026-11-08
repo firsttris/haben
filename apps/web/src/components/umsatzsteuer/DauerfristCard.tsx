@@ -114,6 +114,11 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
         busy={action.busy}
         notice={action.notice}
         confirmTitle={monthly ? "Sondervorauszahlung verbindlich senden?" : "Antrag auf Dauerfristverlängerung verbindlich senden?"}
+        confirmFacts={[
+          { label: "Meldung", value: monthly ? "Sondervorauszahlung" : "Antrag auf Dauerfristverlängerung" },
+          { label: "Zeitraum", value: String(year) },
+          ...(monthly && parsed !== null ? [{ label: "Betrag", value: formatEuro(parsed), strong: true }] : []),
+        ]}
         confirmText={`Der Antrag geht an das Finanzamt${monthly ? " und meldet die Sondervorauszahlung an; zahle sie bis zum 10. Februar" : ""}.`}
         footer="Antrag auf Dauerfristverlängerung (USt 1 H) über ERiC. Das Übertragungsprotokoll wird als PDF abgelegt."
         onSubmit={onSubmit}

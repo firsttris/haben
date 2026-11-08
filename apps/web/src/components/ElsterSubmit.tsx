@@ -5,7 +5,7 @@ import { submitKind, type ElsterKind } from "../lib/elster.ts";
 import type { Notice } from "../lib/use-action.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { ConfirmDialog, type ConfirmFact } from "./ConfirmDialog.tsx";
 
 /** Was eine Seite über ERiC und das Zertifikat aus dem Loader mitbringt */
 export interface ElsterSetup {
@@ -84,6 +84,7 @@ export function ElsterSubmit({
   confirmText,
   confirmLabel = "Verbindlich senden",
   confirmDanger = false,
+  confirmFacts,
   footer,
   onSubmit,
 }: {
@@ -100,6 +101,8 @@ export function ElsterSubmit({
   confirmText: string;
   confirmLabel?: string;
   confirmDanger?: boolean;
+  /** Was gesendet wird: Steuerart oder Meldung, Zeitraum, Zahllast, soweit es sie gibt */
+  confirmFacts?: readonly ConfirmFact[];
   footer: ReactNode;
   onSubmit: (kind: ElsterKind, pin?: string) => Promise<unknown>;
 }) {
@@ -134,6 +137,7 @@ export function ElsterSubmit({
         title={confirmTitle}
         confirmLabel={confirmLabel}
         danger={confirmDanger}
+        facts={confirmFacts}
         onConfirm={() => void transmit()}
         onClose={() => setConfirming(false)}
       >

@@ -16,7 +16,7 @@ import { useId, useState } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getLsta, saveLstaTurnusFn, submitLstaFn } from "../../../server/functions/lsta.ts";
@@ -298,6 +298,11 @@ function Senden({ data }: { data: Data }) {
           notice={action.notice}
           lockedHint={data.abgelaufen ? undefined : "Echt senden geht erst nach Ablauf des Zeitraums."}
           confirmTitle={`${naechste.berichtigt ? "Berichtigte " : ""}Lohnsteuer-Anmeldung ${data.label} verbindlich senden?`}
+          confirmFacts={[
+            { label: "Steuerart", value: "Lohnsteuer-Anmeldung" },
+            { label: "Zeitraum", value: data.label },
+            ...(data.kennzahlen ? [zahllastFakt(data.kennzahlen.kz83)] : []),
+          ]}
           confirmText={`Die ${naechste.berichtigt ? "berichtigte " : ""}Lohnsteuer-Anmeldung ${data.label} geht verbindlich an das Finanzamt.`}
           footer="Lohnsteuer-Anmeldung (Datenart LStA) über ERiC. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert."
           onSubmit={onSubmit}

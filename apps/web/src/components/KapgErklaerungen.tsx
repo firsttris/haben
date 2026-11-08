@@ -114,6 +114,10 @@ function Senden({ form, data, blocked, sent }: { form: "kst" | "gewst"; data: Da
             : `Echt senden erst, wenn ${data.year} abgeschlossen ist.`
       }
       confirmTitle={`${name} ${data.year} verbindlich senden?`}
+      confirmFacts={[
+        { label: "Steuerart", value: name },
+        { label: "Zeitraum", value: String(data.year) },
+      ]}
       confirmText={`Die ${name} ${data.year} geht verbindlich an das Finanzamt.`}
       footer="„Nur prüfen“ lässt ERiC die Erklärung gegen die Vorgaben des Jahres prüfen, ohne zu senden. Die PIN wird nicht gespeichert."
       onSubmit={(kind, pin) =>
