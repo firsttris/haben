@@ -101,6 +101,14 @@ describe("Referenzen im PDF", () => {
     expect(data.meta).toContainEqual({ label: "Delivery note", value: "LS-0815" });
   });
 
+  // Steuerzeichen (etwa aus einer kopierten Bestellnummer) kann keine Schrift setzen; Typst bricht das PDF/A sonst ab
+  it("lässt Steuerzeichen aus den Referenzen im Kopfblock weg", () => {
+    const data = pdfData({ ...sampleDocument(), references: { buyerOrder: "4500\u000712345", sellerOrder: "\u0001", despatchAdvice: "LS-\u001B0815" } });
+    expect(data.meta).toContainEqual({ label: "Ihre Bestellung", value: "450012345" });
+    expect(data.meta).toContainEqual({ label: "Lieferschein", value: "LS-0815" });
+    expect(data.meta.map((m) => m.label)).not.toContain("Unser Auftrag");
+  });
+
   it("sieht ohne Referenzen aus wie bisher", () => {
     const doc = sampleDocument();
     expect(pdfData({ ...doc, references: { buyerOrder: "", sellerOrder: " " } }).meta).toEqual(pdfData(doc).meta);

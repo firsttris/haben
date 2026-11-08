@@ -57,11 +57,15 @@ export function accountHolder(seller: Pick<Seller, "name" | "kontoinhaber">): st
 
 const REFERENCE_KEYS = ["buyerOrder", "sellerOrder", "despatchAdvice"] as const;
 
-/** Nur die gesetzten Referenzen, getrimmt; Leerzeichen allein zählen als keine */
+/**
+ * Nur die gesetzten Referenzen, getrimmt und ohne Steuerzeichen; Leerzeichen allein zählen als keine. Steuerzeichen (etwa
+ * aus einer kopierten Bestellnummer) verbietet XML 1.0 (Production [2] Char), und keine Schrift kann sie im PDF/A setzen.
+ */
 export function presentReferences(references: OrderReferences | undefined): OrderReferences {
   const present: OrderReferences = {};
   for (const key of REFERENCE_KEYS) {
-    const value = references?.[key]?.trim();
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
+    const value = references?.[key]?.replace(/[\u0000-\u001F\u007F]/g, "").trim();
     if (value) present[key] = value;
   }
   return present;
