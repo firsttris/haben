@@ -58,7 +58,7 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
     const frame = frames.at(-1)!;
     // Pfade und URLs sind häufige Bestandteile von IT-Angeboten und bleiben wörtlich.
     if (frame.runs.length === 0 || /\s/.test(text[at - 1] ?? "")) {
-      const path = /^(?:[^\s*_\\/]+[\\/]|\/|\\\\)[^\s]*/.exec(text.slice(at));
+      const path = /^(?:[^\s*_\\/][^\s\\/]*[\\/]|\/|\\\\)[^\s]*/.exec(text.slice(at));
       if (path) {
         let end = at + path[0].length;
         // Äußere Auszeichnungen dürfen den ganzen Pfad umschließen. Ihre
