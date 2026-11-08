@@ -26,10 +26,12 @@ export function useDesignDraft(initial: LetterheadDesign = DEFAULT_DESIGN) {
     dirty: (Object.keys(changes) as (keyof LetterheadDesignInput)[]).some((key) => changes[key] !== saved[key]),
     set: (input: LetterheadDesignInput) => setChanges((current) => ({ ...current, ...input })),
     discard: () => setChanges({}),
-    /** Nach dem Speichern: Der Editor lädt nicht neu, damit getippte Eingaben im Formular bleiben */
-    commit: () => {
-      setSaved(design);
-      setChanges({});
+    /** Nach dem Speichern: Der Editor lädt nicht neu, damit getippte Eingaben im Formular bleiben. Was sich seit dem Klick geändert hat, bleibt ungespeichert stehen */
+    commit: (sent: LetterheadDesignInput) => {
+      setSaved((current) => ({ ...current, ...sent }));
+      setChanges(
+        (current) => Object.fromEntries(Object.entries(current).filter(([key, value]) => value !== sent[key as keyof LetterheadDesignInput])) as LetterheadDesignInput,
+      );
     },
   };
 }
@@ -194,8 +196,9 @@ export function DesignPanel({
 
   const onSave = () =>
     run(async () => {
-      await save({ data: draft.changes });
-      draft.commit();
+      const sent = draft.changes;
+      await save({ data: sent });
+      draft.commit(sent);
     }, "Gespeichert. Gilt für alles, was ab jetzt erzeugt wird.");
 
   return (
