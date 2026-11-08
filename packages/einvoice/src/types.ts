@@ -60,6 +60,8 @@ export interface InvoiceDocumentLine {
   description: string;
   /** Beschreibung unter der Bezeichnung, mehrzeilig (BT-154) */
   detail?: string;
+  /** Artikelnummer des Verkäufers (BT-155), aus dem Artikel übernommen; leer = keine */
+  itemNumber?: string;
   quantity: Millis;
   unit: UnitLabel;
   /** Wie eingegeben: netto, bei Bruttopreisen brutto; bei Storno und Korrektur negativ */

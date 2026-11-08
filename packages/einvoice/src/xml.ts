@@ -155,6 +155,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
         // Beschreibung (BT-154) steht im UBL-Schema vor dem Namen (BT-153)
         ...(line.detail?.trim() ? { "cbc:Description": line.detail.trim() } : {}),
         "cbc:Name": line.description,
+        // Artikelnummer des Verkäufers (BT-155), im UBL-Schema hinter dem Namen; im CII ram:SellerAssignedID
+        ...(line.itemNumber?.trim() ? { "cac:SellersItemIdentification": { "cbc:ID": line.itemNumber.trim() } } : {}),
         "cac:ClassifiedTaxCategory": categoryWithRate(doc, line.taxRate, "line") as InvoiceLine["cac:Item"]["cac:ClassifiedTaxCategory"],
       },
       "cac:Price": {

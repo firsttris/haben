@@ -242,6 +242,16 @@ const samples: Record<string, InvoiceDocument> = {
       [`referenzen-storno-${format}`, { ...sampleDocument({ kind: "storno", format }), references: orderReferences }],
     ]),
   ),
+  // Artikelnummer des Verkäufers (BT-155) an der ersten Position, die zweite ohne; auch als Storno
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) =>
+      (["rechnung", "storno"] as const).map((kind) => {
+        const doc = sampleDocument({ kind, format });
+        doc.lines[0]!.itemNumber = "ET-1042";
+        return [`artikelnummer-${kind}-${format}`, doc];
+      }),
+    ),
+  ),
 };
 
 /**

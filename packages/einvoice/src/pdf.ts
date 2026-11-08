@@ -15,7 +15,7 @@ import {
   type Discount,
   type LegalInfo,
 } from "@haben/core";
-import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
+import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
 const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
@@ -86,6 +86,11 @@ function documentDiscountRows(doc: Pick<InvoiceDocument, "lines" | "totals" | "d
   ];
 }
 
+/** Spalte „Art.-Nr.“ (BT-155) nur, wenn mindestens eine Position eine Artikelnummer hat; sonst bleibt die Tabelle wie bisher */
+export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[]): { itemNumbers: boolean } {
+  return { itemNumbers: lines.some((line) => Boolean(line.itemNumber?.trim())) };
+}
+
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
 export function documentPdfData(
   doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount">,
@@ -111,8 +116,10 @@ export function documentPdfData(
     labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
     recipient: [buyer.name, ...addressLines(buyer, t)],
+    ...itemNumberColumn(doc.lines),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
+      itemNumber: line.itemNumber?.trim() ?? "",
       description: line.description,
       detail: line.detail?.trim() ? line.detail.trim() : null,
       quantity: t.quantity(line.quantity, line.unit),
