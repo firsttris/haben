@@ -25,6 +25,7 @@ import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadDesign } from "./letterhead.ts";
+import { backgroundInfo } from "./background.ts";
 import { logoInfo } from "./logo.ts";
 import { mandateOptions } from "./sepa-mandate.ts";
 import { today } from "../../today.ts";
@@ -204,13 +205,14 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, design, mandates] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
     listArticles(),
     listTextBlocks(),
     logoInfo(),
+    backgroundInfo(),
     loadDesign(),
     kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
   ]);
@@ -244,6 +246,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       bank,
       kontoinhaber,
       logo: logo?.sha256 ?? null,
+      background: background?.sha256 ?? null,
       accent: design.accent,
       design,
       legal: legalLine(legalInfo(company)),

@@ -1,9 +1,10 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LetterheadDesign, type LayoutRef } from "@haben/core";
+import { type BackgroundPages, BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LetterheadDesign, type LayoutRef } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
-import { saveLetterheadDesign } from "../server/functions/logo.ts";
-import { DesignOptionFields, useDesignDraft } from "./DesignPanel.tsx";
+import { deleteBackground, getBackground, saveLetterheadDesign, uploadBackground } from "../server/functions/logo.ts";
+import { DesignOptionFields, Segmented, useDesignDraft } from "./DesignPanel.tsx";
+import { ImageUpload } from "./ImageUpload.tsx";
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
@@ -29,6 +30,74 @@ export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesi
         Logo als PNG (gern mit transparentem Hintergrund) oder JPEG, bis 1 MB. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
       <DesignOptionFields design={draft.design} onChange={draft.set} logoUpload={<LogoUpload sha256={logo} onChanged={() => router.invalidate()} />} />
+      <div className="actions">
+        <button type="button" className="btn" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
+          Speichern
+        </button>
+      </div>
+      <NoticeBanner notice={notice} />
+    </section>
+  );
+}
+
+const BACKGROUND_TEXTS = {
+  name: "Briefpapier",
+  empty: "Noch kein Briefpapier.",
+  alt: "Aktuelles Briefpapier",
+  fileLabel: "Datei für das Briefpapier",
+  upload: "Briefpapier hochladen",
+  replace: "Anderes Briefpapier wählen",
+  saved: "Briefpapier gespeichert. Es gilt für alles, was ab jetzt erzeugt wird.",
+  removed: "Briefpapier entfernt.",
+  tooBig: "Das Briefpapier darf höchstens 2 MB groß sein.",
+};
+
+const BACKGROUND_PAGE_OPTIONS: { value: BackgroundPages; label: string; name: string }[] = [
+  { value: "erste", label: "Erste Seite", name: "Nur auf der ersten Seite" },
+  { value: "alle", label: "Alle Seiten", name: "Auf allen Seiten" },
+];
+
+/** Bild hinter dem Beleg, etwa der gedruckte Briefbogen als Scan */
+export function LetterheadBackgroundCard({ design, background }: { design: LetterheadDesign; background: string | null }) {
+  const draft = useDesignDraft(design);
+  const router = useRouter();
+  const save = useServerFn(saveLetterheadDesign);
+  const upload = useServerFn(uploadBackground);
+  const remove = useServerFn(deleteBackground);
+  const load = useServerFn(getBackground);
+  const { busy, notice, run } = useAction();
+
+  const onSave = () =>
+    run(async () => {
+      const sent = draft.changes;
+      await save({ data: sent });
+      draft.commit(sent);
+      await router.invalidate();
+    }, "Gespeichert. Gilt für alles, was ab jetzt erzeugt wird.");
+
+  return (
+    <section className="card design-card" aria-labelledby="briefpapier-heading">
+      <h2 id="briefpapier-heading">Briefpapier</h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        Bild hinter dem Beleg, im Format A4 hochkant (mindestens 1240 × 1754 Pixel), als PNG oder JPEG bis 2 MB. Logo und Fußzeile bleiben, soweit
+        eingeschaltet; achte darauf, dass nichts übereinander liegt. Schon festgeschriebene Belege behalten ihr PDF.
+      </p>
+      <ImageUpload
+        sha256={background}
+        url="/api/briefpapier"
+        maxBytes={2 * 1024 * 1024}
+        texts={BACKGROUND_TEXTS}
+        upload={upload}
+        remove={() => remove()}
+        load={() => load()}
+        onChanged={() => router.invalidate()}
+      />
+      <Segmented
+        label="Seiten mit Briefpapier"
+        options={BACKGROUND_PAGE_OPTIONS}
+        value={draft.design.backgroundPages}
+        onChange={(backgroundPages) => draft.set({ backgroundPages })}
+      />
       <div className="actions">
         <button type="button" className="btn" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
           Speichern

@@ -1,9 +1,11 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import {
   ACCENT_PATTERN,
   contrastOnWhite,
   DEFAULT_DESIGN,
+  LETTERHEAD_FONTS,
+  type LetterheadFont,
   MIN_TEXT_CONTRAST,
   type LetterheadDesign,
   type LetterheadDesignInput,
@@ -109,8 +111,21 @@ export function DesignOptionFields({
   vatRates?: number;
   logoUpload: ReactNode;
 }) {
+  const fontHeading = useId();
   return (
     <>
+      <section>
+        <h3 id={fontHeading}>Schrift</h3>
+        <div className="field">
+          <select aria-labelledby={fontHeading} value={design.font} onChange={(event) => onChange({ font: event.target.value as LetterheadFont })}>
+            {(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[]).map((font) => (
+              <option key={font} value={font}>
+                {LETTERHEAD_FONTS[font].name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
       <section>
         <h3>Logo</h3>
         {logoUpload}

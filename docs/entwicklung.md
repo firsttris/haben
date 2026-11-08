@@ -144,7 +144,7 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | --- | --- | --- | --- |
 | `AUTHELIA_TEST_ISSUER`, `AUTHELIA_TEST_USERS_FILE` | Reale Authelia-Referenztests ohne eigene Testinstanz übersprungen | nein | nein |
 | `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
-| `pdftotext`, `pdftoppm` (poppler-utils) | Textebene und Seitenbilder von PDFs übersprungen | ja | ja |
+| `pdftotext`, `pdftoppm`, `pdffonts`, `pdfimages` (poppler-utils) | Textebene, Seitenbilder, eingebettete Schriften und Bilder von PDFs übersprungen | ja | ja |
 | `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
 | `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |

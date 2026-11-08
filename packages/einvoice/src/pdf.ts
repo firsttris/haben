@@ -6,6 +6,7 @@ import { accountHolder, collectedByDirectDebit, countryName, formatIban, payment
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
+  LETTERHEAD_FONTS,
   accentPalette,
   DEFAULT_ACCENT,
   customFooter,
@@ -31,7 +32,11 @@ const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
-const FONTS = ["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
+const FONT_FILES = [
+  ...["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].flatMap((weight) => [`IBMPlexSans-${weight}.ttf`, `IBMPlexSerif-${weight}.ttf`]),
+  ...["Regular", "Medium", "Semibold", "It", "SemiboldIt"].map((weight) => `SourceSans3-${weight}.ttf`),
+];
+const FONTS = FONT_FILES.map((file) => join(PACKAGE_DIR, "fonts", file));
 
 let compiler: NodeCompiler | undefined;
 
@@ -334,10 +339,25 @@ export function logoFormat(data: Uint8Array): Logo["format"] | null {
 }
 
 /** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
+export function templateInputs(data: object, { logo, background, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
   const size = LOGO_SIZES[options.logoSize];
-  const look = { logoHeight: size.height, logoWidth: size.width, logoLeft: options.logoPosition === "links", foldMarks: options.foldMarks };
-  return { ...data, accent, palette: accentPalette(accent), look, ...(logo ? { logo: `logo.${logo.format}` } : {}) };
+  const look = {
+    logoHeight: size.height,
+    logoWidth: size.width,
+    logoLeft: options.logoPosition === "links",
+    foldMarks: options.foldMarks,
+    backgroundPages: options.backgroundPages,
+  };
+  const { regular, medium, semibold } = LETTERHEAD_FONTS[options.font];
+  return {
+    ...data,
+    accent,
+    palette: accentPalette(accent),
+    look,
+    font: { regular, medium, semibold },
+    ...(logo ? { logo: `logo.${logo.format}` } : {}),
+    ...(background ? { background: `briefpapier.${background.format}` } : {}),
+  };
 }
 
 /** Kundennummer auf dem Blatt; das XML nennt sie unabhängig davon als Käuferkennung */
@@ -346,14 +366,16 @@ export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: 
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
   const typst = getCompiler();
-  const { logo } = letterhead;
-  // Das Logo liegt nur für diesen Lauf als Datei neben der Vorlage
-  const logoPath = logo ? join(PACKAGE_DIR, "templates", `logo.${logo.format}`) : null;
-  if (logo && logoPath) typst.mapShadow(logoPath, Buffer.from(logo.data));
+  // Logo und Briefpapier liegen nur für diesen Lauf als Dateien neben der Vorlage
+  const shadows = [
+    ...(letterhead.logo ? [[`logo.${letterhead.logo.format}`, letterhead.logo.data] as const] : []),
+    ...(letterhead.background ? [[`briefpapier.${letterhead.background.format}`, letterhead.background.data] as const] : []),
+  ].map(([file, bytes]) => [join(PACKAGE_DIR, "templates", file), bytes] as const);
+  for (const [path, bytes] of shadows) typst.mapShadow(path, Buffer.from(bytes));
   try {
     return compileWith(typst, template, templateInputs(data, letterhead), date, label);
   } finally {
-    if (logoPath) typst.unmapShadow(logoPath);
+    for (const [path] of shadows) typst.unmapShadow(path);
   }
 }
 

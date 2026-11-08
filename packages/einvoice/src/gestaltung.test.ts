@@ -1,4 +1,8 @@
-import { DEFAULT_OPTIONS, type LetterheadOptions } from "@haben/core";
+import { DEFAULT_OPTIONS, LETTERHEAD_FONTS, type LetterheadFont, type LetterheadOptions } from "@haben/core";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { dunningPdfData } from "./dunning.ts";
 import { pdfData, renderInvoicePdf, templateInputs } from "./pdf.ts";
@@ -105,5 +109,96 @@ describe("Schalter der Gestaltung im PDF", () => {
     expect(Buffer.from(standard.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
     expect(Buffer.compare(Buffer.from(standard), Buffer.from(ohneMarken))).not.toBe(0);
     expect(Buffer.compare(Buffer.from(standard), Buffer.from(ohneSpalte))).not.toBe(0);
+  });
+});
+
+/** Ausgabe eines Poppler-Werkzeugs für das PDF; null, wenn es fehlt (Tabelle der übersprungenen Tests in docs/entwicklung.md) */
+function poppler(tool: string, args: string[], pdf: Uint8Array): string | null {
+  const dir = mkdtempSync(join(tmpdir(), "haben-gestaltung-"));
+  try {
+    writeFileSync(join(dir, "beleg.pdf"), pdf);
+    return execFileSync(tool, [...args, join(dir, "beleg.pdf")], { encoding: "utf8" });
+  } catch {
+    return null;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const hasPoppler = poppler("pdffonts", [], renderInvoicePdf(sampleDocument())) !== null;
+
+describe("Schrift der Belege", () => {
+  it.each(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[])("gibt der Vorlage die Familien von %s", (font) => {
+    const inputs = templateInputs({}, { options: { ...DEFAULT_OPTIONS, font } }) as { font: unknown };
+    const { regular, medium, semibold } = LETTERHEAD_FONTS[font];
+    expect(inputs.font).toEqual({ regular, medium, semibold });
+  });
+
+  it.skipIf(!hasPoppler).each([
+    ["plex-sans", "IBMPlexSans"],
+    ["plex-serif", "IBMPlexSerif"],
+    ["source-sans", "SourceSans3"],
+  ] as const)("bettet %s vollständig ein", (font, postscript) => {
+    const fonts = poppler("pdffonts", [], renderInvoicePdf(withOptions({ font })))!;
+    const lines = fonts.split("\n").slice(2).filter(Boolean);
+    const mine = lines.filter((line) => line.includes(postscript));
+    expect(mine.length).toBeGreaterThanOrEqual(2);
+    // Spalte „emb“ der Ausgabe: PDF/A verlangt eingebettete Schriften
+    for (const line of mine) expect(line).toMatch(/\byes\b/);
+    // Nur der Stempel „Entwurf“ dürfte die Plex Sans sonst brauchen, und den gibt es hier nicht
+    if (font !== "plex-sans") expect(lines.some((line) => line.includes("IBMPlexSans"))).toBe(false);
+  });
+});
+
+// 1×1 Pixel PNG, Hintergrund und Inhalt sind hier egal
+const PIXEL = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64"));
+const langeZeilen = Array.from({ length: 34 }, (_, i) => ({
+  description: `Position ${i + 1}`,
+  quantity: 1000,
+  unit: "Stk." as const,
+  unitPrice: 1000,
+  taxRate: 1900 as const,
+}));
+
+describe("Briefpapier", () => {
+  const seitenMitBild = (backgroundPages: "erste" | "alle", mitBild = true) => {
+    const doc = { ...withOptions({ backgroundPages }, { lines: langeZeilen }), ...(mitBild ? { background: { data: PIXEL, format: "png" as const } } : {}) };
+    const list = poppler("pdfimages", ["-list"], renderInvoicePdf(doc))!;
+    return (
+      list
+        .split("\n")
+        .slice(2)
+        .map((line) => line.trim().split(/\s+/))
+        // Ohne die Alphamaske eines PNG, die pdfimages als eigene Zeile führt
+        .filter((columns) => columns[2] === "image")
+        .map((columns) => Number(columns[0]))
+    );
+  };
+
+  it("nennt der Vorlage die Datei und die Seiten", () => {
+    const inputs = templateInputs({}, { background: { data: PIXEL, format: "png" }, options: { ...DEFAULT_OPTIONS, backgroundPages: "alle" } }) as {
+      background: string;
+      look: { backgroundPages: string };
+    };
+    expect(inputs.background).toBe("briefpapier.png");
+    expect(inputs.look.backgroundPages).toBe("alle");
+  });
+
+  it("nennt ohne Briefpapier keine Datei", () => {
+    expect(templateInputs({}, {})).not.toHaveProperty("background");
+  });
+
+  it.skipIf(!hasPoppler)("liegt ab Werk nur auf der ersten Seite", () => {
+    expect(seitenMitBild("erste")).toEqual([1]);
+  });
+
+  it.skipIf(!hasPoppler)("liegt auf Wunsch auf allen Seiten", () => {
+    const seiten = seitenMitBild("alle");
+    expect(seiten.length).toBeGreaterThan(1);
+    expect(seiten).toEqual([...new Set(seiten)].sort((a, b) => a - b));
+  });
+
+  it.skipIf(!hasPoppler)("fehlt ohne Bild ganz", () => {
+    expect(seitenMitBild("alle", false)).toEqual([]);
   });
 });

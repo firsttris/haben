@@ -17,6 +17,7 @@ import {
   LOGO_SIZES,
   planShareLabel,
   distinctVatRates,
+  LETTERHEAD_FONTS,
   showsVatColumn,
   skontoFristen,
   type Discount,
@@ -49,6 +50,8 @@ export interface PreviewSeller {
   legal?: string | null;
   /** SHA-256 des Logos, wenn eines hinterlegt ist */
   logo?: string | null;
+  /** SHA-256 des Briefpapiers, wenn eines hinterlegt ist */
+  background?: string | null;
   /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
   accent?: string;
   /** Gestaltung aus dem Profil oder dem Panel, noch ungespeichert; fehlt = Vorgaben */
@@ -203,7 +206,13 @@ export function InvoicePreview({
       <div
         className="sheet"
         aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
-        style={seller.accent ? sheetColors(seller.accent) : undefined}
+        style={{
+          ...(seller.accent ? sheetColors(seller.accent) : {}),
+          fontFamily: `"${LETTERHEAD_FONTS[options.font].name}", var(--sans)`,
+          ...(seller.background
+            ? { backgroundImage: `url("/api/briefpapier?v=${seller.background.slice(0, 12)}")`, backgroundSize: "cover", backgroundPosition: "center" }
+            : {}),
+        }}
       >
         {options.foldMarks && (
           <>

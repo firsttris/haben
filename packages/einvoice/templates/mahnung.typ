@@ -13,14 +13,16 @@
 // Akzentfarbe aus den Einstellungen (Überschriften, Linien), immer gesetzt
 #let accent = rgb(d.accent)
 // Logo und Marken aus dem Briefkopf-Profil, Maße in mm (templateInputs in pdf.ts)
-#let look = d.at("look", default: (logoHeight: 18, logoWidth: 60, logoLeft: false, foldMarks: true))
+#let look = d.at("look", default: (logoHeight: 18, logoWidth: 60, logoLeft: false, foldMarks: true, backgroundPages: "erste"))
+// Schrift aus dem Profil, Vorgabe IBM Plex Sans
+#let font = d.at("font", default: (regular: "IBM Plex Sans", medium: "IBM Plex Sans Medm", semibold: "IBM Plex Sans SmBld"))
 
-// Die Plex-TTFs tragen Medium und SemiBold als eigene Familien
-#let medium(body) = text(font: "IBM Plex Sans Medm", body)
-#let semibold(body) = text(font: "IBM Plex Sans SmBld", body)
+// Familien aus LETTERHEAD_FONTS (packages/core); das Gewicht wählt den Schnitt
+#let medium(body) = text(font: font.medium, weight: 500, body)
+#let semibold(body) = text(font: font.semibold, weight: 600, body)
 
 #set document(title: d.docTitle, author: d.author)
-#set text(font: "IBM Plex Sans", size: 9.5pt, fill: ink, lang: "de", region: "de", number-type: "lining", number-width: "tabular")
+#set text(font: font.regular, size: 9.5pt, fill: ink, lang: "de", region: "de", number-type: "lining", number-width: "tabular")
 #set par(leading: 0.55em, spacing: 0.9em)
 
 #let footer-col(lines) = {
@@ -39,11 +41,18 @@
   foreground: entwurf-vermerk(d.at("draft", default: none)),
   // Fest statt 30 % des Rands: Wächst der Rand um die Pflichtangaben, bekommt der Fuß den ganzen Zuwachs
   footer-descent: 10.2mm,
-  background: if look.foldMarks {
-    // Falz- und Lochmarken (Form B)
-    place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
-    place(top + left, dx: 4mm, dy: 148.5mm, line(length: 6mm, stroke: 0.4pt + rule))
-    place(top + left, dx: 4mm, dy: 210mm, line(length: 4mm, stroke: 0.4pt + rule))
+  background: context {
+    // Briefpapier hinter allem; PNG oder JPEG auf die ganze Seite
+    let bild = d.at("background", default: none)
+    if bild != none and (look.backgroundPages == "alle" or counter(page).get().first() == 1) {
+      place(top + left, image(bild, width: 100%, height: 100%, fit: "cover"))
+    }
+    if look.foldMarks {
+      // Falz- und Lochmarken (Form B)
+      place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
+      place(top + left, dx: 4mm, dy: 148.5mm, line(length: 6mm, stroke: 0.4pt + rule))
+      place(top + left, dx: 4mm, dy: 210mm, line(length: 4mm, stroke: 0.4pt + rule))
+    }
   },
   footer: context {
     set block(spacing: 0pt)

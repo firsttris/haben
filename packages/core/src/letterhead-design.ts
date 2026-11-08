@@ -42,6 +42,21 @@ export const LOGO_SIZES = {
 export type LogoSize = keyof typeof LOGO_SIZES;
 export type LogoPosition = "links" | "rechts";
 
+/**
+ * Schriften der Belege (SIL OFL 1.1, Dateien in packages/einvoice/fonts). PDF/A verlangt eingebettete Schriften, deshalb
+ * eine feste Auswahl statt beliebiger Dateien. Familien wie Typst sie nennt: Es kürzt „Medium“ und „Semibold“ im Namen weg,
+ * die Plex-Kürzel „Medm“ und „SmBld“ nicht. Der Browser nimmt die Familie name mit font-weight.
+ */
+export const LETTERHEAD_FONTS = {
+  "plex-sans": { name: "IBM Plex Sans", regular: "IBM Plex Sans", medium: "IBM Plex Sans Medm", semibold: "IBM Plex Sans SmBld" },
+  "plex-serif": { name: "IBM Plex Serif", regular: "IBM Plex Serif", medium: "IBM Plex Serif Medm", semibold: "IBM Plex Serif SmBld" },
+  "source-sans": { name: "Source Sans 3", regular: "Source Sans 3", medium: "Source Sans 3", semibold: "Source Sans 3" },
+} as const;
+export type LetterheadFont = keyof typeof LETTERHEAD_FONTS;
+
+/** Briefpapier nur auf der ersten Seite oder auf allen */
+export type BackgroundPages = "erste" | "alle";
+
 /** Was die Gestaltung auf dem Blatt ändert, ohne Inhalt und Layoutwahl */
 export interface LetterheadOptions {
   logoSize: LogoSize;
@@ -53,6 +68,8 @@ export interface LetterheadOptions {
   vatColumn: boolean;
   /** Eigene Spalten der Fußzeile mit Platzhaltern; null = automatisch aus den Firmendaten */
   footerColumns: string[] | null;
+  font: LetterheadFont;
+  backgroundPages: BackgroundPages;
 }
 
 /** Gestaltung eines Briefkopf-Profils (#113). Neue Einstellungen brauchen eine Vorgabe in DEFAULT_DESIGN, ältere Zeilen kennen sie nicht */
@@ -70,6 +87,8 @@ export const DEFAULT_OPTIONS: LetterheadOptions = {
   customerNumber: true,
   vatColumn: true,
   footerColumns: null,
+  font: "plex-sans",
+  backgroundPages: "erste",
 };
 
 export const DEFAULT_DESIGN: LetterheadDesign = {
@@ -102,6 +121,8 @@ export const letterheadDesignInputSchema = z
     giroCode: z.boolean(),
     customerNumber: z.boolean(),
     vatColumn: z.boolean(),
+    font: z.enum(Object.keys(LETTERHEAD_FONTS) as [LetterheadFont, ...LetterheadFont[]]),
+    backgroundPages: z.enum(["erste", "alle"]),
     footerColumns: z
       .array(z.string().max(MAX_FOOTER_TEXT))
       .min(MIN_FOOTER_COLUMNS)

@@ -386,3 +386,44 @@ test("Eigene Fußzeile: Platzhalter, Prüfung und Übernahme aufs Blatt", async 
   await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
   await page.context().close();
 });
+
+test("Die Schrift wirkt sofort aufs Blatt", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await gestaltungOeffnen(page);
+  const schrift = () => blatt(page).evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(await schrift()).toContain("IBM Plex Sans");
+
+  await panel(page).getByLabel("Schrift").selectOption({ label: "IBM Plex Serif" });
+  await expect.poll(schrift).toContain("IBM Plex Serif");
+  await panel(page).getByRole("button", { name: "Verwerfen" }).click();
+  await expect.poll(schrift).toContain("IBM Plex Sans");
+  await page.context().close();
+});
+
+test("Briefpapier: hochladen, auf dem Blatt sehen, entfernen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await karte.getByRole("button", { name: "Alle Seiten" }).click();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  await vorschauKnopf(page).click();
+  await expect.poll(() => blatt(page).evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("/api/briefpapier");
+
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  await expect(karte.getByRole("button", { name: "Alle Seiten" })).toHaveAttribute("aria-pressed", "true");
+  await karte.getByRole("button", { name: "Erste Seite" }).click();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+  await karte.getByRole("button", { name: "Entfernen" }).click();
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await page.context().close();
+});

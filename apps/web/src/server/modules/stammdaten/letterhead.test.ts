@@ -5,6 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () => {
   let letterhead: typeof import("./letterhead.ts");
+  let background: typeof import("./background.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const klassisch = { kind: "eingebaut", id: "klassisch" };
@@ -12,6 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
   beforeAll(async () => {
     sql = await setupTestDb();
     letterhead = await import("./letterhead.ts");
+    background = await import("./background.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -19,7 +21,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
   });
 
   beforeEach(async () => {
-    await sql`truncate letterhead_profiles, company_logo, company cascade`;
+    await sql`truncate letterhead_profiles, letterhead_background, company_logo, company cascade`;
     await sql`insert into company (id, name) values (1, 'Testfirma')`;
   });
 
@@ -94,5 +96,41 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
     await expect(letterhead.saveDesign(actor, { footerColumns: ["{fax}", "{steuernummer}"] })).rejects.toThrow(/ungültig/);
     await letterhead.saveDesign(actor, { footerColumns: null });
     expect((await letterhead.loadLetterhead()).options?.footerColumns).toBeNull();
+  });
+  describe("Briefpapier", () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+
+    it("gehört nach dem Speichern zum Briefkopf und nennt Format und Prüfsumme", async () => {
+      await background.saveBackground(actor, png);
+      const head = await letterhead.loadLetterhead();
+      expect(head.background?.format).toBe("png");
+      expect([...(head.background?.data ?? [])]).toEqual([...png]);
+      expect((await background.backgroundInfo())?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("ersetzt ein vorhandenes Briefpapier", async () => {
+      await background.saveBackground(actor, png);
+      await background.saveBackground(actor, new Uint8Array([...png, 4]));
+      expect((await sql`select count(*)::int as n from letterhead_background`)[0]!.n).toBe(1);
+    });
+
+    it("lässt sich entfernen", async () => {
+      await background.saveBackground(actor, png);
+      await background.removeBackground(actor);
+      expect(await letterhead.loadLetterhead()).not.toHaveProperty("background");
+    });
+
+    it("lehnt leere, zu große und andere Dateien ab", async () => {
+      await expect(background.saveBackground(actor, new Uint8Array())).rejects.toThrow("leer");
+      await expect(background.saveBackground(actor, new Uint8Array(background.MAX_BACKGROUND_BYTES + 1).fill(0x89))).rejects.toThrow("2 MB");
+      await expect(background.saveBackground(actor, new Uint8Array([0x25, 0x50, 0x44, 0x46, 1]))).rejects.toThrow("PNG und JPEG");
+    });
+
+    it("protokolliert die Änderung, aber nicht das Bild", async () => {
+      await background.saveBackground(actor, png);
+      const [row] = await sql`select new_value from audit_log where table_name = 'letterhead_background' order by id desc limit 1`;
+      expect(row!.new_value).toHaveProperty("sha256");
+      expect(row!.new_value).not.toHaveProperty("background");
+    });
   });
 });

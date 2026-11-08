@@ -96,6 +96,8 @@ export interface Logo {
 /** Briefkopf aus den Einstellungen; nur für das PDF, nicht für das XML */
 export interface Letterhead {
   logo?: Logo;
+  /** Briefpapier als Bild hinter dem Beleg; nur PNG oder JPEG, ein PDF als Hintergrund geht in PDF/A-3b nicht */
+  background?: Logo;
   /** #RRGGBB; fehlt = DEFAULT_ACCENT */
   accent?: string;
   /** Logo, Marken und Schalter aus dem Profil; fehlt = Vorgaben (DEFAULT_OPTIONS) */

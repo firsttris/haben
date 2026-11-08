@@ -4,6 +4,7 @@ import {
   DEFAULT_LAYOUT,
   designWithDefaults,
   LAYOUT_DOCUMENT_TYPES,
+  LETTERHEAD_FONTS,
   letterheadDesignInputSchema,
   LOGO_SIZES,
   showsVatColumn,
@@ -39,5 +40,34 @@ describe("Gestaltung der Belege", () => {
     expect(letterheadDesignInputSchema.safeParse({ foldMarks: false }).success).toBe(true);
     expect(letterheadDesignInputSchema.safeParse({ accent: "rot" }).success).toBe(false);
     expect(letterheadDesignInputSchema.safeParse({ logoPosition: "mitte" }).success).toBe(false);
+  });
+});
+
+describe("Schrift und Briefpapier in der Gestaltung", () => {
+  it("nimmt ab Werk die bisherige Schrift und legt Briefpapier nur auf die erste Seite", () => {
+    expect(DEFAULT_DESIGN.font).toBe("plex-sans");
+    expect(DEFAULT_DESIGN.backgroundPages).toBe("erste");
+  });
+
+  it("ergänzt beides bei gespeicherten Profilen von früher", () => {
+    expect(designWithDefaults({ accent: "#123456" })).toMatchObject({ font: "plex-sans", backgroundPages: "erste" });
+  });
+
+  it("nimmt nur Schriften aus der Auswahl an", () => {
+    expect(letterheadDesignInputSchema.safeParse({ font: "plex-serif" }).success).toBe(true);
+    expect(letterheadDesignInputSchema.safeParse({ font: "comic-sans" }).success).toBe(false);
+  });
+
+  it("kennt nur erste Seite oder alle Seiten", () => {
+    expect(letterheadDesignInputSchema.safeParse({ backgroundPages: "alle" }).success).toBe(true);
+    expect(letterheadDesignInputSchema.safeParse({ backgroundPages: "letzte" }).success).toBe(false);
+  });
+
+  it("nennt je Schrift die Familien für Normal, Medium und SemiBold", () => {
+    for (const font of Object.values(LETTERHEAD_FONTS)) {
+      expect(font.regular).toBeTruthy();
+      expect(font.medium).toBeTruthy();
+      expect(font.semibold).toBeTruthy();
+    }
   });
 });
