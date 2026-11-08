@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>Haben: Open-Source-Buchhaltung für Freiberufler, selbst gehostet</h1>
+<h1>Haben: Open-Source-Buchhaltung, selbst gehostet</h1>
 
 <img src="docs/banner.png" alt="Haben: Rechnung 2026-031 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung September an ELSTER übermittelt" width="900">
 
