@@ -136,17 +136,18 @@ test("Laptop: per Tastatur anheften, steht beim Scrollen fest, bleibt nach Neula
   // Eine einzelne Seite passt am Laptop gerade in die Karte; im niedrigeren Fenster muss sie in sich scrollen
   await page.setViewportSize({ width: LAPTOP.width, height: 560 });
   await expect.poll(() => body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
-  // Verlauf nur an der Kante, hinter der es weitergeht
-  await expect(body).toHaveAttribute("data-fade-bottom", "");
-  await expect(body).not.toHaveAttribute("data-fade-top");
-  // Solange erst der leere Innenabstand hinausgescrollt ist, ist oben nichts abgeschnitten
-  await body.evaluate((el) => el.scrollTo(0, 4));
-  await page.waitForTimeout(100);
-  await expect(body).not.toHaveAttribute("data-fade-top");
-  expect(await body.evaluate((el) => getComputedStyle(el.parentElement as Element, "::before").opacity)).toBe("0");
+  // Verlauf nur an der Kante, hinter der es weitergeht; voll, sobald die Blattkante den Rand erreicht
+  const verlauf = (kante: string) => body.evaluate((el, name) => Number((el.parentElement as HTMLElement).style.getPropertyValue(name)), kante);
+  await expect.poll(() => verlauf("--fade-bottom")).toBe(1);
+  expect(await verlauf("--fade-top")).toBe(0);
+  await body.evaluate((el) => el.scrollTo(0, 6));
+  await expect.poll(() => verlauf("--fade-top")).toBeGreaterThan(0);
+  expect(await verlauf("--fade-top")).toBeLessThan(1);
+  await body.evaluate((el) => el.scrollTo(0, 12));
+  await expect.poll(() => verlauf("--fade-top")).toBe(1);
   await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
-  await expect(body).toHaveAttribute("data-fade-top", "");
-  await expect(body).not.toHaveAttribute("data-fade-bottom");
+  await expect.poll(() => verlauf("--fade-bottom")).toBe(0);
+  expect(await verlauf("--fade-top")).toBe(1);
   await body.evaluate((el) => el.scrollTo(0, 0));
   // Scrollt es, ist der Bereich per Tastatur erreichbar (WCAG 2.1.1)
   await expect(body).toHaveAttribute("tabindex", "0");

@@ -440,7 +440,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 @starting-style { .preview-dialog[open]::backdrop { background: rgb(0 0 0 / 0); } }
 /* Der Rahmen steht, das Blatt läuft an der Kante aus, hinter der es weitergeht: Es wird durchsichtig (mask), ein Hauch Schwarz
    macht die Kante auch auf hellem Grund sichtbar. Die Deckkraft fällt quadratisch, sonst ist das Ende als Kante zu sehen.
-   Sie folgt der Scrollposition (SheetScroll), ein Übergang stünde noch da, wenn die Blattkante schon im Bild ist.
+   Sie folgt der Scrollposition (SheetScroll) und ist voll, sobald die Blattkante den Rand erreicht.
    Der Fokusring sitzt am Rahmen, weil die mask ihn am Bereich mit ausblenden würde. */
 .preview-pane-body, .preview-dialog-body { mask-image: linear-gradient(to bottom, rgb(0 0 0 / calc(1 - 1 * var(--fade-top, 0))) 0, rgb(0 0 0 / calc(1 - 0.56 * var(--fade-top, 0))) 18px, rgb(0 0 0 / calc(1 - 0.25 * var(--fade-top, 0))) 36px, rgb(0 0 0 / calc(1 - 0.06 * var(--fade-top, 0))) 54px, #000 72px, #000 calc(100% - 72px), rgb(0 0 0 / calc(1 - 0.06 * var(--fade-bottom, 0))) calc(100% - 54px), rgb(0 0 0 / calc(1 - 0.25 * var(--fade-bottom, 0))) calc(100% - 36px), rgb(0 0 0 / calc(1 - 0.56 * var(--fade-bottom, 0))) calc(100% - 18px), rgb(0 0 0 / calc(1 - 1 * var(--fade-bottom, 0))) 100%); }
 .preview-pane-body:focus-visible, .preview-dialog-body:focus-visible { outline: none; }

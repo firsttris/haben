@@ -318,24 +318,17 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
  */
 function SheetScroll({ className, children }: { className: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [above, setAbove] = useState(false);
-  const [below, setBelow] = useState(false);
   const [scrolls, setScrolls] = useState(false);
 
   const measure = useCallback(() => {
     const element = ref.current;
     if (!element) return;
-    // Abgeschnitten ist das Blatt erst jenseits des Innenabstands; davor läge der Verlauf auf dem leeren Rand
     const { paddingTop, paddingBottom } = getComputedStyle(element);
     const remaining = element.scrollHeight - element.clientHeight - element.scrollTop;
     setScrolls(element.scrollHeight > element.clientHeight + 1);
-    setAbove(element.scrollTop > parseFloat(paddingTop));
-    setBelow(remaining > parseFloat(paddingBottom));
     // Direkt am Rahmen statt über den Zustand: Das läuft bei jedem Scrollschritt
-    const hiddenAbove = element.scrollTop - parseFloat(paddingTop);
-    const hiddenBelow = remaining - parseFloat(paddingBottom);
-    element.parentElement?.style.setProperty("--fade-top", fadeStrength(hiddenAbove));
-    element.parentElement?.style.setProperty("--fade-bottom", fadeStrength(hiddenBelow));
+    element.parentElement?.style.setProperty("--fade-top", fadeStrength(element.scrollTop, parseFloat(paddingTop)));
+    element.parentElement?.style.setProperty("--fade-bottom", fadeStrength(remaining, parseFloat(paddingBottom)));
   }, []);
 
   useEffect(() => {
@@ -357,8 +350,6 @@ function SheetScroll({ className, children }: { className: string; children: Rea
         tabIndex={scrolls ? 0 : undefined}
         role={scrolls ? "region" : undefined}
         aria-label={scrolls ? "Blatt der Vorschau" : undefined}
-        data-fade-top={above ? "" : undefined}
-        data-fade-bottom={below ? "" : undefined}
         onScroll={measure}
       >
         {children}
@@ -367,11 +358,9 @@ function SheetScroll({ className, children }: { className: string; children: Rea
   );
 }
 
-/** Volle Stärke erst, wenn so viele Pixel des Blatts abgeschnitten sind; bis dahin wächst der Verlauf mit dem Scrollen */
-const FADE_RAMP = 48;
-
-function fadeStrength(hiddenPixels: number): string {
-  return String(Math.min(Math.max(hiddenPixels / FADE_RAMP, 0), 1));
+/** Der Verlauf ist voll, sobald die Blattkante den Rand des Bereichs erreicht, und wächst über den Innenabstand davor */
+function fadeStrength(distance: number, padding: number): string {
+  return distance <= 1 ? "0" : String(Math.min(distance / Math.max(padding, 1), 1));
 }
 
 /** Chrome mit gesperrten Websitedaten wirft schon beim Zugriff auf window.localStorage; dann gilt die Wahl bis zum Neuladen */
