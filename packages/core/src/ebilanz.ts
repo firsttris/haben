@@ -294,6 +294,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     [anlagen.anlage.edv, [`${EQUIPM}.office`]],
     [anlagen.anlage.buero, [`${EQUIPM}.office`]],
     [anlagen.anlage.sonstiges, [`${EQUIPM}.otherbga`]],
+    [anlagen.anlage.transport, [`${EQUIPM}.otherTransportMeans`]],
     [anlagen.gwg, [`${EQUIPM}.gwg`]],
     [anlagen.sammelposten, [`${EQUIPM}.gwgsammelposten`]],
     [anlagen.afa, [`${DEPR}.other`]],
