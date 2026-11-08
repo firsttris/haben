@@ -628,7 +628,7 @@ export function InvoiceEditor({
         facts={[
           { label: "Nummer", value: nextNumber },
           ...(contact ? [{ label: "Kunde", value: contact.name }] : []),
-          { label: "Betrag", value: formatEuro(previewGross), strong: true },
+          { label: "Betrag", value: currencyCode === "EUR" ? formatEuro(previewGross) : `${formatDecimal(previewGross)} ${currencyCode}`, strong: true },
         ]}
         onConfirm={finalizeNow}
         onClose={() => setConfirming(false)}
