@@ -16,16 +16,22 @@ export interface EricProcessClientOptions extends EricConfig {
   timeoutMs?: number;
   /** Austauschbar für Tests */
   workerPath?: string;
+  /**
+   * Befehl, der den Worker startet (worker.ts kommt als letztes Argument dazu); ohne Angabe dieselbe Laufzeit wie
+   * die App. ERiC gibt es nur für Linux x86_64: Auf anderen Rechnern startet ein solcher Befehl den Worker als
+   * x86_64-Prozess, etwa emuliert mit QEMU (ERIC_WORKER_COMMAND, siehe docs/installation.md).
+   */
+  workerCommand?: readonly string[] | undefined;
 }
 
 /**
- * Startet den Worker mit derselben Laufzeit wie die App (Bun führt worker.ts direkt aus), über sh ohne
- * Core-Dump: Der Dump eines abgestürzten Bun-Prozesses ist mehrere GB groß (reservierter Speicher). Wo ein
- * Dienst ihn annimmt (apport, systemd-coredump), käme die Meldung des Absturzes erst nach Sekunden bis
+ * Startet den Worker mit derselben Laufzeit wie die App (Bun führt worker.ts direkt aus) oder mit workerCommand,
+ * über sh ohne Core-Dump: Der Dump eines abgestürzten Bun-Prozesses ist mehrere GB groß (reservierter Speicher).
+ * Wo ein Dienst ihn annimmt (apport, systemd-coredump), käme die Meldung des Absturzes erst nach Sekunden bis
  * Minuten, und auf dem Host landeten GB pro Absturz von ERiC. exec behält den IPC-Kanal (NODE_CHANNEL_FD).
  */
-function spawnWorker(workerPath: string) {
-  return spawn("/bin/sh", ["-c", 'ulimit -c 0 && exec "$0" "$1"', process.execPath, workerPath], {
+function spawnWorker(workerPath: string, command: readonly string[] = [process.execPath]) {
+  return spawn("/bin/sh", ["-c", 'ulimit -c 0 && exec "$@"', "sh", ...command, workerPath], {
     stdio: ["ignore", "ignore", "pipe", "ipc"],
     serialization: "json",
   });
@@ -142,7 +148,7 @@ export class EricProcessClient implements ElsterClient {
         resolve(raw ? { result, raw } : { result });
       };
 
-      const child = spawnWorker(workerPath);
+      const child = spawnWorker(workerPath, this.#options.workerCommand);
 
       /** Beendet mit der Antwort des Workers, falls schon eine da ist */
       const finishWithResponse = (): boolean => {

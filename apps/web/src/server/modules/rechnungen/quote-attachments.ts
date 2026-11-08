@@ -29,4 +29,6 @@ export const loadQuoteAttachment = store.load;
 export const quoteAttachmentFiles = store.files;
 /** Anhänge in den kopierten Entwurf übernehmen */
 export const copyQuoteAttachments = store.copy;
+/** Dateien aus dem Speicher an einen neuen Entwurf hängen (Standardanhänge) */
+export const attachStoredToQuote = store.attachStored;
 export const quoteAttachmentsForMail = store.forMail;

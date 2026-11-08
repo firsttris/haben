@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
@@ -54,6 +54,7 @@ export function ContactForm({
   onCancel,
   existing = [],
   onPickExisting,
+  ibanSuggestion = null,
 }: {
   contact: Contact | null;
   nextNumber?: string | null;
@@ -62,11 +63,19 @@ export function ContactForm({
   onCancel?: () => void;
   existing?: ExistingContact[];
   onPickExisting?: (id: string) => void;
+  /** IBAN vom Beleg (#329): nur ein Vorschlag, ins Feld erst auf ausdrücklichen Klick */
+  ibanSuggestion?: IbanSuggestion | null;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
   const { busy, notice, setNotice, run } = useAction();
+  const ibanInput = useRef<HTMLInputElement>(null);
+  const takeIban = (iban: string) => {
+    if (!ibanInput.current) return;
+    ibanInput.current.value = iban;
+    ibanInput.current.focus();
+  };
   const [ustId, setUstId] = useState(contact?.ustId ?? prefill?.ustId ?? "");
   const sameUstId = compactUstId(ustId) ? existing.find((c) => c.id !== contact?.id && compactUstId(c.ustId) === compactUstId(ustId)) : undefined;
   // Skonto: null = Vorgabe aus den Einstellungen; eigene Stufen, leer = ohne Skonto
@@ -208,10 +217,20 @@ export function ContactForm({
             USt-IdNr.
             <input name="ustId" value={ustId} onChange={(e) => setUstId(e.target.value)} placeholder="DE123456789" className="mono" />
           </label>
-          <label className="field">
-            IBAN
-            <input name="iban" defaultValue={initial.iban} placeholder="DE00 0000 0000 0000 0000 00" className="mono" />
-          </label>
+          <div className="stack" style={{ gap: 4 }}>
+            <label className="field">
+              IBAN
+              <input
+                ref={ibanInput}
+                name="iban"
+                defaultValue={initial.iban}
+                placeholder="DE00 0000 0000 0000 0000 00"
+                className="mono"
+                aria-describedby={ibanSuggestion ? "iban-suggestion" : undefined}
+              />
+            </label>
+            {ibanSuggestion && <IbanSuggestionHint suggestion={ibanSuggestion} onTake={() => takeIban(ibanSuggestion.iban)} />}
+          </div>
         </div>
         <div className="field-group">
           <label className="field">
@@ -292,5 +311,30 @@ export function ContactForm({
         )}
       </div>
     </form>
+  );
+}
+
+export interface IbanSuggestion {
+  iban: string;
+  source: "e-rechnung" | "ki";
+  /** Textausschnitt des Belegs, in dem die IBAN steht (KI-Auslesung) */
+  fundstelle: string | null;
+  /** Prüfziffer nach ISO 13616 stimmt */
+  valid: boolean;
+}
+
+/** Vorschlag unter dem Feld: IBAN in Vierergruppen, Herkunft, Fundstelle und Prüfziffer; übernommen wird nur auf Klick */
+function IbanSuggestionHint({ suggestion, onTake }: { suggestion: IbanSuggestion; onTake: () => void }) {
+  return (
+    <div id="iban-suggestion" className="small muted" style={{ overflowWrap: "anywhere" }}>
+      Vorschlag vom Beleg: <span className="mono">{suggestion.iban.replace(/(.{4})/g, "$1 ").trim()}</span>,{" "}
+      {suggestion.source === "e-rechnung" ? "aus der E-Rechnung (BT-84)" : "aus der KI-Auslesung"}
+      {suggestion.fundstelle && <> („{suggestion.fundstelle}“)</>}.{" "}
+      {suggestion.valid ? "Prüfziffer stimmt." : <strong style={{ color: "var(--danger-ink)" }}>Prüfziffer stimmt nicht.</strong>} Prüfe die IBAN beim
+      Lieferanten, bevor du sie übernimmst.{" "}
+      <button type="button" className="link-button" onClick={onTake}>
+        IBAN übernehmen
+      </button>
+    </div>
   );
 }

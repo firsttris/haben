@@ -8,6 +8,7 @@ import {
   hatJahresPlugin,
   installedEricVersion,
   ericHomeIn,
+  ericPlatformSupported,
   installEric,
   isEricVersion,
   type ElsterClient,
@@ -102,7 +103,7 @@ export async function ericStatus() {
     home,
     version: home ? await installedEricVersion(home) : null,
     defaultVersion: DEFAULT_ERIC_VERSION,
-    platformSupported: process.platform === "linux" && process.arch === "x64",
+    platformSupported: ericPlatformSupported(e.ERIC_WORKER_COMMAND),
     install: installState,
     /** Wann die Datenschutzhinweise der Finanzverwaltung bestätigt wurden; null = noch nicht */
     datenschutzBestaetigt: (await loadCompany()).elsterDatenschutzAt?.toISOString() ?? null,
@@ -124,6 +125,7 @@ export function startEricInstall(version: string): void {
     dir: resolve(env().ERIC_DIR),
     baseUrl: env().ERIC_DOWNLOAD_URL,
     sha256: env().ERIC_SHA256 || undefined,
+    workerCommand: env().ERIC_WORKER_COMMAND,
     onProgress: (progress) => {
       state.progress = progress;
     },

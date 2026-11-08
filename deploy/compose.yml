@@ -64,6 +64,8 @@ services:
       ERIC_HOME: ${ERIC_HOME:-}
       ERIC_AUTO_INSTALL: ${ERIC_AUTO_INSTALL:-}
       ERIC_SHA256: ${ERIC_SHA256:-}
+      # ELSTER auf arm64: startet den ERiC-Worker emuliert als x86_64 (docs/installation.md, „ELSTER auf arm64“)
+      ERIC_WORKER_COMMAND: ${ERIC_WORKER_COMMAND:-}
       ELSTER_HERSTELLER_ID: ${ELSTER_HERSTELLER_ID:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Oder ein OpenAI-kompatibler Dienst (z. B. Ollama, OpenRouter); dann geht kein Beleg an Anthropic
@@ -73,6 +75,7 @@ services:
       EXTRACTION_API_KEY: ${EXTRACTION_API_KEY:-}
       EXTRACTION_TIMEOUT_SECONDS: ${EXTRACTION_TIMEOUT_SECONDS:-}
       EXTRACTION_MAX_PAGES: ${EXTRACTION_MAX_PAGES:-}
+      EXTRACTION_INPUT: ${EXTRACTION_INPUT:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
     volumes:
@@ -84,6 +87,8 @@ services:
       - eric:/var/lib/haben/eric
       # Alternativ ERiC von Hand: nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro
+      # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, Zeile einkommentieren, ERIC_WORKER_COMMAND in .env
+      # - /opt/haben-x86_64:/opt/haben-x86_64:ro
       # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
       # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
     # KI-Dienst (z. B. Ollama) direkt auf dem Server: unter Linux kennt der Container host.docker.internal nur so

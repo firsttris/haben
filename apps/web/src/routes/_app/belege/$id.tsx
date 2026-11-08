@@ -26,6 +26,7 @@ import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
+import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
 import { ContactDialog } from "../../../components/ContactDialog.tsx";
@@ -233,6 +234,7 @@ function DocumentPage() {
           </span>
         </div>
       ))}
+      <IbanCheck documentId={doc.id} check={data.ibanCheck} canDecide={inhaber && doc.lockedAt !== null} booked={doc.lockedAt !== null} />
       {geprueft && doc.status === "gebucht" && (
         <div className="banner banner-ok" role="status">
           <Icon name="check" />
@@ -584,8 +586,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <ContactDialog
             open={newSupplierOpen}
             title="Neuen Lieferanten anlegen"
-            // Name und USt-IdNr. stehen schon am Beleg, etwa aus der Auslesung; die IBAN übernimmt Haben nicht (#330)
-            prefill={{ name: supplierName, ustId: supplierUstId, isCustomer: false, isSupplier: true }}
+            // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
+            prefill={{
+              ...data.supplierSuggestion?.contact,
+              ...(supplierName ? { name: supplierName } : {}),
+              ...(supplierUstId ? { ustId: supplierUstId } : {}),
+              isCustomer: false,
+              isSupplier: true,
+            }}
+            ibanSuggestion={data.supplierSuggestion?.iban ?? null}
             existing={data.suppliers}
             onSaved={(saved) => {
               touch(pickSupplier)({ id: saved.id, name: saved.name, ustId: saved.ustId });

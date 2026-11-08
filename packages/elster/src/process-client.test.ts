@@ -99,6 +99,30 @@ describe("EricProcessClient mit Stub-Worker", () => {
     expect(result).toMatchObject({ ok: true, transferTicket: "stub-ticket" });
   });
 
+  it("startet den Worker über ERIC_WORKER_COMMAND, mit worker.ts als letztem Argument", async () => {
+    const workerPath = join(fixtures, "worker-answer.mjs");
+    const client = new EricProcessClient({
+      ericHome: "/opt/eric",
+      workerPath,
+      workerCommand: ["/bin/sh", join(fixtures, "worker-command.sh"), process.execPath],
+    });
+    const result = await client.send(xml(), new Uint8Array([1, 2, 3]), "1234", { test: true });
+    expect(result).toMatchObject({ ok: true, transferTicket: "stub-ticket" });
+    expect(JSON.parse(result.responseXml)).toMatchObject({ workerCommand: workerPath, certMode: 0o600, pinOk: true });
+    expect(Buffer.from(result.pdf!).toString()).toBe("%PDF-stub");
+  });
+
+  it("startet den Worker ohne ERIC_WORKER_COMMAND mit der eigenen Laufzeit", async () => {
+    expect(JSON.parse((await stub("answer").validate(xml())).responseXml)).toMatchObject({ workerCommand: null });
+  });
+
+  it("meldet einen Worker-Befehl, den es nicht gibt, als Fehler", async () => {
+    const client = new EricProcessClient({ ericHome: "/opt/eric", workerPath: join(fixtures, "worker-answer.mjs"), workerCommand: ["/gibt/es/nicht"] });
+    const result = await client.validate(xml());
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/^ERiC-Prozess abgestürzt \(Exit-Code 127\)/);
+  });
+
   it("meldet einen fehlenden Worker", async () => {
     const result = await new EricProcessClient({ ericHome: "/x", workerPath: join(fixtures, "gibt-es-nicht.mjs") }).validate(xml());
     expect(result.ok).toBe(false);

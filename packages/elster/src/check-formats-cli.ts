@@ -7,6 +7,7 @@
 import { resolve } from "node:path";
 import { checkFormats } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
+import { parseWorkerCommand } from "./factory.ts";
 import { EricProcessClient } from "./process-client.ts";
 
 const ericHome = process.env.ERIC_HOME?.trim() || ericHomeIn(resolve(process.env.ERIC_DIR || "data/eric"));
@@ -15,7 +16,7 @@ if (!ericHome) {
   process.exit(2);
 }
 
-const results = await checkFormats(new EricProcessClient({ ericHome }), {
+const results = await checkFormats(new EricProcessClient({ ericHome, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) }), {
   idnr: "65929970489",
   geburtsdatum: "1985-04-12",
   datenlieferant: "Haben Formatprüfung",

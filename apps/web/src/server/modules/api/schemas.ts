@@ -293,7 +293,12 @@ export const DOCUMENT_MEDIA_TYPES = ["application/pdf", "image/jpeg", "image/png
  */
 export const documentUploadSchema = z
   .object({
-    datei: z.file().describe(`Der Beleg: PDF, JPEG, PNG, WebP, HEIC oder E-Rechnungs-XML (XRechnung, ZUGFeRD), höchstens ${MB} MB`),
+    datei: z
+      .file()
+      .optional()
+      .describe(`Der Beleg: PDF, JPEG, PNG, WebP, HEIC oder E-Rechnungs-XML (XRechnung, ZUGFeRD), höchstens ${MB} MB; statt dessen auch im Feld file`),
+    // Paperless-ngx hängt die Datei in seiner Webhook-Aktion fest unter „file“ an (#104); eine Datei je Anfrage
+    file: z.file().optional().describe("Wie datei, für Werkzeuge mit festem Feldnamen wie die Webhook-Aktion von Paperless-ngx; nur eines von beiden"),
     note: z.string().max(2000).optional().describe("Notiz am Beleg, z. B. woher er kommt"),
     externalSource: documentReferenceSchema.shape.externalSource
       .optional()
@@ -301,6 +306,11 @@ export const documentUploadSchema = z
     externalId: documentReferenceSchema.shape.externalId.optional().describe("Kennung des Dokuments in der Quelle; mit externalSource eindeutig"),
   })
   .strict()
+  .refine((d) => d.datei !== undefined || d.file !== undefined, { message: "Die Datei fehlt: bitte im Feld datei (oder file) mitschicken.", path: ["datei"] })
+  .refine((d) => d.datei === undefined || d.file === undefined, {
+    message: "Eine Datei je Anfrage: bitte im Feld datei oder file, nicht beide.",
+    path: ["file"],
+  })
   .refine((d) => (d.externalSource === undefined) === (d.externalId === undefined), {
     message: "externalSource und externalId nur zusammen angeben",
     path: ["externalId"],

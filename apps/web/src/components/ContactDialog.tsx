@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { ContactInput } from "../server/modules/stammdaten/index.ts";
-import { ContactForm, type ExistingContact, type SavedContact } from "./ContactForm.tsx";
+import { ContactForm, type ExistingContact, type IbanSuggestion, type SavedContact } from "./ContactForm.tsx";
 
 /**
  * Neuen Kontakt anlegen, ohne das Formular zu verlassen, in dem er gebraucht wird (Beleg, Rechnungs- und
@@ -21,6 +21,7 @@ function OpenContactDialog({
   onSaved,
   onPickExisting,
   onClose,
+  ibanSuggestion = null,
 }: {
   title: string;
   prefill: Partial<ContactInput>;
@@ -28,6 +29,8 @@ function OpenContactDialog({
   onSaved: (saved: SavedContact) => void;
   onPickExisting: (id: string) => void;
   onClose: () => void;
+  /** IBAN vom Beleg zum ausdrücklichen Übernehmen (#329) */
+  ibanSuggestion?: IbanSuggestion | null;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -43,6 +46,7 @@ function OpenContactDialog({
         contact={null}
         prefill={prefill}
         existing={existing}
+        ibanSuggestion={ibanSuggestion}
         onSaved={(saved) => {
           onSaved(saved);
           onClose();

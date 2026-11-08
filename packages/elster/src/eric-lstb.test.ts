@@ -6,6 +6,8 @@ import { ericHomeIn } from "./install.ts";
 import { buildLStBStornoXml, buildLStBXml, LSTB_SCHNITTSTELLEN } from "./lstb.ts";
 import { LSTB_BASIS, LSTB_STORNO, LSTB_WERTE } from "./lstb.testdaten.ts";
 import { EricProcessClient } from "./process-client.ts";
+import { parseWorkerCommand } from "./factory.ts";
+import { ericTestTimeout } from "../test-fixtures/eric-zeit.ts";
 
 /**
  * Lohnsteuerbescheinigung mit dem echten ERiC prüfen; gesendet wird nichts. ERiC prüft bei ElsterLohn nur den Umschlag
@@ -16,7 +18,7 @@ const ericHome = process.env.ERIC_HOME?.trim() || ericHomeIn(resolve(process.env
 const herstellerId = process.env.ELSTER_HERSTELLER_ID || "12345";
 
 describe.skipIf(!ericHome)("Lohnsteuerbescheinigung mit ERiC", () => {
-  const client = new EricProcessClient({ ericHome: ericHome! });
+  const client = new EricProcessClient({ ericHome: ericHome!, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) });
   const pruefe = async (xml: string) => {
     const result = await client.validate(xml);
     expect(ericMeldungen(result.responseXml), result.message).toEqual([]);
@@ -41,6 +43,6 @@ describe.skipIf(!ericHome)("Lohnsteuerbescheinigung mit ERiC", () => {
       );
       await pruefe(buildLStBStornoXml({ ...LSTB_STORNO, jahr, herstellerId }));
     },
-    60_000,
+    ericTestTimeout(60_000),
   );
 });

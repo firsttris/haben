@@ -81,6 +81,7 @@ import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungsanhang/$id'
+import { Route as ApiStandardanhangIdRouteImport } from './routes/api/standardanhang/$id'
 import { Route as ApiSvProtokollIdRouteImport } from './routes/api/sv-protokoll/$id'
 import { Route as ApiUeberweisungIdRouteImport } from './routes/api/ueberweisung/$id'
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
@@ -469,6 +470,11 @@ const ApiRechnungsanhangIdRoute = ApiRechnungsanhangIdRouteImport.update({
   path: '/api/rechnungsanhang/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStandardanhangIdRoute = ApiStandardanhangIdRouteImport.update({
+  id: '/api/standardanhang/$id',
+  path: '/api/standardanhang/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSvProtokollIdRoute = ApiSvProtokollIdRouteImport.update({
   id: '/api/sv-protokoll/$id',
   path: '/api/sv-protokoll/$id',
@@ -674,6 +680,7 @@ export interface FileRoutesByFullPath {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
@@ -774,6 +781,7 @@ export interface FileRoutesByTo {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
@@ -876,6 +884,7 @@ export interface FileRoutesById {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
@@ -978,6 +987,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
@@ -1078,6 +1088,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
@@ -1179,6 +1190,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
@@ -1250,6 +1262,7 @@ export interface RootRouteChildren {
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungsanhangIdRoute: typeof ApiRechnungsanhangIdRoute
+  ApiStandardanhangIdRoute: typeof ApiStandardanhangIdRoute
   ApiSvProtokollIdRoute: typeof ApiSvProtokollIdRoute
   ApiUeberweisungIdRoute: typeof ApiUeberweisungIdRoute
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
@@ -1772,6 +1785,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRechnungsanhangIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/standardanhang/$id': {
+      id: '/api/standardanhang/$id'
+      path: '/api/standardanhang/$id'
+      fullPath: '/api/standardanhang/$id'
+      preLoaderRoute: typeof ApiStandardanhangIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sv-protokoll/$id': {
       id: '/api/sv-protokoll/$id'
       path: '/api/sv-protokoll/$id'
@@ -2117,6 +2137,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungsanhangIdRoute: ApiRechnungsanhangIdRoute,
+  ApiStandardanhangIdRoute: ApiStandardanhangIdRoute,
   ApiSvProtokollIdRoute: ApiSvProtokollIdRoute,
   ApiUeberweisungIdRoute: ApiUeberweisungIdRoute,
   ApiUstvaIdRoute: ApiUstvaIdRoute,
