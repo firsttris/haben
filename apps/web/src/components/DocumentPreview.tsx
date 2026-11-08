@@ -314,30 +314,50 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
 /**
  * Bereich, in dem das Blatt scrollt. Ist es höher als der Bereich, nimmt er den Fokus an, damit es sich mit den
  * Pfeiltasten scrollen lässt (WCAG 2.1.1, axe „scrollable-region-focusable“); passt es, bleibt er aus der Tab-Reihenfolge.
+ * An der Kante, hinter der es weitergeht, läuft das Blatt in einem Verlauf aus; der Rahmen darum bleibt stehen.
  */
 function SheetScroll({ className, children }: { className: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [above, setAbove] = useState(false);
+  const [below, setBelow] = useState(false);
   const [scrolls, setScrolls] = useState(false);
+
+  const measure = useCallback(() => {
+    const element = ref.current;
+    if (!element) return;
+    // Abgeschnitten ist das Blatt erst jenseits des Innenabstands; davor läge der Verlauf auf dem leeren Rand
+    const { paddingTop, paddingBottom } = getComputedStyle(element);
+    const remaining = element.scrollHeight - element.clientHeight - element.scrollTop;
+    setScrolls(element.scrollHeight > element.clientHeight + 1);
+    setAbove(element.scrollTop > parseFloat(paddingTop));
+    setBelow(remaining > parseFloat(paddingBottom));
+  }, []);
+
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const check = () => setScrolls(element.scrollHeight > element.clientHeight + 1);
-    check();
+    measure();
     // Auch das Blatt beobachten: Es wächst mit jeder Position, der Bereich selbst bleibt gleich hoch
-    const observer = new ResizeObserver(check);
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     for (const child of element.children) observer.observe(child);
     return () => observer.disconnect();
-  }, []);
+  }, [measure]);
+
   return (
-    <div
-      ref={ref}
-      className={className}
-      tabIndex={scrolls ? 0 : undefined}
-      role={scrolls ? "region" : undefined}
-      aria-label={scrolls ? "Blatt der Vorschau" : undefined}
-    >
-      {children}
+    <div className="sheet-frame">
+      <div
+        ref={ref}
+        className={className}
+        tabIndex={scrolls ? 0 : undefined}
+        role={scrolls ? "region" : undefined}
+        aria-label={scrolls ? "Blatt der Vorschau" : undefined}
+        data-fade-top={above ? "" : undefined}
+        data-fade-bottom={below ? "" : undefined}
+        onScroll={measure}
+      >
+        {children}
+      </div>
     </div>
   );
 }

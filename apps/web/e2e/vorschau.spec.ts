@@ -136,6 +136,17 @@ test("Laptop: per Tastatur anheften, steht beim Scrollen fest, bleibt nach Neula
   // Eine einzelne Seite passt am Laptop gerade in die Karte; im niedrigeren Fenster muss sie in sich scrollen
   await page.setViewportSize({ width: LAPTOP.width, height: 560 });
   await expect.poll(() => body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  // Verlauf nur an der Kante, hinter der es weitergeht
+  await expect(body).toHaveAttribute("data-fade-bottom", "");
+  await expect(body).not.toHaveAttribute("data-fade-top");
+  // Solange erst der leere Innenabstand hinausgescrollt ist, ist oben nichts abgeschnitten
+  await body.evaluate((el) => el.scrollTo(0, 4));
+  await page.waitForTimeout(100);
+  await expect(body).not.toHaveAttribute("data-fade-top");
+  await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await expect(body).toHaveAttribute("data-fade-top", "");
+  await expect(body).not.toHaveAttribute("data-fade-bottom");
+  await body.evaluate((el) => el.scrollTo(0, 0));
   // Scrollt es, ist der Bereich per Tastatur erreichbar (WCAG 2.1.1)
   await expect(body).toHaveAttribute("tabindex", "0");
   expect(await axe(page), "angeheftet").toEqual([]);
