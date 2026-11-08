@@ -14,7 +14,6 @@ export {
   documentFileProblem,
   documentInputSchema,
   getDocument,
-  supplierCategory,
   inputTaxForPeriod,
   listDocuments,
   MAX_DOCUMENT_SIZE,
@@ -22,6 +21,7 @@ export {
   updateDocument,
   uploadDocument,
 } from "./documents.ts";
+export { type Lieferant, supplierCategory, supplierPayment } from "./vorschlaege.ts";
 export {
   cancelDocument,
   cancellationInputSchema,
