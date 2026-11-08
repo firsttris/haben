@@ -44,6 +44,14 @@ test("Festschreiben nennt Nummer, Kunde und Betrag über den Folgen", async ({ p
   await expect(dialog.getByRole("heading", { name: "Rechnung festschreiben?" })).toBeVisible();
 });
 
+test("Eine Rechnung in Fremdwährung nennt den Betrag in dieser Währung, nicht in Euro", async ({ page }) => {
+  const ausloeser = await neuerEntwurf(page);
+  await page.getByLabel("Währung").fill("USD");
+  await page.getByLabel(/^Kurs: 1 EUR/).fill("1,1");
+  await ausloeser.click();
+  await expect(rueckfrage(page).locator("dd").last()).toHaveText(/^119,00 USD$/);
+});
+
 test("Am Handy ist der Dialog ein Blatt von unten, die Aktion steht über Abbrechen", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const ausloeser = await neuerEntwurf(page);
