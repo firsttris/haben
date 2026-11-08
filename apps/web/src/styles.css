@@ -434,6 +434,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .preview-dialog { --sheet-hidden: translateX(100%); width: min(960px, calc(100vw - 96px)); max-width: none; height: 100dvh; max-height: none; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1px solid var(--line); border-radius: 12px 0 0 12px; background: var(--ground); color: var(--ink); box-shadow: -12px 0 32px rgb(0 0 0 / 0.2); flex-direction: column; overflow: hidden; transform: var(--sheet-hidden); transition: transform var(--sheet-out), overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
 .preview-dialog[open] { display: flex; transform: none; transition: transform var(--sheet-in), overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
 @starting-style { .preview-dialog[open] { transform: var(--sheet-hidden); } }
+/* Modal sperrt nur Fokus und Klicks, nicht das Mausrad: Die Seite dahinter behält ihre Scrollposition; die Rinne hält die Breite */
+html:has(.preview-dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 /* Abdunkeln gleichmäßig: mit der vorn geladenen Kurve des Blatts spränge die Helligkeit der ganzen Seite gleich am Anfang */
 .preview-dialog::backdrop { background: rgb(0 0 0 / 0); transition: background-color var(--sheet-out-time) linear, overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
 .preview-dialog[open]::backdrop { background: rgb(0 0 0 / 0.4); transition: background-color var(--sheet-in-time) linear, overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
