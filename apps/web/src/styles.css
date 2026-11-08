@@ -605,6 +605,8 @@ fieldset.card > legend + * { clear: both; }
   .page-head .actions > * { flex: 0 0 auto; }
   .page-head .actions > .btn { flex: 1 0 auto; justify-content: center; }
   .page-head .actions > .field { flex: 1 0 140px; }
+  /* Ein Feld direkt im Kopf (Zeitraum, Jahr) nimmt wie die Aktionszeile die ganze Breite, statt halb breit am Rand zu stehen */
+  .page-head > .field { align-self: stretch; }
   /* Kacheln: zwei Spalten, kleinere Zahlen, letzte allein über die volle Breite */
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .kpi-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
