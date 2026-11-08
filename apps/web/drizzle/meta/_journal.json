@@ -1191,6 +1191,27 @@
       "when": 1794174634491,
       "tag": "0169_iban_bestaetigen",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1794181940992,
+      "tag": "0170_briefkopf_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1794181941559,
+      "tag": "0171_briefkopf_profile_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 172,
+      "version": "7",
+      "when": 1794181942156,
+      "tag": "0172_firma_akzentfarbe_entfernt",
+      "breakpoints": true
     }
   ]
 }
