@@ -452,7 +452,12 @@ function FinalInvoice({ data }: { data: Detail }) {
               </p>
               <ConfirmDialog
                 open={confirming}
-                title={`Rechnung ${invoice.number} stornieren?`}
+                title="Rechnung stornieren?"
+                facts={[
+                  { label: "Nummer", value: invoice.number ?? "–" },
+                  ...(buyer ? [{ label: "Kunde", value: buyer.name }] : []),
+                  { label: "Betrag", value: formatEuro(invoice.gross), strong: true },
+                ]}
                 confirmLabel="Stornieren"
                 danger
                 onConfirm={cancelNow}

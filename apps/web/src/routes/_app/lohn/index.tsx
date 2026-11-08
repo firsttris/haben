@@ -138,7 +138,7 @@ function MitarbeiterMonat({ zeile }: { zeile: Zeile }) {
           Noch nicht abgerechnet; voraussichtlich {formatEuro(vorschau.brutto)} brutto, {formatEuro(vorschau.netto)} netto.
         </p>
       )}
-      {payslips.map((p, i) => <AbrechnungKarte key={p.id} p={p} nummer={i + 1} />).reverse()}
+      {payslips.map((p, i) => <AbrechnungKarte key={p.id} p={p} nummer={i + 1} name={employee.name} />).reverse()}
     </section>
   );
 }

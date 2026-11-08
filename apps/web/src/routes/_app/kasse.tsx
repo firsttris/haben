@@ -214,7 +214,16 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
     <section className="card" aria-label="Kassenbuch">
       <ConfirmDialog
         open={confirming !== null}
-        title={`Eintrag Nr. ${confirming?.number} stornieren?`}
+        title="Eintrag in der Kasse stornieren?"
+        facts={
+          confirming
+            ? [
+                { label: "Nummer", value: String(confirming.number) },
+                { label: "Text", value: confirming.text },
+                { label: "Betrag", value: `${confirming.amount > 0 ? "+" : ""}${formatEuro(confirming.amount)}`, strong: true },
+              ]
+            : undefined
+        }
         confirmLabel="Stornieren"
         danger
         onConfirm={() => confirming && void reverseNow(confirming.id)}

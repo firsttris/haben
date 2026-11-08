@@ -974,7 +974,12 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       )}
       <ConfirmDialog
         open={confirming}
-        title={supplierName.trim() ? `Beleg von ${supplierName.trim()} buchen?` : "Beleg buchen?"}
+        title="Beleg buchen?"
+        facts={[
+          ...(supplierName.trim() ? [{ label: "Lieferant", value: supplierName.trim() }] : []),
+          ...(documentDate ? [{ label: "Belegdatum", value: formatDate(documentDate) }] : []),
+          ...(gross === null ? [] : [{ label: "Betrag", value: foreign ? `${formatDecimal(gross)} ${currencyCode}` : formatEuro(gross), strong: true }]),
+        ]}
         confirmLabel="Buchen"
         onConfirm={bookNow}
         onClose={() => setConfirming(false)}

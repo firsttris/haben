@@ -39,6 +39,13 @@ const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung"];
 const ART_KURZ: Record<PauschaleArt, string> = { homeoffice: "Homeoffice", fahrt: "Fahrt", verpflegung: "Verpflegung" };
 const MAHLZEIT_LABEL = { fruehstueck: "Frühstück", mittag: "Mittagessen", abend: "Abendessen" } as const;
 
+/** Homeoffice gilt für einen Monat, die anderen Pauschalen für einen Tag */
+function pauschaleDatum(e: { art: string; date: string }): string {
+  return e.art === "homeoffice"
+    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
+    : formatDate(e.date);
+}
+
 const parseKm = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
 
 function detailText(entry: Entry): string {
@@ -399,6 +406,14 @@ function Liste({ data }: { data: Data }) {
       <ConfirmDialog
         open={confirm !== null}
         title={`${confirm ? PAUSCHALE_LABEL[confirm.art] : ""} stornieren?`}
+        facts={
+          confirm
+            ? [
+                { label: "Datum", value: pauschaleDatum(confirm) },
+                { label: "Betrag", value: formatEuro(confirm.amount), strong: true },
+              ]
+            : undefined
+        }
         confirmLabel="Stornieren"
         danger
         onConfirm={() => confirm && storno(confirm.id)}
@@ -429,11 +444,7 @@ function Liste({ data }: { data: Data }) {
           <tbody>
             {data.entries.map((e) => (
               <tr key={e.id} style={e.storniert ? { color: "var(--muted)" } : undefined}>
-                <td data-label="Datum">
-                  {e.art === "homeoffice"
-                    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
-                    : formatDate(e.date)}
-                </td>
+                <td data-label="Datum">{pauschaleDatum(e)}</td>
                 <td data-label="Pauschale">
                   <span style={{ fontWeight: 500, textDecoration: e.storniert ? "line-through" : undefined }}>
                     {PAUSCHALE_LABEL[e.art]}

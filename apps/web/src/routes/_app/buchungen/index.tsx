@@ -1,4 +1,5 @@
 import { formatEuro, isKapitalgesellschaft, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
+import { formatDate } from "../../../lib/format.ts";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
@@ -110,6 +111,10 @@ function ReverseButton({ entry, busy, onConfirm }: { entry: Entry; busy: boolean
       <ConfirmDialog
         open={confirming}
         title={`Buchung „${entry.description}“ stornieren?`}
+        facts={[
+          { label: "Datum", value: formatDate(entry.date) },
+          { label: "Betrag", value: formatEuro(entry.lines.reduce((summe, line) => summe + line.debit, 0)), strong: true },
+        ]}
         confirmLabel="Stornieren"
         danger
         onConfirm={onConfirm}

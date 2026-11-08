@@ -54,7 +54,15 @@ function Betraege({ p }: { p: Abrechnung }) {
 /** Zustand der Aktionen; liegt in der Karte, damit die Meldung bleibt, wenn der Entwurf nach dem Festschreiben verschwindet */
 type Aktion = ReturnType<typeof useAction>;
 
-function EntwurfAktionen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
+function abrechnungFakten(name: string, p: Abrechnung) {
+  return [
+    { label: "Person", value: name },
+    { label: "Brutto", value: formatEuro(p.brutto) },
+    { label: "Auszahlung", value: formatEuro(p.auszahlung), strong: true },
+  ];
+}
+
+function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; aktion: Aktion }) {
   const router = useRouter();
   const neu = useServerFn(entwurfNeuBerechnenFn);
   const loeschen = useServerFn(entwurfLoeschenFn);
@@ -120,6 +128,7 @@ function EntwurfAktionen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
       <ConfirmDialog
         open={bestaetigen}
         title={`Abrechnung mit Zahltag ${formatDate(p.zahltag)} festschreiben?`}
+        facts={abrechnungFakten(name, p)}
         confirmLabel="Festschreiben"
         onConfirm={() =>
           void run(async () => {
@@ -162,7 +171,7 @@ function Nachbuchen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
   );
 }
 
-function Storno({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
+function Storno({ p, name, aktion }: { p: Abrechnung; name: string; aktion: Aktion }) {
   const router = useRouter();
   const storno = useServerFn(stornierenFn);
   const { busy, run } = aktion;
@@ -177,6 +186,7 @@ function Storno({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
       <ConfirmDialog
         open={offen}
         title={`Abrechnung mit Zahltag ${formatDate(p.zahltag)} stornieren?`}
+        facts={abrechnungFakten(name, p)}
         confirmLabel="Stornieren"
         danger
         onConfirm={() =>
@@ -202,7 +212,7 @@ function Storno({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
 }
 
 /** `nummer`: die wievielte Abrechnung des Mitarbeiters im Monat, damit jede Karte nach Stornos einen eigenen Namen hat */
-export function AbrechnungKarte({ p, nummer }: { p: Abrechnung; nummer: number }) {
+export function AbrechnungKarte({ p, nummer, name }: { p: Abrechnung; nummer: number; name: string }) {
   const aktion = useAction();
   const s = status(p);
   const titel = `${nummer}. Abrechnung ${STUFE[p.stufe]}, Zahltag ${formatDate(p.zahltag)}`;
@@ -234,9 +244,9 @@ export function AbrechnungKarte({ p, nummer }: { p: Abrechnung; nummer: number }
           {p.lockedAt ? "Entgeltabrechnung (PDF)" : "Entwurf ansehen (PDF)"}
         </a>
       </div>
-      {!p.lockedAt && <EntwurfAktionen p={p} aktion={aktion} />}
+      {!p.lockedAt && <EntwurfAktionen p={p} name={name} aktion={aktion} />}
       {p.lockedAt && !p.storno && !p.gebucht && <Nachbuchen p={p} aktion={aktion} />}
-      {p.lockedAt && !p.storno && <Storno p={p} aktion={aktion} />}
+      {p.lockedAt && !p.storno && <Storno p={p} name={name} aktion={aktion} />}
       <NoticeBanner notice={aktion.notice} />
     </section>
   );

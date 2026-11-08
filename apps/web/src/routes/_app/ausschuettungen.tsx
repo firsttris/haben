@@ -380,6 +380,10 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
           <ConfirmDialog
             open={confirming}
             title={`${titel} stornieren?`}
+            facts={[
+              { label: "Zufluss", value: formatDate(a.zufluss) },
+              { label: "Brutto", value: formatEuro(a.brutto), strong: true },
+            ]}
             confirmLabel="Stornieren"
             danger
             onConfirm={() =>
