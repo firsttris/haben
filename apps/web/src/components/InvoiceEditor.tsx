@@ -38,7 +38,7 @@ import {
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
@@ -308,6 +308,12 @@ export function InvoiceEditor({
   const { busy, notice, setNotice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // „Festschreiben“ steht im festen Seitenkopf und lässt sich auch weit unten klicken: die Meldung ins Fenster holen,
+  // sonst bliebe ein Fehler nach dem Dialog unsichtbar (#404)
+  const noticeBanner = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (notice) noticeBanner.current?.scrollIntoView({ block: "nearest" });
+  }, [notice]);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
@@ -672,7 +678,7 @@ export function InvoiceEditor({
           </span>
         </div>
       )}
-      <NoticeBanner notice={notice} />
+      <NoticeBanner notice={notice} ref={noticeBanner} />
 
       <div className="editor-grid">
         <form id="invoice-form" className="stack" onSubmit={onSave}>
