@@ -215,6 +215,24 @@ describe.skipIf(!testDatabaseUrl)("Direkt buchen mit Kategorie und Steuersatz (P
     await keineAbweichung(2026, 8);
   });
 
+  it("Aufteilung in zwei Erlöse zum selben Satz: EÜR rechnet die Steuer je Teil wie Journal und Voranmeldung", async () => {
+    // 2 × 50 € brutto zu 19 %: je Teil 7,98 € Steuer (zusammen 15,96 €); aus 100 € gerechnet wären es 15,97 €
+    await firma("SKR03", "ist");
+    await bank.importStatement(actor, dkbCsv([["14.09.26", "Erika Beispiel", "Zwei Reparaturen", "100,00"]]), null);
+    await bank.allocateSplit(actor, {
+      transactionId: await umsatz(100_00),
+      parts: [
+        { kind: "kategorie", amount: 50_00, kategorie: { kategorie: "erloese", steuersatz: 1900 } },
+        { kind: "kategorie", amount: 50_00, kategorie: { kategorie: "erloese", steuersatz: 1900 } },
+      ],
+    });
+    expect(await salden()).toEqual({ "1200": 100_00, "1776": -15_96, "8400": -84_04 });
+    expect((await figures.computeVatFigures({ year: 2026, month: 9 })).tax81).toBe(15_96);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerpflichtig")?.amount).toBe(84_04);
+    expect(euer.einnahmen.find((l) => l.key === "vereinnahmteUst")?.amount).toBe(15_96);
+  });
+
   it("Kleinunternehmer: Erlöse ohne Umsatzsteuer (§ 19 UStG), ein Steuersatz wird abgelehnt", async () => {
     await firma("SKR03", "ist", true);
     await bank.importStatement(actor, dkbCsv([[heuteDkb, "Erika Beispiel", "Reparatur", "50,00"]]), null);
