@@ -247,7 +247,8 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
   const [run, setRun] = useState<ImportRow | null>(initial);
   const action = useAction();
   const running = run?.status === "laeuft";
-  const [cancelling, setCancelling] = useState(false);
+  // Die Frage gehört zu genau diesem Lauf: Endet er, darf sie beim nächsten nicht von selbst wiederkommen
+  const [cancellingRun, setCancellingRun] = useState<string | null>(null);
 
   useEffect(() => {
     if (!running) return;
@@ -346,14 +347,13 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
         </div>
       )}
       <NoticeBanner notice={action.notice} />
-      {/* Endet der Lauf, während die Frage offen steht, gibt es nichts mehr abzubrechen */}
       <ConfirmDialog
-        open={cancelling && running}
+        open={running && cancellingRun === run?.id}
         title="Abruf abbrechen?"
         confirmLabel="Abruf abbrechen"
         danger
         onConfirm={() => run && void action.run(() => cancel({ data: { id: run.id } }))}
-        onClose={() => setCancelling(false)}
+        onClose={() => setCancellingRun(null)}
       >
         <p>
           Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal.
@@ -361,7 +361,7 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
       </ConfirmDialog>
       <div className="actions">
         {running ? (
-          <button type="button" className="btn" disabled={action.busy} onClick={() => setCancelling(true)}>
+          <button type="button" className="btn" disabled={action.busy} onClick={() => setCancellingRun(run?.id ?? null)}>
             Abbrechen
           </button>
         ) : (
