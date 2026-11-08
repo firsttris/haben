@@ -496,6 +496,19 @@ Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau b
 
 Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Der Titel nennt das Ergebnis, nicht den Anlass. Vor dem Schreiben suchen Agenten auch in den Pull Requests (`gh pr list --state all --search …`), weil Erledigtes oft nur dort steht. Der Ist-Stand wird nach `git fetch origin` auf `origin/main` gelesen, der geprüfte Commit genannt und mit Permalinks (`https://github.com/firsttris/haben/blob/<commit>/<pfad>#L<n>`) belegt. Gibt es das Thema schon, bekommt der Nutzer den Fund gemeldet; ein Issue entsteht nur zum fehlenden Teil. Ein Issue, das ein Agent geschrieben hat (außer einer bloßen Korrektur), endet nach einer Trennlinie mit dem Hinweis auf das Werkzeug, z. B. `_Generated with [Claude Code](https://claude.com/claude-code)_`. Anlegen und Kommentieren tut ein Agent nur auf Anweisung des Nutzers; beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`), weitere Labels und den Platz in der Roadmap setzt der Maintainer.
 
+Neben dem Typ gibt es diese Labels:
+
+| Label | Bedeutung |
+| --- | --- |
+| `oberfläche` | Bedienung, Layout, Handy-Ansicht |
+| `buchung` | Konten, Buchungsabläufe, offene Posten, DATEV-Konten |
+| `schnittstelle` | REST-API, MCP, Connectoren, laufende Importe |
+| `technik` | Abhängigkeiten, CI, Werkzeuge fürs Projekt |
+| `doku` | Dokumentation (`docs/`, Website) |
+| `sammlung` | Sammel-Issue zum Nachverfolgen |
+| `jahreswerte` | Befund des Workflows „Jahreswerte prüfen“ |
+| `rückmeldung` | Umgesetzt und veröffentlicht; das Issue bleibt offen, bis der Ersteller bestätigt, dass nichts fehlt |
+
 ### Review
 
 Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit Claude Code gibt es dafür den Skill `tdd-review` (`.claude/skills/tdd-review/SKILL.md`); mit anderen Werkzeugen gelten dieselben Schritte:
