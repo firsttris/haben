@@ -26,6 +26,7 @@ import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
+import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
 import { ContactDialog } from "../../../components/ContactDialog.tsx";
@@ -220,6 +221,7 @@ function DocumentPage() {
           </span>
         </div>
       ))}
+      <IbanCheck documentId={doc.id} check={data.ibanCheck} canDecide={inhaber} />
       {geprueft && doc.status === "gebucht" && (
         <div className="banner banner-ok" role="status">
           <Icon name="check" />
