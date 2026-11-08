@@ -1228,7 +1228,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
     await page.getByLabel("Kategorie").selectOption("telefon");
     await page.getByLabel("Privat bezahlt (Privateinlage)").check();
     await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-    await page.getByRole("button", { name: "Jetzt buchen" }).click();
+    await bestaetigen(page, "Buchen");
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
   }
@@ -1250,7 +1250,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   // Nichts ist gebucht, bis bestätigt wird
   await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeHidden();
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await page.waitForLoadState("networkidle");
   await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
 });
