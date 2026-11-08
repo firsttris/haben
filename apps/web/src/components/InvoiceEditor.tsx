@@ -608,12 +608,12 @@ export function InvoiceEditor({
         {quote ? (
           <>
             <p>Das Angebot bekommt sein PDF. Gebucht wird nichts.</p>
-            <p>Danach ist es nicht mehr änderbar; für ein geändertes Angebot kopierst du es.</p>
+            <p>Danach ist das Angebot nicht mehr änderbar; für ein geändertes kopierst du es.</p>
           </>
         ) : (
           <>
             <p>PDF und XML werden erzeugt und gebucht.</p>
-            <p>Danach ist sie nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
+            <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
           </>
         )}
       </ConfirmDialog>
