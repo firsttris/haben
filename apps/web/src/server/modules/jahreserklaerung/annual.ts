@@ -8,7 +8,6 @@ import {
   type Prognose,
   type EuerResult,
   type ExpenseCategory,
-  formatEuro,
   type PauschaleArt,
   frequencyAt,
   homeofficeSatz,
@@ -175,11 +174,9 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
 const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhrumsatzsteuer">, EuerFigureKey> = {
   software: "edv",
   edv: "edv",
-  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150). Die
-  // ELSTER-Feldkennungen dieser Zeilen sind nicht am ERiC-Schema belegt; bis dahin übrige Betriebsausgaben mit Hinweis
-  // (OHNE_EIGENE_ZEILE)
-  reparatur: "uebrige",
-  miete: "uebrige",
+  // Anlage EÜR 2025: Erhaltungsaufwendungen (Zeile 48, Kz 225) und Miete/Pacht für Geschäftsräume (Zeile 39, Kz 150)
+  reparatur: "erhaltung",
+  miete: "miete",
   hardware: "gwg",
   telefon: "telekommunikation",
   internet: "telekommunikation",
@@ -213,12 +210,6 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhru
   versorgungskassen: "personal",
   sonstiges: "uebrige",
 };
-
-/** Kategorien, deren amtliche Zeile Haben noch nicht übermittelt: Zeile und Kennzahl im Vordruck der Anlage EÜR 2025 */
-const OHNE_EIGENE_ZEILE = [
-  ["miete", "Miete für Geschäftsräume", "Zeile 39", "Kz 150"],
-  ["reparatur", "Reparatur und Instandhaltung", "Zeile 48", "Kz 225"],
-] as const satisfies readonly (readonly [ExpenseCategory, string, string, string])[];
 
 /** Pauschalen ohne Beleg: Homeoffice als Tagespauschale, Fahrten als Nutzungseinlage, Verpflegung als beschränkt abziehbar */
 const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
@@ -323,8 +314,6 @@ export interface EuerYear {
   lohnUmJahreswechsel: number;
   /** Umsatzsteuer früherer Jahre um den Jahreswechsel, siehe umsatzsteuerVorjahreUmJahreswechsel */
   ustUmJahreswechsel: number;
-  /** Beträge der Kategorien ohne eigene Zeile in der Übermittlung (OHNE_EIGENE_ZEILE), mit Bezeichnung */
-  ohneEigeneZeile: { label: string; zeile: string; kz: string; amount: Cents }[];
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
@@ -351,21 +340,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  const ohneEigeneZeile = OHNE_EIGENE_ZEILE.map(([category, label, zeile, kz]) => ({
-    label,
-    zeile,
-    kz,
-    amount: euer.ausgaben.find((l) => l.key === `ausgabe:${category}`)?.amount ?? 0,
-  })).filter((z) => z.amount !== 0);
-  return {
-    figures,
-    ...euerTotals(figures),
-    anlagen,
-    pendingAssets: assets.filter((a) => a.pending).length,
-    lohnUmJahreswechsel,
-    ustUmJahreswechsel,
-    ohneEigeneZeile,
-  };
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel, ustUmJahreswechsel };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -386,15 +361,6 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
       tone: "hinweis",
       text: `${data.lohnUmJahreswechsel === 1 ? "Eine Lohnzahlung liegt" : `${data.lohnUmJahreswechsel} Lohnzahlungen liegen`} zwischen 22. Dezember und 10. Januar. Regelmäßig wiederkehrende Ausgaben gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG), etwa die Lohnsteuer für Dezember. Haben zählt sie am Tag der Zahlung; prüfe die Zuordnung mit der Steuerberatung.`,
       link: "/bank",
-    });
-  }
-  if (data.ohneEigeneZeile.length > 0) {
-    const [erste, ...weitere] = data.ohneEigeneZeile;
-    const betrag = (z: typeof erste) => `${z!.label} (${formatEuro(z!.amount)})`;
-    const rest = weitere.map((z) => `, ${betrag(z)} in ${z.zeile} (${z.kz})`).join("");
-    issues.push({
-      tone: "hinweis",
-      text: `${betrag(erste)} gehört in ${erste!.zeile} der Anlage EÜR (${erste!.kz})${rest}. Haben überträgt ${weitere.length > 0 ? "beides" : "den Betrag"} vorerst mit den übrigen Betriebsausgaben (Zeile 60); Gewinn und Summen stimmen. Willst du die Zeilen genau haben, trage die Beträge im ELSTER-Portal um.`,
     });
   }
   if (data.ustUmJahreswechsel > 0) {

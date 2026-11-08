@@ -288,6 +288,9 @@ export interface EuerFigures {
   kfzLeasing?: Cents;
   kfzSteuerVersicherung?: Cents;
   kfzSonstige?: Cents;
+  /** Zeile 39 (Kz 150) und Zeile 48 (Kz 225) */
+  miete?: Cents;
+  erhaltung?: Cents;
   /** Fahrten mit dem Privatfahrzeug (Kilometersatz), als Nutzungseinlage */
   fahrtNutzungseinlage?: Cents;
   // Entnahmen und Einlagen (Einzelunternehmen)
@@ -304,10 +307,12 @@ export const EUER_AUSGABEN = [
   "gwg",
   "sammelposten",
   "restbuchwert",
+  "miete",
   "telekommunikation",
   "reisekosten",
   "fortbildung",
   "beratung",
+  "erhaltung",
   "beitraegeVersicherungen",
   "edv",
   "arbeitsmittel",
@@ -373,6 +378,10 @@ export const EUER_FIELDS: Record<
   kfzLeasing: { kz: "E6005801", label: "Leasingkosten für Kraftfahrzeuge" },
   kfzSteuerVersicherung: { kz: "E6005903", label: "Steuern, Versicherungen und Maut für Kraftfahrzeuge" },
   kfzSonstige: { kz: "E6006003", label: "Sonstige tatsächliche Fahrtkosten ohne AfA und Zinsen" },
+  // Schema E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0: /EUER/BAus/Raumkosten_u_sonst/Miete_Pacht/Sum/E6003201
+  // (Zeile 39, Kz 150) und /EUER/BAus/Sonst_unbeschraenkt/Erhaltungsaufwand/Sum/E6004313 (Zeile 48, Kz 225)
+  miete: { kz: "E6003201", label: "Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke" },
+  erhaltung: { kz: "E6004313", label: "Erhaltungsaufwendungen (z. B. Instandhaltung, Wartung, Reparatur; ohne solche für Gebäude und Kfz)" },
   // Kennungen und Reihenfolge wie im EÜR-Formular 2025 von EasyCash&Tax, das ECTElster in dieser Reihenfolge übermittelt
   geschenke: { kz: "E6004002", label: "Geschenke (abziehbar)" },
   bewirtung: { kz: "E6004102", label: "Bewirtungsaufwendungen (abziehbar)" },
@@ -624,6 +633,8 @@ export function buildEuerXml(input: EuerXmlInput): string {
               ],
             ],
           ],
+          // Zeile 39; im Schema zwischen AfA und den sonstigen unbeschränkt abziehbaren Betriebsausgaben
+          ["Raumkosten_u_sonst", [sumNode("Miete_Pacht", kz("miete"), f.miete)]],
           [
             "Sonst_unbeschraenkt",
             [
@@ -631,6 +642,8 @@ export function buildEuerXml(input: EuerXmlInput): string {
               sumNode("Auswertstaetigkeit", kz("reisekosten"), f.reisekosten),
               sumNode("Fortbildung", kz("fortbildung"), f.fortbildung),
               sumNode("Rechtsberatung_StB_Buchf", kz("beratung"), f.beratung),
+              // Zeile 48; im Schema nach Miete/Leasing beweglicher Wirtschaftsgüter, vor den Beiträgen
+              sumNode("Erhaltungsaufwand", kz("erhaltung"), f.erhaltung),
               sumNode("Beitrag_Gebuehr_Abgabe_Versicherung", kz("beitraegeVersicherungen"), f.beitraegeVersicherungen),
               sumNode("EDV", kz("edv"), f.edv),
               sumNode("Arbeitsmittel", kz("arbeitsmittel"), f.arbeitsmittel),

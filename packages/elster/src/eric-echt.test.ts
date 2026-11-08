@@ -177,6 +177,9 @@ const anlagen = (year: number): AveuerAnlage[] => [
 ];
 /** Alle Felder der EÜR, die Haben füllt; AfA, Sammelposten und Restbuchwert passend zu den Anlagen oben */
 const alleEuerFelder: EuerFigures = {
+  // Zeilen 39 und 48 (#312)
+  miete: 1_200_000,
+  erhaltung: 30_000,
   steuerpflichtig: 8_000_000,
   steuerfrei: 1_000_000,
   vereinnahmteUst: 1_577_000,
