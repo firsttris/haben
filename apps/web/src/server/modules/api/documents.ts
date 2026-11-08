@@ -120,7 +120,9 @@ async function existing(id: string, reference: DocumentReference | null, request
 export async function createDocumentHandler(request: ApiRequest): Promise<ApiResult> {
   const input = validate(documentUploadSchema, request.body);
   if ("failure" in input) return input.failure;
-  const { datei, note, externalSource, externalId } = input.data;
+  const { note, externalSource, externalId } = input.data;
+  // Genau eines der beiden Felder ist gesetzt (documentUploadSchema)
+  const datei = (input.data.datei ?? input.data.file)!;
   const filename = datei.name || "beleg";
   // Vor dem Einlesen, wie beim Upload in Haben
   if (datei.size > MAX_DOCUMENT_SIZE) return fail("payload_too_large", `${filename}: größer als ${MAX_DOCUMENT_SIZE / 1024 / 1024} MB.`);

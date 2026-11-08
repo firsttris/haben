@@ -86,7 +86,8 @@ function parameters(route: ApiRoute) {
 function requestBody(route: ApiRoute, schema: string) {
   if (!route.multipartLimit) return { required: true, content: { "application/json": { schema: { $ref: REF(schema) } } } };
   // Welche Dateien Haben annimmt; erkannt wird am Inhalt, der angegebene Typ ist nur ein Hinweis
-  const encoding = { datei: { contentType: DOCUMENT_MEDIA_TYPES.join(", ") } };
+  const contentType = DOCUMENT_MEDIA_TYPES.join(", ");
+  const encoding = { datei: { contentType }, file: { contentType } };
   return { required: true, content: { "multipart/form-data": { schema: { $ref: REF(schema) }, encoding } } };
 }
 
