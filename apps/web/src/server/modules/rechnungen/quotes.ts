@@ -45,7 +45,8 @@ import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-coun
 import { quoteDraftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 import { removeFiles, unusedFiles } from "./attachment-store.ts";
-import { copyQuoteAttachments, quoteAttachmentFiles } from "./quote-attachments.ts";
+import { attachStoredToQuote, copyQuoteAttachments, quoteAttachmentFiles } from "./quote-attachments.ts";
+import { listQuoteDefaultAttachments } from "./quote-default-attachments.ts";
 import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema, referencesFromQuote } from "./order-references.ts";
 import { defaultSkonto } from "./skonto.ts";
@@ -196,9 +197,15 @@ async function insertQuoteDraft(tx: Tx, parsed: z.output<typeof quoteDraftSchema
   return quote!;
 }
 
+/** Neuer Entwurf; er bekommt die Standardanhänge aus den Einstellungen (#415) als eigene Anhänge */
 export async function createQuoteDraft(actor: string, input: QuoteDraftInput): Promise<Quote> {
   const parsed = quoteDraftSchema.parse(input);
-  return withActor(actor, (tx) => insertQuoteDraft(tx, parsed));
+  return withActor(actor, async (tx) => {
+    const quote = await insertQuoteDraft(tx, parsed);
+    // Mit ihrem Zeitpunkt aus den Einstellungen, wie beim Kopieren: so bleibt deren Reihenfolge
+    await attachStoredToQuote(tx, quote.id, await listQuoteDefaultAttachments(tx));
+    return quote;
+  });
 }
 
 /** Sperrt den Entwurf für die Transaktion; auch für seine Anhänge (quote-attachments.ts) */

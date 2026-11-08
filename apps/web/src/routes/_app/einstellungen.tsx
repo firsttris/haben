@@ -28,6 +28,8 @@ import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { NumberingCard } from "../../components/NumberingCard.tsx";
 import { PlanTemplatesCard } from "../../components/PlanTemplatesCard.tsx";
+import { InvoiceAttachments } from "../../components/InvoiceAttachments.tsx";
+import { getQuoteDefaultAttachments } from "../../server/functions/invoice-attachments.ts";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
@@ -82,6 +84,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       customPages,
       zugaenge,
       extraction,
+      quoteDefaultAttachments,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -100,6 +103,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getCustomPages(),
       getZugaenge(),
       getExtractionSettings(),
+      getQuoteDefaultAttachments(),
     ]);
     return {
       ...company,
@@ -120,6 +124,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       customPages,
       zugaenge,
       extraction,
+      quoteDefaultAttachments,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -129,8 +134,24 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge, extraction } =
-    Route.useLoaderData();
+  const {
+    company,
+    numbering,
+    logo,
+    mail,
+    inbox,
+    exportYears,
+    datev,
+    chainHead,
+    backup,
+    mcp,
+    rates,
+    enableBanking,
+    customPages,
+    zugaenge,
+    extraction,
+    quoteDefaultAttachments,
+  } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   // Eine GmbH oder UG zahlt keine Einkommensteuer; die persönlichen Angaben braucht ELSTER dort für Nachrichten und Postfach
@@ -168,6 +189,7 @@ function SettingsPage() {
                 date={numbering.invoice.date}
               />
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
+              <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
               <LogoCard info={logo} />
               <AccentColorCard color={company.accentColor} />
