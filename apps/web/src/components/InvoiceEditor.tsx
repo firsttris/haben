@@ -51,6 +51,7 @@ import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { ContactDialog } from "./ContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
+import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 import { LineExtras } from "./LineExtras.tsx";
@@ -313,6 +314,7 @@ export function InvoiceEditor({
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
+  const preview = useDocumentPreview();
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
@@ -624,6 +626,7 @@ export function InvoiceEditor({
           </h1>
         </div>
         <div className="actions editor-actions">
+          <PreviewButton preview={preview} />
           <button
             type="button"
             className="btn"
@@ -672,7 +675,41 @@ export function InvoiceEditor({
       )}
       <NoticeBanner notice={notice} />
 
-      <div className="editor-grid">
+      <PreviewLayout
+        preview={preview}
+        label="Vorschau"
+        caption={
+          <>
+            {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
+            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
+          </>
+        }
+        sheet={
+          <InvoicePreview
+            kind={kind}
+            number={nextNumber}
+            issueDate={issueDate || initial.issueDate}
+            dueDate={dueDate}
+            validUntil={quote ? validUntil || null : null}
+            serviceFrom={serviceFrom || null}
+            serviceTo={serviceTo || null}
+            seller={seller}
+            buyer={contact}
+            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
+            discount={discountIssue ? null : discount}
+            plan={planIssue ? [] : planPreview}
+            intro={intro}
+            note={note}
+            priceMode={grossPrices ? "brutto" : "netto"}
+            taxNote={treatmentNote(taxTreatment, exemptionReason)}
+            corrects={corrects}
+            title={title}
+            skonto={skonto.stufen}
+            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
+          />
+        }
+      >
         <form id="invoice-form" className="stack" onSubmit={onSave}>
           <section className="card" aria-label={quote ? "Angebotsdaten" : "Rechnungsdaten"}>
             <div className="form-grid">
@@ -1241,37 +1278,7 @@ export function InvoiceEditor({
             </div>
           )}
         </form>
-
-        <section aria-label="Vorschau" className="stack" style={{ gap: 8 }}>
-          <div className="small muted">
-            Vorschau · {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
-            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
-          </div>
-          <InvoicePreview
-            kind={kind}
-            number={nextNumber}
-            issueDate={issueDate || initial.issueDate}
-            dueDate={dueDate}
-            validUntil={quote ? validUntil || null : null}
-            serviceFrom={serviceFrom || null}
-            serviceTo={serviceTo || null}
-            seller={seller}
-            buyer={contact}
-            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
-            discount={discountIssue ? null : discount}
-            plan={planIssue ? [] : planPreview}
-            intro={intro}
-            note={note}
-            priceMode={grossPrices ? "brutto" : "netto"}
-            taxNote={treatmentNote(taxTreatment, exemptionReason)}
-            corrects={corrects}
-            title={title}
-            skonto={skonto.stufen}
-            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
-            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
-          />
-        </section>
-      </div>
+      </PreviewLayout>
     </>
   );
 }
