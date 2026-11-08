@@ -77,9 +77,9 @@ Skill `checks` has the details:
 - One feature per pull request; it carries only its own commits. Skill `beitrag` has the steps from branch
   to draft.
 - Branch in `firsttris/haben` with write access, otherwise in a fork; never push to `main`. Pull requests
-  start as drafts when the user wants to look first; CI skips drafts until "Ready for review", and never
-  runs for a pull request that only touches Markdown, `docs/` or `LICENSE` (`paths-ignore`): build the docs
-  locally then.
+  start as drafts when the user wants to look first; CI skips drafts until "Ready for review". For a pull request
+  that only touches Markdown, `docs/` or `LICENSE`, the job `changes` in `ci.yml` skips the other jobs, which
+  counts as passed for the required checks but tests nothing: build the docs locally then.
 - Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
   Commits inside a pull request: Conventional Commits types with a German description
   (`fix(belege): …`, `test: …`). A recommendation, no lint.

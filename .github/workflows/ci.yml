@@ -1,6 +1,8 @@
 name: CI
 
-# Changes to documentation alone don't build.
+# Reine Doku-Änderungen bauen nicht. Auf main filtert paths-ignore. Für Pull Requests geht das nicht: Ohne Lauf
+# bleiben die auf main geforderten Checks „Pending“ und blockieren den Merge (GitHub-Doku „Troubleshooting required
+# status checks“, „Handling skipped but required checks“). Dort überspringt deshalb der Job changes die Prüfungen.
 on:
   push:
     branches: [main]
@@ -10,10 +12,6 @@ on:
       - "LICENSE"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "LICENSE"
   # Der Release-Workflow lässt vor dem Veröffentlichen dieselben Prüfungen laufen.
   workflow_call:
 
@@ -27,10 +25,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Stellt fest, ob ein Pull Request nur Markdown, docs/ oder LICENSE ändert. Ein Job, der per if übersprungen wird,
+  # zählt für die Regeln auf main als Erfolg, auch wenn er nur wegen eines fehlgeschlagenen needs-Jobs ausfällt. Darum
+  # steht in jedem Job !cancelled() und der Vergleich mit 'false': Läuft changes nicht (push, Release, Entwurf) oder
+  # schlägt fehl, ist die Ausgabe leer und die Prüfungen laufen
+  changes:
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      # Der Merge-Commit des Pull Requests und sein erster Elternteil, die Basis
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: filter
+        run: |
+          set -euo pipefail
+          # --no-renames: Eine umbenannte Datei zählt mit altem und neuem Pfad, Code wird nicht durch Verschieben zu Doku
+          changed="$(git -c core.quotePath=false diff --no-renames --name-only HEAD^1 HEAD)"
+          printf '%s\n' "$changed"
+          other="$(grep -Ev '\.md$|^docs/|^LICENSE$' <<< "$changed" || true)"
+          if [ -n "$changed" ] && [ -z "$other" ]; then code=false; else code=true; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   # Lint und Typecheck brauchen keine Datenbank; gebaut wird in den Jobs e2e-teil
   check:
     # Draft-Pull-Requests bauen nicht; "Ready for review" startet den Lauf
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,7 +66,8 @@ jobs:
       - run: bun run typecheck
 
   test:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -77,7 +102,8 @@ jobs:
   # app.spec.ts („ablauf“) selbst durch, weil diese Tests auf dessen Daten aufbauen. Gebaut wird in jedem
   # Teil, das läuft parallel und braucht kein Artefakt dazwischen
   e2e-teil:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -138,14 +164,15 @@ jobs:
 
   # Ein Ergebnis für die Regeln auf main (geforderter Check „e2e“), egal in wie viele Teile die Tests zerfallen
   e2e:
-    if: ${{ always() && !github.event.pull_request.draft }}
-    needs: e2e-teil
+    if: ${{ always() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    needs: [changes, e2e-teil]
     runs-on: ubuntu-latest
     steps:
       - run: test "${{ needs.e2e-teil.result }}" = success
 
   kosit:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -194,7 +221,8 @@ jobs:
           if-no-files-found: ignore
 
   container:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -233,7 +261,8 @@ jobs:
 
   # Die Entwicklungsumgebung aus compose.yml im Hauptordner: startet sie, läuft der Dev-Server mit Datenbank
   dev-compose:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -259,7 +288,8 @@ jobs:
         run: docker compose logs
 
   backup:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -318,7 +348,8 @@ jobs:
   # Ein Bestand von postgres:16 (compose.yml bis Haben 0.2) unter dem neuen Backup-Image und danach
   # das automatische Upgrade durch haben-db beim Start, mit der compose.yml der Nutzer
   db-upgrade:
-    if: ${{ !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
