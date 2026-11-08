@@ -30,7 +30,8 @@ export function useDesignDraft(initial: LetterheadDesign = DEFAULT_DESIGN) {
     commit: (sent: LetterheadDesignInput) => {
       setSaved((current) => ({ ...current, ...sent }));
       setChanges(
-        (current) => Object.fromEntries(Object.entries(current).filter(([key, value]) => value !== sent[key as keyof LetterheadDesignInput])) as LetterheadDesignInput,
+        (current) =>
+          Object.fromEntries(Object.entries(current).filter(([key, value]) => value !== sent[key as keyof LetterheadDesignInput])) as LetterheadDesignInput,
       );
     },
   };
