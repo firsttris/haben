@@ -63,6 +63,18 @@ describe("Referenzen in der E-Rechnung", () => {
     expect(xml).not.toMatch(/OrderReference|OrderReferencedDocument|DespatchDocumentReference|DespatchAdviceReferencedDocument/);
   });
 
+  // XML 1.0 erlaubt keine Steuerzeichen außer Tab, LF und CR (W3C XML 1.0, Production [2] Char); die übrigen
+  // Felder filtert withoutInvalidXmlChars, die Referenzen im CII setzt der Post-Processor danach ein
+  it.each(FORMATS)("schreibt keine in XML verbotenen Steuerzeichen aus den Referenzen (%s)", async (format) => {
+    const { xml } = await buildEInvoice({
+      ...sampleDocument({ format }),
+      references: { buyerOrder: "4500\u000712345", sellerOrder: "AN-2026\u0001-007", despatchAdvice: "LS-\u001B0815" },
+    });
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
+    expect(xml).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/);
+    for (const value of ["450012345", "AN-2026-007", "LS-0815"]) expect(xml).toContain(`>${value}<`);
+  });
+
   it("schreibt die Referenzen auch in Storno und Korrektur (Gutschrift)", async () => {
     const { xml } = await buildEInvoice({ ...sampleDocument({ kind: "storno", format: "xrechnung-ubl" }), references });
     expect(xml).toContain("<CreditNote ");
