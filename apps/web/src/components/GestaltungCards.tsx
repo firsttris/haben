@@ -14,8 +14,9 @@ export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesi
 
   const onSave = () =>
     run(async () => {
-      await save({ data: draft.changes });
-      draft.commit();
+      const sent = draft.changes;
+      await save({ data: sent });
+      draft.commit(sent);
     }, "Gespeichert. Gilt für alles, was ab jetzt erzeugt wird.");
 
   return (
