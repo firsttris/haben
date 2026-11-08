@@ -55,8 +55,8 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
   });
 
   /** E-Rechnung mit IBAN DE0212…, gebucht, mit dem Kontakt als Lieferant */
-  async function bookedEInvoice(contactId: string | null) {
-    const { id } = await documents.uploadDocument(actor, { bytes: einvoice(), filename: "RE-2026-0815.xml" });
+  async function bookedEInvoice(contactId: string | null, bytes = einvoice()) {
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: "RE-2026-0815.xml" });
     await documents.updateDocument(actor, id, {
       supplierName: "Netzwerk Hosting GmbH",
       supplierUstId: "DE987654321",
@@ -227,6 +227,18 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
     ).rejects.toThrow("Am Beleg hängt kein Kontakt");
     await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN });
     expect(await candidate(id)).toMatchObject({ iban: RECHNUNG_IBAN, problem: null });
+  });
+
+  it("keine IBAN in der E-Rechnung (BT-84 nur eine Kontonummer): kommt nicht in den Kontakt, den das Kontaktformular sonst nicht mehr speichert", async () => {
+    // BT-84 „Payment account identifier“ muss keine IBAN sein; @haben/einvoice übernimmt den Wert ungeprüft
+    const kaputt = new TextEncoder().encode(new TextDecoder().decode(einvoice()).replace("DE02 1203 0000 0000 2020 51", "0000202051"));
+    const contact = await contacts.createContact(actor, contactInput(""));
+    const id = await bookedEInvoice(contact.id, kaputt);
+    await expect(
+      bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: "0000202051", auchInKontakt: true }),
+    ).rejects.toThrow();
+    const [kontakt] = await sql`select iban from contacts where id = ${contact.id}`;
+    expect(kontakt!.iban).toBe("");
   });
 
   it("bestätigen erst am gebuchten Beleg", async () => {
