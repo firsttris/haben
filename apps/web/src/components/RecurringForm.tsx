@@ -24,6 +24,7 @@ import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
+import { LineAmount, LineCell } from "./LineCell.tsx";
 import { Icon } from "./Icon.tsx";
 
 type Rate = 1900 | 700 | 0;
@@ -330,11 +331,11 @@ export function RecurringForm({
           contactId={contactId || null}
         />
         <div className="line-row head" aria-hidden="true">
-          <div>Menge</div>
+          <div className="num">Menge</div>
           <div>Einheit</div>
-          <div>Einzelpreis</div>
+          <div className="num">Einzelpreis</div>
           <div>USt</div>
-          <div style={{ textAlign: "right" }}>{amountLabel}</div>
+          <div className="num">{amountLabel}</div>
           <div />
         </div>
         {lines.map((line, index) => {
@@ -369,52 +370,62 @@ export function RecurringForm({
                 maxLength={LINE_DETAIL_MAX}
                 onChange={(e) => updateLine(line.key, { detail: e.target.value })}
               />
-              <input
-                className="num"
-                inputMode="decimal"
-                aria-label={`Menge Position ${index + 1}`}
-                value={line.quantity}
-                onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                aria-invalid={parseQuantity(line.quantity) === null}
-              />
-              <select
-                aria-label={`Einheit Position ${index + 1}`}
-                value={line.unit}
-                onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-              >
-                {Object.keys(UNITS).map((unit) => (
-                  <option key={unit}>{unit}</option>
-                ))}
-              </select>
-              <input
-                className="num"
-                inputMode="decimal"
-                aria-label={`Einzelpreis Position ${index + 1} in Euro`}
-                value={line.unitPrice}
-                placeholder="0,00"
-                onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
-                aria-invalid={parseEuro(line.unitPrice) === null}
-              />
-              <select
-                aria-label={`Steuersatz Position ${index + 1}`}
-                value={special ? 0 : line.taxRate}
-                disabled={special}
-                onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) as Rate })}
-              >
-                <option value={1900}>19 %</option>
-                <option value={700}>7 %</option>
-                <option value={0}>0 %</option>
-              </select>
-              <div className="num line-net">{p.valid ? formatEuro(lineAmount(p.quantity, p.unitPrice)) : "–"}</div>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Position ${index + 1} entfernen`}
-                disabled={lines.length === 1}
-                onClick={() => setLines((prev) => prev.filter((l) => l.key !== line.key))}
-              >
-                <Icon name="close" size={16} />
-              </button>
+              <LineCell label="Menge">
+                <input
+                  className="num"
+                  inputMode="decimal"
+                  aria-label={`Menge Position ${index + 1}`}
+                  value={line.quantity}
+                  onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
+                  aria-invalid={parseQuantity(line.quantity) === null}
+                />
+              </LineCell>
+              <LineCell label="Einheit">
+                <select
+                  aria-label={`Einheit Position ${index + 1}`}
+                  value={line.unit}
+                  onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
+                >
+                  {Object.keys(UNITS).map((unit) => (
+                    <option key={unit}>{unit}</option>
+                  ))}
+                </select>
+              </LineCell>
+              <LineCell label="Einzelpreis">
+                <input
+                  className="num"
+                  inputMode="decimal"
+                  aria-label={`Einzelpreis Position ${index + 1} in Euro`}
+                  value={line.unitPrice}
+                  placeholder="0,00"
+                  onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
+                  aria-invalid={parseEuro(line.unitPrice) === null}
+                />
+              </LineCell>
+              <LineCell label="USt">
+                <select
+                  aria-label={`Steuersatz Position ${index + 1}`}
+                  value={special ? 0 : line.taxRate}
+                  disabled={special}
+                  onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) as Rate })}
+                >
+                  <option value={1900}>19 %</option>
+                  <option value={700}>7 %</option>
+                  <option value={0}>0 %</option>
+                </select>
+              </LineCell>
+              <LineAmount label={amountLabel}>{p.valid ? formatEuro(lineAmount(p.quantity, p.unitPrice)) : "–"}</LineAmount>
+              <div className="line-actions">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Position ${index + 1} entfernen`}
+                  disabled={lines.length === 1}
+                  onClick={() => setLines((prev) => prev.filter((l) => l.key !== line.key))}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
             </div>
           );
         })}

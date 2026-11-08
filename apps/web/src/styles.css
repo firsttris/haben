@@ -503,30 +503,41 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
   .doc-editor textarea { min-height: 56px; }
   .doc-editor .doc-actions { position: sticky; bottom: 0; z-index: 1; margin-top: auto; padding: 12px 0 2px; background: var(--ground); border-top: 1px solid var(--line); }
 }
-/* Position: Beschreibung über die volle Breite, darunter die Zahlen */
-.line-row { display: grid; grid-template-columns: minmax(52px, 0.7fr) minmax(72px, 0.9fr) minmax(0, 1.3fr) minmax(64px, 0.8fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
-/* Artikelnummer (BT-155) als schmales Feld vor der Bezeichnung, wie die Spalte „Art.-Nr.“ im PDF */
+/* Position: Art.-Nr. und Bezeichnung, darunter der Text, dann die Zahlen in festen Spalten unter der Kopfzeile.
+   Die Spalte der Knöpfe hat eine feste Breite, damit Kopfzeile (ohne Knöpfe) und Positionen dieselben Spalten haben. */
+.line-row { --line-actions-w: 88px; display: grid; grid-template-columns: minmax(64px, 0.7fr) minmax(80px, 0.9fr) minmax(0, 1.2fr) minmax(76px, 0.8fr) minmax(0, 1fr) var(--line-actions-w); gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.line-row.with-discount { grid-template-columns: minmax(64px, 0.6fr) minmax(80px, 0.8fr) minmax(0, 1fr) minmax(64px, 0.8fr) minmax(76px, 0.7fr) minmax(0, 1fr) var(--line-actions-w); }
+/* Artikelnummer (BT-155) als schmales Feld vor der Bezeichnung, wie die Spalte „Art.-Nr.“ im PDF; im Angebot die Art dahinter */
 .line-row > .line-title { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr); gap: 8px; }
-.line-row > .line-detail { grid-column: 1 / -1; padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 13px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
+.line-row > .line-title.with-kind { grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr) minmax(11em, 16em); }
+.line-row > .line-detail { grid-column: 1 / -1; min-height: var(--control-h); padding: 9px 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
 .line-row input, .line-row select { min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; }
-.line-row input.num { font-family: var(--mono); }
+/* Zahlen in der Schrift des Formulars, rechtsbündig mit gleich breiten Ziffern */
+.line-row input.num { font-family: var(--sans); font-size: 14px; font-variant-numeric: tabular-nums; }
 .line-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
-.line-net-label { display: none; }
-.line-row.head { padding: 0; border-top: 0; font-size: 13px; color: var(--muted); }
+.line-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.line-cell-label { display: none; font-size: 13px; font-weight: 400; color: var(--muted); }
+.line-row > .line-net { align-items: flex-end; padding: 0 9px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.line-row.head { padding: 0 0 6px; border-top: 0; font-size: 13px; color: var(--muted); }
+/* Kopfzeile bündig mit dem Text in den Feldern: Rand (1px) und Innenabstand (8px) */
+.line-row.head > div { padding: 0 9px; }
+.line-row.head > .num { text-align: right; font-family: var(--sans); font-size: 13px; }
 .icon-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn:hover:not(:disabled) { color: var(--danger-ink); border-color: var(--danger-ink); }
 .icon-btn:disabled { opacity: 0.4; cursor: default; }
 .icon-btn-plain:hover:not(:disabled) { color: var(--ink); border-color: var(--line-strong); }
 .line-actions { display: flex; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) {
-  /* Handy: Beschreibung, dann Menge | Einheit, Einzelpreis | USt, Netto | Entfernen */
-  .line-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  /* Betrag in derselben Schrift wie seine Bezeichnung, Ziffern gleich breit */
-  .line-row > .line-net { grid-column: 1; text-align: left; font-family: var(--sans); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .line-row .line-net-label { display: inline; color: var(--muted); font-size: 13px; font-weight: 400; margin-right: 4px; }
-  .line-row > .line-actions { justify-self: end; }
+  /* Handy: zwei Spalten, jedes Feld mit seinem Namen darüber; der Betrag sieht aus wie die Felder daneben */
+  .line-row, .line-row.with-discount { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 10px; }
   .line-row.head { display: none; }
-  .line-row > .line-title { grid-template-columns: 6.5em minmax(0, 1fr); }
+  .line-cell-label { display: block; }
+  .line-row > .line-net { align-items: stretch; padding: 0; }
+  .line-net-value { display: flex; align-items: center; min-height: var(--control-h); }
+  .line-row > .line-actions { align-self: end; }
+  .line-row.with-discount > .line-actions { grid-column: 1 / -1; }
+  .line-row > .line-title, .line-row > .line-title.with-kind { grid-template-columns: 6.5em minmax(0, 1fr); }
+  .line-row > .line-title.with-kind > .line-kind { grid-column: 1 / -1; }
 }
 textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); background-color: var(--surface); resize: vertical; min-height: 72px; }
 
@@ -790,17 +801,6 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
-/* Zusatzangaben einer Position: Rabatt und im Angebot die Art */
-.line-row > .line-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.line-extra label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.line-extra input { width: 11.5em; }
-.line-row .line-extra select { width: auto; }
-@media (max-width: 720px) {
-  /* Handy: Bezeichnungen (Art.-Nr., Rabatt, Art) in einer Spalte, die Felder bündig daneben über die übrige Breite */
-  .line-row > .line-extra { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 10px; }
-  .line-extra label { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
-  .line-extra input, .line-row .line-extra select { width: 100%; }
-}
 @media (max-width: 720px) {
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }

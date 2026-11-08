@@ -55,7 +55,8 @@ import type { SavedContact } from "./ContactForm.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
-import { LineExtras } from "./LineExtras.tsx";
+import { LineAmount, LineCell } from "./LineCell.tsx";
+import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
 import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
@@ -1047,12 +1048,13 @@ export function InvoiceEditor({
               blocks={textBlocks}
               contactId={contactId || null}
             />
-            <div className="line-row head" aria-hidden="true">
-              <div>Menge</div>
+            <div className="line-row with-discount head" aria-hidden="true">
+              <div className="num">Menge</div>
               <div>Einheit</div>
-              <div>Einzelpreis</div>
+              <div className="num">Einzelpreis</div>
+              <div className="num">Rabatt</div>
               <div>USt</div>
-              <div style={{ textAlign: "right" }}>{amountLabel}</div>
+              <div className="num">{amountLabel}</div>
               <div />
             </div>
             {articles.length > 0 && (
@@ -1078,8 +1080,8 @@ export function InvoiceEditor({
                   a.priceIncludesTax === grossPrices,
               );
               return (
-                <div className="line-row" key={line.key}>
-                  <div className="line-title">
+                <div className="line-row with-discount" key={line.key}>
+                  <div className={quote ? "line-title with-kind" : "line-title"}>
                     <input
                       className="line-item"
                       placeholder="Art.-Nr."
@@ -1100,6 +1102,7 @@ export function InvoiceEditor({
                       onBlur={() => markTouched(line.key)}
                       aria-invalid={showError(line.key) && line.description.trim() === ""}
                     />
+                    {quote && <LineKind index={index} kind={line.kind} onKind={(value) => updateLine(line.key, { kind: value })} />}
                   </div>
                   <textarea
                     className="line-detail"
@@ -1110,49 +1113,65 @@ export function InvoiceEditor({
                     maxLength={LINE_DETAIL_MAX}
                     onChange={(e) => updateLine(line.key, { detail: e.target.value })}
                   />
-                  <input
-                    className="num"
-                    inputMode="decimal"
-                    aria-label={`Menge Position ${index + 1}`}
-                    placeholder="Menge"
-                    value={line.quantity}
-                    onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                    onBlur={() => markTouched(line.key)}
-                    aria-invalid={showError(line.key) && parseQuantity(line.quantity) === null}
-                  />
-                  <select
-                    aria-label={`Einheit Position ${index + 1}`}
-                    value={line.unit}
-                    onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
-                  >
-                    {Object.keys(UNITS).map((unit) => (
-                      <option key={unit}>{unit}</option>
-                    ))}
-                  </select>
-                  <input
-                    className="num"
-                    inputMode="decimal"
-                    aria-label={`Einzelpreis Position ${index + 1} in Euro`}
-                    value={line.unitPrice}
-                    placeholder="0,00"
-                    onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
-                    onBlur={() => markTouched(line.key)}
-                    aria-invalid={showError(line.key) && parseEuro(line.unitPrice) === null}
-                  />
-                  <select
-                    aria-label={`Steuersatz Position ${index + 1}`}
-                    value={line.taxRate}
-                    disabled={special}
-                    onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) as 1900 | 700 | 0 })}
-                  >
-                    <option value={1900}>19 %</option>
-                    <option value={700}>7 %</option>
-                    <option value={0}>0 %</option>
-                  </select>
-                  <div className="num line-net">
-                    <span className="line-net-label">{amountLabel} </span>
-                    {p.valid ? formatEuro(discountedLineAmount(p)) : "–"}
-                  </div>
+                  <LineCell label="Menge">
+                    <input
+                      className="num"
+                      inputMode="decimal"
+                      aria-label={`Menge Position ${index + 1}`}
+                      value={line.quantity}
+                      onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
+                      onBlur={() => markTouched(line.key)}
+                      aria-invalid={showError(line.key) && parseQuantity(line.quantity) === null}
+                    />
+                  </LineCell>
+                  <LineCell label="Einheit">
+                    <select
+                      aria-label={`Einheit Position ${index + 1}`}
+                      value={line.unit}
+                      onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
+                    >
+                      {Object.keys(UNITS).map((unit) => (
+                        <option key={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </LineCell>
+                  <LineCell label="Einzelpreis">
+                    <input
+                      className="num"
+                      inputMode="decimal"
+                      aria-label={`Einzelpreis Position ${index + 1} in Euro`}
+                      value={line.unitPrice}
+                      placeholder="0,00"
+                      onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
+                      onBlur={() => markTouched(line.key)}
+                      aria-invalid={showError(line.key) && parseEuro(line.unitPrice) === null}
+                    />
+                  </LineCell>
+                  <LineCell label="Rabatt">
+                    <input
+                      className="num"
+                      value={line.discount}
+                      placeholder="–"
+                      autoComplete="off"
+                      aria-label={`Rabatt Position ${index + 1}, Prozent oder Betrag`}
+                      aria-invalid={showError(line.key) && p.discountError}
+                      onChange={(e) => updateLine(line.key, { discount: e.target.value })}
+                      onBlur={() => markTouched(line.key)}
+                    />
+                  </LineCell>
+                  <LineCell label="USt">
+                    <select
+                      aria-label={`Steuersatz Position ${index + 1}`}
+                      value={line.taxRate}
+                      disabled={special}
+                      onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) as 1900 | 700 | 0 })}
+                    >
+                      <option value={1900}>19 %</option>
+                      <option value={700}>7 %</option>
+                      <option value={0}>0 %</option>
+                    </select>
+                  </LineCell>
+                  <LineAmount label={amountLabel}>{p.valid ? formatEuro(discountedLineAmount(p)) : "–"}</LineAmount>
                   <div className="line-actions">
                     <button
                       type="button"
@@ -1200,15 +1219,6 @@ export function InvoiceEditor({
                       </svg>
                     </button>
                   </div>
-                  <LineExtras
-                    index={index}
-                    discount={line.discount}
-                    discountError={showError(line.key) && p.discountError}
-                    onDiscount={(value) => updateLine(line.key, { discount: value })}
-                    onBlur={() => markTouched(line.key)}
-                    kind={quote ? line.kind : undefined}
-                    onKind={(value) => updateLine(line.key, { kind: value })}
-                  />
                 </div>
               );
             })}
@@ -1253,7 +1263,6 @@ export function InvoiceEditor({
             <label className="field">
               Gesamtrabatt (optional)
               <input
-                className="mono"
                 value={discountText}
                 placeholder="z. B. 5 % oder 100,00"
                 onChange={(e) => touch(setDiscountText)(e.target.value)}

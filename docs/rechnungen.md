@@ -283,7 +283,7 @@ Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag
 
 Einen Nachlass gibst du als **Positionsrabatt** auf einzelne Positionen oder als **Gesamtrabatt** auf alles, wie in Lexware Office. Beides gibt es in Rechnung, Angebot und Auftragsbestätigung.
 
-- **Positionsrabatt:** Im Feld **Rabatt** unter der Position `10 %` oder einen Betrag wie `50,00` eintragen. Der Zeilenbetrag ist danach Menge × Einzelpreis abzüglich Rabatt; Prozent rundet Haben kaufmännisch auf Cent. Ein Betrag darf die Position nicht übersteigen. Anders als Lexware Office kennt Haben auch beim Positionsrabatt einen festen Betrag.
+- **Positionsrabatt:** In der Spalte **Rabatt** der Position (zwischen Einzelpreis und USt) `10 %` oder einen Betrag wie `50,00` eintragen. Der Zeilenbetrag ist danach Menge × Einzelpreis abzüglich Rabatt; Prozent rundet Haben kaufmännisch auf Cent. Ein Betrag darf die Position nicht übersteigen. Anders als Lexware Office kennt Haben auch beim Positionsrabatt einen festen Betrag.
 - **Gesamtrabatt:** Unter den Positionen im Feld **Gesamtrabatt** ebenso Prozent oder Betrag. Er gilt für die Summe der Positionen nach ihren Rabatten: erst der Positionsrabatt, dann der Gesamtrabatt.
 - **Netto oder brutto:** Ein Betrag gilt im Preismodus der Rechnung, bei Bruttopreisen also brutto.
 - **Mehrere Steuersätze:** Der Gesamtrabatt teilt sich je Steuersatz auf. Prozent gilt für jeden Satz gleich, ein Betrag im Verhältnis der Summen je Satz; den Rundungsrest trägt der größte Satz. Die Umsatzsteuer rechnet Haben je Satz auf den Betrag nach Rabatt (§ 10 Abs. 1 UStG: Bemessungsgrundlage ist das, was der Kunde aufwendet).
