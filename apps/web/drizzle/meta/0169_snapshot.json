@@ -1,5 +1,5 @@
 {
-  "id": "1ecec169-72de-4d16-8c17-c2d536b784a4",
+  "id": "dc00d6d5-c4de-47e1-8b4a-96a1cef4781a",
   "prevId": "a6dc67b8-d15a-4f79-b7dc-3d38625df58a",
   "version": "7",
   "dialect": "postgresql",
@@ -2785,18 +2785,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "debitor_nr": {
-          "name": "debitor_nr",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kreditor_nr": {
-          "name": "kreditor_nr",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -2842,33 +2830,10 @@
           "columns": [
             "sevdesk_id"
           ]
-        },
-        "contacts_debitor_nr_unique": {
-          "name": "contacts_debitor_nr_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "debitor_nr"
-          ]
-        },
-        "contacts_kreditor_nr_unique": {
-          "name": "contacts_kreditor_nr_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "kreditor_nr"
-          ]
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "contacts_debitor_nr_bereich": {
-          "name": "contacts_debitor_nr_bereich",
-          "value": "\"contacts\".\"debitor_nr\" between 10000 and 69999"
-        },
-        "contacts_kreditor_nr_bereich": {
-          "name": "contacts_kreditor_nr_bereich",
-          "value": "\"contacts\".\"kreditor_nr\" between 70000 and 99999"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.corporate_tax_inputs": {
@@ -3408,7 +3373,7 @@
           "name": "kontakt_iban",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "rechnungs_iban": {
           "name": "rechnungs_iban",
@@ -3478,7 +3443,11 @@
         },
         "document_iban_decisions_abweichend": {
           "name": "document_iban_decisions_abweichend",
-          "value": "\"document_iban_decisions\".\"kontakt_iban\" <> \"document_iban_decisions\".\"rechnungs_iban\""
+          "value": "\"document_iban_decisions\".\"kontakt_iban\" is null or \"document_iban_decisions\".\"kontakt_iban\" <> \"document_iban_decisions\".\"rechnungs_iban\""
+        },
+        "document_iban_decisions_bestaetigt": {
+          "name": "document_iban_decisions_bestaetigt",
+          "value": "\"document_iban_decisions\".\"kontakt_iban\" is not null or \"document_iban_decisions\".\"wahl\" = 'e-rechnung'"
         }
       },
       "isRLSEnabled": false
