@@ -1,3 +1,4 @@
+import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LetterheadDesign, type LayoutRef } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
@@ -9,6 +10,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 /** Größe und Seite des Logos und die Schalter, auch ohne einen Beleg geöffnet zu haben */
 export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesign; logo: string | null }) {
   const draft = useDesignDraft(design);
+  const router = useRouter();
   const save = useServerFn(saveLetterheadDesign);
   const { busy, notice, run } = useAction();
 
@@ -17,6 +19,7 @@ export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesi
       const sent = draft.changes;
       await save({ data: sent });
       draft.commit(sent);
+      await router.invalidate();
     }, "Gespeichert. Gilt für alles, was ab jetzt erzeugt wird.");
 
   return (
@@ -25,7 +28,7 @@ export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesi
       <p className="small muted" style={{ margin: 0 }}>
         Logo als PNG (gern mit transparentem Hintergrund) oder JPEG, bis 1 MB. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
-      <DesignOptionFields design={draft.design} onChange={draft.set} logoUpload={<LogoUpload sha256={logo} />} />
+      <DesignOptionFields design={draft.design} onChange={draft.set} logoUpload={<LogoUpload sha256={logo} onChanged={() => void router.invalidate()} />} />
       <div className="actions">
         <button type="button" className="btn" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
           Speichern

@@ -11,13 +11,14 @@ import {
   type LogoSize,
 } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
+import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { saveLetterheadDesign } from "../server/functions/logo.ts";
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 /** Ungespeicherte Änderungen an der Gestaltung: Die Vorschau zeigt sie sofort, gespeichert wird erst auf Zuruf */
 export function useDesignDraft(initial: LetterheadDesign = DEFAULT_DESIGN) {
-  const [saved, setSaved] = useState(initial);
+  const [saved, setSaved] = useLoadedState(initial);
   const [changes, setChanges] = useState<LetterheadDesignInput>({});
   const design = { ...saved, ...changes };
   return {
@@ -84,7 +85,7 @@ function Segmented<T extends string>({
           key={option.value}
           type="button"
           className="btn btn-sm"
-          aria-label={option.name}
+          title={option.name}
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
         >

@@ -45,6 +45,7 @@ import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
+import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { useRevealWhen } from "../lib/use-page-head.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
@@ -334,7 +335,7 @@ export function InvoiceEditor({
   const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
   const preview = useDocumentPreview();
   const designDraft = useDesignDraft(seller.design);
-  const [logo, setLogo] = useState(seller.logo ?? null);
+  const [logo, setLogo] = useLoadedState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
