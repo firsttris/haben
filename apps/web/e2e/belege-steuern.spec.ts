@@ -1310,11 +1310,14 @@ test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründ
   await expect(panel.getByText("Direkt: Telefon")).toBeHidden();
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();
   await page.waitForLoadState("networkidle");
+  // Danach springt die Auswahl zum nächsten offenen Umsatz; unter „Alle“ steht der gebuchte mit seiner Zuordnung
+  await go("/bank?filter=alle");
   await page
     .getByRole("link", { name: /Prepaid-Aufladung Juli/ })
     .first()
     .click();
   await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Prepaid-Aufladung Juli")).toBeVisible();
   await expect(panel.getByText("Direkt: Telefon")).toBeVisible();
 });
 
