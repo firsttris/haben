@@ -50,7 +50,8 @@ export async function supplierSuggestion(documentId: string): Promise<SupplierSu
         land: seller?.land?.toUpperCase(),
         email: seller?.email,
       }),
-      iban: ibanOf(invoice.iban ?? seller?.iban, "e-rechnung", null),
+      // BT-84 ist das Konto, auf das gezahlt wird (EN 16931); bei einer Gutschrift zahlt der Lieferant, das Konto ist das des Käufers
+      iban: invoice.isCreditNote ? null : ibanOf(invoice.iban ?? seller?.iban, "e-rechnung", null),
     };
   }
   if (doc.extractedBy === "ki") {
