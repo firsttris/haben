@@ -793,6 +793,12 @@ summary { cursor: pointer; min-height: 24px; }
 .line-extra input { width: 9.5em; }
 .line-row .line-extra select { width: auto; }
 @media (max-width: 720px) {
+  /* Handy: Bezeichnungen (Art.-Nr., Rabatt, Art) in einer Spalte, die Felder bündig daneben über die übrige Breite */
+  .line-row > .line-extra { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 10px; }
+  .line-extra label { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
+  .line-extra input, .line-row .line-extra select { width: 100%; }
+}
+@media (max-width: 720px) {
   .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .plan-amount { grid-column: 1 / -1; }
 }
