@@ -46,10 +46,26 @@ neu="$ZIEL/root.neu"
 rm -rf "$neu"
 mkdir "$neu"
 
+# Ein Pull mit --platform setzt den lokalen Tag (klassischer Image-Store von Docker, Podman) auf das amd64-Image. Die
+# App auf diesem Rechner nutzt denselben Tag; ohne Gegenmaßnahme startete sie danach das amd64-Image. Deshalb zeigt der
+# Tag am Ende wieder auf das Image von vorher, und gab es keins, wird der Tag entfernt.
+vorher=$("$ENGINE" image inspect --format '{{.Id}}' "$IMAGE:$VERSION" 2>/dev/null || true)
+container=
+aufraeumen() {
+  if [ -n "$container" ]; then
+    "$ENGINE" rm "$container" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$vorher" ]; then
+    "$ENGINE" tag "$vorher" "$IMAGE:$VERSION" >/dev/null 2>&1 || true
+  else
+    "$ENGINE" rmi "$IMAGE:$VERSION" >/dev/null 2>&1 || true
+  fi
+}
+trap aufraeumen EXIT
+
 echo "Lade $IMAGE:$VERSION für linux/amd64 …"
 "$ENGINE" pull --platform linux/amd64 "$IMAGE:$VERSION" >/dev/null
 container=$("$ENGINE" create --platform linux/amd64 "$IMAGE:$VERSION")
-trap '"$ENGINE" rm "$container" >/dev/null 2>&1 || true' EXIT
 "$ENGINE" export "$container" | tar -x -C "$neu"
 [ -x "$neu/usr/local/bin/bun" ] && [ -f "$neu/app/packages/elster/src/worker.ts" ] || fehler "unerwarteter Aufbau des Images"
 # QEMU (-L) sucht jede Datei zuerst unter root/. Ohne diese Dateien gelten die des Containers (DNS, Hostname).
