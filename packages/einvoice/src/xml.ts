@@ -1,4 +1,4 @@
-import { InvoiceService, type Invoice, type InvoiceServiceOptions, type Logger } from "@e-invoice-eu/core";
+import { InvoiceService, type Invoice, type Logger } from "@e-invoice-eu/core";
 import {
   documentAllowances,
   formatEuro,
@@ -12,7 +12,8 @@ import {
   type Cents,
   type Millis,
 } from "@haben/core";
-import { accountHolder, compactIban, formatDate, invoiceSkonto, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
+import { ciiPostProcessor } from "./cii.ts";
+import { accountHolder, compactIban, formatDate, invoiceSkonto, isCreditNote, paymentSentence, presentReferences, servicePeriod } from "./format.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
@@ -295,6 +296,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     if (treatment === "ig_lieferung") invoice["cac:Delivery"] = deliveryLocation;
   }
 
+  Object.assign(invoice, orderReferences(doc));
+
   const references = [...(doc.corrects ? [doc.corrects] : []), ...(doc.deducted ?? [])];
   if (references.length > 0) {
     invoice["cac:BillingReference"] = references.map((ref) => ({
@@ -329,6 +332,21 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   }
 
   return withoutInvalidXmlChars({ "ubl:Invoice": invoice });
+}
+
+/**
+ * Bestellnummer des Kunden (BT-13) und eigene Auftragsnummer (BT-14) in cac:OrderReference, Lieferschein (BT-16) in
+ * cac:DespatchDocumentReference. cbc:ID ist in cac:OrderReference Pflicht: ohne Bestellnummer steht dort „NA“
+ * (PEPPOL BIS Billing 3.0, cac:OrderReference/cbc:ID). Im CII entfällt das, BT-13 fehlt dann einfach.
+ */
+function orderReferences(doc: InvoiceDocument): Pick<UblInvoice, "cac:OrderReference" | "cac:DespatchDocumentReference"> {
+  const { buyerOrder, sellerOrder, despatchAdvice } = presentReferences(doc.references);
+  return {
+    ...(buyerOrder || sellerOrder
+      ? { "cac:OrderReference": { "cbc:ID": buyerOrder ?? "NA", ...(sellerOrder ? { "cbc:SalesOrderID": sellerOrder } : {}) } }
+      : {}),
+    ...(despatchAdvice ? { "cac:DespatchDocumentReference": { "cbc:ID": despatchAdvice } } : {}),
+  };
 }
 
 /**
@@ -390,22 +408,6 @@ const quietLogger: Logger = {
   error: (message) => console.error(message),
 };
 
-/**
- * CII verlangt ApplicableHeaderTradeDelivery auch ohne Inhalt; e-invoice-eu
- * lässt es bei reinem Leistungszeitraum weg.
- */
-const ensureHeaderTradeDelivery: InvoiceServiceOptions["postProcessor"] = async (data) => {
-  const root = (data as Record<string, Record<string, Record<string, unknown>> | undefined>)["rsm:CrossIndustryInvoice"];
-  const tx = root?.["rsm:SupplyChainTradeTransaction"];
-  if (!root || !tx || "ram:ApplicableHeaderTradeDelivery" in tx) return;
-  const ordered: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(tx)) {
-    if (key === "ram:ApplicableHeaderTradeSettlement") ordered["ram:ApplicableHeaderTradeDelivery"] = {};
-    ordered[key] = value;
-  }
-  root["rsm:SupplyChainTradeTransaction"] = ordered;
-};
-
 let service: InvoiceService | undefined;
 
 function invoiceService(): InvoiceService {
@@ -432,23 +434,23 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
       lang: "de-de",
       pdf: { buffer: visual, filename: `${doc.number}.pdf`, mimetype: "application/pdf" },
       noWarnings: true,
-      postProcessor: ensureHeaderTradeDelivery,
+      postProcessor: ciiPostProcessor(doc.references),
     });
     const xml = typeof pdf === "string" ? null : extractFacturXXml(pdf);
     if (typeof pdf === "string" || !xml) throw new Error("ZUGFeRD-Erzeugung lieferte kein PDF mit factur-x.xml");
     return { xml, pdf };
   }
 
-  const xml = await generateXml(data, SERVICE_FORMATS[doc.format]);
+  const xml = await generateXml(data, SERVICE_FORMATS[doc.format], doc);
   return { xml, pdf: visual };
 }
 
-async function generateXml(data: Invoice, format: string): Promise<string> {
+async function generateXml(data: Invoice, format: string, doc: InvoiceDocument): Promise<string> {
   const result = await invoiceService().generate(structuredClone(data), {
     format,
     lang: "de-de",
     noWarnings: true,
-    postProcessor: ensureHeaderTradeDelivery,
+    postProcessor: ciiPostProcessor(doc.references),
   });
   if (typeof result !== "string") throw new Error(`${format} lieferte kein XML`);
   return result;

@@ -1,7 +1,8 @@
 import { texts, type Language } from "./i18n.ts";
 import { addressLines, footerData, renderQuotePdfData, showsGrossPrices, templateLabels } from "./pdf.ts";
 import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
-import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
+import { referenceMeta } from "./format.ts";
+import type { Buyer, InvoiceDocumentLine, Letterhead, OrderReferences, Seller } from "./types.ts";
 
 /**
  * Auftragsbestätigung und Lieferschein: Begleitdokumente ohne Buchung und ohne E-Rechnung,
@@ -39,6 +40,8 @@ export interface DeliveryNoteDocument extends Letterhead {
   lines: Pick<InvoiceDocumentLine, "position" | "description" | "detail" | "quantity" | "unit">[];
   note?: string;
   language?: Language;
+  /** Bestellnummer des Kunden und eigene Auftragsnummer aus Rechnung bzw. Angebot */
+  references?: OrderReferences;
 }
 
 /** Lieferschein: Positionen mit Menge, ohne Preise, mit Feld für die Empfangsbestätigung */
@@ -51,6 +54,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     { label: doc.reference.kind === "angebot" ? t.quoteRef : t.invoiceRef, value: `${doc.reference.number} (${t.date(doc.reference.issueDate)})` },
   ];
   if (buyer.kundennummer) meta.push({ label: t.customerNumber, value: buyer.kundennummer });
+  meta.push(...referenceMeta(doc.references, t));
   return {
     docTitle: `${t.deliveryNote} ${doc.reference.number}`,
     author: seller.name,
