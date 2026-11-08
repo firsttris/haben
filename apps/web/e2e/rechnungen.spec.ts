@@ -58,7 +58,9 @@ test("DATEV-Personenkonten: Schalter mit Bestätigung, Ablehnung mit Liste, Debi
   await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
   await page.getByLabel("DATEV-Debitor").fill("10001");
   await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByRole("status")).toContainText("Gespeichert.");
+  // Nach dem Speichern baut sich das Formular mit der neuen Version neu auf (key={contact.version}), die Meldung
+  // „Gespeichert.“ geht dabei verloren; gespeichert ist es, sobald die neue Version in der Liste steht
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
 
   await go("/einstellungen?bereich=export");
   await card.getByRole("combobox", { name: "Jahr", exact: true }).selectOption(String(jahr));
