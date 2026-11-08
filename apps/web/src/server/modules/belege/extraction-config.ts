@@ -13,7 +13,11 @@ export type ExtractionConfig =
       apiKey: string | null;
       timeoutMs: number;
       maxPages: number;
+      /** Bei PDFs: Text der Seiten und Bilder, nur Text (reines Textmodell) oder nur Bilder (#329) */
+      input: ExtractionInput;
     };
+
+export type ExtractionInput = "text-und-bild" | "text" | "bild";
 
 type ExtractionEnv = Pick<
   Env,
@@ -24,6 +28,7 @@ type ExtractionEnv = Pick<
   | "EXTRACTION_API_KEY"
   | "EXTRACTION_TIMEOUT_SECONDS"
   | "EXTRACTION_MAX_PAGES"
+  | "EXTRACTION_INPUT"
 >;
 
 /**
@@ -44,6 +49,7 @@ export function extractionConfig(env: ExtractionEnv): ExtractionConfig | null {
     apiKey: env.EXTRACTION_API_KEY || null,
     timeoutMs: env.EXTRACTION_TIMEOUT_SECONDS * 1000,
     maxPages: env.EXTRACTION_MAX_PAGES,
+    input: env.EXTRACTION_INPUT,
   };
 }
 
@@ -69,6 +75,8 @@ export interface ExtractionSettings {
   keySet: boolean;
   maxPages: number | null;
   timeoutSeconds: number | null;
+  /** Nur beim eigenen Dienst: was bei PDFs an ihn geht */
+  input?: ExtractionInput;
 }
 
 export function extractionSettings(config: ExtractionConfig | null): ExtractionSettings {
@@ -83,5 +91,6 @@ export function extractionSettings(config: ExtractionConfig | null): ExtractionS
     keySet: config.apiKey !== null,
     maxPages: config.maxPages,
     timeoutSeconds: config.timeoutMs / 1000,
+    input: config.input,
   };
 }
