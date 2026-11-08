@@ -19,7 +19,6 @@ for (const [geraet, viewport] of [
     await page.goto("/rechnungen/neu");
     const head = page.locator(".main > .page-head");
     await expect(head.getByRole("heading", { level: 1 })).toBeVisible();
-    // Ungescrollt ohne Trennlinie, gescrollt mit
     await expect(page.locator(".shell")).not.toHaveAttribute("data-scrolled");
     await zumEnde(page);
     await expect(page.locator(".shell")).toHaveAttribute("data-scrolled");
@@ -37,7 +36,6 @@ for (const [geraet, viewport] of [
     await sichtbar(page.getByRole("heading", { level: 1, name: "Einstellungen" }));
     const bereiche = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
     await sichtbar(bereiche.locator("[aria-current=page]"));
-    // Die Bereiche stehen unter dem Kopf, nicht dahinter
     const oben = await bereiche.evaluate((nav) => nav.getBoundingClientRect().top);
     expect(oben).toBeGreaterThanOrEqual((await kopfUnterkante(page)) - 1);
   });

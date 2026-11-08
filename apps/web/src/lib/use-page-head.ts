@@ -1,6 +1,6 @@
 import { type RefObject, useEffect, useState } from "react";
 
-/** Seitenkopf als direktes Kind des Inhalts; jede Seite rendert ihn als ersten Baustein (#356) */
+/** Seitenkopf als direktes Kind des Inhalts; jede Seite rendert ihn als ersten Baustein */
 const PAGE_HEAD = ":scope > .page-head";
 
 /**

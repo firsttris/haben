@@ -306,7 +306,7 @@ export function InvoiceEditor({
   const { busy, notice, setNotice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // „Festschreiben“ steht im festen Seitenkopf und lässt sich auch weit unten klicken (#356): die Rückfrage ins Fenster
+  // „Festschreiben“ steht im festen Seitenkopf und lässt sich auch weit unten klicken: die Rückfrage ins Fenster
   // holen, sonst schriebe der zweite Klick fest, ohne dass der Hinweis zu sehen war
   const confirmBanner = useRef<HTMLDivElement>(null);
   useEffect(() => {

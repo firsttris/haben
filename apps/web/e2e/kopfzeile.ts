@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
- * Prüfungen zum festen Seitenkopf (#356), für kopfzeile.spec.ts und für Durchläufe mit eigenen Daten
+ * Prüfungen zum festen Seitenkopf, für kopfzeile.spec.ts und für Durchläufe mit eigenen Daten
  * (das Angebot in rechnungen.spec.ts).
  */
 
@@ -15,7 +15,6 @@ export async function zumEnde(p: Page): Promise<void> {
   expect(await p.evaluate(() => window.scrollY)).toBeGreaterThan(200);
 }
 
-/** Unterkante des stehenden Seitenkopfs im Fenster */
 export function kopfUnterkante(p: Page): Promise<number> {
   return p.locator(".main > .page-head").evaluate((head) => head.getBoundingClientRect().bottom);
 }

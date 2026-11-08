@@ -132,7 +132,7 @@ function FinalQuote({ data }: { data: Detail }) {
           <div className="eyebrow">
             <Link to="/angebote">Angebote</Link> › Angebot
           </div>
-          {/* Status neben der Überschrift wie bei der Rechnung: bleibt mit dem Kopf beim Scrollen sichtbar (#356) */}
+          {/* Status neben der Überschrift wie bei der Rechnung: bleibt mit dem stehenden Kopf sichtbar */}
           <div className="title-with-status">
             <h1>Angebot {quote.number}</h1>
             <QuoteStatus status={listStatus} />
