@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { elsterNotice, submitKind, zahllastFakt } from "./elster.ts";
+import { elsterNotice, finanzamtFakten, submitKind, zahllastFakt } from "./elster.ts";
 
 describe("submitKind", () => {
   it("sendet echt nur mit ausgeschaltetem Test-Schalter, wenn echt überhaupt geht", () => {
@@ -40,5 +40,18 @@ describe("zahllastFakt", () => {
   it("nennt einen Überschuss Erstattung und zeigt ihn ohne Minus", () => {
     expect(zahllastFakt(-5000)).toMatchObject({ label: "Erstattung", strong: true });
     expect(zahllastFakt(-5000).value).toMatch(/^50,00\s€$/);
+  });
+});
+
+describe("finanzamtFakten", () => {
+  it("nennt Finanzamt und Steuernummer", () => {
+    expect(finanzamtFakten("Finanzamt München", "143/123/45678")).toEqual([
+      { label: "Finanzamt", value: "Finanzamt München" },
+      { label: "Steuernummer", value: "143/123/45678" },
+    ]);
+  });
+
+  it("zeigt fehlende Angaben als Strich statt leer", () => {
+    expect(finanzamtFakten("", "").map((f) => f.value)).toEqual(["–", "–"]);
   });
 });

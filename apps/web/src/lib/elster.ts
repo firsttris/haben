@@ -26,3 +26,11 @@ export function submitKind(testOnly: boolean, canSendLive: boolean): "test" | "s
 export function zahllastFakt(cents: number): ConfirmFact {
   return { label: cents < 0 ? "Erstattung" : "Zahllast", value: formatEuro(Math.abs(cents)), strong: true };
 }
+
+/** Wohin eine Nachricht oder neue Bankverbindung geht; eine falsche Steuernummer soll vor dem Senden auffallen */
+export function finanzamtFakten(finanzamt: string, steuernummer: string): ConfirmFact[] {
+  return [
+    { label: "Finanzamt", value: finanzamt || "–" },
+    { label: "Steuernummer", value: steuernummer || "–" },
+  ];
+}
