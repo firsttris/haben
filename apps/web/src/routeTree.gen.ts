@@ -63,6 +63,7 @@ import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzst
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
 import { Route as ApiAltbelegIdRouteImport } from './routes/api/altbeleg/$id'
 import { Route as ApiAngebotIdRouteImport } from './routes/api/angebot/$id'
+import { Route as ApiAngebotsanhangIdRouteImport } from './routes/api/angebotsanhang/$id'
 import { Route as ApiArchivIdRouteImport } from './routes/api/archiv/$id'
 import { Route as ApiAuswertungenJahrRouteImport } from './routes/api/auswertungen/$jahr'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -378,6 +379,11 @@ const ApiAngebotIdRoute = ApiAngebotIdRouteImport.update({
   path: '/api/angebot/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAngebotsanhangIdRoute = ApiAngebotsanhangIdRouteImport.update({
+  id: '/api/angebotsanhang/$id',
+  path: '/api/angebotsanhang/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiArchivIdRoute = ApiArchivIdRouteImport.update({
   id: '/api/archiv/$id',
   path: '/api/archiv/$id',
@@ -650,6 +656,7 @@ export interface FileRoutesByFullPath {
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
+  '/api/angebotsanhang/$id': typeof ApiAngebotsanhangIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -749,6 +756,7 @@ export interface FileRoutesByTo {
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
+  '/api/angebotsanhang/$id': typeof ApiAngebotsanhangIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -850,6 +858,7 @@ export interface FileRoutesById {
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
+  '/api/angebotsanhang/$id': typeof ApiAngebotsanhangIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -951,6 +960,7 @@ export interface FileRouteTypes {
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
+    | '/api/angebotsanhang/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -1050,6 +1060,7 @@ export interface FileRouteTypes {
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
+    | '/api/angebotsanhang/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -1150,6 +1161,7 @@ export interface FileRouteTypes {
     | '/_app/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
+    | '/api/angebotsanhang/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -1220,6 +1232,7 @@ export interface RootRouteChildren {
   EinladungTokenRoute: typeof EinladungTokenRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
   ApiAngebotIdRoute: typeof ApiAngebotIdRoute
+  ApiAngebotsanhangIdRoute: typeof ApiAngebotsanhangIdRoute
   ApiArchivIdRoute: typeof ApiArchivIdRoute
   ApiAuswertungenJahrRoute: typeof ApiAuswertungenJahrRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -1631,6 +1644,13 @@ declare module '@tanstack/react-router' {
       path: '/api/angebot/$id'
       fullPath: '/api/angebot/$id'
       preLoaderRoute: typeof ApiAngebotIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/angebotsanhang/$id': {
+      id: '/api/angebotsanhang/$id'
+      path: '/api/angebotsanhang/$id'
+      fullPath: '/api/angebotsanhang/$id'
+      preLoaderRoute: typeof ApiAngebotsanhangIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/archiv/$id': {
@@ -2079,6 +2099,7 @@ const rootRouteChildren: RootRouteChildren = {
   EinladungTokenRoute: EinladungTokenRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
   ApiAngebotIdRoute: ApiAngebotIdRoute,
+  ApiAngebotsanhangIdRoute: ApiAngebotsanhangIdRoute,
   ApiArchivIdRoute: ApiArchivIdRoute,
   ApiAuswertungenJahrRoute: ApiAuswertungenJahrRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

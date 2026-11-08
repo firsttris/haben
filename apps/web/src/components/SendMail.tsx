@@ -6,13 +6,13 @@ import { getMailDraft, sendDocumentMail } from "../server/functions/invoice-mail
 
 type Draft = Awaited<ReturnType<typeof getMailDraft>>;
 
-/** Zusätzliche Anhänge zur Auswahl gibt es nur bei der Rechnung (#272) */
+/** Zusätzliche Anhänge zur Auswahl gibt es bei Rechnung (#272) und Angebot (#415) */
 function extraAttachmentsOf(draft: Draft): { id: string; filename: string }[] {
   return "extraAttachments" in draft ? (draft.extraAttachments as { id: string; filename: string }[]) : [];
 }
 
 /**
- * Formular zum Versand einer Rechnung oder Mahnung per E-Mail. Empfänger, Betreff und Text kommen aus der
+ * Formular zum Versand einer Rechnung, Mahnung oder eines Angebots per E-Mail. Empfänger, Betreff und Text kommen aus der
  * Vorlage und lassen sich vor dem Senden ändern.
  */
 export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung" | "angebot"; id: string; onDone: (message: string) => void }) {
@@ -51,7 +51,7 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
     setError(null);
     try {
       const mail = { to, subject, body, copyToMe };
-      const result = await send({ data: kind === "rechnung" ? { kind, id, mail: { ...mail, attachmentIds } } : { kind, id, mail } });
+      const result = await send({ data: kind === "mahnung" ? { kind, id, mail } : { kind, id, mail: { ...mail, attachmentIds } } });
       if (result.ok) onDone(`An ${to} gesendet.`);
       else setError(`Nicht gesendet: ${result.error}`);
     } catch (e) {

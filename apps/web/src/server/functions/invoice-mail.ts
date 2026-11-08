@@ -14,11 +14,11 @@ import { authMiddleware } from "../middleware.ts";
 
 const target = z.object({ kind: z.enum(["rechnung", "mahnung", "angebot"]), id: z.uuid() });
 
-/** Nur die Rechnung kennt Zusatzanhänge zur Auswahl */
+/** Rechnung und Angebot kennen Zusatzanhänge zur Auswahl, die Mahnung nicht */
 const outgoing = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rechnung"), id: z.uuid(), mail: invoiceMailSchema }),
   z.object({ kind: z.literal("mahnung"), id: z.uuid(), mail: outgoingMailSchema }),
-  z.object({ kind: z.literal("angebot"), id: z.uuid(), mail: outgoingMailSchema }),
+  z.object({ kind: z.literal("angebot"), id: z.uuid(), mail: invoiceMailSchema }),
 ]);
 
 /** Vorschlag für Empfänger, Betreff und Text samt Anhängen */
