@@ -79,6 +79,8 @@ export function useDocumentPreview(): DocumentPreview {
       // Safari und Firefox auf dem Mac fokussieren Knöpfe beim Klick nicht: Dann steht der Fokus auf <body>
       const active = document.activeElement;
       returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
+      // Vor der Sperre messen, solange die Scrollleiste noch steht; fährt die Leiste gerade hinaus, ist sie schon weg
+      if (!overlayOpen) document.documentElement.style.setProperty("--page-scrollbar", `${window.innerWidth - document.documentElement.clientWidth}px`);
       setOverlayRun((run) => run + 1);
       setOverlayOpen(true);
     },
