@@ -12,6 +12,8 @@ AutoUpdate=registry
 Network=haben.network
 # Alternativ ERiC von Hand (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME in haben.env setzen
 # Volume=/opt/eric:/opt/eric:ro
+# ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, Zeile einkommentieren, ERIC_WORKER_COMMAND in haben.env
+# Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro
 # Belegdateien (GoBD: 10 Jahre aufbewahren, gehört ins Backup)
 Volume=haben-belege.volume:/var/lib/haben/belege
 # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung

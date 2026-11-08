@@ -24,10 +24,10 @@ Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 
 ## Voraussetzungen
 
-- Ein Linux-Server (x86_64, wenn du ERiC nutzen willst) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
+- Ein Linux-Server (x86_64, wenn du ERiC nutzen willst; auf arm64 geht ELSTER emuliert, siehe [ELSTER auf arm64](#elster-auf-arm64)) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
 - Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst. Hast du schon einen Reverse Proxy (Caddy, nginx, Nginx Proxy Manager, Traefik), nutzt du den, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy).
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
-- Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)).
+- Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)). Auf arm64 (Raspberry Pi, Ampere, Jetson) zusätzlich ein statisches QEMU ab Version 9 und rund 750 MB Platz, siehe [ELSTER auf arm64](#elster-auf-arm64).
 
 > [!NOTE]
 > Nur Podman: Rootless Podman darf Ports unter 1024 standardmäßig nicht öffnen. Entweder du senkst die Grenze (`sysctl net.ipv4.ip_unprivileged_port_start=80`) oder du veröffentlichst Caddy auf anderen Ports und leitest weiter. Damit die Dienste ohne angemeldete Sitzung laufen, braucht der Nutzer außerdem `loginctl enable-linger`.
@@ -319,6 +319,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ERIC_SHA256` | nein | Erwartete SHA-256 des ERiC-Pakets (64 Hex-Zeichen). Stimmt sie nicht, bricht die Installation ab. Die Prüfsumme eines Downloads steht danach im Log und in `HABEN_ERIC_SHA256` im ERiC-Verzeichnis | `3f5a…` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
+| `ERIC_WORKER_COMMAND` | nein | Befehl, der den ERiC-Worker statt der eigenen Laufzeit startet; `worker.ts` kommt als letztes Argument dazu. Mehrere Wörter durch Leerzeichen getrennt, ohne Anführungszeichen. Für ELSTER auf arm64 das Skript aus `deploy/eric-x86_64/einrichten.sh`, siehe [ELSTER auf arm64](#elster-auf-arm64) | `/opt/haben-x86_64/worker.sh` |
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen mit Claude ein | `sk-ant-…` |
@@ -576,6 +577,33 @@ ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet ein
 
 Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
+### ELSTER auf arm64
+
+ERiC gibt die Finanzverwaltung nur als fertige Bibliothek heraus, für Server nur für Linux x86_64; selbst übersetzen lässt sie sich nicht. Auf einem arm64-Server (Raspberry Pi, Ampere, Jetson) läuft Haben trotzdem nativ: Emuliert wird nur der kurzlebige Kindprozess, der für jede Prüfung und Übermittlung ERiC lädt. `ERIC_WORKER_COMMAND` startet ihn mit QEMU als x86_64-Prozess, mit Bun und den Bibliotheken aus dem amd64-Image derselben Haben-Version.
+
+Das kostet Zeit: Auf einem Jetson AGX Orin dauerte ein ERiC-Aufruf emuliert rund 25 Sekunden statt einer, fast alles davon das Laden von ERiC. Für gelegentliche Meldungen reicht das; nach 120 Sekunden bricht Haben einen Aufruf ab.
+
+1. **QEMU besorgen:** ein statisch gebautes `qemu-x86_64` (User-Mode) ab Version 9; mit 8.2 stürzt Bun schon beim Start ab. Debian ab 13 hat es im Paket `qemu-user` (`/usr/bin/qemu-x86_64`), ältere Systeme wie Ubuntu 24.04 nur 8.2 in `qemu-user-static`. Das Programm aus dem Debian-Paket läuft auch dort, z. B. mit `apt-get download qemu-user` in einem Container mit `debian:trixie` und `dpkg-deb -x`.
+2. **Laufzeit anlegen:** auf dem Host als root, mit derselben Version wie das App-Image:
+   ```sh
+   curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/eric-x86_64/einrichten.sh
+   sudo QEMU=/pfad/zu/qemu-x86_64 sh einrichten.sh 0.6.3 /opt/haben-x86_64
+   ```
+   Das Skript lädt das amd64-Image von Haben, entpackt es nach `/opt/haben-x86_64/root` (rund 730 MB), kopiert QEMU daneben und legt `worker.sh` an, den Befehl für `ERIC_WORKER_COMMAND`.
+3. **In der App einbinden** und neu starten:
+
+   | | Compose | Quadlet |
+   | --- | --- | --- |
+   | Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/haben-x86_64:/opt/haben-x86_64:ro` einkommentieren |
+   | Variable | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `.env` | `ERIC_WORKER_COMMAND=/opt/haben-x86_64/worker.sh` in `haben.env` einkommentieren |
+   | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
+
+4. **ERiC laden** wie oben unter [ERiC einbinden](#eric-einbinden); mit `ERIC_WORKER_COMMAND` bietet Haben den Download auch auf arm64 an.
+
+Nach jedem Update von Haben `einrichten.sh` mit der neuen Version wiederholen. `worker.sh` vergleicht beide Versionen und startet nicht, wenn sie verschieden sind; Haben zeigt dann „x86_64-Laufzeit für ERiC ist Version …“ an.
+
+Warum ein Skript statt nur QEMU: `worker.sh` setzt vorher `ulimit -s unlimited`. Dann vergibt Linux den Speicher von unten, unterhalb der 47-Bit-Grenze, die Bun (JavaScriptCore) auf x86_64 voraussetzt; sonst landet er unter QEMU an höheren Adressen, und Bun bricht mit „MemoryExhaustion“ ab. Außerdem startet es `worker.ts` aus der x86_64-Laufzeit, weil deren `node_modules` koffi für x86_64 enthalten.
+
 ## KI-Auslesung (Anthropic)
 
 Optional. Ist `ANTHROPIC_API_KEY` gesetzt, liest Haben Belege, die keine E-Rechnung sind, mit Claude aus:
@@ -739,6 +767,8 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 **„download.elster.de nicht erreichbar: …“, obwohl der Server ins Internet kommt.** In Klammern steht der Grund. `EAI_AGAIN` oder `ENOTFOUND` heißt: Der Container löst keine Namen auf. Prüfen mit `podman exec haben-app bun -e 'require("dns").promises.lookup("download.elster.de").then(console.log,console.error)'` (Compose: `docker compose exec app bun -e …`). Kommt `EAI_AGAIN`, beantwortet der DNS-Dienst des Podman-Netzes (aardvark-dns) zwar `haben-db`, leitet externe Namen aber nicht weiter. Das passiert, wenn sich nach dem Start die DNS-Server des Hosts ändern (`/etc/resolv.conf`, z. B. nach einem Netzwerk-Neustart). Sofort hilft `podman network reload --all` (rootful) bzw. ein Neustart der Container. Dauerhaft trägst du in `haben.network` einen festen DNS-Server ein, etwa deinen Router: `DNS=192.168.178.1`. Danach Container stoppen, `podman network rm haben` und neu starten. `ECONNREFUSED` oder `ETIMEDOUT` deuten auf eine Firewall oder einen Proxy, ein Zertifikatsfehler auf einen TLS-Proxy mit eigener CA. Dieselben Gründe nennt Haben auch, wenn Enable Banking nicht erreichbar ist.
 
 **ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Bei einem von Hand eingebundenen ERiC prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins/` (ältere Versionen: `lib/plugins2/`) liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
+
+**Auf arm64: „ERiC-Prozess abgestürzt“ mit `ERIC_WORKER_COMMAND`.** Steht „x86_64-Laufzeit für ERiC ist Version …“ dabei, `einrichten.sh` mit der Version der App wiederholen. „QEMU internal SIGSEGV“ heißt: QEMU ist älter als Version 9. „MemoryExhaustion“ kommt, wenn der Worker ohne `worker.sh` direkt mit QEMU gestartet wird. Exit-Code 127: Der Pfad in `ERIC_WORKER_COMMAND` stimmt nicht oder das Verzeichnis ist nicht gemountet. Siehe [ELSTER auf arm64](#elster-auf-arm64).
 
 **Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
 
