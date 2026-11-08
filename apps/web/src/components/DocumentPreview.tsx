@@ -157,6 +157,7 @@ function PreviewDialog({ label, caption, onClose, children }: { label: string; c
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const replaced = useRef(false);
+  const pressedBeside = useRef(false);
 
   useEffect(() => {
     replaced.current = false;
@@ -187,8 +188,12 @@ function PreviewDialog({ label, caption, onClose, children }: { label: string; c
       className="preview-dialog"
       aria-labelledby={titleId}
       onClose={closed}
+      onPointerDown={(e) => {
+        pressedBeside.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) e.currentTarget.close();
+        // Nur was daneben begann: Eine Textauswahl, die dort endet, meldet der Browser ebenfalls am Dialog
+        if (e.target === e.currentTarget && pressedBeside.current) e.currentTarget.close();
       }}
     >
       <div className="preview-dialog-head">
