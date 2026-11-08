@@ -85,6 +85,9 @@ export function designWithDefaults(stored: Partial<LetterheadDesign> | null | un
  */
 export const showsVatColumn = (vatColumn: boolean, rates: number): boolean => vatColumn || rates > 1;
 
+/** Steuersätze in den Zeilen des Blatts; anders als die Summen zählen optionale und alternative Positionen eines Angebots mit */
+export const distinctVatRates = (lines: readonly { taxRate: number }[]): number => new Set(lines.map((line) => line.taxRate)).size;
+
 /** Was das Panel und die Einstellungen ändern dürfen; die Layoutwahl kommt mit dem zweiten Layout dazu */
 export const letterheadDesignInputSchema = z
   .object({

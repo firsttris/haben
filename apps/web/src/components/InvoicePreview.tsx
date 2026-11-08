@@ -14,6 +14,7 @@ import {
   lineDiscountAmount,
   LOGO_SIZES,
   planShareLabel,
+  distinctVatRates,
   showsVatColumn,
   skontoFristen,
   type Discount,
@@ -163,7 +164,7 @@ export function InvoicePreview({
   if (buyer?.kundennummer && options.customerNumber) meta.push(["Kundennummer", buyer.kundennummer]);
   // Wie im PDF: bei mehreren Steuersätzen steht die Bemessungsgrundlage dabei
   const taxes = taxNote ? [] : totals.taxes;
-  const vatColumn = showsVatColumn(options.vatColumn, totals.taxes.length);
+  const vatColumn = showsVatColumn(options.vatColumn, taxNote ? totals.taxes.length : distinctVatRates(valid));
   const logoSize = LOGO_SIZES[options.logoSize];
   // Wie im PDF (pdfData): GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto; hier als Platzhalter gleicher Größe
   const giroCode = options.giroCode && kind === "rechnung" && currency === "EUR" && totals.gross > 0 && Boolean(seller.iban);

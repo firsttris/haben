@@ -83,10 +83,11 @@ export function quotePdfData(doc: QuoteDocument) {
   // Summen und Gesamtrabatt nur aus den Positionen, die zählen; gezeigt werden alle
   const counted = doc.lines.filter((l) => !l.kind);
   const { totalRows, included, grossLabel, ...body } = documentPdfData({ ...doc, lines: counted }, t);
-  const all = documentPdfData(doc, t).lines;
+  const { lines: all, hideVatColumn } = documentPdfData(doc, t);
   const tags = lineTags(doc, t);
   return {
     ...body,
+    hideVatColumn,
     lines: all.map((line, i) => (tags[i] ? { ...line, tag: tags[i] } : line)),
     plan: planPdfData(doc, t),
     docTitle: `${t.titles.angebot} ${doc.number}`,
