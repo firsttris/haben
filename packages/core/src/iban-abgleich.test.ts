@@ -10,8 +10,18 @@ describe("IBAN-Abgleich am Beleg (#410)", () => {
     expect(ibanAbgleich({ kontaktIban: null, rechnungsIban: null }, [])).toEqual({ art: "keine" });
   });
 
-  it("ohne IBAN am Kontakt ist die IBAN der E-Rechnung nur ungeprüft, ohne Sperre", () => {
-    expect(ibanAbgleich({ kontaktIban: null, rechnungsIban: RECHNUNG }, [])).toEqual({ art: "ungeprueft", rechnungsIban: RECHNUNG });
+  it("ohne IBAN am Kontakt ist die IBAN der E-Rechnung ungeprüft, bis sie für genau diese IBAN bestätigt ist", () => {
+    expect(ibanAbgleich({ kontaktIban: null, rechnungsIban: RECHNUNG }, [])).toEqual({ art: "ungeprueft", rechnungsIban: RECHNUNG, entscheidung: null });
+    const bestaetigt = { kontaktIban: null, rechnungsIban: RECHNUNG, wahl: "e-rechnung" as const, am: new Date("2026-09-02"), von: "max" };
+    expect(ibanAbgleich({ kontaktIban: null, rechnungsIban: RECHNUNG }, [bestaetigt])).toEqual({
+      art: "ungeprueft",
+      rechnungsIban: RECHNUNG,
+      entscheidung: bestaetigt,
+    });
+    // Eine Bestätigung für eine andere IBAN oder eine Entscheidung bei Abweichung gilt nicht
+    const andere = { ...bestaetigt, rechnungsIban: "DE75512108001245126199" };
+    const abweichend = { ...bestaetigt, kontaktIban: KONTAKT };
+    expect(ibanAbgleich({ kontaktIban: null, rechnungsIban: RECHNUNG }, [andere, abweichend])).toMatchObject({ entscheidung: null });
   });
 
   it("gleiche IBAN, auch anders geschrieben, ist kein Hinweis", () => {
@@ -39,7 +49,13 @@ describe("IBAN-Abgleich am Beleg (#410)", () => {
 
   it("geltende IBAN: Kontakt, bei Gleichheit der Kontakt, ungeprüft die E-Rechnung, abweichend nur mit Entscheidung", () => {
     expect(geltendeIban({ kontaktIban: KONTAKT, rechnungsIban: null }, [])).toEqual({ iban: KONTAKT, herkunft: "kontakt" });
-    expect(geltendeIban({ kontaktIban: null, rechnungsIban: RECHNUNG }, [])).toEqual({ iban: RECHNUNG, herkunft: "e-rechnung" });
+    // Ungeprüft gilt die IBAN der E-Rechnung erst nach Bestätigung (#410, Folge)
+    expect(geltendeIban({ kontaktIban: null, rechnungsIban: RECHNUNG }, [])).toEqual({ iban: null, herkunft: null, offen: true });
+    expect(
+      geltendeIban({ kontaktIban: null, rechnungsIban: RECHNUNG }, [
+        { kontaktIban: null, rechnungsIban: RECHNUNG, wahl: "e-rechnung", am: new Date(), von: "max" },
+      ]),
+    ).toEqual({ iban: RECHNUNG, herkunft: "e-rechnung", entschieden: true });
     expect(geltendeIban({ kontaktIban: null, rechnungsIban: null }, [])).toEqual({ iban: null, herkunft: null });
     expect(geltendeIban({ kontaktIban: KONTAKT, rechnungsIban: KONTAKT }, [])).toEqual({ iban: KONTAKT, herkunft: "kontakt" });
     expect(geltendeIban({ kontaktIban: KONTAKT, rechnungsIban: RECHNUNG }, [])).toEqual({ iban: null, herkunft: null, offen: true });
