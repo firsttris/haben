@@ -57,7 +57,7 @@ Jede abgeholte Mail steht mit ihrer Message-ID im Abrufprotokoll (nur anhängen)
 
 ## Belege aus der REST-API
 
-Liegen deine Belege schon in einem anderen System, etwa einem Dokumentenarchiv, oder holt ein eigenes Skript sie aus Kundenportalen, dann liefert es sie über die [REST-API](api.md#belege) an Haben: `POST /api/v1/belege` mit der Datei im Feld `datei`, angemeldet mit einem API-Token, das das Recht „Belege lesen und hochladen“ (`belege:anlegen`) hat. Ein Token mit `belege:lesen` sieht nur den Stand.
+Liegen deine Belege schon in einem anderen System, etwa einem Dokumentenarchiv, oder holt ein eigenes Skript sie aus Kundenportalen, dann liefert es sie über die [REST-API](api.md#belege) an Haben: `POST /api/v1/belege` mit der Datei im Feld `datei` (oder `file`, so schickt sie etwa [Paperless-ngx](api.md#paperless-ngx)), angemeldet mit einem API-Token, das das Recht „Belege lesen und hochladen“ (`belege:anlegen`) hat. Ein Token mit `belege:lesen` sieht nur den Stand.
 
 - **Derselbe Weg wie beim Hochladen:** gleiche Formate und 20 MB je Datei, Ablage unter dem SHA-256, E-Rechnungen werden sofort gelesen, sonst greift die KI-Auslesung, wenn sie eingerichtet ist.
 - **Der Beleg landet als „Zu prüfen“** in der Liste, gebucht wird nichts. Du prüfst und buchst ihn wie jeden anderen. Im Änderungsprotokoll steht als Akteur der Name des Tokens (`api:Dokumentenarchiv`).
