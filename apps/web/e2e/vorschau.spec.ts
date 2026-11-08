@@ -39,6 +39,15 @@ const pfeil = (p: Page) => head(p).getByRole("button", { name: "Weitere Vorschau
 const seitenansicht = (p: Page) => p.getByRole("region", { name: "Vorschau", exact: true });
 const dialog = (p: Page) => p.getByRole("dialog", { name: "Vorschau" });
 
+/** Lage des Dialogs, wenn er zu Ende gefahren ist */
+async function lageNachDerFahrt(p: Page): Promise<{ left: number; top: number; right: number; bottom: number }> {
+  await expect.poll(() => dialog(p).evaluate((el) => getComputedStyle(el).transform)).toMatch(/^none$|^matrix\(1, 0, 0, 1, 0, 0\)$/);
+  return dialog(p).evaluate((el) => {
+    const { left, top, right, bottom } = el.getBoundingClientRect();
+    return { left, top, right, bottom };
+  });
+}
+
 async function axe(p: Page): Promise<string[]> {
   const { violations } = await new AxeBuilder({ page: p }).withTags(WCAG).analyze();
   return violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${v.help} → ${n.target.join(" ")}`));
@@ -60,6 +69,14 @@ test("Laptop: Überblendung ohne Verlust von Eingaben und Scrollposition, Fokus 
   await page.keyboard.press("Enter");
   await expect(dialog(page)).toBeVisible();
   await expect(dialog(page).getByLabel("Vorschau der Rechnung")).toContainText("Überblendung prüfen");
+  // Seitenleiste am rechten Rand über die ganze Höhe, links bleibt das abgedunkelte Formular sichtbar
+  const lage = await lageNachDerFahrt(page);
+  expect(lage.right).toBe(LAPTOP.width);
+  expect(lage.top).toBe(0);
+  expect(lage.bottom).toBe(LAPTOP.height);
+  expect(lage.left).toBeGreaterThanOrEqual(96);
+  // Das Blatt scrollt unter dem Kopf und schneidet an den runden Ecken ab, statt über sie zu laufen
+  expect(await dialog(page).evaluate((el) => getComputedStyle(el).overflow)).toBe("hidden");
   // Modal: der Fokus steht im Dialog, der Rest der Seite ist nicht bedienbar
   expect(await page.evaluate(() => document.activeElement?.closest("dialog") !== null)).toBe(true);
   expect(await axe(page), "Überblendung").toEqual([]);
@@ -158,9 +175,13 @@ test("Handy: nur Überblendung, ohne Pfeil und ohne waagrechtes Scrollen", async
   await expect(seitenansicht(page)).toHaveCount(0);
   await vorschauKnopf(page).click();
   await expect(dialog(page)).toBeVisible();
-  const [rechts, breit] = await dialog(page).evaluate((el) => [el.getBoundingClientRect().right, el.scrollWidth - el.clientWidth]);
-  expect(rechts).toBeLessThanOrEqual(HANDY.width);
-  expect(breit).toBeLessThanOrEqual(0);
+  // Von unten über die ganze Breite, oben bleibt ein Streifen der Seite sichtbar
+  const lage = await lageNachDerFahrt(page);
+  expect(lage.left).toBe(0);
+  expect(lage.right).toBe(HANDY.width);
+  expect(lage.bottom).toBe(HANDY.height);
+  expect(lage.top).toBeGreaterThan(0);
+  expect(await dialog(page).evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   expect(await axe(page), "Überblendung am Handy").toEqual([]);
   await dialog(page).getByRole("button", { name: "Schließen" }).click();

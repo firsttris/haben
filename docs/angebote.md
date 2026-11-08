@@ -19,7 +19,7 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - je Position die **Art**: zählt zur Summe, **optional** oder **Alternative** zur Position davor (siehe unten)
 - optional ein **Zahlungsplan** (siehe unten)
 
-**Vorschau** im Kopf zeigt das Angebot, groß über dem Formular oder neben ihm angeheftet ([wie bei der Rechnung](rechnungen.md#vorschau)). Der Entwurf lässt sich beliebig speichern, ändern und löschen. **Entwurf als PDF** lädt ihn als PDF aus der Vorlage des festgeschriebenen Angebots, mit „ENTWURF“ über jeder Seite und statt der Nummer, ohne eine Nummer zu vergeben ([wie bei der Rechnung](rechnungen.md#entwurf-als-pdf)).
+**Vorschau** im Kopf zeigt das Angebot, von rechts über das Formular oder neben ihm angeheftet ([wie bei der Rechnung](rechnungen.md#vorschau)). Der Entwurf lässt sich beliebig speichern, ändern und löschen. **Entwurf als PDF** lädt ihn als PDF aus der Vorlage des festgeschriebenen Angebots, mit „ENTWURF“ über jeder Seite und statt der Nummer, ohne eine Nummer zu vergeben ([wie bei der Rechnung](rechnungen.md#entwurf-als-pdf)).
 
 ### Optionale und alternative Positionen
 

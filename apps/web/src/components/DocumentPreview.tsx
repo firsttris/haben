@@ -93,9 +93,11 @@ export function PreviewLayout({
             <span className="small muted">{caption}</span>
             <div className="preview-pane-actions">
               <button type="button" className="btn btn-sm" aria-haspopup="dialog" onClick={preview.openOverlay}>
+                <Icon name="expand" size={16} />
                 Vergrößern
               </button>
               <button type="button" className="btn btn-sm" onClick={preview.unpin}>
+                <Icon name="close" size={16} />
                 Ausblenden
               </button>
             </div>
@@ -112,7 +114,10 @@ export function PreviewLayout({
   );
 }
 
-/** Modaler <dialog>: hält den Fokus, Escape und ein Klick neben das Blatt schließen ihn */
+/**
+ * Modaler <dialog> als Seitenleiste, die von rechts hereinfährt: hält den Fokus, Escape und ein Klick neben das Blatt
+ * schließen ihn. Er bleibt im Dokument, bis er hinausgefahren ist; ohne Bewegung (prefers-reduced-motion) sofort weg.
+ */
 function PreviewDialog({ label, caption, onClose, children }: { label: string; caption: ReactNode; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -122,13 +127,26 @@ function PreviewDialog({ label, caption, onClose, children }: { label: string; c
     if (dialog && !dialog.open) dialog.showModal();
   }, []);
 
+  const closed = () => {
+    const dialog = ref.current;
+    if (!dialog || parseFloat(getComputedStyle(dialog).transitionDuration) === 0) return onClose();
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      onClose();
+    };
+    dialog.addEventListener("transitionend", finish, { once: true });
+    window.setTimeout(finish, 500);
+  };
+
   if (typeof document === "undefined") return null;
   return createPortal(
     <dialog
       ref={ref}
       className="preview-dialog"
       aria-labelledby={titleId}
-      onClose={onClose}
+      onClose={closed}
       onClick={(e) => {
         if (e.target === e.currentTarget) e.currentTarget.close();
       }}
@@ -160,6 +178,7 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
   const arrow = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const hintId = useId();
 
   const closeMenu = (focusArrow: boolean) => {
     setMenuOpen(false);
@@ -183,6 +202,7 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
 
   const main = (
     <button ref={preview.triggerRef} type="button" className="btn" aria-haspopup="dialog" onClick={preview.openOverlay}>
+      <Icon name="eye" size={16} />
       Vorschau
     </button>
   );
@@ -236,8 +256,14 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
       </button>
       {menuOpen && (
         <div ref={menu} id={menuId} role="menu" aria-label="Vorschau" className="split-menu" onKeyDown={onMenuKey}>
-          <button type="button" role="menuitem" tabIndex={-1} onClick={toggle}>
-            {preview.pinned ? "Vorschau abheften" : "Neben Formular anheften"}
+          <button type="button" role="menuitem" tabIndex={-1} aria-describedby={hintId} onClick={toggle}>
+            <Icon name={preview.pinned ? "eye-off" : "pin"} />
+            <span className="split-menu-text">
+              <span>{preview.pinned ? "Vorschau abheften" : "Neben Formular anheften"}</span>
+              <span id={hintId} className="small muted">
+                {preview.pinned ? "Formular wieder in voller Breite" : "Formular und Vorschau nebeneinander"}
+              </span>
+            </span>
           </button>
         </div>
       )}
