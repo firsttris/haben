@@ -346,3 +346,14 @@ test("Überblendung: Der Fokus kehrt zurück, auch wenn der Browser Knöpfe beim
   await expect(vorschauKnopf(page)).toBeFocused();
   await page.context().close();
 });
+
+test("Laptop: Der Fokus bleibt auf „Vorschau“, wenn der Pfeil beim Verkleinern entfällt", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  await expect(pfeil(page)).toBeVisible();
+  await vorschauKnopf(page).focus();
+  // Auch Browser-Zoom ändert die Breite (WCAG 1.4.4); der Knopf darf dabei nicht neu aufgebaut werden
+  await page.setViewportSize({ width: 800, height: 800 });
+  await expect(pfeil(page)).toHaveCount(0);
+  await expect(vorschauKnopf(page)).toBeFocused();
+  await page.context().close();
+});
