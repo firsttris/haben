@@ -54,6 +54,7 @@ export {
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
 export {
   createSepaTransfer,
   documentSepaTransfers,

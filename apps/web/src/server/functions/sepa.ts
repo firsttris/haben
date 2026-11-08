@@ -1,5 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createSepaTransfer, listAccounts, listSepaTransfers, sepaTransferSchema, transferCandidates } from "../modules/bank/index.ts";
+import { z } from "zod";
+import {
+  createSepaTransfer,
+  decideDocumentIban,
+  ibanDecisionSchema,
+  listAccounts,
+  listSepaTransfers,
+  sepaTransferSchema,
+  transferCandidates,
+} from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 
@@ -20,3 +29,12 @@ export const createSepaTransferFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(sepaTransferSchema)
   .handler(async ({ data, context }) => createSepaTransfer(context.user.id, data));
+
+/** Welche IBAN für einen Beleg gilt, wenn die E-Rechnung eine andere nennt als der Kontakt (#410) */
+export const decideDocumentIbanFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ documentId: z.uuid(), decision: ibanDecisionSchema }))
+  .handler(async ({ data, context }) => {
+    await decideDocumentIban(context.user.id, data.documentId, data.decision);
+    return { ok: true };
+  });

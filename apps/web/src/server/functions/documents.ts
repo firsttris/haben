@@ -29,7 +29,7 @@ import {
 import { extractionAvailable, extractionSettings } from "../modules/belege/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
-import { documentSepaTransfers } from "../modules/bank/index.ts";
+import { documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
@@ -70,6 +70,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       reentryId,
       // Vermerk: für diesen Beleg erzeugte SEPA-Überweisungen
       sepaTransfers: await documentSepaTransfers(data),
+      // IBAN der E-Rechnung gegen die des Kontakts (#410)
+      ibanCheck: await documentIbanCheck(data),
       // Was gegen einen Storno spricht; die Zahlung im Bankabgleich prüft erst der Storno selbst
       cancellationIssues: result.document.lockedAt && !cancellation ? cancellationIssues(result.document) : [],
       // Datum, das ein Storno heute bekäme: im noch offenen Zeitraum der Belegbuchung oder heute

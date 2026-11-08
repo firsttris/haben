@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
@@ -1314,6 +1315,71 @@ test("Direkt buchen auf eine Kategorie: Zahlung eines Privatkunden mit 19 %, Aus
   await expect(panel.getByText("Direkt: Erlöse 19 %")).toBeVisible();
 });
 
+/** Beleg mit abweichender IBAN aus dem Test unten, für die Prüfung mit axe */
+let ibanBeleg = "";
+
+test("Abweichende IBAN der E-Rechnung: Warnung am Beleg, gesperrt unter Überweisungen bis zur Entscheidung (#410)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Netzwerk Hosting GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("IBAN").fill("DE75 5121 0800 1245 1261 99");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  // Auftraggeberkonto für Überweisungen: das Girokonto aus dem Bankabgleich weiter oben
+
+  // E-Rechnung mit IBAN DE02 1203 … (BT-84), anders als im Kontakt
+  await go("/belege");
+  const xml = readFileSync(new URL("../../../packages/einvoice/test-fixtures/incoming/cii-prefixes.xml", import.meta.url));
+  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "RE-2026-0815.xml", mimeType: "application/xml", buffer: xml }]);
+  await expect(page.getByText("RE-2026-0815.xml: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /Netzwerk Hosting GmbH RE-2026\/0815/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Der Abgleich läuft, sobald der Kontakt am Beleg hängt
+  await expect(page.getByRole("region", { name: "Bankverbindung prüfen" })).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Netzwerk Hosting GmbH" });
+  await page.getByLabel("Kategorie").selectOption("software");
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+  ibanBeleg = new URL(page.url()).pathname;
+  const pruefen = page.getByRole("region", { name: "Bankverbindung prüfen" });
+  await expect(pruefen).toContainText("DE75 5121 0800 1245 1261 99");
+  await expect(pruefen).toContainText("DE02 1203 0000 0000 2020 51");
+
+  // Ohne Entscheidung nicht auswählbar, auch nicht über „Alle auswählen“
+  await go("/ueberweisungen");
+  const zeile = page.locator(".table-row").filter({ hasText: "Netzwerk Hosting GmbH" });
+  await expect(zeile.getByRole("checkbox")).toBeDisabled();
+  await expect(zeile).toContainText("am Beleg entscheiden");
+  // „Alle auswählen“ nimmt nur wählbare Zeilen; ist keine andere offen, ist der Knopf selbst gesperrt
+  const alle = page.getByRole("button", { name: "Alle auswählen" });
+  if (await alle.isEnabled()) await alle.click();
+  await expect(zeile.getByRole("checkbox")).not.toBeChecked();
+  await zeile.getByRole("link", { name: /am Beleg entscheiden/ }).click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+
+  // Am gebuchten Beleg entscheiden: die IBAN der E-Rechnung nur für diesen Beleg
+  await pruefen.getByRole("button", { name: "IBAN der E-Rechnung nur für diesen Beleg" }).click();
+  await expect(pruefen).toContainText("Es gilt die IBAN der E-Rechnung, nur für diesen Beleg. Entschieden von");
+  await go("/ueberweisungen");
+  await expect(zeile.getByRole("checkbox")).toBeEnabled();
+  await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
+  await expect(zeile).toContainText("Am Beleg entschieden: IBAN der E-Rechnung nur für diesen Beleg");
+  // Der Kontakt bleibt, wie er war
+  await go("/kontakte");
+  await page
+    .getByRole("link", { name: /Netzwerk Hosting GmbH/ })
+    .first()
+    .click();
+  await expect(page.getByLabel("IBAN")).toHaveValue(/DE75\s?5121/);
+});
+
 test("Vorschlag aus früheren Direktbuchungen: Kategorie vorbelegt, mit Begründung, gebucht erst auf Klick (#295)", async () => {
   // „Kiosk am Markt“ ist aus dem Test davor einmal als Telefon gebucht; zwei weitere Aufladungen kommen dazu
   const zeile = (datum: string, zweck: string, betrag: string) =>
@@ -1444,6 +1510,8 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
     "/finanzamt",
     "/fristen",
     "/einstellungen?bereich=elster",
+    "/ueberweisungen",
+    ibanBeleg,
   ]);
   // Mit hinterlegtem Zertifikat; barrierefreiheit.spec.ts sieht die Seite ohne
   await kontrasteInThemes(page, ["/einstellungen?bereich=elster"]);

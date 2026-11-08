@@ -1813,6 +1813,34 @@ export const sepaTransferItems = pgTable(
   (t) => [index("sepa_transfer_items_document").on(t.documentId), check("sepa_transfer_items_amount", sql`${t.amount} > 0 and ${t.skonto} >= 0`)],
 );
 
+/**
+ * Entscheidung je Beleg, welche IBAN gilt, wenn die E-Rechnung (BT-84) eine andere nennt als der Kontakt (#410): die
+ * des Kontakts oder die der E-Rechnung nur für diesen Beleg. Gilt nur für genau dieses Paar; ändert sich eine der
+ * beiden, ist neu zu entscheiden. Nur anhängbar, auch nach dem Buchen (Trigger in drizzle/); die jüngste gilt.
+ */
+export const documentIbanDecisions = pgTable(
+  "document_iban_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id),
+    /** IBAN im Kontakt beim Entscheiden, ohne Leerzeichen */
+    kontaktIban: text("kontakt_iban").notNull(),
+    /** IBAN aus der E-Rechnung, ohne Leerzeichen */
+    rechnungsIban: text("rechnungs_iban").notNull(),
+    wahl: text("wahl", { enum: ["kontakt", "e-rechnung"] }).notNull(),
+    /** Wer entschieden hat (Benutzer-ID wie im Audit-Log) */
+    decidedBy: text("decided_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("document_iban_decisions_document").on(t.documentId),
+    check("document_iban_decisions_wahl", sql`${t.wahl} in ('kontakt', 'e-rechnung')`),
+    check("document_iban_decisions_abweichend", sql`${t.kontaktIban} <> ${t.rechnungsIban}`),
+  ],
+);
+
 export const allocationKindEnum = pgEnum("allocation_kind", [
   "invoice",
   "document",

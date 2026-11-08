@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import {
   documentOpen,
   formatDecimal,
+  geltendeIban,
+  type IbanEntscheidung,
   isEwrIban,
   isValidIban,
   pain001,
@@ -20,6 +22,7 @@ import { today } from "../../today.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { BankError, documentPayments } from "./bank.ts";
 import { documentPayees, type DocumentPayee } from "./document-payees.ts";
+import { ibanDecisions } from "./iban-entscheidung.ts";
 
 /** Ein offener Beleg, der sich überweisen lässt, oder warum nicht */
 export interface TransferCandidate {
@@ -36,27 +39,39 @@ export interface TransferCandidate {
   problem: string | null;
   /** Hinweis, der die Überweisung nicht verhindert */
   warning: string | null;
+  /** Die E-Rechnung nennt eine andere IBAN als der Kontakt, und am Beleg ist nicht entschieden, welche gilt (#410) */
+  ibanDecisionNeeded: boolean;
   /** Skonto aus der E-Rechnung, nur wenn es sich später als erhaltenes Skonto buchen lässt */
   skontoTerms: SkontoTerm[];
   /** Früher erzeugte Überweisungen für diesen Beleg */
   transfers: { createdAt: Date; executionDate: string; amount: Cents }[];
 }
 
-function payeeAccount(payee: DocumentPayee | undefined): Pick<TransferCandidate, "iban" | "ibanSource" | "problem" | "warning"> {
-  const iban = payee?.contactIban ?? payee?.einvoiceIban ?? null;
-  const ibanSource = payee?.contactIban ? "kontakt" : payee?.einvoiceIban ? "e-rechnung" : null;
-  const problem =
-    iban === null
-      ? "IBAN fehlt: im Kontakt des Lieferanten eintragen"
-      : !isValidIban(iban)
-        ? `IBAN ${iban} ist ungültig (${ibanSource === "kontakt" ? "Kontakt" : "E-Rechnung"})`
-        : !isEwrIban(iban)
-          ? `IBAN ${iban} liegt außerhalb des EWR: bitte direkt im Online-Banking überweisen`
-          : null;
-  // Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug: nicht stillschweigend übergehen
-  const differs = payee?.contactIban && payee.einvoiceIban && payee.contactIban !== payee.einvoiceIban;
-  const warning = differs ? `Die E-Rechnung nennt eine andere IBAN (${payee.einvoiceIban}) als der Kontakt` : null;
-  return { iban, ibanSource, problem, warning };
+/**
+ * Konto des Lieferanten: Kontakt, sonst die E-Rechnung. Nennt die E-Rechnung eine andere IBAN als der Kontakt, ist das
+ * ein bekanntes Muster für Betrug (ausgetauschte Bankverbindung); dann gilt erst die am Beleg entschiedene (#410).
+ */
+function payeeAccount(
+  payee: DocumentPayee | undefined,
+  decisions: IbanEntscheidung[],
+): Pick<TransferCandidate, "iban" | "ibanSource" | "problem" | "warning" | "ibanDecisionNeeded"> {
+  const geltend = geltendeIban({ kontaktIban: payee?.contactIban ?? null, rechnungsIban: payee?.einvoiceIban ?? null }, decisions);
+  if (geltend.iban === null) {
+    const problem = geltend.offen
+      ? "Die E-Rechnung nennt eine andere IBAN als der Kontakt: am Beleg entscheiden, welche gilt"
+      : "IBAN fehlt: im Kontakt des Lieferanten eintragen";
+    return { iban: null, ibanSource: null, problem, warning: null, ibanDecisionNeeded: geltend.offen === true };
+  }
+  const { iban, herkunft: ibanSource } = geltend;
+  const problem = !isValidIban(iban)
+    ? `IBAN ${iban} ist ungültig (${ibanSource === "kontakt" ? "Kontakt" : "E-Rechnung"})`
+    : !isEwrIban(iban)
+      ? `IBAN ${iban} liegt außerhalb des EWR: bitte direkt im Online-Banking überweisen`
+      : null;
+  const warning = geltend.entschieden
+    ? `Am Beleg entschieden: ${ibanSource === "kontakt" ? "IBAN des Kontakts" : "IBAN der E-Rechnung nur für diesen Beleg"}`
+    : null;
+  return { iban, ibanSource, problem, warning, ibanDecisionNeeded: false };
 }
 
 /** Offene Belege, die per Bank bezahlt werden, mit Konto des Lieferanten; älteste Fälligkeit zuerst */
@@ -77,13 +92,13 @@ export async function transferCandidates(): Promise<TransferCandidate[]> {
     .from(schema.documents)
     .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
   const ids = documents.map((d) => d.id);
-  const [paid, payees, transfers] = await Promise.all([documentPayments(ids), documentPayees(ids), transfersByDocument(ids)]);
+  const [paid, payees, transfers, decisions] = await Promise.all([documentPayments(ids), documentPayees(ids), transfersByDocument(ids), ibanDecisions(ids)]);
   return documents
     .map((doc) => {
       const paidSoFar = paid.get(doc.id) ?? 0;
       const open = -documentOpen(doc.gross, paidSoFar);
       const payee = payees.get(doc.id);
-      const account = payeeAccount(payee);
+      const account = payeeAccount(payee, decisions.get(doc.id) ?? []);
       // Erhaltenes Skonto bucht Haben nur ohne § 13b, Privatanteil und Anlagegut (bank.ts, writeOff); angeboten nur auf einen noch ganz offenen Beleg
       const skontoAllowed = paidSoFar === 0 && doc.reverseCharge === null && doc.privateShare === 0 && doc.category !== "anlage" && doc.documentDate !== null;
       return {

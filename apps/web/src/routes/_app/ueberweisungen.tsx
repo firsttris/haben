@@ -211,7 +211,17 @@ function CandidateRow(props: {
       </div>
       <div className="small" style={{ minWidth: 0, overflowWrap: "anywhere" }}>
         {c.problem ? (
-          <span style={{ color: "var(--danger-ink)" }}>{c.problem}</span>
+          <span style={{ color: "var(--danger-ink)" }}>
+            {c.problem}
+            {c.ibanDecisionNeeded && (
+              <>
+                {" "}
+                <Link to="/belege/$id" params={{ id: c.documentId }} aria-label={`${label}: am Beleg entscheiden`}>
+                  Zum Beleg
+                </Link>
+              </>
+            )}
+          </span>
         ) : (
           <>
             <span className="mono">{groupedIban(c.iban!)}</span>
