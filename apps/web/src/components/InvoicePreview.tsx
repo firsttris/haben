@@ -3,7 +3,9 @@ import {
   accentPalette,
   alternativeMain,
   computeInvoice,
+  customFooter,
   DEFAULT_OPTIONS,
+  footerValues,
   discountedLineAmount,
   discountLabel,
   formatEuro,
@@ -35,6 +37,7 @@ export interface PreviewSeller {
   plz: string;
   ort: string;
   email: string;
+  telefon?: string;
   steuernummer: string;
   ustId: string;
   iban: string;
@@ -182,7 +185,7 @@ export function InvoicePreview({
                 `Bei Zahlung bis zum ${formatDate(s.until)} gewähren wir ${formatPercent(s.percent)} Skonto (${money(s.amount)}); Sie überweisen dann ${money(s.payable)}.`,
             ),
           ].join(" ");
-  const footer = [
+  const automaticFooter = [
     [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
     [
       seller.bank,
@@ -192,6 +195,7 @@ export function InvoicePreview({
     ],
     [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
   ].map((column) => column.filter(Boolean));
+  const footer = options.footerColumns ? customFooter(options.footerColumns, footerValues(seller)) : automaticFooter;
 
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (
@@ -379,7 +383,7 @@ export function InvoicePreview({
             </p>
           )}
         </div>
-        <div className="sheet-foot">
+        <div className="sheet-foot" style={{ gridTemplateColumns: `repeat(${footer.length}, minmax(0, 1fr))` }}>
           {footer.map((column, index) => (
             <div key={index}>
               {column.map((line, i) => (

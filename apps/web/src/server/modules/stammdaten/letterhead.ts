@@ -20,8 +20,8 @@ export async function loadDesign(q: Db | Tx = db): Promise<LetterheadDesign> {
 /** Heutige Gestaltung für jedes neu erzeugte PDF, auch für Mahnung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben */
 export async function loadLetterhead(): Promise<Letterhead> {
   const [logo, design] = await Promise.all([loadLogo(), loadDesign()]);
-  const { accent, logoSize, logoPosition, foldMarks, giroCode, customerNumber, vatColumn } = design;
-  return { accent, options: { logoSize, logoPosition, foldMarks, giroCode, customerNumber, vatColumn }, ...(logo ? { logo } : {}) };
+  const { accent, logoSize, logoPosition, foldMarks, giroCode, customerNumber, vatColumn, footerColumns } = design;
+  return { accent, options: { logoSize, logoPosition, foldMarks, giroCode, customerNumber, vatColumn, footerColumns }, ...(logo ? { logo } : {}) };
 }
 
 /** Ändert das Standardprofil; was die Eingabe nicht nennt, bleibt. Farben werden groß geschrieben gespeichert */

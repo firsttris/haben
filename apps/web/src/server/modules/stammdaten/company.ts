@@ -214,7 +214,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     loadDesign(),
     kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
   ]);
-  const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
+  const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
     contacts,
     /** Gültige Lastschriftmandate je Kunde (#445), für die Zahlungsart der Rechnung */
@@ -236,6 +236,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       plz,
       ort,
       email,
+      telefon,
       steuernummer,
       ustId,
       iban,

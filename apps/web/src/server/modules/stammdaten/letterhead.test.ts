@@ -87,4 +87,12 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
     await expect(letterhead.saveDesign(actor, { logoSize: "xl" as "l" })).rejects.toThrow(/ungültig/);
     expect(await sql`select 1 from letterhead_profiles`).toHaveLength(0);
   });
+
+  it("speichert eine eigene Fußzeile und lehnt unbekannte Platzhalter ab", async () => {
+    await letterhead.saveDesign(actor, { footerColumns: ["{firma}", "{steuernummer}"] });
+    expect((await letterhead.loadLetterhead()).options?.footerColumns).toEqual(["{firma}", "{steuernummer}"]);
+    await expect(letterhead.saveDesign(actor, { footerColumns: ["{fax}", "{steuernummer}"] })).rejects.toThrow(/ungültig/);
+    await letterhead.saveDesign(actor, { footerColumns: null });
+    expect((await letterhead.loadLetterhead()).options?.footerColumns).toBeNull();
+  });
 });

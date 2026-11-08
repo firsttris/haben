@@ -345,6 +345,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
+.banner-warn { background: var(--warn-soft); color: var(--warn-ink); }
 .banner-ok { background: var(--accent-soft); color: var(--accent-ink); }
 .banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
 .banner a { color: inherit; font-weight: 500; }
@@ -948,3 +949,8 @@ summary { cursor: pointer; min-height: 24px; }
 .format-bar button:hover { background: var(--line); }
 .format-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .format-status { display: block; margin-top: 4px; font-size: 12px; color: var(--danger-ink); }
+.footer-columns { display: grid; gap: 10px; }
+.footer-columns textarea { min-width: 0; font-size: 12px; line-height: 1.5; resize: vertical; }
+.footer-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.footer-chips .btn { font-size: 12px; }
+.footer-preview { font-size: 12px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }

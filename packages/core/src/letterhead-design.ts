@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ACCENT_PATTERN, DEFAULT_ACCENT } from "./accent.ts";
+import { footerIssues, MAX_FOOTER_COLUMNS, MAX_FOOTER_TEXT, MIN_FOOTER_COLUMNS } from "./footer-template.ts";
 
 /**
  * Layout eines Belegs. Heute gibt es nur das eingebaute „klassisch“; eigene Vorlagen (Roadmap Platz 7, #113) bekommen eine
@@ -50,6 +51,8 @@ export interface LetterheadOptions {
   customerNumber: boolean;
   /** Spalte USt je Position; bei mehreren Steuersätzen bleibt sie stehen, siehe showsVatColumn */
   vatColumn: boolean;
+  /** Eigene Spalten der Fußzeile mit Platzhaltern; null = automatisch aus den Firmendaten */
+  footerColumns: string[] | null;
 }
 
 /** Gestaltung eines Briefkopf-Profils (#113). Neue Einstellungen brauchen eine Vorgabe in DEFAULT_DESIGN, ältere Zeilen kennen sie nicht */
@@ -66,6 +69,7 @@ export const DEFAULT_OPTIONS: LetterheadOptions = {
   giroCode: true,
   customerNumber: true,
   vatColumn: true,
+  footerColumns: null,
 };
 
 export const DEFAULT_DESIGN: LetterheadDesign = {
@@ -98,6 +102,12 @@ export const letterheadDesignInputSchema = z
     giroCode: z.boolean(),
     customerNumber: z.boolean(),
     vatColumn: z.boolean(),
+    footerColumns: z
+      .array(z.string().max(MAX_FOOTER_TEXT))
+      .min(MIN_FOOTER_COLUMNS)
+      .max(MAX_FOOTER_COLUMNS)
+      .refine((columns) => footerIssues(columns).length === 0)
+      .nullable(),
   })
   .partial();
 export type LetterheadDesignInput = z.infer<typeof letterheadDesignInputSchema>;
