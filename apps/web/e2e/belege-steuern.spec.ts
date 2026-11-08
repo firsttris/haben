@@ -968,6 +968,29 @@ test("Elektrofahrzeug übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswer
   await expect(plan.locator(".table-row", { hasText: /^2030/ })).toContainText("799,00");
 });
 
+test("Sonstige Transportmittel übernehmen: Konto 0380, eigene Nutzungsdauer statt der Pkw-Nutzungsdauer, keine Elektro-AfA (#312)", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("Kofferanhänger");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await expect(form.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("6");
+  // Die sechs Jahre für Pkw gehen nicht mit: die Nutzungsdauer kommt vom einzelnen Wirtschaftsgut
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)" });
+  await expect(form.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
+  await expect(form.getByRole("combobox", { name: "Abschreibung", exact: true }).locator("option[value=elektro]")).toHaveCount(0);
+  await form.getByLabel("Nutzungsdauer in Jahren").fill("11");
+  await form.getByLabel("Anschaffungsdatum").fill("2025-04-10");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("6.600,00");
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  // 2025: 9 von 132 Monaten = 450 €
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("6.150,00");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Konto 0380/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Abschreibungsplan" }).locator(".table-row", { hasText: /^2026/ })).toContainText("600,00");
+});
+
 test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wird ohne Erinnerungswert gespeichert", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });
