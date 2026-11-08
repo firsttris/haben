@@ -1184,6 +1184,27 @@
       "when": 1794173389065,
       "tag": "0168_iban_entscheidung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1794175610617,
+      "tag": "0169_briefkopf_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1794175611265,
+      "tag": "0170_briefkopf_profile_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1794175611828,
+      "tag": "0171_firma_akzentfarbe_entfernt",
+      "breakpoints": true
     }
   ]
 }
