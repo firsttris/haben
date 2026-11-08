@@ -16,8 +16,9 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
 - Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine); die Einleitung ist mit der Standard-Einleitung für Angebote aus den [Firmendaten](einrichtung.md) vorbelegt
 - zu jeder Position optional ein mehrzeiliger **Text zur Position** wie bei der [Rechnung](rechnungen.md#positionen); er steht im PDF unter der Bezeichnung und geht in die Rechnung aus dem Angebot über
+- zu jeder Position optional die **Art.-Nr.**, aus dem Artikelkatalog übernommen; sie steht im PDF, in Auftragsbestätigung und Lieferschein und geht in die Rechnung aus dem Angebot über (in der E-Rechnung BT-155, siehe [Positionen](rechnungen.md#positionen))
 - **Positionsrabatt** und **Gesamtrabatt** in Prozent oder als Betrag wie bei der [Rechnung](rechnungen.md#rabatte); die Rechnung aus dem Angebot übernimmt beide
-- je Position die **Art**: zählt zur Summe, **optional** oder **Alternative** zur Position davor (siehe unten)
+- je Position die **Art**: zählt zur Summe, **optional** oder **Alternative** zur Position davor (Auswahl hinter der Bezeichnung, siehe unten)
 - optional ein **Zahlungsplan** (siehe unten)
 
 **Vorschau** im Kopf zeigt das Angebot, von rechts über das Formular oder neben ihm angeheftet ([wie bei der Rechnung](rechnungen.md#vorschau)). Der Entwurf lässt sich beliebig speichern, ändern und löschen. **Entwurf als PDF** lädt ihn als PDF aus der Vorlage des festgeschriebenen Angebots, mit „ENTWURF“ über jeder Seite und statt der Nummer, ohne eine Nummer zu vergeben ([wie bei der Rechnung](rechnungen.md#entwurf-als-pdf)).

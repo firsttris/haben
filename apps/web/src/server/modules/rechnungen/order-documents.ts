@@ -50,7 +50,7 @@ interface DeliverySource {
   seller: Seller;
   buyer: Buyer;
   language: "de" | "en";
-  lines: { description: string; detail: string; quantity: number; unit: string }[];
+  lines: { description: string; detail: string; itemNumber: string; quantity: number; unit: string }[];
   /** Bestellnummer des Kunden und eigene Auftragsnummer; die Lieferscheinnummer nennt der Lieferschein nicht noch einmal */
   references: OrderReferences;
 }
@@ -111,6 +111,7 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
       position: i + 1,
       description: l.description,
       ...(l.detail ? { detail: l.detail } : {}),
+      ...(l.itemNumber ? { itemNumber: l.itemNumber } : {}),
       quantity: l.quantity,
       unit: l.unit as UnitLabel,
     })),

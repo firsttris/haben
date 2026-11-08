@@ -119,6 +119,8 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
   await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
+  // Die Artikelnummer geht in die Position über (BT-155, #388)
+  await expect(page.getByLabel("Artikelnummer Position 1 (optional)")).toHaveValue("B-01");
   // Bereits im Katalog: nicht noch einmal speichern
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
@@ -126,6 +128,7 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("110,00");
+  await expect(page.getByLabel("Artikelnummer Position 2 (optional)")).toHaveValue("B-01");
 
   // Eine neue Position als Artikel speichern; danach steht sie im Katalog
   await page.getByRole("button", { name: "Position hinzufügen" }).click();

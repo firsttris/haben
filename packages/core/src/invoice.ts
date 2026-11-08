@@ -37,6 +37,12 @@ export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;
  */
 export const LINE_DETAIL_MAX = 2000;
 
+/**
+ * Höchstlänge der Artikelnummer (BT-155) in Position und Artikelkatalog gleich, damit die Nummer auf beiden Wegen
+ * hindurchpasst: beim Einfügen aus dem Katalog und beim Speichern einer Position als Artikel. EN 16931 nennt keine Grenze.
+ */
+export const ITEM_NUMBER_MAX = 50;
+
 export interface TaxBreakdown {
   rate: BasisPoints;
   base: Cents;

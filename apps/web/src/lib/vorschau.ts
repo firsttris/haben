@@ -52,3 +52,12 @@ export function writePreviewMode(storage: Pick<Storage, "setItem"> | undefined, 
     // Nur für dieses Mal: die Wahl gilt bis zum Neuladen
   }
 }
+
+/**
+ * Ob die Überblendung beim Schließen den Fokus auf ihren Auslöser zurückholt. Nach Escape ist der Dialog sofort zu, das
+ * Ereignis „close“ kommt erst danach als eigener Task (HTML Standard, „close the dialog“); wer in dieser Lücke schon ins
+ * Formular geklickt hat, behält den Fokus. Zurück also nur, wenn er noch in der Leiste steht oder nirgends (body).
+ */
+export function returnsFocusOnClose<T>(active: T | null, body: T, overlayContains: (element: T) => boolean): boolean {
+  return active === null || active === body || overlayContains(active);
+}

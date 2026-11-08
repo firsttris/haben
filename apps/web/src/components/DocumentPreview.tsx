@@ -1,6 +1,6 @@
 import { type KeyboardEvent, type ReactNode, type RefObject, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { type PreviewMode, previewLayout, readPreviewMode, writePreviewMode } from "../lib/vorschau.ts";
+import { type PreviewMode, previewLayout, readPreviewMode, returnsFocusOnClose, writePreviewMode } from "../lib/vorschau.ts";
 import { Icon } from "./Icon.tsx";
 import { SheetScroll } from "./SheetScroll.tsx";
 
@@ -188,8 +188,8 @@ function PreviewDialog({
   }, []);
 
   const closed = () => {
-    onClosing();
     const dialog = ref.current;
+    if (returnsFocusOnClose(document.activeElement, document.body, (element) => dialog?.contains(element) ?? false)) onClosing();
     if (!dialog || parseFloat(getComputedStyle(dialog).transitionDuration) === 0) return onClose();
     let done = false;
     const finish = () => {
