@@ -50,6 +50,10 @@ test("Rechnung am Handy: Status bleibt neben dem Titel sichtbar", async ({ page 
   await statusBleibtSichtbar(page, rechnung as string);
 });
 
+test("Umsatzsteuer-Voranmeldung am Handy: Status bleibt neben dem Titel sichtbar", async ({ page }) => {
+  await statusBleibtSichtbar(page, `/umsatzsteuer/${YEAR}-Q1`);
+});
+
 test("Tab durch den langen Rechnungsentwurf: kein Feld mit Fokus liegt unter dem Kopf", async ({ page }) => {
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu");
