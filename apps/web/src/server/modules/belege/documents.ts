@@ -12,7 +12,6 @@ import {
   einfuhrumsatzsteuerIssues,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
-  mostFrequent,
   parseExchangeRate,
   rateMonth,
   type ExpenseCategory,
@@ -33,14 +32,13 @@ import {
   type OwnInvoiceVerdict,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
-import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
@@ -48,6 +46,7 @@ import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
 import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
 import { pdfTextLines } from "./pdf-text.ts";
+import { supplierCategory, supplierPayment } from "./vorschlaege.ts";
 import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, splitLines, type DocumentSplit } from "./splits.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
@@ -169,43 +168,6 @@ function totalsOf(amounts: { taxRate: number; net: number; tax: number }[], reve
   return { net, tax, gross: reverseCharge ? net : net + tax };
 }
 
-/**
- * Kategorie aus den gebuchten Belegen desselben Lieferanten (USt-IdNr. oder Name): die häufigste, bei Gleichstand die
- * zuletzt gebuchte, mit Anzahl für die Begründung („7 von 9 Belegen als Software gebucht“).
- */
-export async function supplierCategory(
-  supplierName: string,
-  supplierUstId: string,
-): Promise<{ category: ExpenseCategory; count: number; total: number } | null> {
-  if (!supplierName.trim() && !supplierUstId.trim()) return null;
-  const rows = await db
-    .select({
-      category: schema.documents.category,
-      count: sql<number>`count(*)::int`,
-      last: sql<string>`max(${schema.documents.lockedAt})::text`,
-    })
-    .from(schema.documents)
-    .where(
-      and(
-        eq(schema.documents.status, "gebucht"),
-        // Ein stornierter Beleg war oft falsch erfasst; er soll den Vorschlag nicht prägen
-        documentNotCancelled(),
-        sql`${schema.documents.category} is not null`,
-        or(
-          supplierUstId.trim() ? eq(schema.documents.supplierUstId, supplierUstId.trim()) : sql`false`,
-          supplierName.trim() ? sql`lower(${schema.documents.supplierName}) = lower(${supplierName.trim()})` : sql`false`,
-        ),
-      ),
-    )
-    .groupBy(schema.documents.category);
-  const top = mostFrequent(rows.map((r) => ({ value: r.category as ExpenseCategory, count: r.count, last: r.last ?? "" })));
-  return top ? { category: top.value, count: top.count, total: top.total } : null;
-}
-
-async function guessCategory(supplierName: string, supplierUstId: string): Promise<ExpenseCategory | null> {
-  return (await supplierCategory(supplierName, supplierUstId))?.category ?? null;
-}
-
 function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
   const warnings: string[] = [];
   const amounts = invoice.taxes.flatMap((t) => {
@@ -251,7 +213,10 @@ async function applyFields(
 ) {
   // Eigene Ausgangsrechnung: keine Ausgabe vorschlagen, also keine Kategorie, auch nicht die des Lieferanten (= wir selbst)
   const hint = ownInvoice && ownInvoiceHint(ownInvoice);
-  const category = hint ? null : ((await guessCategory(fields.supplierName, fields.supplierUstId)) ?? (categoryKnown ? fields.category : null));
+  // Kategorie und Bezahlung aus den gebuchten Belegen desselben Lieferanten gehen vor (#295); gebucht wird erst auf Bestätigung
+  const lieferant = { supplierName: fields.supplierName, supplierUstId: fields.supplierUstId, supplierContactId: null };
+  const category = hint ? null : ((await supplierCategory(lieferant))?.category ?? (categoryKnown ? fields.category : null));
+  const payment = hint ? null : ((await supplierPayment(lieferant))?.payment ?? null);
   // Fremdwährung: die ausgelesenen Beträge sind die Originalbeträge; Euro mit dem USt-Kurs des Monats, sobald es ihn gibt
   const company = await loadCompany();
   const rate = await resolveRate(
@@ -291,6 +256,7 @@ async function applyFields(
         currency: fields.currency,
         ...rate,
         category,
+        ...(payment ? { payment } : {}),
         privateShare,
         ...totalsOf(amounts, doc.reverseCharge),
         extractedBy,
