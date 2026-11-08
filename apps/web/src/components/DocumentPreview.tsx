@@ -22,6 +22,8 @@ export type DocumentPreview = {
   /** Zählt jedes Öffnen: Wer klickt, während die Leiste noch hinausfährt, bekommt eine neue, statt ins Leere zu klicken */
   overlayRun: number;
   openOverlay: () => void;
+  /** Sofort beim Schließen, nicht erst nach der Fahrt: Wer dann schon im Formular ist, behält dort den Fokus */
+  overlayClosing: () => void;
   closeOverlay: () => void;
   pin: () => void;
   unpin: () => void;
@@ -79,11 +81,11 @@ export function useDocumentPreview(): DocumentPreview {
       setOverlayRun((run) => run + 1);
       setOverlayOpen(true);
     },
-    closeOverlay: () => {
-      setOverlayOpen(false);
+    overlayClosing: () => {
       // Zurück auf den Auslöser, ohne dass die Seite dorthin springt (er steht im festen Kopf oder in der Vorschau)
       (returnFocus.current?.isConnected ? returnFocus.current : triggerRef.current)?.focus({ preventScroll: true });
     },
+    closeOverlay: () => setOverlayOpen(false),
     pin: () => {
       setPaneMotion("in");
       choose("angeheftet");
@@ -143,7 +145,7 @@ export function PreviewLayout({
         </section>
       )}
       {preview.overlayOpen && (
-        <PreviewDialog key={preview.overlayRun} label={label} caption={caption} onClose={preview.closeOverlay}>
+        <PreviewDialog key={preview.overlayRun} label={label} caption={caption} onClosing={preview.overlayClosing} onClose={preview.closeOverlay}>
           {sheet}
         </PreviewDialog>
       )}
@@ -155,7 +157,19 @@ export function PreviewLayout({
  * Modaler <dialog> als Seitenleiste, die von rechts hereinfährt: hält den Fokus, Escape und ein Klick neben das Blatt
  * schließen ihn. Er bleibt im Dokument, bis er hinausgefahren ist; ohne Bewegung (prefers-reduced-motion) sofort weg.
  */
-function PreviewDialog({ label, caption, onClose, children }: { label: string; caption: ReactNode; onClose: () => void; children: ReactNode }) {
+function PreviewDialog({
+  label,
+  caption,
+  onClosing,
+  onClose,
+  children,
+}: {
+  label: string;
+  caption: ReactNode;
+  onClosing: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const replaced = useRef(false);
@@ -171,6 +185,7 @@ function PreviewDialog({ label, caption, onClose, children }: { label: string; c
   }, []);
 
   const closed = () => {
+    onClosing();
     const dialog = ref.current;
     if (!dialog || parseFloat(getComputedStyle(dialog).transitionDuration) === 0) return onClose();
     let done = false;
