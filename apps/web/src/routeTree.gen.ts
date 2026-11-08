@@ -63,6 +63,7 @@ import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzst
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
 import { Route as ApiAltbelegIdRouteImport } from './routes/api/altbeleg/$id'
 import { Route as ApiAngebotIdRouteImport } from './routes/api/angebot/$id'
+import { Route as ApiAngebotsanhangIdRouteImport } from './routes/api/angebotsanhang/$id'
 import { Route as ApiArchivIdRouteImport } from './routes/api/archiv/$id'
 import { Route as ApiAuswertungenJahrRouteImport } from './routes/api/auswertungen/$jahr'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -80,6 +81,7 @@ import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungsanhang/$id'
+import { Route as ApiStandardanhangIdRouteImport } from './routes/api/standardanhang/$id'
 import { Route as ApiSvProtokollIdRouteImport } from './routes/api/sv-protokoll/$id'
 import { Route as ApiUeberweisungIdRouteImport } from './routes/api/ueberweisung/$id'
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
@@ -378,6 +380,11 @@ const ApiAngebotIdRoute = ApiAngebotIdRouteImport.update({
   path: '/api/angebot/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAngebotsanhangIdRoute = ApiAngebotsanhangIdRouteImport.update({
+  id: '/api/angebotsanhang/$id',
+  path: '/api/angebotsanhang/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiArchivIdRoute = ApiArchivIdRouteImport.update({
   id: '/api/archiv/$id',
   path: '/api/archiv/$id',
@@ -461,6 +468,11 @@ const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
 const ApiRechnungsanhangIdRoute = ApiRechnungsanhangIdRouteImport.update({
   id: '/api/rechnungsanhang/$id',
   path: '/api/rechnungsanhang/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStandardanhangIdRoute = ApiStandardanhangIdRouteImport.update({
+  id: '/api/standardanhang/$id',
+  path: '/api/standardanhang/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSvProtokollIdRoute = ApiSvProtokollIdRouteImport.update({
@@ -650,6 +662,7 @@ export interface FileRoutesByFullPath {
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
+  '/api/angebotsanhang/$id': typeof ApiAngebotsanhangIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -667,6 +680,7 @@ export interface FileRoutesByFullPath {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
@@ -749,6 +763,7 @@ export interface FileRoutesByTo {
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
+  '/api/angebotsanhang/$id': typeof ApiAngebotsanhangIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -766,6 +781,7 @@ export interface FileRoutesByTo {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
@@ -850,6 +866,7 @@ export interface FileRoutesById {
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
+  '/api/angebotsanhang/$id': typeof ApiAngebotsanhangIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -867,6 +884,7 @@ export interface FileRoutesById {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/standardanhang/$id': typeof ApiStandardanhangIdRoute
   '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
@@ -951,6 +969,7 @@ export interface FileRouteTypes {
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
+    | '/api/angebotsanhang/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -968,6 +987,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
@@ -1050,6 +1070,7 @@ export interface FileRouteTypes {
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
+    | '/api/angebotsanhang/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -1067,6 +1088,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
@@ -1150,6 +1172,7 @@ export interface FileRouteTypes {
     | '/_app/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
+    | '/api/angebotsanhang/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -1167,6 +1190,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/standardanhang/$id'
     | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
@@ -1220,6 +1244,7 @@ export interface RootRouteChildren {
   EinladungTokenRoute: typeof EinladungTokenRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
   ApiAngebotIdRoute: typeof ApiAngebotIdRoute
+  ApiAngebotsanhangIdRoute: typeof ApiAngebotsanhangIdRoute
   ApiArchivIdRoute: typeof ApiArchivIdRoute
   ApiAuswertungenJahrRoute: typeof ApiAuswertungenJahrRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -1237,6 +1262,7 @@ export interface RootRouteChildren {
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungsanhangIdRoute: typeof ApiRechnungsanhangIdRoute
+  ApiStandardanhangIdRoute: typeof ApiStandardanhangIdRoute
   ApiSvProtokollIdRoute: typeof ApiSvProtokollIdRoute
   ApiUeberweisungIdRoute: typeof ApiUeberweisungIdRoute
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
@@ -1633,6 +1659,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAngebotIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/angebotsanhang/$id': {
+      id: '/api/angebotsanhang/$id'
+      path: '/api/angebotsanhang/$id'
+      fullPath: '/api/angebotsanhang/$id'
+      preLoaderRoute: typeof ApiAngebotsanhangIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/archiv/$id': {
       id: '/api/archiv/$id'
       path: '/api/archiv/$id'
@@ -1750,6 +1783,13 @@ declare module '@tanstack/react-router' {
       path: '/api/rechnungsanhang/$id'
       fullPath: '/api/rechnungsanhang/$id'
       preLoaderRoute: typeof ApiRechnungsanhangIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/standardanhang/$id': {
+      id: '/api/standardanhang/$id'
+      path: '/api/standardanhang/$id'
+      fullPath: '/api/standardanhang/$id'
+      preLoaderRoute: typeof ApiStandardanhangIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sv-protokoll/$id': {
@@ -2079,6 +2119,7 @@ const rootRouteChildren: RootRouteChildren = {
   EinladungTokenRoute: EinladungTokenRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
   ApiAngebotIdRoute: ApiAngebotIdRoute,
+  ApiAngebotsanhangIdRoute: ApiAngebotsanhangIdRoute,
   ApiArchivIdRoute: ApiArchivIdRoute,
   ApiAuswertungenJahrRoute: ApiAuswertungenJahrRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
@@ -2096,6 +2137,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungsanhangIdRoute: ApiRechnungsanhangIdRoute,
+  ApiStandardanhangIdRoute: ApiStandardanhangIdRoute,
   ApiSvProtokollIdRoute: ApiSvProtokollIdRoute,
   ApiUeberweisungIdRoute: ApiUeberweisungIdRoute,
   ApiUstvaIdRoute: ApiUstvaIdRoute,

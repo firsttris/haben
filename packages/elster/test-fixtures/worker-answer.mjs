@@ -5,7 +5,15 @@ process.once("message", ({ config, request }) => {
   let certMode = null;
   if (request.certificatePath) certMode = statSync(request.certificatePath).mode & 0o777;
   if (request.pdfPath) writeFileSync(request.pdfPath, "%PDF-stub");
-  const info = { config, op: request.op, datenartVersion: request.datenartVersion, certMode, pinOk: request.pin === "1234" };
+  const info = {
+    config,
+    op: request.op,
+    datenartVersion: request.datenartVersion,
+    certMode,
+    pinOk: request.pin === "1234",
+    // Gesetzt von worker-command.sh, wenn der Worker über einen Worker-Befehl gestartet wurde
+    workerCommand: process.env.HABEN_TEST_WORKER_COMMAND ?? null,
+  };
   process.send(
     {
       type: "result",

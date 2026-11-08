@@ -19,6 +19,7 @@ import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 import { attachmentsForMail, listInvoiceAttachments } from "./attachments.ts";
+import { listQuoteAttachments, quoteAttachmentsForMail } from "./quote-attachments.ts";
 import { invoiceDocumentTotals } from "./invoice-taxes.ts";
 import { invoiceTitle } from "./invoices.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
@@ -89,12 +90,15 @@ export const outgoingMailSchema = z.object({
 
 export type OutgoingMail = z.input<typeof outgoingMailSchema>;
 
-/** Bei der Rechnung zusätzlich: welche Anhänge an der Rechnung (#272) mitgehen */
+/** Bei Rechnung (#272) und Angebot (#415) zusätzlich: welche Anhänge am Beleg mitgehen */
 export const invoiceMailSchema = outgoingMailSchema.extend({
   attachmentIds: z.array(z.uuid()).max(MAX_INVOICE_ATTACHMENTS).default([]),
 });
 
 export type InvoiceMail = z.input<typeof invoiceMailSchema>;
+
+/** Zusätzliche Anhänge zur Auswahl im Formular */
+const choosable = (list: { id: string; filename: string; size: number }[]) => list.map(({ id, filename, size }) => ({ id, filename, size }));
 
 async function loadInvoice(id: string) {
   const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));
@@ -188,7 +192,7 @@ export async function invoiceMailDraft(invoiceId: string) {
     signature: legalSignature(company, invoice.language),
     attachments: invoiceAttachments(invoice).map((a) => a.filename),
     /** Zusätzliche Anhänge an der Rechnung zur Auswahl */
-    extraAttachments: (await listInvoiceAttachments(invoiceId)).map(({ id, filename, size }) => ({ id, filename, size })),
+    extraAttachments: choosable(await listInvoiceAttachments(invoiceId)),
     configured: Boolean(settings),
   };
 }
@@ -336,21 +340,25 @@ export async function quoteMailDraft(quoteId: string) {
     body: fillTemplate(template.body, values),
     signature: legalSignature(company, quote.language),
     attachments: [`Angebot-${quote.number}.pdf`],
+    /** Zusätzliche Anhänge am Angebot zur Auswahl */
+    extraAttachments: choosable(await listQuoteAttachments(quoteId)),
     configured: Boolean(settings),
   };
 }
 
-export async function sendQuoteMail(actor: string, quoteId: string, input: OutgoingMail) {
-  const mail = outgoingMailSchema.parse(input);
+/** Versand mit dem PDF und den ausgewählten Zusatzanhängen; das Protokoll nennt alle Dateinamen */
+export async function sendQuoteMail(actor: string, quoteId: string, input: InvoiceMail) {
+  const mail = invoiceMailSchema.parse(input);
   const [quote, settings, company] = await Promise.all([loadQuote(quoteId), loadMailSettings(), loadCompany()]);
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet (Einstellungen › E-Mail-Versand).");
+  const extra = await quoteAttachmentsForMail(quoteId, mail.attachmentIds);
   return send(actor, {
     kind: "angebot",
     to: mail.to,
     ...(mail.copyToMe ? { bcc: settings.fromAddress } : {}),
     subject: mail.subject,
     ...mailBody(mail.body, legalSignature(company, quote.language)),
-    attachments: [{ filename: `Angebot-${quote.number}.pdf`, content: Buffer.from(quote.pdf!), contentType: "application/pdf" }],
+    attachments: [{ filename: `Angebot-${quote.number}.pdf`, content: Buffer.from(quote.pdf!), contentType: "application/pdf" }, ...extra],
     quoteId,
   });
 }
@@ -364,6 +372,7 @@ export async function mailsForQuote(quoteId: string) {
       subject: schema.mailLog.subject,
       ok: schema.mailLog.ok,
       error: schema.mailLog.error,
+      attachments: schema.mailLog.attachments,
       createdAt: schema.mailLog.createdAt,
     })
     .from(schema.mailLog)

@@ -44,6 +44,9 @@ import { loadLetterhead } from "../stammdaten/index.ts";
 import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import { removeFiles, unusedFiles } from "./attachment-store.ts";
+import { attachStoredToQuote, copyQuoteAttachments, quoteAttachmentFiles } from "./quote-attachments.ts";
+import { listQuoteDefaultAttachments } from "./quote-default-attachments.ts";
 import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema, referencesFromQuote } from "./order-references.ts";
 import { defaultSkonto } from "./skonto.ts";
@@ -187,16 +190,26 @@ function draftValues(input: QuoteDraftInput) {
   };
 }
 
+/** Legt den Entwurf an; parsed ist schon durch quoteDraftSchema gelaufen */
+async function insertQuoteDraft(tx: Tx, parsed: z.output<typeof quoteDraftSchema>): Promise<Quote> {
+  const [quote] = await tx.insert(schema.quotes).values(draftValues(parsed)).returning();
+  if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(quote!.id, parsed));
+  return quote!;
+}
+
+/** Neuer Entwurf; er bekommt die Standardanhänge aus den Einstellungen (#415) als eigene Anhänge */
 export async function createQuoteDraft(actor: string, input: QuoteDraftInput): Promise<Quote> {
   const parsed = quoteDraftSchema.parse(input);
   return withActor(actor, async (tx) => {
-    const [quote] = await tx.insert(schema.quotes).values(draftValues(parsed)).returning();
-    if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(quote!.id, parsed));
-    return quote!;
+    const quote = await insertQuoteDraft(tx, parsed);
+    // Mit ihrem Zeitpunkt aus den Einstellungen, wie beim Kopieren: so bleibt deren Reihenfolge
+    await attachStoredToQuote(tx, quote.id, await listQuoteDefaultAttachments(tx));
+    return quote;
   });
 }
 
-async function lockDraft(tx: Tx, id: string): Promise<Quote> {
+/** Sperrt den Entwurf für die Transaktion; auch für seine Anhänge (quote-attachments.ts) */
+export async function lockDraft(tx: Tx, id: string): Promise<Quote> {
   const [quote] = await tx.select().from(schema.quotes).where(eq(schema.quotes.id, id)).for("update");
   if (!quote) throw new QuoteError("Angebot nicht gefunden.");
   const problem = quoteEditProblem(quote);
@@ -216,10 +229,14 @@ export async function updateQuoteDraft(actor: string, id: string, input: QuoteDr
 }
 
 export async function deleteQuoteDraft(actor: string, id: string): Promise<void> {
-  await withActor(actor, async (tx) => {
+  const unused = await withActor(actor, async (tx) => {
     await lockDraft(tx, id);
+    const files = await quoteAttachmentFiles(tx, id);
+    // Anhänge gehen mit dem Angebot (on delete cascade), ihre Dateien, sobald sie sonst niemand nutzt
     await tx.delete(schema.quotes).where(eq(schema.quotes.id, id));
+    return unusedFiles(tx, files);
   });
+  await removeFiles(unused);
 }
 
 /** Neues Angebot mit den Vorgaben aus den Firmendaten */
@@ -576,13 +593,13 @@ export async function quoteToInvoice(
   });
 }
 
-/** Neuer Entwurf mit Kunde und Positionen eines vorhandenen Angebots, Datum und Gültigkeit neu */
+/** Neuer Entwurf mit Kunde, Positionen und Anhängen eines vorhandenen Angebots, Datum und Gültigkeit neu */
 export async function copyQuote(actor: string, id: string, today: string): Promise<Quote> {
   const data = await getQuote(id);
   if (!data) throw new QuoteError("Angebot nicht gefunden.");
   const { quote, lines } = data;
   const validDays = Math.max(0, Math.round((Date.parse(quote.validUntil) - Date.parse(quote.issueDate)) / 86_400_000));
-  return createQuoteDraft(actor, {
+  const input: QuoteDraftInput = {
     contactId: quote.contactId,
     issueDate: today,
     validUntil: addDays(today, validDays || QUOTE_VALID_DAYS),
@@ -609,6 +626,12 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
       kind: line.kind,
       ...lineDiscountOf(line),
     })),
+  };
+  const parsed = quoteDraftSchema.parse(input);
+  return withActor(actor, async (tx) => {
+    const copy = await insertQuoteDraft(tx, parsed);
+    await copyQuoteAttachments(tx, id, copy.id);
+    return copy;
   });
 }
 

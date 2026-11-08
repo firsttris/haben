@@ -385,7 +385,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
-  yield* invoiceAttachmentFiles(invoices, problems);
+  yield* attachmentArchive(INVOICE_ATTACHMENTS, await invoiceAttachmentRows(invoices), problems);
 
   // Angebote (Handelsbriefe, nur wenn vorhanden) -------------------------
   const quotes = await db
@@ -441,6 +441,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       ),
       compress: true,
     };
+    yield* attachmentArchive(QUOTE_ATTACHMENTS, await quoteAttachmentRows(quotes), problems);
   }
 
   // Belege ----------------------------------------------------------------
@@ -1490,43 +1491,64 @@ async function pruefwertText(year: number, now: Date): Promise<string> {
   ].join("\n");
 }
 
-/**
- * Zusätzliche Anhänge der festgeschriebenen Rechnungen (#272) unter rechnungen/anhaenge/, nur wenn vorhanden, mit
- * anhaenge.csv: Rechnung, ursprünglicher Dateiname, Datei im Archiv und SHA-256.
- */
-async function* invoiceAttachmentFiles(invoices: { id: string; number: string | null }[], problems: string[]): AsyncGenerator<ArchiveFile> {
-  if (invoices.length === 0) return;
-  const attachments = await db
-    .select()
-    .from(schema.invoiceAttachments)
-    .where(
-      inArray(
-        schema.invoiceAttachments.invoiceId,
-        invoices.map((i) => i.id),
-      ),
-    )
-    .orderBy(asc(schema.invoiceAttachments.createdAt), asc(schema.invoiceAttachments.id));
-  if (attachments.length === 0) return;
+type AttachmentRow = { id: string; ownerNumber: string; filename: string; size: number; sha256: string };
+
+/** Wo die Anhänge einer Belegart im Archiv liegen und wie die Spalte des Belegs in anhaenge.csv heißt */
+type AttachmentArchive = { dir: string; noun: string; of: string };
+const INVOICE_ATTACHMENTS: AttachmentArchive = { dir: "rechnungen/anhaenge", noun: "Rechnung", of: "der Rechnung" };
+const QUOTE_ATTACHMENTS: AttachmentArchive = { dir: "angebote/anhaenge", noun: "Angebot", of: "des Angebots" };
+
+/** Anhänge der Rechnungen des Archivs (#272), in der Reihenfolge, in der sie angehängt wurden */
+async function invoiceAttachmentRows(invoices: { id: string; number: string | null }[]): Promise<AttachmentRow[]> {
+  if (invoices.length === 0) return [];
+  const t = schema.invoiceAttachments;
   const numbers = new Map(invoices.map((i) => [i.id, i.number ?? i.id]));
+  const rows = await db
+    .select()
+    .from(t)
+    .where(inArray(t.invoiceId, [...numbers.keys()]))
+    .orderBy(asc(t.createdAt), asc(t.id));
+  return rows.map((a) => ({ ...a, ownerNumber: numbers.get(a.invoiceId)! }));
+}
+
+/** Anhänge der festgeschriebenen Angebote des Archivs (#415) */
+async function quoteAttachmentRows(quotes: { id: string; number: string | null }[]): Promise<AttachmentRow[]> {
+  if (quotes.length === 0) return [];
+  const t = schema.quoteAttachments;
+  const numbers = new Map(quotes.map((q) => [q.id, q.number ?? q.id]));
+  const rows = await db
+    .select()
+    .from(t)
+    .where(inArray(t.quoteId, [...numbers.keys()]))
+    .orderBy(asc(t.createdAt), asc(t.id));
+  return rows.map((a) => ({ ...a, ownerNumber: numbers.get(a.quoteId)! }));
+}
+
+/**
+ * Zusätzliche Anhänge festgeschriebener Rechnungen (#272) unter rechnungen/anhaenge/ bzw. Angebote (#415) unter
+ * angebote/anhaenge/, nur wenn vorhanden, mit anhaenge.csv: Beleg, ursprünglicher Dateiname, Datei im Archiv, SHA-256.
+ */
+async function* attachmentArchive(where: AttachmentArchive, attachments: AttachmentRow[], problems: string[]): AsyncGenerator<ArchiveFile> {
+  if (attachments.length === 0) return;
   const used = new Set<string>();
   const rows: CsvValue[][] = [];
   for (const attachment of attachments) {
-    const number = numbers.get(attachment.invoiceId)!;
-    const path = uniquePath(used, `rechnungen/anhaenge/${safeName(number, 60)}_${safeName(attachment.filename.replace(/\.pdf$/i, ""), 80, "Anhang")}.pdf`);
+    const number = attachment.ownerNumber;
+    const path = uniquePath(used, `${where.dir}/${safeName(number, 60)}_${safeName(attachment.filename.replace(/\.pdf$/i, ""), 80, "Anhang")}.pdf`);
     let bytes: Buffer | null = null;
     try {
       bytes = await loadFile(attachment.sha256);
     } catch (error) {
       problems.push(
-        `Anhang ${attachment.id} (${attachment.filename}) der Rechnung ${number}: Datei nicht lesbar – ${error instanceof Error ? error.message : String(error)}`,
+        `Anhang ${attachment.id} (${attachment.filename}) ${where.of} ${number}: Datei nicht lesbar – ${error instanceof Error ? error.message : String(error)}`,
       );
     }
     if (bytes) yield { path, content: new Uint8Array(bytes), compress: false };
-    rows.push([number, attachment.filename, bytes ? path.replace(/^rechnungen\/anhaenge\//, "") : "", attachment.size, attachment.sha256, attachment.id]);
+    rows.push([number, attachment.filename, bytes ? path.slice(where.dir.length + 1) : "", attachment.size, attachment.sha256, attachment.id]);
   }
   yield {
-    path: "rechnungen/anhaenge/anhaenge.csv",
-    content: csv(["Rechnung", "Dateiname", "Datei", "Größe (Bytes)", "SHA-256", "ID"], rows),
+    path: `${where.dir}/anhaenge.csv`,
+    content: csv([where.noun, "Dateiname", "Datei", "Größe (Bytes)", "SHA-256", "ID"], rows),
     compress: true,
   };
 }
@@ -1558,7 +1580,8 @@ rechnungen/              Festgeschriebene Ausgangsrechnungen als PDF und E-Rechn
                          Name: Nummer_Dateiname, mit anhaenge.csv.
 angebote/                Nur wenn vorhanden: festgeschriebene Angebote des Jahres als PDF,
                          angebote.csv mit Antwort des Kunden und daraus entstandener
-                         Rechnung.
+                         Rechnung. Nur wenn vorhanden: zusätzliche Anhänge der Angebote
+                         unter anhaenge/, Name: Nummer_Dateiname, mit anhaenge.csv.
 belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und

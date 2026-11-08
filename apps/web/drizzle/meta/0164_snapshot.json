@@ -1,6 +1,6 @@
 {
-  "id": "0b912373-0ecf-4338-95b2-68620e81519e",
-  "prevId": "6d518ecb-2f8b-4af1-a22d-2bd7c8dda31c",
+  "id": "e76870bb-5817-4b3e-8214-afef4c17480f",
+  "prevId": "89c744dd-95f9-42f5-b1a5-7dcf20a612e3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3350,102 +3350,6 @@
       },
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.document_iban_decisions": {
-      "name": "document_iban_decisions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kontakt_iban": {
-          "name": "kontakt_iban",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rechnungs_iban": {
-          "name": "rechnungs_iban",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "wahl": {
-          "name": "wahl",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decided_by": {
-          "name": "decided_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "document_iban_decisions_document": {
-          "name": "document_iban_decisions_document",
-          "columns": [
-            {
-              "expression": "document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "document_iban_decisions_document_id_documents_id_fk": {
-          "name": "document_iban_decisions_document_id_documents_id_fk",
-          "tableFrom": "document_iban_decisions",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "tableTo": "documents",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "document_iban_decisions_wahl": {
-          "name": "document_iban_decisions_wahl",
-          "value": "\"document_iban_decisions\".\"wahl\" in ('kontakt', 'e-rechnung')"
-        },
-        "document_iban_decisions_abweichend": {
-          "name": "document_iban_decisions_abweichend",
-          "value": "\"document_iban_decisions\".\"kontakt_iban\" <> \"document_iban_decisions\".\"rechnungs_iban\""
-        }
-      },
       "isRLSEnabled": false
     },
     "public.document_splits": {
@@ -8895,6 +8799,114 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.quote_attachments": {
+      "name": "quote_attachments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "quote_id": {
+          "name": "quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "quote_attachments_file": {
+          "name": "quote_attachments_file",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "quote_attachments_sha256": {
+          "name": "quote_attachments_sha256",
+          "columns": [
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "quote_attachments_quote_id_quotes_id_fk": {
+          "name": "quote_attachments_quote_id_quotes_id_fk",
+          "tableFrom": "quote_attachments",
+          "columnsFrom": [
+            "quote_id"
+          ],
+          "tableTo": "quotes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

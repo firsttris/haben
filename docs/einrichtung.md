@@ -38,7 +38,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Kundennummern, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -302,6 +302,15 @@ Unter **Einstellungen › Rechnungen › Vorlagen für den Zahlungsplan** legst 
 - Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
 
 Wie der Plan im Angebot wirkt, steht unter [Zahlungsplan](angebote.md#zahlungsplan).
+
+### Standardanhänge für Angebote
+
+Unter **Einstellungen › Rechnungen › Standardanhänge für Angebote** hinterlegst du einmal PDF-Dateien, die mit fast jedem Angebot mitgehen, etwa AGB oder eine Widerrufsbelehrung. Es gelten dieselben Regeln wie für [Anhänge am Angebot](angebote.md#anhänge): nur PDF, bis 20 MB, höchstens zehn.
+
+- Jedes **neue Angebot** bekommt sie beim ersten Speichern als Anhänge. Beim Versand sind sie vorausgewählt; im Entwurf nimmst du einen mit **Entfernen** heraus, wenn er für dieses Angebot nicht passt.
+- Mit dem Festschreiben sind sie wie alle Anhänge mit dem Angebot gesperrt. So bleibt nachvollziehbar, welche Fassung der AGB mit welchem Angebot ging.
+- Änderst du die Standardanhänge später, etwa mit neuen AGB, bekommen erst die danach angelegten Angebote die neue Fassung; bestehende Angebote und Entwürfe bleiben, wie sie sind. **Kopieren** übernimmt die Anhänge des kopierten Angebots, nicht die aktuellen Standardanhänge.
+- Jede Änderung steht im Änderungsprotokoll.
 
 ### Kundennummern
 
