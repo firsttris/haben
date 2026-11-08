@@ -28,7 +28,7 @@ export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesi
       <p className="small muted" style={{ margin: 0 }}>
         Logo als PNG (gern mit transparentem Hintergrund) oder JPEG, bis 1 MB. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
-      <DesignOptionFields design={draft.design} onChange={draft.set} logoUpload={<LogoUpload sha256={logo} onChanged={() => void router.invalidate()} />} />
+      <DesignOptionFields design={draft.design} onChange={draft.set} logoUpload={<LogoUpload sha256={logo} onChanged={() => router.invalidate()} />} />
       <div className="actions">
         <button type="button" className="btn" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
           Speichern

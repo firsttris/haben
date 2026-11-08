@@ -1,6 +1,7 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type ChangeEvent } from "react";
+import type { ChangeEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
+import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { deleteLogo, getLogo, uploadLogo } from "../server/functions/logo.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
@@ -15,11 +16,11 @@ function readBase64(file: File): Promise<string> {
 }
 
 /** Logo hochladen oder entfernen, in den Einstellungen und im Panel der Vorschau; wird sofort gespeichert */
-export function LogoUpload({ sha256, onChanged }: { sha256: string | null; onChanged?: (sha256: string | null) => void }) {
+export function LogoUpload({ sha256, onChanged }: { sha256: string | null; onChanged?: (sha256: string | null) => unknown }) {
   const upload = useServerFn(uploadLogo);
   const remove = useServerFn(deleteLogo);
   const load = useServerFn(getLogo);
-  const [current, setCurrent] = useState(sha256);
+  const [current, setCurrent] = useLoadedState(sha256);
   const { busy, notice, run } = useAction();
 
   // Ohne router.invalidate: Im Belegeditor bleibt das Formular so unberührt
@@ -27,8 +28,8 @@ export function LogoUpload({ sha256, onChanged }: { sha256: string | null; onCha
     run(async () => {
       await work();
       const info = await load();
+      await onChanged?.(info?.sha256 ?? null);
       setCurrent(info?.sha256 ?? null);
-      onChanged?.(info?.sha256 ?? null);
     }, text);
 
   function onFile(event: ChangeEvent<HTMLInputElement>) {
