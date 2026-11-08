@@ -103,11 +103,11 @@ Vorsteuer ziehst du nur aus einer Rechnung ab, die die Umsatzsteuer gesondert au
 - Ohne Haken gibt es kein Feld für die Steuer, und Haben lehnt eine Vorlage mit Steuer ab: „Vorsteuer nur mit einem Dokument, das die Umsatzsteuer gesondert ausweist …“. Den Betrag erfasst du dann mit 0 %, etwa für steuerfreie Miete (§ 4 Nr. 12 UStG) oder Versicherungsbeiträge. Die Notiz am Beleg sagt, dass das Dokument keine Steuer ausweist.
 - Als Kleinunternehmer bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
 
-Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit der Kategorie Sonstiger Aufwand (SKR04 in Klammern):
+Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit der Kategorie Miete für Geschäftsräume (SKR04 in Klammern):
 
 | Konto | Soll | Haben |
 | --- | ---: | ---: |
-| 4900 (6300) Sonstiger Aufwand | 1.000,00 | |
+| 4210 (6310) Miete (unbewegliche Wirtschaftsgüter) | 1.000,00 | |
 | 1576 (1406) Vorsteuer 19 % | 190,00 | |
 | 1600 (3300) Verbindlichkeiten | | 1.190,00 |
 
@@ -207,13 +207,21 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Versicherungen | 4360 | 6400 |
 | Beiträge | 4380 | 6420 |
 | Sonstiger Aufwand | 4900 | 6300 |
+| Miete für Geschäftsräume | 4210 | 6310 |
+| Sonstiger Betriebsbedarf | 4980 | 6850 |
+| Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz) | 4805 | 6470 |
+| Beiträge zur Berufsgenossenschaft | 4138 | 6120 |
+| Versorgungskassen (Altersversorgung der Arbeitnehmer) | 4160 | 6150 |
 | Kfz: Laden, Tanken, Wartung | 4530 | 6530 |
 | Kfz: Versicherung | 4520 | 6520 |
 | Kfz: Steuer | 4510 | 7685 |
 | Kfz: Reparaturen | 4540 | 6540 |
 | Kfz: Leasing | 4570 | 6560 |
+| Kfz: sonstige Kosten (was nicht Laden, Tanken, Versicherung, Steuer, Reparatur oder Leasing ist) | 4580 | 6570 |
 | Anlagegut (wird abgeschrieben) | Anlagekonto je Art | Anlagekonto je Art |
 | Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand, siehe [unten](#einfuhrumsatzsteuer) | 1588 | 1433 |
+
+**Berufsgenossenschaft** und **Versorgungskassen** sind Personalaufwand: Beiträge und betriebliche Altersversorgung für deine Arbeitnehmer (§ 4c EStG). Deine eigene Altersvorsorge als Inhaber ist keine Betriebsausgabe (§ 12 Nr. 1 EStG), sondern privat; buche sie mit Privatanteil 100 % oder gar nicht. Die Beiträge zu einer freiwilligen Unternehmerversicherung bei der Berufsgenossenschaft für dich selbst gehören zu **Beiträge**.
 
 **Bewirtung** von Geschäftspartnern zählt zu 70 % als Betriebsausgabe, die Vorsteuer voll; die Aufteilung macht die EÜR. **Geschenke** an Geschäftspartner sind nur bis 50 € netto je Empfänger und Jahr abziehbar (bis 2023: 35 €). Teurere Geschenke sind keine Betriebsausgabe, auch die Vorsteuer nicht: Buche sie mit Privatanteil 100 %.
 
@@ -499,4 +507,4 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 - Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland ist kein Erwerb; die Einfuhrumsatzsteuer erfasst du mit dem Bescheid des Zolls (siehe [Einfuhrumsatzsteuer](#einfuhrumsatzsteuer)).
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.
-- Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, innergemeinschaftlichen Erwerb, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut; eine eigene Kategorie für Miete gibt es noch nicht (bis dahin etwa Sonstiger Aufwand).
+- Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, innergemeinschaftlichen Erwerb, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut.
