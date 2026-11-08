@@ -10,7 +10,18 @@ import { Icon } from "./Icon.tsx";
  * IBAN der E-Rechnung (BT-84) gegen die des Kontakts am Beleg (#410). Weicht sie ab, warnt die Seite mit beiden IBANs;
  * die Inhaberin entscheidet je Beleg, welche gilt, auch nach dem Buchen. Kontakt und Beleg bleiben dabei unverändert.
  */
-export function IbanCheck({ documentId, check, canDecide }: { documentId: string; check: IbanAbgleich; canDecide: boolean }) {
+export function IbanCheck({
+  documentId,
+  check,
+  canDecide,
+  booked,
+}: {
+  documentId: string;
+  check: IbanAbgleich;
+  canDecide: boolean;
+  /** Entschieden wird erst am gebuchten Beleg; ein offener lässt sich noch löschen */
+  booked: boolean;
+}) {
   const router = useRouter();
   const decide = useServerFn(decideDocumentIbanFn);
   const headingId = useId();
@@ -66,7 +77,9 @@ export function IbanCheck({ documentId, check, canDecide }: { documentId: string
           {entscheidung.von} am {formatDateTime(entscheidung.am)}.
         </p>
       ) : (
-        <p style={{ margin: 0 }}>Bis du entscheidest, welche gilt, lässt sich der Beleg unter Überweisungen nicht auswählen.</p>
+        <p style={{ margin: 0 }}>
+          Bis du entscheidest, welche gilt, lässt sich der Beleg unter Überweisungen nicht auswählen.{booked ? "" : " Entscheiden kannst du nach dem Buchen."}
+        </p>
       )}
       {canDecide && (
         <div className="actions">

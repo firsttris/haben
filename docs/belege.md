@@ -370,7 +370,7 @@ Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), mit ei
 
 Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug: Jemand fängt die Rechnung ab und tauscht die IBAN aus. Haben gleicht deshalb die IBAN einer E-Rechnung (ZUGFeRD oder XRechnung, BT-84) mit der im Kontakt des Lieferanten ab, sobald der Kontakt am Beleg hängt, vor und nach dem Buchen. Verglichen wird ohne Leerzeichen und Groß- und Kleinschreibung; dieselbe IBAN, anders geschrieben, gilt als gleich.
 
-- **Abweichend:** Oben auf der Belegseite steht **Bankverbindung prüfen** mit beiden IBANs in Vierergruppen. Prüfe die Bankverbindung über einen bekannten Weg beim Lieferanten, nicht über Telefonnummer oder E-Mail aus dieser Rechnung. Dann entscheidest du:
+- **Abweichend:** Oben auf der Belegseite steht **Bankverbindung prüfen** mit beiden IBANs in Vierergruppen. Prüfe die Bankverbindung über einen bekannten Weg beim Lieferanten, nicht über Telefonnummer oder E-Mail aus dieser Rechnung. Nach dem Buchen entscheidest du (ein offener Beleg lässt sich noch löschen, deshalb erst dann):
     - **IBAN des Kontakts behalten**, oder
     - **IBAN der E-Rechnung nur für diesen Beleg**.
 

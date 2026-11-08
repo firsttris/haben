@@ -221,7 +221,7 @@ function DocumentPage() {
           </span>
         </div>
       ))}
-      <IbanCheck documentId={doc.id} check={data.ibanCheck} canDecide={inhaber} />
+      <IbanCheck documentId={doc.id} check={data.ibanCheck} canDecide={inhaber && doc.lockedAt !== null} booked={doc.lockedAt !== null} />
       {geprueft && doc.status === "gebucht" && (
         <div className="banner banner-ok" role="status">
           <Icon name="check" />

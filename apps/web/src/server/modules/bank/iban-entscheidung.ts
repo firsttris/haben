@@ -54,8 +54,14 @@ export async function decideDocumentIban(actor: string, documentId: string, inpu
   const parsed = ibanDecisionSchema.parse(input);
   await withActor(actor, async (tx) => {
     // Eine Entscheidung gilt nur für das geprüfte Paar: ändert sich der Kontakt danach, passt sie nicht mehr (ibanAbgleich)
-    const [doc] = await tx.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.id, documentId)).for("share");
+    const [doc] = await tx
+      .select({ id: schema.documents.id, lockedAt: schema.documents.lockedAt })
+      .from(schema.documents)
+      .where(eq(schema.documents.id, documentId))
+      .for("share");
     if (!doc) throw new BankError("Beleg nicht gefunden.");
+    // Erst am gebuchten Beleg: ein offener lässt sich löschen, die nur anhängbare Entscheidung hielte ihn per Fremdschlüssel fest
+    if (!doc.lockedAt) throw new BankError("Welche IBAN gilt, entscheidest du nach dem Buchen des Belegs.");
     const check = await documentIbanCheck(documentId, tx);
     if (check.art !== "abweichend" || check.kontaktIban !== compactIban(parsed.kontaktIban) || check.rechnungsIban !== compactIban(parsed.rechnungsIban)) {
       throw new BankError("Die IBANs haben sich geändert. Bitte die Seite neu laden und noch einmal entscheiden.");
