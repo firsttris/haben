@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro, type DirectBooking } from "@haben/core";
+import { formatDecimal, formatEuro, isKapitalgesellschaft, kategorieArt, kategorieText, parseEuro, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -872,7 +872,8 @@ function AllocationPanel({
   const [directKind, setDirectKind] = useState<DirectChoice>(direct?.kind ?? "privat");
   const [steuer, setSteuer] = useState<SteuerWahl>(() => steuerWahlFuer(steuerOptionen, tx.bookingDate));
   const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
-  const [kategorie, setKategorie] = useState<KategorieWahl>(() => kategorieWahlFuer(kategorieOptionen, tx.amount));
+  // Aus früheren Direktbuchungen derselben Gegenpartei gelernt (#295), sonst nach Richtung
+  const [kategorie, setKategorie] = useState<KategorieWahl>(() => direct?.kategorie ?? kategorieWahlFuer(kategorieOptionen, tx.amount));
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
@@ -1124,7 +1125,11 @@ function AllocationPanel({
             <div className="stack" style={{ gap: 10 }}>
               <div className="section-label">Vorschlag ohne Rechnung</div>
               <div className="match-card">
-                <span style={{ fontWeight: 600 }}>{directKinds.find((k) => k.value === direct.kind)?.label}</span>
+                <span style={{ fontWeight: 600 }}>
+                  {direct.kategorie
+                    ? `${kategorieArt(direct.kategorie.kategorie) === "einnahme" ? "Einnahme" : "Ausgabe"}: ${kategorieText(direct.kategorie)}`
+                    : directKinds.find((k) => k.value === direct.kind)?.label}
+                </span>
                 <ul className="reasons">
                   {direct.reasons.map((reason) => (
                     <li key={reason}>
