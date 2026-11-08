@@ -175,6 +175,20 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
     expect(await candidate(withContact)).toMatchObject({ iban: RECHNUNG_IBAN, ibanSource: "e-rechnung", problem: null });
   });
 
+  it("ein noch nicht gebuchter Beleg bleibt löschbar: entschieden wird erst am gebuchten Beleg", async () => {
+    const contact = await contacts.createContact(actor, contactInput(KONTAKT_IBAN));
+    const { id } = await documents.uploadDocument(actor, { bytes: einvoice(), filename: "RE-2026-0815.xml" });
+    await sql`update documents set supplier_contact_id = ${contact.id} where id = ${id}`;
+    expect(await bank.documentIbanCheck(id)).toMatchObject({ art: "abweichend" });
+    // Eine nur anhängbare Entscheidung am offenen Beleg hielte ihn per Fremdschlüssel fest
+    await expect(bank.decideDocumentIban(actor, id, { wahl: "kontakt", kontaktIban: KONTAKT_IBAN, rechnungsIban: RECHNUNG_IBAN })).rejects.toThrow(
+      "nach dem Buchen",
+    );
+
+    await documents.deleteDocument(actor, id);
+    expect(await sql`select 1 from documents where id = ${id}`).toHaveLength(0);
+  });
+
   it("ein Beleg ohne E-Rechnung hat nichts abzugleichen", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1]), filename: "beleg.jpg" });
     expect(await bank.documentIbanCheck(id)).toEqual({ art: "keine" });
