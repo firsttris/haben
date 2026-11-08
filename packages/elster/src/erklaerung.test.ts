@@ -292,6 +292,13 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
       expect(tag(xml, "E6005301")).toBe(tag(buildEuerXml({ ...base, allgemein, figures: { ...figures, uebrige: 1_500_00 }, anlagen: [] }), "E6005301"));
       expect(euerTotals(mitMiete).ausgaben).toBe(euerTotals(figures).ausgaben + 1_500_00);
     });
+
+    it("mit eingetragener Kennung: auch ohne Betrag im Nachbarn (etwa keine Vorsteuer als Kleinunternehmer) an seiner Stelle", () => {
+      const zeilen = { miete: null, erhaltung: { pfad: ["Sonst_unbeschraenkt", "Erhaltung"], kz: "E6099902", vor: "Vorsteuer" } } as const;
+      const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, vorsteuer: 0, erhaltung: 300_00 }, anlagen: [] }, zeilen);
+      expect(xml).not.toContain("<Vorsteuer>");
+      expect(xml).toMatch(/<Erhaltung>\s*<Sum>\s*<E6099902>300,00<\/E6099902>\s*<\/Sum>\s*<\/Erhaltung>\s*<USt>/);
+    });
   });
 
   it("lässt die AVEÜR ohne Anlagen weg", () => {
