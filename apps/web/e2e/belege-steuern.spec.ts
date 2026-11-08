@@ -1048,7 +1048,7 @@ test("Beleg als Anlagegut: Wechsel von Fahrzeug zu Sonstige Transportmittel läs
   await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
   await page.getByRole("button", { name: "Löschen" }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
