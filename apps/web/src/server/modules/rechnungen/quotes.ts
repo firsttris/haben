@@ -149,6 +149,7 @@ function lineRows(quoteId: string, input: QuoteDraftInput) {
     position: index + 1,
     description: line.description,
     detail: line.detail?.trim() ?? "",
+    itemNumber: line.itemNumber?.trim() ?? "",
     quantity: line.quantity,
     unit: line.unit,
     unitPrice: line.unitPrice,
@@ -368,6 +369,7 @@ export function quoteDocumentFor(
         position: line.position,
         description: line.description,
         ...(line.detail ? { detail: line.detail } : {}),
+        ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
         quantity: line.quantity,
         unit: line.unit as UnitLabel,
         unitPrice: line.unitPrice,
@@ -554,6 +556,7 @@ export async function quoteToInvoice(
             : lines.map((line) => ({
                 description: line.description,
                 detail: line.detail,
+                itemNumber: line.itemNumber,
                 quantity: line.quantity,
                 unit: line.unit as UnitLabel,
                 unitPrice: line.unitPrice,
@@ -598,6 +601,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     lines: lines.map((line) => ({
       description: line.description,
       detail: line.detail,
+      itemNumber: line.itemNumber,
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,

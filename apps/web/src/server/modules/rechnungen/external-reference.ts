@@ -93,6 +93,7 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
       .map((line) => ({
         description: line.description,
         detail: line.detail,
+        itemNumber: line.itemNumber,
         quantity: line.quantity,
         unit: line.unit as UnitLabel,
         unitPrice: line.unitPrice,

@@ -152,6 +152,7 @@ function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
     position: index + 1,
     description: line.description,
     detail: line.detail?.trim() ?? "",
+    itemNumber: line.itemNumber?.trim() ?? "",
     quantity: line.quantity,
     unit: line.unit,
     unitPrice: line.unitPrice,
@@ -175,6 +176,7 @@ async function keptDeductions(tx: Tx, invoiceId: string): Promise<LineInput[]> {
 const lineInputOf = (line: InvoiceLine): LineInput => ({
   description: line.description,
   detail: line.detail,
+  itemNumber: line.itemNumber,
   quantity: line.quantity,
   unit: line.unit as UnitLabel,
   unitPrice: line.unitPrice,
@@ -815,6 +817,7 @@ export function documentFor(
       position: line.position,
       description: line.description,
       ...(line.detail ? { detail: line.detail } : {}),
+      ...(line.itemNumber ? { itemNumber: line.itemNumber } : {}),
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,

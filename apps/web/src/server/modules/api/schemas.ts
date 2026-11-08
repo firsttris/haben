@@ -151,6 +151,7 @@ const lineInputSchema = z
     unitPrice: lineFields.unitPrice.check(z.describe("Einzelpreis in Cent, netto oder brutto je nach priceMode")),
     taxRate: lineFields.taxRate.check(z.describe("Steuersatz in Basispunkten: 1900 = 19 %, 700 = 7 %, 0")),
     detail: lineFields.detail.describe("Mehrzeiliger Text unter der Bezeichnung (BT-154)"),
+    itemNumber: lineFields.itemNumber.describe("Artikelnummer des Verkäufers (BT-155); leer = keine"),
   })
   .strict()
   .register(requestSchemas, { id: "InvoiceLineInput" });
@@ -208,6 +209,7 @@ const lineSchema = z.object({
   position: z.number().int(),
   description: z.string(),
   detail: z.string(),
+  itemNumber: z.string().describe("Artikelnummer des Verkäufers (BT-155); leer = keine"),
   quantity: z.number().int().describe("Tausendstel"),
   unit: z.string(),
   unitPrice: z.number().int().describe("Cent, wie eingegeben (netto oder brutto)"),

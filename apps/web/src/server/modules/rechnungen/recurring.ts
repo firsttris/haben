@@ -151,6 +151,7 @@ export function invoiceForDate(recurring: RecurringInvoice, date: string, langua
       description: fillPlaceholders(line.description, reference),
       // Vorlagen von vor dem Feld haben keinen Text
       detail: fillPlaceholders(line.detail ?? "", reference),
+      itemNumber: line.itemNumber ?? "",
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,

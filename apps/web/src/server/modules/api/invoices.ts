@@ -70,10 +70,11 @@ function invoiceOut(row: ListRow, invoice: Invoice, lines: InvoiceLine[], baseUr
     currency: invoice.currency,
     exchangeRate: invoice.exchangeRate,
     tax: invoice.tax,
-    lines: lines.map(({ position, description, detail, quantity, unit, unitPrice, taxRate, net }) => ({
+    lines: lines.map(({ position, description, detail, itemNumber, quantity, unit, unitPrice, taxRate, net }) => ({
       position,
       description,
       detail,
+      itemNumber,
       quantity,
       unit,
       unitPrice,

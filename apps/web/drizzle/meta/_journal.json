@@ -1135,6 +1135,13 @@
       "when": 1794152789662,
       "tag": "0161_direkt_kategorie",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794153660213,
+      "tag": "0162_artikelnummer",
+      "breakpoints": true
     }
   ]
 }

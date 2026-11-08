@@ -1082,6 +1082,8 @@ export const invoiceLines = pgTable(
     description: text("description").notNull(),
     /** Beschreibung unter der Bezeichnung, mehrzeilig (BT-154); leer = keine */
     detail: text("detail").notNull().default(""),
+    /** Artikelnummer des Verkäufers (BT-155), beim Einfügen aus dem Artikel kopiert; leer = keine (#388) */
+    itemNumber: text("item_number").notNull().default(""),
     /** Tausendstel */
     quantity: integer("quantity").notNull(),
     unit: text("unit").notNull(),
@@ -1236,6 +1238,8 @@ export const quoteLines = pgTable(
     description: text("description").notNull(),
     /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
     detail: text("detail").notNull().default(""),
+    /** Artikelnummer des Verkäufers wie bei der Rechnung; geht in die Rechnung aus dem Angebot über */
+    itemNumber: text("item_number").notNull().default(""),
     /** Tausendstel */
     quantity: integer("quantity").notNull(),
     unit: text("unit").notNull(),
@@ -2305,7 +2309,9 @@ export const recurringInvoices = pgTable(
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     /** detail: Beschreibung unter der Bezeichnung; fehlt bei Vorlagen von vor dem Feld */
-    lines: jsonb("lines").$type<{ description: string; detail?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
+    lines: jsonb("lines")
+      .$type<{ description: string; detail?: string; itemNumber?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>()
+      .notNull(),
     /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
     intervalMonths: smallint("interval_months").notNull(),
     /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */
