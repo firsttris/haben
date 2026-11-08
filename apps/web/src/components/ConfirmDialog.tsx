@@ -61,7 +61,9 @@ function OpenConfirmDialog({ title, confirmLabel, danger = false, onConfirm, onC
         <button
           type="button"
           className={danger ? "btn btn-destructive" : "btn btn-primary"}
-          onClick={() => {
+          onClick={(event) => {
+            // Der zweite Klick eines Doppelklicks auf den Auslöser kann hier landen, wenn der Knopf über ihm liegt
+            if (event.detail > 1) return;
             onClose();
             onConfirm();
           }}
