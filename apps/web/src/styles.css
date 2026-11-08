@@ -43,7 +43,7 @@
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   /* Einheitliche Höhe für Eingabefelder, Auswahllisten und Buttons; auf Touch-Geräten 44px als Tippfläche */
   --control-h: 40px;
-  /* Fester Seitenkopf (#356): Höhe der Navigation darüber (nur auf dem Handy oben) und des Kopfs selbst.
+  /* Fester Seitenkopf: Höhe der Navigation darüber (nur auf dem Handy oben) und des Kopfs selbst.
      --page-head-height misst usePageHeadHeight; der Wert hier gilt nur, bis die Seite im Browser läuft */
   --nav-height: 0px;
   --page-head-height: 80px;
@@ -721,10 +721,10 @@ summary { cursor: pointer; min-height: 24px; }
 .contact-dialog { --dialog-footer: 73px; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; }
 .contact-dialog[open] { display: flex; flex-direction: column; }
 .contact-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
-.contact-dialog > h2 { flex: none; padding: 20px 24px 16px; font-size: 22px; border-bottom: 1px solid var(--line); }
+.contact-dialog > h2 { flex: none; padding: 20px 24px 16px; font-size: 24px; border-bottom: 1px solid var(--line); }
 .contact-dialog > .contact-form { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; border: 0; border-radius: 0; background: none; scroll-padding-bottom: calc(var(--dialog-footer) + 16px); }
 .contact-dialog .form-footer { position: sticky; bottom: 0; min-height: var(--dialog-footer); margin-top: auto; background: var(--surface); }
 @media (max-width: 640px) {
   .contact-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
-  .contact-dialog > h2 { padding: 16px; font-size: 20px; }
+  .contact-dialog > h2 { padding: 16px; }
 }
