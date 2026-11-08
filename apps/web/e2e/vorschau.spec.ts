@@ -319,3 +319,16 @@ test("Überblendung: Eine Textauswahl, die neben dem Blatt endet, schließt sie 
   await expect(dialog(page)).toBeVisible();
   await page.context().close();
 });
+
+test("Menü: Ein Klick auf „Vorschau“ schließt es", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  await pfeil(page).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await vorschauKnopf(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(pfeil(page)).toHaveAttribute("aria-expanded", "false");
+  await page.context().close();
+});
