@@ -24,7 +24,7 @@ const basis: LStAInput = {
   herstellerId: "12345",
   produktVersion: "0.1.0",
   test: true,
-  erstellungsdatum: new Date(2026, 11, 3),
+  erstellungsdatum: new Date("2026-12-03T12:00:00Z"),
 };
 
 const ohneLeer = (xml: string) => xml.replace(/\n/g, "");

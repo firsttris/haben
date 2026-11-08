@@ -19,7 +19,7 @@ const base: UstvaXmlInput = {
   herstellerId: TEST_HERSTELLER_ID,
   produktVersion: "0.1.0",
   test: true,
-  erstellungsdatum: new Date(2026, 3, 5),
+  erstellungsdatum: new Date("2026-04-05T12:00:00Z"),
 };
 
 function tag(xml: string, name: string): string | undefined {
