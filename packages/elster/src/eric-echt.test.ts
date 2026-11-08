@@ -7,6 +7,7 @@ import { checkFormats, ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
 import { buildNachrichtXml } from "./nachricht.ts";
 import { EricProcessClient } from "./process-client.ts";
+import { parseWorkerCommand } from "./factory.ts";
 import { computeUstva } from "@haben/core";
 import { buildUstvaXml, datenartVersionFromXml, type UstvaXmlInput } from "./xml.ts";
 import { hatJahresPlugin } from "./eric-plugins.ts";
@@ -564,7 +565,7 @@ const VOR_ABLAUF = "ACHTUNG, eine Übermittlung vor Ablauf des Veranlagungszeitr
 const ERIC_GLOBAL_PRUEF_FEHLER = 610001002;
 
 describe.skipIf(!ericHome)("Echtes ERiC: Nachrichten lokal prüfen", () => {
-  const client = new EricProcessClient({ ericHome: ericHome! });
+  const client = new EricProcessClient({ ericHome: ericHome!, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) });
 
   // Jahre, deren Plugin dem installierten ERiC fehlt (etwa 2027 vor ERiC 45), werden übersprungen statt rot
   const vorhanden = (build: () => string) => hatJahresPlugin(ericHome!, datenartVersionFromXml(build()));

@@ -14,6 +14,8 @@ const envSchema = z
     ERIC_HOME: z.string().optional(),
     ERIC_LOG_DIR: z.string().optional(),
     ERIC_WORKER_PATH: z.string().optional(),
+    /** Befehl für den ERiC-Worker statt der eigenen Laufzeit, z. B. ein Skript, das ihn unter QEMU als x86_64 startet (arm64) */
+    ERIC_WORKER_COMMAND: z.string().optional(),
     /** Ziel für ERiC, das Haben selbst herunterlädt; gilt, wenn ERIC_HOME nicht gesetzt ist. Im Image ein Volume */
     ERIC_DIR: z.string().default("data/eric"),
     /** Andere Download-Adresse für ERiC, nur zum Testen */

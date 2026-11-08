@@ -5,6 +5,7 @@ import { ericHomeIn } from "./install.ts";
 import { buildKapEStAXml, KAPESTA_JAHRE, type KapEStAInput } from "./kapesta.ts";
 import { hatJahresPlugin } from "./eric-plugins.ts";
 import { EricProcessClient } from "./process-client.ts";
+import { parseWorkerCommand } from "./factory.ts";
 
 /**
  * Kapitalertragsteuer-Anmeldung einer GmbH mit dem echten ERiC prüfen; gesendet wird nichts. Ohne ERiC übersprungen:
@@ -27,7 +28,7 @@ const basis: KapEStAInput = {
 };
 
 describe.skipIf(!ericHome)("Kapitalertragsteuer-Anmeldung mit ERiC", () => {
-  const client = new EricProcessClient({ ericHome: ericHome! });
+  const client = new EricProcessClient({ ericHome: ericHome!, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) });
   const pruefe = async (input: KapEStAInput) => {
     const result = await client.validate(buildKapEStAXml(input));
     expect(ericMeldungen(result.responseXml), result.message).toEqual([]);

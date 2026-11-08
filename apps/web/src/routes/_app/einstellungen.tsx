@@ -976,7 +976,8 @@ function EricCard() {
         </p>
       ) : !eric.platformSupported ? (
         <p className="small muted" style={{ margin: 0 }}>
-          Dieser Server ist kein Linux x86_64; dafür gibt es kein ERiC. Prüfen und Senden bleiben simuliert.
+          Dieser Server ist kein Linux x86_64; dafür gibt es kein ERiC. Prüfen und Senden bleiben simuliert, außer ERIC_WORKER_COMMAND startet den Worker
+          emuliert als x86_64 (siehe Installation).
         </p>
       ) : (
         <>

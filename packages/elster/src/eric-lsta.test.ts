@@ -5,6 +5,7 @@ import { ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
 import { buildLStAXml, LSTA_JAHRE, type LStAInput } from "./lsta.ts";
 import { EricProcessClient } from "./process-client.ts";
+import { parseWorkerCommand } from "./factory.ts";
 
 /**
  * Lohnsteuer-Anmeldung mit dem echten ERiC prüfen; gesendet wird nichts. Ohne ERiC übersprungen:
@@ -31,7 +32,7 @@ const basis: Omit<LStAInput, "zeitraum"> = {
 };
 
 describe.skipIf(!ericHome)("Lohnsteuer-Anmeldung mit ERiC", () => {
-  const client = new EricProcessClient({ ericHome: ericHome! });
+  const client = new EricProcessClient({ ericHome: ericHome!, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) });
   /** Hinweise zu einem Zeitraum, der noch nicht vorbei ist (Regeln LStA_Zeitraum_Zukunft, LStA_Zeitraum_nicht_beendet), sind keine Fehler */
   const zukunft = /Zukunft|noch nicht beendet|nicht abgelaufen/i;
   const pruefe = async (input: LStAInput) => {

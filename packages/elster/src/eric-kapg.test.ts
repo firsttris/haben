@@ -5,6 +5,7 @@ import { buildGewStXml, type GewStXmlInput } from "./gewst.ts";
 import { ericHomeIn } from "./install.ts";
 import { buildKstXml, type KstXmlInput } from "./kst.ts";
 import { EricProcessClient } from "./process-client.ts";
+import { parseWorkerCommand } from "./factory.ts";
 
 /**
  * Erklärungen einer GmbH (Gewerbesteuer E20, Körperschaftsteuer E30) mit dem echten ERiC prüfen; es wird nichts
@@ -64,7 +65,7 @@ const kst = (year: number, over: Partial<KstXmlInput> = {}): KstXmlInput => ({
 });
 
 describe.skipIf(!ericHome)("Erklärungen der GmbH mit ERiC", () => {
-  const client = new EricProcessClient({ ericHome: ericHome! });
+  const client = new EricProcessClient({ ericHome: ericHome!, workerCommand: parseWorkerCommand(process.env.ERIC_WORKER_COMMAND) });
   const pruefe = async (xml: string) => {
     const result = await client.validate(xml);
     expect(ericMeldungen(result.responseXml), result.message).toEqual([]);
