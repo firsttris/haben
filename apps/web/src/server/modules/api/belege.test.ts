@@ -307,6 +307,16 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/belege (Postgres)", () => {
       const missing = await upload(t, null, { note: "ohne Datei" });
       expect(missing.json!.error!.message).toMatch(/datei.*file|file.*datei/);
     });
+
+    it("nennt bei einer leeren Datei im Feld file dieses Feld, nicht datei (#104)", async () => {
+      const t = await token(["belege:anlegen"]);
+      const form = new FormData();
+      form.append("file", new File([new Uint8Array()], "leer.pdf"));
+      const empty = await send(t, "POST", "/belege", { body: form });
+      expect(empty.status).toBe(400);
+      expect((empty.json!.error as unknown as { issues: { path: string }[] }).issues.map((i) => i.path)).toEqual(["file"]);
+      expect(await count()).toBe(0);
+    });
   });
 
   describe("Lesen", () => {
