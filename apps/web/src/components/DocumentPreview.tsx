@@ -246,7 +246,16 @@ export function PreviewButton({ preview }: { preview: DocumentPreview }) {
   }, [preview.canPin]);
 
   const main = (
-    <button ref={preview.triggerRef} type="button" className="btn" aria-haspopup="dialog" onClick={preview.openOverlay}>
+    <button
+      ref={preview.triggerRef}
+      type="button"
+      className="btn"
+      aria-haspopup="dialog"
+      onClick={() => {
+        setMenuOpen(false);
+        preview.openOverlay();
+      }}
+    >
       <Icon name="eye" size={16} />
       Vorschau
     </button>
