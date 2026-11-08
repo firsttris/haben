@@ -171,6 +171,11 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .page-head { position: sticky; top: var(--nav-height); z-index: 10; margin: -12px calc(-1 * var(--main-pad-x)); padding: 12px var(--main-pad-x); background: var(--ground); }
 .shell[data-scrolled] .page-head { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
 .page-head > .actions, .page-head > .field { align-self: flex-end; }
+/* Bricht der Kopf um, bleiben die Aktionen rechts. Am Handy (bis 720 px) füllen sie die Spalte in voller Breite */
+@media (min-width: 721px) {
+  .page-head > .actions, .page-head > .stack { margin-left: auto; }
+  .page-head > .actions, .page-head > .stack > .actions { justify-content: flex-end; }
+}
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
