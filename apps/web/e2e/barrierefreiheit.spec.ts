@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { ANONYMOUS, chunks, fakeEigeneSeite, firstLink, SESSION, USER } from "./daten.ts";
+import { ANONYMOUS, chunks, currentYear, fakeEigeneSeite, firstLink, SESSION, USER } from "./daten.ts";
 
 /**
  * Barrierefreiheit und Tastaturbedienung, mit den Daten und der Sitzung aus app.spec.ts (Projekt „mit-daten“ in
@@ -14,8 +14,7 @@ test.use({ storageState: SESSION });
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
 const THEMES = ["wald", "ozean", "pflaume", "graphit", "nacht", "tiefsee"];
 
-const today = new Date();
-const YEAR = today.getFullYear();
+const YEAR = currentYear();
 
 const PAGES = [
   "/",
