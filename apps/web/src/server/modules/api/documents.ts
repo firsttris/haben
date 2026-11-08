@@ -121,7 +121,8 @@ export async function createDocumentHandler(request: ApiRequest): Promise<ApiRes
   const input = validate(documentUploadSchema, request.body);
   if ("failure" in input) return input.failure;
   const { note, externalSource, externalId } = input.data;
-  // Genau eines der beiden Felder ist gesetzt (documentUploadSchema)
+  // Genau eines der beiden Felder ist gesetzt (documentUploadSchema); Fehler nennen das Feld, in dem die Datei kam
+  const field = input.data.datei ? "datei" : "file";
   const datei = (input.data.datei ?? input.data.file)!;
   const filename = datei.name || "beleg";
   // Vor dem Einlesen, wie beim Upload in Haben
@@ -129,7 +130,7 @@ export async function createDocumentHandler(request: ApiRequest): Promise<ApiRes
   const file = { bytes: new Uint8Array(await datei.arrayBuffer()), filename };
   const problem = documentFileProblem(file);
   if (problem?.kind === "format") return fail("unsupported_media_type", problem.message);
-  if (problem) return fail("validation_failed", problem.message, { issues: [{ path: "datei", message: problem.message }] });
+  if (problem) return fail("validation_failed", problem.message, { issues: [{ path: field, message: problem.message }] });
 
   const reference = externalSource && externalId ? { externalSource, externalId } : null;
   const { id, duplicate } = await uploadDocument(request.actor, file, { background: inBackground, note, ...(reference ? { reference } : {}) });
