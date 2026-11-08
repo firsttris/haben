@@ -119,7 +119,7 @@ curl -s -X POST "$HABEN/rechnungen" -H "Authorization: Bearer $TOKEN" -H "Conten
 }'
 ```
 
-Je Position nimmt die API optional `detail` (Text unter der Bezeichnung, BT-154) und `itemNumber` (Artikelnummer, BT-155, bis 100 Zeichen) an.
+Je Position nimmt die API optional `detail` (Text unter der Bezeichnung, BT-154) und `itemNumber` (Artikelnummer, BT-155, bis 50 Zeichen) an.
 
 Die Antwort enthält Summen, Positionen und `url`, den Link auf den Entwurf in Haben:
 

@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, LINE_DETAIL_MAX, parseEuro, UNITS, type UnitLabel } from "@haben/core";
+import { formatDecimal, formatEuro, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro, UNITS, type UnitLabel } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -79,7 +79,7 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
         </label>
         <label className="field">
           Artikelnummer (optional)
-          <input name="number" defaultValue={article?.number ?? ""} maxLength={50} />
+          <input name="number" defaultValue={article?.number ?? ""} maxLength={ITEM_NUMBER_MAX} />
         </label>
         <label className="field">
           Einheit

@@ -3,6 +3,7 @@ import {
   formatDecimal,
   formatEuro,
   formatQuantity,
+  ITEM_NUMBER_MAX,
   lineAmount,
   LINE_DETAIL_MAX,
   parseEuro,
@@ -409,7 +410,7 @@ export function RecurringForm({
                   <input
                     className="mono"
                     value={line.itemNumber}
-                    maxLength={100}
+                    maxLength={ITEM_NUMBER_MAX}
                     size={10}
                     autoComplete="off"
                     aria-label={`Artikelnummer Position ${index + 1} (optional)`}

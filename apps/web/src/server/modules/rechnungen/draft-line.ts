@@ -1,4 +1,4 @@
-import { discountSchema, invoiceLineInputSchema, LINE_DETAIL_MAX, QUOTE_LINE_KINDS } from "@haben/core";
+import { discountSchema, invoiceLineInputSchema, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, QUOTE_LINE_KINDS } from "@haben/core";
 import { z } from "zod";
 
 /**
@@ -9,8 +9,8 @@ import { z } from "zod";
 export const draftLineSchema = z.object({
   ...invoiceLineInputSchema.shape,
   detail: z.string().trim().max(LINE_DETAIL_MAX).default(""),
-  /** Artikelnummer des Verkäufers (BT-155), aus dem Artikel kopiert; EN 16931 nennt keine Höchstlänge (#388) */
-  itemNumber: z.string().trim().max(100, "Artikelnummer höchstens 100 Zeichen").default(""),
+  /** Artikelnummer des Verkäufers (BT-155), aus dem Artikel kopiert; so lang wie im Katalog (#388) */
+  itemNumber: z.string().trim().max(ITEM_NUMBER_MAX, `Artikelnummer höchstens ${ITEM_NUMBER_MAX} Zeichen`).default(""),
 });
 
 /** Position einer Rechnung mit Positionsrabatt (Prozent oder Betrag im Preismodus); wiederkehrende Rechnungen haben keinen */

@@ -1,4 +1,4 @@
-import type { QuoteLineKind } from "@haben/core";
+import { ITEM_NUMBER_MAX, type QuoteLineKind } from "@haben/core";
 
 /**
  * Zusatzangaben unter einer Position: Artikelnummer (BT-155), Positionsrabatt („10 %“ oder „50,00“) und im Angebot die Art – normal, optional
@@ -35,7 +35,7 @@ export function LineExtras({
         <input
           className="mono"
           value={itemNumber}
-          maxLength={100}
+          maxLength={ITEM_NUMBER_MAX}
           size={10}
           autoComplete="off"
           aria-label={`Artikelnummer Position ${n} (optional)`}
