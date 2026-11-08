@@ -280,6 +280,7 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Steuerzahlung oder Erstattung | nach Steuerart, Bezugsjahr und Teil, siehe [Steuerzahlungen](bank.md#steuerzahlungen) | ebenso | Steuerkonto an Bank | Bank an Steuerkonto |
+| Einnahme oder Ausgabe (Kategorie, Steuersatz) | Erlöse 8400/8300 mit Umsatzsteuer 1776/1771, Kleinunternehmer 8195, Ausgaben auf das Konto der Kategorie, siehe [Auf eine Kategorie buchen](bank.md#auf-eine-kategorie-buchen) | 4400/4300 mit 3806/3801, 4185, Konto der Kategorie | Aufwand an Bank (ohne Vorsteuer), Erlösminderung | Bank an Erlöse und Umsatzsteuer |
 | Darlehen: Auszahlung, Tilgung, Zinsen, Gebühren | Darlehenskonto (0630–0650, 1705–1708), Zinsen 2110/2120/2126, Gebühren 2141, siehe [Darlehen](bank.md#darlehen) | 3150–3170, 3560–3567, 7310/7320/7326, 7355 | Tilgung, Zinsen, Gebühren an Bank | Bank an Darlehen (Auszahlung) |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Rückzahlung) |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
@@ -398,7 +399,7 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 
 Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/modules/umsatzsteuer/vat-figures.ts`):
 
-- **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
+- **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung; dazu bei Ist und Soll die direkt auf eine Einnahmekategorie gebuchten Bankumsätze des Monats. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
 - **Kz 21, 41, 43, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, innergemeinschaftlicher Lieferung, Ausfuhrlieferung, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 43, 45 und 48 zählen wie Kz 81, Kz 21 und 41 immer nach Rechnungsdatum.
 - **Kz 89, 93 und 61:** Bemessungsgrundlagen der Belege mit innergemeinschaftlichem Erwerb zu 19 % bzw. 7 % und die Vorsteuer daraus, nach Belegdatum, auch bei Ist-Versteuerung.
 - **Kz 46, 47, 84, 85 und 67:** Bemessungsgrundlagen und Steuer der Belege, bei denen du die Steuer als Leistungsempfänger schuldest (§ 13b UStG, aus dem EU-Ausland bzw. Drittland), und die abziehbare Vorsteuer daraus, nach Belegdatum.

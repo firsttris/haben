@@ -63,6 +63,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Lohn, Lohnsteuer und SV-Beiträge aus dem Bankabgleich ([Lohn](lohn.md#buchung)) | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge). Lohnzahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis (§ 11 Abs. 2 Satz 2 EStG) |
 | Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
+| [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
