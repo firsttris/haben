@@ -19,7 +19,9 @@ export function usePageHeadHeight(main: RefObject<HTMLElement | null>): void {
     if (!container) return;
     const root = document.documentElement;
     let head: Element | null = null;
-    const resize = new ResizeObserver(([entry]) => setPageHeadHeight(entry?.borderBoxSize?.[0]?.blockSize ?? entry?.target.getBoundingClientRect().height ?? 0));
+    const resize = new ResizeObserver(([entry]) =>
+      setPageHeadHeight(entry?.borderBoxSize?.[0]?.blockSize ?? entry?.target.getBoundingClientRect().height ?? 0),
+    );
 
     function follow() {
       const next = container?.querySelector(PAGE_HEAD) ?? null;
