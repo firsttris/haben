@@ -73,7 +73,9 @@ export function useDocumentPreview(): DocumentPreview {
     overlayOpen,
     overlayRun,
     openOverlay: () => {
-      returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : triggerRef.current;
+      // Safari und Firefox auf dem Mac fokussieren Knöpfe beim Klick nicht: Dann steht der Fokus auf <body>
+      const active = document.activeElement;
+      returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
       setOverlayRun((run) => run + 1);
       setOverlayOpen(true);
     },
