@@ -550,6 +550,7 @@ test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand
   await auswahl.setInputFiles([{ name: "AGB-Kopie.pdf", mimeType: "application/pdf", buffer: attachmentPdf("AGB") }]);
   await expect(anhaenge.getByText("AGB-Kopie.pdf: hängt schon an diesem Angebot.")).toBeVisible();
   await anhaenge.getByRole("button", { name: "intern.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("intern.pdf: entfernt.")).toBeVisible();
   await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toHaveCount(0);
 
