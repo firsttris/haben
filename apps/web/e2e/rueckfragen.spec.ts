@@ -134,12 +134,18 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
   await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
 
   await go("/bank");
-  await page.getByRole("link", { name: /Hanse Logistik GmbH/ }).first().click();
+  await page
+    .getByRole("link", { name: /Hanse Logistik GmbH/ })
+    .first()
+    .click();
   await page.waitForLoadState("networkidle");
   const panel = page.getByRole("complementary", { name: "Zuordnung" });
   // Nach dem Zuordnen springt der Abgleich zum nächsten offenen Umsatz, also zurück zu diesem
   const ersterUmsatz = page.url();
-  await panel.getByRole("button", { name: /^Zuordnen/ }).first().click();
+  await panel
+    .getByRole("button", { name: /^Zuordnen/ })
+    .first()
+    .click();
   await expect(panel.getByRole("heading", { name: "Stadtkasse Bremen" })).toBeVisible();
   await go(ersterUmsatz);
   const aufheben = panel.getByRole("button", { name: "Aufheben", exact: true });
@@ -157,7 +163,10 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
   await expect(panel.getByText("aufgehoben", { exact: true })).toBeVisible();
 
   await go("/bank");
-  await page.getByRole("link", { name: /Stadtkasse Bremen/ }).first().click();
+  await page
+    .getByRole("link", { name: /Stadtkasse Bremen/ })
+    .first()
+    .click();
   await page.waitForLoadState("networkidle");
   await panel.getByRole("button", { name: "Aufteilen" }).click();
   const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
@@ -191,7 +200,10 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
 
 test("Ausbuchung aufheben fragt mit Art und Betrag nach", async () => {
   await go("/rechnungen");
-  await page.getByRole("link", { name: /595,00/ }).first().click();
+  await page
+    .getByRole("link", { name: /595,00/ })
+    .first()
+    .click();
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   const karte = page.getByRole("region", { name: "Ausbuchen" });

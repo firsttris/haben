@@ -558,7 +558,14 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
         title="Ausbuchung aufheben?"
         confirmLabel="Ausbuchung aufheben"
         danger
-        facts={reversing ? [{ label: "Art", value: WRITE_OFF_KINDS[reversing.kind] }, { label: "Betrag", value: formatEuro(reversing.amount), strong: true }] : []}
+        facts={
+          reversing
+            ? [
+                { label: "Art", value: WRITE_OFF_KINDS[reversing.kind] },
+                { label: "Betrag", value: formatEuro(reversing.amount), strong: true },
+              ]
+            : []
+        }
         onConfirm={() => {
           if (!reversing) return;
           const { id } = reversing;
@@ -584,12 +591,7 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
               ) : w.cashEntryId ? (
                 "· mit der Bareinnahme im Kassenbuch stornieren"
               ) : (
-                <button
-                  type="button"
-                  className="link-button"
-                  disabled={busy}
-                  onClick={() => setReversing(w)}
-                >
+                <button type="button" className="link-button" disabled={busy} onClick={() => setReversing(w)}>
                   Aufheben
                 </button>
               ))}

@@ -874,12 +874,7 @@ function CertificateForm() {
             <span style={{ fontWeight: 500 }}>{certificate.filename}</span>
             <span className="small muted">{certificate.validUntil ? `gültig bis ${formatDate(certificate.validUntil)}` : "Ablaufdatum nicht angegeben"}</span>
           </div>
-          <button
-            type="button"
-            className="btn btn-danger"
-            disabled={busy}
-            onClick={() => setRemoving(true)}
-          >
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(true)}>
             Entfernen
           </button>
           <ConfirmDialog

@@ -124,12 +124,7 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
       )}
       {s && !closed && (s.rueckstellung.kst > 0 || s.rueckstellung.gewst > 0) && (
         <div className="actions" style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || !data.gespeichert}
-            onClick={() => setConfirming(true)}
-          >
+          <button type="button" className="btn btn-primary" disabled={busy || !data.gespeichert} onClick={() => setConfirming(true)}>
             Rückstellungen zum 31.12.{year} buchen
           </button>
           <ConfirmDialog

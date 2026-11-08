@@ -34,12 +34,7 @@ export function PasskeysCard() {
               <span style={{ fontWeight: 500 }}>{passkey.name || "Passkey"}</span>
               {passkey.createdAt && <span className="small muted">angelegt {formatDate(passkey.createdAt)}</span>}
             </div>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => setRemoving(passkey)}
-            >
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(passkey)}>
               Entfernen
             </button>
           </div>

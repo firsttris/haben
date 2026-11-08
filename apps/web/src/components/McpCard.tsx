@@ -180,12 +180,7 @@ export function McpCard({ data }: { data: Data }) {
                   <span className="small muted">Rechte: {token.scopes.map(label).join(" · ")}</span>
                 </div>
                 {token.status === "aktiv" && (
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    disabled={busy}
-                    onClick={() => setRevoking(token)}
-                  >
+                  <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRevoking(token)}>
                     Widerrufen
                   </button>
                 )}

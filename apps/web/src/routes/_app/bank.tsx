@@ -1042,16 +1042,19 @@ function AllocationPanel({
           {allocations.map((a) => (
             <div key={a.id} className="history-row">
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ textDecoration: a.reversed ? "line-through" : undefined }}>
-                  {zuordnungText(a, gesellschaft)}
-                </span>
+                <span style={{ textDecoration: a.reversed ? "line-through" : undefined }}>{zuordnungText(a, gesellschaft)}</span>
                 <span className="small muted">
                   {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
                   {a.splitId ? " · Teil einer Aufteilung" : ""}
                 </span>
               </div>
               {!a.reversed && (!a.splitId || firstOfSplit.has(a.id)) && (
-                <button type="button" className="btn btn-sm btn-danger" onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))} disabled={busy}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))}
+                  disabled={busy}
+                >
                   {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
                 </button>
               )}

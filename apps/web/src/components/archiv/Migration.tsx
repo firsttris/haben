@@ -355,7 +355,9 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
         onConfirm={() => run && void action.run(() => cancel({ data: { id: run.id } }))}
         onClose={() => setCancelling(false)}
       >
-        <p>Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal.</p>
+        <p>
+          Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal.
+        </p>
       </ConfirmDialog>
       <div className="actions">
         {running ? (

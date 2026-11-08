@@ -208,12 +208,7 @@ function KalenderAbo() {
             <button type="button" className="btn" disabled={busy} onClick={() => setRueckfrage("neu")}>
               Neuen Link erzeugen
             </button>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => setRueckfrage("beenden")}
-            >
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRueckfrage("beenden")}>
               Abo beenden
             </button>
           </div>
