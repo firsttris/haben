@@ -34,7 +34,7 @@ test("Der Dialog ist modal, nennt die Folgen und hat den Fokus auf Abbrechen, di
 
 test("Festschreiben nennt Nummer, Kunde und Betrag über den Folgen", async ({ page }) => {
   const ausloeser = await neuerEntwurf(page);
-  const kunde = (await page.getByLabel("Kunde").locator("option:checked").textContent())?.trim() ?? "";
+  const kunde = (await page.getByLabel("Kunde").locator("option:checked").textContent())?.split(" · ")[0]?.trim() ?? "";
   await ausloeser.click();
   const dialog = rueckfrage(page);
   await expect(dialog.locator("dt")).toHaveText(["Nummer", "Kunde", "Betrag"]);
