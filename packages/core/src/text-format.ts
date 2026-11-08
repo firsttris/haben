@@ -57,11 +57,21 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
   while (at < text.length) {
     const frame = frames.at(-1)!;
     // Pfade und URLs sind häufige Bestandteile von IT-Angeboten und bleiben wörtlich.
-    if (frames.length === 1 && (at === 0 || /\s/.test(text[at - 1]!))) {
+    if (frame.runs.length === 0 || /\s/.test(text[at - 1] ?? "")) {
       const path = /^(?:[^\s*_\\/]+[\\/]|\/|\\\\)[^\s]*/.exec(text.slice(at));
       if (path) {
-        literal(frame, path[0]);
-        at += path[0].length;
+        let end = at + path[0].length;
+        // Äußere Auszeichnungen dürfen den ganzen Pfad umschließen. Ihre
+        // Schlusszeichen gehören zum Parser, Zeichen im Pfad bleiben wörtlich.
+        const punctuation = /[.,;:!?)}\]]*$/.exec(path[0])![0].length;
+        let boundary = end - punctuation;
+        for (const open of frames.slice(1)) {
+          const closer = boundary - open.marker.length;
+          if (text.startsWith(open.marker, closer) && canClose(text, closer, open.marker.length)) boundary = closer;
+        }
+        if (boundary < end - punctuation) end = boundary;
+        literal(frame, text.slice(at, end));
+        at = end;
         continue;
       }
     }
