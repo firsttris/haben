@@ -100,11 +100,16 @@ export function AbgabeVermerken({
         open={confirming}
         title="Voranmeldung als abgegeben vermerken?"
         confirmLabel="Abgabe vermerken"
-        facts={[
-          { label: "Tag der Abgabe", value: formatDate(filedOn) },
-          { label: "Transferticket", value: ticket.trim() },
-          { label: "Kz 83", value: formatEuro(parsed ?? 0), strong: true },
-        ]}
+        // Auch bei geschlossenem Dialog ausgewertet; ein leeres Datum darf formatDate nicht erreichen
+        facts={
+          ready
+            ? [
+                { label: "Tag der Abgabe", value: formatDate(filedOn) },
+                { label: "Transferticket", value: ticket.trim() },
+                { label: "Kz 83", value: formatEuro(parsed ?? 0), strong: true },
+              ]
+            : []
+        }
         onConfirm={abgabeVermerken}
         onClose={() => setConfirming(false)}
       >
