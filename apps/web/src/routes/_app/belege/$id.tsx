@@ -699,7 +699,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                     touch(setAssetKind)(kind);
                     setAssetMethod(ASSET_KINDS[kind].method);
                     const years = ASSET_KINDS[kind].usefulLifeYears;
-                    if (years && ASSET_KINDS[kind].method === "linear") setAssetYears(String(years));
+                    // Ohne Vorschlag (sonstige Ausstattung, sonstige Transportmittel) bleibt keine Nutzungsdauer der vorigen Art
+                    // stehen, etwa die sechs Jahre für Pkw, wie im Formular der Anlage (#312)
+                    if (ASSET_KINDS[kind].method === "linear") setAssetYears(years ? String(years) : "");
                   }}
                 >
                   {Object.entries(ASSET_KINDS).map(([value, k]) => (
