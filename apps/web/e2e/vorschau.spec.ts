@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
-import { type Browser, expect, type Page, test } from "@playwright/test";
+import { type Browser, chromium, expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 import { HANDY, kopfUnterkante, LAPTOP, sichtbar, zumEnde } from "./kopfzeile.ts";
 
@@ -229,6 +229,26 @@ test("Laptop: angeheftete Vorschau fährt auf Zuruf herein und hinaus, beim Lade
   await expect(page.locator(".preview-pane")).toHaveCount(0);
   expect(await fahrten(page)).toBe(1);
   await page.context().close();
+});
+
+test("Scrollleiste, die Platz braucht (Windows, Linux): Überblendung reicht bis zum Rand, die Seite dahinter springt nicht", async () => {
+  // Playwright blendet Scrollleisten sonst aus; ein eigener Browser, weil sich das je Test nicht umstellen lässt
+  const browser = await chromium.launch({ ignoreDefaultArgs: ["--hide-scrollbars"] });
+  const page = await editor(browser, LAPTOP);
+  await page.addStyleTag({ content: "html::-webkit-scrollbar { width: 15px; background: #ccc; }" });
+  expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(LAPTOP.width - 15);
+  const formular = () => page.locator("#invoice-form").evaluate((form) => form.getBoundingClientRect().width);
+  const vorher = await formular();
+
+  await vorschauKnopf(page).focus();
+  await page.keyboard.press("Enter");
+  expect((await lageNachDerFahrt(page)).right).toBe(LAPTOP.width);
+  expect(await formular()).toBe(vorher);
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".preview-dialog")).toHaveCount(0);
+  expect(await formular()).toBe(vorher);
+  await browser.close();
 });
 
 test("Großer Bildschirm: ohne gespeicherte Wahl angeheftet", async ({ browser }) => {
