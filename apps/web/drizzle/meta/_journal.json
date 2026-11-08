@@ -1191,6 +1191,20 @@
       "when": 1794174913552,
       "tag": "0169_personenkonten",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1794174976529,
+      "tag": "0170_personenkonten_export",
+      "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1794174978662,
+      "tag": "0171_personenkonten_export_trigger",
+      "breakpoints": true
     }
   ]
 }

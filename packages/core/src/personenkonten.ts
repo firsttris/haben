@@ -30,3 +30,15 @@ export function parsePersonenkonto(rolle: PersonenkontoRolle, raw: string): { ok
   const problem = personenkontoProblem(rolle, value);
   return problem ? { ok: false, error: problem } : { ok: true, value };
 }
+
+/** Personenkonten im DATEV-Stapel eines Jahres, wenn der Schalter ab `ab` gilt; null = Sammelkonten */
+export const personenkontenIm = (ab: number | null, year: number): boolean => ab !== null && year >= ab;
+
+/**
+ * Jahre mit Buchungen bis heute, deren Stapel eine Änderung des Schalters von `alt` auf `neu` anders aussehen ließe. Der
+ * Schalter gilt ab einem Jahresbeginn; ein begonnenes Jahr mit Buchungen hat womöglich schon einen Stapel bei der
+ * Steuerberatung, deshalb ändert ihn Haben dafür nur mit Bestätigung (#327).
+ */
+export function personenkontenBetroffen(alt: number | null, neu: number | null, gebuchteJahre: readonly number[], heute: number): number[] {
+  return [...new Set(gebuchteJahre)].filter((year) => year <= heute && personenkontenIm(alt, year) !== personenkontenIm(neu, year)).sort((a, b) => a - b);
+}

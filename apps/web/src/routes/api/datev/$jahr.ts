@@ -12,7 +12,8 @@ export const Route = createFileRoute("/api/datev/$jahr")({
         const year = Number(params.jahr);
         if (!Number.isInteger(year) || year < 2000 || year > 2100) return new Response("Ungültiges Jahr", { status: 400 });
         try {
-          const { bytes, filename } = await datevExport(year);
+          // Mit Personenkonten hält der Export die geschriebenen Nummern fest, im Namen des Benutzers
+          const { bytes, filename } = await datevExport(year, new Date(), user.id);
           return new Response(new Uint8Array(bytes), {
             headers: {
               "Content-Type": "text/csv; charset=windows-1252",
