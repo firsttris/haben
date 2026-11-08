@@ -79,6 +79,8 @@ export interface AssetRow {
 }
 
 const KIND_PATTERNS: [RegExp, AssetKind][] = [
+  // Vor „sonstig“ und „fahrzeug“: „Sonstige Transportmittel“ ist eine eigene Art (#312); ein Transporter bleibt ein Fahrzeug
+  [/^transport$|transportmittel|anhänger|anhaenger|lastenrad/, "transport"],
   [/^kfz$|fahrzeug|pkw|lkw|auto|motorrad|transporter/, "kfz"],
   [/^edv$|computer|hardware|software|laptop|notebook|rechner|server|drucker|monitor|tablet|smartphone/, "edv"],
   [/^buero$|büro|buero|möbel|moebel|einrichtung/, "buero"],
@@ -89,7 +91,9 @@ function parseKind(raw: string): Parsed<AssetKind> {
   const value = raw.trim().toLowerCase();
   if (!value) return { ok: true, value: "sonstiges" };
   const match = KIND_PATTERNS.find(([pattern]) => pattern.test(value));
-  return match ? { ok: true, value: match[1] } : { ok: false, error: `Art: „${raw}“; möglich sind Fahrzeug, Computer, Büromöbel und Sonstiges` };
+  return match
+    ? { ok: true, value: match[1] }
+    : { ok: false, error: `Art: „${raw}“; möglich sind Fahrzeug, Computer, Büromöbel, Sonstige Transportmittel und Sonstiges` };
 }
 
 function parseMethod(raw: string, kind: AssetKind): Parsed<AssetMethod> {

@@ -179,8 +179,16 @@ Jeder Beleg bekommt eine Kategorie. Sie bestimmt das Aufwandskonto und die Zeile
 | Versicherungen | 4360 | 6400 |
 | Beiträge | 4380 | 6420 |
 | Sonstiger Aufwand | 4900 | 6300 |
+| Miete für Geschäftsräume | 4210 Miete (unbewegliche Wirtschaftsgüter) | 6310 |
+| Sonstiger Betriebsbedarf | 4980 | 6850 |
+| Reparatur und Instandhaltung (Ausstattung, ohne EDV und Kfz) | 4805 Reparaturen und Instandhaltung von anderen Anlagen und Betriebs- und Geschäftsausstattung | 6470 |
+| Kfz: sonstige Kosten | 4580 Sonstige Fahrzeugkosten | 6570 |
+| Beiträge zur Berufsgenossenschaft (Personalaufwand) | 4138 | 6120 |
+| Versorgungskassen (Altersversorgung der Arbeitnehmer, Personalaufwand) | 4160 | 6150 |
 | Anlagegut (wird abgeschrieben), kein Aufwand: Anlagekonto der [Anlage](anlagen.md#art-und-abschreibung) | 0490 (je nach Art) | 0690 (je nach Art) |
 | Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand: Vorsteuer Kz 62 | 1588 Entstandene Einfuhrumsatzsteuer | 1433 |
+
+Die Konten der Kategorien Miete, Betriebsbedarf, Reparatur, sonstige Kfz-Kosten, Berufsgenossenschaft und Versorgungskassen sind dem DATEV-Kontenrahmen 2026 entnommen (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175). Berufsgenossenschaft und Versorgungskassen stehen in der GuV und der E-Bilanz bei den sozialen Abgaben bzw. der Altersversorgung (§ 275 Abs. 2 Nr. 6 Buchst. b HGB), Miete bei Miete und Pacht für unbewegliche Wirtschaftsgüter, Reparatur bei den Instandhaltungen, sonstige Kfz-Kosten bei den Fahrzeugkosten. Miete auf 4210 bzw. 6310 rechnet die Gewerbesteuer einer GmbH zur Hälfte hinzu (§ 8 Nr. 1 Buchst. e GewStG, siehe [Körperschaft- und Gewerbesteuer](#körperschaft--und-gewerbesteuer-gmbh-und-ug)).
 
 Hardware wird als geringwertiges Wirtschaftsgut voll im Jahr der Zahlung abgezogen. Anlagevermögen mit Abschreibung bucht Haben über die Kategorie „Anlagegut“ und das [Anlagenverzeichnis](anlagen.md).
 

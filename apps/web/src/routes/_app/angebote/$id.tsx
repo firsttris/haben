@@ -26,10 +26,12 @@ type Detail = Awaited<ReturnType<typeof getQuoteDetail>>;
 function QuotePage() {
   const data = Route.useLoaderData();
   const { quote } = data;
+  const draftAction = useAction();
   if (quote.status === "draft") {
     return (
       <InvoiceEditor
         key={`${quote.id}-${String(quote.updatedAt)}`}
+        action={draftAction}
         id={quote.id}
         kind="angebot"
         initial={{
@@ -42,6 +44,9 @@ function QuotePage() {
           format: "zugferd",
           intro: quote.intro,
           note: quote.note,
+          buyerOrderReference: quote.buyerOrderReference,
+          sellerOrderReference: quote.sellerOrderReference,
+          despatchAdviceReference: quote.despatchAdviceReference,
           taxTreatment: quote.taxTreatment,
           exemptionReason: quote.exemptionReason,
           priceMode: quote.priceMode,

@@ -38,11 +38,12 @@ import {
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
+import { useRevealWhen } from "../lib/use-page-head.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -50,9 +51,11 @@ import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { ContactDialog } from "./ContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
+import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 import { LineExtras } from "./LineExtras.tsx";
+import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
 import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
@@ -218,7 +221,10 @@ export function InvoiceEditor({
   attachments = null,
   planTemplates = [],
   keptDeductions = [],
+  action: sharedAction,
 }: {
+  /** Vom Aufrufer, wenn er den Editor nach dem Speichern per `key` neu aufsetzt: sonst ginge die Meldung dabei verloren */
+  action?: ReturnType<typeof useAction>;
   id: string | null;
   kind: keyof typeof KIND_TITLE;
   /** Beim Angebot zusätzlich Gültigkeit und Zahlungsplan; Zahlungsziel und Format spielen dort keine Rolle */
@@ -282,6 +288,7 @@ export function InvoiceEditor({
   const [validUntil, setValidUntil] = useState(initial.validUntil ?? "");
   const [format, setFormat] = useState(initial.format);
   const [intro, setIntro] = useState(initial.intro ?? "");
+  const [references, setReferences] = useState(() => orderReferenceValues(initial));
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
@@ -304,15 +311,12 @@ export function InvoiceEditor({
   const [attempted, setAttempted] = useState(false);
   const showError = (key: number) => attempted || touched.has(key);
   const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-  const { busy, notice, setNotice, run } = useAction();
+  const ownAction = useAction();
+  const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  // „Festschreiben“ steht im festen Seitenkopf und lässt sich auch weit unten klicken: die Rückfrage ins Fenster
-  // holen, sonst schriebe der zweite Klick fest, ohne dass der Hinweis zu sehen war
-  const confirmBanner = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (confirming) confirmBanner.current?.scrollIntoView({ block: "nearest" });
-  }, [confirming]);
+  const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
+  const preview = useDocumentPreview();
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
@@ -500,6 +504,7 @@ export function InvoiceEditor({
       format,
       intro,
       note,
+      ...references,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
       priceMode: grossPrices ? "brutto" : "netto",
@@ -624,6 +629,7 @@ export function InvoiceEditor({
           </h1>
         </div>
         <div className="actions editor-actions">
+          <PreviewButton preview={preview} />
           <button
             type="button"
             className="btn"
@@ -672,7 +678,41 @@ export function InvoiceEditor({
       )}
       <NoticeBanner notice={notice} />
 
-      <div className="editor-grid">
+      <PreviewLayout
+        preview={preview}
+        label="Vorschau"
+        caption={
+          <>
+            {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
+            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
+          </>
+        }
+        sheet={
+          <InvoicePreview
+            kind={kind}
+            number={nextNumber}
+            issueDate={issueDate || initial.issueDate}
+            dueDate={dueDate}
+            validUntil={quote ? validUntil || null : null}
+            serviceFrom={serviceFrom || null}
+            serviceTo={serviceTo || null}
+            seller={seller}
+            buyer={contact}
+            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
+            discount={discountIssue ? null : discount}
+            plan={planIssue ? [] : planPreview}
+            intro={intro}
+            note={note}
+            priceMode={grossPrices ? "brutto" : "netto"}
+            taxNote={treatmentNote(taxTreatment, exemptionReason)}
+            corrects={corrects}
+            title={title}
+            skonto={skonto.stufen}
+            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
+          />
+        }
+      >
         <form id="invoice-form" className="stack" onSubmit={onSave}>
           <section className="card" aria-label={quote ? "Angebotsdaten" : "Rechnungsdaten"}>
             <div className="form-grid">
@@ -787,6 +827,7 @@ export function InvoiceEditor({
                 Leistung bis
                 <input type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />
               </label>
+              <OrderReferenceFields value={references} onChange={touch(setReferences)} disabled={!editable} />
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Sprache
                 <select
@@ -1241,37 +1282,7 @@ export function InvoiceEditor({
             </div>
           )}
         </form>
-
-        <section aria-label="Vorschau" className="stack" style={{ gap: 8 }}>
-          <div className="small muted">
-            Vorschau · {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
-            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
-          </div>
-          <InvoicePreview
-            kind={kind}
-            number={nextNumber}
-            issueDate={issueDate || initial.issueDate}
-            dueDate={dueDate}
-            validUntil={quote ? validUntil || null : null}
-            serviceFrom={serviceFrom || null}
-            serviceTo={serviceTo || null}
-            seller={seller}
-            buyer={contact}
-            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
-            discount={discountIssue ? null : discount}
-            plan={planIssue ? [] : planPreview}
-            intro={intro}
-            note={note}
-            priceMode={grossPrices ? "brutto" : "netto"}
-            taxNote={treatmentNote(taxTreatment, exemptionReason)}
-            corrects={corrects}
-            title={title}
-            skonto={skonto.stufen}
-            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
-            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
-          />
-        </section>
-      </div>
+      </PreviewLayout>
     </>
   );
 }

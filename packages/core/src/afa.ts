@@ -45,6 +45,9 @@ export const ASSET_KINDS = {
   edv: { label: "Computer, Hardware und Software", usefulLifeYears: 1, method: "digital" },
   buero: { label: "Büromöbel und Büroeinrichtung", usefulLifeYears: 13, method: "linear" },
   sonstiges: { label: "Sonstige Betriebs- und Geschäftsausstattung", usefulLifeYears: null, method: "linear" },
+  // DATEV „Sonstige Transportmittel“ (#312), etwa Anhänger, Lastenrad, Boot, Gabelstapler. Die Nutzungsdauer kommt aus
+  // der AfA-Tabelle des einzelnen Wirtschaftsguts; Pkw-Nutzungsdauer, Privatnutzung und Elektro-AfA gelten nicht
+  transport: { label: "Sonstige Transportmittel (z. B. Anhänger, Lastenrad, Boot)", usefulLifeYears: null, method: "linear" },
 } as const satisfies Record<string, { label: string; usefulLifeYears: number | null; method: AssetMethod }>;
 
 export type AssetKind = keyof typeof ASSET_KINDS;
@@ -58,7 +61,8 @@ export const SAMMELPOSTEN_MAX: Cents = 100_000;
 /** Konten für Anlagen und Abschreibungen. Vor dem Echtbetrieb mit dem Steuerberater abgleichen. */
 export const ASSET_ACCOUNTS = {
   SKR03: {
-    anlage: { kfz: "0320", edv: "0420", buero: "0420", sonstiges: "0490" },
+    // DATEV-Kontenrahmen SKR03 2026: 0380 „Sonstige Transportmittel“ in der Gruppe der Fahrzeuge neben 0320 Pkw und 0350 Lkw
+    anlage: { kfz: "0320", edv: "0420", buero: "0420", sonstiges: "0490", transport: "0380" },
     gwg: "0480",
     sammelposten: "0485",
     afa: "4830",
@@ -68,7 +72,8 @@ export const ASSET_ACCOUNTS = {
     restbuchwert: "2310",
   },
   SKR04: {
-    anlage: { kfz: "0520", edv: "0650", buero: "0650", sonstiges: "0690" },
+    // DATEV-Kontenrahmen SKR04 2026: 0560 „Sonstige Transportmittel“ neben 0520 Pkw und 0540 Lkw
+    anlage: { kfz: "0520", edv: "0650", buero: "0650", sonstiges: "0690", transport: "0560" },
     gwg: "0670",
     sammelposten: "0675",
     afa: "6220",
@@ -82,6 +87,7 @@ export const ASSET_ACCOUNTS = {
 export const ASSET_ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
     "0320": "Pkw",
+    "0380": "Sonstige Transportmittel",
     "0420": "Büroeinrichtung",
     "0480": "Geringwertige Wirtschaftsgüter",
     "0485": "Wirtschaftsgüter Sammelposten",
@@ -94,6 +100,7 @@ export const ASSET_ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> =
   },
   SKR04: {
     "0520": "Pkw",
+    "0560": "Sonstige Transportmittel",
     "0650": "Büroeinrichtung",
     "0670": "Geringwertige Wirtschaftsgüter",
     "0675": "Wirtschaftsgüter Sammelposten",
@@ -119,7 +126,8 @@ export function depreciationAccount(kind: AssetKind, method: AssetMethod, konten
   const accounts = ASSET_ACCOUNTS[kontenrahmen];
   if (method === "gwg") return accounts.afaGwg;
   if (method === "sammelposten") return accounts.afaSammelposten;
-  return kind === "kfz" ? accounts.afaKfz : accounts.afa;
+  // „Abschreibungen auf Fahrzeuge“ (DATEV 4832/6222) auch für sonstige Transportmittel; 4830/6220 gilt „ohne AfA auf Fahrzeuge“
+  return kind === "kfz" || kind === "transport" ? accounts.afaKfz : accounts.afa;
 }
 
 export interface ScheduleAsset {

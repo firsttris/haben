@@ -1,5 +1,5 @@
 {
-  "id": "84c31ef4-8ad1-4f08-950e-3075c4c6da5d",
+  "id": "c6aa22c8-df01-48b5-9f36-0ff3f1dae1b5",
   "prevId": "6625c7b0-5ee2-4982-9300-d750e6f0c3b2",
   "version": "7",
   "dialect": "postgresql",
@@ -229,18 +229,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_rate": {
-          "name": "tax_rate",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -436,10 +424,6 @@
         "allocations_vat_return_kind": {
           "name": "allocations_vat_return_kind",
           "value": "\"allocations\".\"vat_return_id\" is null or \"allocations\".\"kind\" = 'ustVorauszahlung'"
-        },
-        "allocations_kategorie": {
-          "name": "allocations_kategorie",
-          "value": "case when \"allocations\".\"kind\"::text = 'kategorie' then \"allocations\".\"category\" is not null and \"allocations\".\"tax_rate\" is not null else \"allocations\".\"category\" is null and \"allocations\".\"tax_rate\" is null end"
         },
         "allocations_loan": {
           "name": "allocations_loan",
@@ -5325,6 +5309,27 @@
           "notNull": true,
           "default": "''"
         },
+        "buyer_order_reference": {
+          "name": "buyer_order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "seller_order_reference": {
+          "name": "seller_order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "despatch_advice_reference": {
+          "name": "despatch_advice_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "language": {
           "name": "language",
           "type": "text",
@@ -9063,6 +9068,27 @@
           "notNull": true,
           "default": "''"
         },
+        "buyer_order_reference": {
+          "name": "buyer_order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "seller_order_reference": {
+          "name": "seller_order_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "despatch_advice_reference": {
+          "name": "despatch_advice_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "language": {
           "name": "language",
           "type": "text",
@@ -12015,8 +12041,7 @@
         "sozialversicherung",
         "steuer",
         "zinsertrag",
-        "darlehen",
-        "kategorie"
+        "darlehen"
       ]
     },
     "public.bundesland": {

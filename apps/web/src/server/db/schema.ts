@@ -984,6 +984,13 @@ export const invoices = pgTable(
     intro: text("intro").notNull().default(""),
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
+    /**
+     * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
+     * Lieferschein (BT-16). Im XML an ihrem eigenen Feld, im PDF im Kopfblock.
+     */
+    buyerOrderReference: text("buyer_order_reference").notNull().default(""),
+    sellerOrderReference: text("seller_order_reference").notNull().default(""),
+    despatchAdviceReference: text("despatch_advice_reference").notNull().default(""),
     /** Sprache des PDFs */
     language: text("language", { enum: ["de", "en"] })
       .notNull()
@@ -1171,6 +1178,13 @@ export const quotes = pgTable(
     /** Einleitung über den Positionen (Kopftext) */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
+    /**
+     * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
+     * Lieferschein (BT-16). Gehen in die Rechnung aus dem Angebot über.
+     */
+    buyerOrderReference: text("buyer_order_reference").notNull().default(""),
+    sellerOrderReference: text("seller_order_reference").notNull().default(""),
+    despatchAdviceReference: text("despatch_advice_reference").notNull().default(""),
     language: text("language", { enum: ["de", "en"] })
       .notNull()
       .default("de"),

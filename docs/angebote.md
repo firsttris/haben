@@ -10,6 +10,7 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - Angebotsdatum
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
+- optional **Bestellnummer**, **Eigene Auftragsnummer** und **Lieferscheinnummer**; sie stehen im Kopfblock des PDFs und gehen in die Rechnung aus dem Angebot über ([wie bei der Rechnung](rechnungen.md#bestellnummer-auftrag-und-lieferschein))
 - Umsatzsteuer: dieselbe Auswahl wie bei der [Rechnung](rechnungen.md#umsatzsteuer-auf-der-rechnung), etwa regulär, Kleinunternehmer, Reverse Charge, steuerfrei
 - Sprache, vorbelegt vom Kunden (siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch))
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
@@ -19,7 +20,7 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - je Position die **Art**: zählt zur Summe, **optional** oder **Alternative** zur Position davor (siehe unten)
 - optional ein **Zahlungsplan** (siehe unten)
 
-Rechts siehst du die Vorschau. Der Entwurf lässt sich beliebig speichern, ändern und löschen. **Entwurf als PDF** lädt ihn als PDF aus der Vorlage des festgeschriebenen Angebots, mit „ENTWURF“ über jeder Seite und statt der Nummer, ohne eine Nummer zu vergeben ([wie bei der Rechnung](rechnungen.md#entwurf-als-pdf)).
+**Vorschau** im Kopf zeigt das Angebot, von rechts über das Formular oder neben ihm angeheftet ([wie bei der Rechnung](rechnungen.md#vorschau)). Der Entwurf lässt sich beliebig speichern, ändern und löschen. **Entwurf als PDF** lädt ihn als PDF aus der Vorlage des festgeschriebenen Angebots, mit „ENTWURF“ über jeder Seite und statt der Nummer, ohne eine Nummer zu vergeben ([wie bei der Rechnung](rechnungen.md#entwurf-als-pdf)).
 
 ### Optionale und alternative Positionen
 
@@ -60,7 +61,7 @@ Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welche
 
 Gebucht wird nichts: Ein Angebot ist kein Geschäftsvorfall.
 
-Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen (samt Art und Rabatt), Hinweis, Umsatzsteuer, Preismodus, Sprache, Gesamtrabatt und Zahlungsplan. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich; der Leistungszeitraum bleibt leer.
+Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen (samt Art und Rabatt), Hinweis, Bestell-, Auftrags- und Lieferscheinnummer, Umsatzsteuer, Preismodus, Sprache, Gesamtrabatt und Zahlungsplan. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich; der Leistungszeitraum bleibt leer.
 
 ## Per E-Mail senden
 
@@ -88,6 +89,7 @@ Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 **Rechnung erstellen** legt einen Rechnungsentwurf an und markiert das Angebot als angenommen. Der Entwurf übernimmt:
 
 - Kunde, Einleitung, Positionen mit ihrem Text, Leistungszeitraum und Umsatzsteuer aus dem Angebot,
+- Bestell- und Lieferscheinnummer aus dem Angebot, als eigene Auftragsnummer (in der E-Rechnung BT-14) die des Angebots, sonst die Angebotsnummer,
 - Datum heute,
 - Zahlungsziel aus den Firmendaten, Skonto wie bei einer neuen Rechnung (vom Kunden, sonst aus den Firmendaten),
 - E-Rechnungsformat des Kunden bzw. das Standardformat,
@@ -110,8 +112,8 @@ Bei größeren Aufträgen rechnest du das Angebot in Teilen ab (siehe [Abschlags
 
 Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere PDFs:
 
-- **Auftragsbestätigung:** dieselben Positionen, Preise und Rabatte wie im Angebot, nach der Auswahl des Kunden bei optionalen und alternativen Positionen, datiert auf den Tag der Annahme, mit Bezug auf das Angebot und der Auftragssumme; auf Wunsch mit dem Zahlungsplan, gerechnet auf die Auftragssumme.
-- **Lieferschein:** die gewählten Positionen mit Menge und Text zur Position, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
+- **Auftragsbestätigung:** dieselben Positionen, Preise und Rabatte wie im Angebot, nach der Auswahl des Kunden bei optionalen und alternativen Positionen, datiert auf den Tag der Annahme, mit Bezug auf das Angebot, Bestell-, Auftrags- und Lieferscheinnummer und der Auftragssumme; auf Wunsch mit dem Zahlungsplan, gerechnet auf die Auftragssumme.
+- **Lieferschein:** die gewählten Positionen mit Menge und Text zur Position, ohne Preise, mit Bestell- und Auftragsnummer, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
 
 Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung, nicht zu Storno und Korrektur (Schaltfläche **Lieferschein** auf der Rechnung).
 

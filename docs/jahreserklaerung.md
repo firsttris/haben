@@ -51,7 +51,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Bürobedarf, Fachliteratur, Porto | Arbeitsmittel |
 | Fortbildung | Fortbildungskosten |
 | Reisekosten: Übernachtung | Übernachtungs- und Reisenebenkosten |
-| Reisekosten: Fahrten, Kfz: Laden, Tanken, Wartung, Reparaturen | Sonstige tatsächliche Fahrtkosten |
+| Reisekosten: Fahrten, Kfz: Laden, Tanken, Wartung, Reparaturen, sonstige Kosten | Sonstige tatsächliche Fahrtkosten |
 | Kfz: Versicherung, Steuer | Steuern, Versicherungen und Maut für Kraftfahrzeuge |
 | Kfz: Leasing | Leasingkosten für Kraftfahrzeuge |
 | Rechts- und Beratungskosten, Buchführung und Steuerberatung | Rechts- und Steuerberatung, Buchführung |
@@ -62,7 +62,9 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Wareneinkauf (Handelsware) | Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten |
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Lohn, Lohnsteuer und SV-Beiträge aus dem Bankabgleich ([Lohn](lohn.md#buchung)) | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge). Lohnzahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis (§ 11 Abs. 2 Satz 2 EStG) |
-| Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
+| Kontoführung und Gebühren, Sonstiger Aufwand, Sonstiger Betriebsbedarf | Übrige Betriebsausgaben |
+| Miete für Geschäftsräume, Reparatur und Instandhaltung | amtlich Zeile 39 „Miete/Pacht für Geschäftsräume und betrieblich genutzte Grundstücke“ (Kz 150) bzw. Zeile 48 „Erhaltungsaufwendungen“ (Kz 225); Haben überträgt sie vorerst als übrige Betriebsausgaben (Zeile 60) und weist in der Vorprüfung darauf hin, weil die ELSTER-Feldkennungen dieser Zeilen noch nicht am ERiC-Schema geprüft sind. Gewinn und Summen stimmen; die genaue Zeile trägst du bei Bedarf im ELSTER-Portal um |
+| Beiträge zur Berufsgenossenschaft, Versorgungskassen | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge für Arbeitnehmer) |
 | [Direkt gebuchte](bank.md#auf-eine-kategorie-buchen) Einnahme bzw. Ausgabe auf eine Kategorie | Umsatzsteuerpflichtige Betriebseinnahmen und vereinnahmte Umsatzsteuer (Kleinunternehmer: Betriebseinnahmen als Kleinunternehmer) bzw. die Zeile der Kategorie wie bei einem Beleg |
 | AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |

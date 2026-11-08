@@ -71,6 +71,10 @@ Jeder Fehler hat dieselbe Form, mit einer deutschen Meldung und bei ungültigen 
 | 429 | `rate_limited` | Zu viele Anfragen |
 | 500 | `internal_error` | Fehler im Server; die Details stehen nur im Server-Log |
 
+## Bestell-, Auftrags- und Lieferscheinnummer
+
+Ein Rechnungsentwurf nimmt `buyerOrderReference` (Bestellnummer des Kunden, BT-13), `sellerOrderReference` (eigene Auftragsnummer, BT-14) und `despatchAdviceReference` (Lieferscheinnummer, BT-16) an, je bis 100 Zeichen, leer = keine. Sie stehen im PDF und in der E-Rechnung an ihrem eigenen Feld ([Rechnungen](rechnungen.md#bestellnummer-auftrag-und-lieferschein)). `PATCH` ohne diese Felder behält sie. Die externe Referenz (unten) bleibt davon getrennt; soll die Bestellnummer der Plattform auf der Rechnung stehen, schick sie zusätzlich als `sellerOrderReference` oder `buyerOrderReference`.
+
 ## Externe Referenz: eine Rechnung je Bestellung
 
 Ein Rechnungsentwurf kann eine externe Referenz tragen: `externalSource` ist die Plattform (Kleinbuchstaben, Ziffern, `.`, `-`, `_`, etwa `etsy` oder `ebay`), `externalId` die Bestellnummer dort. Beide gibt es nur zusammen, und zusammen sind sie eindeutig.

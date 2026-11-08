@@ -22,12 +22,18 @@ export function kopfUnterkante(p: Page): Promise<number> {
 /** Ganz im Fenster und von nichts verdeckt: In der Mitte des Elements liegt das Element selbst */
 export async function sichtbar(element: Locator): Promise<void> {
   await expect(element).toBeInViewport({ ratio: 1 });
-  const obenauf = await element.evaluate((el) => {
-    const box = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    return hit !== null && (hit === el || el.contains(hit));
-  });
-  expect(obenauf, "verdeckt").toBe(true);
+  // Wiederholt geprüft: Nach einem Klick kann die Seite noch einen Moment rücken (Editor neu aufgesetzt, Kopf wächst)
+  await expect
+    .poll(
+      () =>
+        element.evaluate((el) => {
+          const box = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return hit !== null && (hit === el || el.contains(hit));
+        }),
+      { message: "verdeckt" },
+    )
+    .toBe(true);
 }
 
 /** Titel und Status einer Detailseite bleiben am Handy beim Scrollen neben dem Titel sichtbar */
