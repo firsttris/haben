@@ -63,7 +63,8 @@ jobs:
     uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
     with:
       image: tristanteu/haben
-      description: "Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung"
+      # Docker Hub erlaubt höchstens 100 Zeichen
+      description: "Selbst gehostete Buchhaltung für Freiberufler, GmbH und UG: E-Rechnung, Bank, EÜR, Bilanz, ELSTER"
       dockerfile: Containerfile
       ghcr: true
       # Nur das GitHub-Release eines Tags lädt es; :edge legt kein Release an
