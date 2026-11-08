@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 
 /**
@@ -60,6 +60,56 @@ test("Am Handy ist der Dialog ein Blatt von unten, die Aktion steht über Abbrec
   expect(aktion?.width).toBeGreaterThan(340);
   expect(aktion?.height).toBeGreaterThanOrEqual(48);
   await expect(dialog.getByRole("button", { name: "Abbrechen" })).toBeFocused();
+});
+
+async function ziehen(page: Page, griff: Locator, strecke: number) {
+  const box = await griff.boundingBox();
+  const x = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+  const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + strecke, { steps: 5 });
+}
+
+test("Am Handy schließt Wischen nach unten wie Abbrechen, ein kurzes Wischen federt zurück", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const ausloeser = await neuerEntwurf(page);
+  await ausloeser.focus();
+  await page.keyboard.press("Enter");
+  const dialog = rueckfrage(page);
+  const unterkante = async () => {
+    const box = await dialog.boundingBox();
+    return Math.round((box?.y ?? 0) + (box?.height ?? 0));
+  };
+
+  await ziehen(page, dialog.locator(".confirm-dialog-grip"), 30);
+  expect(await unterkante()).toBe(874);
+  await page.mouse.up();
+  expect(await unterkante()).toBe(844);
+
+  await ziehen(page, dialog.getByRole("heading"), -40);
+  expect(await unterkante()).toBe(844);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+
+  await ziehen(page, dialog.locator(".confirm-dialog-grip"), 200);
+  await page.mouse.up();
+  await expect(dialog).toHaveCount(0);
+  await expect(ausloeser).toBeFocused();
+  await expect(page).toHaveURL(/rechnungen\/neu$/);
+});
+
+test("Am Desktop lässt sich der Dialog nicht wegziehen", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const ausloeser = await neuerEntwurf(page);
+  await ausloeser.click();
+  const dialog = rueckfrage(page);
+  await expect(dialog.locator(".confirm-dialog-grip")).toBeHidden();
+  const vorher = await dialog.boundingBox();
+  await ziehen(page, dialog.getByRole("heading"), 200);
+  expect(await dialog.boundingBox()).toEqual(vorher);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
 });
 
 test("Am Desktop bleibt der Dialog mittig", async ({ page }) => {
