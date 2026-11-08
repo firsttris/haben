@@ -236,7 +236,7 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
     const id = await bookedEInvoice(contact.id, kaputt);
     await expect(
       bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: "0000202051", auchInKontakt: true }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("keine gültige IBAN");
     const [kontakt] = await sql`select iban from contacts where id = ${contact.id}`;
     expect(kontakt!.iban).toBe("");
   });

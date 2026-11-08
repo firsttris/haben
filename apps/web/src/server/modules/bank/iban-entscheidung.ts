@@ -1,4 +1,4 @@
-import { compactIban, ibanAbgleich, type IbanAbgleich, type IbanEntscheidung, type IbanWahl } from "@haben/core";
+import { compactIban, ibanAbgleich, isValidIban, type IbanAbgleich, type IbanEntscheidung, type IbanWahl } from "@haben/core";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -85,6 +85,10 @@ export async function decideDocumentIban(actor: string, documentId: string, inpu
         : check.art === "ungeprueft" && seen === null && check.rechnungsIban === compactIban(parsed.rechnungsIban);
     if (!matches || check.art === "keine" || check.art === "gleich") {
       throw new BankError("Die IBANs haben sich geändert. Bitte die Seite neu laden und noch einmal entscheiden.");
+    }
+    // BT-84 muss keine IBAN sein (EN 16931) und kommt ungeprüft aus der E-Rechnung; in den Kontakt nur eine gültige
+    if (parsed.auchInKontakt && !isValidIban(check.rechnungsIban)) {
+      throw new BankError("Die Bankverbindung aus der E-Rechnung ist keine gültige IBAN; in den Kontakt kommt sie so nicht.");
     }
     await tx.insert(schema.documentIbanDecisions).values({
       documentId,
