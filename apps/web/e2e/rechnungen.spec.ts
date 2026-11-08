@@ -547,7 +547,7 @@ test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand
   await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Angebot ", "").trim();
   await expect(anhaenge).toContainText("Mit dem Angebot festgeschrieben.");
