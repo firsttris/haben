@@ -10,7 +10,7 @@ Nach der Kündigung kommst du nicht mehr an deine Rechnungen, Belege und Buchung
 
 Der Altbestand bleibt von deiner laufenden Buchhaltung getrennt: Er fließt nicht in Bankabgleich, Voranmeldung und Auswertungen von Haben ein. Die einzige Ausnahme sind offene Posten, die du in Schritt 3 ausdrücklich übernimmst.
 
-> [!NOTE]
+> [!WARNING]
 > Der Abruf über die API ist gegen die öffentliche Dokumentation von Lexware Office gebaut und mit nachgestellten Antworten getestet. Ein Lauf gegen ein echtes Konto steht noch aus. Rechne damit, dass beim ersten echten Abruf Fehler auftauchen können, und kündige erst, wenn der Abgleich für jedes Jahr aufgeht.
 
 ## Drei Wege
@@ -49,7 +49,10 @@ Am einfachsten ist der Wechsel zum **1. Januar**. Das Jahr davor schließt du in
 - **Offene Posten** übernimmst du zum 31. Dezember (Schritt 3), **Anlagen** mit dem Restbuchwert zum 1. Januar ([Anlagen](anlagen.md#übernahme-aus-lexoffice)).
 - **Lexware Office** brauchst du danach nur noch für den Jahresabschluss des alten Jahres; kündigen kannst du, sobald der Abgleich aufgeht.
 
-Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufende Jahr stehen die Monate vor dem Wechsel in Lexware Office, die danach in Haben, und für die EÜR muss beides zusammengeführt werden. Beim Verbinden der Bank trägst du unter **Umsätze abrufen ab** den Tag ein, an dem die Buchhaltung in Haben beginnt; die Monate davor holt Haben dann nicht (siehe [Bank](bank.md#automatischer-abruf)). Ältere Umsätze, die du doch in Haben brauchst, kommen per Kontoauszug als Datei; Haben ruft danach keine Tage mehr ab, die eine Datei schon abdeckt. Willst du Haben vorher ausprobieren, nimm dafür eine eigene Instanz und starte die echte Buchhaltung zum Jahreswechsel neu: Importierte Bankumsätze und Buchungen lassen sich nicht löschen.
+Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufende Jahr stehen die Monate vor dem Wechsel in Lexware Office, die danach in Haben, und für die EÜR muss beides zusammengeführt werden. Beim Verbinden der Bank trägst du unter **Umsätze abrufen ab** den Tag ein, an dem die Buchhaltung in Haben beginnt; die Monate davor holt Haben dann nicht (siehe [Bank](bank.md#automatischer-abruf)). Ältere Umsätze, die du doch in Haben brauchst, kommen per Kontoauszug als Datei; Haben ruft danach keine Tage mehr ab, die eine Datei schon abdeckt.
+
+> [!CAUTION]
+> Willst du Haben vorher ausprobieren, nimm dafür eine eigene Instanz und starte die echte Buchhaltung zum Jahreswechsel neu: Importierte Bankumsätze und Buchungen lassen sich nicht löschen.
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
@@ -176,6 +179,9 @@ Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, d
 - Eine offene **Ausgangsrechnung** wird zu einer festgeschriebenen Rechnung in Haben, mit dem Original-PDF und der Rechnungsnummer aus Lexware Office (ohne Nummer `LX-` plus Kurz-ID). Je Steuersatz entsteht eine Position. Der Kunde ist der verknüpfte Kontakt; fehlt er, legt Haben ihn aus der Rechnungsadresse an.
 - Ein offener **Ausgabebeleg** wird zu einem gebuchten Beleg mit Zahlung „Bank“, mit Datei, Lieferant, Nummer, Belegdatum, Fälligkeit und Beträgen je Steuersatz. Die Kategorie leitet Haben grob aus den Kategorienamen in Lexware Office ab; sie zählt nur für die Aufteilung in der EÜR.
 - Die offene **Zahllast einer Voranmeldung** (in Lexware Office ein Ausgabebeleg des Finanzamts, etwa „UStVA-2026-10“) wird kein Beleg. Sie ist keine Betriebsausgabe, sondern Umsatzsteuer an das Finanzamt. Ihre Lastschrift ordnest du im Bankabgleich als **Umsatzsteuer an das Finanzamt** zu: Sie bucht auf das Konto der Umsatzsteuer-Vorauszahlungen (SKR03 1780, SKR04 3820) und steht in der EÜR in der Zeile „An das Finanzamt gezahlte Umsatzsteuer“, wie die Zahllast für Dezember nach einem Jahreswechsel.
+
+> [!CAUTION]
+> „Übernehmen“ lässt sich nicht rückgängig machen: Die Rechnung ist danach festgeschrieben, der Beleg gebucht, und der [Stichtag](#stichtag) steht für alle weiteren Posten fest. Eine übernommene Rechnung korrigierst du nur noch mit einer [Stornorechnung](rechnungen.md#storno-und-rechnungskorrektur); einen übernommenen Beleg kannst du in Haben gar nicht stornieren, weil seine Vorsteuer im alten Programm angemeldet ist ([Stornieren](belege.md#stornieren-und-neu-erfassen)). Prüfe vorher Stichtag, Kontakt und Beträge.
 
 Danach ordnest du den Zahlungseingang bzw. die Zahlung wie gewohnt im [Bankabgleich](bank.md) zu.
 

@@ -6,14 +6,24 @@ Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md
 
 Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege** und der Jahresexport behandeln beide Quellen gleich.
 
-> [!NOTE]
+> [!WARNING]
 > Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
 
 ## Voraussetzungen
 
-- Einen **API-Token** von sevDesk. Du findest ihn unter **Einstellungen → Benutzer**, beim jeweiligen Benutzer. Er gibt Zugriff auf alles, was dieser Benutzer sieht.
+- Einen **API-Token** von sevDesk. Du findest ihn unter **Erweiterungen › Integrationen** im Bereich „API-Token für Integrationen“ (je nach Tarif auch unter **Erweiterungen › API**): **Einblenden** und mit deinem Passwort bestätigen ([sevDesk-Hilfe](https://hilfe.sevdesk.de/de/articles/9374740-wo-finde-ich-meinen-api-token-in-sevdesk)). Die REST-API gehört laut sevDesk erst ab dem Tarif **Buchhaltung Pro** dazu ([Preisseite](https://sevdesk.de/preise/), [sevDesk-Hilfe zur API](https://hilfe.sevdesk.de/de/articles/9374668-sevdesk-api), Stand November 2026); in kleineren Tarifen ist sie womöglich nicht nutzbar, siehe [Ohne REST-API](#ohne-rest-api).
 - Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) sind in Haben eingerichtet, wie in sevDesk ([Einrichtung](einrichtung.md)).
 - Der Server braucht Zugriff auf `https://my.sevdesk.de`.
+
+> [!IMPORTANT]
+> Mit dem API-Token lassen sich die Daten deines sevDesk-Kontos lesen und ändern. Entferne ihn nach dem Umzug in Haben (siehe [Vor der Kündigung](#vor-der-kündigung)); das löscht ihn nur in Haben, nicht in sevDesk.
+
+### Ohne REST-API
+
+Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
+
+- **Vorübergehend auf Buchhaltung Pro wechseln**, für die Dauer des Abrufs, und danach kündigen oder zurückwechseln. Laufzeit und Kündigungsfrist des höheren Tarifs prüfst du vorher bei sevDesk.
+- **Nur über die Exporte:** Unter **Steuern › Mein Steuerberater** den Datei-Export **Buchungsdaten & Belegbilder** je Geschäftsjahr erstellen, mit Belegbildern und mit den Häkchen für festgeschriebene Daten und für offene Rechnungen und Belege; ohne sie fehlen diese im Export ([sevDesk-Hilfe: Export](https://hilfe.sevdesk.de/de/articles/9373838-export)). Die ZIP-Datei enthält den Buchungsstapel und die Stammdaten (Kontakte des Zeitraums) als DATEV-kompatible CSV sowie die Belegbilder der Ein- und Ausgangsrechnungen. Lege die ganze ZIP-Datei in Haben als **Sonstiges** ab (höchstens 100 MB je Datei, sonst kürzere Zeiträume exportieren) und daraus entpackt den Buchungsstapel noch einmal als **DATEV-Buchungsstapel**. Die Stammdaten einzeln abzulegen klappt nicht, wenn sie eine DATEV-Kopfzeile haben: Aus DATEV nimmt das Archiv nur Buchungsstapel an. Dazu kommt der GoBD-Export ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte). Dann fehlen die Belege als Datensätze mit Positionen und Zahlungen, die Belegbilder liegen nur als ZIP im Archiv. Kontakte legst du neu an, etwa per [CSV-Import](csv-import.md#kontakte); die Stammdaten aus sevDesk liest Haben nicht direkt ein. Offene Posten trägst du von Hand ein, und kein Jahr zeigt im Abgleich „vollständig“.
 
 ## Schritt 1: Verbindung zu sevDesk
 
@@ -131,4 +141,4 @@ Haben spricht standardmäßig mit `https://my.sevdesk.de/api/v1`. Mit der Umgebu
 - [ ] Offene Posten übernommen oder die Gründe geklärt
 - [ ] Nächste Rechnungsnummer in Haben gesetzt
 - [ ] Jahresexport für jedes übernommene Jahr heruntergeladen
-- [ ] API-Token in Haben entfernt
+- [ ] API-Token in Haben entfernt (das löscht ihn nur in Haben, nicht in sevDesk)
