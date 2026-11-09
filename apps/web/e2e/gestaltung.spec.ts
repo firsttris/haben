@@ -660,3 +660,42 @@ test("Ein Platzhalter-Knopf ohne Klick ins Feld lässt den vorhandenen Text vorn
   await page.context().close();
   expect(nachher.startsWith(vorher)).toBe(true);
 });
+
+test("Ein Platzhalter-Knopf lässt den Text auch nach Aus- und Einschalten der eigenen Fußzeile vorne stehen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  const schalter = karte.getByLabel("Eigene Fußzeile");
+  await schalter.check();
+  await karte.getByLabel("Spalte 1").click();
+  await schalter.uncheck();
+  await schalter.check();
+  const feld = karte.getByLabel("Spalte 1");
+  const vorher = await feld.inputValue();
+
+  await karte.getByRole("button", { name: "{telefon}" }).click();
+
+  const nachher = await feld.inputValue();
+  await page.context().close();
+  expect(nachher).toBe(`${vorher}{telefon}`);
+});
+
+test("Ein Platzhalter-Knopf lässt den Text vorne stehen, wenn eine Spalte wieder eingeblendet wurde", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 3").click();
+  await karte.getByRole("button", { name: "2", exact: true }).click();
+  await karte.getByRole("button", { name: "3", exact: true }).click();
+  const feld = karte.getByLabel("Spalte 3");
+  const vorher = await feld.inputValue();
+
+  await karte.getByRole("button", { name: "{telefon}" }).click();
+
+  const nachher = await feld.inputValue();
+  await page.context().close();
+  expect(nachher).toBe(`${vorher}{telefon}`);
+});

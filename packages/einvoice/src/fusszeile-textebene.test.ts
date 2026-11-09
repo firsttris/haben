@@ -19,6 +19,18 @@ function textebene(pdf: Uint8Array): string | null {
   }
 }
 
+function wortbreite(pdf: Uint8Array, wort: string): number {
+  const dir = mkdtempSync(join(tmpdir(), "haben-textebene-"));
+  try {
+    writeFileSync(join(dir, "beleg.pdf"), pdf);
+    const xml = execFileSync("pdftotext", ["-bbox", join(dir, "beleg.pdf"), "-"], { encoding: "utf8" });
+    const treffer = [...xml.matchAll(/xMin="([\d.]+)"[^>]*xMax="([\d.]+)"[^>]*>([^<]*)</g)].find((m) => m[3] === wort);
+    return Number(treffer![2]) - Number(treffer![1]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 const hatPdftotext = textebene(renderInvoicePdf(sampleDocument())) !== null;
 
 /** TDD-Review #420: Die weichen Umbrüche aus softBreaks stehen als U+200B in der Textebene, auch wenn gar nichts umbricht */
@@ -45,6 +57,22 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Textebene", () => {
       }),
     )!;
     expect(text).toContain("Rechnungsfragen:");
+  });
+
+  it("lässt eine E-Mail-Adresse unverändert, die in Normalschrift gerade in eine von vier Spalten passt", () => {
+    const email = "buchhaltung@mustermannco.de";
+    const seller = { ...sampleDocument().seller, email };
+    const breit = renderInvoicePdf({ ...sampleDocument(), seller, options: { ...DEFAULT_OPTIONS, footerColumns: ["{email}", "{steuernummer}"] } });
+    const spalte = ((165 - 3 * 6) / 4) * (72 / 25.4);
+    expect(wortbreite(breit, email)).toBeLessThanOrEqual(spalte);
+    const text = textebene(
+      renderInvoicePdf({
+        ...sampleDocument(),
+        seller,
+        options: { ...DEFAULT_OPTIONS, footerColumns: ["{email}", "Sprechzeiten", "Termine", "{steuernummer}"] },
+      }),
+    )!;
+    expect(text).toContain(email);
   });
 
   it("lässt ein langes Wort in der Zeile mit den Pflichtangaben unverändert, sie steht über die ganze Breite", () => {
