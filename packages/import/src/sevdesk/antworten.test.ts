@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import belegeOhneDatei from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-ohne-datei.json" with { type: "json" };
 import erzeugteRechnungen from "../../test-fixtures/sevdesk/buchhaltung-1.0/rechnungen-aus-vorlage.json" with { type: "json" };
+import mahnungen from "../../test-fixtures/sevdesk/buchhaltung-1.0/mahnung-entwurf.json" with { type: "json" };
 import belegeRv from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-wiederkehrend-rv.json" with { type: "json" };
 import belege from "../../test-fixtures/sevdesk/buchhaltung-1.0/belege-credit-debit.json" with { type: "json" };
 import dateiDownload from "../../test-fixtures/sevdesk/buchhaltung-1.0/document-download.json" with { type: "json" };
@@ -162,6 +163,15 @@ describe("Vorlagen und Belege ohne Datei in Buchhaltungsversion 1.0", () => {
     expect(vorlagenWkr.map((v) => v.invoice.accountIntervall)).toContain("P0Y0M1W");
     expect(vorlagenWkr.map((v) => v.invoice.status)).toEqual(expect.arrayContaining(["50", "100"]));
     for (const { invoice } of vorlagenWkr) expect(isSevInvoiceImportable(sevInvoiceSchema.parse(invoice))).toBe(false);
+  });
+
+  it("übernimmt Mahnungen nicht: Kopf ohne Summen, Verweis auf die Rechnung, keine Positionen", () => {
+    for (const { invoice, positions } of mahnungen) {
+      expect(isSevInvoiceImportable(sevInvoiceSchema.parse(invoice))).toBe(false);
+      expect(invoice).toMatchObject({ invoiceType: "MA", sumGross: "0", origin: { objectName: "Invoice" } });
+      expect(Number(invoice.reminderTotal)).toBeGreaterThan(0);
+      expect(positions).toEqual([]);
+    }
   });
 
   it("übernimmt Vorlagen wiederkehrender Belege in keinem Status", () => {
