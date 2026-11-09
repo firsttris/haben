@@ -177,8 +177,8 @@ describe.skipIf(!testDatabaseUrl)("Lastschriftdatei pain.008 aus fälligen Rechn
     const input = { bankAccountId: accountId, invoiceIds: [a.id] };
     const results = await Promise.allSettled([bank.createDirectDebitFile(actor, input, now), bank.createDirectDebitFile(actor, input, now)]);
     expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
-    const [{ count }] = await sql`select count(*)::int as count from sepa_direct_debit_items where invoice_id = ${a.id}`;
-    expect(count).toBe(1);
+    const rows = await sql`select 1 from sepa_direct_debit_items where invoice_id = ${a.id}`;
+    expect(rows).toHaveLength(1);
   });
 
   it("die erste Lastschrift aus Haben auf ein neues Mandat ist FRST, auch wenn nur eine spätere Rechnung gewählt ist", async () => {

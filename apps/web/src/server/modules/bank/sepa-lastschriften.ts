@@ -199,6 +199,7 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
   const today = berlinTime.format(now).slice(0, 10);
   const [account] = await db.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, input.bankAccountId));
   if (!account?.iban || account.purpose === "zahlungsdienstleister") throw new BankError("Bitte ein Bankkonto mit IBAN als Gläubigerkonto wählen.");
+  const creditorIban = account.iban;
   const company = await loadCompany();
   if (!company.glaeubigerId) throw new BankError("Die Gläubiger-ID fehlt in den Firmendaten.");
   const creditorName = (company.kontoinhaber || company.name).trim();
@@ -234,8 +235,8 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
       // BIC nur, wenn sie in den Firmendaten zu genau diesem Konto steht; sonst NOTPROVIDED
       creditor: {
         name: creditorName,
-        iban: account.iban,
-        ...(company.iban.replace(/\s+/g, "").toUpperCase() === account.iban && company.bic ? { bic: company.bic } : {}),
+        iban: creditorIban,
+        ...(company.iban.replace(/\s+/g, "").toUpperCase() === creditorIban && company.bic ? { bic: company.bic } : {}),
       },
       creditorId: company.glaeubigerId,
       batches,
