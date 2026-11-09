@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { FormattedText } from "../../../components/FormattedText.tsx";
 import { FormattedTextarea } from "../../../components/FormattedTextarea.tsx";
 import type { Notice } from "../../../lib/use-action.ts";
 import { archiveTextBlock, getTextBlocks, saveTextBlock } from "../../../server/functions/text-blocks.ts";
@@ -206,7 +207,7 @@ function TextBlocksPage() {
                       {KIND_LABEL[b.kind]} · {contactName(b.contactId)}
                     </div>
                     <div className="small" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", marginTop: 4 }}>
-                      {b.text}
+                      <FormattedText text={b.text} />
                     </div>
                   </div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
