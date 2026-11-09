@@ -39,7 +39,8 @@ async function returnedAmounts(itemIds: string[], q: Db | Tx): Promise<Map<strin
 
 /**
  * Lastschriften aus Haben mit ihrem Stand: zurück, wenn eine Rücklastschrift sie zurückgibt; gutgeschrieben, wenn die
- * Rechnung bezahlt ist; sonst eingereicht. Die jüngste Lastschrift einer Rechnung zählt, ältere sind zurückgegeben.
+ * Rechnung ganz erledigt ist (eingezogen wird nur der offene Teil, eine Teilzahlung davor zählt nicht als Gutschrift);
+ * sonst eingereicht. Die jüngste Lastschrift einer Rechnung zählt, ältere sind zurückgegeben.
  */
 export async function collectedDirectDebits(q: Db | Tx = db): Promise<CollectedDirectDebit[]> {
   const rows = await q
@@ -70,7 +71,7 @@ export async function collectedDirectDebits(q: Db | Tx = db): Promise<CollectedD
   ]);
   return rows.map(({ gross, ...r }) => {
     const state: DirectDebitState =
-      (returned.get(r.id) ?? 0) >= r.amount ? "zurueck" : (paid.get(r.invoiceId) ?? 0) >= Math.min(r.amount, gross) ? "gutgeschrieben" : "eingereicht";
+      (returned.get(r.id) ?? 0) >= r.amount ? "zurueck" : (paid.get(r.invoiceId) ?? 0) >= gross ? "gutgeschrieben" : "eingereicht";
     return { ...r, invoiceNumber: r.invoiceNumber ?? "", state };
   });
 }
