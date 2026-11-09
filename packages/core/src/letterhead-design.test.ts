@@ -69,6 +69,11 @@ describe("Schrift und Briefpapier in der Gestaltung", () => {
     expect(letterheadDesignInputSchema.safeParse({ backgroundPages: "letzte" }).success).toBe(false);
   });
 
+  it("bietet die zehn geprüften Schriften an, die bisherige zuerst", () => {
+    expect(Object.keys(LETTERHEAD_FONTS)).toHaveLength(10);
+    expect(Object.keys(LETTERHEAD_FONTS)[0]).toBe("plex-sans");
+  });
+
   it("nennt je Schrift die Familien für Normal, Medium und SemiBold", () => {
     for (const font of Object.values(LETTERHEAD_FONTS)) {
       expect(font.regular).toBeTruthy();

@@ -624,3 +624,23 @@ test("Zwei Platzhalter nacheinander landen beide an der Schreibmarke", async ({ 
   await page.context().close();
   expect(wert).toBe("Tel. {plz}{ort}\nEnde");
 });
+
+test("Vorschau: Die Steuerzeile bricht auch in einer breiten Schrift nicht um", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.getByLabel("Beschreibung Position 1").fill("Workshop");
+  await page.getByLabel("Menge Position 1").fill("400");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("12345,67");
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 2").fill("Fachbuch");
+  await page.getByLabel("Menge Position 2").fill("400");
+  await page.getByLabel(/Einzelpreis Position 2/).fill("4990,00");
+  await page.getByLabel("Steuersatz Position 2").selectOption({ index: 1 });
+  await gestaltungOeffnen(page);
+  await panel(page).getByLabel("Schrift").selectOption({ label: "Inter" });
+  const zeile = blatt(page).locator(".sheet-totals dt", { hasText: "19 %" });
+  const normal = blatt(page).locator(".sheet-totals dt").first();
+  await expect(zeile).toBeVisible();
+  const hoch = (await zeile.boundingBox())!.height;
+  expect(hoch).toBeLessThan((await normal.boundingBox())!.height * 1.5);
+  await page.context().close();
+});

@@ -138,6 +138,13 @@ describe("Schrift der Belege", () => {
     ["plex-sans", "IBMPlexSans"],
     ["plex-serif", "IBMPlexSerif"],
     ["source-sans", "SourceSans3"],
+    ["figtree", "Figtree"],
+    ["fira-sans", "FiraSans"],
+    ["inter", "Inter"],
+    ["libre-franklin", "LibreFranklin"],
+    ["literata", "Literata"],
+    ["lora", "Lora"],
+    ["nunito-sans", "NunitoSans"],
   ] as const)("bettet %s vollständig ein", (font, postscript) => {
     const fonts = poppler("pdffonts", [], renderInvoicePdf(withOptions({ font })))!;
     const lines = fonts.split("\n").slice(2).filter(Boolean);
@@ -228,6 +235,13 @@ describe("Kursiv in jeder Schrift", () => {
     ["plex-serif", "IBMPlexSerif-Italic"],
     ["source-sans", "SourceSans3-It"],
     ["plex-sans", "IBMPlexSans-Italic"],
+    ["figtree", "Figtree-Italic"],
+    ["fira-sans", "FiraSans-Italic"],
+    ["inter", "Inter-Italic"],
+    ["libre-franklin", "LibreFranklin-Italic"],
+    ["literata", "Literata-Italic"],
+    ["lora", "Lora-Italic"],
+    ["nunito-sans", "NunitoSans-Italic"],
   ] as const)("%s bettet echte Kursivschnitte ein", (font, postscript) => {
     const fonts = poppler("pdffonts", [], renderInvoicePdf({ ...withOptions({ font }), intro: "Text mit _kursiv_" }))!;
     expect(fonts).toContain(postscript);
@@ -254,5 +268,17 @@ describe("Auszeichnungen in der eigenen Fußzeile", () => {
     expect(text).not.toContain("*Fettzeile*");
     const fonts = poppler("pdffonts", [], pdf)!;
     expect(fonts).toContain("IBMPlexSans-Italic");
+  });
+});
+
+describe("Summenblock in breiten Schriften", () => {
+  const steuerzeilen = (font: LetterheadFont, faktor = 1) => {
+    const lines = mixedRateLines.map((line) => ({ ...line, unitPrice: line.unitPrice * faktor }));
+    const text = poppler("pdftotext", ["-layout"], renderInvoicePdf({ ...sampleDocument({ lines }), options: { ...DEFAULT_OPTIONS, font } }), ["-"])!;
+    return text.split("\n").filter((line) => line.includes("Umsatzsteuer 19 %"));
+  };
+
+  it.skipIf(!hasPoppler).each(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[])("%s bricht die Steuerzeile nicht um, auch bei großen Beträgen", (font) => {
+    for (const faktor of [1, 400]) expect(steuerzeilen(font, faktor).join()).toMatch(/Umsatzsteuer 19 % auf [\d.]+,\d\d/);
   });
 });
