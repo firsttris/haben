@@ -897,6 +897,38 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await bank.listAccounts()).find((a) => a.id === paypal.id)).toMatchObject({ providerBalance: 0, openCount: 0 });
   }, 30_000);
 
+  it("Etsy: Monatsabrechnung ins eigene Verrechnungskonto, gleiche Gebühren bleiben, Auszahlung als Geldtransit zur Bank (#296)", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    // Verkauf 9,01 €, Einstellgebühr zweimal (gleiche Zeile), Zahlungsabwicklung, Auszahlung 8,00 €: das Guthaben geht auf null auf
+    const csv = [
+      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
+      `"November 2, 2026",Deposit,"€8.00 sent to your bank account",,EUR,--,--,--,--`,
+      `"November 1, 2026",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`,
+      `"November 1, 2026",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`,
+      `"November 1, 2026",Fee,"Processing fee","Order #1",EUR,--,-€0.65,-€0.65,--`,
+      `"November 1, 2026",Sale,"Payment for Order #1",,EUR,€9.01,--,€9.01,--`,
+    ].join("\n");
+    const file = { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" };
+    await expect(bank.importStatement(actor, file, null)).rejects.toThrow(/Konto des Dienstleisters wählen/);
+    const dkb = await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("03.11.26", "Etsy Ireland UC", "IE29AIBK93115212345678", "Auszahlung Etsy", "8,00")]), filename: "dkb.csv" },
+      null,
+    );
+    await expect(bank.importStatement(actor, file, dkb.accountId)).rejects.toThrow(/Export eines Zahlungsdienstleisters/);
+    expect(await bank.importStatement(actor, file, etsy.id)).toMatchObject({ added: 5 });
+    // Beide gleichen Gebühren sind angekommen; derselbe Export noch einmal legt nichts doppelt an
+    expect(await sql`select id from bank_transactions where amount = -18`).toHaveLength(2);
+    expect(await bank.importStatement(actor, file, etsy.id)).toMatchObject({ added: 0 });
+    expect((await bank.listAccounts()).find((a) => a.id === etsy.id)).toMatchObject({ providerBalance: 0 });
+
+    // Auszahlung: von beiden Seiten als Geldtransit erkannt, mit der jeweils anderen als Gegenbuchung
+    const [payout] = await sql`select id from bank_transactions where amount = -800`;
+    const [incomingPayout] = await sql`select id from bank_transactions where amount = 800`;
+    expect((await bank.transactionDetail(payout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: incomingPayout!.id } });
+    expect((await bank.transactionDetail(incomingPayout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: payout!.id } });
+  }, 30_000);
+
   it("Shopify: Auszahlung aus Teilen zweier Monatsexporte als ein Geldtransit zur Bank", async () => {
     const shopify = await bank.createProviderAccount(actor, { name: "Shopify", provider: "shopify" });
     const header = `Transaction Date,Type,Order,Card Brand,Card Source,Payout Status,Payout Date,Payout ID,Available On,Amount,Fee,Net,Checkout,Payment Method Name,Presentment Amount,Presentment Currency,Currency`;
