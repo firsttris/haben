@@ -33,18 +33,24 @@
 // Worts, es liefe in die Nachbarspalte. Alle anderen bleiben beim Kopieren und Suchen unverändert.
 #let foot-breite = (165mm - 6mm * calc.max(d.footer.len() - 1, 0)) / calc.max(d.footer.len(), 1)
 #let umbruchstellen(wort) = if wort == "" { "" } else { wort.clusters().join("\u{200B}") }
-#let umbrechbar(inhalt, breite) = inhalt.split(" ").map(wort => if measure(semibold(text(wort))).width > breite { umbruchstellen(wort) } else { wort }).join(" ")
+#let umbrechbar(inhalt, breite) = inhalt.split(" ").map(wort => if measure(text(wort)).width > breite { umbruchstellen(wort) } else { wort }).join(" ")
 #let formatted(runs) = {
   for run in runs { run-style(run, text(run.text)) }
 }
 // Zeile der eigenen Fußzeile: Ein Wort kann über mehrere Auszeichnungen laufen, darum wird es als Ganzes gemessen und nur
 // ein zu breites bekommt Umbruchstellen
 #let footer-zeile(runs) = {
+  let je-zeichen = runs.map(run => run.text.clusters().map(_ => run)).flatten()
   let marken = ()
+  let wortanfang = 0
   for wort in runs.map(run => run.text).join("").split(" ") {
-    let zu-breit = measure(semibold(text(wort))).width > foot-breite
-    marken += wort.clusters().map(_ => zu-breit)
+    let laenge = wort.clusters().len()
+    let teil = je-zeichen.slice(wortanfang, calc.min(wortanfang + laenge, je-zeichen.len()))
+    let stil = (bold: teil.any(run => run.bold), italic: teil.any(run => run.italic), underline: false)
+    let zu-breit = measure(run-style(stil, text(wort))).width > foot-breite
+    marken += range(laenge).map(_ => zu-breit)
     marken.push(false)
+    wortanfang += laenge + 1
   }
   let stelle = 0
   for run in runs {
