@@ -24,9 +24,9 @@ export {
   mapSevInvoice,
   mapSevPaymentLogs,
   mapSevVoucher,
-  SEV_HEAD_RATES,
   sevNumber,
   type SevImportedContact,
   type SevMappedVoucher,
   type SevPaymentItem,
 } from "./map.ts";
+export { SEV_HEAD_RATES } from "./steuersaetze.ts";
