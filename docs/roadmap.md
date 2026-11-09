@@ -95,9 +95,9 @@ Die Issues zu erledigten Plätzen bleiben offen, bis die Meldenden bestätigen, 
 | 19 | OSS | Rechnungen an Privatpersonen im EU-Ausland mit dem Steuersatz des Ziellands, Lieferschwelle, Datei für das BZSt-Online-Portal | M |
 | 20 | Offene Posten ohne Bankumsatz verrechnen | Rechnung gegen Gutschrift oder Storno ausgleichen, zuerst Eingangsbelege desselben Lieferanten; vor dem Bau fachlich zu klären (Aufrechnung oder Aufhebung, Ist und Soll) ([#274](https://github.com/firsttris/haben/issues/274)) | M |
 
-## Später oder vielleicht
+## Später
 
-Sinnvoll, aber nicht jetzt – in dieser Reihenfolge, wenn die Plätze oben erledigt sind:
+Kommt nach den geplanten Plätzen, in dieser Reihenfolge:
 
 | # | Thema | Worum es geht | Aufwand |
 | --- | --- | --- | --- |
