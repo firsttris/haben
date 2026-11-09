@@ -74,6 +74,28 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
 });
 
+test("Kontakt bearbeiten: Die Meldung „Gespeichert.“ bleibt nach dem Speichern stehen", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Speicher Testkunde GmbH");
+  await page.getByLabel("Ort").fill("Bremen");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await page.getByLabel("Ort").fill("Hamburg");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  // Nach dem Speichern lädt die Seite die neue Version und baut das Formular neu auf; die Meldung darf dabei nicht verschwinden
+  await expect(page.getByText("Version 2")).toBeVisible();
+  const meldung = page.getByRole("form", { name: "Kontakt" }).getByText("Gespeichert. Die vorige Fassung bleibt als Version erhalten.");
+  await expect(meldung).toBeVisible();
+  await expect(page.getByLabel("Ort")).toHaveValue("Hamburg");
+  // Auch nach kurzer Zeit noch da, nicht nur für einen Augenblick
+  await page.waitForTimeout(1000);
+  await expect(meldung).toBeVisible();
+  // Archivieren: Die folgenden Tests rechnen nicht mit diesem Kunden
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebene Nummer meldet das Formular (#327)", async () => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Musterpartner GmbH");

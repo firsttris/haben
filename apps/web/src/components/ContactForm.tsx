@@ -47,6 +47,8 @@ export interface ExistingContact {
  * Kontakt statt der Weiterleitung, onCancel ersetzt den Link zurück; existing bietet bei gleicher USt-IdNr. den
  * vorhandenen Kontakt an (onPickExisting), ohne ihn still zusammenzuführen.
  */
+const SAVED_NOTICE = { tone: "ok", text: "Gespeichert. Die vorige Fassung bleibt als Version erhalten." } as const;
+
 export function ContactForm({
   contact,
   nextNumber = null,
@@ -56,6 +58,8 @@ export function ContactForm({
   existing = [],
   onPickExisting,
   ibanSuggestion = null,
+  saved = false,
+  onUpdated,
 }: {
   contact: Contact | null;
   nextNumber?: string | null;
@@ -66,11 +70,17 @@ export function ContactForm({
   onPickExisting?: (id: string) => void;
   /** IBAN vom Beleg (#329): nur ein Vorschlag, ins Feld erst auf ausdrücklichen Klick */
   ibanSuggestion?: IbanSuggestion | null;
+  /**
+   * Gerade gespeichert: Die Seite baut das Formular mit der neuen Version neu auf (key), sein Zustand ginge dabei verloren.
+   * Deshalb merkt sich die Seite das Speichern (onUpdated) und gibt es hier zurück, damit die Meldung stehen bleibt.
+   */
+  saved?: boolean;
+  onUpdated?: () => void;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
-  const { busy, notice, setNotice, run } = useAction();
+  const { busy, notice, run } = useAction();
   const ibanInput = useRef<HTMLInputElement>(null);
   const takeIban = (iban: string) => {
     if (!ibanInput.current) return;
@@ -132,8 +142,8 @@ export function ContactForm({
       if (onSaved) {
         onSaved({ ...input, id: result.id });
       } else if (contact) {
+        onUpdated?.();
         await router.invalidate();
-        setNotice({ tone: "ok", text: "Gespeichert. Die vorige Fassung bleibt als Version erhalten." });
       } else {
         await navigate({ to: "/kontakte/$id", params: { id: result.id } });
       }
@@ -331,7 +341,7 @@ export function ContactForm({
           )}
         </div>
       )}
-      <NoticeBanner notice={notice} />
+      <NoticeBanner notice={notice ?? (saved ? SAVED_NOTICE : null)} />
       <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {contact ? "Speichern" : "Kontakt anlegen"}
