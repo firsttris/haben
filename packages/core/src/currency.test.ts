@@ -130,6 +130,20 @@ describe("parseBmfRates", () => {
     expect(parseBmfRates(`Umsatzsteuer-Umrechnungskurse\nStand: 4. Januar 2027\n${tabelle}`, 2026)).toEqual(usd);
   });
 
+  it("ein Stand-Datum in der Titelzelle selbst sperrt die Datei nicht", () => {
+    const csv = "Umsatzsteuer-Umrechnungskurse (Stand: Januar 2027)\nLand;Währung;Januar\nUSA;1 Euro;1,1738 USD";
+    expect(parseBmfRates(csv, 2026)).toEqual([{ currency: "USD", month: "2026-01", rate: "1.1738" }]);
+  });
+
+  it("eine lange Leerraum-Folge oder Fußnoten-Kette in einer Zelle bremst den Parser nicht", () => {
+    const zellen = [`x${" ".repeat(160_000)}y;Land`, `${"[1] ".repeat(40_000)}x;Land`];
+    for (const csv of zellen) {
+      const start = performance.now();
+      expect(parseBmfRates(csv, 2026)).toEqual([]);
+      expect(performance.now() - start).toBeLessThan(500);
+    }
+  });
+
   it("eine Datei für 2025 wird auch mit Stand im Januar 2026 nicht als 2026 gelesen", () => {
     const csv = "Umsatzsteuer-Umrechnungskurse 2025 (Euro-Referenzkurse)\nStand: 2. Januar 2026\nLand;Währung;Januar[1]\nUSA;1 Euro;1,0354 USD";
     expect(parseBmfRates(csv, 2026)).toEqual([]);
