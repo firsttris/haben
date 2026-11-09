@@ -48,6 +48,10 @@ import {
   reverseWriteOff,
   writeOff,
   writeOffSchema,
+  neutralizationView,
+  neutralizeSchema,
+  neutralizeTransactions,
+  reverseNeutralization,
 } from "../modules/bank/index.ts";
 import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
@@ -79,6 +83,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
     // Aus früheren Buchungen derselben Gegenpartei, für alle ganz offenen Umsätze in einer Abfrage
     const learned = await learnedDirectSuggestions(rows.filter((r) => r.open !== 0 && r.open === r.amount));
     const transactions = rows.map((row) => {
+      if (row.neutralized) return { ...row, hint: "verrechnet" as const };
       if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
       const hasSuggestion =
         suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
@@ -101,7 +106,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
       accounts,
       accountId: account?.id ?? null,
       transactions,
-      detail: detail && detail.transaction.bankAccountId === account?.id ? detail : null,
+      detail:
+        detail && detail.transaction.bankAccountId === account?.id ? { ...detail, neutralization: await neutralizationView(detail.transaction.id) } : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
         return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
@@ -239,6 +245,23 @@ export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     await reverseAllocation(context.user.id, data);
+    return { ok: true };
+  });
+
+/** Zwei gegenläufige Umsätze, die sich aufheben, miteinander verrechnen (#457); keine Buchung */
+export const neutralizeBankTransactions = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(neutralizeSchema)
+  .handler(async ({ data, context }) => {
+    await neutralizeTransactions(context.user.id, data);
+    return { ok: true };
+  });
+
+export const reverseBankNeutralization = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    await reverseNeutralization(context.user.id, data);
     return { ok: true };
   });
 

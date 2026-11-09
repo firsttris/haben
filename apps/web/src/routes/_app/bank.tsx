@@ -24,6 +24,8 @@ import {
   getBankOverview,
   getEnableBanks,
   importStatements,
+  neutralizeBankTransactions,
+  reverseBankNeutralization,
   transferBetweenAccounts,
   updateBankAccount,
   reverseTransactionAllocation,
@@ -34,6 +36,7 @@ import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.
 import { today as todayInGermany } from "../../server/today.ts";
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
+import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -63,6 +66,7 @@ const HINT = {
   offen: { text: "Offen", tone: "" },
   teilweise: { text: "Teilweise", tone: "pill-info" },
   zugeordnet: { text: "Zugeordnet", tone: "pill-ok" },
+  verrechnet: { text: "Verrechnet", tone: "pill-ok" },
 } as const;
 
 const KIND_LABEL = {
@@ -897,7 +901,9 @@ function AllocationPanel({
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
-  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege } = detail;
+  const neutralizeFn = useServerFn(neutralizeBankTransactions);
+  const reverseNeutralizationFn = useServerFn(reverseBankNeutralization);
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization } = detail;
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
   const best = suggestions[0];
@@ -1062,6 +1068,8 @@ function AllocationPanel({
           ))}
         </div>
       )}
+
+      <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
 
       <NoticeBanner notice={notice} />
       <ZuordnungAufheben ziel={reversing} onConfirm={(id) => void run(() => reverseFn({ data: id }))} onClose={() => setReversing(null)} />
@@ -1330,6 +1338,12 @@ function AllocationPanel({
           >
             Aufteilen
           </button>
+          <VerrechnenFormular
+            candidates={neutralization.candidates}
+            busy={busy}
+            // Bleibt beim Umsatz: Er zeigt danach die Verrechnung; der nächste offene könnte gerade der Gegenumsatz sein
+            onSubmit={(input) => void run(() => neutralizeFn({ data: { transactionId: tx.id, ...input } }))}
+          />
           <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
         </>
       )}
