@@ -24,6 +24,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadDesign } from "./letterhead.ts";
 import { logoInfo } from "./logo.ts";
+import { mandateOptions } from "./sepa-mandate.ts";
 import { today } from "../../today.ts";
 
 export const companySchema = z
@@ -200,7 +201,7 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, design] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, design, mandates] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
@@ -208,10 +209,13 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     listTextBlocks(),
     logoInfo(),
     loadDesign(),
+    kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
   ]);
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
     contacts,
+    /** Gültige Lastschriftmandate je Kunde (#445), für die Zahlungsart der Rechnung */
+    mandates,
     articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
       id,
       number,

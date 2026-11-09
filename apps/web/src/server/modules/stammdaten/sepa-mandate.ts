@@ -1,5 +1,5 @@
 import { compactIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -115,11 +115,32 @@ export async function createMandate(actor: string, contactId: string, raw: Manda
 
 /** Mandate eines Kontakts, das jüngste zuerst, mit PDF, Widerruf und Status am Stichtag */
 export async function listMandates(contactId: string, today: string, q: Db | Tx = db): Promise<Mandate[]> {
-  const rows = await q
-    .select()
-    .from(schema.sepaMandates)
-    .where(eq(schema.sepaMandates.contactId, contactId))
-    .orderBy(desc(schema.sepaMandates.signedOn), desc(schema.sepaMandates.createdAt));
+  return loadMandates(eq(schema.sepaMandates.contactId, contactId), today, q);
+}
+
+/** Ein Mandat mit Status am Stichtag, etwa am Einzugstag einer Rechnung; null, wenn es das Mandat nicht gibt */
+export async function findMandate(id: string, day: string, q: Db | Tx = db): Promise<Mandate | null> {
+  const [mandate] = await loadMandates(eq(schema.sepaMandates.id, id), day, q);
+  return mandate ?? null;
+}
+
+/** Das jüngste Mandat des Kunden, das am Stichtag gilt; für Vorlagen wiederkehrender Rechnungen */
+export async function validMandateOn(contactId: string, day: string, q: Db | Tx = db): Promise<Mandate | null> {
+  return (await listMandates(contactId, day, q)).find((m) => m.status.art === "gueltig") ?? null;
+}
+
+/** Mandate für die Auswahl in Rechnung und Vorlage: je Kunde die am Stichtag gültigen, das jüngste zuerst */
+export async function mandateOptions(today: string, q: Db | Tx = db): Promise<MandateOption[]> {
+  const mandates = await loadMandates(sql`true`, today, q);
+  return mandates
+    .filter((m) => m.status.art === "gueltig")
+    .map((m) => ({ id: m.id, contactId: m.contactId, reference: m.reference, scheme: m.scheme, debtorIban: m.debtorIban }));
+}
+
+export type MandateOption = Pick<Mandate, "id" | "contactId" | "reference" | "scheme" | "debtorIban">;
+
+async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mandate[]> {
+  const rows = await q.select().from(schema.sepaMandates).where(where).orderBy(desc(schema.sepaMandates.signedOn), desc(schema.sepaMandates.createdAt));
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const [files, revocations] = await Promise.all([
