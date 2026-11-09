@@ -114,7 +114,8 @@ skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `
 (Issues schreiben). The type label (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`) is set when creating
 the issue; other labels and the roadmap order are the maintainer's call. Besides the types there are area
 labels (`oberfläche`, `buchung`, `schnittstelle`, `technik`, `doku`), `sammlung` and the status `rückmeldung`:
-implemented and released, the issue stays open until its author confirms that nothing is missing.
+implemented and released, the issue stays open until its author confirms that nothing is missing, and is closed
+with a short note after 14 days without an answer (the release comment says so).
 
 ## Working rules
 
