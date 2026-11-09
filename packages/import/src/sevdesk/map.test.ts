@@ -236,3 +236,21 @@ describe("mapSevVoucher", () => {
     expect(isSevVoucherImportable(sevVoucherSchema.parse(base))).toBe(true);
   });
 });
+
+describe("mapSevInvoice ohne Positionen", () => {
+  const head = { id: "9", invoiceNumber: "RE-1", invoiceDate: "2025-03-10", status: "1000", invoiceType: "RE", paidAmount: 0 };
+  const taxesFor = (sumNet: string, sumTax: string, sumGross: string) =>
+    mapSevInvoice(sevInvoiceSchema.parse({ ...head, sumNet, sumTax, sumGross }), []).voucher.taxes;
+
+  it.each([
+    ["19 %", "119", "22.61", "141.61", 1900, 11_900, 2_261],
+    ["7 %", "100", "7", "107", 700, 10_000, 700],
+    ["Rundung auf einen Cent", "0.99", "0.19", "1.18", 1900, 99, 19],
+  ])("nimmt den Satz aus dem Kopf: %s", (_name, net, tax, gross, rate, netCents, taxCents) => {
+    expect(taxesFor(net, tax, gross)).toEqual([{ rate, net: netCents, tax: taxCents }]);
+  });
+
+  it("lässt 0, wenn der Kopf keinen bekannten Satz trägt", () => {
+    expect(taxesFor("100", "12.34", "112.34")).toEqual([{ rate: 0, net: 10_000, tax: 1_234 }]);
+  });
+});
