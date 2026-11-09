@@ -4,6 +4,7 @@ import { useState } from "react";
 import { type BackgroundPages, BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LetterheadDesign, type LayoutRef } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
 import { deleteBackground, getBackground, saveLetterheadDesign, uploadBackground } from "../server/functions/logo.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { DesignOptionFields, Segmented, useDesignDraft } from "./DesignPanel.tsx";
 import { ImageUpload } from "./ImageUpload.tsx";
 import { LogoUpload } from "./LogoUpload.tsx";
@@ -115,36 +116,25 @@ export function LetterheadBackgroundCard({ design, background }: { design: Lette
         />
         Fußzeile steht auf dem Briefpapier
       </label>
-      {confirming && (
-        <div className="banner banner-warn" role="alert">
-          <span>
-            Haben druckt dann keine Fußzeile mehr, nur noch die Seitenzahl. Steuernummer oder USt-IdNr. muss dann auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2
-            UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Haben
-            kann das im Bild nicht prüfen.
-          </span>
-          <div className="actions">
-            <button type="button" className="btn btn-sm" onClick={() => setConfirming(false)}>
-              Abbrechen
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              onClick={() => {
-                draft.set({ footerHidden: true });
-                setConfirming(false);
-              }}
-            >
-              Fußzeile weglassen
-            </button>
-          </div>
-        </div>
-      )}
       <div className="actions">
         <button type="button" className="btn" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
           Speichern
         </button>
       </div>
       <NoticeBanner notice={notice} />
+      <ConfirmDialog
+        open={confirming}
+        title="Fußzeile weglassen?"
+        confirmLabel="Fußzeile weglassen"
+        onConfirm={() => draft.set({ footerHidden: true })}
+        onClose={() => setConfirming(false)}
+      >
+        <p>
+          Haben druckt dann keine Fußzeile mehr, nur noch die Seitenzahl. Steuernummer oder USt-IdNr. muss dann auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2
+          UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG.
+        </p>
+        <p>Haben kann das im Bild nicht prüfen.</p>
+      </ConfirmDialog>
     </section>
   );
 }

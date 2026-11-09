@@ -222,3 +222,14 @@ describe("Fußzeile auf dem Briefpapier", () => {
     expect(renderInvoicePdf({ ...ohneFuss(), ...bild }).length).toBeGreaterThan(1000);
   });
 });
+
+describe("Kursiv in jeder Schrift", () => {
+  it.skipIf(!hasPoppler).each([
+    ["plex-serif", "IBMPlexSerif-Italic"],
+    ["source-sans", "SourceSans3-It"],
+    ["plex-sans", "IBMPlexSans-Italic"],
+  ] as const)("%s bettet echte Kursivschnitte ein", (font, postscript) => {
+    const fonts = poppler("pdffonts", [], renderInvoicePdf({ ...withOptions({ font }), intro: "Text mit _kursiv_" }))!;
+    expect(fonts).toContain(postscript);
+  });
+});

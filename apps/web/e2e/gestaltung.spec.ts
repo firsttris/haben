@@ -482,13 +482,14 @@ test("Briefpapier mit eigenem Fuß: Fußzeile weglassen nur nach Rückfrage und 
   await expect(schalter).toBeEnabled();
 
   await schalter.click();
-  await expect(karte.getByText(/Steuernummer oder USt-IdNr\. muss dann auf dem Briefpapier stehen/)).toBeVisible();
+  const rueckfrage = page.getByRole("dialog", { name: "Fußzeile weglassen?" });
+  await expect(rueckfrage.getByText(/Steuernummer oder USt-IdNr\. muss dann auf dem Briefpapier stehen/)).toBeVisible();
   await expect(schalter).not.toBeChecked();
-  await karte.getByRole("button", { name: "Abbrechen" }).click();
+  await rueckfrage.getByRole("button", { name: "Abbrechen" }).click();
   await expect(schalter).not.toBeChecked();
 
   await schalter.click();
-  await karte.getByRole("button", { name: "Fußzeile weglassen" }).click();
+  await rueckfrage.getByRole("button", { name: "Fußzeile weglassen" }).click();
   await expect(schalter).toBeChecked();
   await karte.getByRole("button", { name: "Speichern" }).click();
   await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
