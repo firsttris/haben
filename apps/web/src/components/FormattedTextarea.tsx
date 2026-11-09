@@ -74,7 +74,13 @@ function moveFocus(event: KeyboardEvent<HTMLElement>, onEscape: () => void): voi
  * Textfeld mit Knöpfen für die Auszeichnungen aus text-format.ts. Gespeichert wird weiter der Text mit den
  * Zeichen. Die Leiste erscheint an der Markierung, damit lange Formulare und viele Positionen ruhig bleiben.
  */
-export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": describedBy, ...props }: Omit<ComponentProps<"textarea">, "ref">) {
+export function FormattedTextarea({
+  onKeyDown,
+  onInput,
+  "aria-describedby": describedBy,
+  fieldRef,
+  ...props
+}: Omit<ComponentProps<"textarea">, "ref"> & { fieldRef?: (element: HTMLTextAreaElement | null) => void }) {
   const field = useRef<HTMLTextAreaElement>(null);
   const dismissed = useRef<string | null>(null);
   const [active, setActive] = useState(0);
@@ -143,7 +149,10 @@ export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": desc
     >
       <textarea
         {...props}
-        ref={field}
+        ref={(element) => {
+          field.current = element;
+          fieldRef?.(element);
+        }}
         aria-describedby={[describedBy, hintId].filter(Boolean).join(" ")}
         onKeyDown={shortcut}
         onSelect={syncAnchor}
