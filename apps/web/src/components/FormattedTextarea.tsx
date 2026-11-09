@@ -77,6 +77,7 @@ function moveFocus(event: KeyboardEvent<HTMLElement>, onEscape: () => void): voi
 export function FormattedTextarea({
   onKeyDown,
   onInput,
+  onFocus,
   "aria-describedby": describedBy,
   fieldRef,
   ...props
@@ -157,7 +158,10 @@ export function FormattedTextarea({
         onKeyDown={shortcut}
         onSelect={syncAnchor}
         onScroll={syncAnchor}
-        onFocus={syncAnchor}
+        onFocus={(event) => {
+          syncAnchor();
+          onFocus?.(event);
+        }}
         onInput={(event) => {
           setStatus("");
           onInput?.(event);
