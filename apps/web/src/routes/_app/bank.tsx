@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
+import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -16,6 +17,8 @@ import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
   addProviderAccount,
+  allocateDirectDebitBatchFn,
+  allocateDirectDebitReturnFn,
   allocateTransaction,
   allocateTransactionWithRest,
   allocateProviderFees,
@@ -903,7 +906,9 @@ function AllocationPanel({
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
   const neutralizeFn = useServerFn(neutralizeBankTransactions);
   const reverseNeutralizationFn = useServerFn(reverseBankNeutralization);
-  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization } = detail;
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization, lastschrift } = detail;
+  const batchFn = useServerFn(allocateDirectDebitBatchFn);
+  const returnFn = useServerFn(allocateDirectDebitReturnFn);
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
   const best = suggestions[0];
@@ -1087,6 +1092,14 @@ function AllocationPanel({
           busy={busy}
           onCancel={() => setMode(best ? "best" : candidates.length ? "other" : "direct")}
           onSubmit={(parts) => run(() => splitFn({ data: { transactionId: tx.id, parts } }))}
+        />
+      )}
+
+      {tx.open !== 0 && mode !== "split" && (
+        <LastschriftVorschlag
+          match={lastschrift}
+          busy={busy}
+          onAllocate={() => runAndAdvance(() => (lastschrift?.kind === "sammler" ? batchFn : returnFn)({ data: { transactionId: tx.id } }), true)}
         />
       )}
 

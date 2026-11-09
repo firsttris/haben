@@ -1289,6 +1289,13 @@
       "when": 1794222122909,
       "tag": "0183_lastschrift_dateien_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1794222165745,
+      "tag": "0184_ruecklastschrift",
+      "breakpoints": true
     }
   ]
 }

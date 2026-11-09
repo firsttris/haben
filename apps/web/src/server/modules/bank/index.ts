@@ -106,3 +106,10 @@ export {
   type DirectDebitCandidate,
   type DirectDebitFileInput,
 } from "./sepa-lastschriften.ts";
+export {
+  allocateDirectDebitBatch,
+  allocateDirectDebitReturn,
+  collectedDirectDebits,
+  directDebitMatch,
+  type DirectDebitMatch,
+} from "./lastschrift-abgleich.ts";

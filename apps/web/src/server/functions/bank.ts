@@ -23,6 +23,8 @@ import {
   accountSettingsSchema,
   allocate,
   allocateTransfer,
+  allocateDirectDebitBatch,
+  allocateDirectDebitReturn,
   allocateSplit,
   allocationSchema,
   BankError,
@@ -314,5 +316,23 @@ export const removeEnableBanking = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await deleteEnableBankingSettings(context.user.id);
+    return { ok: true };
+  });
+
+/** Sammelgutschrift einer Lastschriftdatei auf ihre Rechnungen aufteilen (#445) */
+export const allocateDirectDebitBatchFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ transactionId: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await allocateDirectDebitBatch(context.user.id, data.transactionId);
+    return { ok: true };
+  });
+
+/** Rücklastschrift ihrer Lastschrift zuordnen, Entgelt als Bankgebühr (#445) */
+export const allocateDirectDebitReturnFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ transactionId: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await allocateDirectDebitReturn(context.user.id, data.transactionId);
     return { ok: true };
   });

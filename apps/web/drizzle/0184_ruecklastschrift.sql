@@ -1,0 +1,4 @@
+ALTER TABLE "allocations" ADD COLUMN "direct_debit_item_id" uuid;--> statement-breakpoint
+ALTER TABLE "allocations" ADD CONSTRAINT "allocations_direct_debit_item_id_sepa_direct_debit_items_id_fk" FOREIGN KEY ("direct_debit_item_id") REFERENCES "public"."sepa_direct_debit_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "allocations_direct_debit" ON "allocations" USING btree ("direct_debit_item_id");--> statement-breakpoint
+ALTER TABLE "allocations" ADD CONSTRAINT "allocations_direct_debit" CHECK ("allocations"."direct_debit_item_id" is null or "allocations"."kind"::text = 'invoice');

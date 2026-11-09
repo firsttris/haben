@@ -63,6 +63,7 @@ import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/i
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
+import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
@@ -476,6 +477,8 @@ export async function openItems(): Promise<OpenItem[]> {
     .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
   const cancelled = new Set(stornos.map((r) => r.correctsId));
   const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
+  // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
+  const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
 
   const documents = await db
     .select({
@@ -517,6 +520,7 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
+      ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
       currency: inv.currency,
       ...(skonto.length > 0 ? { skonto } : {}),
     });
@@ -672,7 +676,10 @@ export async function transactionDetail(id: string) {
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   // Belege aus Dauerbelegen, die noch zu prüfen sind: auf Klick buchen und zuordnen (bookAndAllocateDauerbeleg)
   const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
+  // Lastschriften aus Haben (#445): Sammelgutschrift aufteilen oder Rücklastschrift zuordnen
+  const lastschrift = await directDebitMatch(tx);
   return {
+    lastschrift,
     transaction: tx,
     allocations,
     suggestions,
@@ -1002,10 +1009,14 @@ export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(sp
 
 export type SplitInput = z.infer<typeof splitSchema>;
 /** Dazu intern: der Teil einer Zahlung über dem offenen Betrag einer Fremdwährungsrechnung (allocateWithRest) */
-type Part = z.infer<typeof splitPartSchema> | { kind: "kursdifferenz"; amount: number };
+type Part =
+  | z.infer<typeof splitPartSchema>
+  | { kind: "kursdifferenz"; amount: number }
+  // Rücklastschrift (#445): negative Zahlung auf die Rechnung mit Bezug auf die zurückgegebene Lastschrift
+  | { kind: "ruecklastschrift"; invoiceId: string; directDebitItemId: string; amount: number };
 
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
-async function lockTransaction(tx: Tx, id: string) {
+export async function lockTransaction(tx: Tx, id: string) {
   const [bank] = await tx
     .select({
       id: schema.bankTransactions.id,
@@ -1027,10 +1038,34 @@ async function lockTransaction(tx: Tx, id: string) {
 type LockedTransaction = Awaited<ReturnType<typeof lockTransaction>>;
 
 /**
+ * Rücklastschrift (#445): Die Bank holt den eingezogenen Betrag zurück. Gebucht wie eine negative Zahlung auf die
+ * Rechnung (Forderung wieder offen, bei Ist-Versteuerung die Umsatzsteuer zurück auf noch nicht fällig), höchstens bis
+ * zum bezahlten Betrag; mit Bezug auf die Lastschrift, damit sie neu eingezogen werden kann.
+ */
+async function returnBooking(
+  tx: Tx,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  bank: LockedTransaction,
+  part: { invoiceId: string; directDebitItemId: string; amount: number },
+) {
+  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
+  if (invoice?.status !== "final" || invoice.kind !== "rechnung") throw new BankError("Rechnung nicht zuordenbar.");
+  const paid = await settledOn(tx, "invoice_id", invoice.id);
+  if (part.amount >= 0 || -part.amount > paid) throw new BankError(`Rechnung ${invoice.number} ist nur über ${paid / 100} € bezahlt.`);
+  const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
+  const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
+  return {
+    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares),
+    description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
+    target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
+  };
+}
+
+/**
  * Bucht einen Teil eines Umsatzes auf Rechnung, Beleg oder eine Buchung ohne Beleg. Der Betrag trägt das Vorzeichen,
  * mit dem er das Konto bewegt; geprüft wird hier nur gegen das Ziel (offener Betrag der Rechnung bzw. des Belegs).
  */
-async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
+export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
   let lines: PostingLine[];
   let description: string;
   let target: {
@@ -1046,6 +1081,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     loanPart?: DarlehenTeil;
     category?: DirektKategorie;
     taxRate?: number;
+    directDebitItemId?: string;
   } = {};
 
   if (part.kind === "invoice") {
@@ -1079,6 +1115,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
         .set({ iban: bank.counterpartyIban })
         .where(and(eq(schema.contacts.id, invoice.contactId), eq(schema.contacts.iban, "")));
     }
+  } else if (part.kind === "ruecklastschrift") {
+    ({ lines, description, target } = await returnBooking(tx, company, bank, part));
   } else if (part.kind === "document") {
     // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
@@ -1115,7 +1153,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     description = `${bank.counterpartyName || "Bankumsatz"} · ${label}`;
   }
 
-  const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind;
+  const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind === "ruecklastschrift" ? "invoice" : part.kind;
   const [allocation] = await tx
     .insert(schema.allocations)
     .values({ transactionId: bank.id, kind, amount: part.amount, splitId, ...target })
@@ -1204,7 +1242,26 @@ export async function reverseAllocation(actor: string, allocationId: string): Pr
         .for("update");
       for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
     }
+    await assertNoReturnWithoutPayment(tx, parts);
   });
+}
+
+/**
+ * Eine Rücklastschrift (#445) setzt die Zahlung voraus, die sie zurückholt: Ohne sie stünde die Rechnung über ihren
+ * Betrag hinaus offen und würde so neu eingezogen. Erst die Rücklastschrift aufheben, dann die Zahlung.
+ */
+async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.allocations.$inferSelect)[]) {
+  const ids = [...new Set(parts.filter((p) => p.kind === "invoice" && p.amount > 0 && p.invoiceId).map((p) => p.invoiceId!))];
+  if (ids.length === 0) return;
+  const invoices = await tx
+    .select({ id: schema.invoices.id, number: schema.invoices.number, gross: schema.invoices.gross })
+    .from(schema.invoices)
+    .where(inArray(schema.invoices.id, ids));
+  for (const invoice of invoices) {
+    if (invoice.gross > 0 && (await settledOn(tx, "invoice_id", invoice.id)) < 0) {
+      throw new BankError(`Zu Rechnung ${invoice.number} ist eine Rücklastschrift zugeordnet; bitte zuerst sie aufheben.`);
+    }
+  }
 }
 
 async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
@@ -1232,6 +1289,7 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       loanPart: allocation.loanPart,
       category: allocation.category,
       taxRate: allocation.taxRate,
+      directDebitItemId: allocation.directDebitItemId,
       amount: -allocation.amount,
       splitId: allocation.splitId,
       reversesId: allocation.id,
