@@ -23,9 +23,9 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 - Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, in einem hellen und einem dunklen
   Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ vor der ersten Änderung aufnehmen und als Anhang
   hochladen (ins Textfeld ziehen).
-- Titel: `Bereich: was sich ändert (#Issue)`. Commits gern als `fix(bereich): …`, `test: …` mit Beschreibung auf
-  Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for review“. Ändert ein Pull Request nur Markdown,
-  `docs/` oder `LICENSE`, läuft sie gar nicht; dann die Doku vorher lokal bauen.
+- Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt. Commits gern als
+  `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
+  review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE`, überspringt sie die Tests und baut nur die Doku.
 - Mit KI-Werkzeugen zu arbeiten ist in Ordnung. Der Transparenz halber bitte kennzeichnen: `Co-Authored-By:` im
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
