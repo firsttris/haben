@@ -108,7 +108,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
 | `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go) |
-| `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
+| `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
 | `bun run db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
@@ -288,7 +288,7 @@ committet, was sich geändert hat. Auf `main` pusht er wie *Bump version* mit de
 Das Schema steht in `apps/web/src/server/db/schema.ts`, die Migrationen in `apps/web/drizzle/`.
 
 1. Schema anpassen.
-2. `bun run db:generate` erzeugt die SQL-Migration und den Snapshot in `drizzle/meta/`.
+2. `bun run db:generate` erzeugt die SQL-Migration und den Snapshot in `drizzle/meta/`. Snapshots nie von Hand schreiben.
 3. `bun run db:migrate` wendet sie lokal an. Im Container passiert das beim Start automatisch.
 
 Trigger und Funktionen (Festschreibung, Versionierung, Audit-Log) kann drizzle-kit nicht aus dem Schema ableiten. Sie stehen in eigenen SQL-Migrationen, z. B. `0001_festschreibung.sql`, `0003_rechnungen_trigger.sql` oder `0010_lexoffice_trigger.sql`. Eine leere Migration dafür legst du so an und schreibst das SQL von Hand hinein:
@@ -383,18 +383,19 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 - **Formatierung mit Biome:** `bun run format` formatiert JavaScript, TypeScript und JSON (160 Zeichen breit, doppelte Anführungszeichen); `bun run lint` und die CI prüfen das. CSS und Markdown formatiert Biome nicht. Reine Formatier-Commits stehen in `.git-blame-ignore-revs`; damit `git blame` sie lokal überspringt, einmal `git config blame.ignoreRevsFile .git-blame-ignore-revs` und `git config blame.markIgnoredLines true`. Der Squash-Commit von #201 ändert auch `biome.jsonc`, `package.json` und diese Seite; solche Zeilen schreibt `git blame` einem älteren Commit zu und markiert sie mit `?`.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.
 - **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen unter Bun direkt aus den Quellen, ohne Build.
+- **Technik nach `tech-stack.md`** in [firsttris/workflows](https://github.com/firsttris/workflows). Abweichungen hier: schlichtes CSS mit Variablen in `apps/web/src/styles.css` statt Tailwind, eine eigene `Icon`-Komponente statt lucide, Typst für das PDF der Rechnung.
+- **Funktional statt objektorientiert:** reine Funktionen, die Daten nehmen und Daten zurückgeben, Seiteneffekte am Rand; Abhängigkeiten werden übergeben. Funktionskomponenten und Hooks, keine Klassen (außer den Unterklassen von `UserError`), Fehler als Werte, wo der Code das schon so macht. Die Ideen hinter SOLID und den Entwurfsmustern gern als Funktionen, Daten und Closures, nicht als Klassenhierarchien. Klare Namen, keine Doppelungen und kein toter Code, Kommentare sagen warum.
+- **Eine Datei tut eine Sache:** ab etwa 400 Zeilen teilen, eine Funktion ab etwa 80. Ältere größere Dateien stehen in `scripts/dateigroesse/altdateien.json`; Neues kommt möglichst in eine eigene Datei, geteilt werden sie nur in einem eigenen Pull Request, nicht nebenbei ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Ein Refactor ändert kein Verhalten.
 - **Bun statt Node:** Die Skripte starten Vite, Vitest, Playwright, Biome, tsc und drizzle-kit mit `bun --bun`; ohne den Schalter nähme Bun das `node` aus deren Startzeile, falls eines installiert ist. Install-Skripte führt `bun install` nur für die Pakete in `trustedDependencies` aus (esbuild lädt sein Binary, koffi sein natives Modul für ERiC). `bunfig.toml` legt die Abhängigkeiten wie früher pnpm isoliert ab: Jedes Paket sieht nur, was es selbst einträgt.
 - **Oberfläche auf Deutsch**, auch Fehlermeldungen, die beim Nutzer ankommen.
-- **Gestaltung der Oberfläche:** Abstände auf dem 4px-Raster, Schriftgrößen aus 12, 13, 14, 16, 18, 24 und 28px, Beschriftungen und Tabellenköpfe in Satzschreibung statt Versalien mit Sperrung. Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen. Keine Verläufe, Leuchteffekte oder Endlos-Animationen; Farbe trägt Bedeutung (Akzent, Status, Diagrammreihen). Die Kennzahlenreihe zeigt nur Zahlen.
-- **Seitenkopf:** Jede Seite beginnt mit `.page-head` als direktem Kind von `<main>`: Titel, Status und Hauptaktionen. Hat die ganze Seite einen Status (Rechnung, Angebot, Umsatzsteuer-Voranmeldung), steht er neben dem Titel (`.title-with-status`), damit er mit dem Kopf sichtbar bleibt. Er bleibt beim Scrollen stehen (#356). Seine gemessene Höhe steht in `--page-head-height` (`usePageHeadHeight` in `lib/use-page-head.ts`), seine Unterkante samt Handy-Navigation in `--below-head`. Was darunter ebenfalls stehen bleibt (Unternavigation, Belegansicht, Tabellenköpfe, Sprungleisten), nimmt `top: var(--below-head)` statt eines festen Abstands; `scroll-padding-top` hält Sprungziele und Felder mit Fokus unter dem Kopf. Auf dem Handy steht der Kopf kompakt: die Aktionen in einer Zeile, die seitlich scrollt; im Belegeditor (`.editor-actions`) brechen sie um, damit Speichern und Festschreiben sichtbar bleiben. Der Kontaktdialog (`ContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
-- **Rückfragen:** Folgenreiches bestätigt der Dialog `ConfirmDialog` (#404), nie ein zweiter Klick auf denselben Knopf und nie `window.confirm`. Der Titel ist eine Frage mit dem Objekt („Entwurf löschen?“), darunter stehen die Folgen, rechts die Aktion mit ihrem Namen, nie „OK“. Der Kopf hat keine Trennlinie und kein Schließen-X; die Linie unter dem Titel gehört zu Formular-Dialogen wie `ContactDialog`, deren Inhalt scrollt. Geht es um Geld oder das Finanzamt, nennt `facts` über den Folgen, was bestätigt wird: beim Festschreiben einer Rechnung Nummer, Kunde und Betrag, bei ELSTER Steuerart, Zeitraum und Zahllast, beim Lohn Person, Brutto und Auszahlung, beim Beleg Lieferant, Datum und Betrag; ein Storno nennt dasselbe wie das, was es zurücknimmt. Ein Häkchen (`acknowledge`) gibt es nur beim Jahresabschluss, Eintippen gar nicht. Am Handy ist der Dialog ein Blatt von unten mit der Aktion über „Abbrechen“; an Griff oder Titel nach unten gewischt schließt es wie „Abbrechen“. Fokus beim Öffnen auf „Abbrechen“, danach zurück auf den Auslöser; Esc führt nichts aus. Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgültiges Beenden und Abschließen, grün der erwartete nächste Schritt wie Festschreiben, Buchen und Senden. Der Dialog schließt vor der Aktion; das Ergebnis meldet die Seite. Tastenkürzel der Seite fragen `isDialogOpen()`.
-- **Vorschau der Belegeditoren:** `components/DocumentPreview.tsx` ist die Hülle für alle Editoren mit Dokumentvorschau (#357): `useDocumentPreview` hält den Modus, `PreviewButton` ist der Split-Button im Seitenkopf, `PreviewLayout` stellt Formular und Vorschau nebeneinander oder öffnet die Überblendung als `<dialog>`. Ob Anheften geht und was ohne gespeicherte Wahl gilt, entscheidet die Breite des Editors (`previewLayout` in `lib/vorschau.ts`, Mindestbreiten dort und in `.preview-layout`). Die Wahl liegt im `localStorage` (`haben-vorschau`). Die Vorschau steht nur im Dokument, wenn sie zu sehen ist.
-- **Barrierefrei und per Tastatur bedienbar:** echte Knöpfe und Links, ein Label für jedes Feld, sichtbarer Fokus, Text in Akzentfarbe mit `var(--link)`. `barrierefreiheit.spec.ts` prüft das in der CI ([Barrierefreiheit und Tastatur](barrierefreiheit.md)).
-- **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben.
-- **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt.
+- **Oberfläche:** Gestaltung, Knopfarten, Seitenkopf, Rückfragen, Vorschau der Belegeditoren und Barrierefreiheit stehen in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md).
+- **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben. In versiegelten Tabellen (`invoices`, `journal_entries`, …) wird keine Spalte umbenannt, gelöscht oder neu berechnet; neue Spalten gehen. Eine Sperre oder ein Siegel wird nie gelockert, damit etwas funktioniert.
+- **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt. Neue Tabellen bekommen einen Audit-Trigger.
+- **Geheimnisse** (Schlüssel, Passwörter, Tokens) liegen mit AES-256-GCM verschlüsselt in einer Spalte namens `ciphertext`, die `haben_audit` auslässt.
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
-- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
+- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
+- **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
 
 ## Projektstruktur
 
@@ -463,26 +464,34 @@ Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffs
 
 ## Mitwirken
 
-Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen (ohne Bun auf dem Rechner siehe [Prüfungen ohne Bun auf dem Rechner](#prüfungen-ohne-bun-auf-dem-rechner)):
+Vor jedem Push dieselben Prüfungen wie in der CI (ohne Bun auf dem Rechner siehe [Prüfungen ohne Bun auf dem Rechner](#prüfungen-ohne-bun-auf-dem-rechner)):
 
 ```sh
 bun run lint
 bun run typecheck
 TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 bun run build
+E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_e2e bun run e2e   # ohne Browser von Playwright nur in der CI
+zensical build --strict                                                       # wenn docs/ oder mkdocs.yml geändert sind
 ```
 
-- Neue Fachlogik mit Tests, Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.
+Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server mit echten Daten zeigen lassen. Was übersprungen wurde, gehört in die Beschreibung des Pull Requests.
+
+- Ein Pull Request, ein Thema; er trägt nur seine eigenen Commits.
+- Tests für das, was sich ändert: Vitest für Logik, Postgres-Integrationstests neben dem Modul, Playwright in `apps/web/e2e/` für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.
+- Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request. Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
+- Eine neue Seite kommt in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` (prüft `bun run lint`).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub. Ein Branch nur für Bilder ist eine Notlösung: nur im eigenen Fork, nie im Haupt-Repository (jeder Klon lädt ihn sonst mit), nur neue Commits, und mit dem Branch oder Fork verschwinden auch die Bilder.
+- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub; ein Branch nur für Bilder ist eine Notlösung, nur im eigenen Fork und nie im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
 
 ### Branches, Titel und Commits
 
-- **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
-- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts, und die Doku baut erst auf `main`: dann den Doku-Build von oben lokal laufen lassen.
-- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
+- **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht. Vor jedem Push prüfen, ob der Pull Request des Branches noch offen ist; ist er gemergt, neu von `origin/main` und ein neuer Pull Request. Force-Push nur mit `--force-with-lease` auf den eigenen Branch nach einem Merge.
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts außer der Doku: Die baut der Workflow „Docs“ im Pull Request mit `zensical build --strict`, ohne zu veröffentlichen.
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
+- **Issues in der Beschreibung:** mit `Refs #…`, nie `Closes` oder `Fixes`. GitHub schlösse das Issue sonst beim Merge; es bleibt aber mit `rückmeldung` offen, bis es veröffentlicht ist und der Ersteller geantwortet hat.
 - **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
 
 ### Mit KI-Werkzeugen
@@ -493,6 +502,25 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 - in der Beschreibung des Pull Requests mit einer Zeile wie „🤖 Generated with <Werkzeug>“.
 
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
+
+### Automatische Prüfungen der Regeln
+
+Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verloren. Was sich sicher entscheiden lässt, prüft deshalb ein Skript; was nicht, erscheint als Hinweis.
+
+| Regel | Prüfung | Wirkung |
+| --- | --- | --- |
+| Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
+| Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
+| Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
+| Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
+| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
+| Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
+| Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
+
+Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`, nicht aber auf eine feste Nachbarseite wie `/rechnungen/neu`, denn die wählt der Router vor dem Parameter. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen. Die Prüfung vergleicht Text: Sie sieht, ob ein Pfad in der Datei steht, nicht, ob ein Test die Seite lädt. Eine Seite, deren Pfad nur in einem Test steht, der eine 404 erwartet, steht deshalb mit eigenem Grund in den Ausnahmen; solche Ausnahmen meldet die Prüfung nicht als veraltet.
+
+Die Dateigröße zählt Zeilen wie `wc -l` in den Quelldateien unter `apps/*/src`, `packages/*/src` und `scripts`, ohne Tests und `routeTree.gen.ts`. Ein Fehler ist jede Datei über 400 Zeilen, die nicht in `scripts/dateigroesse/altdateien.json` steht: eine neue, aber auch eine bisher kleinere, die über die Grenze wächst. Dann kommt das Neue in eine eigene Datei, statt die bestehende zu vergrößern. Wird eine alte Datei umbenannt, ändert sich ihr Pfad in `altdateien.json` mit; das ist der einzige Eintrag von Hand. Die alten Dateien dürfen wachsen, weil sie nur in einem eigenen Pull Request geteilt werden und manche, wie `schema.ts`, mit jeder neuen Tabelle wachsen müssen. Wächst eine im Pull Request um 20 Zeilen oder mehr, weist „PR-Regeln“ darauf hin, außer bei `schema.ts`. Ist eine geschrumpft oder gelöscht, nennt `bun run lint` sie als Hinweis; `bun scripts/dateigroesse/pruefen.ts --aufraeumen` nimmt sie aus der Liste. Neue Dateien trägt niemand in `altdateien.json` ein.
 
 ### Issues schreiben
 
@@ -531,8 +559,8 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit C
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
 3. **Im Pull Request:** Befunde mit Testname und Ausgabe des roten Tests als Kommentar, auch wenn es keine gibt.
 4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Repo oder im Fork mit „Allow edits by maintainers“); geht das nicht, bitten wir darum, „Allow edits by maintainers“ einzuschalten, und nur als letzter Ausweg gibt es einen eigenen Pull Request. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
-5. **Grün:** alle Prüfungen von oben lokal und in der CI, dann ein Abschlusskommentar mit den behobenen Befunden.
-6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht.
+5. **Grün:** Lokal gezielt, was der Pull Request und die Fixes berühren: Lint, Typecheck, die Tests zu den geänderten Stellen, Playwright nur für die betroffenen Dateien, der Doku-Build nur bei Änderungen in `docs/`. Die volle Suite läuft in der CI und muss dort grün sein; auf Entwürfen läuft sie erst nach „Ready for review“. Dann ein Abschlusskommentar mit den behobenen Befunden und dem, was lokal lief.
+6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht, und sein Pull Request wird mit einem Link auf den Ersatz geschlossen.
 
 Haben steht unter der AGPL-3.0.
 

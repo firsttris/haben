@@ -3,6 +3,8 @@
 # Die eigene Domain steht unter Settings → Pages → Custom domain; ihr DNS liegt bei Cloudflare
 # (A/AAAA auf GitHub Pages, www als CNAME auf firsttris.github.io, ohne Cloudflare-Proxy, damit
 # GitHub das Zertifikat ausstellen kann). firsttris.github.io/haben/ leitet dorthin um.
+# In Pull Requests nur bauen, nicht veröffentlichen: bei reinen Doku-Änderungen überspringt ci.yml (Job `changes`) seine Jobs,
+# so fällt ein kaputter Link oder eine fehlende Seite in der Navigation schon vor dem Merge auf.
 # Voraussetzung einmalig: Settings → Pages → Source "GitHub Actions"
 # (configure-pages mit enablement schaltet das beim ersten Lauf selbst ein).
 name: Docs
@@ -19,20 +21,34 @@ on:
       - 'scripts/doku-hinweise/**'
       - 'scripts/doku-kurzlinks/**'
       - '.github/workflows/docs.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'overrides/**'
+      - 'requirements-docs.txt'
+      - 'scripts/doku-aenderungsdatum/**'
+      - 'scripts/doku-hinweise/**'
+      - 'scripts/doku-kurzlinks/**'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# Veröffentlichen läuft nie parallel; Pull Requests haben je eine eigene Gruppe und brechen veraltete Läufe ab
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('docs-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # configure-pages braucht Schreibrecht auf Pages; in Pull Requests läuft der Schritt nicht
+    permissions:
+      contents: read
+      pages: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -48,6 +64,7 @@ jobs:
       - run: python -m unittest discover -s scripts/doku-hinweise
       - run: python -m unittest discover -s scripts/doku-kurzlinks
       - uses: actions/configure-pages@v6
+        if: github.event_name != 'pull_request'
         with:
           enablement: true
       - run: zensical build --strict
@@ -70,12 +87,17 @@ jobs:
       - run: test "$(grep -l 'name="robots" content="noindex"' site/*.html)" = site/404.html
       - run: "grep -q '^Sitemap: https://haben.app/sitemap.xml' site/robots.txt"
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: site
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

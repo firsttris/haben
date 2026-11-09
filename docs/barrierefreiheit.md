@@ -41,7 +41,7 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Str
 
 - **Kontraste:** Text, Links und Knöpfe erreichen in allen sechs Themes mindestens 4,5:1, Fokusrahmen und Bedienelemente mindestens 3:1. In den dunklen Themes (Nacht, Tiefsee) sind Links dafür heller als die Akzentfarbe der Knöpfe.
 - **Vergrößern:** Die Seiten passen sich der Breite an. Auch bei 390 px Breite (Handy oder stark vergrößert) gibt es keine waagrechte Bildlaufleiste. Breite Tabellen scrollen dann in ihrer Karte; ist eine Tabelle breiter als der Platz, erreichst du sie mit `Tab` und scrollst mit den Pfeiltasten.
-- **Tippflächen** sind mindestens 24 × 24 px groß, Knöpfe und Eingabefelder auf Touch-Geräten 44 px hoch.
+- **Tippflächen** sind mindestens 24 × 24 px groß, Knöpfe und Eingabefelder auf Touch-Geräten 44 px hoch. Felder haben dort 16 px Schrift, damit Safari auf dem iPhone die Seite beim Antippen nicht vergrößert; mit zwei Fingern vergrößern geht weiterhin.
 - **Weniger Bewegung:** Ist im System „Bewegung reduzieren“ eingestellt, verzichtet Haben auf Übergänge.
 - **Sprache:** Die Seiten sind als Deutsch ausgezeichnet (`lang="de"`), damit Vorlese- und Übersetzungsprogramme richtig betonen.
 

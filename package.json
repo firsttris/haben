@@ -17,7 +17,7 @@
     "release:minor": "bun pm version minor",
     "release:major": "bun pm version major",
     "postversion": "git push --follow-tags",
-    "lint": "bun --bun biome check --error-on-warnings && bun scripts/modulgrenzen/pruefen.ts",
+    "lint": "bun --bun biome check --error-on-warnings && bun scripts/modulgrenzen/pruefen.ts && bun scripts/seitenabdeckung/pruefen.ts && bun scripts/dateigroesse/pruefen.ts",
     "format": "bun --bun biome format --write",
     "test": "bun --bun vitest run",
     "db:generate": "bun run --cwd apps/web db:generate",

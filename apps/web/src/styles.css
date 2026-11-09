@@ -57,6 +57,10 @@
   --main-pad-x: 40px;
 }
 @media (pointer: coarse) { :root { --control-h: 44px; } }
+/* Safari auf dem iPhone vergrößert die Seite beim Fokus in ein Feld mit weniger als 16 px Schrift und bleibt vergrößert:
+   Die Seite lässt sich dann seitlich verschieben. Vergrößern per Geste bleibt erlaubt (kein maximum-scale). !important,
+   weil die Felder ihre Schrift an vielen Stellen mit höherer Spezifität setzen; Häkchen und Datei-Wähler zoomen nicht. */
+@media (pointer: coarse) { input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea { font-size: 16px !important; } }
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
 /* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
 html { scroll-padding-top: calc(var(--below-head) + 16px); }
@@ -658,8 +662,12 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .document-split-row { display: grid; grid-template-columns: minmax(0, 2fr) 90px minmax(0, 1fr) 40px; gap: 8px; align-items: start; }
 .document-split-row input, .document-split-row select { width: 100%; min-width: 0; }
 .document-split-row .icon-btn { margin-top: 22px; }
+/* Auf dem Handy haben Felder 16 px Schrift: Beträge brauchen die halbe Breite, in schmaleren Spalten fehlten die Cent */
 @media (max-width: 560px) {
-  .document-split-row { grid-template-columns: minmax(0, 1fr) 90px; }
+  .amount-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row > .field:first-child { grid-column: 1; grid-row: 1; }
+  .amount-row > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
+  .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
 }
 .page-head .actions { align-items: center; }

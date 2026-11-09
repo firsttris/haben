@@ -1,0 +1,31 @@
+# Prüft Regeln am Pull Request selbst (scripts/pr-regeln): Titel „Bereich: was sich ändert (#Issue)“;
+# Hinweise auf Code ohne Doku und Fix ohne Test. Läuft anders als ci.yml auch für Entwürfe und reine Doku-Änderungen, denn der Titel wird
+# beim Squash-Merge zum Commit auf main. Mit pull_request, nicht pull_request_target: Code aus Forks läuft nur
+# mit Leserecht.
+name: PR-Regeln
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-regeln-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Eigener Name, damit der Check im Ruleset nicht mit „pruefen“ aus jahreswerte.yml verwechselt wird
+  pr-regeln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Basis und Kopf des Pull Requests für git log und git diff
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      # Ohne bun install: das Skript braucht nur node:-Module
+      - run: bun scripts/pr-regeln/pruefen.ts
