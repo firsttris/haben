@@ -96,6 +96,7 @@ Die Issues zu erledigten Plätzen bleiben offen, bis die Meldenden bestätigen, 
 | 18 | OSS | Rechnungen an Privatpersonen im EU-Ausland mit dem Steuersatz des Ziellands, Lieferschwelle, Datei für das BZSt-Online-Portal | M |
 | 19 | Offene Posten ohne Bankumsatz verrechnen | Rechnung gegen Gutschrift oder Storno ausgleichen, zuerst Eingangsbelege desselben Lieferanten; vor dem Bau fachlich zu klären (Aufrechnung oder Aufhebung, Ist und Soll) ([#274](https://github.com/firsttris/haben/issues/274)) | M |
 | 20 | Fremdes Bankkonto ausschließen | Ein Konto, das nicht zu dieser Firma gehört (etwa das Konto einer zweiten Firma aus demselben Bankzugang), als „gehört nicht zu dieser Firma“ markieren, solange keiner seiner Umsätze zugeordnet oder verrechnet ist; danach ausgeblendet, kein Abruf mehr, nicht in Abgleich, Vorschlägen und Export; nichts wird gelöscht, der Schritt steht im Änderungsprotokoll ([#462](https://github.com/firsttris/haben/issues/462)) | S |
+| 21 | Mehrere Betriebe | Freiberuflich und gewerblich nebeneinander: je Beleg, Rechnung und Anlage ein Betrieb, geteilte Ausgaben prozentual oder betragsmäßig aufteilbar, eine EÜR und ein Anlagenverzeichnis je Betrieb; Voranmeldung, Umsatzsteuererklärung und ZM gemeinsam (Unternehmenseinheit, § 2 Abs. 1 Satz 2 UStG); baut auf den Kostenstellen auf; vor dem Bau klären, wie Bankkonten und gemeinsame Ausgaben zwischen den Betrieben gebucht werden ([#484](https://github.com/firsttris/haben/issues/484)) | L |
 
 ## Später
 
