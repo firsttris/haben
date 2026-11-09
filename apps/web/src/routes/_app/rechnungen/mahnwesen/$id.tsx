@@ -12,6 +12,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../../../../lib/format.ts";
+import { FormattedTextarea } from "../../../../components/FormattedTextarea.tsx";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
 import { saveBase64File } from "../../../../lib/download.ts";
@@ -140,14 +141,14 @@ function NewDunningPage() {
               <input type="checkbox" checked={flatFee} onChange={(e) => setFlatFee(e.target.checked)} />
               Verzugspauschale 40 € (nur bei Geschäftskunden, § 288 Abs. 5 BGB)
             </label>
-            <label className="field" style={{ gridColumn: "1 / -1" }}>
-              Einleitung
-              <textarea value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />
-            </label>
-            <label className="field" style={{ gridColumn: "1 / -1" }}>
-              Schluss
-              <textarea value={closing} onChange={(e) => setClosing(e.target.value)} maxLength={2000} rows={3} />
-            </label>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="dunning-intro">Einleitung</label>
+              <FormattedTextarea id="dunning-intro" value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="dunning-closing">Schluss</label>
+              <FormattedTextarea id="dunning-closing" value={closing} onChange={(e) => setClosing(e.target.value)} maxLength={2000} rows={3} />
+            </div>
           </div>
         </section>
         <section className="card stack" aria-label="Forderung">

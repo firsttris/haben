@@ -1,4 +1,4 @@
-import { DUNNING_LEVELS, formatEuro, type DunningAmounts, type DunningLevel } from "@haben/core";
+import { DUNNING_LEVELS, formatEuro, parseTextFormatting, type DunningAmounts, type DunningLevel } from "@haben/core";
 import { accountHolder, formatDate, formatIban } from "./format.ts";
 import { TEXTS } from "./i18n.ts";
 import { addressLines, asDraft, draftFilename, footerData, renderDunningPdf, showsCustomerNumber, type DraftPdf } from "./pdf.ts";
@@ -55,6 +55,7 @@ export function dunningPdfData(doc: DunningDocument) {
     meta,
     salutation: "Sehr geehrte Damen und Herren,",
     intro: doc.intro.trim(),
+    introFormatted: parseTextFormatting(doc.intro.trim()),
     invoices: [
       {
         number: doc.invoice.number,
@@ -80,6 +81,7 @@ export function dunningPdfData(doc: DunningDocument) {
           })
         : null,
     closing: doc.closing.trim(),
+    closingFormatted: parseTextFormatting(doc.closing.trim()),
     greeting: `Mit freundlichen Grüßen\n${seller.name}`,
     ...footerData(seller, TEXTS.de, doc),
   };
