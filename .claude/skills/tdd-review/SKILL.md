@@ -59,15 +59,16 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 ## Wie viele Runden
 
-- Höchstens **zwei Runden** je Pull Request (Schritte 1–5 zählen als eine Runde). Ein Codex- oder anderes KI-Review zählt zur selben Runde.
-- Grund: Jeder Fix ist neuer Code, und weitere Runden prüfen vor allem den Code, den die Reviews selbst erzeugt haben.
-- Eine dritte Runde nur, wenn die zweite einen Befund hatte, der bei normaler Bedienung oder mit echten Daten auftritt.
-- Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen: im PR notieren, nicht mehr fixen; lohnen sie sich, ein eigenes Issue vorschlagen.
+- **Zwei reguläre Runden** je Pull Request (Schritte 1–5 sind eine Runde). Grund: Jeder Fix ist neuer Code, und weitere Runden prüfen vor allem den Code, den die Reviews selbst erzeugt haben.
+- **Eine Runde, ein Stand:** Codex oder ein anderes KI-Review zählt zur selben Runde und prüft denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
+- **Weitere Runden nur nach einem schweren Befund** (roter Test und Sicherheit, falsche Buchung oder Steuer, GoBD oder Datenverlust). Sie prüfen nur den Fix und den betroffenen Bereich.
+- **Höchstens vier Runden.** Danach noch ein schwerer Befund offen: nicht weiter fixen, nicht mergen, an den Maintainer zurückmelden.
+- **Konstruierte Eingaben** (Daten, die in echten Antworten nicht vorkommen): notieren, nicht fixen; lohnt es sich, ein eigenes Issue vorschlagen. Ausnahme: Sicherheit.
 - Die Regel steht in `docs/entwicklung.md` unter „Review“.
 
-## 6. Merge (nur Maintainer)
+## 6. Merge (Maintainer oder Collaborator mit Zustimmung)
 
-- Mergen darf nur, wer Maintainer von Haben ist und das ausdrücklich will. Wer beiträgt, hört nach Schritt 5 auf.
+- Mergen darf, wer Maintainer von Haben ist und das ausdrücklich will, oder ein Collaborator mit Zustimmung des Maintainers. Wer sonst beiträgt, hört nach Schritt 5 auf.
 - Vor dem Merge prüfen: alle Findings behoben, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`.
 - Merge-Methode nach `docs/entwicklung.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
 - **Nicht mergen**, wenn ein Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
