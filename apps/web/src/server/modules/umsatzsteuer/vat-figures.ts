@@ -15,6 +15,7 @@ import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "driz
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
@@ -495,7 +496,8 @@ export interface PreflightIssue {
 export async function preflight(period: VatPeriod, figures: VatFigures): Promise<PreflightIssue[]> {
   const { start, end } = periodRange(period);
   const issues: PreflightIssue[] = [];
-  const open = sql`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = bank_transactions.id), 0))`;
+  // Verrechnete Umsätze (#457) sind erledigt wie zugeordnete
+  const open = bankOpenAmountSql;
 
   const [bank] = await db
     .select({

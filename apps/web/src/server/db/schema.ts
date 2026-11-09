@@ -2077,6 +2077,39 @@ export const allocations = pgTable(
 );
 
 /**
+ * Verrechnung zweier gegenläufiger Umsätze desselben Kontos, die sich aufheben (#457), etwa +1,00 € und −1,00 € einer
+ * Kartenprüfung. Beide gelten danach als erledigt, ohne Buchung und ohne Wirkung auf Voranmeldung und EÜR; die Umsätze
+ * selbst bleiben unverändert. Nur anhängen; aufgehoben wird per Gegenzeile (reversesId) mit denselben Umsätzen. Der
+ * Trigger in drizzle/ prüft Summe null, dasselbe Konto, keine Zuordnung und höchstens eine gültige Verrechnung je Umsatz.
+ */
+export const bankNeutralizations = pgTable(
+  "bank_neutralizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    counterTransactionId: uuid("counter_transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    /** Begründung, etwa „PayPal-Autorisierung mit automatischer Rückbuchung“; Pflicht bei der Verrechnung, bei der Gegenzeile frei */
+    note: text("note").notNull().default(""),
+    reversesId: uuid("reverses_id"),
+    /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("bank_neutralizations_two", sql`${t.transactionId} <> ${t.counterTransactionId}`),
+    check("bank_neutralizations_note", sql`${t.reversesId} is not null or length(btrim(${t.note})) > 0`),
+    index("bank_neutralizations_transaction").on(t.transactionId),
+    index("bank_neutralizations_counter").on(t.counterTransactionId),
+    uniqueIndex("bank_neutralizations_reverses").on(t.reversesId),
+    foreignKey({ name: "bank_neutralizations_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
  * Ausbuchung des Rests einer Rechnung oder eines Belegs (§ 17 UStG): gewährtes Skonto, Forderungsausfall,
  * erhaltenes Skonto. Zählt wie eine Zahlung zum Erledigten (Vorzeichen wie eine Zahlung: Rechnung positiv,
  * Beleg negativ), bewegt aber kein Geld. Nur anhängen; aufgehoben wird per Gegenzeile (reversesId).

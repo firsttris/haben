@@ -113,11 +113,11 @@ Bei DKB-CSV leitet Haben die Salden aus dem Kontostand im Dateikopf ab, wenn des
 
 ### Unveränderlichkeit
 
-Importe, Umsätze und Zuordnungen lassen sich nur ergänzen. Datenbank-Trigger lehnen jedes Ändern oder Löschen ab. Ein Fehler wird nicht überschrieben, sondern mit einer Gegenzeile aufgehoben (siehe [Zuordnung aufheben](#zuordnung-aufheben)).
+Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verrechnen) lassen sich nur ergänzen. Datenbank-Trigger lehnen jedes Ändern oder Löschen ab. Ein Fehler wird nicht überschrieben, sondern mit einer Gegenzeile aufgehoben (siehe [Zuordnung aufheben](#zuordnung-aufheben)).
 
 ## Umsatzliste
 
-Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** schränken die Liste ein, das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag. Angezeigt werden höchstens 500 Umsätze.
+Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** (auch verrechnete Umsätze) schränken die Liste ein, das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag. Angezeigt werden höchstens 500 Umsätze.
 
 | Hinweis | Bedeutung |
 | --- | --- |
@@ -126,6 +126,7 @@ Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** schränken die Li
 | Beleg fehlt | Ausgabe ohne Zuordnung und ohne Vorschlag. |
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
 | Zugeordnet | Der ganze Betrag ist zugeordnet. |
+| Verrechnet | Mit einem gegenläufigen Umsatz verrechnet, ohne Buchung (siehe [Gegenläufige Umsätze verrechnen](#gegenläufige-umsätze-verrechnen)). |
 
 Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auch mit der IBAN der Gegenseite.
 
@@ -504,6 +505,25 @@ Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die 
 Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung und Betrag. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), ebenfalls mit dem Buchungsdatum des Umsatzes. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
 
 Eine Zuordnung lässt sich nur einmal aufheben.
+
+## Gegenläufige Umsätze verrechnen
+
+Manche Umsätze heben sich auf, ohne dass Geld fließt: Bei einer Kartenprüfung bucht etwa PayPal 1,00 € ab und am nächsten Tag wieder zurück. Das ist weder Einnahme noch Ausgabe, und keine Buchungsart passt. Solche Paare verrechnest du miteinander; beide gelten danach als erledigt.
+
+1. Einen der beiden Umsätze links anklicken. Gibt es auf demselben Konto einen ganz offenen Umsatz mit genau dem umgekehrten Betrag, steht rechts **Mit Gegenumsatz verrechnen**.
+2. Unter **Gegenumsatz** den passenden wählen; der zeitlich nächste steht oben.
+3. Unter **Notiz** den Grund eintragen, etwa „PayPal-Autorisierung mit automatischer Rückbuchung“. Ohne Notiz geht es nicht.
+4. **Verrechnen** klicken. Beide Umsätze stehen danach in der Liste als „Verrechnet“ unter **Zugeordnet**, rechts unter **Verrechnet** mit Gegenumsatz und Notiz.
+
+Was dabei passiert:
+
+- **Keine Buchung, keine Zuordnung.** Voranmeldung, EÜR, Journal und DATEV-Export bleiben unverändert; die Vorprüfung der Voranmeldung zählt die beiden nicht mehr als offen.
+- **Die Umsätze bleiben, wie sie sind.** Haben legt eine eigene Zeile mit beiden Umsätzen, der Notiz und der Person an, die nur ergänzt werden kann. Sie steht im [Änderungsprotokoll](buchhaltung.md#änderungsprotokoll) und im [Jahresexport](auswertungen.md#jahresexport) unter `bank/verrechnungen.csv`; in `umsaetze.csv` sind beide als verrechnet und nicht offen markiert.
+- **Nur, was sich genau aufhebt:** zwei verschiedene Umsätze auf demselben Konto, zusammen genau 0,00 €, beide ohne Zuordnung. Ist einer schon (auch teilweise) zugeordnet, hebst du erst die Zuordnung auf. Ein Umsatz steckt höchstens in einer gültigen Verrechnung, und ein verrechneter Umsatz lässt sich nicht zusätzlich zuordnen. Ein Datenbank-Trigger prüft das ein zweites Mal.
+
+**Aufheben:** Neben der Verrechnung steht **Aufheben**. Nach der Rückfrage legt Haben eine Gegenzeile an; gebucht wird auch dabei nichts. Beide Umsätze sind danach wieder offen, die aufgehobene Verrechnung bleibt durchgestrichen sichtbar. Danach kannst du sie neu verrechnen oder zuordnen.
+
+Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt, wird zugeordnet oder [direkt gebucht](#direkt-buchen). Umsätze zwischen zwei eigenen Konten sind [Geldtransit](#vorschläge-ohne-rechnung-und-geldtransit).
 
 ## Grenzen
 
