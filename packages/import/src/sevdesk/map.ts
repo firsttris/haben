@@ -204,9 +204,14 @@ export function isSevInvoiceImportable(i: SevInvoice): boolean {
   return !["WKR", "MA"].includes((i.invoiceType ?? "RE").toUpperCase());
 }
 
-// Die Summe zeigt, ob die Positionen schon negativ stehen; Zeilen mit Gegenvorzeichen sind Rabatte oder Verrechnungen
+// Das Brutto zeigt wie im Kopf des Belegs, ob die Positionen schon negativ stehen; das Netto kann null sein oder gegenläufig.
+// Zeilen mit Gegenvorzeichen sind Rabatte oder Verrechnungen
 function creditPositionSign(positions: SevDocumentPos[]): (n: number) => number {
-  const positive = positions.reduce((sum, p) => sum + positionAmounts(p).net, 0) > 0;
+  const positive =
+    positions.reduce((sum, p) => {
+      const a = positionAmounts(p);
+      return sum + a.net + a.tax;
+    }, 0) > 0;
   return (n) => (positive ? neg(n) : n);
 }
 
