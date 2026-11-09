@@ -15,11 +15,3 @@ export function FormattedText({ text }: { text: string }) {
     </span>
   );
 }
-
-export function FormattingHint() {
-  return (
-    <p className="small formatting-hint">
-      Formatierung: <strong>*fett*</strong> · <em>_kursiv_</em> · <u>__unterstrichen__</u>
-    </p>
-  );
-}

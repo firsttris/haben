@@ -904,6 +904,6 @@ summary { cursor: pointer; min-height: 24px; }
 .logo-upload p { margin: 0; }
 .logo-upload img { align-self: flex-start; max-height: 64px; max-width: 220px; object-fit: contain; background: #fff; padding: 6px; border: 1px solid var(--line); border-radius: 6px; }
 .logo-upload .actions { flex-wrap: wrap; }
-/* Auszeichnungen bleiben in Vorschau und Hilfetext an die vorhandene Schrift gebunden. */
+/* Auszeichnungen bleiben in der Vorschau an die vorhandene Schrift gebunden. */
 .formatted-text strong { font-weight: 600; }
-.formatted-text u, .formatting-hint u { text-underline-offset: 0.15em; }
+.formatted-text u { text-underline-offset: 0.15em; }
