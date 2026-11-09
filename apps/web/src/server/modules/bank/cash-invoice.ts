@@ -7,6 +7,7 @@ import { openBooks, post } from "../buchhaltung/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
+import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
 
 /*
  * Bareinnahme auf eine Ausgangsrechnung im Kassenbuch: gebucht wie die Zuordnung eines Bankumsatzes zur Rechnung, nur
@@ -22,6 +23,17 @@ export const cashInvoiceInputSchema = z.object({
   text: z.string().trim().max(300).default(""),
   /** Rest der Rechnung als gewährtes Skonto ausbuchen, mit Datum der Bareinnahme (wie „Rest als Skonto“ im Bankabgleich) */
   skonto: z.boolean().default(false),
+  /**
+   * Aufteilen (#455): was der Kunde über den Rechnungsbetrag hinaus gibt, etwa Trinkgeld, als weitere Bareinnahme mit
+   * eigener Steuerbehandlung; nur wenn die Rechnung damit ganz bezahlt ist
+   */
+  extra: z
+    .object({
+      amount: z.number().int().min(1, "Betrag der weiteren Einnahme fehlt").max(100_000_000),
+      steuer: bareinnahmeSteuerSchema,
+      text: z.string().trim().max(250).default(""),
+    })
+    .optional(),
 });
 
 export type CashInvoiceInput = z.input<typeof cashInvoiceInputSchema>;
@@ -52,6 +64,9 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
       throw new CashError(`Rechnung ${invoice.number} ist nur noch über ${formatEuro(open)} offen; mehr lässt sich nicht bar kassieren.`);
     }
     if (parsed.skonto && parsed.amount === open) throw new CashError("Es bleibt kein Rest, der als Skonto auszubuchen wäre.");
+    if (parsed.extra && parsed.amount !== open) {
+      throw new CashError(`Eine weitere Einnahme geht nur, wenn Rechnung ${invoice.number} damit ganz bezahlt ist (offen ${formatEuro(open)}).`);
+    }
 
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, parsed.amount);
@@ -80,6 +95,16 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
       })
       .returning();
     if (parsed.skonto) await bookWriteOff(tx, books, { kind: "skonto", invoiceId: invoice.id, date: parsed.date, cashEntryId: id });
+    // Der Teil über dem Rechnungsbetrag ist eine eigene Zeile mit der nächsten Nummer, gebucht wie eine Bareinnahme ohne
+    // Rechnung; scheitert sie (etwa am Kleinunternehmer-Stand), bucht die Transaktion auch den Rechnungsteil nicht
+    if (parsed.extra) {
+      await bookCashIncome(tx, books, {
+        date: parsed.date,
+        amount: parsed.extra.amount,
+        text: `${parsed.extra.text || "Weitere Einnahme"} zu Rechnung ${invoice.number}`,
+        angabe: parsed.extra.steuer,
+      });
+    }
     return row!;
   });
 }

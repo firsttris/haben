@@ -862,10 +862,12 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
     ).toEqual([]);
   }
   await context.close();
+  // Mehr als offen wird nicht mehr abgelehnt, sondern aufgeteilt (#455): Der Teil darüber wäre eine weitere Einnahme
   await form.getByLabel("Betrag (€)").fill("70,00");
-  await form.getByRole("button", { name: "Buchen" }).click();
-  await expect(page.getByRole("alert")).toContainText("nur noch über");
+  await expect(form).toContainText(/1,00\s€ darüber werden eine weitere Einnahme/);
+  await expect(form.getByRole("group", { name: /Weitere Einnahme über 1,00/ })).toBeVisible();
   await form.getByLabel("Betrag (€)").fill("69,00");
+  await expect(form.getByRole("group", { name: /Weitere Einnahme/ })).toHaveCount(0);
   await form.getByRole("button", { name: "Buchen" }).click();
   const gebucht = page.getByRole("status").filter({ hasText: `gebucht: Bareinnahme Rechnung ${number} über 69,00` });
   await expect(gebucht).toBeVisible();
@@ -932,6 +934,44 @@ test("Kasse: Bareinnahme ohne Rechnung als Tagessumme mit Steuer und Notiz, Stor
   await bestaetigen(page, "Stornieren");
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr." })).toBeVisible();
   await expect(liste).toContainText(`Storno Nr. ${nr}: Wochenmarkt, Tagessumme Bücher`);
+});
+
+test("Kasse: Barzahlung aufteilen, Rechnung voll und Trinkgeld als weitere Einnahme (#455)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await page.getByLabel("Rechnungsdatum").fill(day(-1));
+  await page.getByLabel("Beschreibung Position 1").fill("Fotoshooting, bar bezahlt mit Trinkgeld");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const invoicePath = new URL(page.url()).pathname;
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/^Rechnung (\S+)/)?.[1] ?? "";
+
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByRole("button", { name: "Rechnung bar bezahlt" }).click();
+  const option = form.getByRole("option", { name: new RegExp(`^${number} · Rheinpixel GmbH`) });
+  await form.getByRole("combobox", { name: /^Rechnung/ }).selectOption((await option.getAttribute("value"))!);
+  // 125,00 € für 119,00 €: Die Rechnung ist bezahlt, 6,00 € werden eine weitere Einnahme
+  await form.getByLabel("Betrag (€)").fill("125,00");
+  await expect(form).toContainText(/6,00\s€ darüber werden eine weitere Einnahme/);
+  const weitere = form.getByRole("group", { name: /Weitere Einnahme über 6,00/ });
+  await expect(weitere.getByLabel("Umsatzsteuer")).toHaveValue("regulaer:1900");
+  await weitere.getByLabel("Notiz zur weiteren Einnahme").fill("Trinkgeld");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: `gebucht: Bareinnahme Rechnung ${number} über 119,00 €, dazu 6,00 € als weitere Einnahme (19 %).` }),
+  ).toBeVisible();
+  const liste = page.getByRole("region", { name: "Kassenbuch" });
+  await expect(liste).toContainText(`Trinkgeld zu Rechnung ${number}`);
+  await expect(liste).toContainText("Bareinnahme · 19 %");
+  await go(invoicePath);
+  await expect(page.getByText("Bezahlt").first()).toBeVisible();
 });
 
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
@@ -1242,8 +1282,10 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
   await page.getByLabel("Zahlungsart").selectOption("lastschrift");
   // Das jüngste gültige Mandat des Kunden ist vorgewählt; Skonto entfällt bei Lastschrift
-  await expect(page.getByLabel("Mandat", { exact: true })).toHaveValue(/.+/);
-  await expect(page.getByLabel("Mandat", { exact: true }).locator("option:checked")).toHaveText("AB-2026-01 · CORE");
+  // Über die Rolle: getByLabel mit exact vergleicht den ganzen Text des umschließenden Labels samt gewählter Option
+  const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
+  await expect(mandatFeld).toHaveValue(/.+/);
+  await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
   await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
   await page.getByLabel("Menge Position 1").fill("1");
@@ -1265,6 +1307,17 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
 
 test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danach nicht mehr angeboten (#445)", async () => {
   await go("/lastschriften");
+  // Ohne Bankkonto gibt es kein Gläubigerkonto, auf dem der Betrag eingeht
+  await expect(page.getByText(/braucht Haben das Konto, auf dem der Betrag eingeht/)).toBeVisible();
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const kontoForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await kontoForm.getByRole("textbox", { name: "Name" }).fill("Girokonto");
+  await kontoForm.getByRole("textbox", { name: "IBAN" }).fill("DE89 3704 0044 0532 0130 00");
+  await kontoForm.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByRole("combobox", { name: "Konto" }).locator("option", { hasText: "Girokonto" })).toHaveCount(1);
+
+  await go("/lastschriften");
   const form = page.getByRole("form", { name: "SEPA-Lastschrift erzeugen" });
   const zeile = form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ });
   await expect(form).toContainText("AB-2026-01");
@@ -1280,7 +1333,8 @@ test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danac
   expect(xml).toContain("urn:iso:std:iso:20022:tech:xsd:pain.008.001.08");
   expect(xml).toContain("<MndtId>AB-2026-01</MndtId>");
   expect(xml).toContain("<SeqTp>FRST</SeqTp>");
-  await expect(page.getByText(/1 Lastschrift über 297,50 €/)).toBeVisible();
+  // formatEuro trennt den Betrag mit einem geschützten Leerzeichen vom Euro-Zeichen
+  await expect(page.getByText(/1 Lastschrift über 297,50\s€/)).toBeVisible();
   await expect(form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Erzeugte Dateien" })).toContainText("297,50 €");
 });
