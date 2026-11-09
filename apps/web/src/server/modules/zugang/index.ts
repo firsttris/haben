@@ -11,9 +11,10 @@ export {
   EINLADUNG_GUELTIG_STUNDEN,
   invitationInputSchema,
   listInvitations,
+  requireLocalManagement,
   revokeInvitation,
   ZugangError,
   type InvitationStatus,
 } from "./einladungen.ts";
-export { listAccounts, lockAccount, recentLogins, removeAccount, unlockAccount } from "./zugaenge.ts";
+export { listAccounts, listSsoAccounts, lockAccount, recentLogins, removeAccount, unlockAccount } from "./zugaenge.ts";
 export { changesSince, changesSinceLastVisit, type Aenderungen } from "./aenderungen.ts";
