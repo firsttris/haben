@@ -564,7 +564,7 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit C
 3. **Im Pull Request:** Befunde mit Testname und Ausgabe des roten Tests als Kommentar, auch wenn es keine gibt.
 4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Repo oder im Fork mit „Allow edits by maintainers“); geht das nicht, bitten wir darum, „Allow edits by maintainers“ einzuschalten, und nur als letzter Ausweg gibt es einen eigenen Pull Request. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
 5. **Grün:** alle Prüfungen von oben lokal und in der CI, dann ein Abschlusskommentar mit den behobenen Befunden.
-6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht.
+6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht, und sein Pull Request wird mit einem Link auf den Ersatz geschlossen.
 
 Haben steht unter der AGPL-3.0.
 
