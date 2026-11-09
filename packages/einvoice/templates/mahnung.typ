@@ -180,7 +180,7 @@
 
 #d.salutation
 
-#d.intro
+#formatted(d.introFormatted)
 
 #v(3mm)
 
@@ -233,7 +233,7 @@
   block(breakable: false, semibold(d.payment))
 }
 #v(2mm)
-#d.closing
+#formatted(d.closingFormatted)
 
 #v(4mm)
 #d.greeting.split("\n").join(linebreak())

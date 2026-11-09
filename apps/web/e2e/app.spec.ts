@@ -264,6 +264,48 @@ test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => 
   await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
 });
 
+test("Mahnung: Einleitung und Schluss lassen sich mit den Knöpfen auszeichnen (#359)", async () => {
+  await go("/rechnungen/mahnwesen");
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const fett = page.getByRole("button", { name: "Fett", exact: true });
+  const kursiv = page.getByRole("button", { name: "Kursiv", exact: true });
+  const unterstrichen = page.getByRole("button", { name: "Unterstrichen", exact: true });
+
+  const einleitung = page.getByRole("textbox", { name: "Einleitung", exact: true });
+  await einleitung.fill("Bitte zahlen Sie sofort");
+  await einleitung.focus();
+  await expect(fett).toBeHidden();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(6, 12));
+  await expect(fett).toBeVisible();
+  await fett.click();
+  await expect(einleitung).toHaveValue("Bitte *zahlen* Sie sofort");
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(19, 25));
+  await kursiv.click();
+  await expect(einleitung).toHaveValue("Bitte *zahlen* Sie _sofort_");
+
+  const schluss = page.getByRole("textbox", { name: "Schluss", exact: true });
+  await schluss.fill("Mit Dank im Voraus");
+  await schluss.focus();
+  await schluss.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(4, 8));
+  await expect(unterstrichen).toBeVisible();
+  await unterstrichen.click();
+  await expect(schluss).toHaveValue("Mit __Dank__ im Voraus");
+  await page.keyboard.press("ControlOrMeta+b");
+  await expect(schluss).toHaveValue("Mit *__Dank__* im Voraus");
+
+  // Die Auszeichnungen gehen mit in den Prüfausdruck, gespeichert wird nichts
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  const file = await download;
+  expect(
+    readFileSync(await file.path())
+      .subarray(0, 5)
+      .toString(),
+  ).toBe("%PDF-");
+});
+
 /** IBAN des Lieferanten Funknetz Mobil GmbH, im Kontakt und im Kontoauszug */
 const SUPPLIER_IBAN = "DE02100100100006820101";
 /** EndToEndId der SEPA-Überweisung für den Mobilfunkbeleg; der Kontoauszug nennt sie als Kundenreferenz */
