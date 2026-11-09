@@ -1050,7 +1050,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await bank.allocate(actor, { kind: "privat", transactionId: privat.id, amount: -300_000 });
 
     const lines = await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
-      where e.source_type = 'allocation' order by l.account, l.debit`;
+      where e.source_type = 'allocation' order by l.account, l.debit, l.credit`;
     expect(lines.map((l) => [l.account, l.debit, l.credit])).toEqual([
       ["1200", 0, 4590],
       ["1200", 0, 300_000],
