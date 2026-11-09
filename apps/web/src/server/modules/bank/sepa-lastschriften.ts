@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { addDays, collectionDateFor, invoiceOpen, pain008, type Cents, type SepaDirectDebitBatch, type SepaSequence } from "@haben/core";
-import { and, desc, eq, inArray, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -86,7 +86,9 @@ export async function directDebitCandidates(today: string, q: Db | Tx = db): Pro
         eq(schema.invoices.paymentMethod, "lastschrift"),
         sql`not exists (select 1 from sepa_direct_debit_items i where i.invoice_id = ${schema.invoices.id})`,
       ),
-    );
+    )
+    // Die früheste Rechnung auf ein neues Mandat ist die Erstlastschrift
+    .orderBy(asc(schema.invoices.dueDate), asc(schema.invoices.number));
   const paid = await invoicePayments(
     invoices.map((i) => i.id),
     q,
@@ -151,19 +153,35 @@ const berlinTime = new Intl.DateTimeFormat("sv-SE", {
   second: "2-digit",
 });
 
-type Planned = { candidate: DirectDebitCandidate; mandate: Mandate; endToEndId: string; remittance: string };
+type Planned = { candidate: DirectDebitCandidate; mandate: Mandate; sequence: SepaSequence; endToEndId: string; remittance: string };
+
+/**
+ * Sequenz nach der Auswahl, nicht nach der ganzen Liste: Die früheste gewählte Lastschrift auf ein neues Mandat ist FRST,
+ * auch wenn eine frühere Rechnung derselben Kunden nicht gewählt ist.
+ */
+async function withSequences(planned: Omit<Planned, "sequence">[], q: Tx): Promise<Planned[]> {
+  const collected = new Set((await lastCollections([...new Set(planned.map((p) => p.mandate.id))], q)).keys());
+  const ordered = [...planned].sort(
+    (a, b) => a.candidate.collectionDate.localeCompare(b.candidate.collectionDate) || a.candidate.number.localeCompare(b.candidate.number),
+  );
+  return ordered.map((p) => {
+    const sequence = sequenceFor(p.mandate, collected);
+    collected.add(p.mandate.id);
+    return { ...p, sequence };
+  });
+}
 
 /** Je Fälligkeit, Verfahren und Sequenz ein Sammler */
 function batchesOf(planned: Planned[], messageId: string): (SepaDirectDebitBatch & { items: Planned[] })[] {
   const groups = new Map<string, Planned[]>();
   for (const p of planned) {
-    const key = `${p.candidate.collectionDate}|${p.candidate.scheme}|${p.candidate.sequence}`;
+    const key = `${p.candidate.collectionDate}|${p.candidate.scheme}|${p.sequence}`;
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   return [...groups.values()].map((items, i) => ({
     paymentInfoId: `${messageId}-${i + 1}`,
     scheme: items[0]!.candidate.scheme,
-    sequence: items[0]!.candidate.sequence,
+    sequence: items[0]!.sequence,
     collectionDate: items[0]!.candidate.collectionDate,
     items,
     transactions: items.map((p) => ({
@@ -191,7 +209,7 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('haben.lastschriftdatei'))`);
     const candidates = new Map((await directDebitCandidates(today, tx)).map((c) => [c.invoiceId, c]));
     const problems: string[] = [];
-    const planned: Planned[] = [];
+    const chosen: Omit<Planned, "sequence">[] = [];
     for (const id of input.invoiceIds) {
       const candidate = candidates.get(id);
       if (!candidate) {
@@ -203,9 +221,10 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
         problems.push(`${candidate.customerName}: ${candidate.problem}`);
         continue;
       }
-      planned.push({ candidate, mandate, endToEndId: newId(), remittance: `Rechnung ${candidate.number}` });
+      chosen.push({ candidate, mandate, endToEndId: newId(), remittance: `Rechnung ${candidate.number}` });
     }
     if (problems.length > 0) throw new BankError(problems.join(" "));
+    const planned = await withSequences(chosen, tx);
 
     const messageId = newId();
     const batches = batchesOf(planned, messageId);
