@@ -1,5 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevInternalId, datevVoucherFound } from "./datev-belegnummer.ts";
+import { datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
 import {
@@ -836,7 +836,8 @@ export async function findLegacyVouchers(ref: string) {
         ? sql`${schema.lexofficeVouchers.id} = ${value}::uuid or ${schema.lexofficeVouchers.lexofficeId} = ${value}`
         : // sevDesk-Kennungen wie "invoice/101" sind keine UUID
           sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
-            or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))`,
+            or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))
+            or ${truncatedNumberMatches("lexoffice_vouchers", sql`${value}`)}`,
     )
     .limit(10);
   const result = [];
