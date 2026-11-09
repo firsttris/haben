@@ -1,11 +1,11 @@
-import { formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { currentYear, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { ElsterSubmit } from "../../components/ElsterSubmit.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice } from "../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt } from "../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
@@ -16,10 +16,11 @@ import {
   submitKapEStFn,
 } from "../../server/functions/ausschuettung.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/ausschuettungen")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
-  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? new Date().getFullYear() }),
+  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? currentYear() }),
   loader: ({ deps }) => getAusschuettungen({ data: deps.jahr }),
   head: () => ({ meta: [{ title: "Ausschüttungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: AusschuettungenPage,
@@ -39,7 +40,7 @@ function AusschuettungenPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
   const selectId = useId();
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const years = [...new Set([data.year, thisYear, thisYear - 1, thisYear - 2])].sort((a, b) => b - a);
   return (
     <>
@@ -337,7 +338,13 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
             busy={busy}
             notice={notice}
             lockedHint={a.angemeldet ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
-            confirmText="Die Kapitalertragsteuer-Anmeldung geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden."
+            confirmTitle={`Kapitalertragsteuer-Anmeldung vom ${formatDate(a.zufluss)} verbindlich senden?`}
+            confirmFacts={[
+              { label: "Steuerart", value: "Kapitalertragsteuer-Anmeldung" },
+              { label: "Zufluss", value: formatDate(a.zufluss) },
+              zahllastFakt(a.empfaenger.reduce((summe, e) => summe + e.kapest + e.soli + e.kist, 0)),
+            ]}
+            confirmText="Die Kapitalertragsteuer-Anmeldung geht verbindlich an das Finanzamt."
             footer="Die einbehaltenen Steuern überweist du bis zum 10. des Folgemonats; im Bankabgleich ordnest du die Zahlung „Kapitalertragsteuer an das Finanzamt“ zu."
             onSubmit={(kind, pin) =>
               run(async () => {
@@ -367,21 +374,28 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
       )}
       {!a.storniert && !a.angemeldet && (
         <div className="actions" style={{ marginTop: 16 }}>
-          <button
-            type="button"
-            className="btn btn-sm btn-danger"
-            disabled={busy}
-            onClick={() =>
-              confirming
-                ? void run(async () => {
-                    await reverse({ data: { id: a.id } });
-                    await router.invalidate();
-                  }, "Ausschüttung storniert.")
-                : setConfirming(true)
-            }
-          >
-            {confirming ? "Jetzt stornieren" : `${titel} stornieren`}
+          <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirming(true)}>
+            {titel} stornieren
           </button>
+          <ConfirmDialog
+            open={confirming}
+            title={`${titel} stornieren?`}
+            facts={[
+              { label: "Zufluss", value: formatDate(a.zufluss) },
+              { label: "Brutto", value: formatEuro(a.brutto), strong: true },
+            ]}
+            confirmLabel="Stornieren"
+            danger
+            onConfirm={() =>
+              void run(async () => {
+                await reverse({ data: { id: a.id } });
+                await router.invalidate();
+              }, "Ausschüttung storniert.")
+            }
+            onClose={() => setConfirming(false)}
+          >
+            <p>Haben bucht die Ausschüttung gegen; sie bleibt als storniert stehen.</p>
+          </ConfirmDialog>
         </div>
       )}
       {a.storniert && <NoticeBanner notice={notice} />}

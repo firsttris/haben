@@ -4,10 +4,11 @@ import { useState, type FormEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { deleteCustomPageFn, saveCustomPage, type getCustomPages } from "../server/functions/eigene-seiten.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Page = Awaited<ReturnType<typeof getCustomPages>>[number];
 
-export const EIGENE_SEITEN_DOCS = "https://firsttris.github.io/haben/eigene-seiten.html";
+export const EIGENE_SEITEN_DOCS = "https://haben.app/eigene-seiten.html";
 
 /** Einstellungen → Eigene Seiten (#199): Menüeinträge für Seiten außerhalb von Haben anlegen, ändern und löschen */
 export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
@@ -17,6 +18,7 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
   const { busy, notice, run } = useAction();
   // Die Seite, die gerade im Formular steht; null = neue Seite
   const [editing, setEditing] = useState<Page | null>(null);
+  const [removing, setRemoving] = useState<Page | null>(null);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,8 +37,7 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
     );
   }
 
-  function onDelete(page: Page) {
-    if (!window.confirm(`„${page.name}“ aus dem Menü entfernen? Die Seite selbst bleibt, wo sie ist.`)) return;
+  function deleteNow(page: Page) {
     void run(async () => {
       await remove({ data: { id: page.id } });
       if (editing?.id === page.id) setEditing(null);
@@ -47,6 +48,16 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
   return (
     <section className="card" aria-labelledby="eigene-seiten-heading">
       <h2 id="eigene-seiten-heading">Eigene Seiten</h2>
+      <ConfirmDialog
+        open={removing !== null}
+        title={`„${removing?.name}“ aus dem Menü entfernen?`}
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() => removing && deleteNow(removing)}
+        onClose={() => setRemoving(null)}
+      >
+        <p>Die Seite selbst bleibt, wo sie ist.</p>
+      </ConfirmDialog>
       <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
         Eine eigene Seite steht im Menü und öffnet eine Seite außerhalb von Haben im Rahmen, etwa eine Bestellübersicht oder ein Formular aus n8n. So arbeitest
         du in einer Oberfläche, und Haben bleibt die Buchhaltung.
@@ -85,7 +96,7 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
                 <button type="button" className="btn" disabled={busy} onClick={() => setEditing(page)} aria-label={`${page.name} bearbeiten`}>
                   Bearbeiten
                 </button>
-                <button type="button" className="btn btn-danger" disabled={busy} onClick={() => onDelete(page)} aria-label={`${page.name} entfernen`}>
+                <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(page)} aria-label={`${page.name} entfernen`}>
                   Entfernen
                 </button>
               </div>

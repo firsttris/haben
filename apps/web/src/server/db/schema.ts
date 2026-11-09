@@ -23,6 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
+import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
@@ -37,6 +38,7 @@ import {
   DARLEHENSGEBER_KEYS,
   DARLEHEN_LAUFZEIT_KEYS,
   DARLEHEN_TEIL_KEYS,
+  BAREINNAHME_BEHANDLUNG_KEYS,
   DARLEHEN_ZWECK_KEYS,
   DEFAULT_PLAN_TEMPLATES,
   QUOTE_LINE_KINDS,
@@ -115,6 +117,8 @@ export const company = pgTable(
     bic: text("bic").notNull().default(""),
     /** Inhaber des Kontos, wenn nicht der Firmenname; leer = Firmenname (GiroCode, BT-85) */
     kontoinhaber: text("kontoinhaber").notNull().default(""),
+    /** Gläubiger-Identifikationsnummer für SEPA-Lastschriften (#445), von der Bundesbank vergeben; leer = keine */
+    glaeubigerId: text("glaeubiger_id").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
     /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0096) */
     rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
@@ -139,8 +143,6 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
-    /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen (Überschriften, Linien), #RRGGBB */
-    accentColor: text("accent_color").notNull().default("#1F6F5C"),
     /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {MM}, {N…} (packages/core/src/number-format.ts) */
     invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
     quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
@@ -153,6 +155,11 @@ export const company = pgTable(
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),
+    /**
+     * DATEV-Personenkonten im Buchungsstapel ab diesem Jahr (#327); null = Sammelkonten. Gilt ab einem Jahresbeginn; eine
+     * Änderung, die abgelaufene oder laufende Jahre mit Buchungen trifft, braucht eine ausdrückliche Bestätigung.
+     */
+    datevPersonenkontenAb: integer("datev_personenkonten_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
@@ -183,12 +190,7 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
-  (t) => [
-    check("company_single_row", sql`${t.id} = 1`),
-    check("company_accent_color", sql`${t.accentColor} ~ '^#[0-9A-Fa-f]{6}$'`),
-    check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
-  ],
+  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */
@@ -820,7 +822,7 @@ export const cashEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Cent; Eingang positiv, Ausgang negativ */
     amount: integer("amount").notNull(),
-    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung"] }).notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
     /** Bareinnahme auf eine Ausgangsrechnung (Kasse an Forderungen), auch bei ihrer Gegenzeile; mehrere Zeilen je Rechnung bei Teilzahlungen */
@@ -828,12 +830,22 @@ export const cashEntries = pgTable(
     /** Bareinnahme: Netto und Steuer je Satz, wie gebucht (settlementTaxShares), und für welche Rechnung; wie bei allocations */
     taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
     taxSharesInvoiceId: uuid("tax_shares_invoice_id"),
+    /**
+     * Bareinnahme ohne Rechnung (kind „einnahme“, #276): Steuerbehandlung und Satz in Basispunkten, siehe
+     * packages/core/src/bareinnahme.ts; Voranmeldung und EÜR lesen sie von hier, die Gegenzeile trägt dieselben Angaben
+     */
+    taxTreatment: text("tax_treatment", { enum: BAREINNAHME_BEHANDLUNG_KEYS }),
+    taxRate: integer("tax_rate"),
     /** Storno: die aufgehobene Zeile */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "cash_entries_einnahme",
+      sql`case when ${t.kind} = 'einnahme' then ${t.taxTreatment} is not null and ${t.taxRate} is not null else ${t.taxTreatment} is null and ${t.taxRate} is null end`,
+    ),
     uniqueIndex("cash_entries_document").on(t.documentId),
     uniqueIndex("cash_entries_reverses").on(t.reversesId),
     index("cash_entries_invoice").on(t.invoiceId),
@@ -901,41 +913,54 @@ export const seals = pgTable(
 );
 
 /** Kunden und Lieferanten. Jede Änderung legt per Trigger eine Version in contact_versions ab. */
-export const contacts = pgTable("contacts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  kundennummer: text("kundennummer"),
-  /** Rollen: ein Kontakt kann Kunde, Lieferant oder beides sein; bestehende Kontakte sind Kunden */
-  isCustomer: boolean("is_customer").notNull().default(true),
-  isSupplier: boolean("is_supplier").notNull().default(false),
-  /** Nummer beim Lieferanten bzw. eigene Lieferantennummer, frei */
-  lieferantennummer: text("lieferantennummer"),
-  name: text("name").notNull(),
-  strasse: text("strasse").notNull().default(""),
-  plz: text("plz").notNull().default(""),
-  ort: text("ort").notNull().default(""),
-  land: text("land").notNull().default("DE"),
-  email: text("email").notNull().default(""),
-  /** Telefonnummer, wie eingegeben (#322) */
-  telefon: text("telefon").notNull().default(""),
-  ustId: text("ust_id").notNull().default(""),
-  iban: text("iban").notNull().default(""),
-  leitwegId: text("leitweg_id").notNull().default(""),
-  defaultFormat: invoiceFormatEnum("default_format"),
-  /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
-  skonto: jsonb("skonto").$type<SkontoStufe[]>(),
-  /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
-  language: text("language", { enum: ["de", "en"] })
-    .notNull()
-    .default("de"),
-  /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
-  lexofficeId: text("lexoffice_id").unique(),
-  /** Herkunft aus dem sevDesk-Import */
-  sevdeskId: text("sevdesk_id").unique(),
-  version: integer("version").notNull().default(1),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kundennummer: text("kundennummer"),
+    /** Rollen: ein Kontakt kann Kunde, Lieferant oder beides sein; bestehende Kontakte sind Kunden */
+    isCustomer: boolean("is_customer").notNull().default(true),
+    isSupplier: boolean("is_supplier").notNull().default(false),
+    /** Nummer beim Lieferanten bzw. eigene Lieferantennummer, frei */
+    lieferantennummer: text("lieferantennummer"),
+    name: text("name").notNull(),
+    strasse: text("strasse").notNull().default(""),
+    plz: text("plz").notNull().default(""),
+    ort: text("ort").notNull().default(""),
+    land: text("land").notNull().default("DE"),
+    email: text("email").notNull().default(""),
+    /** Telefonnummer, wie eingegeben (#322) */
+    telefon: text("telefon").notNull().default(""),
+    ustId: text("ust_id").notNull().default(""),
+    iban: text("iban").notNull().default(""),
+    leitwegId: text("leitweg_id").notNull().default(""),
+    defaultFormat: invoiceFormatEnum("default_format"),
+    /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
+    skonto: jsonb("skonto").$type<SkontoStufe[]>(),
+    /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
+    language: text("language", { enum: ["de", "en"] })
+      .notNull()
+      .default("de"),
+    /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
+    lexofficeId: text("lexoffice_id").unique(),
+    /** Herkunft aus dem sevDesk-Import */
+    sevdeskId: text("sevdesk_id").unique(),
+    /**
+     * DATEV-Personenkonten für den Buchungsstapel (#327), getrennt von Kunden- und Lieferantennummer; beide an einem
+     * Kontakt möglich. Bereiche bei vierstelligen Sachkonten nach DATEV-Kontenrahmen SKR 03/04 2026, S. 36.
+     */
+    debitorNr: integer("debitor_nr").unique(),
+    kreditorNr: integer("kreditor_nr").unique(),
+    version: integer("version").notNull().default(1),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
+    check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
+  ],
+);
 
 /** Stand eines Kontakts je Version, nur anhängen */
 export const contactVersions = pgTable(
@@ -950,6 +975,83 @@ export const contactVersions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("contact_versions_contact_version").on(t.contactId, t.version)],
+);
+
+/**
+ * SEPA-Lastschriftmandate eines Kunden (#445): nur anhängen. Was sich am Mandat ändert, ist ein neues Mandat; ein
+ * Widerruf steht in sepa_mandate_revocations, das unterschriebene Mandat als PDF in sepa_mandate_files.
+ */
+export const sepaMandates = pgTable(
+  "sepa_mandates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    /**
+     * Mandatsreferenz (AT-M001), je Gläubiger eindeutig. Groß- und Kleinschreibung zählen nicht (DK, Anlage 3 V3.9,
+     * Kap. 2.2.2), daher der eindeutige Index auf lower(reference)
+     */
+    reference: text("reference").notNull(),
+    /** Datum der Unterschrift (AT-M007, DtOfSgntr) */
+    signedOn: date("signed_on", { mode: "string" }).notNull(),
+    /** Basislastschrift (CORE) oder Firmenlastschrift (B2B) */
+    scheme: text("scheme", { enum: ["CORE", "B2B"] }).notNull(),
+    /** Sequenz des ersten Einzugs aus Haben: FRST für ein neues Mandat, RCUR, wenn schon vor Haben eingezogen wurde */
+    firstSequence: text("first_sequence", { enum: ["FRST", "RCUR"] }).notNull(),
+    /** Letzter Einzug vor Haben (für den Verfall nach 36 Monaten); null = keiner oder unbekannt */
+    lastCollectionBefore: date("last_collection_before", { mode: "string" }),
+    /** Zahlungspflichtiger: Kontoinhaber, IBAN, BIC (optional) */
+    debtorName: text("debtor_name").notNull(),
+    debtorIban: text("debtor_iban").notNull(),
+    debtorBic: text("debtor_bic").notNull().default(""),
+    /** Wer angelegt hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sepa_mandates_reference").on(sql`lower(${t.reference})`),
+    index("sepa_mandates_contact").on(t.contactId),
+    check("sepa_mandates_scheme", sql`${t.scheme} in ('CORE', 'B2B')`),
+    check("sepa_mandates_first_sequence", sql`${t.firstSequence} in ('FRST', 'RCUR')`),
+    check("sepa_mandates_reference_format", sql`${t.reference} ~ '^[A-Za-z0-9+?/:().,'' -]{1,35}$'`),
+    check("sepa_mandates_last_collection", sql`${t.lastCollectionBefore} is null or ${t.lastCollectionBefore} >= ${t.signedOn}`),
+    // Ein Einzug vor Haben heißt: der nächste ist eine Folgelastschrift
+    check("sepa_mandates_rcur_with_collection", sql`${t.lastCollectionBefore} is null or ${t.firstSequence} = 'RCUR'`),
+  ],
+);
+
+/** Unterschriebenes Mandat als PDF im Dokumentenspeicher; nur anhängen, das jüngste gilt */
+export const sepaMandateFiles = pgTable(
+  "sepa_mandate_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mandateId: uuid("mandate_id")
+      .notNull()
+      .references(() => sepaMandates.id),
+    filename: text("filename").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sepa_mandate_files_mandate").on(t.mandateId), index("sepa_mandate_files_sha256").on(t.sha256)],
+);
+
+/** Widerruf eines Mandats durch den Kunden; je Mandat höchstens einer, nur anhängen */
+export const sepaMandateRevocations = pgTable(
+  "sepa_mandate_revocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mandateId: uuid("mandate_id")
+      .notNull()
+      .references(() => sepaMandates.id),
+    /** Ab diesem Tag kein Einzug mehr */
+    revokedOn: date("revoked_on", { mode: "string" }).notNull(),
+    reason: text("reason").notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sepa_mandate_revocations_mandate").on(t.mandateId)],
 );
 
 export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);
@@ -1334,6 +1436,23 @@ export const companyLogo = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_logo_single", sql`${t.id} = 1`)],
+);
+
+/** Gestaltung der Belege (#113): heute genau ein Standardprofil, die Markenprofile aus #245 werden weitere Zeilen */
+export const letterheadProfiles = pgTable(
+  "letterhead_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    settings: jsonb("settings").$type<LetterheadDesign>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("letterhead_profiles_default").on(t.isDefault).where(sql`${t.isDefault}`),
+    // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
+    check("letterhead_profiles_accent", sql`${t.settings} ->> 'accent' ~ '^#[0-9A-Fa-f]{6}$'`),
+  ],
 );
 
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
@@ -1815,7 +1934,8 @@ export const sepaTransferItems = pgTable(
 
 /**
  * Entscheidung je Beleg, welche IBAN gilt, wenn die E-Rechnung (BT-84) eine andere nennt als der Kontakt (#410): die
- * des Kontakts oder die der E-Rechnung nur für diesen Beleg. Gilt nur für genau dieses Paar; ändert sich eine der
+ * des Kontakts oder die der E-Rechnung nur für diesen Beleg; hat der Kontakt keine IBAN, die Bestätigung der IBAN aus der
+ * E-Rechnung (kontakt_iban leer). Gilt nur für genau dieses Paar; ändert sich eine der
  * beiden, ist neu zu entscheiden. Nur anhängbar, auch nach dem Buchen (Trigger in drizzle/); die jüngste gilt.
  */
 export const documentIbanDecisions = pgTable(
@@ -1825,8 +1945,8 @@ export const documentIbanDecisions = pgTable(
     documentId: uuid("document_id")
       .notNull()
       .references(() => documents.id),
-    /** IBAN im Kontakt beim Entscheiden, ohne Leerzeichen */
-    kontaktIban: text("kontakt_iban").notNull(),
+    /** IBAN im Kontakt beim Entscheiden, ohne Leerzeichen; null = Kontakt ohne IBAN, die der E-Rechnung bestätigt */
+    kontaktIban: text("kontakt_iban"),
     /** IBAN aus der E-Rechnung, ohne Leerzeichen */
     rechnungsIban: text("rechnungs_iban").notNull(),
     wahl: text("wahl", { enum: ["kontakt", "e-rechnung"] }).notNull(),
@@ -1837,7 +1957,9 @@ export const documentIbanDecisions = pgTable(
   (t) => [
     index("document_iban_decisions_document").on(t.documentId),
     check("document_iban_decisions_wahl", sql`${t.wahl} in ('kontakt', 'e-rechnung')`),
-    check("document_iban_decisions_abweichend", sql`${t.kontaktIban} <> ${t.rechnungsIban}`),
+    check("document_iban_decisions_abweichend", sql`${t.kontaktIban} is null or ${t.kontaktIban} <> ${t.rechnungsIban}`),
+    // Ohne IBAN im Kontakt gibt es nur die Bestätigung der IBAN aus der E-Rechnung
+    check("document_iban_decisions_bestaetigt", sql`${t.kontaktIban} is not null or ${t.wahl} = 'e-rechnung'`),
   ],
 );
 
@@ -1959,6 +2081,39 @@ export const allocations = pgTable(
 );
 
 /**
+ * Verrechnung zweier gegenläufiger Umsätze desselben Kontos, die sich aufheben (#457), etwa +1,00 € und −1,00 € einer
+ * Kartenprüfung. Beide gelten danach als erledigt, ohne Buchung und ohne Wirkung auf Voranmeldung und EÜR; die Umsätze
+ * selbst bleiben unverändert. Nur anhängen; aufgehoben wird per Gegenzeile (reversesId) mit denselben Umsätzen. Der
+ * Trigger in drizzle/ prüft Summe null, dasselbe Konto, keine Zuordnung und höchstens eine gültige Verrechnung je Umsatz.
+ */
+export const bankNeutralizations = pgTable(
+  "bank_neutralizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    counterTransactionId: uuid("counter_transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    /** Begründung, etwa „PayPal-Autorisierung mit automatischer Rückbuchung“; Pflicht bei der Verrechnung, bei der Gegenzeile frei */
+    note: text("note").notNull().default(""),
+    reversesId: uuid("reverses_id"),
+    /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("bank_neutralizations_two", sql`${t.transactionId} <> ${t.counterTransactionId}`),
+    check("bank_neutralizations_note", sql`${t.reversesId} is not null or length(btrim(${t.note})) > 0`),
+    index("bank_neutralizations_transaction").on(t.transactionId),
+    index("bank_neutralizations_counter").on(t.counterTransactionId),
+    uniqueIndex("bank_neutralizations_reverses").on(t.reversesId),
+    foreignKey({ name: "bank_neutralizations_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
  * Ausbuchung des Rests einer Rechnung oder eines Belegs (§ 17 UStG): gewährtes Skonto, Forderungsausfall,
  * erhaltenes Skonto. Zählt wie eine Zahlung zum Erledigten (Vorzeichen wie eine Zahlung: Rechnung positiv,
  * Beleg negativ), bewegt aber kein Geld. Nur anhängen; aufgehoben wird per Gegenzeile (reversesId).
@@ -2039,6 +2194,30 @@ export const archiveFiles = pgTable(
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("archive_files_year").on(t.year, t.kind)],
+);
+
+/**
+ * Personenkonten, die ein DATEV-Export schon geschrieben hat (#327), je Kontakt und Rolle die erste Ausgabe. Nur anhängen;
+ * ab hier ist die Nummer am Kontakt fest (Trigger in 0172), damit spätere Stapel dasselbe Konto tragen wie frühere.
+ */
+export const datevPersonenkonten = pgTable(
+  "datev_personenkonten",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    rolle: text("rolle", { enum: ["debitor", "kreditor"] }).notNull(),
+    nummer: integer("nummer").notNull(),
+    /** Jahr des Stapels, in dem die Nummer zuerst stand */
+    jahr: integer("jahr").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("datev_personenkonten_kontakt").on(t.contactId, t.rolle),
+    uniqueIndex("datev_personenkonten_nummer").on(t.rolle, t.nummer),
+    check("datev_personenkonten_rolle", sql`${t.rolle} in ('debitor', 'kreditor')`),
+  ],
 );
 
 /** Buchungen aus einem DATEV-Buchungsstapel, je Zeile unverändert. Nur anhängen. */

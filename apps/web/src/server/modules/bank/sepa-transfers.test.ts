@@ -52,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Überweisungen (Postgres)", () => {
   });
 
   async function company(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate sepa_transfer_items, sepa_transfers, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines,
+    await sql`truncate document_iban_decisions, sepa_transfer_items, sepa_transfers, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines,
       journal_entries, document_amounts, documents, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, iban, bic, versteuerung, kontenrahmen)
       values (1, 'Müller & Söhne Design', 'Musterstraße 1', '93047', 'Regensburg', 'a@example.com', '198/113/10010', 'BY',
@@ -122,6 +122,8 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Überweisungen (Postgres)", () => {
       ],
     });
     await documents.bookDocument(actor, id);
+    // Ohne Kontakt mit IBAN gilt die der E-Rechnung erst nach ausdrücklicher Bestätigung am Beleg (#410)
+    await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: SUPPLIER_IBAN });
     return id;
   }
 

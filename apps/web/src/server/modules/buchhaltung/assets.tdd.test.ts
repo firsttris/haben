@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { today } from "../../today.ts";
 
 describe.skipIf(!testDatabaseUrl)("TDD: Kfz-Privatnutzung bei Ausstieg aus § 19 im laufenden Jahr (Postgres)", () => {
   let assets: typeof import("./assets.ts");
@@ -24,8 +25,7 @@ describe.skipIf(!testDatabaseUrl)("TDD: Kfz-Privatnutzung bei Ausstieg aus § 19
   });
 
   it("Umsatzsteuer der Privatnutzung im Jahr (EÜR) = Summe der Monate der Voranmeldung", async () => {
-    const year = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
+    const [year, currentMonth] = today().split("-").map(Number) as [number, number];
     expect(currentMonth).toBeGreaterThan(1);
     await sql`update company set kleinunternehmer = false`;
     await assets.createAsset(actor, {

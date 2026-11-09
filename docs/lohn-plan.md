@@ -1,3 +1,10 @@
+---
+title: "Lohn: Recherche und Umsetzungsplan"
+description: >-
+  Recherche und Plan zur Lohnabrechnung in Haben: Lohnsteuer nach PAP, Sozialversicherung, ELSTER-
+  Anmeldungen, SV-Meldungen und was eine Zertifizierung erfordert.
+---
+
 # Lohn in Haben – Recherche und Umsetzungsplan
 
 Stand: 5. November 2026. PR 1 bis 6 und die Lohnsteuerbescheinigung aus PR 7 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.

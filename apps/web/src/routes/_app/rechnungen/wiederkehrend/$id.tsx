@@ -7,6 +7,7 @@ import { formatDate, formatDateTime } from "../../../../lib/format.ts";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
 import { getRecurringDetail, removeRecurring, saveRecurring } from "../../../../server/functions/recurring.ts";
+import { ConfirmDialog } from "../../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/$id")({
   loader: ({ params }) => getRecurringDetail({ data: params.id }),
@@ -34,20 +35,24 @@ function RecurringDetailPage() {
         </div>
         {invoices.length === 0 && (
           <div className="actions">
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => {
-                if (!confirmingDelete) return setConfirmingDelete(true);
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
+              Löschen
+            </button>
+            <ConfirmDialog
+              open={confirmingDelete}
+              title={`${recurring.name} löschen?`}
+              confirmLabel="Vorlage löschen"
+              danger
+              onConfirm={() =>
                 run(async () => {
                   await remove({ data: recurring.id });
                   await navigate({ to: "/rechnungen/wiederkehrend" });
-                });
-              }}
+                })
+              }
+              onClose={() => setConfirmingDelete(false)}
             >
-              {confirmingDelete ? "Endgültig löschen" : "Löschen"}
-            </button>
+              <p>Die Vorlage wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
+            </ConfirmDialog>
           </div>
         )}
       </div>

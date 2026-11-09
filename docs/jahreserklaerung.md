@@ -1,3 +1,10 @@
+---
+title: "Jahreserklärungen: Anlage EÜR, USt-Erklärung, Einkommensteuer"
+description: >-
+  Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung aus den Buchungen
+  berechnen und über ERiC an das Finanzamt übermitteln.
+---
+
 # Jahreserklärungen
 
 Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Dazu kommt die **Einkommensteuererklärung** mit den Anlagen, die ein Selbständiger typischerweise braucht: Der Gewinn kommt aus der EÜR, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
@@ -12,7 +19,7 @@ Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körpers
 2. **Einstellungen:** Für die Anlage EÜR braucht Haben die **Einkunftsart** (selbständige Arbeit oder Gewerbebetrieb) und die **Art des Betriebs** (z. B. „Softwareentwicklung“).
 3. **Nur prüfen:** ERiC prüft das XML gegen das Schema und die Plausibilitätsregeln des Jahres. Erst hier zeigt sich, ob die Feldkennungen für das Jahr passen.
 4. **Testübermittlung** mit Zertifikat und PIN: geht an den ELSTER-Server, aber nicht ans Finanzamt (Testmerker). Das Protokoll-PDF liegt im Verlauf.
-5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und zweimal bestätigen. Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
+5. **Echtübermittlung:** Häkchen „Nur Testübermittlung“ entfernen und im Dialog **Verbindlich senden** bestätigen. Dafür brauchst du wie bei der Voranmeldung ERiC und eine eigene Hersteller-ID.
 
 Jede Prüfung und Übermittlung speichert Haben mit XML, Antwort, Protokoll und den gesendeten Werten; ändern oder löschen lässt sich das nicht. Je Erklärung und Jahr ist nur eine Echtübermittlung möglich. Eine berichtigte Erklärung gibst du über das ELSTER-Portal ab.
 
@@ -194,7 +201,7 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 1. **Berechtigung beantragen:** mit Steuer-ID und Geburtsdatum des Ehegatten, für alle Jahre und gültig bis zum gewählten Datum (Vorschlag: Ende des übernächsten Jahres). ELSTER schickt dem Ehegatten einen Brief mit Freischaltcode; die E-Mail-Adresse aus den Firmendaten bekommt Benachrichtigungen.
 2. **Freischalten:** den Code aus dem Brief eingeben, bevor die Frist abläuft, die Haben beim Antrag anzeigt. Danach steht die Berechtigung auf „genehmigt“ und der Belegabruf für den Ehegatten funktioniert wie der eigene.
-3. **Widerrufen** oder einen offenen Antrag zurückziehen geht jederzeit, mit Rückfrage.
+3. **Widerrufen** oder einen offenen Antrag zurückziehen geht jederzeit, nach einer Rückfrage im Dialog.
 
 **Stand bei ELSTER prüfen** fragt alle eigenen Anträge ab. So erkennt Haben auch einen Antrag, den du in Mein ELSTER gestellt hast, und ob eine Berechtigung abgelaufen ist. Jeder Schritt braucht die Zertifikats-PIN (oder die gespeicherte) und steht unveränderlich im Verlauf; den Freischaltcode speichert Haben nicht. Test und echt sind getrennt: Der Testserver führt eigene Anträge, im simulierten Betrieb gilt jeder Code.
 

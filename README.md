@@ -12,25 +12,25 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
-[![Doku](https://img.shields.io/badge/Doku-firsttris.github.io%2Fhaben-4f46e5?logo=zensical&logoColor=white)](https://firsttris.github.io/haben/)
-[![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://firsttris.github.io/haben/rechnungen.html)
-[![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://firsttris.github.io/haben/umsatzsteuer.html)
+[![Doku](https://img.shields.io/badge/Doku-haben.app-4f46e5?logo=zensical&logoColor=white)](https://haben.app/)
+[![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](https://haben.app/rechnungen.html)
+[![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](https://haben.app/umsatzsteuer.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154)](https://tanstack.com/start)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
 [![Image Size](https://img.shields.io/docker/image-size/tristanteu/haben/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/haben)
 [![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
-[![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](https://firsttris.github.io/haben/installation.html)
+[![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](https://haben.app/installation.html)
 
 [Warum?](#-warum-haben) •
 [Funktionen](#-funktionen) •
 [Schnellstart](#-schnellstart) •
 [FAQ](#-faq) •
-[Dokumentation](https://firsttris.github.io/haben/) •
+[Dokumentation](https://haben.app/) •
 [Entwicklung](#-entwicklung)
 
-<sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://firsttris.github.io/haben/) are in German.</sub>
+<sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
 <img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
 
@@ -39,7 +39,7 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 > [!WARNING]
 > **Beta:** Haben wird noch stark weiterentwickelt. Datenmodell und Abläufe können sich von Version zu Version
 > ändern, und Migrationen lassen sich nicht zurückspielen. Vor jedem Update ein Backup machen
-> (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://firsttris.github.io/haben/installation.html#backup-und-wiederherstellen))
+> (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
 ## 💡 Warum Haben?
@@ -61,36 +61,36 @@ auf deinem eigenen Server betreibst.
   Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
 - **Für GmbH und UG**: Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung mit
   Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
-  Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html)
+  Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
 
 ## ✨ Funktionen
 
-Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://firsttris.github.io/haben/).
+Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://haben.app/).
 
 | Bereich | Was Haben kann |
 |---|---|
-| 🧾 [Rechnungen](https://firsttris.github.io/haben/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Abschlags- und wiederkehrende Rechnungen, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
-| 📝 [Angebote](https://firsttris.github.io/haben/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, mit einem Klick zur Rechnung |
-| 📎 [Belege](https://firsttris.github.io/haben/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung |
-| 🏦 [Bankabgleich](https://firsttris.github.io/haben/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053, PayPal, Stripe …), Vorschläge mit Begründung, Steuerzahlungen und Darlehen |
-| 📤 [Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll) mit Herkunft jeder Zahl, Übermittlung per ERiC oder über Mein ELSTER, Zusammenfassende Meldung |
-| 📮 [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html) | Direkt per ERiC oder ohne Hersteller-ID über Mein ELSTER: XML-Upload, Browser-Erweiterung [Haben für Mein ELSTER](https://firsttris.github.io/haben/elster-mit-erweiterung.html) oder ein [KI-Assistent](https://firsttris.github.io/haben/elster-mit-assistent.html) wie Claude in Chrome |
-| 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR, Einkommensteuer; für GmbH und UG Körperschaft- und Gewerbesteuer |
-| 🏛️ [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen |
-| 🏢 [GmbH und UG](https://firsttris.github.io/haben/gmbh.html) | Bilanz und GuV, E-Bilanz per ERiC, Gesellschafter-Verrechnungskonto, Gewinnausschüttung mit Kapitalertragsteuer |
-| 👥 [Lohn](https://firsttris.github.io/haben/lohn.html) | Abrechnung nach dem Programmablaufplan des BMF, Minijob und Gesellschafter-Geschäftsführer, Lohnsteuer-Anmeldung über ELSTER, Lohnkonto |
-| ⏰ [Fristen](https://firsttris.github.io/haben/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
-| 🚗 [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kasse](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
-| 🖥️ [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
-| 📊 [Auswertungen](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
-| 📚 [Buchhaltung](https://firsttris.github.io/haben/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
-| 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) · [sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
-| 🔐 [Anmeldung](https://firsttris.github.io/haben/einrichtung.html#konto-anlegen) · [App](https://firsttris.github.io/haben/einrichtung.html#als-app-installieren) | Passkey, Lesezugang für die [Steuerberatung](https://firsttris.github.io/haben/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
-| 📥 [CSV-Import](https://firsttris.github.io/haben/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
-| 🔌 [REST-API](https://firsttris.github.io/haben/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
-| 🤖 [KI-Assistenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html) | Haben im Gespräch mit Claude oder einem lokalen Modell abfragen („Welche Rechnungen sind überfällig?“), nur lesend |
-| 🧩 [Eigene Seiten](https://firsttris.github.io/haben/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
-| ♿ [Barrierefreiheit](https://firsttris.github.io/haben/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
+| 🧾 [Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Abschlags- und wiederkehrende Rechnungen, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
+| 📝 [Angebote](https://haben.app/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, mit einem Klick zur Rechnung |
+| 📎 [Belege](https://haben.app/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung |
+| 🏦 [Bankabgleich](https://haben.app/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053, PayPal, Stripe …), Vorschläge mit Begründung, Steuerzahlungen und Darlehen |
+| 📤 [Voranmeldung](https://haben.app/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll) mit Herkunft jeder Zahl, Übermittlung per ERiC oder über Mein ELSTER, Zusammenfassende Meldung |
+| 📮 [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) | Direkt per ERiC oder ohne Hersteller-ID über Mein ELSTER: XML-Upload, Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html) oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome |
+| 📑 [Jahreserklärungen](https://haben.app/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR, Einkommensteuer; für GmbH und UG Körperschaft- und Gewerbesteuer |
+| 🏛️ [Finanzamt](https://haben.app/finanzamt.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen |
+| 🏢 [GmbH und UG](https://haben.app/gmbh.html) | Bilanz und GuV, E-Bilanz per ERiC, Gesellschafter-Verrechnungskonto, Gewinnausschüttung mit Kapitalertragsteuer |
+| 👥 [Lohn](https://haben.app/lohn.html) | Abrechnung nach dem Programmablaufplan des BMF, Minijob und Gesellschafter-Geschäftsführer, Lohnsteuer-Anmeldung über ELSTER, Lohnkonto |
+| ⏰ [Fristen](https://haben.app/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
+| 🚗 [Pauschalen](https://haben.app/pauschalen.html) · [Kasse](https://haben.app/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
+| 🖥️ [Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
+| 📊 [Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
+| 📚 [Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
+| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
+| 🔐 [Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
+| 📥 [CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
+| 🔌 [REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
+| 🤖 [KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html) | Haben im Gespräch mit Claude oder einem lokalen Modell abfragen („Welche Rechnungen sind überfällig?“), nur lesend |
+| 🧩 [Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
+| ♿ [Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
 
 ## 📸 Screenshots
 
@@ -115,7 +115,7 @@ denn Passkeys funktionieren nur über HTTPS.
 ### 1. Von einem Agenten aufsetzen lassen
 
 Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem Server und sag:
-„Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
+„Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://haben.app/installation.html).“
 
 ### 2. Manuell
 
@@ -129,10 +129,10 @@ docker compose up -d
 ```
 
 Öffne **https://deine-domain**, leg dein Konto an und richte Firmendaten, Nummernkreis und ELSTER ein, wie in
-[Erste Schritte](https://firsttris.github.io/haben/einrichtung.html) beschrieben.
+[Erste Schritte](https://haben.app/einrichtung.html) beschrieben.
 
 Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Umgebungsvariablen stehen in
-[Betrieb und Installation](https://firsttris.github.io/haben/installation.html).
+[Betrieb und Installation](https://haben.app/installation.html).
 
 > [!IMPORTANT]
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
@@ -151,7 +151,7 @@ Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS 
 
 Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API oder, bei
 Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, siehe
-[Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) und [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html).
+[Umzug aus Lexoffice](https://haben.app/lexoffice.html) und [Umzug aus sevDesk](https://haben.app/sevdesk.html).
 </details>
 
 <details>
@@ -162,49 +162,49 @@ Kleinunternehmerregelung nach § 19 UStG, und für kleine GmbHs und UGs. Eine Gm
 Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung und
 sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen und Organschaft) und
 bucht Gewinnausschüttungen samt Kapitalertragsteuer-Anmeldung und Steuerbescheinigungen für die Gesellschafter. Die Bilanz zur Hinterlegung beim Unternehmensregister
-erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesellschaftern. Den Lohn des Gesellschafter-Geschäftsführers, von Minijobs und (als Entwurf zum Gegenprüfen) von Angestellten rechnet und bucht Haben, meldet die Lohnsteuer über ELSTER an und listet Beitragsnachweis und Meldungen zum Abtippen im SV-Meldeportal, siehe [Lohn](https://firsttris.github.io/haben/lohn.html).
+erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesellschaftern. Den Lohn des Gesellschafter-Geschäftsführers, von Minijobs und (als Entwurf zum Gegenprüfen) von Angestellten rechnet und bucht Haben, meldet die Lohnsteuer über ELSTER an und listet Beitragsnachweis und Meldungen zum Abtippen im SV-Meldeportal, siehe [Lohn](https://haben.app/lohn.html).
 </details>
 
 <details>
 <summary><b>Ist Haben GoBD-konform?</b></summary>
 
 Ja. Gebuchtes wird festgeschrieben und lässt sich nur per Storno korrigieren, jede Änderung steht im
-Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in Haben](https://firsttris.github.io/haben/buchhaltung.html).
+Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 </details>
 
 <details>
 <summary><b>Wie kommen Voranmeldung und Erklärungen zu ELSTER?</b></summary>
 
-Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://firsttris.github.io/haben/elster-abgabe.html)):
+Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://haben.app/elster-abgabe.html)):
 - **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
   aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert oft Wochen
-  ([Erste Schritte](https://firsttris.github.io/haben/einrichtung.html#elster-einrichten)).
+  ([Erste Schritte](https://haben.app/einrichtung.html#elster-einrichten)).
 - **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
-  die Browser-Erweiterung [Haben für Mein ELSTER](https://firsttris.github.io/haben/elster-mit-erweiterung.html)
-  ein, oder ein [KI-Assistent](https://firsttris.github.io/haben/elster-mit-assistent.html) wie Claude in Chrome.
+  die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html)
+  ein, oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome.
   Absenden machst du dort selbst; die Abgabe der Voranmeldung vermerkst du danach in Haben mit Transferticket und Protokoll.
 </details>
 
 <details>
 <summary><b>Kann meine Steuerberatung damit arbeiten?</b></summary>
 
-Ja, mit einem [eigenen Zugang](https://firsttris.github.io/haben/steuerberatung.html), der nur lesen kann, oder über den
-[DATEV-Export](https://firsttris.github.io/haben/auswertungen.html#datev-export-für-die-steuerberatung) im Kontenrahmen SKR03 oder SKR04.
+Ja, mit einem [eigenen Zugang](https://haben.app/steuerberatung.html), der nur lesen kann, oder über den
+[DATEV-Export](https://haben.app/auswertungen.html#datev-export-für-die-steuerberatung) im Kontenrahmen SKR03 oder SKR04.
 </details>
 
 <details>
 <summary><b>Können mehrere Personen Haben nutzen?</b></summary>
 
 Haben ist für dich und deine eigene Firma gedacht: Es gibt genau einen Inhaber mit allen Rechten. Dazu kannst du deine
-Steuerberatung per Einladungslink mit einem [Zugang, der nur lesen kann](https://firsttris.github.io/haben/steuerberatung.html), dazuholen.
+Steuerberatung per Einladungslink mit einem [Zugang, der nur lesen kann](https://haben.app/steuerberatung.html), dazuholen.
 </details>
 
 <details>
 <summary><b>Kann ich Claude oder andere Agenten mit meiner Buchhaltung nutzen?</b></summary>
 
 Ja, über MCP, und nur lesend: „Welche Rechnungen sind überfällig?“ Buchen und Senden an ELSTER
-machst du weiter selbst. Siehe [KI-Assistenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html). Für
-eigene Werkzeuge und Automationen gibt es die [REST-API](https://firsttris.github.io/haben/api.html).
+machst du weiter selbst. Siehe [KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html). Für
+eigene Werkzeuge und Automationen gibt es die [REST-API](https://haben.app/api.html).
 </details>
 
 <details>
@@ -216,13 +216,13 @@ Prüf es selbst, der Code ist offen: Lass deinen Agenten Cloudflares [Security A
 
 ## 📚 Dokumentation
 
-Alles im Detail, mit Suche: **https://firsttris.github.io/haben/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
+Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Betrieb und Installation](https://firsttris.github.io/haben/installation.html) (Docker Compose, Podman, Backup, Updates),
-  [Erste Schritte](https://firsttris.github.io/haben/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
-  [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
-- **Hintergrund:** [Buchhaltung in Haben](https://firsttris.github.io/haben/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
-  [Architektur](https://firsttris.github.io/haben/architektur.html) · [Entwicklung](https://firsttris.github.io/haben/entwicklung.html) und [Roadmap](https://firsttris.github.io/haben/roadmap.html)
+- **Einstieg:** [Betrieb und Installation](https://haben.app/installation.html) (Docker Compose, Podman, Backup, Updates),
+  [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
+  [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
+- **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
+  [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)
 
 ## 🔧 Entwicklung
 
@@ -237,15 +237,15 @@ bun run dev                               # http://localhost:3000
 
 Oder ohne Bun und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im Hauptordner startet Datenbank,
 Migrationen und Dev-Server mit Neuladen beim Speichern
-([Mit Docker Compose](https://firsttris.github.io/haben/entwicklung.html#mit-docker-compose)).
+([Mit Docker Compose](https://haben.app/entwicklung.html#mit-docker-compose)).
 
 Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung
 und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` (OpenAI-kompatibler Dienst wie Ollama oder OpenRouter) bleibt die KI-Auslesung aus.
 
 **Stack**: TanStack Start (React-API mit TanStack Redact, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys, Zod, Typst für
 die Rechnungs-PDFs, `@e-invoice-eu/core` für ZUGFeRD und XRechnung, ERiC über `koffi` in einem eigenen Prozess,
-Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://firsttris.github.io/haben/architektur.html), alles Weitere
-[Entwicklung](https://firsttris.github.io/haben/entwicklung.html).
+Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere
+[Entwicklung](https://haben.app/entwicklung.html).
 
 | Paket | Inhalt |
 |---|---|
@@ -265,7 +265,7 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 
 Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `bun run lint`, `bun run typecheck` und
-`bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://firsttris.github.io/haben/entwicklung.html)).
+`bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://haben.app/entwicklung.html)).
 
 ## ⭐ Sterne im Verlauf
 

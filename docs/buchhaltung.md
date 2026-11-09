@@ -1,3 +1,10 @@
+---
+title: "Buchungslogik: Konten, Buchungssätze und GoBD"
+description: >-
+  Wie Haben bucht: Konten nach SKR03 und SKR04, Buchungssätze je Vorgang, doppelte Buchführung im
+  Hintergrund und die GoBD-Unveränderbarkeit per Hash-Kette.
+---
+
 # Buchhaltung in Haben (Buchungslogik)
 
 Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vorgang welchen Buchungssatz erzeugt und wie die Unveränderbarkeit nach GoBD technisch abgesichert ist. Sie richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, und an Steuerberatungen.
@@ -518,7 +525,7 @@ Hat die Bilanz eine Vorjahresspalte, steht der Vorjahresstichtag darunter; was d
 > [!WARNING]
 > Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft--und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Die Bilanz zur Hinterlegung beim Unternehmensregister erstellt Haben aus denselben Zahlen ([unten](#hinterlegung-beim-unternehmensregister-gmbh-und-ug)).
 
-**Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt der Knopf **‹Jahr› abschließen** (etwa „2025 abschließen“) im Abschnitt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
+**Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt der Knopf **‹Jahr› abschließen** (etwa „2025 abschließen“) im Abschnitt **Jahr abschließen** das Jahr ab, nach einer Rückfrage mit Häkchen. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
 
 - nimmt das Jahr keine Buchung mehr an, auch keine Gegenbuchung. Das prüft das Hauptbuch und, auch für Schreiber an Haben vorbei, ein Trigger der Datenbank (`0098_jahresabschluss_trigger.sql`). Rückgängig machen lässt sich der Abschluss nicht; `year_closings` ist nur anhängbar.
 - hält Haben Zahl und Prüfwert der Buchungen des Jahres fest: SHA-256 über ID und Inhalt jeder Buchung samt Zeilen, gerechnet wie ihr Siegel. Die Seite rechnet ihn bei jedem Aufruf aus den aktuellen Daten nach und zeigt, ob die Buchungen seitdem unverändert sind. Der Abschluss selbst steht mit Prüfwert im Änderungsprotokoll und damit in der Hash-Kette.
@@ -583,7 +590,7 @@ Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritä
 | − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
 | Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
 
-Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen zum 31.12.‹Jahr› buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen; im Bankabgleich ordnest du sie als [Steuerzahlung](bank.md#steuerzahlungen) des laufenden Jahres zu. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung. Eine Nachzahlung für ein Vorjahr verbraucht im Bankabgleich zuerst die Rückstellung dieses Jahres, der Rest geht auf die Konten für Vorjahre. Zinsen und Zuschläge zu Körperschaft- und Gewerbesteuer (SKR03 2102, 2104, 2105, 2108, 4397; SKR04 7302, 7304, 7308, 7306, 6437) rechnet die Steuerberechnung als nicht abziehbar hinzu (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG), in der Anlage GK unter den übrigen nicht abziehbaren Aufwendungen.
+Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen zum 31.12.‹Jahr› buchen** nennt in einer Rückfrage Stichtag und Beträge und bucht dann als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen; im Bankabgleich ordnest du sie als [Steuerzahlung](bank.md#steuerzahlungen) des laufenden Jahres zu. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung. Eine Nachzahlung für ein Vorjahr verbraucht im Bankabgleich zuerst die Rückstellung dieses Jahres, der Rest geht auf die Konten für Vorjahre. Zinsen und Zuschläge zu Körperschaft- und Gewerbesteuer (SKR03 2102, 2104, 2105, 2108, 4397; SKR04 7302, 7304, 7308, 7306, 6437) rechnet die Steuerberechnung als nicht abziehbar hinzu (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG), in der Anlage GK unter den übrigen nicht abziehbaren Aufwendungen.
 
 Im Verlustjahr lässt sich ein **Verlustrücktrag** in die zwei Vorjahre eintragen (höchstens 1 Mio. €, § 10d Abs. 1 EStG); leer bedeutet Verzicht, der ganze Verlust geht in den Vortrag. Die Gewerbesteuer kennt keinen Rücktrag.
 

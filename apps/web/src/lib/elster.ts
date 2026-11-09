@@ -1,3 +1,5 @@
+import { formatEuro } from "@haben/core";
+import type { ConfirmFact } from "../components/ConfirmDialog.tsx";
 import type { Notice } from "./use-action.ts";
 
 export type ElsterKind = "validate" | "test" | "send";
@@ -18,4 +20,17 @@ export function elsterNotice(
 /** Echt nur, wenn der Test-Schalter aus ist und echtes Senden überhaupt geht; sonst testweise */
 export function submitKind(testOnly: boolean, canSendLive: boolean): "test" | "send" {
   return !testOnly && canSendLive ? "send" : "test";
+}
+
+/** Faktenzeile vor dem Senden: Kennzahl 83 ist negativ, wenn das Finanzamt erstattet */
+export function zahllastFakt(cents: number): ConfirmFact {
+  return { label: cents < 0 ? "Erstattung" : "Zahllast", value: formatEuro(Math.abs(cents)), strong: true };
+}
+
+/** Wohin eine Nachricht oder neue Bankverbindung geht; eine falsche Steuernummer soll vor dem Senden auffallen */
+export function finanzamtFakten(finanzamt: string, steuernummer: string): ConfirmFact[] {
+  return [
+    { label: "Finanzamt", value: finanzamt || "–" },
+    { label: "Steuernummer", value: steuernummer || "–" },
+  ];
 }

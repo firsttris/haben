@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { bookSteuerrueckstellungenFn, saveKapgAngabenFn } from "../server/functions/abschluss.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 export interface KapgSteuernData {
@@ -20,6 +21,7 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
   const save = useServerFn(saveKapgAngabenFn);
   const book = useServerFn(bookSteuerrueckstellungenFn);
   const { busy, notice, setNotice, run } = useAction();
+  const [confirming, setConfirming] = useState(false);
   const formId = useId();
   const [hebesatz, setHebesatz] = useState(data.angaben ? String(data.angaben.hebesatz) : "");
   const [vortragKst, setVortragKst] = useState(euroInput(data.angaben?.verlustvortragKst));
@@ -122,19 +124,28 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
       )}
       {s && !closed && (s.rueckstellung.kst > 0 || s.rueckstellung.gewst > 0) && (
         <div className="actions" style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || !data.gespeichert}
-            onClick={() =>
+          <button type="button" className="btn btn-primary" disabled={busy || !data.gespeichert} onClick={() => setConfirming(true)}>
+            Rückstellungen zum 31.12.{year} buchen
+          </button>
+          <ConfirmDialog
+            open={confirming}
+            title={`Steuerrückstellungen ${year} buchen?`}
+            confirmLabel="Rückstellungen buchen"
+            facts={[
+              { label: "Stichtag", value: `31.12.${year}` },
+              ...(s.rueckstellung.kst > 0 ? [{ label: "Körperschaftsteuer und Soli", value: formatEuro(s.rueckstellung.kst) }] : []),
+              ...(s.rueckstellung.gewst > 0 ? [{ label: "Gewerbesteuer", value: formatEuro(s.rueckstellung.gewst) }] : []),
+            ]}
+            onConfirm={() =>
               void run(async () => {
                 await book({ data: { year } });
                 await router.invalidate();
               }, `Steuerrückstellungen zum 31.12.${year} gebucht.`)
             }
+            onClose={() => setConfirming(false)}
           >
-            Rückstellungen zum 31.12.{year} buchen
-          </button>
+            <p>Die Buchung wird festgeschrieben. Korrigieren lässt sie sich danach nur mit einer Gegenbuchung.</p>
+          </ConfirmDialog>
         </div>
       )}
       <NoticeBanner notice={notice} />

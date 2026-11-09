@@ -200,6 +200,7 @@ describe("Zahlungen", () => {
   it("Art der Zeile im Kassenbuch", () => {
     expect(cashEntryLabel("rechnung", "einzelunternehmen")).toBe("Bareinnahme Rechnung");
     expect(cashEntryLabel("beleg", "gmbh")).toBe("Beleg");
+    expect(cashEntryLabel("einnahme", "gmbh")).toBe("Bareinnahme");
     expect(cashEntryLabel("einlage", "gmbh")).toBe(cashBookingLabel("einlage", "gmbh"));
   });
 

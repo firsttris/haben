@@ -1,4 +1,5 @@
 import type { BrowserContext, Page, PageScreenshotOptions } from "@playwright/test";
+import { today } from "../src/server/today.ts";
 
 /**
  * Was app.spec.ts anlegt und die Tests im Projekt „mit-daten“ (playwright.config.ts) danach lesen.
@@ -13,10 +14,20 @@ export const USER = { name: "Max Mustermann", email: "max@example.com", password
  */
 export const SESSION = "test-results/.sitzung.json";
 
+/**
+ * Heute in Deutschland als YYYY-MM-DD, derselbe Tag wie auf dem Server. Die Uhr des Testprozesses taugt dafür nicht: Die
+ * CI läuft in UTC, und UTC steht zwischen 0 und 1 Uhr (Sommerzeit 2 Uhr) noch auf dem Vortag.
+ */
+export const currentDay = () => today();
+
+/** Das laufende Jahr in Deutschland */
+export const currentYear = () => Number(currentDay().slice(0, 4));
+
 // Alle Daten im selben Jahr: Anfang Januar rechnet der Test im Dezember des Vorjahres
-const today = new Date();
-const startOfYear = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
-const base = today.getTime() - startOfYear.getTime() < 50 * 86_400_000 ? new Date(Date.UTC(today.getUTCFullYear() - 1, 11, 20)) : today;
+const todayUtcMidnight = new Date(`${currentDay()}T00:00:00Z`);
+const startOfYear = new Date(Date.UTC(todayUtcMidnight.getUTCFullYear(), 0, 1));
+const base =
+  todayUtcMidnight.getTime() - startOfYear.getTime() < 50 * 86_400_000 ? new Date(Date.UTC(todayUtcMidnight.getUTCFullYear() - 1, 11, 20)) : todayUtcMidnight;
 
 /**
  * Die Durchläufe sehen beim Tippen auf die Vorschau der Belegeditoren: angeheftet steht sie neben dem Formular

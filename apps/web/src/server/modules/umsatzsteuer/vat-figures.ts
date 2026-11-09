@@ -1,4 +1,5 @@
 import {
+  bareinnahmeAnteil,
   kategorieAnteil,
   kategorieArt,
   lastMonthOfPeriod,
@@ -15,18 +16,22 @@ import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "driz
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /**
    * payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung, ausbuchung = Skonto oder
-   * Forderungsausfall (§ 17), direkt = Bankumsatz direkt auf eine Einnahmekategorie gebucht (Ist und Soll)
+   * Forderungsausfall (§ 17), direkt = Bankumsatz direkt auf eine Einnahmekategorie gebucht (Ist und Soll), kasse =
+   * Bareinnahme ohne Rechnung im Kassenbuch (Ist und Soll)
    */
-  type: "payment" | "invoice" | "entnahme" | "ausbuchung" | "direkt";
+  type: "payment" | "invoice" | "entnahme" | "ausbuchung" | "direkt" | "kasse";
   /** Bei Entnahmen: das Fahrzeug */
   assetId?: string;
   /** Bei Direktbuchungen: der Bankumsatz */
   transactionId?: string;
+  /** Bei Bareinnahmen ohne Rechnung: die Zeile im Kassenbuch */
+  cashEntryId?: string;
   date: string;
   invoiceId: string;
   number: string;
@@ -317,6 +322,38 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     }
   }
 
+  // Bareinnahmen ohne Rechnung im Kassenbuch (#276): am Tag der Bareinnahme, bei Ist wie bei Soll
+  // (packages/core/src/bareinnahme.ts); der Storno mit umgekehrtem Vorzeichen an seinem Tag
+  {
+    const rows = await q
+      .select({
+        id: schema.cashEntries.id,
+        date: schema.cashEntries.date,
+        amount: schema.cashEntries.amount,
+        text: schema.cashEntries.text,
+        treatment: schema.cashEntries.taxTreatment,
+        rate: schema.cashEntries.taxRate,
+      })
+      .from(schema.cashEntries)
+      .where(and(eq(schema.cashEntries.kind, "einnahme"), gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
+    for (const r of rows) {
+      if (!r.treatment || r.rate === null) continue;
+      const { base, tax } = bareinnahmeAnteil({ behandlung: r.treatment, steuersatz: r.rate }, r.amount);
+      revenue.push({
+        type: "kasse",
+        date: r.date,
+        invoiceId: "",
+        cashEntryId: r.id,
+        number: "Bareinnahme",
+        customer: r.text,
+        treatment: r.treatment,
+        rate: r.rate,
+        base,
+        tax,
+      });
+    }
+  }
+
   // Private Kfz-Nutzung: unentgeltliche Wertabgabe im Monat der Nutzung, auch bei Ist-Versteuerung
   for (const { year, month } of monthsOfPeriod(period)) {
     const lastDay = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
@@ -495,7 +532,8 @@ export interface PreflightIssue {
 export async function preflight(period: VatPeriod, figures: VatFigures): Promise<PreflightIssue[]> {
   const { start, end } = periodRange(period);
   const issues: PreflightIssue[] = [];
-  const open = sql`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = bank_transactions.id), 0))`;
+  // Verrechnete Umsätze (#457) sind erledigt wie zugeordnete
+  const open = bankOpenAmountSql;
 
   const [bank] = await db
     .select({

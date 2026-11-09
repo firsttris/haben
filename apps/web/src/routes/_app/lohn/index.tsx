@@ -1,4 +1,4 @@
-import { BESCHAEFTIGUNGSARTEN, formatEuro, isKapitalgesellschaft, monatsgrenzen } from "@haben/core";
+import { currentYear, currentMonth, BESCHAEFTIGUNGSARTEN, formatEuro, isKapitalgesellschaft, monatsgrenzen } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -18,7 +18,7 @@ import styles from "../../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/lohn/")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional(), monat: z.number().int().min(1).max(12).optional() }),
-  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? new Date().getFullYear(), monat: search.monat ?? new Date().getMonth() + 1 }),
+  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? currentYear(), monat: search.monat ?? currentMonth().month }),
   loader: ({ deps }) => getLohn({ data: { year: deps.jahr, month: deps.monat } }),
   head: () => ({ meta: [{ title: "Lohn · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: LohnPage,
@@ -33,7 +33,7 @@ function MonatWahl({ data }: { data: Data }) {
   const navigate = useNavigate();
   const monatId = useId();
   const jahrId = useId();
-  const dieses = new Date().getFullYear();
+  const dieses = currentYear();
   const jahre = [...new Set([data.monat.year, dieses, dieses - 1])].sort((a, b) => b - a);
   const gehe = (jahr: number, monat: number) => navigate({ to: "/lohn", search: { jahr, monat } });
   return (
@@ -138,7 +138,7 @@ function MitarbeiterMonat({ zeile }: { zeile: Zeile }) {
           Noch nicht abgerechnet; voraussichtlich {formatEuro(vorschau.brutto)} brutto, {formatEuro(vorschau.netto)} netto.
         </p>
       )}
-      {payslips.map((p, i) => <AbrechnungKarte key={p.id} p={p} nummer={i + 1} />).reverse()}
+      {payslips.map((p, i) => <AbrechnungKarte key={p.id} p={p} nummer={i + 1} name={employee.name} />).reverse()}
     </section>
   );
 }

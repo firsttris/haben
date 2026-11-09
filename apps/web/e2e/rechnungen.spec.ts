@@ -1,8 +1,22 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import postgres from "postgres";
 import { day, firstLink, YEAR } from "./daten.ts";
+import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
-import { CUSTOMERS, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, ohneAxeVerstoesse, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
+import {
+  bestaetigen,
+  faktenZeigen,
+  CUSTOMERS,
+  durchlaufSeite,
+  einrichten,
+  gehe,
+  INVOICES,
+  kontaktAnlegen,
+  ohneAxeVerstoesse,
+  receiptJpeg,
+  rechnungFestschreiben,
+} from "./einrichtung.ts";
 
 /**
  * Rechnungen, Angebote und Kasse in eigener, leerer Datenbank (Projekt „rechnungen“, e2e/durchlaeufe.ts), parallel zu
@@ -31,6 +45,74 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   for (const kunde of CUSTOMERS) await kontaktAnlegen(page, kunde);
   // „Rechnung per E-Mail“ verschickt die erste festgeschriebene Rechnung der Liste
   await rechnungFestschreiben(page, INVOICES[0]!);
+});
+
+test("DATEV-Personenkonten: Schalter mit Bestätigung, fehlender Debitor wird vergeben, steht im Stapel und ist danach fest (#327)", async () => {
+  const jahr = Number(INVOICES[0]!.date.slice(0, 4));
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("form", { name: "DATEV-Export" });
+  await card.getByLabel("Beraternummer").fill("29098");
+  await card.getByLabel("Mandantennummer").fill("55003");
+  await card.getByLabel("DATEV-Personenkonten").selectOption(String(jahr));
+  // Das Jahr hat schon eine Rechnung: nur mit ausdrücklicher Bestätigung
+  const bestaetigung = card.getByRole("checkbox", { name: /hat schon Buchungen/ });
+  await expect(bestaetigung).toBeVisible();
+  await bestaetigung.check();
+  await card.getByRole("button", { name: "Speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Gespeichert.");
+  await expect(bestaetigung).toBeHidden();
+
+  // Nordwerk hat noch keinen Debitor: Der Export vergibt den ersten freien
+  await card.getByRole("combobox", { name: "Jahr", exact: true }).selectOption(String(jahr));
+  const download = page.waitForEvent("download");
+  await card.getByRole("link", { name: "Buchungsstapel herunterladen" }).click();
+  const datei = await download;
+  expect(datei.suggestedFilename()).toBe(`EXTF_Buchungsstapel_${jahr}.csv`);
+  const { readFile } = await import("node:fs/promises");
+  const stapel = new TextDecoder("latin1").decode(await readFile((await datei.path())!));
+  expect(stapel).toContain(";10000;8400;");
+  expect(stapel).not.toContain(";1400;");
+
+  // Am Kontakt steht die Nummer und ist ab dem ersten Export fest
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10000");
+  await page.getByLabel("DATEV-Debitor").fill("10002");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("alert")).toContainText("Debitor 10000 steht schon in einem DATEV-Export und bleibt fest.");
+});
+
+test("DATEV-Personenkonten: die Steuerberatung liest auf ihrer Startseite, warum ein neuer Debitor den Stapel ablehnt (#452)", async ({ browser }) => {
+  const jahr = Number(INVOICES[1]!.date.slice(0, 4));
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Alpenblick Media AG" }).first().getAttribute("href"))!);
+  await page.getByLabel("DATEV-Debitor").fill("10002");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+  await rechnungFestschreiben(page, INVOICES[1]!);
+
+  // Zugang für die Steuerberatung wie in steuerberatung.spec.ts
+  await go("/einstellungen?bereich=sicherheit");
+  await page.getByLabel("Bezeichnung").fill("Kanzlei Personenkonten");
+  await page.getByRole("button", { name: "Einladungslink erzeugen" }).click();
+  const link = page.getByRole("textbox", { name: /Einladungslink für/ });
+  await expect(link).toHaveValue(/\/einladung\//);
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const stb = await context.newPage();
+  await stb.goto(await link.inputValue());
+  await stb.getByLabel("Name").fill("Kanzlei Personenkonten");
+  await stb.getByLabel("E-Mail").fill("personenkonten@example.com");
+  await stb.getByLabel("Passwort (mindestens 12 Zeichen)").fill("kanzlei-passwort-e2e");
+  await stb.getByRole("button", { name: "Zugang anlegen" }).click();
+  await stb.getByRole("button", { name: "Später" }).click();
+  await stb.waitForURL(/\/steuerberatung$/);
+
+  // Debitor 10002 ist noch nicht festgeschrieben: Der Export lehnt ab, und die Steuerberatung liest den Grund
+  await stb.getByLabel("Jahr").selectOption(String(jahr));
+  await stb.getByRole("link", { name: "DATEV-Buchungsstapel" }).click();
+  await expect(stb.getByRole("alert")).toContainText("Der erste Export mit neuen Personenkonten muss vom Inhaber kommen");
+  await expect(stb.getByRole("alert")).toContainText("Debitor 10002 (Alpenblick Media AG)");
+  await context.close();
 });
 
 test("Kundennummer automatisch vergeben", async () => {
@@ -72,6 +154,54 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await page.getByLabel("Kunde").selectOption({ label: "Harbour Labs Ltd · London" });
   await expect(sprache).toHaveValue("en");
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
+});
+
+test("Kontakt bearbeiten: Die Meldung „Gespeichert.“ bleibt nach dem Speichern stehen", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Speicher Testkunde GmbH");
+  await page.getByLabel("Ort").fill("Bremen");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await page.getByLabel("Ort").fill("Hamburg");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  // Nach dem Speichern lädt die Seite die neue Version und baut das Formular neu auf; die Meldung darf dabei nicht verschwinden
+  await expect(page.getByText("Version 2")).toBeVisible();
+  const meldung = page.getByRole("form", { name: "Kontakt" }).getByText("Gespeichert. Die vorige Fassung bleibt als Version erhalten.");
+  await expect(meldung).toBeVisible();
+  await expect(page.getByLabel("Ort")).toHaveValue("Hamburg");
+  // Auch nach kurzer Zeit noch da, nicht nur für einen Augenblick
+  await page.waitForTimeout(1000);
+  await expect(meldung).toBeVisible();
+  // Archivieren: Die folgenden Tests rechnen nicht mit diesem Kunden
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebene Nummer meldet das Formular (#327)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Musterpartner GmbH");
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("Kundennummer").fill("K-42");
+  await page.getByLabel("DATEV-Debitor").fill("10042");
+  await page.getByLabel("DATEV-Kreditor").fill("70087");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Kundennummer")).toHaveValue("K-42");
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10042");
+  await expect(page.getByLabel("DATEV-Kreditor")).toHaveValue("70087");
+  // Archivieren: Die folgenden Tests rechnen nicht mit einem Lieferanten
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Zweiter Partner");
+  await page.getByLabel("DATEV-Debitor").fill("70087");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
+  await page.getByLabel("DATEV-Debitor").fill("10042");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor 10042 hat schon „Musterpartner GmbH“.")).toBeVisible();
 });
 
 test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {
@@ -283,7 +413,7 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   const antwort = page.getByRole("region", { name: /Antwort des Kunden/ });
   await expect(antwort).toContainText("Offen", { timeout: 30_000 });
   await expect(page.getByText("2.094,40\u00a0€").first()).toBeVisible();
@@ -296,7 +426,7 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await expect(page.getByRole("combobox", { name: /^Angebot\b/ }).locator("option:checked")).toHaveText(/^Angebot AN-\d{4}-001 vom/);
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue(/^Abschlag gemäß Angebot AN-\d{4}-001 vom/);
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
   await page.goto(angebotUrl);
   await page.waitForLoadState("networkidle");
@@ -310,9 +440,9 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   // Bestellnummer aus dem Angebot, als eigene Auftragsnummer (BT-14) dessen Nummer
   await expect(page.getByLabel("Bestellnummer (optional)")).toHaveValue("4500012345");
   await expect(page.getByLabel("Eigene Auftragsnummer (optional)")).toHaveValue(/^AN-\d{4}-001$/);
-  // Den Entwurf wieder verwerfen (zweiter Klick bestätigt); das Angebot lässt sich danach erneut abrechnen
+  // Den Entwurf wieder verwerfen; das Angebot lässt sich danach erneut abrechnen
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
   await go("/angebote");
   await expect(page.getByRole("link", { name: /AN-\d{4}-001/ })).toContainText("Angenommen");
@@ -364,7 +494,7 @@ test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick au
   await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
 
   // Auswahl des Kunden: Variante mit Shop und die Schulung
@@ -391,7 +521,7 @@ test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick au
   await zahlungsplan.getByRole("link", { name: "Abschlagsrechnung (Entwurf)" }).click();
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
 });
 
@@ -469,12 +599,19 @@ test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim
   // Nur PDF, am Inhalt erkannt: ein Bild mit der Endung .pdf wird abgelehnt
   await auswahl.setInputFiles([{ name: "foto.pdf", mimeType: "application/pdf", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]);
   await expect(anhaenge.getByText("foto.pdf: Als Anhang sind nur PDF-Dateien erlaubt.")).toBeVisible();
+  // Die Datei ist danach aus Haben weg, und der Knopf steht am Handy eng neben „Herunterladen“: erst nachfragen
   await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  const anhangRueckfrage = page.getByRole("dialog", { name: "abnahme.pdf entfernen?" });
+  await expect(anhangRueckfrage).toContainText("aus Haben gelöscht");
+  await anhangRueckfrage.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toBeVisible();
+  await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("abnahme.pdf: entfernt.")).toBeVisible();
   await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Rechnung ", "").trim();
   await expect(anhaenge).toContainText("Mit der Rechnung festgeschrieben.");
@@ -531,11 +668,12 @@ test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand
   await auswahl.setInputFiles([{ name: "AGB-Kopie.pdf", mimeType: "application/pdf", buffer: attachmentPdf("AGB") }]);
   await expect(anhaenge.getByText("AGB-Kopie.pdf: hängt schon an diesem Angebot.")).toBeVisible();
   await anhaenge.getByRole("button", { name: "intern.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("intern.pdf: entfernt.")).toBeVisible();
   await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Angebot ", "").trim();
   await expect(anhaenge).toContainText("Mit dem Angebot festgeschrieben.");
@@ -586,12 +724,17 @@ test("Standardanhänge: AGB in den Einstellungen, jedes neue Angebot hat sie, im
   await expect(anhaenge.getByRole("link", { name: "AGB.pdf", exact: true })).toBeVisible();
   // Für dieses Angebot ohne Widerrufsbelehrung; die Einstellung bleibt
   await anhaenge.getByRole("button", { name: "Widerrufsbelehrung.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("Widerrufsbelehrung.pdf: entfernt.")).toBeVisible();
 
   // Die Standardanhänge wieder herausnehmen, damit die folgenden Tests Angebote ohne sie anlegen
   await go("/einstellungen?bereich=rechnungen");
   for (const name of ["AGB.pdf", "Widerrufsbelehrung.pdf"]) {
     await standard.getByRole("button", { name: `${name} entfernen` }).click();
+    // Die Datei hängt noch an Angeboten: Die Rückfrage darf nicht behaupten, sie sei dann weg
+    await expect(page.getByRole("dialog", { name: `${name} entfernen?` })).toContainText("Neue Angebote");
+    await expect(page.getByRole("dialog", { name: `${name} entfernen?` })).not.toContainText("gelöscht");
+    await bestaetigen(page, "Entfernen");
     await expect(standard.getByText(`${name}: entfernt.`)).toBeVisible();
   }
   await expect(standard).toContainText("Keine Standardanhänge.");
@@ -609,7 +752,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Abschlagsrechnung ", "").trim();
   const lieferschein = await page.request.get((await page.getByRole("link", { name: "Lieferschein" }).getAttribute("href"))!);
@@ -647,8 +790,8 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
   await expect(liste).toContainText("Wechselgeld");
   const stornieren = liste.getByRole("button", { name: "Nr. 1 stornieren" });
   await stornieren.click();
-  await expect(stornieren).toHaveText("Jetzt stornieren");
-  await stornieren.click();
+  await faktenZeigen(page, "Nummer", "Text", "Betrag");
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr. 2" })).toBeVisible();
   await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
 });
@@ -664,13 +807,18 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const invoicePath = new URL(page.url()).pathname;
   const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/^Rechnung (\S+)/)?.[1] ?? "";
   expect(number).not.toBe("");
   const zahlungen = page.getByRole("region", { name: "Zahlungen" });
   await expect(zahlungen).toContainText("Noch keine Zahlung");
+
+  // Das Storno nennt, was storniert würde; hier nur ansehen
+  await page.getByRole("button", { name: "Stornieren" }).click();
+  await faktenZeigen(page, "Nummer", "Kunde", "Betrag");
+  await page.getByRole("dialog").getByRole("button", { name: "Abbrechen" }).click();
 
   // Teilzahlung in der Kasse: 50,00 € von 119,00 €
   await go("/kasse");
@@ -731,12 +879,59 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
   await go("/kasse");
   const stornieren = liste.getByRole("button", { name: `Nr. ${restNr} stornieren` });
   await stornieren.click();
-  await stornieren.click();
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr." })).toBeVisible();
   await expect(liste).toContainText(`Storno Nr. ${restNr}: Rechnung ${number}`);
   await go(invoicePath);
   await expect(page.getByText("Teilbezahlt").first()).toBeVisible();
   await expect(zahlungen).toContainText("storniert");
+});
+
+test("Kasse: Bareinnahme ohne Rechnung als Tagessumme mit Steuer und Notiz, Storno (#276)", async ({ browser }) => {
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByRole("button", { name: "Bareinnahme ohne Rechnung" }).click();
+  await expect(form.getByRole("button", { name: "Bareinnahme ohne Rechnung" })).toHaveAttribute("aria-pressed", "true");
+  // Regelbesteuert: 19 %, 7 % oder steuerfrei; die Kleinunternehmer-Option fehlt
+  const steuer = form.getByLabel("Umsatzsteuer");
+  await expect(steuer).toHaveValue("regulaer:1900");
+  await expect(steuer.getByRole("option")).toHaveText(["Regulär 19 %", "Regulär 7 %", "steuerfrei (§ 4 Nr. 8 bis 29 UStG)"]);
+  // Die Notiz ist Pflicht: Ohne Rechnung ist sie der Nachweis
+  await expect(form.getByLabel("Notiz")).toHaveAttribute("required", "");
+  // Das Formular der Bareinnahme prüft axe am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 390]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await axePage.getByRole("button", { name: "Bareinnahme ohne Rechnung" }).click();
+    await expect(axePage.getByLabel("Umsatzsteuer")).toBeVisible();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `/kasse mit Bareinnahme bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+
+  await form.getByLabel("Betrag (€)").fill("107,00");
+  await steuer.selectOption("regulaer:700");
+  await form.getByLabel("Notiz").fill("Wochenmarkt, Tagessumme Bücher");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  const gebucht = page.getByRole("status").filter({ hasText: "gebucht: Bareinnahme über 107,00 €, 7 %." });
+  await expect(gebucht).toBeVisible();
+  const nr = (await gebucht.textContent())?.match(/Nr\. (\d+) gebucht/)?.[1] ?? "";
+  const liste = page.getByRole("region", { name: "Kassenbuch" });
+  await expect(liste).toContainText("Wochenmarkt, Tagessumme Bücher");
+  await expect(liste).toContainText("Bareinnahme · 7 %");
+
+  await liste.getByRole("button", { name: `Nr. ${nr} stornieren` }).click();
+  await bestaetigen(page, "Stornieren");
+  await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr." })).toBeVisible();
+  await expect(liste).toContainText(`Storno Nr. ${nr}: Wochenmarkt, Tagessumme Bücher`);
 });
 
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
@@ -822,7 +1017,7 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
   await page.waitForLoadState("networkidle");
   // Nicht buchen: wieder löschen, damit die übrigen Seiten und Bilder dieselben Daten zeigen wie ohne diesen Test
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   expect((await page.request.get(`/api/v1/belege/${document.id}`, { headers: auth })).status()).toBe(404);
 
@@ -917,6 +1112,60 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
 });
 
+test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {
+  const name = "Warenwirtschaftsbestelluebersichtsseiten"; // 40 Zeichen, mehr nimmt das Formular nicht
+  await go("/einstellungen?bereich=seiten");
+  const form = page.getByRole("form", { name: "Neue eigene Seite" });
+  await form.getByLabel("Name im Menü").fill(name);
+  await form.getByLabel("Adresse").fill("https://n8n.example.com/form");
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  const entfernen = page.getByRole("button", { name: `${name} entfernen` });
+  await expect(entfernen).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await entfernen.click();
+  const dialog = page.getByRole("dialog", { name: /aus dem Menü entfernen\?$/ });
+  const titel = dialog.getByRole("heading");
+  await expect(titel).toBeVisible();
+  const passt = await titel.evaluate((element) => element.scrollWidth <= element.clientWidth);
+  await dialog.getByRole("button", { name: "Entfernen" }).click();
+  await expect(entfernen).toHaveCount(0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(passt).toBe(true);
+});
+
+test("Doppelklick auf Stornieren im Kassenbuch: Liegt der rote Knopf des Dialogs darunter, bestätigt der zweite Klick nicht", async () => {
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByLabel("Betrag (€)").fill("20");
+  await form.getByLabel("Text (optional)").fill("Doppelklick");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  const eintrag = page.getByRole("region", { name: "Kassenbuch" }).locator(".table-row").filter({ hasText: "Doppelklick" });
+  await expect(eintrag).toBeVisible();
+
+  // Handy: Der Knopf der Zeile steht rechts wie die Aktion im Dialog; ob sie sich decken, hängt nur noch an der Höhe
+  await page.setViewportSize({ width: 375, height: 812 });
+  const stornieren = eintrag.getByRole("button", { name: /stornieren$/ });
+  await stornieren.click();
+  const dialog = page.getByRole("dialog", { name: /stornieren\?$/ });
+  const aktion = (await dialog.getByRole("button", { name: "Stornieren" }).boundingBox())!;
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const unterDerAktion = aktion.y + aktion.height / 2 - 812 / 2;
+  const zeile = (await stornieren.boundingBox())!;
+  const mitte = { x: zeile.x + zeile.width / 2, y: zeile.y + zeile.height / 2 };
+  expect(mitte.x).toBeGreaterThan(aktion.x);
+  expect(mitte.x).toBeLessThan(aktion.x + aktion.width);
+  await page.setViewportSize({ width: 375, height: Math.round(2 * (mitte.y - unterDerAktion)) });
+
+  await page.mouse.dblclick(mitte.x, mitte.y);
+  await expect(dialog).toBeVisible();
+  await expect(eintrag).not.toContainText("storniert");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fenster (#356)", async () => {
   const vorher = page.viewportSize();
   await page.setViewportSize(LAPTOP);
@@ -938,6 +1187,32 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   await speichern.click();
   await sichtbar(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." }));
   if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Kasse: Bareinnahme ohne Rechnung aus einem Monat, in dem noch § 19 galt, bietet „Kleinunternehmer“ an (#276)", async () => {
+  // Stand im Änderungsprotokoll: vor 40 Tagen Kleinunternehmer, heute nicht mehr (Ausschalten geht jederzeit), wie in
+  // belege-steuern.spec.ts (#295). Der Server prüft die Behandlung gegen den Stand am Ende des Monats der Bareinnahme.
+  const datum = day(-40);
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    await sql`insert into audit_log (at, actor, table_name, row_id, action, new_value)
+      values (${`${datum}T12:00:00Z`}::timestamptz, 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: true })}),
+             (now(), 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: false })})`;
+  } finally {
+    await sql.end();
+  }
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByRole("button", { name: "Bareinnahme ohne Rechnung" }).click();
+  await form.getByLabel("Datum").fill(datum);
+  const steuer = form.getByLabel("Umsatzsteuer");
+  // Für dieses Datum ist nur „Kleinunternehmer“ oder „steuerfrei“ buchbar; 19 % lehnt der Server ab
+  await expect(steuer.getByRole("option")).toHaveText(["Kleinunternehmer (§ 19 UStG)", "steuerfrei (§ 4 Nr. 8 bis 29 UStG)"]);
+  await expect(steuer).toHaveValue("kleinunternehmer:0");
+  await form.getByLabel("Betrag (€)").fill("25,00");
+  await form.getByLabel("Notiz").fill("Flohmarkt, Tagessumme");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "gebucht: Bareinnahme über 25,00 €, Kleinunternehmer (§ 19 UStG)." })).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

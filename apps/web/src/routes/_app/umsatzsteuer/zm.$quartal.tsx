@@ -181,7 +181,12 @@ function ZmSenden({ data }: { data: Data }) {
           ready={!fehler && !nichtsZuSenden}
           busy={action.busy}
           notice={action.notice}
-          confirmText={`Die ${naechste.berichtigt ? "Berichtigung" : "Meldung"} geht an das Bundeszentralamt für Steuern und lässt sich danach nur noch berichtigen. Noch einmal klicken zum Senden.`}
+          confirmTitle={`${naechste.berichtigt ? "Berichtigung" : "Meldung"} an das BZSt verbindlich senden?`}
+          confirmFacts={[
+            { label: "Meldung", value: "Zusammenfassende Meldung" },
+            { label: "Zeitraum", value: periodLabel(data.period) },
+          ]}
+          confirmText={`Die ${naechste.berichtigt ? "Berichtigung" : "Meldung"} geht an das Bundeszentralamt für Steuern und lässt sich danach nur noch berichtigen.`}
           footer="Zusammenfassende Meldung (Datenart ZMDO) über ERiC. Das Übertragungsprotokoll wird als PDF abgelegt."
           onSubmit={onSubmit}
         />

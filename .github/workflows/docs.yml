@@ -1,5 +1,8 @@
 # Baut docs/ mit Zensical und veröffentlicht sie auf GitHub Pages:
-# https://firsttris.github.io/haben/
+# https://haben.app/
+# Die eigene Domain steht unter Settings → Pages → Custom domain; ihr DNS liegt bei Cloudflare
+# (A/AAAA auf GitHub Pages, www als CNAME auf firsttris.github.io, ohne Cloudflare-Proxy, damit
+# GitHub das Zertifikat ausstellen kann). firsttris.github.io/haben/ leitet dorthin um.
 # Voraussetzung einmalig: Settings → Pages → Source "GitHub Actions"
 # (configure-pages mit enablement schaltet das beim ersten Lauf selbst ein).
 name: Docs
@@ -53,6 +56,14 @@ jobs:
       # Jeder Hinweis im GitHub-Stil ist ein Kasten; ein Absatz, der mit dem Marker beginnt, hieße, pymdownx.quotes
       # fehlt. Nur am Anfang eines Absatzes: als Code (`> [!NOTE]` in entwicklung.md) darf der Marker stehen
       - run: "! grep -rlE '<p>\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\]' site --include='*.html'"
+      # Suchmaschinen: jede Seite mit eigener Beschreibung im Front Matter (sonst stünde überall
+      # site_description), Open Graph auf jeder Seite, strukturierte Daten auf der Startseite,
+      # noindex nur auf der 404-Seite (overrides/main.html) und robots.txt mit der Sitemap
+      - run: test -z "$(grep -L '^description:' docs/*.md)"
+      - run: test -z "$(grep -L 'property="og:image"' site/*.html)"
+      - run: grep -q 'application/ld+json' site/index.html
+      - run: test "$(grep -l 'name="robots" content="noindex"' site/*.html)" = site/404.html
+      - run: "grep -q '^Sitemap: https://haben.app/sitemap.xml' site/robots.txt"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

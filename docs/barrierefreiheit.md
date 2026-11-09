@@ -1,3 +1,10 @@
+---
+title: "Barrierefreiheit und Tastaturbedienung (WCAG 2.2 AA)"
+description: >-
+  Haben ist vollständig per Tastatur bedienbar und erfüllt nach automatischen Prüfungen WCAG 2.2
+  AA – mit Tastenkürzeln und Hinweisen für Screenreader.
+---
+
 # Barrierefreiheit und Tastatur
 
 Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den automatischen Prüfungen die Kriterien der WCAG 2.2 auf Stufe AA. Jede Änderung wird in der CI mit [axe-core](https://github.com/dequelabs/axe-core) und eigenen Tastaturtests geprüft (siehe [Wie das geprüft wird](#wie-das-geprüft-wird)).

@@ -3,9 +3,21 @@ import { expect, type Page, test } from "@playwright/test";
 import { zipSync } from "fflate";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
-import { day, EIGENE_SEITE, fakeEigeneSeite, SESSION, YEAR } from "./daten.ts";
+import { currentDay, currentYear, day, EIGENE_SEITE, fakeEigeneSeite, SESSION, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { CUSTOMERS, dkb, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
+import {
+  bestaetigen,
+  faktenZeigen,
+  CUSTOMERS,
+  dkb,
+  durchlaufSeite,
+  einrichten,
+  gehe,
+  INVOICES,
+  kontaktAnlegen,
+  receiptJpeg,
+  rechnungFestschreiben,
+} from "./einrichtung.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -64,12 +76,13 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(nav.getByRole("link", { name: "Pauschalen" })).toBeVisible();
 
-  await go("/einstellungen?bereich=rechnungen");
-  const logo = page.getByRole("region", { name: "Logo" });
+  await go("/einstellungen?bereich=gestaltung");
+  const logo = page.getByRole("region", { name: "Logo und Blatt" });
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
 
+  await go("/einstellungen?bereich=rechnungen");
   const format = page.getByRole("form", { name: "Nummernformat" });
   const rechnungen = format.getByRole("group", { name: "Rechnungen" });
   await rechnungen.getByLabel("Format").fill("RE-{NNN}");
@@ -90,6 +103,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(rechnungen.getByLabel("Format")).toHaveValue("{JJJJ}-{NNN}");
   await expect(rechnungen.getByLabel("Zähler")).toHaveValue("jaehrlich");
 
+  await go("/einstellungen?bereich=gestaltung");
   const akzent = page.getByRole("form", { name: "Akzentfarbe" });
   await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
   await expect(akzent.getByRole("status")).toContainText("schwer zu lesen");
@@ -101,7 +115,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
   await expect(vorschau).toHaveCSS("color", "rgb(25, 31, 39)");
-  await go("/einstellungen?bereich=rechnungen");
+  await go("/einstellungen?bereich=gestaltung");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
 });
@@ -121,6 +135,68 @@ test("Kunden anlegen", async () => {
   await expect(liste).toContainText("+49 40 123456-0");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");
+});
+
+test("Lastschriftmandat am Kunden: Gläubiger-ID, Mandat mit PDF anlegen und widerrufen (#445)", async ({ browser }) => {
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Gläubiger-ID").fill("DE97ZZZ09999999999");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Die Prüfziffer der Gläubiger-ID stimmt nicht.")).toBeVisible();
+  // Test-ID der Bundesbank mit richtiger Prüfziffer
+  await firma.getByLabel("Gläubiger-ID").fill("DE98 ZZZ0 9999 9999 99");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+
+  await go("/kontakte");
+  await page
+    .getByRole("region", { name: "Kontaktliste" })
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .click();
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
+  await expect(karte).toContainText("Noch kein Mandat.");
+  await karte.getByRole("button", { name: "Mandat anlegen" }).click();
+  const form = karte.getByRole("form", { name: "Neues Mandat" });
+  await form.getByLabel("Mandatsreferenz").fill("RP-2026-01");
+  await form.getByLabel("Unterschrieben am").fill(day(-20));
+  await form.getByLabel("IBAN").fill("DE02 1203 0000 0000 2020 51");
+  // Das offene Formular prüft axe hier, am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 320]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await axePage.getByRole("button", { name: "Mandat anlegen" }).click();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Mandatsformular bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+  await form.getByRole("button", { name: "Mandat speichern" }).click();
+  await expect(page.getByText("Mandat angelegt.")).toBeVisible();
+  await expect(karte).toContainText("RP-2026-01");
+  await expect(karte).toContainText("DE02120300000000202051");
+  await expect(karte).toContainText(/Gültig bis/);
+  await expect(karte).toContainText("Noch kein PDF");
+
+  await karte
+    .getByLabel("PDF hinterlegen: RP-2026-01")
+    .setInputFiles({ name: "mandat.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\nMandat\n%%EOF") });
+  await expect(page.getByText("PDF hinterlegt.")).toBeVisible();
+  await expect(karte.getByRole("link", { name: "Mandat als PDF" })).toBeVisible();
+
+  await karte.getByRole("button", { name: "Widerrufen" }).click();
+  await faktenZeigen(page, "Mandatsreferenz", "Ab");
+  await bestaetigen(page, "Widerrufen");
+  await expect(page.getByText("Mandat widerrufen.")).toBeVisible();
+  await expect(karte).toContainText(/Widerrufen ab/);
+  await expect(karte.getByRole("button", { name: "Widerrufen" })).toHaveCount(0);
 });
 
 test("Rechnungen schreiben und festschreiben", async () => {
@@ -162,7 +238,7 @@ test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer
   await expect(page.getByRole("button", { name: "Festschreiben" })).toBeVisible();
 
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
 });
 
@@ -218,7 +294,8 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await page.getByLabel("Kategorie").selectOption("telefon");
   await page.getByLabel("Netto", { exact: true }).fill("38,57");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await faktenZeigen(page, "Betrag");
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   // Bis zur Zahlung steht der Beleg in der Übersicht unter den offenen Verbindlichkeiten
@@ -280,7 +357,7 @@ test("Überweisung als SEPA-Datei: offenen Beleg wählen, Datei herunterladen, V
   expect(xml).toContain(`<CdtrAcct><Id><IBAN>${SUPPLIER_IBAN}</IBAN></Id></CdtrAcct>`);
   expect(xml).toContain("<Cdtr><Nm>Funknetz Mobil GmbH</Nm></Cdtr>");
   expect(xml).toContain("<Ustrd>MF-0815</Ustrd>");
-  expect(xml).toContain(`<ReqdExctnDt><Dt>${day(0)}</Dt></ReqdExctnDt>`);
+  expect(xml).toContain(`<ReqdExctnDt><Dt>${currentDay()}</Dt></ReqdExctnDt>`);
   endToEndId = /<EndToEndId>(HABEN-[0-9A-F]{16})<\/EndToEndId>/.exec(xml)?.[1] ?? "";
   expect(endToEndId).not.toBe("");
   await expect(page.getByRole("status").filter({ hasText: "erzeugt: 1 Überweisung über 45,90 €" })).toBeVisible();
@@ -380,8 +457,8 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const card = page.getByRole("form", { name: "DATEV-Export" });
   await card.getByLabel("Beraternummer").fill("29098");
   await card.getByLabel("Mandantennummer").fill("55003");
-  await card.getByRole("button", { name: "Nummern speichern" }).click();
-  await expect(card.getByRole("status")).toHaveText("Nummern gespeichert.");
+  await card.getByRole("button", { name: "Speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Gespeichert.");
   const link = card.getByRole("link", { name: "Buchungsstapel herunterladen" });
   const response = await page.request.get((await link.getAttribute("href"))!);
   expect(response.status()).toBe(200);
@@ -542,8 +619,8 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await edit.getByRole("button", { name: "Speichern" }).click();
   await expect(menu.getByRole("link", { name: "Abholung" })).toBeVisible();
   await expect(menu.getByRole("link", { name: "Lager" })).toHaveCount(0);
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Abholung entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(page.getByText("Seite entfernt.")).toBeVisible();
   // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
@@ -582,7 +659,7 @@ test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async ({ browser
   await form.getByLabel("Geburtsdatum").fill("2001-03-15");
   await form.getByLabel("Art der Beschäftigung").selectOption("minijob");
   await form.getByLabel("Monatsgehalt brutto in Euro").fill("520,00");
-  await form.getByLabel("Eintritt", { exact: true }).fill(`${new Date().getFullYear()}-01-01`);
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${currentYear()}-01-01`);
   await form.getByLabel("Steuer-ID").fill("47291830467");
   await form.getByLabel("Versicherungsnummer").fill("65150301A123");
   await form.getByLabel("Personengruppe").fill("109");

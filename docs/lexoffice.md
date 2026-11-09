@@ -1,3 +1,10 @@
+---
+title: "Umzug aus Lexoffice / Lexware Office ohne Datenverlust"
+description: >-
+  Von Lexware Office (Lexoffice) zu Haben wechseln: Rechnungen, Belege, Kontakte und Buchungen
+  übernehmen, unveränderlich archivieren und das Abo kündigen.
+---
+
 # Umzug aus Lexoffice / Lexware Office
 
 Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).
@@ -156,7 +163,7 @@ Gibt es in Haben schon einen Kontakt mit demselben Namen (Groß- und Kleinschrei
 
 Die API erlaubt etwa zwei Anfragen pro Sekunde. Haben hält zwischen zwei Anfragen mindestens 600 ms Abstand und wiederholt bei Rate-Limit (429) oder Serverfehlern (502, 503, 504) und Netzwerkfehlern bis zu fünfmal, mit wachsender Wartezeit bzw. so lange, wie die API mit `Retry-After` verlangt. Bei einigen hundert Belegen dauert der Abruf deshalb eine Weile.
 
-- **Abbrechen** beendet den Lauf. Ein neuer Abruf überspringt alles, was schon da ist, und setzt dort fort.
+- **Abbrechen** beendet den Lauf nach einer Rückfrage. Ein neuer Abruf überspringt alles, was schon da ist, und setzt dort fort; nur Kontakte und Belegliste liest er noch einmal.
 - Wird der Server während des Abrufs neu gestartet, markiert Haben den Lauf nach drei Minuten ohne Fortschritt als abgebrochen. Auch dann setzt „Erneut abrufen“ fort.
 - Ist der Schlüssel ungültig oder fehlt die Berechtigung (Tarif gewechselt), bricht der Lauf mit Fehlermeldung ab.
 - Schlägt ein einzelner Beleg fehl, läuft der Abruf weiter. Die fehlgeschlagenen Belege stehen mit Nummer und Fehlermeldung in einer aufklappbaren Liste; der nächste Abruf versucht sie erneut.
@@ -285,7 +292,7 @@ Für die Steuern braucht Haben Hebesatz und Verlustvorträge des Jahres; du trä
 
 ### Eröffnung aus dem DATEV-Stapel (GmbH und UG)
 
-Für das erste Jahr in Haben schlägt Haben die Eröffnungsbuchung aus der Schlussbilanz des letzten archivierten Stapeljahres vor, statt dass du sie von Hand abtippst. Du findest den Vorschlag unter **Buchungen › Buchung erfassen**, wenn du **Eröffnungsbuchung** wählst, unter dem Formular: alle Bestandskonten mit Saldo gegen 9000 Saldenvorträge am 1. Januar, das Ergebnis des letzten Stapeljahres als Gewinn- bzw. Verlustvortrag (SKR03 0860/0868, SKR04 2970/2978). Du prüfst die Zeilen, vergleichst die Bilanzsumme mit der Bilanz der Steuerberatung und bestätigst mit **Eröffnung buchen** und **Jetzt buchen**. Erst dann bucht Haben. Danach ist 9000 ausgeglichen, und die Bilanz zum 1. Januar ist die Schlussbilanz des Stapels. Das verlangt der Grundsatz der Bilanzidentität ([§ 252 Abs. 1 Nr. 1 HGB](https://www.gesetze-im-internet.de/hgb/__252.html)): Die Eröffnungsbilanz eines Jahres stimmt mit der Schlussbilanz des Vorjahres überein.
+Für das erste Jahr in Haben schlägt Haben die Eröffnungsbuchung aus der Schlussbilanz des letzten archivierten Stapeljahres vor, statt dass du sie von Hand abtippst. Du findest den Vorschlag unter **Buchungen › Buchung erfassen**, wenn du **Eröffnungsbuchung** wählst, unter dem Formular: alle Bestandskonten mit Saldo gegen 9000 Saldenvorträge am 1. Januar, das Ergebnis des letzten Stapeljahres als Gewinn- bzw. Verlustvortrag (SKR03 0860/0868, SKR04 2970/2978). Du prüfst die Zeilen, vergleichst die Bilanzsumme mit der Bilanz der Steuerberatung und bestätigst mit **Eröffnung buchen** und im Dialog **Buchen**. Erst dann bucht Haben. Danach ist 9000 ausgeglichen, und die Bilanz zum 1. Januar ist die Schlussbilanz des Stapels. Das verlangt der Grundsatz der Bilanzidentität ([§ 252 Abs. 1 Nr. 1 HGB](https://www.gesetze-im-internet.de/hgb/__252.html)): Die Eröffnungsbilanz eines Jahres stimmt mit der Schlussbilanz des Vorjahres überein.
 
 Gebucht wird genau, was du gesehen hast: Haben rechnet den Vorschlag beim Buchen neu und vergleicht ihn über eine Prüfsumme mit dem angezeigten. Hat sich etwas geändert (ein weiterer Stapel, eine Übernahme dazwischen), lehnt es ab und du lädst die Seite neu. Die Zeilen lassen sich nicht bearbeiten; passt etwas nicht, korrigierst du es nach der Eröffnung mit einer Umbuchung oder storniert die Eröffnung. Die Buchung hat die Herkunft „Eröffnung“ und verweist als Beleg auf die archivierte Stapel-Datei.
 

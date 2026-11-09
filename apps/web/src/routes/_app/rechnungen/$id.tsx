@@ -25,6 +25,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -163,14 +164,9 @@ function FinalInvoice({ data }: { data: Detail }) {
   const cancelled = correctedBy.find((c) => c.kind === "storno" && c.status === "final");
   const canAmend = inhaber && invoice.kind === "rechnung" && !cancelled;
 
-  const onCancel = () => {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  const cancelNow = () => {
     void run(async () => {
       const storno = await cancel({ data: invoice.id });
-      setConfirming(false);
       await router.invalidate();
       await navigate({ to: "/rechnungen/$id", params: { id: storno.id } });
     });
@@ -460,14 +456,24 @@ function FinalInvoice({ data }: { data: Detail }) {
                 Festgeschriebene Rechnungen bleiben unverändert. Eine Stornorechnung hebt sie vollständig auf, eine Rechnungskorrektur mindert den Betrag
                 teilweise.
               </p>
-              {confirming && (
-                <div className="banner" role="alert">
-                  Es wird sofort eine Stornorechnung mit neuer Nummer erzeugt und gebucht. Noch einmal klicken zum Stornieren.
-                </div>
-              )}
+              <ConfirmDialog
+                open={confirming}
+                title="Rechnung stornieren?"
+                facts={[
+                  { label: "Nummer", value: invoice.number ?? "–" },
+                  ...(buyer ? [{ label: "Kunde", value: buyer.name }] : []),
+                  { label: "Betrag", value: formatEuro(invoice.gross), strong: true },
+                ]}
+                confirmLabel="Stornieren"
+                danger
+                onConfirm={cancelNow}
+                onClose={() => setConfirming(false)}
+              >
+                <p>Es wird sofort eine Stornorechnung mit neuer Nummer erzeugt und gebucht.</p>
+              </ConfirmDialog>
               <div className="actions">
-                <button type="button" className="btn btn-danger" onClick={onCancel} disabled={busy}>
-                  {confirming ? "Jetzt stornieren" : "Stornieren"}
+                <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)} disabled={busy}>
+                  Stornieren
                 </button>
                 <button type="button" className="btn" onClick={onCorrect} disabled={busy}>
                   Rechnungskorrektur anlegen
@@ -532,6 +538,7 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
   const [kind, setKind] = useState<"skonto" | "forderungsausfall">("forderungsausfall");
   const [amount, setAmount] = useState(formatDecimal(open));
   const [date, setDate] = useState(today);
+  const [reversing, setReversing] = useState<WriteOffRow | null>(null);
   const parsed = parseEuro(amount);
 
   function onSubmit(event: FormEvent) {
@@ -546,6 +553,31 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
   return (
     <section className="card" aria-labelledby="writeoff-heading">
       <h2 id="writeoff-heading">Ausbuchen</h2>
+      <ConfirmDialog
+        open={reversing !== null}
+        title="Ausbuchung aufheben?"
+        confirmLabel="Ausbuchung aufheben"
+        danger
+        facts={
+          reversing
+            ? [
+                { label: "Art", value: WRITE_OFF_KINDS[reversing.kind] },
+                { label: "Betrag", value: formatEuro(reversing.amount), strong: true },
+              ]
+            : []
+        }
+        onConfirm={() => {
+          if (!reversing) return;
+          const { id } = reversing;
+          void run(async () => {
+            await reverseFn({ data: id });
+            await router.invalidate();
+          });
+        }}
+        onClose={() => setReversing(null)}
+      >
+        <p>Haben erzeugt dafür eine Gegenbuchung. Der Betrag ist danach wieder offen, Erlöse und Umsatzsteuer werden entsprechend korrigiert.</p>
+      </ConfirmDialog>
       {writeOffs.map((w) => (
         <div key={w.id} className="history-row">
           <span style={{ textDecoration: w.reversed ? "line-through" : undefined }}>
@@ -559,17 +591,7 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
               ) : w.cashEntryId ? (
                 "· mit der Bareinnahme im Kassenbuch stornieren"
               ) : (
-                <button
-                  type="button"
-                  className="link-button"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      await reverseFn({ data: w.id });
-                      await router.invalidate();
-                    })
-                  }
-                >
+                <button type="button" className="link-button" disabled={busy} onClick={() => setReversing(w)}>
                   Aufheben
                 </button>
               ))}

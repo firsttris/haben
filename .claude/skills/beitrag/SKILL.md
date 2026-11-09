@@ -32,7 +32,7 @@ Ist ein Werkzeug für GitHub verfügbar, egal unter welchem Namen (CLI wie `gh`,
 Als Datei schreiben (etwa im Scratchpad), auf Deutsch:
 
 - Titel: `Bereich: was sich ändert (#Issue)`.
-- Was und warum, `Closes #…`, wie geprüft, **was übersprungen wurde** (Skill `checks`, Schritt 4).
+- Was und warum, `Refs #…` (nicht `Closes`/`Fixes`: das Issue bleibt bis zur Rückmeldung offen, siehe Label `rückmeldung`), wie geprüft, **was übersprungen wurde** (Skill `checks`, Schritt 4).
 - **UI/UX geändert:** Bilder vorher und nachher, hell und dunkel, wo nötig Handy (Skill `pr-screenshots`). Fehlen die Vorher-Bilder, dort Schritt „Nachträglich“.
 - Letzte Zeile: „🤖 Generated with <Werkzeug>“, wenn ein Agent wesentlich mitgeschrieben hat.
 

@@ -10,7 +10,7 @@ import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyC
 import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.tsx";
 import { AbgabeVermerken } from "../../../components/umsatzsteuer/AbgabeVermerken.tsx";
 import { UstvaZahlung } from "../../../components/umsatzsteuer/UstvaZahlung.tsx";
-import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
+import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
 import type { Notice } from "../../../lib/use-action.ts";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   component: VatPeriodPage,
 });
 
-const ELSTER_ABGABE_DOCS = "https://firsttris.github.io/haben/elster-abgabe.html";
+const ELSTER_ABGABE_DOCS = "https://haben.app/elster-abgabe.html";
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
 type FieldKey =
@@ -708,7 +708,13 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             title="An ELSTER übermitteln"
             ready={valid && data.companyIssues.length === 0}
             busy={busy}
-            confirmText="Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben. Noch einmal klicken zum Senden."
+            confirmTitle="Voranmeldung verbindlich senden?"
+            confirmFacts={[
+              { label: "Steuerart", value: "Umsatzsteuer-Voranmeldung" },
+              { label: "Zeitraum", value: periodLabel(data.period) },
+              zahllastFakt(shown.kz83),
+            ]}
+            confirmText="Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben."
             footer="ERiC prüft die Daten vor dem Versand. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert."
             onSubmit={onSubmit}
           />
@@ -764,6 +770,7 @@ function SourcesToggle({
           ...plural(count("entnahme"), "Privatnutzung", "Privatnutzungen"),
           ...plural(count("ausbuchung"), "Ausbuchung", "Ausbuchungen"),
           ...plural(count("direkt"), "Direktbuchung", "Direktbuchungen"),
+          ...plural(count("kasse"), "Bareinnahme", "Bareinnahmen"),
         ].join(", ");
   return (
     <button type="button" className="kz-sources-toggle" aria-expanded={open} aria-controls={controls} onClick={onToggle}>
@@ -792,6 +799,10 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
                 {"assetId" in row && row.assetId ? (
                   <Link to="/anlagen/$id" params={{ id: row.assetId }}>
                     Privatnutzung · {row.customer}
+                  </Link>
+                ) : "cashEntryId" in row && row.cashEntryId ? (
+                  <Link to="/kasse" search={{ jahr: Number(row.date.slice(0, 4)) }}>
+                    Bareinnahme · {row.customer}
                   </Link>
                 ) : "transactionId" in row && row.transactionId ? (
                   <Link to="/bank" search={{ umsatz: row.transactionId }}>

@@ -24,6 +24,8 @@ import {
   getBankOverview,
   getEnableBanks,
   importStatements,
+  neutralizeBankTransactions,
+  reverseBankNeutralization,
   transferBetweenAccounts,
   updateBankAccount,
   reverseTransactionAllocation,
@@ -32,6 +34,9 @@ import {
 } from "../../server/functions/bank.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
+import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
+import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
+import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -53,6 +58,7 @@ export const Route = createFileRoute("/_app/bank")({
 
 type Data = Awaited<ReturnType<typeof getBankOverview>>;
 type Detail = NonNullable<Data["detail"]>;
+type Allocation = Detail["allocations"][number];
 
 const HINT = {
   vorschlag: { text: "Vorschlag", tone: "pill-info" },
@@ -60,6 +66,7 @@ const HINT = {
   offen: { text: "Offen", tone: "" },
   teilweise: { text: "Teilweise", tone: "pill-info" },
   zugeordnet: { text: "Zugeordnet", tone: "pill-ok" },
+  verrechnet: { text: "Verrechnet", tone: "pill-ok" },
 } as const;
 
 const KIND_LABEL = {
@@ -87,6 +94,31 @@ const KIND_LABEL = {
  * Steuerbescheide, Kreditverträge oder Abrechnungen; den Zahlungsnachweis bildet der Bankumsatz selbst.
  */
 const DIRECT_HINT = "Bankumsatz einer Buchungsart zuordnen, ohne einen separaten Beleg anzulegen.";
+
+/** Wie die Zuordnung in der Liste und in der Rückfrage heißt */
+function zuordnungText(a: Allocation, gesellschaft: boolean): string {
+  return [
+    a.kind === "privat" && gesellschaft ? "Gesellschafter" : KIND_LABEL[a.kind],
+    a.invoiceNumber ? ` ${a.invoiceNumber}` : "",
+    a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : "",
+    a.vatReturnLabel ? ` ${a.vatReturnLabel}` : "",
+    a.steuerLabel ? `: ${a.steuerLabel}` : "",
+    a.darlehenLabel ? `: ${a.darlehenLabel}` : "",
+    a.kategorieLabel ? `: ${a.kategorieLabel}` : "",
+  ].join("");
+}
+
+/** Bei einer Aufteilung hebt der Server alle Teile auf, also nennt die Rückfrage auch alle */
+function zuAufhebendeZuordnung(a: Allocation, allocations: Allocation[], gesellschaft: boolean): AufzuhebendeZuordnung {
+  const teile = a.splitId ? allocations.filter((other) => other.splitId === a.splitId && !other.reversed) : [a];
+  return {
+    id: a.id,
+    bezeichnung: a.splitId ? `Aufteilung in ${teile.length} Teile` : zuordnungText(a, gesellschaft),
+    betrag: teile.reduce((summe, teil) => summe + teil.amount, 0),
+    aufteilung: a.splitId !== null,
+    mitBeleg: teile.some((teil) => teil.kind === "invoice" || teil.kind === "document"),
+  };
+}
 
 /** „Direkt buchen“: Buchungsarten ohne Beleg, Kategorie mit Steuersatz, Steuerzahlung mit Steuerart, Bezugsjahr und Teil, Darlehen */
 type DirectChoice = DirectBooking | "kategorie" | "steuer" | "darlehen";
@@ -137,7 +169,7 @@ function BankPage() {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
-      if (target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isDialogOpen() || target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
       const step = event.key === "j" ? 1 : event.key === "k" ? -1 : 0;
       if (!step) return;
       const next = data.transactions[index + step];
@@ -388,6 +420,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
   const disconnectFn = useServerFn(disconnectBank);
   const connectFn = useServerFn(connectBank);
   const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState<Sync["connections"][number] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
 
@@ -449,6 +482,23 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
 
       {connecting && <ConnectForm onCancel={() => setConnecting(false)} callbackUrl={sync.callbackUrl} connect={connectFn} />}
 
+      <ConfirmDialog
+        open={disconnecting !== null}
+        title={`Verbindung zu ${disconnecting?.aspspName} trennen?`}
+        confirmLabel="Trennen"
+        danger
+        onConfirm={() => {
+          if (!disconnecting) return;
+          const { id } = disconnecting;
+          void run(`x-${id}`, async () => {
+            await disconnectFn({ data: id });
+          });
+        }}
+        onClose={() => setDisconnecting(null)}
+      >
+        <p>Die abgerufenen Umsätze bleiben erhalten.</p>
+      </ConfirmDialog>
+
       {sync.connections.length === 0 && !connecting && (
         <p className="small muted" style={{ margin: 0 }}>
           Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
@@ -498,18 +548,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
                   Zustimmung erneuern
                 </button>
               )}
-              <button
-                type="button"
-                className="btn"
-                disabled={busy !== null}
-                onClick={() => {
-                  if (window.confirm(`Verbindung zu ${c.aspspName} trennen? Die abgerufenen Umsätze bleiben erhalten.`)) {
-                    void run(`x-${c.id}`, async () => {
-                      await disconnectFn({ data: c.id });
-                    });
-                  }
-                }}
-              >
+              <button type="button" className="btn" disabled={busy !== null} onClick={() => setDisconnecting(c)}>
                 Trennen
               </button>
             </div>
@@ -862,7 +901,9 @@ function AllocationPanel({
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
-  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege } = detail;
+  const neutralizeFn = useServerFn(neutralizeBankTransactions);
+  const reverseNeutralizationFn = useServerFn(reverseBankNeutralization);
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege, neutralization } = detail;
   // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
   const best = suggestions[0];
@@ -877,6 +918,7 @@ function AllocationPanel({
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
+  const [reversing, setReversing] = useState<AufzuhebendeZuordnung | null>(null);
   const primaryButton = useRef<HTMLButtonElement>(null);
 
   const parsedAmount = parseEuro(amount);
@@ -929,7 +971,7 @@ function AllocationPanel({
   // Enter ordnet zu, solange der Fokus nicht in einem Eingabefeld liegt
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key !== "Enter" || tx.open === 0) return;
+      if (event.key !== "Enter" || tx.open === 0 || isDialogOpen()) return;
       const target = event.target as HTMLElement;
       if (target.closest("input, select, textarea, button, a")) return;
       event.preventDefault();
@@ -1006,22 +1048,19 @@ function AllocationPanel({
           {allocations.map((a) => (
             <div key={a.id} className="history-row">
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ textDecoration: a.reversed ? "line-through" : undefined }}>
-                  {a.kind === "privat" && gesellschaft ? "Gesellschafter" : KIND_LABEL[a.kind]}
-                  {a.invoiceNumber ? ` ${a.invoiceNumber}` : ""}
-                  {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
-                  {a.vatReturnLabel ? ` ${a.vatReturnLabel}` : ""}
-                  {a.steuerLabel ? `: ${a.steuerLabel}` : ""}
-                  {a.darlehenLabel ? `: ${a.darlehenLabel}` : ""}
-                  {a.kategorieLabel ? `: ${a.kategorieLabel}` : ""}
-                </span>
+                <span style={{ textDecoration: a.reversed ? "line-through" : undefined }}>{zuordnungText(a, gesellschaft)}</span>
                 <span className="small muted">
                   {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
                   {a.splitId ? " · Teil einer Aufteilung" : ""}
                 </span>
               </div>
               {!a.reversed && (!a.splitId || firstOfSplit.has(a.id)) && (
-                <button type="button" className="btn btn-sm btn-danger" onClick={() => run(() => reverseFn({ data: a.id }))} disabled={busy}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))}
+                  disabled={busy}
+                >
                   {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
                 </button>
               )}
@@ -1030,7 +1069,10 @@ function AllocationPanel({
         </div>
       )}
 
+      <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
+
       <NoticeBanner notice={notice} />
+      <ZuordnungAufheben ziel={reversing} onConfirm={(id) => void run(() => reverseFn({ data: id }))} onClose={() => setReversing(null)} />
 
       {tx.open !== 0 && mode === "split" && (
         <SplitForm
@@ -1296,6 +1338,12 @@ function AllocationPanel({
           >
             Aufteilen
           </button>
+          <VerrechnenFormular
+            candidates={neutralization.candidates}
+            busy={busy}
+            // Bleibt beim Umsatz: Er zeigt danach die Verrechnung; der nächste offene könnte gerade der Gegenumsatz sein
+            onSubmit={(input) => void run(() => neutralizeFn({ data: { transactionId: tx.id, ...input } }))}
+          />
           <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
         </>
       )}

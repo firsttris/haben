@@ -5,12 +5,13 @@ import { useId, useState } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { bookDatevEroeffnungFn, type getManualEntryForm } from "../server/functions/journal.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Data = NonNullable<Awaited<ReturnType<typeof getManualEntryForm>>["datevEroeffnung"]>;
 
 /**
  * Vorschlag für die Eröffnung aus der Schlussbilanz des DATEV-Stapels: die Zeilen zum Prüfen, gebucht erst nach
- * Bestätigung (zweiter Klick). Was nicht passt, steht als Liste darüber, dann gibt es keinen Knopf.
+ * Bestätigung im Dialog. Was nicht passt, steht als Liste darüber, dann gibt es keinen Knopf.
  */
 export function DatevEroeffnung({ data }: { data: Data }) {
   const headingId = useId();
@@ -22,11 +23,7 @@ export function DatevEroeffnung({ data }: { data: Data }) {
   const haben = data.zeilen.reduce((s, z) => s + z.credit, 0);
   const buchbar = data.issues.length === 0;
 
-  function onBook() {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  function bookNow() {
     void run(async () => {
       await book({ data: { year: data.year, fingerprint: data.fingerprint } });
       await navigate({ to: "/buchungen", search: { jahr: data.year, monat: 1 } });
@@ -99,16 +96,16 @@ export function DatevEroeffnung({ data }: { data: Data }) {
       )}
       {buchbar && (
         <div className="actions">
-          <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy}>
-            {confirming ? "Jetzt buchen" : "Eröffnung buchen"}
+          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy}>
+            Eröffnung buchen
           </button>
-          {confirming && (
-            <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={busy}>
-              Abbrechen
-            </button>
-          )}
         </div>
       )}
+      <ConfirmDialog open={confirming} title={`Eröffnung ${data.year} buchen?`} confirmLabel="Buchen" onConfirm={bookNow} onClose={() => setConfirming(false)}>
+        <p>
+          Die {data.zeilen.length} Zeilen werden als Eröffnung {data.year} gebucht und festgeschrieben; korrigieren geht danach nur mit Storno.
+        </p>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
     </section>
   );

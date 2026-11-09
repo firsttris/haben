@@ -1,3 +1,10 @@
+---
+title: "Erste Schritte: Firmendaten, Kontenrahmen, ELSTER einrichten"
+description: >-
+  Haben nach der Installation einrichten: Konto und Passkey, Firmendaten, Ist- oder Soll-
+  Versteuerung, SKR03 oder SKR04, Rechnungsnummern, ELSTER und KI-Auslesung.
+---
+
 # Erste Schritte
 
 Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und Passkey, Zugang für die Steuerberatung, App auf Handy und Rechner, Firmendaten, Versteuerung und Kontenrahmen, Rechnungsnummern, ELSTER, KI-Auslesung und Bankkonten. Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).
@@ -30,7 +37,7 @@ Direkt danach bietet Haben an, einen Passkey hinzuzufügen. Damit meldest du dic
 
 Auf der Anmeldeseite wählst du „Mit Passkey anmelden“. Über „Passwort verwenden“ meldest du dich mit E-Mail und Passwort an. Unterstützt der Browser Passkey-Autofill, schlägt er den Passkey dort auch direkt im Feld E-Mail vor.
 
-Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
+Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weitere hinzufügen (z. B. für Handy und Laptop) oder alte nach einer Rückfrage entfernen. Passkeys hängen an der Domain aus `BETTER_AUTH_URL`; bei einem Domainwechsel musst du sie neu anlegen.
 
 ## Zugang für die Steuerberatung
 
@@ -38,7 +45,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -75,6 +82,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Telefon | Auf der Rechnung; für XRechnung Pflicht |
 | Bank, IBAN, BIC | Zahlungsangaben auf der Rechnung. Die IBAN ist Pflicht zum Festschreiben; Eingabe ohne Leerzeichen, Haben entfernt sie aber auch selbst |
 | Kontoinhaber | Nur nötig, wenn das Konto nicht auf den Firmennamen läuft. Steht im GiroCode, in der Fußzeile und in der E-Rechnung (BT-85); leer = Firmenname. Höchstens 70 Zeichen, siehe [GiroCode](rechnungen.md#girocode) |
+| Gläubiger-ID | Nur für [SEPA-Lastschriften](rechnungen.md#sepa-lastschriftmandate) nötig. Die Bundesbank vergibt sie auf Antrag; 18 Stellen wie `DE98ZZZ09999999999`. Haben prüft die Prüfziffer nach EPC262-08 und speichert sie ohne Leerzeichen |
 | Rechtsform | Einzelunternehmen, GmbH oder UG (haftungsbeschränkt), siehe [unten](#rechtsform-einzelunternehmen-gmbh-oder-ug) |
 | Einkunftsart | Nur im Einzelunternehmen: selbständige Arbeit oder Gewerbebetrieb, für die Anlage EÜR, siehe [Jahreserklärungen](jahreserklaerung.md) |
 | Sitz, Registergericht, Registernummer | Nur GmbH und UG, Abschnitt **Handelsregister und Geschäftsführung**: wie im Registerauszug, etwa „Amtsgericht Bremen“ und „HRB 12345 HB“. Sie gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), stehen auf der [Bilanz zur Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug) und auf jedem Geschäftsbrief (siehe [Pflichtangaben einer GmbH oder UG](rechnungen.md#pflichtangaben-einer-gmbh-oder-ug)). Sitz laut Gesellschaftsvertrag; leer = Ort der Anschrift |
@@ -96,22 +104,42 @@ Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
 
 ### Logo
 
-Unter **Einstellungen › Rechnungen › Logo** lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
+Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
-- Es steht oben rechts im Briefkopf von Rechnungen, Angeboten und Mahnungen, höchstens 18 mm hoch und 60 mm breit, ohne Verzerrung.
+- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert.
 - Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
 ### Akzentfarbe
 
-Unter **Einstellungen › Rechnungen › Akzentfarbe** stellst du die Farbe der Spaltenköpfe und Linien ein, etwa passend zu deinem Logo. Ab Werk ist es das Grün `#1F6F5C`.
+Unter **Einstellungen › Beleggestaltung › Akzentfarbe** stellst du die Farbe der Spaltenköpfe und Linien ein, etwa passend zu deinem Logo. Ab Werk ist es das Grün `#1F6F5C`.
 
 - Text, Adressen, Beschriftungen, Positionen, dünne Linien und Fußzeile stehen in Grautönen, die Haben aus der Akzentfarbe ableitet: gleiche Helligkeit wie ab Werk, aber mit ihrem Farbton. Bei Blau sind sie leicht bläulich, bei einer grauen Akzentfarbe neutral grau; mit dem Standardgrün bleibt alles wie bisher.
 - Du wählst sie mit dem Farbfeld oder trägst sie als Hex-Wert in der Form `#RRGGBB` ein; **Auf Standard zurücksetzen** stellt das Grün wieder her.
-- Sie gilt für Rechnungen, Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen, die ab dann entstehen, und für die Vorschau im Editor; schon festgeschriebene PDFs bleiben unverändert.
+- Sie gilt für Rechnungen und Angebote, die ab dann festgeschrieben werden, und für die Vorschau im Editor; schon festgeschriebene PDFs bleiben unverändert.
+- Eine Mahnung, Auftragsbestätigung oder ein Lieferschein zu einem älteren Beleg entsteht neu und bekommt deshalb die dann aktuelle Farbe und das aktuelle Logo.
 - Ist die Farbe auf weißem Papier schwer zu lesen (Kontrast unter 4,5 : 1 nach WCAG), weist Haben darauf hin. Speichern geht trotzdem; eine dunklere Variante des Logo-Farbtons liest sich besser.
-- Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
+- Die Änderung steht im Änderungsprotokoll.
+
+### Logo und Blatt
+
+Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) legst du fest, wie das Blatt aussieht. Es gilt für alles, was ab dann erzeugt wird, auch für Mahnung, Auftragsbestätigung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben unverändert.
+
+| Einstellung | Bedeutung |
+| --- | --- |
+| Logo S, M, L | Höchstens 12 × 40 mm, 18 × 60 mm (ab Werk) oder 24 × 80 mm; auch L endet über dem Anschriftfeld |
+| Logo links, rechts | Seite im Briefkopf |
+| Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |
+| GiroCode | QR-Code für die Überweisung, auf Rechnung und Mahnung |
+| Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
+| Spalte USt je Position | Entfällt nur, wenn alle Positionen denselben Steuersatz haben; bei mehreren Sätzen bleibt sie stehen |
+
+Pflichtangaben und Summen lassen sich nicht ausblenden.
+
+### Layouts
+
+Unter **Einstellungen › Beleggestaltung › Layouts** siehst du, welches Layout jede Belegart bekommt. Noch gibt es nur das eingebaute Layout „Klassisch“. Weitere Layouts und eigene Vorlagen sind [geplant](roadmap.md).
 
 ## Persönliche Angaben
 
@@ -307,7 +335,7 @@ Wie der Plan im Angebot wirkt, steht unter [Zahlungsplan](angebote.md#zahlungspl
 
 Unter **Einstellungen › Rechnungen › Standardanhänge für Angebote** hinterlegst du einmal PDF-Dateien, die mit fast jedem Angebot mitgehen, etwa AGB oder eine Widerrufsbelehrung. Es gelten dieselben Regeln wie für [Anhänge am Angebot](angebote.md#anhänge): nur PDF, bis 20 MB, höchstens zehn.
 
-- Jedes **neue Angebot** bekommt sie beim ersten Speichern als Anhänge. Beim Versand sind sie vorausgewählt; im Entwurf nimmst du einen mit **Entfernen** heraus, wenn er für dieses Angebot nicht passt.
+- Jedes **neue Angebot** bekommt sie beim ersten Speichern als Anhänge. Beim Versand sind sie vorausgewählt; im Entwurf nimmst du einen mit **Entfernen** nach einer Rückfrage heraus, wenn er für dieses Angebot nicht passt.
 - Mit dem Festschreiben sind sie wie alle Anhänge mit dem Angebot gesperrt. So bleibt nachvollziehbar, welche Fassung der AGB mit welchem Angebot ging.
 - Änderst du die Standardanhänge später, etwa mit neuen AGB, bekommen erst die danach angelegten Angebote die neue Fassung; bestehende Angebote und Entwürfe bleiben, wie sie sind. **Kopieren** übernimmt die Anhänge des kopierten Angebots, nicht die aktuellen Standardanhänge.
 - Jede Änderung steht im Änderungsprotokoll.
@@ -377,7 +405,7 @@ Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigene
 6. **Formate prüfen.** Unter **Einstellungen › ELSTER › ERiC** lässt **Formate mit ERiC prüfen** ERiC alle Nachrichten von Belegabruf, Berechtigung und Postfach gegen seine Schemas prüfen, ohne etwas zu senden. Diese Formate stammen aus freien Projekten (erica, viking) statt aus der amtlichen Jahresdokumentation; die Prüfung zeigt sofort, ob eine Version oder ein Feldname nicht mehr passt. Bemängelt ERiC etwas, bitte die Meldungen als Issue melden.
 7. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
 8. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit deiner Hersteller-ID und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf. Erst danach den Haken „Nur Testübermittlung“ entfernen.
-9. **Echtübermittlung.** Ohne Haken fragt Haben noch einmal nach („Jetzt verbindlich senden“). Nach erfolgreicher Übermittlung ist die Voranmeldung festgeschrieben; eine Korrektur ist eine neue, berichtigte Anmeldung.
+9. **Echtübermittlung.** Ohne Haken fragt Haben in einem Dialog nach („Verbindlich senden“). Nach erfolgreicher Übermittlung ist die Voranmeldung festgeschrieben; eine Korrektur ist eine neue, berichtigte Anmeldung.
 
 Die PIN fragt Haben bei jeder Übermittlung ab. Nur für den automatischen Postfach-Abruf kannst du sie verschlüsselt speichern, siehe [Finanzamt](finanzamt.md#automatisch-abrufen). Für den Versand legt Haben das entschlüsselte Zertifikat kurz in ein temporäres Verzeichnis (Rechte `0600`) und löscht es danach. Jede Prüfung und Übermittlung landet mit Transfer-Ticket und ERiC-Protokoll-PDF im Verlauf der Voranmeldung.
 

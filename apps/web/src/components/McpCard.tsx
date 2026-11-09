@@ -3,13 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { formatDate, formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { createMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSettings } from "../server/functions/mcp.ts";
 
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
-export const MCP_DOCS = "https://firsttris.github.io/haben/ki-assistenten.html";
-export const API_DOCS = "https://firsttris.github.io/haben/api.html";
+export const MCP_DOCS = "https://haben.app/ki-assistenten.html";
+export const API_DOCS = "https://haben.app/api.html";
 
 const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill" } as const;
 
@@ -22,6 +23,7 @@ export function McpCard({ data }: { data: Data }) {
   const { busy, notice, run } = useAction();
   const [created, setCreated] = useState<{ name: string; token: string; scopes: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [revoking, setRevoking] = useState<Data["tokens"][number] | null>(null);
   // Erst nach dem Hydrieren: der Server kennt die Adresse im Browser nicht, sonst wiche der Text ab (React #418)
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
@@ -100,6 +102,23 @@ export function McpCard({ data }: { data: Data }) {
       {data.enabled && (
         <section className="card" aria-labelledby="mcp-token-heading">
           <h2 id="mcp-token-heading">API-Tokens</h2>
+          <ConfirmDialog
+            open={revoking !== null}
+            title={`Token „${revoking?.name}“ widerrufen?`}
+            confirmLabel="Widerrufen"
+            danger
+            onConfirm={() => {
+              if (!revoking) return;
+              const { id } = revoking;
+              void run(async () => {
+                await revoke({ data: { id } });
+                await router.invalidate();
+              }, "Token widerrufen.");
+            }}
+            onClose={() => setRevoking(null)}
+          >
+            <p>Das Werkzeug verliert sofort den Zugriff. Für neuen Zugriff legst du ein neues Token an und trägst es dort ein.</p>
+          </ConfirmDialog>
           <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
             Jeder Assistent und jedes Werkzeug bekommt ein eigenes Token mit nur den Rechten, die es braucht, und du kannst es jederzeit widerrufen. Haben
             speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen.
@@ -161,17 +180,7 @@ export function McpCard({ data }: { data: Data }) {
                   <span className="small muted">Rechte: {token.scopes.map(label).join(" · ")}</span>
                 </div>
                 {token.status === "aktiv" && (
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        await revoke({ data: { id: token.id } });
-                        await router.invalidate();
-                      }, "Token widerrufen.")
-                    }
-                  >
+                  <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRevoking(token)}>
                     Widerrufen
                   </button>
                 )}

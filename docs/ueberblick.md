@@ -1,3 +1,10 @@
+---
+title: "Alle Funktionen der Open-Source-Buchhaltung im Überblick"
+description: >-
+  Was Haben kann, Seite für Seite: Rechnungen, Belege, Bank, Umsatzsteuer, EÜR, Bilanz, Lohn und
+  ELSTER – Betrieb, Einrichtung und Technik im Detail.
+---
+
 # Dokumentation
 
 Hier steht alles über Haben im Detail: wie du es betreibst und einrichtest, was jede Seite macht, was im Hintergrund

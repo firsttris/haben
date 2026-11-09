@@ -1,3 +1,10 @@
+---
+title: "Umsatzsteuer-Voranmeldung per ELSTER übermitteln"
+description: >-
+  Die Umsatzsteuer-Voranmeldung für Monat oder Quartal aus den Buchungen berechnen, jede Kennzahl
+  nachvollziehen und direkt über ERiC an ELSTER senden.
+---
+
 # Umsatzsteuer-Voranmeldung
 
 Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal aus deinen Buchungen und übermittelt sie über ERiC an ELSTER. Du siehst, welche Zahlungen, Rechnungen und Belege hinter jeder Kennzahl stehen, kannst die Werte mit Begründung überschreiben und vor dem Senden prüfen oder testweise übermitteln.
@@ -23,7 +30,7 @@ Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite o
 3. Kennzahlen prüfen, bei Bedarf die Quellen aufklappen.
 4. **Nur prüfen**: ERiC prüft die Daten, ohne etwas zu senden.
 5. **Prüfen und testweise senden** mit gesetztem Haken **Nur Testübermittlung**: Übermittlung an den Testserver, nichts geht an dein Finanzamt.
-6. Haken entfernen, **Prüfen und senden**, dann **Jetzt verbindlich senden**.
+6. Haken entfernen, **Prüfen und senden**, dann im Dialog **Verbindlich senden**.
 
 Vor jedem Prüfen oder Senden speichert Haben den Entwurf, falls er neu oder geändert ist. Mit **Entwurf speichern** geht das auch ohne Prüfung.
 
@@ -302,7 +309,7 @@ Rechts steht der Bereich **An ELSTER übermitteln** mit dem hinterlegten Zertifi
 | --- | --- | --- |
 | **Nur prüfen** | vollständige Firmendaten | ERiC prüft das XML gegen die Regeln, ohne zu senden. |
 | **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC 43 sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
-| **Prüfen und senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Echte Übermittlung nach einer zweiten Bestätigung („Jetzt verbindlich senden“). |
+| **Prüfen und senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Echte Übermittlung nach der Rückfrage im Dialog („Verbindlich senden“). |
 
 Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. Mit echtem ERiC scheitern dann auch Prüfen und Test mit der Meldung, die eigene Hersteller-ID auch für Testfälle zu verwenden. Bis die Hersteller-ID da ist, gibst du in Mein ELSTER ab, am einfachsten über den XML-Import (siehe unten).
 
@@ -333,7 +340,7 @@ Hast du die Voranmeldung außerhalb von Haben abgegeben, per XML-Import in Mein 
 | Kz 83 laut Protokoll | die verbleibende Vorauszahlung bzw. der Überschuss, wie gemeldet |
 | Übermittlungsprotokoll (PDF) | das Protokoll aus Mein ELSTER |
 
-**Abgabe vermerken** schreibt die Anmeldung fest wie eine Übermittlung über ERiC: Status „Abgegeben … (vermerkt)“, die [Frist](fristen.md) ist erledigt, eine Berichtigung geht wie nach dem Senden über **Berichtigte Anmeldung anlegen**, und die Zahllast wird ein [offener Posten](#zahlung-an-das-finanzamt). Ein berechneter Entwurf wird vorher auf den Stand der Buchungen gebracht, wie vor dem Senden.
+**Abgabe vermerken** fragt in einem Dialog nach, der Tag, Transferticket und Kz 83 noch einmal zeigt, und schreibt die Anmeldung dann fest wie eine Übermittlung über ERiC: Status „Abgegeben … (vermerkt)“, die [Frist](fristen.md) ist erledigt, eine Berichtigung geht wie nach dem Senden über **Berichtigte Anmeldung anlegen**, und die Zahllast wird ein [offener Posten](#zahlung-an-das-finanzamt). Ein berechneter Entwurf wird vorher auf den Stand der Buchungen gebracht, wie vor dem Senden.
 
 Weicht Kz 83 laut Protokoll von der Anmeldung in Haben ab, lehnt Haben den Vermerk ab: Dann ist beim Finanzamt etwas anderes angekommen, als Haben gespeichert hat, etwa weil sich Buchungen nach dem Herunterladen des XML geändert haben oder du in Mein ELSTER Werte geändert hast. Prüfe die Abweichung; stimmen die Werte des Finanzamts, überschreibst du die Kennzahlen von Hand mit Begründung und vermerkst dann. Verglichen wird nur Kz 83, weil sie über Zahllast und Zahlung entscheidet; die übrigen Kennzahlen stehen im Protokoll.
 

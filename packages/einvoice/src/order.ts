@@ -1,5 +1,6 @@
+import { parseTextFormatting } from "@haben/core";
 import { texts, type Language } from "./i18n.ts";
-import { addressLines, footerData, itemNumberColumn, renderQuotePdfData, showsGrossPrices, templateLabels } from "./pdf.ts";
+import { addressLines, footerData, itemNumberColumn, renderQuotePdfData, showsCustomerNumber, showsGrossPrices, templateLabels } from "./pdf.ts";
 import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
 import { referenceMeta } from "./format.ts";
 import type { Buyer, InvoiceDocumentLine, Letterhead, OrderReferences, Seller } from "./types.ts";
@@ -53,7 +54,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     { label: t.deliveryDate, value: t.date(doc.deliveryDate) },
     { label: doc.reference.kind === "angebot" ? t.quoteRef : t.invoiceRef, value: `${doc.reference.number} (${t.date(doc.reference.issueDate)})` },
   ];
-  if (buyer.kundennummer) meta.push({ label: t.customerNumber, value: buyer.kundennummer });
+  if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: buyer.kundennummer! });
   meta.push(...referenceMeta(doc.references, t));
   return {
     docTitle: `${t.deliveryNote} ${doc.reference.number}`,
@@ -72,6 +73,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
       description: line.description,
       // Wie auf Rechnung und Angebot: der Text unter der Bezeichnung beschreibt, was geliefert wird
       detail: line.detail?.trim() ? line.detail.trim() : null,
+      detailFormatted: line.detail?.trim() ? parseTextFormatting(line.detail.trim()) : null,
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: "",
       rate: "",
@@ -83,6 +85,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     qr: null,
     taxNote: null,
     note: doc.note?.trim() ? doc.note.trim() : null,
+    noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
     ...footerData(seller, t),
   };
 }

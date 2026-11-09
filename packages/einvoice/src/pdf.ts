@@ -8,10 +8,15 @@ import { girocodeSvg } from "./qr.ts";
 import {
   accentPalette,
   DEFAULT_ACCENT,
+  DEFAULT_OPTIONS,
+  parseTextFormatting,
   discountedLineAmount,
   documentAllowances,
   lineAmount,
   lineDiscountAmount,
+  LOGO_SIZES,
+  distinctVatRates,
+  showsVatColumn,
   type Discount,
   type LegalInfo,
 } from "@haben/core";
@@ -23,7 +28,7 @@ const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
-const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
+const FONTS = ["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
 
 let compiler: NodeCompiler | undefined;
 
@@ -93,7 +98,10 @@ export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[
 
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
 export function documentPdfData(
-  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount">,
+  doc: Pick<
+    InvoiceDocument,
+    "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount" | "options"
+  >,
   t: Texts,
 ) {
   const { seller, buyer } = doc;
@@ -122,6 +130,7 @@ export function documentPdfData(
       itemNumber: line.itemNumber?.trim() ?? "",
       description: line.description,
       detail: line.detail?.trim() ? line.detail.trim() : null,
+      detailFormatted: line.detail?.trim() ? parseTextFormatting(line.detail.trim()) : null,
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: t.money(line.unitPrice),
       rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
@@ -133,7 +142,10 @@ export function documentPdfData(
     grossLabel: (label: string) => (gross ? t.inclVat(label) : label),
     taxNote: t.note(treatment, doc.exemptionReason),
     intro: doc.intro?.trim() ? doc.intro.trim() : null,
+    hideVatColumn: !showsVatColumn(doc.options?.vatColumn ?? true, treatment === "regulaer" ? distinctVatRates(doc.lines) : doc.totals.taxes.length),
     note: doc.note?.trim() ? doc.note.trim() : null,
+    introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
+    noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
     ...footerData(seller, t),
   };
 }
@@ -154,7 +166,7 @@ export function pdfData(doc: InvoiceDocument) {
     const date = doc.serviceFrom ?? doc.serviceTo;
     meta.push({ label: t.serviceDate, value: date ? t.date(date) : t.serviceDateDefault });
   }
-  if (buyer.kundennummer) meta.push({ label: t.customerNumber, value: buyer.kundennummer });
+  if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: buyer.kundennummer! });
   meta.push(...referenceMeta(doc.references, t));
   if (buyer.leitwegId) meta.push({ label: t.leitwegId, value: buyer.leitwegId });
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
@@ -181,7 +193,7 @@ export function pdfData(doc: InvoiceDocument) {
     payment: paymentSentence(doc, t),
     // GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto des Verkäufers (SEPA kennt nur Euro)
     qr:
-      doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban
+      doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban && doc.options?.giroCode !== false
         ? girocodeSvg({
             name: accountHolder(seller),
             iban: seller.iban,
@@ -310,9 +322,15 @@ export function logoFormat(data: Uint8Array): Logo["format"] | null {
 }
 
 /** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, accent = DEFAULT_ACCENT }: Letterhead): object {
-  return { ...data, accent, palette: accentPalette(accent), ...(logo ? { logo: `logo.${logo.format}` } : {}) };
+export function templateInputs(data: object, { logo, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
+  const size = LOGO_SIZES[options.logoSize];
+  const look = { logoHeight: size.height, logoWidth: size.width, logoLeft: options.logoPosition === "links", foldMarks: options.foldMarks };
+  return { ...data, accent, palette: accentPalette(accent), look, ...(logo ? { logo: `logo.${logo.format}` } : {}) };
 }
+
+/** Kundennummer auf dem Blatt; das XML nennt sie unabhängig davon als Käuferkennung */
+export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: string } }): boolean =>
+  Boolean(doc.buyer.kundennummer) && doc.options?.customerNumber !== false;
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
   const typst = getCompiler();

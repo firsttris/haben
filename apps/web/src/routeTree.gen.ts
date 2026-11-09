@@ -78,6 +78,7 @@ import { Route as ApiHinterlegungJahrRouteImport } from './routes/api/hinterlegu
 import { Route as ApiKasseJahrRouteImport } from './routes/api/kasse/$jahr'
 import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
+import { Route as ApiMandatIdRouteImport } from './routes/api/mandat/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungsanhang/$id'
@@ -455,6 +456,11 @@ const ApiMahnungIdRoute = ApiMahnungIdRouteImport.update({
   path: '/api/mahnung/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMandatIdRoute = ApiMandatIdRouteImport.update({
+  id: '/api/mandat/$id',
+  path: '/api/mandat/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPostfachIdRoute = ApiPostfachIdRouteImport.update({
   id: '/api/postfach/$id',
   path: '/api/postfach/$id',
@@ -677,6 +683,7 @@ export interface FileRoutesByFullPath {
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
+  '/api/mandat/$id': typeof ApiMandatIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
@@ -778,6 +785,7 @@ export interface FileRoutesByTo {
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
+  '/api/mandat/$id': typeof ApiMandatIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
@@ -881,6 +889,7 @@ export interface FileRoutesById {
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
+  '/api/mandat/$id': typeof ApiMandatIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
@@ -984,6 +993,7 @@ export interface FileRouteTypes {
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
+    | '/api/mandat/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
@@ -1085,6 +1095,7 @@ export interface FileRouteTypes {
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
+    | '/api/mandat/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
@@ -1187,6 +1198,7 @@ export interface FileRouteTypes {
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
+    | '/api/mandat/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
@@ -1259,6 +1271,7 @@ export interface RootRouteChildren {
   ApiKasseJahrRoute: typeof ApiKasseJahrRoute
   ApiKontenJahrRoute: typeof ApiKontenJahrRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
+  ApiMandatIdRoute: typeof ApiMandatIdRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungsanhangIdRoute: typeof ApiRechnungsanhangIdRoute
@@ -1764,6 +1777,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMahnungIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mandat/$id': {
+      id: '/api/mandat/$id'
+      path: '/api/mandat/$id'
+      fullPath: '/api/mandat/$id'
+      preLoaderRoute: typeof ApiMandatIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/postfach/$id': {
       id: '/api/postfach/$id'
       path: '/api/postfach/$id'
@@ -2134,6 +2154,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiKasseJahrRoute: ApiKasseJahrRoute,
   ApiKontenJahrRoute: ApiKontenJahrRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
+  ApiMandatIdRoute: ApiMandatIdRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungsanhangIdRoute: ApiRechnungsanhangIdRoute,

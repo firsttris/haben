@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { vorschauAnheften } from "./daten.ts";
+import { bestaetigen, faktenZeigen } from "./einrichtung.ts";
+import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -68,7 +69,7 @@ test("Einrichtung als GmbH mit SKR04", async () => {
 
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link", { name: "Pauschalen" })).toHaveCount(0);
-  await go(`/jahreserklaerung/${new Date().getFullYear() - 1}`);
+  await go(`/jahreserklaerung/${currentYear() - 1}`);
   await expect(page.getByRole("heading", { name: /^Umsatzsteuererklärung/ }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: /Anlage EÜR/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Einkommensteuererklärung/ })).toHaveCount(0);
@@ -120,15 +121,15 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
   const storno = journal.getByRole("button", { name: "Stammkapital, eingezahlt vom Gesellschafter stornieren" });
   await storno.click();
-  await expect(storno).toHaveText("Jetzt stornieren");
-  await storno.click();
+  await faktenZeigen(page, "Datum", "Betrag");
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByText("Storniert: Stammkapital, eingezahlt vom Gesellschafter")).toBeVisible();
   await expect(journal.getByRole("row").filter({ hasText: "Storno: Stammkapital" })).toContainText("Gegenbuchung");
   await expect(row).toContainText("storniert");
 });
 
 test("Eröffnungsbuchung: Bestände zum 1. Januar, in der Saldenliste als Eröffnung", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   await go("/buchungen/neu");
   const form = page.getByRole("form", { name: "Manuelle Buchung" });
   await form.getByLabel("Eröffnungsbuchung").check();
@@ -155,7 +156,7 @@ test("Eröffnungsbuchung: Bestände zum 1. Januar, in der Saldenliste als Eröff
 });
 
 test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await go("/");
   await nav.getByRole("link", { name: "Jahresabschluss" }).click();
@@ -187,7 +188,11 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   await go(`/abschluss/${year - 1}`);
   const close = page.getByRole("button", { name: `${year - 1} abschließen` });
   await close.click();
-  await page.getByRole("button", { name: `Jetzt ${year - 1} endgültig abschließen` }).click();
+  // Der Knopf wird erst mit dem Häkchen frei (#404)
+  const rueckfrage = page.getByRole("dialog");
+  await expect(rueckfrage.getByRole("button", { name: `${year - 1} abschließen`, exact: true })).toBeDisabled();
+  await rueckfrage.getByRole("checkbox", { name: /nicht mehr änderbar/ }).check();
+  await bestaetigen(page, `${year - 1} abschließen`);
   await expect(page.getByText(`Das Jahr ${year - 1} ist abgeschlossen.`)).toBeVisible();
   await expect(page.getByRole("region", { name: "Jahr abschließen" })).toContainText("Die Buchungen sind seitdem unverändert.");
 
@@ -206,7 +211,7 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
 });
 
 test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als PDF", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const regionName = (y: number) => `Hinterlegung beim Unternehmensregister ${y}`;
 
   // Das laufende Jahr ist nicht vorbei; ein altes, nicht abgeschlossenes Jahr zeigt Hinweis und abgelaufene Frist
@@ -260,7 +265,7 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
 });
 
 test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner erfassen", async () => {
-  const year = new Date().getFullYear() - 1;
+  const year = currentYear() - 1;
   await go(`/jahreserklaerung/${year}`);
   await expect(page.getByRole("heading", { name: "Körperschaftsteuererklärung", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Gewerbesteuererklärung", exact: true })).toBeVisible();
@@ -281,7 +286,7 @@ test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner
 });
 
 test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await go("/");
   await nav.getByRole("link", { name: "Ausschüttungen" }).click();
@@ -345,7 +350,7 @@ test("Ausschüttung mit Gewinnvortrag buchen, Steuerbescheinigung des Gesellscha
 });
 
 test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
-  const year = new Date().getFullYear() - 3;
+  const year = currentYear() - 3;
   // Stapel wie aus Lexware Office (SKR04): Eröffnung über 9000, eine Ausgangsrechnung mit Steuerautomatik
   const header = `"EXTF";700;21;"Buchungsstapel";13;${year + 1}0102120000000;;"LO";"";"";1001;12345;${year}0101;4;${year}0101;${year}1231;"Lexware Export";"";1;0;0;"EUR";;"";;;"04";;;"";""`;
   const columns =
@@ -375,7 +380,7 @@ test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
 });
 
 test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, Kasse und Forderungen stehen drin", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const schluss = year - 1;
   // Stapel des Vorjahres (SKR04): Eröffnung über 9000 mit Bank, Kasse und Stammkapital, eine Rechnung an einen Debitor
   const header = `"EXTF";700;21;"Buchungsstapel";13;${year}0102120000000;;"LO";"";"";1001;12345;${schluss}0101;4;${schluss}0101;${schluss}1231;"Lexware Export";"";1;0;0;"EUR";;"";;;"04";;;"";""`;
@@ -409,7 +414,7 @@ test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, 
     await journal.getByRole("row").filter({ hasText: text, hasNotText: "Storno:" }).getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
     const storno = journal.getByRole("button", { name: `${text} stornieren` });
     await storno.click();
-    await storno.click();
+    await bestaetigen(page, "Stornieren");
     await expect(page.getByText(`Storniert: ${text}`)).toBeVisible();
   }
 
@@ -425,8 +430,7 @@ test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, 
   expect(await axe(), "/buchungen/neu mit Vorschlag").toEqual([]);
   const buchen = vorschlag.getByRole("button", { name: "Eröffnung buchen" });
   await buchen.click();
-  await expect(vorschlag.getByRole("button", { name: "Jetzt buchen" })).toBeVisible();
-  await vorschlag.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
 
   await page.waitForURL(/\/buchungen\?/);
   await expect(
@@ -467,18 +471,19 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   const original = page.url();
   await page.getByLabel("Lieferant", { exact: true }).fill("Codewerk Lizenzen GmbH");
   await page.getByLabel("Rechnungsnummer").fill("L-4711");
-  await page.getByLabel("Belegdatum").fill(new Date().toISOString().slice(0, 10));
+  await page.getByLabel("Belegdatum").fill(currentDay());
   await page.getByLabel("Kategorie").selectOption("software");
   // Wie im Anlass (#237): der Bruttobetrag im Feld „Netto“
   await page.getByLabel("Netto", { exact: true }).fill("119,00");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   await page.getByRole("button", { name: "Beleg stornieren" }).click();
-  await expect(page.getByRole("alert")).toContainText(/bucht den Beleg zum \d{2}\.\d{2}\.\d{4} zurück/);
+  await expect(page.getByRole("dialog")).toContainText(/bucht den Beleg zum \d{2}\.\d{2}\.\d{4} zurück/);
   await page.getByLabel("Grund (optional)").fill("Brutto als Netto erfasst");
-  await page.getByRole("button", { name: "Jetzt stornieren" }).click();
+  await faktenZeigen(page, "Betrag");
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByText(/Storniert mit einer Gegenbuchung zum .* Grund: Brutto als Netto erfasst/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Gegenbuchung" })).toBeVisible();
   await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
@@ -493,7 +498,7 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   await page.getByLabel("Netto", { exact: true }).fill("100,00");
   await page.getByLabel("Vorsteuer", { exact: true }).fill("19,00");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   // Der stornierte Beleg führt jetzt zur Neuerfassung
@@ -546,7 +551,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   await expect(page.getByLabel("Vorschau der Rechnung")).toContainText(fuss);
   expect(await axe(), "/rechnungen/… Entwurf der GmbH").toEqual([]);
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
 
   const id = entwurf.split("/").pop();
@@ -559,7 +564,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
 });
 
 test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen und bestätigen", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   // Seit der Eröffnung aus dem DATEV-Stapel steht der Gesellschafter mit 300 € unter den Verbindlichkeiten
   await go(`/abschluss/${year}`);
   const passiva = page.getByRole("region", { name: `Passiva zum 31.12.${year}` });
@@ -596,13 +601,11 @@ const LOHN_BMF: Record<number, { lohnsteuer: string; kirchensteuer: string; ausz
   // gesamt: Kz 83 der Lohnsteuer-Anmeldung, Lohnsteuer und Kirchensteuer (kein Soli unter der Freigrenze)
   2026: { lohnsteuer: "1.289,33", kirchensteuer: "116,03", auszahlung: "4.594,64", gesamt: "1.405,36" },
 };
-const lohnHeute = new Date();
-const lohnJahr = lohnHeute.getFullYear();
-const lohnMonat = lohnHeute.getMonth() + 1;
+const [lohnJahr, lohnMonat, lohnTag] = currentDay().split("-").map(Number) as [number, number, number];
 const mm = String(lohnMonat).padStart(2, "0");
 const lohnMonatsname = new Date(lohnJahr, lohnMonat - 1, 1).toLocaleString("de-DE", { month: "long" });
 const lohnLetzter = new Date(lohnJahr, lohnMonat, 0).getDate();
-const zahlungTag = `${String(lohnHeute.getDate()).padStart(2, "0")}.${mm}.${String(lohnJahr).slice(2)}`;
+const zahlungTag = `${String(lohnTag).padStart(2, "0")}.${mm}.${String(lohnJahr).slice(2)}`;
 const lohnText = `Lohn ${lohnMonatsname} ${lohnJahr} · Erika Gesellschafter`;
 const lohnSeite = `/lohn?jahr=${lohnJahr}&monat=${lohnMonat}`;
 const buchungenSeite = `/buchungen?jahr=${lohnJahr}&monat=${lohnMonat}`;
@@ -654,7 +657,8 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   expect((await entwurfPdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
-  await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
   await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const pdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entgeltabrechnung (PDF)" }).getAttribute("href"))!);
@@ -742,9 +746,9 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat; die Buchung wird gegengebucht
   await go(lohnSeite);
   await abrechnung.getByRole("button", { name: "Stornieren" }).click();
-  const storno = page.getByRole("form", { name: "Abrechnung stornieren" });
-  await storno.getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
-  await storno.getByRole("button", { name: "Jetzt stornieren" }).click();
+  await page.getByRole("dialog").getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
+  await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
+  await bestaetigen(page, "Stornieren");
   await expect(mitarbeiterin.getByText(/^storniert am/)).toBeVisible();
   await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);
   await expect(mitarbeiterin.getByText("Grund des Stornos: Gehalt rückwirkend geändert")).toBeVisible();
@@ -807,7 +811,7 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await expect(page.getByText("2 Entwürfe angelegt.")).toBeVisible();
   const max = page.getByRole("region", { name: "Max Kurzzeit" }).getByRole("region", { name: /^1\. Abrechnung Stufe A/ });
   await max.getByRole("button", { name: "Festschreiben" }).click();
-  await max.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(max.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
   await erika.getByRole("button", { name: "Entwurf löschen" }).click();
@@ -904,7 +908,7 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
   await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
   const abrechnung = page.getByRole("region", { name: "Mia Aushilfe" }).getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
-  await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
 
   await page
@@ -979,7 +983,7 @@ test("Fahrzeug der GmbH übernehmen: keine Staffel nach § 7 Abs. 2a EStG, linea
 });
 
 test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", async () => {
-  const jahr = new Date().getFullYear();
+  const jahr = currentYear();
   // Die Herabsetzung rechnet mit Einkommensteuer aus der EÜR; eine GmbH zahlt Körperschaftsteuer (§ 31 KStG)
   await go("/finanzamt");
   await expect(page.getByRole("button", { name: "Freie Nachricht" })).toBeVisible();
@@ -1057,7 +1061,7 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
 });
 
 test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steht einmal über beiden", async () => {
-  const jahr = new Date().getFullYear();
+  const jahr = currentYear();
   await go(`/jahreserklaerung/${jahr}`);
   const gemeinsam = page.getByRole("region", { name: "Hinweise zur Körperschaft- und Gewerbesteuererklärung" });
   await expect(gemeinsam).toContainText(`Das Jahr ${jahr} ist noch nicht vorbei.`);

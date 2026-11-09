@@ -1,7 +1,11 @@
 import {
   BASE_RATE_LIMITS,
+  kleinunternehmerAm,
+  type KleinunternehmerStand,
   BUNDESLAENDER,
   EXPENSE_CATEGORY_KEYS,
+  glaeubigerIdProblem,
+  normalizeGlaeubigerId,
   RECHTSFORM_KEYS,
   isKapitalgesellschaft,
   legalInfo,
@@ -20,6 +24,7 @@ import { listTextBlocks } from "./text-blocks.ts";
 import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { loadDesign } from "./letterhead.ts";
 import { logoInfo } from "./logo.ts";
 import { today } from "../../today.ts";
 
@@ -62,6 +67,15 @@ export const companySchema = z
     ]),
     /** GiroCode erlaubt 70 Zeichen für den Namen (EPC069-12) */
     kontoinhaber: z.string().trim().max(70).default(""),
+    /** Gläubiger-ID für SEPA-Lastschriften (#445); leer = keine, fehlt = leer wie vor #445 */
+    glaeubigerId: z
+      .string()
+      .default("")
+      .transform(normalizeGlaeubigerId)
+      .superRefine((id, ctx) => {
+        const problem = id === "" ? null : glaeubigerIdProblem(id);
+        if (problem) ctx.addIssue({ code: "custom", message: problem });
+      }),
     kontenrahmen: z.enum(["SKR03", "SKR04"]),
     /** Ohne Vorgabe: Ein fehlendes Feld darf eine GmbH nicht still zum Einzelunternehmen machen */
     rechtsform: z.enum(RECHTSFORM_KEYS),
@@ -154,21 +168,22 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
  */
 export async function kleinunternehmerHistory(q: Db | Tx = db): Promise<(date: string) => boolean> {
+  const stand = await kleinunternehmerStand(q);
+  return (date) => kleinunternehmerAm(stand, date);
+}
+
+/** Die Änderungen aus dem Protokoll als Daten, etwa für Formulare, die den Stand an einem gewählten Tag brauchen */
+export async function kleinunternehmerStand(q: Db | Tx = db): Promise<KleinunternehmerStand> {
   const rows = await q
     .select({ at: schema.auditLog.at, newValue: schema.auditLog.newValue })
     .from(schema.auditLog)
     .where(eq(schema.auditLog.tableName, "company"))
     .orderBy(schema.auditLog.seq);
-  const changes = rows.flatMap((r) => {
+  const aenderungen = rows.flatMap((r) => {
     const value = (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer;
     return typeof value === "boolean" ? [{ date: today(r.at), value }] : [];
   });
-  const current = (await loadCompany(q)).kleinunternehmer;
-  return (date) => {
-    const last = changes.filter((c) => c.date <= date).at(-1);
-    // Vor dem ersten Eintrag gilt der erste bekannte Stand (Anlegen der Firmendaten), ohne Protokoll der aktuelle
-    return last ? last.value : (changes[0]?.value ?? current);
-  };
+  return { aenderungen, aktuell: (await loadCompany(q)).kleinunternehmer };
 }
 
 /** Letzter Tag eines Monats, JJJJ-MM-TT */
@@ -188,13 +203,14 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, design] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
     listArticles(),
     listTextBlocks(),
     logoInfo(),
+    loadDesign(),
   ]);
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
@@ -223,7 +239,8 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       bank,
       kontoinhaber,
       logo: logo?.sha256 ?? null,
-      accent: company.accentColor,
+      accent: design.accent,
+      design,
       legal: legalLine(legalInfo(company)),
     },
     sellerIssues: sellerIssues(company),

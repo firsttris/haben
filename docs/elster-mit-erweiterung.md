@@ -1,3 +1,10 @@
+---
+title: "Mein ELSTER mit Browser-Erweiterung ausfüllen"
+description: >-
+  Ohne Hersteller-ID die Erklärungen in Mein ELSTER abgeben: Eine Browser-Erweiterung trägt die
+  Werte aus Haben in die Formulare ein.
+---
+
 # In Mein ELSTER mit der Erweiterung abgeben
 
 Ohne eigene **Hersteller-ID** sendet Haben nicht selbst an das Finanzamt ([einrichtung.md › Hersteller-ID](einrichtung.md#hersteller-id-wer-ist-hersteller)). Die Erklärungen gibst du dann im Portal **Mein ELSTER** ab. Die Browser-Erweiterung **Haben für Mein ELSTER** trägt die Werte aus Haben dort ein, für alle vier Formulare:

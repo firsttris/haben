@@ -66,6 +66,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["archiv-auftraege", "/archiv?ansicht=auftraege"],
     ["archiv-auftrag", "/archiv/auftrag/723bf34b-f8ab-48f0-b391-656af4b72a96"],
     ["einstellungen", "/einstellungen"],
+    ["einstellungen-gestaltung", "/einstellungen?bereich=gestaltung"],
     ["einstellungen-elster", "/einstellungen?bereich=elster"],
     ["einstellungen-email", "/einstellungen?bereich=email"],
     ["einstellungen-bank", "/einstellungen?bereich=bank"],
@@ -112,7 +113,7 @@ for (const [device, viewport] of [
         await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "Menü" }).click();
         await expect(page.getByRole("link", { name: "Konten" })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Dokumentation" })).toHaveAttribute("href", "https://firsttris.github.io/haben/");
+        await expect(page.getByRole("link", { name: "Dokumentation" })).toHaveAttribute("href", "https://haben.app/");
         await page.getByRole("link", { name: "Konten" }).click();
         await page.waitForURL(/\/konten/);
         await expect(page.getByRole("link", { name: "Einstellungen" })).toBeHidden();

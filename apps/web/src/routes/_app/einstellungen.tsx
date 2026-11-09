@@ -23,7 +23,7 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
-import { LogoCard } from "../../components/LogoCard.tsx";
+import { LayoutsCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { NumberingCard } from "../../components/NumberingCard.tsx";
@@ -32,6 +32,7 @@ import { InvoiceAttachments } from "../../components/InvoiceAttachments.tsx";
 import { getQuoteDefaultAttachments } from "../../server/functions/invoice-attachments.ts";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -56,7 +57,7 @@ import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getChainHead } from "../../server/functions/integrity.ts";
-import { getLogo } from "../../server/functions/logo.ts";
+import { getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
 import { getZugaenge } from "../../server/functions/zugang.ts";
@@ -73,6 +74,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       eric,
       mail,
       logo,
+      design,
       inbox,
       exportYears,
       datev,
@@ -92,6 +94,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getEricStatus(),
       getMailSettings(),
       getLogo(),
+      getLetterheadDesign(),
       getInbox(),
       getExportYears(),
       getDatevNumbers(),
@@ -113,6 +116,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       eric,
       mail,
       logo,
+      design,
       inbox,
       exportYears,
       datev,
@@ -138,6 +142,7 @@ function SettingsPage() {
     company,
     numbering,
     logo,
+    design,
     mail,
     inbox,
     exportYears,
@@ -191,8 +196,13 @@ function SettingsPage() {
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
-              <LogoCard info={logo} />
-              <AccentColorCard color={company.accentColor} />
+            </>
+          )}
+          {bereich === "gestaltung" && (
+            <>
+              <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
+              <AccentColorCard color={design.accent} />
+              <LayoutsCard design={design} />
             </>
           )}
           {bereich === "elster" && (
@@ -278,6 +288,7 @@ function CompanyForm() {
           iban: text("iban").toUpperCase().replace(/\s/g, ""),
           bic: text("bic").toUpperCase().replace(/\s/g, ""),
           kontoinhaber: text("kontoinhaber"),
+          glaeubigerId: text("glaeubigerId"),
           kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
           paymentTermDays: Number(text("paymentTermDays") || 14),
           skonto: skonto.stufen,
@@ -578,6 +589,14 @@ function CompanyForm() {
             <input name="bic" defaultValue={company.bic} className="mono" />
           </label>
         </div>
+        <label className="field">
+          Gläubiger-ID
+          <input name="glaeubigerId" defaultValue={company.glaeubigerId} placeholder="DE98ZZZ09999999999" className="mono" aria-describedby="glaeubiger-hint" />
+          <span id="glaeubiger-hint" className="small muted">
+            Nur für SEPA-Lastschriften nötig. Die Bundesbank vergibt sie auf Antrag; sie steht auf jedem Mandat und auf der Rechnung, die per Lastschrift
+            eingezogen wird.
+          </span>
+        </label>
       </section>
 
       <section className="form-section" aria-labelledby="company-invoices">
@@ -869,6 +888,7 @@ function CertificateForm() {
   const upload = useServerFn(uploadCertificate);
   const remove = useServerFn(removeCertificate);
   const { busy, notice, run } = useAction();
+  const [removing, setRemoving] = useState(false);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -894,19 +914,24 @@ function CertificateForm() {
             <span style={{ fontWeight: 500 }}>{certificate.filename}</span>
             <span className="small muted">{certificate.validUntil ? `gültig bis ${formatDate(certificate.validUntil)}` : "Ablaufdatum nicht angegeben"}</span>
           </div>
-          <button
-            type="button"
-            className="btn btn-danger"
-            disabled={busy}
-            onClick={() =>
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(true)}>
+            Entfernen
+          </button>
+          <ConfirmDialog
+            open={removing}
+            title={`Zertifikat ${certificate.filename} entfernen?`}
+            confirmLabel="Zertifikat entfernen"
+            danger
+            onConfirm={() =>
               void run(async () => {
                 await remove();
                 await router.invalidate();
               }, "Zertifikat entfernt.")
             }
+            onClose={() => setRemoving(false)}
           >
-            Entfernen
-          </button>
+            <p>Ohne Zertifikat sendet Haben nichts an ELSTER und ruft das Postfach nicht ab. Zum Wiederherstellen brauchst du die .pfx-Datei und ihre PIN.</p>
+          </ConfirmDialog>
         </div>
       )}
       <label className="field">
@@ -1068,7 +1093,7 @@ function DatenschutzBestaetigung({ bestaetigt }: { bestaetigt: string | null }) 
         zur Kenntnis; so verlangt es der Lizenzvertrag zu ERiC.
       </p>
       {bestaetigt ? (
-        <span className="small">Bestätigt am {new Date(bestaetigt).toLocaleDateString("de-DE")}.</span>
+        <span className="small">Bestätigt am {formatDate(bestaetigt)}.</span>
       ) : (
         <>
           <label className="checkbox">

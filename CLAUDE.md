@@ -7,7 +7,7 @@ invoice PDF and XML in `packages/einvoice`.
 
 ## Documentation
 
-The documentation is in `docs/` (<https://firsttris.github.io/haben/>). Read the pages that touch the
+The documentation is in `docs/` (<https://haben.app/>). Read the pages that touch the
 change before starting: `docs/entwicklung.md` for setup, commands, migrations and conventions,
 `docs/architektur.md` for modules, tables, the audit hash chain and seals, and the user page of the
 area (`rechnungen.md`, `bank.md`, `umsatzsteuer.md`, `lexoffice.md`, …). Links in the README point
@@ -81,6 +81,8 @@ Skill `checks` has the details:
   that only touches Markdown, `docs/` or `LICENSE`, the job `changes` in `ci.yml` skips the other jobs, which
   counts as passed for the required checks but tests nothing: build the docs locally then.
 - Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
+  Reference issues in the description with `Refs #…`, never `Closes`/`Fixes`: GitHub would close the issue on
+  merge, but it stays open with `rückmeldung` until the release and the author's answer.
   Commits inside a pull request: Conventional Commits types with a German description
   (`fix(belege): …`, `test: …`). A recommendation, no lint.
 - Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
@@ -112,7 +114,10 @@ correction) with a rule and `_Generated with [Claude Code](https://claude.com/cl
 agent's own name). Create or comment on issues only when the user says so. Steps and detail level:
 skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
 (Issues schreiben). The type label (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`) is set when creating
-the issue; other labels and the roadmap order are the maintainer's call.
+the issue; other labels and the roadmap order are the maintainer's call. Besides the types there are area
+labels (`oberfläche`, `buchung`, `schnittstelle`, `technik`, `doku`), `sammlung` and the status `rückmeldung`:
+implemented and released, the issue stays open until its author confirms that nothing is missing, and is closed
+with a short note after 14 days without an answer (the release comment says so).
 
 ## Working rules
 

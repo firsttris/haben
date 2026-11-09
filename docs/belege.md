@@ -1,3 +1,10 @@
+---
+title: "Belege und Eingangsrechnungen erfassen, E-Rechnungen auslesen"
+description: >-
+  Eingangsrechnungen und Quittungen ablegen: E-Rechnungen (ZUGFeRD, XRechnung) liest Haben direkt
+  aus, PDFs und Fotos per KI. Prüfen, kategorisieren, buchen.
+---
+
 # Belege und Eingangsrechnungen
 
 Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen liest Haben direkt aus, andere PDFs und Fotos auf Wunsch mit Claude. Du prüfst die Felder, wählst eine Kategorie und buchst den Beleg; danach ist er festgeschrieben.
@@ -11,7 +18,7 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 3. **Lieferant**, **Rechnungsnummer**, **USt-IdNr. des Lieferanten**, **Belegdatum**, **Fällig am** und **Kategorie** prüfen oder eintragen. Ist der Lieferant schon in den Kontakten (Rolle **Lieferant**), wählst du ihn unter **Aus den Kontakten**; Haben übernimmt Name und USt-IdNr. Änderst du den Namen danach von Hand, fällt die Verknüpfung weg. Ein neuer Lieferant lässt sich wie bisher einfach eintippen, oder du legst ihn mit **Neuen Lieferanten anlegen** gleich als Kontakt an: Der Dialog übernimmt Name und USt-IdNr. vom Beleg und hakt die Rolle **Lieferant** an; nach dem Speichern ist er unter **Aus den Kontakten** gewählt. Abbrechen oder ein Fehler im Dialog lassen alle Eingaben am Beleg stehen. Gibt es schon einen Lieferanten mit derselben USt-IdNr., bietet der Dialog ihn zum Wählen an, statt einen zweiten anzulegen; zusammengeführt wird nichts. Bei einer E-Rechnung füllt der Dialog außerdem Anschrift und E-Mail des Verkäufers vor. Eine IBAN vom Beleg, aus der E-Rechnung (BT-84) oder der KI-Auslesung, steht nur als **Vorschlag** unter dem Feld IBAN (bei einer Gutschrift nicht: dort ist BT-84 das Konto des Käufers): mit Herkunft, bei der KI mit dem Textausschnitt, in dem sie steht, und ob die Prüfziffer stimmt. Ins Feld kommt sie erst mit **IBAN übernehmen**; prüfe sie vorher beim Lieferanten. Einen bestehenden Kontakt ändert der Beleg nie.
 4. Unter **Beträge je Steuersatz** Netto und Vorsteuer je Satz prüfen. Mit **+ Steuersatz** kommt eine Zeile für einen weiteren Satz dazu (höchstens 19 %, 7 % und 0 % je einmal). Gehören Teile der Rechnung in verschiedene Kategorien, teilst du sie mit **Auf mehrere Kategorien aufteilen** auf (siehe [Auf mehrere Kategorien aufteilen](#auf-mehrere-kategorien-aufteilen)).
 5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto, privat oder bar aus der Kasse bezahlt wurde (siehe [Bezahlung](#bezahlung)).
-6. **Bestätigen und buchen**, dann **Jetzt buchen**. Ungespeicherte Änderungen werden dabei vorher gespeichert.
+6. **Bestätigen und buchen**, dann im Dialog **Buchen**. Ungespeicherte Änderungen werden dabei vorher gespeichert.
 
 Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
 
@@ -380,7 +387,7 @@ In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über
 | Angabe | Woher |
 | --- | --- |
 | Empfänger | Lieferant am Beleg |
-| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
+| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst die am Beleg bestätigte aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
 | Betrag | Offener Betrag, mit Skonto abzüglich Skonto |
 | Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
 | Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |
@@ -398,7 +405,7 @@ Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für B
     Der Kontakt bleibt in beiden Fällen unverändert; die IBAN dort änderst du, wenn nötig, selbst im [Kontakt](rechnungen.md#kontakte). Die Belegseite zeigt danach, welche IBAN gilt, wer entschieden hat und wann. Eine spätere Entscheidung ersetzt die frühere.
 - **Ohne Entscheidung** ist der Beleg unter **Überweisungen** nicht auswählbar, auch nicht über **Alle auswählen**; die Zeile nennt den Grund und führt mit **Zum Beleg** dorthin. Auch der Server lehnt ihn in einer SEPA-Datei ab. Nach der Entscheidung geht die Überweisung an die gewählte IBAN, und die Zeile nennt die Entscheidung.
 - **Neu entscheiden:** Die Entscheidung gilt nur für genau dieses Paar aus Kontakt- und Rechnungs-IBAN. Ändert sich die IBAN im Kontakt (oder steht ein anderer Kontakt am Beleg), ist neu zu entscheiden.
-- **Kontakt ohne IBAN:** Es gibt nichts abzugleichen. Die Belegseite sagt nur, dass die IBAN ungeprüft aus der E-Rechnung stammt; überwiesen wird an sie, ohne Sperre.
+- **Kontakt ohne IBAN** (oder kein Kontakt am Beleg): Oben auf der Belegseite steht **IBAN aus der E-Rechnung, noch nicht bestätigt**. Die IBAN der E-Rechnung gilt erst, wenn du sie mit **Übernehmen** für diesen Beleg bestätigst, nach dem Buchen; bis dahin ist der Beleg unter **Überweisungen** gesperrt wie bei einer Abweichung. Mit **Auch im Kontakt des Lieferanten eintragen** kommt sie zusätzlich in den Kontakt, als neue Version; das geht nur, solange der Kontakt keine IBAN hat, eine vorhandene überschreibt Haben nie, und nur eine gültige IBAN (BT-84 kann auch eine Kontonummer sein). Ohne den Haken bleibt der Kontakt, wie er ist. Die Bestätigung gilt nur für genau diese IBAN.
 
 Die Entscheidungen stehen in einer eigenen, nur anhängbaren Tabelle mit Eintrag im Änderungsprotokoll; Sperre und Siegel des gebuchten Belegs bleiben unberührt. IBANs aus der KI-Auslesung oder dem PDF-Text gleicht Haben nicht ab, nur die der E-Rechnung. Entscheiden kann nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht den Hinweis.
 
@@ -449,13 +456,13 @@ Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohn
 - **Nach dem Buchen** springt die Ansicht zum nächsten Beleg „Zu prüfen“; am Ende der Liste geht es vorn weiter. Ist keiner mehr offen, bleibt der gebuchte Beleg stehen, darüber steht „Alle Belege geprüft“ mit einem Link zur Liste.
 - **Hierbleiben:** Entfernst du den Haken **Nach dem Buchen zum nächsten offenen Beleg** unter den Knöpfen, bleibt die Ansicht nach dem Buchen beim gebuchten Beleg, etwa um ihn danach im Bankabgleich zuzuordnen. Haben merkt sich die Wahl in diesem Browser.
 - **Nach dem Löschen** geht es zum nächsten offenen Beleg, sonst zurück zur Liste.
-- **Ungespeicherte Änderungen:** Beim Wechsel fragt Haben einmal nach; der zweite Klick wechselt ohne zu speichern.
+- **Ungespeicherte Änderungen:** Beim Wechsel fragt Haben in einem Dialog nach; **Ohne Speichern wechseln** verwirft sie.
 
 | Taste | Wirkung |
 | --- | --- |
 | `J` oder `→` | Nächster Beleg (nicht in Eingabefeldern) |
 | `K` oder `←` | Vorheriger Beleg |
-| `Strg+Enter` (Mac: `Cmd+Enter`) | Wie ein Klick auf **Bestätigen und buchen**, auch aus einem Eingabefeld. Gebucht wird wie mit der Maus erst beim zweiten Mal. |
+| `Strg+Enter` (Mac: `Cmd+Enter`) | Wie ein Klick auf **Bestätigen und buchen**, auch aus einem Eingabefeld. Gebucht wird wie mit der Maus erst im Dialog. |
 | `Esc` | Bricht die Rückfrage zum Buchen oder Löschen ab, sonst zurück zur Liste (nicht in Eingabefeldern) |
 
 Auf dem Handy wischst du nach links zum nächsten und nach rechts zum vorigen Beleg.
@@ -491,7 +498,7 @@ Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung fü
 Ein gebuchter Beleg lässt sich nicht mehr ändern oder löschen (GoBD). Hast du dich vertippt, etwa den Bruttobetrag ins Feld **Netto** geschrieben, hebst du ihn mit **Beleg stornieren** auf und erfasst ihn richtig neu, wie bei einer Stornorechnung.
 
 1. Den gebuchten Beleg öffnen und **Beleg stornieren** klicken. Darüber erscheint ein Hinweis und das Feld **Grund** (optional, z. B. „Brutto als Netto erfasst“).
-2. **Jetzt stornieren** klicken. Der Beleg zeigt danach „Storniert mit einer Gegenbuchung zum …“ mit einem Link auf die Gegenbuchung im Journal, in der Liste steht er als **Storniert**.
+2. Im Dialog **Stornieren** klicken. Der Beleg zeigt danach „Storniert mit einer Gegenbuchung zum …“ mit einem Link auf die Gegenbuchung im Journal, in der Liste steht er als **Storniert**.
 3. **Neu erfassen** legt einen neuen Entwurf mit derselben Datei und den Feldern des stornierten Belegs an, mit Beträgen und Aufteilung. Du korrigierst ihn und buchst ihn wie jeden anderen. Gibt es den Entwurf schon, führt **Zur Neuerfassung** dorthin.
 
 Was dabei passiert:
@@ -518,7 +525,7 @@ Nicht stornieren lassen sich:
 
 ## Löschen
 
-**Löschen** gibt es nur für Belege, die noch nicht gebucht sind. Haben fragt einmal nach: Der Knopf heißt dann **Endgültig löschen**, darüber steht ein Warnhinweis. Erst der zweite Klick löscht den Beleg, die Datei wird aus der Ablage entfernt. Nutzt das Archiv oder der Lexoffice-Umzug dieselbe Datei (gleicher Inhalt, gleicher SHA-256), bleibt sie liegen. Einen gebuchten Beleg kannst du nicht löschen und nicht ändern, nur [stornieren](#stornieren-und-neu-erfassen).
+**Löschen** gibt es nur für Belege, die noch nicht gebucht sind. Haben fragt in einem Dialog nach. Erst **Beleg löschen** löscht den Beleg, die Datei wird aus der Ablage entfernt. Nutzt das Archiv oder der Lexoffice-Umzug dieselbe Datei (gleicher Inhalt, gleicher SHA-256), bleibt sie liegen. Einen gebuchten Beleg kannst du nicht löschen und nicht ändern, nur [stornieren](#stornieren-und-neu-erfassen).
 
 ## Liste und Status
 

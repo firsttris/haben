@@ -1,3 +1,10 @@
+---
+title: "Finanzamt: Bescheide aus dem ELSTER-Postfach abrufen"
+description: >-
+  Steuerbescheide und Mitteilungen aus dem ELSTER-Postfach abholen und dem Finanzamt über ELSTER
+  schreiben, ohne Mein ELSTER zu öffnen.
+---
+
 # Finanzamt
 
 Unter **Finanzamt** holst du Bescheide aus deinem ELSTER-Postfach und schreibst dem Finanzamt über ELSTER, ohne Mein ELSTER zu öffnen. Die Lohnsteuer-Anmeldung steht unter [Lohn](lohn.md#lohnsteuer-anmeldung), die Lohnsteuerbescheinigung unter [Lohn](lohn.md#lohnsteuerbescheinigung); ab 2026 übermittelst du sie in Mein ELSTER. Die Nachricht geht an das Finanzamt der Steuernummer aus den Einstellungen; für Einzelunternehmer ist das meist dieselbe Steuernummer wie für die Einkommensteuer. Gesendet wird wie bei der Voranmeldung mit Zertifikat und PIN, erst als Testübermittlung, dann echt.

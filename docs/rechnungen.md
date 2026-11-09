@@ -1,3 +1,10 @@
+---
+title: "E-Rechnung schreiben: ZUGFeRD und XRechnung"
+description: >-
+  Ausgangsrechnungen als E-Rechnung schreiben: ZUGFeRD (PDF/A-3, EN 16931) oder XRechnung 3.0 in
+  CII oder UBL, GoBD-konform festgeschrieben, per Mail versendet.
+---
+
 # Rechnungen und E-Rechnung
 
 Haben schreibt Ausgangsrechnungen als E-Rechnung: ZUGFeRD (PDF/A-3 mit eingebettetem XML, Profil EN 16931) oder XRechnung 3.0 in CII- oder UBL-Syntax. Eine Rechnung ist zuerst ein Entwurf, den du beliebig ändern kannst. Mit dem Festschreiben bekommt sie ihre Nummer, PDF und XML werden erzeugt, sie wird gebucht und ist danach unveränderlich.
@@ -26,7 +33,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
 10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein.
-11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
+11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt in einem Dialog nach und nennt Nummer, Kunde und Betrag; erst **Festschreiben** dort führt es aus.
 
 Die [Vorschau](#vorschau) zeigt die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
 
@@ -42,6 +49,8 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 - **Vorschau abheften** macht dasselbe wie **Ausblenden**.
 
 Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
+
+**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
 
 ### Entwurf als PDF
 
@@ -131,6 +140,24 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 - Nicht mehr gebrauchte Artikel archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
 Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht; die Artikelnummer trägst du dort je Position selbst ein.
+
+### Fett, kursiv und unterstrichen
+
+In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen drei einfache Auszeichnungen zur Verfügung:
+
+| Eingabe | Darstellung |
+| --- | --- |
+| `*Text*` oder `**Text**` | **Text** |
+| `_Text_` | *Text* |
+| `__Text__` | unterstrichen |
+
+Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
+Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
+Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben.
+HTML, Links und sonstige Markdown- oder Typst-Befehle werden nicht ausgeführt.
+
+Die Formatierung gilt auch im Angebot und in eingefügten Textbausteinen. Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
+Die Zeichen zählen bei der Grenze von 2000 Zeichen mit. Bereits festgeschriebene PDFs und XML-Dateien werden nicht neu erzeugt.
 
 ### Textbausteine
 
@@ -431,7 +458,7 @@ Im Formular legst du fest:
 | Verzugspauschale | 40 € nach § 288 Abs. 5 BGB, nur gegenüber Geschäftskunden |
 | Einleitung und Schluss | Vorlage je Stufe, frei änderbar |
 
-Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
+Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung, in der aktuellen Gestaltung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
 
 Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
 
@@ -473,7 +500,7 @@ Manche Kunden wollen mit der Rechnung weitere Unterlagen: Stundenzettel, Leistun
 
 1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
 2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
-3. **Entfernen** nimmt einen Anhang wieder von der Rechnung, solange sie ein Entwurf ist.
+3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder von der Rechnung, solange sie ein Entwurf ist. Nutzt sonst nichts die Datei, ist sie danach aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.
 
 Erlaubt sind nur PDF-Dateien bis 20 MB, höchstens zehn je Rechnung. Den Typ erkennt Haben am Inhalt, nicht an der Endung: Ein umbenanntes Foto wird abgelehnt. Dieselbe Datei hängt nur einmal an derselben Rechnung. Die Dateien liegen wie Belege unter ihrem SHA-256 im Belegverzeichnis (siehe [Architektur](architektur.md#dateiablage)).
 
@@ -495,7 +522,7 @@ Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschni
 
 Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf; zusammen mit einer Bareinnahme mit deren Storno im Kassenbuch. Stornorechnungen lassen sich nicht ausbuchen.
 
-Zahlt der Kunde später doch, hebst du die Ausbuchung auf und ordnest die Zahlung zu. Die Aufhebung bucht Haben am Tag, an dem du sie vornimmst: Bei Soll-Versteuerung ist die Umsatzsteuer dann im Monat des Zahlungseingangs erneut zu berichtigen (§ 17 Abs. 2 Nr. 1 Satz 2 UStG), die schon gesendete Voranmeldung des Ausbuchungsmonats bleibt richtig. Hebe die Ausbuchung deshalb im Monat der Zahlung auf.
+Zahlt der Kunde später doch, hebst du die Ausbuchung nach einer Rückfrage mit Art und Betrag auf und ordnest die Zahlung zu. Die Aufhebung bucht Haben am Tag, an dem du sie vornimmst: Bei Soll-Versteuerung ist die Umsatzsteuer dann im Monat des Zahlungseingangs erneut zu berichtigen (§ 17 Abs. 2 Nr. 1 Satz 2 UStG), die schon gesendete Voranmeldung des Ausbuchungsmonats bleibt richtig. Hebe die Ausbuchung deshalb im Monat der Zahlung auf.
 
 Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufgehoben ist; sonst minderte das Storno die Umsatzsteuer ein zweites Mal.
 
@@ -553,7 +580,7 @@ Eine festgeschriebene Rechnung änderst du nicht, du stellst eine neue aus. Auf 
 | --- | --- | --- |
 | Zweck | Hebt die Rechnung vollständig auf. | Mindert den Betrag teilweise. |
 | Ergebnis | Stornorechnung mit allen Positionen negativ, sofort festgeschrieben und gebucht. | Entwurf mit allen Positionen negativ, den du anpasst. |
-| Bestätigung | Zweiter Klick auf **Jetzt stornieren**. | Festschreiben wie bei einer Rechnung. |
+| Bestätigung | Im Dialog **Stornieren**. | Festschreiben wie bei einer Rechnung. |
 | Bedingung | – | Gesamtbetrag muss negativ bleiben. |
 
 Für beide gilt:
@@ -580,6 +607,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md). Kontakte von vor dieser Einstellung sind Kunden. |
 | Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
 | Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. Mit einem Format unter **Einstellungen › Rechnungen › Kundennummern** vergibt Haben sie beim Anlegen selbst, wenn du das Feld leer lässt (siehe unten). |
+| DATEV-Debitor, DATEV-Kreditor | Personenkonten für die Steuerberatung, getrennt von Kunden- und Lieferantennummer; ein Kontakt mit beiden Rollen kann beide tragen. Fünfstellig wie bei DATEV mit vierstelligen Sachkonten: Debitoren 10000 bis 69999, Kreditoren 70000 bis 99999 ([DATEV-Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) und [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf) 2026, jeweils S. 36). Andere Längen lehnt Haben ab, statt sie zu kürzen. Jede Nummer gehört genau einem Kontakt; ist sie schon vergeben, nennt das Formular den Kontakt. Mit [Personenkonten im DATEV-Export](auswertungen.md#personenkonten) steht sie im Buchungsstapel und ist ab dem ersten Export fest; leer vergibt sie der Export, wenn der Kontakt eine braucht. |
 | E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
 | Telefon | Frei, mit Ziffern, Leerzeichen und `+ ( ) / - .`, z. B. `+49 941 123456`. Steht in der Kontaktliste unter der E-Mail und lässt sich suchen, aber nicht auf Rechnungen. |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
@@ -598,6 +626,22 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 **Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)).
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
+
+### SEPA-Lastschriftmandate
+
+Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
+
+| Feld | Hinweis |
+| --- | --- |
+| Mandatsreferenz | Wie auf dem Mandat; bis 35 Zeichen aus `A–Z a–z 0–9`, Leerzeichen und `+ ? / - : ( ) . , '` (Schema der Deutschen Kreditwirtschaft, [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version), Kap. 2.3.1). Jede Referenz gibt es nur einmal, ohne Rücksicht auf Groß- und Kleinschreibung (Kap. 2.2.2). Sie beginnt und endet nicht mit `/` und enthält kein `//` ([Clarification Paper EPC132-17](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf), Kap. 2.1). |
+| Unterschrieben am | Datum der Unterschrift; nicht in der Zukunft. |
+| Verfahren | Basislastschrift (CORE) oder Firmenlastschrift (B2B). Eine Firmenlastschrift setzt voraus, dass der Kunde kein Verbraucher ist und das Mandat auch seiner Bank vorliegt. |
+| Kontoinhaber, IBAN, BIC | Das Konto, von dem eingezogen wird; vorbelegt mit Name und IBAN des Kontakts. Die IBAN muss aus dem EWR sein, wie bei SEPA-Überweisungen: Das Konto muss in SEPA liegen (Rulebook, Kap. 2.2), und außerhalb des EWR verlangt das Mandat die Anschrift des Zahlungspflichtigen. Die BIC ist optional. |
+| Schon eingezogen | Für ein Mandat, auf das vor Haben schon Lastschriften liefen: Der nächste Einzug ist dann eine Folgelastschrift. Mit dem Tag des letzten Einzugs rechnet Haben den Verfall richtig. |
+
+**Verfall nach 36 Monaten.** Ein Mandat, auf das 36 Monate lang keine Lastschrift eingereicht wurde, darf nicht mehr genutzt werden; gezählt ab dem letzten Einzug, auch wenn er zurückgegeben wurde ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) und [SDD B2B Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC222-07%202025%20SDD%20B2B%20Rulebook%20version%201.2.pdf) des EPC, Version 1.2, Kap. 4.2). Für ein Mandat ohne Einzug nennt das Rulebook keinen Beginn; Haben zählt dann vorsichtig ab der Unterschrift. Der Status neben jedem Mandat zeigt, bis wann es gilt oder seit wann es abgelaufen ist; für einen neuen Einzug braucht es dann ein neues Mandat.
+
+**Nichts wird überschrieben.** Mandate, ihre PDFs und Widerrufe lassen sich nur anlegen, nicht ändern oder löschen; jede Zeile steht im Audit-Log. Ändert sich etwas am Mandat, etwa die Bankverbindung, legst du ein neues an. **PDF hinterlegen** speichert das unterschriebene Mandat; ein späteres PDF ersetzt es in der Anzeige, das frühere bleibt gespeichert. **Widerrufen** beendet ein Mandat ab heute, nach einer Rückfrage.
 
 ## Entwürfe aus der REST-API
 

@@ -1,3 +1,10 @@
+---
+title: "Abgabe an ELSTER: alle Wege, mit und ohne Hersteller-ID"
+description: >-
+  Voranmeldung, USt-Erklärung, Anlage EÜR und Einkommensteuer ans Finanzamt: direkt per ERiC mit
+  Hersteller-ID oder über Mein ELSTER mit Erweiterung oder KI.
+---
+
 # Abgabe an ELSTER: alle Wege
 
 Haben rechnet Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuererklärung aus deinen Buchungen. Ans Finanzamt kommen sie auf zwei Arten: **direkt aus Haben** über ERiC, wofür du eine eigene Hersteller-ID brauchst, oder **über das Portal Mein ELSTER**, wo du selbst absendest. Für Mein ELSTER gibt es vier Wege, die Werte aus Haben hineinzubringen.
@@ -29,7 +36,7 @@ Haben sendet über ERiC, die Bibliothek der Finanzverwaltung, mit deinem Zertifi
 | Zertifikatsdatei (`.pfx`) und PIN | ELSTER-Benutzerkonto mit Anmeldeart „Zertifikatsdatei“; ELSTER Secure geht hier nicht |
 | bestätigte Datenschutzhinweise | **Einstellungen › ELSTER › ERiC** |
 
-Auf der Seite der Voranmeldung bzw. Jahreserklärung: **Nur prüfen**, dann **Prüfen und testweise senden**, dann echt senden mit zweiter Bestätigung. Danach:
+Auf der Seite der Voranmeldung bzw. Jahreserklärung: **Nur prüfen**, dann **Prüfen und testweise senden**, dann echt senden nach der Rückfrage im Dialog, der nennt, was gesendet wird (Steuerart, Zeitraum und, wo es sie gibt, die Zahllast). Danach:
 
 - Die Voranmeldung bzw. Erklärung ist festgeschrieben, mit Transfer-Ticket und Übermittlungsprotokoll (PDF) im Verlauf.
 - Die [Frist](fristen.md) ist erledigt.

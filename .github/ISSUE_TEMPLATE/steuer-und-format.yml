@@ -65,4 +65,4 @@ body:
     id: bezug
     attributes:
       label: Verwandte Issues und Roadmap
-      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.
+      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://haben.app/roadmap.html), falls du ihn kennst.

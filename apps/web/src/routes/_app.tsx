@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
-import { isKapitalgesellschaft } from "@haben/core";
+import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
@@ -214,7 +214,7 @@ function AppLayout() {
               </span>
               <span className="nav-user-text">
                 <span className="nav-user-name">{user.name}</span>
-                <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${new Date().getFullYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
+                <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${currentYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
               </span>
             </div>
             {inhaber && (
@@ -223,7 +223,7 @@ function AppLayout() {
                 Einstellungen
               </Link>
             )}
-            <a href="https://firsttris.github.io/haben/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
+            <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
               <Icon name="docs" />
               Dokumentation
             </a>

@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Schau bitte zuerst in die [Dokumentation](https://firsttris.github.io/haben/) (Installation, Erste Schritte, ELSTER, Bank). Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
+        Schau bitte zuerst in die [Dokumentation](https://haben.app/) (Installation, Erste Schritte, ELSTER, Bank). Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
   - type: dropdown
     id: art
     attributes:

@@ -1,0 +1,4 @@
+ALTER TABLE "document_iban_decisions" DROP CONSTRAINT "document_iban_decisions_abweichend";--> statement-breakpoint
+ALTER TABLE "document_iban_decisions" ALTER COLUMN "kontakt_iban" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "document_iban_decisions" ADD CONSTRAINT "document_iban_decisions_bestaetigt" CHECK ("document_iban_decisions"."kontakt_iban" is not null or "document_iban_decisions"."wahl" = 'e-rechnung');--> statement-breakpoint
+ALTER TABLE "document_iban_decisions" ADD CONSTRAINT "document_iban_decisions_abweichend" CHECK ("document_iban_decisions"."kontakt_iban" is null or "document_iban_decisions"."kontakt_iban" <> "document_iban_decisions"."rechnungs_iban");

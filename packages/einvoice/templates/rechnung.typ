@@ -12,6 +12,8 @@
 #let rule = rgb(d.palette.rule)
 // Akzentfarbe aus den Einstellungen (Überschriften, Linien), immer gesetzt
 #let accent = rgb(d.accent)
+// Logo und Marken aus dem Briefkopf-Profil, Maße in mm (templateInputs in pdf.ts)
+#let look = d.at("look", default: (logoHeight: 18, logoWidth: 60, logoLeft: false, foldMarks: true))
 
 // Die Plex-TTFs tragen Medium und SemiBold als eigene Familien
 #let medium(body) = text(font: "IBM Plex Sans Medm", body)
@@ -37,7 +39,7 @@
   foreground: entwurf-vermerk(d.at("draft", default: none)),
   // Fest statt 30 % des Rands: Wächst der Rand um die Pflichtangaben, bekommt der Fuß den ganzen Zuwachs
   footer-descent: 10.2mm,
-  background: {
+  background: if look.foldMarks {
     // Falz- und Lochmarken (Form B)
     place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
     place(top + left, dx: 4mm, dy: 148.5mm, line(length: 6mm, stroke: 0.4pt + rule))
@@ -72,11 +74,11 @@
   doc
 }
 
-// Logo oben rechts im Briefkopf, höchstens 18 mm hoch und 60 mm breit
+// Logo oben im Briefkopf, Seite und größte Maße aus dem Profil
 #if d.at("logo", default: none) != none {
-  place(top + right, context {
-    let hoch = image(d.logo, height: 18mm)
-    if measure(hoch).width > 60mm { image(d.logo, width: 60mm) } else { hoch }
+  place(top + if look.logoLeft { left } else { right }, context {
+    let hoch = image(d.logo, height: look.logoHeight * 1mm)
+    if measure(hoch).width > look.logoWidth * 1mm { image(d.logo, width: look.logoWidth * 1mm) } else { hoch }
   })
 }
 
@@ -111,9 +113,18 @@
 #v(5mm)
 
 // Einleitung (Kopftext) über den Positionen
+#let formatted(runs) = {
+  for run in runs {
+    let body = text(run.text)
+    if run.bold { body = semibold(body) }
+    if run.italic { body = emph(body) }
+    if run.underline { body = underline(body) }
+    body
+  }
+}
 #let intro = d.at("intro", default: none)
 #if intro != none {
-  intro
+  formatted(d.introFormatted)
   v(4mm)
 }
 
@@ -124,14 +135,18 @@
 // Spalte „Art.-Nr.“ hinter der Position, nur wenn eine Position eine Artikelnummer hat (BT-155)
 #let itemNumbers = d.at("itemNumbers", default: false)
 #let withItem(cells, item) = if itemNumbers { (cells.at(0), item) + cells.slice(1) } else { cells }
+// Spalte USt entfällt nur bei einem einzigen Steuersatz (showsVatColumn in packages/core)
+#let hideVat = d.at("hideVatColumn", default: false)
 #table(
-  columns: withItem(if noPrices { (auto, 1fr, auto) } else { (auto, 1fr, auto, auto, auto, auto) }, auto),
-  align: withItem(if noPrices { (left, left, right) } else { (left, left, right, right, right, right) }, left),
+  columns: withItem(if noPrices { (auto, 1fr, auto) } else if hideVat { (auto, 1fr, auto, auto, auto) } else { (auto, 1fr, auto, auto, auto, auto) }, auto),
+  align: withItem(if noPrices { (left, left, right) } else if hideVat { (left, left, right, right, right) } else { (left, left, right, right, right, right) }, left),
   stroke: (x, y) => if y == 0 { (bottom: 0.6pt + accent) } else { (bottom: 0.4pt + rule) },
   inset: (x: 1.6mm, y: 2.2mm),
   table.header(
     ..withItem(if noPrices {
       (head(cols.pos), head(cols.description), head(cols.quantity))
+    } else if hideVat {
+      (head(cols.pos), head(cols.description), head(cols.quantity), head(cols.unitPrice), head(cols.net))
     } else {
       (head(cols.pos), head(cols.description), head(cols.quantity), head(cols.unitPrice), head(cols.vat), head(cols.net))
     }, head(cols.at("itemNumber", default: "Art.-Nr."))),
@@ -146,11 +161,11 @@
       let parts = ()
       if tag != none { parts.push(medium(text(size: 8pt, fill: accent, tag))) }
       parts.push(if detail == none and tag == none { l.description } else { medium(l.description) })
-      if detail != none { parts.push(text(size: 8.5pt, fill: muted, detail)) }
+      if detail != none { parts.push(text(size: 8.5pt, fill: muted, formatted(l.detailFormatted))) }
       if discount != none { parts.push(text(size: 8.5pt, fill: muted, discount)) }
       stack(spacing: 1.4mm, ..parts)
     }
-    withItem(if noPrices { (l.pos, desc, l.quantity) } else { (l.pos, desc, l.quantity, l.unitPrice, l.rate, l.net) }, l.at("itemNumber", default: ""))
+    withItem(if noPrices { (l.pos, desc, l.quantity) } else if hideVat { (l.pos, desc, l.quantity, l.unitPrice, l.net) } else { (l.pos, desc, l.quantity, l.unitPrice, l.rate, l.net) }, l.at("itemNumber", default: ""))
   }).flatten()
 )
 
@@ -253,5 +268,5 @@
 }
 #if d.note != none {
   v(2mm)
-  d.note
+  formatted(d.noteFormatted)
 }

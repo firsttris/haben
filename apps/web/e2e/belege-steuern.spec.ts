@@ -4,7 +4,7 @@ import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { bestaetigen, faktenZeigen, dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 
 /**
@@ -63,7 +63,7 @@ test("Beleg prüfen: Ein Fehler beim Speichern steht nicht hinter den stehenden 
   await page.unroute(/_serverFn/, abbrechen);
   // Der Beleg gehört nur diesem Test: die folgenden zählen die offenen Belege
   await page.locator(".doc-actions").getByRole("button", { name: "Löschen" }).click();
-  await page.locator(".doc-actions").getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   if (vorher) await page.setViewportSize(vorher);
 });
@@ -233,6 +233,31 @@ test("Fristen und Kalender-Abo", async () => {
   expect(ics.status()).toBe(200);
   expect(await ics.text()).toContain("BEGIN:VCALENDAR");
   expect((await page.request.get(url.replace(/token=.*/, "token=falsch"))).status()).toBe(404);
+
+  // Neuer Link: Der alte stirbt erst nach der Rückfrage
+  await go("/fristen");
+  await abo.getByRole("button", { name: "Neuen Link erzeugen" }).click();
+  const neuerLink = page.getByRole("dialog", { name: "Neuen Abo-Link erzeugen?" });
+  await expect(neuerLink).toContainText("sofort ungültig");
+  await neuerLink.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  expect((await page.request.get(url)).status()).toBe(200);
+  await abo.getByRole("button", { name: "Neuen Link erzeugen" }).click();
+  await bestaetigen(page, "Neuen Link erzeugen");
+  const zweiterLink = await abo.getByLabel(/Abo-Link/).inputValue();
+  expect(zweiterLink).not.toBe(url);
+  expect((await page.request.get(url)).status()).toBe(404);
+
+  // Beenden ebenso
+  await go("/fristen");
+  await abo.getByRole("button", { name: "Abo beenden" }).click();
+  const beenden = page.getByRole("dialog", { name: "Kalender-Abo beenden?" });
+  await expect(beenden).toContainText("nicht mehr");
+  await beenden.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  expect((await page.request.get(zweiterLink)).status()).toBe(200);
+  await abo.getByRole("button", { name: "Abo beenden" }).click();
+  await bestaetigen(page, "Abo beenden");
+  await expect(abo.getByRole("button", { name: "Kalender-Abo einrichten" })).toBeVisible();
+  expect((await page.request.get(zweiterLink)).status()).toBe(404);
 });
 
 test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
@@ -264,7 +289,8 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await expect(liste.getByRole("row")).toHaveCount(4);
   const zeile = liste.getByRole("row").filter({ hasText: "Karlsruhe" });
   await zeile.getByRole("button", { name: "Stornieren" }).click();
-  await zeile.getByRole("button", { name: "Wirklich stornieren" }).click();
+  await faktenZeigen(page, "Datum", "Betrag");
+  await bestaetigen(page, "Stornieren");
   await expect(zeile.getByText("storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
@@ -335,10 +361,11 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   // Esc bricht nur die Rückfrage ab und bleibt beim Beleg
   const url = page.url();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Löschen", exact: true })).toBeVisible();
   expect(page.url()).toBe(url);
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -429,7 +456,7 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern; Buchung, EÜR, UStVA und DATEV prüfen die
   // Integrationstests in server/modules/belege/splits.test.ts
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -489,7 +516,7 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
     await go("/kontakte?rolle=lieferant");
@@ -653,7 +680,7 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
 
   // Die Voranmeldung des Monats verweist auf die Meldung des Quartals
@@ -692,7 +719,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
 
   await go(`/umsatzsteuer/${next}-05`);
@@ -737,7 +764,7 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
   await page.getByRole("button", { name: "Löschen" }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -812,7 +839,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   const invoicePath = new URL(page.url()).pathname;
   await axe(invoicePath, (p) => expect(p.getByLabel("Stufe 1: Skonto in %")).toHaveValue("3"));
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/\d{4}-\d{3}/)?.[0] ?? "";
   expect(number).not.toBe("");
@@ -884,6 +911,9 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText("Entwurf gespeichert.")).toBeVisible();
 
   const vermerk = page.getByRole("form", { name: "Außerhalb von Haben abgegeben" });
+  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443)
+  await vermerk.getByLabel("Tag der Abgabe").fill("");
+  await expect(vermerk.getByRole("button", { name: "Abgabe vermerken" })).toBeDisabled();
   await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
   await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
   await vermerk.getByLabel("Übermittlungsprotokoll (PDF)").setInputFiles({
@@ -894,9 +924,20 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   // Kz 83 laut Protokoll weicht ab: Haben lehnt ab
   await vermerk.getByLabel("Kz 83 laut Protokoll").fill("200,00");
   await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await bestaetigen(page, "Abgabe vermerken");
   await expect(vermerk.getByRole("alert")).toContainText("weicht von der Voranmeldung");
   await vermerk.getByLabel("Kz 83 laut Protokoll").fill("190,00");
+  // Festschreiben ist endgültig; die Rückfrage zeigt, was gleich gilt, und Abbrechen lässt alles offen
   await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  const vermerkRueckfrage = page.getByRole("dialog", { name: "Voranmeldung als abgegeben vermerken?" });
+  await faktenZeigen(page, "Tag der Abgabe", "Transferticket", "Kz 83");
+  await expect(vermerkRueckfrage).toContainText(`09.07.${year}`);
+  await expect(vermerkRueckfrage).toContainText("et7f3k9m2q8w4x1z");
+  await expect(vermerkRueckfrage).toContainText("190,00");
+  await vermerkRueckfrage.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toHaveCount(0);
+  await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await bestaetigen(page, "Abgabe vermerken");
   await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toBeVisible();
   await expect(page.getByRole("region", { name: `Verlauf Juni ${year}` })).toContainText("Abgabe vermerkt");
   const zahlung = page.getByRole("region", { name: "Zahlung an das Finanzamt" });
@@ -1047,7 +1088,7 @@ test("Beleg als Anlagegut: Wechsel von Fahrzeug zu Sonstige Transportmittel läs
   await expect(page.getByLabel("Nutzungsdauer in Jahren")).toHaveValue("");
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
   await page.getByRole("button", { name: "Löschen" }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
 });
 
@@ -1227,7 +1268,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
     await page.getByLabel("Kategorie").selectOption("telefon");
     await page.getByLabel("Privat bezahlt (Privateinlage)").check();
     await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-    await page.getByRole("button", { name: "Jetzt buchen" }).click();
+    await bestaetigen(page, "Buchen");
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
   }
@@ -1249,7 +1290,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   // Nichts ist gebucht, bis bestätigt wird
   await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeHidden();
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await page.waitForLoadState("networkidle");
   await expect(page.getByText(/Der Beleg ist festgeschrieben/)).toBeVisible();
 });
@@ -1344,7 +1385,7 @@ test("Abweichende IBAN der E-Rechnung: Warnung am Beleg, gesperrt unter Überwei
   await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Netzwerk Hosting GmbH" });
   await page.getByLabel("Kategorie").selectOption("software");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
   ibanBeleg = new URL(page.url()).pathname;
   const pruefen = page.getByRole("region", { name: "Bankverbindung prüfen" });
@@ -1528,6 +1569,60 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+});
+
+test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Hosting Süd GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  const kontaktUrl = page.url();
+
+  await go("/belege");
+  const xml = readFileSync(new URL("../../../packages/einvoice/test-fixtures/incoming/cii-prefixes.xml", import.meta.url), "utf8").replaceAll(
+    "RE-2026/0815",
+    "RE-2026/0817",
+  );
+  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "RE-2026-0817.xml", mimeType: "application/xml", buffer: Buffer.from(xml) }]);
+  await expect(page.getByText("RE-2026-0817.xml: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /RE-2026\/0817/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hosting Süd GmbH" });
+  await page.getByLabel("Kategorie").selectOption("software");
+  // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
+  await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+  const belegUrl = page.url();
+  const offen = page.getByRole("region", { name: "IBAN aus der E-Rechnung, noch nicht bestätigt" });
+  await expect(offen).toContainText("DE02 1203 0000 0000 2020 51");
+
+  // Bis zur Bestätigung gesperrt, auch für „Alle auswählen“
+  await go("/ueberweisungen");
+  const zeile = page.locator(".table-row").filter({ hasText: "RE-2026/0817" });
+  await expect(zeile.getByRole("checkbox")).toBeDisabled();
+  await expect(zeile).toContainText("noch nicht bestätigt");
+  const alle = page.getByRole("button", { name: "Alle auswählen" });
+  if (await alle.isEnabled()) await alle.click();
+  await expect(zeile.getByRole("checkbox")).not.toBeChecked();
+
+  // Übernehmen und zusätzlich in den Kontakt: danach gilt die IBAN des Kontakts, der Hinweis entfällt
+  await go(new URL(belegUrl).pathname);
+  await offen.getByLabel("Auch im Kontakt des Lieferanten eintragen").check();
+  await offen.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(offen).toHaveCount(0);
+  await go("/ueberweisungen");
+  await expect(zeile.getByRole("checkbox")).toBeEnabled();
+  await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
+  await go(new URL(kontaktUrl).pathname);
+  await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
