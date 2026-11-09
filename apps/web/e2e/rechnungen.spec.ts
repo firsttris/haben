@@ -1242,8 +1242,10 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
   await page.getByLabel("Zahlungsart").selectOption("lastschrift");
   // Das jüngste gültige Mandat des Kunden ist vorgewählt; Skonto entfällt bei Lastschrift
-  await expect(page.getByLabel("Mandat", { exact: true })).toHaveValue(/.+/);
-  await expect(page.getByLabel("Mandat", { exact: true }).locator("option:checked")).toHaveText("AB-2026-01 · CORE");
+  // Über die Rolle: getByLabel mit exact vergleicht den ganzen Text des umschließenden Labels samt gewählter Option
+  const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
+  await expect(mandatFeld).toHaveValue(/.+/);
+  await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
   await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
   await page.getByLabel("Beschreibung Position 1").fill("Wartung");
   await page.getByLabel("Menge Position 1").fill("1");
