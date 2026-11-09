@@ -383,6 +383,46 @@ test("Seitenwechsel über einen Link im Inhalt setzt den Fokus auf den Inhalt", 
   await expect(page.getByRole("main")).toBeFocused();
 });
 
+for (const [device, viewport] of [
+  ["Desktop", { width: 1440, height: 900 }],
+  ["Handy", { width: 390, height: 844 }],
+] as const) {
+  test(`Nur der Feldname fokussiert das Feld, nicht die leere Fläche daneben (${device})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await open(page, "/kontakte/neu");
+    const feld = page
+      .getByRole("main")
+      .locator("label.field")
+      .filter({ has: page.locator("input") })
+      .first();
+    const eingabe = feld.locator("input").first();
+    await feld.scrollIntoViewIfNeeded();
+    const text = await feld.evaluate((label) => {
+      const knoten = [...label.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
+      if (!knoten) throw new Error("Feld ohne Text als Feldname");
+      const bereich = document.createRange();
+      bereich.selectNodeContents(knoten);
+      const { left, right, top, height } = bereich.getBoundingClientRect();
+      return { left, right, mitte: top + height / 2, rechtsVomLabel: label.getBoundingClientRect().right - right };
+    });
+    expect(text.rechtsVomLabel, "Fläche rechts neben dem Feldnamen").toBeGreaterThan(40);
+
+    const istLabelUnter = (x: number, y: number) => feld.evaluate((label, [px, py]) => document.elementFromPoint(px, py) === label, [x, y]);
+    const leer = text.right + 30;
+    const aufText = (text.left + text.right) / 2;
+    // elementFromPoint liefert null außerhalb des Fensters und ein anderes Element, wenn etwas den Punkt verdeckt
+    expect(await istLabelUnter(leer, text.mitte), "leere Fläche liegt im Fenster und frei").toBe(true);
+    expect(await istLabelUnter(aufText, text.mitte), "Feldname liegt im Fenster und frei").toBe(true);
+
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.mouse.click(leer, text.mitte);
+    await expect(eingabe).not.toBeFocused();
+
+    await page.mouse.click(aufText, text.mitte);
+    await expect(eingabe).toBeFocused();
+  });
+}
+
 test("Archiv: Nur der gewählte Bereich und die gewählten Filter tragen aria-current", async ({ page }) => {
   // TanStack Router setzt aria-current="page" selbst, sobald die Suchparameter eines Links nur teilweise passen;
   // „Alle“ und „Umzug“ setzen ihren Parameter auf undefined und galten deshalb immer als aktiv
