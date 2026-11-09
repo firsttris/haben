@@ -1,3 +1,4 @@
+import { RECURRING_PLACEHOLDERS } from "./recurring.ts";
 import { type FormattedTextRun, TEXT_MARKERS, type TextStyle, appendTextRun, parseTextFormatting, plainFormattedText } from "./text-format.ts";
 
 export interface TextEdit {
@@ -43,6 +44,20 @@ function toWord(text: string, from: number, to: number): [number, number] {
   let end = to;
   while (start > 0 && joinsWord(text, start - 1)) start--;
   while (end < text.length && joinsWord(text, end)) end++;
+  return [start, end];
+}
+
+/** Ein Platzhalter bleibt ganz: Mit Zeichen in den Klammern könnte fillPlaceholders ihn nicht mehr ersetzen. */
+function toPlaceholder(text: string, from: number, to: number): [number, number] {
+  let start = from;
+  let end = to;
+  for (const placeholder of Object.keys(RECURRING_PLACEHOLDERS)) {
+    for (let at = text.indexOf(placeholder); at >= 0; at = text.indexOf(placeholder, at + 1)) {
+      const close = at + placeholder.length;
+      if (at < start && start < close) start = at;
+      if (at < end && end < close) end = close;
+    }
+  }
   return [start, end];
 }
 
@@ -113,7 +128,7 @@ function toggleEmptyPair(text: string, at: number, style: TextStyle): TextEdit {
  */
 export function toggleTextStyle(text: string, selectionStart: number, selectionEnd: number, style: TextStyle): TextEdit | null {
   const [narrowStart, narrowEnd] = narrow(text, selectionStart, selectionEnd);
-  const [start, end] = toWord(text, narrowStart, narrowEnd);
+  const [start, end] = toPlaceholder(text, ...toWord(text, narrowStart, narrowEnd));
   if (start === end) return selectionStart === selectionEnd ? toggleEmptyPair(text, start, style) : null;
   const direct = toggleRange(text, start, end, style);
   if (direct) return direct;
