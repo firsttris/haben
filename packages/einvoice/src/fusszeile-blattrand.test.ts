@@ -54,7 +54,9 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Abstand zur Blattkante", () =>
   it("hält die Seitenzahl bei einem hohen Fuß so weit von der Blattkante wie bei der automatischen Fußzeile", () => {
     const automatisch = seitenzahl(worteJeSeite(renderInvoicePdf(zweiSeiten))!);
     const hoch = seitenzahl(
-      worteJeSeite(renderInvoicePdf({ ...zweiSeiten, options: { ...DEFAULT_OPTIONS, footerColumns: [hoheSpalte, hoheSpalte, hoheSpalte, "{steuernummer}"] } }))!,
+      worteJeSeite(
+        renderInvoicePdf({ ...zweiSeiten, options: { ...DEFAULT_OPTIONS, footerColumns: [hoheSpalte, hoheSpalte, hoheSpalte, "{steuernummer}"] } }),
+      )!,
     );
     expect(mmVomBlattrand(hoch)).toBeGreaterThanOrEqual(mmVomBlattrand(automatisch));
   });

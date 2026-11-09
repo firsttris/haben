@@ -97,7 +97,10 @@ export function LetterheadBackgroundCard({ design, background }: { design: Lette
         accept="image/png,image/jpeg,application/pdf"
         onChanged={async (sha256) => {
           // Ohne Briefpapier gilt der Fuß wieder; ein neues Bild soll ihn nicht unbemerkt abschalten
-          if (sha256 === null && design.footerHidden) await save({ data: { footerHidden: false } });
+          if (sha256 === null) {
+            draft.set({ footerHidden: false });
+            if (design.footerHidden) await save({ data: { footerHidden: false } });
+          }
           await router.invalidate();
         }}
       />

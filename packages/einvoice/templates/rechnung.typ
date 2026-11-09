@@ -84,8 +84,8 @@
 #let hoehe(inhalt) = measure(block(width: satzbreite, inhalt)).height
 #show: doc => context {
   let pflicht = if legal-foot == none { 0mm } else { hoehe(legal-foot) }
-  // 5 mm für die Seitenzahl, 10,2 mm wie footer-descent
-  let rand = calc.max((34mm + pflicht).to-absolute(), hoehe(foot-spalten) + 5mm + 10.2mm)
+  // 5 mm für die Seitenzahl, 10,2 mm wie footer-descent, 3 mm Abstand zur Blattkante
+  let rand = calc.max((34mm + pflicht).to-absolute(), hoehe(foot-spalten) + 5mm + 10.2mm + 3mm)
   set page(margin: (top: 20mm, bottom: rand, left: 25mm, right: 20mm))
   doc
 }

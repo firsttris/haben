@@ -40,7 +40,11 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Spalten überlappen sich nicht
   it("bricht eine lange E-Mail-Adresse in vier Spalten um, statt in die Nachbarspalte zu laufen", () => {
     const seller = { ...sampleDocument().seller, email: "buchhaltung@mustermannconsulting.de" };
     const seiten = worteJeSeite(
-      renderInvoicePdf({ ...sampleDocument(), seller, options: { ...DEFAULT_OPTIONS, footerColumns: ["{email}", "Sprechzeiten", "Termine", "{steuernummer}"] } }),
+      renderInvoicePdf({
+        ...sampleDocument(),
+        seller,
+        options: { ...DEFAULT_OPTIONS, footerColumns: ["{email}", "Sprechzeiten", "Termine", "{steuernummer}"] },
+      }),
     )!;
     const worte = seiten[0]!;
     const nachbar = worte.find((wort) => wort.text === "Sprechzeiten")!;

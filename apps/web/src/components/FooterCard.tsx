@@ -33,6 +33,15 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
   const [texts, setTexts] = useState<string[]>(columns ?? [...DEFAULT_FOOTER_COLUMNS]);
   const [count, setCount] = useState((columns ?? DEFAULT_FOOTER_COLUMNS).length);
   const [focused, setActive] = useState(0);
+  // Neuer Stand vom Server: übernehmen, ohne die Karte zu ersetzen, sonst verschwände die Meldung „gespeichert“ mit ihr
+  const loaded = JSON.stringify(columns);
+  const [seen, setSeen] = useState(loaded);
+  if (loaded !== seen) {
+    setSeen(loaded);
+    setOwn(columns !== null);
+    setTexts(columns ?? [...DEFAULT_FOOTER_COLUMNS]);
+    setCount((columns ?? DEFAULT_FOOTER_COLUMNS).length);
+  }
   const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   // Weniger Spalten behalten den Text der übrigen: Wer zurückschaltet, verliert nichts
