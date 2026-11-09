@@ -100,35 +100,24 @@ describe("Etsy-Monatsabrechnung", () => {
     const file = fixture("etsy-en.csv");
     expect(detectStatementFormat(file)).toBe("etsy-csv");
     const s = parseStatement(file, "etsy-en.csv");
-    expect(s.transactions).toHaveLength(11);
-    // Verkäufe, Gebühren, Steuer, Erstattung und Werbung mindern oder mehren das Guthaben; die Auszahlung holt es ab
+    // Die beiden Tax-Zeilen gehen im Verkauf und in der Erstattung derselben Bestellung auf
+    expect(s.transactions).toHaveLength(9);
+    // Verkäufe, Gebühren, Erstattung und Werbung mindern oder mehren das Guthaben; die Auszahlung holt es ab
     expect(s.transactions.reduce(sum, 0)).toBe(0);
     expect(brief(s)).toEqual([
       ["2025-03-08", -31, "Etsy", "Gebühr · Transaction fee: Shipping · Order #2500000001"],
       ["2025-03-08", -273, "Etsy", 'Gebühr · Transaction fee: Notebook, "handmade" cover · Order #2500000001'],
-      ["2025-03-08", -336, "Etsy", "Tax · Sales tax paid by buyer · Order #2500000001"],
       ["2025-03-08", -162, "Etsy", "Gebühr · Processing fee · Order #2500000001"],
-      ["2025-03-08", 125000, "Etsy", "Sale · Payment for Order #2500000001"],
+      // 1.250,00 € abzüglich 3,36 € Steuer des Käufers: der Betrag der Rechnung
+      ["2025-03-08", 124664, "Etsy", "Sale · Payment for Order #2500000001"],
       ["2025-03-09", -18, "Etsy", "Gebühr · Listing fee (€0.18) · Listing #1500000002"],
-      ["2025-03-20", -1737, "Etsy", "Refund · Refund to buyer for Order #2500000002"],
+      // 17,37 € erstattet, davon 1,30 € Steuer, die Etsy zurückgibt
+      ["2025-03-20", -1607, "Etsy", "Refund · Refund to buyer for Order #2500000002"],
       ["2025-03-20", 89, "Etsy", "Gebühr · Credit for processing fee · Order #2500000002"],
-      ["2025-03-20", 130, "Etsy", "Tax · Refund to buyer for sales tax · Order #2500000002"],
       ["2025-03-28", -86, "Etsy", "Gebühr · Etsy Ads · Bill for click-throughs to your shop on Mar 27, 2025"],
       ["2025-03-31", -122576, "Etsy", "Auszahlung · €1,225.76 sent to your bank account"],
     ]);
-    expect(s.transactions.map((t) => t.type)).toEqual([
-      "Gebühr",
-      "Gebühr",
-      "Umsatzsteuer",
-      "Gebühr",
-      "Verkauf",
-      "Gebühr",
-      "Erstattung",
-      "Gebühr",
-      "Umsatzsteuer",
-      "Werbung",
-      "Auszahlung",
-    ]);
+    expect(s.transactions.map((t) => t.type)).toEqual(["Gebühr", "Gebühr", "Gebühr", "Verkauf", "Gebühr", "Erstattung", "Gebühr", "Werbung", "Auszahlung"]);
     expect(s.warnings).toEqual([]);
   });
 
@@ -144,18 +133,96 @@ describe("Etsy-Monatsabrechnung", () => {
       ]),
     );
     expect(s.transactions.map((t) => [t.type, t.amount, t.purpose])).toEqual([
-      ["Erstattung", -500, "Refund · Partial refund to buyer for Order #1"],
+      // 5,00 € erstattet, davon 1,30 € Steuer, die Etsy zurückgibt (Tax-Zeile derselben Bestellung)
+      ["Erstattung", -370, "Refund · Partial refund to buyer for Order #1"],
       ["Gebühr", 89, "Gebühr · Credit for processing fee · Order #1"],
       ["Gebühr", 33, "Gebühr · Credit for transaction fee on Notebook · Order #1"],
       ["Gebühr", 18, "Gebühr · Credit for listing fee ($0.20 USD) · Listing #2"],
-      ["Umsatzsteuer", 130, "Tax · Refund to buyer for sales tax · Order #1"],
     ]);
     expect(s.warnings).toEqual([]);
   });
 
-  it("Tax-Zeilen (Umsatzsteuer, die Etsy für den Käufer abführt) sind keine Gebühr", () => {
-    const s = parseStatement(english([`"March 8, 2025",Tax,"Sales tax paid by buyer","Order #1",EUR,--,-€3.36,-€3.36,--`]));
-    expect(s.transactions.map((t) => [t.type, t.amount])).toEqual([["Umsatzsteuer", -336]]);
+  describe("Tax-Zeilen: Steuer des Käufers, die Etsy abführt (Entscheidung des Maintainers im PR #506, wie bei eBay)", () => {
+    const sale = (order: number, amount: string) => `"March 8, 2025",Sale,"Payment for Order #${order}",,EUR,${amount},--,${amount},--`;
+    const tax = (order: number, amount: string) => `"March 8, 2025",Tax,"Sales tax paid by buyer","Order #${order}",EUR,--,${amount},${amount},--`;
+
+    it("wird mit dem Verkauf derselben Bestellung verrechnet: der Verkauf kommt mit dem Rechnungsbetrag an", () => {
+      const s = parseStatement(english([tax(2, "-€1.90"), tax(1, "-€3.36"), sale(1, "€100.00"), sale(2, "€10.00")]));
+      expect(brief(s)).toEqual([
+        ["2025-03-08", 9664, "Etsy", "Sale · Payment for Order #1"],
+        ["2025-03-08", 810, "Etsy", "Sale · Payment for Order #2"],
+      ]);
+      expect(s.transactions.map((t) => t.type)).toEqual(["Verkauf", "Verkauf"]);
+      expect(s.warnings).toEqual([]);
+    });
+
+    it("steht die Steuerzeile vor dem Verkauf in der Datei, ändert das nichts", () => {
+      const s = parseStatement(english([sale(1, "€100.00"), tax(1, "-€3.36")]));
+      expect(brief(s)).toEqual([["2025-03-08", 9664, "Etsy", "Sale · Payment for Order #1"]]);
+    });
+
+    it("bei einer Erstattung umgekehrt: „Refund to buyer for sales tax“ gegen die Erstattung derselben Bestellung", () => {
+      const s = parseStatement(
+        english([
+          `"March 20, 2025",Refund,"Refund to buyer for Order #1",,EUR,-€17.37,--,-€17.37,--`,
+          `"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€1.30,€1.30,--`,
+        ]),
+      );
+      expect(brief(s)).toEqual([["2025-03-20", -1607, "Etsy", "Refund · Refund to buyer for Order #1"]]);
+      expect(s.warnings).toEqual([]);
+    });
+
+    it("die Steuer eines Verkaufs wird nicht mit der Erstattung derselben Bestellung verrechnet, auch wenn sie am selben Tag steht", () => {
+      const s = parseStatement(
+        english([
+          `"March 8, 2025",Refund,"Refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+          sale(1, "€100.00"),
+          tax(1, "-€3.36"),
+        ]),
+      );
+      expect(brief(s)).toEqual([
+        ["2025-03-08", -500, "Etsy", "Refund · Refund to buyer for Order #1"],
+        ["2025-03-08", 9664, "Etsy", "Sale · Payment for Order #1"],
+      ]);
+    });
+
+    it("ohne Verkauf derselben Bestellung (etwa über die Monatsgrenze) bleibt die Zeile mit dem Nettobetrag und einer Warnung, nichts wird geraten", () => {
+      const s = parseStatement(english([sale(1, "€100.00"), tax(7, "-€3.36")]));
+      expect(brief(s)).toEqual([
+        ["2025-03-08", 10000, "Etsy", "Sale · Payment for Order #1"],
+        ["2025-03-08", -336, "Etsy", "Tax · Sales tax paid by buyer · Order #7"],
+      ]);
+      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung mit dem Nettobetrag übernommen."]);
+    });
+
+    it("mehrere Teilerstattungen derselben Bestellung: die Steuer lässt sich nicht zuordnen und bleibt mit Warnung einzeln", () => {
+      const s = parseStatement(
+        english([
+          `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+          `"March 21, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€6.00,--,-€6.00,--`,
+          `"March 21, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€0.90,€0.90,--`,
+        ]),
+      );
+      expect(s.transactions.map((t) => t.amount)).toEqual([-500, -600, 90]);
+      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung mit dem Nettobetrag übernommen."]);
+    });
+
+    it("die Summe aller Umsätze bleibt der Nettobetrag der Datei", () => {
+      const s = parseStatement(english([sale(1, "€100.00"), tax(1, "-€3.36"), tax(9, "-€1.00")]));
+      expect(s.transactions.reduce(sum, 0)).toBe(10000 - 336 - 100);
+    });
+
+    // Annahme: Deutsche Dateien schreiben die Bestellung in der Info der Offsite-Ads-Zeilen als „Bestellnr. …“; eine deutsche
+    // Tax-Zeile liegt uns nicht vor (der Shop von Lucifus01 hat keine), der Parser liest beide Schreibweisen
+    it("die deutsche Bestellnummer „Bestellnr. …“ in der Info wird wie „Order #…“ gelesen", () => {
+      const s = parseStatement(
+        german([
+          `"05. November 2026",Sale,"Payment for Order #XXX-001",,EUR,€8.73,--,€8.73,--`,
+          `"05. November 2026",Tax,"Steuer","Bestellnr. XXX-001",EUR,--,-€0.50,-€0.50,--`,
+        ]),
+      );
+      expect(brief(s)).toEqual([["2026-11-05", 823, "Etsy", "Sale · Payment for Order #XXX-001"]]);
+    });
   });
 
   it("erkennt auch ältere Dateien ohne die Spalte Tax Details", () => {
