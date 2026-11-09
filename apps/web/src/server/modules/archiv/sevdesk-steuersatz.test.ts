@@ -86,6 +86,11 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Rechnung ohne Positionen (Postgres)",
       expect(await taxesOf(await archived({ net: -11_900, tax: -2_261 }))).toEqual([{ rate: 1900, net: -11_900, tax: -2_261 }]);
     });
 
+    it("nimmt bei kleinen Beträgen den nächstliegenden Satz, nicht den ersten passenden", async () => {
+      expect(await taxesOf(await archived({ net: 10, tax: 1 }))).toEqual([{ rate: 700, net: 10, tax: 1 }]);
+      expect(await taxesOf(await archived({ net: 171, tax: 33 }))).toEqual([{ rate: 1900, net: 171, tax: 33 }]);
+    });
+
     it("rechnet große Beträge ohne Überlauf", async () => {
       expect(await taxesOf(await archived({ net: 500_000_000, tax: 95_000_000 }))).toEqual([{ rate: 1900, net: 500_000_000, tax: 95_000_000 }]);
     });
