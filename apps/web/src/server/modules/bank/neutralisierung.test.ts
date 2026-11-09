@@ -250,4 +250,17 @@ describe.skipIf(!testDatabaseUrl)("Gegenläufige Bankumsätze verrechnen (Postgr
     expect(verrechnungen[1]).toMatch(/^DE12120300001234567890;2026-10-1[45];-?1,00;2026-10-1[45];-?1,00;Kartenprüfung;;/);
     expect(text("LIESMICH.txt")).toContain("bank/verrechnungen.csv");
   });
+
+  it("Datenexport mit mehr als 32.767 Umsätzen im Jahr: die Verrechnungen sprengen nicht die Grenze von 65.535 Parametern", async () => {
+    // Ein Zahlungsdienstleister bringt je Verkauf Brutto und Gebühr; 33.000 Umsätze sind ein Shop mit rund 16.500 Verkäufen im Jahr
+    await firma("SKR04", "ist");
+    const { minus, plus } = await kartenpruefung();
+    await bank.neutralizeTransactions(actor, { transactionId: minus, counterTransactionId: plus, note: "Kartenprüfung" });
+    await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, purpose, dedup_hash)
+      select bank_account_id, import_id, booking_date, 100, 'Verkauf', 'masse-' || g from bank_transactions, generate_series(1, 33000) g where id = ${minus}`;
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of exporter.exportYear(2026, new Date("2026-10-20T10:00:00Z"))) chunks.push(chunk);
+    const verrechnungen = new TextDecoder().decode(unzipSync(Buffer.concat(chunks))["bank/verrechnungen.csv"]).split("\r\n");
+    expect(verrechnungen[1]).toContain(";Kartenprüfung;");
+  }, 120_000);
 });
