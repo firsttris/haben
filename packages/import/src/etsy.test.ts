@@ -54,7 +54,8 @@ describe("Etsy-Monatsabrechnung", () => {
       // „Auszahlung“ im Zweck, damit Haben im Konto des Dienstleisters den Geldtransit zur Bank vorschlägt (PAYOUT_PURPOSE)
       ["2026-11-02", -6975, "Etsy", "Auszahlung · €69.75 an dein Bankkonto überwiesen"],
       ["2026-11-05", 873, "Etsy", "Sale · Payment for Order #XXX-001"],
-      ["2026-11-05", -65, "Etsy", "Fee · Processing fee · Order #XXX-001"],
+      // „Gebühr“ am Anfang wie bei den übrigen Dienstleistern: Darauf baut die Zuordnung zur Sammelrechnung (Server und Knopf)
+      ["2026-11-05", -65, "Etsy", "Gebühr · Processing fee · Order #XXX-001"],
       ["2026-11-05", -46, "Etsy", "Marketing · Etsy Ads · Bill for click-throughs to your shop on Nov 4, 2026"],
     ]);
     expect(s.transactions.map((t) => t.type)).toEqual(["Auszahlung", "Verkauf", "Gebühr", "Werbung"]);
@@ -78,14 +79,14 @@ describe("Etsy-Monatsabrechnung", () => {
     // Verkäufe, Gebühren, Steuer, Erstattung und Werbung mindern oder mehren das Guthaben; die Auszahlung holt es ab
     expect(s.transactions.reduce(sum, 0)).toBe(0);
     expect(brief(s)).toEqual([
-      ["2025-03-08", -31, "Etsy", "Fee · Transaction fee: Shipping · Order #2500000001"],
-      ["2025-03-08", -273, "Etsy", 'Fee · Transaction fee: Notebook, "handmade" cover · Order #2500000001'],
+      ["2025-03-08", -31, "Etsy", "Gebühr · Transaction fee: Shipping · Order #2500000001"],
+      ["2025-03-08", -273, "Etsy", 'Gebühr · Transaction fee: Notebook, "handmade" cover · Order #2500000001'],
       ["2025-03-08", -336, "Etsy", "Tax · Sales tax paid by buyer · Order #2500000001"],
-      ["2025-03-08", -162, "Etsy", "Fee · Processing fee · Order #2500000001"],
+      ["2025-03-08", -162, "Etsy", "Gebühr · Processing fee · Order #2500000001"],
       ["2025-03-08", 125000, "Etsy", "Sale · Payment for Order #2500000001"],
-      ["2025-03-09", -18, "Etsy", "Fee · Listing fee (€0.18) · Listing #1500000002"],
+      ["2025-03-09", -18, "Etsy", "Gebühr · Listing fee (€0.18) · Listing #1500000002"],
       ["2025-03-20", -1737, "Etsy", "Refund · Refund to buyer for Order #2500000002"],
-      ["2025-03-20", 89, "Etsy", "Fee · Credit for processing fee · Order #2500000002"],
+      ["2025-03-20", 89, "Etsy", "Gebühr · Credit for processing fee · Order #2500000002"],
       ["2025-03-20", 130, "Etsy", "Tax · Refund to buyer for sales tax · Order #2500000002"],
       ["2025-03-28", -86, "Etsy", "Marketing · Etsy Ads · Bill for click-throughs to your shop on Mar 27, 2025"],
       ["2025-03-31", -122576, "Etsy", "Auszahlung · €1,225.76 sent to your bank account"],

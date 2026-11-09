@@ -1046,6 +1046,38 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await expect(bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
   }, 30_000);
 
+  // Etsy-Gebührenzeilen haben keinen Betrag, nur „Gebühren & Steuern“; auch sie brauchen „Gebühr“ im Zweck (#296, Review zu #506)
+  it("Etsy: Gebühren eines Monats der Sammelrechnung zuordnen", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    const csv = [
+      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
+      `"October 1, 2026",Fee,"Listing fee","Listing #1",EUR,--,-€1.50,-€1.50,--`,
+      `"October 15, 2026",Fee,"Processing fee","Order #1",EUR,--,-€3.00,-€3.00,--`,
+      `"November 2, 2026",Fee,"Processing fee","Order #2",EUR,--,-€1.00,-€1.00,--`,
+    ].join("\n");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 12]);
+    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-oktober.jpg" });
+    await documents.updateDocument(actor, docId, {
+      supplierName: "Etsy Ireland UC",
+      supplierUstId: "",
+      invoiceNumber: "ETSY-2026-10",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      category: "sonstiges",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 0, net: 450, tax: 0 }],
+    });
+    await documents.bookDocument(actor, docId);
+    const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    // Oktober erledigt, November bleibt offen
+    const open = await sql`select amount from bank_transactions t where amount < 0
+      and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
+    expect(open.map((r) => r.amount)).toEqual([-100]);
+  }, 30_000);
+
   it("Belegzahlung und Privatentnahme", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]);
     const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "telekom.jpg" });
