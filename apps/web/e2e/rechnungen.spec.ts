@@ -1569,7 +1569,7 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   await expect(page.getByText("Mandat angelegt.")).toBeVisible();
 
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
-  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
   await page.getByLabel("Zahlungsart").selectOption("lastschrift");
   // Das jüngste gültige Mandat des Kunden ist vorgewählt; Skonto entfällt bei Lastschrift
   // Über die Rolle: getByLabel mit exact vergleicht den ganzen Text des umschließenden Labels samt gewählter Option
