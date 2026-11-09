@@ -51,11 +51,11 @@ function selectionAnchor(field: HTMLTextAreaElement): Anchor | null {
   return { left: caret.left, top: Math.min(Math.max(caret.top - BAR_HEIGHT - GAP, -BAR_HEIGHT - GAP), field.offsetHeight + GAP) };
 }
 
-function moveFocus(event: KeyboardEvent<HTMLElement>, field: HTMLTextAreaElement | null): void {
+function moveFocus(event: KeyboardEvent<HTMLElement>, onEscape: () => void): void {
   const buttons = [...event.currentTarget.querySelectorAll("button")];
   const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
   const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-  if (event.key === "Escape") field?.focus();
+  if (event.key === "Escape") onEscape();
   else if (step) buttons[(current + step + buttons.length) % buttons.length]?.focus();
   else return;
   event.preventDefault();
@@ -91,6 +91,11 @@ export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": desc
     };
   }, [syncAnchor]);
 
+  function dismiss(element: HTMLTextAreaElement) {
+    dismissed.current = `${element.selectionStart}:${element.selectionEnd}`;
+    setAnchor(null);
+  }
+
   function toggle(style: TextStyle) {
     const element = field.current;
     if (!element) return;
@@ -108,9 +113,7 @@ export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": desc
   function shortcut(event: KeyboardEvent<HTMLTextAreaElement>) {
     onKeyDown?.(event);
     if (event.key === "Escape" && anchor) {
-      const element = event.currentTarget;
-      dismissed.current = `${element.selectionStart}:${element.selectionEnd}`;
-      setAnchor(null);
+      dismiss(event.currentTarget);
       event.preventDefault();
       event.stopPropagation();
       return;
@@ -151,7 +154,13 @@ export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": desc
           aria-label="Textformatierung"
           className="format-bar"
           style={{ left: `min(${anchor.left}px, calc(100% - ${BAR_WIDTH}px))`, top: anchor.top }}
-          onKeyDown={(event) => moveFocus(event, field.current)}
+          onKeyDown={(event) =>
+            moveFocus(event, () => {
+              if (!field.current) return;
+              dismiss(field.current);
+              field.current.focus();
+            })
+          }
         >
           {BUTTONS.map((button, index) => (
             <button
