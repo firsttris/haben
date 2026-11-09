@@ -19,9 +19,10 @@ import type { ParsedStatement } from "./types.ts";
  *
  * - Bei der Auszahlung sind alle Betragsspalten leer, der Betrag steht nur im Titel („€69.75 an dein Bankkonto
  *   überwiesen“).
- * - „Tax“ ist die Umsatzsteuer, die Etsy für den Käufer abführt: Sie steckt im Verkauf und wird mit einer eigenen Zeile
- *   wieder abgezogen (bei Erstattungen umgekehrt). Das ist keine Gebühr, wird aber gebraucht, damit das Guthaben bei
- *   Etsy zu den Auszahlungen passt. Haben legt sie deshalb als eigenen Umsatz „Umsatzsteuer“ an.
+ * - „Tax“ ist die Steuer des Käufers, die Etsy abführt: Sie steckt im Verkauf und wird mit einer eigenen Zeile wieder
+ *   abgezogen (bei Erstattungen umgekehrt). Das ist keine Gebühr und kein Erlös. Haben verrechnet sie wie bei eBay mit dem
+ *   Verkauf bzw. der Erstattung derselben Bestellung (settleTax), damit der Verkauf mit dem Rechnungsbetrag ankommt;
+ *   findet sich nicht genau einer, bleibt sie als „Umsatzsteuer“ mit Nettobetrag und Warnung stehen.
  *
  * Wie bei den übrigen Zahlungsdienstleistern wird der Bruttobetrag eines Verkaufs vom Rest getrennt: Hat eine Zeile
  * Betrag und Gebühren, entstehen zwei Umsätze. Jede Gebührenzeile bleibt ein eigener Umsatz. Die Auszahlung ist ein
@@ -90,6 +91,47 @@ function payoutAmount(title: string, where: string): number {
   return -cents;
 }
 
+/** Bestellnummer aus „Payment for Order #N“, „Order #N“ oder (deutsche Dateien) „Bestellnr. N“ */
+const ORDER = /(?:order\s*#|bestellnr\.?)\s*([^\s,]+)/i;
+
+function orderOf(...texts: string[]): string | undefined {
+  for (const text of texts) {
+    const found = ORDER.exec(text);
+    if (found) return found[1];
+  }
+  return undefined;
+}
+
+/** Umsätze, die zu einer Bestellung gehören und mit einer Steuerzeile verrechnet werden können */
+const ORDER_TYPES = new Set(["Verkauf", "Erstattung", "Umsatzsteuer"]);
+
+/**
+ * Verrechnet die Steuer des Käufers, die Etsy abführt, mit dem Verkauf derselben Bestellung (negative Steuer) bzw. mit der
+ * Erstattung (positive Steuer), wie bei eBay: Der Verkauf kommt dann mit dem Betrag der Rechnung an. Gibt es nicht genau
+ * einen solchen Verkauf oder eine solche Erstattung in der Datei (etwa über die Monatsgrenze oder bei mehreren
+ * Teilerstattungen), bleibt die Zeile einzeln, damit nichts geraten wird; die Anzahl dieser Zeilen steht in `unsettled`.
+ */
+function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
+  const adjustment = new Map<Tx, number>();
+  const settled = new Set<Tx>();
+  const taxes = list.filter((t) => t.type === "Umsatzsteuer");
+  for (const tax of taxes) {
+    const order = orders.get(tax);
+    const wanted = tax.amount < 0 ? "Verkauf" : "Erstattung";
+    const targets = list.filter((t) => order !== undefined && t.type === wanted && orders.get(t) === order);
+    if (targets.length !== 1) continue;
+    adjustment.set(targets[0]!, (adjustment.get(targets[0]!) ?? 0) + tax.amount);
+    settled.add(tax);
+  }
+  const result = list.filter((t) => !settled.has(t)).map((t) => (adjustment.has(t) ? { ...t, amount: t.amount + adjustment.get(t)! } : t));
+  return { list: result, unsettled: taxes.length - settled.size };
+}
+
+function unsettledTaxWarning(count: number): string[] {
+  if (count === 0) return [];
+  return [`${count} ${count === 1 ? "Steuerzeile" : "Steuerzeilen"} ohne Verkauf oder Erstattung derselben Bestellung mit dem Nettobetrag übernommen.`];
+}
+
 function unknownKindsWarning(kinds: string[]): string[] {
   if (kinds.length === 0) return [];
   const names = [...new Set(kinds)].map((kind) => kind || "ohne Art").join(", ");
@@ -109,6 +151,7 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
   const net = value(c.getter(...NET));
 
   const list: Tx[] = [];
+  const orders = new Map<Tx, string>();
   const unknownKinds: string[] = [];
   let foreign = 0;
   let empty = 0;
@@ -125,6 +168,13 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
     const purpose = describe(kind);
     const base = { bookingDate: etsyDate(date(row), where), currency: "EUR", counterpartyName: "Etsy" };
     const cents = (raw: string) => (raw ? requireAmount(parseDotAmount(raw), raw, where) : 0);
+    // Verkäufe, Erstattungen und Steuerzeilen merken sich ihre Bestellung für settleTax; die Steuerzeile nennt sie in der
+    // Info, der Verkauf im Titel
+    const order = labelOf(kind) === "Umsatzsteuer" ? orderOf(info(row), title(row)) : orderOf(title(row), info(row));
+    const add = (tx: Tx) => {
+      list.push(tx);
+      if (order !== undefined && tx.type !== undefined && ORDER_TYPES.has(tx.type)) orders.set(tx, order);
+    };
 
     if (isPayout(kind)) {
       // Haben erkennt eine Auszahlung im Konto des Dienstleisters am Wort „Auszahlung“ im Zweck (PAYOUT_PURPOSE in
@@ -145,24 +195,28 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
         return;
       }
       if (label === undefined) unknownKinds.push(kind);
-      list.push({ ...base, amount: cents(net(row)), purpose: rowPurpose, type: label ?? (kind || undefined) });
+      add({ ...base, amount: cents(net(row)), purpose: rowPurpose, type: label ?? (kind || undefined) });
       return;
     }
     const gross = cents(amount(row));
     const fee = cents(fees(row));
-    if (gross !== 0) list.push({ ...base, amount: gross, purpose: rowPurpose, type: label });
+    if (gross !== 0) add({ ...base, amount: gross, purpose: rowPurpose, type: label });
     if (fee !== 0) {
-      list.push(
-        gross !== 0 ? { ...base, amount: fee, purpose: `Gebühr · ${purpose}`, type: "Gebühr" } : { ...base, amount: fee, purpose: rowPurpose, type: label },
-      );
+      add(gross !== 0 ? { ...base, amount: fee, purpose: `Gebühr · ${purpose}`, type: "Gebühr" } : { ...base, amount: fee, purpose: rowPurpose, type: label });
     }
   });
+  const settled = settleTax(list, orders);
   // Die Datei beginnt mit der neuesten Zeile; gleiche Tage behalten ihre Reihenfolge
-  list.sort((a, b) => a.bookingDate.localeCompare(b.bookingDate));
+  settled.list.sort((a, b) => a.bookingDate.localeCompare(b.bookingDate));
   return finish({
     format: "etsy-csv",
     currency: "EUR",
-    transactions: indexed(list),
-    warnings: [...skippedWarning(foreign, "nicht in Euro"), ...skippedWarning(empty, "ohne Betrag"), ...unknownKindsWarning(unknownKinds)],
+    transactions: indexed(settled.list),
+    warnings: [
+      ...skippedWarning(foreign, "nicht in Euro"),
+      ...skippedWarning(empty, "ohne Betrag"),
+      ...unknownKindsWarning(unknownKinds),
+      ...unsettledTaxWarning(settled.unsettled),
+    ],
   });
 }

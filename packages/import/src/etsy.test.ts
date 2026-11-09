@@ -174,11 +174,7 @@ describe("Etsy-Monatsabrechnung", () => {
 
     it("die Steuer eines Verkaufs wird nicht mit der Erstattung derselben Bestellung verrechnet, auch wenn sie am selben Tag steht", () => {
       const s = parseStatement(
-        english([
-          `"March 8, 2025",Refund,"Refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
-          sale(1, "€100.00"),
-          tax(1, "-€3.36"),
-        ]),
+        english([`"March 8, 2025",Refund,"Refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`, sale(1, "€100.00"), tax(1, "-€3.36")]),
       );
       expect(brief(s)).toEqual([
         ["2025-03-08", -500, "Etsy", "Refund · Refund to buyer for Order #1"],
