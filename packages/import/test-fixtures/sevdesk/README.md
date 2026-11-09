@@ -24,7 +24,7 @@ Nur `buchhaltung-1.0/`:
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
 - `mahnung-mit-rechnung.json`: zwei Mahnungen (`invoiceType` MA, `status` 500, `dunningLevel` 1 und 2), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
-- `gutschrift.json`: Testgutschrift (`status` 100, `bookingCategory` `ACCOUNTING_TYPE`), das Buchungskonto steht am Kopf unter `accountingType`, die Positionen tragen keins.
+- `gutschrift.json`: drei Gutschriften (`creditNote` und `positions`) je `bookingCategory`: `ACCOUNTING_TYPE` (Entwurf, `status` 100), `ROYALTY_ASSIGNED` (gebucht, `status` 200, `sendDate` gesetzt) und `UNDERACHIEVEMENT` (Entwurf).
 - `extf-buchungsstapel.csv`, `extf-gp-stamm.csv`, `document-rechnungseingang.xml`, `document-rechnungsausgang.xml`: Auszug aus einem DATEV-Jahresexport, 7 Buchungen und 2 Personenkonten. Die Beleglink-GUIDs der CSV passen zu den XML-Dateien. Die beiden CSV-Dateien sind Windows-1252 mit CRLF und müssen es bleiben.
 - `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
@@ -53,7 +53,7 @@ Nur `buchhaltung-2.0/`:
 | Antwort von `Document/download` | ja, Hülle ohne Inhalt | nur Statuscode und Inhaltstyp |
 | Anlagen (`/Asset`), nur Aufbau | ja | ungeprüft |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ungeprüft |
-| Gutschrift (`CreditNote`) | nur Entwurf mit Konto am Kopf | ja, ohne Positionen |
+| Gutschrift (`CreditNote`) | drei Buchungsarten mit Positionen, ohne `PROVISION` und `ROYALTY_UNASSIGNED` | ja, ohne Positionen |
 | DATEV-Export mit Beleglinks und `document.xml` | ja | nur Beispielzeilen ohne XML |
 | `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 15; dazu `taxType` `default` und `noteu` |
 
@@ -68,6 +68,8 @@ Ob eine Vorlage nachfällig oder vorschüssig abrechnet, zeigen erst die erzeugt
 Jede Mahnstufe ist ein eigenes `MA`-Objekt und verweist mit `origin` auf die gemahnte Rechnung, nicht auf die vorige Mahnung. Ihre Summen im Kopf sind 0, der Betrag steht in den `reminder*`-Feldern, Positionen hat sie keine. Vor dem Speichern hatte die erste Stufe `status` 100 und kein `sendDate`, nach dem Speichern `status` 500 mit `sendDate` und `sendType` `VPDF`; der Verlauf in sevDesk zeigt sie passend dazu als „versendet“. Die gemahnte Rechnung trägt die höchste Stufe als `dunningLevel` und `status` 200, ihre Betragsfelder `reminderTotal` und `reminderDebit` bleiben leer. In beiden Stufen waren `reminderDebit` und `reminderTotal` im Konto gleich dem Brutto der Rechnung, die Gebühr 0; in der Datei ist das wegen der Maskierung nicht mehr zu sehen. Gebühren und Zinsen sind damit nicht belegt. Nicht belegt ist, ob eine solche Mahnung beim Empfänger ankommt: In diesem Test wurde keine Mail bewusst verschickt.
 
 Am DATEV-Export 2024 aus Version 1.0: 186 Zeilen tragen `BEDI` mit 170 GUIDs, jede GUID gehört zu genau einer Datei, im Belegfeld stehen keine UUIDs oder abgeschnittenen Kennungen. 14 von 442 Belegnummern unterscheiden sich vom Original, alle erklärt: sevDesk entfernt Zeichen außerhalb des DATEV-Zeichensatzes (belegt `.`, `ü`, `ä`) und nimmt dann die letzten 36 Zeichen. Diese Zahlen stammen aus dem vollständigen Export, die Dateien hier sind nur ein Auszug.
+
+Gutschriften aus Version 1.0: Bei `ACCOUNTING_TYPE` und `ROYALTY_ASSIGNED` steht das Buchungskonto am Kopf unter `accountingType`. `UNDERACHIEVEMENT` hat keins, stattdessen zeigen `origin` und `refSrcInvoice` auf die Rechnung. Die Beträge stehen positiv, Positionen tragen kein Konto. Zu `PROVISION` und `ROYALTY_UNASSIGNED` gibt es keine Antwort. Offen ist, ob die übliche Abbildung als negative Einnahme zu `ROYALTY_ASSIGNED` passt, das hier ein Aufwandskonto trägt.
 
 Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werden, Haben ersetzt sie nicht.
 
