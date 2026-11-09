@@ -204,6 +204,16 @@ export function isSevInvoiceImportable(i: SevInvoice): boolean {
   return !["WKR", "MA"].includes((i.invoiceType ?? "RE").toUpperCase());
 }
 
+// Das Brutto zeigt wie im Kopf des Belegs, ob die Positionen schon negativ stehen; das Netto kann null sein oder gegenläufig.
+// Heben sie sich brutto auf, entscheidet die Steuer. Zeilen mit Gegenvorzeichen sind Rabatte oder Verrechnungen
+function creditPositionSign(positions: SevDocumentPos[]): (n: number) => number {
+  const amounts = positions.map(positionAmounts);
+  const tax = amounts.reduce((sum, a) => sum + a.tax, 0);
+  const gross = amounts.reduce((sum, a) => sum + a.net + a.tax, 0);
+  const positive = (gross || tax) > 0;
+  return (n) => (positive ? neg(n) : n);
+}
+
 export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMappedVoucher {
   const id = String(i.id);
   const invoiceType = (i.invoiceType ?? "RE").toUpperCase();
@@ -211,9 +221,7 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
   const storno = invoiceType === "SR";
   const type: LegacyVoucherType = storno ? "creditnote" : invoiceType === "AR" ? "downpaymentinvoice" : "invoice";
   const sign = (n: number) => (storno ? neg(Math.abs(n)) : n);
-  // Steht eine Position schon negativ, sind sie gespiegelt: Eine positive Zeile ist dann ein Rabatt oder eine Verrechnung
-  const positionsMirrored = positions.some((p) => positionAmounts(p).net < 0);
-  const positionSign = (n: number) => (positionsMirrored ? n : sign(n));
+  const positionSign = storno ? creditPositionSign(positions) : (n: number) => n;
 
   const tax = sign(cents(i.sumTax));
   const gross = sign(cents(i.sumGross));
@@ -264,13 +272,14 @@ export function isSevCreditNoteImportable(c: SevCreditNote): boolean {
 
 export function mapSevCreditNote(c: SevCreditNote, positions: SevDocumentPos[]): SevMappedVoucher {
   const id = String(c.id);
+  const positionSign = creditPositionSign(positions);
   const tax = neg(Math.abs(cents(c.sumTax)));
   const gross = neg(Math.abs(cents(c.sumGross)));
   const net = gross - tax;
   const taxes = taxesFromPositions(
     positions.map((p) => {
       const a = positionAmounts(p);
-      return { rate: lexToBasisPoints(sevNumber(p.taxRate)), net: neg(Math.abs(a.net)), tax: neg(Math.abs(a.tax)) };
+      return { rate: lexToBasisPoints(sevNumber(p.taxRate)), net: positionSign(a.net), tax: positionSign(a.tax) };
     }),
     net,
     tax,
