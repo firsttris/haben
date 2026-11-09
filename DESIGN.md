@@ -41,6 +41,7 @@ Die Knopfarten (#30, `styles.css`):
 | `btn btn-primary` | Eine Hauptaktion je Karte bzw. Kopf. |
 | `btn` | Alle übrigen Aktionen. |
 | `btn btn-danger` | Löschen, Entfernen, Stornieren, Widerrufen, Abo beenden, Ausschalten. |
+| `btn btn-destructive` | Bestätigung von Unumkehrbarem im `ConfirmDialog` (`danger`): voll in Rot. |
 | `btn btn-dashed` | Nur zum Anfügen einer Zeile oder eines Eintrags im Formular, etwa „+ Position“, „+ Steuersatz“, „+ Kind“. |
 | `btn-sm` | Kleiner Knopf; ersetzt Inline-`minHeight`. |
 
