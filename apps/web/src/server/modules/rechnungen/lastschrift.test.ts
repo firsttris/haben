@@ -207,4 +207,59 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
     const [t] = await sql`select last_error from recurring_invoices where id = ${template.id}`;
     expect(t!.last_error).toBe("Kein gültiges Lastschriftmandat für Nordwerk Software GmbH am 16.11.2026");
   });
+
+  it("Vorlage: nach einem neuen Mandat holt der nächste Lauf den verpassten Termin nach und bleibt nicht hängen", async () => {
+    // Mandat widerrufen, der Lauf am 02.11. findet keins (Einzug wäre am 16.11.)
+    await mandates.revokeMandate(actor, mandateId, { revokedOn: "2026-11-01", reason: "" });
+    const template = await recurring.createRecurring(actor, {
+      name: "Wartung",
+      active: true,
+      contactId,
+      format: "zugferd",
+      paymentTermDays: 14,
+      intro: "",
+      note: "",
+      taxTreatment: "regulaer",
+      exemptionReason: "",
+      priceMode: "netto",
+      lines: [{ description: "Wartung", quantity: 1000, unit: "Monat", unitPrice: 25_000, taxRate: 1900 }],
+      intervalMonths: 1,
+      nextDate: "2026-11-02",
+      endDate: null,
+      servicePeriod: "laufend",
+      mode: "entwurf",
+      sendByMail: false,
+      paymentMethod: "lastschrift",
+    });
+    await recurring.runDueRecurring("2026-11-02");
+    // Der Kunde unterschreibt am 20.11. ein neues Mandat; „der nächste Lauf holt den Termin nach, sobald ein Mandat da ist“
+    // (docs/rechnungen.md, Lastschrift)
+    const neu = await mandates.createMandate(
+      actor,
+      contactId,
+      { reference: "KD-1042-02", signedOn: "2026-11-20", scheme: "CORE", firstSequence: "FRST", debtorName: "Nordwerk Software GmbH", debtorIban: "DE02120300000000202051" },
+      "2026-11-21",
+    );
+    await recurring.runDueRecurring("2026-11-21");
+    const rows = await sql`select sepa_mandate_id from invoices where recurring_id = ${template.id} and recurring_date = '2026-11-02'`;
+    expect(rows).toEqual([{ sepa_mandate_id: neu }]);
+    const [t] = await sql`select next_date::text from recurring_invoices where id = ${template.id}`;
+    expect(t!.next_date).toBe("2026-12-02");
+  });
+
+  it("ein Einzug per Rechnung aus Haben zählt für den Verfall nach 36 Monaten", async () => {
+    // Mandat vom 01.09.2023 ohne Einzug vor Haben; ohne Einzug wäre es ab 01.09.2026 abgelaufen
+    const alt = await mandates.createMandate(
+      actor,
+      contactId,
+      { reference: "KD-2023", signedOn: "2023-09-01", scheme: "CORE", firstSequence: "FRST", debtorName: "Nordwerk Software GmbH", debtorIban: "DE02120300000000202051" },
+      "2026-11-02",
+    );
+    // Rechnung vom 02.06.2025 per Lastschrift, eingezogen am 16.06.2025: das Mandat gilt dann bis 15.06.2028
+    const frueher = await draft({ issueDate: "2025-06-02", sepaMandateId: alt });
+    expect(await invoices.finalizeIssues(frueher.id)).toEqual([]);
+    await invoices.finalizeInvoice(actor, frueher.id);
+    const jetzt = await draft({ sepaMandateId: alt });
+    expect(await invoices.finalizeIssues(jetzt.id)).toEqual([]);
+  });
 });
