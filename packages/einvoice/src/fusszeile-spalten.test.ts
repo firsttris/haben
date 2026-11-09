@@ -62,4 +62,15 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Spalten überlappen sich nicht
     expect(breit.length).toBeGreaterThan(0);
     for (const wort of breit) expect(wort.xMax).toBeLessThanOrEqual(nachbar.xMin);
   });
+
+  it("hält ein Wort aus zwei Auszeichnungen in seiner Spalte", () => {
+    const seller = { ...sampleDocument().seller, email: "kontakt@mustermannconsult.de" };
+    const seiten = worteJeSeite(
+      renderInvoicePdf({ ...sampleDocument(), seller, options: { ...DEFAULT_OPTIONS, footerColumns: ["*Rechnungen:*{email}", "Sprechzeiten", "Termine", "{steuernummer}"] } }),
+    )!;
+    const worte = seiten[0]!;
+    const nachbar = worte.find((wort) => wort.text === "Sprechzeiten")!;
+    const inZeile = worte.filter((wort) => Math.abs(wort.yMin - nachbar.yMin) < 1 && wort.xMin < nachbar.xMin);
+    expect(Math.max(...inZeile.map((wort) => wort.xMax))).toBeLessThanOrEqual(nachbar.xMin);
+  });
 });

@@ -644,3 +644,19 @@ test("Vorschau: Die Steuerzeile bricht auch in einer breiten Schrift nicht um", 
   expect(hoch).toBeLessThan((await normal.boundingBox())!.height * 1.5);
   await page.context().close();
 });
+
+test("Ein Platzhalter-Knopf ohne Klick ins Feld lässt den vorhandenen Text vorne stehen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  const feld = karte.getByLabel("Spalte 1");
+  const vorher = await feld.inputValue();
+
+  await karte.getByRole("button", { name: "{telefon}" }).click();
+
+  const nachher = await feld.inputValue();
+  await page.context().close();
+  expect(nachher.startsWith(vorher)).toBe(true);
+});

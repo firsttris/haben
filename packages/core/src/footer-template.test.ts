@@ -78,6 +78,10 @@ describe("Zeichen ohne Schrift", () => {
     expect(footerIssues(["電話 {telefon}", "{steuernummer}"]).join()).toContain("電");
   });
 
+  it("meldet Emojis außerhalb der Grundebene", () => {
+    expect(footerIssues(["📞 {telefon}", "{steuernummer}"]).join()).toContain("📞");
+  });
+
   it("lässt Latein mit Umlauten, Griechisch, Kyrillisch und Symbole zu", () => {
     expect(footerIssues(["Größe Ωmega Привет ☎ → €", "{steuernummer}"])).toEqual([]);
   });

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderInvoicePdf } from "./pdf.ts";
-import { sampleDocument } from "./samples.ts";
+import { gmbhSeller, sampleDocument } from "./samples.ts";
 
 function textebene(pdf: Uint8Array): string | null {
   const dir = mkdtempSync(join(tmpdir(), "haben-textebene-"));
@@ -33,5 +33,14 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Textebene", () => {
       }),
     )!;
     expect(text).toContain(email);
+  });
+
+  it("lässt ein langes Wort in der Zeile mit den Pflichtangaben unverändert, sie steht über die ganze Breite", () => {
+    const name = "Erika Leutheusser-Schnarrenberger-Mustermann";
+    const seller = { ...gmbhSeller, legalInfo: { ...gmbhSeller.legalInfo!, managingDirectors: [name] } };
+    const text = textebene(
+      renderInvoicePdf({ ...sampleDocument(), seller, options: { ...DEFAULT_OPTIONS, footerColumns: ["{firma}", "{iban}", "{email}", "{steuernummer}"] } }),
+    )!;
+    expect(text).toContain(name);
   });
 });
