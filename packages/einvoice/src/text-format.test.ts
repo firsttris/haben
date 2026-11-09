@@ -61,6 +61,24 @@ describe("Formatierung von PDF und E-Rechnung", () => {
     expect(invoice["cac:InvoiceLine"][0]!["cac:Item"]["cbc:Description"]).toBe("Systempflege und Kontrolle");
   });
 
+  it.skipIf(!hasPoppler)("erhält verwurzelte Windows-Pfade im gedruckten Beleg", () => {
+    const path = "\\_archiv_\\2026";
+    const doc = formattedDocument();
+    doc.intro = `*${path}*`;
+    const result = spawnSync("pdftotext", ["-raw", "-", "-"], { input: renderInvoicePdf(doc), encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(path);
+  });
+
+  it.each(["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const)("erhält verwurzelte Windows-Pfade im %s-XML", async (format) => {
+    const path = "\\_archiv_\\2026";
+    const doc = formattedDocument();
+    doc.intro = `*${path}*`;
+    doc.lines[0]!.detail = `Sicherung nach ${path}`;
+    const { xml } = await buildEInvoice({ ...doc, format });
+    expect(xml.split(path)).toHaveLength(3);
+  });
+
   it.each(["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const)("entfernt die Zeichen auch aus dem erzeugten %s-XML", async (format) => {
     const { xml } = await buildEInvoice({ ...formattedDocument(), format });
     expect(xml).toContain("Leistungsumfang");
