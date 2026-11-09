@@ -80,6 +80,7 @@ export default defineConfig({
         "gestaltung.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
+        "datumsfelder.spec.ts",
         "kopfzeile.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
