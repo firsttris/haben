@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Danke fürs Testen mit echten Beständen. Bitte **nur anonymisierte** Auszüge posten: Namen, IBANs, Steuernummern, Adressen und Beträge ersetzen. Mehr zum Ablauf: [Umzug aus Lexware Office](https://firsttris.github.io/haben/lexoffice.html), [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html).
+        Danke fürs Testen mit echten Beständen. Bitte **nur anonymisierte** Auszüge posten: Namen, IBANs, Steuernummern, Adressen und Beträge ersetzen. Mehr zum Ablauf: [Umzug aus Lexware Office](https://haben.app/lexoffice.html), [Umzug aus sevDesk](https://haben.app/sevdesk.html).
   - type: dropdown
     id: quelle
     attributes:
@@ -59,4 +59,4 @@ body:
     id: bezug
     attributes:
       label: Verwandte Issues und Roadmap
-      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.
+      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://haben.app/roadmap.html), falls du ihn kennst.

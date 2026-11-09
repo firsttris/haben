@@ -1,3 +1,10 @@
+---
+title: "Entwicklung: an Haben mitarbeiten"
+description: >-
+  Lokale Entwicklungsumgebung mit Bun und PostgreSQL, Befehle, Tests, Migrationen und Konventionen
+  für alle, die an Haben mitarbeiten wollen.
+---
+
 # Entwicklung
 
 Diese Seite richtet sich an alle, die an Haben mitarbeiten wollen: lokale Umgebung, Befehle, Tests, Migrationen, Konventionen im Code und typische Erweiterungen. Den Aufbau im Detail beschreibt [Architektur](architektur.md).
@@ -109,7 +116,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
-| `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Das Änderungsdatum unter jeder Seite schreibt `scripts/doku-aenderungsdatum` aus dem letzten Commit der Datei, bis Zensical es selbst kann; Tests: `python -m unittest discover -s scripts/doku-aenderungsdatum`. Hinweise stehen im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile), damit sie auf GitHub und auf der Website als Kasten erscheinen; die deutschen Titel setzt `scripts/doku-hinweise`, Tests: `python -m unittest discover -s scripts/doku-hinweise` |
+| `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Das Änderungsdatum unter jeder Seite schreibt `scripts/doku-aenderungsdatum` aus dem letzten Commit der Datei, bis Zensical es selbst kann; Tests: `python -m unittest discover -s scripts/doku-aenderungsdatum`. Hinweise stehen im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile), damit sie auf GitHub und auf der Website als Kasten erscheinen; die deutschen Titel setzt `scripts/doku-hinweise`, Tests: `python -m unittest discover -s scripts/doku-hinweise`. Jede Seite beginnt mit Front Matter: `title:` (Titel für Suchmaschinen, höchstens etwa 60 Zeichen; die Navigation behält ihren Namen aus `mkdocs.yml`) und `description:` (höchstens etwa 160 Zeichen). Daraus setzt `overrides/main.html` Beschreibung, Open Graph und Twitter-Card; die CI bricht ab, wenn einer Seite `description:` fehlt |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
@@ -177,7 +184,7 @@ bun packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DI
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno, Leitweg-ID und Bruttopreisen, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge, Anbieterwahl und OpenAI-kompatibler Dienst gegen einen Testserver auf 127.0.0.1 (Erfolg, falsches JSON, Zeitüberschreitung, nicht erreichbar, kein Ausweichen auf Anthropic), PDF in Seitenbilder (nur mit `pdftoppm`), OpenAPI-Beschreibung der REST-API (Verweise, Rechte, Einheiten) |
-| `apps/web` mit DB | Rechnungen festschreiben und sperren, zusätzliche Anhänge an Rechnungen und Angeboten (Typ und Größe, Sperre, Siegel der Rechnung, Auswahl beim Versand, Kopieren des Angebots, Jahresarchiv), Belege hochladen und buchen (auch mit selbst betriebenem Modell gegen einen Testserver: zu prüfen, Fehler am Beleg, nichts gebucht, E-Rechnung ohne KI), Dauerbelege (SKR03/SKR04, Ist/Soll, verpasste Termine, je Monat ein Beleg auch bei gleichzeitigen Läufen, Änderungen nur für künftige Belege, Pausieren, Beenden, Vorschlag und „Buchen und zuordnen“ im Bankabgleich), Bankimport und Zuordnung, abweichende IBAN der E-Rechnung (Entscheidung je Beleg nur anhängbar, Sperre unter Überweisungen, SEPA-Datei an die gewählte IBAN), Steuerzahlungen und Zinserträge (SKR03/SKR04, Ist/Soll, Einzelunternehmen und GmbH: Prüffälle Umsatzsteuer früherer Jahre und Gewerbesteuerbescheid, Voranmeldung unverändert, EÜR, Abgleich, DATEV, Rückstellung, E-Bilanz), Darlehen (Auszahlung, Rate mit Tilgung und Zins, Bestand, feste Grundlagen, Restlaufzeit), Einfuhrumsatzsteuer (Kz 62, EÜR, Kleinunternehmer abgelehnt), Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log, Abgabevermerk mit Protokoll) und Berechnung aus Buchungen, Voranmeldung als offener Posten (SKR03/SKR04, Ist/Soll, Zahllast/Überschuss, Teilzahlung, Säumniszuschlag, Berichtigung, Dauerfristverlängerung), Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten, REST-API (Token und Rechte, Fehlerformat, externe Referenz auch bei gleichzeitigen Anfragen, Entwurf gegen festgeschrieben), Lohnabrechnung (Entwurf, Festschreiben mit Sperre und Siegel, Storno mit neuer Abrechnung, Audit-Log, Lohnkonto), Lohnsteuer-Anmeldung (Kennzahlen nach Zahltag, Zeitraum, Senden, Sperre, Berichtigung nach Storno, Frist, Bankvorschlag), SV-Meldeportal (Liste aus festgeschriebenen Abrechnungen, Vermerk mit Protokoll nur anhängbar, Rücknahme, Änderung nach Storno, Fristen) |
+| `apps/web` mit DB | Rechnungen festschreiben und sperren, zusätzliche Anhänge an Rechnungen und Angeboten (Typ und Größe, Sperre, Siegel der Rechnung, Auswahl beim Versand, Kopieren des Angebots, Jahresarchiv), Belege hochladen und buchen (auch mit selbst betriebenem Modell gegen einen Testserver: zu prüfen, Fehler am Beleg, nichts gebucht, E-Rechnung ohne KI), Dauerbelege (SKR03/SKR04, Ist/Soll, verpasste Termine, je Monat ein Beleg auch bei gleichzeitigen Läufen, Änderungen nur für künftige Belege, Pausieren, Beenden, Vorschlag und „Buchen und zuordnen“ im Bankabgleich), Bankimport und Zuordnung, abweichende oder unbestätigte IBAN der E-Rechnung (Entscheidung bzw. Bestätigung je Beleg nur anhängbar, auf Wunsch in den Kontakt ohne IBAN, Sperre unter Überweisungen, SEPA-Datei an die gewählte IBAN), Steuerzahlungen und Zinserträge (SKR03/SKR04, Ist/Soll, Einzelunternehmen und GmbH: Prüffälle Umsatzsteuer früherer Jahre und Gewerbesteuerbescheid, Voranmeldung unverändert, EÜR, Abgleich, DATEV, Rückstellung, E-Bilanz), Darlehen (Auszahlung, Rate mit Tilgung und Zins, Bestand, feste Grundlagen, Restlaufzeit), Einfuhrumsatzsteuer (Kz 62, EÜR, Kleinunternehmer abgelehnt), Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log, Abgabevermerk mit Protokoll) und Berechnung aus Buchungen, Voranmeldung als offener Posten (SKR03/SKR04, Ist/Soll, Zahllast/Überschuss, Teilzahlung, Säumniszuschlag, Berichtigung, Dauerfristverlängerung), Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten, REST-API (Token und Rechte, Fehlerformat, externe Referenz auch bei gleichzeitigen Anfragen, Entwurf gegen festgeschrieben), Lohnabrechnung (Entwurf, Festschreiben mit Sperre und Siegel, Storno mit neuer Abrechnung, Audit-Log, Lohnkonto), Lohnsteuer-Anmeldung (Kennzahlen nach Zahltag, Zeitraum, Senden, Sperre, Berichtigung nach Storno, Frist, Bankvorschlag), SV-Meldeportal (Liste aus festgeschriebenen Abrechnungen, Vermerk mit Protokoll nur anhängbar, Rücknahme, Änderung nach Storno, Fristen) |
 
 ### Schema der SEPA-Überweisung
 
@@ -403,7 +410,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
-| `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://firsttris.github.io/haben/ |
+| `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://haben.app/ |
 
 ## Neues Bankformat
 
@@ -500,6 +507,19 @@ Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau b
 | Bezug | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
 
 Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Der Titel nennt das Ergebnis, nicht den Anlass. Vor dem Schreiben suchen Agenten auch in den Pull Requests (`gh pr list --state all --search …`), weil Erledigtes oft nur dort steht. Der Ist-Stand wird nach `git fetch origin` auf `origin/main` gelesen, der geprüfte Commit genannt und mit Permalinks (`https://github.com/firsttris/haben/blob/<commit>/<pfad>#L<n>`) belegt. Gibt es das Thema schon, bekommt der Nutzer den Fund gemeldet; ein Issue entsteht nur zum fehlenden Teil. Ein Issue, das ein Agent geschrieben hat (außer einer bloßen Korrektur), endet nach einer Trennlinie mit dem Hinweis auf das Werkzeug, z. B. `_Generated with [Claude Code](https://claude.com/claude-code)_`. Anlegen und Kommentieren tut ein Agent nur auf Anweisung des Nutzers; beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`), weitere Labels und den Platz in der Roadmap setzt der Maintainer.
+
+Neben dem Typ gibt es diese Labels:
+
+| Label | Bedeutung |
+| --- | --- |
+| `oberfläche` | Bedienung, Layout, Handy-Ansicht |
+| `buchung` | Konten, Buchungsabläufe, offene Posten, DATEV-Konten |
+| `schnittstelle` | REST-API, MCP, Connectoren, laufende Importe |
+| `technik` | Abhängigkeiten, CI, Werkzeuge fürs Projekt |
+| `doku` | Dokumentation (`docs/`, Website) |
+| `sammlung` | Sammel-Issue zum Nachverfolgen |
+| `jahreswerte` | Befund des Workflows „Jahreswerte prüfen“ |
+| `rückmeldung` | Umgesetzt und veröffentlicht; das Issue bleibt offen, bis der Ersteller bestätigt, dass nichts fehlt |
 
 ### Review
 

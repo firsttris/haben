@@ -1,4 +1,4 @@
-import { formatExchangeRate, formatRateMonth } from "@haben/core";
+import { currentYear, formatExchangeRate, formatRateMonth } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -30,7 +30,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
   const remove = useServerFn(deleteExchangeRateFn);
   const upload = useServerFn(importExchangeRatesFn);
   const { busy, notice, setNotice, run } = useAction();
-  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [year, setYear] = useState(String(currentYear()));
 
   const summary = (r: { added: number; changed: number; applied: number }) =>
     `${plural(r.added, "Kurs", "Kurse")} neu, ${r.changed} geändert. ${r.applied > 0 ? `${plural(r.applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`;

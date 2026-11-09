@@ -1,3 +1,10 @@
+---
+title: "Umsatzsteuer-Voranmeldung per ELSTER übermitteln"
+description: >-
+  Die Umsatzsteuer-Voranmeldung für Monat oder Quartal aus den Buchungen berechnen, jede Kennzahl
+  nachvollziehen und direkt über ERiC an ELSTER senden.
+---
+
 # Umsatzsteuer-Voranmeldung
 
 Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal aus deinen Buchungen und übermittelt sie über ERiC an ELSTER. Du siehst, welche Zahlungen, Rechnungen und Belege hinter jeder Kennzahl stehen, kannst die Werte mit Begründung überschreiben und vor dem Senden prüfen oder testweise übermitteln.

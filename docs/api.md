@@ -1,3 +1,10 @@
+---
+title: "REST-API für Kontakte und Rechnungsentwürfe"
+description: >-
+  Über die REST-API von Haben Kontakte und Rechnungsentwürfe aus eigenen Werkzeugen anlegen, etwa
+  Bestellungen aus Shops – mit OpenAPI-Beschreibung.
+---
+
 # REST-API
 
 Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe in Haben an, etwa eine Automation, die Bestellungen aus Etsy oder eBay holt. Haben bekommt dafür keine eigene Bestellverwaltung: Die Bestellung bleibt auf der Plattform, Haben schreibt die Rechnung dazu. Ebenso liefern eigene Werkzeuge, Dokumentenarchive und Skripte Eingangsbelege an Haben, die dort unter **Belege** als „Zu prüfen“ landen.

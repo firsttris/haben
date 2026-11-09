@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { z } from "zod/mini";
 import { ArchiveFiles } from "../../../components/archiv/ArchiveFiles.tsx";
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/_app/archiv/")({
     const view = deps.ansicht ?? "umzug";
     const migration = await getMigration({ data: { stichtag: deps.stichtag } });
     const years = [...new Set([...migration.years.map((y) => y.year), ...migration.orderArchive.years])].sort((a, b) => b - a);
-    const year = deps.jahr ?? years[0] ?? new Date().getFullYear() - 1;
+    const year = deps.jahr ?? years[0] ?? currentYear() - 1;
     if (view === "auftraege") {
       const orders = await getOrderDocuments({ data: { year, search: deps.suche ?? "", kind: deps.dokumentart } });
       return { view, year, years, migration, orders } as const;

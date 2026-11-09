@@ -1,7 +1,7 @@
 import { type KeyboardEvent, type ReactNode, type RefObject, useCallback, useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { type PreviewMode, previewLayout, readPreviewMode, returnsFocusOnClose, writePreviewMode } from "../lib/vorschau.ts";
+import { type PreviewMode, previewLayout, readPreviewMode, writePreviewMode } from "../lib/vorschau.ts";
 import { Icon } from "./Icon.tsx";
+import { PreviewDialog } from "./PreviewDialog.tsx";
 import { SheetScroll } from "./SheetScroll.tsx";
 
 /**
@@ -23,6 +23,10 @@ export type DocumentPreview = {
   /** Zählt jedes Öffnen: Wer klickt, während die Leiste noch hinausfährt, bekommt eine neue, statt ins Leere zu klicken */
   overlayRun: number;
   openOverlay: () => void;
+  /** Spalte „Gestaltung“ neben dem Blatt; sie steht nur in der Überblendung, angeheftet wäre neben Formular und Blatt kein Platz */
+  designOpen: boolean;
+  openDesign: () => void;
+  toggleDesign: () => void;
   /** Sofort beim Schließen, nicht erst nach der Fahrt: Wer dann schon im Formular ist, behält dort den Fokus */
   overlayClosing: () => void;
   closeOverlay: () => void;
@@ -40,6 +44,7 @@ export function useDocumentPreview(): DocumentPreview {
   const [stored, setStored] = useState<PreviewMode | null>(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [overlayRun, setOverlayRun] = useState(0);
+  const [designOpen, setDesignOpen] = useState(false);
   const [paneMotion, setPaneMotion] = useState<PaneMotion>(null);
 
   // Erst im Browser: localStorage und die Breite gibt es auf dem Server nicht
@@ -66,6 +71,17 @@ export function useDocumentPreview(): DocumentPreview {
     writePreviewMode(browserStorage(), mode);
   }, []);
 
+  const showOverlay = (withDesign: boolean) => {
+    // Safari und Firefox auf dem Mac fokussieren Knöpfe beim Klick nicht: Dann steht der Fokus auf <body>
+    const active = document.activeElement;
+    returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
+    // Vor der Sperre messen, solange die Scrollleiste noch steht; fährt die Leiste gerade hinaus, ist sie schon weg
+    if (!overlayOpen) document.documentElement.style.setProperty("--page-scrollbar", `${window.innerWidth - document.documentElement.clientWidth}px`);
+    setDesignOpen(withDesign);
+    setOverlayRun((run) => run + 1);
+    setOverlayOpen(true);
+  };
+
   return {
     layoutRef,
     triggerRef,
@@ -75,15 +91,10 @@ export function useDocumentPreview(): DocumentPreview {
     paneSettled: () => setPaneMotion(null),
     overlayOpen,
     overlayRun,
-    openOverlay: () => {
-      // Safari und Firefox auf dem Mac fokussieren Knöpfe beim Klick nicht: Dann steht der Fokus auf <body>
-      const active = document.activeElement;
-      returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
-      // Vor der Sperre messen, solange die Scrollleiste noch steht; fährt die Leiste gerade hinaus, ist sie schon weg
-      if (!overlayOpen) document.documentElement.style.setProperty("--page-scrollbar", `${window.innerWidth - document.documentElement.clientWidth}px`);
-      setOverlayRun((run) => run + 1);
-      setOverlayOpen(true);
-    },
+    openOverlay: () => showOverlay(false),
+    designOpen,
+    openDesign: () => showOverlay(true),
+    toggleDesign: () => setDesignOpen((open) => !open),
     overlayClosing: () => {
       // Zurück auf den Auslöser, ohne dass die Seite dorthin springt (er steht im festen Kopf oder in der Vorschau)
       (returnFocus.current?.isConnected ? returnFocus.current : triggerRef.current)?.focus({ preventScroll: true });
@@ -107,12 +118,15 @@ export function PreviewLayout({
   label,
   caption,
   sheet,
+  design,
   children,
 }: {
   preview: DocumentPreview;
   label: string;
   caption: ReactNode;
   sheet: ReactNode;
+  /** Spalte zum Ändern der Gestaltung; beim Schließen der Überblendung fallen ungespeicherte Änderungen weg, sonst zeigte das Blatt etwas anderes als das PDF */
+  design?: { panel: ReactNode; onClosed: () => void };
   children: ReactNode;
 }) {
   // Hinausfahrend bleibt die Spalte bis zum Schluss: So springt das Formular einmal auf volle Breite, statt mitzufließen
@@ -134,12 +148,17 @@ export function PreviewLayout({
           <div className="preview-pane-head">
             <span className="small muted">{caption}</span>
             <div className="preview-pane-actions">
+              {design && (
+                <button type="button" className="btn btn-sm" aria-label="Gestaltung" aria-haspopup="dialog" onClick={preview.openDesign}>
+                  <Icon name="settings" size={16} />
+                </button>
+              )}
               <button type="button" className="btn btn-sm" aria-haspopup="dialog" onClick={preview.openOverlay}>
                 <Icon name="expand" size={16} />
                 Vergrößern
               </button>
               <button type="button" className="btn btn-sm" onClick={preview.unpin}>
-                <Icon name="close" size={16} />
+                <Icon name="eye-off" size={16} />
                 Ausblenden
               </button>
             </div>
@@ -148,87 +167,21 @@ export function PreviewLayout({
         </section>
       )}
       {preview.overlayOpen && (
-        <PreviewDialog key={preview.overlayRun} label={label} caption={caption} onClosing={preview.overlayClosing} onClose={preview.closeOverlay}>
+        <PreviewDialog
+          key={preview.overlayRun}
+          label={label}
+          caption={caption}
+          onClosing={preview.overlayClosing}
+          onDismissed={() => design?.onClosed()}
+          onClose={preview.closeOverlay}
+          designPanel={design?.panel}
+          designOpen={preview.designOpen}
+          onToggleDesign={preview.toggleDesign}
+        >
           {sheet}
         </PreviewDialog>
       )}
     </div>
-  );
-}
-
-/**
- * Modaler <dialog> als Seitenleiste, die von rechts hereinfährt: hält den Fokus, Escape und ein Klick neben das Blatt
- * schließen ihn. Er bleibt im Dokument, bis er hinausgefahren ist; ohne Bewegung (prefers-reduced-motion) sofort weg.
- */
-function PreviewDialog({
-  label,
-  caption,
-  onClosing,
-  onClose,
-  children,
-}: {
-  label: string;
-  caption: ReactNode;
-  onClosing: () => void;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  const replaced = useRef(false);
-  const pressedBeside = useRef(false);
-
-  useEffect(() => {
-    replaced.current = false;
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    return () => {
-      replaced.current = true;
-    };
-  }, []);
-
-  const closed = () => {
-    const dialog = ref.current;
-    if (returnsFocusOnClose(document.activeElement, document.body, (element) => dialog?.contains(element) ?? false)) onClosing();
-    if (!dialog || parseFloat(getComputedStyle(dialog).transitionDuration) === 0) return onClose();
-    let done = false;
-    const finish = () => {
-      if (done || replaced.current) return;
-      done = true;
-      onClose();
-    };
-    dialog.addEventListener("transitionend", finish, { once: true });
-    window.setTimeout(finish, 500);
-  };
-
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <dialog
-      ref={ref}
-      className="preview-dialog"
-      aria-labelledby={titleId}
-      onClose={closed}
-      onPointerDown={(e) => {
-        pressedBeside.current = e.target === e.currentTarget;
-      }}
-      onClick={(e) => {
-        // Nur was daneben begann: Eine Textauswahl, die dort endet, meldet der Browser ebenfalls am Dialog
-        if (e.target === e.currentTarget && pressedBeside.current) e.currentTarget.close();
-      }}
-    >
-      <div className="preview-dialog-head">
-        <div>
-          <h2 id={titleId}>{label}</h2>
-          <span className="small muted">{caption}</span>
-        </div>
-        <button type="button" className="btn btn-sm" onClick={() => ref.current?.close()}>
-          <Icon name="close" size={16} />
-          Schließen
-        </button>
-      </div>
-      <SheetScroll className="preview-dialog-body">{children}</SheetScroll>
-    </dialog>,
-    document.body,
   );
 }
 

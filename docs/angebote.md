@@ -1,3 +1,10 @@
+---
+title: "Angebote schreiben und mit einem Klick zur Rechnung machen"
+description: >-
+  Angebote im selben Editor wie Rechnungen schreiben, als PDF versenden und nach der Annahme mit
+  einem Klick in eine E-Rechnung umwandeln.
+---
+
 # Angebote
 
 Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung.
@@ -62,7 +69,7 @@ Mit einem Angebot gehen oft weitere Unterlagen mit: AGB, Widerrufsbelehrung, ein
 2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
 3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder vom Angebot, solange es ein Entwurf ist.
 
-Was mit fast jedem Angebot mitgeht, etwa AGB oder Widerrufsbelehrung, hinterlegst du einmal als [Standardanhang](einrichtung.md#standardanhänge-für-angebote): Jedes neue Angebot hat diese Dateien dann schon beim ersten Speichern unter **Anhänge**, beim Senden sind sie vorausgewählt, und im Entwurf nimmst du heraus, was für dieses Angebot nicht passt.
+Was mit fast jedem Angebot mitgeht, etwa AGB oder Widerrufsbelehrung, hinterlegst du einmal als [Standardanhang](einrichtung.md#standardanhänge-für-angebote): Jedes neue Angebot hat diese Dateien dann schon beim ersten Speichern unter **Anhänge**, beim Senden sind sie vorausgewählt, und im Entwurf nimmst du heraus, was für dieses Angebot nicht passt. Sie hängen nur an Angeboten, die du danach neu anlegst: Ein schon bestehender Entwurf bekommt sie nicht; dort hängst du sie bei Bedarf selbst an.
 
 Es gelten dieselben Regeln wie bei Rechnungen: nur PDF-Dateien bis 20 MB, höchstens zehn je Angebot, den Typ erkennt Haben am Inhalt, dieselbe Datei hängt nur einmal am selben Angebot. Die Dateien liegen unter ihrem SHA-256 im Belegverzeichnis; hängt dieselbe Datei an mehreren Angeboten oder Rechnungen, liegt sie nur einmal dort.
 

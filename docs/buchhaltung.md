@@ -1,3 +1,10 @@
+---
+title: "Buchungslogik: Konten, Buchungssätze und GoBD"
+description: >-
+  Wie Haben bucht: Konten nach SKR03 und SKR04, Buchungssätze je Vorgang, doppelte Buchführung im
+  Hintergrund und die GoBD-Unveränderbarkeit per Hash-Kette.
+---
+
 # Buchhaltung in Haben (Buchungslogik)
 
 Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vorgang welchen Buchungssatz erzeugt und wie die Unveränderbarkeit nach GoBD technisch abgesichert ist. Sie richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, und an Steuerberatungen.

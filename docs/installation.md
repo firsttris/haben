@@ -1,3 +1,10 @@
+---
+title: "Installation mit Docker Compose oder Podman, Backup, Updates"
+description: >-
+  Haben selbst hosten: Installation mit Docker Compose oder Podman Quadlets, Umgebungsvariablen,
+  Kontoabruf, Backup, Wiederherstellung und Updates.
+---
+
 # Betrieb und Installation
 
 Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: mit Docker Compose (am einfachsten) oder mit Podman Quadlets unter systemd, dazu Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).

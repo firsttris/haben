@@ -1571,6 +1571,60 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
 });
 
+test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Hosting Süd GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  const kontaktUrl = page.url();
+
+  await go("/belege");
+  const xml = readFileSync(new URL("../../../packages/einvoice/test-fixtures/incoming/cii-prefixes.xml", import.meta.url), "utf8").replaceAll(
+    "RE-2026/0815",
+    "RE-2026/0817",
+  );
+  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "RE-2026-0817.xml", mimeType: "application/xml", buffer: Buffer.from(xml) }]);
+  await expect(page.getByText("RE-2026-0817.xml: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /RE-2026\/0817/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hosting Süd GmbH" });
+  await page.getByLabel("Kategorie").selectOption("software");
+  // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
+  await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+  const belegUrl = page.url();
+  const offen = page.getByRole("region", { name: "IBAN aus der E-Rechnung, noch nicht bestätigt" });
+  await expect(offen).toContainText("DE02 1203 0000 0000 2020 51");
+
+  // Bis zur Bestätigung gesperrt, auch für „Alle auswählen“
+  await go("/ueberweisungen");
+  const zeile = page.locator(".table-row").filter({ hasText: "RE-2026/0817" });
+  await expect(zeile.getByRole("checkbox")).toBeDisabled();
+  await expect(zeile).toContainText("noch nicht bestätigt");
+  const alle = page.getByRole("button", { name: "Alle auswählen" });
+  if (await alle.isEnabled()) await alle.click();
+  await expect(zeile.getByRole("checkbox")).not.toBeChecked();
+
+  // Übernehmen und zusätzlich in den Kontakt: danach gilt die IBAN des Kontakts, der Hinweis entfällt
+  await go(new URL(belegUrl).pathname);
+  await offen.getByLabel("Auch im Kontakt des Lieferanten eintragen").check();
+  await offen.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(offen).toHaveCount(0);
+  await go("/ueberweisungen");
+  await expect(zeile.getByRole("checkbox")).toBeEnabled();
+  await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
+  await go(new URL(kontaktUrl).pathname);
+  await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",

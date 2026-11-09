@@ -8,7 +8,7 @@ import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Page = Awaited<ReturnType<typeof getCustomPages>>[number];
 
-export const EIGENE_SEITEN_DOCS = "https://firsttris.github.io/haben/eigene-seiten.html";
+export const EIGENE_SEITEN_DOCS = "https://haben.app/eigene-seiten.html";
 
 /** Einstellungen → Eigene Seiten (#199): Menüeinträge für Seiten außerhalb von Haben anlegen, ändern und löschen */
 export function EigeneSeitenCard({ pages }: { pages: Page[] }) {

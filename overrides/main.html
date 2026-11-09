@@ -1,15 +1,82 @@
-{#- Vorschau beim Teilen eines Links (Messenger, Mail, soziale Netze): eine Seite mit `image:` im
-    Front Matter zeigt dieses Bild, ihren Titel und ihre Beschreibung (docs/index.md). -#}
+{#- Für Suchmaschinen und die Vorschau beim Teilen eines Links (Messenger, Mail, soziale Netze).
+    Titel und Beschreibung kommen aus dem Front Matter jeder Seite (`title:`, `description:`),
+    sonst aus site_name und site_description; `<title>` und `<meta name="description">` setzt das
+    Theme selbst aus denselben Werten. Das Bild ist social-preview.png (1280 × 640), eine Seite
+    kann mit `image:` ein eigenes angeben. -#}
 {% extends "base.html" %}
 
 {% block extrahead %}
-  {% if page and page.meta and page.meta.image %}
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="{{ config.site_name }}">
-    <meta property="og:title" content="{{ config.site_name }}: {{ page.meta.title or page.title }}">
-    <meta property="og:description" content="{{ page.meta.description }}">
-    <meta property="og:url" content="{{ page.canonical_url }}">
-    <meta property="og:image" content="{{ config.site_url }}{{ page.meta.image }}">
-    <meta name="twitter:card" content="summary_large_image">
-  {% endif %}
+  {%- set seo_title = (page.meta.title if page and page.meta and page.meta.title else page.title) if page else config.site_name -%}
+  {%- set seo_description = page.meta.description if page and page.meta and page.meta.description else config.site_description -%}
+  {%- set seo_image = config.site_url ~ (page.meta.image if page and page.meta and page.meta.image else "social-preview.png") -%}
+  {%- set seo_url = page.canonical_url if page and page.canonical_url else config.site_url -%}
+  {#- Zensical kennt page.is_homepage und page.file nicht, nur url und canonical_url -#}
+  {%- set is_home = page and page.url == "index.html" -%}
+  {%- if not page or not page.canonical_url %}
+    {#- Die 404-Seite (ohne canonical_url) gehört nicht in den Index -#}
+    <meta name="robots" content="noindex">
+  {%- endif %}
+  <meta property="og:type" content="{{ 'website' if is_home else 'article' }}">
+  <meta property="og:locale" content="de_DE">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+  <meta property="og:title" content="{{ config.site_name }}: {{ seo_title }}">
+  <meta property="og:description" content="{{ seo_description }}">
+  <meta property="og:url" content="{{ seo_url }}">
+  <meta property="og:image" content="{{ seo_image }}">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="{{ config.site_name }}: Open-Source-Buchhaltung, selbst gehostet">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ config.site_name }}: {{ seo_title }}">
+  <meta name="twitter:description" content="{{ seo_description }}">
+  <meta name="twitter:image" content="{{ seo_image }}">
+  {%- if is_home %}
+  {#- Strukturierte Daten (https://schema.org/SoftwareApplication, https://schema.org/WebSite):
+      Suchmaschinen erkennen Haben als kostenlose Geschäftsanwendung und die Seite als ihre Website. #}
+  <script type="application/ld+json">
+    {{ {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": config.site_url ~ "#website",
+          "name": config.site_name,
+          "url": config.site_url,
+          "inLanguage": "de",
+          "description": config.site_description
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": config.site_url ~ "#software",
+          "name": config.site_name,
+          "url": config.site_url,
+          "description": config.site_description,
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Buchhaltung",
+          "operatingSystem": "Linux, Docker, Podman",
+          "inLanguage": "de",
+          "isAccessibleForFree": true,
+          "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+          "image": seo_image,
+          "screenshot": config.site_url ~ "screenshot-uebersicht.png",
+          "downloadUrl": "https://hub.docker.com/r/tristanteu/haben",
+          "installUrl": config.site_url ~ "installation.html",
+          "softwareHelp": config.site_url ~ "ueberblick.html",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+          "featureList": [
+            "E-Rechnung (ZUGFeRD, XRechnung)",
+            "Belege und Eingangsrechnungen",
+            "Bankabgleich",
+            "EÜR oder Bilanz mit E-Bilanz",
+            "Umsatzsteuer-Voranmeldung per ELSTER",
+            "Jahreserklärungen per ELSTER",
+            "Lohnabrechnung",
+            "Umzug aus Lexware Office und sevDesk"
+          ],
+          "sameAs": [config.repo_url]
+        }
+      ]
+    } | tojson }}
+  </script>
+  {%- endif %}
 {% endblock %}

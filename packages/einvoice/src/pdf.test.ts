@@ -53,8 +53,9 @@ describe("logoFormat", () => {
 
 describe("Akzentfarbe", () => {
   it("setzt ohne Einstellung die Standardfarbe und das Logo als Dateinamen", () => {
-    expect(templateInputs({ title: "Rechnung" }, {})).toEqual({ title: "Rechnung", accent: DEFAULT_ACCENT, palette: accentPalette(DEFAULT_ACCENT) });
-    expect(templateInputs({}, { accent: "#0055AA", logo: { data: new Uint8Array(), format: "png" } })).toEqual({
+    expect(templateInputs({ title: "Rechnung" }, {})).toMatchObject({ title: "Rechnung", accent: DEFAULT_ACCENT, palette: accentPalette(DEFAULT_ACCENT) });
+    expect(templateInputs({ title: "Rechnung" }, {})).not.toHaveProperty("logo");
+    expect(templateInputs({}, { accent: "#0055AA", logo: { data: new Uint8Array(), format: "png" } })).toMatchObject({
       accent: "#0055AA",
       palette: accentPalette("#0055AA"),
       logo: "logo.png",

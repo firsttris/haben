@@ -1,4 +1,4 @@
-import { ASSET_KINDS, ASSET_METHODS, formatEuro, isKapitalgesellschaft } from "@haben/core";
+import { currentYear, ASSET_KINDS, ASSET_METHODS, formatEuro, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -12,7 +12,7 @@ import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/anlagen/")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
-  loaderDeps: ({ search }) => ({ year: search.jahr ?? new Date().getFullYear() }),
+  loaderDeps: ({ search }) => ({ year: search.jahr ?? currentYear() }),
   loader: ({ deps }) => getAssets({ data: deps.year }),
   head: () => ({ meta: [{ title: "Anlagen · Haben" }] }),
   component: AssetsPage,
@@ -29,9 +29,9 @@ function AssetsPage() {
   const person = !isKapitalgesellschaft(Route.useRouteContext().rechtsform);
 
   // Jahre, in denen es Anlagen gibt, und das aktuelle
-  const years = [
-    ...new Set([new Date().getFullYear(), year, ...assets.flatMap((a) => a.schedule.map((r) => r.year)).filter((y) => y <= new Date().getFullYear() + 1)]),
-  ].sort((a, b) => b - a);
+  const years = [...new Set([currentYear(), year, ...assets.flatMap((a) => a.schedule.map((r) => r.year)).filter((y) => y <= currentYear() + 1)])].sort(
+    (a, b) => b - a,
+  );
   const shown = assets.filter((a) => a.year !== null || (a.closing !== null && a.closing > 0));
   const total = (pick: (a: (typeof assets)[number]) => number) => shown.reduce((s, a) => s + pick(a), 0);
 

@@ -49,6 +49,8 @@ async function contactKeysInStock(q: Db | Tx) {
       name: schema.contacts.name,
       email: schema.contacts.email,
       ustId: schema.contacts.ustId,
+      debitorNr: schema.contacts.debitorNr,
+      kreditorNr: schema.contacts.kreditorNr,
     })
     .from(schema.contacts);
   return rows.flatMap(contactKeys);

@@ -1,3 +1,10 @@
+---
+title: "Bankimport und Abgleich: Umsätze automatisch zuordnen"
+description: >-
+  Kontoumsätze über Enable Banking abrufen oder als Datei (CAMT oder CSV) importieren und
+  Rechnungen, Belegen oder Buchungen zuordnen – mit Vorschlägen.
+---
+
 # Bankimport und Abgleich
 
 Unter **Bank** holst du die Umsätze automatisch über Enable Banking ab oder importierst Kontoauszüge als Datei, und ordnest jeden Umsatz einer Rechnung, einem Beleg oder einer direkten Buchung zu. Haben schlägt passende offene Posten mit Begründung vor. Jede Zuordnung erzeugt sofort eine festgeschriebene Buchung.

@@ -27,6 +27,7 @@ export {
   getContact,
   listContacts,
   setContactArchived,
+  setContactIbanIfEmpty,
   updateContact,
   type Contact,
   type ContactInput,
@@ -46,9 +47,10 @@ export {
   storeExchangeRates,
   type ExchangeRate,
 } from "./exchange-rates.ts";
-export { AccentColorError, loadLetterhead, saveAccentColor } from "./letterhead.ts";
+export { AccentColorError, loadDesign, loadLetterhead, saveAccentColor, saveDesign } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
 export { CustomerNumberError, customerNumbering, saveCustomerNumbering } from "./customer-numbers.ts";
+export { personenkontoKey, vergibPersonenkonten } from "./personenkonten-vergabe.ts";
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 export { PlanTemplateError, planTemplatesProblem, savePlanTemplates } from "./plan-templates.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";

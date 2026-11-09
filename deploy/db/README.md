@@ -12,6 +12,6 @@ Das Volume gehört nach `/var/lib/postgresql/data` (wie bei den älteren postgre
 
 - Compose: Dienst `db` in [`deploy/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.yml).
 - Podman Quadlets: [`haben-db.container`](https://github.com/firsttris/haben/blob/main/deploy/quadlet/haben-db.container).
-- Anleitung und Aufräumen danach: [Betrieb und Installation › PostgreSQL-Update](https://firsttris.github.io/haben/installation.html#postgresql-update).
+- Anleitung und Aufräumen danach: [Betrieb und Installation › PostgreSQL-Update](https://haben.app/installation.html#postgresql-update).
 
 Die Tags folgen Haben (`:latest`, `:0.2`, `:0.2.0`, `:next`).

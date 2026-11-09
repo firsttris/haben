@@ -1,3 +1,10 @@
+---
+title: "Umzug aus Lexoffice / Lexware Office ohne Datenverlust"
+description: >-
+  Von Lexware Office (Lexoffice) zu Haben wechseln: Rechnungen, Belege, Kontakte und Buchungen
+  übernehmen, unveränderlich archivieren und das Abo kündigen.
+---
+
 # Umzug aus Lexoffice / Lexware Office
 
 Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).

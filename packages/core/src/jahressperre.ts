@@ -1,3 +1,5 @@
+import { currentMonth } from "./period.ts";
+
 /**
  * Jahressperre für Rechenwerte, die jedes Jahr neu erscheinen (PAP der Lohnsteuer, Rechengrößen und Beitragssätze
  * der Sozialversicherung). Haben rechnet ein Jahr ohne hinterlegte Werte nicht, auch nicht mit denen des Vorjahres.
@@ -9,7 +11,7 @@
  * hinterlegt sind.
  */
 export function fehlendeJahre(heute: Date, hinterlegt: readonly number[]): number[] {
-  const jahr = heute.getFullYear();
-  const noetig = heute.getMonth() === 11 ? [jahr, jahr + 1] : [jahr];
+  const { year: jahr, month } = currentMonth(heute);
+  const noetig = month === 12 ? [jahr, jahr + 1] : [jahr];
   return noetig.filter((j) => !hinterlegt.includes(j));
 }

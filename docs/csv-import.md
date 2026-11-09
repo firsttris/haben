@@ -1,3 +1,10 @@
+---
+title: "CSV-Import für Kontakte, Artikel und Anlagen"
+description: >-
+  Kontakte, Artikel und Anlagen aus einer CSV-Datei übernehmen, etwa aus Lexware Office, einer
+  anderen Buchhaltung oder Excel – mit Spaltenzuordnung und Vorschau.
+---
+
 # CSV-Import
 
 Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem Export von Lexware Office, einer anderen Buchhaltung oder einer Excel-Liste. Den Import öffnest du unter **Kontakte**, **Artikel** oder **Anlagen** mit **CSV importieren**; oben auf der Seite wechselst du zwischen den drei Arten.
@@ -44,9 +51,11 @@ Haben legt nichts doppelt an und überschreibt nichts:
 
 | Art | Wiedererkannt an |
 | --- | --- |
-| Kontakte | Kundennummer, Lieferantennummer, jeder E-Mail-Adresse, USt-IdNr. oder Name (Groß- und Kleinschreibung egal) |
+| Kontakte | Kundennummer, Lieferantennummer, Debitor, Kreditor, jeder E-Mail-Adresse, USt-IdNr. oder Name (Groß- und Kleinschreibung egal) |
 | Artikel | Artikelnummer; eine Zeile ohne Nummer an der Bezeichnung, auch gegen einen Artikel mit Nummer |
 | Anlagen | Bezeichnung, Anschaffungsdatum und Anschaffungskosten zusammen |
+
+Eine Debitor- oder Kreditornummer, die schon ein Kontakt trägt (auch ein archivierter) oder die weiter oben in der Datei steht, zeigt die Vorschau so als Dublette mit der Nummer; Haben überschreibt und vergibt sie nicht ein zweites Mal. Früher landeten die Spalten „Debitorennummer“ und „Kreditorennummer“ in Kunden- bzw. Lieferantennummer; in der Vorschau kannst du sie dorthin zuordnen, wenn deine Datei so gemeint ist.
 
 Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffice.md#kontakte-verknüpfen): Lieber einmal zu viel überspringen als einen Kunden doppelt anlegen. Einen zweiten Kunden mit gleichem Namen legst du von Hand an.
 
@@ -54,8 +63,10 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 
 | Feld | Spaltennamen, die Haben vorschlägt | Prüfung |
 | --- | --- | --- |
-| Kundennummer | Kundennummer, Kundennr, Debitorennummer | Leer: Bei Kunden vergibt Haben die nächste, wenn unter Einstellungen ein Format steht ([Kontakte](rechnungen.md#kontakte)) |
-| Lieferantennummer | Lieferantennummer, Kreditorennummer | |
+| Kundennummer | Kundennummer, Kundennr | Leer: Bei Kunden vergibt Haben die nächste, wenn unter Einstellungen ein Format steht ([Kontakte](rechnungen.md#kontakte)) |
+| Lieferantennummer | Lieferantennummer, Lieferantennr | |
+| Debitor | Debitorennummer, Debitor, Debitorenkonto | DATEV-Personenkonto, nur Ziffern, 10000 bis 69999 ([Kontakte](rechnungen.md#kontakte)); macht wie die Kundennummer zum Kunden |
+| Kreditor | Kreditorennummer, Kreditor, Kreditorenkonto | DATEV-Personenkonto, nur Ziffern, 70000 bis 99999; macht wie die Lieferantennummer zum Lieferanten |
 | Firma | Firmenname, Firma, Unternehmen, Name | Fehlt sie, gilt „Vorname Nachname“; ohne beides ist die Zeile fehlerhaft |
 | Vorname, Nachname | Vorname, Nachname | |
 | Straße, PLZ, Ort, Land | Straße, PLZ, Ort, Land, auch „Straße (Rechnungsadresse)“ … und „Straße 1“ … wie bei Lexware Office | Land siehe [Werte](#werte). Die Lieferadresse („… (Lieferadresse)“, „Straße 2“ …) übernimmt Haben nicht |
@@ -64,7 +75,7 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 | USt-IdNr. | USt-IdNr., USt-ID, Umsatzsteuer-ID, Umsatzsteuer ID, Umsatzsteuernummer | Form wie `DE123456789`; die deutsche auch mit Prüfziffer (ISO 7064). Ob sie erteilt ist, weiß nur das BZSt |
 | IBAN | IBAN | Prüfziffer nach ISO 13616; Leerzeichen fallen weg |
 | Leitweg-ID | Leitweg-ID | |
-| Rolle | Rolle, Typ, Kontaktart | „Kunde“, „Lieferant“ oder beides. Ohne Spalte: Lieferant, wenn nur eine Lieferantennummer dasteht, beides bei beiden Nummern, sonst Kunde. Hat die Datei eine Spalte Lieferantennummer, aber keine Kundennummer (Lieferanten-Vorlage von Lexware Office), ist auch eine Zeile ohne Nummer ein Lieferant |
+| Rolle | Rolle, Typ, Kontaktart | „Kunde“, „Lieferant“ oder beides. Ohne Spalte: Lieferant, wenn nur eine Lieferantennummer oder ein Kreditor dasteht, beides bei Nummern für beide Rollen, sonst Kunde. Hat die Datei eine Spalte Lieferantennummer, aber keine Kundennummer (Lieferanten-Vorlage von Lexware Office), ist auch eine Zeile ohne Nummer ein Lieferant |
 
 Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei einem neuen Kontakt auf „wie in den Einstellungen“, Deutsch und der Vorgabe aus den Firmendaten.
 

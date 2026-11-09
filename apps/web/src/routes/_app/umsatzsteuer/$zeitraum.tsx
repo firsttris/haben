@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   component: VatPeriodPage,
 });
 
-const ELSTER_ABGABE_DOCS = "https://firsttris.github.io/haben/elster-abgabe.html";
+const ELSTER_ABGABE_DOCS = "https://haben.app/elster-abgabe.html";
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
 type FieldKey =

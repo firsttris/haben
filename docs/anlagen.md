@@ -1,3 +1,10 @@
+---
+title: "Anlagen und AfA: Abschreibung und Anlagenverzeichnis"
+description: >-
+  Anlagegüter über 800 € netto erfassen und abschreiben: lineare AfA, GWG, Sammelposten,
+  Anlagenverzeichnis (AVEÜR) und Übernahme aus Lexoffice.
+---
+
 # Anlagen und AfA
 
 Wirtschaftsgüter, die länger als ein Jahr im Betrieb bleiben und mehr als 800 € netto kosten, etwa ein Auto oder Büromöbel, sind keine Ausgabe im Jahr des Kaufs. Ihre Anschaffungskosten verteilen sich als Absetzung für Abnutzung (AfA) über die Nutzungsdauer. Haben führt dafür ein Anlagenverzeichnis, rechnet die AfA je Jahr aus, nimmt sie in die EÜR auf und bucht sie zum Jahresende.

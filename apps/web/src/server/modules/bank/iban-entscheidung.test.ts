@@ -55,8 +55,8 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
   });
 
   /** E-Rechnung mit IBAN DE0212…, gebucht, mit dem Kontakt als Lieferant */
-  async function bookedEInvoice(contactId: string | null) {
-    const { id } = await documents.uploadDocument(actor, { bytes: einvoice(), filename: "RE-2026-0815.xml" });
+  async function bookedEInvoice(contactId: string | null, bytes = einvoice()) {
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: "RE-2026-0815.xml" });
     await documents.updateDocument(actor, id, {
       supplierName: "Netzwerk Hosting GmbH",
       supplierUstId: "DE987654321",
@@ -168,11 +168,86 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
     expect(await candidate(id)).toMatchObject({ iban: RECHNUNG_IBAN, ibanSource: "kontakt", problem: null, warning: null });
   });
 
-  it("Kontakt ohne IBAN oder kein Kontakt: IBAN der E-Rechnung ungeprüft, ohne Sperre", async () => {
+  it("Kontakt ohne IBAN: IBAN der E-Rechnung erst nach Bestätigung, bis dahin gesperrt, auch serverseitig; der Kontakt bleibt unverändert", async () => {
     const contact = await contacts.createContact(actor, contactInput(""));
-    const withContact = await bookedEInvoice(contact.id);
-    expect(await bank.documentIbanCheck(withContact)).toEqual({ art: "ungeprueft", rechnungsIban: RECHNUNG_IBAN });
-    expect(await candidate(withContact)).toMatchObject({ iban: RECHNUNG_IBAN, ibanSource: "e-rechnung", problem: null });
+    const id = await bookedEInvoice(contact.id);
+    expect(await bank.documentIbanCheck(id)).toEqual({ art: "ungeprueft", rechnungsIban: RECHNUNG_IBAN, entscheidung: null });
+    expect(await candidate(id)).toMatchObject({
+      iban: null,
+      ibanDecisionNeeded: true,
+      problem: "Die IBAN aus der E-Rechnung ist noch nicht bestätigt: am Beleg übernehmen",
+    });
+    const { id: bankAccountId } = await account();
+    const file = () => bank.createSepaTransfer(actor, { bankAccountId, executionDate: "2026-09-17", items: [{ documentId: id, skonto: false }] }, now);
+    await expect(file()).rejects.toThrow("noch nicht bestätigt");
+
+    await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN });
+    expect(await bank.documentIbanCheck(id)).toMatchObject({ art: "ungeprueft", entscheidung: { wahl: "e-rechnung", kontaktIban: null, von: actor } });
+    expect(await candidate(id)).toMatchObject({ iban: RECHNUNG_IBAN, ibanSource: "e-rechnung", problem: null, ibanDecisionNeeded: false });
+    const [kontakt] = await sql`select iban from contacts where id = ${contact.id}`;
+    expect(kontakt!.iban).toBe("");
+    const [audit] =
+      await sql`select count(*)::int as n from audit_log where table_name = 'document_iban_decisions' and action = 'INSERT' and new_value ->> 'document_id' = ${id}`;
+    expect(audit!.n).toBe(1);
+    const { id: transferId } = await file();
+    expect((await bank.sepaTransferFile(transferId))?.xml).toContain(`<IBAN>${RECHNUNG_IBAN}</IBAN>`);
+  });
+
+  it("auf Wunsch zusätzlich in den Kontakt, nur wenn er keine IBAN hat; danach gilt die des Kontakts", async () => {
+    const contact = await contacts.createContact(actor, contactInput(""));
+    const id = await bookedEInvoice(contact.id);
+    await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN, auchInKontakt: true });
+    const [kontakt] = await sql`select iban from contacts where id = ${contact.id}`;
+    expect(kontakt!.iban).toBe(RECHNUNG_IBAN);
+    // Der Kontakt hat eine neue Version; der Beleg vergleicht jetzt gleiche IBANs
+    expect((await sql`select 1 from contact_versions where contact_id = ${contact.id}`).length).toBeGreaterThan(1);
+    expect(await bank.documentIbanCheck(id)).toEqual({ art: "gleich" });
+    expect(await candidate(id)).toMatchObject({ iban: RECHNUNG_IBAN, ibanSource: "kontakt", problem: null });
+  });
+
+  it("in den Kontakt nie still überschrieben: hat er inzwischen eine IBAN, lehnt Haben ab", async () => {
+    const contact = await contacts.createContact(actor, contactInput(""));
+    const id = await bookedEInvoice(contact.id);
+    await contacts.updateContact(actor, contact.id, contactInput(KONTAKT_IBAN));
+    await expect(
+      bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN, auchInKontakt: true }),
+    ).rejects.toThrow("Die IBANs haben sich geändert");
+    const [kontakt] = await sql`select iban from contacts where id = ${contact.id}`;
+    expect(kontakt!.iban).toBe(KONTAKT_IBAN);
+  });
+
+  it("ohne Kontakt am Beleg: bestätigen geht, in den Kontakt nicht; „IBAN des Kontakts“ gibt es hier nicht", async () => {
+    const id = await bookedEInvoice(null);
+    expect(await candidate(id)).toMatchObject({ iban: null, ibanDecisionNeeded: true });
+    await expect(bank.decideDocumentIban(actor, id, { wahl: "kontakt", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN })).rejects.toThrow(
+      "Ohne IBAN im Kontakt",
+    );
+    await expect(
+      bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN, auchInKontakt: true }),
+    ).rejects.toThrow("Am Beleg hängt kein Kontakt");
+    await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN });
+    expect(await candidate(id)).toMatchObject({ iban: RECHNUNG_IBAN, problem: null });
+  });
+
+  it("keine IBAN in der E-Rechnung (BT-84 nur eine Kontonummer): kommt nicht in den Kontakt, den das Kontaktformular sonst nicht mehr speichert", async () => {
+    // BT-84 „Payment account identifier“ muss keine IBAN sein; @haben/einvoice übernimmt den Wert ungeprüft
+    const kaputt = new TextEncoder().encode(new TextDecoder().decode(einvoice()).replace("DE02 1203 0000 0000 2020 51", "0000202051"));
+    const contact = await contacts.createContact(actor, contactInput(""));
+    const id = await bookedEInvoice(contact.id, kaputt);
+    await expect(
+      bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: "0000202051", auchInKontakt: true }),
+    ).rejects.toThrow("keine gültige IBAN");
+    const [kontakt] = await sql`select iban from contacts where id = ${contact.id}`;
+    expect(kontakt!.iban).toBe("");
+  });
+
+  it("bestätigen erst am gebuchten Beleg", async () => {
+    const contact = await contacts.createContact(actor, contactInput(""));
+    const { id } = await documents.uploadDocument(actor, { bytes: einvoice(), filename: "RE-2026-0815.xml" });
+    await sql`update documents set supplier_contact_id = ${contact.id} where id = ${id}`;
+    await expect(bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN })).rejects.toThrow(
+      "nach dem Buchen",
+    );
   });
 
   it("ein noch nicht gebuchter Beleg bleibt löschbar: entschieden wird erst am gebuchten Beleg", async () => {

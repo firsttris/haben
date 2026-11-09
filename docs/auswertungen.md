@@ -1,3 +1,10 @@
+---
+title: "Auswertungen: EÜR, offene Posten und Jahresexport"
+description: >-
+  Einnahmen-Überschuss-Rechnung, Einnahmen und Ausgaben je Monat, offene Posten und das
+  Jahresarchiv als ZIP mit DATEV-Export für die Steuerberatung.
+---
+
 # Auswertungen und Jahresexport
 
 Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
@@ -104,10 +111,34 @@ Unter **Einstellungen › Export › DATEV-Export** lädst du die Buchungen eine
 
 - **Format:** EXTF, Formatkategorie 21, Version 13, Windows-1252.
 - **Kopfdaten:** Berater- und Mandantennummer (von der Kanzlei), Wirtschaftsjahr ist das Kalenderjahr, Sachkontenlänge 4, Kontenrahmen SKR03 bzw. SKR04 wie in Haben.
-- **Buchungssätze:** Jede Buchung aus dem Journal wird in Buchungssätze „Konto an Gegenkonto“ zerlegt. Die Summe je Konto ist danach genau die aus der [Saldenliste](buchhaltung.md#die-seite-konten).
+- **Buchungssätze:** Jede Buchung aus dem Journal wird in Buchungssätze „Konto an Gegenkonto“ zerlegt. Die Summe je Konto ist danach genau die aus der [Saldenliste](buchhaltung.md#die-seite-konten); mit Personenkonten steht die Summe von Forderungen bzw. Verbindlichkeiten auf den Debitoren bzw. Kreditoren.
 - **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300) den BU-Schlüssel 40 (Aufhebung der Automatik).
 - **Belegfeld 1:** die Rechnungsnummer bzw. die Belegnummer des Lieferanten; **Buchungstext:** wie im Journal, auf 60 Zeichen gekürzt.
 - **Festschreibung:** gesetzt, wie in Haben.
+- **Personenkonten:** auf Wunsch statt der Sammelkonten, siehe unten.
+
+### Personenkonten
+
+Haben bucht offene Posten im Journal auf die Sammelkonten „Forderungen aus Lieferungen und Leistungen“ (SKR03 1400, SKR04 1200) und „Verbindlichkeiten aus Lieferungen und Leistungen“ (SKR03 1600, SKR04 3300). Viele Kanzleien führen dagegen je Kunde einen Debitor und je Lieferant einen Kreditor. Mit **DATEV-Personenkonten** unter **Einstellungen › Export › DATEV-Export** setzt der Export diese Nummern ein; das Journal, die Saldenliste und alle Auswertungen in Haben bleiben bei den Sammelkonten.
+
+- **Nummern:** am Kontakt, Felder **DATEV-Debitor** und **DATEV-Kreditor** ([Kontakte](rechnungen.md#kontakte)), oder aus dem [CSV-Import](csv-import.md#kontakte).
+- **Welches Konto:** Entscheidend ist die Herkunft, nicht das Vorzeichen. Eine Rechnung und alles dazu (Zahlung, Teilzahlung, Rückzahlung, Skonto, Forderungsausfall, Storno, Korrektur, Bareinnahme) geht auf den Debitor des Kunden der Rechnung; ein Beleg und seine Zahlungen, Erstattungen und Skonti auf den Kreditor des Lieferanten, den der Beleg aus den Kontakten trägt. Eine Zeile wird ersetzt, nicht ergänzt: Die Summe der Debitoren ist der Saldo von 1400 bzw. 1200 in der Saldenliste, die der Kreditoren der von 1600 bzw. 3300. Forderungen und Verbindlichkeiten desselben Kontakts verrechnet Haben nicht.
+- **Ab einem Jahr:** Der Schalter gilt ab dem Beginn des gewählten Jahres; davor bleibt der Stapel bei den Sammelkonten. Hat ein betroffenes Jahr bis heute schon Buchungen, speichert Haben die Änderung (auch das Abschalten) nur mit einem Häkchen: Ein Stapel, den die Kanzlei schon hat, sähe danach anders aus. Die Änderung steht im Änderungsprotokoll.
+- **Fehlende Nummern vergibt Haben:** Braucht ein Kontakt für den Stapel einen Debitor bzw. Kreditor und hat keinen, vergibt der Export die nächste Nummer nach der höchsten bisher vergebenen (am Ende des Bereichs die erste nie vergebene) und trägt sie am Kontakt ein, mit Eintrag im Änderungsprotokoll. Nummern, die schon einmal an einem Kontakt standen, auch an einem archivierten oder später geänderten, vergibt Haben nicht noch einmal. Gleichzeitige Exporte warten aufeinander, so bekommt keine Nummer zwei Kontakte. Kontakte ohne offenen Posten im Jahr bekommen keine Nummer.
+- **Fehlt der Kontakt, kein Stapel:** Hat ein Beleg keinen Lieferanten aus den Kontakten, lehnt der Export ab und nennt die Vorgänge, statt diese Zeilen still auf das Sammelkonto zu buchen. Einen neuen Kontakt aus abweichenden Schreibweisen legt Haben nicht an. Trag den Lieferanten deshalb schon beim Erfassen aus den Kontakten ein (Feld **Aus den Kontakten** im Beleg).
+- **Gebuchter Beleg ohne Lieferanten:** Ein gebuchter Beleg ist fest, der Lieferant lässt sich nicht nachtragen. So löst du die Ablehnung:
+  1. Ist der Beleg schon einer Zahlung zugeordnet, die Zuordnung im [Bankabgleich](bank.md) aufheben.
+  2. Den Beleg öffnen, den die Meldung nennt, und mit **Beleg stornieren** aufheben ([Stornieren und neu erfassen](belege.md#stornieren-und-neu-erfassen)).
+  3. **Neu erfassen**, im neuen Entwurf den Lieferanten unter **Aus den Kontakten** wählen und buchen.
+  4. Die Zahlung im Bankabgleich dem neuen Beleg zuordnen.
+
+  Buchung und Storno bleiben auf dem Sammelkonto und heben sich dort auf; der neue Beleg geht auf den Kreditor. Das gilt auch, wenn der Storno im Folgejahr steht, weil der Zeitraum des Belegs schon gemeldet war: Dann trägt das Sammelkonto den Betrag ins neue Jahr, und der Storno gleicht ihn dort aus. Liegt der alte Beleg in einem Jahr vor dem Schalter, betrifft er den Export nicht.
+- **Eröffnung:** Eröffnungsbuchungen mit Restsalden aus der Vorgänger-Buchhaltung, etwa die [Eröffnung aus einem DATEV-Stapel](lexoffice.md#eröffnung-aus-dem-datev-stapel-gmbh-und-ug), haben keine Rechnung und keinen Beleg. Sie bleiben auf den Sammelkonten Forderungen bzw. Verbindlichkeiten und sperren den Export nicht. Dort bleiben auch die [übernommenen offenen Posten](lexoffice.md#schritt-3-offene-posten-übernehmen), die schon in der Eröffnung stehen und deshalb keine eigene Buchung haben, mit ihren Zahlungen: Sonst stünde der Kunde nach der Zahlung im Minus, und auf dem Sammelkonto bliebe der Posten offen. Übernommene Posten mit eigener Buchung gegen 9000 gehen wie alle anderen auf den Debitor bzw. Kreditor.
+- **Fest ab dem ersten Export:** Welche Nummer ein Export geschrieben hat, merkt sich Haben je Kontakt und Rolle. Ab dann lässt sich die Nummer am Kontakt nicht mehr ändern oder entfernen, damit spätere Stapel dasselbe Konto tragen wie frühere; der Name darf sich ändern.
+- **Wer exportieren darf:** Neue Nummern vergeben und festschreiben darf nur der Inhaber. Der [Zugang der Steuerberatung](steuerberatung.md) lädt den Stapel, solange alle Nummern darin schon festgeschrieben sind, und ändert dabei nichts. Braucht der Stapel eine neue oder noch fehlende Nummer, lehnt der Export für die Steuerberatung ab („Der erste Export mit neuen Personenkonten muss vom Inhaber kommen …“) und nennt die Kontakte; lade ihn dann einmal selbst herunter.
+- **Kopfzeile:** Sachkontenlänge 4, die Personenkonten sind fünfstellig. Die Bereiche, Debitoren 10000 bis 69999 und Kreditoren 70000 bis 99999, stehen im [DATEV-Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) bzw. [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf) 2026, jeweils S. 36.
+
+Namen und Anschriften der Debitoren und Kreditoren schreibt der Buchungsstapel nicht; gib der Kanzlei dafür die Kontaktliste (`stammdaten/kontakte.csv` im [Jahresarchiv](#jahresexport)) oder stimm ab, wie sie die Stammdaten anlegt.
 
 Stimm die Übergabe einmal mit der Kanzlei ab: manche Kanzleien buchen lieber brutto mit Steuerschlüssel. Die Belege selbst stehen im Jahresarchiv.
 

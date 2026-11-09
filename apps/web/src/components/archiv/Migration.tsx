@@ -1,4 +1,4 @@
-import { MONTHS, formatEuro } from "@haben/core";
+import { currentYear, MONTHS, formatEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
@@ -531,7 +531,7 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
           </p>
         </details>
       )}
-      {year.year === new Date().getFullYear() && year.lastInvoiceNumber && (
+      {year.year === currentYear() && year.lastInvoiceNumber && (
         <p className="small" style={{ margin: 0 }}>
           Deine Rechnungsnummern sollen lückenlos weiterlaufen: Stelle die nächste Nummer in den{" "}
           <Link to="/einstellungen" search={{ bereich: "rechnungen" }}>

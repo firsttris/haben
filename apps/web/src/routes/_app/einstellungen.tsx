@@ -23,7 +23,7 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
-import { LogoCard } from "../../components/LogoCard.tsx";
+import { LayoutsCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { NumberingCard } from "../../components/NumberingCard.tsx";
@@ -57,7 +57,7 @@ import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getChainHead } from "../../server/functions/integrity.ts";
-import { getLogo } from "../../server/functions/logo.ts";
+import { getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
 import { getZugaenge } from "../../server/functions/zugang.ts";
@@ -74,6 +74,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       eric,
       mail,
       logo,
+      design,
       inbox,
       exportYears,
       datev,
@@ -93,6 +94,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getEricStatus(),
       getMailSettings(),
       getLogo(),
+      getLetterheadDesign(),
       getInbox(),
       getExportYears(),
       getDatevNumbers(),
@@ -114,6 +116,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       eric,
       mail,
       logo,
+      design,
       inbox,
       exportYears,
       datev,
@@ -139,6 +142,7 @@ function SettingsPage() {
     company,
     numbering,
     logo,
+    design,
     mail,
     inbox,
     exportYears,
@@ -192,8 +196,13 @@ function SettingsPage() {
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <InvoiceAttachments kind="standard" attachments={quoteDefaultAttachments} editable />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
-              <LogoCard info={logo} />
-              <AccentColorCard color={company.accentColor} />
+            </>
+          )}
+          {bereich === "gestaltung" && (
+            <>
+              <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
+              <AccentColorCard color={design.accent} />
+              <LayoutsCard design={design} />
             </>
           )}
           {bereich === "elster" && (
@@ -1075,7 +1084,7 @@ function DatenschutzBestaetigung({ bestaetigt }: { bestaetigt: string | null }) 
         zur Kenntnis; so verlangt es der Lizenzvertrag zu ERiC.
       </p>
       {bestaetigt ? (
-        <span className="small">Bestätigt am {new Date(bestaetigt).toLocaleDateString("de-DE")}.</span>
+        <span className="small">Bestätigt am {formatDate(bestaetigt)}.</span>
       ) : (
         <>
           <label className="checkbox">

@@ -1,11 +1,16 @@
+import { letterheadDesignInputSchema } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { logoInfo, MAX_LOGO_BYTES, removeLogo, saveAccentColor, saveLogo } from "../modules/stammdaten/index.ts";
+import { loadDesign, logoInfo, MAX_LOGO_BYTES, removeLogo, saveAccentColor, saveDesign, saveLogo } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getLogo = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(() => logoInfo());
+
+export const getLetterheadDesign = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => loadDesign());
 
 /** Das Bild kommt als Base64, wie es der Browser liest */
 export const uploadLogo = createServerFn({ method: "POST" })
@@ -29,5 +34,14 @@ export const saveAccent = createServerFn({ method: "POST" })
   .validator(z.object({ color: z.string().max(7) }))
   .handler(async ({ data, context }) => {
     await saveAccentColor(context.user.id, data.color);
+    return { ok: true };
+  });
+
+/** Gestaltung aus dem Vorschau-Panel und den Einstellungen; gilt für alle Belege, die ab jetzt festgeschrieben werden */
+export const saveLetterheadDesign = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(letterheadDesignInputSchema)
+  .handler(async ({ data, context }) => {
+    await saveDesign(context.user.id, data);
     return { ok: true };
   });

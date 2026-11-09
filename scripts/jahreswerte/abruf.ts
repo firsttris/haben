@@ -124,5 +124,5 @@ export async function begrenzt<T, E>(eingaben: readonly T[], parallel: number, a
 }
 
 /** Fußzeile jedes Befunds: wo das Vorgehen beschrieben ist */
-export const DOKU = "https://firsttris.github.io/haben/entwicklung.html";
+export const DOKU = "https://haben.app/entwicklung.html";
 export const DOKU_JAHRESWERTE = `${DOKU}#jahreswerte-erinnerung-per-workflow`;

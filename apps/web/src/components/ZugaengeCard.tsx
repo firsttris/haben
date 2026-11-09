@@ -17,7 +17,7 @@ const INVITATION_STATUS = {
   abgelaufen: { label: "abgelaufen", pill: "pill-warn" },
 } as const;
 
-export const STEUERBERATUNG_DOCS = "https://firsttris.github.io/haben/steuerberatung.html";
+export const STEUERBERATUNG_DOCS = "https://haben.app/steuerberatung.html";
 
 /** Einstellungen → Sicherheit: Zugänge mit Rolle, Einladung für die Steuerberatung, Sperren und Entfernen */
 export function ZugaengeCard({ data }: { data: Data }) {

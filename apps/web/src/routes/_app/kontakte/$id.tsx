@@ -1,5 +1,6 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { ContactForm } from "../../../components/ContactForm.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
@@ -17,6 +18,8 @@ function ContactPage() {
   const router = useRouter();
   const archive = useServerFn(archiveContact);
   const { busy, notice, run } = useAction();
+  // Kontakt, der gerade gespeichert wurde; das Formular entsteht danach mit der neuen Version neu (key) und zeigt die Meldung von hier
+  const [savedId, setSavedId] = useState<string | null>(null);
   return (
     <>
       <div className="page-head">
@@ -47,7 +50,7 @@ function ContactPage() {
       </div>
       <NoticeBanner notice={notice} />
       <div className="grid-main">
-        <ContactForm key={contact.version} contact={contact} />
+        <ContactForm key={contact.version} contact={contact} saved={savedId === contact.id} onUpdated={() => setSavedId(contact.id)} />
         <section className="card" aria-labelledby="versions-heading">
           <h2 id="versions-heading">Versionen</h2>
           <p className="small muted" style={{ margin: 0 }}>
