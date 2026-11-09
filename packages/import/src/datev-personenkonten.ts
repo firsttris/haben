@@ -8,8 +8,9 @@ import type { DatevExportEntry } from "./datev-export.ts";
  * Ausbuchung über die zugeordnete Rechnung bzw. den Beleg. Maßgeblich ist die Herkunft, nicht das Vorzeichen; jede
  * Zeile wird ersetzt, nicht ergänzt, so steht jeder Betrag nur einmal im Stapel. Fehlt eine Angabe, lehnt der Export
  * mit der Liste der Vorgänge ab, statt still auf das Sammelkonto zu buchen. Ausgenommen sind Buchung und Gegenbuchung
- * (Storno), die beide im Stapel stehen: Ohne Personenkonto bleiben sie auf dem Sammelkonto und heben sich dort auf, so
- * gibt Storno und Neuerfassung eines gebuchten Belegs ohne Lieferanten den Export frei. Eröffnungsbuchungen (Restsaldo
+ * (Storno): Ohne Personenkonto bleiben sie auf dem Sammelkonto und heben sich dort auf, so gibt Storno und Neuerfassung
+ * eines gebuchten Belegs ohne Lieferanten den Export frei. Das gilt auch über die Jahresgrenze (Storno am Tag des Stornos,
+ * wenn der Zeitraum schon gemeldet ist): Der Betrag wird auf dem Sammelkonto vorgetragen und dort ausgeglichen (#452). Eröffnungsbuchungen (Restsaldo
  * aus der Vorgänger-Buchhaltung, etwa aus einem DATEV-Stapel) bleiben ebenfalls auf dem Sammelkonto; so entschieden in
  * #452, weil sie keine Rechnung und keinen Beleg haben.
  */
@@ -63,16 +64,19 @@ function personenkonto(
 export interface Gegenbuchung {
   id?: string;
   reversesId?: string | null;
+  /** Die Buchung ist storniert, auch durch eine Gegenbuchung in einem anderen Jahr */
+  storniert?: boolean;
   /** Eröffnungsbuchung (source_type eroeffnung) oder Vorgang, dessen offener Posten nur in ihr steht: bleibt auf dem Sammelkonto */
   eroeffnung?: boolean;
 }
 
-/** Buchungen, deren Gegenbuchung bzw. Original ebenfalls im Stapel steht */
+/** Gegenbuchungen und stornierte Buchungen, in diesem Stapel oder mit dem Gegenstück in einem anderen Jahr */
 function stornoPaare(entries: readonly Gegenbuchung[]): Set<string> {
-  const ids = new Set(entries.flatMap((e) => (e.id ? [e.id] : [])));
   const paare = new Set<string>();
   for (const e of entries) {
-    if (e.id && e.reversesId && ids.has(e.reversesId)) paare.add(e.id).add(e.reversesId);
+    if (!e.id) continue;
+    if (e.storniert) paare.add(e.id);
+    if (e.reversesId) paare.add(e.id).add(e.reversesId);
   }
   return paare;
 }

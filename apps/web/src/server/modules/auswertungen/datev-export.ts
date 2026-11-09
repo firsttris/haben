@@ -110,11 +110,13 @@ export async function datevExport(
   const byEntry = new Map<string, typeof lines>();
   for (const line of lines) byEntry.set(line.entryId, [...(byEntry.get(line.entryId) ?? []), line]);
   const vorgaenge = await datevVorgaenge(entries);
+  const storniert = await stornierte(entries.map((e) => e.id));
   const journal = entries.map((e) => {
     const vorgang = vorgaenge.get(e.sourceId);
     return {
       id: e.id,
       reversesId: e.reversesId,
+      storniert: storniert.has(e.id),
       // Die Eröffnung und offene Posten, die nur in ihr stehen, bleiben auf dem Sammelkonto (#452)
       eroeffnung: e.sourceType === "eroeffnung" || vorgang?.inEroeffnung === true,
       date: e.date,
@@ -149,6 +151,16 @@ export async function datevExport(
   );
   if (verwendet.length > 0) await festschreiben(exporteur, verwendet, year);
   return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length };
+}
+
+/** Buchungen, die eine Gegenbuchung haben, auch in einem anderen Jahr */
+async function stornierte(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const rows = await db
+    .select({ id: schema.journalEntries.reversesId })
+    .from(schema.journalEntries)
+    .where(inArray(schema.journalEntries.reversesId, ids));
+  return new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
 }
 
 /**

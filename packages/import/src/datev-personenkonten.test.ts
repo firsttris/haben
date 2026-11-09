@@ -225,6 +225,26 @@ describe.each(["SKR03", "SKR04"] as const)("Personenkonten im Buchungsstapel, %s
     expect(result.entries[1]!.lines[0]!.account).toBe("10042");
   });
 
+  it("lässt Buchung und Storno ohne Personenkonto auch über die Jahresgrenze auf dem Sammelkonto (#452)", () => {
+    const ohneLieferant = (description: string, credit: boolean) =>
+      entry(
+        description,
+        [
+          [s.verbindlichkeiten, credit ? 0 : 119_00, credit ? 119_00 : 0],
+          ["4930", credit ? 119_00 : 0, credit ? 0 : 119_00],
+        ],
+        { vorgang: "Beleg ER-1", rolle: "kreditor", kontakt: null },
+      );
+    // Im Jahr des Belegs: die Gegenbuchung steht im Folgejahr
+    const original = { ...ohneLieferant("Beleg", true), id: "a", storniert: true };
+    expect(personenkontenEinsetzen([original], s)).toMatchObject({ verwendet: [] });
+    // Im Folgejahr: das Original steht im Vorjahr
+    const storno = { ...ohneLieferant("Storno: Beleg", false), id: "b", reversesId: "a" };
+    expect(personenkontenEinsetzen([storno], s)).toMatchObject({ verwendet: [] });
+    // Ohne Storno bleibt die Ablehnung
+    expect(personenkontenEinsetzen([{ ...original, storniert: false }], s)).toEqual({ probleme: ["Beleg ER-1: ohne Lieferanten aus den Kontakten"] });
+  });
+
   it("lehnt eine Buchung ohne Vorgang auf dem Sammelkonto weiter ab, wenn sie keine Eröffnung ist", () => {
     const result = personenkontenEinsetzen(
       [
