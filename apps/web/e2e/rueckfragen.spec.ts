@@ -334,6 +334,30 @@ test("Passkey entfernen fragt nach", async () => {
   await expect(karte.getByText("Laptop")).toHaveCount(0);
 });
 
+test("Bankabgleich: Formular Verrechnen hat die Hauptaktion zuletzt (#394)", async () => {
+  await go("/bank");
+  await page.locator('input[type=file][aria-label="Kontoauszugsdateien"]').setInputFiles([
+    {
+      name: "zweitpruefung.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        auszug([
+          ["PAYPAL *EBAY DE", "Zweitpruefung", "-2,00"],
+          ["PAYPAL *EBAY DE", "Rueckbuchung Zweitpruefung", "2,00"],
+        ]),
+      ),
+    },
+  ]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await go("/bank");
+  await page.getByRole("link", { name: /Rueckbuchung Zweitpruefung/ }).click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await panel.getByRole("button", { name: "Mit Gegenumsatz verrechnen" }).click();
+  const form = panel.getByRole("form", { name: "Mit Gegenumsatz verrechnen" });
+  await expect(form.locator(".actions > .btn")).toHaveText(["Abbrechen", "Verrechnen"]);
+});
+
 test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", async () => {
   await sql`insert into lexoffice_connection (ciphertext, organization_name) values (${Buffer.from([0])}, 'Testfirma')`;
   const [lauf] = await sql<{ id: string }[]>`insert into lexoffice_imports (source, status, progress)
