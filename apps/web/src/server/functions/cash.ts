@@ -11,7 +11,7 @@ import {
   createCashIncome,
   reverseCashEntry,
 } from "../modules/bank/index.ts";
-import { loadCompany } from "../modules/stammdaten/index.ts";
+import { kleinunternehmerStand } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
@@ -23,8 +23,8 @@ export const getCashBook = createServerFn({ method: "GET" })
     ...(await cashBook(year)),
     openInvoices: await cashInvoiceCandidates(),
     today: today(),
-    /** Vorauswahl der Steuer bei einer Bareinnahme ohne Rechnung; geprüft wird der Stand am Tag der Bareinnahme */
-    kleinunternehmer: (await loadCompany()).kleinunternehmer,
+    /** Steuer einer Bareinnahme ohne Rechnung: Das Formular bietet an, was der Server für den Monat der Bareinnahme annimmt */
+    kleinunternehmer: await kleinunternehmerStand(),
   }));
 
 export const createCashEntryFn = createServerFn({ method: "POST" })

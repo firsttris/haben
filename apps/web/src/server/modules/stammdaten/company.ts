@@ -1,5 +1,7 @@
 import {
   BASE_RATE_LIMITS,
+  kleinunternehmerAm,
+  type KleinunternehmerStand,
   BUNDESLAENDER,
   EXPENSE_CATEGORY_KEYS,
   RECHTSFORM_KEYS,
@@ -155,21 +157,22 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
  */
 export async function kleinunternehmerHistory(q: Db | Tx = db): Promise<(date: string) => boolean> {
+  const stand = await kleinunternehmerStand(q);
+  return (date) => kleinunternehmerAm(stand, date);
+}
+
+/** Die Änderungen aus dem Protokoll als Daten, etwa für Formulare, die den Stand an einem gewählten Tag brauchen */
+export async function kleinunternehmerStand(q: Db | Tx = db): Promise<KleinunternehmerStand> {
   const rows = await q
     .select({ at: schema.auditLog.at, newValue: schema.auditLog.newValue })
     .from(schema.auditLog)
     .where(eq(schema.auditLog.tableName, "company"))
     .orderBy(schema.auditLog.seq);
-  const changes = rows.flatMap((r) => {
+  const aenderungen = rows.flatMap((r) => {
     const value = (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer;
     return typeof value === "boolean" ? [{ date: today(r.at), value }] : [];
   });
-  const current = (await loadCompany(q)).kleinunternehmer;
-  return (date) => {
-    const last = changes.filter((c) => c.date <= date).at(-1);
-    // Vor dem ersten Eintrag gilt der erste bekannte Stand (Anlegen der Firmendaten), ohne Protokoll der aktuelle
-    return last ? last.value : (changes[0]?.value ?? current);
-  };
+  return { aenderungen, aktuell: (await loadCompany(q)).kleinunternehmer };
 }
 
 /** Letzter Tag eines Monats, JJJJ-MM-TT */

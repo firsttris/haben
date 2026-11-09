@@ -6,6 +6,7 @@ import {
   cashEntryLabel,
   formatEuro,
   isKapitalgesellschaft,
+  kleinunternehmerImMonat,
   parseEuro,
   type BareinnahmeAngabe,
   type CashBooking,
@@ -15,7 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { errorMessage, formatDate } from "../../lib/format.ts";
-import { BareinnahmeFelder, bareinnahmeVorgabe } from "../../components/BareinnahmeFelder.tsx";
+import { BareinnahmeFelder, bareinnahmeWahl } from "../../components/BareinnahmeFelder.tsx";
 import { CashInvoiceFields } from "../../components/CashInvoiceFields.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import type { Notice } from "../../lib/use-action.ts";
@@ -111,13 +112,16 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
   const create = useServerFn(createCashEntryFn);
   const createForInvoice = useServerFn(createCashInvoiceEntryFn);
   const createIncome = useServerFn(createCashIncomeFn);
-  const [steuer, setSteuer] = useState<BareinnahmeAngabe>(() => bareinnahmeVorgabe(data.kleinunternehmer));
+  const [gewaehlt, setSteuer] = useState<BareinnahmeAngabe | null>(null);
   const { rechnung } = Route.useSearch();
   const [kind, setKind] = useState<Mode>(rechnung ? "rechnung" : "einlage");
   const [busy, setBusy] = useState(false);
   // biome-ignore lint/complexity/useMathMinMax: Datumstexte (JJJJ-MM-TT), Math.min ergäbe NaN
   const defaultDate = `${data.year}-12-31` < data.today ? `${data.year}-12-31` : data.today;
   const [date, setDate] = useState(defaultDate);
+  // Stand am Ende des Monats der Bareinnahme, wie ihn der Server prüft; nach dem Ende von § 19 gilt er für Monate davor weiter
+  const kleinunternehmer = kleinunternehmerImMonat(data.kleinunternehmer, date || data.today);
+  const steuer = bareinnahmeWahl(gewaehlt, kleinunternehmer);
   /** Neu aufbauen nach dem Buchen: Die bar kassierte Rechnung ist danach womöglich nicht mehr offen */
   const [round, setRound] = useState(0);
 
@@ -191,7 +195,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
             <input name="amount" inputMode="decimal" placeholder="0,00" required />
           </label>
         )}
-        {kind === "einnahme" && <BareinnahmeFelder kleinunternehmer={data.kleinunternehmer} value={steuer} onChange={setSteuer} />}
+        {kind === "einnahme" && <BareinnahmeFelder kleinunternehmer={kleinunternehmer} value={steuer} onChange={setSteuer} />}
         {/* key: Pflicht oder nicht wechselt mit der Art; ohne Rechnung ist die Notiz der Nachweis */}
         <label key={kind === "einnahme" ? "notiz" : "text"} className="field" style={{ gridColumn: "1 / -1" }}>
           {kind === "einnahme" ? "Notiz" : "Text (optional)"}

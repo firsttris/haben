@@ -55,7 +55,7 @@ Verkaufst du bar an Privatkunden, etwa am Marktstand, brauchst du keine Rechnung
 | steuerfrei (§ 4 Nr. 8 bis 29 UStG) | 1000 (1600) an 8100 steuerfreie Umsätze (4100) | Kz 48 | umsatzsteuerfreie Einnahme |
 
 - **Zeitpunkt:** gebucht am Tag der Bareinnahme, bei Ist- wie bei Soll-Versteuerung; beim Barverkauf fallen Leistung und Zahlung zusammen (§ 13 Abs. 1 Nr. 1 UStG). Die Umsatzsteuer ist sofort fällig, nicht erst „nicht fällig“ wie bei einer Rechnung mit Ist-Versteuerung. So bucht auch [Direkt buchen](bank.md#auf-eine-kategorie-buchen) im Bankabgleich eine Zahlung ohne Rechnung.
-- **Kleinunternehmer** wählen „Kleinunternehmer“; wer es am Tag der Bareinnahme nicht ist, bekommt diese Wahl nicht und Haben lehnt sie ab, ebenso 19 % oder 7 % als Kleinunternehmer.
+- **Kleinunternehmer** wählen „Kleinunternehmer“; wer es im Monat der Bareinnahme nicht ist, bekommt diese Wahl nicht und Haben lehnt sie ab, ebenso 19 % oder 7 % als Kleinunternehmer. Maßgeblich ist wie in der Voranmeldung der Stand am Monatsende: Nach dem Ende der Kleinunternehmerregelung bietet das Formular für ein Datum davor weiter „Kleinunternehmer“ an.
 - **Steuerfrei** gilt nur für Umsätze nach § 4 Nr. 8 bis 29 UStG, etwa Heilbehandlung oder Unterricht, ohne Vorsteuerabzug. Innergemeinschaftliche Lieferungen und Ausfuhren brauchen Rechnung und Nachweise und bleiben bei den [Rechnungen](rechnungen.md).
 - **Storno** wie bei jeder Zeile: Gegenzeile mit neuer Nummer und heutigem Datum, Gegenbuchung mit derselben Behandlung; die Umsatzsteuer geht im Monat des Stornos zurück.
 - Im Kassenbuch und in der CSV steht die Zeile als „Bareinnahme“ mit der Behandlung (Spalte „Steuer“), in der Voranmeldung unter den Quellen der Kennzahl als „Bareinnahme“ mit der Notiz.

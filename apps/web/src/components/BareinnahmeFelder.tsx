@@ -10,9 +10,15 @@ const OPTIONEN: { angabe: BareinnahmeAngabe; kleinunternehmer: boolean | null }[
 
 const wert = (a: BareinnahmeAngabe) => `${a.behandlung}:${a.steuersatz}`;
 
-/** Die erste passende Behandlung: 19 % bzw. Kleinunternehmer */
-export function bareinnahmeVorgabe(kleinunternehmer: boolean): BareinnahmeAngabe {
-  return OPTIONEN.find((o) => o.kleinunternehmer === kleinunternehmer)!.angabe;
+const passend = (kleinunternehmer: boolean) => OPTIONEN.filter((o) => o.kleinunternehmer === null || o.kleinunternehmer === kleinunternehmer);
+
+/**
+ * Die gewählte Behandlung, wenn sie zum Kleinunternehmer-Stand im Monat der Bareinnahme passt, sonst die erste passende
+ * (19 % bzw. Kleinunternehmer): Mit dem Datum kann sich der Stand ändern
+ */
+export function bareinnahmeWahl(gewaehlt: BareinnahmeAngabe | null, kleinunternehmer: boolean): BareinnahmeAngabe {
+  const optionen = passend(kleinunternehmer);
+  return optionen.find((o) => gewaehlt !== null && wert(o.angabe) === wert(gewaehlt))?.angabe ?? optionen[0]!.angabe;
 }
 
 export function BareinnahmeFelder({
@@ -24,7 +30,7 @@ export function BareinnahmeFelder({
   value: BareinnahmeAngabe;
   onChange: (angabe: BareinnahmeAngabe) => void;
 }) {
-  const optionen = OPTIONEN.filter((o) => o.kleinunternehmer === null || o.kleinunternehmer === kleinunternehmer);
+  const optionen = passend(kleinunternehmer);
   return (
     <label className="field">
       Umsatzsteuer
