@@ -5,7 +5,7 @@ reconciliation, EÜR, VAT returns to ELSTER). TanStack Start app in `apps/web`, 
 database in `packages/core`, ELSTER in `packages/elster`, bank and DATEV import in `packages/import`,
 invoice PDF and XML in `packages/einvoice`.
 
-The rules live once, in `docs/entwicklung.md` (German, also for people); the skills in `.claude/skills/`
+The rules live once, in `docs/entwicklung.md` and, for the UI, `DESIGN.md` (German, also for people); the skills in `.claude/skills/`
 have the steps. This file says where to look and what must never happen. Read the sections that touch
 the change before starting.
 
@@ -14,7 +14,8 @@ the change before starting.
 | Topic | `docs/entwicklung.md` | Skill |
 | --- | --- | --- |
 | Setup, commands, tests and what they skip | Lokale Umgebung, Mit Docker Compose, Befehle, Tests | `checks` |
-| Cents, GoBD, audit, secrets, modules, ERiC, UI, code style, sources | Konventionen | |
+| Cents, GoBD, audit, secrets, modules, ERiC, code style, sources | Konventionen | |
+| UI, buttons, dialogs, themes | `DESIGN.md` (repo root) | |
 | Schema and migrations | Migrationen | |
 | What a pull request contains, branch, title, commits, agent marker | Mitwirken | `beitrag` |
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
@@ -45,6 +46,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Docs in `docs/` in the same pull request; the README only when a feature area or its one-line summary changes.
 - Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
+- A design rule changes: `DESIGN.md` changes in the same pull request.
 - Checks green before every push, skipped tests reported (`checks`); then check CI.
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - An independent TDD review by a separate subagent before the merge (`tdd-review`).

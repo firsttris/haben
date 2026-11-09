@@ -7,6 +7,8 @@ description: "Screenshots vorher und nachher für Pull Requests mit Änderungen 
 
 Regel in `docs/entwicklung.md` (Mitwirken): Änderungen am Aussehen zeigen Bilder vorher und nachher in der Beschreibung des Pull Requests. Die Bilder für „vorher“ entstehen **bevor** die Oberfläche geändert wird; danach müsste der alte Stand eigens wieder aufgebaut werden.
 
+Was für die Oberfläche gilt, steht in `DESIGN.md` im Wurzelverzeichnis: vor der Arbeit lesen.
+
 Nur Testdaten zeigen, nie echte Belege, Steuernummern, IBANs oder Zugangsdaten: Die Bilder sind öffentlich.
 
 ## 1. Vorher aufnehmen
