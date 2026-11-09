@@ -116,7 +116,11 @@ function toToken(text: string, from: number, to: number): [number, number] {
 
 /** Die Zeichenpaare direkt um die Auswahl, von innen nach außen, soweit sie links und rechts zusammenpassen. */
 function surroundingLayers(text: string, start: number, end: number): string[] {
-  const left = (/[*_]*$/.exec(text.slice(0, start))?.[0].match(/\*+|_+/g) ?? []).reverse();
+  const before = text.slice(0, start);
+  const markers = /[*_]*$/.exec(before)![0];
+  // `\*` ist ein wörtliches Zeichen und gehört zu keinem Paar
+  const escaped = /\\*$/.exec(before.slice(0, before.length - markers.length))![0].length % 2 === 1;
+  const left = ((escaped ? markers.slice(1) : markers).match(/\*+|_+/g) ?? []).reverse();
   const right = /^[*_]*/.exec(text.slice(end))?.[0].match(/\*+|_+/g) ?? [];
   const layers: string[] = [];
   for (let i = 0; i < Math.min(left.length, right.length); i++) {
@@ -212,6 +216,8 @@ const SELECTION_END = "\uE001";
  * tragen die Auswahl durch den Parser.
  */
 function splitParsedRuns(text: string, open: MarkerGroup, close: MarkerGroup, from: number, to: number, style: TextStyle): TextEdit | null {
+  // Die Marken dürfen nicht im Text vorkommen, sonst zählte der Text als Auswahlgrenze
+  if (text.includes(SELECTION_START) || text.includes(SELECTION_END)) return null;
   const spanEnd = close.at + close.marker.length;
   const marked = `${text.slice(open.at, from)}${SELECTION_START}${text.slice(from, to)}${SELECTION_END}${text.slice(to, spanEnd)}`;
   const zones: FormattedTextRun[][] = [[], [], []];
