@@ -82,6 +82,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Telefon | Auf der Rechnung; für XRechnung Pflicht |
 | Bank, IBAN, BIC | Zahlungsangaben auf der Rechnung. Die IBAN ist Pflicht zum Festschreiben; Eingabe ohne Leerzeichen, Haben entfernt sie aber auch selbst |
 | Kontoinhaber | Nur nötig, wenn das Konto nicht auf den Firmennamen läuft. Steht im GiroCode, in der Fußzeile und in der E-Rechnung (BT-85); leer = Firmenname. Höchstens 70 Zeichen, siehe [GiroCode](rechnungen.md#girocode) |
+| Gläubiger-ID | Nur für [SEPA-Lastschriften](rechnungen.md#sepa-lastschriftmandate) nötig. Die Bundesbank vergibt sie auf Antrag; 18 Stellen wie `DE98ZZZ09999999999`. Haben prüft die Prüfziffer nach EPC262-08 und speichert sie ohne Leerzeichen |
 | Rechtsform | Einzelunternehmen, GmbH oder UG (haftungsbeschränkt), siehe [unten](#rechtsform-einzelunternehmen-gmbh-oder-ug) |
 | Einkunftsart | Nur im Einzelunternehmen: selbständige Arbeit oder Gewerbebetrieb, für die Anlage EÜR, siehe [Jahreserklärungen](jahreserklaerung.md) |
 | Sitz, Registergericht, Registernummer | Nur GmbH und UG, Abschnitt **Handelsregister und Geschäftsführung**: wie im Registerauszug, etwa „Amtsgericht Bremen“ und „HRB 12345 HB“. Sie gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), stehen auf der [Bilanz zur Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug) und auf jedem Geschäftsbrief (siehe [Pflichtangaben einer GmbH oder UG](rechnungen.md#pflichtangaben-einer-gmbh-oder-ug)). Sitz laut Gesellschaftsvertrag; leer = Ort der Anschrift |
