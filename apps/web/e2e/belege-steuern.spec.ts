@@ -1559,7 +1559,7 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
   await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
-  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await bestaetigen(page, "Buchen");
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
   const belegUrl = page.url();
   const offen = page.getByRole("region", { name: "IBAN aus der E-Rechnung, noch nicht bestätigt" });
