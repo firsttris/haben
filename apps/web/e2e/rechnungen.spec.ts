@@ -385,6 +385,53 @@ test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zu
   await expect(detail).toBeFocused();
 });
 
+test("Textknöpfe: Doppelklick am rechten Rand markiert das Wort, das dort stand, bevor das Feld den Fokus hatte", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const woerter = Array.from({ length: 20 }, (_, i) => `wort${String(i).padStart(2, "0")}`);
+  await einleitung.fill(woerter.join(" "));
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.blur());
+  await einleitung.scrollIntoViewIfNeeded();
+
+  // Wo das letzte Wort der ersten Zeile steht, solange das Feld keinen Fokus hat
+  const ziel = await einleitung.evaluate((feld: HTMLTextAreaElement, liste: string[]) => {
+    const stil = getComputedStyle(feld);
+    const messen = document.createElement("canvas").getContext("2d")!;
+    messen.font = stil.font;
+    const links = parseFloat(stil.paddingLeft);
+    const breite = feld.clientWidth - links - parseFloat(stil.paddingRight);
+    let anzahl = 1;
+    while (messen.measureText(liste.slice(0, anzahl + 1).join(" ")).width <= breite) anzahl++;
+    const davor = messen.measureText(`${liste.slice(0, anzahl - 1).join(" ")} `).width;
+    const box = feld.getBoundingClientRect();
+    return {
+      wort: liste[anzahl - 1]!,
+      x: box.left + feld.clientLeft + links + davor + messen.measureText(liste[anzahl - 1]!).width / 2,
+      y: box.top + feld.clientTop + parseFloat(stil.paddingTop) + parseFloat(stil.fontSize) / 2,
+    };
+  }, woerter);
+
+  await page.mouse.dblclick(ziel.x, ziel.y);
+  const markiert = await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.value.slice(feld.selectionStart, feld.selectionEnd).trim());
+  expect(markiert).toBe(ziel.wort);
+  await einleitung.fill("");
+});
+
+test("Wiederkehrende Rechnung: die Vorschau zeigt die Auszeichnung statt der Zeichen", async () => {
+  await go("/rechnungen/wiederkehrend/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Hosting");
+  const text = page.getByLabel("Text zu Position 1 (optional)");
+  await text.fill("Wartung");
+  await text.focus();
+  await text.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 7));
+  await page.getByRole("button", { name: "Fett", exact: true }).click();
+  await expect(text).toHaveValue("*Wartung*");
+
+  const vorschau = page.getByRole("region", { name: "Vorschau" });
+  await expect(vorschau.locator("strong").filter({ hasText: "Wartung" })).toBeVisible();
+  await expect(vorschau).not.toContainText("*Wartung*");
+});
+
 test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {
   const firma = page.getByRole("form", { name: "Firmendaten" });
   const speichern = async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { fillPlaceholders } from "./recurring.ts";
 import { parseTextFormatting, plainFormattedText, type TextStyle } from "./text-format.ts";
 import { toggleTextStyle } from "./text-format-edit.ts";
 
@@ -77,6 +78,23 @@ describe("Auszeichnung per Knopf", () => {
 
   it("verweigert, was der Parser nicht auszeichnen würde, statt Zeichen zu hinterlassen", () => {
     expect(toggle("x *a [b]", "bold")).toBeNull();
+  });
+
+  it("behandelt einen Platzhalter als ein Wort, sonst ersetzt ihn fillPlaceholders nicht mehr", () => {
+    const november = { from: "2026-11-01", to: "2026-11-30" };
+    // Doppelklick auf „monat“ markiert das Wort ohne die Klammern
+    expect(fillPlaceholders(toggle("Wartung {[monat]} 2026", "bold")!, november)).toBe("Wartung *November* 2026");
+    expect(fillPlaceholders(toggle("Wartung {mo[]nat} 2026", "italic")!, november)).toBe("Wartung _November_ 2026");
+    expect(fillPlaceholders(toggle("[Wartung {mo]nat} 2026", "underline")!, november)).toBe("__Wartung November__ 2026");
+  });
+
+  it("nimmt Unterstrichen und Kursiv am Ende einer Auszeichnung beim zweiten Klick zurück", () => {
+    const zweimal = (text: string, start: number, end: number, style: TextStyle) => {
+      const erst = toggleTextStyle(text, start, end, style)!;
+      return toggleTextStyle(erst.text, erst.start, erst.end, style)?.text ?? null;
+    };
+    expect(zweimal("_ein Wort_", 5, 9, "underline")).toBe("_ein Wort_");
+    expect(zweimal("__ein Wort__", 6, 10, "italic")).toBe("__ein Wort__");
   });
 
   it("ändert nie den lesbaren Text, ganz gleich, was im Feld steht", () => {
