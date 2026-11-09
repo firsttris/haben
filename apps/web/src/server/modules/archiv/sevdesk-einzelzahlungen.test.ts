@@ -1,10 +1,14 @@
 import type postgres from "postgres";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import logFixture from "../../../../../../packages/import/test-fixtures/sevdesk/check-account-transaction-log.json" with { type: "json" };
-import unlinkedLogFixture from "../../../../../../packages/import/test-fixtures/sevdesk/check-account-transaction-log-aufgehoben.json" with { type: "json" };
-import unlinkedInvoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/invoice-teilzahlung-aufgehoben.json" with { type: "json" };
-import invoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/invoice-teilzahlungen.json" with { type: "json" };
+import logFixture from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/check-account-transaction-log.json" with { type: "json" };
+import unlinkedLogFixture from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/check-account-transaction-log-aufgehoben.json" with {
+  type: "json",
+};
+import unlinkedInvoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/invoice-teilzahlung-aufgehoben.json" with {
+  type: "json",
+};
+import invoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/invoice-teilzahlungen.json" with { type: "json" };
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // #343: Einzelzahlungen aus sevDesk mit Datum, Betrag, Konto und Belegbezug statt einer Verdichtung am letzten Zahltag.
