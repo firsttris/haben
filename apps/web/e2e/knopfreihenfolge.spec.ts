@@ -3,7 +3,7 @@ import { firstLink, SESSION } from "./daten.ts";
 import { gehe, neuenKontaktOeffnen } from "./einrichtung.ts";
 
 /**
- * Reihenfolge der Knöpfe (#394, docs/entwicklung.md, Gestaltung der Oberfläche): In einer Knopfzeile mit genau einer
+ * Reihenfolge der Knöpfe (#394, DESIGN.md, Reihenfolge der Knöpfe): In einer Knopfzeile mit genau einer
  * Hauptaktion steht `btn-primary` als letzter Knopf, Abbrechen und Nebenaktionen davor, `btn-danger` ganz vorn.
  * Geprüft wird die DOM-Reihenfolge, weil sie die Tab-Reihenfolge ist; `order` und `row-reverse` dürfen die Zeile
  * nicht umdrehen, sonst liefe der Fokus anders als das Auge (WCAG 2.4.3).

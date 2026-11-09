@@ -249,6 +249,10 @@ dialog .form-footer { justify-content: flex-end; }
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
 .field input, .field select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
+/* iOS Safari zeichnet Datumsfelder sonst als Menüknopf und überschreibt dabei min-height und box-sizing
+   (WebKit, RenderThemeIOS: adjustMenuListButtonStyle, adjustInputElementButtonStyle); den Wert zentriert es (html.css) */
+.field input:is([type="date"], [type="month"]) { appearance: none; }
+.field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .field input:focus-visible, .field select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
