@@ -79,6 +79,7 @@ Läuft Haben mit `OIDC_ONLY=true`, entscheiden die Gruppen im Anmeldedienst (etw
 - **Einstellungen › Zugänge** zeigt statt „Sicherheit“ die schon angemeldeten Konten mit ihrer zuletzt bestätigten Rolle. Einladen, Sperren und Entfernen gibt es dort nicht; das geschieht über die Gruppen.
 - Wer aus der Gruppe genommen wird, verliert den Zugang bei der nächsten Anmeldung sofort, sonst spätestens nach 15 Minuten. Eine Abmeldung in Authelia beendet die Haben-Sitzung nicht sofort.
 - Die Steuerberatung kann eine neue Instanz nicht erstmals einrichten; das macht ein Inhaber.
+- Anmeldungen ohne Pause von mehr als sechs Stunden zählen als ein Besuch. „Seit deinem letzten Besuch“ reicht deshalb bis zur letzten Anmeldung vor dieser Pause, auch wenn die 15-Minuten-Frist zwischendurch neue Anmeldungen verlangt.
 - Alte Einladungslinks zeigen „Einladungen nicht verfügbar“.
 
 Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
