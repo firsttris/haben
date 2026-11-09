@@ -156,10 +156,7 @@ export async function datevExport(
 /** Buchungen, die eine Gegenbuchung haben, auch in einem anderen Jahr */
 async function stornierte(ids: string[]): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
-  const rows = await db
-    .select({ id: schema.journalEntries.reversesId })
-    .from(schema.journalEntries)
-    .where(inArray(schema.journalEntries.reversesId, ids));
+  const rows = await db.select({ id: schema.journalEntries.reversesId }).from(schema.journalEntries).where(inArray(schema.journalEntries.reversesId, ids));
   return new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
 }
 

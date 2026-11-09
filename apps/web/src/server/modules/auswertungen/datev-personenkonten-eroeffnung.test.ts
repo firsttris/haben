@@ -139,8 +139,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten nach einer Er
 
     const result = await datev.datevExport(year, new Date(), { id: actor, role: "inhaber" });
     const bookings = parseDatevBuchungsstapel(result.bytes).bookings;
-    const saldo = (konto: string) =>
-      bookings.reduce((sum, b) => sum + (b.account === konto ? b.amount : 0) - (b.contraAccount === konto ? b.amount : 0), 0);
+    const saldo = (konto: string) => bookings.reduce((sum, b) => sum + (b.account === konto ? b.amount : 0) - (b.contraAccount === konto ? b.amount : 0), 0);
     // Bezahlt ist bezahlt: weder der Debitor noch das Sammelkonto behält einen offenen Posten
     expect({ debitor: saldo("10001"), sammelkonto: saldo(k.forderungen) }).toEqual({ debitor: 0, sammelkonto: 0 });
   });
