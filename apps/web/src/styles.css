@@ -1,5 +1,6 @@
 /* Schriften selbst ausgeliefert (fontsource) statt von Google Fonts: Latein und Latein-Erweitert als woff2,
    der Browser lädt je Schnitt nur die Teilmenge, deren Zeichen auf der Seite vorkommen. */
+@import "./styles/belegschriften.css";
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
@@ -345,6 +346,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
+.banner-warn { background: var(--warn-soft); color: var(--warn-ink); }
 .banner-ok { background: var(--accent-soft); color: var(--accent-ink); }
 .banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
 .banner a { color: inherit; font-weight: 500; }
@@ -476,6 +478,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
    rechts herein, am Handy von unten. Ohne Anlaufpause und lange weich auslaufend (Material 3 „standard“), hinaus dieselbe Kurve kürzer; der Übergang
    gilt jeweils für den Zustand, in den es geht. Ohne
    Bewegung (prefers-reduced-motion) schaltet die Regel weiter unten die Übergänge ab */
+/* Blätter von unten am Handy (ConfirmDialog, Überblendung, Gestaltung) runden gleich */
+:root { --sheet-radius: 16px; }
 :root { --sheet-in-time: 400ms; --sheet-out-time: 300ms; --sheet-curve: cubic-bezier(0.2, 0, 0, 1); --sheet-in: var(--sheet-in-time) var(--sheet-curve); --sheet-out: var(--sheet-out-time) var(--sheet-curve); }
 .preview-dialog { --sheet-hidden: translateX(100%); width: min(960px, calc(100vw - 96px)); max-width: none; height: 100dvh; max-height: none; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1px solid var(--line); border-radius: 12px 0 0 12px; background: var(--ground); color: var(--ink); box-shadow: -12px 0 32px rgb(0 0 0 / 0.2); flex-direction: column; overflow: hidden; transform: var(--sheet-hidden); transition: transform var(--sheet-out), overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
 .preview-dialog[open] { display: flex; transform: none; transition: transform var(--sheet-in), overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
@@ -505,8 +509,10 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 .preview-dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 16px 20px 24px; }
 /* Handy: von unten, oben bleibt ein Streifen der Seite sichtbar */
 @media (max-width: 720px) {
-  .preview-dialog { --sheet-hidden: translateY(100%); width: 100vw; height: calc(100dvh - 12px); margin: auto 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 12px 12px 0 0; box-shadow: 0 -12px 32px rgb(0 0 0 / 0.2); }
-  .preview-dialog-head { padding: 12px; }
+  .preview-dialog { --sheet-hidden: translateY(100%); width: 100vw; height: calc(100dvh - 12px); margin: auto 0 0; border: 0; border-top: 1px solid var(--line); border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; box-shadow: 0 -12px 32px rgb(0 0 0 / 0.2); }
+  .preview-dialog .sheet-grip { display: flex; }
+  .preview-dialog-title { touch-action: none; }
+  .preview-dialog-head { padding: 4px 12px 12px; }
   .preview-dialog-body { padding: 12px; }
 }
 /* Split-Button: Hauptaktion und Pfeil teilen sich einen Rahmen, das Menü hängt rechtsbündig darunter */
@@ -581,7 +587,9 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 /* Papiervorschau */
 /* Rechnungsvorschau als A4-Blatt; Maße in mm wie templates/rechnung.typ, 1pt = 0,3528 mm */
 .sheet-frame { container-type: inline-size; }
-.sheet { --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(40 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+.sheet { isolation: isolate; --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); display: flex; flex-direction: column; padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(14 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+/* Genau eine A4-Seite wie im PDF, auch wenn das Blatt in der Vorschau länger ist */
+.sheet-background { position: absolute; inset: 0 0 auto; z-index: -1; height: calc(297 * var(--mm)); background-position: center; background-repeat: no-repeat; background-size: cover; }
 .sheet-fold { position: absolute; left: calc(4 * var(--mm)); width: calc(4 * var(--mm)); border-top: 1px solid var(--rule); }
 .sheet-fold.long { width: calc(6 * var(--mm)); }
 .sheet-logo { position: absolute; top: calc(20 * var(--mm)); right: calc(20 * var(--mm)); object-fit: contain; }
@@ -593,7 +601,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-meta dd { margin: 0; text-align: right; white-space: nowrap; }
 .sheet-muted { color: var(--ink-muted); }
 .sheet-strong { font-weight: 600; }
-.sheet-body { display: flex; flex-direction: column; }
+.sheet-body { display: flex; flex-direction: column; margin-bottom: calc(8 * var(--mm)); }
 .sheet-body p { margin: 0 0 calc(2 * var(--mm)); }
 .sheet-title { font-size: calc(16 * 0.3528 * var(--mm)); font-weight: 600; line-height: 1.2; letter-spacing: -0.005em; }
 .sheet-table { width: 100%; border-collapse: collapse; margin-top: calc(5 * var(--mm)); }
@@ -605,14 +613,16 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-tag { color: var(--brand); font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); }
 .sheet-plan caption { text-align: left; font-weight: 600; caption-side: top; }
 .sheet-plan td.num { white-space: normal; }
-.sheet-totals { align-self: flex-end; width: calc(80 * var(--mm)); margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
+/* Wie die Vorlage: mindestens 80 mm, sonst so breit wie die längste Zeile */
+.sheet-totals { align-self: flex-end; width: max-content; min-width: calc(80 * var(--mm)); max-width: 100%; margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
 .sheet-totals dt, .sheet-totals dd { margin: 0; padding: 0 calc(1.6 * var(--mm)); }
-.sheet-totals dt { color: var(--ink-muted); }
+.sheet-totals dt { color: var(--ink-muted); white-space: nowrap; }
 .sheet-totals dd { text-align: right; white-space: nowrap; }
 .sheet-totals .gross { color: var(--ink); font-weight: 600; border-top: 0.6pt solid var(--brand); padding-top: calc(2.2 * var(--mm)); margin-top: 0; }
 /* Bruttopreise: Netto und Umsatzsteuer, die im Gesamtbetrag enthalten sind */
 .sheet-totals .sheet-included { color: var(--ink-muted); font-size: 0.9em; }
-.sheet-foot { position: absolute; left: calc(25 * var(--mm)); right: calc(20 * var(--mm)); bottom: calc(14 * var(--mm)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
+/* Im Fluss statt fest unten: Ein hoher eigener Fuß schiebt das Blatt länger, statt den Text zu verdecken */
+.sheet-foot { margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
 .sheet-foot-legal { grid-column: 1 / -1; }
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }
@@ -855,7 +865,9 @@ summary { cursor: pointer; min-height: 24px; }
 .confirm-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .confirm-dialog > h2 { flex: none; margin: 0; padding: 24px 24px 8px; font-size: 18px; }
 .confirm-dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 24px 24px; font-size: 14px; }
-.confirm-dialog-grip { display: none; }
+/* Griff eines Blatts von unten (SheetGrip), sichtbar nur in Handybreite */
+.sheet-grip { display: none; flex: none; justify-content: center; padding: 8px 0; touch-action: none; cursor: grab; }
+.sheet-grip::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); }
 .confirm-dialog-body p { margin: 0; }
 .confirm-dialog-facts { margin: 0 0 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; border-radius: 8px; background: var(--ground); }
 .confirm-dialog-facts > div { display: flex; justify-content: space-between; gap: 16px; }
@@ -867,10 +879,9 @@ summary { cursor: pointer; min-height: 24px; }
 .confirm-dialog-actions .btn:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Am Handy ein Blatt von unten (#404): die Knöpfe voll breit in Daumennähe, die Aktion über Abbrechen */
 @media (max-width: 640px) {
-  .confirm-dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: 16px 16px 0 0; }
+  .confirm-dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; }
   /* Griff und Titel nehmen die Geste selbst an, statt die Seite zu scrollen */
-  .confirm-dialog-grip { display: flex; flex: none; justify-content: center; padding: 8px 0; touch-action: none; cursor: grab; }
-  .confirm-dialog-grip::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); }
+  .confirm-dialog .sheet-grip { display: flex; }
   .confirm-dialog > h2 { padding: 8px 16px 8px; touch-action: none; }
   .confirm-dialog-body { padding: 0 16px 16px; }
   .confirm-dialog-actions { flex-direction: column-reverse; gap: 8px; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); border-top: 0; }
@@ -894,6 +905,8 @@ summary { cursor: pointer; min-height: 24px; }
 .preview-dialog-actions { flex-shrink: 0; display: flex; gap: 8px; }
 .preview-dialog-main { flex: 1 1 auto; min-height: 0; display: flex; }
 .preview-dialog-main > .sheet-frame { min-width: 0; }
+/* Nur am Handy eine eigene Karte, sonst zählt allein die Spalte */
+.design-sheet { display: contents; }
 .design-panel { flex: 0 0 340px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); }
 .design-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
 .design-panel h3, .design-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
@@ -931,7 +944,11 @@ summary { cursor: pointer; min-height: 24px; }
   .preview-dialog-actions { margin-left: auto; }
   .preview-dialog-main[data-design] { flex-direction: column; }
   .preview-dialog-main[data-design] > .sheet-frame { flex: 0 0 32dvh; }
-  .design-panel { flex: 1 1 auto; border-left: 0; border-top: 1px solid var(--line); }
+  .design-sheet { flex: 1 1 auto; min-height: 0; position: relative; z-index: 2; display: flex; flex-direction: column; margin-top: -16px; overflow: hidden; border-top: 1px solid var(--line); border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; background: var(--surface); box-shadow: 0 -8px 24px rgb(0 0 0 / 0.18); }
+  .design-panel { flex: 1 1 auto; border-left: 0; }
+  /* Offen trägt die Karte den Griff, zwei übereinander verwirren */
+  .preview-dialog[data-design] > .sheet-grip { display: none; }
+  .preview-dialog[data-design] > .preview-dialog-head { padding-top: 12px; }
 }
 .logo-upload { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .logo-upload p { margin: 0; }
@@ -948,3 +965,8 @@ summary { cursor: pointer; min-height: 24px; }
 .format-bar button:hover { background: var(--line); }
 .format-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .format-status { display: block; margin-top: 4px; font-size: 12px; color: var(--danger-ink); }
+.footer-columns { display: grid; gap: 10px; }
+.footer-columns textarea { min-width: 0; font-size: 12px; line-height: 1.5; resize: vertical; }
+.footer-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.footer-chips .btn { font-size: 12px; }
+.footer-preview { font-size: 12px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }

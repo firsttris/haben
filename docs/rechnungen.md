@@ -52,7 +52,7 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 
 Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
-**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
+**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
 
 ### Entwurf als PDF
 

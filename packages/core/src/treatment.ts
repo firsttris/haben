@@ -139,3 +139,6 @@ export function treatmentIssues(
   }
   return issues;
 }
+
+/** § 14a UStG: Bei Reverse Charge und innergemeinschaftlicher Lieferung muss die USt-IdNr. des Leistenden auf der Rechnung stehen */
+export const needsSellerVatId = (treatment: TaxTreatment): boolean => treatment === "reverse_charge" || treatment === "ig_lieferung";

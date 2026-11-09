@@ -50,6 +50,7 @@ export {
 } from "./exchange-rates.ts";
 export { AccentColorError, loadDesign, loadLetterhead, saveAccentColor, saveDesign } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
+export { backgroundInfo, loadBackground, MAX_BACKGROUND_BYTES, removeBackground, saveBackground } from "./background.ts";
 export { CustomerNumberError, customerNumbering, saveCustomerNumbering } from "./customer-numbers.ts";
 export { personenkontoKey, vergibPersonenkonten } from "./personenkonten-vergabe.ts";
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";

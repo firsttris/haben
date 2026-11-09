@@ -15,6 +15,7 @@ import {
   LOGO_SIZES,
   planShareLabel,
   distinctVatRates,
+  LETTERHEAD_FONTS,
   showsVatColumn,
   skontoFristen,
   type Discount,
@@ -28,6 +29,7 @@ import {
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
 import { FormattedText } from "./FormattedText.tsx";
+import { SheetFooter } from "./SheetFooter.tsx";
 
 export interface PreviewSeller {
   name: string;
@@ -35,6 +37,7 @@ export interface PreviewSeller {
   plz: string;
   ort: string;
   email: string;
+  telefon?: string;
   steuernummer: string;
   ustId: string;
   iban: string;
@@ -46,6 +49,8 @@ export interface PreviewSeller {
   legal?: string | null;
   /** SHA-256 des Logos, wenn eines hinterlegt ist */
   logo?: string | null;
+  /** SHA-256 des Briefpapiers, wenn eines hinterlegt ist */
+  background?: string | null;
   /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
   accent?: string;
   /** Gestaltung aus dem Profil oder dem Panel, noch ungespeichert; fehlt = Vorgaben */
@@ -98,6 +103,7 @@ export function InvoicePreview({
   note,
   priceMode = "netto",
   taxNote,
+  needsVatId = false,
   corrects,
   title,
   currency = "EUR",
@@ -123,6 +129,8 @@ export function InvoicePreview({
   priceMode?: PriceMode;
   /** Pflichthinweis bei Rechnungen ohne Steuerausweis; dann keine Steuerspalte */
   taxNote?: string | null;
+  /** Reverse Charge oder innergemeinschaftliche Lieferung: Die USt-IdNr. muss in den Fuß (§ 14a UStG) */
+  needsVatId?: boolean;
   corrects?: { number: string | null; issueDate: string } | null;
   /** Abweichender Titel, z. B. Abschlagsrechnung */
   title?: string;
@@ -182,25 +190,18 @@ export function InvoicePreview({
                 `Bei Zahlung bis zum ${formatDate(s.until)} gewähren wir ${formatPercent(s.percent)} Skonto (${money(s.amount)}); Sie überweisen dann ${money(s.payable)}.`,
             ),
           ].join(" ");
-  const footer = [
-    [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
-    [
-      seller.bank,
-      seller.kontoinhaber && seller.kontoinhaber !== seller.name && `Kontoinhaber ${seller.kontoinhaber}`,
-      `IBAN ${seller.iban || "[IBAN]"}`,
-      seller.bic && `BIC ${seller.bic}`,
-    ],
-    [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
-  ].map((column) => column.filter(Boolean));
-
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (
     <div className="sheet-frame">
       <div
         className="sheet"
         aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
-        style={seller.accent ? sheetColors(seller.accent) : undefined}
+        style={{
+          ...(seller.accent ? sheetColors(seller.accent) : {}),
+          fontFamily: `"${LETTERHEAD_FONTS[options.font].name}", var(--sans)`,
+        }}
       >
+        {seller.background && <div className="sheet-background" style={{ backgroundImage: `url("/api/briefpapier?v=${seller.background.slice(0, 12)}")` }} />}
         {options.foldMarks && (
           <>
             <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />
@@ -379,16 +380,7 @@ export function InvoicePreview({
             </p>
           )}
         </div>
-        <div className="sheet-foot">
-          {footer.map((column, index) => (
-            <div key={index}>
-              {column.map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-            </div>
-          ))}
-          {seller.legal && <div className="sheet-foot-legal">{seller.legal}</div>}
-        </div>
+        <SheetFooter seller={seller} options={options} needsVatId={needsVatId} />
       </div>
     </div>
   );

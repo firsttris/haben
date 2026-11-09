@@ -38,6 +38,7 @@ import {
   type TaxTreatment,
   type UnitLabel,
   distinctVatRates,
+  needsSellerVatId,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -771,6 +772,7 @@ export function InvoiceEditor({
         }
         sheet={
           <InvoicePreview
+            needsVatId={needsSellerVatId(taxTreatment)}
             kind={kind}
             number={nextNumber}
             issueDate={issueDate || initial.issueDate}

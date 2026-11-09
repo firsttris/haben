@@ -284,3 +284,13 @@ describe("Auszeichnung per Knopf", () => {
     }
   });
 });
+
+describe("Platzhalter der Fußzeile", () => {
+  it("Nur der Name in den Klammern markiert: Die Auszeichnung umschließt den ganzen Platzhalter", () => {
+    expect(toggleTextStyle("{firma}\n{steuernummer}", 1, 6, "bold")?.text).toBe("*{firma}*\n{steuernummer}");
+  });
+
+  it("Auswahl endet in einem Platzhalter: Er kommt ganz dazu", () => {
+    expect(toggleTextStyle("Firma {ort}", 0, 8, "italic")?.text).toBe("_Firma {ort}_");
+  });
+});

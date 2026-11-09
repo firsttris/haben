@@ -81,7 +81,7 @@ export function dunningPdfData(doc: DunningDocument) {
         : null,
     closing: doc.closing.trim(),
     greeting: `Mit freundlichen Grüßen\n${seller.name}`,
-    ...footerData(seller),
+    ...footerData(seller, TEXTS.de, doc),
   };
 }
 
