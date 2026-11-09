@@ -71,6 +71,10 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Lastschriftmandate am Kontakt (Postgres,
     expect(await mandates.listMandates(contactId, "2026-11-09")).toEqual([]);
   });
 
+  it("meldet einen Tag, den es nicht gibt, als Eingabefehler statt als internen Fehler", async () => {
+    await expect(mandates.createMandate(actor, contactId, input({ signedOn: "2026-02-30" }), "2026-11-09")).rejects.toThrow(/Datum/);
+  });
+
   it("prüft IBAN, Referenz und Daten", async () => {
     await expect(mandates.createMandate(actor, contactId, input({ debtorIban: "DE00120300000000202051" }), "2026-11-09")).rejects.toThrow(
       "Die IBAN DE00120300000000202051 ist ungültig.",
