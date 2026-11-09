@@ -1,4 +1,6 @@
+import { SEV_HEAD_RATES } from "@haben/import";
 import { sql, type SQL } from "drizzle-orm";
+import type { LegacyTaxRow } from "../../db/schema.ts";
 
 /*
  * Richtung und Belegart von sevDesk-Belegen, zur Laufzeit aus der gespeicherten API-Antwort. Frühere Abrufe haben C als
@@ -31,4 +33,18 @@ export function effectiveContactName(alias: string): SQL<string> {
   return sql.raw(
     `case when ${alias}.source = 'sevdesk' and ${alias}.contact_name = '' then coalesce((select c.name from contacts c where c.id = ${alias}.contact_id), '') else ${alias}.contact_name end`,
   ) as SQL<string>;
+}
+
+/**
+ * Steuersätze einer Rechnung ohne Positionen: Frühere Abrufe haben Satz 0 gespeichert, obwohl der Kopf Steuer nennt (#472).
+ * Wie rateFromHead in @haben/import; `bigint`, weil Netto mal Satz über den Bereich von integer hinausgeht.
+ */
+export function effectiveTaxes(alias: string): SQL<LegacyTaxRow[]> {
+  const fromHead = SEV_HEAD_RATES.map(
+    (rate) =>
+      `when abs(${alias}.net::bigint * ${rate} - ${alias}.tax::bigint * 10000) <= 10000 then jsonb_build_array(jsonb_build_object('rate', ${rate}, 'net', ${alias}.net, 'tax', ${alias}.tax))`,
+  ).join(" ");
+  const withoutPositions = `${alias}.source = 'sevdesk' and ${alias}.tax <> 0 and (${alias}.raw->'positions' is null or ${alias}.raw->'positions' = '[]'::jsonb)
+    and jsonb_array_length(${alias}.taxes) = 1 and (${alias}.taxes->0->>'rate')::int = 0`;
+  return sql.raw(`case when ${withoutPositions} then case ${fromHead} else ${alias}.taxes end else ${alias}.taxes end`) as SQL<LegacyTaxRow[]>;
 }

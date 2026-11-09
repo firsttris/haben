@@ -1,7 +1,7 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -439,7 +439,7 @@ export async function legacyVoucherDetail(id: string) {
       net: schema.lexofficeVouchers.net,
       tax: schema.lexofficeVouchers.tax,
       gross: schema.lexofficeVouchers.gross,
-      taxes: schema.lexofficeVouchers.taxes,
+      taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
@@ -522,7 +522,7 @@ export async function reconciliation() {
       net: schema.lexofficeVouchers.net,
       tax: schema.lexofficeVouchers.tax,
       gross: schema.lexofficeVouchers.gross,
-      taxes: schema.lexofficeVouchers.taxes,
+      taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
@@ -781,7 +781,7 @@ export async function legacyVouchersForPeriod(filter: {
     files: number;
   }>(sql`
     select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, v.net, v.tax, v.gross,
-      v.taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
+      ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files

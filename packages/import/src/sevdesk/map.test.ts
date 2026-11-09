@@ -227,7 +227,7 @@ describe("mapSevVoucher", () => {
   it("erkennt Einnahmen und Gutschriften", () => {
     expect(mapSevVoucher(sevVoucherSchema.parse({ ...base, creditDebit: "D" }), []).voucher.type).toBe("salesinvoice");
     const credit = mapSevVoucher(sevVoucherSchema.parse({ ...base, sumNet: "-10", sumTax: "-1.90", sumGross: "-11.90" }), []);
-    expect(credit.voucher).toMatchObject({ type: "purchasecreditnote", gross: -1190, taxes: [{ rate: 0, net: -1000, tax: -190 }] });
+    expect(credit.voucher).toMatchObject({ type: "purchasecreditnote", gross: -1190, taxes: [{ rate: 1900, net: -1000, tax: -190 }] });
   });
 
   it("lässt Entwürfe und Vorlagen wiederkehrender Belege aus", () => {

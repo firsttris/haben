@@ -27,7 +27,7 @@ import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { effectivePayment, paymentHistoryIssue, settledOn } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 
 export class TakeoverError extends UserError {}
 
@@ -185,6 +185,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       type: effectiveType("lexoffice_vouchers"),
       direction: effectiveDirection("lexoffice_vouchers"),
       contactName: effectiveContactName("lexoffice_vouchers"),
+      taxes: effectiveTaxes("lexoffice_vouchers"),
       payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
@@ -313,7 +314,11 @@ export async function takeOverLegacyItem(
 
 async function takeOver(actor: string, item: OpenLegacyItem, cutoff: TakeoverCutoff): Promise<{ kind: "invoice" | "document"; id: string }> {
   const [voucher] = await db
-    .select({ ...getTableColumns(schema.lexofficeVouchers), contactName: effectiveContactName("lexoffice_vouchers") })
+    .select({
+      ...getTableColumns(schema.lexofficeVouchers),
+      contactName: effectiveContactName("lexoffice_vouchers"),
+      taxes: effectiveTaxes("lexoffice_vouchers"),
+    })
     .from(schema.lexofficeVouchers)
     .where(eq(schema.lexofficeVouchers.id, item.id));
   const files = await db.select().from(schema.lexofficeVoucherFiles).where(eq(schema.lexofficeVoucherFiles.voucherId, item.id));

@@ -24,6 +24,7 @@ export {
   mapSevInvoice,
   mapSevPaymentLogs,
   mapSevVoucher,
+  SEV_HEAD_RATES,
   sevNumber,
   type SevImportedContact,
   type SevMappedVoucher,

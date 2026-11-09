@@ -71,7 +71,7 @@ Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit
 
 sevDesk liefert bei vielen Belegen nur den Verweis auf den Lieferanten, keinen Namen (`supplierName` leer). Haben zeigt dann den Namen des verknüpften Kontakts; die Archivkopie bleibt unverändert.
 
-Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
+Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Fehlen die Positionen, leitet Haben den Satz aus Netto und Steuer im Kopf ab (19, 7, 16 oder 5 %); auch das gilt für schon abgerufene Belege. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
 
 ### Steuerarten im Abgleich
 
