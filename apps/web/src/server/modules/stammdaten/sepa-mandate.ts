@@ -14,7 +14,8 @@ import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from 
 
 export class MandateError extends UserError {}
 
-const datum = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum fehlt");
+/** Kalendertag JJJJ-MM-TT; das Muster allein ließe den 30. Februar bis zur Datenbank durch */
+const datum = z.iso.date("Datum fehlt oder gibt es nicht");
 
 export const mandateInputSchema = z.object({
   reference: z.string().trim(),
