@@ -1255,6 +1255,56 @@ test("Kasse: Bareinnahme ohne Rechnung aus einem Monat, in dem noch § 19 galt, 
   await expect(page.getByRole("status").filter({ hasText: "gebucht: Bareinnahme über 25,00 €, Kleinunternehmer (§ 19 UStG)." })).toBeVisible();
 });
 
+test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankündigung und Zahlungsart 59 in der E-Rechnung (#445)", async () => {
+  // Gläubiger-ID (Test-ID der Bundesbank) und ein Mandat für Alpenblick
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Gläubiger-ID").fill("DE98ZZZ09999999999");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await go("/kontakte");
+  await go(
+    (await page
+      .getByRole("link", { name: /Alpenblick Media AG/ })
+      .first()
+      .getAttribute("href"))!,
+  );
+  const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
+  await karte.getByRole("button", { name: "Mandat anlegen" }).click();
+  const mandat = karte.getByRole("form", { name: "Neues Mandat" });
+  await mandat.getByLabel("Mandatsreferenz").fill("AB-2026-01");
+  await mandat.getByLabel("Unterschrieben am").fill(day(-30));
+  await mandat.getByLabel("IBAN").fill("DE02120300000000202051");
+  await mandat.getByRole("button", { name: "Mandat speichern" }).click();
+  await expect(page.getByText("Mandat angelegt.")).toBeVisible();
+
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await page.getByLabel("Zahlungsart").selectOption("lastschrift");
+  // Das jüngste gültige Mandat des Kunden ist vorgewählt; Skonto entfällt bei Lastschrift
+  // Über die Rolle: getByLabel mit exact vergleicht den ganzen Text des umschließenden Labels samt gewählter Option
+  const mandatFeld = page.getByRole("combobox", { name: "Mandat", exact: true });
+  await expect(mandatFeld).toHaveValue(/.+/);
+  await expect(mandatFeld.locator("option:checked")).toHaveText("AB-2026-01 · CORE");
+  await expect(page.getByRole("button", { name: "Skontostufe hinzufügen" })).toHaveCount(0);
+  await page.getByLabel("Beschreibung Position 1").fill("Wartung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("250");
+  await page.getByRole("button", { name: "Entwurf speichern" }).first().click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByLabel("Zahlungsart")).toHaveValue("lastschrift");
+  await page.getByRole("button", { name: "Festschreiben" }).first().click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const id = /rechnungen\/([0-9a-f-]{36})/.exec(page.url())![1];
+  const xml = await (await page.request.get(`/api/rechnung/${id}/xml`)).text();
+  expect(xml).toMatch(/<ram:TypeCode>59<\/ram:TypeCode>/);
+  expect(xml).toContain("<ram:DirectDebitMandateID>AB-2026-01</ram:DirectDebitMandateID>");
+  expect(xml).toContain("<ram:CreditorReferenceID>DE98ZZZ09999999999</ram:CreditorReferenceID>");
+  expect(xml).toContain("per SEPA-Lastschrift");
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",

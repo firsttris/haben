@@ -1,6 +1,7 @@
 import { buildQuoteDraftPdf, renderInvoiceDraftPdf, type DraftPdf } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import { directDebitFor } from "./lastschrift.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany, loadLetterhead } from "../stammdaten/index.ts";
 import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
@@ -28,17 +29,19 @@ export async function invoiceDraftPdf(id: string): Promise<DraftPdf | null> {
     : [];
   const buyer = original?.buyer ?? (contact ? buyerFrom(contact) : null);
   if (!buyer) throw new DraftPdfError(NO_CUSTOMER);
+  const company = await loadCompany();
   // Die Nummer setzt renderInvoiceDraftPdf
   const { number: _none, ...doc } = documentFor(
     invoice,
     lines,
     await invoiceDocumentTotals(id),
     (await invoiceTotalsById([id])).get(id)!,
-    sellerFrom(await loadCompany()),
+    sellerFrom(company),
     buyer,
     "",
     corrects?.number ? { number: corrects.number, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines),
+    await directDebitFor(invoice, company, db),
   );
   return renderInvoiceDraftPdf({ ...doc, ...(await loadLetterhead()) });
 }

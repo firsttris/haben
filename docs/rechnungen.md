@@ -353,7 +353,21 @@ Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Co
 
 Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unter **Einstellungen › Firma** den **Kontoinhaber** ein. Die Bank deines Kunden vergleicht den Empfängernamen bei der Überweisung mit dem Inhaber des Kontos (Empfängerüberprüfung, seit Oktober 2025) und warnt sonst. Der Kontoinhaber steht auch in der Bankspalte der Fußzeile und in der E-Rechnung als Name des Zahlungskontos (BT-85).
 
-Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen. Im [Entwurfs-PDF](#entwurf-als-pdf) steht an seiner Stelle ein Platzhalter.
+Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen, Rechnungen per [Lastschrift](#lastschrift) auch nicht. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen. Im [Entwurfs-PDF](#entwurf-als-pdf) steht an seiner Stelle ein Platzhalter.
+
+## Lastschrift
+
+Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](#sepa-lastschriftmandate).
+
+Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das jüngste gültige Mandat des Kunden ist vorgewählt. Eingezogen wird am Fälligkeitstag, also Rechnungsdatum plus Zahlungsziel.
+
+**Hinweis auf der Rechnung.** Statt der Bitte um Überweisung steht unter der Summe: „Den Betrag von … ziehen wir am … per SEPA-Lastschrift von Ihrem Konto … ein (Mandatsreferenz …, Gläubiger-ID …).“ Das ist die Vorabankündigung (Pre-notification) mit Betrag und Tag, die das Rulebook vor jedem Einzug verlangt; sie darf Teil der Rechnung sein ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) v1.2, PT-04.02; [Clarification Paper](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf) EPC132-17 v5.1, Kap. 2.6). Ohne andere Absprache mit dem Kunden muss sie spätestens 14 Kalendertage vor dem Einzug bei ihm sein (Kap. 4.3.4); ein kürzeres Zahlungsziel setzt eine solche Absprache voraus, etwa im Mandat. Einen GiroCode gibt es dann nicht, damit der Kunde nicht doppelt zahlt.
+
+**In der E-Rechnung** steht die Zahlungsart 59 (SEPA-Lastschrift nach UNTDID 4461) mit Mandatsreferenz (BT-89), Gläubiger-ID (BT-90) und IBAN des Kunden (BT-91), ohne die eigene Bankverbindung, wie es XRechnung verlangt (BR-DE-25-a, BR-DE-25-b, BR-DE-30, BR-DE-31). Die Zahlungsbedingungen (BT-20) enthalten denselben Hinweis wie das PDF. Der KoSIT-Validator prüft das in der CI.
+
+**Vor dem Festschreiben** prüft Haben: Gläubiger-ID vorhanden, Mandat des Kunden der Rechnung, Mandat am Einzugstag gültig (nicht widerrufen, nicht nach 36 Monaten ohne Einzug abgelaufen), Rechnung in Euro und ohne Skonto, denn eingezogen wird der volle Betrag. Storno und Rechnungskorrektur werden nie eingezogen; sie bekommen die Zahlungsart Überweisung.
+
+**Wiederkehrende Rechnungen** haben dieselbe Zahlungsart. Jede Rechnung nimmt das jüngste Mandat des Kunden, das an ihrem Fälligkeitstag gilt; so geht es nach einem neuen Mandat ohne Änderung an der Vorlage weiter. Gibt es keins, entsteht für den Termin keine Rechnung; die Vorlage zeigt den Grund, und der nächste Lauf holt den Termin nach, sobald ein Mandat da ist. Liegt der Fälligkeitstag des nachgeholten Termins dann schon zurück, nimmt die Rechnung das am Tag des Laufs gültige Mandat; Rechnungsdatum und Zahlungsziel passt du vor dem Festschreiben an, denn eingezogen wird erst nach der Vorabankündigung.
 
 ## Rechnungen in Fremdwährung
 
@@ -413,6 +427,7 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
 | Aktiv | Ohne Häkchen erzeugt die Vorlage keine Rechnungen. |
 | Kunde, Einleitung, Positionen mit Text zur Position, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis | wie im Rechnungseditor |
+| Zahlungsart | Überweisung oder SEPA-Lastschrift; bei Lastschrift wählt jeder Lauf das Mandat selbst, siehe [Lastschrift](#lastschrift) |
 
 In Einleitung, Beschreibungen, Texten zur Position und Hinweis ersetzt Haben Platzhalter:
 
@@ -639,7 +654,7 @@ Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden a
 | Kontoinhaber, IBAN, BIC | Das Konto, von dem eingezogen wird; vorbelegt mit Name und IBAN des Kontakts. Die IBAN muss aus dem EWR sein, wie bei SEPA-Überweisungen: Das Konto muss in SEPA liegen (Rulebook, Kap. 2.2), und außerhalb des EWR verlangt das Mandat die Anschrift des Zahlungspflichtigen. Die BIC ist optional. |
 | Schon eingezogen | Für ein Mandat, auf das vor Haben schon Lastschriften liefen: Der nächste Einzug ist dann eine Folgelastschrift. Mit dem Tag des letzten Einzugs rechnet Haben den Verfall richtig. |
 
-**Verfall nach 36 Monaten.** Ein Mandat, auf das 36 Monate lang keine Lastschrift eingereicht wurde, darf nicht mehr genutzt werden; gezählt ab dem letzten Einzug, auch wenn er zurückgegeben wurde ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) und [SDD B2B Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC222-07%202025%20SDD%20B2B%20Rulebook%20version%201.2.pdf) des EPC, Version 1.2, Kap. 4.2). Für ein Mandat ohne Einzug nennt das Rulebook keinen Beginn; Haben zählt dann vorsichtig ab der Unterschrift. Der Status neben jedem Mandat zeigt, bis wann es gilt oder seit wann es abgelaufen ist; für einen neuen Einzug braucht es dann ein neues Mandat.
+**Verfall nach 36 Monaten.** Ein Mandat, auf das 36 Monate lang keine Lastschrift eingereicht wurde, darf nicht mehr genutzt werden; gezählt ab dem letzten Einzug, auch wenn er zurückgegeben wurde ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) und [SDD B2B Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC222-07%202025%20SDD%20B2B%20Rulebook%20version%201.2.pdf) des EPC, Version 1.2, Kap. 4.2). Als Einzug zählt der letzte Einzug vor Haben und jede festgeschriebene Rechnung per [Lastschrift](#lastschrift) mit ihrem Fälligkeitstag, außer sie ist storniert. Für ein Mandat ohne Einzug nennt das Rulebook keinen Beginn; Haben zählt dann vorsichtig ab der Unterschrift. Der Status neben jedem Mandat zeigt, bis wann es gilt oder seit wann es abgelaufen ist; für einen neuen Einzug braucht es dann ein neues Mandat.
 
 **Nichts wird überschrieben.** Mandate, ihre PDFs und Widerrufe lassen sich nur anlegen, nicht ändern oder löschen; jede Zeile steht im Audit-Log. Ändert sich etwas am Mandat, etwa die Bankverbindung, legst du ein neues an. **PDF hinterlegen** speichert das unterschriebene Mandat; ein späteres PDF ersetzt es in der Anzeige, das frühere bleibt gespeichert. **Widerrufen** beendet ein Mandat ab heute, nach einer Rückfrage.
 

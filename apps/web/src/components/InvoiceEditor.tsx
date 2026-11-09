@@ -1,4 +1,5 @@
 import {
+  type PaymentMethod,
   computeInvoice,
   ITEM_NUMBER_MAX,
   convertPrice,
@@ -51,6 +52,8 @@ import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../s
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
+import type { MandateOption } from "../server/modules/stammdaten/index.ts";
+import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
 import { ContactDialog } from "./ContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
@@ -237,6 +240,7 @@ export function InvoiceEditor({
   companySkonto = [],
   attachments = null,
   planTemplates = [],
+  mandates = [],
   keptDeductions = [],
   action: sharedAction,
 }: {
@@ -280,6 +284,8 @@ export function InvoiceEditor({
   attachments?: ReactNode;
   /** Vorlagen für den Zahlungsplan im Angebot, aus den Einstellungen */
   planTemplates?: PlanTemplate[];
+  /** Gültige Lastschriftmandate aller Kunden (#445), für die Zahlungsart der Rechnung */
+  mandates?: MandateOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
   keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
@@ -319,6 +325,8 @@ export function InvoiceEditor({
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(initial.skonto ?? []));
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initial.paymentMethod ?? "ueberweisung");
+  const [mandateId, setMandateId] = useState(initial.sepaMandateId ?? "");
   const [discountText, setDiscountText] = useState(() => discountInput(initial.discount));
   const [planRows, setPlanRows] = useState(() => toPlanRows(initial.paymentPlan ?? []));
   const [planInConfirmation, setPlanInConfirmation] = useState(initial.paymentPlanInConfirmation ?? false);
@@ -379,7 +387,9 @@ export function InvoiceEditor({
   const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
-  const skontoAllowed = kind === "rechnung" && !foreign;
+  const lastschrift = kind === "rechnung" && paymentMethod === "lastschrift";
+  // Bei Lastschrift wird der volle Betrag eingezogen, ohne Skonto
+  const skontoAllowed = kind === "rechnung" && !foreign && !lastschrift;
   const skonto = parseSkontoRows(skontoAllowed ? skontoRows : []);
   const skontoIssue = !skonto.valid ? "Je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben." : termValid ? skontoProblem(skonto.stufen, term) : null;
   const parsedDiscount = parseDiscount(discountText);
@@ -496,6 +506,8 @@ export function InvoiceEditor({
     if (chosen && kind === "rechnung") {
       setSkontoRows(toSkontoRows((chosen.skonto ?? companySkonto).filter((s) => !termValid || s.days <= term)));
     }
+    // Ein Mandat gehört zu genau einem Kunden: das jüngste gültige des neuen
+    if (lastschrift) setMandateId(mandates.find((m) => m.contactId === value)?.id ?? "");
     // Ein Angebot gehört zu genau einem Kunden
     const keptQuote = quotes.some((q) => q.id === quoteId && q.contactId === value) ? quoteId : "";
     setQuoteId(keptQuote);
@@ -540,6 +552,8 @@ export function InvoiceEditor({
       exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
       exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
       discount,
+      paymentMethod: lastschrift ? "lastschrift" : "ueberweisung",
+      sepaMandateId: lastschrift ? mandateId || null : null,
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, kind: _kind, ...line }) => line),
     };
   }
@@ -553,6 +567,8 @@ export function InvoiceEditor({
       exchangeRate: _rate,
       exchangeRateDate: _rateDate,
       quoteId: _quote,
+      paymentMethod: _method,
+      sepaMandateId: _mandate,
       ...common
     } = draft();
     const quoteLines = parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, ...line }) => line);
@@ -851,6 +867,19 @@ export function InvoiceEditor({
                     fällig {formatDate(dueDate)}
                   </span>
                 </label>
+              )}
+              {kind === "rechnung" && (
+                <PaymentMethodFields
+                  id="invoice-payment"
+                  method={paymentMethod}
+                  mandateId={mandateId}
+                  mandates={mandates.filter((m) => m.contactId === contactId || m.id === mandateId)}
+                  contactChosen={contactId !== ""}
+                  onChange={(method, mandate) => {
+                    touch(setPaymentMethod)(method);
+                    setMandateId(mandate);
+                  }}
+                />
               )}
               {skontoAllowed && (
                 <SkontoFields

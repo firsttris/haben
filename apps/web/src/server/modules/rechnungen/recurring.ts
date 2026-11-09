@@ -3,6 +3,8 @@ import {
   addMonthsAnchored,
   dueDates,
   fillPlaceholders,
+  invoiceDueDate,
+  PAYMENT_METHODS,
   PRICE_MODES,
   servicePeriodFor,
   TAX_TREATMENT_KEYS,
@@ -17,7 +19,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { draftLineSchema } from "./draft-line.ts";
 import { defaultSkonto } from "./skonto.ts";
-import { loadCompany } from "../stammdaten/index.ts";
+import { loadCompany, validMandateOn, type Company } from "../stammdaten/index.ts";
 import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "../mail/index.ts";
@@ -52,6 +54,8 @@ export const recurringInputSchema = z.object({
   mode: z.enum(["entwurf", "festschreiben"]),
   /** Nur mit festschreiben wirksam */
   sendByMail: z.boolean().default(false),
+  /** Überweisung oder Lastschrift (#445); fehlt = Überweisung */
+  paymentMethod: z.enum(PAYMENT_METHODS).default("ueberweisung"),
 });
 
 export type RecurringInput = z.input<typeof recurringInputSchema>;
@@ -130,7 +134,13 @@ export async function deleteRecurring(actor: string, id: string): Promise<void> 
  * Rechnung zu einem Termin: Leistungszeitraum und Platzhalter aus der Vorlage. Sprache und Skonto kommen wie beim
  * Anlegen im Editor aus Kunde und Firmendaten, zum Zeitpunkt der Rechnung.
  */
-export function invoiceForDate(recurring: RecurringInvoice, date: string, language: "de" | "en" = "de", skonto: SkontoStufe[] = []) {
+export function invoiceForDate(
+  recurring: RecurringInvoice,
+  date: string,
+  language: "de" | "en" = "de",
+  skonto: SkontoStufe[] = [],
+  sepaMandateId: string | null = null,
+) {
   const period = servicePeriodFor(date, recurring.intervalMonths as RecurringInterval, recurring.servicePeriod as ServicePeriodMode);
   const reference = period ?? { from: date, to: date };
   return {
@@ -147,6 +157,8 @@ export function invoiceForDate(recurring: RecurringInvoice, date: string, langua
     exemptionReason: recurring.exemptionReason,
     priceMode: recurring.priceMode,
     language,
+    paymentMethod: recurring.paymentMethod,
+    sepaMandateId,
     lines: recurring.lines.map((line) => ({
       description: fillPlaceholders(line.description, reference),
       // Vorlagen von vor dem Feld haben keinen Text
@@ -158,6 +170,20 @@ export function invoiceForDate(recurring: RecurringInvoice, date: string, langua
       taxRate: line.taxRate as 1900 | 700 | 0,
     })),
   };
+}
+
+/**
+ * Mandat für die Rechnung eines Termins: das jüngste, das am Einzugstag (Fälligkeit) gilt. Ohne gültiges Mandat entsteht
+ * keine Rechnung; der Fehler steht an der Vorlage und der Termin wird beim nächsten Lauf nachgeholt. Liegt der Einzugstag
+ * eines nachgeholten Termins schon zurück, zählt das am Tag des Laufs gültige Mandat; sonst bliebe die Vorlage mit einem
+ * nach diesem Tag unterschriebenen Mandat für immer stehen. Den Einzugstag prüft dann das Festschreiben.
+ */
+async function mandateForRun(recurring: RecurringInvoice, date: string, today: string, bundesland: Company["bundesland"]): Promise<string> {
+  const dueDate = invoiceDueDate(date, recurring.paymentTermDays, bundesland);
+  const mandate = (await validMandateOn(recurring.contactId, dueDate)) ?? (dueDate < today ? await validMandateOn(recurring.contactId, today) : null);
+  if (mandate) return mandate.id;
+  const [contact] = await db.select({ name: schema.contacts.name }).from(schema.contacts).where(eq(schema.contacts.id, recurring.contactId));
+  throw new RecurringError(`Kein gültiges Lastschriftmandat für ${contact?.name ?? "den Kunden"} am ${dueDate.split("-").reverse().join(".")}`);
 }
 
 export interface RunResult {
@@ -184,16 +210,19 @@ async function runOne(recurring: RecurringInvoice, today: string, result: RunRes
     .select({ language: schema.contacts.language, skonto: schema.contacts.skonto })
     .from(schema.contacts)
     .where(eq(schema.contacts.id, recurring.contactId));
-  const skonto = defaultSkonto(await loadCompany(), contact, recurring.paymentTermDays);
+  const company = await loadCompany();
+  // Bei Lastschrift kein Skonto: eingezogen wird der volle Betrag
+  const skonto = recurring.paymentMethod === "lastschrift" ? [] : defaultSkonto(company, contact, recurring.paymentTermDays);
   for (const date of dates) {
     const [existing] = await db
       .select({ id: schema.invoices.id })
       .from(schema.invoices)
       .where(and(eq(schema.invoices.recurringId, recurring.id), eq(schema.invoices.recurringDate, date)));
     if (existing) continue;
+    const mandateId = recurring.paymentMethod === "lastschrift" ? await mandateForRun(recurring, date, today, company.bundesland) : null;
     let draftId: string;
     try {
-      const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date, contact?.language, skonto), {
+      const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date, contact?.language, skonto, mandateId), {
         recurringId: recurring.id,
         recurringDate: date,
       });

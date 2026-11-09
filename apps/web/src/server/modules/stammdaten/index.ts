@@ -58,13 +58,17 @@ export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export {
   addMandateFile,
   createMandate,
+  findMandate,
   listMandates,
   MandateError,
   mandateFile,
   mandateInputSchema,
+  mandateOptions,
   revocationInputSchema,
   revokeMandate,
+  validMandateOn,
   type Mandate,
+  type MandateOption,
 } from "./sepa-mandate.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";
 export {

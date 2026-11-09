@@ -63,6 +63,10 @@ export interface InvoiceTotals {
  */
 export const PRICE_MODES = ["netto", "brutto"] as const;
 
+/** Zahlungsart einer Rechnung (#445): Überweisung durch den Kunden oder Einzug per SEPA-Lastschrift */
+export const PAYMENT_METHODS = ["ueberweisung", "lastschrift"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 export type PriceMode = (typeof PRICE_MODES)[number];
 
 /** Zeilenbetrag: Menge × Einzelpreis, kaufmännisch gerundet; netto oder brutto wie der Einzelpreis */

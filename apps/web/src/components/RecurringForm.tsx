@@ -14,6 +14,7 @@ import {
   servicePeriodFor,
   TAX_TREATMENTS,
   UNITS,
+  type PaymentMethod,
   type PriceMode,
   type RecurringInterval,
   type ServicePeriodMode,
@@ -47,6 +48,8 @@ export interface RecurringValues {
   servicePeriod: ServicePeriodMode;
   mode: "entwurf" | "festschreiben";
   sendByMail: boolean;
+  /** Überweisung oder Lastschrift (#445); das Mandat wählt jeder Lauf selbst */
+  paymentMethod: PaymentMethod;
 }
 
 interface LineState {
@@ -100,6 +103,7 @@ export function RecurringForm({
   const [servicePeriod, setServicePeriod] = useState<ServicePeriodMode>(initial.servicePeriod);
   const [mode, setMode] = useState(initial.mode);
   const [sendByMail, setSendByMail] = useState(initial.sendByMail);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initial.paymentMethod);
   const [lines, setLines] = useState<LineState[]>(() =>
     initial.lines.map((line) => ({
       key: nextKey++,
@@ -173,6 +177,7 @@ export function RecurringForm({
       servicePeriod,
       mode,
       sendByMail: mode === "festschreiben" && sendByMail,
+      paymentMethod,
     });
   }
 
@@ -258,6 +263,23 @@ export function RecurringForm({
               </select>
             </label>
           </div>
+          <label className="field">
+            Zahlungsart
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value === "lastschrift" ? "lastschrift" : "ueberweisung")}
+              aria-describedby={paymentMethod === "lastschrift" ? "recurring-payment-hint" : undefined}
+            >
+              <option value="ueberweisung">Überweisung</option>
+              <option value="lastschrift">SEPA-Lastschrift</option>
+            </select>
+            {paymentMethod === "lastschrift" && (
+              <span id="recurring-payment-hint" className="field-hint">
+                Jede Rechnung nimmt das jüngste Mandat des Kunden, das am Fälligkeitstag gilt, und kündigt den Einzug an diesem Tag an. Ohne gültiges Mandat
+                entsteht keine Rechnung; der Hinweis steht dann an der Vorlage.
+              </span>
+            )}
+          </label>
           <div className="form-row cols-2">
             <label className="field">
               Umsatzsteuer

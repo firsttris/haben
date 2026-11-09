@@ -35,6 +35,12 @@ const jar = process.env.KOSIT_JAR ?? standaloneJar("/var/tmp/kosit/validator");
 const config = process.env.KOSIT_CONFIG ?? "/var/tmp/kosit/xr/scenarios.xml";
 const outDir = process.argv[2] ?? join(tmpdir(), "haben-kosit");
 
+const sampleDirectDebit = {
+  mandateReference: "KD-1042-01",
+  creditorId: "DE98ZZZ09999999999",
+  debtorIban: "DE02120300000000202051",
+  collectionDate: "2026-11-30",
+};
 const orderReferences = { buyerOrder: "4500012345", sellerOrder: "AN-2026-007", despatchAdvice: "LS-0815" };
 
 const samples: Record<string, InvoiceDocument> = {
@@ -165,6 +171,13 @@ const samples: Record<string, InvoiceDocument> = {
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
       [`abschlag-${format}`, { ...sampleDocument({ format }), variant: "abschlag" as const }],
       [`schluss-${format}`, schlussrechnung(format)],
+    ]),
+  ),
+  // SEPA-Lastschrift (#445): Zahlungsart 59 mit BT-89, BT-90, BT-91 (BR-DE-25-a/b, BR-DE-30, BR-DE-31), auch als Storno
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [`lastschrift-${format}`, { ...sampleDocument({ format }), directDebit: sampleDirectDebit }],
+      [`lastschrift-storno-${format}`, { ...sampleDocument({ kind: "storno", format }), directDebit: sampleDirectDebit }],
     ]),
   ),
   // Bruttopreise: Netto je Satz herausgerechnet, Netto-Einzelpreise mit mehr Nachkommastellen

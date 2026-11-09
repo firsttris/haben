@@ -1,6 +1,6 @@
 import { skontoFristen, type SkontoFrist } from "@haben/core";
 import { TEXTS, type Texts } from "./i18n.ts";
-import type { InvoiceDocument, OrderReferences, Seller } from "./types.ts";
+import type { DirectDebit, InvoiceDocument, OrderReferences, Seller } from "./types.ts";
 
 /** "2026-10-02" → "02.10.2026" */
 export function formatDate(isoDate: string): string {
@@ -31,7 +31,12 @@ export function servicePeriod(doc: InvoiceDocument): { from: string; to: string 
   return { from, to };
 }
 
-type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto">;
+type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit">;
+
+/** Lastschrift nur auf einer Rechnung mit Zahlbetrag; Storno und Erstattung laufen nicht über das Mandat */
+export function collectedByDirectDebit(doc: Pick<InvoiceDocument, "kind" | "totals" | "directDebit">): doc is typeof doc & { directDebit: DirectDebit } {
+  return doc.kind === "rechnung" && doc.totals.gross > 0 && doc.directDebit !== undefined;
+}
 
 /** Skontostufen mit Frist und Betrag; nur auf Rechnungen mit Zahlbetrag, nicht auf Storno und Korrektur */
 export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
@@ -42,6 +47,10 @@ export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
 export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string {
   if (doc.totals.gross < 0) return t.refund;
   if (doc.totals.gross === 0) return t.noPayment;
+  if (collectedByDirectDebit(doc)) {
+    const d = doc.directDebit;
+    return t.directDebit(t.money(doc.totals.gross), t.date(d.collectionDate), formatIban(d.debtorIban), d.mandateReference, d.creditorId);
+  }
   const skonto = invoiceSkonto(doc).map((s) => t.skonto(t.percent(s.percent), t.date(s.until), t.money(s.amount), t.money(s.payable)));
   return [t.payBy(t.date(doc.dueDate)), ...skonto].join(" ");
 }

@@ -83,6 +83,7 @@ function RecurringDetailPage() {
             servicePeriod: recurring.servicePeriod as ServicePeriodMode,
             mode: recurring.mode,
             sendByMail: recurring.sendByMail,
+            paymentMethod: recurring.paymentMethod,
           }}
           contacts={contacts}
           textBlocks={textBlocks}

@@ -27,6 +27,7 @@ import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
+  PAYMENT_METHODS,
   PRICE_MODES,
   RECHTSFORM_KEYS,
   TAX_TREATMENT_KEYS,
@@ -1132,6 +1133,9 @@ export const invoices = pgTable(
     xml: text("xml"),
     xmlSha256: text("xml_sha256"),
     /** Aus einer wiederkehrenden Rechnung erzeugt, mit dem Termin; je Termin genau eine Rechnung */
+    /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
+    paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
+    sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
     recurringId: uuid("recurring_id"),
     recurringDate: date("recurring_date", { mode: "string" }),
     /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
@@ -1148,6 +1152,9 @@ export const invoices = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("invoices_payment_method", sql`${t.paymentMethod} in ('ueberweisung', 'lastschrift')`),
+    // Lastschrift nur mit Mandat, Überweisung ohne
+    check("invoices_lastschrift_mandat", sql`(${t.paymentMethod} = 'lastschrift') = (${t.sepaMandateId} is not null)`),
     // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen
     check("invoices_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("invoices_external_ref").on(t.externalSource, t.externalId),
@@ -2577,6 +2584,8 @@ export const recurringInvoices = pgTable(
     mode: text("mode", { enum: ["entwurf", "festschreiben"] })
       .notNull()
       .default("entwurf"),
+    /** Zahlungsart der Rechnungen (#445); bei Lastschrift nimmt jeder Lauf das jüngste am Einzugstag gültige Mandat des Kunden */
+    paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
     /** Nur mit festschreiben: die Rechnung gleich per E-Mail an den Kunden schicken */
     sendByMail: boolean("send_by_mail").notNull().default(false),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),

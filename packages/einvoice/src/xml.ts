@@ -14,7 +14,17 @@ import {
   type Millis,
 } from "@haben/core";
 import { ciiPostProcessor } from "./cii.ts";
-import { accountHolder, compactIban, formatDate, invoiceSkonto, isCreditNote, paymentSentence, presentReferences, servicePeriod } from "./format.ts";
+import {
+  accountHolder,
+  collectedByDirectDebit,
+  compactIban,
+  formatDate,
+  invoiceSkonto,
+  isCreditNote,
+  paymentSentence,
+  presentReferences,
+  servicePeriod,
+} from "./format.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
@@ -123,6 +133,12 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (seller.ustId && !outOfScope) sellerTax.push({ "cbc:CompanyID": seller.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } });
   if (seller.steuernummer) sellerTax.push({ "cbc:CompanyID": seller.steuernummer, "cac:TaxScheme": { "cbc:ID": "FC" } });
 
+  // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29). Bei Lastschrift die Gläubiger-ID als
+  // Bank assigned creditor identifier (BT-90, schemeID SEPA); e-invoice-eu setzt sie im CII als ram:CreditorReferenceID
+  const sellerIds = [
+    ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
+    ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),
+  ];
   const sellerContact: NonNullable<UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:Contact"]> = {
     "cbc:Name": seller.name,
     "cbc:ElectronicMail": seller.email,
@@ -187,9 +203,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
         "cbc:EndpointID": seller.email,
         "cbc:EndpointID@schemeID": "EM",
         // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29)
-        ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId)
-          ? { "cac:PartyIdentification": [{ "cbc:ID": seller.steuernummer || seller.ustId! }] }
-          : {}),
+        ...(sellerIds.length > 0 ? { "cac:PartyIdentification": sellerIds } : {}),
         "cac:PostalAddress": {
           "cbc:StreetName": seller.strasse,
           "cbc:CityName": seller.ort,
@@ -310,7 +324,20 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
 
   if (!credit) {
     invoice["cbc:DueDate"] = doc.dueDate;
-    if (seller.iban) {
+    if (collectedByDirectDebit(doc)) {
+      // SEPA-Lastschrift: 59 nach UNTDID 4461, Mandat (BT-89) und Konto des Kunden (BT-91) in cac:PaymentMandate; ohne
+      // Konto des Verkäufers (XRechnung BR-DE-25-b). Die Gläubiger-ID (BT-90) steht beim Verkäufer, siehe sellerIds
+      invoice["cac:PaymentMeans"] = [
+        {
+          "cbc:PaymentMeansCode": "59",
+          "cbc:PaymentID": doc.number,
+          "cac:PaymentMandate": {
+            "cbc:ID": doc.directDebit.mandateReference,
+            "cac:PayerFinancialAccount": { "cbc:ID": compactIban(doc.directDebit.debtorIban) },
+          },
+        },
+      ];
+    } else if (seller.iban) {
       invoice["cac:PaymentMeans"] = [
         {
           "cbc:PaymentMeansCode": "58",
@@ -381,6 +408,8 @@ function lineAllowance(
  * mit Zeilenumbruch), die Empfänger maschinell lesen, danach derselbe Inhalt als Satz mit Datum und Betrag
  */
 function paymentTerms(doc: InvoiceDocument): string {
+  // Lastschrift: die Vorabankündigung wie im PDF, ohne Skonto (eingezogen wird der volle Betrag)
+  if (collectedByDirectDebit(doc)) return paymentSentence(doc);
   const skonto = invoiceSkonto(doc);
   const text = [
     `Zahlbar ohne Abzug bis zum ${formatDate(doc.dueDate)} (${doc.paymentTermDays} Tage).`,

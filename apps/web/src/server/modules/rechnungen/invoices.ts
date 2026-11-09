@@ -15,6 +15,7 @@ import {
   invoicePosting,
   legacyCorrectionPosting,
   lineAmount,
+  PAYMENT_METHODS,
   PRICE_MODES,
   TAX_TREATMENT_KEYS,
   type InvoiceCalculation,
@@ -37,7 +38,7 @@ import {
   lineDiscountProblem,
   negateDiscount,
 } from "@haben/core";
-import { buildEInvoice, texts, validateForFormat, type Buyer, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
+import { buildEInvoice, texts, validateForFormat, type Buyer, type DirectDebit, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -51,6 +52,7 @@ import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
+import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
@@ -117,6 +119,9 @@ export const draftSchema = z
     lines: z.array(invoiceDraftLineSchema).max(200),
     /** Gesamtrabatt in Prozent oder als fester Betrag im Preismodus; null = keiner */
     discount: z.nullable(discountSchema).default(null),
+    /** Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat des Kunden (#445); fehlt = Überweisung */
+    paymentMethod: z.enum(PAYMENT_METHODS).default("ueberweisung"),
+    sepaMandateId: z.uuid().nullable().default(null),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
@@ -514,7 +519,7 @@ export async function applyPublishedRatesToDrafts(actor: string): Promise<number
  * Felder eines Entwurfs samt Summen. Netto und Umsatzsteuer je Satz werden nur hier berechnet; danach
  * lesen alle anderen Stellen die gespeicherten Werte (invoice_taxes).
  */
-function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[], rate: { currency: string } & RateFields) {
+function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[], rate: { currency: string } & RateFields, kind = "rechnung") {
   const priceMode = effectivePriceMode(input);
   const calculation = computeInvoice(lines, priceMode, input.discount ?? null);
   // Gebucht wird in Euro: bei Fremdwährung je Satz mit dem Kurs umgerechnet
@@ -542,6 +547,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     variant: input.variant ?? null,
     quoteId: input.quoteId ?? null,
     ...discountColumns(input.discount),
+    ...paymentColumns(input, kind),
     ...rate,
     net: totals.net,
     tax: totals.tax,
@@ -563,7 +569,9 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
   const { bundesland } = await loadCompany(tx);
   await checkQuote(tx, input.quoteId);
   const lines = await allLines(tx, null, input);
-  const { values, calculation, taxes } = draftValues(input, bundesland, lines, await draftRate(tx, input, extra.correctsId ?? null, null));
+  const { values, calculation, taxes } = draftValues(input, bundesland, lines, await draftRate(tx, input, extra.correctsId ?? null, null), extra.kind);
+  const mandateProblem = await draftMandateProblem(tx, values, values.contactId, values.dueDate);
+  if (mandateProblem) throw new InvoiceError(mandateProblem);
   const [invoice] = await tx
     .insert(schema.invoices)
     .values({ ...values, ...extra })
@@ -598,7 +606,10 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
       bundesland,
       lines,
       rate,
+      draft.kind,
     );
+    const mandateProblem = await draftMandateProblem(tx, values, values.contactId, values.dueDate);
+    if (mandateProblem) throw new InvoiceError(mandateProblem);
     // Abschlag zu einer Zeile des Zahlungsplans: nur solange es ein Abschlag zu diesem Angebot bleibt
     const keepsPlanRow = values.variant === "abschlag" && values.quoteId === draft.quoteId;
     const [updated] = await tx
@@ -789,6 +800,7 @@ export function documentFor(
   number: string,
   corrects: { number: string; issueDate: string } | null,
   deducted: { number: string; issueDate: string }[] = [],
+  directDebit?: DirectDebit,
 ): InvoiceDocument {
   return {
     kind: invoice.kind,
@@ -838,6 +850,7 @@ export function documentFor(
     language: invoice.language,
     ...(invoice.kind === "rechnung" && invoice.variant ? { variant: invoice.variant } : {}),
     ...(deducted.length > 0 ? { deducted } : {}),
+    ...(directDebit ? { directDebit } : {}),
   };
 }
 
@@ -973,6 +986,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       );
     }
   }
+  issues.push(...(await directDebitIssues(invoice, company, q)));
   if (contact && issues.length === 0) {
     const preview = documentFor(
       invoice,
@@ -984,6 +998,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       "VORSCHAU",
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
+      await directDebitFor(invoice, company, q),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -1058,6 +1073,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     number,
     corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines, tx),
+    await directDebitFor(invoice, company, tx),
   );
   const rendered = await buildEInvoice({ ...doc, ...(await loadLetterhead()) });
   const now = new Date();
