@@ -472,6 +472,53 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg am Handy: Beträge sind auch mit 16 px Schrift ganz zu lesen", async ({ browser }) => {
+  const context = await browser.newContext({
+    storageState: await page.context().storageState(),
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const handy = await context.newPage();
+  await handy.goto("/belege");
+  await handy.waitForLoadState("networkidle");
+  await handy
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "handy-betraege.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(handy.getByText("handy-betraege.jpg: abgelegt.")).toBeVisible();
+  await handy
+    .getByRole("link", { name: /handy-betraege\.jpg/ })
+    .first()
+    .click();
+  await handy.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await handy.waitForLoadState("networkidle");
+
+  /** Felder, deren Inhalt breiter ist als das Feld: Beim Betrag wären die letzten Ziffern nicht zu sehen */
+  const abgeschnitten = (selektor: string) =>
+    handy
+      .locator(selektor)
+      .evaluateAll((felder) =>
+        (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+      );
+
+  await handy.getByLabel("Kategorie").selectOption("wareneinkauf");
+  await handy.locator(".amount-row").getByLabel("Netto", { exact: true }).fill("500,00");
+  await handy.locator(".amount-row").getByLabel("Vorsteuer", { exact: true }).fill("95,00");
+  expect.soft(await abgeschnitten(".amount-row input[inputmode='decimal']"), "Netto und Vorsteuer des Belegs").toEqual([]);
+
+  await handy.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const netto = handy.locator(".document-split-row input[inputmode='decimal']");
+  await expect(netto.first()).toBeVisible();
+  await netto.first().fill("1.234,56");
+  expect.soft(await abgeschnitten(".document-split-row input[inputmode='decimal']"), "Netto in der Aufteilung").toEqual([]);
+
+  // Nicht buchen: Die folgenden Tests zählen die Belege und Auswertungen
+  await handy.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(handy, "Beleg löschen");
+  await handy.waitForURL(/\/belege$/);
+  await context.close();
+});
+
 test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser }) => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Hetzner Online GmbH");

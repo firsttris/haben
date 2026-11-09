@@ -7,7 +7,7 @@ import { normalizeUstId, ustIdProblem } from "./zm.ts";
  */
 export const TAX_TREATMENTS = {
   regulaer: {
-    label: "Regulär besteuert (19 %, 7 % oder 0 %)",
+    label: "Regulär (19 %, 7 % oder 0 %)",
     category: null,
     reasonCode: null,
     note: null,
