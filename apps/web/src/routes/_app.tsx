@@ -223,7 +223,7 @@ function AppLayout() {
                 Einstellungen
               </Link>
             )}
-            <a href="https://firsttris.github.io/haben/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
+            <a href="https://haben.app/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
               <Icon name="docs" />
               Dokumentation
             </a>

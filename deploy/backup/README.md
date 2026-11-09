@@ -15,4 +15,4 @@ Backup für [Haben](https://github.com/firsttris/haben), die selbst gehostete Bu
 | `restore.sh` | Verfügbare Stände anzeigen |
 | `restore.sh latest` / `restore.sh <id>` | Datenbank und Belege ersetzen (App vorher stoppen, `/belege` schreibbar einhängen) |
 
-Die Tags folgen Haben (`:latest`, `:0.2`, `:0.2.0`, `:next`). Einrichten, Wiederherstellen und Update zurücknehmen: [Betrieb und Installation › Backup und Wiederherstellen](https://firsttris.github.io/haben/installation.html#backup-und-wiederherstellen).
+Die Tags folgen Haben (`:latest`, `:0.2`, `:0.2.0`, `:next`). Einrichten, Wiederherstellen und Update zurücknehmen: [Betrieb und Installation › Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen).

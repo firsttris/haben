@@ -1,15 +1,15 @@
 # Mitwirken an Haben
 
 Issues und Pull Requests sind willkommen. Haben ist eine selbst gehostete Buchhaltung für Freiberufler und kleine
-Firmen. Wie die Teile zusammenhängen, steht in der [Architektur](https://firsttris.github.io/haben/architektur.html),
-wie du es lokal startest, in der [Entwicklung](https://firsttris.github.io/haben/entwicklung.html).
+Firmen. Wie die Teile zusammenhängen, steht in der [Architektur](https://haben.app/architektur.html),
+wie du es lokal startest, in der [Entwicklung](https://haben.app/entwicklung.html).
 
 ## Fehler und Wünsche melden
 
 Neues Issue über die Formulare: [Issue anlegen](https://github.com/firsttris/haben/issues/new/choose). Bitte vorher
-in der [Roadmap](https://firsttris.github.io/haben/roadmap.html) nachsehen, ob das Thema schon geplant ist. Wie ein
+in der [Roadmap](https://haben.app/roadmap.html) nachsehen, ob das Thema schon geplant ist. Wie ein
 gutes Issue aufgebaut ist, steht unter
-[Issues schreiben](https://firsttris.github.io/haben/entwicklung.html#issues-schreiben).
+[Issues schreiben](https://haben.app/entwicklung.html#issues-schreiben).
 
 **Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
@@ -28,14 +28,14 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
   `docs/` oder `LICENSE`, läuft sie gar nicht; dann die Doku vorher lokal bauen.
 - Mit KI-Werkzeugen zu arbeiten ist in Ordnung. Der Transparenz halber bitte kennzeichnen: `Co-Authored-By:` im
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
-  [Mit KI-Werkzeugen](https://firsttris.github.io/haben/entwicklung.html#mit-ki-werkzeugen).
+  [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
 - Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**: Ein Befund zählt nur mit einem Test, der
   auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
-  Maintainer. Die Schritte stehen unter [Review](https://firsttris.github.io/haben/entwicklung.html#review).
+  Maintainer. Die Schritte stehen unter [Review](https://haben.app/entwicklung.html#review).
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter
-[Mitwirken](https://firsttris.github.io/haben/entwicklung.html#mitwirken) und in [CLAUDE.md](CLAUDE.md), das auch für
+[Mitwirken](https://haben.app/entwicklung.html#mitwirken) und in [CLAUDE.md](CLAUDE.md), das auch für
 andere KI-Agenten gilt ([AGENTS.md](AGENTS.md)).
 
 ## Prüfungen
@@ -52,7 +52,7 @@ E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e
 
 Beide Datenbanken werden von den Tests geleert; nie auf einen Server mit echten Daten zeigen lassen.
 Ohne Bun auf dem Rechner laufen dieselben Prüfungen im Dev-Container, siehe
-[Prüfungen ohne Bun auf dem Rechner](https://firsttris.github.io/haben/entwicklung.html#prüfungen-ohne-bun-auf-dem-rechner).
+[Prüfungen ohne Bun auf dem Rechner](https://haben.app/entwicklung.html#prüfungen-ohne-bun-auf-dem-rechner).
 
 ## Lizenz
 

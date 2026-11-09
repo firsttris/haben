@@ -3,7 +3,7 @@
 ## Unterstützte Versionen
 
 Sicherheitsfixes gibt es nur für das neueste Release. Bitte vor einer Meldung auf die neueste Version aktualisieren,
-wie unter [Updates](https://firsttris.github.io/haben/installation.html#updates) beschrieben.
+wie unter [Updates](https://haben.app/installation.html#updates) beschrieben.
 
 | Version | Unterstützt |
 | --- | --- |

@@ -3,7 +3,7 @@ import type { getBackupStatus } from "../server/functions/backup.ts";
 
 type Status = Awaited<ReturnType<typeof getBackupStatus>>;
 
-export const BACKUP_DOCS = "https://firsttris.github.io/haben/installation.html#backup-und-wiederherstellen";
+export const BACKUP_DOCS = "https://haben.app/installation.html#backup-und-wiederherstellen";
 
 const ART = { backup: "Backup", restore_check: "Test-Restore" } as const;
 

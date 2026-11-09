@@ -2,7 +2,7 @@ import type { getExtractionSettings } from "../server/functions/documents.ts";
 
 type Settings = Awaited<ReturnType<typeof getExtractionSettings>>;
 
-export const EXTRACTION_DOCS = "https://firsttris.github.io/haben/einrichtung.html#ki-auslesung-von-belegen";
+export const EXTRACTION_DOCS = "https://haben.app/einrichtung.html#ki-auslesung-von-belegen";
 
 const PROVIDER = {
   anthropic: "Anthropic (Claude, Cloud)",
