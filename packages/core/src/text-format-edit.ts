@@ -12,11 +12,17 @@ type Styles = Pick<FormattedTextRun, TextStyle>;
 const EDGE = /[\s*_]/;
 const MARKER = /[*_]/;
 const ALNUM = /[\p{L}\p{N}]/u;
-// Wie im Parser: Neben diesen Zeichen öffnet oder schließt keine Auszeichnung
-const WORD = /[\p{L}\p{N}/\\]/u;
+// Wie im Parser: Neben diesen Zeichen öffnet oder schließt keine Auszeichnung. Dazu kombinierende Zeichen,
+// sonst endet ein Wort mit getrennt gespeichertem Umlaut (u + U+0308, so liefert macOS Dateinamen) mittendrin.
+const WORD = /[\p{L}\p{M}\p{N}/\\]/u;
 const OPENING = /^[([{„“‚‘"'«‹]+/u;
 const CLOSING = /[.,;:!?)}\]“”"'’‘»›]+$/u;
 const EMPTY_PAIR: Record<TextStyle, string> = { bold: "*", italic: "_", underline: "__" };
+// Satzzeichen neben dem Wort: Hinter einem Wort könnte die zweite Hälfte einer geteilten Auszeichnung nicht öffnen
+const PUNCTUATION = /[^\s\p{L}\p{M}\p{N}*_]/u;
+const TOKEN_PART = /[^\s*_]/;
+// `_` und `__` direkt nebeneinander liest der Parser als `___`; dann hilft nur, die umgebende Auszeichnung zu teilen
+const MERGES_WITH: Partial<Record<TextStyle, TextStyle>> = { italic: "underline", underline: "italic" };
 
 function trimRange(text: string, from: number, to: number, edge: RegExp): [number, number] {
   let start = from;
@@ -147,11 +153,16 @@ function enclosingPair(text: string, start: number, end: number, style: TextStyl
 
 const plainRun = (text: string, styles: Partial<Styles>): FormattedTextRun => ({ text, bold: false, italic: false, underline: false, ...styles });
 
-/** Löst die Auswahl aus einer längeren Auszeichnung heraus: Aus `*eins zwei*` wird `*eins* zwei`. */
-function splitEnclosing(text: string, start: number, end: number, style: TextStyle): TextEdit | null {
+/**
+ * Teilt die umgebende Auszeichnung an der Auswahl: Aus `*eins zwei*` wird `*eins* zwei`, und mit `on` aus
+ * `_eins zwei_` beim Unterstreichen von „eins“ `___eins___ _zwei_`.
+ */
+function splitEnclosing(text: string, start: number, end: number, style: TextStyle, on: boolean): TextEdit | null {
+  const carried = on ? MERGES_WITH[style] : style;
+  if (!carried) return null;
   const layerLength = surroundingLayers(text, start, end).join("").length;
-  const [from, to] = [start - layerLength, end + layerLength];
-  const pair = enclosingPair(text, from, to, style);
+  let [from, to] = [start - layerLength, end + layerLength];
+  const pair = enclosingPair(text, from, to, carried);
   if (!pair) return null;
   const [open, close] = pair;
   const stack = [open.marker];
@@ -165,12 +176,17 @@ function splitEnclosing(text: string, start: number, end: number, style: TextSty
     innerStart += inner.length;
     innerEnd -= inner.length;
   }
+  // Beim Dazunehmen das ganze Stück: `_a____-b___` läse beim zweiten Klick niemand mehr als zwei Paare
+  const widen = on ? TOKEN_PART : PUNCTUATION;
+  while (from > innerStart && widen.test(text[from - 1]!)) from--;
+  while (to < innerEnd && widen.test(text[to]!)) to++;
   const kept = Object.fromEntries(stack.flatMap((marker) => TEXT_MARKERS[marker]!.map((s) => [s, true]))) as Partial<Styles>;
   const before = wrapRun(plainRun(text.slice(innerStart, from), kept));
-  const middle = wrapRun(plainRun(text.slice(from, to), { ...kept, [style]: false }));
+  const middle = wrapRun(plainRun(text.slice(from, to), { ...kept, [style]: on }));
   const after = wrapRun(plainRun(text.slice(to, innerEnd), kept));
   const next = `${text.slice(0, open.at)}${before}${middle}${after}${text.slice(close.at + close.marker.length)}`;
-  if (styledLength(next, style) >= styledLength(text, style) || plainFormattedText(next) !== plainFormattedText(text)) return null;
+  const changed = on ? styledLength(next, style) > styledLength(text, style) : styledLength(next, style) < styledLength(text, style);
+  if (!changed || plainFormattedText(next) !== plainFormattedText(text)) return null;
   const base = open.at + before.length;
   return { text: next, start: base + /^\s*[*_]*/.exec(middle)![0].length, end: base + middle.length - /[*_]*\s*$/.exec(middle)![0].length };
 }
@@ -194,8 +210,8 @@ export function toggleTextStyle(text: string, selectionStart: number, selectionE
   if (start === end) return selectionStart === selectionEnd ? toggleEmptyPair(text, start, style) : null;
   const direct = toggleRange(text, start, end, style);
   if (direct) return direct;
-  const split = splitEnclosing(text, start, end, style);
+  const split = splitEnclosing(text, start, end, style, false) ?? splitEnclosing(text, start, end, style, true);
   if (split) return split;
-  const [tokenStart, tokenEnd] = narrow(text, ...toToken(text, start, end));
+  const [tokenStart, tokenEnd] = narrow(text, ...toPlaceholder(text, ...toToken(text, start, end)));
   return tokenStart < tokenEnd && (tokenStart !== start || tokenEnd !== end) ? toggleRange(text, tokenStart, tokenEnd, style) : null;
 }
