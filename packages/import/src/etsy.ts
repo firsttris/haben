@@ -21,7 +21,7 @@ import type { ParsedStatement } from "./types.ts";
  *   überwiesen“).
  * - „Tax“ ist die Steuer des Käufers, die Etsy abführt: Sie steckt im Verkauf und wird mit einer eigenen Zeile wieder
  *   abgezogen (bei Erstattungen umgekehrt). Das ist keine Gebühr und kein Erlös. Haben verrechnet sie wie bei eBay mit dem
- *   Verkauf bzw. der Erstattung derselben Bestellung (settleTax), damit der Verkauf mit dem Rechnungsbetrag ankommt;
+ *   Verkauf bzw. der Erstattung derselben Bestellung am selben Tag (settleTax), damit der Verkauf mit dem Rechnungsbetrag ankommt;
  *   findet sich nicht genau einer, bleibt sie als „Umsatzsteuer“ mit Nettobetrag und Warnung stehen.
  *
  * Wie bei den übrigen Zahlungsdienstleistern wird der Bruttobetrag eines Verkaufs vom Rest getrennt: Hat eine Zeile
@@ -106,10 +106,19 @@ function orderOf(...texts: string[]): string | undefined {
 const ORDER_TYPES = new Set(["Verkauf", "Erstattung", "Umsatzsteuer"]);
 
 /**
+ * Schlüssel, unter dem eine Steuerzeile zu ihrem Verkauf bzw. ihrer Erstattung passt: dieselbe Bestellung am selben Tag.
+ * Etsy schreibt beide zusammen (in beiden Dateien aus #296 am selben Tag). Der Tag ist wichtig, damit derselbe Datensatz bei
+ * jedem Import mit demselben Betrag ankommt: Eine spätere Teilerstattung derselben Bestellung (anderer Tag) ändert die
+ * Verrechnung der früheren nicht, und Haben legt sie beim zweiten Import nicht ein weiteres Mal an (Review #506, Runde 2).
+ */
+const settlementKey = (order: string, day: string) => `${day} ${order}`;
+
+/**
  * Verrechnet die Steuer des Käufers, die Etsy abführt, mit dem Verkauf derselben Bestellung (negative Steuer) bzw. mit der
- * Erstattung (positive Steuer), wie bei eBay: Der Verkauf kommt dann mit dem Betrag der Rechnung an. Gibt es nicht genau
- * einen solchen Verkauf oder eine solche Erstattung in der Datei (etwa über die Monatsgrenze oder bei mehreren
- * Teilerstattungen), bleibt die Zeile einzeln, damit nichts geraten wird; die Anzahl dieser Zeilen steht in `unsettled`.
+ * Erstattung (positive Steuer) am selben Tag, wie bei eBay: Der Verkauf kommt dann mit dem Betrag der Rechnung an. Gibt es
+ * nicht genau einen solchen Verkauf oder eine solche Erstattung in der Datei (etwa über die Monatsgrenze, an einem anderen
+ * Tag oder bei mehreren Erstattungen am selben Tag), bleibt die Zeile einzeln, damit nichts geraten wird; die Anzahl dieser
+ * Zeilen steht in `unsettled`.
  */
 function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled: number } {
   const adjustment = new Map<Tx, number>();
@@ -129,7 +138,9 @@ function settleTax(list: Tx[], orders: Map<Tx, string>): { list: Tx[]; unsettled
 
 function unsettledTaxWarning(count: number): string[] {
   if (count === 0) return [];
-  return [`${count} ${count === 1 ? "Steuerzeile" : "Steuerzeilen"} ohne Verkauf oder Erstattung derselben Bestellung mit dem Nettobetrag übernommen.`];
+  return [
+    `${count} ${count === 1 ? "Steuerzeile" : "Steuerzeilen"} ohne Verkauf oder Erstattung derselben Bestellung am selben Tag mit dem Nettobetrag übernommen.`,
+  ];
 }
 
 function unknownKindsWarning(kinds: string[]): string[] {
@@ -173,7 +184,7 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
     const order = labelOf(kind) === "Umsatzsteuer" ? orderOf(info(row), title(row)) : orderOf(title(row), info(row));
     const add = (tx: Tx) => {
       list.push(tx);
-      if (order !== undefined && tx.type !== undefined && ORDER_TYPES.has(tx.type)) orders.set(tx, order);
+      if (order !== undefined && tx.type !== undefined && ORDER_TYPES.has(tx.type)) orders.set(tx, settlementKey(order, tx.bookingDate));
     };
 
     if (isPayout(kind)) {
