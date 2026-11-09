@@ -132,6 +132,27 @@ describe("Etsy-Monatsabrechnung", () => {
     expect(s.warnings).toEqual([]);
   });
 
+  it("Gutschriften und Erstattungen tragen das Vorzeichen aus den Beträgen, nicht aus der Art (dylancaponi im Issue #296)", () => {
+    // Fee und Tax kommen mit umgekehrtem Vorzeichen, wenn Etsy etwas zurückgibt; Teilerstattungen stehen wie Verkäufe in „Amount“
+    const s = parseStatement(
+      english([
+        `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+        `"March 20, 2025",Fee,"Credit for processing fee","Order #1",EUR,--,€0.89,€0.89,--`,
+        `"March 20, 2025",Fee,"Credit for transaction fee on Notebook","Order #1",EUR,--,€0.33,€0.33,--`,
+        `"March 20, 2025",Fee,"Credit for listing fee ($0.20 USD)","Listing #2",EUR,--,€0.18,€0.18,--`,
+        `"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€1.30,€1.30,--`,
+      ]),
+    );
+    expect(s.transactions.map((t) => [t.type, t.amount, t.purpose])).toEqual([
+      ["Erstattung", -500, "Refund · Partial refund to buyer for Order #1"],
+      ["Gebühr", 89, "Gebühr · Credit for processing fee · Order #1"],
+      ["Gebühr", 33, "Gebühr · Credit for transaction fee on Notebook · Order #1"],
+      ["Gebühr", 18, "Gebühr · Credit for listing fee ($0.20 USD) · Listing #2"],
+      ["Umsatzsteuer", 130, "Tax · Refund to buyer for sales tax · Order #1"],
+    ]);
+    expect(s.warnings).toEqual([]);
+  });
+
   it("Tax-Zeilen (Umsatzsteuer, die Etsy für den Käufer abführt) sind keine Gebühr", () => {
     const s = parseStatement(english([`"March 8, 2025",Tax,"Sales tax paid by buyer","Order #1",EUR,--,-€3.36,-€3.36,--`]));
     expect(s.transactions.map((t) => [t.type, t.amount])).toEqual([["Umsatzsteuer", -336]]);
