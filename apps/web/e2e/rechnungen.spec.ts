@@ -33,7 +33,7 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   await rechnungFestschreiben(page, INVOICES[0]!);
 });
 
-test("DATEV-Personenkonten: Schalter mit Bestätigung, Ablehnung mit Liste, Debitor im Stapel und danach fest (#327)", async () => {
+test("DATEV-Personenkonten: Schalter mit Bestätigung, fehlender Debitor wird vergeben, steht im Stapel und ist danach fest (#327)", async () => {
   const jahr = Number(INVOICES[0]!.date.slice(0, 4));
   await go("/einstellungen?bereich=export");
   const card = page.getByRole("form", { name: "DATEV-Export" });
@@ -48,21 +48,7 @@ test("DATEV-Personenkonten: Schalter mit Bestätigung, Ablehnung mit Liste, Debi
   await expect(card.getByRole("status")).toHaveText("Gespeichert.");
   await expect(bestaetigung).toBeHidden();
 
-  await card.getByRole("combobox", { name: "Jahr", exact: true }).selectOption(String(jahr));
-  await card.getByRole("link", { name: "Buchungsstapel herunterladen" }).click();
-  const fehler = card.getByRole("alert");
-  await expect(fehler).toContainText("Für die Personenkonten fehlen Angaben");
-  await expect(fehler).toContainText("„Nordwerk Software GmbH“ hat keinen Debitor");
-
-  await go("/kontakte");
-  await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
-  await page.getByLabel("DATEV-Debitor").fill("10001");
-  await page.getByRole("button", { name: "Speichern" }).click();
-  // Nach dem Speichern baut sich das Formular mit der neuen Version neu auf (key={contact.version}), die Meldung
-  // „Gespeichert.“ geht dabei verloren; gespeichert ist es, sobald die neue Version in der Liste steht
-  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
-
-  await go("/einstellungen?bereich=export");
+  // Nordwerk hat noch keinen Debitor: Der Export vergibt den ersten freien
   await card.getByRole("combobox", { name: "Jahr", exact: true }).selectOption(String(jahr));
   const download = page.waitForEvent("download");
   await card.getByRole("link", { name: "Buchungsstapel herunterladen" }).click();
@@ -70,15 +56,16 @@ test("DATEV-Personenkonten: Schalter mit Bestätigung, Ablehnung mit Liste, Debi
   expect(datei.suggestedFilename()).toBe(`EXTF_Buchungsstapel_${jahr}.csv`);
   const { readFile } = await import("node:fs/promises");
   const stapel = new TextDecoder("latin1").decode(await readFile((await datei.path())!));
-  expect(stapel).toContain(";10001;8400;");
+  expect(stapel).toContain(";10000;8400;");
   expect(stapel).not.toContain(";1400;");
 
-  // Ab dem ersten Export ist der Debitor fest
+  // Am Kontakt steht die Nummer und ist ab dem ersten Export fest
   await go("/kontakte");
   await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10000");
   await page.getByLabel("DATEV-Debitor").fill("10002");
   await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByRole("alert")).toContainText("Debitor 10001 steht schon in einem DATEV-Export und bleibt fest.");
+  await expect(page.getByRole("alert")).toContainText("Debitor 10000 steht schon in einem DATEV-Export und bleibt fest.");
 });
 
 test("DATEV-Personenkonten: die Steuerberatung liest auf ihrer Startseite, warum ein neuer Debitor den Stapel ablehnt (#452)", async ({ browser }) => {

@@ -3,7 +3,7 @@ import { ACCOUNTS, currentYear, PERSONENKONTO_LABEL, personenkontenBetroffen, pe
 import { buildDatevBuchungsstapel, type DatevExportEntry, personenkontenEinsetzen } from "@haben/import";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/index.ts";
+import { loadCompany, personenkontoKey, vergibPersonenkonten } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { darf, type Rolle } from "../../../lib/rollen.ts";
@@ -125,12 +125,28 @@ export async function datevExport(
       locked: e.lockedAt !== null,
       lines: (byEntry.get(e.id) ?? []).map((l) => ({ account: l.account, debit: l.debit, credit: l.credit })),
       bezug: vorgang?.bezug ?? null,
+      contactId: vorgang?.contactId ?? null,
     };
   });
   let exportEntries: DatevExportEntry[] = journal;
   let verwendet: { rolle: "debitor" | "kreditor"; nummer: number }[] = [];
   if (personenkontenIm(company.datevPersonenkontenAb, year)) {
     const { forderungen, verbindlichkeiten } = ACCOUNTS[kontenrahmen];
+    const sammelkonto = { debitor: forderungen, kreditor: verbindlichkeiten } as const;
+    // Fehlende Nummern vergeben, aber nur für Kontakte, deren Buchungen ein Sammelkonto berühren und nicht wie die
+    // Eröffnung dort bleiben
+    const fehlend = journal.flatMap((e) =>
+      !e.eroeffnung && e.contactId && e.bezug?.kontakt?.nummer === null && e.lines.some((l) => l.account === sammelkonto[e.bezug!.rolle])
+        ? [{ contactId: e.contactId, rolle: e.bezug.rolle }]
+        : [],
+    );
+    // Vergeben schreibt wie das Festschreiben, deshalb nur durch den Inhaber (#452)
+    if (fehlend.length > 0 && (!exporteur || !darf(exporteur.role, "inhaber"))) throw ohneNummer(journal, fehlend);
+    const vergeben = fehlend.length > 0 ? await vergibFuerExport(exporteur!.id, fehlend) : new Map<string, number>();
+    for (const e of journal) {
+      const nummer = e.contactId && e.bezug?.kontakt ? vergeben.get(personenkontoKey(e.contactId, e.bezug.rolle)) : undefined;
+      if (nummer !== undefined && e.bezug?.kontakt) e.bezug = { ...e.bezug, kontakt: { ...e.bezug.kontakt, nummer } };
+    }
     const result = personenkontenEinsetzen(journal, { forderungen, verbindlichkeiten });
     if ("probleme" in result) throw personenkontenProblem(result.probleme);
     exportEntries = result.entries;
@@ -151,6 +167,28 @@ export async function datevExport(
   );
   if (verwendet.length > 0) await festschreiben(exporteur, verwendet, year);
   return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length };
+}
+
+/** Ablehnung für jemanden ohne Recht zum Vergeben: welche Kontakte noch keine Nummer haben */
+function ohneNummer(
+  journal: readonly { contactId: string | null; bezug: { kontakt: { name: string } | null } | null }[],
+  fehlend: readonly { contactId: string; rolle: "debitor" | "kreditor" }[],
+): DatevExportError {
+  const namen = new Map(journal.flatMap((e) => (e.contactId && e.bezug?.kontakt ? [[e.contactId, e.bezug.kontakt.name] as const] : [])));
+  const liste = [...new Set(fehlend.map((f) => `${PERSONENKONTO_LABEL[f.rolle]} für ${namen.get(f.contactId) ?? "einen Kontakt"}`))].join(", ");
+  return new DatevExportError(
+    `Der erste Export mit neuen Personenkonten muss vom Inhaber kommen, weil er fehlende Nummern vergibt und festschreibt. Noch ohne Nummer: ${liste}.`,
+  );
+}
+
+/** Vergabe für den Export; ein voller Bereich kommt als DatevExportError, damit der Download die Meldung zeigt statt eines 500 */
+async function vergibFuerExport(actor: string, fehlend: Parameters<typeof vergibPersonenkonten>[1]): Promise<Map<string, number>> {
+  try {
+    return await vergibPersonenkonten(actor, fehlend);
+  } catch (error) {
+    if (error instanceof UserError) throw new DatevExportError(error.message);
+    throw error;
+  }
 }
 
 /** Buchungen, die eine Gegenbuchung haben, auch in einem anderen Jahr */
