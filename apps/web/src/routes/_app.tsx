@@ -38,6 +38,7 @@ const NAV_GROUPS = [
     links: [
       { to: "/angebote", icon: "quote", label: "Angebote" },
       { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
+      { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
       { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },

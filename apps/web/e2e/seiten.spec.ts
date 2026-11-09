@@ -27,6 +27,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["rechnung", details.rechnung],
     ["mahnwesen", "/rechnungen/mahnwesen"],
     ["wiederkehrend", "/rechnungen/wiederkehrend"],
+    ["lastschriften", "/lastschriften"],
     ["artikel", "/artikel"],
     ["textbausteine", "/textbausteine"],
     ["belege", "/belege"],

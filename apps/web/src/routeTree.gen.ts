@@ -22,6 +22,7 @@ import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellunge
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppKasseRouteImport } from './routes/_app/kasse'
+import { Route as AppLastschriftenRouteImport } from './routes/_app/lastschriften'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as AppSteuerberatungRouteImport } from './routes/_app/steuerberatung'
 import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeportal'
@@ -77,6 +78,7 @@ import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kal
 import { Route as ApiHinterlegungJahrRouteImport } from './routes/api/hinterlegung/$jahr'
 import { Route as ApiKasseJahrRouteImport } from './routes/api/kasse/$jahr'
 import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
+import { Route as ApiLastschriftIdRouteImport } from './routes/api/lastschrift/$id'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiMandatIdRouteImport } from './routes/api/mandat/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
@@ -173,6 +175,11 @@ const AppFristenRoute = AppFristenRouteImport.update({
 const AppKasseRoute = AppKasseRouteImport.update({
   id: '/kasse',
   path: '/kasse',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLastschriftenRoute = AppLastschriftenRouteImport.update({
+  id: '/lastschriften',
+  path: '/lastschriften',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPauschalenRoute = AppPauschalenRouteImport.update({
@@ -451,6 +458,11 @@ const ApiKontenJahrRoute = ApiKontenJahrRouteImport.update({
   path: '/api/konten/$jahr',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLastschriftIdRoute = ApiLastschriftIdRouteImport.update({
+  id: '/api/lastschrift/$id',
+  path: '/api/lastschrift/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMahnungIdRoute = ApiMahnungIdRouteImport.update({
   id: '/api/mahnung/$id',
   path: '/api/mahnung/$id',
@@ -642,6 +654,7 @@ export interface FileRoutesByFullPath {
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
+  '/lastschriften': typeof AppLastschriftenRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
@@ -682,6 +695,7 @@ export interface FileRoutesByFullPath {
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
+  '/api/lastschrift/$id': typeof ApiLastschriftIdRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/mandat/$id': typeof ApiMandatIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
@@ -743,6 +757,7 @@ export interface FileRoutesByTo {
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
+  '/lastschriften': typeof AppLastschriftenRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
@@ -784,6 +799,7 @@ export interface FileRoutesByTo {
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
+  '/api/lastschrift/$id': typeof ApiLastschriftIdRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/mandat/$id': typeof ApiMandatIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
@@ -847,6 +863,7 @@ export interface FileRoutesById {
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
   '/_app/kasse': typeof AppKasseRoute
+  '/_app/lastschriften': typeof AppLastschriftenRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
   '/_app/steuerberatung': typeof AppSteuerberatungRoute
   '/_app/sv-meldeportal': typeof AppSvMeldeportalRoute
@@ -888,6 +905,7 @@ export interface FileRoutesById {
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
+  '/api/lastschrift/$id': typeof ApiLastschriftIdRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/mandat/$id': typeof ApiMandatIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
@@ -952,6 +970,7 @@ export interface FileRouteTypes {
     | '/finanzamt'
     | '/fristen'
     | '/kasse'
+    | '/lastschriften'
     | '/pauschalen'
     | '/steuerberatung'
     | '/sv-meldeportal'
@@ -992,6 +1011,7 @@ export interface FileRouteTypes {
     | '/api/hinterlegung/$jahr'
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
+    | '/api/lastschrift/$id'
     | '/api/mahnung/$id'
     | '/api/mandat/$id'
     | '/api/postfach/$id'
@@ -1053,6 +1073,7 @@ export interface FileRouteTypes {
     | '/finanzamt'
     | '/fristen'
     | '/kasse'
+    | '/lastschriften'
     | '/pauschalen'
     | '/steuerberatung'
     | '/sv-meldeportal'
@@ -1094,6 +1115,7 @@ export interface FileRouteTypes {
     | '/api/hinterlegung/$jahr'
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
+    | '/api/lastschrift/$id'
     | '/api/mahnung/$id'
     | '/api/mandat/$id'
     | '/api/postfach/$id'
@@ -1156,6 +1178,7 @@ export interface FileRouteTypes {
     | '/_app/finanzamt'
     | '/_app/fristen'
     | '/_app/kasse'
+    | '/_app/lastschriften'
     | '/_app/pauschalen'
     | '/_app/steuerberatung'
     | '/_app/sv-meldeportal'
@@ -1197,6 +1220,7 @@ export interface FileRouteTypes {
     | '/api/hinterlegung/$jahr'
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
+    | '/api/lastschrift/$id'
     | '/api/mahnung/$id'
     | '/api/mandat/$id'
     | '/api/postfach/$id'
@@ -1270,6 +1294,7 @@ export interface RootRouteChildren {
   ApiHinterlegungJahrRoute: typeof ApiHinterlegungJahrRoute
   ApiKasseJahrRoute: typeof ApiKasseJahrRoute
   ApiKontenJahrRoute: typeof ApiKontenJahrRoute
+  ApiLastschriftIdRoute: typeof ApiLastschriftIdRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiMandatIdRoute: typeof ApiMandatIdRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
@@ -1383,6 +1408,13 @@ declare module '@tanstack/react-router' {
       path: '/kasse'
       fullPath: '/kasse'
       preLoaderRoute: typeof AppKasseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lastschriften': {
+      id: '/_app/lastschriften'
+      path: '/lastschriften'
+      fullPath: '/lastschriften'
+      preLoaderRoute: typeof AppLastschriftenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pauschalen': {
@@ -1770,6 +1802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiKontenJahrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/lastschrift/$id': {
+      id: '/api/lastschrift/$id'
+      path: '/api/lastschrift/$id'
+      fullPath: '/api/lastschrift/$id'
+      preLoaderRoute: typeof ApiLastschriftIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mahnung/$id': {
       id: '/api/mahnung/$id'
       path: '/api/mahnung/$id'
@@ -2014,6 +2053,7 @@ interface AppRouteChildren {
   AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppFristenRoute: typeof AppFristenRoute
   AppKasseRoute: typeof AppKasseRoute
+  AppLastschriftenRoute: typeof AppLastschriftenRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
   AppSteuerberatungRoute: typeof AppSteuerberatungRoute
   AppSvMeldeportalRoute: typeof AppSvMeldeportalRoute
@@ -2076,6 +2116,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanzamtRoute: AppFinanzamtRoute,
   AppFristenRoute: AppFristenRoute,
   AppKasseRoute: AppKasseRoute,
+  AppLastschriftenRoute: AppLastschriftenRoute,
   AppPauschalenRoute: AppPauschalenRoute,
   AppSteuerberatungRoute: AppSteuerberatungRoute,
   AppSvMeldeportalRoute: AppSvMeldeportalRoute,
@@ -2153,6 +2194,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHinterlegungJahrRoute: ApiHinterlegungJahrRoute,
   ApiKasseJahrRoute: ApiKasseJahrRoute,
   ApiKontenJahrRoute: ApiKontenJahrRoute,
+  ApiLastschriftIdRoute: ApiLastschriftIdRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiMandatIdRoute: ApiMandatIdRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,

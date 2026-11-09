@@ -1188,6 +1188,28 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   expect(xml).toContain("per SEPA-Lastschrift");
 });
 
+test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danach nicht mehr angeboten (#445)", async () => {
+  await go("/lastschriften");
+  const form = page.getByRole("form", { name: "SEPA-Lastschrift erzeugen" });
+  const zeile = form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ });
+  await expect(form).toContainText("AB-2026-01");
+  await expect(form).toContainText("CORE · Erstlastschrift");
+  await zeile.check();
+  await expect(form.getByText("1 ausgewählt · 297,50 €")).toBeVisible();
+  const download = page.waitForEvent("download");
+  await form.getByRole("button", { name: "Lastschriftdatei erzeugen" }).click();
+  const datei = await download;
+  expect(datei.suggestedFilename()).toMatch(/^HABEN-[0-9A-F]{16}\.xml$/);
+  const { readFile } = await import("node:fs/promises");
+  const xml = await readFile((await datei.path())!, "utf8");
+  expect(xml).toContain("urn:iso:std:iso:20022:tech:xsd:pain.008.001.08");
+  expect(xml).toContain("<MndtId>AB-2026-01</MndtId>");
+  expect(xml).toContain("<SeqTp>FRST</SeqTp>");
+  await expect(page.getByText(/1 Lastschrift über 297,50 €/)).toBeVisible();
+  await expect(form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Erzeugte Dateien" })).toContainText("297,50 €");
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",
