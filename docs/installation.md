@@ -316,6 +316,14 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `DATABASE_URL` | ja | PostgreSQL-Verbindung. Wird auch vom Migrationsschritt beim Start gelesen | `postgres://haben:…@haben-db:5432/haben` |
 | `BETTER_AUTH_SECRET` | ja | Geheimnis für Sitzungen, mindestens 32 Zeichen | Ausgabe von `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | ja | Öffentliche Adresse, unter der Haben im Browser läuft. Bestimmt die Domain der Passkeys | `https://haben.example.de` |
+| `OIDC_ONLY` | nein | Betriebsart: `false` (Vorgabe) ausschließlich lokale Anmeldung, `true` ausschließlich SSO. Andere Werte verhindern den Start | `false` |
+| `OIDC_ISSUER` | bei `OIDC_ONLY=true` | Exakter Issuer des Anbieters; im Standardmodus ohne Wirkung | `https://auth.example.de` |
+| `OIDC_CLIENT_ID` | bei `OIDC_ONLY=true` | ID des vertraulichen Clients | `haben` |
+| `OIDC_CLIENT_SECRET` | bei `OIDC_ONLY=true` | Ursprüngliches Clientsecret, kein Hash | – |
+| `OIDC_DISPLAY_NAME` | nein | Anzeigename der SSO-Anmeldung | `Authelia` |
+| `OIDC_GROUPS_CLAIM` | nein | Name des Gruppen-Claims in der UserInfo-Antwort, ein einzelner Name, kein Ausdruck. Vorgabe `groups` | `groups` |
+| `OIDC_GROUP_INHABER` | bei `OIDC_ONLY=true` | Gruppe, deren Mitglieder Inhaber sind (exakt, groß-/kleinschreibungssensitiv) | `haben-inhaber` |
+| `OIDC_GROUP_STEUERBERATUNG` | bei `OIDC_ONLY=true` | Gruppe für den Lesezugang der Steuerberatung; muss sich von der Inhaber-Gruppe unterscheiden | `haben-steuerberatung` |
 | `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat, Zugangsdaten und die API-Schlüssel für Lexoffice und sevDesk | Ausgabe von `openssl rand -base64 32` |
 | `HABEN_SETUP_CODE` | nein | Fester Einrichtungscode für das Anlegen des Kontos (mindestens 8 Zeichen). Ohne ihn erzeugt Haben bei jedem Start einen neuen und schreibt ihn ins Log, solange es kein Konto gibt | `mein-einrichtungscode` |
 | `ERIC_HOME` | nein | Verzeichnis eines von Hand entpackten ERiC-Pakets; hat Vorrang vor dem heruntergeladenen. Ohne beides werden Prüfen und Senden simuliert | `/opt/eric` |
@@ -752,6 +760,145 @@ Haben bringt ein Web-App-Manifest und einen minimalen Service Worker mit. Der Se
 - Über „Zum Startbildschirm hinzufügen“ bzw. „App installieren“ im Browser installieren. Das klappt nur über HTTPS.
 - Die installierte App hat Kurzbefehle für „Beleg hochladen“ und „Neue Rechnung“.
 - Die App meldet sich als Teilen-Ziel an (`/api/belege/teilen`): Teilst du auf dem Handy ein PDF, Foto oder E-Rechnungs-XML mit Haben, wird es als Beleg hochgeladen. Höchstens 20 Dateien je Vorgang, je Datei bis 20 MB. Ob das Teilen-Menü Web-Apps anbietet, hängt vom Browser und Betriebssystem ab.
+
+## Single Sign-on mit Authelia-Gruppen
+
+Haben kennt zwei strikt getrennte Betriebsarten:
+
+| | Standardmodus (`OIDC_ONLY=false`, Vorgabe) | SSO-Modus (`OIDC_ONLY=true`) |
+| --- | --- | --- |
+| Anmeldung | Passwort und Passkeys | ausschließlich OIDC, etwa Authelia |
+| Inhaber | genau einer, mit Einrichtungscode angelegt | jedes Mitglied der Inhaber-Gruppe, auch mehrere |
+| Weitere Zugänge | per Einladung, Sperren und Entfernen in Haben | automatisch bei der ersten Anmeldung, Rolle aus der Gruppe |
+| Verwaltung | **Einstellungen › Sicherheit** | Gruppen im Anmeldedienst; **Einstellungen › Zugänge** zeigt nur an |
+
+Einen gemischten Modus gibt es nicht. Vorhandene `OIDC_*`-Werte allein schalten SSO nicht ein; im Standardmodus sind sämtliche OIDC-Wege gesperrt, im SSO-Modus sämtliche lokalen Anmelde- und Kontowege, auch bei direkten API-Aufrufen.
+
+### Haben konfigurieren
+
+```dotenv
+# false: ausschließlich lokale Anmeldung
+# true: ausschließlich SSO
+OIDC_ONLY=true
+
+OIDC_ISSUER=https://auth.example.de
+OIDC_CLIENT_ID=haben
+OIDC_CLIENT_SECRET=<urspruengliches-clientsecret>
+OIDC_DISPLAY_NAME=Authelia
+
+OIDC_GROUPS_CLAIM=groups
+OIDC_GROUP_INHABER=haben-inhaber
+OIDC_GROUP_STEUERBERATUNG=haben-steuerberatung
+```
+
+Mit `OIDC_ONLY=true` sind Issuer, Client-ID, Clientsecret und beide Gruppen Pflicht; fehlt etwas, startet Haben nicht. Die Gruppen müssen verschieden sein und werden exakt verglichen (Groß-/Kleinschreibung zählt, keine Leerzeichen am Rand). `OIDC_GROUPS_CLAIM` nennt genau einen Claim, keinen Pfad oder Ausdruck.
+
+In Docker Compose stehen die Werte in der geschützten `.env` neben `compose.yml`, bei Quadlets in `haben.env` und das Clientsecret als Podman-Secret `haben-oidc-client-secret` (die vorbereitete `Secret=`-Zeile in `haben-app.container` einkommentieren). In **Coolify** die Werte als Laufzeit-Umgebungsvariablen der Anwendung setzen, das Clientsecret als „Secret“ markieren und neu deployen. `BETTER_AUTH_URL` muss der öffentlichen Adresse im Browser entsprechen, einschließlich eines Ports.
+
+Haben lädt `${OIDC_ISSUER}/.well-known/openid-configuration`; der dort genannte Issuer muss exakt dem konfigurierten Wert entsprechen, und der Anbieter braucht einen UserInfo-Endpunkt. Anbieter und Haben laufen über HTTPS; HTTP ist nur auf Loopback außerhalb des Betriebs erlaubt. Die feste Callback-Adresse lautet:
+
+```text
+https://haben.example.de/api/auth/callback/oidc
+```
+
+### Authelia konfigurieren
+
+Authelia muss bereits als OIDC-Anbieter eingerichtet sein (Signaturschlüssel, HMAC-Secret und die übrige Pflichtkonfiguration). Für Haben die beiden Gruppen anlegen, Benutzer jeweils **genau einer** davon zuordnen und diesen vertraulichen Client ergänzen:
+
+```yaml
+authentication_backend:
+  # Gruppen bei jeder Anfrage neu lesen, damit erneute OIDC-Durchläufe aktuelle Gruppen liefern
+  refresh_interval: always
+
+identity_providers:
+  oidc:
+    # Übrige Pflichtkonfiguration des OIDC-Anbieters bleibt erforderlich.
+    clients:
+      - client_id: haben
+        client_name: Haben
+        client_secret: '<HASH-DES-CLIENTSECRETS>'
+        public: false
+        authorization_policy: two_factor
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://haben.example.de/api/auth/callback/oidc
+        scopes:
+          - openid
+          - profile
+          - email
+          - groups
+        response_types:
+          - code
+        grant_types:
+          - authorization_code
+        token_endpoint_auth_method: client_secret_basic
+```
+
+Mit der Dateibackend-Variante (`authentication_backend.file`) stehen die Gruppen in der Benutzerdatei:
+
+```yaml
+users:
+  inhaberin:
+    displayname: Inhaberin
+    email: inhaberin@example.de
+    password: '<HASH>'
+    groups:
+      - haben-inhaber
+  kanzlei:
+    displayname: Kanzlei Muster
+    email: kanzlei@example.de
+    password: '<HASH>'
+    groups:
+      - haben-steuerberatung
+```
+
+In Haben steht das **ursprüngliche Clientsecret**, in Authelia dessen **Hash** (`authelia crypto hash generate pbkdf2`, das Secret interaktiv eingeben). Authelia liefert Gruppen und E-Mail über den UserInfo-Endpunkt, nicht im ID-Token ([Authelia: Claims](https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/)); Haben fragt ihn nach jedem geprüften ID-Token ab und verlangt dort dasselbe Subject. Die E-Mail muss bestätigt sein. Änderungen an LDAP oder Benutzerdatei müssen Authelia erreichen (bei der Datei `watch: true` oder Neustart). Siehe auch [Authelia: OIDC-Clients](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/).
+
+### Einrichten und anmelden
+
+Bei einer **neuen Instanz** zeigt `/setup` nur **Mit Authelia einrichten**, ohne Einrichtungscode, Passwort oder Passkey. Die erste erfolgreiche Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben für diesen Issuer ein. Mitglieder der Steuerberatungs-Gruppe können eine Instanz nicht erstmals einrichten.
+
+Danach entsteht jedes Konto mit genau einer passenden Gruppe automatisch bei der ersten Anmeldung, ohne Einladung. Mehrere Inhaber sind möglich. Abgewiesen wird, wer keiner oder beiden Haben-Gruppen angehört oder einen fehlenden oder ungültigen Gruppen-Claim hat (erwartet ist ein Array aus Zeichenketten); andere Gruppen spielen keine Rolle.
+
+Bei **jeder** Anmeldung bestimmt Haben die Rolle neu. Ändert sie sich (Beförderung oder Herabstufung), enden alle bisherigen Sitzungen dieses Kontos. Wird eine bekannte Identität wegen ihrer Gruppen abgewiesen, enden ihre SSO-Sitzungen ebenfalls. Lokale Sperren gibt es im SSO-Modus nicht; den Zugang regelt die Gruppenzuordnung.
+
+### Höchstens 15 Minuten alte Berechtigungen
+
+Eine Haben-Sitzung trägt die beim Callback bestätigte Rolle mit fester Frist: höchstens 15 Minuten, kürzer, wenn ein Token früher abläuft. Aktivität oder die Verlängerung der Sitzung durch Better Auth verlängern diese Frist nicht. Danach verweigert Haben geschützte Zugriffe und führt zur Anmeldeseite; ein Klick auf **Mit Authelia anmelden** prüft die Gruppen erneut, bei bestehender Authelia-Sitzung ohne neue Passworteingabe. Schreibende Anfragen werden nicht automatisch wiederholt.
+
+Das heißt auch:
+
+- Eine Änderung der Gruppen wirkt spätestens nach 15 Minuten, bei der nächsten Anmeldung sofort.
+- Abmelden oder Sperren in Authelia beendet eine laufende Haben-Sitzung **nicht sofort**; es gibt keine zentrale Abmeldung. Die Berechtigung läuft spätestens nach 15 Minuten aus.
+- Fällt Authelia aus, sind keine neuen und keine erneuten Anmeldungen möglich; es gibt keinen lokalen Rückfall.
+- Haben speichert keine Access-, Refresh- oder ID-Tokens und fragt Authelia nicht im Hintergrund ab.
+- REST- und MCP-Tokens funktionieren unverändert wie bisher.
+
+### Zugänge
+
+**Einstellungen › Zugänge** ersetzt im SSO-Modus den Bereich **Sicherheit**. Er zeigt die Konten, die sich schon angemeldet haben, mit der zuletzt bestätigten Rolle und den letzten Anmeldungen, und verweist für die Verwaltung auf Authelia. Er ist kein Abbild des Authelia-Verzeichnisses: Wer noch nie angemeldet war, erscheint nicht. Einladen, Sperren, Freigeben und Entfernen gibt es nicht, auch nicht über die Server-Schnittstelle. Alte Einladungslinks zeigen „Einladungen nicht verfügbar“; die Einladungen bleiben für einen späteren Standardbetrieb gespeichert. Alte Links auf `?bereich=sicherheit` führen nach **Zugänge**.
+
+### Bestehende Instanz umstellen
+
+Gespeicherte lokale Zugangsdaten bleiben beim Wechsel erhalten, alle Sitzungen der bisherigen Betriebsart werden ungültig. Haben führt Konten **nicht** anhand gleicher E-Mail-Adressen zusammen: Meldet sich jemand mit der E-Mail eines bestehenden, nicht zugeordneten Kontos an, lehnt Haben ab und verweist auf die Übernahme durch den Betreiber. Unverknüpfte lokale Konten erhalten im SSO-Modus keinen Zugang, verhindern aber den Start nicht.
+
+Damit das bestehende Konto (und damit seine Belege, sein Audit-Verlauf und seine Konto-ID) weiterverwendet wird, ordnet der Betreiber es **bei gestoppter Anwendung** ausdrücklich einer Identität zu. Das Subject (`sub`) steht in Authelia unter **Einstellungen › Identität** oder in der Datenbank-Tabelle `user_opaque_identifier`; die Konto-ID unter `id` in der Haben-Tabelle `"user"`.
+
+```sh
+docker compose stop app
+# erst prüfen, nichts ändern
+docker compose run --rm --entrypoint bun app apps/web/src/server/db/sso-uebernahme.ts --konto <Konto-ID> --subject <sub>
+# dann ausdrücklich übernehmen
+docker compose run --rm --entrypoint bun app apps/web/src/server/db/sso-uebernahme.ts --konto <Konto-ID> --subject <sub> --uebernehmen
+docker compose start app
+```
+
+Die Übernahme ordnet nur dem konfigurierten Issuer zu, verweigert ein schon vergebenes Subject und läuft nicht, solange Haben läuft. Sie steht im Änderungsprotokoll (`sso_takeovers`) und vergibt **keine** Rolle: Die kommt bei der nächsten Anmeldung aus der Gruppe. Bestehende eindeutige Zuordnungen werden weiterverwendet.
+
+### Zurück zum Standardmodus
+
+`OIDC_ONLY=false` setzen und neu starten. Das setzt einen verwendbaren lokalen Inhaber voraus (ungesperrt, mit Passwort oder Passkey); fehlt er, bricht Haben den Start mit einem Hinweis ab. Haben erzeugt keine lokalen Zugangsdaten. Konten, die nur per SSO entstanden sind, haben keine lokale Rolle und kein Passwort und bleiben im Standardmodus ohne Zugang. Laufende SSO-Anmeldungen und SSO-Sitzungen gelten nach dem Wechsel nicht mehr.
 
 ## Passkeys und Domain
 

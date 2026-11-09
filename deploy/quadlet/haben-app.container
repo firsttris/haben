@@ -24,6 +24,8 @@ EnvironmentFile=%h/.config/haben/haben.env
 Secret=haben-database-url,type=env,target=DATABASE_URL
 Secret=haben-auth-secret,type=env,target=BETTER_AUTH_SECRET
 Secret=haben-encryption-key,type=env,target=HABEN_ENCRYPTION_KEY
+# Optional: SSO-Modus (OIDC_ONLY=true); übrige OIDC-Werte und Gruppen stehen in haben.env
+# Secret=haben-oidc-client-secret,type=env,target=OIDC_CLIENT_SECRET
 # Optional: KI-Auslesung von Belegen
 # Secret=haben-anthropic-key,type=env,target=ANTHROPIC_API_KEY
 # Optional: Schlüssel eines selbst betriebenen KI-Dienstes, falls er einen verlangt
