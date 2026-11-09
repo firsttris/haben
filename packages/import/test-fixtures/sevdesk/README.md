@@ -71,9 +71,9 @@ Am DATEV-Export 2024 aus Version 1.0: 186 Zeilen tragen `BEDI` mit 170 GUIDs, je
 
 Gutschriften aus Version 1.0: Das Buchungskonto steht am Kopf unter `accountingType`, frei wählbar bei `ACCOUNTING_TYPE` (hier Einnahmen), „Dienstleister / Agenturen / Freelancer“ bei `ROYALTY_ASSIGNED`, „Fremdarbeiten/Fremdleistungen“ bei `ROYALTY_UNASSIGNED`, „Verkaufsprovision“ bei `PROVISION`. `UNDERACHIEVEMENT` hat keins, stattdessen zeigen `origin` und `refSrcInvoice` auf die Rechnung. Die Beträge stehen positiv oder 0, Positionen tragen kein Konto.
 
-Buchung laut DATEV-Export von sevDesk (SKR03), jeweils im Soll und mit Beleglink auf den Ordner Rechnungsausgang: `ACCOUNTING_TYPE` mit Erlöskonto auf 8200 mit BU 3, `UNDERACHIEVEMENT` auf 8400 ohne BU, `ROYALTY_ASSIGNED` auf 3100 mit BU 9 (Vorsteuer). `PROVISION` und `ROYALTY_UNASSIGNED` sind im Export nicht belegt, ihr Datum lag außerhalb des Zeitraums; die zweite hat zudem den Betrag 0. Steuerlich und zur Zahlung ist nichts geprüft.
+Buchung laut DATEV-Export von sevDesk (SKR03), jeweils im Soll und mit Beleglink auf den Ordner Rechnungsausgang: `ACCOUNTING_TYPE` mit Erlöskonto auf 8200 mit BU 3, `UNDERACHIEVEMENT` auf 8400 ohne BU, `ROYALTY_ASSIGNED` auf 3100 mit BU 9 (Vorsteuer), `PROVISION` auf 4760 (Verkaufsprovisionen) mit BU 9. `ROYALTY_UNASSIGNED` hat den Betrag 0 und deshalb keine Buchung im Export. Steuerlich und zur Zahlung ist nichts geprüft.
 
-Offene Frage: Honorar und Provision stehen auf Aufwandskonten, und sevDesk bucht `ROYALTY_ASSIGNED` im Export auf Aufwand mit Vorsteuer. Haben bildet jede Gutschrift dagegen als negative Einnahme ab (`mapSevCreditNote`).
+Offene Frage: Honorar und Provision stehen auf Aufwandskonten, und sevDesk bucht `ROYALTY_ASSIGNED` und `PROVISION` im Export auf Aufwand mit Vorsteuer. Haben bildet jede Gutschrift dagegen als negative Einnahme ab (`mapSevCreditNote`).
 
 Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werden, Haben ersetzt sie nicht.
 
