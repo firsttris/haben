@@ -5,20 +5,6 @@ reconciliation, EÜR, VAT returns to ELSTER). TanStack Start app in `apps/web`, 
 database in `packages/core`, ELSTER in `packages/elster`, bank and DATEV import in `packages/import`,
 invoice PDF and XML in `packages/einvoice`.
 
-## Never
-
-The rules whose breach costs the most; the details follow below.
-
-- Floats for money: amounts are whole cents, tax rates basis points.
-- Weakening a GoBD lock or seal, renaming or recomputing a sealed column, editing an existing migration.
-- Running ERiC in the app process, or tests against a database with real data.
-- Skipping, weakening or deleting a test to get green; reporting a skipped test as passed.
-- Pushing to `main`, rewriting a contributor's commits, merging without a maintainer.
-
-Scripts check some rules (module boundaries, pages in the E2E specs, file size, pull request title); the
-table is in `docs/entwicklung.md`, "Automatische Prüfungen der Regeln". A rule you can turn into such a check
-is better there than here.
-
 ## Documentation
 
 The documentation is in `docs/` (<https://haben.app/>). Read the pages that touch the
@@ -75,6 +61,9 @@ zensical build --strict                                 # when docs/ or mkdocs.y
 Both databases are wiped by the tests, and `bun run test` also creates and drops `<name>_vorlage` and
 `<name>_<n>` next to the test database; never point them at a server with real data. In a container without
 PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl … -o '-p 5433'`).
+
+Scripts check some rules (module boundaries, pages in the E2E specs, file size, pull request title); the table
+is in `docs/entwicklung.md`, "Automatische Prüfungen der Regeln".
 
 Skill `checks` has the details:
 
