@@ -355,7 +355,7 @@ export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMap
       serviceTo: lexDate(v.deliveryDateUntil) ?? serviceFrom,
       status: statusName(status, String(v.status ?? "")),
       contactLexofficeId: refId(v.supplier),
-      contactName: v.supplierName?.trim() ?? "",
+      contactName: v.supplierName?.trim() || v.supplierNameAtSave?.trim() || "",
       currency: v.currency?.trim() || "EUR",
       net,
       tax,

@@ -146,6 +146,8 @@ export const sevVoucherSchema = z.looseObject({
   voucherDate: str,
   supplier: ref,
   supplierName: str,
+  /** Name des Lieferanten beim Speichern des Belegs; bleibt beim Umbenennen des Kontakts gleich */
+  supplierNameAtSave: str,
   /** Belegnummer */
   description: str,
   document: ref,

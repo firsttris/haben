@@ -28,10 +28,13 @@ export function effectiveType(alias: string): SQL<string> {
   return sql.raw(`case when ${isVoucher} then case when ${income} then ${kind("sales")} else ${kind("purchase")} end else ${alias}.type end`) as SQL<string>;
 }
 
-/** sevDesk liefert bei den meisten Belegen nur den Verweis `supplier`, `supplierName` bleibt leer: dann der verknüpfte Kontakt. */
+/**
+ * sevDesk lässt `supplierName` bei den meisten Belegen leer (#472). Dann gilt der Name beim Speichern des Belegs: Er ändert
+ * sich nicht, wenn der Kontakt später umbenannt wird. Erst ohne ihn der verknüpfte Kontakt.
+ */
 export function effectiveContactName(alias: string): SQL<string> {
   return sql.raw(
-    `case when ${alias}.source = 'sevdesk' and ${alias}.contact_name = '' then coalesce((select c.name from contacts c where c.id = ${alias}.contact_id), '') else ${alias}.contact_name end`,
+    `case when ${alias}.source = 'sevdesk' and ${alias}.contact_name = '' then coalesce(nullif(btrim(${alias}.raw->>'supplierNameAtSave'), ''), (select c.name from contacts c where c.id = ${alias}.contact_id), '') else ${alias}.contact_name end`,
   ) as SQL<string>;
 }
 
