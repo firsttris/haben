@@ -12,6 +12,7 @@ type Styles = Pick<FormattedTextRun, TextStyle>;
 const EDGE = /[\s*_]/;
 const MARKER = /[*_]/;
 const ALNUM = /[\p{L}\p{N}]/u;
+const DIGIT = /\p{N}/u;
 // Wie im Parser: Neben diesen Zeichen öffnet oder schließt keine Auszeichnung. Dazu kombinierende Zeichen,
 // sonst endet ein Wort mit getrennt gespeichertem Umlaut (u + U+0308, so liefert macOS Dateinamen) mittendrin.
 const WORD = /[\p{L}\p{M}\p{N}/\\]/u;
@@ -43,8 +44,9 @@ function narrow(text: string, from: number, to: number): [number, number] {
 
 function joinsWord(text: string, at: number): boolean {
   const char = text[at] ?? "";
-  // Der Punkt in „datei.zip“ hält das Wort zusammen, der am Satzende nicht
-  return WORD.test(char) || (char === "." && ALNUM.test(text[at - 1] ?? "") && ALNUM.test(text[at + 1] ?? ""));
+  const [before, after] = [text[at - 1] ?? "", text[at + 1] ?? ""];
+  // Der Punkt in „datei.zip“ und das Komma in „1.000,50“ halten das Wort zusammen, am Satzende nicht
+  return WORD.test(char) || (char === "." && ALNUM.test(before) && ALNUM.test(after)) || (char === "," && DIGIT.test(before) && DIGIT.test(after));
 }
 
 /** Auszeichnungen wirken nur an Wortgrenzen, also wird die Auswahl auf ganze Wörter erweitert. */
@@ -66,6 +68,23 @@ function toPlaceholder(text: string, from: number, to: number): [number, number]
       if (at < start && start < close) start = at;
       if (at < end && end < close) end = close;
     }
+  }
+  return [start, end];
+}
+
+/**
+ * Ganze Wörter samt direkt anschließender Platzhalter: `*Wartung*{jahr}` liest der Parser als fett, nach dem
+ * Ersetzen steht dort aber `*Wartung*2026`, und vor einer Ziffer schließt das Zeichen nicht mehr.
+ */
+function toWordWithPlaceholders(text: string, from: number, to: number): [number, number] {
+  const placeholders = Object.keys(RECURRING_PLACEHOLDERS);
+  let [start, end] = toPlaceholder(text, ...toWord(text, from, to));
+  while (start < end) {
+    const left = placeholders.find((placeholder) => text.endsWith(placeholder, start))?.length ?? 0;
+    const right = placeholders.find((placeholder) => text.startsWith(placeholder, end))?.length ?? 0;
+    const [nextStart, nextEnd] = toPlaceholder(text, ...toWord(text, start - left, end + right));
+    if (nextStart === start && nextEnd === end) break;
+    [start, end] = [nextStart, nextEnd];
   }
   return [start, end];
 }
@@ -223,10 +242,16 @@ function splitEnclosing(text: string, start: number, end: number, style: TextSty
 function toggleEmptyPair(text: string, at: number, style: TextStyle): TextEdit {
   const marker = EMPTY_PAIR[style];
   const size = marker.length;
-  // Der ganze Block links zählt: Der innere `_` von `__|__` ist die Hälfte des Unterstreichens, kein Kursiv-Paar
-  const left = (marker[0] === "_" ? /_*$/ : /\**$/).exec(text.slice(0, at))![0];
-  if (TEXT_MARKERS[left]?.includes(style) && text.startsWith(left, at)) {
-    return { text: `${text.slice(0, at - size)}${text.slice(at + size)}`, start: at - size, end: at - size };
+  // Alle Paare um den Cursor zählen, in `*_|_*` auch das äußere. Ganze Blöcke: Der innere `_` von `__|__` ist kein Kursiv-Paar
+  const layers = surroundingLayers(text, at, at);
+  const index = layers.findIndex((layer) => TEXT_MARKERS[layer]!.includes(style));
+  if (index >= 0) {
+    const inner = layers.slice(0, index).join("").length;
+    return {
+      text: `${text.slice(0, at - inner - size)}${text.slice(at - inner, at + inner)}${text.slice(at + inner + size)}`,
+      start: at - size,
+      end: at - size,
+    };
   }
   return { text: `${text.slice(0, at)}${marker}${marker}${text.slice(at)}`, start: at + size, end: at + size };
 }
@@ -237,7 +262,7 @@ function toggleEmptyPair(text: string, at: number, style: TextStyle): TextEdit {
  */
 export function toggleTextStyle(text: string, selectionStart: number, selectionEnd: number, style: TextStyle): TextEdit | null {
   const [narrowStart, narrowEnd] = narrow(text, selectionStart, selectionEnd);
-  const [start, end] = toPlaceholder(text, ...toWord(text, narrowStart, narrowEnd));
+  const [start, end] = toWordWithPlaceholders(text, narrowStart, narrowEnd);
   if (start === end) return selectionStart === selectionEnd ? toggleEmptyPair(text, start, style) : null;
   const direct = toggleRange(text, start, end, style);
   if (direct) return direct;
