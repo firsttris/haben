@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import { type Browser, chromium, expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
-import { HANDY, kopfUnterkante, LAPTOP, sichtbar, zumEnde } from "./kopfzeile.ts";
+import { HANDY, kopfUnterkante, LAPTOP, sichtbar, ziehen, zumEnde } from "./kopfzeile.ts";
 
 /**
  * Vorschau der Belegeditoren (#357): Split-Button „Vorschau“ im Seitenkopf, Überblendung als <dialog>, Anheften neben
@@ -275,6 +275,35 @@ test("Handy: nur Überblendung, ohne Pfeil und ohne waagrechtes Scrollen", async
   expect(await axe(page), "Überblendung am Handy").toEqual([]);
   await dialog(page).getByRole("button", { name: "Schließen" }).click();
   await expect(vorschauKnopf(page)).toBeFocused();
+  await page.context().close();
+});
+
+test("Handy: Die Überblendung ist oben rund und lässt sich am Griff nach unten wegziehen", async ({ browser }) => {
+  const page = await editor(browser, HANDY);
+  await vorschauKnopf(page).click();
+  const griff = dialog(page).locator(".sheet-grip");
+  await expect(griff).toBeVisible();
+  await lageNachDerFahrt(page);
+  expect(await dialog(page).evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe("16px");
+
+  await ziehen(page, griff, 30);
+  expect(Math.round((await dialog(page).boundingBox())!.y + (await dialog(page).boundingBox())!.height)).toBe(HANDY.height + 30);
+  await page.mouse.up();
+  await expect(dialog(page)).toBeVisible();
+  expect(Math.round((await dialog(page).boundingBox())!.y + (await dialog(page).boundingBox())!.height)).toBe(HANDY.height);
+
+  await ziehen(page, dialog(page).getByRole("heading", { name: "Vorschau" }), 120);
+  await page.mouse.up();
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(vorschauKnopf(page)).toBeFocused();
+  await page.context().close();
+});
+
+test("Laptop: Die Überblendung zeigt keinen Griff", async ({ browser }) => {
+  const page = await editor(browser, LAPTOP);
+  await vorschauKnopf(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).locator(".sheet-grip")).toBeHidden();
   await page.context().close();
 });
 

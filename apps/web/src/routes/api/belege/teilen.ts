@@ -11,6 +11,9 @@ function trustedSource(request: Request): boolean {
   return origin === null || origin === new URL(env().BETTER_AUTH_URL).origin;
 }
 
+/** Mit relativem Ziel: Hinter dem Reverse Proxy kennt request.url nur die interne Adresse der App, http://app:3000 */
+const seeOther = (path: string) => new Response(null, { status: 303, headers: { location: path } });
+
 /** Ziel des Teilen-Menüs der installierten App (Web Share Target, siehe manifest.webmanifest) */
 export const Route = createFileRoute("/api/belege/teilen")({
   server: {
@@ -18,7 +21,7 @@ export const Route = createFileRoute("/api/belege/teilen")({
       POST: async ({ request }) => {
         if (!trustedSource(request)) return new Response("Fremde Herkunft", { status: 403 });
         const user = await sessionUser(request.headers);
-        if (!user) return Response.redirect(new URL("/login", request.url), 303);
+        if (!user) return seeOther("/login");
         if (!darf(user.role, "inhaber")) return new Response("Nur für den Inhaber", { status: 403 });
         const form = await request.formData();
         const files = form
@@ -41,7 +44,7 @@ export const Route = createFileRoute("/api/belege/teilen")({
           }
         }
         const target = files.length === 1 && last ? `/belege/${last}` : "/belege";
-        return Response.redirect(new URL(target, request.url), 303);
+        return seeOther(target);
       },
     },
   },

@@ -63,16 +63,14 @@ function toWord(text: string, from: number, to: number): [number, number] {
   return [start, end];
 }
 
-/** Ein Platzhalter bleibt ganz: Mit Zeichen in den Klammern könnte fillPlaceholders ihn nicht mehr ersetzen. */
+/** Ein Platzhalter bleibt ganz, gleich welches Feld ihn kennt: Mit Zeichen in den Klammern ließe er sich nicht mehr ersetzen. */
 function toPlaceholder(text: string, from: number, to: number): [number, number] {
   let start = from;
   let end = to;
-  for (const placeholder of Object.keys(RECURRING_PLACEHOLDERS)) {
-    for (let at = text.indexOf(placeholder); at >= 0; at = text.indexOf(placeholder, at + 1)) {
-      const close = at + placeholder.length;
-      if (at < start && start < close) start = at;
-      if (at < end && end < close) end = close;
-    }
+  for (const match of text.matchAll(/\{[^{}\s]*\}/g)) {
+    const [at, close] = [match.index, match.index + match[0].length];
+    if (at < start && start < close) start = at;
+    if (at < end && end < close) end = close;
   }
   return [start, end];
 }

@@ -1,8 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
+import { deflateSync } from "node:zlib";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
-import { HANDY } from "./kopfzeile.ts";
+import { HANDY, ziehen } from "./kopfzeile.ts";
 
 /**
  * Gestaltung der Belege (#113): Zahnrad in der Vorschau, Spalte neben dem Blatt, Speichern für alle künftigen Belege.
@@ -210,6 +211,37 @@ test("Das Zahnrad der angehefteten Vorschau öffnet die Überblendung mit der Sp
   await page.context().close();
 });
 
+test("Am Handy ist die Gestaltung eine runde Karte mit Griff, wegziehen schließt nur sie", async ({ browser }) => {
+  const page = await editor(browser, HANDY);
+  await gestaltungOeffnen(page);
+  const karte = dialog(page).locator(".design-sheet");
+  const griff = karte.locator(".sheet-grip");
+  await expect(griff).toBeVisible();
+  expect(await karte.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe("16px");
+  await expect(dialog(page).locator(":scope > .sheet-grip")).toBeHidden();
+
+  const oben = (await karte.boundingBox())!.y;
+  await ziehen(page, griff, 30);
+  expect(Math.round((await karte.boundingBox())!.y)).toBe(Math.round(oben) + 30);
+  await page.mouse.up();
+  expect(Math.round((await karte.boundingBox())!.y)).toBe(Math.round(oben));
+
+  await ziehen(page, griff, 120);
+  await page.mouse.up();
+  await expect(panel(page)).toHaveCount(0);
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByRole("button", { name: "Gestaltung" })).toHaveAttribute("aria-pressed", "false");
+  await page.context().close();
+});
+
+test("Am Desktop hat die Spalte Gestaltung keinen Griff", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await gestaltungOeffnen(page);
+  await expect(panel(page)).toBeVisible();
+  await expect(dialog(page).locator(".design-sheet .sheet-grip")).toBeHidden();
+  await page.context().close();
+});
+
 test("Am Handy stehen Blatt und Gestaltung untereinander, ohne seitliches Scrollen", async ({ browser }) => {
   const page = await editor(browser, HANDY);
   await gestaltungOeffnen(page);
@@ -323,5 +355,505 @@ test("Die Knöpfe der Logo-Größe tragen ihre sichtbare Beschriftung im zugäng
   await gestaltungOeffnen(page);
   const gruppe = panel(page).getByRole("group", { name: "Größe des Logos" });
   for (const sichtbar of ["S", "M", "L"]) await expect(gruppe.getByRole("button", { name: sichtbar, exact: true })).toHaveCount(1);
+  await page.context().close();
+});
+
+test("Eine gespeicherte Fußzeile steht nach dem Wechsel des Bereichs noch da", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByRole("button", { name: "4", exact: true }).click();
+  await karte.getByLabel("Spalte 4").fill("Sprechzeiten Mo bis Fr");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  await bereichHinUndZurueck(page);
+  try {
+    await expect(karte.getByLabel("Eigene Fußzeile")).toBeChecked();
+    await expect(karte.getByLabel("Spalte 4")).toHaveValue("Sprechzeiten Mo bis Fr");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+    await page.context().close();
+  }
+});
+
+test("Eigene Fußzeile: Platzhalter, Prüfung und Übernahme aufs Blatt", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByRole("button", { name: "4", exact: true }).click();
+
+  await karte.getByLabel("Spalte 3").fill("");
+  await expect(karte.getByRole("alert")).toContainText("Steuernummer oder USt-IdNr.");
+  await expect(karte.getByRole("button", { name: "Fußzeile speichern" })).toBeDisabled();
+  await karte.getByLabel("Spalte 3").fill("{steuernummer}");
+  await expect(karte.getByRole("alert")).toHaveCount(0);
+
+  await karte.getByLabel("Spalte 4").fill("{fax}");
+  await expect(karte.getByRole("alert")).toContainText("{fax}");
+  await expect(karte.getByRole("button", { name: "Fußzeile speichern" })).toBeDisabled();
+
+  await karte.getByLabel("Spalte 4").fill("Sprechzeiten Mo bis Fr ");
+  await karte.getByRole("button", { name: "{email}" }).click();
+  await expect(karte.getByLabel("Spalte 4")).toHaveValue(/\{email\}/);
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  await vorschauKnopf(page).click();
+  await expect(blatt(page).locator(".sheet-foot")).toContainText("Sprechzeiten Mo bis Fr");
+
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  await karte.getByLabel("Eigene Fußzeile").uncheck();
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  await page.context().close();
+});
+
+test("Eine Fußzeile über 400 Zeichen meldet das verständlich auf Deutsch", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 1").fill(`{steuernummer} ${"x".repeat(380)}`);
+  await karte.getByLabel("Spalte 1").focus();
+  // Das maxLength des Felds wirkt nur beim Tippen: Die Platzhalter-Knöpfe kommen darüber hinweg
+  await karte.getByRole("button", { name: "{kontoinhaber}" }).click();
+  await karte.getByRole("button", { name: "{kontoinhaber}" }).click();
+  const speichern = karte.getByRole("button", { name: "Fußzeile speichern" });
+  if (await speichern.isEnabled()) await speichern.click();
+  const meldung = karte.locator(".banner-danger, [role=alert]").first();
+  try {
+    await expect(meldung).toBeVisible();
+    await expect(meldung).not.toContainText("Too big");
+    await expect(meldung).toContainText(/Zeichen/);
+  } finally {
+    await page.context().close();
+  }
+});
+
+test("Die Schrift wirkt sofort aufs Blatt", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await gestaltungOeffnen(page);
+  const schrift = () => blatt(page).evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(await schrift()).toContain("IBM Plex Sans");
+
+  await panel(page).getByLabel("Schrift").selectOption({ label: "IBM Plex Serif" });
+  await expect.poll(schrift).toContain("IBM Plex Serif");
+  await panel(page).getByRole("button", { name: "Verwerfen" }).click();
+  await expect.poll(schrift).toContain("IBM Plex Sans");
+  await page.context().close();
+});
+
+test("Briefpapier: hochladen, auf dem Blatt sehen, entfernen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await karte.getByRole("button", { name: "Alle Seiten" }).click();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  await vorschauKnopf(page).click();
+  await expect
+    .poll(() =>
+      blatt(page)
+        .locator(".sheet-background")
+        .evaluate((el) => getComputedStyle(el).backgroundImage),
+    )
+    .toContain("/api/briefpapier");
+
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  await expect(karte.getByRole("button", { name: "Alle Seiten" })).toHaveAttribute("aria-pressed", "true");
+  await karte.getByRole("button", { name: "Erste Seite" }).click();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+  await karte.getByRole("button", { name: "Entfernen" }).click();
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await page.context().close();
+});
+
+test("Nach dem Verringern der Spalten fügt ein Platzhalter-Knopf in eine sichtbare Spalte ein", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByRole("button", { name: "4", exact: true }).click();
+  await karte.getByLabel("Spalte 4").click();
+  await karte.getByRole("button", { name: "2", exact: true }).click();
+
+  await karte.getByRole("button", { name: "{email}" }).click();
+
+  const sichtbar = `${await karte.getByLabel("Spalte 1").inputValue()}\n${await karte.getByLabel("Spalte 2").inputValue()}`;
+  await page.context().close();
+  // Die Vorgabe in Spalte 1 hat schon ein {email}; der Klick muss ein zweites bringen
+  expect((sichtbar.match(/\{email\}/g) ?? []).length).toBe(2);
+});
+
+test("Briefpapier mit eigenem Fuß: Fußzeile weglassen nur nach Rückfrage und nur mit Briefpapier", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  const schalter = karte.getByLabel("Fußzeile steht auf dem Briefpapier");
+  await expect(schalter).toBeDisabled();
+
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await expect(schalter).toBeEnabled();
+
+  await schalter.click();
+  const rueckfrage = page.getByRole("dialog", { name: "Fußzeile weglassen?" });
+  await expect(rueckfrage.getByText(/Steuernummer oder USt-IdNr\. muss dann auf dem Briefpapier stehen/)).toBeVisible();
+  await expect(schalter).not.toBeChecked();
+  await rueckfrage.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(schalter).not.toBeChecked();
+
+  await schalter.click();
+  await rueckfrage.getByRole("button", { name: "Fußzeile weglassen" }).click();
+  await expect(schalter).toBeChecked();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  await vorschauKnopf(page).click();
+  await expect(blatt(page).locator(".sheet-foot")).toHaveCount(0);
+
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  await schalter.uncheck();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+  await karte.getByRole("button", { name: "Entfernen" }).click();
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await page.context().close();
+});
+
+test("Entfernen des Briefpapiers nimmt auch ein noch nicht gespeichertes „Fußzeile weglassen“ zurück", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  const schalter = karte.getByLabel("Fußzeile steht auf dem Briefpapier");
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await schalter.click();
+  await page.getByRole("dialog", { name: "Fußzeile weglassen?" }).getByRole("button", { name: "Fußzeile weglassen" }).click();
+  await expect(schalter).toBeChecked();
+  await karte.getByRole("button", { name: "Entfernen" }).click();
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await expect(schalter).not.toBeChecked();
+  await page.context().close();
+});
+
+test("Vorschau: Ein hoher Fuß deckt den Hinweis auf einem vollen Blatt nicht zu", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  const zeile = "Zahlbar innerhalb von vierzehn Tagen ohne Abzug";
+  const spalte = Array.from({ length: 5 }, () => zeile).join("\n");
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByRole("button", { name: "4", exact: true }).click();
+  for (const nummer of [1, 2, 3]) await karte.getByLabel(`Spalte ${nummer}`).fill(spalte);
+  await karte.getByLabel("Spalte 4").fill("{steuernummer}");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  try {
+    await page.goto("/rechnungen/neu");
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
+    await vorschauKnopf(page).click();
+    const foot = (await blatt(page).locator(".sheet-foot").boundingBox())!;
+    const hinweis = (await blatt(page).getByText("Hinweiszeile 90").boundingBox())!;
+    expect(hinweis.y + hinweis.height).toBeLessThanOrEqual(foot.y);
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+    await page.context().close();
+  }
+});
+
+/** A4 im Verhältnis 210 × 297: oberste 10 % rot, der Rest weiß */
+function briefbogenPng(): Buffer {
+  const crcTabelle = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (daten: Buffer) => (daten.reduce((c, b) => crcTabelle[(c ^ b) & 0xff]! ^ (c >>> 8), 0xffffffff) ^ 0xffffffff) >>> 0;
+  const abschnitt = (typ: string, daten: Buffer) => {
+    const inhalt = Buffer.concat([Buffer.from(typ, "latin1"), daten]);
+    const laenge = Buffer.alloc(4);
+    laenge.writeUInt32BE(daten.length);
+    const pruefsumme = Buffer.alloc(4);
+    pruefsumme.writeUInt32BE(crc(inhalt));
+    return Buffer.concat([laenge, inhalt, pruefsumme]);
+  };
+  const breite = 210;
+  const hoehe = 297;
+  const kopf = Buffer.alloc(13);
+  kopf.writeUInt32BE(breite, 0);
+  kopf.writeUInt32BE(hoehe, 4);
+  kopf[8] = 8;
+  kopf[9] = 2;
+  const zeilen = Array.from({ length: hoehe }, (_, y) => {
+    const zeile = Buffer.alloc(1 + breite * 3, 255);
+    zeile[0] = 0;
+    if (y < 30) for (let x = 0; x < breite; x++) zeile.fill(Buffer.from([255, 0, 0]), 1 + x * 3, 4 + x * 3);
+    return zeile;
+  });
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    abschnitt("IHDR", kopf),
+    abschnitt("IDAT", deflateSync(Buffer.concat(zeilen))),
+    abschnitt("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+test("Vorschau: Das Briefpapier bleibt auf einem langen Blatt so groß wie im PDF", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles({ name: "bogen.png", mimeType: "image/png", buffer: briefbogenPng() });
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  try {
+    await page.goto("/rechnungen/neu");
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
+    await vorschauKnopf(page).click();
+    await expect
+      .poll(() =>
+        blatt(page)
+          .locator(".sheet-background")
+          .evaluate((el) => getComputedStyle(el).backgroundImage),
+      )
+      .toContain("/api/briefpapier");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(600);
+    const { width, height } = (await blatt(page).boundingBox())!;
+    const a4Hoehe = (width * 297) / 210;
+    // Sonst prüft der Test nichts: Das Blatt muss deutlich länger sein als eine A4-Seite
+    expect(height).toBeGreaterThan(a4Hoehe * 1.3);
+    const bild = (await blatt(page).screenshot()).toString("base64");
+    const leer = await page.context().newPage();
+    const [oben, darunter] = await leer.evaluate(
+      async ({ bild, punkte }) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${bild}`;
+        await img.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        return punkte.map(([x, y]) => {
+          const [r, g, b] = ctx.getImageData(x!, y!, 1, 1).data;
+          // Farbmanagement des Screenshots verschiebt Werte um wenige Stufen
+          if (r! > 240 && g! < 20 && b! < 20) return "rot";
+          return r! > 240 && g! > 240 && b! > 240 ? "weiß" : `${r},${g},${b}`;
+        });
+      },
+      {
+        bild,
+        punkte: [
+          [Math.round(width * 0.02), Math.round(a4Hoehe * 0.05)],
+          [Math.round(width * 0.02), Math.round(a4Hoehe * 0.14)],
+        ],
+      },
+    );
+    await leer.close();
+    // Im PDF ist der rote Streifen 10 % einer A4-Seite hoch: bei 5 % rot, bei 14 % schon weiß
+    expect(oben).toBe("rot");
+    expect(darunter).toBe("weiß");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByRole("button", { name: "Entfernen" }).click();
+    await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+    await page.context().close();
+  }
+});
+
+test("Die Meldung „Fußzeile gespeichert“ bleibt stehen, wenn sich die Spalten ändern", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 1").fill("Sprechzeiten Mo bis Fr");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(1000);
+  try {
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert", { timeout: 1000 });
+  } finally {
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await page.waitForLoadState("networkidle");
+    await page.context().close();
+  }
+});
+
+test("Eigene Fußzeile: Auszeichnungen stehen fett auf dem Blatt, die Zeichen nicht", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 1").fill("*Fettzeile*");
+  await expect(karte.locator(".footer-preview strong")).toHaveText("Fettzeile");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  try {
+    await page.goto("/rechnungen/neu");
+    await page.waitForLoadState("networkidle");
+    await vorschauKnopf(page).click();
+    await expect(blatt(page).locator(".sheet-foot strong")).toHaveText("Fettzeile");
+    await expect(blatt(page).locator(".sheet-foot")).not.toContainText("*Fettzeile*");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+    await page.context().close();
+  }
+});
+
+test("Zwei Platzhalter nacheinander landen beide an der Schreibmarke", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  const feld = karte.getByLabel("Spalte 1");
+  await feld.fill("Tel. \nEnde");
+  await feld.evaluate((el: HTMLTextAreaElement) => {
+    el.focus();
+    el.setSelectionRange(5, 5);
+  });
+
+  await karte.getByRole("button", { name: "{plz}" }).click();
+  await karte.getByRole("button", { name: "{ort}" }).click();
+
+  const wert = await feld.inputValue();
+  await page.context().close();
+  expect(wert).toBe("Tel. {plz}{ort}\nEnde");
+});
+
+test("Vorschau: Die Steuerzeile bricht auch in einer breiten Schrift nicht um", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.getByLabel("Beschreibung Position 1").fill("Workshop");
+  await page.getByLabel("Menge Position 1").fill("400");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("12345,67");
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 2").fill("Fachbuch");
+  await page.getByLabel("Menge Position 2").fill("400");
+  await page.getByLabel(/Einzelpreis Position 2/).fill("4990,00");
+  await page.getByLabel("Steuersatz Position 2").selectOption({ index: 1 });
+  await gestaltungOeffnen(page);
+  await panel(page).getByLabel("Schrift").selectOption({ label: "Inter" });
+  const zeile = blatt(page).locator(".sheet-totals dt", { hasText: "19 %" });
+  const normal = blatt(page).locator(".sheet-totals dt").first();
+  await expect(zeile).toBeVisible();
+  const hoch = (await zeile.boundingBox())!.height;
+  expect(hoch).toBeLessThan((await normal.boundingBox())!.height * 1.5);
+  await page.context().close();
+});
+
+test("Ein Platzhalter-Knopf ohne Klick ins Feld lässt den vorhandenen Text vorne stehen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  const feld = karte.getByLabel("Spalte 1");
+  const vorher = await feld.inputValue();
+
+  await karte.getByRole("button", { name: "{telefon}" }).click();
+
+  const nachher = await feld.inputValue();
+  await page.context().close();
+  expect(nachher.startsWith(vorher)).toBe(true);
+});
+
+test("Ein Platzhalter-Knopf lässt den Text auch nach Aus- und Einschalten der eigenen Fußzeile vorne stehen", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  const schalter = karte.getByLabel("Eigene Fußzeile");
+  await schalter.check();
+  await karte.getByLabel("Spalte 1").click();
+  await schalter.uncheck();
+  await schalter.check();
+  const feld = karte.getByLabel("Spalte 1");
+  const vorher = await feld.inputValue();
+
+  await karte.getByRole("button", { name: "{telefon}" }).click();
+
+  const nachher = await feld.inputValue();
+  await page.context().close();
+  expect(nachher).toBe(`${vorher}{telefon}`);
+});
+
+test("Ein Platzhalter-Knopf lässt den Text vorne stehen, wenn eine Spalte wieder eingeblendet wurde", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 3").click();
+  await karte.getByRole("button", { name: "2", exact: true }).click();
+  await karte.getByRole("button", { name: "3", exact: true }).click();
+  const feld = karte.getByLabel("Spalte 3");
+  const vorher = await feld.inputValue();
+
+  await karte.getByRole("button", { name: "{telefon}" }).click();
+
+  const nachher = await feld.inputValue();
+  await page.context().close();
+  expect(nachher).toBe(`${vorher}{telefon}`);
+});
+
+test("Eigene Fußzeile: Die Knöpfe zeichnen den markierten Text aus", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  const spalte = karte.getByLabel("Spalte 1");
+  await spalte.fill("Sprechzeiten nach Vereinbarung");
+  await spalte.focus();
+  await spalte.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 12));
+  await karte.getByRole("button", { name: "Fett" }).click();
+  await expect(spalte).toHaveValue("*Sprechzeiten* nach Vereinbarung");
+  await expect(karte.locator(".footer-preview strong")).toHaveText("Sprechzeiten");
+  await karte.getByRole("button", { name: "{firma}" }).click();
+  await expect(spalte).toHaveValue(/\{firma\}/);
   await page.context().close();
 });

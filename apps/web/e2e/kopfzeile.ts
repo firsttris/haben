@@ -51,3 +51,13 @@ export async function statusBleibtSichtbar(p: Page, path: string): Promise<void>
     if (vorher) await p.setViewportSize(vorher);
   }
 }
+
+/** Am Griff eines Blatts ziehen und die Maus gedrückt lassen, damit der Test die Zwischenlage sieht */
+export async function ziehen(page: Page, griff: Locator, strecke: number) {
+  const box = await griff.boundingBox();
+  const x = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+  const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + strecke, { steps: 5 });
+}

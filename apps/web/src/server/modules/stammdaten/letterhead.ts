@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
+import { loadBackground } from "./background.ts";
 import { loadLogo } from "./logo.ts";
 
 /** Briefkopf von Rechnungen, Angeboten und Mahnungen: Gestaltung aus dem Standardprofil, dazu das Logo */
@@ -19,9 +20,9 @@ export async function loadDesign(q: Db | Tx = db): Promise<LetterheadDesign> {
 
 /** Heutige Gestaltung für jedes neu erzeugte PDF, auch für Mahnung und Lieferschein zu älteren Belegen; schon festgeschriebene PDFs bleiben */
 export async function loadLetterhead(): Promise<Letterhead> {
-  const [logo, design] = await Promise.all([loadLogo(), loadDesign()]);
-  const { accent, logoSize, logoPosition, foldMarks, giroCode, customerNumber, vatColumn } = design;
-  return { accent, options: { logoSize, logoPosition, foldMarks, giroCode, customerNumber, vatColumn }, ...(logo ? { logo } : {}) };
+  const [logo, background, design] = await Promise.all([loadLogo(), loadBackground(), loadDesign()]);
+  const { accent, layouts: _layouts, ...options } = design;
+  return { accent, options, ...(logo ? { logo } : {}), ...(background ? { background } : {}) };
 }
 
 /** Ändert das Standardprofil; was die Eingabe nicht nennt, bleibt. Farben werden groß geschrieben gespeichert */

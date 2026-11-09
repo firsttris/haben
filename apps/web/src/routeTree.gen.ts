@@ -27,6 +27,7 @@ import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as AppSteuerberatungRouteImport } from './routes/_app/steuerberatung'
 import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeportal'
 import { Route as AppUeberweisungenRouteImport } from './routes/_app/ueberweisungen'
+import { Route as ApiBriefpapierRouteImport } from './routes/api/briefpapier'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as EinladungTokenRouteImport } from './routes/einladung.$token'
@@ -201,6 +202,11 @@ const AppUeberweisungenRoute = AppUeberweisungenRouteImport.update({
   id: '/ueberweisungen',
   path: '/ueberweisungen',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiBriefpapierRoute = ApiBriefpapierRouteImport.update({
+  id: '/api/briefpapier',
+  path: '/api/briefpapier',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLogoRoute = ApiLogoRouteImport.update({
   id: '/api/logo',
@@ -659,6 +665,7 @@ export interface FileRoutesByFullPath {
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
+  '/api/briefpapier': typeof ApiBriefpapierRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
@@ -762,6 +769,7 @@ export interface FileRoutesByTo {
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
+  '/api/briefpapier': typeof ApiBriefpapierRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
@@ -868,6 +876,7 @@ export interface FileRoutesById {
   '/_app/steuerberatung': typeof AppSteuerberatungRoute
   '/_app/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/_app/ueberweisungen': typeof AppUeberweisungenRoute
+  '/api/briefpapier': typeof ApiBriefpapierRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
@@ -975,6 +984,7 @@ export interface FileRouteTypes {
     | '/steuerberatung'
     | '/sv-meldeportal'
     | '/ueberweisungen'
+    | '/api/briefpapier'
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
@@ -1078,6 +1088,7 @@ export interface FileRouteTypes {
     | '/steuerberatung'
     | '/sv-meldeportal'
     | '/ueberweisungen'
+    | '/api/briefpapier'
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
@@ -1183,6 +1194,7 @@ export interface FileRouteTypes {
     | '/_app/steuerberatung'
     | '/_app/sv-meldeportal'
     | '/_app/ueberweisungen'
+    | '/api/briefpapier'
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
@@ -1275,6 +1287,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  ApiBriefpapierRoute: typeof ApiBriefpapierRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMcpRoute: typeof ApiMcpRoute
   EinladungTokenRoute: typeof EinladungTokenRoute
@@ -1444,6 +1457,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/ueberweisungen'
       preLoaderRoute: typeof AppUeberweisungenRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/briefpapier': {
+      id: '/api/briefpapier'
+      path: '/api/briefpapier'
+      fullPath: '/api/briefpapier'
+      preLoaderRoute: typeof ApiBriefpapierRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/logo': {
       id: '/api/logo'
@@ -2175,6 +2195,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  ApiBriefpapierRoute: ApiBriefpapierRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMcpRoute: ApiMcpRoute,
   EinladungTokenRoute: EinladungTokenRoute,

@@ -1317,6 +1317,20 @@
       "when": 1794243934633,
       "tag": "0187_oidc_uebernahme_ersetzt",
       "breakpoints": true
+    },
+    {
+      "idx": 188,
+      "version": "7",
+      "when": 1794251557018,
+      "tag": "0188_briefpapier",
+      "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1794251557631,
+      "tag": "0189_briefpapier_trigger",
+      "breakpoints": true
     }
   ]
 }

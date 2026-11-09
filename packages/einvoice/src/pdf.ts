@@ -1,15 +1,18 @@
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
+import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 import { accountHolder, collectedByDirectDebit, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
+  needsSellerVatId,
+  type TaxTreatment,
+  LETTERHEAD_FONTS,
   accentPalette,
   DEFAULT_ACCENT,
+  customFooterRuns,
   DEFAULT_OPTIONS,
   parseTextFormatting,
+  footerValues,
   discountedLineAmount,
   documentAllowances,
   lineAmount,
@@ -22,24 +25,10 @@ import {
 } from "@haben/core";
 import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
-// Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
-const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
-const FONTS = ["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
-
-let compiler: NodeCompiler | undefined;
-
-function getCompiler(): NodeCompiler {
-  compiler ??= NodeCompiler.create({
-    workspace: join(PACKAGE_DIR, "templates"),
-    fontArgs: [{ fontBlobs: FONTS.map((path) => readFileSync(path)) }],
-  });
-  return compiler;
-}
-
 export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   const lines = [address.strasse, `${address.plz} ${address.ort}`];
   if (address.land.toUpperCase() !== "DE") lines.push(countryName(address.land, t.countryLocale).toUpperCase());
@@ -146,7 +135,7 @@ export function documentPdfData(
     note: doc.note?.trim() ? doc.note.trim() : null,
     introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
     noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
-    ...footerData(seller, t),
+    ...footerData(seller, t, doc, treatment),
   };
 }
 
@@ -316,8 +305,18 @@ export function legalLine(info: LegalInfo | undefined, t: Texts = TEXTS.de): str
 }
 
 /** Fuß für die Vorlagen: drei Spalten und die Pflichtangaben der Gesellschaft */
-export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de) {
-  return { footer: footerColumns(seller, t), legal: legalLine(seller.legalInfo, t) };
+export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, letterhead: Letterhead = {}, treatment: TaxTreatment = "regulaer") {
+  const { options } = letterhead;
+  // Nur mit Briefpapier: Ohne stünden die Pflichtangaben nirgends
+  if (letterhead.background && options?.footerHidden) return { footer: [], footerFormatted: null, legal: null };
+  const legal = legalLine(seller.legalInfo, t);
+  if (!options?.footerColumns) return { footer: footerColumns(seller, t), footerFormatted: null, legal };
+  const runs = customFooterRuns(
+    options.footerColumns,
+    { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" },
+    { labels: { taxNumber: t.taxNumber, vatId: t.vatId }, needsVatId: needsSellerVatId(treatment) },
+  );
+  return { footer: runs.map((column) => column.map((line) => line.map((run) => run.text).join(""))), footerFormatted: runs, legal };
 }
 
 /** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */
@@ -328,10 +327,25 @@ export function logoFormat(data: Uint8Array): Logo["format"] | null {
 }
 
 /** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
+export function templateInputs(data: object, { logo, background, accent = DEFAULT_ACCENT, options = DEFAULT_OPTIONS }: Letterhead): object {
   const size = LOGO_SIZES[options.logoSize];
-  const look = { logoHeight: size.height, logoWidth: size.width, logoLeft: options.logoPosition === "links", foldMarks: options.foldMarks };
-  return { ...data, accent, palette: accentPalette(accent), look, ...(logo ? { logo: `logo.${logo.format}` } : {}) };
+  const look = {
+    logoHeight: size.height,
+    logoWidth: size.width,
+    logoLeft: options.logoPosition === "links",
+    foldMarks: options.foldMarks,
+    backgroundPages: options.backgroundPages,
+  };
+  const { regular, medium, semibold } = LETTERHEAD_FONTS[options.font];
+  return {
+    ...data,
+    accent,
+    palette: accentPalette(accent),
+    look,
+    font: { regular, medium, semibold },
+    ...(logo ? { logo: `logo.${logo.format}` } : {}),
+    ...(background ? { background: `briefpapier.${background.format}` } : {}),
+  };
 }
 
 /** Kundennummer auf dem Blatt; das XML nennt sie unabhängig davon als Käuferkennung */
@@ -340,26 +354,15 @@ export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: 
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
   const typst = getCompiler();
-  const { logo } = letterhead;
-  // Das Logo liegt nur für diesen Lauf als Datei neben der Vorlage
-  const logoPath = logo ? join(PACKAGE_DIR, "templates", `logo.${logo.format}`) : null;
-  if (logo && logoPath) typst.mapShadow(logoPath, Buffer.from(logo.data));
+  // Logo und Briefpapier liegen nur für diesen Lauf als Dateien neben der Vorlage
+  const shadows = [
+    ...(letterhead.logo ? [[`logo.${letterhead.logo.format}`, letterhead.logo.data] as const] : []),
+    ...(letterhead.background ? [[`briefpapier.${letterhead.background.format}`, letterhead.background.data] as const] : []),
+  ].map(([file, bytes]) => [join(PACKAGE_DIR, "templates", file), bytes] as const);
+  for (const [path, bytes] of shadows) typst.mapShadow(path, Buffer.from(bytes));
   try {
     return compileWith(typst, template, templateInputs(data, letterhead), date, label);
   } finally {
-    if (logoPath) typst.unmapShadow(logoPath);
+    for (const [path] of shadows) typst.unmapShadow(path);
   }
-}
-
-function compileWith(typst: NodeCompiler, template: string, data: unknown, date: string, label: string): Uint8Array {
-  const result = typst.compile({ mainFilePath: template, inputs: { data: JSON.stringify(data) } });
-  const document = result.result;
-  if (result.hasError() || !document) {
-    const error = result.takeError();
-    const diagnostics = error ? typst.fetchDiagnostics(error) : [];
-    throw new Error(`${label} konnte nicht erzeugt werden: ${JSON.stringify(diagnostics)}`);
-  }
-  const pdf = typst.pdf(document, { pdfStandard: "a-3b", creationTimestamp: Math.floor(Date.parse(`${date}T12:00:00Z`) / 1000) });
-  typst.evictCache(10);
-  return new Uint8Array(pdf.buffer, pdf.byteOffset, pdf.byteLength);
 }

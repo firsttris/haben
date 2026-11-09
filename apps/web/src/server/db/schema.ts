@@ -1449,6 +1449,20 @@ export const companyLogo = pgTable(
   (t) => [check("company_logo_single", sql`${t.id} = 1`)],
 );
 
+/** Briefpapier als Bild hinter Rechnungen, Angeboten und Mahnungen; höchstens eine Zeile */
+export const letterheadBackground = pgTable(
+  "letterhead_background",
+  {
+    id: smallint("id").primaryKey().default(1),
+    /** PNG oder JPEG; bleibt wie alle Binärdaten aus dem Änderungsprotokoll */
+    background: bytea("background").notNull(),
+    format: text("format", { enum: ["png", "jpg"] }).notNull(),
+    sha256: text("sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("letterhead_background_single", sql`${t.id} = 1`)],
+);
+
 /** Gestaltung der Belege (#113): heute genau ein Standardprofil, die Markenprofile aus #245 werden weitere Zeilen */
 export const letterheadProfiles = pgTable(
   "letterhead_profiles",
