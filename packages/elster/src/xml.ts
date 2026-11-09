@@ -1,4 +1,4 @@
-import { filingPeriodSchema, finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
+import { germanDay, filingPeriodSchema, finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
 import { encodeIso885915 } from "./iso8859-15.ts";
 
 /** Fehlende oder ungültige Angaben für eine ELSTER-Nachricht; die Meldung ist für den Nutzer bestimmt */
@@ -124,10 +124,9 @@ export function elsterDecimal(cents: Cents): string {
   return `${cents < 0 ? "-" : ""}${euros},${rest}`;
 }
 
-function yyyymmdd(date: Date): string {
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}${mm}${dd}`;
+/** Der Tag in Deutschland als JJJJMMTT */
+export function yyyymmdd(date: Date): string {
+  return germanDay(date).replaceAll("-", "");
 }
 
 export function element(name: string, value: string): string {

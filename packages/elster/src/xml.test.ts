@@ -19,7 +19,7 @@ const base: UstvaXmlInput = {
   herstellerId: TEST_HERSTELLER_ID,
   produktVersion: "0.1.0",
   test: true,
-  erstellungsdatum: new Date(2026, 3, 5),
+  erstellungsdatum: new Date("2026-04-05T12:00:00Z"),
 };
 
 function tag(xml: string, name: string): string | undefined {
@@ -235,5 +235,12 @@ describe("buildUstvaUpload (XML-Import in Mein ELSTER)", () => {
 
   it("lehnt einen ungültigen Zeitraum ab wie der Versand", () => {
     expect(() => upload({ period: { year: 2026, month: 13 } })).toThrow("Ungültiger Zeitraum: 13");
+  });
+});
+
+describe("Erstellungsdatum", () => {
+  it("ist der Tag in Deutschland, unabhängig von der Zeitzone des Prozesses", () => {
+    // 31.03.2026 22:30 UTC ist in Deutschland schon der 1. April (MESZ)
+    expect(tag(buildUstvaXml({ ...base, erstellungsdatum: new Date("2026-03-31T22:30:00Z") }), "Erstellungsdatum")).toBe("20260401");
   });
 });

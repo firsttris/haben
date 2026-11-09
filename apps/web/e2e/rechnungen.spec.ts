@@ -45,6 +45,87 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   await rechnungFestschreiben(page, INVOICES[0]!);
 });
 
+test("DATEV-Personenkonten: Schalter mit Bestätigung, Ablehnung mit Liste, Debitor im Stapel und danach fest (#327)", async () => {
+  const jahr = Number(INVOICES[0]!.date.slice(0, 4));
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("form", { name: "DATEV-Export" });
+  await card.getByLabel("Beraternummer").fill("29098");
+  await card.getByLabel("Mandantennummer").fill("55003");
+  await card.getByLabel("DATEV-Personenkonten").selectOption(String(jahr));
+  // Das Jahr hat schon eine Rechnung: nur mit ausdrücklicher Bestätigung
+  const bestaetigung = card.getByRole("checkbox", { name: /hat schon Buchungen/ });
+  await expect(bestaetigung).toBeVisible();
+  await bestaetigung.check();
+  await card.getByRole("button", { name: "Speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Gespeichert.");
+  await expect(bestaetigung).toBeHidden();
+
+  await card.getByRole("combobox", { name: "Jahr", exact: true }).selectOption(String(jahr));
+  await card.getByRole("link", { name: "Buchungsstapel herunterladen" }).click();
+  const fehler = card.getByRole("alert");
+  await expect(fehler).toContainText("Für die Personenkonten fehlen Angaben");
+  await expect(fehler).toContainText("„Nordwerk Software GmbH“ hat keinen Debitor");
+
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  await page.getByLabel("DATEV-Debitor").fill("10001");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  // Nach dem Speichern baut sich das Formular mit der neuen Version neu auf (key={contact.version}), die Meldung
+  // „Gespeichert.“ geht dabei verloren; gespeichert ist es, sobald die neue Version in der Liste steht
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+
+  await go("/einstellungen?bereich=export");
+  await card.getByRole("combobox", { name: "Jahr", exact: true }).selectOption(String(jahr));
+  const download = page.waitForEvent("download");
+  await card.getByRole("link", { name: "Buchungsstapel herunterladen" }).click();
+  const datei = await download;
+  expect(datei.suggestedFilename()).toBe(`EXTF_Buchungsstapel_${jahr}.csv`);
+  const { readFile } = await import("node:fs/promises");
+  const stapel = new TextDecoder("latin1").decode(await readFile((await datei.path())!));
+  expect(stapel).toContain(";10001;8400;");
+  expect(stapel).not.toContain(";1400;");
+
+  // Ab dem ersten Export ist der Debitor fest
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  await page.getByLabel("DATEV-Debitor").fill("10002");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("alert")).toContainText("Debitor 10001 steht schon in einem DATEV-Export und bleibt fest.");
+});
+
+test("DATEV-Personenkonten: die Steuerberatung liest auf ihrer Startseite, warum ein neuer Debitor den Stapel ablehnt (#452)", async ({ browser }) => {
+  const jahr = Number(INVOICES[1]!.date.slice(0, 4));
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Alpenblick Media AG" }).first().getAttribute("href"))!);
+  await page.getByLabel("DATEV-Debitor").fill("10002");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+  await rechnungFestschreiben(page, INVOICES[1]!);
+
+  // Zugang für die Steuerberatung wie in steuerberatung.spec.ts
+  await go("/einstellungen?bereich=sicherheit");
+  await page.getByLabel("Bezeichnung").fill("Kanzlei Personenkonten");
+  await page.getByRole("button", { name: "Einladungslink erzeugen" }).click();
+  const link = page.getByRole("textbox", { name: /Einladungslink für/ });
+  await expect(link).toHaveValue(/\/einladung\//);
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const stb = await context.newPage();
+  await stb.goto(await link.inputValue());
+  await stb.getByLabel("Name").fill("Kanzlei Personenkonten");
+  await stb.getByLabel("E-Mail").fill("personenkonten@example.com");
+  await stb.getByLabel("Passwort (mindestens 12 Zeichen)").fill("kanzlei-passwort-e2e");
+  await stb.getByRole("button", { name: "Zugang anlegen" }).click();
+  await stb.getByRole("button", { name: "Später" }).click();
+  await stb.waitForURL(/\/steuerberatung$/);
+
+  // Debitor 10002 ist noch nicht festgeschrieben: Der Export lehnt ab, und die Steuerberatung liest den Grund
+  await stb.getByLabel("Jahr").selectOption(String(jahr));
+  await stb.getByRole("link", { name: "DATEV-Buchungsstapel" }).click();
+  await expect(stb.getByRole("alert")).toContainText("Der erste Export mit neuen Personenkonten muss vom Inhaber kommen");
+  await expect(stb.getByRole("alert")).toContainText("Debitor 10002 (Alpenblick Media AG)");
+  await context.close();
+});
+
 test("Kundennummer automatisch vergeben", async () => {
   await go("/einstellungen?bereich=rechnungen");
   const karte = page.getByRole("form", { name: "Kundennummern" });
@@ -84,6 +165,54 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await page.getByLabel("Kunde").selectOption({ label: "Harbour Labs Ltd · London" });
   await expect(sprache).toHaveValue("en");
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
+});
+
+test("Kontakt bearbeiten: Die Meldung „Gespeichert.“ bleibt nach dem Speichern stehen", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Speicher Testkunde GmbH");
+  await page.getByLabel("Ort").fill("Bremen");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await page.getByLabel("Ort").fill("Hamburg");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  // Nach dem Speichern lädt die Seite die neue Version und baut das Formular neu auf; die Meldung darf dabei nicht verschwinden
+  await expect(page.getByText("Version 2")).toBeVisible();
+  const meldung = page.getByRole("form", { name: "Kontakt" }).getByText("Gespeichert. Die vorige Fassung bleibt als Version erhalten.");
+  await expect(meldung).toBeVisible();
+  await expect(page.getByLabel("Ort")).toHaveValue("Hamburg");
+  // Auch nach kurzer Zeit noch da, nicht nur für einen Augenblick
+  await page.waitForTimeout(1000);
+  await expect(meldung).toBeVisible();
+  // Archivieren: Die folgenden Tests rechnen nicht mit diesem Kunden
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Kontakt mit beiden Rollen trägt DATEV-Debitor und -Kreditor, eine vergebene Nummer meldet das Formular (#327)", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Musterpartner GmbH");
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("Kundennummer").fill("K-42");
+  await page.getByLabel("DATEV-Debitor").fill("10042");
+  await page.getByLabel("DATEV-Kreditor").fill("70087");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Kundennummer")).toHaveValue("K-42");
+  await expect(page.getByLabel("DATEV-Debitor")).toHaveValue("10042");
+  await expect(page.getByLabel("DATEV-Kreditor")).toHaveValue("70087");
+  // Archivieren: Die folgenden Tests rechnen nicht mit einem Lieferanten
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Zweiter Partner");
+  await page.getByLabel("DATEV-Debitor").fill("70087");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)")).toBeVisible();
+  await page.getByLabel("DATEV-Debitor").fill("10042");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByText("Debitor 10042 hat schon „Musterpartner GmbH“.")).toBeVisible();
 });
 
 test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {

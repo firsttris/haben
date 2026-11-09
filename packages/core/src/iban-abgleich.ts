@@ -4,7 +4,8 @@ import { compactIban } from "./sepa-text.ts";
  * Abgleich der IBAN aus einer E-Rechnung (EN 16931, BT-84 „Payment account identifier“) mit der IBAN im Kontakt des
  * Lieferanten (#410). Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Betrugsmuster (abgefangene
  * Rechnung, ausgetauschte IBAN); deshalb gilt eine abweichende IBAN erst nach ausdrücklicher Entscheidung je Beleg, und
- * nur für genau dieses Paar aus Kontakt- und Rechnungs-IBAN.
+ * nur für genau dieses Paar aus Kontakt- und Rechnungs-IBAN. Hat der Kontakt keine IBAN, gilt die der E-Rechnung erst,
+ * wenn sie für diesen Beleg ausdrücklich bestätigt ist (Entscheidung ohne Kontakt-IBAN).
  */
 
 export type IbanWahl = "kontakt" | "e-rechnung";
@@ -17,7 +18,8 @@ export interface IbanQuellen {
 }
 
 export interface IbanEntscheidung {
-  kontaktIban: string;
+  /** IBAN im Kontakt beim Entscheiden; null = Kontakt ohne IBAN, die der E-Rechnung bestätigt */
+  kontaktIban: string | null;
   rechnungsIban: string;
   wahl: IbanWahl;
   am: Date;
@@ -27,7 +29,7 @@ export interface IbanEntscheidung {
 
 export type IbanAbgleich =
   | { art: "keine" }
-  | { art: "ungeprueft"; rechnungsIban: string }
+  | { art: "ungeprueft"; rechnungsIban: string; entscheidung: IbanEntscheidung | null }
   | { art: "gleich" }
   | { art: "abweichend"; kontaktIban: string; rechnungsIban: string; entscheidung: IbanEntscheidung | null };
 
@@ -38,12 +40,13 @@ export function ibanAbgleich(quellen: IbanQuellen, entscheidungen: IbanEntscheid
   const kontaktIban = kompakt(quellen.kontaktIban);
   const rechnungsIban = kompakt(quellen.rechnungsIban);
   if (!rechnungsIban) return { art: "keine" };
-  if (!kontaktIban) return { art: "ungeprueft", rechnungsIban };
   if (kontaktIban === rechnungsIban) return { art: "gleich" };
   const passend = entscheidungen
-    .filter((e) => compactIban(e.kontaktIban) === kontaktIban && compactIban(e.rechnungsIban) === rechnungsIban)
+    .filter((e) => kompakt(e.kontaktIban) === kontaktIban && compactIban(e.rechnungsIban) === rechnungsIban)
     .sort((a, b) => b.am.getTime() - a.am.getTime());
-  return { art: "abweichend", kontaktIban, rechnungsIban, entscheidung: passend[0] ?? null };
+  const entscheidung = passend[0] ?? null;
+  if (!kontaktIban) return { art: "ungeprueft", rechnungsIban, entscheidung };
+  return { art: "abweichend", kontaktIban, rechnungsIban, entscheidung };
 }
 
 export type GeltendeIban =
@@ -60,7 +63,8 @@ export function geltendeIban(quellen: IbanQuellen, entscheidungen: IbanEntscheid
       return kontaktIban ? { iban: kontaktIban, herkunft: "kontakt" } : { iban: null, herkunft: null };
     }
     case "ungeprueft":
-      return { iban: abgleich.rechnungsIban, herkunft: "e-rechnung" };
+      // Ohne IBAN am Kontakt nur nach ausdrücklicher Bestätigung (#410)
+      return abgleich.entscheidung ? { iban: abgleich.rechnungsIban, herkunft: "e-rechnung", entschieden: true } : { iban: null, herkunft: null, offen: true };
     case "gleich":
       return { iban: kompakt(quellen.kontaktIban)!, herkunft: "kontakt" };
     case "abweichend": {

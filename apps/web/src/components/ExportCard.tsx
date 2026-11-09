@@ -1,8 +1,9 @@
+import { currentYear } from "@haben/core";
 import { useState } from "react";
 
 /** Jahresarchiv als ZIP herunterladen (Einstellungen); `years` kommt aus dem Loader */
 export function ExportCard({ years }: { years: number[] }) {
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentYear());
 
   return (
     <section className="card" aria-labelledby="export-heading">

@@ -109,6 +109,19 @@ describe.skipIf(!testDatabaseUrl)("CSV-Import (Postgres)", () => {
     }
   });
 
+  it("Kontakte: übernimmt DATEV-Debitor und -Kreditor und zeigt eine schon vergebene Nummer als Konflikt (#327)", async () => {
+    await sql`insert into contacts (name, land, debitor_nr) values ('Bestand KG', 'DE', 10042)`;
+    const datei = ["Kundennummer;Debitorennummer;Kreditorennummer;Firmenname", "K-42;10043;70087;Musterpartner GmbH", ";10042;;Zweiter Name GmbH"].join("\r\n");
+    const preview = await csv.previewCsvImport(bytes(datei), options("kontakte"));
+    expect(preview.rows.map((r) => [r.line, r.status, r.message])).toEqual([
+      [2, "neu", null],
+      [3, "dublette", "Gibt es schon (Debitor 10042)"],
+    ]);
+    expect(await csv.runCsvImport(actor, bytes(datei), options("kontakte"))).toEqual({ created: 1, duplicates: 1, failed: 0 });
+    const [partner] = await sql`select kundennummer, debitor_nr, kreditor_nr, is_customer, is_supplier from contacts where name = 'Musterpartner GmbH'`;
+    expect({ ...partner }).toEqual({ kundennummer: "K-42", debitor_nr: 10043, kreditor_nr: 70087, is_customer: true, is_supplier: true });
+  });
+
   it("Artikel: Windows-1252 mit Tabulator, eigene Zuordnung, Dubletten nach Artikelnummer", async () => {
     await sql`insert into articles (number, description, unit, unit_price, tax_rate) values ('A-1', 'Alt', 'Std.', 100, 1900)`;
     // Ü ist in Windows-1252 das Byte 0xDC, wie in Latin-1

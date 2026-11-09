@@ -1,4 +1,4 @@
-import { datumText } from "@haben/core";
+import { currentYear, currentMonth, datumText } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useId } from "react";
 import { z } from "zod";
@@ -15,7 +15,7 @@ import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/sv-meldeportal")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional(), monat: z.number().int().min(1).max(12).optional() }),
-  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? new Date().getFullYear(), monat: search.monat ?? new Date().getMonth() + 1 }),
+  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? currentYear(), monat: search.monat ?? currentMonth().month }),
   loader: ({ deps }) => getSvMeldeportal({ data: { year: deps.jahr, month: deps.monat } }),
   head: () => ({ meta: [{ title: "SV-Meldeportal · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: SvMeldeportalPage,

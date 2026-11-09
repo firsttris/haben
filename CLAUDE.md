@@ -112,7 +112,9 @@ correction) with a rule and `_Generated with [Claude Code](https://claude.com/cl
 agent's own name). Create or comment on issues only when the user says so. Steps and detail level:
 skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
 (Issues schreiben). The type label (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`) is set when creating
-the issue; other labels and the roadmap order are the maintainer's call.
+the issue; other labels and the roadmap order are the maintainer's call. Besides the types there are area
+labels (`oberfläche`, `buchung`, `schnittstelle`, `technik`, `doku`), `sammlung` and the status `rückmeldung`:
+implemented and released, the issue stays open until its author confirms that nothing is missing.
 
 ## Working rules
 

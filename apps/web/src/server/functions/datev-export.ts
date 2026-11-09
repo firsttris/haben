@@ -1,13 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { loadCompany } from "../modules/stammdaten/index.ts";
-import { datevNumbersSchema, saveDatevNumbers } from "../modules/auswertungen/index.ts";
+import { datevNumbersSchema, gebuchteJahre, saveDatevNumbers } from "../modules/auswertungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getDatevNumbers = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const company = await loadCompany();
-    return { beraterNr: company.datevBeraterNr, mandantNr: company.datevMandantNr, kontenrahmen: company.kontenrahmen };
+    return {
+      beraterNr: company.datevBeraterNr,
+      mandantNr: company.datevMandantNr,
+      kontenrahmen: company.kontenrahmen,
+      personenkontenAb: company.datevPersonenkontenAb,
+      gebuchteJahre: await gebuchteJahre(),
+    };
   });
 
 export const saveDatevNumbersFn = createServerFn({ method: "POST" })

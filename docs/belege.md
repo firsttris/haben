@@ -380,7 +380,7 @@ In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über
 | Angabe | Woher |
 | --- | --- |
 | Empfänger | Lieferant am Beleg |
-| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
+| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst die am Beleg bestätigte aus der E-Rechnung (BT-84); weichen beide ab, die [am Beleg entschiedene](#abweichende-iban-in-der-e-rechnung) |
 | Betrag | Offener Betrag, mit Skonto abzüglich Skonto |
 | Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
 | Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |
@@ -398,7 +398,7 @@ Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für B
     Der Kontakt bleibt in beiden Fällen unverändert; die IBAN dort änderst du, wenn nötig, selbst im [Kontakt](rechnungen.md#kontakte). Die Belegseite zeigt danach, welche IBAN gilt, wer entschieden hat und wann. Eine spätere Entscheidung ersetzt die frühere.
 - **Ohne Entscheidung** ist der Beleg unter **Überweisungen** nicht auswählbar, auch nicht über **Alle auswählen**; die Zeile nennt den Grund und führt mit **Zum Beleg** dorthin. Auch der Server lehnt ihn in einer SEPA-Datei ab. Nach der Entscheidung geht die Überweisung an die gewählte IBAN, und die Zeile nennt die Entscheidung.
 - **Neu entscheiden:** Die Entscheidung gilt nur für genau dieses Paar aus Kontakt- und Rechnungs-IBAN. Ändert sich die IBAN im Kontakt (oder steht ein anderer Kontakt am Beleg), ist neu zu entscheiden.
-- **Kontakt ohne IBAN:** Es gibt nichts abzugleichen. Die Belegseite sagt nur, dass die IBAN ungeprüft aus der E-Rechnung stammt; überwiesen wird an sie, ohne Sperre.
+- **Kontakt ohne IBAN** (oder kein Kontakt am Beleg): Oben auf der Belegseite steht **IBAN aus der E-Rechnung, noch nicht bestätigt**. Die IBAN der E-Rechnung gilt erst, wenn du sie mit **Übernehmen** für diesen Beleg bestätigst, nach dem Buchen; bis dahin ist der Beleg unter **Überweisungen** gesperrt wie bei einer Abweichung. Mit **Auch im Kontakt des Lieferanten eintragen** kommt sie zusätzlich in den Kontakt, als neue Version; das geht nur, solange der Kontakt keine IBAN hat, eine vorhandene überschreibt Haben nie, und nur eine gültige IBAN (BT-84 kann auch eine Kontonummer sein). Ohne den Haken bleibt der Kontakt, wie er ist. Die Bestätigung gilt nur für genau diese IBAN.
 
 Die Entscheidungen stehen in einer eigenen, nur anhängbaren Tabelle mit Eintrag im Änderungsprotokoll; Sperre und Siegel des gebuchten Belegs bleiben unberührt. IBANs aus der KI-Auslesung oder dem PDF-Text gleicht Haben nicht ab, nur die der E-Rechnung. Entscheiden kann nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht den Hinweis.
 

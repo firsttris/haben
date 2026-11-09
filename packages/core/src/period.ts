@@ -77,6 +77,12 @@ export function previousPeriod({ year, month }: VatPeriod): VatPeriod {
 }
 
 const berlinMonth = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit" });
+const berlinDay = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" });
+
+/** Der Kalendertag in Deutschland als YYYY-MM-DD: Der Server läuft im Container in UTC, dort wäre es bis 1 Uhr (Sommerzeit 2 Uhr) noch der Vortag */
+export function germanDay(now: Date = new Date()): string {
+  return berlinDay.format(now);
+}
 
 /**
  * Der Zeitraum, der zu einem Zeitpunkt gerade abzugeben ist (Vormonat). Maßgeblich ist der Monat in Deutschland, nicht
@@ -87,9 +93,14 @@ export function currentFilingPeriod(now: Date): VatPeriod {
 }
 
 /** Der laufende Monat in Deutschland */
-export function currentMonth(now: Date): VatPeriod {
+export function currentMonth(now: Date = new Date()): VatPeriod {
   const [year, month] = berlinMonth.format(now).split("-").map(Number) as [number, number];
   return { year, month };
+}
+
+/** Das laufende Jahr in Deutschland */
+export function currentYear(now: Date = new Date()): number {
+  return currentMonth(now).year;
 }
 
 /**

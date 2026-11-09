@@ -8,6 +8,7 @@ export { checkBalanceContinuity } from "./continuity.ts";
 export { parseDatevBuchungsstapel, isDatevFile, datevAccountTotals, datevYearSums, DatevParseError } from "./datev.ts";
 export { datevSalden, hasOpeningBalances, type DatevSaldenBooking, type DatevSaldo } from "./datev-salden.ts";
 export { buildDatevBuchungsstapel, DATEV_AUTOMATIC_ACCOUNTS, type DatevExportEntry } from "./datev-export.ts";
+export { type PersonenkontoBezug, personenkontenEinsetzen } from "./datev-personenkonten.ts";
 export type { DatevHeader, DatevBooking, DatevStack, DatevYearSums } from "./datev.ts";
 export * from "./lexoffice/index.ts";
 export * from "./sevdesk/index.ts";

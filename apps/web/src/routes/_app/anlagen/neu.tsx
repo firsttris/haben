@@ -1,4 +1,4 @@
-import { elektroAvailable, isKapitalgesellschaft } from "@haben/core";
+import { currentYear, elektroAvailable, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AssetForm } from "../../../components/AssetForm.tsx";
@@ -16,7 +16,7 @@ function NewAssetPage() {
   const navigate = useNavigate();
   const create = useServerFn(createAssetFn);
   const { busy, notice, run } = useAction();
-  const year = new Date().getFullYear();
+  const year = currentYear();
 
   return (
     <>
