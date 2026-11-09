@@ -943,7 +943,8 @@ summary { cursor: pointer; min-height: 24px; }
 /* Knöpfe für fett, kursiv und unterstrichen: im Feld, damit beim Fokuswechsel nichts springt */
 .format-field { position: relative; display: block; }
 .format-field > textarea { display: block; box-sizing: border-box; width: 100%; }
-.format-field:focus-within > textarea { padding-right: 104px; }
+/* Immer frei, nicht erst im Fokus: Sonst bricht der Text beim ersten Klick um und ein Doppelklick trifft ein anderes Wort */
+.format-field > textarea, .line-row .format-field > textarea { padding-right: 104px; }
 .format-bar { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); visibility: hidden; }
 .format-field:focus-within .format-bar { visibility: visible; }
 .format-bar button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
