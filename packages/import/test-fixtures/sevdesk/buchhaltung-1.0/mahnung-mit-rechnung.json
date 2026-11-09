@@ -36,7 +36,7 @@
         "objectName": "SevUser"
       },
       "deliveryDate": "2024-01-15T12:00:00+02:00",
-      "status": "100",
+      "status": "500",
       "smallSettlement": "0",
       "contactPerson": {
         "id": "ID_17",
@@ -51,7 +51,7 @@
         "id": "ID_18",
         "objectName": "PaymentMethod"
       },
-      "sendDate": null,
+      "sendDate": "2024-01-15T12:00:00+01:00",
       "origin": {
         "id": "ID_62",
         "objectName": "Invoice",
@@ -100,5 +100,25 @@
       "sumDiscountGrossForeignCurrency": "0"
     },
     "positions": []
+  },
+  {
+    "gemahnteRechnung": {
+      "id": "ID_62",
+      "objectName": "Invoice",
+      "invoiceType": "RE",
+      "status": "200",
+      "dunningLevel": "1",
+      "sendType": "VPDF",
+      "sendDate": "2024-01-15T12:00:00+02:00",
+      "reminderDeadline": null,
+      "reminderDebit": null,
+      "reminderTotal": null,
+      "reminderCharge": "0",
+      "paidAmount": 0,
+      "payDate": null,
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00"
+    }
   }
 ]
