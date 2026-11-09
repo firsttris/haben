@@ -15,7 +15,7 @@
       "header": "<anon>",
       "headText": null,
       "footText": null,
-      "timeToPay": null,
+      "timeToPay": "14",
       "discountTime": "0",
       "discount": "0",
       "addressName": "<anon>",
@@ -36,7 +36,7 @@
         "objectName": "SevClient"
       },
       "deliveryDate": "2024-01-15T12:00:00+01:00",
-      "status": "100",
+      "status": "200",
       "smallSettlement": "0",
       "contactPerson": {
         "id": "ID_17",
@@ -46,7 +46,7 @@
       "taxText": "0",
       "addressParentName": null,
       "taxType": "default",
-      "sendDate": null,
+      "sendDate": "2024-01-15T12:00:00+01:00",
       "creditNoteType": "CN",
       "accountIntervall": null,
       "accountLastCreditNote": null,
@@ -82,7 +82,7 @@
       "vatNumber": "<anon>",
       "showNet": "0",
       "enshrined": null,
-      "sendType": null,
+      "sendType": "VPDF",
       "bookingCategory": "ACCOUNTING_TYPE",
       "deliveryDateUntil": null,
       "isTransferred": "0",
@@ -316,7 +316,7 @@
         "objectName": "SevClient"
       },
       "deliveryDate": "2024-01-15T12:00:00+01:00",
-      "status": "100",
+      "status": "200",
       "smallSettlement": "0",
       "contactPerson": {
         "id": "ID_17",
@@ -326,7 +326,7 @@
       "taxText": null,
       "addressParentName": null,
       "taxType": "default",
-      "sendDate": null,
+      "sendDate": "2024-01-15T12:00:00+01:00",
       "origin": {
         "id": "ID_71",
         "objectName": "Invoice"
@@ -361,9 +361,9 @@
       "vatNumber": null,
       "showNet": "1",
       "enshrined": null,
-      "sendType": "0",
+      "sendType": "VPDF",
       "bookingCategory": "UNDERACHIEVEMENT",
-      "deliveryDateUntil": "2024-01-15T12:00:00+01:00",
+      "deliveryDateUntil": null,
       "refSrcInvoice": {
         "id": "ID_71",
         "objectName": "Invoice"
@@ -491,7 +491,7 @@
       "header": "<anon>",
       "headText": null,
       "footText": null,
-      "timeToPay": null,
+      "timeToPay": "14",
       "discountTime": "0",
       "discount": "0",
       "addressName": "<anon>",
@@ -512,7 +512,7 @@
         "objectName": "SevClient"
       },
       "deliveryDate": "2024-01-15T12:00:00+01:00",
-      "status": "100",
+      "status": "200",
       "smallSettlement": "0",
       "contactPerson": {
         "id": "ID_17",
@@ -522,7 +522,7 @@
       "taxText": "0",
       "addressParentName": null,
       "taxType": "default",
-      "sendDate": null,
+      "sendDate": "2024-01-15T12:00:00+01:00",
       "creditNoteType": "CN",
       "accountIntervall": null,
       "accountLastCreditNote": null,
@@ -558,7 +558,7 @@
       "vatNumber": "<anon>",
       "showNet": "0",
       "enshrined": null,
-      "sendType": null,
+      "sendType": "VPDF",
       "bookingCategory": "PROVISION",
       "deliveryDateUntil": null,
       "isTransferred": "0",
@@ -631,7 +631,7 @@
       "header": "<anon>",
       "headText": null,
       "footText": null,
-      "timeToPay": null,
+      "timeToPay": "14",
       "discountTime": "0",
       "discount": "0",
       "addressName": "<anon>",
@@ -652,7 +652,7 @@
         "objectName": "SevClient"
       },
       "deliveryDate": "2024-01-15T12:00:00+01:00",
-      "status": "100",
+      "status": "200",
       "smallSettlement": "0",
       "contactPerson": {
         "id": "ID_17",
@@ -662,7 +662,7 @@
       "taxText": "0",
       "addressParentName": null,
       "taxType": "default",
-      "sendDate": null,
+      "sendDate": "2024-01-15T12:00:00+01:00",
       "creditNoteType": "CN",
       "accountIntervall": null,
       "accountLastCreditNote": null,
@@ -698,7 +698,7 @@
       "vatNumber": "<anon>",
       "showNet": "0",
       "enshrined": null,
-      "sendType": null,
+      "sendType": "VPDF",
       "bookingCategory": "ROYALTY_UNASSIGNED",
       "deliveryDateUntil": null,
       "isTransferred": "0",

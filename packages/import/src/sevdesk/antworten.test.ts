@@ -248,7 +248,6 @@ describe("Nachfällig oder vorschüssig an erzeugten Rechnungen in Buchhaltungsv
 
 describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
   const nachArt = (art: string) => gutschriftV1.find((g) => g.creditNote.bookingCategory === art)!.creditNote;
-  const importierbar = (art: string) => isSevCreditNoteImportable(sevCreditNoteSchema.parse(nachArt(art)));
 
   it("kennt je Buchungsart ein Beispiel", () => {
     expect(gutschriftV1.map((g) => g.creditNote.bookingCategory).sort()).toEqual([
@@ -260,10 +259,12 @@ describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
     ]);
   });
 
-  it("übernimmt Entwürfe nicht, gebuchte schon", () => {
-    for (const art of ["ACCOUNTING_TYPE", "PROVISION", "ROYALTY_UNASSIGNED", "UNDERACHIEVEMENT"]) expect(importierbar(art)).toBe(false);
-    expect(importierbar("ROYALTY_ASSIGNED")).toBe(true);
-    expect(nachArt("ROYALTY_ASSIGNED").sendDate).not.toBeNull();
+  it("übernimmt alle fertiggestellten Gutschriften", () => {
+    for (const { creditNote } of gutschriftV1) {
+      expect(creditNote).toMatchObject({ status: "200", sendType: "VPDF" });
+      expect(creditNote.sendDate).not.toBeNull();
+      expect(isSevCreditNoteImportable(sevCreditNoteSchema.parse(creditNote))).toBe(true);
+    }
   });
 
   it.each([

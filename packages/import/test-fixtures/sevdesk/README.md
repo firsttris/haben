@@ -24,7 +24,7 @@ Nur `buchhaltung-1.0/`:
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
 - `mahnung-mit-rechnung.json`: zwei Mahnungen (`invoiceType` MA, `status` 500, `dunningLevel` 1 und 2), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
-- `gutschrift.json`: fünf Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`: `ACCOUNTING_TYPE`, `ROYALTY_UNASSIGNED`, `PROVISION` und `UNDERACHIEVEMENT` als Entwurf (`status` 100), `ROYALTY_ASSIGNED` gebucht (`status` 200, `sendDate` gesetzt).
+- `gutschrift.json`: fünf Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`, alle fertiggestellt (`status` 200, `sendDate` gesetzt, `sendType` `VPDF`).
 - `extf-buchungsstapel.csv`, `extf-gp-stamm.csv`, `document-rechnungseingang.xml`, `document-rechnungsausgang.xml`: Auszug aus einem DATEV-Jahresexport, 7 Buchungen und 2 Personenkonten. Die Beleglink-GUIDs der CSV passen zu den XML-Dateien. Die beiden CSV-Dateien sind Windows-1252 mit CRLF und müssen es bleiben.
 - `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
@@ -53,7 +53,7 @@ Nur `buchhaltung-2.0/`:
 | Antwort von `Document/download` | ja, Hülle ohne Inhalt | nur Statuscode und Inhaltstyp |
 | Anlagen (`/Asset`), nur Aufbau | ja | ungeprüft |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ungeprüft |
-| Gutschrift (`CreditNote`), alle Werte von `bookingCategory` | ja, gebucht nur `ROYALTY_ASSIGNED` | eine, ohne Positionen |
+| Gutschrift (`CreditNote`), alle Werte von `bookingCategory` | ja, alle fertiggestellt | eine, ohne Positionen |
 | DATEV-Export mit Beleglinks und `document.xml` | ja | nur Beispielzeilen ohne XML |
 | `taxRule` am Beleg | nein | 1, 4, 9, 10, 11, 15; dazu `taxType` `default` und `noteu` |
 
@@ -71,7 +71,9 @@ Am DATEV-Export 2024 aus Version 1.0: 186 Zeilen tragen `BEDI` mit 170 GUIDs, je
 
 Gutschriften aus Version 1.0: Das Buchungskonto steht am Kopf unter `accountingType`, frei wählbar bei `ACCOUNTING_TYPE` (hier Einnahmen), „Dienstleister / Agenturen / Freelancer“ bei `ROYALTY_ASSIGNED`, „Fremdarbeiten/Fremdleistungen“ bei `ROYALTY_UNASSIGNED`, „Verkaufsprovision“ bei `PROVISION`. `UNDERACHIEVEMENT` hat keins, stattdessen zeigen `origin` und `refSrcInvoice` auf die Rechnung. Die Beträge stehen positiv oder 0, Positionen tragen kein Konto.
 
-Offene Frage: Honorar und Provision stehen auf Aufwandskonten, Haben bildet Gutschriften aber als negative Einnahme ab (`mapSevCreditNote`).
+Buchung laut DATEV-Export von sevDesk (SKR03), jeweils im Soll und mit Beleglink auf den Ordner Rechnungsausgang: `ACCOUNTING_TYPE` mit Erlöskonto auf 8200 mit BU 3, `UNDERACHIEVEMENT` auf 8400 ohne BU, `ROYALTY_ASSIGNED` auf 3100 mit BU 9 (Vorsteuer). `PROVISION` und `ROYALTY_UNASSIGNED` sind im Export nicht belegt, ihr Datum lag außerhalb des Zeitraums; die zweite hat zudem den Betrag 0. Steuerlich und zur Zahlung ist nichts geprüft.
+
+Offene Frage: Honorar und Provision stehen auf Aufwandskonten, und sevDesk bucht `ROYALTY_ASSIGNED` im Export auf Aufwand mit Vorsteuer. Haben bildet jede Gutschrift dagegen als negative Einnahme ab (`mapSevCreditNote`).
 
 Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werden, Haben ersetzt sie nicht.
 
