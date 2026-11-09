@@ -1,0 +1,3 @@
+ALTER TABLE "cash_entries" ADD COLUMN "tax_treatment" text;--> statement-breakpoint
+ALTER TABLE "cash_entries" ADD COLUMN "tax_rate" integer;--> statement-breakpoint
+ALTER TABLE "cash_entries" ADD CONSTRAINT "cash_entries_einnahme" CHECK (case when "cash_entries"."kind" = 'einnahme' then "cash_entries"."tax_treatment" is not null and "cash_entries"."tax_rate" is not null else "cash_entries"."tax_treatment" is null and "cash_entries"."tax_rate" is null end);

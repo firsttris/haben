@@ -789,9 +789,11 @@ export function cashBookingLabel(kind: CashBooking, rechtsform: Rechtsform): str
   return kind === "einlage" ? owner.cashIn : kind === "entnahme" ? owner.cashOut : CASH_BOOKINGS[kind].label;
 }
 
-/** Art einer Zeile im Kassenbuch: bar bezahlter Beleg, Bareinnahme auf eine Rechnung oder eine Kassenbuchung ohne Beleg */
-export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung", rechtsform: Rechtsform): string {
-  return kind === "beleg" ? "Beleg" : kind === "rechnung" ? "Bareinnahme Rechnung" : cashBookingLabel(kind, rechtsform);
+/** Art einer Zeile im Kassenbuch: bar bezahlter Beleg, Bareinnahme auf eine oder ohne Rechnung oder eine Kassenbuchung ohne Beleg */
+export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung" | "einnahme", rechtsform: Rechtsform): string {
+  if (kind === "beleg") return "Beleg";
+  if (kind === "rechnung") return "Bareinnahme Rechnung";
+  return kind === "einnahme" ? "Bareinnahme" : cashBookingLabel(kind, rechtsform);
 }
 
 /** Kasse an Privateinlage (bzw. Gesellschafter) oder Geldtransit; Ausgänge aus der Kasse (negativ) drehen die Seiten */

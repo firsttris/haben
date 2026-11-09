@@ -14,6 +14,7 @@ export {
   kleinunternehmerForMonth,
   kleinunternehmerForYear,
   kleinunternehmerHistory,
+  kleinunternehmerStand,
   lastDayOfMonth,
   letterIssues,
   loadCompany,
