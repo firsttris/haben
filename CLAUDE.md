@@ -47,7 +47,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
-- Checks green before every push, skipped tests reported (`checks`); then check CI.
+- Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - An independent TDD review by a separate subagent before the merge (`tdd-review`).
 

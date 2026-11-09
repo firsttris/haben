@@ -42,11 +42,18 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
 - Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/entwicklung.md` unter „Review“, Schritt 4.
-- Dann alle Prüfungen nach Skill `checks`, übersprungene Tests im Abschlusskommentar nennen.
+- Dann gezielt prüfen, was der PR und die Fixes berühren. Die volle Suite läuft in der CI, lokal nicht noch einmal (Befehle und Umgebung: Skill `checks`):
+  - immer `lint` und `typecheck`;
+  - Vitest und Postgres-Tests nur für die neuen Tests und die geänderten Module (`bun --bun vitest run <pfade>`, Postgres mit `TEST_DATABASE_URL`);
+  - Playwright nur, wenn die Oberfläche betroffen ist, und nur die passenden Spec-Dateien oder Tests (`bun run e2e <datei>`, `-g <name>`);
+  - Doku-Build nur, wenn `docs/` geändert ist;
+  - breiter nur, wenn die Änderung viele Stellen trifft (Schema und Migrationen, viel genutzte Funktionen in `packages/*`, globale Styles, `playwright.config.ts`, Abhängigkeiten): dann die Aufrufer mitprüfen.
+- Im Abschlusskommentar nennen, was lokal lief und was übersprungen wurde.
 - Auf den PR-Branch pushen.
 
 ## 5. Grün prüfen
 
+- Die CI prüft die volle Suite; ohne grüne CI ist das Review nicht fertig. Auf Entwürfen läuft sie nicht: Dann ist der PR vor dem Merge auf „Ready for review“ zu setzen, nur auf Freigabe der Person.
 - Die CI-Checks des PR abwarten. Bei roten Checks die Ursache beheben und erneut pushen; keinen Test überspringen, keinen leeren Commit, um CI neu zu starten.
 - Abschlusskommentar im PR: welche Findings behoben sind, welche Tests neu sind, Stand der Checks.
 
