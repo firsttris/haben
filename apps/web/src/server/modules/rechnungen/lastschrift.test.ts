@@ -237,7 +237,14 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
     const neu = await mandates.createMandate(
       actor,
       contactId,
-      { reference: "KD-1042-02", signedOn: "2026-11-20", scheme: "CORE", firstSequence: "FRST", debtorName: "Nordwerk Software GmbH", debtorIban: "DE02120300000000202051" },
+      {
+        reference: "KD-1042-02",
+        signedOn: "2026-11-20",
+        scheme: "CORE",
+        firstSequence: "FRST",
+        debtorName: "Nordwerk Software GmbH",
+        debtorIban: "DE02120300000000202051",
+      },
       "2026-11-21",
     );
     await recurring.runDueRecurring("2026-11-21");
@@ -252,7 +259,14 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
     const alt = await mandates.createMandate(
       actor,
       contactId,
-      { reference: "KD-2023", signedOn: "2023-09-01", scheme: "CORE", firstSequence: "FRST", debtorName: "Nordwerk Software GmbH", debtorIban: "DE02120300000000202051" },
+      {
+        reference: "KD-2023",
+        signedOn: "2023-09-01",
+        scheme: "CORE",
+        firstSequence: "FRST",
+        debtorName: "Nordwerk Software GmbH",
+        debtorIban: "DE02120300000000202051",
+      },
       "2026-11-02",
     );
     // Rechnung vom 02.06.2025 per Lastschrift, eingezogen am 16.06.2025: das Mandat gilt dann bis 15.06.2028

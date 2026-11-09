@@ -165,7 +165,10 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
       ...row,
       file: fileOf.get(row.id) ?? null,
       revocation,
-      status: mandatStatus({ signedOn: row.signedOn, lastCollectionOn: latest(row.lastCollectionBefore, collections.get(row.id)), revokedOn: revocation?.revokedOn ?? null }, today),
+      status: mandatStatus(
+        { signedOn: row.signedOn, lastCollectionOn: latest(row.lastCollectionBefore, collections.get(row.id)), revokedOn: revocation?.revokedOn ?? null },
+        today,
+      ),
     };
   });
 }
