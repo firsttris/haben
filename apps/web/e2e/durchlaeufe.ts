@@ -9,7 +9,7 @@ export const PORT = Number(process.env.E2E_PORT ?? 3100);
 const databaseUrl = process.env.E2E_DATABASE_URL ?? "";
 
 /** Name → Abstand des Ports zu E2E_PORT; der Hauptdurchlauf (app.spec.ts) hat den Port selbst */
-export const DURCHLAEUFE = { gmbh: 1, rechnungen: 2, "belege-steuern": 3 } as const;
+export const DURCHLAEUFE = { gmbh: 1, rechnungen: 2, "belege-steuern": 3, rueckfragen: 4 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
 export const portFuer = (durchlauf?: Durchlauf) => PORT + (durchlauf ? DURCHLAEUFE[durchlauf] : 0);

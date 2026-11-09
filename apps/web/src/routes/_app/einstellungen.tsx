@@ -32,6 +32,7 @@ import { InvoiceAttachments } from "../../components/InvoiceAttachments.tsx";
 import { getQuoteDefaultAttachments } from "../../server/functions/invoice-attachments.ts";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -878,6 +879,7 @@ function CertificateForm() {
   const upload = useServerFn(uploadCertificate);
   const remove = useServerFn(removeCertificate);
   const { busy, notice, run } = useAction();
+  const [removing, setRemoving] = useState(false);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -903,19 +905,24 @@ function CertificateForm() {
             <span style={{ fontWeight: 500 }}>{certificate.filename}</span>
             <span className="small muted">{certificate.validUntil ? `gültig bis ${formatDate(certificate.validUntil)}` : "Ablaufdatum nicht angegeben"}</span>
           </div>
-          <button
-            type="button"
-            className="btn btn-danger"
-            disabled={busy}
-            onClick={() =>
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(true)}>
+            Entfernen
+          </button>
+          <ConfirmDialog
+            open={removing}
+            title={`Zertifikat ${certificate.filename} entfernen?`}
+            confirmLabel="Zertifikat entfernen"
+            danger
+            onConfirm={() =>
               void run(async () => {
                 await remove();
                 await router.invalidate();
               }, "Zertifikat entfernt.")
             }
+            onClose={() => setRemoving(false)}
           >
-            Entfernen
-          </button>
+            <p>Ohne Zertifikat sendet Haben nichts an ELSTER und ruft das Postfach nicht ab. Zum Wiederherstellen brauchst du die .pfx-Datei und ihre PIN.</p>
+          </ConfirmDialog>
         </div>
       )}
       <label className="field">

@@ -482,7 +482,7 @@ Manche Kunden wollen mit der Rechnung weitere Unterlagen: Stundenzettel, Leistun
 
 1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
 2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
-3. **Entfernen** nimmt einen Anhang wieder von der Rechnung, solange sie ein Entwurf ist.
+3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder von der Rechnung, solange sie ein Entwurf ist. Nutzt sonst nichts die Datei, ist sie danach aus Haben gelöscht; hast du sie nur hier, lade sie vorher herunter.
 
 Erlaubt sind nur PDF-Dateien bis 20 MB, höchstens zehn je Rechnung. Den Typ erkennt Haben am Inhalt, nicht an der Endung: Ein umbenanntes Foto wird abgelehnt. Dieselbe Datei hängt nur einmal an derselben Rechnung. Die Dateien liegen wie Belege unter ihrem SHA-256 im Belegverzeichnis (siehe [Architektur](architektur.md#dateiablage)).
 
@@ -504,7 +504,7 @@ Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschni
 
 Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf; zusammen mit einer Bareinnahme mit deren Storno im Kassenbuch. Stornorechnungen lassen sich nicht ausbuchen.
 
-Zahlt der Kunde später doch, hebst du die Ausbuchung auf und ordnest die Zahlung zu. Die Aufhebung bucht Haben am Tag, an dem du sie vornimmst: Bei Soll-Versteuerung ist die Umsatzsteuer dann im Monat des Zahlungseingangs erneut zu berichtigen (§ 17 Abs. 2 Nr. 1 Satz 2 UStG), die schon gesendete Voranmeldung des Ausbuchungsmonats bleibt richtig. Hebe die Ausbuchung deshalb im Monat der Zahlung auf.
+Zahlt der Kunde später doch, hebst du die Ausbuchung nach einer Rückfrage mit Art und Betrag auf und ordnest die Zahlung zu. Die Aufhebung bucht Haben am Tag, an dem du sie vornimmst: Bei Soll-Versteuerung ist die Umsatzsteuer dann im Monat des Zahlungseingangs erneut zu berichtigen (§ 17 Abs. 2 Nr. 1 Satz 2 UStG), die schon gesendete Voranmeldung des Ausbuchungsmonats bleibt richtig. Hebe die Ausbuchung deshalb im Monat der Zahlung auf.
 
 Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufgehoben ist; sonst minderte das Storno die Umsatzsteuer ein zweites Mal.
 

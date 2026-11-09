@@ -233,6 +233,31 @@ test("Fristen und Kalender-Abo", async () => {
   expect(ics.status()).toBe(200);
   expect(await ics.text()).toContain("BEGIN:VCALENDAR");
   expect((await page.request.get(url.replace(/token=.*/, "token=falsch"))).status()).toBe(404);
+
+  // Neuer Link: Der alte stirbt erst nach der Rückfrage
+  await go("/fristen");
+  await abo.getByRole("button", { name: "Neuen Link erzeugen" }).click();
+  const neuerLink = page.getByRole("dialog", { name: "Neuen Abo-Link erzeugen?" });
+  await expect(neuerLink).toContainText("sofort ungültig");
+  await neuerLink.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  expect((await page.request.get(url)).status()).toBe(200);
+  await abo.getByRole("button", { name: "Neuen Link erzeugen" }).click();
+  await bestaetigen(page, "Neuen Link erzeugen");
+  const zweiterLink = await abo.getByLabel(/Abo-Link/).inputValue();
+  expect(zweiterLink).not.toBe(url);
+  expect((await page.request.get(url)).status()).toBe(404);
+
+  // Beenden ebenso
+  await go("/fristen");
+  await abo.getByRole("button", { name: "Abo beenden" }).click();
+  const beenden = page.getByRole("dialog", { name: "Kalender-Abo beenden?" });
+  await expect(beenden).toContainText("nicht mehr");
+  await beenden.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  expect((await page.request.get(zweiterLink)).status()).toBe(200);
+  await abo.getByRole("button", { name: "Abo beenden" }).click();
+  await bestaetigen(page, "Abo beenden");
+  await expect(abo.getByRole("button", { name: "Kalender-Abo einrichten" })).toBeVisible();
+  expect((await page.request.get(zweiterLink)).status()).toBe(404);
 });
 
 test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
@@ -886,6 +911,9 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText("Entwurf gespeichert.")).toBeVisible();
 
   const vermerk = page.getByRole("form", { name: "Außerhalb von Haben abgegeben" });
+  // Ein geleertes Datum ist eine unfertige Eingabe, die Seite bleibt stehen (Codex-Review #443)
+  await vermerk.getByLabel("Tag der Abgabe").fill("");
+  await expect(vermerk.getByRole("button", { name: "Abgabe vermerken" })).toBeDisabled();
   await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
   await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
   await vermerk.getByLabel("Übermittlungsprotokoll (PDF)").setInputFiles({
@@ -896,9 +924,20 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   // Kz 83 laut Protokoll weicht ab: Haben lehnt ab
   await vermerk.getByLabel("Kz 83 laut Protokoll").fill("200,00");
   await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await bestaetigen(page, "Abgabe vermerken");
   await expect(vermerk.getByRole("alert")).toContainText("weicht von der Voranmeldung");
   await vermerk.getByLabel("Kz 83 laut Protokoll").fill("190,00");
+  // Festschreiben ist endgültig; die Rückfrage zeigt, was gleich gilt, und Abbrechen lässt alles offen
   await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  const vermerkRueckfrage = page.getByRole("dialog", { name: "Voranmeldung als abgegeben vermerken?" });
+  await faktenZeigen(page, "Tag der Abgabe", "Transferticket", "Kz 83");
+  await expect(vermerkRueckfrage).toContainText(`09.07.${year}`);
+  await expect(vermerkRueckfrage).toContainText("et7f3k9m2q8w4x1z");
+  await expect(vermerkRueckfrage).toContainText("190,00");
+  await vermerkRueckfrage.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toHaveCount(0);
+  await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await bestaetigen(page, "Abgabe vermerken");
   await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toBeVisible();
   await expect(page.getByRole("region", { name: `Verlauf Juni ${year}` })).toContainText("Abgabe vermerkt");
   const zahlung = page.getByRole("region", { name: "Zahlung an das Finanzamt" });

@@ -597,7 +597,14 @@ test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim
   // Nur PDF, am Inhalt erkannt: ein Bild mit der Endung .pdf wird abgelehnt
   await auswahl.setInputFiles([{ name: "foto.pdf", mimeType: "application/pdf", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]);
   await expect(anhaenge.getByText("foto.pdf: Als Anhang sind nur PDF-Dateien erlaubt.")).toBeVisible();
+  // Die Datei ist danach aus Haben weg, und der Knopf steht am Handy eng neben „Herunterladen“: erst nachfragen
   await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  const anhangRueckfrage = page.getByRole("dialog", { name: "abnahme.pdf entfernen?" });
+  await expect(anhangRueckfrage).toContainText("aus Haben gelöscht");
+  await anhangRueckfrage.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toBeVisible();
+  await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("abnahme.pdf: entfernt.")).toBeVisible();
   await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toHaveCount(0);
 
@@ -659,6 +666,7 @@ test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand
   await auswahl.setInputFiles([{ name: "AGB-Kopie.pdf", mimeType: "application/pdf", buffer: attachmentPdf("AGB") }]);
   await expect(anhaenge.getByText("AGB-Kopie.pdf: hängt schon an diesem Angebot.")).toBeVisible();
   await anhaenge.getByRole("button", { name: "intern.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("intern.pdf: entfernt.")).toBeVisible();
   await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toHaveCount(0);
 
@@ -714,12 +722,17 @@ test("Standardanhänge: AGB in den Einstellungen, jedes neue Angebot hat sie, im
   await expect(anhaenge.getByRole("link", { name: "AGB.pdf", exact: true })).toBeVisible();
   // Für dieses Angebot ohne Widerrufsbelehrung; die Einstellung bleibt
   await anhaenge.getByRole("button", { name: "Widerrufsbelehrung.pdf entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
   await expect(anhaenge.getByText("Widerrufsbelehrung.pdf: entfernt.")).toBeVisible();
 
   // Die Standardanhänge wieder herausnehmen, damit die folgenden Tests Angebote ohne sie anlegen
   await go("/einstellungen?bereich=rechnungen");
   for (const name of ["AGB.pdf", "Widerrufsbelehrung.pdf"]) {
     await standard.getByRole("button", { name: `${name} entfernen` }).click();
+    // Die Datei hängt noch an Angeboten: Die Rückfrage darf nicht behaupten, sie sei dann weg
+    await expect(page.getByRole("dialog", { name: `${name} entfernen?` })).toContainText("Neue Angebote");
+    await expect(page.getByRole("dialog", { name: `${name} entfernen?` })).not.toContainText("gelöscht");
+    await bestaetigen(page, "Entfernen");
     await expect(standard.getByText(`${name}: entfernt.`)).toBeVisible();
   }
   await expect(standard).toContainText("Keine Standardanhänge.");

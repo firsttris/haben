@@ -340,7 +340,7 @@ Hast du die Voranmeldung außerhalb von Haben abgegeben, per XML-Import in Mein 
 | Kz 83 laut Protokoll | die verbleibende Vorauszahlung bzw. der Überschuss, wie gemeldet |
 | Übermittlungsprotokoll (PDF) | das Protokoll aus Mein ELSTER |
 
-**Abgabe vermerken** schreibt die Anmeldung fest wie eine Übermittlung über ERiC: Status „Abgegeben … (vermerkt)“, die [Frist](fristen.md) ist erledigt, eine Berichtigung geht wie nach dem Senden über **Berichtigte Anmeldung anlegen**, und die Zahllast wird ein [offener Posten](#zahlung-an-das-finanzamt). Ein berechneter Entwurf wird vorher auf den Stand der Buchungen gebracht, wie vor dem Senden.
+**Abgabe vermerken** fragt in einem Dialog nach, der Tag, Transferticket und Kz 83 noch einmal zeigt, und schreibt die Anmeldung dann fest wie eine Übermittlung über ERiC: Status „Abgegeben … (vermerkt)“, die [Frist](fristen.md) ist erledigt, eine Berichtigung geht wie nach dem Senden über **Berichtigte Anmeldung anlegen**, und die Zahllast wird ein [offener Posten](#zahlung-an-das-finanzamt). Ein berechneter Entwurf wird vorher auf den Stand der Buchungen gebracht, wie vor dem Senden.
 
 Weicht Kz 83 laut Protokoll von der Anmeldung in Haben ab, lehnt Haben den Vermerk ab: Dann ist beim Finanzamt etwas anderes angekommen, als Haben gespeichert hat, etwa weil sich Buchungen nach dem Herunterladen des XML geändert haben oder du in Mein ELSTER Werte geändert hast. Prüfe die Abweichung; stimmen die Werte des Finanzamts, überschreibst du die Kennzahlen von Hand mit Begründung und vermerkst dann. Verglichen wird nur Kz 83, weil sie über Zahllast und Zahlung entscheidet; die übrigen Kennzahlen stehen im Protokoll.
 

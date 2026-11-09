@@ -17,6 +17,7 @@ import {
   startSevdeskImport,
   type getMigration,
 } from "../../server/functions/archive.ts";
+import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { Icon } from "../Icon.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
@@ -149,6 +150,7 @@ function Connection({ source, connected }: { source: Source; connected: { name: 
   const save = useServerFn(config.save);
   const remove = useServerFn(config.remove);
   const [key, setKey] = useState("");
+  const [removing, setRemoving] = useState(false);
   const { busy, notice, run } = useAction();
   const error = notice?.text ?? null;
   const keyId = useId();
@@ -184,9 +186,19 @@ function Connection({ source, connected }: { source: Source; connected: { name: 
               {config.keyLabel} hinterlegt am {formatDateTime(connected.since)}, verschlüsselt gespeichert.
             </div>
           </div>
-          <button type="button" className="btn btn-danger" onClick={onRemove} disabled={busy}>
+          <button type="button" className="btn btn-danger" onClick={() => setRemoving(true)} disabled={busy}>
             {config.removeLabel}
           </button>
+          <ConfirmDialog
+            open={removing}
+            title={`${config.keyLabel} entfernen?`}
+            confirmLabel={config.removeLabel}
+            danger
+            onConfirm={() => void onRemove()}
+            onClose={() => setRemoving(false)}
+          >
+            <p>Für neue Abrufe brauchst du dann wieder einen Zugang aus {config.product}. Schon übernommene Daten bleiben erhalten.</p>
+          </ConfirmDialog>
           <NoticeBanner notice={notice} />
         </div>
       ) : (
@@ -235,6 +247,8 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
   const [run, setRun] = useState<ImportRow | null>(initial);
   const action = useAction();
   const running = run?.status === "laeuft";
+  // Die Frage gehört zu genau diesem Lauf: Endet er, darf sie beim nächsten nicht von selbst wiederkommen
+  const [cancellingRun, setCancellingRun] = useState<string | null>(null);
 
   useEffect(() => {
     if (!running) return;
@@ -333,9 +347,21 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
         </div>
       )}
       <NoticeBanner notice={action.notice} />
+      <ConfirmDialog
+        open={running && cancellingRun === run?.id}
+        title="Abruf abbrechen?"
+        confirmLabel="Abruf abbrechen"
+        danger
+        onConfirm={() => run && void action.run(() => cancel({ data: { id: run.id } }))}
+        onClose={() => setCancellingRun(null)}
+      >
+        <p>
+          Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal.
+        </p>
+      </ConfirmDialog>
       <div className="actions">
         {running ? (
-          <button type="button" className="btn" disabled={action.busy} onClick={() => run && void action.run(() => cancel({ data: { id: run.id } }))}>
+          <button type="button" className="btn" disabled={action.busy} onClick={() => setCancellingRun(run?.id ?? null)}>
             Abbrechen
           </button>
         ) : (
