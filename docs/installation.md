@@ -32,7 +32,7 @@ Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 ## Voraussetzungen
 
 - Ein Linux-Server (x86_64, wenn du ERiC nutzen willst; auf arm64 geht ELSTER emuliert, siehe [ELSTER auf arm64](#elster-auf-arm64)) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
-- Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst. Hast du schon einen Reverse Proxy (Caddy, nginx, Nginx Proxy Manager, Traefik), nutzt du den, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy).
+- Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst. Hast du schon einen Reverse Proxy (Apache, nginx, Nginx Proxy Manager, Traefik, HAProxy, Caddy), nutzt du den, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy).
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
 - Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)). Auf arm64 (Raspberry Pi, Ampere, Jetson) zusätzlich ein statisches QEMU ab Version 9 und rund 750 MB Platz, siehe [ELSTER auf arm64](#elster-auf-arm64).
 
@@ -173,12 +173,15 @@ Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste S
 
 ## Eigener Reverse Proxy
 
-Läuft auf dem Server schon ein Reverse Proxy, etwa ein Caddy-, nginx-, Nginx-Proxy-Manager- oder Traefik-Container, braucht Haben keinen eigenen. Dein Proxy leitet die Domain an die App auf Port 3000 weiter. Er muss:
+Läuft auf dem Server schon ein Reverse Proxy, etwa Apache, nginx, Nginx Proxy Manager, Traefik, HAProxy oder Caddy, braucht Haben keinen eigenen. Dein Proxy leitet die Domain an die App auf Port 3000 weiter. Er muss:
 
 - HTTPS für die Domain bereitstellen. Die Domain ist dieselbe wie `DOMAIN` in `.env` bzw. `BETTER_AUTH_URL`; sonst funktionieren Passkeys nicht.
+- die ganze Domain oder Subdomain an Haben geben. Unter einem Unterpfad wie `example.de/haben` läuft Haben nicht: Die Seite lädt ihre Skripte von `/assets/…` und leitet auf `/login` um, jeweils ab der Wurzel der Domain.
 - an `haben-app:3000` weiterleiten (Proxy im selben Container-Netz) oder an `127.0.0.1:3000` (Proxy direkt auf dem Host).
-- Anfragen bis 250 MB annehmen (Archivdateien bis 100 MB, mehrere Belege auf einmal).
-- `X-Forwarded-For` setzen. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx trägst du ihn ein.
+- Anfragen bis 250 MB annehmen (Archivdateien bis 100 MB, mehrere Belege auf einmal), auch auf einer langsamen Leitung.
+- bis zu 300 Sekunden auf eine Antwort warten. So lange kann etwa die Belegerkennung mit einem lokalen Modell dauern. Der Standard liegt bei Apache und nginx bei 60 Sekunden, bei Nginx Proxy Manager bei 90; danach sieht der Browser einen Fehler 502 oder 504.
+- `X-Forwarded-For` mit genau einer Adresse setzen, der des Clients. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Apache, Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx und HAProxy trägst du ihn ein.
+- die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst.
 
 Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-For` fälschen, und es gäbe kein HTTPS.
 
@@ -208,6 +211,38 @@ Läuft dein Proxy direkt auf dem Host statt in einem Container, nimmst du die Va
 - Proxy auf dem Host: in `haben-app.container` die Zeile `PublishPort=127.0.0.1:3000:3000` ergänzen und an `127.0.0.1:3000` weiterleiten.
 
 ### Beispiele
+
+Getestet sind die Beispiele mit Apache 2.4, nginx 1.30, Nginx Proxy Manager 2.16, Traefik 3.7, HAProxy 3.4 und Caddy 2.11: Anmeldung, Upload von 200 MB, langsamer Upload, lange Antwort, Anfragen von fremden Seiten.
+
+**Apache:** Braucht die Module `proxy`, `proxy_http`, `headers` und `ssl` (Debian und Ubuntu: `a2enmod proxy proxy_http headers ssl`). Das Beispiel gilt für Apache direkt auf dem Host, die App ist dafür auf `127.0.0.1:3000` veröffentlicht, siehe [Compose](#compose):
+
+```apache
+<VirtualHost *:80>
+    ServerName haben.example.de
+    Redirect permanent / https://haben.example.de/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName haben.example.de
+    SSLEngine on
+    SSLCertificateFile    /etc/letsencrypt/live/haben.example.de/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/haben.example.de/privkey.pem
+
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Content-Type-Options nosniff
+    Header always set Referrer-Policy same-origin
+    Header always set X-Frame-Options SAMEORIGIN
+
+    ProxyPreserveHost On
+    # Standard sind 60 Sekunden
+    ProxyTimeout 300
+    RequestHeader set X-Forwarded-Proto "https"
+    # Apache hängt die Client-Adresse an; ein mitgeschickter Wert soll nicht davorstehen
+    RequestHeader unset X-Forwarded-For
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+</VirtualHost>
+```
 
 **Caddy:** Den Block aus `deploy/Caddyfile` in dein Caddyfile übernehmen, mit deiner Domain, und `caddy reload` ausführen:
 
@@ -253,11 +288,69 @@ server {
 }
 ```
 
-Haben begrenzt Anmeldeversuche je Client-Adresse und liest sie aus dem ersten Wert von `X-Forwarded-For`. Der Proxy muss den Header deshalb selbst setzen und darf keinen Wert vom Client übernehmen, sonst umgeht ein Angreifer die Begrenzung mit wechselnden Adressen. Caddy und Traefik tun das von sich aus.
+nginx löst `haben-app` beim Start einmal auf: Läuft die App dann nicht, startet nginx gar nicht, und bekommt sie nach einem Update eine neue Adresse, antwortet nginx mit 502 bis zum nächsten `nginx -s reload`. Läuft nginx selbst als Container, löst du den Namen deshalb zur Laufzeit auf. Dafür ersetzt du die Zeile `proxy_pass` durch:
 
-**Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ einschalten, unter Advanced `client_max_body_size 250M;` eintragen.
+```nginx
+resolver 127.0.0.11 valid=10s;
+set $haben http://haben-app:3000;
+proxy_pass $haben;
+```
 
-**Traefik:** Router für die Domain mit TLS auf den Service `haben-app:3000`. Traefik begrenzt die Größe von Anfragen nur mit der Middleware `buffering` (`maxRequestBodyBytes`); nutzt du sie, dann mit mindestens 250 MB.
+**Mehrere Adressen in `X-Forwarded-For`:** Haben wertet den Header nur aus, wenn genau eine Adresse darin steht. Bei mehreren zählen alle diese Anfragen zusammen als ein Client. Einen Proxy, der an einen vom Client mitgeschickten Wert anhängt (`$proxy_add_x_forwarded_for`, `option forwardfor`), umgeht also niemand; wer den Header fälscht, landet in diesem gemeinsamen Zähler. Wichtig wird das bei zwei Proxys hintereinander, etwa einem CDN vor nginx: Reicht der innere die ganze Kette weiter, teilen sich alle Nutzer den Zähler, und die Anmeldung meldet schon nach wenigen Versuchen zu viele Anfragen. Der innere Proxy setzt dann die echte Client-Adresse als einzigen Wert.
+
+**Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ und „HSTS“ einschalten, unter Advanced `proxy_read_timeout 300s;` eintragen. Uploads nimmt Nginx Proxy Manager von sich aus bis 2 GB an. Sein HSTS-Header enthält `preload`.
+
+**Traefik:** Router für die Domain mit TLS auf den Service `haben-app:3000`. Traefik begrenzt die Größe von Anfragen nur mit der Middleware `buffering` (`maxRequestBodyBytes`); nutzt du sie, dann mit mindestens 250 MB. Wichtig ist das Zeitlimit des Entrypoints in der statischen Konfiguration: Standard sind 60 Sekunden für die ganze Anfrage, ein längerer Upload bricht mit 502 ab.
+
+```yaml
+# traefik.yml
+entryPoints:
+  websecure:
+    address: ":443"
+    transport:
+      respondingTimeouts:
+        readTimeout: 600s
+```
+
+Die Sicherheits-Header setzt eine Middleware in der dynamischen Konfiguration, die du am Router einträgst:
+
+```yaml
+http:
+  middlewares:
+    haben-sicherheit:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        referrerPolicy: same-origin
+        customFrameOptionsValue: SAMEORIGIN
+```
+
+**HAProxy:** `crt` zeigt auf eine Datei mit Zertifikat und Schlüssel. `option forwardfor` hängt nur an, deshalb setzt das Beispiel den Header selbst. `resolvers` und `init-addr none` braucht es nur, wenn HAProxy im Container läuft: Ohne sie bricht er ab, wenn die App beim Start nicht läuft. Auf dem Host steht in der Zeile `server` nur `127.0.0.1:3000`.
+
+```
+resolvers docker
+    nameserver dns 127.0.0.11:53
+
+defaults
+    mode http
+    timeout connect 5s
+    timeout client 60s
+    timeout server 300s
+
+frontend haben
+    bind :443 ssl crt /etc/haproxy/certs/haben.pem alpn h2,http/1.1
+    http-request set-header X-Forwarded-For %[src]
+    http-request set-header X-Forwarded-Proto https
+    http-response set-header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    http-response set-header X-Content-Type-Options nosniff
+    http-response set-header Referrer-Policy same-origin
+    http-response set-header X-Frame-Options SAMEORIGIN
+    default_backend haben
+
+backend haben
+    server app haben-app:3000 resolvers docker init-addr none
+```
 
 ## Mehrere Instanzen
 
