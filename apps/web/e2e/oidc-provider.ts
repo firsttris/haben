@@ -1,16 +1,19 @@
-import { createServer } from "node:http";
+import { createServer as createHttpServer } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { readFileSync } from "node:fs";
 import { createHash, generateKeyPairSync, randomBytes, sign } from "node:crypto";
 
 /**
  * Ausschließlich lokaler Testanbieter für den Browserdurchlauf, niemals für den Betrieb verwenden. Wie Authelia liefert
  * er die Gruppen nur über UserInfo; im Formular gibt man E-Mail und Gruppen (durch Komma getrennt) an.
  */
-const issuer = "http://127.0.0.1:3216";
+const issuer = process.env.SSO_E2E_TLS_CERT ? "https://127.0.0.1:3216" : "http://127.0.0.1:3216";
+
 const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const flows = new Map<string, URL>();
 const codes = new Map<string, { flow: URL; email: string; groups: string[] }>();
 const profiles = new Map<string, Record<string, unknown>>();
-const server = createServer(async (req, res) => {
+const handler: import("node:http").RequestListener = async (req, res) => {
   const url = new URL(req.url!, issuer);
   res.setHeader("content-type", "application/json");
   if (url.pathname === "/.well-known/openid-configuration")
@@ -20,6 +23,7 @@ const server = createServer(async (req, res) => {
         authorization_endpoint: `${issuer}/authorize`,
         token_endpoint: `${issuer}/token`,
         jwks_uri: `${issuer}/jwks`,
+        scopes_supported: ["openid", "profile", "email", "groups"],
         userinfo_endpoint: `${issuer}/userinfo`,
         id_token_signing_alg_values_supported: ["RS256"],
       }),
@@ -96,5 +100,8 @@ const server = createServer(async (req, res) => {
   }
   res.statusCode = 404;
   res.end("{}");
-});
+};
+const server = process.env.SSO_E2E_TLS_CERT
+  ? createHttpsServer({ cert: readFileSync(process.env.SSO_E2E_TLS_CERT), key: readFileSync(process.env.SSO_E2E_TLS_KEY!) }, handler)
+  : createHttpServer(handler);
 server.listen(3216, "127.0.0.1");

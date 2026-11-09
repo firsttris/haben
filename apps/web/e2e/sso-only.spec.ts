@@ -2,13 +2,14 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import postgres from "postgres";
+import { spawn } from "node:child_process";
 
 /*
  * SSO-Modus im Browser (playwright.sso-only.config.ts): Ersteinrichtung nur durch die Inhaber-Gruppe, automatische
  * Anlage der Steuerberatung, reine Zugangsübersicht, alte Direktlinks, Gruppenentzug und erneute Prüfung nach Ablauf.
  */
 
-const BASE = "http://localhost:3218";
+const BASE = `${process.env.E2E_SERVER_COMMAND ? "https" : "http"}://localhost:3218`;
 
 async function capture(page: Page, view: string) {
   const output = process.env.SSO_ONLY_SCREENSHOT_DIR;
@@ -27,7 +28,8 @@ async function capture(page: Page, view: string) {
       ["handy", { width: 375, height: 812 }],
     ] as const) {
       await page.setViewportSize(viewport);
-      await page.screenshot({ path: `${output}/${view}-${scheme}-${size}.png`, fullPage: true });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: `${output}/${view}-${scheme}-${size}.png`, fullPage: true, animations: "disabled" });
     }
   }
   await page.evaluate(() => localStorage.setItem("haben-theme", "wald"));
@@ -170,5 +172,120 @@ test("SSO-Modus: Einrichtung, automatische Anlage, Zugänge, Gruppenentzug und e
   } finally {
     await kanzlei.close();
     await sql.end();
+  }
+});
+
+test("SSO: API/MCP und Kalender nach Herabstufung übernehmen und reaktivieren", async ({ page, browser }) => {
+  test.setTimeout(180_000);
+  await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+  await startSso(page, "Mit Test-SSO anmelden");
+  await providerLogin(page, "token-a@example.de", "haben-inhaber");
+  await page.waitForURL(`${BASE}/`);
+  await page.goto(`${BASE}/einstellungen?bereich=ki`, { waitUntil: "networkidle" });
+  const enabled = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
+  if (!(await enabled.isChecked())) await enabled.click();
+  await expect(enabled).toBeChecked();
+  const card = page.getByRole("region", { name: "API-Tokens", exact: true });
+  await card.getByLabel("Name", { exact: true }).fill("Automation");
+  await card.locator('input[name="scopes"][value="kontakte:lesen"]').check();
+  await card.getByRole("button", { name: "Token anlegen", exact: true }).click();
+  const secret = await card.getByLabel("Token für „Automation“ (wird nur jetzt angezeigt)").inputValue();
+  await page.reload({ waitUntil: "networkidle" });
+  await capture(page, "tokens-aktiv-nachher");
+  await page.goto(`${BASE}/fristen`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Kalender-Abo einrichten", exact: true }).click();
+  const calendarUrl = await page.getByLabel("Abo-Link (wird nur jetzt angezeigt)").inputValue();
+  await page.reload({ waitUntil: "networkidle" });
+
+  const other = await browser.newContext();
+  const owner = await other.newPage();
+  try {
+    await owner.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+    await startSso(owner, "Mit Test-SSO anmelden");
+    await providerLogin(owner, "token-b@example.de", "haben-inhaber");
+    await owner.waitForURL(`${BASE}/`);
+    // Andere geprüfte Anmeldung derselben Identität: neue Rolle entzieht die alte Sitzung und deaktiviert Tokens.
+    const changed = await browser.newContext();
+    try {
+      const login = await changed.newPage();
+      await login.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+      await startSso(login, "Mit Test-SSO anmelden");
+      await providerLogin(login, "token-a@example.de", "haben-steuerberatung");
+      await login.waitForURL(`${BASE}/steuerberatung`);
+    } finally {
+      await changed.close();
+    }
+    const access = () =>
+      owner.evaluate(
+        async ({ token, url }) => {
+          const headers = { authorization: `Bearer ${token}` };
+          return [
+            (await fetch("/api/v1/kontakte", { headers })).status,
+            (
+              await fetch("/api/mcp", {
+                method: "POST",
+                headers: { ...headers, "content-type": "application/json", accept: "application/json, text/event-stream" },
+                body: JSON.stringify({
+                  jsonrpc: "2.0",
+                  id: 1,
+                  method: "initialize",
+                  params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "E2E", version: "1" } },
+                }),
+              })
+            ).status,
+            (await fetch(url)).status,
+          ];
+        },
+        { token: secret, url: calendarUrl },
+      );
+    expect(await access()).toEqual([401, 401, 404]);
+    await owner.goto(`${BASE}/einstellungen?bereich=ki`, { waitUntil: "networkidle" });
+    await expect(owner.getByText("Inhaberrolle entzogen", { exact: false })).toBeVisible();
+    await noAxeViolations(owner);
+    await capture(owner, "tokens-deaktiviert-nachher");
+    await owner.getByRole("button", { name: "Übernehmen und reaktivieren", exact: true }).click();
+    await owner.getByRole("dialog").getByRole("button", { name: "Übernehmen und reaktivieren", exact: true }).click();
+    await expect(owner.getByText("Verantwortlich: token-b", { exact: true })).toBeVisible();
+    await capture(owner, "tokens-uebernommen-nachher");
+    await owner.goto(`${BASE}/fristen`, { waitUntil: "networkidle" });
+    await expect(owner.getByRole("status")).toContainText("Kalender-Abo deaktiviert");
+    await noAxeViolations(owner);
+    await capture(owner, "kalender-deaktiviert-nachher");
+    await owner.getByRole("button", { name: "Übernehmen und reaktivieren", exact: true }).click();
+    await owner.getByRole("dialog").getByRole("button", { name: "Übernehmen und reaktivieren", exact: true }).click();
+    await expect(owner.getByText("Das Abo ist eingerichtet.", { exact: false })).toBeVisible();
+    await capture(owner, "kalender-uebernommen-nachher");
+    expect(await access()).toEqual([200, 200, 200]);
+  } finally {
+    await other.close();
+  }
+});
+
+test("Produktionsserver beendet sich bei fehlgeschlagener Datenbank-Startprüfung", async () => {
+  test.skip(!process.env.E2E_SERVER_COMMAND, "Nur gegen den Produktionsbuild");
+  const child = spawn("bun", [".output/server/index.mjs"], {
+    env: {
+      ...process.env,
+      DATABASE_URL: "postgres://test@127.0.0.1:1/startup_failure",
+      BETTER_AUTH_URL: BASE,
+      BETTER_AUTH_SECRET: "x".repeat(32),
+      HABEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
+      OIDC_ONLY: "false",
+      PORT: "3298",
+    },
+    stdio: "ignore",
+  });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const code = await Promise.race([
+      new Promise<number | null>((resolve) => child.once("exit", resolve)),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Server beendet sich nicht")), 15_000);
+      }),
+    ]);
+    expect(code).not.toBe(0);
+  } finally {
+    clearTimeout(timer);
+    if (child.exitCode === null) child.kill("SIGTERM");
   }
 });
