@@ -47,7 +47,9 @@ jobs:
           changed="$(git -c core.quotePath=false diff --no-renames --name-only HEAD^1 HEAD)"
           printf '%s\n' "$changed"
           other="$(grep -Ev '\.md$|^docs/|^LICENSE$' <<< "$changed" || true)"
-          if [ -n "$changed" ] && [ -z "$other" ]; then code=false; else code=true; fi
+          # Gelöscht oder verschoben zählt als Code: normen.test.ts verlangt die Seiten aus scripts/jahreswerte/normen.json
+          deleted="$(git diff --no-renames --diff-filter=D --name-only HEAD^1 HEAD)"
+          if [ -n "$changed" ] && [ -z "$other" ] && [ -z "$deleted" ]; then code=false; else code=true; fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
   # Lint und Typecheck brauchen keine Datenbank; gebaut wird in den Jobs e2e-teil

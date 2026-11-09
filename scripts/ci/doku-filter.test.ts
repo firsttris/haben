@@ -36,7 +36,7 @@ const schreibe = (cwd: string, pfad: string, inhalt: string) => {
   writeFileSync(join(cwd, pfad), inhalt);
 };
 
-const BESTAND = { "docs/seite.md": "alt\n", "README.md": "alt\n", "LICENSE": "alt\n", "src/a.ts": "alt\n" };
+const BESTAND = { "docs/seite.md": "alt\n", "README.md": "alt\n", LICENSE: "alt\n", "src/a.ts": "alt\n" };
 
 // Baut wie GitHub einen Merge-Commit, dessen erster Elternteil die Basis ist, und führt den Filter darauf aus
 const filterFuer = (aenderung: Aenderung): string => {

@@ -479,7 +479,7 @@ bun run build
 ### Branches, Titel und Commits
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
-- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE`, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts, und die Doku baut erst auf `main`: dann den Doku-Build von oben lokal laufen lassen.
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts, und die Doku baut erst auf `main`: dann den Doku-Build von oben lokal laufen lassen.
 - **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
 - **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
 

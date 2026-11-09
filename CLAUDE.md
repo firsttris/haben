@@ -78,7 +78,7 @@ Skill `checks` has the details:
   to draft.
 - Branch in `firsttris/haben` with write access, otherwise in a fork; never push to `main`. Pull requests
   start as drafts when the user wants to look first; CI skips drafts until "Ready for review". For a pull request
-  that only touches Markdown, `docs/` or `LICENSE`, the job `changes` in `ci.yml` skips the other jobs, which
+  that only touches Markdown, `docs/` or `LICENSE` and deletes or moves no file, the job `changes` in `ci.yml` skips the other jobs, which
   counts as passed for the required checks but tests nothing: build the docs locally then.
 - Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
   Reference issues in the description with `Refs #…`, never `Closes`/`Fixes`: GitHub would close the issue on
