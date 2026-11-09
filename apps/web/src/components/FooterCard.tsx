@@ -45,6 +45,7 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
   }
   const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
   const caret = useRef<number | null>(null);
+  const touched = useRef(new Set<number>());
 
   // Weniger Spalten behalten den Text der übrigen: Wer zurückschaltet, verliert nichts
   const shown = Array.from({ length: count }, (_, i) => texts[i] ?? "");
@@ -60,9 +61,12 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
   const insert = (placeholder: FooterPlaceholder) => {
     const field = fields.current[active];
     const text = shown[active] ?? "";
-    const at = field?.selectionStart ?? text.length;
+    // Noch nie im Feld gewesen: Die Schreibmarke steht auf 0, der Platzhalter gehört aber hinter den vorhandenen Text
+    const at = field && touched.current.has(active) ? field.selectionStart : text.length;
+    const end = field && touched.current.has(active) ? field.selectionEnd : at;
     const tag = `{${placeholder}}`;
-    edit(active, `${text.slice(0, at)}${tag}${text.slice(field?.selectionEnd ?? at)}`);
+    edit(active, `${text.slice(0, at)}${tag}${text.slice(end)}`);
+    touched.current.add(active);
     caret.current = at + tag.length;
     field?.focus();
   };
@@ -111,7 +115,10 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
                   rows={5}
                   maxLength={MAX_FOOTER_TEXT}
                   value={text}
-                  onFocus={() => setActive(index)}
+                  onFocus={() => {
+                    setActive(index);
+                    touched.current.add(index);
+                  }}
                   onChange={(event) => edit(index, event.target.value)}
                 />
               </label>

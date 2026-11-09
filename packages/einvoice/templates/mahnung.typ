@@ -32,10 +32,11 @@
 // Spaltenbreite im Fuß. Nur Wörter, die nicht hineinpassen, bekommen Umbruchstellen; Typst bricht sonst nicht innerhalb eines
 // Worts, es liefe in die Nachbarspalte. Alle anderen bleiben beim Kopieren und Suchen unverändert.
 #let foot-breite = (165mm - 6mm * calc.max(d.footer.len() - 1, 0)) / calc.max(d.footer.len(), 1)
-#let umbrechbar(inhalt, gestalt) = inhalt.split(" ").map(wort => if measure(gestalt(wort)).width > foot-breite { wort.clusters().join("\u{200B}") } else { wort }).join(" ")
+#let umbruchstellen(wort) = if wort == "" { "" } else { wort.clusters().join("\u{200B}") }
+#let umbrechbar(inhalt, breite) = inhalt.split(" ").map(wort => if measure(semibold(text(wort))).width > breite { umbruchstellen(wort) } else { wort }).join(" ")
 #let formatted(runs, umbrechen: false) = {
   for run in runs {
-    run-style(run, text(if umbrechen { umbrechbar(run.text, wort => run-style(run, text(wort))) } else { run.text }))
+    run-style(run, text(if umbrechen { run.text.split(" ").map(umbruchstellen).join(" ") } else { run.text }))
   }
 }
 
@@ -43,21 +44,23 @@
 #set text(font: font.regular, size: 9.5pt, fill: ink, lang: "de", region: "de", number-type: "lining", number-width: "tabular")
 #set par(leading: 0.55em, spacing: 0.9em)
 
-#let footer-col(lines) = {
+#let footer-col(lines, breite: foot-breite) = {
   set text(size: 7pt, fill: muted)
   set par(leading: 0.45em)
-  context lines.map(zeile => umbrechbar(zeile, wort => text(wort))).join(linebreak())
+  context lines.map(zeile => umbrechbar(zeile, breite)).join(linebreak())
 }
 
 // Eigene Spalten: je Zeile die ausgezeichneten Abschnitte
 #let footer-col-formatted(lines) = {
   set text(size: 7pt, fill: muted)
   set par(leading: 0.45em)
-  context lines.map(runs => formatted(runs, umbrechen: true)).join(linebreak())
+  // Ein Wort kann über mehrere Auszeichnungen laufen, darum zählt die ganze Zeile
+  let zu-breit(runs) = runs.map(run => run.text).join("").split(" ").any(wort => measure(semibold(text(wort))).width > foot-breite)
+  context lines.map(runs => formatted(runs, umbrechen: zu-breit(runs))).join(linebreak())
 }
 
 // Pflichtangaben über die ganze Breite unter den Spalten des Fußes
-#let legal-foot = if legal == none { none } else { pad(top: 2mm, footer-col((legal,))) }
+#let legal-foot = if legal == none { none } else { pad(top: 2mm, footer-col((legal,), breite: 165mm)) }
 
 // Leer, wenn das Briefpapier selbst den Fuß trägt
 #let foot-spalten = if d.footer.len() == 0 { none } else {

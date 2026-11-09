@@ -63,8 +63,8 @@ export function footerValues(seller: FooterSeller): FooterValues {
   };
 }
 
-/** Die Schriften decken Latein, Griechisch und Kyrillisch ab; für anderes findet Typst in PDF/A keine Schrift und bricht ab */
-const WITHOUT_FONT = /[^\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Script=Common}\p{Script=Inherited}]/gu;
+/** Die Schriften decken Latein, Griechisch und Kyrillisch ab; für anderes und Emojis außerhalb der Grundebene findet Typst in PDF/A keine Schrift und bricht ab */
+const WITHOUT_FONT = /[^\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Script=Common}\p{Script=Inherited}]|[\u{10000}-\u{10FFFF}]/gu;
 
 const TAX_PLACEHOLDER = /\{(steuernummer|ustid)\}/;
 

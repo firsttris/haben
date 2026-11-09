@@ -41,6 +41,7 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Textebene", () => {
     const text = textebene(
       renderInvoicePdf({ ...sampleDocument(), seller, options: { ...DEFAULT_OPTIONS, footerColumns: ["{firma}", "{iban}", "{email}", "{steuernummer}"] } }),
     )!;
-    expect(text).toContain(name);
+    // Die Zeile darf am Bindestrich umbrechen; pdftotext zieht ihn dort weg, darum je Namensteil
+    for (const teil of name.split("-")) expect(text).toContain(teil);
   });
 });
