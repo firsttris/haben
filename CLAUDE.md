@@ -81,6 +81,8 @@ Skill `checks` has the details:
   runs for a pull request that only touches Markdown, `docs/` or `LICENSE` (`paths-ignore`): build the docs
   locally then.
 - Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
+  Reference issues in the description with `Refs #…`, never `Closes`/`Fixes`: GitHub would close the issue on
+  merge, but it stays open with `rückmeldung` until the release and the author's answer.
   Commits inside a pull request: Conventional Commits types with a German description
   (`fix(belege): …`, `test: …`). A recommendation, no lint.
 - Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
