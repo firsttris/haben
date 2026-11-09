@@ -5,7 +5,7 @@ description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler meld
 
 # TDD-Review
 
-Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“; die Regeln des Projekts in `CLAUDE.md`.
+Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
 
 ## 0. Wer reviewt?
 
@@ -19,7 +19,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 - Diff holen (`git fetch origin main <branch>`, `git diff origin/main...<branch>`) und **sofort** reviewen. Vorher keine Test-Suite laufen lassen.
 - Mit `git merge-tree --write-tree origin/main <branch>` prüfen, ob der Branch noch konfliktfrei auf `main` passt.
 - Gesucht werden echte Fehler: falsche Logik, Randfälle (null, leer, Grenzwerte, Vorzeichen, Gutschriften), Fehlerbehandlung, Race Conditions, Sicherheitslücken, Regressionen gegenüber dem bisherigen Verhalten. Auch die anderen Stellen ansehen, die die geänderten Funktionen oder Daten nutzen.
-- Fachlich in Haben besonders: Buchungen in **SKR03 und SKR04**, **Ist und Soll**, **Einzelunternehmen und GmbH**; Abgleich Journal ↔ Voranmeldung/EÜR, E-Bilanz, DATEV-Export; GoBD-Sperren und Siegel; Geld in ganzen Cent. Hängt ein Detail an Steuerrecht oder einem Format, die Quelle nennen (CLAUDE.md, „Reference implementations“).
+- Fachlich in Haben besonders: Buchungen in **SKR03 und SKR04**, **Ist und Soll**, **Einzelunternehmen und GmbH**; Abgleich Journal ↔ Voranmeldung/EÜR, E-Bilanz, DATEV-Export; GoBD-Sperren und Siegel; Geld in ganzen Cent. Hängt ein Detail an Steuerrecht oder einem Format, die Quelle nennen (`docs/entwicklung.md`, Konventionen, „Quellen statt Gedächtnis“).
 - Keine Anmerkungen zu Stil, Namen oder Geschmack.
 
 ## 2. Jeden Verdacht mit einem Test beweisen
@@ -41,20 +41,8 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
-- **Commits von Beitragenden nie ändern, umschreiben oder rebasen**; Fixes kommen als neue Commits obendrauf, kein Force-Push auf fremde Branches. Fixes direkt auf den Branch des Pull Requests pushen: bei Collaborators liegt er im Repo, bei einem Fork geht es, wenn „Allow edits by maintainers“ an ist. Geht das nicht, den Beitragenden bitten, „Allow edits by maintainers“ einzuschalten; nur als letzter Ausweg auf einem eigenen Branch von dessen Stand weiterarbeiten und dafür einen eigenen PR öffnen. Liegt der Branch nur hinter `main`, ohne Konflikt: nichts tun, kein Update und kein eigener Branch.
-- Dann alle Prüfungen aus CLAUDE.md:
-
-  ```sh
-  bun run lint
-  bun run typecheck
-  TEST_DATABASE_URL=postgres://…/haben_test bun run test
-  bun run build
-  E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e   # wenn die Oberfläche betroffen ist; Name endet auf „e2e“
-  zensical build --strict                              # wenn docs/ oder mkdocs.yml geändert sind
-  ```
-
-  Ohne Bun auf dem Rechner oder ohne PostgreSQL: dieselben Prüfungen im Dev-Container (Skill `checks`). Übersprungene Tests im Abschlusskommentar nennen.
-  Beide Datenbanken werden geleert; nie auf einen Server mit echten Daten zeigen lassen. Ohne PostgreSQL 18 im Container geht das installierte PostgreSQL (`initdb`, `pg_ctl … -o '-p 5433'`). Der E2E-Server nutzt Port 3100.
+- Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/entwicklung.md` unter „Review“, Schritt 4.
+- Dann alle Prüfungen nach Skill `checks`, übersprungene Tests im Abschlusskommentar nennen.
 - Auf den PR-Branch pushen.
 
 ## 5. Grün prüfen
@@ -66,7 +54,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 - Mergen darf nur, wer Maintainer von Haben ist und das ausdrücklich will. Wer beiträgt, hört nach Schritt 5 auf.
 - Vor dem Merge prüfen: alle Findings behoben, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`.
-- Merge-Methode wie in CLAUDE.md: immer **Squash**, und zwar den Pull Request selbst, auch den eines Beitragenden (GitHub zeigt ihn dann als gemergt, der Commit trägt seinen Namen). Nur beim eigenen Ersatz-PR (letzter Ausweg) `Co-authored-by: <Beitragender>` in die Commit-Nachricht und seinen PR mit Link schließen.
+- Merge-Methode nach `docs/entwicklung.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
 - **Nicht mergen**, wenn ein Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
 
 ## Abschlussbericht
