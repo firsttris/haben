@@ -1,4 +1,5 @@
 import { mapSevCreditNote, type SevCreditNote } from "@haben/import";
+import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -26,12 +27,14 @@ const positions = [{ sumNet: "100.00", sumTax: "19.00", sumGross: "119.00", taxR
 describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Postgres)", () => {
   let lexoffice: typeof import("./lexoffice.ts");
   let legacy: typeof import("./legacy-open.ts");
+  let exporter: typeof import("./export.ts");
   let sql: postgres.Sql;
 
   beforeAll(async () => {
     sql = await setupTestDb();
     lexoffice = await import("./lexoffice.ts");
     legacy = await import("./legacy-open.ts");
+    exporter = await import("./export.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -85,7 +88,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Po
       const id = await insert(category);
       const [listed] = await lexoffice.listLegacyVouchers({ year: 2025, direction: "ausgabe", search: "", ohneDatei: false });
       expect(listed).toMatchObject({ id, type: "purchasecreditnote", direction: "ausgabe", net: 10_000, tax: 1_900, gross: 11_900 });
-      const detail = (await lexoffice.legacyVoucherDetail(id)).voucher;
+      const detail = (await lexoffice.legacyVoucherDetail(id))!.voucher;
       expect(detail).toMatchObject({ direction: "ausgabe", net: 10_000, tax: 1_900, gross: 11_900, taxes: [{ rate: 1900, net: 10_000, tax: 1_900 }] });
       const period = await lexoffice.legacyVouchersForPeriod({ period: "2025-03", direction: "ausgabe", search: "", withPayments: false, limit: 10 });
       expect(period.vouchers[0]).toMatchObject({ direction: "ausgabe", net: 10_000, tax: 1_900, gross: 11_900 });
@@ -104,7 +107,25 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Po
     expect(y.einnahmen).toEqual({ count: 1, net: -10_000, tax: -1_900, gross: -11_900 });
     expect(y.ausgaben).toMatchObject({ count: 0, gross: 0 });
     expect(y.vat[0]).toMatchObject({ kz66: 0, kz81: -10_000, tax81: -1_900 });
-    expect((await lexoffice.legacyVoucherDetail(id)).voucher).toMatchObject({ type: "creditnote", direction: "einnahme", gross: -11_900 });
+    expect((await lexoffice.legacyVoucherDetail(id))!.voucher).toMatchObject({ type: "creditnote", direction: "einnahme", gross: -11_900 });
+  });
+
+  it("nennt im Jahresexport Ausgabe-Gutschrift und positiven Betrag", async () => {
+    await insert("PROVISION");
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of exporter.exportYear(2025)) chunks.push(chunk);
+    const lines = new TextDecoder().decode(unzipSync(Buffer.concat(chunks))["lexoffice/belege.csv"]!).split(/\r?\n/);
+    const separator = lines[0]!.includes(";") ? ";" : ",";
+    const header = lines[0]!
+      .replace(/^\uFEFF/, "")
+      .split(separator)
+      .map((c) => c.replaceAll('"', ""));
+    const row = lines
+      .find((l) => l.includes("GS-1"))!
+      .split(separator)
+      .map((c) => c.replaceAll('"', ""));
+    expect(row[header.indexOf("Brutto")]).toMatch(/^119[.,]00$/);
+    expect(row).toContain("Ausgabe-Gutschrift");
   });
 
   it("ändert die gespeicherte Zeile nicht", async () => {

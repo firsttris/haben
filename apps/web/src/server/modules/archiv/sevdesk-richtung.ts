@@ -15,17 +15,35 @@ function sevdeskVoucher(alias: string) {
   };
 }
 
+/**
+ * Honorar und Provision bucht sevDesk im Soll eines Aufwandskontos mit Vorsteuer, belegt am DATEV-Export (#472). Der Abruf
+ * speichert jede Gutschrift als negative Einnahme; die Zeile bleibt, Richtung und Vorzeichen folgen zur Laufzeit.
+ */
+const EXPENSE_CREDIT_NOTE_CATEGORIES = ["ROYALTY_ASSIGNED", "ROYALTY_UNASSIGNED", "PROVISION"];
+
+function expenseCreditNote(alias: string): string {
+  const categories = EXPENSE_CREDIT_NOTE_CATEGORIES.map((c) => `'${c}'`).join(", ");
+  return `(${alias}.source = 'sevdesk' and ${alias}.lexoffice_id like 'creditnote/%' and upper(coalesce(${alias}.raw->>'bookingCategory', '')) in (${categories}))`;
+}
+
+/** Netto, Steuer oder Brutto mit dem Vorzeichen, das zur effektiven Richtung gehört. */
+export function effectiveAmount(alias: string, column: "net" | "tax" | "gross"): SQL<number> {
+  return sql.raw(`case when ${expenseCreditNote(alias)} then -${alias}.${column} else ${alias}.${column} end`) as SQL<number>;
+}
+
 export function effectiveDirection(alias: string): SQL<"einnahme" | "ausgabe"> {
   const { isVoucher, income } = sevdeskVoucher(alias);
-  return sql.raw(`case when ${isVoucher} then case when ${income} then 'einnahme' else 'ausgabe' end else ${alias}.direction end`) as SQL<
-    "einnahme" | "ausgabe"
-  >;
+  return sql.raw(
+    `case when ${expenseCreditNote(alias)} then 'ausgabe' when ${isVoucher} then case when ${income} then 'einnahme' else 'ausgabe' end else ${alias}.direction end`,
+  ) as SQL<"einnahme" | "ausgabe">;
 }
 
 export function effectiveType(alias: string): SQL<string> {
   const { isVoucher, income } = sevdeskVoucher(alias);
   const kind = (prefix: string) => `case when ${alias}.gross < 0 then '${prefix}creditnote' else '${prefix}invoice' end`;
-  return sql.raw(`case when ${isVoucher} then case when ${income} then ${kind("sales")} else ${kind("purchase")} end else ${alias}.type end`) as SQL<string>;
+  return sql.raw(
+    `case when ${expenseCreditNote(alias)} then 'purchasecreditnote' when ${isVoucher} then case when ${income} then ${kind("sales")} else ${kind("purchase")} end else ${alias}.type end`,
+  ) as SQL<string>;
 }
 
 /**
@@ -49,5 +67,7 @@ export function effectiveTaxes(alias: string): SQL<LegacyTaxRow[]> {
     where ${distance} <= 10000 order by head.rate = any(array[${SEV_TEMPORARY_HEAD_RATES.join(",")}]), ${distance}, head.position limit 1)`;
   const withoutPositions = `${alias}.source = 'sevdesk' and ${alias}.tax <> 0 and (${alias}.raw->'positions' is null or ${alias}.raw->'positions' = '[]'::jsonb)
     and jsonb_array_length(${alias}.taxes) = 1 and (${alias}.taxes->0->>'rate')::int = 0`;
-  return sql.raw(`case when ${withoutPositions} then coalesce(${fromHead}, ${alias}.taxes) else ${alias}.taxes end`) as SQL<LegacyTaxRow[]>;
+  const taxes = `case when ${withoutPositions} then coalesce(${fromHead}, ${alias}.taxes) else ${alias}.taxes end`;
+  const mirrored = `(select coalesce(jsonb_agg(jsonb_build_object('rate', (row->>'rate')::int, 'net', -(row->>'net')::int, 'tax', -(row->>'tax')::int)), '[]'::jsonb) from jsonb_array_elements(${taxes}) as row)`;
+  return sql.raw(`case when ${expenseCreditNote(alias)} then ${mirrored} else ${taxes} end`) as SQL<LegacyTaxRow[]>;
 }

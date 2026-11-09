@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { effectivePayment } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -1293,6 +1293,9 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
       direction: effectiveDirection("lexoffice_vouchers"),
       contactName: effectiveContactName("lexoffice_vouchers"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
