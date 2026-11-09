@@ -117,6 +117,24 @@ describe("parseBmfRates", () => {
     ]);
   });
 
+  it("liest Monatsköpfe mit mehreren Fußnoten", () => {
+    expect(parseBmfRates(["Land;Währung;Januar [1][2]", "USA;1 Euro;1,1738 USD"].join("\n"), 2026)).toEqual([
+      { currency: "USD", month: "2026-01", rate: "1.1738" },
+    ]);
+  });
+
+  it("nur das Jahr im Titel zählt: Aktenzeichen und Stand-Datum vor dem Kopf sperren die Datei nicht", () => {
+    const usd = [{ currency: "USD", month: "2026-01", rate: "1.1738" }];
+    const tabelle = "Land;Währung;Januar\nUSA;1 Euro;1,1738 USD";
+    expect(parseBmfRates(`Umsatzsteuer-Umrechnungskurse\nGZ III C 3 - S 7329/00014/008/002\n${tabelle}`, 2026)).toEqual(usd);
+    expect(parseBmfRates(`Umsatzsteuer-Umrechnungskurse\nStand: 4. Januar 2027\n${tabelle}`, 2026)).toEqual(usd);
+  });
+
+  it("eine Datei für 2025 wird auch mit Stand im Januar 2026 nicht als 2026 gelesen", () => {
+    const csv = "Umsatzsteuer-Umrechnungskurse 2025 (Euro-Referenzkurse)\nStand: 2. Januar 2026\nLand;Währung;Januar[1]\nUSA;1 Euro;1,0354 USD";
+    expect(parseBmfRates(csv, 2026)).toEqual([]);
+  });
+
   it("ohne Kopfzeile mit Monaten oder für ein anderes Jahr: nichts", () => {
     expect(parseBmfRates("<html>Fehler</html>", 2026)).toEqual([]);
     expect(parseBmfRates("Land;01/2025\nUSA;1,05 USD", 2026)).toEqual([]);
