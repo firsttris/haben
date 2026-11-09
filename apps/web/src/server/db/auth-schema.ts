@@ -174,6 +174,8 @@ export const ssoTakeovers = pgTable("sso_takeovers", {
   userId: text("user_id").notNull(),
   issuer: text("issuer").notNull(),
   subject: text("subject").notNull(),
+  /** Bisheriges Subject, wenn die Übernahme eine Identität ersetzt hat */
+  replacedSubject: text("replaced_subject"),
 });
 
 /** Nachweis einer expliziten Offline-Vorbereitung des lokalen Inhabers, nur anhängen. */

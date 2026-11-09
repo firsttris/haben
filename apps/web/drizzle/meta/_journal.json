@@ -1310,6 +1310,13 @@
       "when": 1794233720283,
       "tag": "0186_oidc_gruppen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1794243934633,
+      "tag": "0187_oidc_uebernahme_ersetzt",
+      "breakpoints": true
     }
   ]
 }

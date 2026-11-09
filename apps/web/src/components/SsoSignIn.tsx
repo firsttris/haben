@@ -7,7 +7,8 @@ const ssoReasons = (provider: string): Record<string, string> => ({
   "gruppen-doppelt": "Kein Zugang: Dein Konto gehört beiden Haben-Gruppen an. Bitte die Zuordnung beim Anbieter korrigieren lassen.",
   gruppe: `Kein Zugang: Dein Konto ist in ${provider} keiner Haben-Gruppe eindeutig zugeordnet. Bitte den Betreiber fragen.`,
   "nicht-eingerichtet": "Haben ist noch nicht eingerichtet. Die erste Anmeldung muss ein Inhaber übernehmen.",
-  "konto-vorhanden": "Zu dieser E-Mail gibt es schon ein Haben-Konto ohne SSO-Zuordnung. Der Betreiber kann es mit der SSO-Übernahme ausdrücklich zuordnen.",
+  "konto-vorhanden":
+    "Zu dieser E-Mail gibt es schon ein Haben-Konto ohne passende SSO-Zuordnung. Der Betreiber kann es mit der SSO-Übernahme ausdrücklich zuordnen.",
   fehler: "Die SSO-Anmeldung ist fehlgeschlagen. Bitte erneut versuchen oder den Betreiber fragen.",
 });
 
