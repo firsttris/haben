@@ -587,7 +587,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-logo { position: absolute; top: calc(20 * var(--mm)); right: calc(20 * var(--mm)); object-fit: contain; }
 .sheet-logo[data-seite="links"] { right: auto; left: calc(25 * var(--mm)); }
 .sheet-address { position: absolute; left: calc(20 * var(--mm)); top: calc(45 * var(--mm)); width: calc(85 * var(--mm)); height: calc(45 * var(--mm)); line-height: 1.35; }
-.sheet-sender { height: calc(17.7 * var(--mm)); display: flex; align-items: flex-end; padding-bottom: calc(2 * var(--mm)); font-size: calc(7 * 0.3528 * var(--mm)); color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-sender { height: calc(17.7 * var(--mm)); display: flex; align-items: flex-end; padding-bottom: calc(2 * var(--mm)); font-size: calc(7 * 0.3528 * var(--mm)); color: var(--ink-muted); line-height: 1.2; }
 .sheet-meta { position: absolute; left: calc(125 * var(--mm)); top: calc(50 * var(--mm)); width: calc(75 * var(--mm)); margin: 0; display: grid; grid-template-columns: auto 1fr; gap: calc(2.2 * var(--mm)) calc(4 * var(--mm)); font-size: calc(8.5 * 0.3528 * var(--mm)); line-height: 1.2; }
 .sheet-meta dt { color: var(--ink-muted); }
 .sheet-meta dd { margin: 0; text-align: right; white-space: nowrap; }

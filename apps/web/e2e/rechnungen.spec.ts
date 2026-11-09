@@ -649,6 +649,53 @@ test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und
   await expect(einleitung).toHaveValue("");
 });
 
+test("Absenderzeile: in der Vorschau von Rechnung und Angebot ganz zu sehen, lang umbrochen statt abgeschnitten (#518)", async () => {
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  const firmendaten = async (name: string, strasse: string, plz: string, ort: string) => {
+    await go("/einstellungen");
+    await firma.getByLabel("Name", { exact: true }).fill(name);
+    await firma.getByLabel("Straße und Hausnummer").fill(strasse);
+    await firma.getByLabel("PLZ").fill(plz);
+    await firma.getByLabel("Ort").fill(ort);
+    await firma.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+  };
+  // Beispiel aus dem Issue, 81 Zeichen: im PDF bricht die Zeile im 85 mm breiten Anschriftfeld um
+  const zeile = "Muster Consulting, Inh. Max Mustermann · Musterweg 8 · 09999 Musterhausen-Neudorf";
+  await firmendaten("Muster Consulting, Inh. Max Mustermann", "Musterweg 8", "09999", "Musterhausen-Neudorf");
+  try {
+    for (const [pfad, vorschau] of [
+      ["/rechnungen/neu", "Vorschau der Rechnung"],
+      ["/angebote/neu", "Vorschau des Angebots"],
+    ] as const) {
+      await go(pfad);
+      const absender = page.getByLabel(vorschau).locator(".sheet-sender");
+      await expect(absender).toHaveText(zeile);
+      // Der Text liegt ganz im Feld: nichts ragt rechts oder oben hinaus, die Zeile bricht in zwei Zeilen um
+      const mass = await absender.evaluate((feld) => {
+        const bereich = document.createRange();
+        bereich.selectNodeContents(feld);
+        const text = bereich.getBoundingClientRect();
+        const box = feld.getBoundingClientRect();
+        const zeilen = new Set([...bereich.getClientRects()].map((r) => Math.round(r.top))).size;
+        return {
+          ueberstandRechts: text.right - box.right,
+          ueberstandOben: box.top - text.top,
+          breiter: feld.scrollWidth - feld.clientWidth,
+          zeilen,
+        };
+      });
+      expect(mass.breiter, vorschau).toBeLessThanOrEqual(0);
+      expect(mass.ueberstandRechts, vorschau).toBeLessThanOrEqual(0.5);
+      expect(mass.ueberstandOben, vorschau).toBeLessThanOrEqual(0.5);
+      expect(mass.zeilen, vorschau).toBe(2);
+    }
+  } finally {
+    await firmendaten("Mustermann IT · Max Mustermann", "Musterstraße 12", "93047", "Regensburg");
+  }
+});
+
 test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mit „darin enthalten“", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();
