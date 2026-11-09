@@ -351,6 +351,19 @@ Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das 
 
 **Wiederkehrende Rechnungen** haben dieselbe Zahlungsart. Jede Rechnung nimmt das jüngste Mandat des Kunden, das an ihrem Fälligkeitstag gilt; so geht es nach einem neuen Mandat ohne Änderung an der Vorlage weiter. Gibt es keins, entsteht für den Termin keine Rechnung; die Vorlage zeigt den Grund, und der nächste Lauf holt den Termin nach, sobald ein Mandat da ist.
 
+### Sammeldatei für die Bank
+
+Unter **Verkauf › Lastschriften** stehen alle festgeschriebenen, offenen Rechnungen mit Zahlungsart Lastschrift, die noch in keiner Datei waren. Du wählst das **Gläubigerkonto** und die Rechnungen und lädst mit **Lastschriftdatei erzeugen** eine SEPA-Datei im Format pain.008.001.08 herunter, die du im Online-Banking hochlädst. Das Format folgt der [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version) der Deutschen Kreditwirtschaft (Version 3.9, Schema `pain.008.001.08_GBIC_5.xsd`; Version 26.11 behält es ab 15. November 2026 bei); ein Test prüft jede Datei gegen dieses Schema und das von ISO 20022.
+
+- **Einzugstag** ist die Fälligkeit der Rechnung, frühestens der zweite TARGET-Geschäftstag nach heute. Die Bank muss die Lastschrift spätestens einen TARGET-Tag vor Fälligkeit an die Bank des Kunden geben ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) v1.2, Kap. 4.3.4). TARGET-Tage sind Montag bis Freitag außer Neujahr, Karfreitag, Ostermontag, 1. Mai, 25. und 26. Dezember ([Bundesbank](https://www.bundesbank.de/resource/blob/749314/edbf269e7e236ff9dcf3e95dab122a0b/472B63F073F071307366337C94F8C870/feiertage-in-deutschland-1-data.pdf)). Hat deine Bank eine frühere Annahmeschlusszeit, lade die Datei entsprechend früher hoch.
+- **Frühestens 14 Kalendertage vor Fälligkeit** lässt sich eine Lastschrift einreichen (Kap. 4.3.4); spätere Rechnungen stehen mit dem Tag in der Liste, ab dem sie gehen.
+- **Erst- oder Folgelastschrift:** Die erste Lastschrift aus Haben auf ein neues Mandat ist eine Erstlastschrift (FRST), alle weiteren und die auf übernommene Mandate Folgelastschriften (RCUR). FRST ist seit 2016 optional; die Banken nehmen auch eine erste Lastschrift mit RCUR an ([Clarification Paper](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf) EPC132-17 v5.1, Kap. 2.7; Anlage 3, Kap. 2.2.2.5).
+- **Ein Sammler je Einzugstag, Verfahren und Sequenz.** Die Bank schreibt jeden Sammler als eine Summe gut (Sammelbuchung); der Bankabgleich teilt sie auf die Rechnungen auf. Im Verwendungszweck steht „Rechnung“ und die Nummer.
+- **Mandat:** Es muss am Einzugstag gelten. Jede Lastschrift aus Haben zählt als Einzug, auch wenn sie später zurückkommt; ab ihrem Einzugstag laufen die 36 Monate bis zum Verfall neu.
+- Lastschriften gehen nur von Konten im EWR; außerhalb verlangt die Deutsche Kreditwirtschaft die Anschrift des Zahlungspflichtigen.
+
+Gebucht wird beim Erzeugen nichts. Die Rechnung bleibt offen, bis der Bankabgleich die Gutschrift zuordnet. Unter **Erzeugte Dateien** lädst du jede Datei erneut herunter; Datei und Lastschriften lassen sich nicht ändern oder löschen.
+
 ## Rechnungen in Fremdwährung
 
 Für Kunden im Ausland stellst du die Rechnung in deren Währung aus: im Editor bei **Währung** den Code eintragen, z. B. `USD`, und die Preise in dieser Währung. PDF und E-Rechnung zeigen alle Beträge in dieser Währung. Die Umsatzsteuer steht zusätzlich in Euro auf der Rechnung, wie es § 14 Abs. 4 Nr. 8 UStG mit Abschn. 14.5 UStAE verlangt, etwa „Umsatzsteuer in Euro, 1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026): Umsatzsteuer 19 % 166,94 €“. Im XML ist Euro die Steuerwährung (BT-6) mit der Steuer in Euro (BT-111).
