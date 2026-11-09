@@ -125,6 +125,8 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 
 Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src`, `packages/*/src` und `scripts/` ein und führt die Dateien parallel aus, eine Datei je Worker.
 
+Komponenten rendern die Tests wie Browser und SSR mit TanStack Redact: `vitest.config.ts` lädt das Plugin `redact()`, das Imports aus `react` und `react-dom/server` umleitet. Dafür steht `@tanstack/redact` zusätzlich in den Dev-Abhängigkeiten der Wurzel, weil Bun isoliert installiert und die Wurzel das Paket aus `apps/web` nicht sieht; beide Einträge tragen dieselbe feste Version (`apps/web/src/components/redact-laufzeit.test.ts` prüft das). Pakete aus `node_modules` lädt Vitest weiter extern, sie sehen also React; eine Komponente, die Hooks eines solchen Pakets nutzt (etwa aus `@tanstack/react-router`), bricht im Test deshalb mit `dispatcher.useContext` ab.
+
 ```sh
 bun run test
 TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
