@@ -1,6 +1,6 @@
 import { formatEuro } from "@haben/core";
 import { useState } from "react";
-import { searchOptions } from "../lib/combobox.ts";
+import { sameEntry, searchOptions } from "../lib/combobox.ts";
 import { Combobox, type ComboboxOption } from "./Combobox.tsx";
 
 export interface ArticleOption {
@@ -47,6 +47,8 @@ export function ArticleCombobox({
   onBlur: () => void;
 }) {
   const typed = value.trim();
+  // Ein Name, den es schon gibt, wird nicht als neuer Artikel angeboten: etwa nach der Auswahl eines Artikels
+  const name = articles.some((a) => sameEntry(a.description, typed)) ? "" : typed;
   return (
     <Combobox
       freeText
@@ -60,7 +62,7 @@ export function ArticleCombobox({
       describe={describeArticle}
       onPick={onPick}
       // Wer keinen Katalog führt, bekommt beim Tippen keine Liste
-      create={typed && articles.length > 0 ? { label: `„${typed}“ als neuen Artikel anlegen`, run: () => onCreate(typed) } : null}
+      create={articles.length > 0 ? { label: name ? `„${name}“ als neuen Artikel anlegen` : "Neuen Artikel anlegen", run: () => onCreate(name) } : null}
     />
   );
 }

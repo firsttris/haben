@@ -39,6 +39,12 @@ export function searchOptions<T>(
   return { hits: ordered.slice(0, limit).map((m) => m.item), total: ordered.length };
 }
 
+/** Dieselbe Bezeichnung, verglichen wie in der Suche; ein leerer Text gleicht nichts */
+export function sameEntry(a: string, b: string): boolean {
+  const compare = (text: string) => normalize(text).replace(/\s+/g, " ").trim();
+  return compare(a) !== "" && compare(a) === compare(b);
+}
+
 /** Nächster aktiver Eintrag bei Pfeil hoch oder runter; -1 heißt: keiner, der Fokus steht im Feld */
 export function moveActive(active: number, count: number, key: "ArrowDown" | "ArrowUp"): number {
   if (count === 0) return -1;

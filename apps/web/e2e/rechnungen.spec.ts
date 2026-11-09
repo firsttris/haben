@@ -527,6 +527,15 @@ test("Artikel in der Position suchen: übernimmt Preis, Einheit und USt, bleibt 
   await beschreibung.click();
   await expect(trefferliste(page).getByRole("option", { name: "Beratung Softwarearchitektur" })).toBeVisible();
   await expect(beschreibung).not.toHaveAttribute("aria-activedescendant", /.+/);
+  // Das Anlegen steht immer am Ende, auch neben Treffern; ein schon vorhandener Name wird nicht angeboten
+  await expect(trefferliste(page).getByRole("option", { name: "Neuen Artikel anlegen" })).toBeVisible();
+  await beschreibung.fill("Beratung");
+  await expect(trefferliste(page).getByRole("option", { name: "Beratung Softwarearchitektur" })).toBeVisible();
+  await expect(trefferliste(page).getByRole("option", { name: "„Beratung“ als neuen Artikel anlegen" })).toBeVisible();
+  await beschreibung.fill("beratung softwarearchitektur");
+  await expect(trefferliste(page).getByRole("option", { name: "als neuen Artikel anlegen" })).toHaveCount(0);
+  await expect(trefferliste(page).getByRole("option", { name: "Neuen Artikel anlegen" })).toBeVisible();
+  await beschreibung.fill("");
   await page.keyboard.press("Escape");
   await expect(trefferliste(page)).toBeHidden();
 
@@ -1130,7 +1139,7 @@ test("Kasse: Bareinnahme ohne Rechnung als Tagessumme mit Steuer und Notiz, Stor
 
 test("Kasse: Barzahlung aufteilen, Rechnung voll und Trinkgeld als weitere Einnahme (#455)", async () => {
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Rechnungsdatum").fill(day(-1));
   await page.getByLabel("Beschreibung Position 1").fill("Fotoshooting, bar bezahlt mit Trinkgeld");
   await page.getByLabel("Menge Position 1").fill("1");

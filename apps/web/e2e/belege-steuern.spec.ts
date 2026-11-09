@@ -4,7 +4,19 @@ import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { bestaetigen, faktenZeigen, dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, kundeWaehlen, ohneAxeVerstoesse, receiptJpeg, trefferliste } from "./einrichtung.ts";
+import {
+  bestaetigen,
+  faktenZeigen,
+  dkb,
+  durchlaufSeite,
+  einrichten,
+  gehe,
+  kontrasteInThemes,
+  kundeWaehlen,
+  ohneAxeVerstoesse,
+  receiptJpeg,
+  trefferliste,
+} from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 
 /**

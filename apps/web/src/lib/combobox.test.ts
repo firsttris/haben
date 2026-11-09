@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMBOBOX_LIMIT, moveActive, searchOptions } from "./combobox.ts";
+import { COMBOBOX_LIMIT, moveActive, sameEntry, searchOptions } from "./combobox.ts";
 
 interface Kunde {
   name: string;
@@ -67,6 +67,21 @@ describe("searchOptions", () => {
 
   it("nennt ohne Treffer null", () => {
     expect(searchOptions(KUNDEN, "gibtesnicht", felder)).toEqual({ hits: [], total: 0 });
+  });
+});
+
+describe("sameEntry", () => {
+  it("vergleicht wie die Suche, ohne Rand und Schreibweise", () => {
+    expect(sameEntry("  Müller Beratung ", "muller beratung")).toBe(true);
+    expect(sameEntry("Beratung", "Beratung Softwarearchitektur")).toBe(false);
+  });
+
+  it("zählt Leerzeichen im Text nicht mehrfach", () => {
+    expect(sameEntry("Beratung  Software", "Beratung Software")).toBe(true);
+  });
+
+  it("nennt leere Texte nicht gleich", () => {
+    expect(sameEntry("", "  ")).toBe(false);
   });
 });
 

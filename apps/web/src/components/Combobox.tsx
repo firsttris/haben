@@ -10,11 +10,10 @@ export interface ComboboxOption {
   selected?: boolean;
 }
 
-/** Letzte Zeile der Liste: etwas Neues anlegen; ohne always nur, wenn nichts passt */
+/** Letzte Zeile der Liste: etwas Neues anlegen */
 export interface ComboboxCreate {
   label: string;
   run: () => void;
-  always?: boolean;
 }
 
 /**
@@ -68,7 +67,7 @@ export function Combobox<T>({
 
   const { hits, total } = open ? search() : { hits: [] as T[], total: 0 };
   const options = hits.map(describe);
-  const createRow = open && create && (create.always || hits.length === 0) ? create : null;
+  const createRow = open && create ? create : null;
   const createIndex = createRow ? options.length : -1;
   const rows = options.length + (createRow ? 1 : 0);
   const selectedRow = options.findIndex((option) => option.selected);

@@ -59,7 +59,6 @@ export function CustomerCombobox({
       })}
       onPick={(c) => choose(c.id)}
       create={{
-        always: true,
         label: typed ? `„${typed}“ als neuen Kunden anlegen` : "Neuen Kontakt anlegen",
         run: () => {
           setQuery(null);

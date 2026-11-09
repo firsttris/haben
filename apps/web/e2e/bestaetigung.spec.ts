@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
+import { kundeWaehlen } from "./einrichtung.ts";
 
 /**
  * Der einheitliche Bestätigungsdialog (ConfirmDialog, #404), am Festschreiben im Rechnungsentwurf: Geschrieben wird
@@ -10,8 +11,8 @@ import { SESSION } from "./daten.ts";
 test.use({ storageState: SESSION });
 
 async function neuerEntwurf(page: Page) {
-  await page.goto("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
@@ -34,7 +35,7 @@ test("Der Dialog ist modal, nennt die Folgen und hat den Fokus auf Abbrechen, di
 
 test("Festschreiben nennt Nummer, Kunde und Betrag über den Folgen", async ({ page }) => {
   const ausloeser = await neuerEntwurf(page);
-  const kunde = (await page.getByLabel("Kunde").locator("option:checked").textContent())?.split(" · ")[0]?.trim() ?? "";
+  const kunde = (await page.getByLabel("Kunde").inputValue()).split(" · ")[0]!.trim();
   await ausloeser.click();
   const dialog = rueckfrage(page);
   await expect(dialog.locator("dt")).toHaveText(["Nummer", "Kunde", "Betrag"]);
