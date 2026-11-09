@@ -346,9 +346,9 @@ frontend haben
     http-response set-header X-Content-Type-Options nosniff
     http-response set-header Referrer-Policy same-origin
     http-response set-header X-Frame-Options SAMEORIGIN
-    default_backend haben
+    default_backend haben-app
 
-backend haben
+backend haben-app
     server app haben-app:3000 resolvers docker init-addr none
 ```
 
