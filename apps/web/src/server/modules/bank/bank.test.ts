@@ -1112,6 +1112,26 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(open.map((r) => r.amount)).toEqual([-50]);
   }, 30_000);
 
+  // Test aus dem TDD-Review von @firsttris im PR #506 (Runde 2): Derselbe Etsy-Datensatz muss bei jedem Import mit demselben
+  // Betrag ankommen, egal welche Zeilen sonst in der Datei stehen, sonst legt der zweite Import ihn ein weiteres Mal an
+  it("Etsy: laufender Monat, dann ganzer Monat importiert: das Guthaben ist das Netto der Datei (Review #506)", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    const header = `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`;
+    const early = [
+      `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+      `"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€1.30,€1.30,--`,
+    ];
+    const later = [
+      `"March 25, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€6.00,--,-€6.00,--`,
+      `"March 25, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€0.90,€0.90,--`,
+    ];
+    const file = (rows: string[]) => new TextEncoder().encode([header, ...rows].join("\n"));
+    await bank.importStatement(actor, { bytes: file(early), filename: "etsy-maerz-teil.csv" }, etsy.id);
+    await bank.importStatement(actor, { bytes: file([...later, ...early]), filename: "etsy-maerz.csv" }, etsy.id);
+    const [row] = await sql`select coalesce(sum(amount), 0)::int as total from bank_transactions where bank_account_id = ${etsy.id}`;
+    expect(row!.total).toBe(-500 + 130 - 600 + 90);
+  }, 30_000);
+
   it("Belegzahlung und Privatentnahme", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]);
     const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "telekom.jpg" });

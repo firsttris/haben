@@ -188,19 +188,64 @@ describe("Etsy-Monatsabrechnung", () => {
         ["2025-03-08", 10000, "Etsy", "Sale · Payment for Order #1"],
         ["2025-03-08", -336, "Etsy", "Tax · Sales tax paid by buyer · Order #7"],
       ]);
-      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung mit dem Nettobetrag übernommen."]);
+      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung am selben Tag mit dem Nettobetrag übernommen."]);
     });
 
-    it("mehrere Teilerstattungen derselben Bestellung: die Steuer lässt sich nicht zuordnen und bleibt mit Warnung einzeln", () => {
+    it("mehrere Teilerstattungen derselben Bestellung am selben Tag: die Steuer lässt sich nicht zuordnen und bleibt mit Warnung einzeln", () => {
       const s = parseStatement(
         english([
-          `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+          `"March 21, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
           `"March 21, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€6.00,--,-€6.00,--`,
           `"March 21, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€0.90,€0.90,--`,
         ]),
       );
       expect(s.transactions.map((t) => t.amount)).toEqual([-500, -600, 90]);
-      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung mit dem Nettobetrag übernommen."]);
+      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung am selben Tag mit dem Nettobetrag übernommen."]);
+    });
+
+    it("Teilerstattungen derselben Bestellung an verschiedenen Tagen bekommen jede ihre Steuer", () => {
+      const s = parseStatement(
+        english([
+          `"March 25, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€0.90,€0.90,--`,
+          `"March 25, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€6.00,--,-€6.00,--`,
+          `"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€1.30,€1.30,--`,
+          `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+        ]),
+      );
+      expect(s.transactions.map((t) => [t.bookingDate, t.amount])).toEqual([
+        ["2025-03-20", -370],
+        ["2025-03-25", -510],
+      ]);
+      expect(s.warnings).toEqual([]);
+    });
+
+    it("die Steuerzeile an einem anderen Tag als der Verkauf bleibt mit Warnung einzeln: gerechnet wird nur, was zusammen gebucht wurde", () => {
+      const s = parseStatement(english([sale(1, "€100.00"), `"March 9, 2025",Tax,"Sales tax paid by buyer","Order #1",EUR,--,-€3.36,-€3.36,--`]));
+      expect(s.transactions.map((t) => [t.bookingDate, t.amount])).toEqual([
+        ["2025-03-08", 10000],
+        ["2025-03-09", -336],
+      ]);
+      expect(s.warnings).toEqual(["1 Steuerzeile ohne Verkauf oder Erstattung derselben Bestellung am selben Tag mit dem Nettobetrag übernommen."]);
+    });
+
+    // Review #506 (Runde 2): Derselbe Datensatz muss bei jedem Import mit demselben Betrag und Zweck ankommen, sonst legt
+    // der zweite Import (etwa mitten im Monat und am Monatsende) ihn ein weiteres Mal an
+    it("Zeilen einer früheren Datei kommen in einer größeren Datei mit denselben Beträgen und Zwecken an", () => {
+      const early = [
+        `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+        `"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€1.30,€1.30,--`,
+        `"March 8, 2025",Sale,"Payment for Order #2",,EUR,€100.00,--,€100.00,--`,
+        `"March 8, 2025",Tax,"Sales tax paid by buyer","Order #2",EUR,--,-€3.36,-€3.36,--`,
+      ];
+      const later = [
+        `"March 25, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€6.00,--,-€6.00,--`,
+        `"March 25, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€0.90,€0.90,--`,
+        `"March 26, 2025",Refund,"Refund to buyer for Order #2",,EUR,-€10.00,--,-€10.00,--`,
+      ];
+      const first = brief(parseStatement(english(early)));
+      const whole = brief(parseStatement(english([...later, ...early])));
+      expect(first.length).toBeGreaterThan(0);
+      for (const row of first) expect(whole).toContainEqual(row);
     });
 
     it("die Summe aller Umsätze bleibt der Nettobetrag der Datei", () => {
