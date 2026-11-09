@@ -84,4 +84,15 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Textebene", () => {
     // Die Zeile darf am Bindestrich umbrechen; pdftotext zieht ihn dort weg, darum je Namensteil
     for (const teil of name.split("-")) expect(text).toContain(teil);
   });
+
+  it("lässt ein Wort aus fettem Vorsatz und Adresse unverändert, das in seinen tatsächlichen Schnitten in die Spalte passt", () => {
+    const email = "rechnung@mustermibau.de";
+    const wort = `Mail:${email}`;
+    const beleg = (footerColumns: string[]) =>
+      renderInvoicePdf({ ...sampleDocument(), seller: { ...sampleDocument().seller, email }, options: { ...DEFAULT_OPTIONS, footerColumns } });
+    const spalte = ((165 - 3 * 6) / 4 / 25.4) * 72;
+    // Vorab: In zwei Spalten ist Platz genug, dort steht das Wort unverändert mit seiner tatsächlichen Breite
+    expect(wortbreite(beleg(["*Mail:*{email}", "{steuernummer}"]), wort)).toBeLessThanOrEqual(spalte);
+    expect(textebene(beleg(["*Mail:*{email}", "Sprechzeiten", "Termine", "{steuernummer}"]))!).toContain(wort);
+  });
 });

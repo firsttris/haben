@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
+import { deflateSync } from "node:zlib";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
 import { HANDY, ziehen } from "./kopfzeile.ts";
@@ -584,6 +585,102 @@ test("Vorschau: Ein hoher Fuß deckt den Hinweis auf einem vollen Blatt nicht zu
     await karte.getByLabel("Eigene Fußzeile").uncheck();
     await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
     await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+    await page.context().close();
+  }
+});
+
+/** A4 im Verhältnis 210 × 297: oberste 10 % rot, der Rest weiß */
+function briefbogenPng(): Buffer {
+  const crcTabelle = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (daten: Buffer) => (daten.reduce((c, b) => crcTabelle[(c ^ b) & 0xff]! ^ (c >>> 8), 0xffffffff) ^ 0xffffffff) >>> 0;
+  const abschnitt = (typ: string, daten: Buffer) => {
+    const inhalt = Buffer.concat([Buffer.from(typ, "latin1"), daten]);
+    const laenge = Buffer.alloc(4);
+    laenge.writeUInt32BE(daten.length);
+    const pruefsumme = Buffer.alloc(4);
+    pruefsumme.writeUInt32BE(crc(inhalt));
+    return Buffer.concat([laenge, inhalt, pruefsumme]);
+  };
+  const breite = 210;
+  const hoehe = 297;
+  const kopf = Buffer.alloc(13);
+  kopf.writeUInt32BE(breite, 0);
+  kopf.writeUInt32BE(hoehe, 4);
+  kopf[8] = 8;
+  kopf[9] = 2;
+  const zeilen = Array.from({ length: hoehe }, (_, y) => {
+    const zeile = Buffer.alloc(1 + breite * 3, 255);
+    zeile[0] = 0;
+    if (y < 30) for (let x = 0; x < breite; x++) zeile.fill(Buffer.from([255, 0, 0]), 1 + x * 3, 4 + x * 3);
+    return zeile;
+  });
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    abschnitt("IHDR", kopf),
+    abschnitt("IDAT", deflateSync(Buffer.concat(zeilen))),
+    abschnitt("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+test("Vorschau: Das Briefpapier bleibt auf einem langen Blatt so groß wie im PDF", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles({ name: "bogen.png", mimeType: "image/png", buffer: briefbogenPng() });
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  try {
+    await page.goto("/rechnungen/neu");
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
+    await vorschauKnopf(page).click();
+    await expect.poll(() => blatt(page).evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("/api/briefpapier");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(600);
+    const { width, height } = (await blatt(page).boundingBox())!;
+    const a4Hoehe = (width * 297) / 210;
+    // Sonst prüft der Test nichts: Das Blatt muss deutlich länger sein als eine A4-Seite
+    expect(height).toBeGreaterThan(a4Hoehe * 1.3);
+    const bild = (await blatt(page).screenshot()).toString("base64");
+    const leer = await page.context().newPage();
+    const [oben, darunter] = await leer.evaluate(
+      async ({ bild, punkte }) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${bild}`;
+        await img.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        return punkte.map(([x, y]) => {
+          const [r, g, b] = ctx.getImageData(x!, y!, 1, 1).data;
+          // Farbmanagement des Screenshots verschiebt Werte um wenige Stufen
+          if (r! > 240 && g! < 20 && b! < 20) return "rot";
+          return r! > 240 && g! > 240 && b! > 240 ? "weiß" : `${r},${g},${b}`;
+        });
+      },
+      {
+        bild,
+        punkte: [
+          [Math.round(width * 0.02), Math.round(a4Hoehe * 0.05)],
+          [Math.round(width * 0.02), Math.round(a4Hoehe * 0.14)],
+        ],
+      },
+    );
+    await leer.close();
+    // Im PDF ist der rote Streifen 10 % einer A4-Seite hoch: bei 5 % rot, bei 14 % schon weiß
+    expect(oben).toBe("rot");
+    expect(darunter).toBe("weiß");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByRole("button", { name: "Entfernen" }).click();
+    await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
     await page.context().close();
   }
 });
