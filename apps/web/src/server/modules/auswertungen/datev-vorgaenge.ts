@@ -30,6 +30,8 @@ export interface DatevVorgang {
   voucher: string;
   /** Personenkonto der Buchung; null = weder Rechnung noch Beleg */
   bezug: PersonenkontoBezug | null;
+  /** Kontakt der Rechnung bzw. des Belegs, für die Vergabe einer fehlenden Nummer */
+  contactId: string | null;
   /**
    * Übernommener offener Posten ohne eigene Buchung: Sein Betrag steht in der Eröffnung aus dem DATEV-Stapel auf dem
    * Sammelkonto (siehe openingDependents), also bleibt auch alles dazu dort, sonst stünde der Kontakt nach der Zahlung im
@@ -131,7 +133,7 @@ export async function datevVorgaenge(entries: readonly Entry[]): Promise<Map<str
   for (const [id, link] of linked) {
     const s = source.get(link.invoiceId ?? link.documentId ?? "");
     if (!s) {
-      result.set(id, { voucher: "", bezug: null, inEroeffnung: false });
+      result.set(id, { voucher: "", bezug: null, contactId: null, inEroeffnung: false });
       continue;
     }
     const contact = s.contactId ? contacts.get(s.contactId) : undefined;
@@ -145,6 +147,7 @@ export async function datevVorgaenge(entries: readonly Entry[]): Promise<Map<str
         rolle,
         kontakt: contact ? { name: contact.name, nummer: rolle === "debitor" ? contact.debitorNr : contact.kreditorNr } : null,
       },
+      contactId: contact?.id ?? null,
     });
   }
   return result;

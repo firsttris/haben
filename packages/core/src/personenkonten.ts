@@ -42,3 +42,17 @@ export const personenkontenIm = (ab: number | null, year: number): boolean => ab
 export function personenkontenBetroffen(alt: number | null, neu: number | null, gebuchteJahre: readonly number[], heute: number): number[] {
   return [...new Set(gebuchteJahre)].filter((year) => year <= heute && personenkontenIm(alt, year) !== personenkontenIm(neu, year)).sort((a, b) => a - b);
 }
+
+/**
+ * Nummer für einen Kontakt ohne Personenkonto: nach der höchsten je vergebenen Nummer der Rolle, am Ende des Bereichs
+ * die erste nie vergebene; null = Bereich voll. `vergeben` enthält alle Nummern, die je an einem Kontakt standen oder
+ * exportiert wurden, damit keine wiederverwendet wird.
+ */
+export function naechstesPersonenkonto(rolle: PersonenkontoRolle, vergeben: Iterable<number>): number | null {
+  const { von, bis } = PERSONENKONTO_BEREICH[rolle];
+  const belegt = new Set([...vergeben].filter((nr) => nr >= von && nr <= bis));
+  const hoechste = Math.max(von - 1, ...belegt);
+  if (hoechste < bis) return hoechste + 1;
+  for (let nr = von; nr <= bis; nr++) if (!belegt.has(nr)) return nr;
+  return null;
+}
