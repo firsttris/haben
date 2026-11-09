@@ -186,6 +186,16 @@ Jede Überweisung einer [SEPA-Datei aus Haben](belege.md#überweisen-sepa-datei)
 
 Zugeordnet wird wie immer erst mit **Zuordnen**. Wurde mit Skonto überwiesen, bleibt danach der Skontobetrag offen; ihn buchst du mit **Rest … als erhaltenes Skonto** aus.
 
+### Lastschriften aus Haben
+
+Für Rechnungen mit Zahlungsart [Lastschrift](rechnungen.md#lastschrift) erzeugt Haben eine [Sammeldatei](rechnungen.md#sammeldatei-für-die-bank). Jede Lastschrift darin trägt eine eigene Referenz (EndToEndId, `HABEN-…`), jeder Sammler eine Kennung (PmtInfId).
+
+**Sammelgutschrift.** Die Bank schreibt jeden Sammler als eine Summe gut. Liefert der Auszug Einzelangaben (CAMT.053 mit `TxDtls`), zerlegt der Import die Summe schon in Einzelumsätze; jeder findet seine Rechnung über die Referenz wie unter [Überweisungen aus Haben](#überweisungen-aus-haben). Bleibt es eine Summe (etwa im CSV-Export der DKB), erkennt Haben sie am Betrag: Ergeben die noch nicht gutgeschriebenen Lastschriften eines Sammlers, oder alle Sammler desselben Einzugstags aus einer Datei, genau den Betrag, und liegt die Buchung zwischen einem Tag vor und 30 Tagen nach dem Einzugstag, steht rechts **Sammler einer Lastschriftdatei** mit den Rechnungen. **Auf … Rechnungen aufteilen** bucht jede Rechnung mit ihrem Betrag als Zahlung, als [Aufteilung](#aufteilen-splitbuchung).
+
+**Rücklastschrift.** Gibt die Bank des Kunden eine Lastschrift zurück (etwa mangels Deckung oder nach einem Widerspruch innerhalb von acht Wochen), bucht deine Bank den Betrag zurück, oft mit einem Entgelt. Haben erkennt die Rückgabe an der Referenz der Lastschrift oder an einem Rückgabetext (RETURN, REJECT, REFUND, Rücklastschrift) zusammen mit Mandatsreferenz oder „Rechnung …“, und nur bei einer schon gutgeschriebenen Lastschrift. Rechts steht dann **Rücklastschrift** mit Rechnung, Grund und Entgelt. Die Gründe stammen aus der Rückgabe (Anlage 3 des DFÜ-Abkommens, Kap. 7.1.7.12, `Rsn/Cd`), etwa AM04 „Rückgabe mangels Deckung“, AC04 „Konto aufgelöst“, MD01 „Kein gültiges Mandat“, MS02 „Rückgabe durch den Zahler“, MD06 „Erstattung auf Verlangen des Zahlers“ (Texte aus Anlage 3, Kap. 2.2.3.10.3, und EPC173-14 v8.1).
+
+**Rechnung wieder öffnen** bucht den Betrag als negative Zahlung auf die Rechnung und das Entgelt als Kontoführung und Bankgebühren; beides ist eine Aufteilung und lässt sich nur zusammen aufheben. Die Rechnung ist wieder offen und steht unter **Lastschriften** zum erneuten Einzug (jetzt als Folgelastschrift), solange das Mandat gilt. Die Rückgabe zählt für den Verfall des Mandats wie ein Einzug (Rulebook Kap. 4.2: „even if rejected, returned or refunded“). Ob du das Entgelt beim Kunden einforderst, entscheidest du; dafür gibt es die [Mahnung](rechnungen.md#mahnwesen) mit Gebühr.
+
 ## Zuordnen
 
 1. Umsatz links anklicken. Ohne Auswahl ist der erste offene Umsatz gewählt.
@@ -493,6 +503,17 @@ Bezahlt der Kunde bar, erfasst du das im [Kassenbuch](kasse.md#rechnung-bar-beza
 | --- | --- | ---: | ---: |
 | 4970 Nebenkosten Geldverkehr | 6855 Nebenkosten Geldverkehr | 9,90 | |
 | 1200 Bank | 1800 Bank | | 9,90 |
+
+**Rücklastschrift**, Beispiel 297,50 € auf eine Rechnung zu 19 % mit 3,00 € Entgelt: die Zahlung mit vertauschten Seiten, dazu die Gebühr.
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1400 Forderungen | 1200 Forderungen | 297,50 | |
+| 1200 Bank | 1800 Bank | | 297,50 |
+| 4970 Nebenkosten Geldverkehr | 6855 Nebenkosten Geldverkehr | 3,00 | |
+| 1200 Bank | 1800 Bank | | 3,00 |
+
+Bei **Ist-Versteuerung** geht die Umsatzsteuer zurück auf „nicht fällig“ (SKR03 1776 an 1766, SKR04 3806 an 3816, hier 47,50 €), denn das Entgelt ist nicht mehr vereinnahmt; mit dem nächsten Zahlungseingang wird sie wieder fällig. Bei Soll-Versteuerung bleibt die Steuer, wie sie ist.
 
 Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die Bank im Soll und das Gegenkonto im Haben. Steuerzahlungen stehen unter [Steuerzahlungen](#steuerzahlungen).
 
