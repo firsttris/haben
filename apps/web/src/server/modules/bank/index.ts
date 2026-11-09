@@ -95,3 +95,4 @@ export {
   type NeutralizationView,
   type NeutralizeInput,
 } from "./neutralisierung.ts";
+export { cashIncomeInputSchema, createCashIncome, type CashIncomeInput } from "./cash-income.ts";

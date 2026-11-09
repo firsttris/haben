@@ -155,7 +155,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | --- | --- | --- |
 | `journal_entries` | Buchungen mit Herkunft (Rechnung, Beleg, Zuordnung, Lohnabrechnung …) und Verweis auf die stornierte Buchung | geschrieben nur von `ledger.post`; gesperrt ab Entstehung, Soll = Haben beim Sperren (festgeschrieben wird erst nach den Zeilen), beim Commit festgeschrieben, Kontenrahmen = Firmendaten, Audit |
 | `journal_lines` | Buchungszeilen mit Konto, Soll, Haben, Steuerschlüssel | gesperrt mit der Buchung |
-| `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit, Bareinnahme auf eine Rechnung mit `invoice_id` und Steueranteil wie bei `allocations`), Buchung; Storno als Gegenzeile | nur anhängen, Bareinnahme nur auf eine festgeschriebene Rechnung, Audit |
+| `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit, Bareinnahme auf eine Rechnung mit `invoice_id` und Steueranteil wie bei `allocations`, Bareinnahme ohne Rechnung mit Behandlung und Satz in `tax_treatment`, `tax_rate`, nur zusammen und nur dort), Buchung; Storno als Gegenzeile | nur anhängen, Bareinnahme nur auf eine festgeschriebene Rechnung, Audit |
 | `bank_imports` | Jede importierte Auszugsdatei mit SHA-256, Zeitraum, Salden | nur anhängen, Audit |
 | `bank_transactions` | Importierte Umsätze mit Hash zur Deduplizierung; EndToEndId, soweit der Auszug sie nennt | nur anhängen |
 | `sepa_transfers` | Erzeugte SEPA-Dateien (pain.001) mit Auftraggeberkonto, Ausführungsdatum, Anzahl, Summe und XML | nur anhängen, Audit |

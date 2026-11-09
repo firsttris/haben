@@ -7,8 +7,11 @@ import {
   cashInvoiceInputSchema,
   createCashEntry,
   createCashInvoiceEntry,
+  cashIncomeInputSchema,
+  createCashIncome,
   reverseCashEntry,
 } from "../modules/bank/index.ts";
+import { kleinunternehmerStand } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
@@ -16,7 +19,13 @@ import { yearSchema } from "./schemas.ts";
 export const getCashBook = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(yearSchema)
-  .handler(async ({ data: year }) => ({ ...(await cashBook(year)), openInvoices: await cashInvoiceCandidates(), today: today() }));
+  .handler(async ({ data: year }) => ({
+    ...(await cashBook(year)),
+    openInvoices: await cashInvoiceCandidates(),
+    today: today(),
+    /** Steuer einer Bareinnahme ohne Rechnung: Das Formular bietet an, was der Server für den Monat der Bareinnahme annimmt */
+    kleinunternehmer: await kleinunternehmerStand(),
+  }));
 
 export const createCashEntryFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -32,6 +41,15 @@ export const createCashInvoiceEntryFn = createServerFn({ method: "POST" })
   .validator(cashInvoiceInputSchema)
   .handler(async ({ data, context }) => {
     const row = await createCashInvoiceEntry(context.user.id, data, today());
+    return { number: row.number };
+  });
+
+/** Bareinnahme ohne Rechnung, etwa die Tagessumme eines Marktstands (#276) */
+export const createCashIncomeFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(cashIncomeInputSchema)
+  .handler(async ({ data, context }) => {
+    const row = await createCashIncome(context.user.id, data, today());
     return { number: row.number };
   });
 

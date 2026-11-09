@@ -1,13 +1,26 @@
-import { currentYear, CASH_BOOKINGS, cashBookingLabel, cashEntryLabel, formatEuro, isKapitalgesellschaft, parseEuro, type CashBooking } from "@haben/core";
+import {
+  bareinnahmeText,
+  currentYear,
+  CASH_BOOKINGS,
+  cashBookingLabel,
+  cashEntryLabel,
+  formatEuro,
+  isKapitalgesellschaft,
+  kleinunternehmerImMonat,
+  parseEuro,
+  type BareinnahmeAngabe,
+  type CashBooking,
+} from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { errorMessage, formatDate } from "../../lib/format.ts";
+import { BareinnahmeFelder, bareinnahmeWahl } from "../../components/BareinnahmeFelder.tsx";
 import { CashInvoiceFields } from "../../components/CashInvoiceFields.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import type { Notice } from "../../lib/use-action.ts";
-import { createCashEntryFn, createCashInvoiceEntryFn, getCashBook, reverseCashEntryFn } from "../../server/functions/cash.ts";
+import { createCashEntryFn, createCashIncomeFn, createCashInvoiceEntryFn, getCashBook, reverseCashEntryFn } from "../../server/functions/cash.ts";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/kasse")({
@@ -26,8 +39,8 @@ type Data = Awaited<ReturnType<typeof getCashBook>>;
 
 const KINDS = Object.keys(CASH_BOOKINGS) as CashBooking[];
 
-/** Kassenbuchung ohne Beleg oder Bareinnahme auf eine Rechnung */
-type Mode = CashBooking | "rechnung";
+/** Kassenbuchung ohne Beleg, Bareinnahme auf eine Rechnung oder ohne Rechnung */
+type Mode = CashBooking | "rechnung" | "einnahme";
 
 function CashPage() {
   const data = Route.useLoaderData();
@@ -50,9 +63,9 @@ function CashPage() {
         </div>
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Bar bezahlte <Link to="/belege">Belege</Link> landen beim Buchen automatisch hier; Bareinnahmen auf <Link to="/rechnungen">Rechnungen</Link>,{" "}
-        {isKapitalgesellschaft(data.rechtsform) ? "Geld vom und an den Gesellschafter" : "Einlagen, Entnahmen"} und Geld von oder zur Bank trägst du ein.
-        Einträge lassen sich nur stornieren, der Bestand darf nie negativ werden.
+        Bar bezahlte <Link to="/belege">Belege</Link> landen beim Buchen automatisch hier; Bareinnahmen auf <Link to="/rechnungen">Rechnungen</Link> und ohne
+        Rechnung, {isKapitalgesellschaft(data.rechtsform) ? "Geld vom und an den Gesellschafter" : "Einlagen, Entnahmen"} und Geld von oder zur Bank trägst du
+        ein. Einträge lassen sich nur stornieren, der Bestand darf nie negativ werden.
       </p>
 
       {years.length > 1 && (
@@ -98,17 +111,26 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
   const router = useRouter();
   const create = useServerFn(createCashEntryFn);
   const createForInvoice = useServerFn(createCashInvoiceEntryFn);
+  const createIncome = useServerFn(createCashIncomeFn);
+  const [gewaehlt, setSteuer] = useState<BareinnahmeAngabe | null>(null);
   const { rechnung } = Route.useSearch();
   const [kind, setKind] = useState<Mode>(rechnung ? "rechnung" : "einlage");
   const [busy, setBusy] = useState(false);
   // biome-ignore lint/complexity/useMathMinMax: Datumstexte (JJJJ-MM-TT), Math.min ergäbe NaN
   const defaultDate = `${data.year}-12-31` < data.today ? `${data.year}-12-31` : data.today;
   const [date, setDate] = useState(defaultDate);
+  // Stand am Ende des Monats der Bareinnahme, wie ihn der Server prüft; nach dem Ende von § 19 gilt er für Monate davor weiter
+  const kleinunternehmer = kleinunternehmerImMonat(data.kleinunternehmer, date || data.today);
+  const steuer = bareinnahmeWahl(gewaehlt, kleinunternehmer);
   /** Neu aufbauen nach dem Buchen: Die bar kassierte Rechnung ist danach womöglich nicht mehr offen */
   const [round, setRound] = useState(0);
 
   async function book(values: FormData, amount: number): Promise<string> {
     const text = String(values.get("text") ?? "").trim();
+    if (kind === "einnahme") {
+      const result = await createIncome({ data: { date, amount, text, steuer } });
+      return `Nr. ${result.number} gebucht: Bareinnahme über ${formatEuro(amount)}, ${bareinnahmeText(steuer)}.`;
+    }
     if (kind !== "rechnung") {
       const result = await create({ data: { kind, date, amount, text } });
       return `Nr. ${result.number} gebucht: ${cashBookingLabel(kind, data.rechtsform)} über ${formatEuro(amount)}.`;
@@ -156,6 +178,9 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
         <button type="button" className={`chip${kind === "rechnung" ? " active" : ""}`} aria-pressed={kind === "rechnung"} onClick={() => setKind("rechnung")}>
           Rechnung bar bezahlt
         </button>
+        <button type="button" className={`chip${kind === "einnahme" ? " active" : ""}`} aria-pressed={kind === "einnahme"} onClick={() => setKind("einnahme")}>
+          Bareinnahme ohne Rechnung
+        </button>
       </div>
       <div className="form-grid">
         <label className="field">
@@ -170,21 +195,36 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
             <input name="amount" inputMode="decimal" placeholder="0,00" required />
           </label>
         )}
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Text (optional)
-          <input name="text" maxLength={300} placeholder={kind === "rechnung" ? "Rechnungsnummer und Kunde" : cashBookingLabel(kind, data.rechtsform)} />
+        {kind === "einnahme" && <BareinnahmeFelder kleinunternehmer={kleinunternehmer} value={steuer} onChange={setSteuer} />}
+        {/* key: Pflicht oder nicht wechselt mit der Art; ohne Rechnung ist die Notiz der Nachweis */}
+        <label key={kind === "einnahme" ? "notiz" : "text"} className="field" style={{ gridColumn: "1 / -1" }}>
+          {kind === "einnahme" ? "Notiz" : "Text (optional)"}
+          <input
+            name="text"
+            maxLength={300}
+            required={kind === "einnahme"}
+            placeholder={
+              kind === "einnahme"
+                ? "z. B. Weihnachtsmarkt 28.11., Tagessumme"
+                : kind === "rechnung"
+                  ? "Rechnungsnummer und Kunde"
+                  : cashBookingLabel(kind, data.rechtsform)
+            }
+          />
         </label>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        {kind === "rechnung"
-          ? "Gebucht wie eine Zahlung im Bankabgleich, nur Kasse an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit der Bareinnahme fällig. Mehr als offen geht nicht, ein Rest bleibt offen oder wird als Skonto ausgebucht."
-          : kind === "abhebung" || kind === "einzahlung"
-            ? "Gebucht über Geldtransit. Den Umsatz auf dem Bankkonto ordnest du im Bankabgleich als „Geldtransit“ zu."
-            : isKapitalgesellschaft(data.rechtsform)
-              ? "Gebucht über das Gesellschafter-Verrechnungskonto, z. B. Wechselgeld vom Gesellschafter oder eine Barauszahlung an ihn."
-              : kind === "einlage"
-                ? "Privates Geld in die Kasse, z. B. als Wechselgeld oder um eine Barausgabe zu bezahlen."
-                : "Geld aus der Kasse für private Zwecke."}
+        {kind === "einnahme"
+          ? "Für Verkäufe an Privatkunden ohne Rechnung, auch als Tagessumme. Gebucht am Tag der Bareinnahme: Kasse an Erlöse, die Umsatzsteuer ist im selben Monat fällig, bei Ist- wie bei Soll-Versteuerung."
+          : kind === "rechnung"
+            ? "Gebucht wie eine Zahlung im Bankabgleich, nur Kasse an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit der Bareinnahme fällig. Mehr als offen geht nicht, ein Rest bleibt offen oder wird als Skonto ausgebucht."
+            : kind === "abhebung" || kind === "einzahlung"
+              ? "Gebucht über Geldtransit. Den Umsatz auf dem Bankkonto ordnest du im Bankabgleich als „Geldtransit“ zu."
+              : isKapitalgesellschaft(data.rechtsform)
+                ? "Gebucht über das Gesellschafter-Verrechnungskonto, z. B. Wechselgeld vom Gesellschafter oder eine Barauszahlung an ihn."
+                : kind === "einlage"
+                  ? "Privates Geld in die Kasse, z. B. als Wechselgeld oder um eine Barausgabe zu bezahlen."
+                  : "Geld aus der Kasse für private Zwecke."}
       </p>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || (kind === "rechnung" && data.openInvoices.length === 0)}>
@@ -264,6 +304,7 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
                 <span className="small muted" style={{ display: "block" }}>
                   {cashEntryLabel(e.kind, data.rechtsform)}
                   {e.invoiceNumber && ` ${e.invoiceNumber}`}
+                  {e.taxTreatment && e.taxRate !== null && ` · ${bareinnahmeText({ behandlung: e.taxTreatment, steuersatz: e.taxRate })}`}
                   {e.reversed && " · storniert"}
                 </span>
               </div>
