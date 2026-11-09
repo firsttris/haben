@@ -1,4 +1,5 @@
 import {
+  bareinnahmeAnteil,
   kategorieAnteil,
   kategorieArt,
   lastMonthOfPeriod,
@@ -21,13 +22,16 @@ import { invoiceTotalsById } from "../rechnungen/index.ts";
 export interface RevenueSource {
   /**
    * payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung, ausbuchung = Skonto oder
-   * Forderungsausfall (§ 17), direkt = Bankumsatz direkt auf eine Einnahmekategorie gebucht (Ist und Soll)
+   * Forderungsausfall (§ 17), direkt = Bankumsatz direkt auf eine Einnahmekategorie gebucht (Ist und Soll), kasse =
+   * Bareinnahme ohne Rechnung im Kassenbuch (Ist und Soll)
    */
-  type: "payment" | "invoice" | "entnahme" | "ausbuchung" | "direkt";
+  type: "payment" | "invoice" | "entnahme" | "ausbuchung" | "direkt" | "kasse";
   /** Bei Entnahmen: das Fahrzeug */
   assetId?: string;
   /** Bei Direktbuchungen: der Bankumsatz */
   transactionId?: string;
+  /** Bei Bareinnahmen ohne Rechnung: die Zeile im Kassenbuch */
+  cashEntryId?: string;
   date: string;
   invoiceId: string;
   number: string;
@@ -312,6 +316,38 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         customer: r.counterparty,
         treatment: r.taxRate === 0 ? "kleinunternehmer" : "regulaer",
         rate: r.taxRate,
+        base,
+        tax,
+      });
+    }
+  }
+
+  // Bareinnahmen ohne Rechnung im Kassenbuch (#276): am Tag der Bareinnahme, bei Ist wie bei Soll
+  // (packages/core/src/bareinnahme.ts); der Storno mit umgekehrtem Vorzeichen an seinem Tag
+  {
+    const rows = await q
+      .select({
+        id: schema.cashEntries.id,
+        date: schema.cashEntries.date,
+        amount: schema.cashEntries.amount,
+        text: schema.cashEntries.text,
+        treatment: schema.cashEntries.taxTreatment,
+        rate: schema.cashEntries.taxRate,
+      })
+      .from(schema.cashEntries)
+      .where(and(eq(schema.cashEntries.kind, "einnahme"), gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
+    for (const r of rows) {
+      if (!r.treatment || r.rate === null) continue;
+      const { base, tax } = bareinnahmeAnteil({ behandlung: r.treatment, steuersatz: r.rate }, r.amount);
+      revenue.push({
+        type: "kasse",
+        date: r.date,
+        invoiceId: "",
+        cashEntryId: r.id,
+        number: "Bareinnahme",
+        customer: r.text,
+        treatment: r.treatment,
+        rate: r.rate,
         base,
         tax,
       });

@@ -38,6 +38,7 @@ import {
   DARLEHENSGEBER_KEYS,
   DARLEHEN_LAUFZEIT_KEYS,
   DARLEHEN_TEIL_KEYS,
+  BAREINNAHME_BEHANDLUNG_KEYS,
   DARLEHEN_ZWECK_KEYS,
   DEFAULT_PLAN_TEMPLATES,
   QUOTE_LINE_KINDS,
@@ -819,7 +820,7 @@ export const cashEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Cent; Eingang positiv, Ausgang negativ */
     amount: integer("amount").notNull(),
-    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung"] }).notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
     /** Bareinnahme auf eine Ausgangsrechnung (Kasse an Forderungen), auch bei ihrer Gegenzeile; mehrere Zeilen je Rechnung bei Teilzahlungen */
@@ -827,12 +828,22 @@ export const cashEntries = pgTable(
     /** Bareinnahme: Netto und Steuer je Satz, wie gebucht (settlementTaxShares), und für welche Rechnung; wie bei allocations */
     taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
     taxSharesInvoiceId: uuid("tax_shares_invoice_id"),
+    /**
+     * Bareinnahme ohne Rechnung (kind „einnahme“, #276): Steuerbehandlung und Satz in Basispunkten, siehe
+     * packages/core/src/bareinnahme.ts; Voranmeldung und EÜR lesen sie von hier, die Gegenzeile trägt dieselben Angaben
+     */
+    taxTreatment: text("tax_treatment", { enum: BAREINNAHME_BEHANDLUNG_KEYS }),
+    taxRate: integer("tax_rate"),
     /** Storno: die aufgehobene Zeile */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "cash_entries_einnahme",
+      sql`case when ${t.kind} = 'einnahme' then ${t.taxTreatment} is not null and ${t.taxRate} is not null else ${t.taxTreatment} is null and ${t.taxRate} is null end`,
+    ),
     uniqueIndex("cash_entries_document").on(t.documentId),
     uniqueIndex("cash_entries_reverses").on(t.reversesId),
     index("cash_entries_invoice").on(t.invoiceId),
