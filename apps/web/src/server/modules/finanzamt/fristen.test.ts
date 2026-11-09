@@ -5,6 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-Mail (Postgres)", () => {
   let fristen: typeof import("./fristen.ts");
+  let kalender: typeof import("./kalender-abo.ts");
   let mail: typeof import("../mail/mail.ts");
   let taxpayer: typeof import("../stammdaten/taxpayer.ts");
   let crypto: typeof import("../../crypto.ts");
@@ -17,6 +18,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     sql = await setupTestDb();
     await sql`insert into "user"(id,name,email,role) values (${actor}, 'Testinhaber', 'inhaber@example.de', 'inhaber')`;
     fristen = await import("./fristen.ts");
+    kalender = await import("./kalender-abo.ts");
     mail = await import("../mail/mail.ts");
     taxpayer = await import("../stammdaten/taxpayer.ts");
     crypto = await import("../../crypto.ts");
@@ -94,18 +96,18 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   });
 
   it("liefert offene Fristen als Kalender-Abo nur mit gültigem Token", async () => {
-    expect(await fristen.calendarTokenActive()).toBe(false);
-    const token = await fristen.createCalendarToken(actor);
-    expect(await fristen.checkCalendarToken(token)).toBe(true);
-    expect(await fristen.checkCalendarToken("falsch")).toBe(false);
+    expect(await kalender.calendarTokenActive()).toBe(false);
+    const token = await kalender.createCalendarToken(actor);
+    expect(await kalender.checkCalendarToken(token)).toBe(true);
+    expect(await kalender.checkCalendarToken("falsch")).toBe(false);
     const [row] = await sql`select calendar_token_hash from company`;
     expect(row!.calendar_token_hash).not.toContain(token);
 
-    const second = await fristen.createCalendarToken(actor);
-    expect(await fristen.checkCalendarToken(token)).toBe(false);
-    expect(await fristen.checkCalendarToken(second)).toBe(true);
-    await fristen.revokeCalendarToken(actor);
-    expect(await fristen.checkCalendarToken(second)).toBe(false);
+    const second = await kalender.createCalendarToken(actor);
+    expect(await kalender.checkCalendarToken(token)).toBe(false);
+    expect(await kalender.checkCalendarToken(second)).toBe(true);
+    await kalender.revokeCalendarToken(actor);
+    expect(await kalender.checkCalendarToken(second)).toBe(false);
 
     const ics = fristen.fristenToIcs(await fristen.listFristen("2026-10-03"), "https://haben.example", new Date("2026-10-03T10:00:00Z"));
     expect(ics).toMatch(/^BEGIN:VCALENDAR\r\n/);
