@@ -153,6 +153,33 @@ function enclosingPair(text: string, start: number, end: number, style: TextStyl
 
 const plainRun = (text: string, styles: Partial<Styles>): FormattedTextRun => ({ text, bold: false, italic: false, underline: false, ...styles });
 
+const SELECTION_START = "\uE000";
+const SELECTION_END = "\uE001";
+
+/**
+ * Für innere Paare, die über die Auswahl reichen, wie in `*eins _zwei drei_*`: Die Rohtexte der Hälften wären
+ * unvollständig, darum werden die gelesenen Abschnitte an der Auswahl geteilt. Marken aus dem privaten Unicode-Bereich
+ * tragen die Auswahl durch den Parser.
+ */
+function splitParsedRuns(text: string, open: MarkerGroup, close: MarkerGroup, from: number, to: number, style: TextStyle): TextEdit | null {
+  const spanEnd = close.at + close.marker.length;
+  const marked = `${text.slice(open.at, from)}${SELECTION_START}${text.slice(from, to)}${SELECTION_END}${text.slice(to, spanEnd)}`;
+  const zones: FormattedTextRun[][] = [[], [], []];
+  let zone = 0;
+  for (const run of parseTextFormatting(marked)) {
+    for (const piece of run.text.split(/([\uE000\uE001])/)) {
+      if (piece === SELECTION_START || piece === SELECTION_END) zone++;
+      else appendTextRun(zones[zone]!, { ...run, text: piece, ...(zone === 1 ? { [style]: false } : {}) });
+    }
+  }
+  if (zone !== 2) return null;
+  const [before, middle, after] = zones.map((runs) => runs.map(wrapRun).join("")) as [string, string, string];
+  const next = `${text.slice(0, open.at)}${before}${middle}${after}${text.slice(spanEnd)}`;
+  if (styledLength(next, style) >= styledLength(text, style) || plainFormattedText(next) !== plainFormattedText(text)) return null;
+  const base = open.at + before.length;
+  return { text: next, start: base + /^\s*[*_]*/.exec(middle)![0].length, end: base + middle.length - /[*_]*\s*$/.exec(middle)![0].length };
+}
+
 /**
  * Teilt die umgebende Auszeichnung an der Auswahl: Aus `*eins zwei*` wird `*eins* zwei`, und mit `on` aus
  * `_eins zwei_` beim Unterstreichen von „eins“ `___eins___ _zwei_`.
@@ -188,7 +215,7 @@ function splitEnclosing(text: string, start: number, end: number, style: TextSty
   const after = wrapRun(plainRun(text.slice(to, innerEnd), kept));
   const next = `${text.slice(0, open.at)}${before}${middle}${after}${text.slice(close.at + close.marker.length)}`;
   const changed = on ? styledLength(next, style) > styledLength(text, style) : styledLength(next, style) < styledLength(text, style);
-  if (!changed || plainFormattedText(next) !== plainFormattedText(text)) return null;
+  if (!changed || plainFormattedText(next) !== plainFormattedText(text)) return on ? null : splitParsedRuns(text, open, close, from, to, style);
   const base = open.at + before.length;
   return { text: next, start: base + /^\s*[*_]*/.exec(middle)![0].length, end: base + middle.length - /[*_]*\s*$/.exec(middle)![0].length };
 }
