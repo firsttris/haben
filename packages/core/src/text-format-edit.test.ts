@@ -86,7 +86,7 @@ describe("Auszeichnung per Knopf", () => {
 
   it("nimmt eine angeschnittene Auszeichnung am Auswahlrand ganz mit, statt sie zu überschreiben", () => {
     expect(toggleTextStyle("eins *zwei* _drei_", 0, 15, "italic")?.text).toBe("_eins_ *_zwei_* _drei_");
-    expect(toggleTextStyle("_eins_ zwei", 2, 11, "bold")?.text).toBe("*_eins_ zwei*");
+    expect(toggleTextStyle("_eins_ zwei", 2, 11, "bold")?.text).toBe("*_eins_* *zwei*");
   });
 
   it("behält beim Herauslösen die übrigen Auszeichnungen", () => {

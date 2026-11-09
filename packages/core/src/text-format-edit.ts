@@ -126,7 +126,23 @@ function styledLength(text: string, style: TextStyle): number {
   return parseTextFormatting(text).reduce((sum, run) => sum + (run[style] ? run.text.length : 0), 0);
 }
 
-function toggleRange(text: string, start: number, end: number, style: TextStyle): TextEdit | null {
+const styledChars = (text: string) => parseTextFormatting(text).reduce((sum, run) => sum + (run.bold || run.italic || run.underline ? run.text.length : 0), 0);
+
+/** Beginnt oder endet die Auswahl mitten in einem Paar, gehört seine zweite Hälfte dazu, sonst läse es der Parser als lose Zeichen. */
+function completePairs(text: string, from: number, to: number): [number, number] {
+  let [start, end] = [from, to];
+  for (;;) {
+    const inner = text.slice(start, end);
+    const right = /^(\*+|_+)/.exec(text.slice(end))?.[0];
+    const left = /(\*+|_+)$/.exec(text.slice(0, start))?.[0];
+    if (right && styledChars(inner + right) > styledChars(inner)) end += right.length;
+    else if (left && styledChars(left + inner) > styledChars(inner)) start -= left.length;
+    else return [start, end];
+  }
+}
+
+function toggleRange(text: string, from: number, to: number, style: TextStyle): TextEdit | null {
+  const [start, end] = completePairs(text, from, to);
   const layers = surroundingLayers(text, start, end);
   const layerLength = layers.join("").length;
   const outer = Object.fromEntries(layers.flatMap((layer) => TEXT_MARKERS[layer]!.map((s) => [s, true]))) as Partial<Styles>;
