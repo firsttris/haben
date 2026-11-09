@@ -51,4 +51,15 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Spalten überlappen sich nicht
     const inZeile = worte.filter((wort) => Math.abs(wort.yMin - nachbar.yMin) < 1 && wort.xMin < nachbar.xMin);
     expect(Math.max(...inZeile.map((wort) => wort.xMax))).toBeLessThanOrEqual(nachbar.xMin);
   });
+
+  it("hält auch ein kürzeres, aber breites Wort in seiner Spalte (Codex-Review)", () => {
+    const seiten = worteJeSeite(
+      renderInvoicePdf({ ...sampleDocument(), options: { ...DEFAULT_OPTIONS, footerColumns: ["W".repeat(24), "NACHBAR", "Termin", "{steuernummer}"] } }),
+    )!;
+    const worte = seiten[0]!;
+    const nachbar = worte.find((wort) => wort.text === "NACHBAR")!;
+    const breit = worte.filter((wort) => /^W+/.test(wort.text) && wort.yMin > nachbar.yMin - 1);
+    expect(breit.length).toBeGreaterThan(0);
+    for (const wort of breit) expect(wort.xMax).toBeLessThanOrEqual(nachbar.xMin);
+  });
 });

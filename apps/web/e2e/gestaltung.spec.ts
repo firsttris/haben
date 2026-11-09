@@ -603,3 +603,24 @@ test("Eigene Fußzeile: Auszeichnungen stehen fett auf dem Blatt, die Zeichen ni
     await page.context().close();
   }
 });
+
+test("Zwei Platzhalter nacheinander landen beide an der Schreibmarke", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  const feld = karte.getByLabel("Spalte 1");
+  await feld.fill("Tel. \nEnde");
+  await feld.evaluate((el: HTMLTextAreaElement) => {
+    el.focus();
+    el.setSelectionRange(5, 5);
+  });
+
+  await karte.getByRole("button", { name: "{plz}" }).click();
+  await karte.getByRole("button", { name: "{ort}" }).click();
+
+  const wert = await feld.inputValue();
+  await page.context().close();
+  expect(wert).toBe("Tel. {plz}{ort}\nEnde");
+});

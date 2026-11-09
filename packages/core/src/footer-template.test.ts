@@ -72,3 +72,13 @@ describe("Auszeichnungen in eigenen Spalten", () => {
     expect(runs[1]).toEqual([[{ text: "USt-IdNr. DE123456789", ...plain }]]);
   });
 });
+
+describe("Zeichen ohne Schrift", () => {
+  it("meldet Schriftzeichen, die keine Belegschrift enthält", () => {
+    expect(footerIssues(["電話 {telefon}", "{steuernummer}"]).join()).toContain("電");
+  });
+
+  it("lässt Latein mit Umlauten, Griechisch, Kyrillisch und Symbole zu", () => {
+    expect(footerIssues(["Größe Ωmega Привет ☎ → €", "{steuernummer}"])).toEqual([]);
+  });
+});
