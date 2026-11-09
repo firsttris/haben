@@ -44,7 +44,7 @@ describe("Stornorechnung mit Positionen beider Vorzeichen", () => {
   });
 
   it("erkennt die Richtung an der Summe, wenn eine positiv gelieferte Stornorechnung eine Rabattzeile hat", () => {
-    const positiv = { ...storno.invoice, sumNet: "1300.00", sumTax: "211.00", sumGross: "1511.00" } as SevInvoice;
+    const positiv = { ...storno.invoice, sumNet: "1300.00", sumTax: "187.00", sumGross: "1487.00" } as SevInvoice;
     const positionen = [pos("1000.00", "190.00", "1190.00", "19"), pos("500.00", "35.00", "535.00", "7"), pos("-200.00", "-38.00", "-238.00", "19")];
     expect(mapSevInvoice(positiv, positionen).voucher.taxes).toEqual([
       { rate: 1900, net: -80_000, tax: -15_200 },

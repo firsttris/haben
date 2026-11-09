@@ -106,7 +106,7 @@ Bei **Ist-Versteuerung** sperrt Haben dann den monatlichen Altbestandsabgleich f
 
 #### Stornierte Rechnungen
 
-sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag und wenn zu beiden keine Zahlung besteht; sonst bleibt der Stand unklar. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt.
+sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag und wenn zu beiden keine Zahlung besteht; sonst bleibt der Stand unklar. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt. Die Aufteilung nach Steuersatz steht dagegen im Abruf: Hat eine früher abgerufene Stornorechnung mehrere Steuersätze und eine Rabattzeile, heben sich die Beträge nur in der Summe auf, nicht je Satz.
 
 ### Angebote, Auftragsbestätigungen und Lieferscheine
 
