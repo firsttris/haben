@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
@@ -99,8 +100,12 @@ export function ContactForm({
     const isCustomer = form.get("isCustomer") === "on";
     const isSupplier = form.get("isSupplier") === "on";
     const skonto = parseSkontoRows(skontoRows);
+    const debitor = parsePersonenkonto("debitor", text("debitorNr"));
+    const kreditor = parsePersonenkonto("kreditor", text("kreditorNr"));
     void run(async () => {
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
+      if (!debitor.ok) throw new Error(debitor.error);
+      if (!kreditor.ok) throw new Error(kreditor.error);
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const input = {
         kundennummer: text("kundennummer"),
@@ -120,6 +125,8 @@ export function ContactForm({
         isCustomer,
         isSupplier,
         lieferantennummer: text("lieferantennummer"),
+        debitorNr: debitor.value,
+        kreditorNr: kreditor.value,
       } satisfies ContactInput;
       const result = await save({ data: { id: contact?.id ?? null, contact: input } });
       if (onSaved) {
@@ -185,6 +192,35 @@ export function ContactForm({
             Lieferantennummer
             <input name="lieferantennummer" defaultValue={initial.lieferantennummer} placeholder="optional, z. B. deine Kundennummer beim Lieferanten" />
           </label>
+        </div>
+        <div className="field-group">
+          <div className="form-row cols-2">
+            <label className="field">
+              DATEV-Debitor
+              <input
+                name="debitorNr"
+                defaultValue={contact?.debitorNr ?? ""}
+                inputMode="numeric"
+                placeholder="optional, 10000 bis 69999"
+                aria-describedby="personenkonten-hint"
+                className="mono"
+              />
+            </label>
+            <label className="field">
+              DATEV-Kreditor
+              <input
+                name="kreditorNr"
+                defaultValue={contact?.kreditorNr ?? ""}
+                inputMode="numeric"
+                placeholder="optional, 70000 bis 99999"
+                aria-describedby="personenkonten-hint"
+                className="mono"
+              />
+            </label>
+          </div>
+          <p id="personenkonten-hint" className="field-hint">
+            Personenkonten für den DATEV-Export an die Steuerberatung, getrennt von Kunden- und Lieferantennummer.
+          </p>
         </div>
       </section>
 

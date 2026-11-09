@@ -1,4 +1,4 @@
-import { isValidGermanUstId, isValidIban, joinEmails, normalizeTelefon, normalizeUstId, splitEmails, telefonProblem } from "@haben/core";
+import { isValidGermanUstId, isValidIban, joinEmails, normalizeTelefon, normalizeUstId, parsePersonenkonto, splitEmails, telefonProblem } from "@haben/core";
 import { type ColumnMapping, type ImportField, rowReader } from "./mapping.ts";
 import { duplicateKey, type RowCandidate } from "./plan.ts";
 import type { CsvTable } from "./read.ts";
@@ -17,12 +17,25 @@ export const CONTACT_FIELDS = [
   {
     key: "kundennummer",
     label: "Kundennummer",
-    aliases: ["Kundennummer", "Kundennr", "Kunden-Nr.", "Kd.-Nr.", "Debitorennummer", "Debitor", "customerNumber"],
+    aliases: ["Kundennummer", "Kundennr", "Kunden-Nr.", "Kd.-Nr.", "customerNumber"],
   },
   {
     key: "lieferantennummer",
     label: "Lieferantennummer",
-    aliases: ["Lieferantennummer", "Lieferantennr", "Lieferanten-Nr.", "Kreditorennummer", "Kreditor", "vendorNumber"],
+    aliases: ["Lieferantennummer", "Lieferantennr", "Lieferanten-Nr.", "vendorNumber"],
+  },
+  // DATEV-Personenkonten (#327): eigene Felder, nicht mehr in Kunden- bzw. Lieferantennummer
+  {
+    key: "debitorNr",
+    label: "Debitor",
+    hint: "DATEV-Personenkonto 10000 bis 69999",
+    aliases: ["Debitorennummer", "Debitor", "Debitorenkonto", "Debitor-Nr.", "Personenkonto Debitor", "DATEV-Debitor"],
+  },
+  {
+    key: "kreditorNr",
+    label: "Kreditor",
+    hint: "DATEV-Personenkonto 70000 bis 99999",
+    aliases: ["Kreditorennummer", "Kreditor", "Kreditorenkonto", "Kreditor-Nr.", "Personenkonto Kreditor", "DATEV-Kreditor"],
   },
   {
     key: "firma",
@@ -87,10 +100,12 @@ export interface ContactRow {
   leitwegId: string;
   isCustomer: boolean;
   isSupplier: boolean;
+  debitorNr: number | null;
+  kreditorNr: number | null;
 }
 
 /**
- * Rolle aus der Spalte, sonst aus den Nummern: nur Lieferantennummer = Lieferant, sonst Kunde. `supplierFile`: Die Datei
+ * Rolle aus der Spalte, sonst aus den Nummern: nur Lieferantennummer bzw. Kreditor = Lieferant, sonst Kunde. `supplierFile`: Die Datei
  * hat eine Spalte Lieferantennummer, aber keine Kundennummer, wie die Lieferanten-Vorlage von Lexware Office; dort darf
  * die Nummer leer bleiben (Lexware-Hilfe, Artikel 548267, Spalte A).
  */
@@ -137,7 +152,17 @@ export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowC
     const telefon = read.text("telefon");
     const telefonFehler = telefonProblem(telefon);
     if (telefonFehler) errors.push(telefonFehler);
-    const role = roles(read.raw("rolle"), kundennummer, lieferantennummer, supplierFile);
+    const debitor = parsePersonenkonto("debitor", read.text("debitorNr"));
+    if (!debitor.ok) errors.push(debitor.error);
+    const kreditor = parsePersonenkonto("kreditor", read.text("kreditorNr"));
+    if (!kreditor.ok) errors.push(kreditor.error);
+    // Ein Debitor macht zum Kunden, ein Kreditor zum Lieferanten, wie die Kunden- bzw. Lieferantennummer
+    const role = roles(
+      read.raw("rolle"),
+      kundennummer || (debitor.ok && debitor.value ? String(debitor.value) : ""),
+      lieferantennummer || (kreditor.ok && kreditor.value ? String(kreditor.value) : ""),
+      supplierFile,
+    );
     if (typeof role === "string") errors.push(role);
     // Mehrere Adressen in einer Zelle getrennt mit Komma oder Semikolon, gespeichert wie im Formular mit „, “
     const emails = joinEmails(splitEmails(read.text("email")));
@@ -145,7 +170,7 @@ export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowC
     // Alle Texte vor der Entscheidung lesen: auch eine Formel in der Straße macht die Zeile fehlerhaft
     const address = { strasse: read.text("strasse"), plz: read.text("plz"), ort: read.text("ort"), leitwegId: read.text("leitwegId") };
     const value: ContactRow | null =
-      errors.length > 0 || typeof role === "string" || !land.ok
+      errors.length > 0 || typeof role === "string" || !land.ok || !debitor.ok || !kreditor.ok
         ? null
         : {
             kundennummer,
@@ -158,26 +183,47 @@ export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowC
             ustId,
             iban: rawIban.replace(/\s+/g, "").toUpperCase(),
             ...role,
+            debitorNr: debitor.value,
+            kreditorNr: kreditor.value,
           };
     return {
       line: row.line,
       title: name || "(ohne Name)",
       value,
       errors,
-      keys: contactKeys({ kundennummer, lieferantennummer, name, email: emails, ustId }),
+      keys: contactKeys({
+        kundennummer,
+        lieferantennummer,
+        name,
+        email: emails,
+        ustId,
+        debitorNr: debitor.ok ? debitor.value : null,
+        kreditorNr: kreditor.ok ? kreditor.value : null,
+      }),
     };
   });
 }
 
 /**
- * Woran ein Kontakt wiedererkannt wird: Kunden- und Lieferantennummer, jede E-Mail-Adresse, USt-IdNr. und der Name
- * (Groß- und Kleinschreibung egal, wie beim Abruf aus Lexware Office). Lieber einmal zu viel überspringen als einen
- * Kunden doppelt anlegen; einen gleichnamigen anderen Kunden legt man von Hand an.
+ * Woran ein Kontakt wiedererkannt wird: Kunden- und Lieferantennummer, Debitor und Kreditor, jede E-Mail-Adresse,
+ * USt-IdNr. und der Name (Groß- und Kleinschreibung egal, wie beim Abruf aus Lexware Office). Lieber einmal zu viel
+ * überspringen als einen Kunden doppelt anlegen; einen gleichnamigen anderen Kunden legt man von Hand an. Eine schon
+ * vergebene Personenkontonummer steht so als Konflikt in der Vorschau, statt überschrieben oder doppelt vergeben zu werden.
  */
-export function contactKeys(c: { kundennummer: string | null; lieferantennummer: string | null; name: string; email: string; ustId: string }) {
+export function contactKeys(c: {
+  kundennummer: string | null;
+  lieferantennummer: string | null;
+  name: string;
+  email: string;
+  ustId: string;
+  debitorNr?: number | null;
+  kreditorNr?: number | null;
+}) {
   return [
     ...duplicateKey("Kundennummer", c.kundennummer),
     ...duplicateKey("Lieferantennummer", c.lieferantennummer),
+    ...duplicateKey("Debitor", c.debitorNr == null ? null : String(c.debitorNr)),
+    ...duplicateKey("Kreditor", c.kreditorNr == null ? null : String(c.kreditorNr)),
     ...splitEmails(c.email).flatMap((e) => duplicateKey("E-Mail", e)),
     ...duplicateKey("USt-IdNr.", c.ustId),
     ...duplicateKey("Name", c.name),

@@ -40,6 +40,8 @@ describe("Kontakte", () => {
       leitwegId: "",
       isCustomer: true,
       isSupplier: false,
+      debitorNr: null,
+      kreditorNr: null,
     });
     expect(rows[1]!.value).toMatchObject({ name: "Erika Mustermann", land: "DE", isCustomer: true });
     expect(rows[2]!.value).toMatchObject({ name: "Papierwerk Süd AG", land: "DE", isCustomer: false, isSupplier: true, lieferantennummer: "70001" });
@@ -62,6 +64,8 @@ describe("Kontakte", () => {
     expect(Object.fromEntries(CONTACT_FIELDS.map((f) => [f.key, column(f.key)]))).toEqual({
       kundennummer: "Kundennummer",
       lieferantennummer: null,
+      debitorNr: null,
+      kreditorNr: null,
       firma: "Firmenname",
       vorname: "Vorname",
       nachname: "Nachname",
@@ -177,6 +181,65 @@ describe("Kontakte", () => {
       [true, true],
     ]);
     expect(rows[3]!.errors).toEqual([expect.stringContaining("Rolle: „Partner“")]);
+  });
+
+  it("übernimmt DATEV-Debitor und -Kreditor in eigene Felder, getrennt von Kunden- und Lieferantennummer (#327)", () => {
+    const { t, mapping } = mapped(
+      ["Kundennummer;Debitorennummer;Kreditorennummer;Name", "K-42;10042;70087;Musterpartner GmbH", ";;70001;Papierwerk Süd AG"].join("\n"),
+      CONTACT_FIELDS,
+    );
+    expect(mapping).toMatchObject({ kundennummer: 0, debitorNr: 1, kreditorNr: 2 });
+    const rows = contactCandidates(t, mapping);
+    expect(rows[0]!.value).toMatchObject({
+      kundennummer: "K-42",
+      lieferantennummer: "",
+      debitorNr: 10042,
+      kreditorNr: 70087,
+      isCustomer: true,
+      isSupplier: true,
+    });
+    // Nur ein Kreditor: Lieferant, wie bei der Lieferantennummer
+    expect(rows[1]!.value).toMatchObject({ debitorNr: null, kreditorNr: 70001, isCustomer: false, isSupplier: true });
+  });
+
+  it("schlägt für Debitor und Kreditor die üblichen Spaltennamen vor", () => {
+    for (const [header, field] of [
+      ["Debitor", "debitorNr"],
+      ["Debitorenkonto", "debitorNr"],
+      ["Personenkonto Debitor", "debitorNr"],
+      ["Kreditor", "kreditorNr"],
+      ["Kreditorenkonto", "kreditorNr"],
+      ["Personenkonto Kreditor", "kreditorNr"],
+    ] as const) {
+      expect(suggestMapping([header], CONTACT_FIELDS)).toMatchObject({ [field]: 0 });
+    }
+  });
+
+  it("meldet ungültige Personenkonten als Fehler der Zeile, statt sie zu kürzen", () => {
+    const { t, mapping } = mapped(["Name;Debitorennummer;Kreditorennummer", "A;70087;", "B;;10042", "C;D-1;", "D;100420;"].join("\n"), CONTACT_FIELDS);
+    const rows = contactCandidates(t, mapping);
+    expect(rows.map((r) => r.value)).toEqual([null, null, null, null]);
+    expect(rows[0]!.errors).toEqual(["Debitor: 10000 bis 69999 (fünfstellig, nach DATEV-Kontenrahmen)"]);
+    expect(rows[1]!.errors).toEqual(["Kreditor: 70000 bis 99999 (fünfstellig, nach DATEV-Kontenrahmen)"]);
+    expect(rows[2]!.errors).toEqual(["Debitor: „D-1“ ist keine Nummer"]);
+    expect(rows[3]!.errors).toEqual([expect.stringMatching(/^Debitor: 10000 bis 69999/)]);
+  });
+
+  it("zeigt eine schon vergebene Debitor- oder Kreditornummer als Konflikt, statt sie zu überschreiben", () => {
+    const { t, mapping } = mapped(
+      ["Name;Debitorennummer;Kreditorennummer", "Neu GmbH;10042;", "Andere GmbH;;70087", "Dritte GmbH;10050;", "Vierte GmbH;10050;"].join("\n"),
+      CONTACT_FIELDS,
+    );
+    const plan = planRows(contactCandidates(t, mapping), [
+      { label: "Debitor", value: "10042" },
+      { label: "Kreditor", value: "70087" },
+    ]);
+    expect(plan.map((r) => [r.status, r.message])).toEqual([
+      ["dublette", "Gibt es schon (Debitor 10042)"],
+      ["dublette", "Gibt es schon (Kreditor 70087)"],
+      ["neu", null],
+      ["dublette", "Wie Zeile 4 (Debitor 10050)"],
+    ]);
   });
 
   it("überspringt Dubletten gegen den Bestand und innerhalb der Datei, nach Nummer, E-Mail, USt-IdNr. und Name", () => {
