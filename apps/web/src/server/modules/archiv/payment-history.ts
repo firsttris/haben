@@ -17,7 +17,7 @@ type PaymentSource = {
  * ohne Zahlung; erkennbar ist das Paar nur an invoiceType SR und origin (#472). Nur der volle Betrag und nur ohne Zahlung:
  * Sonst erklärt der Storno den Zahlungsstand nicht. Unverbunden, damit Postgres sie je Abfrage einmal berechnet.
  */
-const unpaid = (alias: string) => `coalesce(${alias}.raw->>'paidAmount', '') ~ '^0*([.,]0*)?$'`;
+const unpaid = (alias: string) => `coalesce(${alias}.raw->>'paidAmount', '') ~ '^0*([.,]0*)?$' and coalesce(${alias}.raw->>'payDate', '') = ''`;
 const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storno.date), '{}'::jsonb)
   from lexoffice_vouchers storno
   join lexoffice_vouchers original on original.lexoffice_id = 'invoice/' || (storno.raw->'origin'->>'id') and original.source = 'sevdesk'
