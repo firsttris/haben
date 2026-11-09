@@ -127,8 +127,12 @@ function cells(line: string, delimiter: string): string[] {
   return result;
 }
 
+/** Länger ist keine Kopfzelle eines Monats; die Grenze hält auch die Laufzeit der Regexe bei fremden Dateien klein */
+const MAX_MONTH_HEADER_LENGTH = 64;
+
 /** Monatsspalte aus einer Kopfzelle wie „Januar“, „Januar[1]“, „Februar [2]“, „Jan. 2026“, „01/2026“ oder „01.2026“ */
 function monthOfHeader(cell: string, year: number): number | null {
+  if (cell.length > MAX_MONTH_HEADER_LENGTH) return null;
   const cleaned = cell.replace(/(?:\s*\[\d+\])+\s*$/, "").trim();
   const numeric = /^(\d{1,2})\s*[/.-]\s*(\d{4})$/.exec(cleaned);
   if (numeric) return Number(numeric[2]) === year && Number(numeric[1]) >= 1 && Number(numeric[1]) <= 12 ? Number(numeric[1]) : null;
@@ -140,11 +144,12 @@ function monthOfHeader(cell: string, year: number): number | null {
 
 /**
  * Jahr aus dem Titel über der Tabelle („… Umrechnungskurse 2025 (Euro-Referenzkurse)“), null ohne Jahr im Titel.
- * Nur der Titel zählt: Aktenzeichen („S 7329/…“) und Stand-Daten vor der Tabelle sagen nichts über das Jahr der Kurse.
+ * Nur die Zahl direkt hinter „Umrechnungskurse“ zählt: Aktenzeichen („S 7329/…“) und Stand-Daten sagen nichts über
+ * das Jahr der Kurse, auch nicht in derselben Zelle.
  */
 function titleYear(rowsBeforeHeader: string[][]): number | null {
   for (const cell of rowsBeforeHeader.flat()) {
-    const match = /umrechnungskurse\D*\b(20\d{2})\b/i.exec(cell);
+    const match = /umrechnungskurse\s+(20\d{2})\b/i.exec(cell);
     if (match) return Number(match[1]);
   }
   return null;
