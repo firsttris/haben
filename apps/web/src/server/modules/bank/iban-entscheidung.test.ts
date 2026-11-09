@@ -8,6 +8,28 @@ const ACCOUNT_IBAN = "DE89370400440532013000";
 const RECHNUNG_IBAN = "DE02120300000000202051";
 const KONTAKT_IBAN = "DE75512108001245126199";
 
+/** Kontoauszug im CSV-Format der DKB, wie in bank.test.ts */
+function dkbCsv(rows: string[][]) {
+  const header = `"Girokonto";"${ACCOUNT_IBAN}"\n""\n"Kontostand vom 30.09.2026:";"1.000,00 €"\n""\n`;
+  const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
+  const body = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
+  return new TextEncoder().encode(`\ufeff${header}${columns}${body}\n`);
+}
+const outgoing = (date: string, to: string, iban: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  "Müller & Söhne Design",
+  to,
+  purpose,
+  "Ausgang",
+  iban,
+  amount,
+  "",
+  "",
+  "",
+];
+
 const einvoice = () =>
   new TextEncoder().encode(readFileSync(new URL("../../../../../../packages/einvoice/test-fixtures/incoming/cii-prefixes.xml", import.meta.url), "utf8"));
 
@@ -262,6 +284,65 @@ describe.skipIf(!testDatabaseUrl)("Abweichende IBAN der E-Rechnung am Beleg (Pos
 
     await documents.deleteDocument(actor, id);
     expect(await sql`select 1 from documents where id = ${id}`).toHaveLength(0);
+  });
+
+  describe("im Bankabgleich (#486)", () => {
+    /** IBANs, die der Bankabgleich dem Beleg als IBAN des Lieferanten zurechnet */
+    const partyIbans = async (id: string) => (await bank.openItems()).find((i) => i.type === "document" && i.id === id)?.partyIbans;
+
+    it("abweichend und nicht entschieden: die IBAN der E-Rechnung ist nicht „IBAN des Lieferanten“, der Vorschlag kommt über den Betrag", async () => {
+      const contact = await contacts.createContact(actor, contactInput(KONTAKT_IBAN));
+      const id = await bookedEInvoice(contact.id);
+      expect(await partyIbans(id)).toEqual([KONTAKT_IBAN]);
+
+      const { id: bankAccountId } = await account();
+      await bank.importStatement(
+        actor,
+        { bytes: dkbCsv([outgoing("18.09.26", "Netzwerk Hosting GmbH", RECHNUNG_IBAN, "Rechnung", "-215,63")]), filename: "a.csv" },
+        bankAccountId,
+      );
+      const [tx] = await sql`select id from bank_transactions`;
+      const suggestion = (await bank.transactionDetail(tx!.id))?.suggestions.find((s) => s.item.id === id);
+      expect(suggestion?.reasons).toContain("Betrag stimmt exakt");
+      expect(suggestion?.reasons).not.toContain("IBAN des Lieferanten");
+    });
+
+    it("IBAN des Kontakts behalten: die der E-Rechnung zählt nicht", async () => {
+      const contact = await contacts.createContact(actor, contactInput(KONTAKT_IBAN));
+      const id = await bookedEInvoice(contact.id);
+      await bank.decideDocumentIban(actor, id, { wahl: "kontakt", kontaktIban: KONTAKT_IBAN, rechnungsIban: RECHNUNG_IBAN });
+      expect(await partyIbans(id)).toEqual([KONTAKT_IBAN]);
+    });
+
+    it("IBAN der E-Rechnung nur für diesen Beleg: sie zählt, die des Kontakts weiterhin", async () => {
+      const contact = await contacts.createContact(actor, contactInput(KONTAKT_IBAN));
+      const id = await bookedEInvoice(contact.id);
+      await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: KONTAKT_IBAN, rechnungsIban: RECHNUNG_IBAN });
+      expect((await partyIbans(id))?.toSorted()).toEqual([KONTAKT_IBAN, RECHNUNG_IBAN].toSorted());
+    });
+
+    it("Kontakt ohne IBAN: die IBAN der E-Rechnung zählt erst nach „Übernehmen“", async () => {
+      const contact = await contacts.createContact(actor, contactInput(""));
+      const id = await bookedEInvoice(contact.id);
+      expect(await partyIbans(id)).toEqual([]);
+      await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: null, rechnungsIban: RECHNUNG_IBAN });
+      expect(await partyIbans(id)).toEqual([RECHNUNG_IBAN]);
+    });
+
+    it("gleiche IBAN wie im Kontakt: zählt wie bisher", async () => {
+      const contact = await contacts.createContact(actor, contactInput("de02 1203 0000 0000 2020 51"));
+      const id = await bookedEInvoice(contact.id);
+      expect(await partyIbans(id)).toEqual([RECHNUNG_IBAN]);
+    });
+
+    it("die IBAN einer erzeugten SEPA-Überweisung zählt weiter, auch wenn danach anders entschieden ist", async () => {
+      const contact = await contacts.createContact(actor, contactInput(KONTAKT_IBAN));
+      const id = await bookedEInvoice(contact.id);
+      await bank.decideDocumentIban(actor, id, { wahl: "e-rechnung", kontaktIban: KONTAKT_IBAN, rechnungsIban: RECHNUNG_IBAN });
+      await transfer(id);
+      await bank.decideDocumentIban(actor, id, { wahl: "kontakt", kontaktIban: KONTAKT_IBAN, rechnungsIban: RECHNUNG_IBAN });
+      expect((await partyIbans(id))?.toSorted()).toEqual([KONTAKT_IBAN, RECHNUNG_IBAN].toSorted());
+    });
   });
 
   it("ein Beleg ohne E-Rechnung hat nichts abzugleichen", async () => {
