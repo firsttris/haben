@@ -5,11 +5,14 @@ import { authMiddleware } from "../middleware.ts";
 import { MAX_DOCUMENT_SIZE } from "../modules/belege/index.ts";
 import { addMandateFile, createMandate, listMandates, mandateInputSchema, revocationInputSchema, revokeMandate } from "../modules/stammdaten/index.ts";
 import { today } from "../today.ts";
+import { detailId } from "./schemas.ts";
 
 /** SEPA-Lastschriftmandate am Kontakt (#445) */
+// Lädt neben getContactDetail auf der Kontaktseite: Eine kaputte Adresse muss auch hier „nicht gefunden“ sein, sonst
+// gewinnt je nach Reihenfolge der Validierungsfehler (500 statt 404, e2e/seiten.spec.ts)
 export const getMandates = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const day = today();
     return { mandates: await listMandates(data, day), today: day };
