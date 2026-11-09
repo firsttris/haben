@@ -53,6 +53,11 @@ describe("missingPages", () => {
   it("verwechselt einen Parameter nicht mit mehreren Segmenten", () => {
     expect(missingPages(["/rechnungen/$id"], ["/rechnungen/a/b"], {})).toEqual(["/rechnungen/$id"]);
   });
+
+  it("zählt den Aufruf einer festen Nachbarseite wie /rechnungen/neu nicht als Aufruf von /rechnungen/$id", () => {
+    // Der Router wählt für /rechnungen/neu die feste Route, nicht den Parameter (TanStack Router: statische Segmente vor Parametern)
+    expect(missingPages(["/rechnungen/neu", "/rechnungen/$id"], ["/rechnungen/neu"], {})).toEqual(["/rechnungen/$id"]);
+  });
 });
 
 describe("staleExceptions", () => {
