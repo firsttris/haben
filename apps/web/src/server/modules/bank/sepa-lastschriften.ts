@@ -186,41 +186,43 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
   const creditorName = (company.kontoinhaber || company.name).trim();
   if (creditorName === "") throw new BankError("Der Firmenname fehlt in den Einstellungen; er steht als Gläubiger in der Datei.");
 
-  const candidates = new Map((await directDebitCandidates(today)).map((c) => [c.invoiceId, c]));
-  const problems: string[] = [];
-  const planned: Planned[] = [];
-  for (const id of input.invoiceIds) {
-    const candidate = candidates.get(id);
-    if (!candidate) {
-      problems.push("Eine gewählte Rechnung ist nicht mehr offen oder schon eingereicht.");
-      continue;
+  return withActor(actor, async (tx) => {
+    // Gleichzeitige Aufrufe nacheinander: sonst sehen beide dieselbe Rechnung als offen und ziehen sie doppelt ein
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('haben.lastschriftdatei'))`);
+    const candidates = new Map((await directDebitCandidates(today, tx)).map((c) => [c.invoiceId, c]));
+    const problems: string[] = [];
+    const planned: Planned[] = [];
+    for (const id of input.invoiceIds) {
+      const candidate = candidates.get(id);
+      if (!candidate) {
+        problems.push("Eine gewählte Rechnung ist nicht mehr offen oder schon eingereicht.");
+        continue;
+      }
+      const mandate = await findMandate(candidate.mandateId, candidate.collectionDate, tx);
+      if (candidate.problem || !mandate) {
+        problems.push(`${candidate.customerName}: ${candidate.problem}`);
+        continue;
+      }
+      planned.push({ candidate, mandate, endToEndId: newId(), remittance: `Rechnung ${candidate.number}` });
     }
-    const mandate = await findMandate(candidate.mandateId, candidate.collectionDate);
-    if (candidate.problem || !mandate) {
-      problems.push(`${candidate.customerName}: ${candidate.problem}`);
-      continue;
-    }
-    planned.push({ candidate, mandate, endToEndId: newId(), remittance: `Rechnung ${candidate.number}` });
-  }
-  if (problems.length > 0) throw new BankError(problems.join(" "));
+    if (problems.length > 0) throw new BankError(problems.join(" "));
 
-  const messageId = newId();
-  const batches = batchesOf(planned, messageId);
-  const result = pain008({
-    messageId,
-    createdAt: berlinTime.format(now).replace(" ", "T"),
-    // BIC nur, wenn sie in den Firmendaten zu genau diesem Konto steht; sonst NOTPROVIDED
-    creditor: {
-      name: creditorName,
-      iban: account.iban,
-      ...(company.iban.replace(/\s+/g, "").toUpperCase() === account.iban && company.bic ? { bic: company.bic } : {}),
-    },
-    creditorId: company.glaeubigerId,
-    batches,
-  });
-  if (!result.ok) throw new BankError(result.problems.join("; "));
+    const messageId = newId();
+    const batches = batchesOf(planned, messageId);
+    const result = pain008({
+      messageId,
+      createdAt: berlinTime.format(now).replace(" ", "T"),
+      // BIC nur, wenn sie in den Firmendaten zu genau diesem Konto steht; sonst NOTPROVIDED
+      creditor: {
+        name: creditorName,
+        iban: account.iban,
+        ...(company.iban.replace(/\s+/g, "").toUpperCase() === account.iban && company.bic ? { bic: company.bic } : {}),
+      },
+      creditorId: company.glaeubigerId,
+      batches,
+    });
+    if (!result.ok) throw new BankError(result.problems.join("; "));
 
-  const id = await withActor(actor, async (tx) => {
     const [file] = await tx
       .insert(schema.sepaDirectDebits)
       .values({ bankAccountId: account.id, messageId, numberOfTransactions: result.numberOfTransactions, controlSum: result.controlSum, xml: result.xml })
@@ -243,9 +245,8 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
         })),
       ),
     );
-    return file!.id;
+    return { id: file!.id, filename: `${messageId}.xml` };
   });
-  return { id, filename: `${messageId}.xml` };
 }
 
 /** Erzeugte Lastschriftdateien, neueste zuerst */
