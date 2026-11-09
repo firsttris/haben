@@ -22,13 +22,20 @@
 #let semibold(body) = text(font: font.semibold, weight: 600, body)
 
 // Auszeichnungen aus parseTextFormatting (packages/core)
-#let formatted(runs) = {
+#let run-style(run, inhalt) = {
+  let body = inhalt
+  if run.bold { body = semibold(body) }
+  if run.italic { body = emph(body) }
+  if run.underline { body = underline(body) }
+  body
+}
+// Spaltenbreite im Fuß. Nur Wörter, die nicht hineinpassen, bekommen Umbruchstellen; Typst bricht sonst nicht innerhalb eines
+// Worts, es liefe in die Nachbarspalte. Alle anderen bleiben beim Kopieren und Suchen unverändert.
+#let foot-breite = (165mm - 6mm * calc.max(d.footer.len() - 1, 0)) / calc.max(d.footer.len(), 1)
+#let umbrechbar(inhalt, gestalt) = inhalt.split(" ").map(wort => if measure(gestalt(wort)).width > foot-breite { wort.clusters().join("\u{200B}") } else { wort }).join(" ")
+#let formatted(runs, umbrechen: false) = {
   for run in runs {
-    let body = text(run.text)
-    if run.bold { body = semibold(body) }
-    if run.italic { body = emph(body) }
-    if run.underline { body = underline(body) }
-    body
+    run-style(run, text(if umbrechen { umbrechbar(run.text, wort => run-style(run, text(wort))) } else { run.text }))
   }
 }
 
@@ -39,14 +46,14 @@
 #let footer-col(lines) = {
   set text(size: 7pt, fill: muted)
   set par(leading: 0.45em)
-  lines.join(linebreak())
+  context lines.map(zeile => umbrechbar(zeile, wort => text(wort))).join(linebreak())
 }
 
 // Eigene Spalten: je Zeile die ausgezeichneten Abschnitte
 #let footer-col-formatted(lines) = {
   set text(size: 7pt, fill: muted)
   set par(leading: 0.45em)
-  lines.map(formatted).join(linebreak())
+  context lines.map(runs => formatted(runs, umbrechen: true)).join(linebreak())
 }
 
 // Pflichtangaben über die ganze Breite unter den Spalten des Fußes

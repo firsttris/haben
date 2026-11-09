@@ -325,20 +325,6 @@ export function legalLine(info: LegalInfo | undefined, t: Texts = TEXTS.de): str
   return lines.length > 0 ? lines.join(" · ") : null;
 }
 
-const LONG_TOKEN = /\S{25,}/g;
-const ZERO_WIDTH_SPACE = "\u200B";
-
-/** Typst bricht innerhalb eines Worts nicht um: Eine lange E-Mail-Adresse liefe in die Nachbarspalte. Bevorzugt nach @ und Punkt, sonst alle 20 Zeichen */
-function softBreaks(line: string): string {
-  return line.replace(LONG_TOKEN, (token) =>
-    token
-      .replace(/[@._/-]/g, (mark) => mark + ZERO_WIDTH_SPACE)
-      .split(ZERO_WIDTH_SPACE)
-      .map((part) => part.replace(/(.{20})(?=.)/g, `$1${ZERO_WIDTH_SPACE}`))
-      .join(ZERO_WIDTH_SPACE),
-  );
-}
-
 /** Fuß für die Vorlagen: drei Spalten und die Pflichtangaben der Gesellschaft */
 export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, letterhead: Letterhead = {}, treatment: TaxTreatment = "regulaer") {
   const { options } = letterhead;
@@ -350,7 +336,7 @@ export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.d
     options.footerColumns,
     { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" },
     { labels: { taxNumber: t.taxNumber, vatId: t.vatId }, needsVatId: needsSellerVatId(treatment) },
-  ).map((column) => column.map((line) => line.map((run) => ({ ...run, text: softBreaks(run.text) }))));
+  );
   return { footer: runs.map((column) => column.map((line) => line.map((run) => run.text).join(""))), footerFormatted: runs, legal };
 }
 

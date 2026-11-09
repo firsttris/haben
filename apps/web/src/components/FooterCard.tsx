@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   customFooterRuns,
   DEFAULT_FOOTER_COLUMNS,
@@ -44,6 +44,7 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
     setCount((columns ?? DEFAULT_FOOTER_COLUMNS).length);
   }
   const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
+  const caret = useRef<number | null>(null);
 
   // Weniger Spalten behalten den Text der übrigen: Wer zurückschaltet, verliert nichts
   const shown = Array.from({ length: count }, (_, i) => texts[i] ?? "");
@@ -60,9 +61,18 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
     const field = fields.current[active];
     const text = shown[active] ?? "";
     const at = field?.selectionStart ?? text.length;
-    edit(active, `${text.slice(0, at)}{${placeholder}}${text.slice(field?.selectionEnd ?? at)}`);
+    const tag = `{${placeholder}}`;
+    edit(active, `${text.slice(0, at)}${tag}${text.slice(field?.selectionEnd ?? at)}`);
+    caret.current = at + tag.length;
     field?.focus();
   };
+
+  // React setzt die Schreibmarke beim neuen Wert ans Ende; der nächste Platzhalter gehört aber hinter den vorigen
+  useLayoutEffect(() => {
+    if (caret.current === null) return;
+    fields.current[active]?.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+  });
 
   const onSave = () =>
     run(async () => {

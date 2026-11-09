@@ -63,6 +63,9 @@ export function footerValues(seller: FooterSeller): FooterValues {
   };
 }
 
+/** Die Schriften decken Latein, Griechisch und Kyrillisch ab; für anderes findet Typst in PDF/A keine Schrift und bricht ab */
+const WITHOUT_FONT = /[^\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Script=Common}\p{Script=Inherited}]/gu;
+
 const TAX_PLACEHOLDER = /\{(steuernummer|ustid)\}/;
 
 const placeholdersIn = (text: string): string[] => [...text.matchAll(/\{([^{}\s]*)\}/g)].map((match) => match[1]!);
@@ -78,6 +81,8 @@ export function footerIssues(columns: readonly string[]): string[] {
   if (unknown.length > 0) issues.push(`Unbekannte Platzhalter: ${unknown.map((name) => `{${name}}`).join(", ")}`);
   if (columns.some((column) => column.split("\n").length > MAX_FOOTER_LINES)) issues.push(`Höchstens ${MAX_FOOTER_LINES} Zeilen je Spalte`);
   if (columns.some((column) => column.length > MAX_FOOTER_TEXT)) issues.push(`Höchstens ${MAX_FOOTER_TEXT} Zeichen je Spalte`);
+  const foreign = [...new Set(columns.join("").match(WITHOUT_FONT) ?? [])];
+  if (foreign.length > 0) issues.push(`Diese Zeichen enthält keine Belegschrift, das PDF ließe sich nicht erzeugen: ${foreign.slice(0, 10).join(" ")}`);
   return issues;
 }
 
