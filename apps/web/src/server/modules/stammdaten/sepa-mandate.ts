@@ -1,4 +1,4 @@
-import { compactIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
+import { compactIban, isEwrIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -69,6 +69,9 @@ function mandateProblem(input: z.infer<typeof mandateInputSchema>, today: string
     mandatsreferenzProblem(input.reference) ??
     (iban === "" ? "Die IBAN fehlt." : null) ??
     (!isValidIban(iban) ? `Die IBAN ${iban} ist ungültig.` : null) ??
+    // Rulebook SDD Core und B2B v1.2, Kap. 2.2: Konto bei einem PSP in SEPA. Außerhalb des EWR verlangt das Mandat die
+    // Anschrift des Zahlungspflichtigen (DS-01), die es hier nicht führt; daher wie bei Überweisungen nur der EWR
+    (!isEwrIban(iban) ? `Die IBAN ${iban} liegt außerhalb des EWR; dafür nimmt Haben kein Lastschriftmandat an.` : null) ??
     (bic && !isValidBic(bic) ? `Die BIC ${bic} ist ungültig.` : null) ??
     (input.signedOn > today ? "Das Datum der Unterschrift liegt in der Zukunft." : null) ??
     (input.lastCollectionBefore && input.lastCollectionBefore < input.signedOn ? "Der letzte Einzug liegt vor der Unterschrift." : null) ??
