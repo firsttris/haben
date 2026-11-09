@@ -211,6 +211,9 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
   const storno = invoiceType === "SR";
   const type: LegacyVoucherType = storno ? "creditnote" : invoiceType === "AR" ? "downpaymentinvoice" : "invoice";
   const sign = (n: number) => (storno ? neg(Math.abs(n)) : n);
+  // Steht eine Position schon negativ, sind sie gespiegelt: Eine positive Zeile ist dann ein Rabatt oder eine Verrechnung
+  const positionsMirrored = positions.some((p) => positionAmounts(p).net < 0);
+  const positionSign = (n: number) => (positionsMirrored ? n : sign(n));
 
   const tax = sign(cents(i.sumTax));
   const gross = sign(cents(i.sumGross));
@@ -218,7 +221,7 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
   const taxes = taxesFromPositions(
     positions.map((p) => {
       const a = positionAmounts(p);
-      return { rate: lexToBasisPoints(sevNumber(p.taxRate)), net: sign(a.net), tax: sign(a.tax) };
+      return { rate: lexToBasisPoints(sevNumber(p.taxRate)), net: positionSign(a.net), tax: positionSign(a.tax) };
     }),
     net,
     tax,
