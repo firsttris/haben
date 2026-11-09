@@ -5,6 +5,20 @@ reconciliation, EÜR, VAT returns to ELSTER). TanStack Start app in `apps/web`, 
 database in `packages/core`, ELSTER in `packages/elster`, bank and DATEV import in `packages/import`,
 invoice PDF and XML in `packages/einvoice`.
 
+## Never
+
+The rules whose breach costs the most; the details follow below.
+
+- Floats for money: amounts are whole cents, tax rates basis points.
+- Weakening a GoBD lock or seal, renaming or recomputing a sealed column, editing an existing migration.
+- Running ERiC in the app process, or tests against a database with real data.
+- Skipping, weakening or deleting a test to get green; reporting a skipped test as passed.
+- Pushing to `main`, rewriting a contributor's commits, merging without a maintainer.
+
+Scripts check some rules (module boundaries, pages in the E2E specs, pull request title, agent marker); the
+table is in `docs/entwicklung.md`, "Automatische Prüfungen der Regeln". A rule you can turn into such a check
+is better there than here.
+
 ## Documentation
 
 The documentation is in `docs/` (<https://haben.app/>). Read the pages that touch the
@@ -37,7 +51,8 @@ Update what the change affects, in the same pull request, and only that:
 - bookings and tax: test cases for SKR03 and SKR04 and for Ist and Soll;
 - the docs in `docs/` that describe it, in German;
 - the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
-- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the route list in `e2e/seiten.spec.ts`;
+- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the route list in `e2e/seiten.spec.ts`
+  (`bun run lint` fails otherwise; `scripts/seitenabdeckung/ausnahmen.ts` is for redirects, not new pages);
 - a change to the look (UI/UX): screenshots before and after in the pull request description, in a light and
   a dark theme, desktop and phone where it matters. Take the "before" pictures first, before touching the UI,
   so the old state need not be rebuilt later; skill `pr-screenshots` has the steps and how to upload them;
@@ -79,15 +94,17 @@ Skill `checks` has the details:
 - Branch in `firsttris/haben` with write access, otherwise in a fork; never push to `main`. Pull requests
   start as drafts when the user wants to look first; CI skips drafts until "Ready for review". For a pull request
   that only touches Markdown, `docs/` or `LICENSE` and deletes or moves no file, the job `changes` in `ci.yml` skips the other jobs, which
-  counts as passed for the required checks but tests nothing: build the docs locally then.
+  counts as passed for the required checks but tests nothing; the "Docs" workflow builds changed docs in the
+  pull request, still build them locally first.
 - Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
-  Reference issues in the description with `Refs #…`, never `Closes`/`Fixes`: GitHub would close the issue on
-  merge, but it stays open with `rückmeldung` until the release and the author's answer.
-  Commits inside a pull request: Conventional Commits types with a German description
-  (`fix(belege): …`, `test: …`). A recommendation, no lint.
+  The "PR-Regeln" workflow checks it, also for drafts. Reference issues in the description with `Refs #…`,
+  never `Closes`/`Fixes`: GitHub would close the issue on merge, but it stays open with `rückmeldung` until the
+  release and the author's answer. Commits inside a pull request: Conventional Commits types with a German
+  description (`fix(belege): …`, `test: …`); a recommendation, but `fix` without a changed test gets a warning.
 - Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
-  each commit, and a "🤖 Generated with <tool>" line in the pull request description. Using agents is
-  welcome; the person who opens the pull request stays responsible for it.
+  each commit, and a "🤖 Generated with <tool>" line in the pull request description ("PR-Regeln" fails
+  without it when a commit names an agent). Using agents is welcome; the person who opens the pull request
+  stays responsible for it.
 - Before every push check whether the branch's pull request is still open. If it is merged, start
   again from the current `origin/main` and open a **new** pull request.
 - Merge method: always **squash**, and merge the pull request itself, also a contributor's, so GitHub
