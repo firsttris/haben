@@ -58,6 +58,26 @@ describe.skipIf(!testDatabaseUrl)("Offline-Rückweg aus SSO (Postgres)", () => {
     await expect(database`update "user" set role='inhaber' where id='sso'`).rejects.toThrow(/Rolle/);
     await expect(prepareLocalOwner(database, { userId: "sso", apply: true, password: "kurz" })).rejects.toThrow(/12 Zeichen/);
   });
+  it("macht aus einem Steuerberatungskonto keinen Inhaber, weder per Skript noch am Trigger vorbei", async () => {
+    await database`insert into "user"(id,name,email,role) values('kanzlei','Kanzlei','kanzlei@example.de','steuerberatung')`;
+    await expect(prepareLocalOwner(database, { userId: "kanzlei", apply: true, password })).rejects.toThrow(/Steuerberatung/);
+    await expect(
+      database.begin(async (tx) => {
+        await tx`select set_config('haben.actor', 'system:local-owner-recovery', true)`;
+        await tx`select haben_prepare_local_owner('kanzlei')`;
+      }),
+    ).rejects.toThrow(/Rolle/);
+    expect((await database`select role from "user" where id='kanzlei'`)[0]!.role).toBe("steuerberatung");
+  });
+  it("setzt ein übergebenes Passwort auch bei vorhandenem Zugang neu", async () => {
+    await prepareLocalOwner(database, { userId: "sso", apply: true, password: "das-alte-vergessene-passwort" });
+    await database`update "user" set locked_at=null where id='sso'`;
+    await prepareLocalOwner(database, { userId: "sso", apply: true, password });
+    expect(await database`select id from account where provider_id='credential'`).toHaveLength(1);
+    const { auth } = await import("../auth.ts");
+    const result = await auth().api.signInEmail({ body: { email: "sso@example.de", password }, headers: new Headers({ origin: "http://localhost:3000" }) });
+    expect(result.user.id).toBe("sso");
+  });
   it("rollt Rolle, Credential und Nachweis bei einem Datenbankfehler zurück", async () => {
     await database`create function test_recovery_failure() returns trigger language plpgsql as $$ begin raise exception 'test rollback'; end; $$`;
     await database`create trigger test_recovery_failure before insert on account for each row execute function test_recovery_failure()`;
