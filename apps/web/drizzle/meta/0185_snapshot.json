@@ -1,5 +1,5 @@
 {
-  "id": "b005f158-64b2-43e8-92b8-3d3d24d79d75",
+  "id": "d79fb45d-70ea-4b06-9967-582a93edf721",
   "prevId": "9bd8d626-74ee-4c9d-8317-9d8ac08da64f",
   "version": "7",
   "dialect": "postgresql",
@@ -2699,6 +2699,30 @@
         },
         "calendar_token_hash": {
           "name": "calendar_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calendar_token_created_by": {
+          "name": "calendar_token_created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calendar_token_responsible_id": {
+          "name": "calendar_token_responsible_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calendar_token_disabled_at": {
+          "name": "calendar_token_disabled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calendar_token_disabled_reason": {
+          "name": "calendar_token_disabled_reason",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -7739,6 +7763,44 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.local_owner_recoveries": {
+      "name": "local_owner_recoveries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.lsta_submissions": {
       "name": "lsta_submissions",
       "schema": "",
@@ -8425,6 +8487,30 @@
       "name": "mcp_tokens",
       "schema": "",
       "columns": {
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsible_id": {
+          "name": "responsible_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disabled_at": {
+          "name": "disabled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disabled_reason": {
+          "name": "disabled_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "id": {
           "name": "id",
           "type": "uuid",
@@ -12026,6 +12112,68 @@
           "value": "\"text_blocks\".\"kind\" in ('kopf', 'fuss')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.token_events": {
+      "name": "token_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_id": {
+          "name": "token_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_responsible_id": {
+          "name": "previous_responsible_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsible_id": {
+          "name": "responsible_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.user": {

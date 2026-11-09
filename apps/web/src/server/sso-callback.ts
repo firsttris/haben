@@ -1,3 +1,4 @@
+import { disableResponsibleTokens, lockTokenResponsibility } from "./token-responsibility.ts";
 import { APIError } from "better-auth";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import type { Rolle } from "../lib/rollen.ts";
@@ -47,15 +48,20 @@ export async function confirmSsoSession(userId: string) {
     await tx.insert(schema.ssoIssuers).values({ issuer: proof.issuer, initializedBy: userId }).onConflictDoNothing();
   }
 
+  await lockTokenResponsibility(tx, userId);
   const [previous] = await tx
-    .select({ role: schema.ssoRoles.role })
+    .select({ role: schema.ssoRoles.role, confirmedAt: schema.ssoRoles.confirmedAt })
     .from(schema.ssoRoles)
     .where(and(eq(schema.ssoRoles.userId, userId), eq(schema.ssoRoles.issuer, proof.issuer)))
     .for("update");
+  if (previous && (previous.confirmedAt > proof.checkedAt || (previous.confirmedAt.getTime() === proof.checkedAt.getTime() && previous.role !== proof.role))) {
+    throw refuse("Die SSO-Berechtigungen wurden inzwischen erneut geprüft. Bitte neu anmelden.");
+  }
   await tx
     .insert(schema.ssoRoles)
     .values({ userId, issuer: proof.issuer, role: proof.role, confirmedAt: proof.checkedAt })
     .onConflictDoUpdate({ target: [schema.ssoRoles.userId, schema.ssoRoles.issuer], set: { role: proof.role, confirmedAt: proof.checkedAt } });
+  if (proof.role !== "inhaber") await disableResponsibleTokens(tx, userId);
   if (previous && previous.role !== proof.role) await tx.delete(schema.session).where(eq(schema.session.userId, userId));
 
   return { oidcIssuer: proof.issuer, ssoRole: proof.role, ssoCheckedAt: proof.checkedAt, ssoExpiresAt: proof.expiresAt };
@@ -73,6 +79,14 @@ export async function revokeRejectedIdentity(proof: SsoProof): Promise<void> {
       .from(schema.account)
       .where(and(eq(schema.account.providerId, "oidc"), eq(schema.account.accountId, proof.accountId)));
     if (!identity) return;
+    await lockTokenResponsibility(tx, identity.userId);
+    const [previous] = await tx
+      .select({ confirmedAt: schema.ssoRoles.confirmedAt })
+      .from(schema.ssoRoles)
+      .where(and(eq(schema.ssoRoles.userId, identity.userId), eq(schema.ssoRoles.issuer, proof.issuer)))
+      .for("update");
+    if (previous && previous.confirmedAt > proof.checkedAt) return;
+    await disableResponsibleTokens(tx, identity.userId);
     await tx.delete(schema.session).where(and(eq(schema.session.userId, identity.userId), isNotNull(schema.session.oidcIssuer)));
     await tx
       .insert(schema.ssoRoles)

@@ -25,6 +25,8 @@ export {
 } from "./finanzamt.ts";
 export {
   calendarTokenActive,
+  calendarTokenStatus,
+  reactivateCalendarToken,
   checkCalendarToken,
   createCalendarToken,
   fristenToIcs,

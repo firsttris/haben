@@ -175,3 +175,11 @@ export const ssoTakeovers = pgTable("sso_takeovers", {
   issuer: text("issuer").notNull(),
   subject: text("subject").notNull(),
 });
+
+/** Nachweis einer expliziten Offline-Vorbereitung des lokalen Inhabers, nur anhängen. */
+export const localOwnerRecoveries = pgTable("local_owner_recoveries", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  userId: text("user_id").notNull(),
+  transactionId: text("transaction_id").notNull(),
+});

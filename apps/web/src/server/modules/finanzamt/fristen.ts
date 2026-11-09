@@ -1,3 +1,5 @@
+import { UserError } from "../../errors.ts";
+import { requireTokenOwner, tokenEvent } from "../../token-responsibility.ts";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   abgabefrist,
@@ -282,12 +284,21 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
 export async function createCalendarToken(actor: string): Promise<string> {
   const token = randomBytes(24).toString("base64url");
   await loadCompany();
-  await withActor(actor, (tx) =>
-    tx
+  await withActor(actor, async (tx) => {
+    await requireTokenOwner(tx, actor);
+    await tx
       .update(schema.company)
-      .set({ calendarTokenHash: hashToken(token), updatedAt: new Date() })
-      .where(eq(schema.company.id, 1)),
-  );
+      .set({
+        calendarTokenHash: hashToken(token),
+        calendarTokenCreatedBy: actor,
+        calendarTokenResponsibleId: actor,
+        calendarTokenDisabledAt: null,
+        calendarTokenDisabledReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.company.id, 1));
+    await tokenEvent(tx, actor, "kalender", "1", "angelegt", actor);
+  });
   return token;
 }
 
@@ -296,11 +307,14 @@ export async function revokeCalendarToken(actor: string): Promise<void> {
 }
 
 export async function calendarTokenActive(): Promise<boolean> {
-  return Boolean((await loadCompany()).calendarTokenHash);
+  const company = await loadCompany();
+  return Boolean(company.calendarTokenHash && !company.calendarTokenDisabledAt);
 }
 
 export async function checkCalendarToken(token: string): Promise<boolean> {
-  const stored = (await loadCompany()).calendarTokenHash;
+  const company = await loadCompany();
+  if (company.calendarTokenDisabledAt) return false;
+  const stored = company.calendarTokenHash;
   if (!stored || !token) return false;
   const a = Buffer.from(hashToken(token), "hex");
   const b = Buffer.from(stored, "hex");
@@ -376,4 +390,34 @@ export function fristenToIcs(fristen: Frist[], baseUrl: string, now = new Date()
   }
   lines.push("END:VCALENDAR");
   return `${lines.map(fold).join("\r\n")}\r\n`;
+}
+
+/** Metadaten für die Verwaltung, niemals Hash oder Token. */
+export async function calendarTokenStatus() {
+  const company = await loadCompany();
+  const [responsible] = company.calendarTokenResponsibleId
+    ? await db.select({ name: schema.user.name }).from(schema.user).where(eq(schema.user.id, company.calendarTokenResponsibleId))
+    : [];
+  return {
+    responsibleName: responsible?.name ?? null,
+    exists: !!company.calendarTokenHash,
+    responsibleId: company.calendarTokenResponsibleId,
+    createdBy: company.calendarTokenCreatedBy,
+    disabledAt: company.calendarTokenDisabledAt,
+    disabledReason: company.calendarTokenDisabledReason,
+  };
+}
+
+export async function reactivateCalendarToken(actor: string): Promise<void> {
+  await withActor(actor, async (tx) => {
+    await requireTokenOwner(tx, actor);
+    const [company] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
+    if (!company?.calendarTokenHash || !company.calendarTokenDisabledAt) throw new UserError("Nur ein deaktiviertes Kalender-Abo lässt sich übernehmen.");
+    if (company.calendarTokenResponsibleId === actor) throw new UserError("Ein anderer Inhaber muss das Kalender-Abo übernehmen.");
+    await tx
+      .update(schema.company)
+      .set({ calendarTokenResponsibleId: actor, calendarTokenDisabledAt: null, calendarTokenDisabledReason: null })
+      .where(eq(schema.company.id, 1));
+    await tokenEvent(tx, actor, "kalender", "1", "reaktiviert", actor, company.calendarTokenResponsibleId);
+  });
 }

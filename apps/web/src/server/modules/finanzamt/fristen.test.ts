@@ -15,6 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    await sql`insert into "user"(id,name,email,role) values (${actor}, 'Testinhaber', 'inhaber@example.de', 'inhaber')`;
     fristen = await import("./fristen.ts");
     mail = await import("../mail/mail.ts");
     taxpayer = await import("../stammdaten/taxpayer.ts");

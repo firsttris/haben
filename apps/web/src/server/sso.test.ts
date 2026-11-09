@@ -200,7 +200,9 @@ describe.skipIf(!testDatabaseUrl)("SSO-Modus mit Gruppen (Postgres)", () => {
       ["doppelte Zuordnung", ["haben-inhaber", "haben-steuerberatung"]],
     ])("weist %s ab und legt nichts an", async (_name, groups) => {
       const sub = `claim-${String(_name).replace(/\W/g, "-")}`;
-      expect(reason(await login({ sub, email: `${sub}@example.de`, groups }))).toBe("gruppe");
+      expect(reason(await login({ sub, email: `${sub}@example.de`, groups }))).toBe(
+        Array.isArray(groups) && groups.includes("haben-inhaber") && groups.includes("haben-steuerberatung") ? "gruppen-doppelt" : "gruppe",
+      );
       expect(await userOf(sub)).toBeUndefined();
     });
 
@@ -278,7 +280,9 @@ describe.skipIf(!testDatabaseUrl)("SSO-Modus mit Gruppen (Postgres)", () => {
     ])("widerruft auch bei %s", async (_name, groups) => {
       const active = await login(kanzlei("entzug-2"));
       const user = (await userOf("entzug-2"))!;
-      expect(reason(await login({ ...kanzlei("entzug-2"), groups }))).toBe("gruppe");
+      expect(reason(await login({ ...kanzlei("entzug-2"), groups }))).toBe(
+        Array.isArray(groups) && groups.includes("haben-inhaber") && groups.includes("haben-steuerberatung") ? "gruppen-doppelt" : "gruppe",
+      );
       expect(await sessionsOf(user.id)).toBe(0);
       expect(await sessionUser(new Headers({ cookie: cookieOf(active.headers) }))).toBeNull();
     });
@@ -360,5 +364,25 @@ describe.skipIf(!testDatabaseUrl)("SSO-Modus mit Gruppen (Postgres)", () => {
       expect(byEmail).not.toHaveProperty("alt@example.de");
       expect(accounts[0]!.role).toBe("inhaber");
     });
+  });
+  it("deaktiviert Tokens erst nach geprüftem Gruppenentzug und erhält sie trotz Fehler-Redirect", async () => {
+    const identity = inhaber("token-protokoll");
+    expect(succeeded(await login(identity))).toBe(true);
+    const user = (await userOf(identity.sub))!;
+    const mcp = await import("./modules/mcp/index.ts");
+    const calendar = await import("./modules/finanzamt/index.ts");
+    await mcp.setMcpEnabled(user.id, true);
+    const token = await mcp.createMcpToken({ name: "Protokolltest", days: 30 }, new Date(), user.id);
+    const cal = await calendar.createCalendarToken(user.id);
+    const authenticate = () => mcp.authenticateMcp(new Request("http://localhost/api/mcp", { headers: { authorization: `Bearer ${token.token}` } }));
+    expect(succeeded(await login({ ...identity, groups: [], wrongKey: true }))).toBe(false);
+    expect(await authenticate()).not.toBeNull();
+    expect(await calendar.checkCalendarToken(cal)).toBe(true);
+    const response = await login({ ...identity, groups: [] });
+    expect(reason(response)).toBe("gruppe");
+    expect(await authenticate()).toBeNull();
+    expect(await calendar.checkCalendarToken(cal)).toBe(false);
+    expect((await database`select id,disabled_at from mcp_tokens where id=${token.id}`)[0]).toMatchObject({ id: token.id });
+    expect((await database`select disabled_at from mcp_tokens where id=${token.id}`)[0]!.disabled_at).not.toBeNull();
   });
 });

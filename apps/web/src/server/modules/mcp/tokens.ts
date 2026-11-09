@@ -1,3 +1,4 @@
+import { requireTokenOwner, tokenEvent } from "../../token-responsibility.ts";
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, gt, isNull, lt } from "drizzle-orm";
 import { z } from "zod";
@@ -92,22 +93,30 @@ export async function setMcpEnabled(actor: string, enabled: boolean): Promise<vo
 }
 
 /** Legt ein Token an; den Klartext gibt es nur in dieser Antwort. */
-export async function createMcpToken(input: z.input<typeof mcpTokenInputSchema>, now = new Date()): Promise<{ id: string; token: string }> {
+export async function createMcpToken(input: z.input<typeof mcpTokenInputSchema>, now = new Date(), actor?: string): Promise<{ id: string; token: string }> {
   const { name, days, scopes } = mcpTokenInputSchema.parse(input);
   if (!(await mcpEnabled())) throw new McpError("Erst den Zugang für KI-Assistenten und API einschalten.");
   const token = `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
-  const [row] = await db
-    .insert(schema.mcpTokens)
-    .values({
-      name,
-      tokenHash: hashToken(token),
-      prefix: token.slice(0, TOKEN_PREFIX.length + 4),
-      scopes,
-      createdAt: now,
-      expiresAt: new Date(now.getTime() + days * 86_400_000),
-    })
-    .returning({ id: schema.mcpTokens.id });
-  return { id: row!.id, token };
+  if (!actor) throw new McpError("Der verantwortliche Inhaber fehlt.");
+  const row = await withActor(actor, async (tx) => {
+    await requireTokenOwner(tx, actor);
+    const [created] = await tx
+      .insert(schema.mcpTokens)
+      .values({
+        name,
+        createdBy: actor,
+        responsibleId: actor,
+        tokenHash: hashToken(token),
+        prefix: token.slice(0, TOKEN_PREFIX.length + 4),
+        scopes,
+        createdAt: now,
+        expiresAt: new Date(now.getTime() + days * 86_400_000),
+      })
+      .returning({ id: schema.mcpTokens.id });
+    await tokenEvent(tx, actor, "api", created!.id, "angelegt", actor);
+    return created!;
+  });
+  return { id: row.id, token };
 }
 
 export async function revokeMcpToken(id: string, now = new Date()): Promise<void> {
@@ -129,11 +138,26 @@ export async function listMcpTokens(now = new Date()) {
       expiresAt: schema.mcpTokens.expiresAt,
       lastUsedAt: schema.mcpTokens.lastUsedAt,
       revokedAt: schema.mcpTokens.revokedAt,
+      createdBy: schema.mcpTokens.createdBy,
+      responsibleId: schema.mcpTokens.responsibleId,
+      responsibleName: schema.user.name,
+      disabledAt: schema.mcpTokens.disabledAt,
+      disabledReason: schema.mcpTokens.disabledReason,
     })
     .from(schema.mcpTokens)
+    .leftJoin(schema.user, eq(schema.user.id, schema.mcpTokens.responsibleId))
     .orderBy(desc(schema.mcpTokens.createdAt));
   return rows
-    .map((row) => ({ ...row, status: row.revokedAt ? ("widerrufen" as const) : row.expiresAt <= now ? ("abgelaufen" as const) : ("aktiv" as const) }))
+    .map((row) => ({
+      ...row,
+      status: row.revokedAt
+        ? ("widerrufen" as const)
+        : row.expiresAt <= now
+          ? ("abgelaufen" as const)
+          : row.disabledAt
+            ? ("deaktiviert" as const)
+            : ("aktiv" as const),
+    }))
     .sort((a, b) => Number(a.status !== "aktiv") - Number(b.status !== "aktiv"));
 }
 
@@ -150,7 +174,14 @@ export async function authenticateMcp(request: Request, now = new Date()): Promi
   const [row] = await db
     .select({ id: schema.mcpTokens.id, name: schema.mcpTokens.name, scopes: schema.mcpTokens.scopes })
     .from(schema.mcpTokens)
-    .where(and(eq(schema.mcpTokens.tokenHash, hashToken(match[1]!)), isNull(schema.mcpTokens.revokedAt), gt(schema.mcpTokens.expiresAt, now)));
+    .where(
+      and(
+        eq(schema.mcpTokens.tokenHash, hashToken(match[1]!)),
+        isNull(schema.mcpTokens.revokedAt),
+        isNull(schema.mcpTokens.disabledAt),
+        gt(schema.mcpTokens.expiresAt, now),
+      ),
+    );
   if (!row) return null;
   await db.update(schema.mcpTokens).set({ lastUsedAt: now }).where(eq(schema.mcpTokens.id, row.id));
   return { tokenId: row.id, clientName: row.name, scopes: row.scopes.filter((s): s is TokenScope => (TOKEN_SCOPES as readonly string[]).includes(s)) };
@@ -177,4 +208,17 @@ export async function recentMcpCalls(limit = 20) {
     .innerJoin(schema.mcpTokens, eq(schema.mcpTokens.id, schema.mcpCalls.tokenId))
     .orderBy(desc(schema.mcpCalls.at), desc(schema.mcpCalls.id))
     .limit(limit);
+}
+
+/** Explizite Übernahme durch einen anderen Inhaber, ohne Änderung des Geheimnisses, der Rechte oder Frist. */
+export async function reactivateMcpToken(actor: string, id: string): Promise<void> {
+  await withActor(actor, async (tx) => {
+    await requireTokenOwner(tx, actor);
+    const [token] = await tx.select().from(schema.mcpTokens).where(eq(schema.mcpTokens.id, id)).for("update");
+    if (!token?.disabledAt || token.revokedAt || token.expiresAt <= new Date())
+      throw new McpError("Nur ein deaktivierter, noch gültiger Token lässt sich übernehmen.");
+    if (token.responsibleId === actor) throw new McpError("Ein anderer Inhaber muss diesen Token übernehmen.");
+    await tx.update(schema.mcpTokens).set({ responsibleId: actor, disabledAt: null, disabledReason: null }).where(eq(schema.mcpTokens.id, id));
+    await tokenEvent(tx, actor, "api", id, "reaktiviert", actor, token.responsibleId);
+  });
 }

@@ -117,6 +117,7 @@ describe("Struktur der Module", () => {
         "security-headers.ts",
         "setup-code.ts",
         "sso-callback.ts",
+        "token-responsibility.ts",
         "sso-groups.ts",
         "sso-mode.ts",
         "sso-policy.ts",
