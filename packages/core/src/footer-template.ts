@@ -63,8 +63,11 @@ export function footerValues(seller: FooterSeller): FooterValues {
   };
 }
 
-/** Die Schriften decken Latein, Griechisch und Kyrillisch ab; für anderes und Emojis außerhalb der Grundebene findet Typst in PDF/A keine Schrift und bricht ab */
-const WITHOUT_FONT = /[^\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Script=Common}\p{Script=Inherited}]|[\u{10000}-\u{10FFFF}]/gu;
+/**
+ * Was alle Installationen setzen können, gegen die Zeichentabellen der Schriften in packages/einvoice/fonts geprüft. Für alles
+ * andere bräche Typst unter PDF/A ab, sobald keine Systemschrift aushilft; ☎ ginge sonst nur auf manchen Servern.
+ */
+const WITHOUT_FONT = /[^\n\t -~ -ɏΆΈ-ΊΌΎ-ΡΣ-ώЀ-ѹҀ-ӿḀ-ẛẝ-ỿ‐-‧‰-⁕⁗₠-₯₱-₵₸-₺₼-₿№™←-↓−≈≠≤≥]/gu;
 
 const TAX_PLACEHOLDER = /\{(steuernummer|ustid)\}/;
 

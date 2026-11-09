@@ -34,9 +34,24 @@
 #let foot-breite = (165mm - 6mm * calc.max(d.footer.len() - 1, 0)) / calc.max(d.footer.len(), 1)
 #let umbruchstellen(wort) = if wort == "" { "" } else { wort.clusters().join("\u{200B}") }
 #let umbrechbar(inhalt, breite) = inhalt.split(" ").map(wort => if measure(semibold(text(wort))).width > breite { umbruchstellen(wort) } else { wort }).join(" ")
-#let formatted(runs, umbrechen: false) = {
+#let formatted(runs) = {
+  for run in runs { run-style(run, text(run.text)) }
+}
+// Zeile der eigenen Fußzeile: Ein Wort kann über mehrere Auszeichnungen laufen, darum wird es als Ganzes gemessen und nur
+// ein zu breites bekommt Umbruchstellen
+#let footer-zeile(runs) = {
+  let marken = ()
+  for wort in runs.map(run => run.text).join("").split(" ") {
+    let zu-breit = measure(semibold(text(wort))).width > foot-breite
+    marken += wort.clusters().map(_ => zu-breit)
+    marken.push(false)
+  }
+  let stelle = 0
   for run in runs {
-    run-style(run, text(if umbrechen { run.text.split(" ").map(umbruchstellen).join(" ") } else { run.text }))
+    let zeichen = run.text.clusters()
+    let start = stelle
+    run-style(run, text(zeichen.enumerate().map(((i, z)) => if marken.at(start + i, default: false) { z + "\u{200B}" } else { z }).join("")))
+    stelle += zeichen.len()
   }
 }
 
@@ -54,9 +69,7 @@
 #let footer-col-formatted(lines) = {
   set text(size: 7pt, fill: muted)
   set par(leading: 0.45em)
-  // Ein Wort kann über mehrere Auszeichnungen laufen, darum zählt die ganze Zeile
-  let zu-breit(runs) = runs.map(run => run.text).join("").split(" ").any(wort => measure(semibold(text(wort))).width > foot-breite)
-  context lines.map(runs => formatted(runs, umbrechen: zu-breit(runs))).join(linebreak())
+  context lines.map(footer-zeile).join(linebreak())
 }
 
 // Pflichtangaben über die ganze Breite unter den Spalten des Fußes
