@@ -1,4 +1,4 @@
-import { compactIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
+import { compactIban, isEwrIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
 import { asc, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -9,13 +9,14 @@ import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from 
 
 /**
  * SEPA-Lastschriftmandate am Kontakt (#445). Mandat, PDF und Widerruf stehen in nur anhängbaren Tabellen
- * (drizzle/0177): Ändert sich etwas am Mandat, legt man ein neues mit eigener Referenz an, das alte bleibt in der
+ * (drizzle/0179): Ändert sich etwas am Mandat, legt man ein neues mit eigener Referenz an, das alte bleibt in der
  * Historie. Ob ein Mandat am Stichtag gilt, rechnet mandatStatus in @haben/core (Verfall nach 36 Monaten ohne Einzug).
  */
 
 export class MandateError extends UserError {}
 
-const datum = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum fehlt");
+/** Kalendertag JJJJ-MM-TT; das Muster allein ließe den 30. Februar bis zur Datenbank durch */
+const datum = z.iso.date("Datum fehlt oder gibt es nicht");
 
 export const mandateInputSchema = z.object({
   reference: z.string().trim(),
@@ -73,6 +74,9 @@ function mandateProblem(input: z.infer<typeof mandateInputSchema>, today: string
     mandatsreferenzProblem(input.reference) ??
     (iban === "" ? "Die IBAN fehlt." : null) ??
     (!isValidIban(iban) ? `Die IBAN ${iban} ist ungültig.` : null) ??
+    // Rulebook SDD Core und B2B v1.2, Kap. 2.2: Konto bei einem PSP in SEPA. Außerhalb des EWR verlangt das Mandat die
+    // Anschrift des Zahlungspflichtigen (DS-01), die es hier nicht führt; daher wie bei Überweisungen nur der EWR
+    (!isEwrIban(iban) ? `Die IBAN ${iban} liegt außerhalb des EWR; dafür nimmt Haben kein Lastschriftmandat an.` : null) ??
     (bic && !isValidBic(bic) ? `Die BIC ${bic} ist ungültig.` : null) ??
     (input.signedOn > today ? "Das Datum der Unterschrift liegt in der Zukunft." : null) ??
     (input.lastCollectionBefore && input.lastCollectionBefore < input.signedOn ? "Der letzte Einzug liegt vor der Unterschrift." : null) ??

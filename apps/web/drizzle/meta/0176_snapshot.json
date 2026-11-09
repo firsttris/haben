@@ -1,5 +1,5 @@
 {
-  "id": "ca851d0a-96df-47cf-a389-7ebe05dcbdf7",
+  "id": "cd771165-ca32-4ed1-93e2-507f124c533d",
   "prevId": "283c3ca5-6872-4590-a88f-12507a7e2654",
   "version": "7",
   "dialect": "postgresql",
@@ -1654,6 +1654,159 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.bank_neutralizations": {
+      "name": "bank_neutralizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counter_transaction_id": {
+          "name": "counter_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "reverses_id": {
+          "name": "reverses_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "bank_neutralizations_transaction": {
+          "name": "bank_neutralizations_transaction",
+          "columns": [
+            {
+              "expression": "transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bank_neutralizations_counter": {
+          "name": "bank_neutralizations_counter",
+          "columns": [
+            {
+              "expression": "counter_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bank_neutralizations_reverses": {
+          "name": "bank_neutralizations_reverses",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bank_neutralizations_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_neutralizations_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_neutralizations",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bank_neutralizations_counter_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_neutralizations_counter_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_neutralizations",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "counter_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bank_neutralizations_reverses_fk": {
+          "name": "bank_neutralizations_reverses_fk",
+          "tableFrom": "bank_neutralizations",
+          "tableTo": "bank_neutralizations",
+          "columnsFrom": [
+            "reverses_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "bank_neutralizations_two": {
+          "name": "bank_neutralizations_two",
+          "value": "\"bank_neutralizations\".\"transaction_id\" <> \"bank_neutralizations\".\"counter_transaction_id\""
+        },
+        "bank_neutralizations_note": {
+          "name": "bank_neutralizations_note",
+          "value": "\"bank_neutralizations\".\"reverses_id\" is not null or length(btrim(\"bank_neutralizations\".\"note\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.bank_transactions": {
       "name": "bank_transactions",
       "schema": "",
@@ -2260,13 +2413,6 @@
         },
         "kontoinhaber": {
           "name": "kontoinhaber",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "glaeubiger_id": {
-          "name": "glaeubiger_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -10363,338 +10509,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.sepa_mandate_files": {
-      "name": "sepa_mandate_files",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "mandate_id": {
-          "name": "mandate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size": {
-          "name": "size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sepa_mandate_files_mandate": {
-          "name": "sepa_mandate_files_mandate",
-          "columns": [
-            {
-              "expression": "mandate_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "sepa_mandate_files_sha256": {
-          "name": "sepa_mandate_files_sha256",
-          "columns": [
-            {
-              "expression": "sha256",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sepa_mandate_files_mandate_id_sepa_mandates_id_fk": {
-          "name": "sepa_mandate_files_mandate_id_sepa_mandates_id_fk",
-          "tableFrom": "sepa_mandate_files",
-          "tableTo": "sepa_mandates",
-          "columnsFrom": [
-            "mandate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.sepa_mandate_revocations": {
-      "name": "sepa_mandate_revocations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "mandate_id": {
-          "name": "mandate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revoked_on": {
-          "name": "revoked_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sepa_mandate_revocations_mandate": {
-          "name": "sepa_mandate_revocations_mandate",
-          "columns": [
-            {
-              "expression": "mandate_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sepa_mandate_revocations_mandate_id_sepa_mandates_id_fk": {
-          "name": "sepa_mandate_revocations_mandate_id_sepa_mandates_id_fk",
-          "tableFrom": "sepa_mandate_revocations",
-          "tableTo": "sepa_mandates",
-          "columnsFrom": [
-            "mandate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.sepa_mandates": {
-      "name": "sepa_mandates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "signed_on": {
-          "name": "signed_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "first_sequence": {
-          "name": "first_sequence",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_collection_before": {
-          "name": "last_collection_before",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "debtor_name": {
-          "name": "debtor_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "debtor_iban": {
-          "name": "debtor_iban",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "debtor_bic": {
-          "name": "debtor_bic",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sepa_mandates_reference": {
-          "name": "sepa_mandates_reference",
-          "columns": [
-            {
-              "expression": "lower(\"reference\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "sepa_mandates_contact": {
-          "name": "sepa_mandates_contact",
-          "columns": [
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sepa_mandates_contact_id_contacts_id_fk": {
-          "name": "sepa_mandates_contact_id_contacts_id_fk",
-          "tableFrom": "sepa_mandates",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "sepa_mandates_scheme": {
-          "name": "sepa_mandates_scheme",
-          "value": "\"sepa_mandates\".\"scheme\" in ('CORE', 'B2B')"
-        },
-        "sepa_mandates_first_sequence": {
-          "name": "sepa_mandates_first_sequence",
-          "value": "\"sepa_mandates\".\"first_sequence\" in ('FRST', 'RCUR')"
-        },
-        "sepa_mandates_reference_format": {
-          "name": "sepa_mandates_reference_format",
-          "value": "\"sepa_mandates\".\"reference\" ~ '^[A-Za-z0-9+?/:().,'' -]{1,35}$'"
-        },
-        "sepa_mandates_last_collection": {
-          "name": "sepa_mandates_last_collection",
-          "value": "\"sepa_mandates\".\"last_collection_before\" is null or \"sepa_mandates\".\"last_collection_before\" >= \"sepa_mandates\".\"signed_on\""
-        },
-        "sepa_mandates_rcur_with_collection": {
-          "name": "sepa_mandates_rcur_with_collection",
-          "value": "\"sepa_mandates\".\"last_collection_before\" is null or \"sepa_mandates\".\"first_sequence\" = 'RCUR'"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.sepa_transfer_items": {
