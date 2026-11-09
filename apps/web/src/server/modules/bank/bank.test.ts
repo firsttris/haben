@@ -1078,6 +1078,40 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(open.map((r) => r.amount)).toEqual([-100]);
   }, 30_000);
 
+  it("Etsy: Etsy Ads und Offsite Ads gehören zur Sammelrechnung des Monats (#296)", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    // Deutsche Abrechnung: Werbung steht als Art „Marketing“ und steht auf derselben Gebührenrechnung wie die übrigen Gebühren
+    const csv = [
+      `Datum,Art,Titel,Info,Währung,Betrag,"Gebühren & Steuern",Netto,"Steuerliche Angaben"`,
+      `"01. Oktober 2026",Fee,"Einstellgebühr (0,20 USD)","Artikel Nr. XXX-A",EUR,--,-€1.50,-€1.50,--`,
+      `"15. Oktober 2026",Fee,"Processing fee","Order #1",EUR,--,-€3.00,-€3.00,--`,
+      `"16. Oktober 2026",Marketing,"Etsy Ads","Bill for click-throughs to your shop on Oct 15, 2026",EUR,--,-€0.46,-€0.46,--`,
+      `"17. Oktober 2026",Marketing,"Gebühr für Verkauf über Offsite Ads","Bestellnr. XXX-002",EUR,--,-€1.31,-€1.31,--`,
+      `"02. November 2026",Marketing,"Etsy Ads","Bill for click-throughs to your shop on Nov 1, 2026",EUR,--,-€0.50,-€0.50,--`,
+    ].join("\n");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 13]);
+    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-oktober-werbung.jpg" });
+    await documents.updateDocument(actor, docId, {
+      supplierName: "Etsy Ireland UC",
+      supplierUstId: "",
+      invoiceNumber: "ETSY-2026-10-W",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      category: "sonstiges",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 0, net: 627, tax: 0 }], // 150 + 300 + 46 + 131
+    });
+    await documents.bookDocument(actor, docId);
+    const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(4);
+    // Oktober erledigt, die Werbung vom November bleibt offen
+    const open = await sql`select amount from bank_transactions t where amount < 0
+      and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
+    expect(open.map((r) => r.amount)).toEqual([-50]);
+  }, 30_000);
+
   it("Belegzahlung und Privatentnahme", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]);
     const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "telekom.jpg" });

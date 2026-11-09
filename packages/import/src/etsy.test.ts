@@ -56,10 +56,35 @@ describe("Etsy-Monatsabrechnung", () => {
       ["2026-11-05", 873, "Etsy", "Sale · Payment for Order #XXX-001"],
       // „Gebühr“ am Anfang wie bei den übrigen Dienstleistern: Darauf baut die Zuordnung zur Sammelrechnung (Server und Knopf)
       ["2026-11-05", -65, "Etsy", "Gebühr · Processing fee · Order #XXX-001"],
-      ["2026-11-05", -46, "Etsy", "Marketing · Etsy Ads · Bill for click-throughs to your shop on Nov 4, 2026"],
+      // Etsy Ads stehen auf derselben Gebührenrechnung wie die übrigen Gebühren (Hinweis von Niruthan96 im PR #506)
+      ["2026-11-05", -46, "Etsy", "Gebühr · Etsy Ads · Bill for click-throughs to your shop on Nov 4, 2026"],
     ]);
     expect(s.transactions.map((t) => t.type)).toEqual(["Auszahlung", "Verkauf", "Gebühr", "Werbung"]);
     expect(s.warnings).toEqual([]);
+  });
+
+  it("Werbung (Etsy Ads, Offsite Ads) beginnt wie jede Gebühr mit „Gebühr“, damit sie zur Sammelrechnung gehört; die Art bleibt Werbung", () => {
+    const s = parseStatement(
+      german([
+        `"04. November 2026",Marketing,"Gebühr für Verkauf über Offsite Ads","Bestellnr. XXX-002",EUR,--,-€1.31,-€1.31,--`,
+        `"04. November 2026",Marketing,"Etsy Ads","Bill for click-throughs to your shop on Nov 3, 2026",EUR,--,-€0.54,-€0.54,--`,
+      ]),
+    );
+    expect(brief(s)).toEqual([
+      ["2026-11-04", -131, "Etsy", "Gebühr · Gebühr für Verkauf über Offsite Ads · Bestellnr. XXX-002"],
+      ["2026-11-04", -54, "Etsy", "Gebühr · Etsy Ads · Bill for click-throughs to your shop on Nov 3, 2026"],
+    ]);
+    expect(s.transactions.map((t) => t.type)).toEqual(["Werbung", "Werbung"]);
+  });
+
+  it("in der deutschen Abrechnung beginnt jede Gebühr und jede Werbung mit „Gebühr“, nur die übrigen Zeilen nicht", () => {
+    const s = parseStatement(fixture("etsy-de.csv"));
+    const fees = s.transactions.filter((t) => t.type === "Gebühr" || t.type === "Werbung");
+    // 25 Gebührenzeilen (7 Einstellgebühren, 6 Abwicklungen, 12 Transaktionsgebühren) und 7 Werbezeilen (4 Etsy Ads, 3 Offsite Ads)
+    expect(fees).toHaveLength(32);
+    expect(fees.filter((t) => t.type === "Werbung")).toHaveLength(7);
+    expect(fees.filter((t) => !t.purpose.startsWith("Gebühr"))).toEqual([]);
+    expect(s.transactions.filter((t) => t.type !== "Gebühr" && t.type !== "Werbung" && t.purpose.startsWith("Gebühr"))).toEqual([]);
   });
 
   it("eine Zeile mit Betrag und Gebühren wird zu zwei Umsätzen: Bruttobetrag und Gebühr", () => {
@@ -88,7 +113,7 @@ describe("Etsy-Monatsabrechnung", () => {
       ["2025-03-20", -1737, "Etsy", "Refund · Refund to buyer for Order #2500000002"],
       ["2025-03-20", 89, "Etsy", "Gebühr · Credit for processing fee · Order #2500000002"],
       ["2025-03-20", 130, "Etsy", "Tax · Refund to buyer for sales tax · Order #2500000002"],
-      ["2025-03-28", -86, "Etsy", "Marketing · Etsy Ads · Bill for click-throughs to your shop on Mar 27, 2025"],
+      ["2025-03-28", -86, "Etsy", "Gebühr · Etsy Ads · Bill for click-throughs to your shop on Mar 27, 2025"],
       ["2025-03-31", -122576, "Etsy", "Auszahlung · €1,225.76 sent to your bank account"],
     ]);
     expect(s.transactions.map((t) => t.type)).toEqual([
