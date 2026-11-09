@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, firstLink, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
+import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
   artikelEinfuegen,
   artikelInPosition,
@@ -549,6 +549,72 @@ test("Artikel und Textbausteine: die Liste zeigt die Auszeichnung statt der Zeic
   const liste = page.getByRole("region", { name: "Textbausteine" });
   await expect(liste.locator("strong").filter({ hasText: "sofort" })).toBeVisible();
   await expect(liste).not.toContainText("*sofort*");
+});
+
+/** Ob der Knopf in der Mitte wirklich oben liegt; verdeckt oder abgeschnitten bliebe er für Maus und Finger unerreichbar */
+function liegtObenAuf(p: Page): Promise<boolean> {
+  return p
+    .getByRole("button", { name: "Fett", exact: true })
+    .evaluate((knopf) => {
+      const rect = knopf.getBoundingClientRect();
+      return !!document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[role="toolbar"]');
+    });
+}
+
+test("Textknöpfe: auf dem Handy liegt die Leiste auch bei einem hochgescrollten Feld nicht hinter der Navigation", async ({ browser }) => {
+  // Mit offener Tastatur bleibt auf dem Handy nur rund die halbe Höhe
+  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: HANDY.width, height: 420 }, hasTouch: true, isMobile: true });
+  const handy = await context.newPage();
+  await gehe(handy, "/textbausteine");
+  await handy.getByRole("button", { name: "Neuer Textbaustein" }).click();
+  const text = handy.getByRole("form", { name: "Neuer Textbaustein" }).getByLabel("Text", { exact: true });
+  await text.fill(["eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "Wartung"].join("\n"));
+  const zeileZuSehen = await text.evaluate((feld: HTMLTextAreaElement) => {
+    // Das Feld steht oben unter der Navigation, sein unteres Ende ist noch zu sehen und wird markiert
+    window.scrollBy(0, feld.getBoundingClientRect().top - 40);
+    feld.focus({ preventScroll: true });
+    feld.setSelectionRange(feld.value.length - 7, feld.value.length);
+    feld.scrollTop = feld.scrollHeight;
+    const rect = feld.getBoundingClientRect();
+    return document.elementFromPoint(rect.x + rect.width / 2, rect.bottom - 8) === feld;
+  });
+  expect(zeileZuSehen, "die markierte Zeile ist nicht verdeckt").toBe(true);
+  await expect(handy.getByRole("toolbar", { name: "Textformatierung" })).toBeVisible();
+  expect(await liegtObenAuf(handy)).toBe(true);
+  await context.close();
+});
+
+test("Textknöpfe: im gescrollten Artikel-Dialog schneidet der Rand die Leiste nicht ab, Esc auf einem Knopf lässt den Dialog offen", async () => {
+  await go("/rechnungen/neu");
+  const beschreibung = page.getByLabel("Beschreibung Position 1");
+  await beschreibung.fill("Lektorat im Dialog");
+  await trefferliste(page).getByRole("option", { name: "„Lektorat im Dialog“ als neuen Artikel anlegen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neuen Artikel anlegen" });
+  const text = dialog.getByLabel("Text zur Position (optional)");
+  await text.fill("Wartung");
+  // Niedriges Fenster, etwa ein Handy quer oder mit offener Tastatur: Das Formular im Dialog scrollt
+  await page.setViewportSize({ width: 1280, height: 460 });
+  try {
+    await text.evaluate((feld: HTMLTextAreaElement) => {
+      const form = feld.closest("form")!;
+      form.scrollTop += feld.getBoundingClientRect().top - form.getBoundingClientRect().top;
+      feld.focus({ preventScroll: true });
+      feld.setSelectionRange(0, 7);
+    });
+    const leiste = dialog.getByRole("toolbar", { name: "Textformatierung" });
+    await expect(leiste).toBeVisible();
+    expect(await liegtObenAuf(page)).toBe(true);
+
+    await page.keyboard.press("Tab");
+    await expect(dialog.getByRole("button", { name: "Fett", exact: true })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(leiste).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  } finally {
+    await page.setViewportSize({ width: 1440, height: 900 });
+  }
 });
 
 test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {
