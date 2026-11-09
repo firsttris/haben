@@ -221,6 +221,41 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
         await noDeviations([8, 9, 10]);
       }, 60_000);
 
+      it(`${kontenrahmen}, ${versteuerung}: Barzahlung aufteilen, Rechnung voll und Trinkgeld als weitere Einnahme (#455)`, async () => {
+        await company(kontenrahmen, versteuerung);
+        const invoice = await finalInvoice();
+        // Der Kunde gibt 4.800,00 € für 4.760,00 €: 40,00 € Trinkgeld an den Unternehmer, mit 19 %
+        const extra = { amount: 4_000, steuer: { behandlung: "regulaer", steuersatz: 1900 }, text: "Trinkgeld" } as const;
+        const entry = await cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 476_000, extra }, today);
+        expect(entry).toMatchObject({ number: 1, kind: "rechnung", amount: 476_000, invoiceId: invoice.id });
+        expect(await listed(invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+        const book = await cash.cashBook(2026);
+        expect(book.entries.map((e) => [e.number, e.kind, e.amount, e.text, e.taxTreatment, e.taxRate])).toEqual([
+          [1, "rechnung", 476_000, `Rechnung ${invoice.number} · Bäckerei Kranz`, null, null],
+          [2, "einnahme", 4_000, `Trinkgeld zu Rechnung ${invoice.number}`, "regulaer", 1900],
+        ]);
+        // 40,00 € brutto: 33,61 € Erlös und 6,39 € Umsatzsteuer, fällig mit der Bareinnahme
+        expect(await balances()).toEqual({ [kasse]: 480_000, [ust]: -76_639, [erloese]: -403_361 });
+        const september = await vat.computeVatFigures({ year: 2026, month: 9 });
+        const october = await vat.computeVatFigures({ year: 2026, month: 10 });
+        if (versteuerung === "ist") {
+          expect(september).toMatchObject({ kz81: 0, tax81: 0 });
+          expect(october).toMatchObject({ kz81: 403_361, tax81: 76_639 });
+        } else {
+          expect(september).toMatchObject({ kz81: 400_000, tax81: 76_000 });
+          expect(october).toMatchObject({ kz81: 3_361, tax81: 639 });
+        }
+        await noDeviations();
+        const euer = await reports.euerForYear(2026);
+        expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerpflichtig")?.amount).toBe(403_361);
+
+        // Die Teile sind eigene Zeilen im Kassenbuch und lassen sich einzeln stornieren
+        await cash.reverseCashEntry(actor, book.entries[1]!.id, today);
+        expect(await balances()).toEqual({ [kasse]: 476_000, [ust]: -76_000, [erloese]: -400_000 });
+        expect(await listed(invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+        await noDeviations();
+      }, 60_000);
+
       it(`${kontenrahmen}, ${versteuerung}: bar mit Skonto in der Frist, Rest als gewährtes Skonto, Storno hebt beides auf`, async () => {
         // 2 % in 10 Tagen: 95,20 € von 4.760,00 €
         await company(kontenrahmen, versteuerung, [{ days: 10, percent: 200 }]);
@@ -266,6 +301,32 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
       .split(/\r?\n/);
     expect(header?.split(";").at(-1)).toBe("Kassenbuch-Nr.");
     expect(line?.split(";").at(-1)).toBe(String(entry.number));
+  }, 60_000);
+
+  it("Aufteilen: nur mit voll bezahlter Rechnung und ohne Skonto; Kleinunternehmer ohne Umsatzsteuer, ohne Teil fällt nichts an", async () => {
+    await company("SKR04", "ist");
+    const invoice = await finalInvoice();
+    const extra = { amount: 500, steuer: { behandlung: "regulaer", steuersatz: 1900 } } as const;
+    await expect(cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 100_000, extra }, today)).rejects.toThrow(
+      /ganz bezahlt/,
+    );
+    await expect(
+      cash.createCashInvoiceEntry(
+        actor,
+        { invoiceId: invoice.id, date: "2026-10-02", amount: 476_000, extra: { ...extra, steuer: { behandlung: "kleinunternehmer", steuersatz: 0 } } },
+        today,
+      ),
+    ).rejects.toThrow(/nicht Kleinunternehmer/);
+    // Nichts gebucht, auch nicht der Teil auf die Rechnung
+    expect(await sql`select count(*)::int as n from cash_entries`).toEqual([{ n: 0 }]);
+    expect(await sql`select count(*)::int as n from journal_entries where source_type = 'kasse'`).toEqual([{ n: 0 }]);
+
+    // Ohne eigenen Text heißt der Teil nach der Rechnung
+    await cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 476_000, extra }, today);
+    expect((await cash.cashBook(2026)).entries.map((e) => e.text)).toEqual([
+      `Rechnung ${invoice.number} · Bäckerei Kranz`,
+      `Weitere Einnahme zu Rechnung ${invoice.number}`,
+    ]);
   }, 60_000);
 
   it("Stornorechnung, stornierte Rechnung und Entwurf lassen sich nicht bar kassieren; die Datenbank prüft die Rechnung", async () => {
