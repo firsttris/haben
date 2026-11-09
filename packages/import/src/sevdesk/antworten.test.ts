@@ -165,20 +165,36 @@ describe("Vorlagen und Belege ohne Datei in Buchhaltungsversion 1.0", () => {
     for (const { invoice } of vorlagenWkr) expect(isSevInvoiceImportable(sevInvoiceSchema.parse(invoice))).toBe(false);
   });
 
-  it("übernimmt eine gespeicherte Mahnung nicht, auch mit Status 500 und sendDate", () => {
-    const { invoice, positions } = mahnungMitRechnung[0]!;
-    const gemahnt = mahnungMitRechnung[1]!.gemahnteRechnung!;
-    expect(isSevInvoiceImportable(sevInvoiceSchema.parse(invoice))).toBe(false);
-    expect(invoice).toMatchObject({ invoiceType: "MA", status: "500", sumGross: "0", origin: { id: gemahnt.id, objectName: "Invoice" } });
-    expect(invoice!.sendDate).not.toBeNull();
-    expect(Number(invoice!.reminderTotal)).toBeGreaterThan(0);
-    expect(positions).toEqual([]);
-  });
+  describe("Mahnstufen", () => {
+    const stufen = mahnungMitRechnung.slice(0, 2).map((m) => m.invoice!);
+    const gemahnt = mahnungMitRechnung[2]!.gemahnteRechnung!;
 
-  it("markiert die gemahnte Rechnung nur mit dunningLevel, die reminder-Felder bleiben dort leer", () => {
-    const gemahnt = mahnungMitRechnung[1]!.gemahnteRechnung!;
-    expect(gemahnt).toMatchObject({ invoiceType: "RE", status: "200", dunningLevel: "1", reminderTotal: null, reminderDebit: null });
-    expect(isSevInvoiceImportable(sevInvoiceSchema.parse(gemahnt))).toBe(true);
+    it("führt jede Stufe als eigene Mahnung mit Verweis auf die Rechnung", () => {
+      expect(stufen.map((m) => m.dunningLevel)).toEqual(["1", "2"]);
+      expect(new Set(stufen.map((m) => m.id)).size).toBe(2);
+      for (const mahnung of stufen) expect(mahnung).toMatchObject({ invoiceType: "MA", origin: { id: gemahnt.id, objectName: "Invoice" } });
+    });
+
+    it("übernimmt keine Mahnung, auch mit Status 500 und sendDate", () => {
+      for (const mahnung of stufen) {
+        expect(mahnung).toMatchObject({ status: "500", sendType: "VPDF", sumGross: "0" });
+        expect(mahnung.sendDate).not.toBeNull();
+        expect(isSevInvoiceImportable(sevInvoiceSchema.parse(mahnung))).toBe(false);
+      }
+    });
+
+    it("führt den Betrag in den reminder-Feldern, ohne Gebühr und ohne Positionen", () => {
+      for (const { invoice, positions } of mahnungMitRechnung.slice(0, 2)) {
+        expect(invoice).toMatchObject({ reminderCharge: "0", reminderDebit: invoice!.reminderTotal });
+        expect(Number(invoice!.reminderTotal)).toBeGreaterThan(0);
+        expect(positions).toEqual([]);
+      }
+    });
+
+    it("trägt die höchste Stufe an der Rechnung, deren reminder-Beträge bleiben leer", () => {
+      expect(gemahnt).toMatchObject({ invoiceType: "RE", status: "200", dunningLevel: "2", reminderTotal: null, reminderDebit: null });
+      expect(isSevInvoiceImportable(sevInvoiceSchema.parse(gemahnt))).toBe(true);
+    });
   });
 
   it("übernimmt Vorlagen wiederkehrender Belege in keinem Status", () => {

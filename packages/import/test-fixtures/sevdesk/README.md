@@ -23,7 +23,7 @@ Nur `buchhaltung-1.0/`:
 - `rechnungsvorlage-wkr.json`: drei wiederkehrende Rechnungen; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=WKR`. Eine hat `status` 50 und `accountIntervall` `P0Y0M1W` (7 Tage) und ist in sevDesk auf nachfällig gestellt.
 - `rechnungen-aus-vorlage.json`: drei aus diesen Vorlagen erzeugte Rechnungen (`origin.id` zeigt auf die Vorlage), nur Status, die drei Datumsfelder und Texte, ohne Beträge.
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
-- `mahnung-mit-rechnung.json`: Mahnung (`invoiceType` MA, `status` 500, `dunningLevel` 1), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
+- `mahnung-mit-rechnung.json`: zwei Mahnungen (`invoiceType` MA, `status` 500, `dunningLevel` 1 und 2), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
 - `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
 - `document-download.json`: Hülle von `GET /Document/{id}/download`, Datei als Base64 in `objects`.
@@ -47,7 +47,7 @@ Nur `buchhaltung-2.0/`:
 | Aufgehobene Zuordnung | ja | nein |
 | Vorlagen `WKR` und `RV` | ja | nein |
 | Beleg ohne `document` | ja | ja |
-| Mahnung (`MA`) | von sevDesk als versendet geführt, Zustellung nicht belegt | nein |
+| Mahnung (`MA`), Stufen 1 und 2 | von sevDesk als versendet geführt, Zustellung sowie Gebühren und Zinsen nicht belegt | nein |
 | Antwort von `Document/download` | ja, Hülle ohne Inhalt | nur Statuscode und Inhaltstyp |
 | Anlagen (`/Asset`), nur Aufbau | ja | ungeprüft |
 | Umsatzsteuer-Voranmeldungen (`/VatReport`), nur Aufbau | ja | ungeprüft |
@@ -62,7 +62,7 @@ Bei den Vorlagen ist die Bedeutung der Statuswerte aus diesen Beispielen abgelei
 
 Ob eine Vorlage nachfällig oder vorschüssig abrechnet, zeigen erst die erzeugten Rechnungen: `invoiceDate` gleich `deliveryDateUntil` heißt nachfällig (39 von 39 Rechnungen einer Vorlage), `invoiceDate` gleich `deliveryDate` vorschüssig (ein Beispiel). Ohne erzeugte Rechnung bleibt es unklar. Belegt ist das nur für das Monatsintervall in Version 1.0, für 2.0 ist es ungeprüft.
 
-Eine Mahnung verweist mit `origin` auf die gemahnte Rechnung. Ihre Summen im Kopf sind 0, der Betrag steht in den `reminder*`-Feldern, Positionen hat sie keine. Vor dem Speichern hatte sie `status` 100 und kein `sendDate`, nach dem Speichern `status` 500 mit `sendDate` und `sendType` `VPDF`; der Verlauf in sevDesk zeigt sie passend dazu als „versendet“. An der gemahnten Rechnung steht danach `dunningLevel` 1 und `status` 200, die `reminder*`-Felder bleiben dort leer. Nicht belegt ist, ob eine solche Mahnung beim Empfänger ankommt: In diesem Test wurde keine Mail bewusst verschickt.
+Jede Mahnstufe ist ein eigenes `MA`-Objekt und verweist mit `origin` auf die gemahnte Rechnung, nicht auf die vorige Mahnung. Ihre Summen im Kopf sind 0, der Betrag steht in den `reminder*`-Feldern, Positionen hat sie keine. Vor dem Speichern hatte die erste Stufe `status` 100 und kein `sendDate`, nach dem Speichern `status` 500 mit `sendDate` und `sendType` `VPDF`; der Verlauf in sevDesk zeigt sie passend dazu als „versendet“. Die gemahnte Rechnung trägt die höchste Stufe als `dunningLevel` und `status` 200, ihre Betragsfelder `reminderTotal` und `reminderDebit` bleiben leer. In beiden Stufen waren `reminderDebit` und `reminderTotal` im Konto gleich dem Brutto der Rechnung, die Gebühr 0; in der Datei ist das wegen der Maskierung nicht mehr zu sehen. Gebühren und Zinsen sind damit nicht belegt. Nicht belegt ist, ob eine solche Mahnung beim Empfänger ankommt: In diesem Test wurde keine Mail bewusst verschickt.
 
 Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werden, Haben ersetzt sie nicht.
 
