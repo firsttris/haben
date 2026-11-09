@@ -1,11 +1,9 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import {
   accentPalette,
   alternativeMain,
   computeInvoice,
-  customFooterRuns,
   DEFAULT_OPTIONS,
-  footerValues,
   discountedLineAmount,
   discountLabel,
   formatEuro,
@@ -30,7 +28,8 @@ import {
 } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
-import { FormattedRuns, FormattedText } from "./FormattedText.tsx";
+import { FormattedText } from "./FormattedText.tsx";
+import { SheetFooter } from "./SheetFooter.tsx";
 
 export interface PreviewSeller {
   name: string;
@@ -191,24 +190,6 @@ export function InvoicePreview({
                 `Bei Zahlung bis zum ${formatDate(s.until)} gewähren wir ${formatPercent(s.percent)} Skonto (${money(s.amount)}); Sie überweisen dann ${money(s.payable)}.`,
             ),
           ].join(" ");
-  const automaticFooter = [
-    [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
-    [
-      seller.bank,
-      seller.kontoinhaber && seller.kontoinhaber !== seller.name && `Kontoinhaber ${seller.kontoinhaber}`,
-      `IBAN ${seller.iban || "[IBAN]"}`,
-      seller.bic && `BIC ${seller.bic}`,
-    ],
-    [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
-  ].map((column) => column.filter(Boolean));
-  // Wie im PDF (footerData): nur mit Briefpapier
-  const footerHidden = Boolean(seller.background) && options.footerHidden;
-  const footer: ReactNode[][] = options.footerColumns
-    ? customFooterRuns(options.footerColumns, footerValues(seller), { needsVatId }).map((column) =>
-        column.map((runs, index) => <FormattedRuns key={index} runs={runs} />),
-      )
-    : automaticFooter;
-
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (
     <div className="sheet-frame">
@@ -401,18 +382,7 @@ export function InvoicePreview({
             </p>
           )}
         </div>
-        {!footerHidden && (
-          <div className="sheet-foot" style={{ gridTemplateColumns: `repeat(${footer.length}, minmax(0, 1fr))` }}>
-            {footer.map((column, index) => (
-              <div key={index}>
-                {column.map((line, i) => (
-                  <div key={i}>{line}</div>
-                ))}
-              </div>
-            ))}
-            {seller.legal && <div className="sheet-foot-legal">{seller.legal}</div>}
-          </div>
-        )}
+        <SheetFooter seller={seller} options={options} needsVatId={needsVatId} />
       </div>
     </div>
   );
