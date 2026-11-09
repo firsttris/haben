@@ -37,7 +37,8 @@ Update what the change affects, in the same pull request, and only that:
 - bookings and tax: test cases for SKR03 and SKR04 and for Ist and Soll;
 - the docs in `docs/` that describe it, in German;
 - the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
-- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the route list in `e2e/seiten.spec.ts`;
+- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the route list in `e2e/seiten.spec.ts`
+  (`bun run lint` fails otherwise; `scripts/seitenabdeckung/ausnahmen.ts` is for redirects, not new pages);
 - a change to the look (UI/UX): screenshots before and after in the pull request description, in a light and
   a dark theme, desktop and phone where it matters. Take the "before" pictures first, before touching the UI,
   so the old state need not be rebuilt later; skill `pr-screenshots` has the steps and how to upload them;
@@ -61,6 +62,9 @@ Both databases are wiped by the tests, and `bun run test` also creates and drops
 `<name>_<n>` next to the test database; never point them at a server with real data. In a container without
 PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl … -o '-p 5433'`).
 
+Scripts check some rules (module boundaries, pages in the E2E specs, file size, pull request title); the table
+is in `docs/entwicklung.md`, "Automatische Prüfungen der Regeln".
+
 Skill `checks` has the details:
 
 - No Bun on the machine: run the checks in the dev container from `compose.yml`
@@ -79,12 +83,13 @@ Skill `checks` has the details:
 - Branch in `firsttris/haben` with write access, otherwise in a fork; never push to `main`. Pull requests
   start as drafts when the user wants to look first; CI skips drafts until "Ready for review". For a pull request
   that only touches Markdown, `docs/` or `LICENSE` and deletes or moves no file, the job `changes` in `ci.yml` skips the other jobs, which
-  counts as passed for the required checks but tests nothing: build the docs locally then.
-- Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
-  Reference issues in the description with `Refs #…`, never `Closes`/`Fixes`: GitHub would close the issue on
-  merge, but it stays open with `rückmeldung` until the release and the author's answer.
-  Commits inside a pull request: Conventional Commits types with a German description
-  (`fix(belege): …`, `test: …`). A recommendation, no lint.
+  counts as passed for the required checks but tests nothing; the "Docs" workflow builds changed docs in the
+  pull request, still build them locally first.
+- Title: `Bereich: was sich ändert (#Issue)`, in German, the number only if there is an issue; a squash merge makes it the commit on `main`.
+  The "PR-Regeln" workflow checks it, also for drafts. Reference issues in the description with `Refs #…`,
+  never `Closes`/`Fixes`: GitHub would close the issue on merge, but it stays open with `rückmeldung` until the
+  release and the author's answer. Commits inside a pull request: Conventional Commits types with a German
+  description (`fix(belege): …`, `test: …`); a recommendation, but `fix` without a changed test gets a warning.
 - Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
   each commit, and a "🤖 Generated with <tool>" line in the pull request description. Using agents is
   welcome; the person who opens the pull request stays responsible for it.
@@ -141,8 +146,10 @@ class hierarchies.
 Functional, not object-oriented: pure functions that take data and return data, side effects at
 the edges; function components and hooks, no classes (except the `UserError` subclasses); errors as
 values where the code already does so. A file does one thing: split it past ~400 lines, a function
-past ~80. Some older files are larger (`routes/_app/bank.tsx`, `modules/rechnungen/invoices.ts`);
-split them only in a pull request of their own, not on the side. A refactor changes no behaviour.
+past ~80. Older files that are larger are listed in `scripts/dateigroesse/altdateien.json`; `bun run lint`
+fails when a new file passes 400 lines, and "PR-Regeln" warns when an old one grows. Split the old ones only in
+a pull request of their own, not on the side, then run `bun scripts/dateigroesse/pruefen.ts --aufraeumen`.
+A refactor changes no behaviour.
 
 ## Haben specifics
 

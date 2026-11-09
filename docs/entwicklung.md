@@ -393,7 +393,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt.
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
-- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
+- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 
 ## Projektstruktur
@@ -481,8 +481,8 @@ bun run build
 ### Branches, Titel und Commits
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
-- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts, und die Doku baut erst auf `main`: dann den Doku-Build von oben lokal laufen lassen.
-- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts außer der Doku: Die baut der Workflow „Docs“ im Pull Request mit `zensical build --strict`, ohne zu veröffentlichen.
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
 - **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
 
 ### Mit KI-Werkzeugen
@@ -493,6 +493,25 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 - in der Beschreibung des Pull Requests mit einer Zeile wie „🤖 Generated with <Werkzeug>“.
 
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
+
+### Automatische Prüfungen der Regeln
+
+Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verloren. Was sich sicher entscheiden lässt, prüft deshalb ein Skript; was nicht, erscheint als Hinweis.
+
+| Regel | Prüfung | Wirkung |
+| --- | --- | --- |
+| Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
+| Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
+| Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
+| Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
+| Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
+| Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
+| Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
+
+Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`, nicht aber auf eine feste Nachbarseite wie `/rechnungen/neu`, denn die wählt der Router vor dem Parameter. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen. Die Prüfung vergleicht Text: Sie sieht, ob ein Pfad in der Datei steht, nicht, ob ein Test die Seite lädt. Eine Seite, deren Pfad nur in einem Test steht, der eine 404 erwartet, steht deshalb mit eigenem Grund in den Ausnahmen; solche Ausnahmen meldet die Prüfung nicht als veraltet.
+
+Die Dateigröße zählt Zeilen wie `wc -l` in den Quelldateien unter `apps/*/src`, `packages/*/src` und `scripts`, ohne Tests und `routeTree.gen.ts`. Ein Fehler ist jede Datei über 400 Zeilen, die nicht in `scripts/dateigroesse/altdateien.json` steht: eine neue, aber auch eine bisher kleinere, die über die Grenze wächst. Dann kommt das Neue in eine eigene Datei, statt die bestehende zu vergrößern. Wird eine alte Datei umbenannt, ändert sich ihr Pfad in `altdateien.json` mit; das ist der einzige Eintrag von Hand. Die alten Dateien dürfen wachsen, weil sie nur in einem eigenen Pull Request geteilt werden und manche, wie `schema.ts`, mit jeder neuen Tabelle wachsen müssen. Wächst eine im Pull Request um 20 Zeilen oder mehr, weist „PR-Regeln“ darauf hin, außer bei `schema.ts`. Ist eine geschrumpft oder gelöscht, nennt `bun run lint` sie als Hinweis; `bun scripts/dateigroesse/pruefen.ts --aufraeumen` nimmt sie aus der Liste. Neue Dateien trägt niemand in `altdateien.json` ein.
 
 ### Issues schreiben
 
