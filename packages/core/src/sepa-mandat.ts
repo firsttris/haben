@@ -64,6 +64,10 @@ export function mandatsreferenzProblem(value: string): string | null {
   if (value.trim() === "") return "Die Mandatsreferenz fehlt.";
   if (value.length > MANDATSREFERENZ_LAENGE) return `Die Mandatsreferenz hat höchstens ${MANDATSREFERENZ_LAENGE} Zeichen.`;
   if (!MANDATSREFERENZ_ZEICHEN.test(value)) return "Die Mandatsreferenz darf nur A–Z, a–z, 0–9, Leerzeichen und + ? / - : ( ) . , ' enthalten.";
+  // EPC132-17 v5.1, Kap. 2.1: Referenzen beginnen und enden nicht mit „/“ und enthalten kein „//“
+  if (value.startsWith("/") || value.endsWith("/") || value.includes("//")) {
+    return "Die Mandatsreferenz darf nicht mit / beginnen oder enden und kein // enthalten.";
+  }
   return null;
 }
 
