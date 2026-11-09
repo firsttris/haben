@@ -79,6 +79,7 @@ export default defineConfig({
         "barrierefreiheit.spec.ts",
         "gestaltung.spec.ts",
         "basiszinssatz.spec.ts",
+        "bestaetigung.spec.ts",
         "kopfzeile.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",

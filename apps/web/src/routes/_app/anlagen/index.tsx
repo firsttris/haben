@@ -8,6 +8,7 @@ import { formatDate } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { bookDepreciationFn, getAssets } from "../../../server/functions/assets.ts";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/anlagen/")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -34,14 +35,9 @@ function AssetsPage() {
   const shown = assets.filter((a) => a.year !== null || (a.closing !== null && a.closing > 0));
   const total = (pick: (a: (typeof assets)[number]) => number) => shown.reduce((s, a) => s + pick(a), 0);
 
-  const onBook = () => {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  const bookNow = () => {
     void run(async () => {
       const result = await book({ data: year });
-      setConfirming(false);
       await router.invalidate();
       setNotice({ tone: "ok", text: `AfA ${year} für ${result.booked} ${result.booked === 1 ? "Anlage" : "Anlagen"} gebucht.` });
     });
@@ -63,8 +59,8 @@ function AssetsPage() {
           </Link>
           {/* Ohne offene Abschreibung kein Knopf, der nur gesperrt herumsteht */}
           {data.pending > 0 && (
-            <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || !data.canBook}>
-              {confirming ? "Jetzt buchen" : `AfA ${year} buchen`}
+            <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || !data.canBook}>
+              AfA {year} buchen
             </button>
           )}
         </div>
@@ -87,16 +83,12 @@ function AssetsPage() {
         </nav>
       )}
 
-      {confirming && (
-        <div className="banner" role="alert">
-          <Icon name="alert" />
-          <span>
-            Die Abschreibungen {person && "und die private Kfz-Nutzung "}für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"}{" "}
-            gebucht und festgeschrieben; danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern. Noch einmal klicken zum
-            Buchen.
-          </span>
-        </div>
-      )}
+      <ConfirmDialog open={confirming} title={`AfA ${year} buchen?`} confirmLabel="AfA buchen" onConfirm={bookNow} onClose={() => setConfirming(false)}>
+        <p>
+          Die Abschreibungen {person && "und die private Kfz-Nutzung "}für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"} gebucht
+          und festgeschrieben; danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern.
+        </p>
+      </ConfirmDialog>
       {!data.canBook && data.pending > 0 && (
         <div className="banner banner-info" role="status">
           <Icon name="info" />

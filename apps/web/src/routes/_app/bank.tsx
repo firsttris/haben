@@ -32,6 +32,7 @@ import {
 } from "../../server/functions/bank.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
+import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -137,7 +138,7 @@ function BankPage() {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
-      if (target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isDialogOpen() || target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
       const step = event.key === "j" ? 1 : event.key === "k" ? -1 : 0;
       if (!step) return;
       const next = data.transactions[index + step];
@@ -388,6 +389,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
   const disconnectFn = useServerFn(disconnectBank);
   const connectFn = useServerFn(connectBank);
   const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState<Sync["connections"][number] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
 
@@ -449,6 +451,23 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
 
       {connecting && <ConnectForm onCancel={() => setConnecting(false)} callbackUrl={sync.callbackUrl} connect={connectFn} />}
 
+      <ConfirmDialog
+        open={disconnecting !== null}
+        title={`Verbindung zu ${disconnecting?.aspspName} trennen?`}
+        confirmLabel="Trennen"
+        danger
+        onConfirm={() => {
+          if (!disconnecting) return;
+          const { id } = disconnecting;
+          void run(`x-${id}`, async () => {
+            await disconnectFn({ data: id });
+          });
+        }}
+        onClose={() => setDisconnecting(null)}
+      >
+        <p>Die abgerufenen Umsätze bleiben erhalten.</p>
+      </ConfirmDialog>
+
       {sync.connections.length === 0 && !connecting && (
         <p className="small muted" style={{ margin: 0 }}>
           Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
@@ -498,18 +517,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
                   Zustimmung erneuern
                 </button>
               )}
-              <button
-                type="button"
-                className="btn"
-                disabled={busy !== null}
-                onClick={() => {
-                  if (window.confirm(`Verbindung zu ${c.aspspName} trennen? Die abgerufenen Umsätze bleiben erhalten.`)) {
-                    void run(`x-${c.id}`, async () => {
-                      await disconnectFn({ data: c.id });
-                    });
-                  }
-                }}
-              >
+              <button type="button" className="btn" disabled={busy !== null} onClick={() => setDisconnecting(c)}>
                 Trennen
               </button>
             </div>
@@ -929,7 +937,7 @@ function AllocationPanel({
   // Enter ordnet zu, solange der Fokus nicht in einem Eingabefeld liegt
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key !== "Enter" || tx.open === 0) return;
+      if (event.key !== "Enter" || tx.open === 0 || isDialogOpen()) return;
       const target = event.target as HTMLElement;
       if (target.closest("input, select, textarea, button, a")) return;
       event.preventDefault();

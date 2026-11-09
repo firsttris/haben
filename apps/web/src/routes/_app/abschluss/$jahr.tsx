@@ -13,6 +13,7 @@ import { formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { closeYearFn, getJahresabschluss } from "../../../server/functions/abschluss.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/abschluss/$jahr")({
   loader: ({ params }) => {
@@ -122,21 +123,25 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
               Danach nimmt das Jahr keine Buchung mehr an, auch keine Korrektur; das lässt sich nicht rückgängig machen. Haben hält Zahl und Prüfwert der
               Buchungen fest und zeigt hier, ob sie unverändert sind. Schließe erst ab, wenn die Steuerberatung den Abschluss freigegeben hat.
             </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy || blocking.length > 0}
-              onClick={() =>
-                confirming
-                  ? void run(async () => {
-                      await close({ data: { year: data.year } });
-                      await router.invalidate();
-                    }, `Das Jahr ${data.year} ist abgeschlossen.`)
-                  : setConfirming(true)
-              }
-            >
-              {confirming ? `Jetzt ${data.year} endgültig abschließen` : `${data.year} abschließen`}
+            <button type="button" className="btn btn-primary" disabled={busy || blocking.length > 0} onClick={() => setConfirming(true)}>
+              {data.year} abschließen
             </button>
+            <ConfirmDialog
+              open={confirming}
+              title={`Jahr ${data.year} endgültig abschließen?`}
+              confirmLabel={`${data.year} abschließen`}
+              danger
+              acknowledge="Mir ist klar, dass das Jahr danach nicht mehr änderbar ist."
+              onConfirm={() =>
+                void run(async () => {
+                  await close({ data: { year: data.year } });
+                  await router.invalidate();
+                }, `Das Jahr ${data.year} ist abgeschlossen.`)
+              }
+              onClose={() => setConfirming(false)}
+            >
+              <p>Danach nimmt das Jahr keine Buchung mehr an, auch keine Korrektur; das lässt sich nicht rückgängig machen.</p>
+            </ConfirmDialog>
           </>
         )}
         <NoticeBanner notice={notice} />

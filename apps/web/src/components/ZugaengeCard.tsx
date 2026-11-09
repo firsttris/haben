@@ -6,6 +6,7 @@ import { ROLLEN_LABEL } from "../lib/rollen.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { changeAccountFn, createInvitationFn, revokeInvitationFn, type getZugaenge } from "../server/functions/zugang.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Data = Awaited<ReturnType<typeof getZugaenge>>;
 
@@ -27,8 +28,8 @@ export function ZugaengeCard({ data }: { data: Data }) {
   const { busy, notice, run } = useAction();
   const [created, setCreated] = useState<{ label: string; url: string; expiresAt: Date } | null>(null);
   const [copied, setCopied] = useState(false);
-  /** Entfernen erst beim zweiten Klick */
-  const [removing, setRemoving] = useState<string | null>(null);
+  /** Der Zugang, nach dessen Entfernen der Dialog gerade fragt */
+  const [removing, setRemoving] = useState<(typeof data.accounts)[number] | null>(null);
 
   function onInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,7 +47,6 @@ export function ZugaengeCard({ data }: { data: Data }) {
   const act = (userId: string, action: "sperren" | "entsperren" | "entfernen", success: string) =>
     void run(async () => {
       await change({ data: { userId, action } });
-      setRemoving(null);
       await router.invalidate();
     }, success);
 
@@ -91,15 +91,26 @@ export function ZugaengeCard({ data }: { data: Data }) {
                 type="button"
                 className="btn btn-danger"
                 disabled={busy}
-                aria-label={removing === account.id ? `Zugang ${account.name} jetzt entfernen` : `Zugang ${account.name} entfernen`}
-                onClick={() => (removing === account.id ? act(account.id, "entfernen", `Zugang ${account.name} entfernt.`) : setRemoving(account.id))}
+                aria-label={`Zugang ${account.name} entfernen`}
+                onClick={() => setRemoving(account)}
               >
-                {removing === account.id ? "Jetzt entfernen" : "Entfernen"}
+                Entfernen
               </button>
             </div>
           )}
         </div>
       ))}
+
+      <ConfirmDialog
+        open={removing !== null}
+        title={`Zugang ${removing?.name} entfernen?`}
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() => removing && act(removing.id, "entfernen", `Zugang ${removing.name} entfernt.`)}
+        onClose={() => setRemoving(null)}
+      >
+        <p>Der Zugang wird mit Passwort, Passkeys und Sitzungen gelöscht. Name, E-Mail und Rolle bleiben im Änderungsprotokoll.</p>
+      </ConfirmDialog>
 
       <h3 style={{ margin: "8px 0 0", fontSize: 16 }}>Steuerberatung einladen</h3>
       {created && (

@@ -7,8 +7,8 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { dauerbelegFormData } from "../../../lib/dauerbeleg.ts";
 import { formatDate, formatDateTime, formatSize } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
-import { useRevealWhen } from "../../../lib/use-page-head.ts";
 import { changeDauerbelegStatus, getDauerbelegDetail, removeDauerbeleg, saveDauerbeleg } from "../../../server/functions/dauerbelege.ts";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/dauerbelege/$id")({
   loader: ({ params }) => getDauerbelegDetail({ data: params.id }),
@@ -32,12 +32,10 @@ function DauerbelegDetailPage() {
   const remove = useServerFn(removeDauerbeleg);
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState<"loeschen" | "beenden" | null>(null);
-  const beendenHinweis = useRevealWhen<HTMLDivElement>(confirming === "beenden");
 
   const status = (aktion: "pausieren" | "fortsetzen" | "beenden", done: string) =>
     run(async () => {
       await changeStatus({ data: { id: vorlage.id, aktion } });
-      setConfirming(null);
       await router.invalidate();
     }, done);
 
@@ -80,38 +78,42 @@ function DauerbelegDetailPage() {
             </button>
           )}
           {vorlage.status !== "beendet" && (
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => (confirming === "beenden" ? status("beenden", "Beendet.") : setConfirming("beenden"))}
-            >
-              {confirming === "beenden" ? "Endgültig beenden" : "Beenden"}
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setConfirming("beenden")}>
+              Beenden
             </button>
           )}
           {belege.length === 0 && (
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => {
-                if (confirming !== "loeschen") return setConfirming("loeschen");
-                run(async () => {
-                  await remove({ data: vorlage.id });
-                  await navigate({ to: "/dauerbelege" });
-                });
-              }}
-            >
-              {confirming === "loeschen" ? "Endgültig löschen" : "Löschen"}
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setConfirming("loeschen")}>
+              Löschen
             </button>
           )}
         </div>
       </div>
-      {confirming === "beenden" && (
-        <div className="banner" role="status" ref={beendenHinweis}>
-          Beenden ist endgültig: Es entstehen keine Belege mehr, auch nicht nach einer Änderung. Vorübergehend anhalten geht mit Pausieren.
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirming === "beenden"}
+        title={`${vorlage.name} beenden?`}
+        confirmLabel="Beenden"
+        danger
+        onConfirm={() => status("beenden", "Beendet.")}
+        onClose={() => setConfirming(null)}
+      >
+        <p>Beenden ist endgültig: Es entstehen keine Belege mehr, auch nicht nach einer Änderung. Vorübergehend anhalten geht mit Pausieren.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirming === "loeschen"}
+        title={`${vorlage.name} löschen?`}
+        confirmLabel="Vorlage löschen"
+        danger
+        onConfirm={() =>
+          run(async () => {
+            await remove({ data: vorlage.id });
+            await navigate({ to: "/dauerbelege" });
+          })
+        }
+        onClose={() => setConfirming(null)}
+      >
+        <p>Die Vorlage wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
+      </ConfirmDialog>
       {vorlage.lastError && (
         <div className="banner" role="alert">
           {vorlage.lastError}

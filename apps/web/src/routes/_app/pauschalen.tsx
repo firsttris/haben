@@ -23,6 +23,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { useAction, type Notice } from "../../lib/use-action.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -38,6 +39,13 @@ type Entry = Data["entries"][number];
 const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung"];
 const ART_KURZ: Record<PauschaleArt, string> = { homeoffice: "Homeoffice", fahrt: "Fahrt", verpflegung: "Verpflegung" };
 const MAHLZEIT_LABEL = { fruehstueck: "Frühstück", mittag: "Mittagessen", abend: "Abendessen" } as const;
+
+/** Homeoffice gilt für einen Monat, die anderen Pauschalen für einen Tag */
+function pauschaleDatum(e: { art: string; date: string }): string {
+  return e.art === "homeoffice"
+    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
+    : formatDate(e.date);
+}
 
 const parseKm = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
 
@@ -380,17 +388,12 @@ function VerpflegungForm({ data, onNotice }: { data: Data; onNotice: (n: Notice)
 function Liste({ data }: { data: Data }) {
   const router = useRouter();
   const reverse = useServerFn(reversePauschaleFn);
-  const [confirm, setConfirm] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<(typeof data.entries)[number] | null>(null);
   const { busy, notice, run } = useAction();
 
-  async function storno(id: string) {
-    if (confirm !== id) {
-      setConfirm(id);
-      return;
-    }
-    await run(async () => {
+  function storno(id: string) {
+    void run(async () => {
       await reverse({ data: id });
-      setConfirm(null);
       await router.invalidate();
     });
   }
@@ -401,6 +404,24 @@ function Liste({ data }: { data: Data }) {
         Eingetragen in {data.year} <span className="small muted">({data.entries.length})</span>
       </h2>
       <NoticeBanner notice={notice} />
+      <ConfirmDialog
+        open={confirm !== null}
+        title={`${confirm ? PAUSCHALE_LABEL[confirm.art] : ""} stornieren?`}
+        facts={
+          confirm
+            ? [
+                { label: "Datum", value: pauschaleDatum(confirm) },
+                { label: "Betrag", value: formatEuro(confirm.amount), strong: true },
+              ]
+            : undefined
+        }
+        confirmLabel="Stornieren"
+        danger
+        onConfirm={() => confirm && storno(confirm.id)}
+        onClose={() => setConfirm(null)}
+      >
+        <p>Haben schreibt eine Gegenzeile mit negativem Betrag und eine Gegenbuchung am selben Tag. Das Original bleibt durchgestrichen stehen.</p>
+      </ConfirmDialog>
       {data.entries.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           Noch keine Pauschalen für {data.year}.
@@ -424,11 +445,7 @@ function Liste({ data }: { data: Data }) {
           <tbody>
             {data.entries.map((e) => (
               <tr key={e.id} style={e.storniert ? { color: "var(--muted)" } : undefined}>
-                <td data-label="Datum">
-                  {e.art === "homeoffice"
-                    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
-                    : formatDate(e.date)}
-                </td>
+                <td data-label="Datum">{pauschaleDatum(e)}</td>
                 <td data-label="Pauschale">
                   <span style={{ fontWeight: 500, textDecoration: e.storniert ? "line-through" : undefined }}>
                     {PAUSCHALE_LABEL[e.art]}
@@ -443,8 +460,8 @@ function Liste({ data }: { data: Data }) {
                   {e.storniert ? (
                     <span className="pill">storniert</span>
                   ) : (
-                    <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => void storno(e.id)}>
-                      {confirm === e.id ? "Wirklich stornieren" : "Stornieren"}
+                    <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setConfirm(e)}>
+                      Stornieren
                     </button>
                   )}
                 </td>

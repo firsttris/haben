@@ -8,6 +8,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import type { getAnnualReturns } from "../server/functions/annual.ts";
 import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVastBerechtigung, revokeVastBerechtigung } from "../server/functions/annual.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Beleg = Data["vast"]["belege"][number];
@@ -317,22 +318,25 @@ function BerechtigungPanel({
           Stand bei ELSTER prüfen
         </button>
         {(status === "offen" || status === "genehmigt") && (
-          <button
-            type="button"
-            className="btn btn-sm btn-danger"
-            disabled={disabled}
-            onClick={() => {
-              if (!confirmRevoke) return setConfirmRevoke(true);
-              setConfirmRevoke(false);
-              void run(async (base) => {
-                const result = await revoke({ data: base });
-                return { tone: tone(result.ok), text: result.message };
-              });
-            }}
-          >
-            {confirmRevoke ? "Wirklich widerrufen?" : status === "offen" ? "Antrag zurückziehen" : "Widerrufen"}
+          <button type="button" className="btn btn-sm btn-danger" disabled={disabled} onClick={() => setConfirmRevoke(true)}>
+            {status === "offen" ? "Antrag zurückziehen" : "Widerrufen"}
           </button>
         )}
+        <ConfirmDialog
+          open={confirmRevoke}
+          title={status === "offen" ? `Antrag für ${name} zurückziehen?` : `Berechtigung für ${name} widerrufen?`}
+          confirmLabel={status === "offen" ? "Antrag zurückziehen" : "Widerrufen"}
+          danger
+          onConfirm={() =>
+            void run(async (base) => {
+              const result = await revoke({ data: base });
+              return { tone: tone(result.ok), text: result.message };
+            })
+          }
+          onClose={() => setConfirmRevoke(false)}
+        >
+          <p>Der Belegabruf für {name} geht danach erst wieder mit einem neuen Antrag.</p>
+        </ConfirmDialog>
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
+import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -163,14 +164,9 @@ function FinalInvoice({ data }: { data: Detail }) {
   const cancelled = correctedBy.find((c) => c.kind === "storno" && c.status === "final");
   const canAmend = inhaber && invoice.kind === "rechnung" && !cancelled;
 
-  const onCancel = () => {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  const cancelNow = () => {
     void run(async () => {
       const storno = await cancel({ data: invoice.id });
-      setConfirming(false);
       await router.invalidate();
       await navigate({ to: "/rechnungen/$id", params: { id: storno.id } });
     });
@@ -460,14 +456,24 @@ function FinalInvoice({ data }: { data: Detail }) {
                 Festgeschriebene Rechnungen bleiben unverändert. Eine Stornorechnung hebt sie vollständig auf, eine Rechnungskorrektur mindert den Betrag
                 teilweise.
               </p>
-              {confirming && (
-                <div className="banner" role="alert">
-                  Es wird sofort eine Stornorechnung mit neuer Nummer erzeugt und gebucht. Noch einmal klicken zum Stornieren.
-                </div>
-              )}
+              <ConfirmDialog
+                open={confirming}
+                title="Rechnung stornieren?"
+                facts={[
+                  { label: "Nummer", value: invoice.number ?? "–" },
+                  ...(buyer ? [{ label: "Kunde", value: buyer.name }] : []),
+                  { label: "Betrag", value: formatEuro(invoice.gross), strong: true },
+                ]}
+                confirmLabel="Stornieren"
+                danger
+                onConfirm={cancelNow}
+                onClose={() => setConfirming(false)}
+              >
+                <p>Es wird sofort eine Stornorechnung mit neuer Nummer erzeugt und gebucht.</p>
+              </ConfirmDialog>
               <div className="actions">
-                <button type="button" className="btn btn-danger" onClick={onCancel} disabled={busy}>
-                  {confirming ? "Jetzt stornieren" : "Stornieren"}
+                <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)} disabled={busy}>
+                  Stornieren
                 </button>
                 <button type="button" className="btn" onClick={onCorrect} disabled={busy}>
                   Rechnungskorrektur anlegen

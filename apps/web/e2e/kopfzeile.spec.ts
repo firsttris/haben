@@ -94,7 +94,7 @@ test("Saldenliste: der Tabellenkopf steht unter dem Seitenkopf, nicht dahinter",
   await sichtbar(th);
 });
 
-test("Festschreiben im stehenden Kopf: die Rückfrage erscheint dort, wo geklickt wurde", async ({ page }) => {
+test("Festschreiben im stehenden Kopf: die Rückfrage erscheint im Fenster, auch weit unten auf der Seite", async ({ page }) => {
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu");
   await page.getByLabel("Kunde").selectOption({ index: 1 });
@@ -102,10 +102,9 @@ test("Festschreiben im stehenden Kopf: die Rückfrage erscheint dort, wo geklick
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
   await zumEnde(page);
-  // Nur der erste Klick: er fragt nach, geschrieben wird nichts
+  // Der Klick fragt nur nach, geschrieben wird nichts
   await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
-  await expect(page.getByRole("button", { name: "Jetzt festschreiben" })).toBeVisible();
-  await sichtbar(page.getByRole("alert").filter({ hasText: "Noch einmal klicken zum Festschreiben" }));
+  await sichtbar(page.getByRole("dialog", { name: /festschreiben\?$/ }));
 });
 
 test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unter der Zeile der Bereiche", async ({ page }) => {
@@ -268,41 +267,14 @@ for (const [geraet, viewport] of [
     await page.setViewportSize(viewport);
     await page.goto(pfad as string, { waitUntil: "networkidle" });
     await zumEnde(page);
-    // Nur der erste Klick: er fragt nach, geschrieben wird nichts
+    // Der Klick fragt nur nach, geschrieben wird nichts
     await page.locator(".main > .page-head").getByRole("button", { name: "Beenden" }).click();
-    await expect(page.getByRole("button", { name: "Endgültig beenden" })).toBeVisible();
-    await sichtbar(page.getByText("Beenden ist endgültig"));
+    await expect(page.getByRole("dialog").getByRole("button", { name: "Beenden" })).toBeVisible();
+    await sichtbar(page.getByRole("dialog").getByText("Beenden ist endgültig"));
   });
 }
 
 /** Der längere Knopf der Rückfrage bricht die Aktionen um: Der Kopf wächst im selben Moment, in dem der Hinweis ins Bild kommt */
-async function hinweisBleibtUnterWachsendemKopf(page: Page, knopf: string, hinweis: Locator): Promise<void> {
-  await zumEnde(page);
-  const head = page.locator(".main > .page-head");
-  const hoehe = () => head.evaluate((el) => el.getBoundingClientRect().height);
-  const vorher = await hoehe();
-  await head.getByRole("button", { name: knopf, exact: true }).click();
-  await expect(hinweis).toBeAttached();
-  // Sonst prüft der Test nichts: Bei dieser Breite muss der Kopf wirklich wachsen
-  await expect.poll(hoehe).toBeGreaterThan(vorher);
-  await expect.poll(async () => (await hinweis.evaluate((el) => el.getBoundingClientRect().top)) - (await kopfUnterkante(page))).toBeGreaterThanOrEqual(0);
-}
-
-test("Dauerbeleg: Der Hinweis nach „Beenden“ steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
-  const pfad = await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/);
-  expect(pfad).not.toBeNull();
-  await page.setViewportSize({ width: 880, height: 600 });
-  await page.goto(pfad as string, { waitUntil: "networkidle" });
-  await hinweisBleibtUnterWachsendemKopf(page, "Beenden", page.getByText("Beenden ist endgültig"));
-});
-
-test("Rechnungsentwurf: Die Rückfrage zum Festschreiben steht unter dem Kopf, auch wenn der Kopf dabei wächst", async ({ page }) => {
-  // Breite, bei der die Knöpfe samt „Vorschau“ gerade noch in eine Zeile passen, „Jetzt festschreiben“ aber nicht mehr
-  await page.setViewportSize({ width: 1220, height: 600 });
-  await entwurfAusfuellen(page);
-  await hinweisBleibtUnterWachsendemKopf(page, "Festschreiben", page.getByRole("alert").filter({ hasText: "Noch einmal klicken" }));
-});
-
 // 400 % Zoom: WCAG 1.4.10 rechnet mit 320×256, ein Fenster mit 1280×720 ergibt 320×180
 for (const viewport of [
   { width: 320, height: 256 },

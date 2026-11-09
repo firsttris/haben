@@ -1,3 +1,4 @@
+import { formatEuro } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -7,6 +8,7 @@ import type { getDocumentDetail } from "../server/functions/documents.ts";
 import { cancelDocumentFn, reenterDocumentFn } from "../server/functions/documents.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 
@@ -20,7 +22,7 @@ export function DocumentCancellation({ data }: { data: Detail }) {
   if (doc.replacesDocumentId && !doc.lockedAt) return <ReentryNotice replacesId={doc.replacesDocumentId} />;
   if (!doc.lockedAt) return null;
   if (cancellation) return <Cancelled documentId={doc.id} cancellation={cancellation} reentryId={reentryId} />;
-  return <CancelForm documentId={doc.id} issues={data.cancellationIssues} date={data.cancellationDate} today={data.today} />;
+  return <CancelForm doc={doc} issues={data.cancellationIssues} date={data.cancellationDate} today={data.today} />;
 }
 
 function ReentryNotice({ replacesId }: { replacesId: string }) {
@@ -92,7 +94,7 @@ function cancellationNotice(date: string | null, today: string): string {
   return `Haben bucht den Beleg zum ${formatDate(date ?? today)} zurück; der Beleg bleibt festgeschrieben. Eine abgegebene Voranmeldung bleibt unberührt, die Korrektur steht im laufenden Zeitraum.`;
 }
 
-function CancelForm({ documentId, issues, date, today }: { documentId: string; issues: string[]; date: string | null; today: string }) {
+function CancelForm({ doc, issues, date, today }: { doc: Detail["document"]; issues: string[]; date: string | null; today: string }) {
   const router = useRouter();
   const cancel = useServerFn(cancelDocumentFn);
   const { busy, notice, run } = useAction();
@@ -101,41 +103,38 @@ function CancelForm({ documentId, issues, date, today }: { documentId: string; i
   if (issues.length > 0) {
     return <p className="small muted">{issues.join(" ")}</p>;
   }
-  const onCancel = () => {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+  const cancelNow = () => {
     void run(async () => {
-      await cancel({ data: { id: documentId, cancellation: { reason } } });
-      setConfirming(false);
+      await cancel({ data: { id: doc.id, cancellation: { reason } } });
       await router.invalidate();
     });
   };
   return (
     <>
-      {confirming && (
-        <div className="stack">
-          <div className="banner" role="alert">
-            <Icon name="alert" />
-            <span>{cancellationNotice(date, today)} Noch einmal klicken zum Stornieren.</span>
-          </div>
-          <label className="field">
-            Grund (optional)
-            <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
-          </label>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Beleg stornieren?"
+        confirmLabel="Stornieren"
+        danger
+        facts={[
+          ...(doc.supplierName ? [{ label: "Lieferant", value: doc.supplierName }] : []),
+          ...(doc.documentDate ? [{ label: "Belegdatum", value: formatDate(doc.documentDate) }] : []),
+          { label: "Betrag", value: formatEuro(doc.gross), strong: true },
+        ]}
+        onConfirm={cancelNow}
+        onClose={() => setConfirming(false)}
+      >
+        <p>{cancellationNotice(date, today)}</p>
+        <label className="field">
+          Grund (optional)
+          <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
+        </label>
+      </ConfirmDialog>
       <NoticeBanner notice={notice} />
       <div className="actions doc-actions">
-        <button type="button" className="btn btn-danger" onClick={onCancel} disabled={busy}>
-          {confirming ? "Jetzt stornieren" : "Beleg stornieren"}
+        <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)} disabled={busy}>
+          Beleg stornieren
         </button>
-        {confirming && (
-          <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={busy}>
-            Abbrechen
-          </button>
-        )}
       </div>
     </>
   );

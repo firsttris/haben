@@ -5,7 +5,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { CertificateStatus, ElsterSubmit, TestOnlyToggle } from "../../components/ElsterSubmit.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
-import { elsterNotice, type ElsterKind } from "../../lib/elster.ts";
+import { elsterNotice, finanzamtFakten, type ElsterKind } from "../../lib/elster.ts";
+import type { ConfirmFact } from "../../components/ConfirmDialog.tsx";
 import { formatDate, formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
@@ -299,7 +300,9 @@ function MessageForm({
     <SendPanel
       data={data}
       ready={ready}
-      confirmText="Die Nachricht geht an das Finanzamt. Noch einmal klicken zum Senden."
+      confirmTitle="Nachricht an das Finanzamt senden?"
+      confirmText="Die Nachricht geht an das Finanzamt."
+      confirmFacts={[...finanzamtFakten(data.company.finanzamt, data.company.steuernummer), { label: "Betreff", value: betreff }]}
       footer="Die Antwort des Finanzamts kommt als Brief oder in dein ELSTER-Postfach. Die PIN wird nicht gespeichert."
       send={(kind, pin) => send({ data: { topic, betreff, text, figures: figures ?? null, kind, pin } })}
     >
@@ -341,7 +344,13 @@ function BankChangeForm({ data }: { data: Data }) {
     <SendPanel
       data={data}
       ready={ready}
-      confirmText="Das Finanzamt nutzt danach dieses Konto für alle Steuerarten. Noch einmal klicken zum Senden."
+      confirmTitle="Bankverbindung an das Finanzamt senden?"
+      confirmText="Das Finanzamt nutzt danach dieses Konto für alle Steuerarten."
+      confirmFacts={[
+        ...finanzamtFakten(data.company.finanzamt, data.company.steuernummer),
+        ...(data.person ? [{ label: "Kontoinhaber", value: `${data.person.vorname} ${data.person.name}` }] : []),
+        { label: "IBAN", value: compact, strong: true },
+      ]}
       footer="Gilt für Erstattungen und, falls du eine Lastschrift erteilt hast, für den Einzug. Die PIN wird nicht gespeichert."
       send={(kind, pin) => send({ data: { iban: compact, kind, pin } })}
     >
@@ -382,14 +391,18 @@ function BankChangeForm({ data }: { data: Data }) {
 function SendPanel({
   data,
   ready,
+  confirmTitle,
   confirmText,
+  confirmFacts,
   footer,
   send,
   children,
 }: {
   data: Data;
   ready: boolean;
+  confirmTitle: string;
   confirmText: string;
+  confirmFacts: readonly ConfirmFact[];
   footer: string;
   send: (kind: ElsterKind, pin?: string) => Promise<SendResult>;
   children: ReactNode;
@@ -405,7 +418,9 @@ function SendPanel({
         ready={ready}
         busy={busy}
         notice={notice}
+        confirmTitle={confirmTitle}
         confirmText={confirmText}
+        confirmFacts={confirmFacts}
         footer={footer}
         onSubmit={(kind, pin) =>
           run(async () => {

@@ -2,7 +2,19 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { day, firstLink, YEAR } from "./daten.ts";
 import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
-import { CUSTOMERS, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, ohneAxeVerstoesse, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
+import {
+  bestaetigen,
+  faktenZeigen,
+  CUSTOMERS,
+  durchlaufSeite,
+  einrichten,
+  gehe,
+  INVOICES,
+  kontaktAnlegen,
+  ohneAxeVerstoesse,
+  receiptJpeg,
+  rechnungFestschreiben,
+} from "./einrichtung.ts";
 
 /**
  * Rechnungen, Angebote und Kasse in eigener, leerer Datenbank (Projekt „rechnungen“, e2e/durchlaeufe.ts), parallel zu
@@ -399,7 +411,7 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   const antwort = page.getByRole("region", { name: /Antwort des Kunden/ });
   await expect(antwort).toContainText("Offen", { timeout: 30_000 });
   await expect(page.getByText("2.094,40\u00a0€").first()).toBeVisible();
@@ -412,7 +424,7 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await expect(page.getByRole("combobox", { name: /^Angebot\b/ }).locator("option:checked")).toHaveText(/^Angebot AN-\d{4}-001 vom/);
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue(/^Abschlag gemäß Angebot AN-\d{4}-001 vom/);
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
   await page.goto(angebotUrl);
   await page.waitForLoadState("networkidle");
@@ -426,9 +438,9 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   // Bestellnummer aus dem Angebot, als eigene Auftragsnummer (BT-14) dessen Nummer
   await expect(page.getByLabel("Bestellnummer (optional)")).toHaveValue("4500012345");
   await expect(page.getByLabel("Eigene Auftragsnummer (optional)")).toHaveValue(/^AN-\d{4}-001$/);
-  // Den Entwurf wieder verwerfen (zweiter Klick bestätigt); das Angebot lässt sich danach erneut abrechnen
+  // Den Entwurf wieder verwerfen; das Angebot lässt sich danach erneut abrechnen
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
   await go("/angebote");
   await expect(page.getByRole("link", { name: /AN-\d{4}-001/ })).toContainText("Angenommen");
@@ -480,7 +492,7 @@ test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick au
   await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
 
   // Auswahl des Kunden: Variante mit Shop und die Schulung
@@ -507,7 +519,7 @@ test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick au
   await zahlungsplan.getByRole("link", { name: "Abschlagsrechnung (Entwurf)" }).click();
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
-  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await page.waitForURL(/\/rechnungen$/);
 });
 
@@ -590,7 +602,7 @@ test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim
   await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Rechnung ", "").trim();
   await expect(anhaenge).toContainText("Mit der Rechnung festgeschrieben.");
@@ -651,7 +663,7 @@ test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand
   await expect(anhaenge.getByRole("link", { name: "intern.pdf", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Angebot ", "").trim();
   await expect(anhaenge).toContainText("Mit dem Angebot festgeschrieben.");
@@ -725,7 +737,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Abschlagsrechnung ", "").trim();
   const lieferschein = await page.request.get((await page.getByRole("link", { name: "Lieferschein" }).getAttribute("href"))!);
@@ -763,8 +775,8 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
   await expect(liste).toContainText("Wechselgeld");
   const stornieren = liste.getByRole("button", { name: "Nr. 1 stornieren" });
   await stornieren.click();
-  await expect(stornieren).toHaveText("Jetzt stornieren");
-  await stornieren.click();
+  await faktenZeigen(page, "Nummer", "Text", "Betrag");
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr. 2" })).toBeVisible();
   await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
 });
@@ -780,13 +792,18 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Festschreiben" }).click();
-  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await bestaetigen(page, "Festschreiben");
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const invoicePath = new URL(page.url()).pathname;
   const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/^Rechnung (\S+)/)?.[1] ?? "";
   expect(number).not.toBe("");
   const zahlungen = page.getByRole("region", { name: "Zahlungen" });
   await expect(zahlungen).toContainText("Noch keine Zahlung");
+
+  // Das Storno nennt, was storniert würde; hier nur ansehen
+  await page.getByRole("button", { name: "Stornieren" }).click();
+  await faktenZeigen(page, "Nummer", "Kunde", "Betrag");
+  await page.getByRole("dialog").getByRole("button", { name: "Abbrechen" }).click();
 
   // Teilzahlung in der Kasse: 50,00 € von 119,00 €
   await go("/kasse");
@@ -847,7 +864,7 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
   await go("/kasse");
   const stornieren = liste.getByRole("button", { name: `Nr. ${restNr} stornieren` });
   await stornieren.click();
-  await stornieren.click();
+  await bestaetigen(page, "Stornieren");
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr." })).toBeVisible();
   await expect(liste).toContainText(`Storno Nr. ${restNr}: Rechnung ${number}`);
   await go(invoicePath);
@@ -938,7 +955,7 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
   await page.waitForLoadState("networkidle");
   // Nicht buchen: wieder löschen, damit die übrigen Seiten und Bilder dieselben Daten zeigen wie ohne diesen Test
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
-  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   expect((await page.request.get(`/api/v1/belege/${document.id}`, { headers: auth })).status()).toBe(404);
 
@@ -1031,6 +1048,60 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText("1 Anlage übernommen, 1 fehlerhafte Zeile übersprungen.");
   await go(`/anlagen?jahr=${YEAR}`);
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
+});
+
+test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {
+  const name = "Warenwirtschaftsbestelluebersichtsseiten"; // 40 Zeichen, mehr nimmt das Formular nicht
+  await go("/einstellungen?bereich=seiten");
+  const form = page.getByRole("form", { name: "Neue eigene Seite" });
+  await form.getByLabel("Name im Menü").fill(name);
+  await form.getByLabel("Adresse").fill("https://n8n.example.com/form");
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  const entfernen = page.getByRole("button", { name: `${name} entfernen` });
+  await expect(entfernen).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await entfernen.click();
+  const dialog = page.getByRole("dialog", { name: /aus dem Menü entfernen\?$/ });
+  const titel = dialog.getByRole("heading");
+  await expect(titel).toBeVisible();
+  const passt = await titel.evaluate((element) => element.scrollWidth <= element.clientWidth);
+  await dialog.getByRole("button", { name: "Entfernen" }).click();
+  await expect(entfernen).toHaveCount(0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(passt).toBe(true);
+});
+
+test("Doppelklick auf Stornieren im Kassenbuch: Liegt der rote Knopf des Dialogs darunter, bestätigt der zweite Klick nicht", async () => {
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByLabel("Betrag (€)").fill("20");
+  await form.getByLabel("Text (optional)").fill("Doppelklick");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  const eintrag = page.getByRole("region", { name: "Kassenbuch" }).locator(".table-row").filter({ hasText: "Doppelklick" });
+  await expect(eintrag).toBeVisible();
+
+  // Handy: Der Knopf der Zeile steht rechts wie die Aktion im Dialog; ob sie sich decken, hängt nur noch an der Höhe
+  await page.setViewportSize({ width: 375, height: 812 });
+  const stornieren = eintrag.getByRole("button", { name: /stornieren$/ });
+  await stornieren.click();
+  const dialog = page.getByRole("dialog", { name: /stornieren\?$/ });
+  const aktion = (await dialog.getByRole("button", { name: "Stornieren" }).boundingBox())!;
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const unterDerAktion = aktion.y + aktion.height / 2 - 812 / 2;
+  const zeile = (await stornieren.boundingBox())!;
+  const mitte = { x: zeile.x + zeile.width / 2, y: zeile.y + zeile.height / 2 };
+  expect(mitte.x).toBeGreaterThan(aktion.x);
+  expect(mitte.x).toBeLessThan(aktion.x + aktion.width);
+  await page.setViewportSize({ width: 375, height: Math.round(2 * (mitte.y - unterDerAktion)) });
+
+  await page.mouse.dblclick(mitte.x, mitte.y);
+  await expect(dialog).toBeVisible();
+  await expect(eintrag).not.toContainText("storniert");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1440, height: 900 });
 });
 
 test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fenster (#356)", async () => {

@@ -46,7 +46,6 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
-import { useRevealWhen } from "../lib/use-page-head.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -64,6 +63,7 @@ import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFiel
 import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface ContactOption {
   id: string;
@@ -332,7 +332,6 @@ export function InvoiceEditor({
   const { busy, notice, setNotice, run } = sharedAction ?? ownAction;
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const confirmBanner = useRevealWhen<HTMLDivElement>(confirming);
   const preview = useDocumentPreview();
   const designDraft = useDesignDraft(seller.design);
   const [logo, setLogo] = useLoadedState(seller.logo ?? null);
@@ -410,16 +409,12 @@ export function InvoiceEditor({
     return (value: T) => {
       setter(value);
       setDirty(true);
-      setConfirming(false);
-      setConfirmingDelete(false);
     };
   }
 
   function updateLine(key: number, patch: Partial<LineState>) {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
     setDirty(true);
-    setConfirming(false);
-    setConfirmingDelete(false);
   }
 
   /** Preis eines Artikels für diese Rechnung: netto oder brutto umgerechnet, wenn der Artikel anders gepflegt ist */
@@ -482,7 +477,6 @@ export function InvoiceEditor({
     };
     setLines((prev) => (prev.length === 1 && !prev[0]!.description.trim() && !prev[0]!.unitPrice.trim() ? [line] : [...prev, line]));
     setDirty(true);
-    setConfirming(false);
   }
 
   function chooseTreatment(value: TaxTreatment) {
@@ -593,14 +587,13 @@ export function InvoiceEditor({
 
   const onFinalize = () => {
     setAttempted(true);
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
+    setConfirming(true);
+  };
+
+  const finalizeNow = () => {
     void run(async () => {
       const savedId = dirty || id === null ? await persist() : id;
       await (quote ? finalizeQuote({ data: savedId }) : finalize({ data: savedId }));
-      setConfirming(false);
       if (id === null) await openSaved(savedId);
       else await router.invalidate();
     });
@@ -622,12 +615,7 @@ export function InvoiceEditor({
     });
   };
 
-  // Wie beim Festschreiben: erst nachfragen, der zweite Klick löscht
-  const onDelete = () => {
-    if (!confirmingDelete) {
-      setConfirmingDelete(true);
-      return;
-    }
+  const deleteNow = () => {
     void run(async () => {
       if (id) await (quote ? removeQuote({ data: id }) : remove({ data: id }));
       await (quote ? navigate({ to: "/angebote" }) : navigate({ to: "/rechnungen" }));
@@ -638,6 +626,40 @@ export function InvoiceEditor({
 
   return (
     <>
+      <ConfirmDialog
+        open={confirming}
+        title={`${quote ? "Angebot" : "Rechnung"} festschreiben?`}
+        confirmLabel="Festschreiben"
+        facts={[
+          { label: "Nummer", value: nextNumber },
+          ...(contact ? [{ label: "Kunde", value: contact.name }] : []),
+          { label: "Betrag", value: currencyCode === "EUR" ? formatEuro(previewGross) : `${formatDecimal(previewGross)} ${currencyCode}`, strong: true },
+        ]}
+        onConfirm={finalizeNow}
+        onClose={() => setConfirming(false)}
+      >
+        {quote ? (
+          <>
+            <p>Das Angebot bekommt sein PDF. Gebucht wird nichts.</p>
+            <p>Danach ist das Angebot nicht mehr änderbar; für ein geändertes kopierst du es.</p>
+          </>
+        ) : (
+          <>
+            <p>PDF und XML werden erzeugt und gebucht.</p>
+            <p>Danach ist die Rechnung nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.</p>
+          </>
+        )}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Entwurf löschen?"
+        confirmLabel="Entwurf löschen"
+        danger
+        onConfirm={deleteNow}
+        onClose={() => setConfirmingDelete(false)}
+      >
+        <p>Der Entwurf{contact ? ` für ${contact.name}` : ""} wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
+      </ConfirmDialog>
       <ContactDialog
         open={newContactOpen}
         title="Neuen Kunden anlegen"
@@ -673,7 +695,7 @@ export function InvoiceEditor({
             Entwurf speichern
           </button>
           <button type="button" className="btn btn-primary" disabled={busy || !allValid} onClick={onFinalize}>
-            {confirming ? "Jetzt festschreiben" : "Festschreiben"}
+            Festschreiben
           </button>
         </div>
       </div>
@@ -692,17 +714,6 @@ export function InvoiceEditor({
           <span>
             Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): {letterIssues.join(", ")}. Festschreiben geht trotzdem, der Fuß nennt dann nur, was
             eingetragen ist. <Link to="/einstellungen">Firmendaten ergänzen</Link>
-          </span>
-        </div>
-      )}
-      {confirming && (
-        <div className="banner" role="alert" ref={confirmBanner}>
-          <Icon name="alert" />
-          <span>
-            {quote
-              ? `Das Angebot bekommt die Nummer ${nextNumber} und sein PDF. Danach ist es nicht mehr änderbar; für ein geändertes Angebot kopierst du es. Gebucht wird nichts.`
-              : `Die Rechnung bekommt die Nummer ${nextNumber}, PDF und XML werden erzeugt und gebucht. Danach ist sie nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.`}{" "}
-            Noch einmal klicken zum Festschreiben.
           </span>
         </div>
       )}
@@ -1330,8 +1341,8 @@ export function InvoiceEditor({
           </div>
           {id && (
             <div className="actions">
-              <button type="button" className="btn btn-danger" onClick={onDelete} disabled={busy}>
-                {confirmingDelete ? "Entwurf endgültig löschen" : "Entwurf löschen"}
+              <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy}>
+                Entwurf löschen
               </button>
             </div>
           )}

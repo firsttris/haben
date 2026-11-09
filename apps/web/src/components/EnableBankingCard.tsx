@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { FilePicker } from "./FilePicker.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeEnableBanking, saveEnableBanking, type getEnableBankingSettings } from "../server/functions/bank.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 type Data = Awaited<ReturnType<typeof getEnableBankingSettings>>;
 
@@ -19,6 +20,7 @@ export function EnableBankingCard({ data }: { data: Data }) {
   const remove = useServerFn(removeEnableBanking);
   const stored = data.source === "einstellungen";
   const [applicationId, setApplicationId] = useState(stored ? (data.applicationId ?? "") : "");
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const { busy, notice, run } = useAction();
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -71,21 +73,25 @@ export function EnableBankingCard({ data }: { data: Data }) {
             <span style={{ fontWeight: 500 }}>Application ID {data.applicationId}</span>
             {data.updatedAt && <span className="small muted">gespeichert am {formatDateTime(data.updatedAt)}</span>}
           </div>
-          <button
-            type="button"
-            className="btn btn-danger"
-            disabled={busy}
-            onClick={() => {
-              if (!window.confirm("Zugang zu Enable Banking entfernen? Bestehende Verbindungen werden dann nicht mehr abgerufen.")) return;
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setConfirmingRemove(true)}>
+            Entfernen
+          </button>
+          <ConfirmDialog
+            open={confirmingRemove}
+            title="Zugang zu Enable Banking entfernen?"
+            confirmLabel="Entfernen"
+            danger
+            onConfirm={() =>
               void run(async () => {
                 await remove();
                 setApplicationId("");
                 await router.invalidate();
-              }, "Zugang entfernt.");
-            }}
+              }, "Zugang entfernt.")
+            }
+            onClose={() => setConfirmingRemove(false)}
           >
-            Entfernen
-          </button>
+            <p>Bestehende Verbindungen werden dann nicht mehr abgerufen.</p>
+          </ConfirmDialog>
         </div>
       )}
       <label className="field">
