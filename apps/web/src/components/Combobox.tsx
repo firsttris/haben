@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
-import { moveActive, type SearchResult } from "../lib/combobox.ts";
+import { defaultRow, moveActive, type SearchResult } from "../lib/combobox.ts";
 import { Icon } from "./Icon.tsx";
 
 export interface ComboboxOption {
@@ -21,7 +21,7 @@ export interface ComboboxCreate {
  * (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/): Der Fokus bleibt im Feld, aria-activedescendant zeigt den
  * Eintrag. Pfeile bewegen, Enter übernimmt, Escape schließt.
  *
- * Ein Klick zeigt die Liste. Zwei Arten: Ohne freeText ist es eine Auswahl, der erste Treffer ist aktiv. Mit freeText
+ * Ein Klick zeigt die Liste. Zwei Arten: Ohne freeText ist es eine Auswahl, der erste Treffer einer Suche ist aktiv. Mit freeText
  * bleibt der getippte Text gültig; ein Eintrag zählt nur, wenn er gewählt wird. Tab übernimmt nur mit commitOnTab: wo die
  * Auswahl ein Feld füllt, nicht wo sie etwas auslöst wie eine neue Position.
  *
@@ -65,6 +65,8 @@ export function Combobox<T>({
   const [open, setOpen] = useState(false);
   /** Mit den Pfeilen gewählte Zeile; null = die Vorgabe. Die Maus zeigt ihre Zeile nur per :hover, sonst rendert jede Zeile das Feld neu */
   const [moved, setMoved] = useState<number | null>(null);
+  /** Seit dem Öffnen der Liste getippt */
+  const [typed, setTyped] = useState(false);
   /** Der Klick kam aus dem Feld selbst; ein Klick auf das Label wird als Klick aufs Feld weitergereicht und soll nur fokussieren */
   const pressedInField = useRef(false);
 
@@ -74,7 +76,7 @@ export function Combobox<T>({
   const createIndex = createRow ? options.length : -1;
   const rows = options.length + (createRow ? 1 : 0);
   const selectedRow = options.findIndex((option) => option.selected);
-  const firstRow = selectedRow >= 0 ? selectedRow : !freeText && rows > 0 ? 0 : -1;
+  const firstRow = defaultRow({ freeText, typed, text: value, selectedRow, rows });
   const active = Math.min(moved ?? firstRow, rows - 1);
   // Bei freier Eingabe ohne Zeilen (noch kein Artikel im Katalog) gibt es nichts zu zeigen
   const popup = open && (rows > 0 || !freeText);
@@ -84,6 +86,7 @@ export function Combobox<T>({
   function close() {
     setOpen(false);
     setMoved(null);
+    setTyped(false);
   }
 
   function commit(row: number) {
@@ -139,6 +142,7 @@ export function Combobox<T>({
           const text = event.target.value;
           onInput(text);
           setMoved(null);
+          setTyped(true);
           setOpen(true);
         }}
         onKeyDown={onKeyDown}

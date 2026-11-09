@@ -45,6 +45,29 @@ export function sameEntry(a: string, b: string): boolean {
   return compare(a) !== "" && compare(a) === compare(b);
 }
 
+/**
+ * Zeile, die ohne Pfeiltasten aktiv ist; -1 heißt: keine. Erst eine Suche macht den ersten Treffer zur Vorgabe, sonst
+ * übernähmen Enter und Tab etwas, das niemand gesucht hat. Ohne Eingabe seit dem Öffnen steht der gewählte Eintrag da,
+ * ein geleertes Feld wählt nichts.
+ */
+export function defaultRow({
+  freeText,
+  typed,
+  text,
+  selectedRow,
+  rows,
+}: {
+  freeText: boolean;
+  typed: boolean;
+  text: string;
+  selectedRow: number;
+  rows: number;
+}): number {
+  if (freeText) return -1;
+  if (!typed) return selectedRow;
+  return text.trim() !== "" && rows > 0 ? 0 : -1;
+}
+
 /** Nächster aktiver Eintrag bei Pfeil hoch oder runter; -1 heißt: keiner, der Fokus steht im Feld */
 export function moveActive(active: number, count: number, key: "ArrowDown" | "ArrowUp"): number {
   if (count === 0) return -1;

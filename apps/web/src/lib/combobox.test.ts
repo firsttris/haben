@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMBOBOX_LIMIT, moveActive, sameEntry, searchOptions } from "./combobox.ts";
+import { COMBOBOX_LIMIT, defaultRow, moveActive, sameEntry, searchOptions } from "./combobox.ts";
 
 interface Kunde {
   name: string;
@@ -82,6 +82,31 @@ describe("sameEntry", () => {
 
   it("nennt leere Texte nicht gleich", () => {
     expect(sameEntry("", "  ")).toBe(false);
+  });
+});
+
+describe("defaultRow", () => {
+  const auswahl = { freeText: false, typed: false, text: "", selectedRow: -1, rows: 4 };
+
+  it("zeigt nach dem Öffnen den gewählten Eintrag, ohne einen zu erfinden", () => {
+    expect(defaultRow({ ...auswahl, selectedRow: 2, text: "Rheinpixel GmbH" })).toBe(2);
+    expect(defaultRow(auswahl)).toBe(-1);
+    // Der gewählte Eintrag steht außerhalb der begrenzten Liste
+    expect(defaultRow({ ...auswahl, text: "Rheinpixel GmbH" })).toBe(-1);
+  });
+
+  it("nimmt beim Tippen den ersten Treffer, auch neben dem gewählten Eintrag", () => {
+    expect(defaultRow({ ...auswahl, typed: true, text: "rhein" })).toBe(0);
+    expect(defaultRow({ ...auswahl, typed: true, text: "rhein", selectedRow: 1 })).toBe(0);
+  });
+
+  it("wählt in einem geleerten Feld nichts", () => {
+    expect(defaultRow({ ...auswahl, typed: true, text: "   ", selectedRow: 1 })).toBe(-1);
+  });
+
+  it("bleibt ohne Treffer und bei freier Eingabe ohne Vorgabe", () => {
+    expect(defaultRow({ ...auswahl, typed: true, text: "xyz", rows: 0 })).toBe(-1);
+    expect(defaultRow({ ...auswahl, freeText: true, typed: true, text: "Beratung" })).toBe(-1);
   });
 });
 
