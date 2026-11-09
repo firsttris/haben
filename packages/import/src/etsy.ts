@@ -120,18 +120,23 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
       return;
     }
     const kind = normalizeText(type(row));
-    const purpose = [kind, normalizeText(title(row)), normalizeText(info(row))].filter(Boolean).join(" · ");
+    /** Zweck aus einem Anfang, dem Titel und der Info der Zeile */
+    const describe = (first: string) => [first, normalizeText(title(row)), normalizeText(info(row))].filter(Boolean).join(" · ");
+    const purpose = describe(kind);
     const base = { bookingDate: etsyDate(date(row), where), currency: "EUR", counterpartyName: "Etsy" };
     const cents = (raw: string) => (raw ? requireAmount(parseDotAmount(raw), raw, where) : 0);
 
     if (isPayout(kind)) {
       // Haben erkennt eine Auszahlung im Konto des Dienstleisters am Wort „Auszahlung“ im Zweck (PAYOUT_PURPOSE in
       // @haben/core); Etsy nennt sie je nach Sprache „Überweisung“, „Deposit“ oder anders
-      const payoutPurpose = ["Auszahlung", normalizeText(title(row)), normalizeText(info(row))].filter(Boolean).join(" · ");
-      list.push({ ...base, amount: payoutAmount(title(row), where), purpose: payoutPurpose, type: "Auszahlung" });
+      list.push({ ...base, amount: payoutAmount(title(row), where), purpose: describe("Auszahlung"), type: "Auszahlung" });
       return;
     }
     const label = labelOf(kind);
+    // Gebühren beginnen mit „Gebühr“ wie bei den übrigen Dienstleistern: Darauf baut die Zuordnung zur Sammelrechnung
+    // (allocateFeesToDocument und der Knopf im Bankabgleich suchen Zwecke, die so beginnen). Etsy-Gebührenzeilen
+    // haben keinen Betrag, nur „Gebühren & Steuern“, und bekämen den Anfang sonst nie.
+    const rowPurpose = label === "Gebühr" ? describe("Gebühr") : purpose;
     // Ohne bekannte Art oder ohne Betrag und Gebühren zählt nur der Nettobetrag, sonst stimmte das Guthaben nicht
     if (label === undefined || (!amount(row) && !fees(row))) {
       if (!net(row)) {
@@ -139,14 +144,16 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
         return;
       }
       if (label === undefined) unknownKinds.push(kind);
-      list.push({ ...base, amount: cents(net(row)), purpose, type: label ?? (kind || undefined) });
+      list.push({ ...base, amount: cents(net(row)), purpose: rowPurpose, type: label ?? (kind || undefined) });
       return;
     }
     const gross = cents(amount(row));
     const fee = cents(fees(row));
-    if (gross !== 0) list.push({ ...base, amount: gross, purpose, type: label });
+    if (gross !== 0) list.push({ ...base, amount: gross, purpose: rowPurpose, type: label });
     if (fee !== 0) {
-      list.push(gross !== 0 ? { ...base, amount: fee, purpose: `Gebühr · ${purpose}`, type: "Gebühr" } : { ...base, amount: fee, purpose, type: label });
+      list.push(
+        gross !== 0 ? { ...base, amount: fee, purpose: `Gebühr · ${purpose}`, type: "Gebühr" } : { ...base, amount: fee, purpose: rowPurpose, type: label },
+      );
     }
   });
   // Die Datei beginnt mit der neuesten Zeile; gleiche Tage behalten ihre Reihenfolge
