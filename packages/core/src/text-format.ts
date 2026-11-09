@@ -62,12 +62,16 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
       // Einzelner Backslash ab Laufwerkswurzel: ein weiterer Trenner macht den
       // Pfad erkennbar. Explizite Paare wie \_wörtlich\_ bleiben dagegen Escapes.
       const escaped = /^\\([*_])[^\s]*\\\1/.test(rest);
-      const path = /^(?:[^\s*_\\/][^\s\\/]*[\\/]|\/|\\\\)[^\s]*/.exec(rest) ?? (!escaped ? /^\\[^\s\\]+\\[^\s]*/.exec(rest) : null);
+      // Hinter öffnender Klammer oder Anführungszeichen beginnt ein Pfad nie mit einem
+      // Formatierungszeichen: (*01/2026*) ist fett. `\*` ist ein Escape, kein Trenner,
+      // denn `*` ist in Windows-Namen unzulässig.
+      const path =
+        /^[([{„“‚‘"'«‹]*(?:[^\s*_\\/([{„“‚‘"'«‹][^\s\\/]*(?:\/|\\(?!\*))|\/|\\\\)[^\s]*/u.exec(rest) ?? (!escaped ? /^\\[^\s\\]+\\[^\s]*/.exec(rest) : null);
       if (path) {
         let end = at + path[0].length;
         // Äußere Auszeichnungen dürfen den ganzen Pfad umschließen. Ihre
         // Schlusszeichen gehören zum Parser, Zeichen im Pfad bleiben wörtlich.
-        const punctuation = /[.,;:!?)}\]]*$/.exec(path[0])![0].length;
+        const punctuation = /[.,;:!?)}\]“”"'’‘»›]*$/u.exec(path[0])![0].length;
         let boundary = end - punctuation;
         for (const open of frames.slice(1)) {
           const closer = boundary - open.marker.length;
