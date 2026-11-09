@@ -163,7 +163,12 @@ export async function handleAuth(request: Request): Promise<Response> {
     }
   }
   if (ssoOnly() && path === "/api/auth/callback/oidc") {
-    return atomicAuthCallback(() => current.handler(request), { errorUrl: loginUrl, afterRejection: revokeRejectedIdentity });
+    const state = new URL(request.url).searchParams.get("state");
+    return atomicAuthCallback(() => current.handler(request), {
+      errorUrl: loginUrl,
+      afterRejection: revokeRejectedIdentity,
+      stateIdentifier: state ? `auth-state:${state}` : undefined,
+    });
   }
   return current.handler(request);
 }

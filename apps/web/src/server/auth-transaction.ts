@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { sql } from "drizzle-orm";
-import { db, type Tx } from "./db/index.ts";
+import { eq, sql } from "drizzle-orm";
+import { db, schema, type Tx } from "./db/index.ts";
 import type { Rolle } from "../lib/rollen.ts";
 import type { GroupRejection } from "./sso-groups.ts";
 
@@ -23,6 +23,7 @@ interface CallbackScope {
   tx: Tx;
   proof?: SsoProof;
   rejection?: CallbackRejection;
+  stateConsumed?: boolean;
 }
 
 const scope = new AsyncLocalStorage<CallbackScope>();
@@ -68,8 +69,16 @@ export interface AtomicCallbackOptions {
   errorUrl: (reason: CallbackRejection) => string;
   /** Läuft nach dem Rollback in eigener Transaktion: was eine gültige negative Entscheidung festschreiben muss */
   afterRejection?: (proof: SsoProof) => Promise<void>;
+  /** verification.identifier des OAuth-States dieses Callbacks (Better Auth: `auth-state:<state>`) */
+  stateIdentifier?: string;
 }
 
+/** Ob Better Auth den State in der Callback-Transaktion schon verbraucht (gelöscht) hat */
+async function stateConsumed(tx: Tx, identifier: string | undefined): Promise<boolean> {
+  if (!identifier) return false;
+  const rows = await tx.select({ id: schema.verification.id }).from(schema.verification).where(eq(schema.verification.identifier, identifier));
+  return rows.length === 0;
+}
 
 /**
  * Der ganze Callback in einer Transaktion: Einrichtung, Konto, Zuordnung, Rolle und Sitzung entstehen gemeinsam oder
@@ -91,16 +100,26 @@ export async function atomicAuthCallback(work: () => Promise<Response>, options:
           const failed = failedLocation(response);
           if (failed) {
             if (failed === "account_not_linked") store.rejection ??= "konto-vorhanden";
+            store.stateConsumed = await stateConsumed(tx, options.stateIdentifier);
             throw new Error("OIDC_CALLBACK_ROLLBACK");
           }
           return response;
         } finally {
           state.proof = store.proof;
           state.rejection = store.rejection;
+          state.stateConsumed = store.stateConsumed;
         }
       });
     });
   } catch {
+    // Das Rollback nähme auch das Löschen des States zurück; State, Nonce und PKCE-Verifier gelten aber nur einmal
+    // (OAuth 2.0 Security BCP, RFC 9700 4.7). Nur löschen, was Better Auth selbst schon verbraucht hatte.
+    if (state.stateConsumed && options.stateIdentifier) {
+      await db
+        .delete(schema.verification)
+        .where(eq(schema.verification.identifier, options.stateIdentifier))
+        .catch((error: unknown) => console.error("SSO: State nach abgewiesenem Callback nicht entwertet", error));
+    }
     const proof = state.proof;
     if (proof?.rejection && options.afterRejection) {
       try {
