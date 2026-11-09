@@ -137,6 +137,68 @@ test("Kunden anlegen", async () => {
   await expect(liste).toContainText("Kein Kontakt passt");
 });
 
+test("Lastschriftmandat am Kunden: Gläubiger-ID, Mandat mit PDF anlegen und widerrufen (#445)", async ({ browser }) => {
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Gläubiger-ID").fill("DE97ZZZ09999999999");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Die Prüfziffer der Gläubiger-ID stimmt nicht.")).toBeVisible();
+  // Test-ID der Bundesbank mit richtiger Prüfziffer
+  await firma.getByLabel("Gläubiger-ID").fill("DE98 ZZZ0 9999 9999 99");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+
+  await go("/kontakte");
+  await page
+    .getByRole("region", { name: "Kontaktliste" })
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .click();
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
+  await expect(karte).toContainText("Noch kein Mandat.");
+  await karte.getByRole("button", { name: "Mandat anlegen" }).click();
+  const form = karte.getByRole("form", { name: "Neues Mandat" });
+  await form.getByLabel("Mandatsreferenz").fill("RP-2026-01");
+  await form.getByLabel("Unterschrieben am").fill(day(-20));
+  await form.getByLabel("IBAN").fill("DE02 1203 0000 0000 2020 51");
+  // Das offene Formular prüft axe hier, am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 320]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await axePage.getByRole("button", { name: "Mandat anlegen" }).click();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Mandatsformular bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+  await form.getByRole("button", { name: "Mandat speichern" }).click();
+  await expect(page.getByText("Mandat angelegt.")).toBeVisible();
+  await expect(karte).toContainText("RP-2026-01");
+  await expect(karte).toContainText("DE02120300000000202051");
+  await expect(karte).toContainText(/Gültig bis/);
+  await expect(karte).toContainText("Noch kein PDF");
+
+  await karte
+    .getByLabel("PDF hinterlegen: RP-2026-01")
+    .setInputFiles({ name: "mandat.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\nMandat\n%%EOF") });
+  await expect(page.getByText("PDF hinterlegt.")).toBeVisible();
+  await expect(karte.getByRole("link", { name: "Mandat als PDF" })).toBeVisible();
+
+  await karte.getByRole("button", { name: "Widerrufen" }).click();
+  await faktenZeigen(page, "Mandatsreferenz", "Ab");
+  await bestaetigen(page, "Widerrufen");
+  await expect(page.getByText("Mandat widerrufen.")).toBeVisible();
+  await expect(karte).toContainText(/Widerrufen ab/);
+  await expect(karte.getByRole("button", { name: "Widerrufen" })).toHaveCount(0);
+});
+
 test("Rechnungen schreiben und festschreiben", async () => {
   for (const invoice of INVOICES) await rechnungFestschreiben(page, invoice);
 });
