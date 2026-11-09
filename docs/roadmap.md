@@ -11,9 +11,66 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 
 ## Geplant
 
-Stand 8. November 2026, nach Abgleich mit Lexware Office und sevDesk und den offenen Issues bis [#457](https://github.com/firsttris/haben/issues/457). Die Reihenfolge: zuerst kleine Wünsche aus dem Alltag, dann was Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt.
+Stand 9. November 2026, nach Abgleich mit Lexware Office und sevDesk und den offenen Issues bis [#457](https://github.com/firsttris/haben/issues/457). Die Reihenfolge: zuerst kleine Wünsche aus dem Alltag, dann was Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt.
 
-Erledigt aus der letzten Runde: Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal und Lohnsteuerbescheinigung ([Lohn](lohn.md), [#213](https://github.com/firsttris/haben/issues/213)), E-Bilanz-Taxonomie 6.10 ([E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug), [#213](https://github.com/firsttris/haben/issues/213)), Voranmeldung als offener Posten ([Umsatzsteuer](umsatzsteuer.md#zahlung-an-das-finanzamt), [#269](https://github.com/firsttris/haben/issues/269)), degressive AfA ([Anlagen](anlagen.md#degressive-afa)), innergemeinschaftliche Lieferung und Erwerb, Ausfuhr ([Umsatzsteuer](umsatzsteuer.md#innergemeinschaftlicher-erwerb), [#273](https://github.com/firsttris/haben/issues/273)), Dauerbelege ([Belege](belege.md#dauerbelege)), Barzahlung einer Rechnung ([Kasse](kasse.md#rechnung-bar-bezahlt), [#276](https://github.com/firsttris/haben/issues/276)), Zugang für die Steuerberatung, Stufe 1 ([Steuerberatung](steuerberatung.md)), Belegerkennung mit lokalem Modell ([KI-Auslesung](belege.md#ki-auslesung), [#128](https://github.com/firsttris/haben/issues/128)), Rabatte, optionale Positionen und Zahlungsplan ([Angebote](angebote.md#zahlungsplan), [#114](https://github.com/firsttris/haben/issues/114)), Steuerzahlungen und Darlehen ([Bank](bank.md#darlehen), [#312](https://github.com/firsttris/haben/issues/312)), Erstattungszinsen zur Gewerbesteuer als Betriebseinnahme ([Steuerzahlungen](bank.md#steuerzahlungen), [#312](https://github.com/firsttris/haben/issues/312)), Stichtag übernommener Darlehen ([Darlehen](bank.md#darlehen), [#325](https://github.com/firsttris/haben/issues/325)), Kunden- und Lieferantenrolle aus sevDesk ([sevDesk](sevdesk.md), [#344](https://github.com/firsttris/haben/issues/344)), Sperre bei unklarer Zahlungshistorie aus sevDesk ([sevDesk](sevdesk.md), [#343](https://github.com/firsttris/haben/issues/343)), Telefonnummer am Kontakt ([Kontakte](rechnungen.md#kontakte), [#322](https://github.com/firsttris/haben/issues/322)), Monat `{MM}` im Nummernformat und durchlaufender Zähler je Nummernkreis ([Nummernformat](einrichtung.md#nummernformat), [#328](https://github.com/firsttris/haben/issues/328)), Kontakt direkt im Beleg und im Rechnungsentwurf anlegen ([Belege](belege.md), [#330](https://github.com/firsttris/haben/issues/330)), „Direkt buchen“ im Bankabgleich ([Bank](bank.md#direkt-buchen), [#312](https://github.com/firsttris/haben/issues/312)), Angebote, Auftragsbestätigungen und Lieferscheine aus sevDesk im Archiv, Beitrag von Dudeplayz ([sevDesk](sevdesk.md), [#346](https://github.com/firsttris/haben/issues/346)), Einzelzahlungen aus sevDesk mit Konto und Belegbezug, verdichtete Zahlungen repariert, Beitrag von Dudeplayz ([sevDesk](sevdesk.md), [#343](https://github.com/firsttris/haben/issues/343)), eigene Ausgangsrechnung beim Beleg-Upload erkennen, bisher S4 ([Belege](belege.md#eigene-ausgangsrechnung-erkennen), [#104](https://github.com/firsttris/haben/issues/104)), Entwürfe von Rechnungen, Angeboten und Mahnungen als PDF mit „ENTWURF“ über jeder Seite, auch im Lohn ([Rechnungen](rechnungen.md#entwurf-als-pdf), [#342](https://github.com/firsttris/haben/issues/342)), Seitenkopf mit Titel, Status und Hauptaktionen bleibt beim Scrollen stehen ([Barrierefreiheit](barrierefreiheit.md), [#356](https://github.com/firsttris/haben/issues/356)). Direkt buchen auf eine Kategorie mit Steuersatz ([Bank](bank.md#auf-eine-kategorie-buchen), [#324](https://github.com/firsttris/haben/issues/324)), weitere Ausgabekategorien mit Konten für EÜR, E-Bilanz und HGB, Miete auch für Dauerbelege ([Kategorien](belege.md#kategorien), [#312](https://github.com/firsttris/haben/issues/312)), Miete und Erhaltungsaufwand in der Anlage EÜR ([Anlage EÜR](jahreserklaerung.md#anlage-eür), [#312](https://github.com/firsttris/haben/issues/312)), Anlagenart „Sonstige Transportmittel“ ([Anlagen](anlagen.md), [#312](https://github.com/firsttris/haben/issues/312)), Bestell-, Auftrags- und Lieferscheinnummer als BT-13, BT-14 und BT-16 ([Rechnungen](rechnungen.md#bestellnummer-auftrag-und-lieferschein), [#389](https://github.com/firsttris/haben/issues/389)), Artikelnummer in der Position und als BT-155 ([Artikelkatalog](rechnungen.md#artikelkatalog), [#388](https://github.com/firsttris/haben/issues/388)), Vorschau angeheftet oder als Überblendung, Beitrag von Dudeplayz ([#357](https://github.com/firsttris/haben/issues/357)). Vorschläge für Kategorie und Buchungsart aus allen früheren Zuordnungen, ohne KI-Modell, mit Begründung und immer zu bestätigen: im Bankabgleich auch für Direktbuchungen auf eine Kategorie mit Steuersatz und für Zinserträge, bei Belegen auch für die Bezahlung ([Bank](bank.md#vorschläge-ohne-rechnung-und-geldtransit), [Belege](belege.md#vorschläge-aus-früheren-belegen), [#295](https://github.com/firsttris/haben/issues/295)). Zusätzliche PDF-Anhänge am Angebot, beim Senden einzeln an- oder abzuhaken, und Standardanhänge wie AGB oder Widerrufsbelehrung in den Einstellungen ([Angebote](angebote.md#anhänge), [#415](https://github.com/firsttris/haben/issues/415)). Belegerkennung mit dem Text aus der Textschicht des PDFs, auf Wunsch ohne Bilder für ein reines Textmodell, Lieferantenvorschlag aus der E-Rechnung und IBAN nur als Vorschlag mit Herkunft und Prüfziffer ([KI-Auslesung](belege.md#ki-auslesung), [#329](https://github.com/firsttris/haben/issues/329), [#330](https://github.com/firsttris/haben/issues/330)), abweichende IBAN der E-Rechnung am Beleg entscheiden, sonst unter Überweisungen gesperrt ([Belege](belege.md#abweichende-iban-in-der-e-rechnung), [#410](https://github.com/firsttris/haben/issues/410)). Personenkonten im DATEV-Export: Debitor und Kreditor am Kontakt, fest ab dem ersten Export, fehlende vergibt der Export des Inhabers, Schalter ab einem Jahr ([Personenkonten](auswertungen.md#personenkonten), [#327](https://github.com/firsttris/haben/issues/327)). Die Issues zu erledigten Plätzen bleiben offen, bis die Meldenden bestätigen, dass nichts fehlt.
+### Erledigt aus der letzten Runde
+
+**Bank und Kasse**
+
+- „Direkt buchen“ im Bankabgleich ([Bank](bank.md#direkt-buchen), [#312](https://github.com/firsttris/haben/issues/312))
+- Direkt buchen auf eine Kategorie mit Steuersatz ([Bank](bank.md#auf-eine-kategorie-buchen), [#324](https://github.com/firsttris/haben/issues/324))
+- Vorschläge für Kategorie und Buchungsart aus allen früheren Zuordnungen, ohne KI-Modell, mit Begründung und immer zu bestätigen: im Bankabgleich auch für Direktbuchungen auf eine Kategorie mit Steuersatz und für Zinserträge, bei Belegen auch für die Bezahlung ([Bank](bank.md#vorschläge-ohne-rechnung-und-geldtransit), [Belege](belege.md#vorschläge-aus-früheren-belegen), [#295](https://github.com/firsttris/haben/issues/295))
+- Steuerzahlungen und Darlehen ([Bank](bank.md#darlehen), [#312](https://github.com/firsttris/haben/issues/312)); Erstattungszinsen zur Gewerbesteuer als Betriebseinnahme ([Steuerzahlungen](bank.md#steuerzahlungen), [#312](https://github.com/firsttris/haben/issues/312)); Stichtag übernommener Darlehen ([Darlehen](bank.md#darlehen), [#325](https://github.com/firsttris/haben/issues/325))
+- Barzahlung einer Rechnung ([Kasse](kasse.md#rechnung-bar-bezahlt), [#276](https://github.com/firsttris/haben/issues/276))
+
+**Belege**
+
+- Dauerbelege ([Belege](belege.md#dauerbelege))
+- Weitere Ausgabekategorien mit Konten für EÜR, E-Bilanz und HGB, Miete auch für Dauerbelege ([Kategorien](belege.md#kategorien), [#312](https://github.com/firsttris/haben/issues/312))
+- Belegerkennung mit lokalem Modell ([KI-Auslesung](belege.md#ki-auslesung), [#128](https://github.com/firsttris/haben/issues/128))
+- Belegerkennung mit dem Text aus der Textschicht des PDFs, auf Wunsch ohne Bilder für ein reines Textmodell, Lieferantenvorschlag aus der E-Rechnung und IBAN nur als Vorschlag mit Herkunft und Prüfziffer ([KI-Auslesung](belege.md#ki-auslesung), [#329](https://github.com/firsttris/haben/issues/329), [#330](https://github.com/firsttris/haben/issues/330))
+- Abweichende IBAN der E-Rechnung am Beleg entscheiden, ohne Kontakt-IBAN erst nach Bestätigung, sonst unter Überweisungen gesperrt ([Belege](belege.md#abweichende-iban-in-der-e-rechnung), [#410](https://github.com/firsttris/haben/issues/410))
+- Kontakt direkt im Beleg und im Rechnungsentwurf anlegen ([Belege](belege.md), [#330](https://github.com/firsttris/haben/issues/330))
+- Eigene Ausgangsrechnung beim Beleg-Upload erkennen, bisher S4 ([Belege](belege.md#eigene-ausgangsrechnung-erkennen), [#104](https://github.com/firsttris/haben/issues/104))
+
+**Rechnungen, Angebote und Kontakte**
+
+- Rabatte, optionale Positionen und Zahlungsplan ([Angebote](angebote.md#zahlungsplan), [#114](https://github.com/firsttris/haben/issues/114))
+- Zusätzliche PDF-Anhänge am Angebot, beim Senden einzeln an- oder abzuhaken, und Standardanhänge wie AGB oder Widerrufsbelehrung in den Einstellungen ([Angebote](angebote.md#anhänge), [#415](https://github.com/firsttris/haben/issues/415))
+- Bestell-, Auftrags- und Lieferscheinnummer als BT-13, BT-14 und BT-16 ([Rechnungen](rechnungen.md#bestellnummer-auftrag-und-lieferschein), [#389](https://github.com/firsttris/haben/issues/389))
+- Artikelnummer in der Position und als BT-155 ([Artikelkatalog](rechnungen.md#artikelkatalog), [#388](https://github.com/firsttris/haben/issues/388))
+- Entwürfe von Rechnungen, Angeboten und Mahnungen als PDF mit „ENTWURF“ über jeder Seite, auch im Lohn ([Rechnungen](rechnungen.md#entwurf-als-pdf), [#342](https://github.com/firsttris/haben/issues/342))
+- Monat `{MM}` im Nummernformat und durchlaufender Zähler je Nummernkreis ([Nummernformat](einrichtung.md#nummernformat), [#328](https://github.com/firsttris/haben/issues/328))
+- Telefonnummer am Kontakt ([Kontakte](rechnungen.md#kontakte), [#322](https://github.com/firsttris/haben/issues/322))
+
+**Steuern, Abschluss und Export**
+
+- Voranmeldung als offener Posten ([Umsatzsteuer](umsatzsteuer.md#zahlung-an-das-finanzamt), [#269](https://github.com/firsttris/haben/issues/269))
+- Innergemeinschaftliche Lieferung und Erwerb, Ausfuhr ([Umsatzsteuer](umsatzsteuer.md#innergemeinschaftlicher-erwerb), [#273](https://github.com/firsttris/haben/issues/273))
+- Miete und Erhaltungsaufwand in der Anlage EÜR ([Anlage EÜR](jahreserklaerung.md#anlage-eür), [#312](https://github.com/firsttris/haben/issues/312))
+- Degressive AfA ([Anlagen](anlagen.md#degressive-afa)); Anlagenart „Sonstige Transportmittel“ ([Anlagen](anlagen.md), [#312](https://github.com/firsttris/haben/issues/312))
+- E-Bilanz-Taxonomie 6.10 ([E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug), [#213](https://github.com/firsttris/haben/issues/213))
+- Personenkonten im DATEV-Export: Debitor und Kreditor am Kontakt, fest ab dem ersten Export, fehlende vergibt der Export des Inhabers, Schalter ab einem Jahr ([Personenkonten](auswertungen.md#personenkonten), [#327](https://github.com/firsttris/haben/issues/327))
+
+**Lohn**
+
+- Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal und Lohnsteuerbescheinigung ([Lohn](lohn.md), [#213](https://github.com/firsttris/haben/issues/213))
+
+**Umzug aus sevDesk**
+
+- Kunden- und Lieferantenrolle ([sevDesk](sevdesk.md), [#344](https://github.com/firsttris/haben/issues/344))
+- Sperre bei unklarer Zahlungshistorie ([sevDesk](sevdesk.md), [#343](https://github.com/firsttris/haben/issues/343)); Einzelzahlungen mit Konto und Belegbezug, verdichtete Zahlungen repariert, Beitrag von Dudeplayz ([sevDesk](sevdesk.md), [#343](https://github.com/firsttris/haben/issues/343))
+- Angebote, Auftragsbestätigungen und Lieferscheine im Archiv, Beitrag von Dudeplayz ([sevDesk](sevdesk.md), [#346](https://github.com/firsttris/haben/issues/346))
+
+**Oberfläche und Zugänge**
+
+- Seitenkopf mit Titel, Status und Hauptaktionen bleibt beim Scrollen stehen ([Barrierefreiheit](barrierefreiheit.md), [#356](https://github.com/firsttris/haben/issues/356))
+- Vorschau angeheftet oder als Überblendung, Beitrag von Dudeplayz ([#357](https://github.com/firsttris/haben/issues/357))
+- Zugang für die Steuerberatung, Stufe 1 ([Steuerberatung](steuerberatung.md))
+
+Die Issues zu erledigten Plätzen bleiben offen, bis die Meldenden bestätigen, dass nichts fehlt; ohne Antwort schließen wir sie nach 14 Tagen.
+
+### Reihenfolge
 
 | # | Thema | Worum es geht | Aufwand |
 | --- | --- | --- | --- |
