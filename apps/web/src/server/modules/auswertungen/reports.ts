@@ -1,4 +1,5 @@
 import {
+  bareinnahmeTotals,
   computeEuer,
   EXPENSE_CATEGORIES,
   type EuerPayment,
@@ -181,6 +182,19 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .innerJoin(schema.invoices, eq(schema.invoices.id, schema.cashEntries.invoiceId))
     .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
 
+  // Bareinnahmen ohne Rechnung (#276): Zufluss am Tag der Bareinnahme, Storno am Tag des Stornos
+  const cashIncome = await q
+    .select({
+      id: schema.cashEntries.id,
+      reversesId: schema.cashEntries.reversesId,
+      amount: schema.cashEntries.amount,
+      date: schema.cashEntries.date,
+      treatment: schema.cashEntries.taxTreatment,
+      rate: schema.cashEntries.taxRate,
+    })
+    .from(schema.cashEntries)
+    .where(and(eq(schema.cashEntries.kind, "einnahme"), gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
+
   const invoiceTotals = await invoiceTotalsById(
     [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
     q,
@@ -304,6 +318,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       shares: recordedTaxShares(totals, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null),
       treatment: c.treatment,
     });
+  }
+  for (const c of cashIncome) {
+    if (!c.treatment || c.rate === null) continue;
+    // Wie eine bezahlte Rechnung mit einem Steuersatz: dieselbe Zuordnung zu steuerpflichtig, steuerfrei und Kleinunternehmer
+    const angabe = { behandlung: c.treatment, steuersatz: c.rate };
+    const totals = bareinnahmeTotals(angabe, c.amount);
+    payments.push({ kind: "invoice", date: c.date, paid: c.amount, totals, shares: totals.taxes, treatment: c.treatment, group: c.reversesId ?? c.id });
   }
   const documentPayment = (d: (typeof privateDocs)[number], date: string, paid: number): EuerPayment => ({
     kind: "document",
