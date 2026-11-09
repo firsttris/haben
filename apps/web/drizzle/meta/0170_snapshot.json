@@ -1,6 +1,6 @@
 {
-  "id": "2c795c62-b643-4f69-8de4-910e30ad6dac",
-  "prevId": "1ecec169-72de-4d16-8c17-c2d536b784a4",
+  "id": "5e4de182-3bc3-43b8-b029-4a16cdc08a54",
+  "prevId": "dc00d6d5-c4de-47e1-8b4a-96a1cef4781a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2441,12 +2441,6 @@
           "notNull": true,
           "default": "''"
         },
-        "datev_personenkonten_ab": {
-          "name": "datev_personenkonten_ab",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "taxpayer": {
           "name": "taxpayer",
           "type": "jsonb",
@@ -3116,119 +3110,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.datev_personenkonten": {
-      "name": "datev_personenkonten",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rolle": {
-          "name": "rolle",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nummer": {
-          "name": "nummer",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "jahr": {
-          "name": "jahr",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "datev_personenkonten_kontakt": {
-          "name": "datev_personenkonten_kontakt",
-          "columns": [
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "rolle",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "datev_personenkonten_nummer": {
-          "name": "datev_personenkonten_nummer",
-          "columns": [
-            {
-              "expression": "rolle",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "nummer",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "datev_personenkonten_contact_id_contacts_id_fk": {
-          "name": "datev_personenkonten_contact_id_contacts_id_fk",
-          "tableFrom": "datev_personenkonten",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "datev_personenkonten_rolle": {
-          "name": "datev_personenkonten_rolle",
-          "value": "\"datev_personenkonten\".\"rolle\" in ('debitor', 'kreditor')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.dividends": {
       "name": "dividends",
       "schema": "",
@@ -3527,7 +3408,7 @@
           "name": "kontakt_iban",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "rechnungs_iban": {
           "name": "rechnungs_iban",
@@ -3597,7 +3478,11 @@
         },
         "document_iban_decisions_abweichend": {
           "name": "document_iban_decisions_abweichend",
-          "value": "\"document_iban_decisions\".\"kontakt_iban\" <> \"document_iban_decisions\".\"rechnungs_iban\""
+          "value": "\"document_iban_decisions\".\"kontakt_iban\" is null or \"document_iban_decisions\".\"kontakt_iban\" <> \"document_iban_decisions\".\"rechnungs_iban\""
+        },
+        "document_iban_decisions_bestaetigt": {
+          "name": "document_iban_decisions_bestaetigt",
+          "value": "\"document_iban_decisions\".\"kontakt_iban\" is not null or \"document_iban_decisions\".\"wahl\" = 'e-rechnung'"
         }
       },
       "isRLSEnabled": false

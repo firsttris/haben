@@ -27,6 +27,7 @@ export {
   getContact,
   listContacts,
   setContactArchived,
+  setContactIbanIfEmpty,
   updateContact,
   type Contact,
   type ContactInput,

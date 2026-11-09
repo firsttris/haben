@@ -1833,7 +1833,8 @@ export const sepaTransferItems = pgTable(
 
 /**
  * Entscheidung je Beleg, welche IBAN gilt, wenn die E-Rechnung (BT-84) eine andere nennt als der Kontakt (#410): die
- * des Kontakts oder die der E-Rechnung nur für diesen Beleg. Gilt nur für genau dieses Paar; ändert sich eine der
+ * des Kontakts oder die der E-Rechnung nur für diesen Beleg; hat der Kontakt keine IBAN, die Bestätigung der IBAN aus der
+ * E-Rechnung (kontakt_iban leer). Gilt nur für genau dieses Paar; ändert sich eine der
  * beiden, ist neu zu entscheiden. Nur anhängbar, auch nach dem Buchen (Trigger in drizzle/); die jüngste gilt.
  */
 export const documentIbanDecisions = pgTable(
@@ -1843,8 +1844,8 @@ export const documentIbanDecisions = pgTable(
     documentId: uuid("document_id")
       .notNull()
       .references(() => documents.id),
-    /** IBAN im Kontakt beim Entscheiden, ohne Leerzeichen */
-    kontaktIban: text("kontakt_iban").notNull(),
+    /** IBAN im Kontakt beim Entscheiden, ohne Leerzeichen; null = Kontakt ohne IBAN, die der E-Rechnung bestätigt */
+    kontaktIban: text("kontakt_iban"),
     /** IBAN aus der E-Rechnung, ohne Leerzeichen */
     rechnungsIban: text("rechnungs_iban").notNull(),
     wahl: text("wahl", { enum: ["kontakt", "e-rechnung"] }).notNull(),
@@ -1855,7 +1856,9 @@ export const documentIbanDecisions = pgTable(
   (t) => [
     index("document_iban_decisions_document").on(t.documentId),
     check("document_iban_decisions_wahl", sql`${t.wahl} in ('kontakt', 'e-rechnung')`),
-    check("document_iban_decisions_abweichend", sql`${t.kontaktIban} <> ${t.rechnungsIban}`),
+    check("document_iban_decisions_abweichend", sql`${t.kontaktIban} is null or ${t.kontaktIban} <> ${t.rechnungsIban}`),
+    // Ohne IBAN im Kontakt gibt es nur die Bestätigung der IBAN aus der E-Rechnung
+    check("document_iban_decisions_bestaetigt", sql`${t.kontaktIban} is not null or ${t.wahl} = 'e-rechnung'`),
   ],
 );
 
@@ -2061,7 +2064,7 @@ export const archiveFiles = pgTable(
 
 /**
  * Personenkonten, die ein DATEV-Export schon geschrieben hat (#327), je Kontakt und Rolle die erste Ausgabe. Nur anhängen;
- * ab hier ist die Nummer am Kontakt fest (Trigger in 0171), damit spätere Stapel dasselbe Konto tragen wie frühere.
+ * ab hier ist die Nummer am Kontakt fest (Trigger in 0172), damit spätere Stapel dasselbe Konto tragen wie frühere.
  */
 export const datevPersonenkonten = pgTable(
   "datev_personenkonten",

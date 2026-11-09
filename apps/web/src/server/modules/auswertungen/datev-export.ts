@@ -68,7 +68,7 @@ function personenkontenProblem(probleme: string[]): DatevExportError {
 
 /**
  * Mit Personenkonten (Schalter in den Firmendaten) braucht der Export ein actor: Er hält fest, welche Nummern er
- * geschrieben hat; ab dann sind sie am Kontakt fest (datev_personenkonten, Trigger in 0171).
+ * geschrieben hat; ab dann sind sie am Kontakt fest (datev_personenkonten, Trigger in 0172).
  */
 export async function datevExport(year: number, now = new Date(), actor?: string): Promise<{ bytes: Uint8Array; filename: string; bookings: number }> {
   const company = await loadCompany();
