@@ -380,8 +380,8 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const card = page.getByRole("form", { name: "DATEV-Export" });
   await card.getByLabel("Beraternummer").fill("29098");
   await card.getByLabel("Mandantennummer").fill("55003");
-  await card.getByRole("button", { name: "Nummern speichern" }).click();
-  await expect(card.getByRole("status")).toHaveText("Nummern gespeichert.");
+  await card.getByRole("button", { name: "Speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Gespeichert.");
   const link = card.getByRole("link", { name: "Buchungsstapel herunterladen" });
   const response = await page.request.get((await link.getAttribute("href"))!);
   expect(response.status()).toBe(200);

@@ -153,6 +153,11 @@ export const company = pgTable(
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),
+    /**
+     * DATEV-Personenkonten im Buchungsstapel ab diesem Jahr (#327); null = Sammelkonten. Gilt ab einem Jahresbeginn; eine
+     * Änderung, die abgelaufene oder laufende Jahre mit Buchungen trifft, braucht eine ausdrückliche Bestätigung.
+     */
+    datevPersonenkontenAb: integer("datev_personenkonten_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
@@ -2055,6 +2060,30 @@ export const archiveFiles = pgTable(
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("archive_files_year").on(t.year, t.kind)],
+);
+
+/**
+ * Personenkonten, die ein DATEV-Export schon geschrieben hat (#327), je Kontakt und Rolle die erste Ausgabe. Nur anhängen;
+ * ab hier ist die Nummer am Kontakt fest (Trigger in 0172), damit spätere Stapel dasselbe Konto tragen wie frühere.
+ */
+export const datevPersonenkonten = pgTable(
+  "datev_personenkonten",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    rolle: text("rolle", { enum: ["debitor", "kreditor"] }).notNull(),
+    nummer: integer("nummer").notNull(),
+    /** Jahr des Stapels, in dem die Nummer zuerst stand */
+    jahr: integer("jahr").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("datev_personenkonten_kontakt").on(t.contactId, t.rolle),
+    uniqueIndex("datev_personenkonten_nummer").on(t.rolle, t.nummer),
+    check("datev_personenkonten_rolle", sql`${t.rolle} in ('debitor', 'kreditor')`),
+  ],
 );
 
 /** Buchungen aus einem DATEV-Buchungsstapel, je Zeile unverändert. Nur anhängen. */
