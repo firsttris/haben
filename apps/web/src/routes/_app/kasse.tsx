@@ -137,8 +137,20 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
     }
     const invoiceId = String(values.get("invoiceId") ?? "");
     const skonto = values.get("skonto") === "on";
+    const invoice = data.openInvoices.find((i) => i.id === invoiceId);
+    const number = invoice?.number ?? "";
+    // Mehr als offen: Rechnung voll, der Rest als weitere Einnahme mit der gewählten Steuer (#455)
+    if (invoice && amount > invoice.open) {
+      const [behandlung, satz] = String(values.get("extraSteuer") ?? "").split(":");
+      const extra = {
+        amount: amount - invoice.open,
+        steuer: { behandlung: behandlung as BareinnahmeAngabe["behandlung"], steuersatz: Number(satz) },
+        text: String(values.get("extraText") ?? "").trim(),
+      };
+      const result = await createForInvoice({ data: { invoiceId, date, amount: invoice.open, text, extra } });
+      return `Nr. ${result.number} gebucht: Bareinnahme Rechnung ${number} über ${formatEuro(invoice.open)}, dazu ${formatEuro(extra.amount)} als weitere Einnahme (${bareinnahmeText(extra.steuer)}).`;
+    }
     const result = await createForInvoice({ data: { invoiceId, date, amount, text, skonto } });
-    const number = data.openInvoices.find((i) => i.id === invoiceId)?.number ?? "";
     return `Nr. ${result.number} gebucht: Bareinnahme Rechnung ${number} über ${formatEuro(amount)}${skonto ? ", Rest als Skonto ausgebucht" : ""}.`;
   }
 
@@ -188,7 +200,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
           <input type="date" name="date" value={date} onChange={(e) => setDate(e.target.value)} max={data.today} required />
         </label>
         {kind === "rechnung" ? (
-          <CashInvoiceFields key={round} invoices={data.openInvoices} preselected={rechnung} date={date} />
+          <CashInvoiceFields key={round} invoices={data.openInvoices} preselected={rechnung} date={date} kleinunternehmer={kleinunternehmer} />
         ) : (
           <label className="field">
             Betrag (€)
@@ -217,7 +229,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
         {kind === "einnahme"
           ? "Für Verkäufe an Privatkunden ohne Rechnung, auch als Tagessumme. Gebucht am Tag der Bareinnahme: Kasse an Erlöse, die Umsatzsteuer ist im selben Monat fällig, bei Ist- wie bei Soll-Versteuerung."
           : kind === "rechnung"
-            ? "Gebucht wie eine Zahlung im Bankabgleich, nur Kasse an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit der Bareinnahme fällig. Mehr als offen geht nicht, ein Rest bleibt offen oder wird als Skonto ausgebucht."
+            ? "Gebucht wie eine Zahlung im Bankabgleich, nur Kasse an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit der Bareinnahme fällig. Ein Rest bleibt offen oder wird als Skonto ausgebucht; gibt der Kunde mehr, etwa Trinkgeld, wird der Teil darüber eine weitere Einnahme."
             : kind === "abhebung" || kind === "einzahlung"
               ? "Gebucht über Geldtransit. Den Umsatz auf dem Bankkonto ordnest du im Bankabgleich als „Geldtransit“ zu."
               : isKapitalgesellschaft(data.rechtsform)
