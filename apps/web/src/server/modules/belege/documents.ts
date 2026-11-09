@@ -705,7 +705,16 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst wie bisher über die Kategorie des Belegs
   const lines =
     splits.length > 0
-      ? documentSplitPosting(totals, splitLines(splits), company.kontenrahmen, company.rechtsform, doc.payment, vorsteuerAbzug)
+      ? documentSplitPosting(
+          totals,
+          splitLines(splits),
+          company.kontenrahmen,
+          company.rechtsform,
+          doc.payment,
+          vorsteuerAbzug,
+          // ig_erwerb lehnt splitBookingIssues mit Aufteilung ab; § 13b (#508) bucht je Zeile mit RC13bEU bzw. RC13bDrittland
+          doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
+        )
       : documentPosting(
           totals,
           doc.category as ExpenseCategory,

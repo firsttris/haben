@@ -31,8 +31,9 @@ function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]
   return totalsFromTaxes(amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })));
 }
 
-async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<string, InvoiceTotals>> {
-  if (ids.length === 0) return new Map();
+/** Summen je Beleg; reverseCharge sind die Belege mit selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
+async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<{ totals: Map<string, InvoiceTotals>; reverseCharge: Set<string> }> {
+  if (ids.length === 0) return { totals: new Map(), reverseCharge: new Set() };
   const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
   const reverseCharge = new Set(
     (
@@ -44,12 +45,13 @@ async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<s
   );
   // § 13b: Gezahlt ist nur netto. Die selbst geschuldete Steuer und die Vorsteuer daraus heben sich auf;
   // ohne Vorsteuerabzug zählt die Steuer, wenn sie mit der Voranmeldung ans Finanzamt geht.
-  return new Map(
+  const totals = new Map(
     ids.map((id) => {
       const rows = amounts.filter((a) => a.documentId === id);
       return [id, documentTotals(reverseCharge.has(id) ? rows.map((a) => ({ ...a, tax: 0 })) : rows)];
     }),
   );
+  return { totals, reverseCharge };
 }
 
 /**
@@ -199,7 +201,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
     q,
   );
-  const docTotals = await documentTotalsById(
+  const { totals: docTotals, reverseCharge } = await documentTotalsById(
     [
       ...new Set([
         ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
@@ -213,7 +215,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   const docSplits = await splitsByDocument([...docTotals.keys()], q);
   const splitsOf = (documentId: string) => {
     const splits = docSplits.get(documentId);
-    return splits ? { splits } : {};
+    if (!splits) return {};
+    // § 13b (#508): Die Zeilen tragen ihren Anteil der selbst geschuldeten Steuer; gezahlt ist wie in docTotals nur netto
+    return { splits: reverseCharge.has(documentId) ? splits.map((line) => ({ ...line, tax: 0 })) : splits };
   };
 
   const payments: EuerPayment[] = [];

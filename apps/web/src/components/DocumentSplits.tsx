@@ -37,6 +37,7 @@ export function DocumentSplits({
   disabled,
   onChange,
   onDissolve,
+  taxLabel = "Vorsteuer",
 }: {
   rows: SplitRowState[];
   /** Beträge des Belegs je Satz in Euro; null, solange ein Betrag oben nicht lesbar ist */
@@ -47,6 +48,8 @@ export function DocumentSplits({
   onChange: (rows: SplitRowState[]) => void;
   /** Aufteilung aufheben: wieder eine Kategorie für den ganzen Beleg */
   onDissolve: () => void;
+  /** Steuer je Zeile: Vorsteuer, bei § 13b (#508) die selbst geschuldete Steuer */
+  taxLabel?: string;
 }) {
   const parsed = rows.map((row) => parseEuro(row.net || "0"));
   const lines = parseSplitRows(rows);
@@ -61,7 +64,8 @@ export function DocumentSplits({
     <fieldset className="card" style={{ margin: 0 }} disabled={disabled} aria-describedby="split-hint">
       <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Aufteilung auf Kategorien</legend>
       <p id="split-hint" className="small muted" style={{ margin: 0 }}>
-        Netto je Zeile; zusammen ergibt jeder Steuersatz das Netto des Belegs. Die Vorsteuer verteilt Haben anteilig, den Rundungscent bekommt die größte Zeile.
+        Netto je Zeile; zusammen ergibt jeder Steuersatz das Netto des Belegs. Die {taxLabel} verteilt Haben anteilig, den Rundungscent bekommt die größte
+        Zeile.
       </p>
       {rows.map((row, index) => (
         <div className="document-split-row" key={row.key}>
@@ -103,7 +107,7 @@ export function DocumentSplits({
             </label>
             {/* Außerhalb des Labels, damit das Feld schlicht „Netto“ heißt */}
             <span id={`split-tax-${row.key}`} className="small muted">
-              Vorsteuer {allocated ? formatDecimal(allocated[index]!.tax) : "–"}
+              {taxLabel} {allocated ? formatDecimal(allocated[index]!.tax) : "–"}
             </span>
           </div>
           <button

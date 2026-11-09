@@ -58,8 +58,9 @@ export async function splitsByDocument(ids: string[], q: Db | Tx = db): Promise<
 }
 
 /**
- * Was gegen das Buchen eines aufgeteilten Belegs spricht. Erster Schritt: nur Belege mit deutscher Umsatzsteuer in Euro.
- * § 13b, Privatanteil und Fremdwährung verteilen Steuer bzw. Beträge anders; sie lehnt Haben mit Aufteilung ab.
+ * Was gegen das Buchen eines aufgeteilten Belegs spricht. Belege mit deutscher Umsatzsteuer in Euro und § 13b (EU und
+ * Drittland, #508). Innergemeinschaftlicher Erwerb, Privatanteil und Fremdwährung verteilen Steuer bzw. Beträge anders;
+ * sie lehnt Haben mit Aufteilung ab.
  */
 export function splitBookingIssues(
   doc: { reverseCharge: string | null; privateShare: number; currency: string },
@@ -67,7 +68,9 @@ export function splitBookingIssues(
   splits: Pick<DocumentSplit, "category" | "taxRate" | "net" | "tax">[],
 ): string[] {
   const issues: string[] = [];
-  if (doc.reverseCharge) issues.push(`${doc.reverseCharge === "ig_erwerb" ? "Innergemeinschaftlicher Erwerb" : "§ 13b"} mit Aufteilung wird nicht unterstützt`);
+  if (doc.reverseCharge === "ig_erwerb") issues.push("Innergemeinschaftlicher Erwerb mit Aufteilung wird nicht unterstützt");
+  // § 13b Abs. 1 und Abs. 2 Nr. 1 UStG: nur sonstige Leistungen und Werklieferungen, wie ohne Aufteilung (bookingIssues)
+  else if (doc.reverseCharge && splits.some((s) => s.category === "wareneinkauf")) issues.push("§ 13b gilt nicht für Wareneinkäufe");
   if (doc.privateShare > 0) issues.push("Ein Privatanteil mit Aufteilung wird nicht unterstützt");
   if (doc.currency !== "EUR") issues.push("Fremdwährung mit Aufteilung wird nicht unterstützt");
   return [...issues, ...splitIssues(splitLines(splits), amounts)];

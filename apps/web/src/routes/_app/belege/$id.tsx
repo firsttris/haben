@@ -371,8 +371,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     privateShareValid &&
     currencyValid &&
     parsedSplits !== null;
-  // Aufteilen geht im ersten Schritt nur mit deutscher Umsatzsteuer in Euro
-  const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : reverseCharge ? "§ 13b" : foreign ? "Fremdwährung" : null;
+  // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
+  const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
   // Fremdwährung: dieselbe Umrechnung wie beim Speichern, damit die Vorschau mit dem Gebuchten übereinstimmt
@@ -962,6 +962,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             categories={categories}
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
+            taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
               touch(setCategory)(splitRows[0]?.category ?? "");
