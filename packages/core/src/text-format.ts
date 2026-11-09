@@ -6,17 +6,26 @@ export interface FormattedTextRun {
   underline: boolean;
 }
 
-type Style = "bold" | "italic" | "underline";
+export type TextStyle = "bold" | "italic" | "underline";
 interface Frame {
   marker: string;
-  style: Style | null;
+  styles: TextStyle[];
   runs: FormattedTextRun[];
 }
 
 const emptyStyle = { bold: false, italic: false, underline: false };
 const word = /[\p{L}\p{N}/\\]/u;
 
-function append(runs: FormattedTextRun[], run: FormattedTextRun): void {
+/** Die gültigen Zeichenpaare; drei Unterstriche, weil `_` und `__` direkt nebeneinander nicht trennbar wären. */
+export const TEXT_MARKERS: Readonly<Record<string, readonly TextStyle[]>> = {
+  "*": ["bold"],
+  "**": ["bold"],
+  _: ["italic"],
+  __: ["underline"],
+  ___: ["italic", "underline"],
+};
+
+export function appendTextRun(runs: FormattedTextRun[], run: FormattedTextRun): void {
   if (!run.text) return;
   const last = runs.at(-1);
   if (last && last.bold === run.bold && last.italic === run.italic && last.underline === run.underline) last.text += run.text;
@@ -24,7 +33,7 @@ function append(runs: FormattedTextRun[], run: FormattedTextRun): void {
 }
 
 function literal(frame: Frame, text: string): void {
-  append(frame.runs, { text, ...emptyStyle });
+  appendTextRun(frame.runs, { text, ...emptyStyle });
 }
 
 function canOpen(text: string, at: number, size: number): boolean {
@@ -44,15 +53,16 @@ function canClose(text: string, at: number, size: number): boolean {
 function close(frames: Frame[]): void {
   const frame = frames.pop()!;
   const parent = frames.at(-1)!;
-  for (const run of frame.runs) append(parent.runs, { ...run, ...(frame.style ? { [frame.style]: true } : {}) });
+  const styles = Object.fromEntries(frame.styles.map((style) => [style, true]));
+  for (const run of frame.runs) appendTextRun(parent.runs, { ...run, ...styles });
 }
 
 /**
- * *fett* (auch **fett**), _kursiv_ und __unterstrichen__. Nur Zeichenpaare an Wortgrenzen
+ * *fett* (auch **fett**), _kursiv_, __unterstrichen__ und ___beides___. Nur Zeichenpaare an Wortgrenzen
  * zählen; Dateinamen, Pfade und nicht geschlossene Zeichen bleiben lesbar erhalten.
  */
 export function parseTextFormatting(text: string): FormattedTextRun[] {
-  const frames: Frame[] = [{ marker: "", style: null, runs: [] }];
+  const frames: Frame[] = [{ marker: "", styles: [], runs: [] }];
   let at = 0;
   while (at < text.length) {
     const frame = frames.at(-1)!;
@@ -102,8 +112,8 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
     let count = 1;
     while (text[at + count] === char) count++;
     const marker = char.repeat(count);
-    if (count <= 2 && canOpen(text, at, count) && !frames.some((f) => f.marker === marker)) {
-      frames.push({ marker, style: char === "*" ? "bold" : count === 2 ? "underline" : "italic", runs: [] });
+    if (TEXT_MARKERS[marker] && canOpen(text, at, count) && !frames.some((f) => f.marker === marker)) {
+      frames.push({ marker, styles: [...TEXT_MARKERS[marker]], runs: [] });
     } else literal(frame, marker);
     at += count;
   }
@@ -112,7 +122,7 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
     const frame = frames.pop()!;
     const parent = frames.at(-1)!;
     literal(parent, frame.marker);
-    for (const run of frame.runs) append(parent.runs, run);
+    for (const run of frame.runs) appendTextRun(parent.runs, run);
   }
   return frames[0]!.runs;
 }

@@ -72,3 +72,18 @@ describe("Einfache Textformatierung", () => {
     expect(parseTextFormatting("")).toEqual([]);
   });
 });
+
+describe("Kursiv und unterstrichen zusammen", () => {
+  it("liest drei Unterstriche als beides", () => {
+    expect(parseTextFormatting("vor ___x___ nach")).toEqual([
+      { text: "vor ", bold: false, italic: false, underline: false },
+      { text: "x", bold: false, italic: true, underline: true },
+      { text: " nach", bold: false, italic: false, underline: false },
+    ]);
+  });
+
+  it("lässt nicht geschlossene und vier Unterstriche wörtlich", () => {
+    expect(parseTextFormatting("___x")).toEqual([{ text: "___x", bold: false, italic: false, underline: false }]);
+    expect(parseTextFormatting("____x____")).toEqual([{ text: "____x____", bold: false, italic: false, underline: false }]);
+  });
+});

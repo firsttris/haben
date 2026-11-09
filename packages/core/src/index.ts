@@ -70,6 +70,7 @@ export * from "./telefon.ts";
 export * from "./accent.ts";
 export * from "./letterhead-design.ts";
 export * from "./text-format.ts";
+export * from "./text-format-edit.ts";
 export * from "./number-format.ts";
 export * from "./steuerbescheinigung.ts";
 export * from "./steuerzahlung.ts";
