@@ -75,7 +75,7 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Ecken 12px, Innenabstand 20px. Am Handy rücken die Kennzahlen-Raster und der Belegeditor enger zusammen (`.grid-3`, `.grid-4`, `.doc-editor`). Bedienelemente bleiben dabei auf Touchgeräten mindestens 44px hoch.
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Ecken 12px, Innenabstand 20px. Am Handy rücken die Kennzahlen-Raster enger zusammen (`.grid-3`, `.grid-4`). Felder und Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`).
 
 Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `ContactDialog`).
 
@@ -86,14 +86,14 @@ Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `P
 - **Form:** volle Breite, unten bündig, nur oben gerundet: `border-radius: var(--sheet-radius) var(--sheet-radius) 0 0`. Der Radius steht einmal in `styles.css`; kein Blatt bekommt einen eigenen Wert, damit alle gleich aussehen.
 - **Griff:** `SheetGrip` ist das erste Element des Blatts. `.sheet-grip` ist ausgeblendet; das Blatt schaltet ihn in seiner Media Query ein.
 - **Wischen:** `useSwipeToClose` hängt am Griff und, wo das Blatt einen Titel hat, am Titel, nie am scrollenden Inhalt; beide tragen `touch-action: none`. Das Blatt folgt dem Finger und schließt ab 80px, sonst springt es zurück. Das wirkt wie „Schließen“ oder „Abbrechen“; der Knopf bleibt als Alternative. `media` ist dieselbe Breite wie in der Media Query des Blatts.
-- **Übereinander:** Sichtbar ist nur ein Griff, der des oberen Blatts (`.preview-dialog[data-design] > .sheet-grip`), denn zwei übereinander verwirren. Wischen schließt nur das obere Blatt; das darunter bleibt über seinen Titel wischbar.
+- **Übereinander:** Sichtbar ist nur der Griff des oberen Blatts, denn zwei übereinander verwirren; den des unteren blendet `.preview-dialog[data-design] > .sheet-grip` aus. Wischen schließt nur das obere Blatt; das darunter bleibt über seinen Titel wischbar.
 - **Aufbau:** Kopf und Knöpfe stehen, nur der Inhalt dazwischen scrollt. Im `ConfirmDialog` sind die Knöpfe voll breit und 48px hoch, die Aktion über „Abbrechen“, unten mit Abstand für `env(safe-area-inset-bottom)`.
 
 Die Gestaltungskarte ist am Desktop eine Spalte neben dem Blatt (`.design-sheet` mit `display: contents`). Am Handy steht die Vorschau oben in einem Streifen von `32dvh`, und die Karte überlappt ihn um 16px, damit ihre gerundeten Ecken auf der Vorschau liegen.
 
 ### Felder mit Auszeichnungen
 
-Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit Cmd.
+Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit Cmd. In der Leiste wechseln die Pfeiltasten den Knopf. Esc schließt nur die Leiste, ein umgebender Dialog bleibt offen.
 
 ### Vorschau der Belegeditoren
 
