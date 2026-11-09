@@ -1,20 +1,23 @@
-import { asc, desc, eq, max, sql } from "drizzle-orm";
+import { asc, desc, eq, isNotNull, max, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { ZugangError } from "./einladungen.ts";
+import { requireLocalManagement, ZugangError } from "./einladungen.ts";
 
 /*
  * Zugänge verwalten: wer Haben nutzen darf, mit welcher Rolle, wann zuletzt angemeldet. Sperren und Entfernen gibt es nur
  * für die Steuerberatung; der Inhaber bleibt immer.
  */
 
-/** Alle Konten mit Rolle, Sperre und letzter Anmeldung; der Inhaber zuerst */
-export async function listAccounts() {
-  const lastLogin = db
+const lastLogins = () =>
+  db
     .select({ userId: schema.userLogins.userId, at: max(schema.userLogins.at).as("last_at") })
     .from(schema.userLogins)
     .groupBy(schema.userLogins.userId)
     .as("last_login");
+
+/** Standardmodus: alle Konten mit lokaler Rolle, Sperre und letzter Anmeldung; der Inhaber zuerst. Reine SSO-Konten nicht. */
+export async function listAccounts() {
+  const lastLogin = lastLogins();
   return db
     .select({
       id: schema.user.id,
@@ -27,11 +30,35 @@ export async function listAccounts() {
     })
     .from(schema.user)
     .leftJoin(lastLogin, eq(lastLogin.userId, schema.user.id))
+    .where(isNotNull(schema.user.role))
     .orderBy(sql`${schema.user.role} <> 'inhaber'`, asc(schema.user.createdAt));
+}
+
+/**
+ * SSO-Modus: die Konten, die sich bei diesem Issuer schon angemeldet haben, mit der zuletzt bestätigten Rolle (leer nach
+ * einer Abweisung) und dem Zeitpunkt der letzten Prüfung. Kein Abbild des Anbieter-Verzeichnisses.
+ */
+export async function listSsoAccounts(issuer: string) {
+  const lastLogin = lastLogins();
+  return db
+    .select({
+      id: schema.user.id,
+      name: schema.user.name,
+      email: schema.user.email,
+      role: schema.ssoRoles.role,
+      confirmedAt: schema.ssoRoles.confirmedAt,
+      lastLoginAt: lastLogin.at,
+    })
+    .from(schema.ssoRoles)
+    .innerJoin(schema.user, eq(schema.user.id, schema.ssoRoles.userId))
+    .leftJoin(lastLogin, eq(lastLogin.userId, schema.user.id))
+    .where(eq(schema.ssoRoles.issuer, issuer))
+    .orderBy(sql`${schema.ssoRoles.role} is distinct from 'inhaber'`, asc(schema.user.name));
 }
 
 /** Sperrt die Zeile eines Kontos der Steuerberatung für die Änderung; den Inhaber nie */
 async function lockSteuerberatung(tx: Tx, userId: string) {
+  requireLocalManagement();
   const [row] = await tx.select({ role: schema.user.role }).from(schema.user).where(eq(schema.user.id, userId)).for("update");
   if (!row) throw new ZugangError("Diesen Zugang gibt es nicht.");
   if (row.role !== "steuerberatung") throw new ZugangError("Den Zugang des Inhabers kann man nicht sperren oder entfernen.");

@@ -58,6 +58,16 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
+      # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation.md)
+      OIDC_ONLY: ${OIDC_ONLY:-false}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_SCOPES: ${OIDC_SCOPES:-}
+      OIDC_DISPLAY_NAME: ${OIDC_DISPLAY_NAME:-}
+      OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-groups}
+      OIDC_GROUP_INHABER: ${OIDC_GROUP_INHABER:-}
+      OIDC_GROUP_STEUERBERATUNG: ${OIDC_GROUP_STEUERBERATUNG:-}
       BETTER_AUTH_URL: https://${DOMAIN:?DOMAIN fehlt in .env}
       BETTER_AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET fehlt in .env}
       HABEN_ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY fehlt in .env}

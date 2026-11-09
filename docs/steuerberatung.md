@@ -32,6 +32,8 @@ Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber n
 
 ## Einladen
 
+Einladungen gibt es im Standardmodus. Im SSO-Modus entsteht der Zugang ohne Einladung, siehe [Im SSO-Modus](#im-sso-modus).
+
 1. Unter **Einstellungen › Sicherheit › Zugänge** eine Bezeichnung eintragen, etwa den Namen der Kanzlei, und **Einladungslink erzeugen**.
 2. Den Link kopieren und der Steuerberatung auf einem sicheren Weg schicken. Haben zeigt ihn nur dieses eine Mal; gespeichert ist nur ein Hash.
 3. Die Steuerberatung öffnet den Link, trägt Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und legt den Zugang an. Danach kann sie einen Passkey hinzufügen und meldet sich künftig damit an.
@@ -55,7 +57,7 @@ Den Zugang des Inhabers kann man weder sperren noch entfernen.
 
 ## Protokoll
 
-Jede Anmeldung steht mit Zeitpunkt, Konto, Rolle und Art (Passwort, Passkey, nach der Einladung) im Änderungsprotokoll, das als Hash-Kette gegen nachträgliche Änderung gesichert ist ([Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)). Ebenso stehen dort jedes Konto mit seiner Rolle, jede Einladung und jedes Sperren und Entfernen, jeweils mit dem Konto, das es getan hat. Jede Änderung trägt die ID des handelnden Kontos; Name und Rolle dazu stehen in derselben Kette. Passwörter und Sitzungen stehen nicht darin.
+Jede Anmeldung steht mit Zeitpunkt, Konto, Rolle und Art (Passwort, Passkey, SSO, nach der Einladung) im Änderungsprotokoll, das als Hash-Kette gegen nachträgliche Änderung gesichert ist ([Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)). Im SSO-Modus stehen dort auch jede Bestätigung, Änderung und jeder Entzug der Rolle (`sso_roles`) und jede Übernahme eines bestehenden Kontos durch den Betreiber. Ebenso stehen dort jedes Konto mit seiner Rolle, jede Einladung und jedes Sperren und Entfernen, jeweils mit dem Konto, das es getan hat. Jede Änderung trägt die ID des handelnden Kontos; Name und Rolle dazu stehen in derselben Kette. Passwörter und Sitzungen stehen nicht darin.
 
 ## Sicherheit
 
@@ -70,4 +72,18 @@ Jede Anmeldung steht mit Zeitpunkt, Konto, Rolle und Art (Passwort, Passkey, nac
 - Bank, Kasse, Anlagen, Lohn, Umsatzsteuer, Jahreserklärungen, Jahresabschluss und das Archiv aus dem Umzug für die Steuerberatung zum Ansehen.
 - Kommentare oder Rückfragen der Steuerberatung an einem Beleg.
 
+## Im SSO-Modus
+
+Läuft Haben mit `OIDC_ONLY=true`, entscheiden die Gruppen im Anmeldedienst (etwa Authelia), wer die Steuerberatung ist: Mitglieder der Gruppe aus `OIDC_GROUP_STEUERBERATUNG` bekommen bei ihrer ersten Anmeldung automatisch einen Zugang mit Lesezugriff, ohne Einladung, Passwort oder Passkey. Die Rechte sind dieselben wie oben.
+
+- **Einstellungen › Zugänge** zeigt statt „Sicherheit“ die schon angemeldeten Konten mit ihrer zuletzt bestätigten Rolle. Einladen, Sperren und Entfernen gibt es dort nicht; das geschieht über die Gruppen.
+- Wer aus der Gruppe genommen wird, verliert den Zugang bei der nächsten Anmeldung sofort, sonst spätestens nach 15 Minuten. Eine Abmeldung in Authelia beendet die Haben-Sitzung nicht sofort.
+- Die Steuerberatung kann eine neue Instanz nicht erstmals einrichten; das macht ein Inhaber.
+- Anmeldungen ohne Pause von mehr als sechs Stunden zählen als ein Besuch. „Seit deinem letzten Besuch“ reicht deshalb bis zur letzten Anmeldung vor dieser Pause, auch wenn die 15-Minuten-Frist zwischendurch neue Anmeldungen verlangt.
+- Alte Einladungslinks zeigen „Einladungen nicht verfügbar“.
+
+Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
+
 [Zurück zur Übersicht](ueberblick.md)
+
+Bei einer Herabstufung vom Inhaber zur Steuerberatung werden beim geprüften SSO-Durchlauf zusätzlich die verantworteten API-/MCP- und Kalender-Tokens deaktiviert. Ein anderer Inhaber kann diese übernehmen; die Steuerberatung darf keine Tokens reaktivieren. Ohne erneute Anmeldung gelten die Tokens höchstens 30 Tage nach der letzten Bestätigung.

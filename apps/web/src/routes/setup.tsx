@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
+import { SsoSignIn } from "../components/SsoSignIn.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -7,6 +8,8 @@ import { getAuthState } from "../server/functions/setup.ts";
 export const Route = createFileRoute("/setup")({
   beforeLoad: async () => {
     const state = await getAuthState();
+    // SSO-Modus: Passkeys gibt es nicht, nach der Einrichtung geht es nur über die Anmeldeseite hinein
+    if (state.oidc.only && state.user) throw redirect({ to: "/" });
     if (state.initialized && !state.user) throw redirect({ to: "/login" });
     return { state };
   },
@@ -61,7 +64,16 @@ function SetupPage() {
         <div className="brand" style={{ color: "var(--ink)", padding: 0 }}>
           <span className="brand-mark">H</span>Haben
         </div>
-        {state.user ? (
+        {state.oidc.only ? (
+          <>
+            <h1 style={{ fontSize: 24 }}>Haben einrichten</h1>
+            <p className="muted" style={{ margin: 0 }}>
+              Haben nutzt ausschließlich {state.oidc.name}. Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein; danach entstehen Zugänge
+              automatisch bei der ersten Anmeldung. Ein Einrichtungscode, Passwort oder Passkey wird nicht gebraucht.
+            </p>
+            <SsoSignIn name={state.oidc.name} label={`Mit ${state.oidc.name} einrichten`} />
+          </>
+        ) : state.user ? (
           <>
             <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
             <p className="muted">Melde dich künftig mit einem Passkey an, ohne Passwort. Das Passwort bleibt als Rückfallebene.</p>

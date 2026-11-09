@@ -20,7 +20,7 @@ type Data = Awaited<ReturnType<typeof getSteuerberatungStart>>;
 
 function SteuerberatungPage() {
   const { aenderungen, years } = Route.useLoaderData();
-  const { user } = Route.useRouteContext();
+  const { user, oidc } = Route.useRouteContext();
   return (
     <>
       <div className="page-head">
@@ -32,15 +32,15 @@ function SteuerberatungPage() {
       {user.role === "inhaber" && (
         <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
           So sieht deine Steuerberatung Haben. Zugänge verwaltest du unter{" "}
-          <Link to="/einstellungen" search={{ bereich: "sicherheit" }}>
-            Einstellungen › Sicherheit
+          <Link to="/einstellungen" search={{ bereich: oidc.only ? "zugaenge" : "sicherheit" }}>
+            Einstellungen › {oidc.only ? "Zugänge" : "Sicherheit"}
           </Link>
           .
         </p>
       )}
       <Aenderungen data={aenderungen} />
       <Exporte years={years} />
-      <PasskeysCard />
+      {!oidc.only && <PasskeysCard />}
     </>
   );
 }

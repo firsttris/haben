@@ -8,6 +8,7 @@ import {
   mcpTokenInputSchema,
   recentMcpCalls,
   revokeMcpToken,
+  reactivateMcpToken,
   setMcpEnabled,
   TOKEN_SCOPE_LABELS,
   TOKEN_SCOPES,
@@ -17,8 +18,8 @@ import { authMiddleware } from "../middleware.ts";
 /** Einstellungen → KI-Assistenten und API: Schalter, Zugänge, letzte Aufrufe, die angebotenen Werkzeuge und die Rechte */
 export const getMcpSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => {
-    const [enabled, tokens, calls] = await Promise.all([mcpEnabled(), listMcpTokens(), recentMcpCalls()]);
+  .handler(async ({ context }) => {
+    const [enabled, tokens, calls] = await Promise.all([mcpEnabled(), listMcpTokens(new Date(), context.user.id), recentMcpCalls()]);
     return {
       enabled,
       tokens,
@@ -40,12 +41,20 @@ export const setMcpEnabledFn = createServerFn({ method: "POST" })
 export const createMcpTokenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(mcpTokenInputSchema)
-  .handler(({ data }) => createMcpToken(data));
+  .handler(({ data, context }) => createMcpToken(data, new Date(), context.user.id));
 
 export const revokeMcpTokenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
     await revokeMcpToken(data.id);
+    return { ok: true };
+  });
+
+export const reactivateMcpTokenFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await reactivateMcpToken(context.user.id, data.id);
     return { ok: true };
   });

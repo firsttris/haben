@@ -183,6 +183,10 @@ export const company = pgTable(
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
     calendarTokenHash: text("calendar_token_hash"),
+    calendarTokenCreatedBy: text("calendar_token_created_by"),
+    calendarTokenResponsibleId: text("calendar_token_responsible_id"),
+    calendarTokenDisabledAt: timestamp("calendar_token_disabled_at", { withTimezone: true }),
+    calendarTokenDisabledReason: text("calendar_token_disabled_reason"),
     /** Zugang mit API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1); ausdrücklich einzuschalten, standardmäßig aus */
     mcpEnabled: boolean("mcp_enabled").notNull().default(false),
     /** Das Finanzamt hat den Tageskurs statt der monatlichen USt-Umrechnungskurse gestattet (§ 16 Abs. 6 Satz 3 UStG) */
@@ -2719,6 +2723,10 @@ export const backupStatus = pgTable(
  * Audit-Log und Siegel (wie die Passkeys).
  */
 export const mcpTokens = pgTable("mcp_tokens", {
+  createdBy: text("created_by"),
+  responsibleId: text("responsible_id"),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  disabledReason: text("disabled_reason"),
   id: uuid("id").primaryKey().defaultRandom(),
   /** Vom Nutzer vergeben, z. B. „Claude Code am Laptop“ */
   name: text("name").notNull(),
@@ -3070,3 +3078,15 @@ export const lstbSubmissions = pgTable(
     check("lstb_submissions_ref", sql`${t.art} = 'neu' or ${t.kind} = 'portal' or ${t.refKmId} is not null`),
   ],
 );
+
+/** Token-Verwaltungsereignisse ohne Hash, Geheimnis oder Claims. Nur anhängen, Audit-Log per Trigger. */
+export const tokenEvents = pgTable("token_events", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  actor: text("actor").notNull(),
+  tokenId: text("token_id").notNull(),
+  kind: text("kind").notNull(),
+  action: text("action").notNull(),
+  previousResponsibleId: text("previous_responsible_id"),
+  responsibleId: text("responsible_id"),
+});

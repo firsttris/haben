@@ -1,15 +1,18 @@
 import { PASSKEY_ERROR_CODES } from "@better-auth/passkey/client";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
+import { SsoSignIn } from "../components/SsoSignIn.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const state = await getAuthState();
-    if (!state.initialized) throw redirect({ to: "/setup" });
+    // Den Hinweis eines abgewiesenen SSO-Callbacks (?sso=…) mitnehmen
+    if (!state.initialized) throw redirect({ href: `/setup${location.searchStr}` });
     if (state.user) throw redirect({ to: "/" });
+    return { oidc: state.oidc };
   },
   head: () => ({ meta: [{ title: "Anmelden · Haben" }] }),
   component: LoginPage,
@@ -17,6 +20,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const router = useRouter();
+  const { oidc } = Route.useRouteContext();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +28,7 @@ function LoginPage() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: Autofill nur einmal beim Öffnen des Formulars anbieten
   useEffect(() => {
     // Passkey-Autofill braucht ein Feld mit autocomplete="webauthn", das gibt es erst im Passwort-Formular
-    if (!showPassword) return;
+    if (oidc.only || !showPassword) return;
     if (typeof PublicKeyCredential !== "undefined" && PublicKeyCredential.isConditionalMediationAvailable) {
       void PublicKeyCredential.isConditionalMediationAvailable().then((available) => {
         if (!available) return;
@@ -76,27 +80,38 @@ function LoginPage() {
           <span className="brand-mark">H</span>Haben
         </div>
         <h1 style={{ fontSize: 24 }}>Anmelden</h1>
-        <button type="button" className="btn btn-primary" onClick={withPasskey} disabled={busy}>
-          Mit Passkey anmelden
-        </button>
-        {showPassword ? (
-          <form className="stack" onSubmit={withPassword}>
-            <label className="field">
-              E-Mail
-              <input name="email" type="email" required autoComplete="username webauthn" autoFocus />
-            </label>
-            <label className="field">
-              Passwort
-              <input name="password" type="password" required autoComplete="current-password" />
-            </label>
-            <button type="submit" className="btn" disabled={busy}>
-              Mit Passwort anmelden
-            </button>
-          </form>
+        {oidc.only ? (
+          <>
+            <p className="muted" style={{ margin: 0 }}>
+              Haben nutzt ausschließlich {oidc.name}. Deine Berechtigung wird bei jeder Anmeldung und spätestens nach 15 Minuten neu bestätigt.
+            </p>
+            <SsoSignIn name={oidc.name} />
+          </>
         ) : (
-          <button type="button" className="btn" onClick={() => setShowPassword(true)}>
-            Passwort verwenden
-          </button>
+          <>
+            <button type="button" className="btn btn-primary" onClick={withPasskey} disabled={busy}>
+              Mit Passkey anmelden
+            </button>
+            {showPassword ? (
+              <form className="stack" onSubmit={withPassword}>
+                <label className="field">
+                  E-Mail
+                  <input name="email" type="email" required autoComplete="username webauthn" autoFocus />
+                </label>
+                <label className="field">
+                  Passwort
+                  <input name="password" type="password" required autoComplete="current-password" />
+                </label>
+                <button type="submit" className="btn" disabled={busy}>
+                  Mit Passwort anmelden
+                </button>
+              </form>
+            ) : (
+              <button type="button" className="btn" onClick={() => setShowPassword(true)}>
+                Passwort verwenden
+              </button>
+            )}
+          </>
         )}
         {error && (
           <p className="field-error" role="alert">

@@ -10,19 +10,25 @@ import {
   invitationInputSchema,
   listAccounts,
   listInvitations,
+  listSsoAccounts,
   lockAccount,
   removeAccount,
   revokeInvitation,
   unlockAccount,
 } from "../modules/zugang/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
+import { ssoOnly } from "../sso-policy.ts";
 
-/** Einstellungen → Sicherheit: Konten mit Rolle und letzter Anmeldung, Einladungen */
+/**
+ * Standardmodus, Einstellungen → Sicherheit: Konten mit Rolle und letzter Anmeldung, Einladungen.
+ * SSO-Modus, Einstellungen → Zugänge: nur die bisher per SSO angemeldeten Konten mit zuletzt bestätigter Rolle.
+ */
 export const getZugaenge = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
+    if (ssoOnly()) return { mode: "sso" as const, ssoAccounts: await listSsoAccounts(env().OIDC_ISSUER!) };
     const [accounts, invitations] = await Promise.all([listAccounts(), listInvitations()]);
-    return { accounts, invitations, gueltigStunden: EINLADUNG_GUELTIG_STUNDEN };
+    return { mode: "lokal" as const, accounts, invitations, gueltigStunden: EINLADUNG_GUELTIG_STUNDEN };
   });
 
 /** Neue Einladung für die Steuerberatung; der Link kommt nur in dieser Antwort vor */
@@ -54,12 +60,18 @@ export const changeAccountFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Öffentlich für die Seite /einladung/<token>: ob der Link noch gilt, ohne etwas zu verändern */
+/**
+ * Öffentlich für die Seite /einladung/<token>: ob der Link noch gilt, ohne etwas zu verändern. Im SSO-Modus gibt es
+ * keine Einladungen; ob der Link je galt, verrät die Antwort dann nicht.
+ */
 export const checkInvitation = createServerFn({ method: "GET" })
   .validator(z.string().max(200))
   .handler(async ({ data }) => {
+    if (ssoOnly()) return { valid: false as const, unavailable: true as const };
     const invitation = await openInvitation(data);
-    return invitation ? { valid: true as const, label: invitation.label, expiresAt: invitation.expiresAt } : { valid: false as const };
+    return invitation
+      ? { valid: true as const, label: invitation.label, expiresAt: invitation.expiresAt }
+      : { valid: false as const, unavailable: false as const };
   });
 
 /** Startseite der Steuerberatung: was sich seit dem letzten Besuch geändert hat, und die Jahre für die Exporte */

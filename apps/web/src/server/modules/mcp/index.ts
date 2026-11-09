@@ -19,6 +19,7 @@ export {
   recentMcpCalls,
   recordMcpCall,
   revokeMcpToken,
+  reactivateMcpToken,
   setMcpEnabled,
   TOKEN_SCOPE_LABELS,
   TOKEN_SCOPES,

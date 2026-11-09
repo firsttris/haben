@@ -1,5 +1,7 @@
-import { darf, isRolle, type Rolle, type Zugriff } from "../lib/rollen.ts";
-import { auth } from "./auth.ts";
+import { isAPIError } from "better-auth/api";
+import { darf, type Rolle, type Zugriff } from "../lib/rollen.ts";
+import { auth, authContextReady } from "./auth.ts";
+import { effectiveRole, ssoOnly, type SessionProof } from "./sso-policy.ts";
 
 /*
  * Rechte der Zugänge an einer Stelle. Jede Server Function und jede API-Route mit Sitzung sagt, welchen Zugriff sie
@@ -17,14 +19,25 @@ export interface SessionUser {
 }
 
 /**
- * Das angemeldete Konto zur Anfrage, oder null ohne gültige Sitzung. Ein gesperrtes Konto oder eines ohne bekannte
- * Rolle gilt als nicht angemeldet; Sperren löscht die Sitzungen zwar, das hier hält auch ohne das.
+ * Das angemeldete Konto zur Anfrage mit seiner wirksamen Rolle, oder null ohne gültige Sitzung. Im Standardmodus ist das
+ * die lokale Rolle eines ungesperrten Kontos, im SSO-Modus nur die beim letzten Callback bestätigte Rolle, solange deren
+ * Frist läuft (sso-policy.ts). Navigation, Server Functions, API-Routen und Audit sehen so dieselbe Rolle.
  */
 export async function sessionUser(headers: Headers): Promise<SessionUser | null> {
-  const session = await auth().api.getSession({ headers });
+  // Ein hängender Anbieter beim ersten Aufbau darf nicht jede Seite aufhalten; die Anmeldeseite meldet die Störung
+  if (ssoOnly() && !(await authContextReady())) return null;
+  let session;
+  try {
+    session = await auth().api.getSession({ headers });
+  } catch (error) {
+    // Abgelaufene oder fremde Sitzung: der Before-Hook hat sie gelöscht, das gilt als nicht angemeldet
+    if (isAPIError(error) && error.status === "UNAUTHORIZED") return null;
+    throw error;
+  }
   if (!session) return null;
-  const { id, name, email, role, lockedAt } = session.user as typeof session.user & { role?: unknown; lockedAt?: unknown };
-  if (lockedAt || !isRolle(role)) return null;
+  const role = effectiveRole(session.session as SessionProof | undefined, session.user as { role?: unknown; lockedAt?: unknown });
+  if (!role) return null;
+  const { id, name, email } = session.user;
   return { id, name, email, role };
 }
 

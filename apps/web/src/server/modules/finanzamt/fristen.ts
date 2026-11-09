@@ -1,4 +1,3 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   abgabefrist,
   dauerfristActive,
@@ -21,7 +20,6 @@ import {
 } from "@haben/core";
 import { and, eq, min } from "drizzle-orm";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
-import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
@@ -272,39 +270,6 @@ export async function listFristen(today: string): Promise<Frist[]> {
   }
 
   return fristen.sort((a, b) => a.datum.localeCompare(b.datum) || a.titel.localeCompare(b.titel));
-}
-
-/* Kalender-Abo: Kalender-Apps können sich nicht anmelden, deshalb ein geheimer Link. Gespeichert ist nur der Hash. */
-
-const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-
-/** Erzeugt einen neuen Abo-Link; ein alter wird damit ungültig. Das Token gibt es nur dieses eine Mal. */
-export async function createCalendarToken(actor: string): Promise<string> {
-  const token = randomBytes(24).toString("base64url");
-  await loadCompany();
-  await withActor(actor, (tx) =>
-    tx
-      .update(schema.company)
-      .set({ calendarTokenHash: hashToken(token), updatedAt: new Date() })
-      .where(eq(schema.company.id, 1)),
-  );
-  return token;
-}
-
-export async function revokeCalendarToken(actor: string): Promise<void> {
-  await withActor(actor, (tx) => tx.update(schema.company).set({ calendarTokenHash: null, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
-}
-
-export async function calendarTokenActive(): Promise<boolean> {
-  return Boolean((await loadCompany()).calendarTokenHash);
-}
-
-export async function checkCalendarToken(token: string): Promise<boolean> {
-  const stored = (await loadCompany()).calendarTokenHash;
-  if (!stored || !token) return false;
-  const a = Buffer.from(hashToken(token), "hex");
-  const b = Buffer.from(stored, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 const icsText = (value: string) =>

@@ -103,3 +103,7 @@ Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Ei
 Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt hat und ob es geklappt hat, ohne Eingaben und Ergebnisse. Haben hebt das 90 Tage auf. Je Token sind 120 Anfragen pro Minute erlaubt, zusammen mit Aufrufen der REST-API; schickt ein Client mehrere Nachrichten in einer Anfrage (Batch), zählt jede einzeln.
 
 Das Ein- und Ausschalten des Zugangs steht im Änderungsprotokoll. Die Tokens selbst sind Zugangsdaten wie die Passkeys und stehen nicht darin.
+
+## Verantwortung für API-Tokens
+
+Tokens besitzen einen verantwortlichen Inhaber. Bei erkanntem SSO-Gruppenentzug oder Herabstufung werden sie deaktiviert, nicht gelöscht. Ein anderer aktuell berechtigter Inhaber kann sie in den Einstellungen ausdrücklich übernehmen und reaktivieren, der einzige Inhaber auch seine eigenen; das Geheimnis bleibt erhalten. Ohne erneuten OIDC-Durchlauf gilt ein Token höchstens 30 Tage nach der letzten Bestätigung des Verantwortlichen. Alte Tokens ohne belegbare Verantwortung werden bei der Einführung bis zur Übernahme deaktiviert. Endgültig widerrufene und abgelaufene Tokens bleiben ungültig.

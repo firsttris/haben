@@ -10,7 +10,7 @@ import {
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
-import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { redirect, Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
@@ -37,6 +37,7 @@ import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { PasskeysCard } from "../../components/PasskeysCard.tsx";
+import { SsoZugaengeCard } from "../../components/SsoZugaengeCard.tsx";
 import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
 import { formatDate } from "../../lib/format.ts";
@@ -46,7 +47,7 @@ import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
-import { SETTINGS_AREAS, type SettingsArea } from "../../lib/settings-areas.ts";
+import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import reportStyles from "../../styles/auswertungen.css?url";
@@ -66,6 +67,10 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
+  beforeLoad: ({ context, search }) => {
+    if (context.oidc.only && search.bereich === "sicherheit") throw redirect({ to: "/einstellungen", search: { bereich: "zugaenge" }, replace: true });
+    if (!context.oidc.only && search.bereich === "zugaenge") throw redirect({ to: "/einstellungen", search: { bereich: "sicherheit" }, replace: true });
+  },
   loader: async () => {
     const [
       company,
@@ -133,11 +138,12 @@ export const Route = createFileRoute("/_app/einstellungen")({
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
-    SETTINGS_AREAS.some((a) => a.id === search.bereich) ? { bereich: search.bereich as SettingsArea } : {},
+    search.bereich === "zugaenge" || SETTINGS_AREAS.some((a) => a.id === search.bereich) ? { bereich: search.bereich as SettingsArea } : {},
   component: SettingsPage,
 });
 
 function SettingsPage() {
+  const { oidc } = Route.useRouteContext();
   const {
     company,
     numbering,
@@ -158,9 +164,10 @@ function SettingsPage() {
     quoteDefaultAttachments,
   } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
-  const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
+  const areas = settingsAreas(oidc.only);
+  const area = areas.find((a) => a.id === bereich)!;
   // Eine GmbH oder UG zahlt keine Einkommensteuer; die persönlichen Angaben braucht ELSTER dort für Nachrichten und Postfach
-  const hint = (a: (typeof SETTINGS_AREAS)[number]) =>
+  const hint = (a: ReturnType<typeof settingsAreas>[number]) =>
     a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? "Für Nachrichten an das Finanzamt" : a.hint;
   return (
     <>
@@ -172,7 +179,7 @@ function SettingsPage() {
       </div>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label="Bereiche der Einstellungen">
-          {SETTINGS_AREAS.map((a) => (
+          {areas.map((a) => (
             <Link key={a.id} to="/einstellungen" search={{ bereich: a.id }} className="settings-nav-link" aria-current={a.id === bereich ? "page" : undefined}>
               <span>{a.label}</span>
               <span className="settings-nav-hint">{hint(a)}</span>
@@ -218,7 +225,8 @@ function SettingsPage() {
             </>
           )}
           {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
-          {bereich === "sicherheit" && (
+          {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}
+          {bereich === "sicherheit" && zugaenge.mode === "lokal" && (
             <>
               <PasskeysCard />
               <ZugaengeCard data={zugaenge} />

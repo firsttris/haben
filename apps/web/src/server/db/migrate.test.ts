@@ -57,4 +57,62 @@ describe.skipIf(!testDatabaseUrl)("Update einer bestehenden Installation (Postgr
       await sql.end();
     }
   }, 120_000);
+  async function migrateWithExistingTokens(owners: string[]) {
+    const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
+    const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
+    try {
+      await admin`drop database if exists ${admin(name)} with (force)`;
+      await admin`create database ${admin(name)}`;
+    } finally {
+      await admin.end();
+    }
+    const previous = mkdtempSync(join(tmpdir(), "haben-migrationen-"));
+    cpSync(MIGRATIONS, previous, { recursive: true });
+    const full = journal(MIGRATIONS);
+    const tokenMigration = full.entries.findIndex((entry) => entry.idx === 186);
+    writeFileSync(join(previous, "meta", "_journal.json"), JSON.stringify({ ...full, entries: full.entries.slice(0, tokenMigration) }));
+    const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    const { migrate } = await import("drizzle-orm/postgres-js/migrator");
+    await migrate(drizzle(sql), { migrationsFolder: previous });
+    for (const id of owners) await sql`insert into "user"(id,name,email,role) values(${id},${id},${`${id}@example.de`},'inhaber')`;
+    await sql`insert into mcp_tokens(name,token_hash,prefix,scopes,expires_at) values('Alt','hash','hb_x',${["haben:lesen"]},now()+interval '30 days')`;
+    await sql`insert into company(id,name,calendar_token_hash) values(1,'Testfirma',repeat('a',64))`;
+    await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
+    return sql;
+  }
+
+  it("ordnet bestehende Tokens dem einzigen Inhaber zu und lässt sie aktiv", async () => {
+    const sql = await migrateWithExistingTokens(["einzig"]);
+    try {
+      expect((await sql`select created_by,responsible_id,disabled_at from mcp_tokens`)[0]).toMatchObject({
+        created_by: "einzig",
+        responsible_id: "einzig",
+        disabled_at: null,
+      });
+      expect((await sql`select calendar_token_created_by,calendar_token_responsible_id,calendar_token_disabled_at from company`)[0]).toMatchObject({
+        calendar_token_created_by: "einzig",
+        calendar_token_responsible_id: "einzig",
+        calendar_token_disabled_at: null,
+      });
+    } finally {
+      await sql.end();
+    }
+  }, 120_000);
+
+  it("erfindet ohne Inhaber keinen Verantwortlichen und deaktiviert", async () => {
+    const sql = await migrateWithExistingTokens([]);
+    try {
+      expect((await sql`select responsible_id,disabled_reason from mcp_tokens`)[0]).toMatchObject({
+        responsible_id: null,
+        disabled_reason: "verantwortung-unbekannt",
+      });
+      expect((await sql`select calendar_token_responsible_id,calendar_token_disabled_reason from company`)[0]).toMatchObject({
+        calendar_token_responsible_id: null,
+        calendar_token_disabled_reason: "verantwortung-unbekannt",
+      });
+    } finally {
+      await sql.end();
+    }
+  }, 120_000);
 });

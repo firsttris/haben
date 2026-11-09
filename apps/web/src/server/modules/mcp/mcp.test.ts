@@ -11,6 +11,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    await sql`insert into "user"(id,name,email,role) values (${actor}, 'Testinhaber', 'inhaber@example.de', 'inhaber')`;
     mcp = await import("./index.ts");
     server = await import("./server.ts");
     tools = await import("./tools.ts");
@@ -44,12 +45,12 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
 
   async function enabledToken(days: 30 | 90 | 365 = 30) {
     await mcp.setMcpEnabled(actor, true);
-    return (await mcp.createMcpToken({ name: "Claude Code", days })).token;
+    return (await mcp.createMcpToken({ name: "Claude Code", days }, new Date(), actor)).token;
   }
 
   it("ist standardmäßig aus; Tokens gibt es erst nach dem Einschalten", async () => {
     expect(await mcp.mcpEnabled()).toBe(false);
-    await expect(mcp.createMcpToken({ name: "Claude Code", days: 30 })).rejects.toThrow(/einschalten/);
+    await expect(mcp.createMcpToken({ name: "Claude Code", days: 30 }, new Date(), actor)).rejects.toThrow(/einschalten/);
   });
 
   it("speichert nur den Hash und zeigt das Token nur beim Anlegen", async () => {
@@ -82,24 +83,24 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     expect((await rpc(token, "tools/list")).status).toBe(401);
     expect((await mcp.listMcpTokens())[0]!.status).toBe("widerrufen");
 
-    const expired = await mcp.createMcpToken({ name: "Alt", days: 30 }, new Date(Date.now() - 31 * 86_400_000));
+    const expired = await mcp.createMcpToken({ name: "Alt", days: 30 }, new Date(Date.now() - 31 * 86_400_000), actor);
     expect((await rpc(expired.token, "tools/list")).status).toBe(401);
     expect((await mcp.listMcpTokens()).find((t) => t.name === "Alt")!.status).toBe("abgelaufen");
   });
 
   it("speichert die gewählten Rechte geordnet und ohne Doppelte; ohne Recht kein Token", async () => {
     await mcp.setMcpEnabled(actor, true);
-    await mcp.createMcpToken({ name: "Automation", days: 90, scopes: ["rechnungen:entwuerfe", "kontakte:lesen", "rechnungen:entwuerfe"] });
+    await mcp.createMcpToken({ name: "Automation", days: 90, scopes: ["rechnungen:entwuerfe", "kontakte:lesen", "rechnungen:entwuerfe"] }, new Date(), actor);
     const [row] = await sql`select scopes from mcp_tokens`;
     expect(row!.scopes).toEqual(["kontakte:lesen", "rechnungen:entwuerfe"]);
     expect((await mcp.listMcpTokens())[0]!.scopes).toEqual(["kontakte:lesen", "rechnungen:entwuerfe"]);
-    await expect(mcp.createMcpToken({ name: "leer", days: 30, scopes: [] })).rejects.toThrow(/mindestens ein Recht/);
-    await expect(mcp.createMcpToken({ name: "falsch", days: 30, scopes: ["haben:alles" as never] })).rejects.toThrow();
+    await expect(mcp.createMcpToken({ name: "leer", days: 30, scopes: [] }, new Date(), actor)).rejects.toThrow(/mindestens ein Recht/);
+    await expect(mcp.createMcpToken({ name: "falsch", days: 30, scopes: ["haben:alles" as never] }, new Date(), actor)).rejects.toThrow();
   });
 
   it("ein Token nur für die REST-API wird über MCP mit 403 abgelehnt", async () => {
     await mcp.setMcpEnabled(actor, true);
-    const { token } = await mcp.createMcpToken({ name: "Automation", days: 30, scopes: ["rechnungen:lesen"] });
+    const { token } = await mcp.createMcpToken({ name: "Automation", days: 30, scopes: ["rechnungen:lesen"] }, new Date(), actor);
     const response = await rpc(token, "tools/list");
     expect(response.status).toBe(403);
     expect(((await response.json()) as { error: { message: string } }).error.message).toContain("haben:lesen");
