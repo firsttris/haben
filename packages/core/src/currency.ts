@@ -139,7 +139,8 @@ function monthOfHeader(cell: string, year: number): number | null {
   // Punkte nur bei Monatsnamen entfernen („Jan.“)
   const word = /^([a-zäö]+)(?:\s+(\d{4}))?$/.exec(cleaned.toLowerCase().replace(/\./g, "").trim());
   if (!word || (word[2] && Number(word[2]) !== year)) return null;
-  return MONTH_NAMES[word[1]!] ?? null;
+  // Nur eigene Schlüssel: „constructor“ träfe sonst Object.prototype
+  return Object.hasOwn(MONTH_NAMES, word[1]!) ? MONTH_NAMES[word[1]!]! : null;
 }
 
 /**

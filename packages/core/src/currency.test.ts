@@ -159,4 +159,8 @@ describe("parseBmfRates", () => {
       ),
     ).toEqual([]);
   });
+
+  it("Eigenschaften von Object.prototype gelten nicht als Monat", () => {
+    expect(parseBmfRates("Land;Währung;constructor\nUSA;USD;1,0812", 2026)).toEqual([]);
+  });
 });
