@@ -1,4 +1,4 @@
-import { personenkontenBetroffen } from "@haben/core";
+import { currentYear, personenkontenBetroffen } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type MouseEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
@@ -8,7 +8,7 @@ import { saveDatevNumbersFn, type getDatevNumbers } from "../server/functions/da
 /** DATEV-Buchungsstapel für die Steuerberatung (Einstellungen); Jahre und Nummern kommen aus dem Loader */
 export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaited<ReturnType<typeof getDatevNumbers>> }) {
   const save = useServerFn(saveDatevNumbersFn);
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentYear());
   const [beraterNr, setBeraterNr] = useState(numbers.beraterNr);
   const [mandantNr, setMandantNr] = useState(numbers.mandantNr);
   const [ab, setAb] = useState<number | null>(numbers.personenkontenAb);
@@ -17,7 +17,7 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
   const [saved, setSaved] = useState(Boolean(numbers.beraterNr && numbers.mandantNr));
   const { busy, notice, run } = useAction();
   const kontenrahmen = numbers.kontenrahmen;
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   // Ab-Jahre: vom ersten gebuchten Jahr bis zum nächsten; ein gespeichertes älteres bleibt wählbar
   const firstYear = Math.min(numbers.gebuchteJahre[0] ?? thisYear, savedAb ?? thisYear, thisYear);
   const abYears = Array.from({ length: thisYear + 2 - firstYear }, (_, i) => firstYear + i);

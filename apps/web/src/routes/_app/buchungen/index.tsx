@@ -1,4 +1,4 @@
-import { formatEuro, isKapitalgesellschaft, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
+import { currentMonth, formatEuro, isKapitalgesellschaft, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
@@ -14,8 +14,8 @@ export const Route = createFileRoute("/_app/buchungen/")({
   validateSearch: z.object({ jahr: z.optional(z.int()), monat: z.optional(z.int().check(z.minimum(1), z.maximum(12))) }),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => {
-    const now = new Date();
-    const period = { year: deps.jahr ?? now.getFullYear(), month: deps.monat ?? now.getMonth() + 1 };
+    const now = currentMonth();
+    const period = { year: deps.jahr ?? now.year, month: deps.monat ?? now.month };
     return getJournal({ data: period }).then((entries) => ({ period, entries }));
   },
   head: () => ({ meta: [{ title: "Buchungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),

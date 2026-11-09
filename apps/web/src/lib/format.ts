@@ -1,3 +1,4 @@
+import { germanDay } from "@haben/core";
 // Immer deutsche Zeit: Server und Browser formatieren sonst je nach Zeitzone unterschiedlich (Hydration-Fehler)
 const timeZone = "Europe/Berlin";
 const dateFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone });
@@ -15,12 +16,9 @@ export function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1).replace(".", ",")} GB`;
 }
 
-/** Tage bis zu einem Datum (negativ = vorbei) */
+/** Tage bis zu einem Datum (negativ = vorbei), gezählt in Kalendertagen in Deutschland */
 export function daysUntil(value: string | Date, today = new Date()): number {
-  const target = new Date(value);
-  const start = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-  const end = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
-  return Math.round((end - start) / 86_400_000);
+  return Math.round((Date.parse(germanDay(new Date(value))) - Date.parse(germanDay(today))) / 86_400_000);
 }
 
 export function errorMessage(error: unknown): string {

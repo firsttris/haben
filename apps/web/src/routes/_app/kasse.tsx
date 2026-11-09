@@ -1,4 +1,4 @@
-import { CASH_BOOKINGS, cashBookingLabel, cashEntryLabel, formatEuro, isKapitalgesellschaft, parseEuro, type CashBooking } from "@haben/core";
+import { currentYear, CASH_BOOKINGS, cashBookingLabel, cashEntryLabel, formatEuro, isKapitalgesellschaft, parseEuro, type CashBooking } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_app/kasse")({
     /** Von der Rechnung aus: diese Rechnung bar kassieren */
     rechnung: z.optional(z.string()),
   }),
-  loaderDeps: ({ search }) => ({ year: search.jahr ?? new Date().getFullYear() }),
+  loaderDeps: ({ search }) => ({ year: search.jahr ?? currentYear() }),
   loader: ({ deps }) => getCashBook({ data: deps.year }),
   head: () => ({ meta: [{ title: "Kasse · Haben" }] }),
   component: CashPage,
@@ -32,7 +32,7 @@ function CashPage() {
   const data = Route.useLoaderData();
   const { year } = data;
   const [notice, setNotice] = useState<Notice>(null);
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const years = [...new Set([thisYear, thisYear - 1, thisYear - 2, year])].sort((a, b) => b - a);
 
   return (

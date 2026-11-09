@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { today } from "../../today.ts";
 
 /*
  * Vorschläge ohne Rechnung aus allen früheren Zuordnungen derselben Gegenpartei (#295), mit Postgres: auch „Direkt
@@ -24,7 +25,7 @@ function dkbCsv(rows: [date: string, name: string, iban: string, purpose: string
 }
 
 /** Heute als TT.MM.JJ: Den Kleinunternehmer-Stand liest Haben aus dem Änderungsprotokoll nach Tag */
-const heute = new Date().toISOString().slice(0, 10);
+const heute = today();
 const heuteDkb = `${heute.slice(8, 10)}.${heute.slice(5, 7)}.${heute.slice(2, 4)}`;
 
 describe.skipIf(!testDatabaseUrl)("Vorschläge aus früheren Zuordnungen (Postgres)", () => {

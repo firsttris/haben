@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState, type MouseEvent } from "react";
 import { Icon } from "../../components/Icon.tsx";
@@ -100,7 +101,7 @@ function Aenderungen({ data }: { data: Data["aenderungen"] }) {
 }
 
 function Exporte({ years }: { years: number[] }) {
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentYear());
   const { notice, run } = useAction();
   // Über fetch, damit eine Ablehnung (etwa neue Personenkonten, die nur der Inhaber festschreibt) hier lesbar erscheint (#452)
   function onDatev(event: MouseEvent<HTMLAnchorElement>) {

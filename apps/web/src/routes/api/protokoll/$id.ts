@@ -1,4 +1,4 @@
-import { periodKey } from "@haben/core";
+import { germanDay, periodKey } from "@haben/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/api/protokoll/$id")({
           return pdfResponse(other.pdf, other.filename);
         }
 
-        const filename = `UStVA-${periodKey(row)}-${row.createdAt.toISOString().slice(0, 10)}.pdf`;
+        const filename = `UStVA-${periodKey(row)}-${germanDay(row.createdAt)}.pdf`;
         return pdfResponse(row.pdf, filename);
       },
     },

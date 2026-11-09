@@ -1,4 +1,4 @@
-import { formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { currentYear, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -19,7 +19,7 @@ import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/ausschuettungen")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
-  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? new Date().getFullYear() }),
+  loaderDeps: ({ search }) => ({ jahr: search.jahr ?? currentYear() }),
   loader: ({ deps }) => getAusschuettungen({ data: deps.jahr }),
   head: () => ({ meta: [{ title: "Ausschüttungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: AusschuettungenPage,
@@ -39,7 +39,7 @@ function AusschuettungenPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
   const selectId = useId();
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const years = [...new Set([data.year, thisYear, thisYear - 1, thisYear - 2])].sort((a, b) => b - a);
   return (
     <>

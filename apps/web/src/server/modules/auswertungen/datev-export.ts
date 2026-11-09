@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { ACCOUNTS, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
+import { ACCOUNTS, currentYear, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
 import { buildDatevBuchungsstapel, type DatevExportEntry, personenkontenEinsetzen } from "@haben/import";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -41,7 +41,7 @@ export async function saveDatevNumbers(actor: string, input: z.input<typeof date
   const { beraterNr, mandantNr, personenkontenAb, bestaetigt } = datevNumbersSchema.parse(input);
   if (personenkontenAb !== undefined) {
     const company = await loadCompany();
-    const years = personenkontenBetroffen(company.datevPersonenkontenAb, personenkontenAb, await gebuchteJahre(), now.getFullYear());
+    const years = personenkontenBetroffen(company.datevPersonenkontenAb, personenkontenAb, await gebuchteJahre(), currentYear(now));
     if (years.length > 0 && !bestaetigt) {
       throw new DatevExportError(
         `Die Änderung betrifft ${jahreText(years)}, der schon Buchungen ${years.length === 1 ? "hat" : "haben"}. Ein schon an die Steuerberatung gegebener Stapel sieht danach anders aus; bestätige das ausdrücklich.`,
