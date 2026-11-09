@@ -3,6 +3,21 @@ import { z } from "zod";
 const envSchema = z
   .object({
     DATABASE_URL: z.string().url(),
+    OIDC_ONLY: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    OIDC_ISSUER: z.string().url().optional(),
+    OIDC_CLIENT_ID: z.string().min(1).optional(),
+    OIDC_CLIENT_SECRET: z.string().min(1).optional(),
+    OIDC_DISPLAY_NAME: z.string().trim().min(1).max(80).optional(),
+    /** Name genau eines Claims der UserInfo-Antwort, kein Pfad und kein Ausdruck */
+    OIDC_GROUPS_CLAIM: z
+      .string()
+      .regex(/^[A-Za-z0-9_:/-]{1,100}$/, "ein einzelner Claimname aus Buchstaben, Ziffern, _ : / -")
+      .default("groups"),
+    OIDC_GROUP_INHABER: z.string().optional(),
+    OIDC_GROUP_STEUERBERATUNG: z.string().optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     /** Öffentliche Adresse, z. B. https://haben.example.de */
     BETTER_AUTH_URL: z.string().url(),
@@ -63,6 +78,38 @@ const envSchema = z
   })
   // Unvollständig eingerichteter Dienst: lieber nicht starten als stillschweigend einen anderen Anbieter nehmen
   .superRefine((value, ctx) => {
+    // Nur OIDC_ONLY=true schaltet SSO ein; Anbieterwerte allein aktivieren nichts und werden im Standardmodus nicht gelesen
+    if (value.OIDC_ONLY) {
+      for (const field of ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_GROUP_INHABER", "OIDC_GROUP_STEUERBERATUNG"] as const) {
+        if (!value[field]?.trim()) ctx.addIssue({ code: "custom", path: [field], message: "fehlt für den SSO-Modus (OIDC_ONLY=true)" });
+      }
+      // Gruppen werden exakt verglichen; Leerzeichen am Rand wären ein stiller Konfigurationsfehler
+      for (const field of ["OIDC_GROUP_INHABER", "OIDC_GROUP_STEUERBERATUNG"] as const) {
+        const group = value[field];
+        if (group && group !== group.trim()) ctx.addIssue({ code: "custom", path: [field], message: "ohne Leerzeichen am Anfang oder Ende" });
+      }
+      if (value.OIDC_GROUP_INHABER && value.OIDC_GROUP_INHABER === value.OIDC_GROUP_STEUERBERATUNG) {
+        ctx.addIssue({ code: "custom", path: ["OIDC_GROUP_STEUERBERATUNG"], message: "muss sich von OIDC_GROUP_INHABER unterscheiden" });
+      }
+      for (const field of ["OIDC_ISSUER", "BETTER_AUTH_URL"] as const) {
+        if (!value[field]) continue;
+        const url = new URL(value[field]);
+        const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+        if (
+          url.username ||
+          url.password ||
+          url.search ||
+          url.hash ||
+          (url.protocol !== "https:" && !(url.protocol === "http:" && loopback && process.env.NODE_ENV !== "production"))
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: "OIDC verlangt HTTPS ohne Zugangsdaten, Query oder Fragment (HTTP nur lokal außerhalb des Betriebs)",
+          });
+        }
+      }
+    }
     const local = value.EXTRACTION_PROVIDER === "openai-compatible" || (!value.EXTRACTION_PROVIDER && value.EXTRACTION_BASE_URL);
     if (local && !value.EXTRACTION_BASE_URL) {
       ctx.addIssue({ code: "custom", path: ["EXTRACTION_BASE_URL"], message: "fehlt für den OpenAI-kompatiblen Dienst" });

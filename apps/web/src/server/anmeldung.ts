@@ -59,9 +59,9 @@ export async function linkInvitation(token: string, userId: string): Promise<voi
   );
 }
 
-/** Rolle und Sperre eines Kontos; null, wenn es das Konto nicht gibt */
-export async function accountState(userId: string): Promise<{ role: Rolle; locked: boolean } | null> {
-  const [row] = await db.select({ role: schema.user.role, lockedAt: schema.user.lockedAt }).from(schema.user).where(eq(schema.user.id, userId));
+/** Lokale Rolle und Sperre eines Kontos; null, wenn es das Konto nicht gibt. Nur per SSO entstandene Konten haben keine Rolle. */
+export async function accountState(userId: string, q: Db | Tx = db): Promise<{ role: Rolle | null; locked: boolean } | null> {
+  const [row] = await q.select({ role: schema.user.role, lockedAt: schema.user.lockedAt }).from(schema.user).where(eq(schema.user.id, userId));
   return row ? { role: row.role, locked: row.lockedAt !== null } : null;
 }
 
@@ -69,11 +69,15 @@ export async function accountState(userId: string): Promise<{ role: Rolle; locke
 export function loginMethod(path: string | undefined): string {
   if (path?.startsWith("/sign-in/passkey") || path?.startsWith("/passkey/")) return "passkey";
   if (path === "/sign-in/email") return "passwort";
+  if (path?.startsWith("/callback/")) return "sso";
   if (path === "/sign-up/email") return "einrichtung";
   return path ?? "unbekannt";
 }
 
-/** Protokolliert eine Anmeldung, Akteur ist das Konto selbst */
-export async function recordLogin(userId: string, role: Rolle, method: string): Promise<void> {
-  await withActor(userId, (tx) => tx.insert(schema.userLogins).values({ userId, role, method }));
+/** Protokolliert eine Anmeldung, Akteur ist das Konto selbst; im SSO-Callback in dessen Transaktion */
+export async function recordLogin(userId: string, role: Rolle, method: string, transaction?: Tx): Promise<void> {
+  const write = (tx: Tx) => tx.insert(schema.userLogins).values({ userId, role, method });
+  if (!transaction) return void (await withActor(userId, write));
+  await transaction.execute(sql`select set_config('haben.actor', ${userId}, true)`);
+  await write(transaction);
 }
