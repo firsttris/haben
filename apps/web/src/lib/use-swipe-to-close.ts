@@ -7,7 +7,7 @@ const SWIPE_CLOSE_PX = 80;
  * Alternative. `media` ist die Breite, ab der es ein Blatt von unten ist. Beim Schließen bleibt der Versatz stehen,
  * sonst spränge das Blatt erst zurück und führe dann hinaus.
  */
-export function useSwipeToClose(sheet: RefObject<HTMLDialogElement | null>, onClose: () => void, media: string) {
+export function useSwipeToClose<T extends HTMLElement>(sheet: RefObject<T | null>, onClose: () => void, media: string) {
   const startY = useRef<number | null>(null);
   const distance = (event: PointerEvent) => Math.max(0, event.clientY - (startY.current ?? event.clientY));
   const reset = () => {

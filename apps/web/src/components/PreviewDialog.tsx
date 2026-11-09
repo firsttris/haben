@@ -40,6 +40,8 @@ export function PreviewDialog({
   const replaced = useRef(false);
   const pressedBeside = useRef(false);
   const swipe = useSwipeToClose(ref, () => ref.current?.close(), SHEET_MEDIA);
+  const designSheet = useRef<HTMLDivElement>(null);
+  const designSwipe = useSwipeToClose(designSheet, onToggleDesign, SHEET_MEDIA);
 
   useEffect(() => {
     replaced.current = false;
@@ -102,7 +104,12 @@ export function PreviewDialog({
       </div>
       <div className="preview-dialog-main" data-design={designOpen || undefined}>
         <SheetScroll className="preview-dialog-body">{children}</SheetScroll>
-        {designOpen && designPanel}
+        {designOpen && (
+          <div ref={designSheet} className="design-sheet">
+            <SheetGrip {...designSwipe} />
+            {designPanel}
+          </div>
+        )}
       </div>
     </dialog>,
     document.body,

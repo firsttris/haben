@@ -901,6 +901,8 @@ summary { cursor: pointer; min-height: 24px; }
 .preview-dialog-actions { flex-shrink: 0; display: flex; gap: 8px; }
 .preview-dialog-main { flex: 1 1 auto; min-height: 0; display: flex; }
 .preview-dialog-main > .sheet-frame { min-width: 0; }
+/* Nur am Handy eine eigene Karte, sonst zählt allein die Spalte */
+.design-sheet { display: contents; }
 .design-panel { flex: 0 0 340px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); }
 .design-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
 .design-panel h3, .design-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
@@ -938,7 +940,11 @@ summary { cursor: pointer; min-height: 24px; }
   .preview-dialog-actions { margin-left: auto; }
   .preview-dialog-main[data-design] { flex-direction: column; }
   .preview-dialog-main[data-design] > .sheet-frame { flex: 0 0 32dvh; }
-  .design-panel { flex: 1 1 auto; border-left: 0; border-top: 1px solid var(--line); }
+  .design-sheet { flex: 1 1 auto; min-height: 0; position: relative; z-index: 2; display: flex; flex-direction: column; margin-top: -16px; overflow: hidden; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; background: var(--surface); box-shadow: 0 -8px 24px rgb(0 0 0 / 0.18); }
+  .design-panel { flex: 1 1 auto; border-left: 0; }
+  /* Offen trägt die Karte den Griff, zwei übereinander verwirren */
+  .preview-dialog[data-design] > .sheet-grip { display: none; }
+  .preview-dialog[data-design] > .preview-dialog-head { padding-top: 12px; }
 }
 .logo-upload { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .logo-upload p { margin: 0; }
