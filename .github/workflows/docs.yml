@@ -51,7 +51,7 @@ jobs:
         with:
           enablement: true
       - run: zensical build --strict
-      # Kurze Adressen: haben.app/api führt auf api.html, statt 404 (scripts/doku-kurzlinks)
+      # Adressen mit Schrägstrich: haben.app/api/ führt auf api.html, statt 404 (scripts/doku-kurzlinks)
       - run: python scripts/doku-kurzlinks/haben_doku_kurzlinks.py site
       - run: grep -q 'url=../api.html' site/api/index.html
       # Ohne git-Historie fehlt das Datum, ohne dass der Build scheitert; hier fällt es auf

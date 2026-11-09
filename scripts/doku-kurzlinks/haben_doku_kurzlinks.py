@@ -1,8 +1,9 @@
-"""Kurze Adressen für die Doku: haben.app/api führt auf haben.app/api.html.
+"""Adressen mit Schrägstrich für die Doku: haben.app/api/ führt auf haben.app/api.html.
 
 Die Seiten heißen api.html (use_directory_urls: false in mkdocs.yml, wegen der relativen Bildpfade).
-GitHub Pages liefert /api dann nicht aus, sondern 404. Liegt aber ein Ordner api/ daneben, leitet
-GitHub /api mit 301 auf /api/ um; dessen index.html schickt weiter auf ../api.html, mit Anker.
+GitHub Pages liefert api.html auch unter /api aus, unter /api/ aber die 404-Seite; Browser
+ergänzen den Schrägstrich gern aus dem Verlauf. Ein Ordner api/ mit index.html schickt von dort
+weiter auf ../api.html, mit Anker.
 
 Aufruf nach dem Build: python scripts/doku-kurzlinks/haben_doku_kurzlinks.py site
 """
