@@ -118,6 +118,42 @@ describe("Auszeichnung per Knopf", () => {
     expect(zweimal("__ein Wort__", 6, 10, "italic")).toBe("__ein Wort__");
   });
 
+  it("lässt Platzhalter ganz, auch wenn sie mit einem Schrägstrich zusammenhängen", () => {
+    const november = { from: "2026-11-01", to: "2026-11-30" };
+    expect(fillPlaceholders(toggle("Abrechnung {[monat]}/{jahr}", "bold")!, november)).toBe("Abrechnung *November/2026*");
+    expect(fillPlaceholders(toggle("Abrechnung {monat}/{[jahr]}", "italic")!, november)).toBe("Abrechnung _November/2026_");
+    expect(fillPlaceholders(toggle("Ablage [Kunde]/{jahr}", "underline")!, november)).toBe("Ablage __Kunde/2026__");
+  });
+
+  it("unterstreicht das erste Wort einer kursiven Auszeichnung und umgekehrt", () => {
+    const woerter = (text: string | null) => parseTextFormatting(text ?? "").filter((run) => run.text.trim());
+    expect(woerter(toggle("_[eins] zwei_", "underline"))).toEqual([
+      { text: "eins", bold: false, italic: true, underline: true },
+      { text: "zwei", bold: false, italic: true, underline: false },
+    ]);
+    expect(woerter(toggle("__[eins] zwei__", "italic"))).toEqual([
+      { text: "eins", bold: false, italic: true, underline: true },
+      { text: "zwei", bold: false, italic: false, underline: true },
+    ]);
+  });
+
+  it("nimmt die Auszeichnung für ein Wort auch neben einem Satzzeichen zurück", () => {
+    const fett = (text: string | null) =>
+      parseTextFormatting(text ?? "")
+        .filter((run) => run.bold)
+        .map((run) => run.text.trim());
+    expect(fett(toggle("*eins [zwei], drei*", "bold"))).toEqual(["eins", "drei"]);
+    expect(fett(toggle("*[eins], zwei*", "bold"))).toEqual(["zwei"]);
+    expect(fett(toggle("*eins ([zwei]) drei*", "bold"))).toEqual(["eins", "drei"]);
+    expect(fett(toggle("*IT-[Service] heute*", "bold"))).toEqual(["IT", "heute"]);
+  });
+
+  it("zeichnet ein Wort mit getrennt gespeichertem Umlaut ganz aus", () => {
+    // So liefert macOS Text aus Dateinamen: u + U+0308 statt ü
+    expect(toggle("Herr Mül[]ler kommt", "bold")).toBe("Herr *Müller* kommt");
+    expect(toggle("Herr [Mu]̈ller kommt", "italic")).toBe("Herr _Müller_ kommt");
+  });
+
   it("ändert nie den lesbaren Text, ganz gleich, was im Feld steht", () => {
     const zeichen = ["a", "b", " ", "\n", "*", "_", "\\", "/", ".", "(", "ä"];
     let zufall = 20260109;

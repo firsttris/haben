@@ -463,6 +463,50 @@ test("Wiederkehrende Rechnung: die Vorschau zeigt die Auszeichnung statt der Zei
   await expect(vorschau).not.toContainText("*Wartung*");
 });
 
+test("Textknöpfe: Esc auf einem Knopf schließt die Leiste und führt zurück ins Feld", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  await einleitung.fill("Vielen Dank für Ihren Auftrag");
+  await einleitung.focus();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await expect(leiste).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Fett", exact: true })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(einleitung).toBeFocused();
+  await expect(leiste).toBeHidden();
+  await einleitung.fill("");
+});
+
+test("Artikel und Textbausteine: die Liste zeigt die Auszeichnung statt der Zeichen", async () => {
+  await go("/artikel");
+  await page.getByRole("button", { name: "Neuer Artikel" }).click();
+  const artikel = page.getByRole("form", { name: "Neuer Artikel" });
+  await artikel.getByLabel("Bezeichnung").fill("Wartung mit Auszeichnung");
+  await artikel.getByLabel("Text zur Position (optional)").fill("Monatliche Wartung");
+  await artikel.getByLabel("Text zur Position (optional)").evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 10));
+  await artikel.getByLabel("Text zur Position (optional)").focus();
+  await artikel.getByRole("button", { name: "Fett", exact: true }).click();
+  await expect(artikel.getByLabel("Text zur Position (optional)")).toHaveValue("*Monatliche* Wartung");
+  await artikel.getByLabel("Preis (€)").fill("10,00");
+  await artikel.getByRole("button", { name: "Anlegen" }).click();
+  const zeile = page.locator(".table-row").filter({ hasText: "Wartung mit Auszeichnung" });
+  await expect(zeile.locator("strong").filter({ hasText: "Monatliche" })).toBeVisible();
+  await expect(zeile).not.toContainText("*Monatliche*");
+
+  await go("/textbausteine");
+  await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
+  const baustein = page.getByRole("form", { name: "Neuer Textbaustein" });
+  await baustein.getByLabel("Bezeichnung").fill("Baustein mit Auszeichnung");
+  await baustein.getByRole("textbox", { name: "Text", exact: true }).fill("Bitte *sofort* zahlen");
+  await baustein.getByRole("button", { name: "Anlegen" }).click();
+  const liste = page.getByRole("region", { name: "Textbausteine" });
+  await expect(liste.locator("strong").filter({ hasText: "sofort" })).toBeVisible();
+  await expect(liste).not.toContainText("*sofort*");
+});
+
 test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {
   const firma = page.getByRole("form", { name: "Firmendaten" });
   const speichern = async () => {
