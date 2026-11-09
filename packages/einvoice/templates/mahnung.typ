@@ -65,17 +65,6 @@
   }
 }
 
-// Einleitung und Schluss mit Auszeichnungen, Textstücke aus parseTextFormatting (wie in rechnung.typ)
-#let formatted(runs) = {
-  for run in runs {
-    let body = text(run.text)
-    if run.bold { body = semibold(body) }
-    if run.italic { body = emph(body) }
-    if run.underline { body = underline(body) }
-    body
-  }
-}
-
 #set document(title: d.docTitle, author: d.author)
 #set text(font: font.regular, size: 9.5pt, fill: ink, lang: "de", region: "de", number-type: "lining", number-width: "tabular")
 #set par(leading: 0.55em, spacing: 0.9em)
