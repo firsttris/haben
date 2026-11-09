@@ -1,4 +1,4 @@
-import { DEFAULT_OPTIONS, LETTERHEAD_FONTS, type LetterheadFont, type LetterheadOptions } from "@haben/core";
+import { DEFAULT_OPTIONS, footerIssues, LETTERHEAD_FONTS, type LetterheadFont, type LetterheadOptions } from "@haben/core";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -280,5 +280,15 @@ describe("Summenblock in breiten Schriften", () => {
 
   it.skipIf(!hasPoppler).each(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[])("%s bricht die Steuerzeile nicht um, auch bei großen Beträgen", (font) => {
     for (const faktor of [1, 400]) expect(steuerzeilen(font, faktor).join()).toMatch(/Umsatzsteuer 19 % auf [\d.]+,\d\d/);
+  });
+});
+
+describe("Zeichen der Fußzeile", () => {
+  it("setzt jedes Zeichen, das footerIssues zulässt", () => {
+    const erlaubt = Array.from({ length: 0xffff - 0x21 }, (_, i) => String.fromCodePoint(i + 0x21)).filter(
+      (zeichen) => !/[\ud800-\udfff]/.test(zeichen) && footerIssues([`x${zeichen}`, "{steuernummer}"]).length === 0,
+    );
+    expect(erlaubt.length).toBeGreaterThan(500);
+    expect(() => renderInvoicePdf({ ...sampleDocument(), note: erlaubt.join(" ") })).not.toThrow();
   });
 });

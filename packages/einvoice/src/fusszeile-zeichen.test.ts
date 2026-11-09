@@ -16,4 +16,10 @@ describe("Eigene Fußzeile: Zeichen ohne Schrift", () => {
     if (footerIssues(footerColumns).length > 0) return;
     expect(() => renderInvoicePdf({ ...sampleDocument(), options: { ...DEFAULT_OPTIONS, footerColumns } })).not.toThrow();
   });
+
+  it.each(["、", "「", "㎏", "✅", "Ａ"])("weist auch %s aus der Grundebene ab oder erzeugt trotzdem ein PDF", (zeichen) => {
+    const footerColumns = [`${zeichen} Kontakt`, "{steuernummer}"];
+    if (footerIssues(footerColumns).length > 0) return;
+    expect(() => renderInvoicePdf({ ...sampleDocument(), options: { ...DEFAULT_OPTIONS, footerColumns } })).not.toThrow();
+  });
 });

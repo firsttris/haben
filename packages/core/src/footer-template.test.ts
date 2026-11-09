@@ -82,7 +82,11 @@ describe("Zeichen ohne Schrift", () => {
     expect(footerIssues(["📞 {telefon}", "{steuernummer}"]).join()).toContain("📞");
   });
 
-  it("lässt Latein mit Umlauten, Griechisch, Kyrillisch und Symbole zu", () => {
-    expect(footerIssues(["Größe Ωmega Привет ☎ → €", "{steuernummer}"])).toEqual([]);
+  it("lässt Latein mit Umlauten, Griechisch, Kyrillisch und gängige Zeichen zu", () => {
+    expect(footerIssues(["Größe Ωmega Привет → € – „Zitat“ № ™", "{steuernummer}"])).toEqual([]);
+  });
+
+  it.each(["☏", "☎", "✅", "Ａ", "、", "㎏"])("meldet %s, das nicht jede Installation darstellen kann", (zeichen) => {
+    expect(footerIssues([`${zeichen} {telefon}`, "{steuernummer}"]).join()).toContain(zeichen);
   });
 });

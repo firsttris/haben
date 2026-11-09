@@ -35,6 +35,18 @@ describe.skipIf(!hatPdftotext)("Eigene Fußzeile: Textebene", () => {
     expect(text).toContain(email);
   });
 
+  it("lässt ein kurzes Wort neben einem zu langen in der eigenen Spalte unverändert", () => {
+    const seller = { ...sampleDocument().seller, email: "buchhaltung@mustermannconsulting.de" };
+    const text = textebene(
+      renderInvoicePdf({
+        ...sampleDocument(),
+        seller,
+        options: { ...DEFAULT_OPTIONS, footerColumns: ["Rechnungsfragen: {email}", "Sprechzeiten", "Termine", "{steuernummer}"] },
+      }),
+    )!;
+    expect(text).toContain("Rechnungsfragen:");
+  });
+
   it("lässt ein langes Wort in der Zeile mit den Pflichtangaben unverändert, sie steht über die ganze Breite", () => {
     const name = "Erika Leutheusser-Schnarrenberger-Mustermann";
     const seller = { ...gmbhSeller, legalInfo: { ...gmbhSeller.legalInfo!, managingDirectors: [name] } };
