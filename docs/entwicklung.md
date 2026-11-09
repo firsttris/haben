@@ -482,7 +482,7 @@ bun run build
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
 - **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts außer der Doku: Die baut der Workflow „Docs“ im Pull Request mit `zensical build --strict`, ohne zu veröffentlichen.
-- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Der Bereich ist ein bis drei Wörter, groß geschrieben, ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
 - **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
 
 ### Mit KI-Werkzeugen
@@ -502,15 +502,16 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | --- | --- | --- |
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
-| Eine Datei höchstens etwa 400 Zeilen | `scripts/dateigroesse/` in `bun run lint` | Fehler |
-| Titel `Bereich: was sich ändert (#Issue)` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
+| Neue Datei höchstens 400 Zeilen | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Alte große Datei wächst | `scripts/pr-regeln/` | Hinweis |
+| Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
 
 Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`, nicht aber auf eine feste Nachbarseite wie `/rechnungen/neu`, denn die wählt der Router vor dem Parameter. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen.
 
-Die Dateigröße zählt Zeilen wie `wc -l` in den Quelldateien unter `apps/*/src`, `packages/*/src` und `scripts`, ohne Tests und `routeTree.gen.ts`. Ältere Dateien über 400 Zeilen stehen mit ihrer Länge in `scripts/dateigroesse/grenzen.json` und dürfen nicht wachsen; Neues kommt in eine eigene Datei. Schrumpft eine davon, meldet die Prüfung das, bis `bun scripts/dateigroesse/pruefen.ts --senken` die Grenze nachzieht; so wird eine Grenze nie wieder größer. Von Hand trägt niemand eine Datei in `grenzen.json` ein.
+Die Dateigröße zählt Zeilen wie `wc -l` in den Quelldateien unter `apps/*/src`, `packages/*/src` und `scripts`, ohne Tests und `routeTree.gen.ts`. Ein Fehler ist nur eine neue Datei über 400 Zeilen. Ältere größere Dateien stehen in `scripts/dateigroesse/altdateien.json`; sie dürfen wachsen, weil sie nur in einem eigenen Pull Request geteilt werden und manche, wie `schema.ts`, mit jeder neuen Tabelle wachsen müssen. Wächst eine im Pull Request, weist „PR-Regeln“ darauf hin. Ist eine geschrumpft oder gelöscht, nennt `bun run lint` sie als Hinweis; `bun scripts/dateigroesse/pruefen.ts --aufraeumen` nimmt sie aus der Liste. Von Hand trägt niemand eine Datei in `altdateien.json` ein.
 
 ### Issues schreiben
 

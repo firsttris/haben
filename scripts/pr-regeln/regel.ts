@@ -6,8 +6,11 @@
 export type Report = { level: "error" | "warning"; message: string };
 
 const CONVENTIONAL = /^(feat|fix|docs|test|refactor|chore|style|perf|build|ci|revert)(\(.*\))?!?:/;
-/** Bereich: ein bis drei Wörter, groß geschrieben („Belege“, „E-Rechnung“, „Doku-Bilder“, „ELSTER“) */
-const TITLE = /^\p{Lu}[\p{L}\d-]*(?: [\p{L}\d-]+){0,2}: \S.*$/u;
+/**
+ * Bereich: ein bis drei Wörter („Belege“, „E-Rechnung“, „Doku-Bilder“, „ELSTER“); klein nur, wenn ein Name so
+ * geschrieben wird („sevDesk“, Review von #463). Die Issue-Nummer ist freiwillig, nicht jeder Pull Request hat eins.
+ */
+const TITLE = /^\p{L}[\p{L}\d-]*(?: [\p{L}\d-]+){0,2}: \S.*$/u;
 
 /** Titel nach `Bereich: was sich ändert (#Issue)`; der Squash-Merge macht ihn zum Commit auf main */
 export function checkTitle(title: string): Report[] {
@@ -16,7 +19,7 @@ export function checkTitle(title: string): Report[] {
     return [
       {
         level: "error",
-        message: `Titel „${trimmed}“: Conventional Commits gelten für Commits im Pull Request, der Titel heißt „Bereich: was sich ändert (#Issue)“, etwa „Belege: Splitbuchung mit zwei Steuersätzen (#123)“.`,
+        message: `Titel „${trimmed}“: Conventional Commits gelten für Commits im Pull Request, der Titel heißt „Bereich: was sich ändert“, mit „(#Issue)“, falls es eins gibt, etwa „Belege: Splitbuchung mit zwei Steuersätzen (#123)“.`,
       },
     ];
   }
@@ -24,7 +27,7 @@ export function checkTitle(title: string): Report[] {
     return [
       {
         level: "error",
-        message: `Titel „${trimmed}“ folgt nicht „Bereich: was sich ändert (#Issue)“, etwa „Belege: Splitbuchung mit zwei Steuersätzen (#123)“.`,
+        message: `Titel „${trimmed}“ folgt nicht „Bereich: was sich ändert“ (mit „(#Issue)“, falls es eins gibt), etwa „Belege: Splitbuchung mit zwei Steuersätzen (#123)“.`,
       },
     ];
   }
@@ -55,4 +58,12 @@ export function hints(files: string[], commitSubjects: string[]): Report[] {
     });
   }
   return reports;
+}
+
+/** Hinweis auf alte große Dateien, die im Pull Request gewachsen sind (scripts/dateigroesse) */
+export function growthHints(grown: { file: string; before: number; after: number }[]): Report[] {
+  return grown.map(({ file, before, after }) => ({
+    level: "warning",
+    message: `${file} wächst von ${before} auf ${after} Zeilen: Lässt sich das Neue in eine eigene Datei legen?`,
+  }));
 }

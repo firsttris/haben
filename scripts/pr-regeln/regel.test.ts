@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkTitle, hints } from "./regel.ts";
+import { checkTitle, growthHints, hints } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -8,6 +8,7 @@ describe("checkTitle", () => {
     "ELSTER: ERiC auf arm64 über einen Worker-Befehl unter QEMU",
     "Doku-Bilder: Daten für die Bilder legt der Doku-Test selbst an",
     "Lohn und Gehalt: Bescheinigung 2026",
+    "sevDesk: Belege mit Anhängen übernehmen",
   ])("lässt „%s“ durch", (title) => {
     expect(checkTitle(title)).toEqual([]);
   });
@@ -47,5 +48,13 @@ describe("hints", () => {
     const reports = hints(["docs/bank.md"], ["fix(bank): Datum"]);
     expect(reports.map((r) => r.message)).toEqual([expect.stringContaining("Bugfix beginnt mit einem Test")]);
     expect(hints(["apps/web/e2e/bank.spec.ts", "docs/bank.md"], ["fix(bank): Datum"])).toEqual([]);
+  });
+});
+
+describe("growthHints", () => {
+  it("weist auf gewachsene alte Dateien hin, nur als Warnung", () => {
+    expect(growthHints([{ file: "apps/web/src/server/db/schema.ts", before: 2879, after: 3002 }])).toEqual([
+      { level: "warning", message: expect.stringContaining("von 2879 auf 3002 Zeilen") },
+    ]);
   });
 });

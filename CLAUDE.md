@@ -85,7 +85,7 @@ Skill `checks` has the details:
   that only touches Markdown, `docs/` or `LICENSE` and deletes or moves no file, the job `changes` in `ci.yml` skips the other jobs, which
   counts as passed for the required checks but tests nothing; the "Docs" workflow builds changed docs in the
   pull request, still build them locally first.
-- Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
+- Title: `Bereich: was sich ändert (#Issue)`, in German, the number only if there is an issue; a squash merge makes it the commit on `main`.
   The "PR-Regeln" workflow checks it, also for drafts. Reference issues in the description with `Refs #…`,
   never `Closes`/`Fixes`: GitHub would close the issue on merge, but it stays open with `rückmeldung` until the
   release and the author's answer. Commits inside a pull request: Conventional Commits types with a German
@@ -146,9 +146,9 @@ class hierarchies.
 Functional, not object-oriented: pure functions that take data and return data, side effects at
 the edges; function components and hooks, no classes (except the `UserError` subclasses); errors as
 values where the code already does so. A file does one thing: split it past ~400 lines, a function
-past ~80. Older files that are larger are listed in `scripts/dateigroesse/grenzen.json`; `bun run lint` fails
-when one grows or a new file passes 400 lines, so put new code into a new file. Split the old ones only in
-a pull request of their own, not on the side, then run `bun scripts/dateigroesse/pruefen.ts --senken`.
+past ~80. Older files that are larger are listed in `scripts/dateigroesse/altdateien.json`; `bun run lint`
+fails when a new file passes 400 lines, and "PR-Regeln" warns when an old one grows. Split the old ones only in
+a pull request of their own, not on the side, then run `bun scripts/dateigroesse/pruefen.ts --aufraeumen`.
 A refactor changes no behaviour.
 
 ## Haben specifics
