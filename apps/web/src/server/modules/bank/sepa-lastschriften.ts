@@ -6,10 +6,12 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { findMandate, loadCompany, type Mandate } from "../stammdaten/index.ts";
 import { BankError, invoicePayments } from "./bank.ts";
+import { invoicesWithPendingDirectDebit } from "./lastschrift-abgleich.ts";
 
 /**
  * Lastschriften als pain.008-Sammeldatei aus fälligen Rechnungen mit Zahlungsart Lastschrift (#445). Gebucht wird beim
- * Erzeugen nichts: Die Rechnungen bleiben offen, bis der Bankabgleich die Sammelgutschrift zuordnet. Jede Lastschrift
+ * Erzeugen nichts: Die Rechnungen bleiben offen, bis der Bankabgleich die Sammelgutschrift zuordnet. Nach einer
+ * Rücklastschrift steht die Rechnung wieder zur Wahl. Jede Lastschrift
  * steht in sepa_direct_debit_items und zählt für den Verfall des Mandats nach 36 Monaten (Rulebook Kap. 4.2: ab dem
  * letzten eingereichten Einzug).
  *
@@ -80,13 +82,9 @@ export async function directDebitCandidates(today: string, q: Db | Tx = db): Pro
       cancelled: sql<boolean>`exists (select 1 from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id})`,
     })
     .from(schema.invoices)
-    .where(
-      and(
-        eq(schema.invoices.status, "final"),
-        eq(schema.invoices.paymentMethod, "lastschrift"),
-        sql`not exists (select 1 from sepa_direct_debit_items i where i.invoice_id = ${schema.invoices.id})`,
-      ),
-    );
+    .where(and(eq(schema.invoices.status, "final"), eq(schema.invoices.paymentMethod, "lastschrift")));
+  // Eingereicht und nicht zurückgegeben: nicht noch einmal einziehen (lastschrift-abgleich.ts)
+  const pending = await invoicesWithPendingDirectDebit(q);
   const paid = await invoicePayments(
     invoices.map((i) => i.id),
     q,
@@ -102,7 +100,7 @@ export async function directDebitCandidates(today: string, q: Db | Tx = db): Pro
   const candidates: DirectDebitCandidate[] = [];
   for (const inv of invoices) {
     const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid: paid.get(inv.id) ?? 0, cancelled: inv.cancelled });
-    if (open <= 0 || !inv.mandateId) continue;
+    if (open <= 0 || !inv.mandateId || pending.has(inv.id)) continue;
     const collectionDate = collectionDateFor(inv.dueDate, today);
     const mandate = await findMandate(inv.mandateId, collectionDate, q);
     const reference = mandate?.reference ?? "";

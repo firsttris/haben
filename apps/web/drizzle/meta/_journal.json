@@ -1268,6 +1268,13 @@
       "when": 1794218651623,
       "tag": "0180_lastschrift_dateien_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 181,
+      "version": "7",
+      "when": 1794219620933,
+      "tag": "0181_ruecklastschrift",
+      "breakpoints": true
     }
   ]
 }

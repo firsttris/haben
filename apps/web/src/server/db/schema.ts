@@ -2102,9 +2102,16 @@ export const allocations = pgTable(
      */
     category: text("category").$type<DirektKategorie>(),
     taxRate: integer("tax_rate"),
+    /**
+     * Rücklastschrift (#445): die zurückgegebene Lastschrift. Die Zuordnung auf die Rechnung ist dann negativ und öffnet
+     * sie wieder; die Gegenzeile beim Aufheben trägt denselben Bezug. Nur an Zuordnungen auf eine Rechnung.
+     */
+    directDebitItemId: uuid("direct_debit_item_id").references((): AnyPgColumn => sepaDirectDebitItems.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("allocations_direct_debit", sql`${t.directDebitItemId} is null or ${t.kind}::text = 'invoice'`),
+    index("allocations_direct_debit").on(t.directDebitItemId),
     check("allocations_target", sql`(${t.kind} <> 'invoice' or ${t.invoiceId} is not null) and (${t.kind} <> 'document' or ${t.documentId} is not null)`),
     // Als Text verglichen: Ein neuer Wert des Enums ist in der Transaktion, die ihn anlegt, noch nicht verwendbar
     check(
