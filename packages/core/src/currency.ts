@@ -127,12 +127,13 @@ function cells(line: string, delimiter: string): string[] {
   return result;
 }
 
-/** Monatsspalte aus einer Kopfzelle wie „Januar“, „Jan. 2026“, „01/2026“ oder „01.2026“ */
+/** Monatsspalte aus einer Kopfzelle wie „Januar“, „Januar[1]“, „Februar [2]“, „Jan. 2026“, „01/2026“ oder „01.2026“ */
 function monthOfHeader(cell: string, year: number): number | null {
-  const numeric = /^(\d{1,2})\s*[/.-]\s*(\d{4})$/.exec(cell.trim());
+  const cleaned = cell.replace(/\s*\[\d+\]\s*$/, "").trim();
+  const numeric = /^(\d{1,2})\s*[/.-]\s*(\d{4})$/.exec(cleaned);
   if (numeric) return Number(numeric[2]) === year && Number(numeric[1]) >= 1 && Number(numeric[1]) <= 12 ? Number(numeric[1]) : null;
   // Punkte nur bei Monatsnamen entfernen („Jan.“)
-  const word = /^([a-zäö]+)(?:\s+(\d{4}))?$/.exec(cell.toLowerCase().replace(/\./g, "").trim());
+  const word = /^([a-zäö]+)(?:\s+(\d{4}))?$/.exec(cleaned.toLowerCase().replace(/\./g, "").trim());
   if (!word || (word[2] && Number(word[2]) !== year)) return null;
   return MONTH_NAMES[word[1]!] ?? null;
 }
@@ -162,6 +163,11 @@ export function parseBmfRates(text: string, year: number): PublishedRate[] {
   const rows = lines.map((l) => cells(l, delimiter));
   const headerIndex = rows.findIndex((r) => r.filter((c) => monthOfHeader(c, year) !== null).length >= 1);
   if (headerIndex < 0) return [];
+  const titleYears = rows
+    .slice(0, headerIndex)
+    .flat()
+    .flatMap((c) => c.match(/\b\d{4}\b/g) ?? []);
+  if (titleYears.length > 0 && !titleYears.includes(String(year))) return [];
   const header = rows[headerIndex]!;
   const months = header.map((c) => monthOfHeader(c, year));
   // Spalte mit dem Code der Währung, wenn der Kopf sie benennt; sonst die letzte Zelle mit drei Großbuchstaben vor den

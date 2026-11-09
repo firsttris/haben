@@ -102,8 +102,29 @@ describe("parseBmfRates", () => {
     ]);
   });
 
+  it("liest Monatsköpfe mit Fußnoten [1] bis [12] wie in der veröffentlichten CSV-Datei des BMF", () => {
+    const csv = [
+      "Monatlich fortgeschriebene Übersicht der Umsatzsteuer-Umrechnungskurse 2026 (Euro-Referenzkurse);;;;;;;;;;;;;",
+      "Land;Währung;Januar[1];Februar [2];März [3];April [4];Mai [5];Juni [6];Juli [7];August [8];September [9];Oktober [10];November [11];Dezember [12]",
+      "Russland[1];1 Euro;;;;;;;;;;;;",
+      "USA;1 Euro;1,1738 USD;1,1824 USD;;;;;;;;;;",
+      ";;;;;;;;;;;;;",
+      "[1] entsprechend BMF-Schreiben vom 2. Februar 2026 - III C 3 - S 7329/00014/008/002;;;;;;;;;;;;;",
+    ].join("\r\n");
+    expect(parseBmfRates(csv, 2026)).toEqual([
+      { currency: "USD", month: "2026-01", rate: "1.1738" },
+      { currency: "USD", month: "2026-02", rate: "1.1824" },
+    ]);
+  });
+
   it("ohne Kopfzeile mit Monaten oder für ein anderes Jahr: nichts", () => {
     expect(parseBmfRates("<html>Fehler</html>", 2026)).toEqual([]);
     expect(parseBmfRates("Land;01/2025\nUSA;1,05 USD", 2026)).toEqual([]);
+    expect(
+      parseBmfRates(
+        "Monatlich fortgeschriebene Übersicht der Umsatzsteuer-Umrechnungskurse 2025 (Euro-Referenzkurse)\nLand;Währung;Januar[1]\nUSA;1 Euro;1,0354 USD",
+        2026,
+      ),
+    ).toEqual([]);
   });
 });
