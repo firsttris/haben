@@ -1251,43 +1251,50 @@
     {
       "idx": 178,
       "version": "7",
-      "when": 1794220567487,
-      "tag": "0178_sepa_mandate",
+      "when": 1794219438126,
+      "tag": "0178_kasse_bareinnahme",
       "breakpoints": true
     },
     {
       "idx": 179,
       "version": "7",
-      "when": 1794220569535,
-      "tag": "0179_sepa_mandate_trigger",
+      "when": 1794221931406,
+      "tag": "0179_sepa_mandate",
       "breakpoints": true
     },
     {
       "idx": 180,
       "version": "7",
-      "when": 1794220742108,
-      "tag": "0180_lastschrift_zahlungsart",
+      "when": 1794221934136,
+      "tag": "0180_sepa_mandate_trigger",
       "breakpoints": true
     },
     {
       "idx": 181,
       "version": "7",
-      "when": 1794220823161,
-      "tag": "0181_lastschrift_dateien",
+      "when": 1794222067454,
+      "tag": "0181_lastschrift_zahlungsart",
       "breakpoints": true
     },
     {
       "idx": 182,
       "version": "7",
-      "when": 1794220825018,
-      "tag": "0182_lastschrift_dateien_trigger",
+      "when": 1794222120910,
+      "tag": "0182_lastschrift_dateien",
       "breakpoints": true
     },
     {
       "idx": 183,
       "version": "7",
-      "when": 1794220940245,
-      "tag": "0183_ruecklastschrift",
+      "when": 1794222122909,
+      "tag": "0183_lastschrift_dateien_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1794222165745,
+      "tag": "0184_ruecklastschrift",
       "breakpoints": true
     }
   ]

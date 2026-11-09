@@ -770,6 +770,7 @@ function SourcesToggle({
           ...plural(count("entnahme"), "Privatnutzung", "Privatnutzungen"),
           ...plural(count("ausbuchung"), "Ausbuchung", "Ausbuchungen"),
           ...plural(count("direkt"), "Direktbuchung", "Direktbuchungen"),
+          ...plural(count("kasse"), "Bareinnahme", "Bareinnahmen"),
         ].join(", ");
   return (
     <button type="button" className="kz-sources-toggle" aria-expanded={open} aria-controls={controls} onClick={onToggle}>
@@ -798,6 +799,10 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
                 {"assetId" in row && row.assetId ? (
                   <Link to="/anlagen/$id" params={{ id: row.assetId }}>
                     Privatnutzung · {row.customer}
+                  </Link>
+                ) : "cashEntryId" in row && row.cashEntryId ? (
+                  <Link to="/kasse" search={{ jahr: Number(row.date.slice(0, 4)) }}>
+                    Bareinnahme · {row.customer}
                   </Link>
                 ) : "transactionId" in row && row.transactionId ? (
                   <Link to="/bank" search={{ umsatz: row.transactionId }}>
