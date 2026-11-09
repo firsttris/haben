@@ -76,12 +76,13 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(nav.getByRole("link", { name: "Pauschalen" })).toBeVisible();
 
-  await go("/einstellungen?bereich=rechnungen");
-  const logo = page.getByRole("region", { name: "Logo" });
+  await go("/einstellungen?bereich=gestaltung");
+  const logo = page.getByRole("region", { name: "Logo und Blatt" });
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
 
+  await go("/einstellungen?bereich=rechnungen");
   const format = page.getByRole("form", { name: "Nummernformat" });
   const rechnungen = format.getByRole("group", { name: "Rechnungen" });
   await rechnungen.getByLabel("Format").fill("RE-{NNN}");
@@ -102,6 +103,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(rechnungen.getByLabel("Format")).toHaveValue("{JJJJ}-{NNN}");
   await expect(rechnungen.getByLabel("Zähler")).toHaveValue("jaehrlich");
 
+  await go("/einstellungen?bereich=gestaltung");
   const akzent = page.getByRole("form", { name: "Akzentfarbe" });
   await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
   await expect(akzent.getByRole("status")).toContainText("schwer zu lesen");
@@ -113,7 +115,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
   await expect(vorschau).toHaveCSS("color", "rgb(25, 31, 39)");
-  await go("/einstellungen?bereich=rechnungen");
+  await go("/einstellungen?bereich=gestaltung");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
 });

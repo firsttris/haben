@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { PERSONENKONTO_BEREICH, parsePersonenkonto, personenkontenBetroffen, personenkontenIm, personenkontoProblem } from "./personenkonten.ts";
+import {
+  naechstesPersonenkonto,
+  PERSONENKONTO_BEREICH,
+  parsePersonenkonto,
+  personenkontenBetroffen,
+  personenkontenIm,
+  personenkontoProblem,
+} from "./personenkonten.ts";
 
 describe("DATEV-Personenkonten am Kontakt", () => {
   it("hat die Bereiche nach DATEV-Kontenrahmen SKR03 und SKR04 2026 bei vierstelligen Sachkonten", () => {
@@ -50,5 +57,25 @@ describe("Schalter „DATEV-Personenkonten“ ab einem Jahr", () => {
     expect(personenkontenBetroffen(null, 2023, [2025], 2026)).toEqual([2025]);
     // Buchungen im nächsten Jahr (vorab erfasst) zählen nicht als schon abgegeben
     expect(personenkontenBetroffen(null, 2027, [2027], 2026)).toEqual([]);
+  });
+});
+
+describe("Nächste freie Personenkontonummer", () => {
+  it("fängt am Anfang des Bereichs an und zählt nach der höchsten je vergebenen weiter", () => {
+    expect(naechstesPersonenkonto("debitor", [])).toBe(10000);
+    expect(naechstesPersonenkonto("kreditor", [])).toBe(70000);
+    expect(naechstesPersonenkonto("debitor", [10000, 10001, 10005])).toBe(10006);
+    // Nummern der anderen Rolle zählen nicht
+    expect(naechstesPersonenkonto("kreditor", [10042, 70087])).toBe(70088);
+  });
+
+  it("nimmt am Ende des Bereichs die erste nie vergebene Nummer und meldet einen vollen Bereich", () => {
+    expect(naechstesPersonenkonto("debitor", [10000, 69999])).toBe(10001);
+    expect(
+      naechstesPersonenkonto(
+        "kreditor",
+        Array.from({ length: 30000 }, (_, i) => 70000 + i),
+      ),
+    ).toBeNull();
   });
 });

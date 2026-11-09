@@ -197,7 +197,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 0 }]);
   });
 
-  it("lehnt ab, wenn einem Vorgang der Kontakt oder die Nummer fehlt, mit Liste der Vorgänge, und merkt sich dann nichts", async () => {
+  it("lehnt ab, wenn einem Vorgang der Kontakt fehlt, mit Liste der Vorgänge, und merkt sich dann keinen Export", async () => {
     await reset("SKR03", "soll");
     await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
     const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH", { debitorNr: 10001 }));
@@ -211,11 +211,68 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
       [
         "Für die Personenkonten fehlen Angaben. Ordne den Vorgängen einen Kontakt zu bzw. trage am Kontakt die Nummer ein:",
         `- Beleg ER-${fileSeq - 1}: ohne Lieferanten aus den Kontakten`,
-        `- Beleg ER-${fileSeq}: „Papierwerk Süd AG“ hat keinen Kreditor`,
       ].join("\n"),
     );
     expect(r.number).toBeTruthy();
     expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 0 }]);
+  });
+
+  it("vergibt fehlende Nummern beim Export, nur wer ein Sammelkonto braucht, und schreibt sie in den Stapel", async () => {
+    await reset("SKR04", "ist");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const vorhanden = await contacts.createContact(actor, contactInput("Vorhanden GmbH", { debitorNr: 10500 }));
+    const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH"));
+    const lieferant = await contacts.createContact(actor, contactInput("Papierwerk Süd AG", { isCustomer: false, isSupplier: true }));
+    const ohneRechnung = await contacts.createContact(actor, contactInput("Ohne Rechnung KG"));
+    await invoice(vorhanden.id, 10_00);
+    await invoice(kunde.id, 100_00);
+    await beleg(lieferant.id, 119_00);
+    const stack = parseDatevBuchungsstapel((await datev.datevExport(2026, new Date(2026, 9, 4), inhaber)).bytes);
+    const konten = new Set(stack.bookings.flatMap((b) => [b.account, b.contraAccount]));
+    for (const konto of ["10500", "10501", "70000"]) expect(konten.has(konto), konto).toBe(true);
+    expect(konten.has("1200") || konten.has("3300")).toBe(false);
+    expect(await sql`select name, debitor_nr, kreditor_nr from contacts order by name`).toEqual([
+      { name: "Nordwerk GmbH", debitor_nr: 10501, kreditor_nr: null },
+      { name: "Ohne Rechnung KG", debitor_nr: null, kreditor_nr: null },
+      { name: "Papierwerk Süd AG", debitor_nr: null, kreditor_nr: 70000 },
+      { name: "Vorhanden GmbH", debitor_nr: 10500, kreditor_nr: null },
+    ]);
+    expect(ohneRechnung.debitorNr).toBeNull();
+    // Ein zweiter Export vergibt nichts neu
+    await datev.datevExport(2026, new Date(2026, 9, 5), inhaber);
+    expect(await sql`select count(*)::int as n from contacts where debitor_nr is not null or kreditor_nr is not null`).toEqual([{ n: 3 }]);
+  });
+
+  it("Recht „lesen“: vergibt keine fehlenden Nummern, sondern lehnt mit den Kontakten ab (#452)", async () => {
+    await reset("SKR03", "ist");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH"));
+    const lieferant = await contacts.createContact(actor, contactInput("Papierwerk Süd AG", { isCustomer: false, isSupplier: true }));
+    await invoice(kunde.id, 100_00);
+    await beleg(lieferant.id, 119_00);
+    await expect(datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung)).rejects.toThrow(
+      "Der erste Export mit neuen Personenkonten muss vom Inhaber kommen, weil er fehlende Nummern vergibt und festschreibt. Noch ohne Nummer: Debitor für Nordwerk GmbH, Kreditor für Papierwerk Süd AG.",
+    );
+    expect(await sql`select count(*)::int as n from contacts where debitor_nr is not null or kreditor_nr is not null`).toEqual([{ n: 0 }]);
+    // Hat der Inhaber einmal exportiert, holt die Steuerberatung denselben Stapel
+    const vomInhaber = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
+    const vonDerSteuerberatung = await datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung);
+    expect(Buffer.from(vonDerSteuerberatung.bytes).equals(Buffer.from(vomInhaber.bytes))).toBe(true);
+  });
+
+  it("meldet einen vollen Kreditorenbereich beim Export als DatevExportError, damit der Download die Meldung zeigt", async () => {
+    await reset("SKR03", "soll");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const lieferant = await contacts.createContact(actor, contactInput("Papierwerk Süd AG", { isCustomer: false, isSupplier: true }));
+    // Alle Kreditornummern standen schon einmal an einem Kontakt (Versionen); schneller als 30 000 Kontakte mit Triggern
+    const frueher = await contacts.createContact(actor, contactInput("Früherer Lieferant", { isCustomer: false, isSupplier: true }));
+    await sql`insert into contact_versions (contact_id, version, data)
+      select ${frueher.id}, n - 69998, jsonb_build_object('kreditor_nr', n) from generate_series(70000, 99999) n`;
+    await beleg(lieferant.id, 119_00);
+    const fehler = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber).catch((e: unknown) => e);
+    // Die Route /api/datev/$jahr gibt nur einen DatevExportError als Meldung (409) weiter, alles andere wird ein 500
+    expect(fehler).toBeInstanceOf(datev.DatevExportError);
+    expect((fehler as Error).message).toBe("Keine freie Kreditornummer mehr (70000 bis 99999).");
   });
 
   it("lässt nach Storno und Neuerfassung eines gebuchten Belegs ohne Lieferanten den Export zu, wie die Doku es verspricht", async () => {

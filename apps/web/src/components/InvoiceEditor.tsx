@@ -36,6 +36,7 @@ import {
   type SkontoStufe,
   type TaxTreatment,
   type UnitLabel,
+  distinctVatRates,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -44,6 +45,7 @@ import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
+import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -52,6 +54,7 @@ import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { ContactDialog } from "./ContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
+import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
@@ -330,6 +333,8 @@ export function InvoiceEditor({
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const preview = useDocumentPreview();
+  const designDraft = useDesignDraft(seller.design);
+  const [logo, setLogo] = useLoadedState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
@@ -716,6 +721,10 @@ export function InvoiceEditor({
 
       <PreviewLayout
         preview={preview}
+        design={{
+          panel: <DesignPanel draft={designDraft} vatRates={distinctVatRates(parsed.filter((l) => l.valid))} logo={logo} onLogoChanged={setLogo} />,
+          onClosed: designDraft.discard,
+        }}
         label="Vorschau"
         caption={
           <>
@@ -732,7 +741,7 @@ export function InvoiceEditor({
             validUntil={quote ? validUntil || null : null}
             serviceFrom={serviceFrom || null}
             serviceTo={serviceTo || null}
-            seller={seller}
+            seller={{ ...seller, logo, accent: designDraft.design.accent, design: designDraft.design }}
             buyer={contact}
             lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
             discount={discountIssue ? null : discount}
