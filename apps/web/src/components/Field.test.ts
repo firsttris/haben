@@ -1,12 +1,13 @@
-import { createElement } from "react";
+import { type ComponentProps, createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { Combobox } from "./Combobox.tsx";
 import { Field, type FieldControlProps } from "./Field.tsx";
 
 const input = (control: FieldControlProps) => createElement("input", control);
 
 /** Rendert das Feld und liest die Verknüpfungen aus dem HTML; ein DOM braucht die Prüfung nicht */
-function render(props: { hint?: string; error?: string; describedBy?: string }, control = input) {
+function render(props: Omit<ComponentProps<typeof Field>, "label" | "children">, control: (control: FieldControlProps) => ReactNode = input) {
   const html = renderToStaticMarkup(createElement(() => Field({ label: "IBAN", ...props, children: control })));
   const attribute = (tag: string, name: string) => new RegExp(`<${tag}[^>]*\\s${name}="([^"]*)"`).exec(html)?.[1];
   return {
@@ -70,5 +71,31 @@ describe("Field", () => {
     const { html } = render({}, (control) => createElement("select", { ...control, name: "land" }));
     expect(html).toContain('name="land"');
     expect(html).toContain("<select");
+  });
+
+  it("gibt className und style an die Hülle weiter", () => {
+    const { html } = render({ className: "breit", style: { gridColumn: "1 / -1" } });
+    expect(html).toMatch(/^<div class="field breit" style="grid-column:1 \/ -1">/);
+  });
+
+  it("meldet einen Fehler nur auf Wunsch als Alert", () => {
+    expect(render({ error: "Fehlt" }).html).not.toContain('role="alert"');
+    expect(render({ error: "Fehlt", announceError: true }).html).toContain('class="field-error" role="alert"');
+  });
+
+  it("verbindet auch die Combobox mit Name, Hinweis und Fehler", () => {
+    const { labelFor, controlId, describedBy, hintId, errorId, invalid } = render({ hint: "Suche nach Name", error: "Fehlt" }, (control) =>
+      createElement(Combobox<string>, {
+        ...control,
+        value: "",
+        onInput: () => {},
+        search: () => ({ hits: [], total: 0 }),
+        describe: (item) => ({ key: item, label: item }),
+        onPick: () => {},
+      }),
+    );
+    expect(labelFor).toBe(controlId);
+    expect(describedBy).toBe(`${hintId} ${errorId}`);
+    expect(invalid).toBe("true");
   });
 });

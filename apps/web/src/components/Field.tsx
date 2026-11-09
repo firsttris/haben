@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useId } from "react";
 
 /** Gehört aufs Eingabefeld, damit Feldname, Hinweis und Fehler mit ihm verbunden sind */
 export interface FieldControlProps {
@@ -15,19 +15,27 @@ export interface FieldControlProps {
  * Feldname (`.field-label`).
  *
  * children bekommt die Eigenschaften und gibt sie ans Feld weiter, so geht es für `input`, `select` und eigene Komponenten
- * gleich. describedBy nennt Hinweise, die außerhalb stehen, etwa einen gemeinsamen für zwei Felder.
+ * gleich. describedBy nennt Hinweise, die außerhalb stehen, etwa einen gemeinsamen für zwei Felder. announceError liest
+ * einen Fehler sofort vor, wenn er erst nach einer Aktion erscheint; beim Tippen wäre das zu viel. className und style
+ * gehören an die Hülle, etwa für `gridColumn`.
  */
 export function Field({
   label,
   hint,
   error,
   describedBy,
+  announceError = false,
+  className,
+  style,
   children,
 }: {
   label: ReactNode;
   hint?: ReactNode;
   error?: ReactNode;
   describedBy?: string | undefined;
+  announceError?: boolean;
+  className?: string;
+  style?: CSSProperties;
   children: (control: FieldControlProps) => ReactNode;
 }) {
   const id = useId();
@@ -35,7 +43,7 @@ export function Field({
   const errorId = error ? `${id}-error` : undefined;
   const description = [describedBy, hintId, errorId].filter(Boolean).join(" ");
   return (
-    <div className="field">
+    <div className={className ? `field ${className}` : "field"} style={style}>
       <label className="field-label" htmlFor={id}>
         {label}
       </label>
@@ -46,7 +54,7 @@ export function Field({
         </span>
       )}
       {errorId && (
-        <span id={errorId} className="field-error">
+        <span id={errorId} className="field-error" role={announceError ? "alert" : undefined}>
           {error}
         </span>
       )}

@@ -93,9 +93,9 @@ Die Gestaltungskarte ist am Desktop eine Spalte neben dem Blatt (`.design-sheet`
 
 ### Felder
 
-Formularfelder stehen in `Field` (`components/Field.tsx`), je Feld ein `Field`. Der Feldname ist ein `<label>` mit `htmlFor`, nur so breit wie sein Text: Er fokussiert das Feld, die Fläche daneben nicht. Ein umschließendes `<label>` gibt es nicht, denn sonst zählte der Hinweis zum Namen des Felds.
+Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `Field`; das gilt auch für zusammengesetzte Felder wie `Combobox`. Der Feldname ist ein `<label>` mit `htmlFor`, nur so breit wie sein Text: Er fokussiert das Feld, die Fläche daneben nicht. Ein umschließendes `<label>` gibt es nicht, denn sonst zählte der Hinweis zum Namen des Felds.
 
-Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`.
+Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen; beim Tippen bleibt es aus. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
 ### Felder mit Auszeichnungen
 
@@ -117,5 +117,5 @@ Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an di
 - **Farben:** 19 Zeilen in `apps/web/src/**/*.css` haben außerhalb von Variablendefinitionen und Kommentaren einen festen Hex-Wert, meist `#fff`, etwa für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`. Das Blatt der Belegvorschau (`.sheet`) rechnet seine Schrift mit der Seitenbreite um (`var(--mm)`).
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).
-- **Felder:** 409-mal in 86 Dateien steht noch `<label className="field">`. Nur das Kontaktformular nutzt `Field`; die übrigen Formulare werden Bereich für Bereich umgestellt.
+- **Felder:** 413-mal in 86 Dateien steht noch `<label className="field">`. `Field` nutzen bisher das Kontaktformular und das Feld „Kunde“ im Rechnungseditor; die übrigen stellt ein Folge-Pull-Request um.
 - **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `‹` und `›` an Blätter-Knöpfen (`components/archiv/DatevBookings.tsx`, `routes/_app/auswertungen.tsx`, `routes/_app/buchungen/index.tsx`, `routes/_app/belege/$id.tsx`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.
