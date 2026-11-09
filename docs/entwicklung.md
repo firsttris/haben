@@ -519,7 +519,7 @@ Neben dem Typ gibt es diese Labels:
 | `doku` | Dokumentation (`docs/`, Website) |
 | `sammlung` | Sammel-Issue zum Nachverfolgen |
 | `jahreswerte` | Befund des Workflows „Jahreswerte prüfen“ |
-| `rückmeldung` | Umgesetzt und veröffentlicht; das Issue bleibt offen, bis der Ersteller bestätigt, dass nichts fehlt |
+| `rückmeldung` | Umgesetzt und veröffentlicht; das Issue bleibt offen, bis der Ersteller bestätigt, dass nichts fehlt. Kommt 14 Tage lang keine Antwort, wird es mit kurzem Hinweis geschlossen; das steht schon im Kommentar zum Release |
 
 ### Review
 
