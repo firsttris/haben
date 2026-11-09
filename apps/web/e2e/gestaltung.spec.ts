@@ -839,3 +839,21 @@ test("Ein Platzhalter-Knopf lässt den Text vorne stehen, wenn eine Spalte wiede
   await page.context().close();
   expect(nachher).toBe(`${vorher}{telefon}`);
 });
+
+test("Eigene Fußzeile: Die Knöpfe zeichnen den markierten Text aus", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  const spalte = karte.getByLabel("Spalte 1");
+  await spalte.fill("Sprechzeiten nach Vereinbarung");
+  await spalte.focus();
+  await spalte.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 12));
+  await karte.getByRole("button", { name: "Fett" }).click();
+  await expect(spalte).toHaveValue("*Sprechzeiten* nach Vereinbarung");
+  await expect(karte.locator(".footer-preview strong")).toHaveText("Sprechzeiten");
+  await karte.getByRole("button", { name: "{firma}" }).click();
+  await expect(spalte).toHaveValue(/\{firma\}/);
+  await page.context().close();
+});
