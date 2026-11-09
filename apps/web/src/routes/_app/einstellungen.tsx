@@ -288,6 +288,7 @@ function CompanyForm() {
           iban: text("iban").toUpperCase().replace(/\s/g, ""),
           bic: text("bic").toUpperCase().replace(/\s/g, ""),
           kontoinhaber: text("kontoinhaber"),
+          glaeubigerId: text("glaeubigerId"),
           kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
           paymentTermDays: Number(text("paymentTermDays") || 14),
           skonto: skonto.stufen,
@@ -588,6 +589,14 @@ function CompanyForm() {
             <input name="bic" defaultValue={company.bic} className="mono" />
           </label>
         </div>
+        <label className="field">
+          Gläubiger-ID
+          <input name="glaeubigerId" defaultValue={company.glaeubigerId} placeholder="DE98ZZZ09999999999" className="mono" aria-describedby="glaeubiger-hint" />
+          <span id="glaeubiger-hint" className="small muted">
+            Nur für SEPA-Lastschriften nötig. Die Bundesbank vergibt sie auf Antrag; sie steht auf jedem Mandat und auf der Rechnung, die per Lastschrift
+            eingezogen wird.
+          </span>
+        </label>
       </section>
 
       <section className="form-section" aria-labelledby="company-invoices">

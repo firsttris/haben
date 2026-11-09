@@ -627,6 +627,22 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 
+### SEPA-Lastschriftmandate
+
+Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
+
+| Feld | Hinweis |
+| --- | --- |
+| Mandatsreferenz | Wie auf dem Mandat; bis 35 Zeichen aus `A–Z a–z 0–9`, Leerzeichen und `+ ? / - : ( ) . , '` (Schema der Deutschen Kreditwirtschaft, [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version), Kap. 2.3.1). Jede Referenz gibt es nur einmal, ohne Rücksicht auf Groß- und Kleinschreibung (Kap. 2.2.2). Sie beginnt und endet nicht mit `/` und enthält kein `//` ([Clarification Paper EPC132-17](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf), Kap. 2.1). |
+| Unterschrieben am | Datum der Unterschrift; nicht in der Zukunft. |
+| Verfahren | Basislastschrift (CORE) oder Firmenlastschrift (B2B). Eine Firmenlastschrift setzt voraus, dass der Kunde kein Verbraucher ist und das Mandat auch seiner Bank vorliegt. |
+| Kontoinhaber, IBAN, BIC | Das Konto, von dem eingezogen wird; vorbelegt mit Name und IBAN des Kontakts. Die IBAN muss aus dem EWR sein, wie bei SEPA-Überweisungen: Das Konto muss in SEPA liegen (Rulebook, Kap. 2.2), und außerhalb des EWR verlangt das Mandat die Anschrift des Zahlungspflichtigen. Die BIC ist optional. |
+| Schon eingezogen | Für ein Mandat, auf das vor Haben schon Lastschriften liefen: Der nächste Einzug ist dann eine Folgelastschrift. Mit dem Tag des letzten Einzugs rechnet Haben den Verfall richtig. |
+
+**Verfall nach 36 Monaten.** Ein Mandat, auf das 36 Monate lang keine Lastschrift eingereicht wurde, darf nicht mehr genutzt werden; gezählt ab dem letzten Einzug, auch wenn er zurückgegeben wurde ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) und [SDD B2B Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC222-07%202025%20SDD%20B2B%20Rulebook%20version%201.2.pdf) des EPC, Version 1.2, Kap. 4.2). Für ein Mandat ohne Einzug nennt das Rulebook keinen Beginn; Haben zählt dann vorsichtig ab der Unterschrift. Der Status neben jedem Mandat zeigt, bis wann es gilt oder seit wann es abgelaufen ist; für einen neuen Einzug braucht es dann ein neues Mandat.
+
+**Nichts wird überschrieben.** Mandate, ihre PDFs und Widerrufe lassen sich nur anlegen, nicht ändern oder löschen; jede Zeile steht im Audit-Log. Ändert sich etwas am Mandat, etwa die Bankverbindung, legst du ein neues an. **PDF hinterlegen** speichert das unterschriebene Mandat; ein späteres PDF ersetzt es in der Anzeige, das frühere bleibt gespeichert. **Widerrufen** beendet ein Mandat ab heute, nach einer Rückfrage.
+
 ## Entwürfe aus der REST-API
 
 Eigene Werkzeuge, etwa für Bestellungen aus Etsy oder eBay, legen über die [REST-API](api.md) Kontakte und Rechnungsentwürfe an. Diese Entwürfe stehen in der Rechnungsliste wie jeder andere; du prüfst sie im Editor und schreibst sie fest, die API selbst schreibt nichts fest und bucht nichts. Ein Entwurf kann die Plattform und die Bestellnummer tragen (externe Referenz): Kommt dieselbe Bestellung noch einmal, entsteht kein zweiter Entwurf. Die Referenz wird mit der Rechnung festgeschrieben.
