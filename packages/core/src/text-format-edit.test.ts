@@ -74,6 +74,16 @@ describe("Auszeichnung per Knopf", () => {
     expect(toggle("*eins zw[]ei*", "bold")).toBe("*eins* zwei");
   });
 
+  it("löst ein Wort aus einer längeren Auszeichnung, auch wenn ein inneres Paar darüber reicht", () => {
+    expect(toggle("*eins _[zwei] drei_*", "bold")).toBe("*eins* _zwei_ *_drei_*");
+    expect(parseTextFormatting(toggle("*eins _zwei [drei]_ vier*", "bold")!).filter((run) => run.text.trim())).toEqual([
+      { text: "eins", bold: true, italic: false, underline: false },
+      { text: "zwei", bold: true, italic: true, underline: false },
+      { text: "drei", bold: false, italic: true, underline: false },
+      { text: "vier", bold: true, italic: false, underline: false },
+    ]);
+  });
+
   it("behält beim Herauslösen die übrigen Auszeichnungen", () => {
     expect(toggle("___eins [zwei]___", "italic")).toBe("___eins___ __zwei__");
     expect(toggle("*_eins [zwei]_*", "bold")).toBe("*_eins_* _zwei_");
