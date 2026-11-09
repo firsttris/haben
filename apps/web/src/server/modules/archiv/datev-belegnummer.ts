@@ -7,12 +7,18 @@ const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 const normalized = (text: string) => `lower(regexp_replace(${text}, '\\s+', '', 'g'))`;
 
-/** Die letzten 36 Zeichen der Nummer ergeben den Wert; der DATEV-Parser schneidet ein Leerzeichen am Anfang ab. */
+/**
+ * Die letzten 36 Zeichen der Nummer ergeben den Wert. Ob sevDesk Leerzeichen vor oder nach dem Kürzen entfernt, ist nicht
+ * belegt: Das Beispiel aus #472 passt nur, wenn sie vorher wegfallen. Der DATEV-Parser schneidet außerdem ein Leerzeichen
+ * am Anfang des Felds ab; ohne Leerzeichen zu vergleichen deckt das mit ab.
+ */
 export function truncatedNumberMatches(alias: string, value: SQL): SQL<boolean> {
   const table = sql.raw(alias);
   const length = sql.raw(String(BELEGFELD_LENGTH));
-  return sql<boolean>`(${table}.source = 'sevdesk' and length(${table}.number) > ${length}
-    and lower(regexp_replace(right(${table}.number, ${length}), '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g')))`;
+  const wanted = sql`lower(regexp_replace(${value}, '\\s+', '', 'g'))`;
+  return sql<boolean>`(${table}.source = 'sevdesk' and length(${table}.number) > ${length} and (
+    lower(regexp_replace(right(${table}.number, ${length}), '\\s+', '', 'g')) = ${wanted}
+    or lower(right(regexp_replace(${table}.number, '\\s+', '', 'g'), ${length})) = ${wanted}))`;
 }
 
 /** Gibt es zur Belegnummer der Buchung einen Beleg? Ohne Leerzeichen, Groß-/Kleinschreibung egal. */
