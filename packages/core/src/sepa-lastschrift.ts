@@ -88,6 +88,9 @@ export function sepaDirectDebitProblems(order: SepaDirectDebitOrder): string[] {
   const creditorId = glaeubigerIdProblem(order.creditorId);
   if (creditorId) problems.push(`Gläubiger-ID: ${creditorId}`);
   problems.push(...accountProblems(order.creditor, "Gläubigerkonto"));
+  // Anlage 3 V3.9, LclInstrm: keine Mischung von Basis- und Firmenlastschriften in einer pain.008-Nachricht
+  const schemes = new Set(order.batches.filter((b) => b.transactions.length > 0).map((b) => b.scheme));
+  if (schemes.size > 1) problems.push("Basis- und Firmenlastschriften (CORE und B2B) gehen nur in getrennten Dateien");
   const seen = new Set<string>();
   for (const batch of order.batches) {
     if (!SEPA_ID_PATTERN.test(batch.paymentInfoId)) problems.push(`PmtInfId ${batch.paymentInfoId} passt nicht zum Schema`);

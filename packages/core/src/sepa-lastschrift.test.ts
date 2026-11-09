@@ -123,6 +123,12 @@ describe("pain.008.001.08", () => {
     expect(result.xml).toContain("<LclInstrm><Cd>B2B</Cd></LclInstrm>");
   });
 
+  it("mischt keine Basis- und Firmenlastschriften in einer Datei (Anlage 3 V3.9, Kap. 2.2.2, LclInstrm)", () => {
+    const [first, second] = order().batches;
+    const result = pain008(order({ batches: [first!, { ...second!, scheme: "B2B" }] }));
+    expect(result.ok).toBe(false);
+  });
+
   it("meldet, was nicht passt", () => {
     const [first] = order().batches;
     const tx = first!.transactions[0]!;
