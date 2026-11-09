@@ -82,6 +82,8 @@ function InvoicePage() {
           ],
           quoteId: invoice.quoteId,
           discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
+          paymentMethod: invoice.paymentMethod,
+          sepaMandateId: invoice.sepaMandateId,
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
           lines: data.lines
             .filter((line) => !line.deductionOf)
@@ -108,6 +110,7 @@ function InvoicePage() {
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
         companySkonto={data.companySkonto}
+        mandates={data.mandates}
         articles={data.articles}
         textBlocks={data.textBlocks}
         abschlaege={data.abschlaege}

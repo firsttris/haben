@@ -53,6 +53,7 @@ function NewRecurringPage() {
           servicePeriod: "laufend",
           mode: "entwurf",
           sendByMail: false,
+          paymentMethod: "ueberweisung",
         }}
         contacts={contacts}
         textBlocks={textBlocks}
