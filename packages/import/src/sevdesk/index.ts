@@ -29,4 +29,4 @@ export {
   type SevMappedVoucher,
   type SevPaymentItem,
 } from "./map.ts";
-export { SEV_HEAD_RATES } from "./steuersaetze.ts";
+export { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "./steuersaetze.ts";

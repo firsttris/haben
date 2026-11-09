@@ -1,4 +1,4 @@
-import { SEV_HEAD_RATES } from "@haben/import";
+import { SEV_HEAD_RATES, SEV_TEMPORARY_HEAD_RATES } from "@haben/import";
 import { sql, type SQL } from "drizzle-orm";
 import type { LegacyTaxRow } from "../../db/schema.ts";
 
@@ -46,7 +46,7 @@ export function effectiveTaxes(alias: string): SQL<LegacyTaxRow[]> {
   const distance = `abs(${alias}.net::bigint * head.rate - ${alias}.tax::bigint * 10000)`;
   const fromHead = `(select jsonb_build_array(jsonb_build_object('rate', head.rate, 'net', ${alias}.net, 'tax', ${alias}.tax))
     from unnest(array[${SEV_HEAD_RATES.join(",")}]) with ordinality as head(rate, position)
-    where ${distance} <= 10000 order by ${distance}, head.position limit 1)`;
+    where ${distance} <= 10000 order by head.rate = any(array[${SEV_TEMPORARY_HEAD_RATES.join(",")}]), ${distance}, head.position limit 1)`;
   const withoutPositions = `${alias}.source = 'sevdesk' and ${alias}.tax <> 0 and (${alias}.raw->'positions' is null or ${alias}.raw->'positions' = '[]'::jsonb)
     and jsonb_array_length(${alias}.taxes) = 1 and (${alias}.taxes->0->>'rate')::int = 0`;
   return sql.raw(`case when ${withoutPositions} then coalesce(${fromHead}, ${alias}.taxes) else ${alias}.taxes end`) as SQL<LegacyTaxRow[]>;
