@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, firstLink, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
+import { HANDY, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
   artikelEinfuegen,
   artikelInPosition,
@@ -332,7 +332,7 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
   const form = page.getByRole("form", { name: "Neuer Textbaustein" });
   await form.getByLabel("Bezeichnung").fill("Bestellnummer Nordwerk");
-  await form.getByRole("textbox", { name: /^Text / }).fill("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
+  await form.getByRole("textbox", { name: "Text", exact: true }).fill("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
   await form.getByLabel("Kunde (optional)").selectOption({ label: "Nordwerk Software GmbH · Hamburg" });
   await form.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByRole("region", { name: "Textbausteine" })).toContainText("Bestellnummer Nordwerk");
@@ -345,6 +345,279 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await insert.selectOption({ label: "Bestellnummer Nordwerk" });
   await expect(page.getByLabel("Einleitung über den Positionen (optional)")).toHaveValue("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
   await expect(insert).toHaveValue("");
+});
+
+test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zurück, Leiste an der Markierung", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const fett = page.getByRole("button", { name: "Fett", exact: true });
+  await expect(fett).toBeHidden();
+
+  await einleitung.fill("Vielen Dank für Ihren Auftrag");
+  await einleitung.focus();
+  // Ohne Markierung keine Leiste, auch nicht im Feld
+  await expect(fett).toBeHidden();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await expect(fett).toBeVisible();
+  await fett.click();
+  await expect(einleitung).toHaveValue("Vielen Dank für *Ihren* Auftrag");
+  await expect(einleitung).toBeFocused();
+  await expect(page.locator(".sheet strong").filter({ hasText: "Ihren" })).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+i");
+  await expect(einleitung).toHaveValue("Vielen Dank für *_Ihren_* Auftrag");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(einleitung).toHaveValue("Vielen Dank für *Ihren* Auftrag");
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 22));
+  await fett.click();
+  await expect(einleitung).toHaveValue("Vielen Dank für Ihren Auftrag");
+
+  const verstoesse = await new AxeBuilder({ page }).include(".format-field:focus-within").analyze();
+  expect(verstoesse.violations).toEqual([]);
+
+  // Per Tastatur: ein Tabstopp für die Leiste, darin die Pfeiltasten
+  const detail = page.getByLabel("Text zu Position 1 (optional)");
+  await detail.fill("Wartung");
+  await detail.focus();
+  await detail.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 7));
+  await expect(fett).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(fett).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "Kursiv", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(detail).toHaveValue("_Wartung_");
+  await expect(detail).toBeFocused();
+});
+
+test("Textknöpfe: Leiste folgt der Markierung und schließt mit Esc", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  await einleitung.fill("Erstes Wort weit vorn und ein ganz anderes am Ende der Zeile");
+  await einleitung.focus();
+  const markiere = (start: number, end: number) => einleitung.evaluate((feld: HTMLTextAreaElement, [a, b]) => feld.setSelectionRange(a!, b!), [start, end]);
+
+  await markiere(0, 6);
+  await expect(leiste).toBeVisible();
+  const links = (await leiste.boundingBox())!;
+  const feld = (await einleitung.boundingBox())!;
+  // Über der ersten Zeile, also oberhalb des Felds
+  expect(links.y + links.height).toBeLessThanOrEqual(feld.y + 12);
+
+  await markiere(50, 55);
+  await expect.poll(async () => (await leiste.boundingBox())!.x).toBeGreaterThan(links.x + 100);
+
+  await page.keyboard.press("Escape");
+  await expect(leiste).toBeHidden();
+  await markiere(0, 6);
+  await expect(leiste).toBeVisible();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(3, 3));
+  await expect(leiste).toBeHidden();
+});
+
+test("Textknöpfe: Doppelklick am rechten Rand markiert das Wort, das dort stand, bevor das Feld den Fokus hatte", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const woerter = Array.from({ length: 20 }, (_, i) => `wort${String(i).padStart(2, "0")}`);
+  await einleitung.fill(woerter.join(" "));
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.blur());
+  await einleitung.scrollIntoViewIfNeeded();
+
+  // Wo das letzte Wort der ersten Zeile steht, solange das Feld keinen Fokus hat
+  const ziel = await einleitung.evaluate((feld: HTMLTextAreaElement, liste: string[]) => {
+    const stil = getComputedStyle(feld);
+    const messen = document.createElement("canvas").getContext("2d")!;
+    messen.font = stil.font;
+    const links = parseFloat(stil.paddingLeft);
+    const breite = feld.clientWidth - links - parseFloat(stil.paddingRight);
+    let anzahl = 1;
+    while (messen.measureText(liste.slice(0, anzahl + 1).join(" ")).width <= breite) anzahl++;
+    const davor = messen.measureText(`${liste.slice(0, anzahl - 1).join(" ")} `).width;
+    const box = feld.getBoundingClientRect();
+    return {
+      wort: liste[anzahl - 1]!,
+      x: box.left + feld.clientLeft + links + davor + messen.measureText(liste[anzahl - 1]!).width / 2,
+      y: box.top + feld.clientTop + parseFloat(stil.paddingTop) + parseFloat(stil.fontSize) / 2,
+    };
+  }, woerter);
+
+  await page.mouse.dblclick(ziel.x, ziel.y);
+  const markiert = await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.value.slice(feld.selectionStart, feld.selectionEnd).trim());
+  expect(markiert).toBe(ziel.wort);
+  await einleitung.fill("");
+});
+
+test("Wiederkehrende Rechnung: die Vorschau zeigt die Auszeichnung statt der Zeichen", async () => {
+  await go("/rechnungen/wiederkehrend/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Hosting");
+  const text = page.getByLabel("Text zu Position 1 (optional)");
+  await text.fill("Wartung");
+  await text.focus();
+  await text.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 7));
+  await page.getByRole("button", { name: "Fett", exact: true }).click();
+  await expect(text).toHaveValue("*Wartung*");
+
+  const vorschau = page.getByRole("region", { name: "Vorschau" });
+  await expect(vorschau.locator("strong").filter({ hasText: "Wartung" })).toBeVisible();
+  await expect(vorschau).not.toContainText("*Wartung*");
+});
+
+test("Textknöpfe: Esc auf einem Knopf schließt die Leiste und führt zurück ins Feld", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  await einleitung.fill("Vielen Dank für Ihren Auftrag");
+  await einleitung.focus();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await expect(leiste).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Fett", exact: true })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(einleitung).toBeFocused();
+  await expect(leiste).toBeHidden();
+  await einleitung.fill("");
+});
+
+test("Textknöpfe: am ersten Wort einer umbrochenen Zeile steht die Leiste über dem Wort, nicht am Ende der Zeile davor", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  const woerter = Array.from({ length: 40 }, (_, i) => `wort${String(i).padStart(2, "0")}`);
+  await einleitung.fill(woerter.join(" "));
+  await einleitung.focus();
+
+  // Wie viele Wörter in die erste Zeile passen; das nächste beginnt die zweite Zeile
+  const start = await einleitung.evaluate((feld: HTMLTextAreaElement, liste: string[]) => {
+    const stil = getComputedStyle(feld);
+    const messen = document.createElement("canvas").getContext("2d")!;
+    messen.font = stil.font;
+    const breite = feld.clientWidth - parseFloat(stil.paddingLeft) - parseFloat(stil.paddingRight);
+    let anzahl = 1;
+    while (messen.measureText(liste.slice(0, anzahl + 1).join(" ")).width <= breite) anzahl++;
+    return liste.slice(0, anzahl).join(" ").length + 1;
+  }, woerter);
+  await einleitung.evaluate((feld: HTMLTextAreaElement, von: number) => feld.setSelectionRange(von, von + 6), start);
+
+  await expect(leiste).toBeVisible();
+  const box = (await leiste.boundingBox())!;
+  const feld = (await einleitung.boundingBox())!;
+  expect(box.x - feld.x).toBeLessThan(40);
+  await einleitung.fill("");
+});
+
+test("Textknöpfe: ein Klick zwischen die Knöpfe lässt Leiste und Markierung stehen", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  await einleitung.fill("Vielen Dank für Ihren Auftrag");
+  await einleitung.focus();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await expect(leiste).toBeVisible();
+
+  const fett = (await page.getByRole("button", { name: "Fett", exact: true }).boundingBox())!;
+  await page.mouse.click(fett.x + fett.width + 1, fett.y + fett.height / 2);
+
+  await expect(einleitung).toBeFocused();
+  await expect(leiste).toBeVisible();
+  await einleitung.fill("");
+});
+
+test("Artikel und Textbausteine: die Liste zeigt die Auszeichnung statt der Zeichen", async () => {
+  await go("/artikel");
+  await page.getByRole("button", { name: "Neuer Artikel" }).click();
+  const artikel = page.getByRole("form", { name: "Neuer Artikel" });
+  await artikel.getByLabel("Bezeichnung").fill("Wartung mit Auszeichnung");
+  await artikel.getByLabel("Text zur Position (optional)").fill("Monatliche Wartung");
+  await artikel.getByLabel("Text zur Position (optional)").evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 10));
+  await artikel.getByLabel("Text zur Position (optional)").focus();
+  await artikel.getByRole("button", { name: "Fett", exact: true }).click();
+  await expect(artikel.getByLabel("Text zur Position (optional)")).toHaveValue("*Monatliche* Wartung");
+  await artikel.getByLabel("Preis (€)").fill("10,00");
+  await artikel.getByRole("button", { name: "Anlegen" }).click();
+  const zeile = page.locator(".table-row").filter({ hasText: "Wartung mit Auszeichnung" });
+  await expect(zeile.locator("strong").filter({ hasText: "Monatliche" })).toBeVisible();
+  await expect(zeile).not.toContainText("*Monatliche*");
+
+  await go("/textbausteine");
+  await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
+  const baustein = page.getByRole("form", { name: "Neuer Textbaustein" });
+  await baustein.getByLabel("Bezeichnung").fill("Baustein mit Auszeichnung");
+  await baustein.getByRole("textbox", { name: "Text", exact: true }).fill("Bitte *sofort* zahlen");
+  await baustein.getByRole("button", { name: "Anlegen" }).click();
+  const liste = page.getByRole("region", { name: "Textbausteine" });
+  await expect(liste.locator("strong").filter({ hasText: "sofort" })).toBeVisible();
+  await expect(liste).not.toContainText("*sofort*");
+});
+
+/** Ob der Knopf in der Mitte wirklich oben liegt; verdeckt oder abgeschnitten bliebe er für Maus und Finger unerreichbar */
+function liegtObenAuf(p: Page): Promise<boolean> {
+  return p.getByRole("button", { name: "Fett", exact: true }).evaluate((knopf) => {
+    const rect = knopf.getBoundingClientRect();
+    return !!document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[role="toolbar"]');
+  });
+}
+
+test("Textknöpfe: auf dem Handy liegt die Leiste auch bei einem hochgescrollten Feld nicht hinter der Navigation", async ({ browser }) => {
+  // Mit offener Tastatur bleibt auf dem Handy nur rund die halbe Höhe
+  const context = await browser.newContext({
+    storageState: await page.context().storageState(),
+    viewport: { width: HANDY.width, height: 420 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const handy = await context.newPage();
+  await gehe(handy, "/textbausteine");
+  await handy.getByRole("button", { name: "Neuer Textbaustein" }).click();
+  const text = handy.getByRole("form", { name: "Neuer Textbaustein" }).getByLabel("Text", { exact: true });
+  await text.fill(["eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "Wartung"].join("\n"));
+  const zeileZuSehen = await text.evaluate((feld: HTMLTextAreaElement) => {
+    // Das Feld steht oben unter der Navigation, sein unteres Ende ist noch zu sehen und wird markiert
+    window.scrollBy(0, feld.getBoundingClientRect().top - 40);
+    feld.focus({ preventScroll: true });
+    feld.setSelectionRange(feld.value.length - 7, feld.value.length);
+    feld.scrollTop = feld.scrollHeight;
+    const rect = feld.getBoundingClientRect();
+    return document.elementFromPoint(rect.x + rect.width / 2, rect.bottom - 8) === feld;
+  });
+  expect(zeileZuSehen, "die markierte Zeile ist nicht verdeckt").toBe(true);
+  await expect(handy.getByRole("toolbar", { name: "Textformatierung" })).toBeVisible();
+  expect(await liegtObenAuf(handy)).toBe(true);
+  await context.close();
+});
+
+test("Textknöpfe: im gescrollten Artikel-Dialog schneidet der Rand die Leiste nicht ab, Esc auf einem Knopf lässt den Dialog offen", async () => {
+  await go("/rechnungen/neu");
+  const beschreibung = page.getByLabel("Beschreibung Position 1");
+  await beschreibung.fill("Lektorat im Dialog");
+  await trefferliste(page).getByRole("option", { name: "„Lektorat im Dialog“ als neuen Artikel anlegen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neuen Artikel anlegen" });
+  const text = dialog.getByLabel("Text zur Position (optional)");
+  await text.fill("Wartung");
+  // Niedriges Fenster, etwa ein Handy quer oder mit offener Tastatur: Das Formular im Dialog scrollt
+  await page.setViewportSize({ width: 1280, height: 460 });
+  try {
+    await text.evaluate((feld: HTMLTextAreaElement) => {
+      const form = feld.closest("form")!;
+      form.scrollTop += feld.getBoundingClientRect().top - form.getBoundingClientRect().top;
+      feld.focus({ preventScroll: true });
+      feld.setSelectionRange(0, 7);
+    });
+    const leiste = dialog.getByRole("toolbar", { name: "Textformatierung" });
+    await expect(leiste).toBeVisible();
+    expect(await liegtObenAuf(page)).toBe(true);
+
+    await page.keyboard.press("Tab");
+    await expect(dialog.getByRole("button", { name: "Fett", exact: true })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(leiste).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  } finally {
+    await page.setViewportSize({ width: 1440, height: 900 });
+  }
 });
 
 test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {

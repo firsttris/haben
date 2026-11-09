@@ -24,6 +24,8 @@ import {
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
+import { FormattedText } from "./FormattedText.tsx";
+import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { Icon } from "./Icon.tsx";
@@ -383,7 +385,7 @@ export function RecurringForm({
                   aria-invalid={line.description.trim() === ""}
                 />
               </div>
-              <textarea
+              <FormattedTextarea
                 className="line-detail"
                 rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
                 placeholder="Text zur Position (optional, mehrzeilig)"
@@ -504,7 +506,11 @@ export function RecurringForm({
               .map((l, i) => (
                 <li key={i}>
                   {fillPlaceholders(l.description, reference)}
-                  {l.detail && <div style={{ whiteSpace: "pre-wrap" }}>{fillPlaceholders(l.detail, reference)}</div>}
+                  {l.detail && (
+                    <div style={{ whiteSpace: "pre-wrap" }}>
+                      <FormattedText text={fillPlaceholders(l.detail, reference)} />
+                    </div>
+                  )}
                 </li>
               ))}
           </ul>

@@ -69,6 +69,7 @@ import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
 import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
+import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
@@ -1154,7 +1155,7 @@ export function InvoiceEditor({
                     />
                     {quote && <LineKind index={index} kind={line.kind} onKind={(value) => updateLine(line.key, { kind: value })} />}
                   </div>
-                  <textarea
+                  <FormattedTextarea
                     className="line-detail"
                     rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
                     placeholder="Text zur Position (optional, mehrzeilig)"

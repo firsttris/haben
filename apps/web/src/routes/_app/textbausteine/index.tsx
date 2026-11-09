@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { FormattedText } from "../../../components/FormattedText.tsx";
+import { FormattedTextarea } from "../../../components/FormattedTextarea.tsx";
 import type { Notice } from "../../../lib/use-action.ts";
 import { archiveTextBlock, getTextBlocks, saveTextBlock } from "../../../server/functions/text-blocks.ts";
 
@@ -68,13 +70,21 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
             <option value="fuss">Fußtext (Hinweis unter den Summen)</option>
           </select>
         </label>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Text
-          <textarea name="text" rows={5} defaultValue={block?.text ?? ""} maxLength={2000} required />
-          <span className="small muted">
+        <div className="field" style={{ gridColumn: "1 / -1" }}>
+          <label htmlFor="baustein-text">Text</label>
+          <FormattedTextarea
+            id="baustein-text"
+            name="text"
+            rows={5}
+            defaultValue={block?.text ?? ""}
+            maxLength={2000}
+            required
+            aria-describedby="baustein-text-hint"
+          />
+          <span id="baustein-text-hint" className="small muted">
             In wiederkehrenden Rechnungen gelten auch hier Platzhalter wie {"{monat}"} oder {"{zeitraum}"}.
           </span>
-        </label>
+        </div>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Kunde (optional)
           <select name="contactId" defaultValue={block?.contactId ?? ""}>
@@ -197,7 +207,7 @@ function TextBlocksPage() {
                       {KIND_LABEL[b.kind]} · {contactName(b.contactId)}
                     </div>
                     <div className="small" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", marginTop: 4 }}>
-                      {b.text}
+                      <FormattedText text={b.text} />
                     </div>
                   </div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>

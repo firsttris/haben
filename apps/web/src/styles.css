@@ -546,7 +546,8 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 /* Artikelnummer (BT-155) als schmales Feld vor der Bezeichnung, wie die Spalte „Art.-Nr.“ im PDF; im Angebot die Art dahinter */
 .line-row > .line-title { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr); gap: 8px; }
 .line-row > .line-title.with-kind { grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr) minmax(11em, 16em); }
-.line-row > .line-detail { grid-column: 1 / -1; min-height: var(--control-h); padding: 9px 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
+.line-row > .format-field { grid-column: 1 / -1; }
+.line-row .line-detail { width: 100%; min-height: var(--control-h); padding: 9px 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
 .line-row input, .line-row select { min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; }
 /* Zahlen in der Schrift des Formulars, rechtsbündig mit gleich breiten Ziffern */
 .line-row input.num { font-family: var(--sans); font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -939,3 +940,11 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auszeichnungen bleiben in der Vorschau an die vorhandene Schrift gebunden. */
 .formatted-text strong { font-weight: 600; }
 .formatted-text u { text-underline-offset: 0.15em; }
+/* Knöpfe für fett, kursiv und unterstrichen: schweben an der Markierung, über dem stehenden Seitenkopf und der Navigation am Handy */
+.format-field { position: relative; display: block; }
+.format-field > textarea { display: block; box-sizing: border-box; width: 100%; }
+.format-bar { position: absolute; z-index: 21; display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 2px 8px rgb(0 0 0 / 0.18); }
+.format-bar button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.format-bar button:hover { background: var(--line); }
+.format-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.format-status { display: block; margin-top: 4px; font-size: 12px; color: var(--danger-ink); }
