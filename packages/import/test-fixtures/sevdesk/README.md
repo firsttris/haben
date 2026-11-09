@@ -69,11 +69,11 @@ Jede Mahnstufe ist ein eigenes `MA`-Objekt und verweist mit `origin` auf die gem
 
 Am DATEV-Export 2024 aus Version 1.0: 186 Zeilen tragen `BEDI` mit 170 GUIDs, jede GUID gehört zu genau einer Datei, im Belegfeld stehen keine UUIDs oder abgeschnittenen Kennungen. 14 von 442 Belegnummern unterscheiden sich vom Original, alle erklärt: sevDesk entfernt Zeichen außerhalb des DATEV-Zeichensatzes (belegt `.`, `ü`, `ä`) und nimmt dann die letzten 36 Zeichen. Diese Zahlen stammen aus dem vollständigen Export, die Dateien hier sind nur ein Auszug.
 
-Gutschriften aus Version 1.0: Das Buchungskonto steht am Kopf unter `accountingType`, frei wählbar bei `ACCOUNTING_TYPE` (hier Einnahmen), „Dienstleister / Agenturen / Freelancer“ bei `ROYALTY_ASSIGNED`, „Fremdarbeiten/Fremdleistungen“ bei `ROYALTY_UNASSIGNED`, „Verkaufsprovision“ bei `PROVISION`. `UNDERACHIEVEMENT` hat keins, stattdessen zeigen `origin` und `refSrcInvoice` auf die Rechnung. Die Beträge stehen positiv oder 0, Positionen tragen kein Konto.
+Gutschriften aus Version 1.0: Das Buchungskonto steht am Kopf unter `accountingType`, frei wählbar bei `ACCOUNTING_TYPE` (hier Einnahmen), „Dienstleister / Agenturen / Freelancer“ bei `ROYALTY_ASSIGNED`, „Fremdarbeiten/Fremdleistungen“ bei `ROYALTY_UNASSIGNED`, „Verkaufsprovision“ bei `PROVISION`. `UNDERACHIEVEMENT` hat keins, stattdessen zeigen `origin` und `refSrcInvoice` auf die Rechnung. Die Beträge stehen positiv, Positionen tragen kein Konto.
 
-Buchung laut DATEV-Export von sevDesk (SKR03), jeweils im Soll und mit Beleglink auf den Ordner Rechnungsausgang: `ACCOUNTING_TYPE` mit Erlöskonto auf 8200 mit BU 3, `UNDERACHIEVEMENT` auf 8400 ohne BU, `ROYALTY_ASSIGNED` auf 3100 mit BU 9 (Vorsteuer), `PROVISION` auf 4760 (Verkaufsprovisionen) mit BU 9. `ROYALTY_UNASSIGNED` hat den Betrag 0 und deshalb keine Buchung im Export. Steuerlich und zur Zahlung ist nichts geprüft.
+Buchung laut DATEV-Export von sevDesk (SKR03), jeweils im Soll und mit Beleglink auf den Ordner Rechnungsausgang: `ACCOUNTING_TYPE` mit Erlöskonto auf 8200 mit BU 3, `UNDERACHIEVEMENT` auf 8400 ohne BU, `ROYALTY_ASSIGNED` auf 3100 mit BU 9 (Vorsteuer), `PROVISION` auf 4760 (Verkaufsprovisionen) mit BU 9, `ROYALTY_UNASSIGNED` auf 4909 (Fremdleistungen) mit BU 9. Steuerlich und zur Zahlung ist nichts geprüft.
 
-Offene Frage: Honorar und Provision stehen auf Aufwandskonten, und sevDesk bucht `ROYALTY_ASSIGNED` und `PROVISION` im Export auf Aufwand mit Vorsteuer. Haben bildet jede Gutschrift dagegen als negative Einnahme ab (`mapSevCreditNote`).
+Offene Frage: Honorar und Provision stehen auf Aufwandskonten, und sevDesk bucht `ROYALTY_ASSIGNED`, `ROYALTY_UNASSIGNED` und `PROVISION` im Export auf Aufwand mit Vorsteuer. Haben bildet jede Gutschrift dagegen als negative Einnahme ab (`mapSevCreditNote`).
 
 Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werden, Haben ersetzt sie nicht.
 

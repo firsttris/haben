@@ -283,12 +283,12 @@ describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
     expect(gutschrift.refSrcInvoice).toMatchObject({ objectName: "Invoice" });
   });
 
-  it("nennt Beträge positiv oder 0 und führt kein Konto an den Positionen", () => {
+  it("nennt Beträge positiv und führt kein Konto an den Positionen", () => {
     for (const { creditNote, positions } of gutschriftV1) {
-      expect(Number(creditNote.sumGross)).toBeGreaterThanOrEqual(0);
+      expect(Number(creditNote.sumGross)).toBeGreaterThan(0);
       expect(positions.length).toBeGreaterThan(0);
       for (const p of positions) {
-        expect(Number(p.sumGross)).toBeGreaterThanOrEqual(0);
+        expect(Number(p.sumGross)).toBeGreaterThan(0);
         expect(p).not.toHaveProperty("accountingType");
         expect(p).not.toHaveProperty("accountDatev");
       }
