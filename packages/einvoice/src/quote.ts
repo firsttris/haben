@@ -1,6 +1,6 @@
 import { planShareLabel, type Discount, type InvoiceTotals, type PriceMode, type QuoteLineKind, type ScheduledRow, type TaxTreatment } from "@haben/core";
 import { texts, type Language, type Texts } from "./i18n.ts";
-import { asDraft, documentPdfData, draftFilename, renderQuotePdfData, showsGrossPrices, type DraftPdf } from "./pdf.ts";
+import { asDraft, documentPdfData, draftFilename, renderQuotePdfData, showsCustomerNumber, showsGrossPrices, type DraftPdf } from "./pdf.ts";
 import { referenceMeta } from "./format.ts";
 import type { Buyer, InvoiceDocumentLine, Letterhead, OrderReferences, Seller } from "./types.ts";
 
@@ -48,7 +48,7 @@ export function quoteDetails(doc: QuoteDocument, t: Texts): { label: string; val
   } else if (doc.serviceFrom ?? doc.serviceTo) {
     meta.push({ label: t.serviceDate, value: t.date((doc.serviceFrom ?? doc.serviceTo)!) });
   }
-  if (doc.buyer.kundennummer) meta.push({ label: t.customerNumber, value: doc.buyer.kundennummer });
+  if (showsCustomerNumber(doc)) meta.push({ label: t.customerNumber, value: doc.buyer.kundennummer! });
   meta.push(...referenceMeta(doc.references, t));
   return meta;
 }
@@ -83,10 +83,11 @@ export function quotePdfData(doc: QuoteDocument) {
   // Summen und Gesamtrabatt nur aus den Positionen, die zählen; gezeigt werden alle
   const counted = doc.lines.filter((l) => !l.kind);
   const { totalRows, included, grossLabel, ...body } = documentPdfData({ ...doc, lines: counted }, t);
-  const all = documentPdfData(doc, t).lines;
+  const { lines: all, hideVatColumn } = documentPdfData(doc, t);
   const tags = lineTags(doc, t);
   return {
     ...body,
+    hideVatColumn,
     lines: all.map((line, i) => (tags[i] ? { ...line, tag: tags[i] } : line)),
     plan: planPdfData(doc, t),
     docTitle: `${t.titles.angebot} ${doc.number}`,

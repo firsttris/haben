@@ -43,6 +43,8 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 
 Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
+**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
+
 ### Entwurf als PDF
 
 **Entwurf als PDF** lädt den Entwurf als echtes PDF herunter, etwa zur Prüfung durch die Steuerberatung. Es entsteht aus derselben Vorlage wie das PDF beim Festschreiben, mit Umbruch, Fußzeile und Logo, und zeigt so auch, wie eine mehrseitige Rechnung aussieht. Das geht für Rechnungen, Abschlags-, Schluss- und Korrekturrechnungen, sobald ein Kunde gewählt ist; was für das Festschreiben noch fehlt, darf fehlen.
@@ -431,7 +433,7 @@ Im Formular legst du fest:
 | Verzugspauschale | 40 € nach § 288 Abs. 5 BGB, nur gegenüber Geschäftskunden |
 | Einleitung und Schluss | Vorlage je Stufe, frei änderbar |
 
-Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
+Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung, in der aktuellen Gestaltung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
 
 Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
 

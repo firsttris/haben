@@ -23,6 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
+import type { LetterheadDesign } from "@haben/core";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
@@ -139,8 +140,6 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
-    /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen (Überschriften, Linien), #RRGGBB */
-    accentColor: text("accent_color").notNull().default("#1F6F5C"),
     /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {MM}, {N…} (packages/core/src/number-format.ts) */
     invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
     quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
@@ -188,12 +187,7 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
-  (t) => [
-    check("company_single_row", sql`${t.id} = 1`),
-    check("company_accent_color", sql`${t.accentColor} ~ '^#[0-9A-Fa-f]{6}$'`),
-    check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
-  ],
+  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */
@@ -1352,6 +1346,23 @@ export const companyLogo = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_logo_single", sql`${t.id} = 1`)],
+);
+
+/** Gestaltung der Belege (#113): heute genau ein Standardprofil, die Markenprofile aus #245 werden weitere Zeilen */
+export const letterheadProfiles = pgTable(
+  "letterhead_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    settings: jsonb("settings").$type<LetterheadDesign>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("letterhead_profiles_default").on(t.isDefault).where(sql`${t.isDefault}`),
+    // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
+    check("letterhead_profiles_accent", sql`${t.settings} ->> 'accent' ~ '^#[0-9A-Fa-f]{6}$'`),
+  ],
 );
 
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */

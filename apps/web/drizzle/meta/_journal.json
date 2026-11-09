@@ -1212,6 +1212,27 @@
       "when": 1794183379278,
       "tag": "0172_personenkonten_export_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1794205205976,
+      "tag": "0173_briefkopf_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1794205212728,
+      "tag": "0174_briefkopf_profile_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 175,
+      "version": "7",
+      "when": 1794205214480,
+      "tag": "0175_firma_akzentfarbe_entfernt",
+      "breakpoints": true
     }
   ]
 }

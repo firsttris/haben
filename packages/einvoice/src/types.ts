@@ -1,4 +1,16 @@
-import type { BasisPoints, Cents, Discount, InvoiceTotals, LegalInfo, Millis, PriceMode, SkontoStufe, TaxTreatment, UnitLabel } from "@haben/core";
+import type {
+  BasisPoints,
+  Cents,
+  Discount,
+  InvoiceTotals,
+  LegalInfo,
+  LetterheadOptions,
+  Millis,
+  PriceMode,
+  SkontoStufe,
+  TaxTreatment,
+  UnitLabel,
+} from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -86,6 +98,8 @@ export interface Letterhead {
   logo?: Logo;
   /** #RRGGBB; fehlt = DEFAULT_ACCENT */
   accent?: string;
+  /** Logo, Marken und Schalter aus dem Profil; fehlt = Vorgaben (DEFAULT_OPTIONS) */
+  options?: LetterheadOptions;
 }
 
 /**

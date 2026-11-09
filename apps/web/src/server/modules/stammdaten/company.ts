@@ -20,6 +20,7 @@ import { listTextBlocks } from "./text-blocks.ts";
 import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { loadDesign } from "./letterhead.ts";
 import { logoInfo } from "./logo.ts";
 import { today } from "../../today.ts";
 
@@ -188,13 +189,14 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, design] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
     listArticles(),
     listTextBlocks(),
     logoInfo(),
+    loadDesign(),
   ]);
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
@@ -223,7 +225,8 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       bank,
       kontoinhaber,
       logo: logo?.sha256 ?? null,
-      accent: company.accentColor,
+      accent: design.accent,
+      design,
       legal: legalLine(legalInfo(company)),
     },
     sellerIssues: sellerIssues(company),
