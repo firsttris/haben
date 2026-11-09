@@ -249,6 +249,7 @@ test("SSO: API/MCP und Kalender nach Herabstufung übernehmen und reaktivieren",
     await capture(owner, "tokens-uebernommen-nachher");
     await owner.goto(`${BASE}/fristen`, { waitUntil: "networkidle" });
     await expect(owner.getByRole("status")).toContainText("Kalender-Abo deaktiviert");
+    await expect(owner.getByRole("button", { name: "Abo beenden", exact: true })).toBeVisible();
     await noAxeViolations(owner);
     await capture(owner, "kalender-deaktiviert-nachher");
     await owner.getByRole("button", { name: "Übernehmen und reaktivieren", exact: true }).click();

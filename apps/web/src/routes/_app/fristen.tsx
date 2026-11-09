@@ -198,6 +198,21 @@ function KalenderAbo() {
       >
         <p>Du übernimmst die Verantwortung. Der bisherige Kalender-Link bleibt erhalten.</p>
       </ConfirmDialog>
+      <ConfirmDialog
+        open={rueckfrage === "beenden"}
+        title="Kalender-Abo beenden?"
+        confirmLabel="Abo beenden"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            await revoke();
+            await router.invalidate();
+          })
+        }
+        onClose={() => setRueckfrage(null)}
+      >
+        <p>Der Link wird sofort ungültig, abonnierte Kalender bekommen die Fristen nicht mehr. Ein neues Abo muss jeder Kalender wieder einrichten.</p>
+      </ConfirmDialog>
       {aboStatus.exists && (aboStatus.disabledAt || !aboStatus.ownerConfirmed) ? (
         <>
           <p role="status">
@@ -205,11 +220,16 @@ function KalenderAbo() {
               ? `Kalender-Abo deaktiviert: ${aboStatus.disabledReason === "inhaberrolle-entzogen" ? "Inhaberrolle entzogen" : "Verantwortung noch nicht zugeordnet"}.`
               : "Kalender-Abo unbestätigt: Der Verantwortliche hat seine Inhaberrolle seit über 30 Tagen nicht bestätigt."}
           </p>
-          {aboStatus.canTakeOver && (
-            <button type="button" className="btn" disabled={busy} onClick={() => setTakingOver(true)}>
-              Übernehmen und reaktivieren
+          <div className="actions" style={{ flexWrap: "wrap" }}>
+            {aboStatus.canTakeOver && (
+              <button type="button" className="btn" disabled={busy} onClick={() => setTakingOver(true)}>
+                Übernehmen und reaktivieren
+              </button>
+            )}
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRueckfrage("beenden")}>
+              Abo beenden
             </button>
-          )}
+          </div>
         </>
       ) : url ? (
         <>
@@ -251,21 +271,6 @@ function KalenderAbo() {
             onClose={() => setRueckfrage(null)}
           >
             <p>Der bisherige Link wird sofort ungültig. Jeder Kalender muss danach den neuen Link abonnieren.</p>
-          </ConfirmDialog>
-          <ConfirmDialog
-            open={rueckfrage === "beenden"}
-            title="Kalender-Abo beenden?"
-            confirmLabel="Abo beenden"
-            danger
-            onConfirm={() =>
-              void run(async () => {
-                await revoke();
-                await router.invalidate();
-              })
-            }
-            onClose={() => setRueckfrage(null)}
-          >
-            <p>Der Link wird sofort ungültig, abonnierte Kalender bekommen die Fristen nicht mehr. Ein neues Abo muss jeder Kalender wieder einrichten.</p>
           </ConfirmDialog>
         </>
       ) : (

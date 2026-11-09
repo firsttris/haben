@@ -796,7 +796,7 @@ Mit `OIDC_ONLY=true` sind Issuer, Client-ID, Clientsecret und beide Gruppen Pfli
 
 In Docker Compose stehen die Werte in der geschützten `.env` neben `compose.yml`, bei Quadlets in `haben.env` und das Clientsecret als Podman-Secret `haben-oidc-client-secret` (die vorbereitete `Secret=`-Zeile in `haben-app.container` einkommentieren). In **Coolify** die Werte als Laufzeit-Umgebungsvariablen der Anwendung setzen, das Clientsecret als „Secret“ markieren und neu deployen. `BETTER_AUTH_URL` muss der öffentlichen Adresse im Browser entsprechen, einschließlich eines Ports.
 
-Haben lädt `${OIDC_ISSUER}/.well-known/openid-configuration`; der dort genannte Issuer muss exakt dem konfigurierten Wert entsprechen, UserInfo wird verwendet, wenn der Anbieter einen entsprechenden Endpunkt nennt. Anbieter und Haben laufen über HTTPS; HTTP ist nur auf Loopback außerhalb des Betriebs erlaubt. Die feste Callback-Adresse lautet:
+Haben lädt `${OIDC_ISSUER}/.well-known/openid-configuration`; der dort genannte Issuer muss exakt dem konfigurierten Wert entsprechen, UserInfo wird verwendet, wenn der Anbieter einen entsprechenden Endpunkt nennt. Anbieter und Haben laufen über HTTPS; HTTP ist nur auf Loopback außerhalb des Betriebs erlaubt. Hat der Anbieter ein Zertifikat einer eigenen CA, deren Datei über `NODE_EXTRA_CA_CERTS` in den Haben-Container geben. Die feste Callback-Adresse lautet:
 
 ```text
 https://haben.example.de/api/auth/callback/oidc
