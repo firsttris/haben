@@ -11,6 +11,8 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 
 ## Angebot schreiben
 
+Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unterstrichen](rechnungen.md#fett-kursiv-und-unterstrichen), mit derselben Darstellung in Vorschau und PDF.
+
 **Neues Angebot** öffnet den Editor:
 
 - Kunde
