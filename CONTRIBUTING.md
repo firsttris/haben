@@ -32,7 +32,8 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
 - Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**: Ein Befund zählt nur mit einem Test, der
   auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
-  Maintainer. Die Schritte stehen unter [Review](https://haben.app/entwicklung.html#review).
+  Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Die Schritte stehen unter
+  [Review](https://haben.app/entwicklung.html#review).
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter
 [Konventionen](https://haben.app/entwicklung.html#konventionen) und

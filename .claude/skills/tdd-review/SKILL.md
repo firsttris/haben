@@ -1,11 +1,11 @@
 ---
 name: "tdd-review"
-description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer. Für jeden Pull Request vor dem Merge."
+description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request vor dem Merge."
 ---
 
 # TDD-Review
 
-Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
+Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
 
 ## 0. Wer reviewt?
 
@@ -57,12 +57,21 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 - Die CI-Checks des PR abwarten. Bei roten Checks die Ursache beheben und erneut pushen; keinen Test überspringen, keinen leeren Commit, um CI neu zu starten.
 - Abschlusskommentar im PR: welche Findings behoben sind, welche Tests neu sind, Stand der Checks.
 
-## 6. Merge (nur Maintainer)
+## Wie viele Runden
 
-- Mergen darf nur, wer Maintainer von Haben ist und das ausdrücklich will. Wer beiträgt, hört nach Schritt 5 auf.
-- Vor dem Merge prüfen: alle Findings behoben, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`, Titel und Beschreibung passen zum Stand (sie werden der Squash-Commit auf `main`).
+- **Zwei reguläre Runden** je Pull Request (Schritte 1–5 sind eine Runde). Grund: Jeder Fix ist neuer Code, und weitere Runden prüfen vor allem den Code, den die Reviews selbst erzeugt haben.
+- **Eine Runde, ein Stand:** Codex oder ein anderes KI-Review zählt zur selben Runde und prüft denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
+- **Weitere Runden nur nach einem schweren Befund** (roter Test und Sicherheit, falsche Buchung oder Steuer, GoBD oder Datenverlust). Sie prüfen nur den Fix und den betroffenen Bereich.
+- **Höchstens vier Runden.** Danach noch ein schwerer Befund offen: nicht weiter fixen, nicht mergen, an den Maintainer zurückmelden.
+- **Konstruierte Eingaben** (Daten, die in echten Antworten nicht vorkommen): notieren, nicht fixen; lohnt es sich, ein eigenes Issue vorschlagen. Ausnahme: Sicherheit.
+- Die Regel steht in `docs/entwicklung.md` unter „Review“.
+
+## 6. Merge (Maintainer oder Collaborator mit Zustimmung)
+
+- Mergen darf, wer Maintainer von Haben ist und das ausdrücklich will, oder ein Collaborator mit Zustimmung des Maintainers. Wer sonst beiträgt, hört nach Schritt 5 auf.
+- Vor dem Merge prüfen: alle Findings behoben oder nach „Wie viele Runden“ notiert, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`, Titel und Beschreibung passen zum Stand (sie werden der Squash-Commit auf `main`).
 - Merge-Methode nach `docs/entwicklung.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
-- **Nicht mergen**, wenn ein Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
+- **Nicht mergen**, wenn ein zu behebendes Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
 
 ## Abschlussbericht
 
