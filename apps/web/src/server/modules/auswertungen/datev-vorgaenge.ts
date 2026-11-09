@@ -1,5 +1,5 @@
 import type { PersonenkontoBezug } from "@haben/import";
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 
 /*
@@ -14,6 +14,7 @@ interface Rechnung {
   kind: "rechnung";
   number: string;
   contactId: string | null;
+  inEroeffnung: boolean;
 }
 
 interface Beleg {
@@ -21,6 +22,7 @@ interface Beleg {
   number: string;
   filename: string;
   contactId: string | null;
+  inEroeffnung: boolean;
 }
 
 export interface DatevVorgang {
@@ -28,6 +30,12 @@ export interface DatevVorgang {
   voucher: string;
   /** Personenkonto der Buchung; null = weder Rechnung noch Beleg */
   bezug: PersonenkontoBezug | null;
+  /**
+   * Übernommener offener Posten ohne eigene Buchung: Sein Betrag steht in der Eröffnung aus dem DATEV-Stapel auf dem
+   * Sammelkonto (siehe openingDependents), also bleibt auch alles dazu dort, sonst stünde der Kontakt nach der Zahlung im
+   * Minus und das Sammelkonto bliebe offen (#452)
+   */
+  inEroeffnung: boolean;
 }
 
 async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId: string | null; documentId: string | null }>> {
@@ -67,7 +75,12 @@ async function links(entries: readonly Entry[]): Promise<Map<string, { invoiceId
 async function sources(invoiceIds: string[], documentIds: string[]): Promise<Map<string, Rechnung | Beleg>> {
   const invoices = invoiceIds.length
     ? await db
-        .select({ id: schema.invoices.id, number: schema.invoices.number, contactId: schema.invoices.contactId })
+        .select({
+          id: schema.invoices.id,
+          number: schema.invoices.number,
+          contactId: schema.invoices.contactId,
+          inEroeffnung: sql<boolean>`${schema.invoices.lexofficeVoucherId} is not null and not exists (select 1 from journal_entries j where j.source_type = 'invoice' and j.source_id = ${schema.invoices.id})`,
+        })
         .from(schema.invoices)
         .where(inArray(schema.invoices.id, invoiceIds))
     : [];
@@ -78,13 +91,20 @@ async function sources(invoiceIds: string[], documentIds: string[]): Promise<Map
           number: schema.documents.invoiceNumber,
           filename: schema.documents.filename,
           contactId: schema.documents.supplierContactId,
+          inEroeffnung: sql<boolean>`${schema.documents.lexofficeVoucherId} is not null and not exists (select 1 from journal_entries j where j.source_type = 'document' and j.source_id = ${schema.documents.id})`,
         })
         .from(schema.documents)
         .where(inArray(schema.documents.id, documentIds))
     : [];
   return new Map<string, Rechnung | Beleg>([
-    ...invoices.map((i): [string, Rechnung] => [i.id, { kind: "rechnung", number: i.number ?? "", contactId: i.contactId }]),
-    ...documents.map((d): [string, Beleg] => [d.id, { kind: "beleg", number: d.number ?? "", filename: d.filename, contactId: d.contactId }]),
+    ...invoices.map((i): [string, Rechnung] => [
+      i.id,
+      { kind: "rechnung", number: i.number ?? "", contactId: i.contactId, inEroeffnung: Boolean(i.inEroeffnung) },
+    ]),
+    ...documents.map((d): [string, Beleg] => [
+      d.id,
+      { kind: "beleg", number: d.number ?? "", filename: d.filename, contactId: d.contactId, inEroeffnung: Boolean(d.inEroeffnung) },
+    ]),
   ]);
 }
 
@@ -111,7 +131,7 @@ export async function datevVorgaenge(entries: readonly Entry[]): Promise<Map<str
   for (const [id, link] of linked) {
     const s = source.get(link.invoiceId ?? link.documentId ?? "");
     if (!s) {
-      result.set(id, { voucher: "", bezug: null });
+      result.set(id, { voucher: "", bezug: null, inEroeffnung: false });
       continue;
     }
     const contact = s.contactId ? contacts.get(s.contactId) : undefined;
@@ -119,6 +139,7 @@ export async function datevVorgaenge(entries: readonly Entry[]): Promise<Map<str
     const vorgang = s.kind === "rechnung" ? `Rechnung ${s.number}` : s.number ? `Beleg ${s.number}` : `Beleg „${s.filename}“`;
     result.set(id, {
       voucher: s.number,
+      inEroeffnung: s.inEroeffnung,
       bezug: {
         vorgang,
         rolle,

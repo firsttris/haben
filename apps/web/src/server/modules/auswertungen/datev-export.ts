@@ -115,7 +115,8 @@ export async function datevExport(
     return {
       id: e.id,
       reversesId: e.reversesId,
-      eroeffnung: e.sourceType === "eroeffnung",
+      // Die Eröffnung und offene Posten, die nur in ihr stehen, bleiben auf dem Sammelkonto (#452)
+      eroeffnung: e.sourceType === "eroeffnung" || vorgang?.inEroeffnung === true,
       date: e.date,
       description: e.description,
       voucher: vorgang?.voucher ?? "",

@@ -63,7 +63,7 @@ function personenkonto(
 export interface Gegenbuchung {
   id?: string;
   reversesId?: string | null;
-  /** Eröffnungsbuchung (source_type eroeffnung): bleibt auf dem Sammelkonto */
+  /** Eröffnungsbuchung (source_type eroeffnung) oder Vorgang, dessen offener Posten nur in ihr steht: bleibt auf dem Sammelkonto */
   eroeffnung?: boolean;
 }
 
