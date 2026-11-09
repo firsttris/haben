@@ -508,3 +508,72 @@ test("Briefpapier mit eigenem Fuß: Fußzeile weglassen nur nach Rückfrage und 
   await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
   await page.context().close();
 });
+
+test("Entfernen des Briefpapiers nimmt auch ein noch nicht gespeichertes „Fußzeile weglassen“ zurück", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  const schalter = karte.getByLabel("Fußzeile steht auf dem Briefpapier");
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await schalter.click();
+  await page.getByRole("dialog", { name: "Fußzeile weglassen?" }).getByRole("button", { name: "Fußzeile weglassen" }).click();
+  await expect(schalter).toBeChecked();
+  await karte.getByRole("button", { name: "Entfernen" }).click();
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await expect(schalter).not.toBeChecked();
+  await page.context().close();
+});
+
+test("Vorschau: Ein hoher Fuß deckt den Hinweis auf einem vollen Blatt nicht zu", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  const zeile = "Zahlbar innerhalb von vierzehn Tagen ohne Abzug";
+  const spalte = Array.from({ length: 5 }, () => zeile).join("\n");
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByRole("button", { name: "4", exact: true }).click();
+  for (const nummer of [1, 2, 3]) await karte.getByLabel(`Spalte ${nummer}`).fill(spalte);
+  await karte.getByLabel("Spalte 4").fill("{steuernummer}");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  try {
+    await page.goto("/rechnungen/neu");
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
+    await vorschauKnopf(page).click();
+    const foot = (await blatt(page).locator(".sheet-foot").boundingBox())!;
+    const hinweis = (await blatt(page).getByText("Hinweiszeile 90").boundingBox())!;
+    expect(hinweis.y + hinweis.height).toBeLessThanOrEqual(foot.y);
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+    await page.context().close();
+  }
+});
+
+test("Die Meldung „Fußzeile gespeichert“ bleibt stehen, wenn sich die Spalten ändern", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 1").fill("Sprechzeiten Mo bis Fr");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(1000);
+  try {
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert", { timeout: 1000 });
+  } finally {
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await page.waitForLoadState("networkidle");
+    await page.context().close();
+  }
+});
