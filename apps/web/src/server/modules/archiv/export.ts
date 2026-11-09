@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { effectivePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
@@ -1292,6 +1293,7 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
       direction: effectiveDirection("lexoffice_vouchers"),
       contactName: effectiveContactName("lexoffice_vouchers"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
+      payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
     .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
