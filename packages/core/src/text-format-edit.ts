@@ -76,7 +76,13 @@ function surroundingLayers(text: string, start: number, end: number): string[] {
   const left = (/[*_]*$/.exec(text.slice(0, start))?.[0].match(/\*+|_+/g) ?? []).reverse();
   const right = /^[*_]*/.exec(text.slice(end))?.[0].match(/\*+|_+/g) ?? [];
   const layers: string[] = [];
-  for (let i = 0; i < Math.min(left.length, right.length) && left[i] === right[i] && TEXT_MARKERS[left[i]!]; i++) layers.push(left[i]!);
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    const [l, r] = [left[i]!, right[i]!];
+    // In `_a __b___` schließt der längere Block auch die äußere Auszeichnung; innen gilt nur das kürzere Paar
+    if (!TEXT_MARKERS[l] || !r.startsWith(l)) break;
+    layers.push(l);
+    if (l !== r) break;
+  }
   return layers;
 }
 
