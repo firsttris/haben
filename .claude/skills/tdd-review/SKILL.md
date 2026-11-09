@@ -57,6 +57,14 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 - Die CI-Checks des PR abwarten. Bei roten Checks die Ursache beheben und erneut pushen; keinen Test überspringen, keinen leeren Commit, um CI neu zu starten.
 - Abschlusskommentar im PR: welche Findings behoben sind, welche Tests neu sind, Stand der Checks.
 
+## Wie viele Runden
+
+- Höchstens **zwei Runden** je Pull Request (Schritte 1–5 zählen als eine Runde). Ein Codex- oder anderes KI-Review zählt zur selben Runde.
+- Grund: Jeder Fix ist neuer Code, und weitere Runden prüfen vor allem den Code, den die Reviews selbst erzeugt haben.
+- Eine dritte Runde nur, wenn die zweite einen Befund hatte, der bei normaler Bedienung oder mit echten Daten auftritt.
+- Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen: im PR notieren, nicht mehr fixen; lohnen sie sich, ein eigenes Issue vorschlagen.
+- Die Regel steht in `docs/entwicklung.md` unter „Review“.
+
 ## 6. Merge (nur Maintainer)
 
 - Mergen darf nur, wer Maintainer von Haben ist und das ausdrücklich will. Wer beiträgt, hört nach Schritt 5 auf.

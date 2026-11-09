@@ -563,6 +563,8 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit C
 5. **Grün:** Lokal gezielt, was der Pull Request und die Fixes berühren: Lint, Typecheck, die Tests zu den geänderten Stellen, Playwright nur für die betroffenen Dateien, der Doku-Build nur bei Änderungen in `docs/`. Die volle Suite läuft in der CI und muss dort grün sein; auf Entwürfen läuft sie erst nach „Ready for review“. Dann ein Abschlusskommentar mit den behobenen Befunden und dem, was lokal lief.
 6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht, und sein Pull Request wird mit einem Link auf den Ersatz geschlossen.
 
+**Wie viele Runden:** höchstens zwei je Pull Request; ein zusätzliches Codex- oder anderes KI-Review zählt zur selben Runde. Jeder Fix ist neuer Code, und jede weitere Runde prüft vor allem den Code, den die Reviews selbst erzeugt haben; eine Runde ganz ohne Befund wird so kaum erreicht, und der Pull Request wächst. Eine dritte Runde nur, wenn die zweite einen Befund hatte, der bei normaler Bedienung oder mit echten Daten auftritt. Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen, werden im Pull Request notiert und nicht mehr behoben; lohnen sie sich, werden sie ein eigenes Issue.
+
 Haben steht unter der AGPL-3.0.
 
 ## SSO entwickeln und prüfen
