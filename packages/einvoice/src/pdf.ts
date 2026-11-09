@@ -35,8 +35,10 @@ const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbesch
 const IMAGE_PROBE_TEMPLATE = join(PACKAGE_DIR, "templates", "bildprobe.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
 const FONT_FILES = [
-  ...["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].flatMap((weight) => [`IBMPlexSans-${weight}.ttf`, `IBMPlexSerif-${weight}.ttf`]),
-  ...["Regular", "Medium", "Semibold", "It", "SemiboldIt"].map((weight) => `SourceSans3-${weight}.ttf`),
+  ...["IBMPlexSans", "IBMPlexSerif", "FiraSans", "Figtree", "Inter", "LibreFranklin", "Literata", "Lora", "NunitoSans"].flatMap((family) =>
+    ["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((style) => `${family}-${style}.ttf`),
+  ),
+  ...["Regular", "Medium", "Semibold", "It", "SemiboldIt"].map((style) => `SourceSans3-${style}.ttf`),
 ];
 const FONTS = FONT_FILES.map((file) => join(PACKAGE_DIR, "fonts", file));
 

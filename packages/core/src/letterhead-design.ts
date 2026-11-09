@@ -51,6 +51,13 @@ export const LETTERHEAD_FONTS = {
   "plex-sans": { name: "IBM Plex Sans", regular: "IBM Plex Sans", medium: "IBM Plex Sans Medm", semibold: "IBM Plex Sans SmBld" },
   "plex-serif": { name: "IBM Plex Serif", regular: "IBM Plex Serif", medium: "IBM Plex Serif Medm", semibold: "IBM Plex Serif SmBld" },
   "source-sans": { name: "Source Sans 3", regular: "Source Sans 3", medium: "Source Sans 3", semibold: "Source Sans 3" },
+  "fira-sans": { name: "Fira Sans", regular: "Fira Sans", medium: "Fira Sans", semibold: "Fira Sans" },
+  figtree: { name: "Figtree", regular: "Figtree", medium: "Figtree", semibold: "Figtree" },
+  inter: { name: "Inter", regular: "Inter", medium: "Inter", semibold: "Inter" },
+  "libre-franklin": { name: "Libre Franklin", regular: "Libre Franklin", medium: "Libre Franklin", semibold: "Libre Franklin" },
+  literata: { name: "Literata", regular: "Literata", medium: "Literata", semibold: "Literata" },
+  lora: { name: "Lora", regular: "Lora", medium: "Lora", semibold: "Lora" },
+  "nunito-sans": { name: "Nunito Sans", regular: "Nunito Sans", medium: "Nunito Sans", semibold: "Nunito Sans" },
 } as const;
 export type LetterheadFont = keyof typeof LETTERHEAD_FONTS;
 

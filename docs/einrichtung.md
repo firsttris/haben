@@ -130,7 +130,7 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 
 | Einstellung | Bedeutung |
 | --- | --- |
-| Schrift | IBM Plex Sans (ab Werk), IBM Plex Serif oder Source Sans 3; alle drei sind im PDF eingebettet, wie PDF/A es verlangt |
+| Schrift | IBM Plex Sans (ab Werk), IBM Plex Serif, Source Sans 3, Figtree, Fira Sans, Inter, Libre Franklin, Literata, Lora oder Nunito Sans; im PDF eingebettet, wie PDF/A es verlangt |
 | Logo S, M, L | Höchstens 12 × 40 mm, 18 × 60 mm (ab Werk) oder 24 × 80 mm; auch L endet über dem Anschriftfeld |
 | Logo links, rechts | Seite im Briefkopf |
 | Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |

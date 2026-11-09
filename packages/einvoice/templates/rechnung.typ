@@ -203,7 +203,14 @@
 
 #v(3mm)
 
-#if d.totals != none { align(right, block(width: 80mm, {
+#if d.totals != none { context {
+  // Mindestens 80 mm, sonst so breit wie die längste Zeile: Breite Schriften und große Beträge brächen sonst um.
+  // Beide Spalten richten sich nach ihrer breitesten Zeile; 3 mm Abstand dazwischen, 1,6 mm Innenabstand je Zellenseite
+  let zeilen = (..d.totals.rows, d.totals.gross)
+  let breitest(werte) = calc.max(0pt, ..werte.map(wert => measure(text(wert)).width))
+  let inhalt = breitest(zeilen.map(zeile => zeile.label)) + breitest(zeilen.map(zeile => zeile.value)) + 4 * 1.6mm + 3mm
+  let breite = calc.min(165mm.to-absolute(), calc.max(80mm.to-absolute(), inhalt.to-absolute()))
+  align(right, block(width: breite, {
   set block(spacing: 0pt)
   if d.totals.rows.len() > 0 {
     grid(
@@ -252,7 +259,8 @@
       ..euro-tax.rows.map(r => (text(fill: muted, r.label), text(fill: muted, r.value))).flatten()
     )
   }
-})) }
+}))
+} }
 
 #v(8mm)
 
