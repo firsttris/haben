@@ -116,6 +116,8 @@ export const company = pgTable(
     bic: text("bic").notNull().default(""),
     /** Inhaber des Kontos, wenn nicht der Firmenname; leer = Firmenname (GiroCode, BT-85) */
     kontoinhaber: text("kontoinhaber").notNull().default(""),
+    /** Gläubiger-Identifikationsnummer für SEPA-Lastschriften (#445), von der Bundesbank vergeben; leer = keine */
+    glaeubigerId: text("glaeubiger_id").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
     /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0096) */
     rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
@@ -962,6 +964,83 @@ export const contactVersions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("contact_versions_contact_version").on(t.contactId, t.version)],
+);
+
+/**
+ * SEPA-Lastschriftmandate eines Kunden (#445): nur anhängen. Was sich am Mandat ändert, ist ein neues Mandat; ein
+ * Widerruf steht in sepa_mandate_revocations, das unterschriebene Mandat als PDF in sepa_mandate_files.
+ */
+export const sepaMandates = pgTable(
+  "sepa_mandates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    /**
+     * Mandatsreferenz (AT-M001), je Gläubiger eindeutig. Groß- und Kleinschreibung zählen nicht (DK, Anlage 3 V3.9,
+     * Kap. 2.2.2), daher der eindeutige Index auf lower(reference)
+     */
+    reference: text("reference").notNull(),
+    /** Datum der Unterschrift (AT-M007, DtOfSgntr) */
+    signedOn: date("signed_on", { mode: "string" }).notNull(),
+    /** Basislastschrift (CORE) oder Firmenlastschrift (B2B) */
+    scheme: text("scheme", { enum: ["CORE", "B2B"] }).notNull(),
+    /** Sequenz des ersten Einzugs aus Haben: FRST für ein neues Mandat, RCUR, wenn schon vor Haben eingezogen wurde */
+    firstSequence: text("first_sequence", { enum: ["FRST", "RCUR"] }).notNull(),
+    /** Letzter Einzug vor Haben (für den Verfall nach 36 Monaten); null = keiner oder unbekannt */
+    lastCollectionBefore: date("last_collection_before", { mode: "string" }),
+    /** Zahlungspflichtiger: Kontoinhaber, IBAN, BIC (optional) */
+    debtorName: text("debtor_name").notNull(),
+    debtorIban: text("debtor_iban").notNull(),
+    debtorBic: text("debtor_bic").notNull().default(""),
+    /** Wer angelegt hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sepa_mandates_reference").on(sql`lower(${t.reference})`),
+    index("sepa_mandates_contact").on(t.contactId),
+    check("sepa_mandates_scheme", sql`${t.scheme} in ('CORE', 'B2B')`),
+    check("sepa_mandates_first_sequence", sql`${t.firstSequence} in ('FRST', 'RCUR')`),
+    check("sepa_mandates_reference_format", sql`${t.reference} ~ '^[A-Za-z0-9+?/:().,'' -]{1,35}$'`),
+    check("sepa_mandates_last_collection", sql`${t.lastCollectionBefore} is null or ${t.lastCollectionBefore} >= ${t.signedOn}`),
+    // Ein Einzug vor Haben heißt: der nächste ist eine Folgelastschrift
+    check("sepa_mandates_rcur_with_collection", sql`${t.lastCollectionBefore} is null or ${t.firstSequence} = 'RCUR'`),
+  ],
+);
+
+/** Unterschriebenes Mandat als PDF im Dokumentenspeicher; nur anhängen, das jüngste gilt */
+export const sepaMandateFiles = pgTable(
+  "sepa_mandate_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mandateId: uuid("mandate_id")
+      .notNull()
+      .references(() => sepaMandates.id),
+    filename: text("filename").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sepa_mandate_files_mandate").on(t.mandateId), index("sepa_mandate_files_sha256").on(t.sha256)],
+);
+
+/** Widerruf eines Mandats durch den Kunden; je Mandat höchstens einer, nur anhängen */
+export const sepaMandateRevocations = pgTable(
+  "sepa_mandate_revocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mandateId: uuid("mandate_id")
+      .notNull()
+      .references(() => sepaMandates.id),
+    /** Ab diesem Tag kein Einzug mehr */
+    revokedOn: date("revoked_on", { mode: "string" }).notNull(),
+    reason: text("reason").notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sepa_mandate_revocations_mandate").on(t.mandateId)],
 );
 
 export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);

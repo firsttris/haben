@@ -1,5 +1,5 @@
 /*
- * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden, Artikel, Textbausteine, Briefkopf (Logo, Akzentfarbe), persönliche
+ * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden mit SEPA-Lastschriftmandaten, Artikel, Textbausteine, Briefkopf (Logo, Akzentfarbe), persönliche
  * Angaben, Umsatzsteuer-Umrechnungskurse und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
@@ -54,6 +54,17 @@ export { personenkontoKey, vergibPersonenkonten } from "./personenkonten-vergabe
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 export { PlanTemplateError, planTemplatesProblem, savePlanTemplates } from "./plan-templates.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
+export {
+  addMandateFile,
+  createMandate,
+  listMandates,
+  MandateError,
+  mandateFile,
+  mandateInputSchema,
+  revocationInputSchema,
+  revokeMandate,
+  type Mandate,
+} from "./sepa-mandate.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";
 export {
   createTextBlock,

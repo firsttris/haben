@@ -14,6 +14,7 @@ export {
   type InvoiceAttachment,
 } from "./attachments.ts";
 export { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
+export { storeAttachmentFile, type AttachmentFile } from "./attachment-store.ts";
 export { addQuoteAttachment, listQuoteAttachments, loadQuoteAttachment, removeQuoteAttachment, type QuoteAttachment } from "./quote-attachments.ts";
 export {
   addQuoteDefaultAttachment,

@@ -2,6 +2,8 @@ import {
   BASE_RATE_LIMITS,
   BUNDESLAENDER,
   EXPENSE_CATEGORY_KEYS,
+  glaeubigerIdProblem,
+  normalizeGlaeubigerId,
   RECHTSFORM_KEYS,
   isKapitalgesellschaft,
   legalInfo,
@@ -63,6 +65,15 @@ export const companySchema = z
     ]),
     /** GiroCode erlaubt 70 Zeichen für den Namen (EPC069-12) */
     kontoinhaber: z.string().trim().max(70).default(""),
+    /** Gläubiger-ID für SEPA-Lastschriften (#445); leer = keine, fehlt = leer wie vor #445 */
+    glaeubigerId: z
+      .string()
+      .default("")
+      .transform(normalizeGlaeubigerId)
+      .superRefine((id, ctx) => {
+        const problem = id === "" ? null : glaeubigerIdProblem(id);
+        if (problem) ctx.addIssue({ code: "custom", message: problem });
+      }),
     kontenrahmen: z.enum(["SKR03", "SKR04"]),
     /** Ohne Vorgabe: Ein fehlendes Feld darf eine GmbH nicht still zum Einzelunternehmen machen */
     rechtsform: z.enum(RECHTSFORM_KEYS),
