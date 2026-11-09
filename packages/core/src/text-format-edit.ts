@@ -42,11 +42,16 @@ function narrow(text: string, from: number, to: number): [number, number] {
   return complete ? [start, end] : trimRange(text, start, end, EDGE);
 }
 
+const PLACEHOLDERS = Object.keys(RECURRING_PLACEHOLDERS);
+
 function joinsWord(text: string, at: number): boolean {
   const char = text[at] ?? "";
   const [before, after] = [text[at - 1] ?? "", text[at + 1] ?? ""];
+  // Neben einem Platzhalter auch: Aus `{quartal}.{jahr}` wird `Q4.2026`, und mitten darin läse der Parser keine Zeichen mehr
+  const dotJoins =
+    (ALNUM.test(before) || PLACEHOLDERS.some((p) => text.endsWith(p, at))) && (ALNUM.test(after) || PLACEHOLDERS.some((p) => text.startsWith(p, at + 1)));
   // Der Punkt in „datei.zip“ und das Komma in „1.000,50“ halten das Wort zusammen, am Satzende nicht
-  return WORD.test(char) || (char === "." && ALNUM.test(before) && ALNUM.test(after)) || (char === "," && DIGIT.test(before) && DIGIT.test(after));
+  return WORD.test(char) || (char === "." && dotJoins) || (char === "," && DIGIT.test(before) && DIGIT.test(after));
 }
 
 /** Auszeichnungen wirken nur an Wortgrenzen, also wird die Auswahl auf ganze Wörter erweitert. */
@@ -77,16 +82,26 @@ function toPlaceholder(text: string, from: number, to: number): [number, number]
  * Ersetzen steht dort aber `*Wartung*2026`, und vor einer Ziffer schließt das Zeichen nicht mehr.
  */
 function toWordWithPlaceholders(text: string, from: number, to: number): [number, number] {
-  const placeholders = Object.keys(RECURRING_PLACEHOLDERS);
   let [start, end] = toPlaceholder(text, ...toWord(text, from, to));
-  while (start < end) {
-    const left = placeholders.find((placeholder) => text.endsWith(placeholder, start))?.length ?? 0;
-    const right = placeholders.find((placeholder) => text.startsWith(placeholder, end))?.length ?? 0;
+  for (;;) {
+    const left = PLACEHOLDERS.find((placeholder) => text.endsWith(placeholder, start))?.length ?? 0;
+    const right = PLACEHOLDERS.find((placeholder) => text.startsWith(placeholder, end))?.length ?? 0;
     const [nextStart, nextEnd] = toPlaceholder(text, ...toWord(text, start - left, end + right));
-    if (nextStart === start && nextEnd === end) break;
+    if (nextStart === start && nextEnd === end) return [start, end];
     [start, end] = [nextStart, nextEnd];
   }
-  return [start, end];
+}
+
+/** Direkt an `*Wort*` gehört der Cursor zum Wort: Ein leeres Paar daneben läse der Parser als lose Zeichen. */
+function wordBesideMarkers(text: string, at: number): [number, number] | null {
+  const before = at - /[*_]*$/.exec(text.slice(0, at))![0].length;
+  const after = at + /^[*_]*/.exec(text.slice(at))![0].length;
+  for (const probe of [before, after]) {
+    if (probe === at) continue;
+    const range = toWordWithPlaceholders(text, probe, probe);
+    if (range[0] < range[1]) return range;
+  }
+  return null;
 }
 
 /** Das ganze durch Leerraum begrenzte Stück ohne Satzzeichen am Rand: In Pfaden bleiben Zeichen sonst wörtlich. */
@@ -278,8 +293,12 @@ function toggleEmptyPair(text: string, at: number, style: TextStyle): TextEdit {
  */
 export function toggleTextStyle(text: string, selectionStart: number, selectionEnd: number, style: TextStyle): TextEdit | null {
   const [narrowStart, narrowEnd] = narrow(text, selectionStart, selectionEnd);
-  const [start, end] = toWordWithPlaceholders(text, narrowStart, narrowEnd);
-  if (start === end) return selectionStart === selectionEnd ? toggleEmptyPair(text, start, style) : null;
+  let [start, end] = toWordWithPlaceholders(text, narrowStart, narrowEnd);
+  if (start === end) {
+    const beside = selectionStart === selectionEnd ? wordBesideMarkers(text, start) : null;
+    if (!beside) return selectionStart === selectionEnd ? toggleEmptyPair(text, start, style) : null;
+    [start, end] = beside;
+  }
   const direct = toggleRange(text, start, end, style);
   if (direct) return direct;
   const split = splitEnclosing(text, start, end, style, false) ?? splitEnclosing(text, start, end, style, true);
