@@ -86,6 +86,10 @@ describe("Kursiv und unterstrichen zusammen", () => {
     for (const text of ["Beginn: ___:___ Uhr", "Betrag: ___,___ €", "Von ___-___", "Seite ___/___", "Datum: ___.___.______"]) {
       expect(parseTextFormatting(text)).toEqual([{ text, bold: false, italic: false, underline: false }]);
     }
+    expect(parseTextFormatting("___:___ und ___x___")).toEqual([
+      { text: "___:___ und ", bold: false, italic: false, underline: false },
+      { text: "x", bold: false, italic: true, underline: true },
+    ]);
   });
 
   it("lässt nicht geschlossene und vier Unterstriche wörtlich", () => {

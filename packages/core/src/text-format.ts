@@ -50,6 +50,19 @@ function canClose(text: string, at: number, size: number): boolean {
   return !extension && !!before && !/\s/.test(before) && (!after || !word.test(after));
 }
 
+/** `___:___` ist eine Linie zum Ausfüllen: Nur um mehr als Satzzeichen ist `___` eine Auszeichnung. */
+function hasContent(frame: Frame): boolean {
+  return frame.marker !== "___" || frame.runs.some((run) => /[^\s\p{P}]/u.test(run.text));
+}
+
+/** Eine nicht geschlossene Auszeichnung verliert weder ihr Zeichen noch ihren Text. */
+function dissolve(frames: Frame[]): void {
+  const frame = frames.pop()!;
+  const parent = frames.at(-1)!;
+  literal(parent, frame.marker);
+  for (const run of frame.runs) appendTextRun(parent.runs, run);
+}
+
 function close(frames: Frame[]): void {
   const frame = frames.pop()!;
   const parent = frames.at(-1)!;
@@ -106,7 +119,11 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
     }
     if (frame.marker && text.startsWith(frame.marker, at) && canClose(text, at, frame.marker.length)) {
       at += frame.marker.length;
-      close(frames);
+      if (hasContent(frame)) close(frames);
+      else {
+        dissolve(frames);
+        literal(frames.at(-1)!, frame.marker);
+      }
       continue;
     }
     let count = 1;
@@ -117,13 +134,7 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
     } else literal(frame, marker);
     at += count;
   }
-  // Eine nicht geschlossene Auszeichnung verliert weder ihr Zeichen noch ihren Text.
-  while (frames.length > 1) {
-    const frame = frames.pop()!;
-    const parent = frames.at(-1)!;
-    literal(parent, frame.marker);
-    for (const run of frame.runs) appendTextRun(parent.runs, run);
-  }
+  while (frames.length > 1) dissolve(frames);
   return frames[0]!.runs;
 }
 
