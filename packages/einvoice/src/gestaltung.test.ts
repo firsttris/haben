@@ -233,3 +233,26 @@ describe("Kursiv in jeder Schrift", () => {
     expect(fonts).toContain(postscript);
   });
 });
+
+describe("Auszeichnungen in der eigenen Fußzeile", () => {
+  const eigene = withOptions({ footerColumns: ["*Fettzeile*\n_Kursivzeile_\n__Unterzeile__", "{steuernummer}"] });
+
+  it("gibt der Vorlage die Abschnitte, der Text bleibt ohne Zeichen", () => {
+    const data = pdfData(eigene);
+    expect(data.footer[0]).toEqual(["Fettzeile", "Kursivzeile", "Unterzeile"]);
+    expect(data.footerFormatted?.[0]?.[0]?.[0]).toMatchObject({ text: "Fettzeile", bold: true });
+  });
+
+  it("die automatische Fußzeile bleibt ohne Abschnitte", () => {
+    expect(pdfData(sampleDocument()).footerFormatted).toBeNull();
+  });
+
+  it.skipIf(!hasPoppler)("druckt fett und kursiv mit echten Schnitten und ohne die Zeichen", () => {
+    const pdf = renderInvoicePdf(eigene);
+    const text = poppler("pdftotext", ["-layout"], pdf)!;
+    expect(text).toContain("Fettzeile");
+    expect(text).not.toContain("*Fettzeile*");
+    const fonts = poppler("pdffonts", [], pdf)!;
+    expect(fonts).toContain("IBMPlexSans-Italic");
+  });
+});

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { customFooter, DEFAULT_FOOTER_COLUMNS, fillFooterColumn, footerIssues, footerValues, MAX_FOOTER_LINES } from "./footer-template.ts";
+import { customFooter,
+  customFooterRuns, DEFAULT_FOOTER_COLUMNS, fillFooterColumn, footerIssues, footerValues, MAX_FOOTER_LINES } from "./footer-template.ts";
 
 const seller = {
   name: "Testfirma",
@@ -42,5 +43,37 @@ describe("Eigene Fußzeile", () => {
 
   it("setzt die Spalten ein, ohne etwas zu ergänzen", () => {
     expect(customFooter(["{firma}", "{iban}"], values)).toEqual([["Testfirma"], ["DE89370400440532013000"]]);
+  });
+});
+
+describe("Auszeichnungen in eigenen Spalten", () => {
+  const plain = { bold: false, italic: false, underline: false };
+
+  it("liest fett, kursiv und unterstrichen, auch um Platzhalter", () => {
+    expect(customFooterRuns(["*{firma}*\n_Hinweis_\n__Wichtig__"], values)).toEqual([
+      [
+        [{ text: "Testfirma", ...plain, bold: true }],
+        [{ text: "Hinweis", ...plain, italic: true }],
+        [{ text: "Wichtig", ...plain, underline: true }],
+      ],
+    ]);
+  });
+
+  it("wertet Zeichen aus den Firmendaten nicht als Auszeichnung", () => {
+    const eigen = { ...values, email: "_info_@beispiel.de", firma: "*Stern* GmbH" };
+    expect(customFooterRuns(["{email}\n{firma}"], eigen)).toEqual([[[{ text: "_info_@beispiel.de", ...plain }], [{ text: "*Stern* GmbH", ...plain }]]]);
+  });
+
+  it("nennt als Text nur den Inhalt, ohne die Zeichen", () => {
+    expect(customFooter(["*{firma}*", "_Hinweis_"], values)).toEqual([["Testfirma"], ["Hinweis"]]);
+  });
+
+  it("lässt eine Zeile weg, wenn der Platzhalter darin leer ist, auch ausgezeichnet", () => {
+    expect(customFooterRuns(["*{telefon}*"], { ...values, telefon: "" })).toEqual([[]]);
+  });
+
+  it("ergänzt die fehlende Steuerkennung als normalen Text", () => {
+    const runs = customFooterRuns(["{firma}", "*{steuernummer}*"], { ...values, steuernummer: "", ustid: "DE123456789" });
+    expect(runs[1]).toEqual([[{ text: "USt-IdNr. DE123456789", ...plain }]]);
   });
 });

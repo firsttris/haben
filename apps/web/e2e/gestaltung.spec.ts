@@ -577,3 +577,29 @@ test("Die Meldung „Fußzeile gespeichert“ bleibt stehen, wenn sich die Spalt
     await page.context().close();
   }
 });
+
+test("Eigene Fußzeile: Auszeichnungen stehen fett auf dem Blatt, die Zeichen nicht", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Fußzeile" });
+  await karte.getByLabel("Eigene Fußzeile").check();
+  await karte.getByLabel("Spalte 1").fill("*Fettzeile*");
+  await expect(karte.locator(".footer-preview strong")).toHaveText("Fettzeile");
+  await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+  try {
+    await page.goto("/rechnungen/neu");
+    await page.waitForLoadState("networkidle");
+    await vorschauKnopf(page).click();
+    await expect(blatt(page).locator(".sheet-foot strong")).toHaveText("Fettzeile");
+    await expect(blatt(page).locator(".sheet-foot")).not.toContainText("*Fettzeile*");
+  } finally {
+    await page.goto("/einstellungen?bereich=gestaltung");
+    await page.waitForLoadState("networkidle");
+    await karte.getByLabel("Eigene Fußzeile").uncheck();
+    await karte.getByRole("button", { name: "Fußzeile speichern" }).click();
+    await expect(karte.getByRole("status").last()).toContainText("Fußzeile gespeichert");
+    await page.context().close();
+  }
+});
