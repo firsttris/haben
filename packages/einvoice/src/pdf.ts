@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { accountHolder, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
+import { accountHolder, collectedByDirectDebit, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import {
@@ -187,9 +187,15 @@ export function pdfData(doc: InvoiceDocument) {
     meta,
     totals: { rows: totalRows, gross: { label: grossLabel(t.totalGross), value: t.money(doc.totals.gross) }, included, euroTax },
     payment: paymentSentence(doc, t),
-    // GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto des Verkäufers (SEPA kennt nur Euro)
+    // GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto des Verkäufers (SEPA kennt nur Euro); nicht bei
+    // Lastschrift, sonst zahlt der Kunde doppelt
     qr:
-      doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban && doc.options?.giroCode !== false
+      doc.kind === "rechnung" &&
+      doc.currency === "EUR" &&
+      doc.totals.gross > 0 &&
+      seller.iban &&
+      doc.options?.giroCode !== false &&
+      !collectedByDirectDebit(doc)
         ? girocodeSvg({
             name: accountHolder(seller),
             iban: seller.iban,

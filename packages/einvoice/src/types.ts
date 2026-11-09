@@ -152,4 +152,18 @@ export interface InvoiceDocument extends Letterhead {
   deducted?: { number: string; issueDate: string }[];
   /** Bestell-, Auftrags- und Lieferscheinnummer (BT-13, BT-14, BT-16) */
   references?: OrderReferences;
+  /** Einzug per SEPA-Lastschrift (#445); fehlt = Überweisung. Nur bei Rechnungen mit Zahlbetrag in Euro */
+  directDebit?: DirectDebit;
+}
+
+/** Angaben zum Einzug: im PDF die Vorabankündigung, im XML Zahlungsart 59 mit BT-89, BT-90 und BT-91 */
+export interface DirectDebit {
+  /** Mandatsreferenz (BT-89) */
+  mandateReference: string;
+  /** Gläubiger-ID des Verkäufers (BT-90) */
+  creditorId: string;
+  /** IBAN des Kunden, von der eingezogen wird (BT-91) */
+  debtorIban: string;
+  /** Tag des Einzugs (Fälligkeit der Lastschrift) */
+  collectionDate: string;
 }

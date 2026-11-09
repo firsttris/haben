@@ -86,6 +86,9 @@ export const TEXTS = {
     refund: "Der Betrag wird Ihnen erstattet.",
     noPayment: "Es ist keine Zahlung erforderlich.",
     payBy: (date: string) => `Bitte überweisen Sie den Betrag bis zum ${date} unter Angabe der Rechnungsnummer.`,
+    /** Vorabankündigung der Lastschrift (Pre-notification, SDD Core Rulebook PT-04.02): Betrag, Tag, Mandat, Gläubiger-ID */
+    directDebit: (amount: string, date: string, iban: string, reference: string, creditorId: string) =>
+      `Den Betrag von ${amount} ziehen wir am ${date} per SEPA-Lastschrift von Ihrem Konto ${iban} ein (Mandatsreferenz ${reference}, Gläubiger-ID ${creditorId}). Bitte sorgen Sie für Deckung; überweisen Sie den Betrag nicht.`,
     skonto: (percent: string, date: string, amount: string, payable: string) =>
       `Bei Zahlung bis zum ${date} gewähren wir ${percent} Skonto (${amount}); Sie überweisen dann ${payable}.`,
     percent: (percent: number) => formatPercent(percent),
@@ -173,6 +176,8 @@ export const TEXTS = {
     refund: "The amount will be refunded to you.",
     noPayment: "No payment is required.",
     payBy: (date: string) => `Please transfer the amount by ${date}, quoting the invoice number.`,
+    directDebit: (amount: string, date: string, iban: string, reference: string, creditorId: string) =>
+      `The amount of ${amount} will be collected by SEPA direct debit on ${date} from your account ${iban} (mandate reference ${reference}, creditor identifier ${creditorId}). Please ensure sufficient funds; do not transfer the amount.`,
     skonto: (percent: string, date: string, amount: string, payable: string) =>
       `If paid by ${date}, you may deduct a ${percent} cash discount (${amount}) and transfer ${payable}.`,
     percent: (percent: number) => `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 }).format(percent / 100)}%`,
