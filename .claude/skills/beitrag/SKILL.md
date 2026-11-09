@@ -40,7 +40,7 @@ Als Datei schreiben (etwa im Scratchpad), auf Deutsch:
 
 - Mit GitHub-Werkzeug: als **Entwurf** gegen `main` anlegen, Titel und Beschreibung aus der Datei (mit `gh`: `gh pr create --draft --base main --title … --body-file …`).
 - Nur git: nach dem Push nennt GitHub in der Ausgabe den Link zum Anlegen. Link und Pfad der Beschreibungsdatei an die Person geben; sie legt den Entwurf an.
-- Die CI läuft für Entwürfe nicht. Erst mit „Ready for review“, und das nur auf Freigabe der Person. Ändert der Pull Request nur Markdown, `docs/` oder `LICENSE`, läuft sie auch dann nicht (`paths-ignore` in `.github/workflows/ci.yml`) und die Doku baut erst auf `main`: Doku-Build vorher lokal (Skill `checks`) und das im Pull Request vermerken.
+- Die CI läuft für Entwürfe nicht. Erst mit „Ready for review“, und das nur auf Freigabe der Person. Ändert der Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, werden ihre Jobs auch dann übersprungen (Job `changes` in `.github/workflows/ci.yml`) und die Doku baut erst auf `main`: Doku-Build vorher lokal (Skill `checks`) und das im Pull Request vermerken.
 
 ## 5. Danach
 
