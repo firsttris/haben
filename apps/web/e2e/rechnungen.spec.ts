@@ -81,6 +81,39 @@ test("DATEV-Personenkonten: Schalter mit Bestätigung, Ablehnung mit Liste, Debi
   await expect(page.getByRole("alert")).toContainText("Debitor 10001 steht schon in einem DATEV-Export und bleibt fest.");
 });
 
+test("DATEV-Personenkonten: die Steuerberatung liest auf ihrer Startseite, warum ein neuer Debitor den Stapel ablehnt (#452)", async ({ browser }) => {
+  const jahr = Number(INVOICES[1]!.date.slice(0, 4));
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Alpenblick Media AG" }).first().getAttribute("href"))!);
+  await page.getByLabel("DATEV-Debitor").fill("10002");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+  await rechnungFestschreiben(page, INVOICES[1]!);
+
+  // Zugang für die Steuerberatung wie in steuerberatung.spec.ts
+  await go("/einstellungen?bereich=sicherheit");
+  await page.getByLabel("Bezeichnung").fill("Kanzlei Personenkonten");
+  await page.getByRole("button", { name: "Einladungslink erzeugen" }).click();
+  const link = page.getByRole("textbox", { name: /Einladungslink für/ });
+  await expect(link).toHaveValue(/\/einladung\//);
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const stb = await context.newPage();
+  await stb.goto(await link.inputValue());
+  await stb.getByLabel("Name").fill("Kanzlei Personenkonten");
+  await stb.getByLabel("E-Mail").fill("personenkonten@example.com");
+  await stb.getByLabel("Passwort (mindestens 12 Zeichen)").fill("kanzlei-passwort-e2e");
+  await stb.getByRole("button", { name: "Zugang anlegen" }).click();
+  await stb.getByRole("button", { name: "Später" }).click();
+  await stb.waitForURL(/\/steuerberatung$/);
+
+  // Debitor 10002 ist noch nicht festgeschrieben: Der Export lehnt ab, und die Steuerberatung liest den Grund
+  await stb.getByLabel("Jahr").selectOption(String(jahr));
+  await stb.getByRole("link", { name: "DATEV-Buchungsstapel" }).click();
+  await expect(stb.getByRole("alert")).toContainText("Der erste Export mit neuen Personenkonten muss vom Inhaber kommen");
+  await expect(stb.getByRole("alert")).toContainText("Debitor 10002 (Alpenblick Media AG)");
+  await context.close();
+});
+
 test("Kundennummer automatisch vergeben", async () => {
   await go("/einstellungen?bereich=rechnungen");
   const karte = page.getByRole("form", { name: "Kundennummern" });
