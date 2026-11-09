@@ -625,8 +625,13 @@ export async function reconciliation() {
         taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
       }
       const invoices = vouchers
-        // Die Stornorechnung von sevDesk belegt denselben Nummernkreis wie die Rechnungen (#472)
-        .filter((v) => v.number && (v.type === "invoice" || (v.source === "sevdesk" && v.type === "creditnote" && v.lexofficeId.startsWith("invoice/"))))
+        // Stornorechnung und Abschlagsrechnung von sevDesk belegen denselben Nummernkreis wie die Rechnungen (#472)
+        .filter(
+          (v) =>
+            v.number &&
+            (v.type === "invoice" ||
+              (v.source === "sevdesk" && (v.type === "downpaymentinvoice" || (v.type === "creditnote" && v.lexofficeId.startsWith("invoice/"))))),
+        )
         .sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number, "de", { numeric: true }));
 
       const checks: ReconciliationCheck[] = [
