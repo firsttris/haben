@@ -502,6 +502,7 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | --- | --- | --- |
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
+| Eine Datei höchstens etwa 400 Zeilen | `scripts/dateigroesse/` in `bun run lint` | Fehler |
 | Titel `Bereich: was sich ändert (#Issue)` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | KI-Kennzeichnung in der Beschreibung, wenn ein Agent Commits geschrieben hat | `scripts/pr-regeln/` | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
@@ -509,6 +510,8 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
 
 Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen.
+
+Die Dateigröße zählt Zeilen wie `wc -l` in den Quelldateien unter `apps/*/src`, `packages/*/src` und `scripts`, ohne Tests und `routeTree.gen.ts`. Ältere Dateien über 400 Zeilen stehen mit ihrer Länge in `scripts/dateigroesse/grenzen.json` und dürfen nicht wachsen; Neues kommt in eine eigene Datei. Schrumpft eine davon, meldet die Prüfung das, bis `bun scripts/dateigroesse/pruefen.ts --senken` die Grenze nachzieht; so wird eine Grenze nie wieder größer. Von Hand trägt niemand eine Datei in `grenzen.json` ein.
 
 ### Issues schreiben
 

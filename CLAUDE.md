@@ -15,7 +15,7 @@ The rules whose breach costs the most; the details follow below.
 - Skipping, weakening or deleting a test to get green; reporting a skipped test as passed.
 - Pushing to `main`, rewriting a contributor's commits, merging without a maintainer.
 
-Scripts check some rules (module boundaries, pages in the E2E specs, pull request title, agent marker); the
+Scripts check some rules (module boundaries, pages in the E2E specs, file size, pull request title, agent marker); the
 table is in `docs/entwicklung.md`, "Automatische Prüfungen der Regeln". A rule you can turn into such a check
 is better there than here.
 
@@ -158,8 +158,10 @@ class hierarchies.
 Functional, not object-oriented: pure functions that take data and return data, side effects at
 the edges; function components and hooks, no classes (except the `UserError` subclasses); errors as
 values where the code already does so. A file does one thing: split it past ~400 lines, a function
-past ~80. Some older files are larger (`routes/_app/bank.tsx`, `modules/rechnungen/invoices.ts`);
-split them only in a pull request of their own, not on the side. A refactor changes no behaviour.
+past ~80. Older files that are larger are listed in `scripts/dateigroesse/grenzen.json`; `bun run lint` fails
+when one grows or a new file passes 400 lines, so put new code into a new file. Split the old ones only in
+a pull request of their own, not on the side, then run `bun scripts/dateigroesse/pruefen.ts --senken`.
+A refactor changes no behaviour.
 
 ## Haben specifics
 
