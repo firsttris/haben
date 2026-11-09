@@ -47,6 +47,7 @@ export function CustomerCombobox({
 
   return (
     <Combobox
+      commitOnTab
       id={id}
       value={query ?? (chosen ? customerText(chosen) : "")}
       onInput={setQuery}

@@ -21,8 +21,9 @@ export interface ComboboxCreate {
  * (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/): Der Fokus bleibt im Feld, aria-activedescendant zeigt den
  * Eintrag. Pfeile bewegen, Enter übernimmt, Escape schließt.
  *
- * Ein Klick zeigt die Liste. Zwei Arten: Ohne freeText ist es eine Auswahl, der erste Treffer ist aktiv und Tab übernimmt
- * ihn. Mit freeText bleibt der getippte Text gültig; ein Eintrag zählt nur, wenn er gewählt wird.
+ * Ein Klick zeigt die Liste. Zwei Arten: Ohne freeText ist es eine Auswahl, der erste Treffer ist aktiv. Mit freeText
+ * bleibt der getippte Text gültig; ein Eintrag zählt nur, wenn er gewählt wird. Tab übernimmt nur mit commitOnTab: wo die
+ * Auswahl ein Feld füllt, nicht wo sie etwas auslöst wie eine neue Position.
  *
  * Gesucht wird nur bei offener Liste (search), denn der Editor rendert bei jedem Tastendruck alle Positionen neu.
  */
@@ -36,6 +37,7 @@ export function Combobox<T>({
   onPick,
   create,
   freeText = false,
+  commitOnTab = false,
   placeholder,
   disabled = false,
   invalid = false,
@@ -52,6 +54,7 @@ export function Combobox<T>({
   onPick: (item: T) => void;
   create?: ComboboxCreate | null;
   freeText?: boolean;
+  commitOnTab?: boolean;
   placeholder?: string;
   disabled?: boolean;
   invalid?: boolean;
@@ -112,7 +115,7 @@ export function Combobox<T>({
       event.preventDefault();
       event.stopPropagation();
       close();
-    } else if (event.key === "Tab" && open && !freeText && active >= 0 && active !== createIndex) {
+    } else if (event.key === "Tab" && open && commitOnTab && active >= 0 && active !== createIndex) {
       commit(active);
     }
   }
