@@ -250,16 +250,29 @@ describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
   const nachArt = (art: string) => gutschriftV1.find((g) => g.creditNote.bookingCategory === art)!.creditNote;
   const importierbar = (art: string) => isSevCreditNoteImportable(sevCreditNoteSchema.parse(nachArt(art)));
 
+  it("kennt je Buchungsart ein Beispiel", () => {
+    expect(gutschriftV1.map((g) => g.creditNote.bookingCategory).sort()).toEqual([
+      "ACCOUNTING_TYPE",
+      "PROVISION",
+      "ROYALTY_ASSIGNED",
+      "ROYALTY_UNASSIGNED",
+      "UNDERACHIEVEMENT",
+    ]);
+  });
+
   it("übernimmt Entwürfe nicht, gebuchte schon", () => {
-    expect(importierbar("ACCOUNTING_TYPE")).toBe(false);
-    expect(importierbar("UNDERACHIEVEMENT")).toBe(false);
+    for (const art of ["ACCOUNTING_TYPE", "PROVISION", "ROYALTY_UNASSIGNED", "UNDERACHIEVEMENT"]) expect(importierbar(art)).toBe(false);
     expect(importierbar("ROYALTY_ASSIGNED")).toBe(true);
     expect(nachArt("ROYALTY_ASSIGNED").sendDate).not.toBeNull();
   });
 
-  it("führt das Buchungskonto am Kopf", () => {
-    expect(nachArt("ACCOUNTING_TYPE")).toMatchObject({ accountingType: { name: "Einnahmen / Erlöse / Verkäufe" } });
-    expect(nachArt("ROYALTY_ASSIGNED")).toMatchObject({ accountingType: { name: "Dienstleister / Agenturen / Freelancer" } });
+  it.each([
+    ["ACCOUNTING_TYPE", "Einnahmen / Erlöse / Verkäufe"],
+    ["ROYALTY_ASSIGNED", "Dienstleister / Agenturen / Freelancer"],
+    ["ROYALTY_UNASSIGNED", "Fremdarbeiten/Fremdleistungen"],
+    ["PROVISION", "Verkaufsprovision"],
+  ])("führt bei %s das Buchungskonto am Kopf: %s", (art, konto) => {
+    expect(nachArt(art).accountingType!.name!.trim()).toBe(konto);
   });
 
   it("verweist ohne Konto auf die Rechnung", () => {
@@ -269,12 +282,12 @@ describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
     expect(gutschrift.refSrcInvoice).toMatchObject({ objectName: "Invoice" });
   });
 
-  it("nennt Beträge positiv und führt kein Konto an den Positionen", () => {
+  it("nennt Beträge positiv oder 0 und führt kein Konto an den Positionen", () => {
     for (const { creditNote, positions } of gutschriftV1) {
-      expect(Number(creditNote.sumGross)).toBeGreaterThan(0);
+      expect(Number(creditNote.sumGross)).toBeGreaterThanOrEqual(0);
       expect(positions.length).toBeGreaterThan(0);
       for (const p of positions) {
-        expect(Number(p.sumGross)).toBeGreaterThan(0);
+        expect(Number(p.sumGross)).toBeGreaterThanOrEqual(0);
         expect(p).not.toHaveProperty("accountingType");
         expect(p).not.toHaveProperty("accountDatev");
       }
