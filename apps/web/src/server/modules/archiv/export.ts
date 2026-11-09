@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -788,6 +788,26 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
 
   const allocatedByTransaction = new Map<string, number>();
   for (const a of allocations) allocatedByTransaction.set(a.transactionId, (allocatedByTransaction.get(a.transactionId) ?? 0) + a.amount);
+  // Verrechnungen gegenläufiger Umsätze (#457), an denen ein Umsatz des Jahres beteiligt ist; samt Gegenzeilen. Die Umsätze
+  // des Jahres wählt SQL über das Buchungsdatum: Als Liste von IDs, zweimal, sprengten sie ab 32.768 Umsätzen die
+  // Grenze von 65.534 Parametern
+  const yearTransactionIds = sql`(select t.id from bank_transactions t where t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)`;
+  const neutralizations = transactions.length
+    ? await db
+        .select()
+        .from(schema.bankNeutralizations)
+        .where(
+          or(
+            sql`${schema.bankNeutralizations.transactionId} in ${yearTransactionIds}`,
+            sql`${schema.bankNeutralizations.counterTransactionId} in ${yearTransactionIds}`,
+          ),
+        )
+        .orderBy(asc(schema.bankNeutralizations.createdAt), asc(schema.bankNeutralizations.id))
+    : [];
+  const reversedNeutralizations = new Set(neutralizations.flatMap((n) => (n.reversesId ? [n.reversesId] : [])));
+  const neutralized = new Set(
+    neutralizations.filter((n) => !n.reversesId && !reversedNeutralizations.has(n.id)).flatMap((n) => [n.transactionId, n.counterTransactionId]),
+  );
 
   const usedBankPaths = new Set<string>();
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
@@ -807,6 +827,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           "Bankreferenz",
           "Zugeordnet",
           "Offen",
+          "Verrechnet",
           "Importdatei",
           "Umsatz-ID",
         ],
@@ -823,7 +844,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
             t.type,
             t.bankReference,
             money(allocated),
-            money(t.amount - allocated),
+            money(neutralized.has(t.id) ? 0 : t.amount - allocated),
+            neutralized.has(t.id),
             importById.get(t.importId)?.filename ?? t.importId,
             t.id,
           ];
@@ -866,6 +888,48 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
+  if (neutralizations.length > 0) {
+    // Gegenumsatz außerhalb des Jahres: nachladen, damit Datum und Betrag beider Seiten in der Zeile stehen
+    const missing = [...new Set(neutralizations.flatMap((n) => [n.transactionId, n.counterTransactionId]))].filter((id) => !transactionById.has(id));
+    const outside = missing.length > 0 ? await db.select().from(schema.bankTransactions).where(inArray(schema.bankTransactions.id, missing)) : [];
+    const byId = new Map([...transactionById, ...outside.map((t) => [t.id, t] as const)]);
+    yield {
+      path: "bank/verrechnungen.csv",
+      content: csv(
+        [
+          "Konto",
+          "Buchungsdatum",
+          "Betrag",
+          "Gegenumsatz Buchungsdatum",
+          "Gegenumsatz Betrag",
+          "Notiz",
+          "Hebt auf",
+          "Angelegt",
+          "Umsatz-ID",
+          "Gegenumsatz-ID",
+          "Verrechnungs-ID",
+        ],
+        neutralizations.map((n) => {
+          const t = byId.get(n.transactionId);
+          const c = byId.get(n.counterTransactionId);
+          return [
+            t ? (accountById.get(t.bankAccountId)?.iban ?? accountById.get(t.bankAccountId)?.name) : "",
+            t?.bookingDate,
+            money(t?.amount),
+            c?.bookingDate,
+            money(c?.amount),
+            n.note,
+            n.reversesId,
+            iso(n.createdAt),
+            n.transactionId,
+            n.counterTransactionId,
+            n.id,
+          ];
+        }),
+      ),
+      compress: true,
+    };
+  }
   // Ausbuchungen des Jahres (Skonto, Forderungsausfall, erhaltenes Skonto) nach Datum der Ausbuchung
   const writeOffs = await db
     .select({ writeOff: schema.writeOffs, cashNumber: schema.cashEntries.number })
@@ -1601,6 +1665,9 @@ kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufe
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
+bank/verrechnungen.csv   Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze
+                         (etwa Kartenprüfung und Rückbuchung) mit Notiz, ohne Buchung;
+                         aufgehobene als Gegenzeile.
 bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen
                          (Skonto, Forderungsausfall); aufgehobene als Gegenzeile; bei
                          Skonto zu einer Bareinnahme die Nummer im Kassenbuch.

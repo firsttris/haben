@@ -54,6 +54,7 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
+import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
@@ -330,9 +331,8 @@ export async function accountForIban(tx: Tx, iban: string, name?: string) {
   return created!;
 }
 
-/** Noch nicht zugeordneter Teil eines Umsatzes */
-// Tabelle ausdrücklich nennen: in der Spaltenliste schreibt drizzle nur "id", das träfe a.id
-const openAmountSql = sql<number>`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = bank_transactions.id), 0))`;
+/** Noch nicht zugeordneter Teil eines Umsatzes; null, wenn er mit einem gegenläufigen verrechnet ist (#457) */
+const openAmountSql = bankOpenAmountSql;
 
 export type TransactionFilter = "offen" | "zugeordnet" | "alle";
 
@@ -361,6 +361,7 @@ export async function listTransactions(accountId: string, filter: TransactionFil
       bankReference: schema.bankTransactions.bankReference,
       endToEndId: schema.bankTransactions.endToEndId,
       open: openAmountSql.mapWith(Number),
+      neutralized: bankNeutralizedSql.mapWith(Boolean),
     })
     .from(schema.bankTransactions)
     .where(and(...conditions))
