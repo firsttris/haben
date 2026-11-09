@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { SESSION } from "./daten.ts";
-import { HANDY } from "./kopfzeile.ts";
+import { HANDY, ziehen } from "./kopfzeile.ts";
 
 /**
  * Gestaltung der Belege (#113): Zahnrad in der Vorschau, Spalte neben dem Blatt, Speichern für alle künftigen Belege.
@@ -207,6 +207,37 @@ test("Das Zahnrad der angehefteten Vorschau öffnet die Überblendung mit der Sp
   const page = await editor(browser, BREIT, "angeheftet");
   await seitenansicht(page).getByRole("button", { name: "Gestaltung" }).click();
   await expect(panel(page)).toBeVisible();
+  await page.context().close();
+});
+
+test("Am Handy ist die Gestaltung eine runde Karte mit Griff, wegziehen schließt nur sie", async ({ browser }) => {
+  const page = await editor(browser, HANDY);
+  await gestaltungOeffnen(page);
+  const karte = dialog(page).locator(".design-sheet");
+  const griff = karte.locator(".sheet-grip");
+  await expect(griff).toBeVisible();
+  expect(await karte.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe("16px");
+  await expect(dialog(page).locator(":scope > .sheet-grip")).toBeHidden();
+
+  const oben = (await karte.boundingBox())!.y;
+  await ziehen(page, griff, 30);
+  expect(Math.round((await karte.boundingBox())!.y)).toBe(Math.round(oben) + 30);
+  await page.mouse.up();
+  expect(Math.round((await karte.boundingBox())!.y)).toBe(Math.round(oben));
+
+  await ziehen(page, griff, 120);
+  await page.mouse.up();
+  await expect(panel(page)).toHaveCount(0);
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByRole("button", { name: "Gestaltung" })).toHaveAttribute("aria-pressed", "false");
+  await page.context().close();
+});
+
+test("Am Desktop hat die Spalte Gestaltung keinen Griff", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await gestaltungOeffnen(page);
+  await expect(panel(page)).toBeVisible();
+  await expect(dialog(page).locator(".design-sheet .sheet-grip")).toBeHidden();
   await page.context().close();
 });
 
