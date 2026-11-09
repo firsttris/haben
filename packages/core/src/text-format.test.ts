@@ -82,6 +82,12 @@ describe("Kursiv und unterstrichen zusammen", () => {
     ]);
   });
 
+  it("lässt Linien zum Ausfüllen mit einem Satzzeichen dazwischen wörtlich", () => {
+    for (const text of ["Beginn: ___:___ Uhr", "Betrag: ___,___ €", "Von ___-___", "Seite ___/___", "Datum: ___.___.______"]) {
+      expect(parseTextFormatting(text)).toEqual([{ text, bold: false, italic: false, underline: false }]);
+    }
+  });
+
   it("lässt nicht geschlossene und vier Unterstriche wörtlich", () => {
     expect(parseTextFormatting("___x")).toEqual([{ text: "___x", bold: false, italic: false, underline: false }]);
     expect(parseTextFormatting("____x____")).toEqual([{ text: "____x____", bold: false, italic: false, underline: false }]);

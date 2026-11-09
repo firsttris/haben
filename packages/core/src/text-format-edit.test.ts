@@ -157,6 +157,30 @@ describe("Auszeichnung per Knopf", () => {
     expect(fertig("{jahr}[Nachtrag] offen", "bold")).toBe("2026Nachtrag offen");
   });
 
+  it("hält auch einen Punkt neben dem Platzhalter zusammen, sonst stehen nach dem Ersetzen die Zeichen auf dem Beleg", () => {
+    const november = { from: "2026-11-01", to: "2026-11-30" };
+    const fertig = (text: string, style: TextStyle) => plainFormattedText(fillPlaceholders(toggle(text, style) ?? "", november));
+    expect(fertig("Abrechnung [{quartal}].{jahr}", "bold")).toBe("Abrechnung Q4.2026");
+    expect(fertig("[Wartung].{jahr}", "italic")).toBe("Wartung.2026");
+    expect(fertig("{jahr}.[Wartung] offen", "underline")).toBe("2026.Wartung offen");
+  });
+
+  it("nimmt ohne Auswahl den Platzhalter, wenn der Cursor direkt an ihm steht", () => {
+    expect(toggle("Stand {jahr}[] netto", "bold")).toBe("Stand *{jahr}* netto");
+    expect(toggle("Stand []{jahr} netto", "italic")).toBe("Stand _{jahr}_ netto");
+  });
+
+  it("hängt ohne Auswahl direkt an einer Auszeichnung keine losen Zeichen an, ein zweiter Druck stellt den Text wieder her", () => {
+    const zweimal = (text: string, at: number, style: TextStyle) => {
+      const erst = toggleTextStyle(text, at, at, style)!;
+      expect(plainFormattedText(erst.text), erst.text).toBe(plainFormattedText(text));
+      return toggleTextStyle(erst.text, erst.start, erst.end, style)?.text ?? null;
+    };
+    expect(zweimal("*Wort*", 6, "bold")).toBe("*Wort*");
+    expect(zweimal("__Wort__ offen", 8, "underline")).toBe("__Wort__ offen");
+    expect(zweimal("_Wort_ offen", 0, "italic")).toBe("_Wort_ offen");
+  });
+
   it("zeichnet eine Zahl mit Dezimalkomma ohne Auswahl ganz aus", () => {
     expect(toggle("Preis 1.0[]00,50 € netto", "bold")).toBe("Preis *1.000,50* € netto");
     expect(toggle("Preis 1.000,5[]0 € netto", "bold")).toBe("Preis *1.000,50* € netto");
