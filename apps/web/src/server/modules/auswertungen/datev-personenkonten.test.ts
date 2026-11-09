@@ -20,6 +20,8 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
   let ledger: typeof import("../buchhaltung/ledger.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
+  const inhaber = { id: actor, role: "inhaber" as const };
+  const steuerberatung = { id: "steuerberatung-user", role: "steuerberatung" as const };
   let fileSeq = 0;
 
   beforeAll(async () => {
@@ -145,7 +147,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
       const eingang = await beleg(partner.id, 119_00);
       await pay({ documentId: eingang }, -119_00, "2026-05-20");
 
-      const { bytes } = await datev.datevExport(2026, new Date(2026, 9, 4), actor);
+      const { bytes } = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
       const stack = parseDatevBuchungsstapel(bytes);
       const konten = new Set(stack.bookings.flatMap((b) => [b.account, b.contraAccount]));
       expect(konten.has("10042")).toBe(true);
@@ -178,7 +180,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
         cause: { message: "Kreditor 70087 steht schon in einem DATEV-Export und bleibt fest." },
       });
       // Ein zweiter Export legt nichts doppelt an
-      await datev.datevExport(2026, new Date(2026, 9, 5), actor);
+      await datev.datevExport(2026, new Date(2026, 9, 5), inhaber);
       expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 2 }]);
     },
   );
@@ -188,7 +190,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     const partner = await contacts.createContact(actor, contactInput("Musterpartner GmbH", { debitorNr: 10042 }));
     await invoice(partner.id, 100_00);
     const konten = async () =>
-      new Set(parseDatevBuchungsstapel((await datev.datevExport(2026, new Date(2027, 0, 4), actor)).bytes).bookings.map((b) => b.account));
+      new Set(parseDatevBuchungsstapel((await datev.datevExport(2026, new Date(2027, 0, 4), inhaber)).bytes).bookings.map((b) => b.account));
     expect(await konten()).toEqual(new Set(["1400"]));
     await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2027 }, new Date(2026, 6, 1));
     expect(await konten()).toEqual(new Set(["1400"]));
@@ -203,7 +205,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     const r = await invoice(kunde.id, 100_00);
     await beleg(null, 119_00);
     await beleg(ohneKreditor.id, 238_00);
-    const error = await datev.datevExport(2026, new Date(2026, 9, 4), actor).catch((e: Error) => e);
+    const error = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber).catch((e: Error) => e);
     expect(error).toBeInstanceOf(datev.DatevExportError);
     expect((error as Error).message).toBe(
       [
@@ -226,13 +228,76 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     await cancelDocument(actor, ohneLieferant, { reason: "Lieferant fehlte" }, "2026-05-11");
     await beleg(lieferant.id, 119_00);
 
-    const { bytes } = await datev.datevExport(2026, new Date(2026, 9, 4), actor);
+    const { bytes } = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
     const stack = parseDatevBuchungsstapel(bytes);
     const saldo = (konto: string) =>
       stack.bookings.reduce((sum, b) => sum + (b.account === konto ? b.amount : 0) - (b.contraAccount === konto ? b.amount : 0), 0);
     // Der stornierte Beleg hebt sich auf dem Sammelkonto auf; der neu erfasste steht beim Kreditor
     expect(saldo("1600")).toBe(0);
     expect(saldo("70001")).toBe(-119_00);
+  });
+
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("%s, %s: Eröffnungsbuchung bleibt auf dem Sammelkonto und sperrt den Export nicht (#452)", async (kr, versteuerung) => {
+    await reset(kr, versteuerung);
+    const s = SAMMELKONTEN[kr];
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH", { debitorNr: 10001 }));
+    const { withActor } = await import("../../db/actor.ts");
+    // Restsalden aus der Vorgänger-Buchhaltung, wie sie eine Eröffnung aus dem DATEV-Stapel bucht (source_type eroeffnung)
+    await withActor(actor, async (tx) =>
+      ledger.post(tx, await ledger.openBooks(tx), {
+        date: "2026-01-01",
+        description: "Eröffnung aus der Schlussbilanz 2025 (DATEV-Stapel)",
+        sourceType: "eroeffnung",
+        sourceId: crypto.randomUUID(),
+        lines: [
+          { account: s.forderungen, debit: 500_00, credit: 0, taxCode: null },
+          { account: s.verbindlichkeiten, debit: 0, credit: 300_00, taxCode: null },
+          { account: "9000", debit: 0, credit: 200_00, taxCode: null },
+        ],
+      }),
+    );
+    await invoice(kunde.id, 100_00);
+    const stack = parseDatevBuchungsstapel((await datev.datevExport(2026, new Date(2026, 9, 4), inhaber)).bytes);
+    const saldo = (konto: string) =>
+      stack.bookings.reduce((sum, b) => sum + (b.account === konto ? b.amount : 0) - (b.contraAccount === konto ? b.amount : 0), 0);
+    // Die Eröffnung steht auf den Sammelkonten, die Rechnung beim Debitor
+    expect(saldo(s.forderungen)).toBe(500_00);
+    expect(saldo(s.verbindlichkeiten)).toBe(-300_00);
+    expect(saldo("10001")).toBe(119_00);
+  });
+
+  it("Recht „lesen“: exportiert nur mit schon festgeschriebenen Nummern; neue schreibt nur der Inhaber fest (#452)", async () => {
+    await reset("SKR04", "ist");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH", { debitorNr: 10001 }));
+    await invoice(kunde.id, 100_00);
+    // Der erste Export mit dem neuen Debitor: nicht durch die Steuerberatung, und dann wird nichts festgeschrieben
+    const fehler = await datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(datev.DatevExportError);
+    expect((fehler as Error).message).toBe(
+      "Der erste Export mit neuen Personenkonten muss vom Inhaber kommen, weil er die Nummern festschreibt. Noch nicht festgeschrieben: Debitor 10001 (Nordwerk GmbH).",
+    );
+    expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 0 }]);
+
+    // Nach dem Export des Inhabers kann die Steuerberatung denselben Stapel holen, ohne etwas zu schreiben
+    const vomInhaber = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
+    const audit = async () => (await sql`select count(*)::int as n from audit_log`)[0]!.n as number;
+    const vorher = await audit();
+    const vonDerSteuerberatung = await datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung);
+    expect(Buffer.from(vonDerSteuerberatung.bytes).equals(Buffer.from(vomInhaber.bytes))).toBe(true);
+    expect(await audit()).toBe(vorher);
+
+    // Kommt ein neuer Kunde mit Nummer dazu, braucht es wieder den Inhaber
+    const neu = await contacts.createContact(actor, contactInput("Alpenblick AG", { debitorNr: 10002 }));
+    await invoice(neu.id, 50_00);
+    await expect(datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung)).rejects.toThrow("Noch nicht festgeschrieben: Debitor 10002 (Alpenblick AG).");
+    // Ohne Schalter bleibt der Export auch für die Steuerberatung wie bisher
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2027, bestaetigt: true }, new Date(2026, 9, 4));
+    await expect(datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung)).resolves.toMatchObject({ bookings: expect.any(Number) });
   });
 
   it("ändert den Schalter für Jahre mit Buchungen bis heute nur mit Bestätigung, nie still rückwirkend", async () => {

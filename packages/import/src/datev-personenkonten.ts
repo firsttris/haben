@@ -9,7 +9,9 @@ import type { DatevExportEntry } from "./datev-export.ts";
  * Zeile wird ersetzt, nicht ergänzt, so steht jeder Betrag nur einmal im Stapel. Fehlt eine Angabe, lehnt der Export
  * mit der Liste der Vorgänge ab, statt still auf das Sammelkonto zu buchen. Ausgenommen sind Buchung und Gegenbuchung
  * (Storno), die beide im Stapel stehen: Ohne Personenkonto bleiben sie auf dem Sammelkonto und heben sich dort auf, so
- * gibt Storno und Neuerfassung eines gebuchten Belegs ohne Lieferanten den Export frei.
+ * gibt Storno und Neuerfassung eines gebuchten Belegs ohne Lieferanten den Export frei. Eröffnungsbuchungen (Restsaldo
+ * aus der Vorgänger-Buchhaltung, etwa aus einem DATEV-Stapel) bleiben ebenfalls auf dem Sammelkonto; so entschieden in
+ * #452, weil sie keine Rechnung und keinen Beleg haben.
  */
 
 export interface PersonenkontoBezug {
@@ -61,6 +63,8 @@ function personenkonto(
 export interface Gegenbuchung {
   id?: string;
   reversesId?: string | null;
+  /** Eröffnungsbuchung (source_type eroeffnung): bleibt auf dem Sammelkonto */
+  eroeffnung?: boolean;
 }
 
 /** Buchungen, deren Gegenbuchung bzw. Original ebenfalls im Stapel steht */
@@ -81,6 +85,7 @@ export function personenkontenEinsetzen<T extends DatevExportEntry & Gegenbuchun
   const verwendet = new Map<string, { rolle: PersonenkontoRolle; nummer: number }>();
   const paare = stornoPaare(entries);
   const result = entries.map((entry) => {
+    if (entry.eroeffnung) return entry;
     const konto = personenkonto(entry, entry.bezug, sammelkonten);
     if (konto === null) return entry;
     if (typeof konto === "string") {

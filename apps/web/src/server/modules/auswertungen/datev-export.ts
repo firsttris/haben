@@ -1,11 +1,12 @@
 import { UserError } from "../../errors.ts";
-import { ACCOUNTS, personenkontenBetroffen, personenkontenIm } from "@haben/core";
+import { ACCOUNTS, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
 import { buildDatevBuchungsstapel, type DatevExportEntry, personenkontenEinsetzen } from "@haben/import";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
+import { darf, type Rolle } from "../../../lib/rollen.ts";
 import { datevVorgaenge } from "./datev-vorgaenge.ts";
 
 /** DATEV-Buchungsstapel eines Jahres für die Steuerberatung */
@@ -66,11 +67,22 @@ function personenkontenProblem(probleme: string[]): DatevExportError {
   );
 }
 
+/** Wer exportiert; festschreiben darf nur eine Rolle mit Zugriff „inhaber“ */
+export interface DatevExporteur {
+  id: string;
+  role: Rolle;
+}
+
 /**
- * Mit Personenkonten (Schalter in den Firmendaten) braucht der Export ein actor: Er hält fest, welche Nummern er
- * geschrieben hat; ab dann sind sie am Kontakt fest (datev_personenkonten, Trigger in 0172).
+ * Mit Personenkonten (Schalter in den Firmendaten) hält der Export fest, welche Nummern er geschrieben hat; ab dann sind
+ * sie am Kontakt fest (datev_personenkonten, Trigger in 0172). Neue Nummern festschreiben darf nur der Inhaber; wer nur
+ * lesen darf, bekommt den Stapel, solange alle Nummern darin schon festgeschrieben sind, und schreibt dabei nichts (#452).
  */
-export async function datevExport(year: number, now = new Date(), actor?: string): Promise<{ bytes: Uint8Array; filename: string; bookings: number }> {
+export async function datevExport(
+  year: number,
+  now = new Date(),
+  exporteur?: DatevExporteur,
+): Promise<{ bytes: Uint8Array; filename: string; bookings: number }> {
   const company = await loadCompany();
   if (!company.datevBeraterNr || !company.datevMandantNr) throw new DatevExportError("Berater- und Mandantennummer fehlen.");
   const entries = await db
@@ -103,6 +115,7 @@ export async function datevExport(year: number, now = new Date(), actor?: string
     return {
       id: e.id,
       reversesId: e.reversesId,
+      eroeffnung: e.sourceType === "eroeffnung",
       date: e.date,
       description: e.description,
       voucher: vorgang?.voucher ?? "",
@@ -133,24 +146,49 @@ export async function datevExport(year: number, now = new Date(), actor?: string
     },
     exportEntries,
   );
-  if (verwendet.length > 0) await vermerkePersonenkonten(actor, verwendet, year);
+  if (verwendet.length > 0) await festschreiben(exporteur, verwendet, year);
   return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length };
 }
 
-/** Exportierte Nummern festhalten, je Kontakt und Rolle einmal; der Trigger prüft, dass die Nummer noch am Kontakt steht */
-async function vermerkePersonenkonten(actor: string | undefined, verwendet: { rolle: "debitor" | "kreditor"; nummer: number }[], year: number): Promise<void> {
-  if (!actor) throw new Error("Der Export mit Personenkonten braucht einen Benutzer für das Änderungsprotokoll.");
-  await withActor(actor, async (tx) => {
-    for (const rolle of ["debitor", "kreditor"] as const) {
-      const nummern = verwendet.filter((v) => v.rolle === rolle).map((v) => v.nummer);
-      if (nummern.length === 0) continue;
-      const column = rolle === "debitor" ? schema.contacts.debitorNr : schema.contacts.kreditorNr;
-      const owners = await tx.select({ id: schema.contacts.id, nummer: column }).from(schema.contacts).where(inArray(column, nummern));
-      if (owners.length === 0) continue;
-      await tx
-        .insert(schema.datevPersonenkonten)
-        .values(owners.map((o) => ({ contactId: o.id, rolle, nummer: o.nummer!, jahr: year })))
-        .onConflictDoNothing();
-    }
-  });
+/**
+ * Exportierte Nummern festhalten, je Kontakt und Rolle einmal; der Trigger prüft, dass die Nummer noch am Kontakt steht.
+ * Sind alle schon festgeschrieben, schreibt der Export nichts; sonst nur, wenn er vom Inhaber kommt.
+ */
+async function festschreiben(
+  exporteur: DatevExporteur | undefined,
+  verwendet: { rolle: "debitor" | "kreditor"; nummer: number }[],
+  year: number,
+): Promise<void> {
+  const neu: { contactId: string; name: string; rolle: "debitor" | "kreditor"; nummer: number }[] = [];
+  for (const rolle of ["debitor", "kreditor"] as const) {
+    const nummern = verwendet.filter((v) => v.rolle === rolle).map((v) => v.nummer);
+    if (nummern.length === 0) continue;
+    const column = rolle === "debitor" ? schema.contacts.debitorNr : schema.contacts.kreditorNr;
+    const owners = await db
+      .select({ contactId: schema.contacts.id, name: schema.contacts.name, nummer: column })
+      .from(schema.contacts)
+      .where(inArray(column, nummern));
+    const fest = new Set(
+      (
+        await db
+          .select({ nummer: schema.datevPersonenkonten.nummer })
+          .from(schema.datevPersonenkonten)
+          .where(and(eq(schema.datevPersonenkonten.rolle, rolle), inArray(schema.datevPersonenkonten.nummer, nummern)))
+      ).map((r) => r.nummer),
+    );
+    neu.push(...owners.filter((o) => o.nummer !== null && !fest.has(o.nummer)).map((o) => ({ ...o, rolle, nummer: o.nummer! })));
+  }
+  if (neu.length === 0) return;
+  if (!exporteur || !darf(exporteur.role, "inhaber")) {
+    const liste = neu.map((n) => `${PERSONENKONTO_LABEL[n.rolle]} ${n.nummer} (${n.name})`).join(", ");
+    throw new DatevExportError(
+      `Der erste Export mit neuen Personenkonten muss vom Inhaber kommen, weil er die Nummern festschreibt. Noch nicht festgeschrieben: ${liste}.`,
+    );
+  }
+  await withActor(exporteur.id, (tx) =>
+    tx
+      .insert(schema.datevPersonenkonten)
+      .values(neu.map((n) => ({ contactId: n.contactId, rolle: n.rolle, nummer: n.nummer, jahr: year })))
+      .onConflictDoNothing(),
+  );
 }

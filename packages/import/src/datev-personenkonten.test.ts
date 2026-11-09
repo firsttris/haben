@@ -205,6 +205,43 @@ describe.each(["SKR03", "SKR04"] as const)("Personenkonten im Buchungsstapel, %s
     });
   });
 
+  it("lässt Eröffnungsbuchungen auf dem Sammelkonto, ohne abzulehnen (Restsaldo aus der Vorgänger-Buchhaltung)", () => {
+    const eroeffnung = {
+      ...entry(
+        "Eröffnung aus der Schlussbilanz",
+        [
+          [s.forderungen, 500_00, 0],
+          [s.verbindlichkeiten, 0, 300_00],
+          ["9000", 0, 200_00],
+        ],
+        null,
+      ),
+      eroeffnung: true,
+    };
+    const result = personenkontenEinsetzen([eroeffnung, ...journal], s);
+    if (!("entries" in result)) throw new Error(result.probleme.join("\n"));
+    expect(result.entries[0]!.lines.map((l) => l.account)).toEqual([s.forderungen, s.verbindlichkeiten, "9000"]);
+    // Die übrigen Buchungen bekommen weiter ihr Personenkonto
+    expect(result.entries[1]!.lines[0]!.account).toBe("10042");
+  });
+
+  it("lehnt eine Buchung ohne Vorgang auf dem Sammelkonto weiter ab, wenn sie keine Eröffnung ist", () => {
+    const result = personenkontenEinsetzen(
+      [
+        entry(
+          "Ohne Vorgang",
+          [
+            [s.forderungen, 500_00, 0],
+            ["9000", 0, 500_00],
+          ],
+          null,
+        ),
+      ],
+      s,
+    );
+    expect(result).toEqual({ probleme: [`Buchung vom 01.09.2026 „Ohne Vorgang“: Konto ${s.forderungen} ohne Rechnung`] });
+  });
+
   it("lehnt ein Sammelkonto ab, das nicht zur Rolle des Vorgangs passt", () => {
     const result = personenkontenEinsetzen(
       [
