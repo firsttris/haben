@@ -62,7 +62,7 @@ import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammda
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { documentPayees, payeeIbans } from "./document-payees.ts";
+import { documentPayees, ibanDecisions, payeeIbans } from "./document-payees.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
@@ -496,7 +496,8 @@ export async function openItems(): Promise<OpenItem[]> {
     documents.map((d) => d.id),
   );
   // Konto des Lieferanten und Referenzen der SEPA-Überweisungen aus Haben: Die Abbuchung findet so ihren Beleg
-  const payees = await documentPayees(documents.map((d) => d.id));
+  const ids = documents.map((d) => d.id);
+  const [payees, decisions] = await Promise.all([documentPayees(ids), ibanDecisions(ids)]);
   // Feiertage für das Ende der Skontofrist (§ 193 BGB) wie beim Zahlungsziel: die im Bundesland der Firma
   const { bundesland } = await loadCompany();
 
@@ -553,7 +554,7 @@ export async function openItems(): Promise<OpenItem[]> {
       dueDate: doc.dueDate,
       open,
       partyName: doc.supplierName,
-      partyIbans: payeeIbans(payees.get(doc.id)),
+      partyIbans: payeeIbans(payees.get(doc.id), decisions.get(doc.id) ?? []),
       references: payees.get(doc.id)?.references ?? [],
       currency: doc.currency,
     });
