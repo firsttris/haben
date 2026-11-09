@@ -106,6 +106,11 @@ const KNOWN_CODES = [
   "AGNT",
   "CUTA",
   "UPAY",
+  // EPC173-14 v8.1 (Guidance on Reason Codes for SDD R-transactions)
+  "AC13",
+  "CNOR",
+  "DNOR",
+  "ED05",
 ];
 const REASON_CODE = new RegExp(`\\b(${KNOWN_CODES.join("|")})\\b`);
 
@@ -132,10 +137,11 @@ export function findDirectDebitReturn(
   const text = [tx.purpose, tx.bankReference ?? ""].join(" ");
   const looksLikeReturn = RETURN_WORDS.test(text);
   const haystack = compact([tx.endToEndId ?? "", tx.bankReference ?? "", tx.purpose].join(" "));
-  const item = items.find((i) => {
-    if (i.state !== "gutgeschrieben" || -tx.amount < i.amount) return false;
-    if (tx.endToEndId === i.endToEndId || haystack.includes(compact(i.endToEndId))) return true;
-    return looksLikeReturn && (haystack.includes(compact(i.mandateReference)) || haystack.includes(compact(`Rechnung ${i.invoiceNumber}`)));
-  });
+  const open = items.filter((i) => i.state === "gutgeschrieben" && -tx.amount >= i.amount);
+  const byEndToEndId = open.filter((i) => tx.endToEndId === i.endToEndId || haystack.includes(compact(i.endToEndId)));
+  const byText = (key: (i: CollectedDirectDebit) => string) => (looksLikeReturn ? open.filter((i) => haystack.includes(compact(key(i)))) : []);
+  // Der stärkste Bezug zuerst; die Mandatsreferenz tragen alle Folgelastschriften eines Mandats und ist nur eindeutig sicher
+  const matches = [byEndToEndId, byText((i) => `Rechnung ${i.invoiceNumber}`), byText((i) => i.mandateReference)].find((list) => list.length > 0) ?? [];
+  const item = matches.length === 1 ? matches[0]! : null;
   return item ? { item, fee: -tx.amount - item.amount, reason: returnReason(text) } : null;
 }
