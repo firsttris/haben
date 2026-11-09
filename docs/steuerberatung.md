@@ -1,3 +1,10 @@
+---
+title: "Lesezugang für die Steuerberatung"
+description: >-
+  Der Steuerberatung einen eigenen Lesezugang geben: Auswertungen, Journal, Kontenblätter, Belege
+  und Rechnungen direkt einsehen und exportieren.
+---
+
 # Zugang für die Steuerberatung
 
 Deine Steuerberatung kann mit einem eigenen Zugang direkt in Haben nachsehen, statt auf den nächsten Export zu warten. Der Zugang kann nur lesen: Er sieht Auswertungen, Journal, Kontenblätter, Belege und Rechnungen und lädt Dateien, den DATEV-Export und das Jahresarchiv herunter. Buchen, Festschreiben, Ändern, Löschen und Senden an ELSTER bleiben bei dir.

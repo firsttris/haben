@@ -1,3 +1,10 @@
+---
+title: "Angebote schreiben und mit einem Klick zur Rechnung machen"
+description: >-
+  Angebote im selben Editor wie Rechnungen schreiben, als PDF versenden und nach der Annahme mit
+  einem Klick in eine E-Rechnung umwandeln.
+---
+
 # Angebote
 
 Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung.

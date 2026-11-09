@@ -1,3 +1,10 @@
+---
+title: "Eigene Seiten: Werkzeuge ins Menü einbinden"
+description: >-
+  Eigene Werkzeuge wie n8n-Formulare, Bestellübersichten oder Lagerlisten als Seite ins Menü von
+  Haben einbinden.
+---
+
 # Eigene Seiten
 
 Eine eigene Seite hängt ein eigenes Werkzeug ins Menü von Haben, etwa eine Bestellübersicht, ein Formular oder eine Lagerliste aus [n8n](https://n8n.io). Haben zeigt die Seite in einem Rahmen neben dem Menü. So arbeitest du in einer Oberfläche, und Haben bleibt die Buchhaltung: Bestellungen, Versand oder Lager gehören nicht in den Kern, aber du kannst sie dir selbst danebenstellen.

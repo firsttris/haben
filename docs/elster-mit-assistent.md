@@ -1,3 +1,10 @@
+---
+title: "Mein ELSTER mit KI-Assistent ausfüllen"
+description: >-
+  Die Umsatzsteuer-Voranmeldung in Mein ELSTER von einem KI-Assistenten wie Claude Code ausfüllen
+  lassen – mit den Werten aus dem Haben-MCP.
+---
+
 # In Mein ELSTER mit einem KI-Assistenten abgeben
 
 Direkt aus Haben senden geht nur mit ERiC und einer eigenen **Hersteller-ID** ([einrichtung.md › Hersteller-ID](einrichtung.md#hersteller-id-wer-ist-hersteller)). Die Beantragung dauert oft Wochen. Bis dahin gibst du im Portal **Mein ELSTER** ab und überträgst die Kennzahlen aus Haben von Hand.

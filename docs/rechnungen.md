@@ -1,3 +1,10 @@
+---
+title: "E-Rechnung schreiben: ZUGFeRD und XRechnung"
+description: >-
+  Ausgangsrechnungen als E-Rechnung schreiben: ZUGFeRD (PDF/A-3, EN 16931) oder XRechnung 3.0 in
+  CII oder UBL, GoBD-konform festgeschrieben, per Mail versendet.
+---
+
 # Rechnungen und E-Rechnung
 
 Haben schreibt Ausgangsrechnungen als E-Rechnung: ZUGFeRD (PDF/A-3 mit eingebettetem XML, Profil EN 16931) oder XRechnung 3.0 in CII- oder UBL-Syntax. Eine Rechnung ist zuerst ein Entwurf, den du beliebig ändern kannst. Mit dem Festschreiben bekommt sie ihre Nummer, PDF und XML werden erzeugt, sie wird gebucht und ist danach unveränderlich.

@@ -1,3 +1,10 @@
+---
+title: "Lohnabrechnung: Lohnsteuer, Sozialversicherung, Minijob"
+description: >-
+  Mitarbeiter anlegen und monatlich abrechnen: Lohnsteuer, Soli, Kirchensteuer und
+  Sozialversicherung, Lohnsteuer-Anmeldung per ELSTER, Buchungen im Journal.
+---
+
 # Lohn
 
 Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal, führt das Lohnkonto je Mitarbeiter und Jahr, übermittelt die [Lohnsteuer-Anmeldung](#lohnsteuer-anmeldung) über ELSTER und erstellt die [Lohnsteuerbescheinigung](#lohnsteuerbescheinigung).

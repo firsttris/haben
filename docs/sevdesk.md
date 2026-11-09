@@ -1,3 +1,10 @@
+---
+title: "Umzug aus sevDesk ohne Datenverlust"
+description: >-
+  Von sevDesk zu Haben wechseln: Rechnungen, Belege und Kontakte übernehmen, im unveränderlichen
+  Archiv aufbewahren und das Abo kündigen.
+---
+
 # Umzug aus sevDesk
 
 Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md); diese Seite beschreibt, was bei sevDesk anders ist.

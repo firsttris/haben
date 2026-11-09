@@ -1,3 +1,10 @@
+---
+title: "Buchhaltung für GmbH und UG: Bilanz, E-Bilanz, KSt"
+description: >-
+  Bücher einer kleinen GmbH oder UG führen: doppelte Buchführung, Bilanz und GuV, E-Bilanz,
+  Körperschaft- und Gewerbesteuererklärung, Gewinnausschüttung.
+---
+
 # GmbH und UG
 
 Haben führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter Buchführung und Bilanz: vom ersten Beleg bis zur E-Bilanz, Körperschaft- und Gewerbesteuererklärung und Gewinnausschüttung. Diese Seite zeigt den Ablauf eines Jahres; die Details stehen in den verlinkten Kapiteln.

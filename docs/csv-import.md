@@ -1,3 +1,10 @@
+---
+title: "CSV-Import für Kontakte, Artikel und Anlagen"
+description: >-
+  Kontakte, Artikel und Anlagen aus einer CSV-Datei übernehmen, etwa aus Lexware Office, einer
+  anderen Buchhaltung oder Excel – mit Spaltenzuordnung und Vorschau.
+---
+
 # CSV-Import
 
 Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem Export von Lexware Office, einer anderen Buchhaltung oder einer Excel-Liste. Den Import öffnest du unter **Kontakte**, **Artikel** oder **Anlagen** mit **CSV importieren**; oben auf der Seite wechselst du zwischen den drei Arten.

@@ -1,3 +1,10 @@
+---
+title: "Roadmap: was als Nächstes kommt"
+description: >-
+  Was in Haben als Nächstes geplant ist, was blockiert ist und welche Wünsche aus den Issues
+  zuerst umgesetzt werden.
+---
+
 # Roadmap
 
 Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür kommen. Erledigtes steht in den jeweiligen Kapiteln der Doku.
