@@ -142,6 +142,7 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 
 | Fehlt | Folge | Im Dev-Container | In der CI |
 | --- | --- | --- | --- |
+| `AUTHELIA_TEST_ISSUER`, `AUTHELIA_TEST_USERS_FILE` | Reale Authelia-Referenztests ohne eigene Testinstanz übersprungen | nein | nein |
 | `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
 | `pdftotext`, `pdftoppm` (poppler-utils) | Textebene und Seitenbilder von PDFs übersprungen | ja | ja |
 | `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
@@ -536,8 +537,6 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit C
 
 Haben steht unter der AGPL-3.0.
 
-[Zurück zur Übersicht](ueberblick.md)
-
 ## SSO entwickeln und prüfen
 
 Die SSO-Anbindung nutzt Better Auth 1.7.14 (`genericOAuth`, `addOAuthServerContext`, `getOAuthState`). Bei Updates besonders prüfen: Signatur- und Nonce-Prüfung vor `getUserInfo`, Reihenfolge von State, Codeaustausch und Kontoanlage im Callback (`oauth2/callback.mjs`), das Rate-Limit für `/sign-in/*` und dass Fehler weiterhin als Redirect mit `error` enden (darauf baut das Rollback in `auth-transaction.ts`). Keine Sicherheitsoption abschalten, um einen Anbieter passend zu machen. Aufbau: [Architektur › SSO-Modus](architektur.md#sso-modus).
@@ -556,7 +555,7 @@ Die Postgres-Tests starten mit `sso-test-provider.ts` einen Anbieter auf Loopbac
 E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_sso_e2e bun run --cwd apps/web e2e --config playwright.sso-only.config.ts
 ```
 
-Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein. Der Durchlauf prüft Ersteinrichtung nur durch die Inhaber-Gruppe, automatische Anlage der Steuerberatung, die reine Zugangsübersicht, alte Sicherheits- und Einladungslinks, Gruppenentzug mit Sitzungswiderruf und die erneute Anmeldung nach Fristablauf, jeweils mit axe. `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Better Auth lässt je Adresse drei Anmeldeversuche in zehn Sekunden zu; der Test wartet deshalb zwischen zwei Anmeldungen. Der gebaute Server läuft mit `NODE_ENV=production` und lehnt den HTTP-Testanbieter ab, der Durchlauf nimmt deshalb den Dev-Server.
+Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein. Der Durchlauf prüft Ersteinrichtung nur durch die Inhaber-Gruppe, automatische Anlage der Steuerberatung, die reine Zugangsübersicht, alte Sicherheits- und Einladungslinks, Gruppenentzug mit Sitzungswiderruf und die erneute Anmeldung nach Fristablauf, jeweils mit axe. `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Better Auth lässt je Adresse drei Anmeldeversuche in zehn Sekunden zu; der Test wartet deshalb zwischen zwei Anmeldungen. Die reguläre CI führt zusätzlich SSO gegen den Produktionsbuild aus. `E2E_SERVER_COMMAND` aktiviert einen lokalen HTTPS-Testanbieter und HTTPS-Reverse-Proxy. Die Test-CA wird dem Haben-Server explizit vertraut; der Browser akzeptiert ausschließlich den erzeugten lokalen Testschlüssel. Der Betriebscode erhält keine HTTP-Ausnahme. `openssl` wird für die Testzertifikate benötigt.
 
 ### Mit Authelia
 
@@ -567,3 +566,6 @@ NODE_EXTRA_CA_CERTS=/pfad/test-ca.crt AUTHELIA_TEST_ISSUER=https://127.0.0.1:909
 ```
 
 Testinstanz, Schlüssel und Konten sind ausschließlich für den Test; niemals Werte daraus im Betrieb verwenden.
+
+
+[Zurück zur Übersicht](ueberblick.md)

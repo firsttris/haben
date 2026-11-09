@@ -321,6 +321,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `OIDC_CLIENT_ID` | bei `OIDC_ONLY=true` | ID des vertraulichen Clients | `haben` |
 | `OIDC_CLIENT_SECRET` | bei `OIDC_ONLY=true` | Ursprüngliches Clientsecret, kein Hash | – |
 | `OIDC_DISPLAY_NAME` | nein | Anzeigename der SSO-Anmeldung | `Authelia` |
+| `OIDC_SCOPES` | nein | Scopes mit Leerzeichen; `openid` ist Pflicht, siehe unten | `openid profile email groups` |
 | `OIDC_GROUPS_CLAIM` | nein | Name des Gruppen-Claims in der UserInfo-Antwort, ein einzelner Name, kein Ausdruck. Vorgabe `groups` | `groups` |
 | `OIDC_GROUP_INHABER` | bei `OIDC_ONLY=true` | Gruppe, deren Mitglieder Inhaber sind (exakt, groß-/kleinschreibungssensitiv) | `haben-inhaber` |
 | `OIDC_GROUP_STEUERBERATUNG` | bei `OIDC_ONLY=true` | Gruppe für den Lesezugang der Steuerberatung; muss sich von der Inhaber-Gruppe unterscheiden | `haben-steuerberatung` |
@@ -795,11 +796,25 @@ Mit `OIDC_ONLY=true` sind Issuer, Client-ID, Clientsecret und beide Gruppen Pfli
 
 In Docker Compose stehen die Werte in der geschützten `.env` neben `compose.yml`, bei Quadlets in `haben.env` und das Clientsecret als Podman-Secret `haben-oidc-client-secret` (die vorbereitete `Secret=`-Zeile in `haben-app.container` einkommentieren). In **Coolify** die Werte als Laufzeit-Umgebungsvariablen der Anwendung setzen, das Clientsecret als „Secret“ markieren und neu deployen. `BETTER_AUTH_URL` muss der öffentlichen Adresse im Browser entsprechen, einschließlich eines Ports.
 
-Haben lädt `${OIDC_ISSUER}/.well-known/openid-configuration`; der dort genannte Issuer muss exakt dem konfigurierten Wert entsprechen, und der Anbieter braucht einen UserInfo-Endpunkt. Anbieter und Haben laufen über HTTPS; HTTP ist nur auf Loopback außerhalb des Betriebs erlaubt. Die feste Callback-Adresse lautet:
+Haben lädt `${OIDC_ISSUER}/.well-known/openid-configuration`; der dort genannte Issuer muss exakt dem konfigurierten Wert entsprechen, UserInfo wird verwendet, wenn der Anbieter einen entsprechenden Endpunkt nennt. Anbieter und Haben laufen über HTTPS; HTTP ist nur auf Loopback außerhalb des Betriebs erlaubt. Die feste Callback-Adresse lautet:
 
 ```text
 https://haben.example.de/api/auth/callback/oidc
 ```
+
+### Scopes und andere Anbieter
+
+`OIDC_SCOPES` legt durch Leerzeichen getrennte Scopes fest und muss `openid` enthalten. Ohne Angabe fragt Haben `openid profile email` an und ergänzt `groups` nur, wenn Discovery diesen Scope ausdrücklich unterstützt. Gruppen werden bevorzugt aus UserInfo gelesen, sonst aus dem geprüften ID-Token. Ein vorhandener ungültiger oder verweigernder Gruppenclaim erlaubt keinen Rückgriff. Die E-Mail muss gültig sein; `email_verified=false` ist zulässig. Konten werden niemals über gleiche E-Mail-Adressen verbunden.
+
+Alle Anbieter verwenden einen vertraulichen Client, Code-Flow, PKCE S256, `client_secret_basic` und die exakte Haben-Callback-Adresse.
+
+| Anbieter | Einstellungen |
+| --- | --- |
+| Pocket ID | Beide Benutzergruppen zuordnen, Scopes `openid profile email groups`, Claim `groups`. [Clientbeispiele](https://pocket-id.org/docs/client-examples) |
+| Authentik | Asymmetrischen **Signing Key** auswählen, etwa RS256. Ohne Key verwendet Authentik HS256; das unterstützt Haben nicht. Scope-Mapping muss `groups` als Array liefern. Issuer exakt aus Discovery übernehmen, typischerweise `https://auth.example.de/application/o/haben/` einschließlich Schrägstrich. [Providerdoku](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/) |
+| Keycloak | Issuer `https://auth.example.de/realms/<realm>`, Client-Authentifizierung, Standard Flow und PKCE S256. `OIDC_SCOPES=openid profile email` und Group-Membership-Mapper mit Claim `groups` in UserInfo oder ID-Token. Bei **Full group path** Werte wie `/haben-inhaber` konfigurieren. Fünf Minuten Tokenlaufzeit begrenzen auch die Haben-Berechtigung auf höchstens fünf Minuten. [Client Scopes und Mapper](https://www.keycloak.org/docs/latest/server_admin/#_client_scopes) |
+
+Authelia ist die reale Referenzintegration. Pocket ID, Authentik und Entra-/Keycloak-Claimvarianten werden mit einem kontrollierten Testanbieter nachgestellt; das ersetzt keinen vollständigen Durchlauf gegen diese Server. Versionen und tatsächlich ausgeführte Referenzprüfungen stehen im jeweiligen Prüfbericht.
 
 ### Authelia konfigurieren
 
@@ -853,7 +868,7 @@ users:
       - haben-steuerberatung
 ```
 
-In Haben steht das **ursprüngliche Clientsecret**, in Authelia dessen **Hash** (`authelia crypto hash generate pbkdf2`, das Secret interaktiv eingeben). Authelia liefert Gruppen und E-Mail über den UserInfo-Endpunkt, nicht im ID-Token ([Authelia: Claims](https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/)); Haben fragt ihn nach jedem geprüften ID-Token ab und verlangt dort dasselbe Subject. Die E-Mail muss bestätigt sein. Änderungen an LDAP oder Benutzerdatei müssen Authelia erreichen (bei der Datei `watch: true` oder Neustart). Siehe auch [Authelia: OIDC-Clients](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/).
+In Haben steht das **ursprüngliche Clientsecret**, in Authelia dessen **Hash** (`authelia crypto hash generate pbkdf2`, das Secret interaktiv eingeben). Authelia liefert Gruppen und E-Mail über den UserInfo-Endpunkt, nicht im ID-Token ([Authelia: Claims](https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/)); Haben fragt ihn nach jedem geprüften ID-Token ab und verlangt dort dasselbe Subject. Eine gültige E-Mail ist erforderlich; der Bestätigungsclaim vergibt keine Rechte. Änderungen an LDAP oder Benutzerdatei müssen Authelia erreichen (bei der Datei `watch: true` oder Neustart). Siehe auch [Authelia: OIDC-Clients](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/).
 
 ### Einrichten und anmelden
 
@@ -873,17 +888,17 @@ Das heißt auch:
 - Abmelden oder Sperren in Authelia beendet eine laufende Haben-Sitzung **nicht sofort**; es gibt keine zentrale Abmeldung. Die Berechtigung läuft spätestens nach 15 Minuten aus.
 - Fällt Authelia aus, sind keine neuen und keine erneuten Anmeldungen möglich; es gibt keinen lokalen Rückfall.
 - Haben speichert keine Access-, Refresh- oder ID-Tokens und fragt Authelia nicht im Hintergrund ab.
-- REST- und MCP-Tokens funktionieren unverändert wie bisher.
+- API-, MCP- und Kalender-Tokens werden bei erkanntem Entzug des Verantwortlichen deaktiviert; siehe unten.
 
 ### Zugänge
 
-**Einstellungen › Zugänge** ersetzt im SSO-Modus den Bereich **Sicherheit**. Er zeigt die Konten, die sich schon angemeldet haben, mit der zuletzt bestätigten Rolle und den letzten Anmeldungen, und verweist für die Verwaltung auf Authelia. Er ist kein Abbild des Authelia-Verzeichnisses: Wer noch nie angemeldet war, erscheint nicht. Einladen, Sperren, Freigeben und Entfernen gibt es nicht, auch nicht über die Server-Schnittstelle. Alte Einladungslinks zeigen „Einladungen nicht verfügbar“; die Einladungen bleiben für einen späteren Standardbetrieb gespeichert. Alte Links auf `?bereich=sicherheit` führen nach **Zugänge**.
+**Einstellungen › Zugänge** ersetzt im SSO-Modus den Bereich **Sicherheit**. Er zeigt die Konten, die sich schon angemeldet haben, mit der zuletzt bestätigten Rolle und der letzten Anmeldung, und verweist für die Verwaltung auf Authelia. Er ist kein Abbild des Authelia-Verzeichnisses: Wer noch nie angemeldet war, erscheint nicht. Einladen, Sperren, Freigeben und Entfernen gibt es nicht, auch nicht über die Server-Schnittstelle. Alte Einladungslinks zeigen „Einladungen nicht verfügbar“; die Einladungen bleiben für einen späteren Standardbetrieb gespeichert. Alte Links auf `?bereich=sicherheit` führen nach **Zugänge**.
 
 ### Bestehende Instanz umstellen
 
 Gespeicherte lokale Zugangsdaten bleiben beim Wechsel erhalten, alle Sitzungen der bisherigen Betriebsart werden ungültig. Haben führt Konten **nicht** anhand gleicher E-Mail-Adressen zusammen: Meldet sich jemand mit der E-Mail eines bestehenden, nicht zugeordneten Kontos an, lehnt Haben ab und verweist auf die Übernahme durch den Betreiber. Unverknüpfte lokale Konten erhalten im SSO-Modus keinen Zugang, verhindern aber den Start nicht.
 
-Damit das bestehende Konto (und damit seine Belege, sein Audit-Verlauf und seine Konto-ID) weiterverwendet wird, ordnet der Betreiber es **bei gestoppter Anwendung** ausdrücklich einer Identität zu. Das Subject (`sub`) steht in Authelia unter **Einstellungen › Identität** oder in der Datenbank-Tabelle `user_opaque_identifier`; die Konto-ID unter `id` in der Haben-Tabelle `"user"`.
+Damit das bestehende Konto (und damit seine Belege, sein Audit-Verlauf und seine Konto-ID) weiterverwendet wird, ordnet der Betreiber es **bei gestoppter Anwendung** ausdrücklich einer Identität zu. Das Subject (`sub`) anhand der Identitätsausgabe des Anbieters nachweisen, siehe unten. Die Konto-ID steht unter `id` in der Haben-Tabelle `"user"`.
 
 ```sh
 docker compose stop app
@@ -894,11 +909,41 @@ docker compose run --rm --entrypoint bun app apps/web/src/server/db/sso-uebernah
 docker compose start app
 ```
 
-Die Übernahme ordnet nur dem konfigurierten Issuer zu, verweigert ein schon vergebenes Subject und läuft nicht, solange Haben läuft. Sie steht im Änderungsprotokoll (`sso_takeovers`) und vergibt **keine** Rolle: Die kommt bei der nächsten Anmeldung aus der Gruppe. Bestehende eindeutige Zuordnungen werden weiterverwendet.
+Die Übernahme ordnet nur dem konfigurierten Issuer zu, verweigert ein schon vergebenes Subject und läuft nicht, solange Haben läuft. Sie steht im Änderungsprotokoll (`sso_takeovers`) und vergibt **keine** Rolle: Die kommt bei der nächsten Anmeldung aus der Gruppe. Bestehende exakte Issuer-/Subject-Zuordnungen melden weiterhin dasselbe Konto an; eine erneute Übernahme ist nicht erforderlich.
+
+### Tokens nach Gruppenentzug
+
+API/MCP-Tokens und das Kalender-Abo haben einen ursprünglichen Ersteller und einen aktuell verantwortlichen Inhaber. Verliert dieser bei einer geprüften Anmeldung die Inhaberrolle, deaktiviert Haben seine Tokens und erhält deren Hash, Rechte und Frist. **Ohne erneute Anmeldung erkennt Haben den Gruppenentzug nicht automatisch; dafür gibt es keine feste Zeitgrenze.** Die 15-Minuten-Frist betrifft interaktive Sitzungen.
+
+Ein **anderer** aktuell berechtigter Inhaber kann deaktivierte Tokens in ihrer bisherigen Verwaltung ausdrücklich **übernehmen und reaktivieren**. Er wird verantwortlich; das bisherige Geheimnis beziehungsweise der Kalender-Link bleibt gültig. Ein späterer Entzug dieses neuen Verantwortlichen deaktiviert den Zugang erneut. Rückkehr in die Gruppe reaktiviert nichts automatisch. Endgültig widerrufene oder abgelaufene Tokens bleiben unbrauchbar.
+
+Bestehende Tokens ohne belegbare Verantwortlichkeit bleiben bei der Migration gespeichert, werden aber deaktiviert. Vorhandene Automationen und Kalender benötigen daher eine ausdrückliche Übernahme. Die Verwaltung zeigt Verantwortlichen, Zustand und Grund; Verwaltungsereignisse stehen ohne Geheimnisse im Audit.
 
 ### Zurück zum Standardmodus
 
-`OIDC_ONLY=false` setzen und neu starten. Das setzt einen verwendbaren lokalen Inhaber voraus (ungesperrt, mit Passwort oder Passkey); fehlt er, bricht Haben den Start mit einem Hinweis ab. Haben erzeugt keine lokalen Zugangsdaten. Konten, die nur per SSO entstanden sind, haben keine lokale Rolle und kein Passwort und bleiben im Standardmodus ohne Zugang. Laufende SSO-Anmeldungen und SSO-Sitzungen gelten nach dem Wechsel nicht mehr.
+Auch rein per SSO eingerichtete Instanzen lassen sich ohne erreichbaren IdP auf lokale Anmeldung umstellen. Zuerst Backup erstellen und **alle Haben-Instanzen stoppen**. Dann ein vorhandenes Konto anhand seiner Konto-ID ausdrücklich als lokalen Inhaber vorbereiten:
+
+```sh
+docker compose stop app
+# Nur prüfen, keine Änderungen:
+docker compose run --rm --no-deps --entrypoint bun app apps/web/src/server/db/local-owner.ts --konto <Konto-ID>
+# Ohne vorhandenen lokalen Zugang: Passwort über geschützten Eingabekanal übergeben.
+docker compose run --rm --no-deps -T --entrypoint bun app apps/web/src/server/db/local-owner.ts --konto <Konto-ID> --uebernehmen --passwort-stdin < /geschuetzt/passwort
+```
+
+Die nur für dich lesbare Eingabedatei enthält ein Passwort mit mindestens 12 Zeichen. Kein Passwort in Kommandozeilenargumente, Shell-Historie oder Logs schreiben. Sind Passwort oder Passkey vorhanden, reicht `--uebernehmen` ohne Passworteingabe. Ein anderer vorhandener lokaler Inhaber wird nicht ersetzt. Das Werkzeug erhält Konto-ID, SSO-Zuordnungen und Buchhaltungsdaten, protokolliert die Vorbereitung und entwertet Sitzungen. Danach `OIDC_ONLY=false` setzen und neu starten. Bis zum Moduswechsel bleibt lokale Anmeldung gesperrt; eine öffentliche Notanmeldung gibt es nicht.
+
+Bei **Quadlet** mit `systemctl --user stop haben-app` stoppen. Einen einmaligen Container aus demselben Image mit der Netzwerk-, Umgebungsdatei- und Datenbank-Secret-Konfiguration aus `haben-app.container` starten, den Entrypoint auf `bun` setzen und `apps/web/src/server/db/local-owner.ts` mit den obigen Argumenten ausführen. Das Passwort ausschließlich über geschützte Standardeingabe übergeben. Anschließend `haben.env` ändern und `systemctl --user start haben-app` ausführen. Für die SSO-Übernahme denselben einmaligen Container mit `sso-uebernahme.ts --konto <ID> --subject <sub> --uebernehmen` verwenden.
+
+In **Coolify** die Anwendung stoppen und den Betreiberbefehl auf dem Server als einmaligen Container aus demselben Image mit derselben Datenbankkonfiguration ausführen. Kein Exec in eine weiterhin laufende Haben-Instanz verwenden: Der exklusive Lock muss erfolgreich sein. Danach die Laufzeitvariable ändern und über Coolify neu starten. Weder Passwörter noch Secrets in Coolify-Befehlsprotokolle kopieren. Der Rückweg benötigt nur `DATABASE_URL`, nicht die Erreichbarkeit des IdP.
+
+### Identitäten, Datenschutz und Betrieb
+
+Beim Wechsel einer bestehenden Instanz erhält die erste erfolgreiche Inhaber-Anmeldung unmittelbar Zugriff auf vorhandene Daten. Deshalb Client, Issuer und Gruppen vor Aktivierung kontrollieren und bestehende Konten ausdrücklich übernehmen.
+
+Das Subject muss belegbar zum Haben-Client gehören, etwa aus `authelia storage user identifiers export --config /config/configuration.yml`. Bei paarweisen Subjects den zum Client beziehungsweise Sector passenden Eintrag verwenden; E-Mail und Benutzername sind kein Ersatz für `sub`. Eine bereits gespeicherte exakte Kombination aus Issuer und Subject meldet weiterhin dasselbe Konto an. Eine erneute Übernahme derselben Zuordnung wird als bereits vorhanden abgewiesen. Ein anderer Issuer, etwa nach einem Domainwechsel, benötigt neue ausdrückliche Zuordnungen je Konto.
+
+Haben speichert Name und E-Mail beim ersten Login, Issuer und Subject, zuletzt bestätigte Rolle und Prüfzeitpunkt sowie IP und User-Agent der Sitzung. Vollständige Claims und Provider-Tokens werden nicht dauerhaft gespeichert. Uhren per NTP synchronisieren: Die Tokenprüfung bietet keine zusätzliche Ablauf-Toleranz. Backup und Restore müssen Datenbank, Secrets und denselben Issuer zusammen erhalten; abweichende Issuer benötigen eine bewusste Übernahme.
 
 ## Passkeys und Domain
 
@@ -914,7 +959,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Die Anmeldung ist auf 20 Anfragen pro Minute begrenzt.
 
-**„Haben ist bereits eingerichtet.“** Haben hat genau einen Inhaber. Ein zweites Konto entsteht nur über einen Einladungslink für die [Steuerberatung](steuerberatung.md), weder mit dem Einrichtungscode noch über die API.
+**„Haben ist bereits eingerichtet.“** Im Standardmodus hat Haben genau einen Inhaber. Ein zweites Konto entsteht nur über einen Einladungslink für die [Steuerberatung](steuerberatung.md), weder mit dem Einrichtungscode noch über die API.
 
 **Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ELSTER › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
 

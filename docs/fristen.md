@@ -49,3 +49,7 @@ Mit einem E-Mail-Zugang (siehe [Einrichtung](einrichtung.md#e-mail)) schickt Hab
 - morgens nach 7 Uhr (Berliner Zeit) mit dem stündlichen Hintergrundjob, mehrere Fristen in einer Mail.
 
 Jede Frist und Stufe erinnert nur einmal. War der Server aus, holt der nächste Lauf die engste schon erreichte Stufe nach. Scheitert der Versand, steht der Fehler im Protokoll unter Einstellungen › E-Mail › E-Mail-Versand, und der nächste Lauf versucht es erneut. Gesendete Mails stehen unveränderlich im Protokoll.
+
+## Verantwortung für das Kalender-Abo
+
+Das Abo hat einen verantwortlichen Inhaber. Wird dessen Inhaberrolle bei einer SSO-Anmeldung entzogen, wird das Abo deaktiviert. Ein anderer Inhaber kann es ausdrücklich übernehmen und reaktivieren; der bereits abonnierte Kalender-Link bleibt erhalten. Ohne erneuten OIDC-Durchlauf besteht keine feste Erkennungsfrist für den Gruppenentzug. Ein beendetes Abo lässt sich nicht reaktivieren; dafür muss ein neuer Link erzeugt werden.

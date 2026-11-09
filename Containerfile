@@ -34,7 +34,7 @@ COPY --from=build /app/apps/web/.output ./apps/web/.output
 COPY --from=build /app/apps/web/drizzle ./apps/web/drizzle
 COPY --from=build /app/apps/web/src/server/db/migrate.ts ./apps/web/src/server/db/migrate.ts
 # Betreiberfunktion für den SSO-Modus: bestehende Konten ausdrücklich einer Identität zuordnen (docs/installation.md)
-COPY --from=build /app/apps/web/src/server/db/sso-uebernahme.ts /app/apps/web/src/server/db/app-lock.ts ./apps/web/src/server/db/
+COPY --from=build /app/apps/web/src/server/db/sso-uebernahme.ts /app/apps/web/src/server/db/app-lock.ts /app/apps/web/src/server/db/local-owner.ts ./apps/web/src/server/db/
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
