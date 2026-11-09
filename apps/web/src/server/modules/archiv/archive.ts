@@ -183,7 +183,8 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        matched: matchedSql,
+        // Eine interne Kennung ist nichts, wozu ein Beleg fehlt
+        matched: sql<boolean>`${matchedSql} or ${internalIdSql}`,
         filename: schema.archiveFiles.filename,
       })
       .from(schema.datevBookings)
@@ -244,6 +245,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
         matched: matchedSql,
+        internalId: internalIdSql,
       })
       .from(schema.datevBookings)
       .where(where)

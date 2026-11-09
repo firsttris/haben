@@ -21,7 +21,11 @@ export function datevVoucherFound(field: string): SQL<boolean> {
   return sql<boolean>`exists (select 1 from lexoffice_vouchers v where v.number <> '' and (${exact} or ${truncatedNumberMatches("v", sql.raw(field))}))`;
 }
 
-/** sevDesk schreibt in Zahlungsbuchungen eine interne UUID ins Belegfeld (#472): keine Belegnummer, die einen Beleg finden könnte. */
+/**
+ * sevDesk schreibt in Zahlungsbuchungen eine interne UUID ins Belegfeld (#472): keine Belegnummer, außer ein Beleg trägt
+ * sie wirklich als Nummer.
+ */
 export function datevInternalId(field: string): SQL<boolean> {
-  return sql.raw(`(${field} ~* '${UUID_PATTERN}' and exists (select 1 from lexoffice_vouchers s where s.source = 'sevdesk'))`) as SQL<boolean>;
+  const uuid = sql.raw(`${field} ~* '${UUID_PATTERN}' and exists (select 1 from lexoffice_vouchers s where s.source = 'sevdesk')`);
+  return sql<boolean>`(${uuid} and not ${datevVoucherFound(field)})`;
 }

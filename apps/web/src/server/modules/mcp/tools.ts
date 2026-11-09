@@ -902,7 +902,7 @@ export const MCP_TOOLS: McpTool[] = [
           buSchluessel: b.buKey,
           belegnummer: b.voucherField1,
           text: b.text,
-          belegGefunden: b.voucherField1 ? b.matched : null,
+          belegGefunden: b.voucherField1 && !b.internalId ? b.matched : null,
         })),
         link: link(`/archiv?ansicht=buchungen&jahr=${year}`),
       };
