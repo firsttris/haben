@@ -180,11 +180,11 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
             </label>
           )}
           <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              Mandat speichern
-            </button>
             <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>
               Abbrechen
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              Mandat speichern
             </button>
           </div>
         </form>
