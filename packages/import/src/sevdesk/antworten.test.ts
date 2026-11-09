@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
+import belegeOhneDatei from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-ohne-datei.json" with { type: "json" };
+import belegeRv from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-wiederkehrend-rv.json" with { type: "json" };
 import belege from "../../test-fixtures/sevdesk/buchhaltung-1.0/belege-credit-debit.json" with { type: "json" };
+import dateiDownload from "../../test-fixtures/sevdesk/buchhaltung-1.0/document-download.json" with { type: "json" };
+import vorlagenWkr from "../../test-fixtures/sevdesk/buchhaltung-1.0/rechnungsvorlage-wkr.json" with { type: "json" };
 import stornoV1 from "../../test-fixtures/sevdesk/buchhaltung-1.0/storno-paar.json" with { type: "json" };
 import belegeV2 from "../../test-fixtures/sevdesk/buchhaltung-2.0/belege-credit-debit.json" with { type: "json" };
 import gutschriftV2 from "../../test-fixtures/sevdesk/buchhaltung-2.0/gutschrift.json" with { type: "json" };
 import stornoFolgejahrV2 from "../../test-fixtures/sevdesk/buchhaltung-2.0/storno-paar-folgejahr.json" with { type: "json" };
 import stornoV2 from "../../test-fixtures/sevdesk/buchhaltung-2.0/storno-paar.json" with { type: "json" };
 import zahlungenV2 from "../../test-fixtures/sevdesk/buchhaltung-2.0/zahlungen.json" with { type: "json" };
-import { isSevCreditNoteImportable, mapSevCreditNote, mapSevInvoice, mapSevPaymentLogs, mapSevVoucher } from "./map.ts";
-import { sevCheckAccountTransactionLogSchema, sevCreditNoteSchema, sevInvoiceSchema, sevVoucherSchema } from "./types.ts";
+import {
+  isSevCreditNoteImportable,
+  isSevInvoiceImportable,
+  isSevVoucherImportable,
+  mapSevCreditNote,
+  mapSevInvoice,
+  mapSevPaymentLogs,
+  mapSevVoucher,
+} from "./map.ts";
+import { sevCheckAccountTransactionLogSchema, sevCreditNoteSchema, sevFileResponseSchema, sevInvoiceSchema, sevVoucherSchema } from "./types.ts";
 
 /* Anonymisierte echte Antworten je Buchhaltungsversion; weicht eine Version ab, fällt es hier auf (#472). */
 
@@ -141,5 +153,28 @@ describe("Einzelzahlungen in Buchhaltungsversion 2.0", () => {
     const byVoucher = mapped(logs);
     expect(byVoucher.size).toBe(2);
     expect(new Set([...byVoucher.values()].flat().map((i) => i.transactionId)).size).toBe(1);
+  });
+});
+
+describe("Vorlagen und Belege ohne Datei in Buchhaltungsversion 1.0", () => {
+  it("übernimmt wiederkehrende Rechnungen nicht", () => {
+    for (const { invoice } of vorlagenWkr) expect(isSevInvoiceImportable(sevInvoiceSchema.parse(invoice))).toBe(false);
+  });
+
+  it("übernimmt Vorlagen wiederkehrender Belege nicht, auch mit Status 1000", () => {
+    expect(belegeRv.map((b) => b.voucher.status)).toContain("1000");
+    for (const { voucher } of belegeRv) expect(isSevVoucherImportable(sevVoucherSchema.parse(voucher))).toBe(false);
+  });
+
+  it("führt Belege ohne document ohne Datei", () => {
+    for (const { voucher, positions } of belegeOhneDatei) {
+      const parsed = sevVoucherSchema.parse(voucher);
+      expect(isSevVoucherImportable(parsed)).toBe(true);
+      expect(mapSevVoucher(parsed, positions as never[]).voucher.fileIds).toEqual([]);
+    }
+  });
+
+  it("liest die Hülle von Document/download", () => {
+    expect(sevFileResponseSchema.parse(dateiDownload)).toMatchObject({ objects: { base64Encoded: true, mimetype: "application/pdf" } });
   });
 });

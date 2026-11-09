@@ -1,0 +1,394 @@
+[
+  {
+    "invoice": {
+      "id": "ID_15",
+      "objectName": "Invoice",
+      "additionalInformation": null,
+      "invoiceNumber": "",
+      "contact": {
+        "id": "ID_16",
+        "objectName": "Contact"
+      },
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "invoiceDate": "2024-01-15T12:00:00+01:00",
+      "header": "<anon>",
+      "headText": "<anon>",
+      "footText": "<anon>",
+      "timeToPay": "1",
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "1",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": null,
+      "createUser": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "status": "100",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "dunningLevel": null,
+      "addressParentName": null,
+      "taxType": "default",
+      "paymentMethod": {
+        "id": "ID_18",
+        "objectName": "PaymentMethod"
+      },
+      "sendDate": null,
+      "invoiceType": "WKR",
+      "accountIntervall": "P0Y1M",
+      "accountLastInvoice": "2024-01-15T12:00:00+01:00",
+      "accountNextInvoice": "2024-01-15T12:00:00+01:00",
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": "0",
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountStartDate": "2024-01-15T12:00:00+01:00",
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100.0",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100.0",
+      "sumTaxAccounting": "100.00",
+      "sumGrossAccounting": "100.00",
+      "paidAmount": 0,
+      "customerInternalNote": "<anon>",
+      "einvoiceReference": null,
+      "sepaMandateReference": null,
+      "sepaCreditorId": null,
+      "sepaPayerIban": null,
+      "showNet": "1",
+      "enshrined": null,
+      "sendType": null,
+      "deliveryDateUntil": null,
+      "sendPaymentReceivedNotificationDate": null,
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    },
+    "positions": [
+      {
+        "id": "ID_19",
+        "objectName": "InvoicePos",
+        "additionalInformation": null,
+        "create": "2024-01-15T12:00:00+01:00",
+        "update": "2024-01-15T12:00:00+01:00",
+        "invoice": {
+          "id": "ID_15",
+          "objectName": "Invoice"
+        },
+        "part": {
+          "id": "ID_20",
+          "objectName": "Part"
+        },
+        "quantity": "1",
+        "price": "100",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "ID_901",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "0",
+        "text": "<anon>",
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": null,
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100",
+        "sumGross": "100.0",
+        "sumDiscount": "0",
+        "sumTax": "100.0",
+        "sumNetAccounting": "100",
+        "sumTaxAccounting": "100.0",
+        "sumGrossAccounting": "100.0",
+        "priceNet": "100",
+        "priceGross": "100.0",
+        "priceTax": "100.0",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      },
+      {
+        "id": "ID_21",
+        "objectName": "InvoicePos",
+        "additionalInformation": null,
+        "create": "2024-01-15T12:00:00+01:00",
+        "update": "2024-01-15T12:00:00+01:00",
+        "invoice": {
+          "id": "ID_15",
+          "objectName": "Invoice"
+        },
+        "part": {
+          "id": "ID_22",
+          "objectName": "Part"
+        },
+        "quantity": "1",
+        "price": "100.0",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "ID_901",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "1",
+        "text": "<anon>",
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": null,
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100.0",
+        "sumGross": "100.00",
+        "sumDiscount": "0",
+        "sumTax": "100.00",
+        "sumNetAccounting": "100.0",
+        "sumTaxAccounting": "100.00",
+        "sumGrossAccounting": "100.00",
+        "priceNet": "100.0",
+        "priceGross": "100.000",
+        "priceTax": "100.000",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      }
+    ]
+  },
+  {
+    "invoice": {
+      "id": "ID_23",
+      "objectName": "Invoice",
+      "additionalInformation": null,
+      "invoiceNumber": "1",
+      "contact": {
+        "id": "ID_24",
+        "objectName": "Contact"
+      },
+      "create": "2024-01-15T12:00:00+02:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "invoiceDate": "2024-01-15T12:00:00+02:00",
+      "header": "<anon>",
+      "headText": "<anon>",
+      "footText": "<anon>",
+      "timeToPay": "1",
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "1",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": null,
+      "createUser": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "deliveryDate": "2024-01-15T12:00:00+02:00",
+      "status": "100",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "dunningLevel": null,
+      "addressParentName": null,
+      "taxType": "default",
+      "paymentMethod": {
+        "id": "ID_18",
+        "objectName": "PaymentMethod"
+      },
+      "sendDate": null,
+      "invoiceType": "WKR",
+      "accountIntervall": "P0Y1M",
+      "accountLastInvoice": "2024-01-15T12:00:00+01:00",
+      "accountNextInvoice": "2024-01-15T12:00:00+01:00",
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": "0",
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountStartDate": "2024-01-15T12:00:00+02:00",
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100",
+      "sumTax": "100",
+      "sumGross": "100",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100",
+      "sumTaxAccounting": "100",
+      "sumGrossAccounting": "100",
+      "paidAmount": 0,
+      "customerInternalNote": null,
+      "einvoiceReference": "<anon>",
+      "sepaMandateReference": null,
+      "sepaCreditorId": null,
+      "sepaPayerIban": null,
+      "showNet": "1",
+      "enshrined": null,
+      "sendType": null,
+      "deliveryDateUntil": null,
+      "sendPaymentReceivedNotificationDate": null,
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    },
+    "positions": [
+      {
+        "id": "ID_25",
+        "objectName": "InvoicePos",
+        "additionalInformation": null,
+        "create": "2024-01-15T12:00:00+02:00",
+        "update": "2024-01-15T12:00:00+02:00",
+        "invoice": {
+          "id": "ID_23",
+          "objectName": "Invoice"
+        },
+        "part": {
+          "id": "ID_26",
+          "objectName": "Part"
+        },
+        "quantity": "1",
+        "price": "100",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "ID_900",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "0",
+        "text": "",
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": "0",
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100",
+        "sumGross": "100",
+        "sumDiscount": "0",
+        "sumTax": "100",
+        "sumNetAccounting": "100",
+        "sumTaxAccounting": "100",
+        "sumGrossAccounting": "100",
+        "priceNet": "100",
+        "priceGross": "100",
+        "priceTax": "100",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      },
+      {
+        "id": "ID_27",
+        "objectName": "InvoicePos",
+        "additionalInformation": null,
+        "create": "2024-01-15T12:00:00+02:00",
+        "update": "2024-01-15T12:00:00+02:00",
+        "invoice": {
+          "id": "ID_23",
+          "objectName": "Invoice"
+        },
+        "part": {
+          "id": "ID_28",
+          "objectName": "Part"
+        },
+        "quantity": "1",
+        "price": "100",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "ID_900",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "1",
+        "text": "<anon>",
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": null,
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100",
+        "sumGross": "100",
+        "sumDiscount": "0",
+        "sumTax": "100",
+        "sumNetAccounting": "100",
+        "sumTaxAccounting": "100",
+        "sumGrossAccounting": "100",
+        "priceNet": "100",
+        "priceGross": "100",
+        "priceTax": "100",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      }
+    ]
+  }
+]
