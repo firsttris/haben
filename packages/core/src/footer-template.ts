@@ -95,10 +95,10 @@ const PLACEHOLDER = /\{([^{}\s]*)\}/g;
  * Eine Zeile ohne Wert fällt weg: Ohne Telefon erscheint nicht „Telefon “. Ausgezeichnet wird der eingegebene Text, die Werte
  * kommen erst danach dazu: Ein Unterstrich in einer E-Mail-Adresse bleibt ein Unterstrich.
  */
-function filledRuns(line: string, values: FooterValues): FormattedTextRun[] | null {
-  const names = placeholdersIn(line).filter(isPlaceholder);
+function filledRuns(line: readonly FormattedTextRun[], values: FooterValues): FormattedTextRun[] | null {
+  const names = line.flatMap((run) => placeholdersIn(run.text)).filter(isPlaceholder);
   if (names.length > 0 && names.every((name) => !values[name])) return null;
-  const runs = parseTextFormatting(line).map((run) => ({
+  const runs = line.map((run) => ({
     ...run,
     text: run.text.replace(PLACEHOLDER, (whole, name: string) => (isPlaceholder(name) ? values[name] : whole)),
   }));
@@ -113,9 +113,20 @@ function filledRuns(line: string, values: FooterValues): FormattedTextRun[] | nu
 
 const plainLine = (runs: readonly FormattedTextRun[]): string => runs.map((run) => run.text).join("");
 
+/** Erst lesen, dann in Zeilen teilen: Wie in den Belegtexten gilt eine Auszeichnung auch über mehrere Zeilen. */
+function columnLines(text: string): FormattedTextRun[][] {
+  const lines: FormattedTextRun[][] = [[]];
+  for (const run of parseTextFormatting(text)) {
+    run.text.split("\n").forEach((piece, index) => {
+      if (index > 0) lines.push([]);
+      lines[lines.length - 1]!.push({ ...run, text: piece });
+    });
+  }
+  return lines;
+}
+
 const columnRuns = (text: string, values: FooterValues): FormattedTextRun[][] =>
-  text
-    .split("\n")
+  columnLines(text)
     .map((line) => filledRuns(line, values))
     .filter((runs): runs is FormattedTextRun[] => runs !== null);
 
