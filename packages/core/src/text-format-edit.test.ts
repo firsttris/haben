@@ -101,6 +101,10 @@ describe("Auszeichnung per Knopf", () => {
     expect(() => toggleTextStyle(text, start, start + 4, "bold")).not.toThrow();
   });
 
+  it("behält innere Auszeichnungen in beiden Hälften, wenn ein Wort herausgelöst wird", () => {
+    expect(toggle("_eins __[zwei]__ __drei__ vier_", "italic")).toBe("_eins_ __zwei__ ___drei___ _vier_");
+  });
+
   it("behält beim Herauslösen die übrigen Auszeichnungen", () => {
     expect(toggle("___eins [zwei]___", "italic")).toBe("___eins___ __zwei__");
     expect(toggle("*_eins [zwei]_*", "bold")).toBe("*_eins_* _zwei_");
