@@ -99,9 +99,43 @@ export async function kontaktAnlegen(page: Page, kontakt: Kontakt): Promise<void
   if (kontakt.phone) await expect(page.getByLabel("Telefon")).toHaveValue(kontakt.phone);
 }
 
+/** Die Trefferliste eines Suchfelds (Combobox.tsx) */
+export const trefferliste = (page: Page) => page.getByRole("listbox", { name: "Treffer" });
+
+/** Kunden im Editor über die Suche wählen, Text wie im Feld: „Name · Ort“; ohne Text den ersten der Liste */
+export async function kundeWaehlen(page: Page, kunde?: string): Promise<void> {
+  const feld = page.getByRole("combobox", { name: "Kunde", exact: true });
+  if (kunde === undefined) {
+    await feld.click();
+    await trefferliste(page).getByRole("option").first().click();
+    return;
+  }
+  await feld.fill(kunde.split(" · ")[0]!);
+  await trefferliste(page).getByRole("option").first().click();
+  await expect(feld).toHaveValue(kunde);
+}
+
+/** Dialog für einen neuen Kunden über den letzten Eintrag der Trefferliste öffnen */
+export async function neuenKontaktOeffnen(page: Page): Promise<void> {
+  await page.getByRole("combobox", { name: "Kunde", exact: true }).click();
+  await trefferliste(page).getByRole("option", { name: "Neuen Kontakt anlegen" }).click();
+}
+
+/** Artikel aus der Trefferliste einer Position übernehmen */
+export async function artikelInPosition(page: Page, position: number, bezeichnung: string): Promise<void> {
+  await page.getByLabel(`Beschreibung Position ${position}`).fill(bezeichnung);
+  await trefferliste(page).getByRole("option", { name: bezeichnung }).first().click();
+}
+
+/** Artikel über „Aus dem Katalog einfügen“ als Position einfügen */
+export async function artikelEinfuegen(page: Page, bezeichnung: string): Promise<void> {
+  await page.getByLabel("Aus dem Artikelkatalog einfügen").fill(bezeichnung);
+  await trefferliste(page).getByRole("option", { name: bezeichnung }).first().click();
+}
+
 export async function rechnungFestschreiben(page: Page, rechnung: Rechnung): Promise<void> {
   await gehe(page, "/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: rechnung.customer });
+  await kundeWaehlen(page, rechnung.customer);
   await page.getByLabel("Rechnungsdatum").fill(rechnung.date);
   for (const [i, [description, quantity, price]] of rechnung.lines.entries()) {
     if (i > 0) await page.getByRole("button", { name: "Position hinzufügen" }).click();
@@ -134,7 +168,7 @@ const HANDY_AXE = { width: 320, height: 720 };
 const HANDY_BREITE = { width: 390, height: 844 };
 const THEMES = ["ozean", "pflaume", "graphit", "nacht", "tiefsee"];
 
-async function axeVerstoesse(page: Page, rules?: string[]): Promise<string[]> {
+export async function axeVerstoesse(page: Page, rules?: string[]): Promise<string[]> {
   const builder = new AxeBuilder({ page }).withTags(WCAG);
   if (rules) builder.withRules(rules);
   const { violations } = await builder.analyze();
