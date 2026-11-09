@@ -468,3 +468,42 @@ test("Nach dem Verringern der Spalten fügt ein Platzhalter-Knopf in eine sichtb
   // Die Vorgabe in Spalte 1 hat schon ein {email}; der Klick muss ein zweites bringen
   expect((sichtbar.match(/\{email\}/g) ?? []).length).toBe(2);
 });
+
+test("Briefpapier mit eigenem Fuß: Fußzeile weglassen nur nach Rückfrage und nur mit Briefpapier", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  const karte = page.getByRole("region", { name: "Briefpapier" });
+  const schalter = karte.getByLabel("Fußzeile steht auf dem Briefpapier");
+  await expect(schalter).toBeDisabled();
+
+  await karte.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(karte.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await expect(schalter).toBeEnabled();
+
+  await schalter.click();
+  await expect(karte.getByText(/Steuernummer oder USt-IdNr\. muss dann auf dem Briefpapier stehen/)).toBeVisible();
+  await expect(schalter).not.toBeChecked();
+  await karte.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(schalter).not.toBeChecked();
+
+  await schalter.click();
+  await karte.getByRole("button", { name: "Fußzeile weglassen" }).click();
+  await expect(schalter).toBeChecked();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  await vorschauKnopf(page).click();
+  await expect(blatt(page).locator(".sheet-foot")).toHaveCount(0);
+
+  await page.goto("/einstellungen?bereich=gestaltung");
+  await page.waitForLoadState("networkidle");
+  await schalter.uncheck();
+  await karte.getByRole("button", { name: "Speichern" }).click();
+  await expect(karte.getByRole("status").last()).toContainText("Gespeichert");
+  await karte.getByRole("button", { name: "Entfernen" }).click();
+  await expect(karte.getByText("Noch kein Briefpapier.")).toBeVisible();
+  await page.context().close();
+});

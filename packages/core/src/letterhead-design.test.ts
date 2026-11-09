@@ -58,6 +58,12 @@ describe("Schrift und Briefpapier in der Gestaltung", () => {
     expect(letterheadDesignInputSchema.safeParse({ font: "comic-sans" }).success).toBe(false);
   });
 
+  it("druckt ab Werk die Fußzeile", () => {
+    expect(DEFAULT_DESIGN.footerHidden).toBe(false);
+    expect(designWithDefaults({ accent: "#123456" }).footerHidden).toBe(false);
+    expect(letterheadDesignInputSchema.safeParse({ footerHidden: true }).success).toBe(true);
+  });
+
   it("kennt nur erste Seite oder alle Seiten", () => {
     expect(letterheadDesignInputSchema.safeParse({ backgroundPages: "alle" }).success).toBe(true);
     expect(letterheadDesignInputSchema.safeParse({ backgroundPages: "letzte" }).success).toBe(false);

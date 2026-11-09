@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { dunningPdfData } from "./dunning.ts";
 import { pdfData, renderInvoicePdf, templateInputs } from "./pdf.ts";
-import { mixedRateLines, sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
+import { gmbhSeller, mixedRateLines, sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
 import { buildEInvoice } from "./index.ts";
 import { quotePdfData } from "./quote.ts";
 
@@ -200,5 +200,25 @@ describe("Briefpapier", () => {
 
   it.skipIf(!hasPoppler)("fehlt ohne Bild ganz", () => {
     expect(seitenMitBild("alle", false)).toEqual([]);
+  });
+});
+
+describe("Fußzeile auf dem Briefpapier", () => {
+  const bild = { background: { data: PIXEL, format: "png" as const } };
+  const ohneFuss = (seller = sampleDocument().seller) => ({ ...sampleDocument(), seller, options: { ...DEFAULT_OPTIONS, footerHidden: true } });
+
+  it("entfällt mit Briefpapier samt Pflichtzeile, die dann das Briefpapier trägt", () => {
+    const data = pdfData({ ...ohneFuss(gmbhSeller), ...bild });
+    expect(data.footer).toEqual([]);
+    expect(data.legal).toBeNull();
+  });
+
+  it("bleibt ohne Briefpapier stehen, sonst fehlten die Pflichtangaben ganz", () => {
+    const data = pdfData(ohneFuss());
+    expect(data.footer.flat().join(" ")).toContain(sampleSeller.steuernummer!);
+  });
+
+  it("lässt sich als PDF erzeugen", () => {
+    expect(renderInvoicePdf({ ...ohneFuss(), ...bild }).length).toBeGreaterThan(1000);
   });
 });

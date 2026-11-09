@@ -1,7 +1,19 @@
 import { LAYOUT_DOCUMENT_TYPES } from "@haben/core";
+import { renderInvoicePdf } from "@haben/einvoice";
+import { execFileSync } from "node:child_process";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { sampleDocument } from "../../../../../../packages/einvoice/src/samples.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+
+const hasPdftoppm = (() => {
+  try {
+    execFileSync("pdftoppm", ["-v"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () => {
   let letterhead: typeof import("./letterhead.ts");
@@ -114,6 +126,17 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
       expect((await sql`select count(*)::int as n from letterhead_background`)[0]!.n).toBe(1);
     });
 
+    it.skipIf(!hasPdftoppm)("wandelt die erste Seite eines PDF in ein Bild um", async () => {
+      await background.saveBackground(actor, renderInvoicePdf(sampleDocument()));
+      const head = await letterhead.loadLetterhead();
+      expect(head.background?.format).toBe("png");
+      expect([...head.background!.data.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    });
+
+    it("lehnt ein beschädigtes PDF ab", async () => {
+      await expect(background.saveBackground(actor, new TextEncoder().encode("%PDF-1.7 kaputt"))).rejects.toThrow(/PDF/);
+    });
+
     it("lässt sich entfernen", async () => {
       await background.saveBackground(actor, png);
       await background.removeBackground(actor);
@@ -123,7 +146,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
     it("lehnt leere, zu große und andere Dateien ab", async () => {
       await expect(background.saveBackground(actor, new Uint8Array())).rejects.toThrow("leer");
       await expect(background.saveBackground(actor, new Uint8Array(background.MAX_BACKGROUND_BYTES + 1).fill(0x89))).rejects.toThrow("2 MB");
-      await expect(background.saveBackground(actor, new Uint8Array([0x25, 0x50, 0x44, 0x46, 1]))).rejects.toThrow("PNG und JPEG");
+      await expect(background.saveBackground(actor, new TextEncoder().encode("GIF89a"))).rejects.toThrow("PNG, JPEG und PDF");
     });
 
     it("protokolliert die Änderung, aber nicht das Bild", async () => {
