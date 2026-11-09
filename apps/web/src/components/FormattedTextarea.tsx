@@ -154,6 +154,8 @@ export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": desc
           aria-label="Textformatierung"
           className="format-bar"
           style={{ left: `min(${anchor.left}px, calc(100% - ${BAR_WIDTH}px))`, top: anchor.top }}
+          // Die Auswahl im Feld bleibt beim Klick erhalten, auch knapp neben einem Knopf
+          onMouseDown={(event) => event.preventDefault()}
           onKeyDown={(event) =>
             moveFocus(event, () => {
               if (!field.current) return;
@@ -170,8 +172,6 @@ export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": desc
               aria-label={button.label}
               aria-keyshortcuts={`Control+${button.key} Meta+${button.key}`}
               title={`${button.label} (Strg/⌘+${button.key})`}
-              // Die Auswahl im Feld bleibt beim Klick erhalten
-              onMouseDown={(event) => event.preventDefault()}
               onFocus={() => setActive(index)}
               onClick={() => toggle(button.style)}
             >
