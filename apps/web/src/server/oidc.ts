@@ -1,7 +1,7 @@
 import { APIError, authorizationCodeRequest, getOAuth2Tokens, type BetterAuthPlugin, type GenericEndpointContext } from "better-auth";
 import { addOAuthServerContext, createAuthMiddleware, getOAuthState, isAPIError } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins";
-import { rejectCallback, setCallbackProof } from "./auth-transaction.ts";
+import { beginCallbackWrites, rejectCallback, setCallbackProof } from "./auth-transaction.ts";
 import { env } from "./env.ts";
 import { decideRole, SSO_PROOF_MS } from "./sso-groups.ts";
 import { ssoOnly } from "./sso-policy.ts";
@@ -158,6 +158,7 @@ async function verifiedUserInfo(tokens: OidcTokens) {
     return null;
   }
   const name = typeof profile.name === "string" && profile.name ? profile.name : email;
+  await beginCallbackWrites();
   return { sub: subject, email, emailVerified: emailVerified === true, name };
 }
 
@@ -233,7 +234,7 @@ async function oidcBefore(ctx: GenericEndpointContext): Promise<void> {
     if (!callback) ctx.body.scopes = metadata.scopes;
   });
   if (callback) return;
-  if (ctx.body?.provider !== "oidc" || ctx.body?.idToken || ctx.body?.additionalParams || ctx.body?.loginHint) throw denied();
+  if (ctx.body?.provider !== "oidc" || ctx.body?.idToken || ctx.body?.additionalParams || ctx.body?.additionalData || ctx.body?.loginHint) throw denied();
   // Auch Fehler- und Neuanlage-URLs fest: keine offenen Redirects. Ob ein Konto entsteht, entscheidet der Callback.
   ctx.body.callbackURL = "/";
   ctx.body.newUserCallbackURL = "/";

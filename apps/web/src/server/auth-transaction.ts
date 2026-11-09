@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { eq, sql } from "drizzle-orm";
-import { db, schema, type Tx } from "./db/index.ts";
+import { sql } from "drizzle-orm";
+import { db, type Tx } from "./db/index.ts";
 import type { Rolle } from "../lib/rollen.ts";
 import type { GroupRejection } from "./sso-groups.ts";
 
@@ -17,26 +17,27 @@ export interface SsoProof {
 }
 
 /** Warum ein Callback abgewiesen wurde; bestimmt den Hinweis auf der Anmeldeseite */
-export type CallbackRejection = "gruppen-doppelt" | "profil" | "gruppe" | "nicht-eingerichtet" | "konto-vorhanden" | "ausgelastet" | "fehler";
+export type CallbackRejection = "gruppen-doppelt" | "profil" | "gruppe" | "nicht-eingerichtet" | "konto-vorhanden" | "fehler";
+
+interface OpenTransaction {
+  tx: Tx;
+  commit: () => Promise<void>;
+  rollback: () => Promise<void>;
+}
 
 interface CallbackScope {
-  tx: Tx;
+  transaction?: OpenTransaction;
   proof?: SsoProof;
   rejection?: CallbackRejection;
-  stateConsumed?: boolean;
+  /** Fehlercode aus dem Redirect von Better Auth oder vom Anbieter, etwa invalid_scope; nur fürs Log */
+  failure?: string;
 }
 
 const scope = new AsyncLocalStorage<CallbackScope>();
-const LIMIT = Symbol.for("haben.oidcCallbacks");
-const shared = globalThis as { [LIMIT]?: { active: number } };
-shared[LIMIT] ??= { active: 0 };
-const callbacks = shared[LIMIT];
-/** Der Callback hält während der Anbieteraufrufe eine Verbindung; der Pool hat zehn, lokale Anmeldung braucht auch welche */
-const MAX_CALLBACKS = 4;
 
 /** Adapter und Hooks benutzen im Callback dieselbe Verbindung: Konto, Zuordnung, Rolle und Sitzung entstehen gemeinsam */
-export const authDatabase = () => scope.getStore()?.tx ?? db;
-export const authTransaction = () => scope.getStore()?.tx;
+export const authTransaction = () => scope.getStore()?.transaction?.tx;
+export const authDatabase = () => authTransaction() ?? db;
 
 /** Nachweis des laufenden Callbacks; nur innerhalb von atomicAuthCallback gesetzt, nie aus Browserdaten */
 export const callbackProof = () => scope.getStore()?.proof;
@@ -44,9 +45,6 @@ export function setCallbackProof(proof: SsoProof): void {
   const store = scope.getStore();
   if (!store) throw new Error("SSO-Nachweis außerhalb eines Callbacks");
   store.proof = proof;
-  // Ein vollständig geprüfter Nachweis setzt voraus, dass Better Auth State und Browserbindung schon geprüft hat.
-  // Dies vor weiteren SQL-Anweisungen merken: nach einem DB-Fehler wäre die Transaktion bereits abgebrochen.
-  store.stateConsumed = true;
 }
 export function rejectCallback(reason: CallbackRejection): void {
   const store = scope.getStore();
@@ -61,6 +59,45 @@ export const authDatabaseProxy = new Proxy(db, {
   },
 });
 
+/** Hält eine Transaktion offen, bis commit oder rollback sie beendet; beides darf mehrfach laufen */
+async function openTransaction(): Promise<OpenTransaction> {
+  let finish!: (rollback?: Error) => void;
+  const outcome = new Promise<void>((resolve, reject) => {
+    finish = (rollback) => (rollback ? reject(rollback) : resolve());
+  });
+  let opened!: (tx: Tx) => void;
+  const ready = new Promise<Tx>((resolve) => {
+    opened = resolve;
+  });
+  const finished = db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('haben.actor', 'system:oidc', true)`);
+    opened(tx);
+    await outcome;
+  });
+  const tx = await Promise.race([ready, finished.then(() => Promise.reject(new Error("OIDC_TRANSACTION_ENDED")))]);
+  return {
+    tx,
+    commit: () => {
+      finish();
+      return finished;
+    },
+    rollback: () => {
+      finish(new Error("OIDC_CALLBACK_ROLLBACK"));
+      return finished.catch(() => {});
+    },
+  };
+}
+
+/**
+ * Öffnet die Transaktion des Callbacks, nachdem Anbieter und Gruppen geprüft sind. Better Auth liest und löscht davor nur
+ * den State und schreibt erst danach Konten; alle Netzaufrufe liegen also außerhalb und belegen keine Datenbankverbindung.
+ */
+export async function beginCallbackWrites(): Promise<void> {
+  const store = scope.getStore();
+  if (!store) throw new Error("SSO-Transaktion außerhalb eines Callbacks");
+  store.transaction ??= await openTransaction();
+}
+
 /** Better Auth meldet Callback-Fehler als Redirect mit „error“; der Code dort sagt, was schiefging */
 function failedLocation(response: Response): string | undefined {
   const location = response.headers.get("location");
@@ -74,59 +111,31 @@ export interface AtomicCallbackOptions {
   errorUrl: (reason: CallbackRejection) => string;
   /** Läuft nach dem Rollback in eigener Transaktion: was eine gültige negative Entscheidung festschreiben muss */
   afterRejection?: (proof: SsoProof) => Promise<void>;
-  /** verification.identifier des OAuth-States dieses Callbacks (Better Auth: `auth-state:<state>`) */
-  stateIdentifier?: string;
-}
-
-/** Ob Better Auth den State in der Callback-Transaktion schon verbraucht (gelöscht) hat */
-async function stateConsumed(tx: Tx, identifier: string | undefined): Promise<boolean> {
-  if (!identifier) return false;
-  const rows = await tx.select({ id: schema.verification.id }).from(schema.verification).where(eq(schema.verification.identifier, identifier));
-  return rows.length === 0;
 }
 
 /**
- * Der ganze Callback in einer Transaktion: Einrichtung, Konto, Zuordnung, Rolle und Sitzung entstehen gemeinsam oder
- * gar nicht. Better Auth wandelt Fehler in Redirects um, deshalb rollt auch ein Fehler-Redirect zurück. Was eine
- * geprüfte Gruppenentscheidung verlangt (Sitzungen widerrufen), läuft danach und bleibt bestehen.
+ * Der Schreibteil des Callbacks in einer Transaktion: Einrichtung, Konto, Zuordnung, Rolle und Sitzung entstehen gemeinsam
+ * oder gar nicht. Better Auth wandelt Fehler in Redirects um, deshalb rollt auch ein Fehler-Redirect zurück. Das Löschen
+ * des States liegt davor und bleibt bestehen (einmalig, RFC 9700 4.7); was eine geprüfte Gruppenentscheidung verlangt
+ * (Sitzungen widerrufen), läuft danach und bleibt ebenfalls bestehen.
  */
 export async function atomicAuthCallback(work: () => Promise<Response>, options: AtomicCallbackOptions): Promise<Response> {
-  // Netzwerk während des Codeaustauschs darf den Pool nicht erschöpfen. Lokale Anmeldung behält Verbindungen.
-  if (callbacks.active >= MAX_CALLBACKS) return Response.redirect(options.errorUrl("ausgelastet"), 303);
-  callbacks.active++;
-  const state: Partial<CallbackScope> = {};
+  const store: CallbackScope = {};
   try {
-    return await db.transaction(async (tx) => {
-      const store: CallbackScope = { tx };
-      return scope.run(store, async () => {
-        try {
-          await tx.execute(sql`select set_config('haben.actor', 'system:oidc', true)`);
-          const response = await work();
-          const failed = failedLocation(response);
-          if (failed) {
-            if (failed === "account_not_linked") store.rejection ??= "konto-vorhanden";
-            store.stateConsumed ||= await stateConsumed(tx, options.stateIdentifier);
-            throw new Error("OIDC_CALLBACK_ROLLBACK");
-          }
-          return response;
-        } finally {
-          state.proof = store.proof;
-          state.rejection = store.rejection;
-          state.stateConsumed = store.stateConsumed;
-        }
-      });
-    });
-  } catch {
-    // Das Rollback nähme auch das Löschen des States zurück; State, Nonce und PKCE-Verifier gelten aber nur einmal
-    // (OAuth 2.0 Security BCP, RFC 9700 4.7). Nur löschen, was Better Auth selbst schon verbraucht hatte.
-    if (state.stateConsumed && options.stateIdentifier) {
-      await db
-        .delete(schema.verification)
-        .where(eq(schema.verification.identifier, options.stateIdentifier))
-        .catch(() => console.error("SSO: State nach abgewiesenem Callback nicht entwertet"));
+    const response = await scope.run(store, work);
+    const failed = failedLocation(response);
+    if (failed) {
+      if (failed === "account_not_linked") store.rejection ??= "konto-vorhanden";
+      // Kann vom Anbieter oder aus der Adresse stammen: nur unbedenkliche Zeichen ins Log
+      store.failure = failed.replace(/[^\w.-]/g, "").slice(0, 60);
+      throw new Error("OIDC_CALLBACK_ROLLBACK");
     }
-    const proof = state.proof;
-    console.error(`SSO: Anmeldung abgewiesen: ${[state.rejection ?? "fehler", proof?.rejection].filter(Boolean).join(", ")}`);
+    await store.transaction?.commit();
+    return response;
+  } catch {
+    await store.transaction?.rollback();
+    const { proof } = store;
+    console.error(`SSO: Anmeldung abgewiesen: ${[store.rejection ?? "fehler", proof?.rejection, store.failure].filter(Boolean).join(", ")}`);
     if (proof?.rejection && options.afterRejection) {
       try {
         await options.afterRejection(proof);
@@ -134,8 +143,6 @@ export async function atomicAuthCallback(work: () => Promise<Response>, options:
         console.error("SSO: Widerruf nach abgewiesener Gruppenprüfung fehlgeschlagen");
       }
     }
-    return Response.redirect(options.errorUrl(state.rejection ?? "fehler"), 303);
-  } finally {
-    callbacks.active--;
+    return Response.redirect(options.errorUrl(store.rejection ?? "fehler"), 303);
   }
 }

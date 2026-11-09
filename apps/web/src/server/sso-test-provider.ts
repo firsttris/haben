@@ -36,6 +36,8 @@ export interface TestProvider {
   issue: (authorizeUrl: URL, identity: TestIdentity) => string;
   /** Wie der Discovery-Endpunkt antwortet: normal, mit 503 oder gar nicht */
   setDiscovery: (mode: "ok" | "fehler" | "haengt") => void;
+  /** Läuft bei jeder UserInfo-Anfrage, bevor sie beantwortet wird */
+  setUserInfoHook: (hook: (() => Promise<void>) | undefined) => void;
   close: () => Promise<void>;
 }
 
@@ -49,6 +51,7 @@ export async function startTestProvider(): Promise<TestProvider> {
   let userInfoCalls = 0;
   let issuer = "";
   let discovery: "ok" | "fehler" | "haengt" = "ok";
+  let userInfoHook: (() => Promise<void>) | undefined;
 
   const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => {
     res.statusCode = status;
@@ -91,6 +94,7 @@ export async function startTestProvider(): Promise<TestProvider> {
     if (url.pathname === "/jwks") return json(res, 200, { keys: [{ ...keys.publicKey.export({ format: "jwk" }), kid: "test", alg: "RS256", use: "sig" }] });
     if (url.pathname === "/userinfo") {
       userInfoCalls++;
+      await userInfoHook?.();
       const profile = accessTokens.get((req.headers.authorization ?? "").replace(/^Bearer /, ""));
       return profile ? json(res, 200, profile) : json(res, 401, { error: "invalid_token" });
     }
@@ -137,6 +141,9 @@ export async function startTestProvider(): Promise<TestProvider> {
     userInfoCalls: () => userInfoCalls,
     setDiscovery: (mode) => {
       discovery = mode;
+    },
+    setUserInfoHook: (hook) => {
+      userInfoHook = hook;
     },
     issue(authorizeUrl, identity) {
       const code = randomBytes(16).toString("hex");

@@ -1,7 +1,7 @@
 import { format } from "node:util";
 import type postgres from "postgres";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cookieOf, ssoTestEnv, startTestProvider, type TestProvider } from "./sso-test-provider.ts";
+import { cookieOf, ssoTestEnv, startTestProvider, type TestIdentity, type TestProvider } from "./sso-test-provider.ts";
 import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 /** Betrieb mit einem OIDC-Anbieter: Ausfall beim Start, angefragte Scopes, Diagnose im Log, Auslastung des Callbacks */
@@ -15,12 +15,8 @@ describe.skipIf(!testDatabaseUrl)("OIDC im Betrieb (Postgres)", () => {
     delete process.env.OIDC_SCOPES;
     Object.assign(process.env, ssoTestEnv(provider.issuer), extra);
     database = await setupTestDb();
-    const [{ handleAuth, auth }, { sessionUser }, { atomicAuthCallback }] = await Promise.all([
-      import("./auth.ts"),
-      import("./rollen.ts"),
-      import("./auth-transaction.ts"),
-    ]);
-    return { handleAuth, auth, sessionUser, atomicAuthCallback };
+    const [{ handleAuth, auth }, { sessionUser }] = await Promise.all([import("./auth.ts"), import("./rollen.ts")]);
+    return { handleAuth, auth, sessionUser };
   }
   type App = Awaited<ReturnType<typeof load>>;
   const request = (app: App, path: string, body?: unknown, cookie = "") =>
@@ -105,18 +101,81 @@ describe.skipIf(!testDatabaseUrl)("OIDC im Betrieb (Postgres)", () => {
     expect(messages.join("\n")).not.toContain("ohne@example.de");
   }, 60_000);
 
-  it("leitet einen Callback bei Auslastung zur Anmeldeseite statt auf eine Textseite", async () => {
+  it("nennt einen Fehlercode des Anbieters im Log, aber nur unbedenkliche Zeichen", async () => {
     const app = await load();
-    let release = () => {};
-    const blocked = new Promise<Response>((resolve) => {
-      release = () => resolve(new Response(null, { status: 302, headers: { location: "/" } }));
+    const started = await begin(app);
+    const url = new URL((await started.json()).url);
+    const messages: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((...args) => {
+      messages.push(format(...args));
     });
-    const options = { errorUrl: (reason: string) => `http://localhost:3000/login?sso=${reason}` };
-    const running = Array.from({ length: 4 }, () => app.atomicAuthCallback(() => blocked, options));
-    const refused = await app.atomicAuthCallback(() => Promise.resolve(new Response()), options);
-    expect(refused.status).toBe(303);
-    expect(refused.headers.get("location")).toContain("sso=ausgelastet");
-    release();
-    await Promise.all(running);
+    const error = encodeURIComponent("invalid_scope\nSSO: gefaelscht");
+    await request(app, `/callback/oidc?error=${error}&state=${url.searchParams.get("state")}`, undefined, cookieOf(started.headers));
+    const line = messages.find((message) => message.includes("abgewiesen"))!;
+    expect(line).toContain("invalid_scope");
+    expect(line.split("\n")).toHaveLength(1);
+  }, 60_000);
+
+  const openTransactions = async () =>
+    (await database`select count(*)::int as n from pg_stat_activity where datname = current_database() and state like 'idle in transaction%'`)[0]!.n as number;
+
+  async function callback(app: App, identity: TestIdentity) {
+    const started = await begin(app);
+    const url = new URL((await started.json()).url);
+    return request(app, `/callback/oidc?code=${provider.issue(url, identity)}&state=${url.searchParams.get("state")}`, undefined, cookieOf(started.headers));
+  }
+  const owner = (sub: string): TestIdentity => ({ sub, email: `${sub}@example.de`, groups: ["haben-inhaber"] });
+  const failed = (response: Response) => response.headers.get("location")?.includes("sso=") ?? true;
+
+  it("hält während der Anbieteraufrufe keine Datenbanktransaktion offen", async () => {
+    const app = await load();
+    const during: number[] = [];
+    provider.setUserInfoHook(async () => {
+      during.push(await openTransactions());
+    });
+    expect(failed(await callback(app, owner("netz")))).toBe(false);
+    expect(during).toEqual([0]);
+    expect(await openTransactions()).toBe(0);
+  }, 60_000);
+
+  it("lässt viele gleichzeitige Callbacks durch, auch wenn der Anbieter langsam antwortet", async () => {
+    const app = await load();
+    expect(failed(await callback(app, owner("erste")))).toBe(false);
+    provider.setUserInfoHook(() => new Promise((resolve) => setTimeout(resolve, 200)));
+    const flows = await Promise.all(Array.from({ length: 12 }, (_, i) => callback(app, owner(`parallel-${i}`))));
+    expect(flows.filter(failed)).toHaveLength(0);
+    expect((await database`select count(*)::int as n from session`)[0]!.n).toBe(13);
+  }, 60_000);
+
+  it("rollt bei einem Fehler erst beim Commit alles zurück und gibt die Verbindung frei", async () => {
+    const app = await load();
+    expect(failed(await callback(app, owner("vorher")))).toBe(false);
+    const before = (await database`select count(*)::int as n from "user"`)[0]!.n;
+    await database`create function test_commit_fail() returns trigger language plpgsql as $$ begin raise exception 'beim Commit'; end $$`;
+    await database`create constraint trigger test_commit_fail after insert on session deferrable initially deferred for each row execute function test_commit_fail()`;
+    const response = await callback(app, owner("commit"));
+    await database`drop trigger test_commit_fail on session`;
+    await database`drop function test_commit_fail()`;
+    expect(response.headers.get("location")).toContain("sso=fehler");
+    expect(response.headers.getSetCookie().join()).not.toContain("session_token");
+    expect((await database`select count(*)::int as n from "user"`)[0]!.n).toBe(before);
+    expect(await openTransactions()).toBe(0);
+  }, 60_000);
+
+  it("gibt die Verbindung auch nach einem Fehler im Schreibteil frei und lässt danach wieder anmelden", async () => {
+    const app = await load();
+    expect(failed(await callback(app, owner("davor")))).toBe(false);
+    await database`create function test_session_fail() returns trigger language plpgsql as $$ begin raise exception 'Schreibfehler'; end $$`;
+    await database`create trigger test_session_fail before insert on session for each row execute function test_session_fail()`;
+    for (let i = 0; i < 12; i++) expect((await callback(app, owner(`fehler-${i}`))).headers.get("location")).toContain("sso=fehler");
+    await database`drop trigger test_session_fail on session`;
+    await database`drop function test_session_fail()`;
+    expect(await openTransactions()).toBe(0);
+    expect(failed(await callback(app, owner("danach")))).toBe(false);
+  }, 60_000);
+
+  it("nimmt keine eigenen Zusatzdaten für den OAuth-State an", async () => {
+    const app = await load();
+    expect((await request(app, "/sign-in/social", { provider: "oidc", additionalData: { beliebig: "x".repeat(1000) } })).status).toBe(403);
   }, 60_000);
 });

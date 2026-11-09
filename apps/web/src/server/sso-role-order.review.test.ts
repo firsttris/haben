@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("SSO-Entscheidungsreihenfolge (unabhängiges R
   });
 
   it("lässt einen älteren Inhaber-Nachweis nach neuerem Gruppenentzug keine Tokens anlegen", async () => {
-    const { atomicAuthCallback, setCallbackProof } = await import("./auth-transaction.ts");
+    const { atomicAuthCallback, beginCallbackWrites, setCallbackProof } = await import("./auth-transaction.ts");
     const { confirmSsoSession, revokeRejectedIdentity } = await import("./sso-callback.ts");
     const { createMcpToken } = await import("./modules/mcp/index.ts");
     const checkedAt = new Date(Date.now() - 1_000);
@@ -35,6 +35,7 @@ describe.skipIf(!testDatabaseUrl)("SSO-Entscheidungsreihenfolge (unabhängiges R
     await atomicAuthCallback(
       async () => {
         setCallbackProof({ ...identity, checkedAt, role: "inhaber", expiresAt: new Date(Date.now() + 60_000) });
+        await beginCallbackWrites();
         await confirmSsoSession("owner");
         return new Response(null, { status: 302, headers: { location: "/" } });
       },
@@ -44,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("SSO-Entscheidungsreihenfolge (unabhängiges R
   });
 
   it("ignoriert älteren negativen Nachweis nach neuerer Inhaber-Bestätigung", async () => {
-    const { atomicAuthCallback, setCallbackProof } = await import("./auth-transaction.ts");
+    const { atomicAuthCallback, beginCallbackWrites, setCallbackProof } = await import("./auth-transaction.ts");
     const { confirmSsoSession, revokeRejectedIdentity } = await import("./sso-callback.ts");
     const { createMcpToken, authenticateMcp } = await import("./modules/mcp/index.ts");
     const checkedAt = new Date();
@@ -52,6 +53,7 @@ describe.skipIf(!testDatabaseUrl)("SSO-Entscheidungsreihenfolge (unabhängiges R
     await atomicAuthCallback(
       async () => {
         setCallbackProof({ ...identity, checkedAt, role: "inhaber", expiresAt: new Date(Date.now() + 60_000) });
+        await beginCallbackWrites();
         await confirmSsoSession("owner");
         return new Response(null, { status: 302, headers: { location: "/" } });
       },

@@ -224,13 +224,14 @@ describe.skipIf(!testDatabaseUrl)("SSO-Modus mit Gruppen (Postgres)", () => {
     });
 
     it("nimmt keine Rolle aus Browserangaben an", async () => {
-      const flow = await begin({ additionalData: { role: "inhaber" }, requestSignUp: false, newUserCallbackURL: "https://boese.example" });
+      const flow = await begin({ requestSignUp: false, newUserCallbackURL: "https://boese.example" });
       expect(flow.url.origin).toBe(provider.issuer);
       const response = await finish(flow, kanzlei("browser-rolle"));
       expect(succeeded(response)).toBe(true);
       expect(location(response)).toBe("/");
       expect(await roleOf((await userOf("browser-rolle"))!.id)).toBe("steuerberatung");
       expect((await request("/sign-in/social", { provider: "oidc", scopes: ["admin"] })).status).toBe(403);
+      expect((await request("/sign-in/social", { provider: "oidc", additionalData: { role: "inhaber" } })).status).toBe(403);
       expect((await request("/sign-in/social", { provider: "oidc", idToken: { token: "x" } })).status).toBe(403);
     });
   });

@@ -177,12 +177,7 @@ async function handleAuthRequest(request: Request): Promise<Response> {
   const current = auth();
   const path = new URL(request.url).pathname;
   if (ssoOnly() && path === "/api/auth/callback/oidc") {
-    const state = new URL(request.url).searchParams.get("state");
-    return atomicAuthCallback(() => current.handler(request), {
-      errorUrl: loginUrl,
-      afterRejection: revokeRejectedIdentity,
-      stateIdentifier: state ? `auth-state:${state}` : undefined,
-    });
+    return atomicAuthCallback(() => current.handler(request), { errorUrl: loginUrl, afterRejection: revokeRejectedIdentity });
   }
   return current.handler(request);
 }
