@@ -90,3 +90,18 @@ describe("Zeichen ohne Schrift", () => {
     expect(footerIssues([`${zeichen} {telefon}`, "{steuernummer}"]).join()).toContain(zeichen);
   });
 });
+
+describe("Auszeichnung über mehrere Zeilen einer Spalte", () => {
+  it("Fett über zwei Zeilen: beide Zeilen fett, ohne lose Sternchen", () => {
+    const [spalte] = customFooterRuns(["*Sprechzeiten\nnach Vereinbarung*\n{steuernummer}", ""], values);
+    expect(spalte!.slice(0, 2)).toEqual([
+      [{ text: "Sprechzeiten", bold: true, italic: false, underline: false }],
+      [{ text: "nach Vereinbarung", bold: true, italic: false, underline: false }],
+    ]);
+  });
+
+  it("Eine Zeile ohne Wert fällt auch innerhalb der Auszeichnung weg", () => {
+    const [spalte] = customFooterRuns(["*{telefon}\nHinweis*\n{steuernummer}", ""], values);
+    expect(spalte![0]).toEqual([{ text: "Hinweis", bold: true, italic: false, underline: false }]);
+  });
+});
