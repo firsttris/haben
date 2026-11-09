@@ -1,38 +1,17 @@
-import { compactIban, ibanAbgleich, isValidIban, type IbanAbgleich, type IbanEntscheidung, type IbanWahl } from "@haben/core";
-import { eq, inArray } from "drizzle-orm";
+import { compactIban, ibanAbgleich, isValidIban, type IbanAbgleich, type IbanWahl } from "@haben/core";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { setContactIbanIfEmpty } from "../stammdaten/index.ts";
 import { BankError } from "./bank.ts";
-import { documentPayees } from "./document-payees.ts";
+import { documentPayees, ibanDecisions } from "./document-payees.ts";
 
 /**
  * Abweichende IBAN der E-Rechnung am Beleg (#410): der Abgleich mit dem Kontakt (ibanAbgleich in @haben/core) und die
  * Entscheidung je Beleg, welche IBAN gilt. Die Entscheidung steht in einer eigenen, nur anhängbaren Tabelle, damit sie
  * auch am gebuchten Beleg möglich ist, ohne dessen Sperre zu lockern; Kontakt und Beleg bleiben unverändert.
  */
-
-/** Entscheidungen je Beleg, mit dem Namen der Person (sonst ihrer Kennung) */
-export async function ibanDecisions(ids: string[], q: Db | Tx = db): Promise<Map<string, IbanEntscheidung[]>> {
-  if (ids.length === 0) return new Map();
-  const rows = await q
-    .select({
-      documentId: schema.documentIbanDecisions.documentId,
-      kontaktIban: schema.documentIbanDecisions.kontaktIban,
-      rechnungsIban: schema.documentIbanDecisions.rechnungsIban,
-      wahl: schema.documentIbanDecisions.wahl,
-      am: schema.documentIbanDecisions.createdAt,
-      decidedBy: schema.documentIbanDecisions.decidedBy,
-      name: schema.user.name,
-    })
-    .from(schema.documentIbanDecisions)
-    .leftJoin(schema.user, eq(schema.user.id, schema.documentIbanDecisions.decidedBy))
-    .where(inArray(schema.documentIbanDecisions.documentId, ids));
-  const map = new Map<string, IbanEntscheidung[]>();
-  for (const { documentId, decidedBy, name, ...e } of rows) map.set(documentId, [...(map.get(documentId) ?? []), { ...e, von: name ?? decidedBy }]);
-  return map;
-}
 
 /** Abgleich der IBANs für die Belegseite */
 export async function documentIbanCheck(documentId: string, q: Db | Tx = db): Promise<IbanAbgleich> {
