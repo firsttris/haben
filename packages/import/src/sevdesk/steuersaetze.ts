@@ -5,10 +5,16 @@ type Bucket = { rate: number; net: number; tax: number };
 /** Sätze, die der Kopf eines Belegs ohne Positionen tragen kann: 19 % und 7 %, dazu 16 % und 5 % aus dem zweiten Halbjahr 2020. */
 export const SEV_HEAD_RATES = [1900, 700, 1600, 500] as const;
 
-/** Satz aus Netto und Steuer des Kopfs, auf einen Cent genau, in ganzen Zahlen; passt keiner, bleibt 0. */
+/**
+ * Satz aus Netto und Steuer des Kopfs, in ganzen Zahlen; passt keiner auf einen Cent genau, bleibt 0. Von mehreren passenden
+ * gilt der nächstliegende: Bei kleinen Beträgen liegen die Sätze innerhalb eines Cents. Der Cent bleibt als Grenze, denn vom
+ * Brutto gerechnete Rechnungen weichen um mehr als einen halben Cent ab.
+ */
 function rateFromHead(net: number, tax: number): number {
   if (tax === 0) return 0;
-  return SEV_HEAD_RATES.find((rate) => Math.abs(net * rate - tax * 10_000) <= 10_000) ?? 0;
+  const distance = (rate: number) => Math.abs(net * rate - tax * 10_000);
+  const matching = SEV_HEAD_RATES.filter((rate) => distance(rate) <= 10_000);
+  return matching.reduce<number>((best, rate) => (distance(rate) < distance(best) ? rate : best), matching[0] ?? 0);
 }
 
 /**

@@ -43,11 +43,11 @@ export function effectiveContactName(alias: string): SQL<string> {
  * Wie rateFromHead in @haben/import; `bigint`, weil Netto mal Satz über den Bereich von integer hinausgeht.
  */
 export function effectiveTaxes(alias: string): SQL<LegacyTaxRow[]> {
-  const fromHead = SEV_HEAD_RATES.map(
-    (rate) =>
-      `when abs(${alias}.net::bigint * ${rate} - ${alias}.tax::bigint * 10000) <= 10000 then jsonb_build_array(jsonb_build_object('rate', ${rate}, 'net', ${alias}.net, 'tax', ${alias}.tax))`,
-  ).join(" ");
+  const distance = `abs(${alias}.net::bigint * head.rate - ${alias}.tax::bigint * 10000)`;
+  const fromHead = `(select jsonb_build_array(jsonb_build_object('rate', head.rate, 'net', ${alias}.net, 'tax', ${alias}.tax))
+    from unnest(array[${SEV_HEAD_RATES.join(",")}]) with ordinality as head(rate, position)
+    where ${distance} <= 10000 order by ${distance}, head.position limit 1)`;
   const withoutPositions = `${alias}.source = 'sevdesk' and ${alias}.tax <> 0 and (${alias}.raw->'positions' is null or ${alias}.raw->'positions' = '[]'::jsonb)
     and jsonb_array_length(${alias}.taxes) = 1 and (${alias}.taxes->0->>'rate')::int = 0`;
-  return sql.raw(`case when ${withoutPositions} then case ${fromHead} else ${alias}.taxes end else ${alias}.taxes end`) as SQL<LegacyTaxRow[]>;
+  return sql.raw(`case when ${withoutPositions} then coalesce(${fromHead}, ${alias}.taxes) else ${alias}.taxes end`) as SQL<LegacyTaxRow[]>;
 }
