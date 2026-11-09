@@ -17,7 +17,6 @@ const MIRRORED = [
 export interface CaretPosition {
   left: number;
   top: number;
-  height: number;
 }
 
 /**
@@ -39,11 +38,12 @@ export function caretPosition(field: HTMLTextAreaElement, index: number): CaretP
     width: `${field.clientWidth}px`,
   });
   const marker = document.createElement("span");
-  marker.textContent = "​";
-  // Der Text hinter der Stelle gehört dazu, sonst bricht ein angefangenes Wort anders um
-  mirror.append(field.value.slice(0, index), marker, field.value.slice(index));
+  // Der Text ab der Stelle steht im gemessenen Element, damit es umbricht wie das Wort; ein eigenes Zeichen (U+200B)
+  // wäre selbst eine Umbruchstelle und bliebe am Ende der Zeile davor stehen (UAX #14, LB7/LB8). Das Zeichen gilt nur am Textende.
+  marker.textContent = field.value.slice(index) || "​";
+  mirror.append(field.value.slice(0, index), marker);
   field.parentElement?.append(mirror);
-  const position = { left: marker.offsetLeft + field.clientLeft, top: marker.offsetTop + field.clientTop - field.scrollTop, height: marker.offsetHeight };
+  const position = { left: marker.offsetLeft + field.clientLeft, top: marker.offsetTop + field.clientTop - field.scrollTop };
   mirror.remove();
   return position;
 }
