@@ -332,7 +332,7 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
   const form = page.getByRole("form", { name: "Neuer Textbaustein" });
   await form.getByLabel("Bezeichnung").fill("Bestellnummer Nordwerk");
-  await form.getByRole("textbox", { name: /^Text / }).fill("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
+  await form.getByRole("textbox", { name: "Text", exact: true }).fill("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
   await form.getByLabel("Kunde (optional)").selectOption({ label: "Nordwerk Software GmbH · Hamburg" });
   await form.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByRole("region", { name: "Textbausteine" })).toContainText("Bestellnummer Nordwerk");
@@ -345,6 +345,44 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await insert.selectOption({ label: "Bestellnummer Nordwerk" });
   await expect(page.getByLabel("Einleitung über den Positionen (optional)")).toHaveValue("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
   await expect(insert).toHaveValue("");
+});
+
+test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zurück, Leiste nur im Feld", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const fett = page.getByRole("button", { name: "Fett", exact: true });
+  await expect(fett).toBeHidden();
+
+  await einleitung.fill("Vielen Dank für Ihren Auftrag");
+  await einleitung.focus();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await fett.click();
+  await expect(einleitung).toHaveValue("Vielen Dank für *Ihren* Auftrag");
+  await expect(einleitung).toBeFocused();
+  await expect(page.locator(".sheet strong").filter({ hasText: "Ihren" })).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+i");
+  await expect(einleitung).toHaveValue("Vielen Dank für *_Ihren_* Auftrag");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(einleitung).toHaveValue("Vielen Dank für *Ihren* Auftrag");
+  await fett.click();
+  await expect(einleitung).toHaveValue("Vielen Dank für Ihren Auftrag");
+
+  const verstoesse = await new AxeBuilder({ page }).include(".format-field:focus-within").analyze();
+  expect(verstoesse.violations).toEqual([]);
+
+  // Per Tastatur: ein Tabstopp für die Leiste, darin die Pfeiltasten
+  const detail = page.getByLabel("Text zu Position 1 (optional)");
+  await detail.fill("Wartung");
+  await detail.focus();
+  await detail.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 7));
+  await page.keyboard.press("Tab");
+  await expect(fett).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "Kursiv", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(detail).toHaveValue("_Wartung_");
+  await expect(detail).toBeFocused();
 });
 
 test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {

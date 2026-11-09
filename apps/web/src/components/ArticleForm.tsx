@@ -1,11 +1,12 @@
 import { formatDecimal, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro, UNITS, type UnitLabel } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { errorMessage } from "../lib/format.ts";
 import type { Notice } from "../lib/use-action.ts";
 import { saveArticle, type getArticles } from "../server/functions/articles.ts";
 import type { ArticleOption } from "./ArticleCombobox.tsx";
+import { FormattedTextarea } from "./FormattedTextarea.tsx";
 
 type Article = Awaited<ReturnType<typeof getArticles>>[number];
 
@@ -30,6 +31,8 @@ export function ArticleForm({
   inDialog?: boolean;
   onDone: (notice: Notice, saved?: ArticleOption) => void;
 }) {
+  // Das Formular steht auch im Dialog über dem Rechnungseditor, feste IDs wären dort doppelt
+  const detailId = useId();
   const router = useRouter();
   const save = useServerFn(saveArticle);
   const [busy, setBusy] = useState(false);
@@ -76,11 +79,20 @@ export function ArticleForm({
           <input name="description" defaultValue={initial?.description ?? ""} maxLength={500} required autoFocus />
           <span className="small muted">So steht die Position auf Rechnung und Angebot, in einer Zeile.</span>
         </label>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Text zur Position (optional)
-          <textarea name="detail" rows={3} defaultValue={initial?.detail ?? ""} maxLength={LINE_DETAIL_MAX} />
-          <span className="small muted">Mehrzeilig darunter, etwa Leistungsumfang oder Konditionen.</span>
-        </label>
+        <div className="field" style={{ gridColumn: "1 / -1" }}>
+          <label htmlFor={detailId}>Text zur Position (optional)</label>
+          <FormattedTextarea
+            id={detailId}
+            name="detail"
+            rows={3}
+            defaultValue={initial?.detail ?? ""}
+            maxLength={LINE_DETAIL_MAX}
+            aria-describedby={`${detailId}-hint`}
+          />
+          <span id={`${detailId}-hint`} className="small muted">
+            Mehrzeilig darunter, etwa Leistungsumfang oder Konditionen.
+          </span>
+        </div>
         <label className="field">
           Artikelnummer (optional)
           <input name="number" defaultValue={initial?.number ?? ""} maxLength={ITEM_NUMBER_MAX} />

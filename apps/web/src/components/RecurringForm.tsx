@@ -24,6 +24,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
+import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { Icon } from "./Icon.tsx";
@@ -383,7 +384,7 @@ export function RecurringForm({
                   aria-invalid={line.description.trim() === ""}
                 />
               </div>
-              <textarea
+              <FormattedTextarea
                 className="line-detail"
                 rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
                 placeholder="Text zur Position (optional, mehrzeilig)"

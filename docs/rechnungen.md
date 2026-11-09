@@ -152,10 +152,13 @@ In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen 
 | `*Text*` oder `**Text**` | **Text** |
 | `_Text_` | *Text* |
 | `__Text__` | unterstrichen |
+| `___Text___` | kursiv und unterstrichen |
+
+Du musst die Zeichen nicht tippen: Sobald der Cursor im Feld steht, erscheinen oben rechts die Knöpfe **F**, **K** und **U**. Markiere den Text und klicke darauf, oder nimm <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>B</kbd>, <kbd>I</kbd> oder <kbd>U</kbd>. Ein zweiter Klick nimmt die Auszeichnung zurück. Die Knöpfe zeichnen immer ganze Wörter aus, auch wenn nur ein Teil markiert ist; ohne Markierung gilt das Wort unter dem Cursor. Du findest sie auch bei Artikeln, Textbausteinen und den Standard-Einleitungen.
 
 Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
 Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
-Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben.
+Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben; innerhalb von Pfaden ist das nicht nötig, dort bleibt auch der Backslash stehen.
 HTML, Links und sonstige Markdown- oder Typst-Befehle werden nicht ausgeführt.
 
 Die Formatierung gilt auch im Angebot und in eingefügten Textbausteinen. Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.

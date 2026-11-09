@@ -64,6 +64,7 @@ import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
+import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
@@ -624,14 +625,21 @@ function CompanyForm() {
           hint="Vorgabe für neue Rechnungen, z. B. 2 % bei Zahlung innerhalb von 10 Tagen; am Kunden und in der Rechnung änderbar. Die Frist zählt ab dem Rechnungsdatum und endet spätestens mit dem Zahlungsziel."
         />
         <div className="form-row cols-2">
-          <label className="field">
-            Standard-Einleitung für Rechnungen
-            <textarea name="invoiceIntro" rows={3} maxLength={2000} defaultValue={company.invoiceIntro} aria-describedby="intro-hint" />
-          </label>
-          <label className="field">
-            Standard-Einleitung für Angebote
-            <textarea name="quoteIntro" rows={3} maxLength={2000} defaultValue={company.quoteIntro} aria-describedby="intro-hint" />
-          </label>
+          <div className="field">
+            <label htmlFor="invoice-intro">Standard-Einleitung für Rechnungen</label>
+            <FormattedTextarea
+              id="invoice-intro"
+              name="invoiceIntro"
+              rows={3}
+              maxLength={2000}
+              defaultValue={company.invoiceIntro}
+              aria-describedby="intro-hint"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="quote-intro">Standard-Einleitung für Angebote</label>
+            <FormattedTextarea id="quote-intro" name="quoteIntro" rows={3} maxLength={2000} defaultValue={company.quoteIntro} aria-describedby="intro-hint" />
+          </div>
         </div>
         <p id="intro-hint" className="field-hint">
           Steht in neuen Rechnungen und Angeboten als Einleitung über den Positionen und lässt sich dort anpassen. Rechnungen und Angebote, die es schon gibt,
