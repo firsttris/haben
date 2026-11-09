@@ -158,11 +158,13 @@ describe("Einzelzahlungen in Buchhaltungsversion 2.0", () => {
 
 describe("Vorlagen und Belege ohne Datei in Buchhaltungsversion 1.0", () => {
   it("übernimmt wiederkehrende Rechnungen nicht", () => {
+    expect(vorlagenWkr.map((v) => v.invoice.accountIntervall)).toContain("P0Y0M1W");
+    expect(vorlagenWkr.map((v) => v.invoice.status)).toEqual(expect.arrayContaining(["50", "100"]));
     for (const { invoice } of vorlagenWkr) expect(isSevInvoiceImportable(sevInvoiceSchema.parse(invoice))).toBe(false);
   });
 
-  it("übernimmt Vorlagen wiederkehrender Belege nicht, auch mit Status 1000", () => {
-    expect(belegeRv.map((b) => b.voucher.status)).toContain("1000");
+  it("übernimmt Vorlagen wiederkehrender Belege in keinem Status", () => {
+    expect(belegeRv.map((b) => b.voucher.status).sort()).toEqual(["100", "1000", "50"]);
     for (const { voucher } of belegeRv) expect(isSevVoucherImportable(sevVoucherSchema.parse(voucher))).toBe(false);
   });
 

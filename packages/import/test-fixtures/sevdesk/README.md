@@ -20,8 +20,8 @@ Nur `buchhaltung-1.0/`:
 
 - `check-account-transaction-log*.json`, `invoice-teilzahlung*.json`: Teilzahlungen und aufgehobene Zuordnungen.
 - `asset.json`, `vat-report.json`: Antworten von `GET /Asset` und `GET /VatReport`, je drei Einträge. Reine Referenz, noch liest sie kein Code.
-- `rechnungsvorlage-wkr.json`: wiederkehrende Rechnungen; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=WKR`.
-- `beleg-wiederkehrend-rv.json`: Vorlagen wiederkehrender Belege (`voucherType` RV), auch mit Status 1000.
+- `rechnungsvorlage-wkr.json`: drei wiederkehrende Rechnungen; `GET /Invoice` liefert sie nur mit dem Filter `invoiceType=WKR`. Eine hat `status` 50 und `accountIntervall` `P0Y0M1W` (7 Tage) und ist in sevDesk auf nachfällig gestellt.
+- `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
 - `document-download.json`: Hülle von `GET /Document/{id}/download`, Datei als Base64 in `objects`.
 
@@ -54,6 +54,8 @@ Offen für 2.0 ([#472](https://github.com/firsttris/haben/issues/472)): echte Be
 
 `/Asset` hat kein Feld für die bisherige AfA, nur Anschaffungsdatum, Kaufpreis, Nutzungsdauer und Verkaufsdatum. Mahnungen gibt es auch im 1.0-Konto keine, sie sind in beiden Versionen nicht belegt. Die Beträge in `asset.json` und `vat-report.json` (auch in `reportingValues`) sind maskiert und tragen keine Summen.
 
+Bei den Vorlagen ist die Bedeutung der Statuswerte aus diesen Beispielen abgeleitet, sevDesk beschreibt sie nicht. „Nachfällig“ hat an der Vorlage kein erkennbares Feld; verglichen wurde nur, welche Felder leer sind.
+
 Nur als Befund festgehalten, ohne Datei:
 
 - `GET /Document/{id}/download` antwortete in 2.0 mit 200 und `application/json`; der Inhalt wurde nicht gelesen.
@@ -65,7 +67,7 @@ Nur als Befund festgehalten, ohne Datei:
 Aufbau, Feldnamen und Datentypen bleiben, denn auf sie kommt es an (`paidAmount` ist in Version 1.0 eine Zahl, in 2.0 teils Zahl, teils Text).
 
 - Kennungen sind durchgehend ersetzt, Verweise (`origin`) passen weiter zusammen. Kennungen von Stammdaten bleiben (`AccountingType`, `AccountDatev`, `TaxRule`, `StaticCountry`).
-- Texte, Namen und Adressen sind `<anon>`, in `buchhaltung-2.0/` auch Rechnungs- und Belegnummern, `creditNoteDate` und `bookingDate`.
+- Texte, Namen und Adressen sind `<anon>`; in `rechnungsvorlage-wkr.json` bleiben die Platzhalter wie `[%KONTAKTPERSON%]` stehen. In `buchhaltung-2.0/` sind auch Rechnungs- und Belegnummern, `creditNoteDate` und `bookingDate` maskiert.
 - In `buchhaltung-1.0/` sind Beträge erfunden, Vorzeichen und Null bleiben. In `asset.json`, `vat-report.json`, `rechnungsvorlage-wkr.json`, `beleg-wiederkehrend-rv.json` und `beleg-ohne-datei.json` stehen sie auf ±100, alle Daten dort auf dem 15.01.2024; die Dateien stammen aus einem eigenen Lauf mit eigenen Kennungen.
 - In `buchhaltung-2.0/` hat der Melder die Summen auf ±100.00 gesetzt, auch `discount` und `discountTime`; das sind keine echten Werte. Netto, Steuer und Brutto können gleich sein, mehrere Zahlungen ergeben nicht den Beleg.
 - Datumsangaben sind verschoben, in den GET-Antworten aus 2.0 um genau drei Jahre, damit Jahreswechsel und Sommerzeit stimmen.
