@@ -35,8 +35,9 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
   Maintainer. Die Schritte stehen unter [Review](https://haben.app/entwicklung.html#review).
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter
-[Mitwirken](https://haben.app/entwicklung.html#mitwirken) und in [CLAUDE.md](CLAUDE.md), das auch für
-andere KI-Agenten gilt ([AGENTS.md](AGENTS.md)).
+[Konventionen](https://haben.app/entwicklung.html#konventionen) und
+[Mitwirken](https://haben.app/entwicklung.html#mitwirken). KI-Agenten starten mit [CLAUDE.md](CLAUDE.md)
+([AGENTS.md](AGENTS.md)), das dorthin verweist.
 
 ## Prüfungen
 
