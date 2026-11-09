@@ -21,8 +21,7 @@ import { db, schema } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { BankError, documentPayments } from "./bank.ts";
-import { documentPayees, type DocumentPayee } from "./document-payees.ts";
-import { ibanDecisions } from "./iban-entscheidung.ts";
+import { documentPayees, ibanDecisions, type DocumentPayee } from "./document-payees.ts";
 
 /** Ein offener Beleg, der sich überweisen lässt, oder warum nicht */
 export interface TransferCandidate {
