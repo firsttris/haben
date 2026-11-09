@@ -39,4 +39,4 @@ Als Datei (im Scratchpad), auf Deutsch:
 
 Review nach Skill `tdd-review`, nie durch die Session, die den Code geschrieben hat. Link, Stand der Prüfungen und Übersprungenes zurückmelden.
 
-Die Beschreibung bleibt bis zum Merge aktuell: Nach jedem Push, der ändert, was der Pull Request tut oder wie er geprüft wurde, auch nach Fixes aus dem Review und nach einem Rebase, die Datei anpassen und die Beschreibung ersetzen (mit `gh`: `gh pr edit <nummer> --body-file …`).
+Die Beschreibung bleibt bis zum Merge aktuell: Nach jedem Push, der ändert, was der Pull Request tut oder wie er geprüft wurde, auch nach Fixes aus dem Review und nach einem Rebase, die Datei anpassen und die Beschreibung mit dem vorhandenen GitHub-Werkzeug ersetzen, etwa `gh pr edit <nummer> --body-file …`. Ohne Werkzeug den neuen Text an die Person geben.
