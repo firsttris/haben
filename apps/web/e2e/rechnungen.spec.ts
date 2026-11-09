@@ -581,6 +581,95 @@ test("Artikel in der Position suchen: übernimmt Preis, Einheit und USt, bleibt 
   await expect(page.getByLabel(/Einzelpreis Position 3/)).toHaveValue("");
 });
 
+/** Testkunden direkt in die Datenbank; danach archiviert, damit die folgenden Tests mit den bisherigen Kunden rechnen */
+async function mitKunden<T>(kunden: { name: string; ort: string }[], lauf: () => Promise<T>): Promise<T> {
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    const angelegt = await sql<{ id: string }[]>`insert into contacts ${sql(kunden, "name", "ort")} returning id`;
+    try {
+      return await lauf();
+    } finally {
+      await sql`update contacts set archived_at = now() where id in ${sql(angelegt.map((k) => k.id))}`;
+    }
+  } finally {
+    await sql.end();
+  }
+}
+
+test("Katalogfeld: Klick und Tab fügen keine Position ein (#359)", async () => {
+  await go("/rechnungen/neu");
+  const katalog = page.getByLabel("Aus dem Artikelkatalog einfügen");
+  await katalog.click();
+  await expect(trefferliste(page)).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(katalog).not.toBeFocused();
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("");
+  await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
+});
+
+test("Katalogfeld: Tab nach dem Tippen fügt keine Position ein, nur beim Kunden übernimmt Tab (#359)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Eigene Leistung");
+  await page.keyboard.press("Escape");
+  const katalog = page.getByLabel("Aus dem Artikelkatalog einfügen");
+  await katalog.fill("Beratung");
+  await expect(trefferliste(page)).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(katalog).not.toBeFocused();
+  await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
+});
+
+test("Kunde: geleertes Feld und Tab nehmen den Kunden weg (#359)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  await kunde.fill("");
+  await page.keyboard.press("Tab");
+  await expect(kunde).not.toBeFocused();
+  await expect(kunde).toHaveValue("");
+  await expect(page.locator(".sheet").getByText("Rheinpixel GmbH")).toHaveCount(0);
+});
+
+test("Kunde: Klick ins leere Feld und Tab wählen niemanden (#359)", async () => {
+  await go("/rechnungen/neu");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  await kunde.click();
+  await expect(trefferliste(page)).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(kunde).not.toBeFocused();
+  await expect(kunde).toHaveValue("");
+});
+
+test("Kunde außerhalb der ersten 50 Treffer: Klick und Tab oder Enter wechseln ihn nicht (#359)", async () => {
+  const viele = Array.from({ length: 60 }, (_, i) => ({ name: `Aaa Testkunde ${String(i).padStart(2, "0")}`, ort: "Testdorf" }));
+  await mitKunden(viele, async () => {
+    await go("/rechnungen/neu");
+    await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+    const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+    await kunde.click();
+    await expect(trefferliste(page)).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(kunde).toHaveValue("Rheinpixel GmbH · Köln");
+    await kunde.click();
+    await expect(trefferliste(page)).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(kunde).not.toBeFocused();
+    await expect(kunde).toHaveValue("Rheinpixel GmbH · Köln");
+  });
+});
+
+test("Kunde: Der genau getippte Name gewinnt mit Enter gegen den schon gewählten Kunden (#359)", async () => {
+  await mitKunden([{ name: "Rhein", ort: "Bonn" }], async () => {
+    await go("/rechnungen/neu");
+    await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+    const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+    await kunde.fill("Rhein");
+    await expect(trefferliste(page).getByRole("option", { name: "Rhein Bonn" })).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(kunde).toHaveValue("Rhein · Bonn");
+  });
+});
+
 test("Trefferliste ist barrierefrei, hell und dunkel (#359)", async () => {
   await go("/rechnungen/neu");
   const pruefen = async () => {
