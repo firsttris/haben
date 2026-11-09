@@ -198,6 +198,56 @@ test("Bankabgleich: Zuordnung und Aufteilung aufheben fragen nach", async () => 
   await expect(panel.getByText("aufgehoben · Teil einer Aufteilung").first()).toBeVisible();
 });
 
+test("Bankabgleich: gegenläufige Umsätze verrechnen ohne Buchung, Aufheben fragt nach (#457)", async () => {
+  await go("/bank");
+  await page.locator('input[type=file][aria-label="Kontoauszugsdateien"]').setInputFiles([
+    {
+      name: "kartenpruefung.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        auszug([
+          ["PAYPAL *EBAY DE", "Kartenpruefung", "-1,00"],
+          ["PAYPAL *EBAY DE", "Rueckbuchung Kartenpruefung", "1,00"],
+        ]),
+      ),
+    },
+  ]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+
+  await go("/bank");
+  await page.getByRole("link", { name: /Rueckbuchung Kartenpruefung/ }).click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await panel.getByRole("button", { name: "Mit Gegenumsatz verrechnen" }).click();
+  const form = panel.getByRole("form", { name: "Mit Gegenumsatz verrechnen" });
+  await expect(form.getByLabel("Gegenumsatz")).toContainText("−1,00 €");
+  // Ohne Notiz bleibt der Knopf gesperrt
+  await expect(form.getByRole("button", { name: "Verrechnen" })).toBeDisabled();
+  await form.getByLabel("Notiz").fill("PayPal-Autorisierung mit automatischer Rückbuchung");
+  await form.getByRole("button", { name: "Verrechnen" }).click();
+  await expect(panel.getByText("ohne Buchung · PayPal-Autorisierung mit automatischer Rückbuchung")).toBeVisible();
+  // Beide Umsätze erledigt, keine Buchung
+  await expect(page.getByRole("link", { name: /Kartenpruefung/ })).toHaveCount(0);
+  await go("/bank?filter=zugeordnet");
+  await expect(page.getByRole("link", { name: /Kartenpruefung/ }).filter({ hasText: "Verrechnet" })).toHaveCount(2);
+  expect(await sql`select count(*)::int as n from journal_entries e where e.description like '%PAYPAL%'`).toEqual([{ n: 0 }]);
+
+  await page.getByRole("link", { name: /Rueckbuchung Kartenpruefung/ }).click();
+  await page.waitForLoadState("networkidle");
+  const aufheben = panel.getByRole("button", { name: "Aufheben", exact: true });
+  await aufheben.click();
+  await faktenZeigen(page, "Gegenumsatz", "Notiz");
+  await expect(rueckfrage("Verrechnung aufheben?")).toContainText("−1,00 €");
+  await expect(rueckfrage("Verrechnung aufheben?")).toContainText("gebucht wird nichts");
+  await abbrechen("Verrechnung aufheben?");
+  await expect(panel.getByText(/^aufgehoben · /)).toHaveCount(0);
+  await aufheben.click();
+  await bestaetigen(page, "Verrechnung aufheben");
+  await expect(panel.getByText("aufgehoben · PayPal-Autorisierung mit automatischer Rückbuchung")).toBeVisible();
+  await go("/bank?filter=offen");
+  await expect(page.getByRole("link", { name: /Kartenpruefung/ })).toHaveCount(2);
+});
+
 test("Ausbuchung aufheben fragt mit Art und Betrag nach", async () => {
   await go("/rechnungen");
   await page

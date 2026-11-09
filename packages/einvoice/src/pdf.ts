@@ -9,6 +9,7 @@ import {
   accentPalette,
   DEFAULT_ACCENT,
   DEFAULT_OPTIONS,
+  parseTextFormatting,
   discountedLineAmount,
   documentAllowances,
   lineAmount,
@@ -27,7 +28,7 @@ const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
 const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
-const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
+const FONTS = ["Regular", "Medium", "SemiBold", "Italic", "SemiBoldItalic"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
 
 let compiler: NodeCompiler | undefined;
 
@@ -129,6 +130,7 @@ export function documentPdfData(
       itemNumber: line.itemNumber?.trim() ?? "",
       description: line.description,
       detail: line.detail?.trim() ? line.detail.trim() : null,
+      detailFormatted: line.detail?.trim() ? parseTextFormatting(line.detail.trim()) : null,
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: t.money(line.unitPrice),
       rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
@@ -142,6 +144,8 @@ export function documentPdfData(
     intro: doc.intro?.trim() ? doc.intro.trim() : null,
     hideVatColumn: !showsVatColumn(doc.options?.vatColumn ?? true, treatment === "regulaer" ? distinctVatRates(doc.lines) : doc.totals.taxes.length),
     note: doc.note?.trim() ? doc.note.trim() : null,
+    introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
+    noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
     ...footerData(seller, t),
   };
 }

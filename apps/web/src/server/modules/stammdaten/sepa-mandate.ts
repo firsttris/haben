@@ -8,7 +8,7 @@ import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from 
 
 /**
  * SEPA-Lastschriftmandate am Kontakt (#445). Mandat, PDF und Widerruf stehen in nur anhängbaren Tabellen
- * (drizzle/0177): Ändert sich etwas am Mandat, legt man ein neues mit eigener Referenz an, das alte bleibt in der
+ * (drizzle/0179): Ändert sich etwas am Mandat, legt man ein neues mit eigener Referenz an, das alte bleibt in der
  * Historie. Ob ein Mandat am Stichtag gilt, rechnet mandatStatus in @haben/core (Verfall nach 36 Monaten ohne Einzug).
  */
 

@@ -141,6 +141,24 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 
 Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht; die Artikelnummer trägst du dort je Position selbst ein.
 
+### Fett, kursiv und unterstrichen
+
+In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen drei einfache Auszeichnungen zur Verfügung:
+
+| Eingabe | Darstellung |
+| --- | --- |
+| `*Text*` oder `**Text**` | **Text** |
+| `_Text_` | *Text* |
+| `__Text__` | unterstrichen |
+
+Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
+Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
+Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben.
+HTML, Links und sonstige Markdown- oder Typst-Befehle werden nicht ausgeführt.
+
+Die Formatierung gilt auch im Angebot und in eingefügten Textbausteinen. Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
+Die Zeichen zählen bei der Grenze von 2000 Zeichen mit. Bereits festgeschriebene PDFs und XML-Dateien werden nicht neu erzeugt.
+
 ### Textbausteine
 
 Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußtexte an, die du immer wieder brauchst: Pflichtangaben eines Kunden wie Bestellnummer oder Rahmenvertrag, eine Einleitung je Projekt, einen Dank zum Schluss.

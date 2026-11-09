@@ -27,6 +27,7 @@ import {
 } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
+import { FormattedText } from "./FormattedText.tsx";
 
 export interface PreviewSeller {
   name: string;
@@ -245,7 +246,11 @@ export function InvoicePreview({
               zur Rechnung {corrects.number} vom {formatDate(corrects.issueDate)}
             </div>
           )}
-          {intro.trim() && <p style={{ whiteSpace: "pre-wrap" }}>{intro.trim()}</p>}
+          {intro.trim() && (
+            <p style={{ whiteSpace: "pre-wrap" }}>
+              <FormattedText text={intro.trim()} />
+            </p>
+          )}
           <table className="sheet-table">
             <thead>
               <tr>
@@ -271,7 +276,7 @@ export function InvoicePreview({
                     {line.detail || line.kind ? <strong>{line.description}</strong> : line.description}
                     {line.detail && (
                       <div className="sheet-muted" style={{ whiteSpace: "pre-wrap" }}>
-                        {line.detail}
+                        <FormattedText text={line.detail} />
                       </div>
                     )}
                     {line.discount && <div className="sheet-muted">{lineDiscountText(line, money)}</div>}
@@ -368,7 +373,11 @@ export function InvoicePreview({
             <p>{payment}</p>
             {giroCode && <div className="sheet-giro">GiroCode</div>}
           </div>
-          {note && <p style={{ whiteSpace: "pre-wrap" }}>{note}</p>}
+          {note && (
+            <p style={{ whiteSpace: "pre-wrap" }}>
+              <FormattedText text={note} />
+            </p>
+          )}
         </div>
         <div className="sheet-foot">
           {footer.map((column, index) => (
