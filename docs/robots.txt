@@ -1,0 +1,5 @@
+# Alles darf in den Index; die Sitemap baut Zensical aus mkdocs.yml (site_url)
+User-agent: *
+Allow: /
+
+Sitemap: https://haben.app/sitemap.xml

@@ -1,3 +1,10 @@
+---
+title: "Erste Schritte: Firmendaten, Kontenrahmen, ELSTER einrichten"
+description: >-
+  Haben nach der Installation einrichten: Konto und Passkey, Firmendaten, Ist- oder Soll-
+  Versteuerung, SKR03 oder SKR04, Rechnungsnummern, ELSTER und KI-Auslesung.
+---
+
 # Erste Schritte
 
 Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und Passkey, Zugang für die Steuerberatung, App auf Handy und Rechner, Firmendaten, Versteuerung und Kontenrahmen, Rechnungsnummern, ELSTER, KI-Auslesung und Bankkonten. Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).

@@ -1,3 +1,10 @@
+---
+title: "Jahreserklärungen: Anlage EÜR, USt-Erklärung, Einkommensteuer"
+description: >-
+  Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung aus den Buchungen
+  berechnen und über ERiC an das Finanzamt übermitteln.
+---
+
 # Jahreserklärungen
 
 Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Dazu kommt die **Einkommensteuererklärung** mit den Anlagen, die ein Selbständiger typischerweise braucht: Der Gewinn kommt aus der EÜR, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.

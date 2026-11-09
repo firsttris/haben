@@ -1,3 +1,10 @@
+---
+title: "Pauschalen ohne Beleg: Homeoffice, Fahrten, Verpflegung"
+description: >-
+  Betriebsausgaben ohne Rechnung buchen: Homeoffice-Pauschale, Fahrten mit dem eigenen Fahrzeug,
+  Verpflegungsmehraufwand und weitere Pauschalen.
+---
+
 # Pauschalen ohne Beleg
 
 Unter **Pauschalen** trägst du Betriebsausgaben ein, für die es keine Rechnung gibt:

@@ -1,3 +1,10 @@
+---
+title: "Abgabe an ELSTER: alle Wege, mit und ohne Hersteller-ID"
+description: >-
+  Voranmeldung, USt-Erklärung, Anlage EÜR und Einkommensteuer ans Finanzamt: direkt per ERiC mit
+  Hersteller-ID oder über Mein ELSTER mit Erweiterung oder KI.
+---
+
 # Abgabe an ELSTER: alle Wege
 
 Haben rechnet Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuererklärung aus deinen Buchungen. Ans Finanzamt kommen sie auf zwei Arten: **direkt aus Haben** über ERiC, wofür du eine eigene Hersteller-ID brauchst, oder **über das Portal Mein ELSTER**, wo du selbst absendest. Für Mein ELSTER gibt es vier Wege, die Werte aus Haben hineinzubringen.

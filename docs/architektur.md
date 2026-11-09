@@ -1,3 +1,10 @@
+---
+title: "Architektur: TanStack Start, Bun und PostgreSQL"
+description: >-
+  Aufbau von Haben: eine Anwendung mit TanStack Start auf Bun, PostgreSQL als Datenbank, Module,
+  Datenmodell, Audit-Hash-Kette und Siegel.
+---
+
 # Architektur
 
 Haben ist eine einzelne Anwendung auf Basis von TanStack Start, die unter Bun läuft, mit PostgreSQL als einziger Datenbank und einem Verzeichnis für Belegdateien. Diese Seite beschreibt Aufbau, Datenmodell, Abläufe und die wichtigsten Entwurfsentscheidungen. Für die Entwicklungsumgebung siehe [Entwicklung](entwicklung.md), für den Betrieb [Installation](installation.md).

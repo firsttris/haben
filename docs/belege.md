@@ -1,3 +1,10 @@
+---
+title: "Belege und Eingangsrechnungen erfassen, E-Rechnungen auslesen"
+description: >-
+  Eingangsrechnungen und Quittungen ablegen: E-Rechnungen (ZUGFeRD, XRechnung) liest Haben direkt
+  aus, PDFs und Fotos per KI. Prüfen, kategorisieren, buchen.
+---
+
 # Belege und Eingangsrechnungen
 
 Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen liest Haben direkt aus, andere PDFs und Fotos auf Wunsch mit Claude. Du prüfst die Felder, wählst eine Kategorie und buchst den Beleg; danach ist er festgeschrieben.

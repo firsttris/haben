@@ -1,3 +1,10 @@
+---
+title: "KI-Assistenten per MCP: Buchhaltung im Gespräch abfragen"
+description: >-
+  Haben per MCP mit Claude oder einem lokalen Modell verbinden: offene Rechnungen, Umsatzsteuer
+  und Auswertungen im Gespräch abfragen, nur mit Lesezugriff.
+---
+
 # KI-Assistenten (MCP)
 
 Haben lässt sich im Gespräch mit einem KI-Assistenten abfragen, etwa mit Claude Code, Claude Desktop oder einem lokalen Modell: „Welche Rechnungen sind überfällig?“, „Wie viel Umsatzsteuer zahle ich im Oktober?“, „Was fehlt noch für die Jahreserklärung 2025?“. Der Assistent arbeitet dabei über Werkzeuge, die Haben nach dem [Model Context Protocol (MCP)](https://modelcontextprotocol.io) anbietet.

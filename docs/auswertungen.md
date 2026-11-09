@@ -1,3 +1,10 @@
+---
+title: "Auswertungen: EÜR, offene Posten und Jahresexport"
+description: >-
+  Einnahmen-Überschuss-Rechnung, Einnahmen und Ausgaben je Monat, offene Posten und das
+  Jahresarchiv als ZIP mit DATEV-Export für die Steuerberatung.
+---
+
 # Auswertungen und Jahresexport
 
 Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).

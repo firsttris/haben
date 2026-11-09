@@ -1,3 +1,10 @@
+---
+title: "Steuerfristen im Blick: Kalender-Abo und Erinnerungen"
+description: >-
+  Alle steuerlichen Termine an einem Ort: Voranmeldung, Jahreserklärungen, Vorauszahlungen – mit
+  Erinnerung per Kalender-Abo oder E-Mail.
+---
+
 # Fristen und Erinnerungen
 
 Unter **Fristen** sammelt Haben alle steuerlichen Termine an einem Ort und erinnert per Kalender-Abo oder E-Mail daran.
