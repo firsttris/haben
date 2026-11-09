@@ -25,3 +25,10 @@ export function effectiveType(alias: string): SQL<string> {
   const kind = (prefix: string) => `case when ${alias}.gross < 0 then '${prefix}creditnote' else '${prefix}invoice' end`;
   return sql.raw(`case when ${isVoucher} then case when ${income} then ${kind("sales")} else ${kind("purchase")} end else ${alias}.type end`) as SQL<string>;
 }
+
+/** sevDesk liefert bei den meisten Belegen nur den Verweis `supplier`, `supplierName` bleibt leer: dann der verknüpfte Kontakt. */
+export function effectiveContactName(alias: string): SQL<string> {
+  return sql.raw(
+    `case when ${alias}.source = 'sevdesk' and ${alias}.contact_name = '' then coalesce((select c.name from contacts c where c.id = ${alias}.contact_id), '') else ${alias}.contact_name end`,
+  ) as SQL<string>;
+}

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
-import { effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveContactName, effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -1286,7 +1286,12 @@ async function* orderFiles(year: number, problems: string[]): AsyncGenerator<Arc
 
 async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
   const vouchers = await db
-    .select({ ...getTableColumns(schema.lexofficeVouchers), type: effectiveType("lexoffice_vouchers"), direction: effectiveDirection("lexoffice_vouchers") })
+    .select({
+      ...getTableColumns(schema.lexofficeVouchers),
+      type: effectiveType("lexoffice_vouchers"),
+      direction: effectiveDirection("lexoffice_vouchers"),
+      contactName: effectiveContactName("lexoffice_vouchers"),
+    })
     .from(schema.lexofficeVouchers)
     .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
     .orderBy(asc(schema.lexofficeVouchers.date), asc(schema.lexofficeVouchers.number), asc(schema.lexofficeVouchers.id));

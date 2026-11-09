@@ -69,6 +69,8 @@ Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Hab
 
 Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit (D)“; dass C die Ausgabe ist, ist mit echten Antworten der Buchhaltungsversion 1.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Frühere Abrufe hatten beide vertauscht. Die Archivkopie bleibt unverändert, Haben liest Richtung und Belegart von sevDesk-Belegen aus der gespeicherten API-Antwort; ein neuer Abruf ist nicht nötig. Wurde vor der Korrektur eine Einnahme als offener Ausgabebeleg übernommen, bleibt sie versiegelt und erscheint weiter als übernommen; prüfe sie und korrigiere sie in Haben.
 
+sevDesk liefert bei vielen Belegen nur den Verweis auf den Lieferanten, keinen Namen (`supplierName` leer). Haben zeigt dann den Namen des verknüpften Kontakts; die Archivkopie bleibt unverändert.
+
 Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
 
 ### Steuerarten im Abgleich
