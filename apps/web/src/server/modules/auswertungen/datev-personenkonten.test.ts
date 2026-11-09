@@ -237,6 +237,28 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     expect(saldo("70001")).toBe(-119_00);
   });
 
+  it("Storno im Folgejahr (Zeitraum schon gemeldet): Storno und Neuerfassung geben beide Jahre frei, wie docs/auswertungen.md es beschreibt", async () => {
+    await reset("SKR03", "soll");
+    await sql`delete from vat_returns`;
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const lieferant = await contacts.createContact(actor, contactInput("Papierwerk Süd AG", { isCustomer: false, isSupplier: true, kreditorNr: 70001 }));
+    const ohneLieferant = await beleg(null, 119_00, "2026-11-20");
+    // Die Voranmeldung November ist gesendet: Der Storno bekommt den Tag des Stornos, hier im Januar 2027
+    await sql`insert into vat_returns (year, month, status, kz81, kz86, kz66, kz83, sent_at) values (2026, 11, 'sent', 0, 0, 0, 0, now())`;
+    const { cancelDocument } = await import("../belege/cancellation.ts");
+    const storno = await cancelDocument(actor, ohneLieferant, { reason: "Lieferant fehlte" }, "2027-01-12");
+    expect(storno.date).toBe("2027-01-12");
+    await beleg(lieferant.id, 119_00, "2026-11-20");
+
+    const fehler = async (jahr: number) =>
+      datev.datevExport(jahr, new Date(2027, 0, 13), inhaber).then(
+        () => null,
+        (e: Error) => e.message,
+      );
+    expect({ 2026: await fehler(2026), 2027: await fehler(2027) }).toEqual({ 2026: null, 2027: null });
+    await sql`delete from vat_returns`;
+  });
+
   it.each([
     ["SKR03", "ist"],
     ["SKR04", "soll"],
