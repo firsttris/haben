@@ -151,7 +151,7 @@ export const ssoIssuers = pgTable("sso_issuers", {
 });
 
 /**
- * Zuletzt von Authelia bestätigte Rolle je Konto und Issuer, getrennt von der lokalen Rolle in „user“. Leer, wenn die
+ * Zuletzt vom OIDC-Anbieter bestätigte Rolle je Konto und Issuer, getrennt von der lokalen Rolle in „user“. Leer, wenn die
  * letzte vollständig geprüfte Anmeldung wegen der Gruppen abgewiesen wurde. Audit-Log per Trigger.
  */
 export const ssoRoles = pgTable(

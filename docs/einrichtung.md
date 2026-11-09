@@ -29,7 +29,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 
 ## Konto anlegen
 
-Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läuft Haben im SSO-Modus (`OIDC_ONLY=true`), zeigt `/setup` nur **Mit Authelia einrichten**: Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein, ohne Einrichtungscode, Passwort oder Passkey. Siehe [Single Sign-on mit Authelia-Gruppen](installation.md#single-sign-on-mit-authelia-gruppen).
+Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läuft Haben im SSO-Modus (`OIDC_ONLY=true`), zeigt `/setup` nur **Mit <Anzeigename> einrichten**: Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein, ohne Einrichtungscode, Passwort oder Passkey. Siehe [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
 
 Beim ersten Aufruf leitet Haben auf `/setup` weiter. Das erste Konto ist der **Inhaber** mit allen Rechten: Du gibst den Einrichtungscode, Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“.
 

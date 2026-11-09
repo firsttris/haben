@@ -58,7 +58,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
-      # Betriebsart: false lokale Anmeldung, true ausschließlich SSO mit Authelia-Gruppen (docs/installation.md)
+      # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation.md)
       OIDC_ONLY: ${OIDC_ONLY:-false}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}

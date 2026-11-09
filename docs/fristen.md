@@ -52,4 +52,4 @@ Jede Frist und Stufe erinnert nur einmal. War der Server aus, holt der nächste 
 
 ## Verantwortung für das Kalender-Abo
 
-Das Abo hat einen verantwortlichen Inhaber. Wird dessen Inhaberrolle bei einer SSO-Anmeldung entzogen, wird das Abo deaktiviert. Ein anderer Inhaber kann es ausdrücklich übernehmen und reaktivieren; der bereits abonnierte Kalender-Link bleibt erhalten. Ohne erneuten OIDC-Durchlauf besteht keine feste Erkennungsfrist für den Gruppenentzug. Ein beendetes Abo lässt sich nicht reaktivieren; dafür muss ein neuer Link erzeugt werden.
+Das Abo hat einen verantwortlichen Inhaber. Wird dessen Inhaberrolle bei einer SSO-Anmeldung entzogen, wird das Abo deaktiviert. Ein anderer Inhaber kann es ausdrücklich übernehmen und reaktivieren, der einzige Inhaber auch sein eigenes; der bereits abonnierte Kalender-Link bleibt erhalten. Ohne erneuten OIDC-Durchlauf gilt das Abo höchstens 30 Tage nach der letzten Bestätigung des Verantwortlichen. Ein beendetes Abo lässt sich nicht reaktivieren; dafür muss ein neuer Link erzeugt werden.

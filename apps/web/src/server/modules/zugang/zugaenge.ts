@@ -36,7 +36,7 @@ export async function listAccounts() {
 
 /**
  * SSO-Modus: die Konten, die sich bei diesem Issuer schon angemeldet haben, mit der zuletzt bestätigten Rolle (leer nach
- * einer Abweisung) und dem Zeitpunkt der letzten Prüfung. Kein Abbild des Authelia-Verzeichnisses.
+ * einer Abweisung) und dem Zeitpunkt der letzten Prüfung. Kein Abbild des Anbieter-Verzeichnisses.
  */
 export async function listSsoAccounts(issuer: string) {
   const lastLogin = lastLogins();

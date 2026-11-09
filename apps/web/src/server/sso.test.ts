@@ -306,15 +306,15 @@ describe.skipIf(!testDatabaseUrl)("SSO-Modus mit Gruppen (Postgres)", () => {
       expect(await (await request("/get-session", undefined, cookie)).json()).toBeNull();
     });
 
-    it("kürzt die Frist auf einen früheren Tokenablauf", async () => {
+    it("hängt die Frist nicht an die Laufzeit des schon verworfenen Access-Tokens", async () => {
       await login({ ...kanzlei("kurz"), accessTokenSeconds: 120 });
       const user = (await userOf("kurz"))!;
       const [session] = await database`select sso_checked_at, sso_expires_at from session where user_id = ${user.id}`;
       const proof = new Date(session!.sso_expires_at).getTime() - new Date(session!.sso_checked_at).getTime();
-      expect(proof).toBeLessThanOrEqual(120_000);
+      expect(proof).toBe(15 * 60_000);
     });
 
-    it("entscheidet ohne lokale Sperre: Authelia bestimmt den Zugang", async () => {
+    it("entscheidet ohne lokale Sperre: der Anbieter bestimmt den Zugang", async () => {
       const user = (await userOf("kanzlei-1"))!;
       await database`update "user" set locked_at = now() where id = ${user.id}`;
       const response = await login(kanzlei("kanzlei-1"));
@@ -348,11 +348,11 @@ describe.skipIf(!testDatabaseUrl)("SSO-Modus mit Gruppen (Postgres)", () => {
       const zugang = await import("./modules/zugang/index.ts");
       const owner = (await userOf("inhaberin-a"))!;
       const staff = (await userOf("kanzlei-1"))!;
-      await expect(zugang.createInvitation(owner.id, { label: "Kanzlei" })).rejects.toThrow(/Authelia/);
-      await expect(zugang.lockAccount(owner.id, staff.id)).rejects.toThrow(/Authelia/);
-      await expect(zugang.unlockAccount(owner.id, staff.id)).rejects.toThrow(/Authelia/);
-      await expect(zugang.removeAccount(owner.id, staff.id)).rejects.toThrow(/Authelia/);
-      await expect(zugang.revokeInvitation(owner.id, "00000000-0000-4000-8000-000000000000")).rejects.toThrow(/Authelia/);
+      await expect(zugang.createInvitation(owner.id, { label: "Kanzlei" })).rejects.toThrow(/OIDC-Anbieter/);
+      await expect(zugang.lockAccount(owner.id, staff.id)).rejects.toThrow(/OIDC-Anbieter/);
+      await expect(zugang.unlockAccount(owner.id, staff.id)).rejects.toThrow(/OIDC-Anbieter/);
+      await expect(zugang.removeAccount(owner.id, staff.id)).rejects.toThrow(/OIDC-Anbieter/);
+      await expect(zugang.revokeInvitation(owner.id, "00000000-0000-4000-8000-000000000000")).rejects.toThrow(/OIDC-Anbieter/);
       expect(await userOf("kanzlei-1")).toBeTruthy();
     });
 

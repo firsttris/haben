@@ -81,8 +81,8 @@ Läuft Haben mit `OIDC_ONLY=true`, entscheiden die Gruppen im Anmeldedienst (etw
 - Die Steuerberatung kann eine neue Instanz nicht erstmals einrichten; das macht ein Inhaber.
 - Alte Einladungslinks zeigen „Einladungen nicht verfügbar“.
 
-Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit Authelia-Gruppen](installation.md#single-sign-on-mit-authelia-gruppen).
+Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
 
 [Zurück zur Übersicht](ueberblick.md)
 
-Bei einer Herabstufung vom Inhaber zur Steuerberatung werden beim geprüften SSO-Durchlauf zusätzlich die verantworteten API-/MCP- und Kalender-Tokens deaktiviert. Ein anderer Inhaber kann diese übernehmen; die Steuerberatung darf keine Tokens reaktivieren. Ohne erneute Anmeldung wird der Gruppenentzug nicht automatisch erkannt.
+Bei einer Herabstufung vom Inhaber zur Steuerberatung werden beim geprüften SSO-Durchlauf zusätzlich die verantworteten API-/MCP- und Kalender-Tokens deaktiviert. Ein anderer Inhaber kann diese übernehmen; die Steuerberatung darf keine Tokens reaktivieren. Ohne erneute Anmeldung gelten die Tokens höchstens 30 Tage nach der letzten Bestätigung.

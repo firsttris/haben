@@ -17,9 +17,9 @@ export const EINLADUNG_GUELTIG_STUNDEN = 72;
 
 export class ZugangError extends UserError {}
 
-/** Einladen, Sperren, Freigeben und Entfernen gibt es nur im Standardmodus; im SSO-Modus entscheidet Authelia */
+/** Einladen, Sperren, Freigeben und Entfernen gibt es nur im Standardmodus; im SSO-Modus entscheidet der Anbieter */
 export function requireLocalManagement(): void {
-  if (ssoOnly()) throw new ZugangError("Im SSO-Modus werden Zugänge in Authelia verwaltet, nicht in Haben.");
+  if (ssoOnly()) throw new ZugangError("Im SSO-Modus werden Zugänge beim OIDC-Anbieter verwaltet, nicht in Haben.");
 }
 
 export const invitationInputSchema = z.object({

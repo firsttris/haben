@@ -322,7 +322,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `OIDC_CLIENT_SECRET` | bei `OIDC_ONLY=true` | Ursprüngliches Clientsecret, kein Hash | – |
 | `OIDC_DISPLAY_NAME` | nein | Anzeigename der SSO-Anmeldung | `Authelia` |
 | `OIDC_SCOPES` | nein | Scopes mit Leerzeichen; `openid` ist Pflicht, siehe unten | `openid profile email groups` |
-| `OIDC_GROUPS_CLAIM` | nein | Name des Gruppen-Claims in der UserInfo-Antwort, ein einzelner Name, kein Ausdruck. Vorgabe `groups` | `groups` |
+| `OIDC_GROUPS_CLAIM` | nein | Name des Gruppen-Claims in UserInfo oder ID-Token, ein einzelner Name oder eine URL, kein Ausdruck. Vorgabe `groups` | `groups` |
 | `OIDC_GROUP_INHABER` | bei `OIDC_ONLY=true` | Gruppe, deren Mitglieder Inhaber sind (exakt, groß-/kleinschreibungssensitiv) | `haben-inhaber` |
 | `OIDC_GROUP_STEUERBERATUNG` | bei `OIDC_ONLY=true` | Gruppe für den Lesezugang der Steuerberatung; muss sich von der Inhaber-Gruppe unterscheiden | `haben-steuerberatung` |
 | `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat, Zugangsdaten und die API-Schlüssel für Lexoffice und sevDesk | Ausgabe von `openssl rand -base64 32` |
@@ -762,7 +762,7 @@ Haben bringt ein Web-App-Manifest und einen minimalen Service Worker mit. Der Se
 - Die installierte App hat Kurzbefehle für „Beleg hochladen“ und „Neue Rechnung“.
 - Die App meldet sich als Teilen-Ziel an (`/api/belege/teilen`): Teilst du auf dem Handy ein PDF, Foto oder E-Rechnungs-XML mit Haben, wird es als Beleg hochgeladen. Höchstens 20 Dateien je Vorgang, je Datei bis 20 MB. Ob das Teilen-Menü Web-Apps anbietet, hängt vom Browser und Betriebssystem ab.
 
-## Single Sign-on mit Authelia-Gruppen
+## Single Sign-on mit OpenID Connect
 
 Haben kennt zwei strikt getrennte Betriebsarten:
 
@@ -792,7 +792,7 @@ OIDC_GROUP_INHABER=haben-inhaber
 OIDC_GROUP_STEUERBERATUNG=haben-steuerberatung
 ```
 
-Mit `OIDC_ONLY=true` sind Issuer, Client-ID, Clientsecret und beide Gruppen Pflicht; fehlt etwas, startet Haben nicht. Die Gruppen müssen verschieden sein und werden exakt verglichen (Groß-/Kleinschreibung zählt, keine Leerzeichen am Rand). `OIDC_GROUPS_CLAIM` nennt genau einen Claim, keinen Pfad oder Ausdruck.
+Mit `OIDC_ONLY=true` sind Issuer, Client-ID, Clientsecret und beide Gruppen Pflicht; fehlt etwas, startet Haben nicht. Die Gruppen müssen verschieden sein und werden exakt verglichen (Groß-/Kleinschreibung zählt, keine Leerzeichen am Rand). `OIDC_GROUPS_CLAIM` nennt genau einen Claim auf oberster Ebene, keinen Pfad oder Ausdruck; ein URL-förmiger Name wie `https://haben.example.de/groups` ist erlaubt.
 
 In Docker Compose stehen die Werte in der geschützten `.env` neben `compose.yml`, bei Quadlets in `haben.env` und das Clientsecret als Podman-Secret `haben-oidc-client-secret` (die vorbereitete `Secret=`-Zeile in `haben-app.container` einkommentieren). In **Coolify** die Werte als Laufzeit-Umgebungsvariablen der Anwendung setzen, das Clientsecret als „Secret“ markieren und neu deployen. `BETTER_AUTH_URL` muss der öffentlichen Adresse im Browser entsprechen, einschließlich eines Ports.
 
@@ -804,7 +804,7 @@ https://haben.example.de/api/auth/callback/oidc
 
 ### Scopes und andere Anbieter
 
-`OIDC_SCOPES` legt durch Leerzeichen getrennte Scopes fest und muss `openid` enthalten. Ohne Angabe fragt Haben `openid profile email` an und ergänzt `groups` nur, wenn Discovery diesen Scope ausdrücklich unterstützt. Gruppen werden bevorzugt aus UserInfo gelesen, sonst aus dem geprüften ID-Token. Ein vorhandener ungültiger oder verweigernder Gruppenclaim erlaubt keinen Rückgriff. Die E-Mail muss gültig sein; `email_verified=false` ist zulässig. Konten werden niemals über gleiche E-Mail-Adressen verbunden.
+`OIDC_SCOPES` legt durch Leerzeichen getrennte Scopes genau fest und muss `openid` enthalten. Ohne Angabe fragt Haben `openid profile email` an und ergänzt `groups` nur, wenn Discovery diesen Scope ausdrücklich unterstützt. Gruppen werden bevorzugt aus UserInfo gelesen, sonst aus dem geprüften ID-Token. Ein vorhandener ungültiger oder verweigernder Gruppenclaim erlaubt keinen Rückgriff. Die E-Mail muss die Form `name@domain` haben, auch Intranet-Domains und Umlaute sind zulässig; `email_verified=false` ebenfalls. Konten werden niemals über gleiche E-Mail-Adressen verbunden.
 
 Alle Anbieter verwenden einen vertraulichen Client, Code-Flow, PKCE S256, `client_secret_basic` und die exakte Haben-Callback-Adresse.
 
@@ -812,7 +812,11 @@ Alle Anbieter verwenden einen vertraulichen Client, Code-Flow, PKCE S256, `clien
 | --- | --- |
 | Pocket ID | Beide Benutzergruppen zuordnen, Scopes `openid profile email groups`, Claim `groups`. [Clientbeispiele](https://pocket-id.org/docs/client-examples) |
 | Authentik | Asymmetrischen **Signing Key** auswählen, etwa RS256. Ohne Key verwendet Authentik HS256; das unterstützt Haben nicht. Scope-Mapping muss `groups` als Array liefern. Issuer exakt aus Discovery übernehmen, typischerweise `https://auth.example.de/application/o/haben/` einschließlich Schrägstrich. [Providerdoku](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/) |
-| Keycloak | Issuer `https://auth.example.de/realms/<realm>`, Client-Authentifizierung, Standard Flow und PKCE S256. `OIDC_SCOPES=openid profile email` und Group-Membership-Mapper mit Claim `groups` in UserInfo oder ID-Token. Bei **Full group path** Werte wie `/haben-inhaber` konfigurieren. Fünf Minuten Tokenlaufzeit begrenzen auch die Haben-Berechtigung auf höchstens fünf Minuten. [Client Scopes und Mapper](https://www.keycloak.org/docs/latest/server_admin/#_client_scopes) |
+| Keycloak | Issuer `https://auth.example.de/realms/<realm>`, Client-Authentifizierung, Standard Flow und PKCE S256. `OIDC_SCOPES=openid profile email` und Group-Membership-Mapper mit Claim `groups` in UserInfo oder ID-Token. Bei **Full group path** Werte wie `/haben-inhaber` konfigurieren. [Client Scopes und Mapper](https://www.keycloak.org/docs/latest/server_admin/#_client_scopes) |
+
+Nicht unterstützt sind reines OAuth 2.0 ohne OIDC-Discovery und SAML, Clients ohne Secret oder mit anderer Authentifizierung als `client_secret_basic`, signierte UserInfo-Antworten (`application/jwt`) und Gruppen in anderer Form als einem Array aus Zeichenketten auf oberster Ebene. Verschachtelte Claims wie `realm_access.roles` und die Rollen-Claims von Zitadel brauchen daher einen Mapper oder eine Action, die einen flachen Claim liefert. Bei Entra ID fehlt `groups` ab 200 Gruppen im Token (Overage); Haben ruft Microsoft Graph nicht ab und weist solche Konten ab. Für Entra ID außerdem den optionalen Claim `email` einrichten.
+
+Scheitert eine Anmeldung, steht die Ursache mit dem Präfix `SSO:` oder `Better Auth:` im Server-Log, etwa `SSO: Token-Endpunkt antwortete 401, invalid_client`, ohne Codes, Tokens oder Claims.
 
 Authelia ist die reale Referenzintegration. Pocket ID, Authentik und Entra-/Keycloak-Claimvarianten werden mit einem kontrollierten Testanbieter nachgestellt; das ersetzt keinen vollständigen Durchlauf gegen diese Server. Versionen und tatsächlich ausgeführte Referenzprüfungen stehen im jeweiligen Prüfbericht.
 
@@ -868,7 +872,7 @@ users:
       - haben-steuerberatung
 ```
 
-In Haben steht das **ursprüngliche Clientsecret**, in Authelia dessen **Hash** (`authelia crypto hash generate pbkdf2`, das Secret interaktiv eingeben). Authelia liefert Gruppen und E-Mail über den UserInfo-Endpunkt, nicht im ID-Token ([Authelia: Claims](https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/)); Haben fragt ihn nach jedem geprüften ID-Token ab und verlangt dort dasselbe Subject. Eine gültige E-Mail ist erforderlich; der Bestätigungsclaim vergibt keine Rechte. Änderungen an LDAP oder Benutzerdatei müssen Authelia erreichen (bei der Datei `watch: true` oder Neustart). Siehe auch [Authelia: OIDC-Clients](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/).
+In Haben steht das **ursprüngliche Clientsecret**, in Authelia dessen **Hash** (`authelia crypto hash generate pbkdf2`, das Secret interaktiv eingeben). Authelia liefert Gruppen und E-Mail über den UserInfo-Endpunkt, nicht im ID-Token ([Authelia: Claims](https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/)); Haben fragt ihn nach jedem geprüften ID-Token ab und verlangt dort dasselbe Subject. Eine E-Mail-Adresse der Form `name@domain` ist erforderlich; der Bestätigungsclaim vergibt keine Rechte. Änderungen an LDAP oder Benutzerdatei müssen Authelia erreichen (bei der Datei `watch: true` oder Neustart). Siehe auch [Authelia: OIDC-Clients](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/).
 
 ### Einrichten und anmelden
 
@@ -880,13 +884,13 @@ Bei **jeder** Anmeldung bestimmt Haben die Rolle neu. Ändert sie sich (Beförde
 
 ### Höchstens 15 Minuten alte Berechtigungen
 
-Eine Haben-Sitzung trägt die beim Callback bestätigte Rolle mit fester Frist: höchstens 15 Minuten, kürzer, wenn ein Token früher abläuft. Aktivität oder die Verlängerung der Sitzung durch Better Auth verlängern diese Frist nicht. Danach verweigert Haben geschützte Zugriffe und führt zur Anmeldeseite; ein Klick auf **Mit Authelia anmelden** prüft die Gruppen erneut, bei bestehender Authelia-Sitzung ohne neue Passworteingabe. Schreibende Anfragen werden nicht automatisch wiederholt.
+Eine Haben-Sitzung trägt die beim Callback bestätigte Rolle mit fester Frist von 15 Minuten ab der Prüfung. Die Laufzeit der Tokens des Anbieters spielt keine Rolle, Haben verwirft sie nach dem Callback. Aktivität oder die Verlängerung der Sitzung durch Better Auth verlängern diese Frist nicht. Danach verweigert Haben geschützte Zugriffe und führt zur Anmeldeseite; ein Klick auf **Mit Authelia anmelden** prüft die Gruppen erneut, bei bestehender Authelia-Sitzung ohne neue Passworteingabe. Schreibende Anfragen werden nicht automatisch wiederholt.
 
 Das heißt auch:
 
 - Eine Änderung der Gruppen wirkt spätestens nach 15 Minuten, bei der nächsten Anmeldung sofort.
 - Abmelden oder Sperren in Authelia beendet eine laufende Haben-Sitzung **nicht sofort**; es gibt keine zentrale Abmeldung. Die Berechtigung läuft spätestens nach 15 Minuten aus.
-- Fällt Authelia aus, sind keine neuen und keine erneuten Anmeldungen möglich; es gibt keinen lokalen Rückfall.
+- Fällt der Anbieter aus, sind keine neuen und keine erneuten Anmeldungen möglich; es gibt keinen lokalen Rückfall. Ist er beim Start von Haben noch nicht erreichbar, holt Haben die Discovery bei der nächsten Anmeldung nach; ein Neustart ist nicht nötig.
 - Haben speichert keine Access-, Refresh- oder ID-Tokens und fragt Authelia nicht im Hintergrund ab.
 - API-, MCP- und Kalender-Tokens werden bei erkanntem Entzug des Verantwortlichen deaktiviert; siehe unten.
 
@@ -913,11 +917,11 @@ Die Übernahme ordnet nur dem konfigurierten Issuer zu, verweigert ein schon ver
 
 ### Tokens nach Gruppenentzug
 
-API/MCP-Tokens und das Kalender-Abo haben einen ursprünglichen Ersteller und einen aktuell verantwortlichen Inhaber. Verliert dieser bei einer geprüften Anmeldung die Inhaberrolle, deaktiviert Haben seine Tokens und erhält deren Hash, Rechte und Frist. **Ohne erneute Anmeldung erkennt Haben den Gruppenentzug nicht automatisch; dafür gibt es keine feste Zeitgrenze.** Die 15-Minuten-Frist betrifft interaktive Sitzungen.
+API/MCP-Tokens und das Kalender-Abo haben einen ursprünglichen Ersteller und einen aktuell verantwortlichen Inhaber. Verliert dieser bei einer geprüften Anmeldung die Inhaberrolle, deaktiviert Haben seine Tokens und erhält deren Hash, Rechte und Frist. **Ohne erneute Anmeldung erkennt Haben einen Gruppenentzug nicht. Deshalb gilt ein Token höchstens 30 Tage nach der letzten bestätigten Anmeldung seines Verantwortlichen;** danach zeigt die Verwaltung „unbestätigt“, bis er sich wieder anmeldet oder jemand den Zugang übernimmt. Dasselbe gilt nach einem Moduswechsel für Tokens eines Kontos, das in der neuen Betriebsart keine Identität hat. Die 15-Minuten-Frist betrifft interaktive Sitzungen.
 
-Ein **anderer** aktuell berechtigter Inhaber kann deaktivierte Tokens in ihrer bisherigen Verwaltung ausdrücklich **übernehmen und reaktivieren**. Er wird verantwortlich; das bisherige Geheimnis beziehungsweise der Kalender-Link bleibt gültig. Ein späterer Entzug dieses neuen Verantwortlichen deaktiviert den Zugang erneut. Rückkehr in die Gruppe reaktiviert nichts automatisch. Endgültig widerrufene oder abgelaufene Tokens bleiben unbrauchbar.
+Ein **anderer** aktuell berechtigter Inhaber kann deaktivierte oder unbestätigte Tokens in ihrer bisherigen Verwaltung ausdrücklich **übernehmen und reaktivieren**. Er wird verantwortlich; das bisherige Geheimnis beziehungsweise der Kalender-Link bleibt gültig. Ein späterer Entzug dieses neuen Verantwortlichen deaktiviert den Zugang erneut. Rückkehr in die Gruppe reaktiviert nichts automatisch. Gibt es keinen anderen aktuell bestätigten Inhaber, darf der Verantwortliche seine eigenen Tokens selbst reaktivieren, sonst blieben sie etwa nach einem vorübergehend fehlenden Gruppen-Claim unbrauchbar. Endgültig widerrufene oder abgelaufene Tokens bleiben unbrauchbar.
 
-Bestehende Tokens ohne belegbare Verantwortlichkeit bleiben bei der Migration gespeichert, werden aber deaktiviert. Vorhandene Automationen und Kalender benötigen daher eine ausdrückliche Übernahme. Die Verwaltung zeigt Verantwortlichen, Zustand und Grund; Verwaltungsereignisse stehen ohne Geheimnisse im Audit.
+Beim Update werden bestehende Tokens dem bisherigen Inhaber zugeordnet und bleiben aktiv. Nur ohne Inhaber bleiben sie gespeichert, werden aber deaktiviert und benötigen eine ausdrückliche Übernahme. Die Verwaltung zeigt Verantwortlichen, Zustand und Grund; Verwaltungsereignisse stehen ohne Geheimnisse im Audit.
 
 ### Zurück zum Standardmodus
 
@@ -931,7 +935,7 @@ docker compose run --rm --no-deps --entrypoint bun app apps/web/src/server/db/lo
 docker compose run --rm --no-deps -T --entrypoint bun app apps/web/src/server/db/local-owner.ts --konto <Konto-ID> --uebernehmen --passwort-stdin < /geschuetzt/passwort
 ```
 
-Die nur für dich lesbare Eingabedatei enthält ein Passwort mit mindestens 12 Zeichen. Kein Passwort in Kommandozeilenargumente, Shell-Historie oder Logs schreiben. Sind Passwort oder Passkey vorhanden, reicht `--uebernehmen` ohne Passworteingabe. Ein anderer vorhandener lokaler Inhaber wird nicht ersetzt. Das Werkzeug erhält Konto-ID, SSO-Zuordnungen und Buchhaltungsdaten, protokolliert die Vorbereitung und entwertet Sitzungen. Danach `OIDC_ONLY=false` setzen und neu starten. Bis zum Moduswechsel bleibt lokale Anmeldung gesperrt; eine öffentliche Notanmeldung gibt es nicht.
+Die nur für dich lesbare Eingabedatei enthält ein Passwort mit mindestens 12 Zeichen. Kein Passwort in Kommandozeilenargumente, Shell-Historie oder Logs schreiben. Sind Passwort oder Passkey vorhanden, reicht `--uebernehmen` ohne Passworteingabe; ein übergebenes Passwort ersetzt ein vorhandenes. Konten der Steuerberatung werden nicht zum Inhaber. Ein anderer vorhandener lokaler Inhaber wird nicht ersetzt. Das Werkzeug erhält Konto-ID, SSO-Zuordnungen und Buchhaltungsdaten, protokolliert die Vorbereitung und entwertet Sitzungen. Danach `OIDC_ONLY=false` setzen und neu starten. Bis zum Moduswechsel bleibt lokale Anmeldung gesperrt; eine öffentliche Notanmeldung gibt es nicht.
 
 Bei **Quadlet** mit `systemctl --user stop haben-app` stoppen. Einen einmaligen Container aus demselben Image mit der Netzwerk-, Umgebungsdatei- und Datenbank-Secret-Konfiguration aus `haben-app.container` starten, den Entrypoint auf `bun` setzen und `apps/web/src/server/db/local-owner.ts` mit den obigen Argumenten ausführen. Das Passwort ausschließlich über geschützte Standardeingabe übergeben. Anschließend `haben.env` ändern und `systemctl --user start haben-app` ausführen. Für die SSO-Übernahme denselben einmaligen Container mit `sso-uebernahme.ts --konto <ID> --subject <sub> --uebernehmen` verwenden.
 
