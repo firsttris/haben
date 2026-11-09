@@ -10,6 +10,7 @@ export interface TextEdit {
 type Styles = Pick<FormattedTextRun, TextStyle>;
 
 const EDGE = /[\s*_]/;
+const MARKER = /[*_]/;
 const ALNUM = /[\p{L}\p{N}]/u;
 // Wie im Parser: Neben diesen Zeichen öffnet oder schließt keine Auszeichnung
 const WORD = /[\p{L}\p{N}/\\]/u;
@@ -28,7 +29,9 @@ function trimRange(text: string, from: number, to: number, edge: RegExp): [numbe
 /** Leerraum am Rand gehört nicht zur Auszeichnung; einzelne Zeichen auch nicht, ein vollständiges Paar schon. */
 function narrow(text: string, from: number, to: number): [number, number] {
   const [start, end] = trimRange(text, from, to, /\s/);
-  const complete = parseTextFormatting(text.slice(start, end)).some((run) => run.bold || run.italic || run.underline);
+  // Mitten in `__` beginnt nur scheinbar ein Paar: `_x_` aus `__x__` ist nicht kursiv
+  const cutsMarker = (MARKER.test(text[start] ?? "") && text[start - 1] === text[start]) || (MARKER.test(text[end - 1] ?? "") && text[end] === text[end - 1]);
+  const complete = !cutsMarker && parseTextFormatting(text.slice(start, end)).some((run) => run.bold || run.italic || run.underline);
   return complete ? [start, end] : trimRange(text, start, end, EDGE);
 }
 
@@ -119,6 +122,59 @@ function toggleRange(text: string, start: number, end: number, style: TextStyle)
   };
 }
 
+interface MarkerGroup {
+  at: number;
+  marker: string;
+}
+
+function markerGroups(text: string, from: number, to: number): MarkerGroup[] {
+  return [...text.slice(from, to).matchAll(/\*+|_+/g)].filter((m) => TEXT_MARKERS[m[0]]).map((m) => ({ at: from + m.index, marker: m[0] }));
+}
+
+/** Das nächste Zeichenpaar um die Auswahl, dessen ganzer Inhalt die Auszeichnung trägt. */
+function enclosingPair(text: string, start: number, end: number, style: TextStyle): [MarkerGroup, MarkerGroup] | null {
+  const opens = markerGroups(text, 0, start).reverse();
+  const closes = markerGroups(text, end, text.length);
+  for (const open of opens) {
+    for (const close of closes) {
+      if (open.marker !== close.marker) continue;
+      const runs = parseTextFormatting(text.slice(open.at, close.at + close.marker.length)).filter((run) => run.text.trim());
+      if (runs.length > 0 && runs.every((run) => run[style])) return [open, close];
+    }
+  }
+  return null;
+}
+
+const plainRun = (text: string, styles: Partial<Styles>): FormattedTextRun => ({ text, bold: false, italic: false, underline: false, ...styles });
+
+/** Löst die Auswahl aus einer längeren Auszeichnung heraus: Aus `*eins zwei*` wird `*eins* zwei`. */
+function splitEnclosing(text: string, start: number, end: number, style: TextStyle): TextEdit | null {
+  const layerLength = surroundingLayers(text, start, end).join("").length;
+  const [from, to] = [start - layerLength, end + layerLength];
+  const pair = enclosingPair(text, from, to, style);
+  if (!pair) return null;
+  const [open, close] = pair;
+  const stack = [open.marker];
+  let innerStart = open.at + open.marker.length;
+  let innerEnd = close.at;
+  // Direkt anschließende Paare wie in `*_x y_*` gehören zu beiden Hälften
+  for (;;) {
+    const inner = /^(\*+|_+)/.exec(text.slice(innerStart))?.[0];
+    if (!inner || !TEXT_MARKERS[inner] || !text.slice(0, innerEnd).endsWith(inner) || innerStart + inner.length > from || innerEnd - inner.length < to) break;
+    stack.push(inner);
+    innerStart += inner.length;
+    innerEnd -= inner.length;
+  }
+  const kept = Object.fromEntries(stack.flatMap((marker) => TEXT_MARKERS[marker]!.map((s) => [s, true]))) as Partial<Styles>;
+  const before = wrapRun(plainRun(text.slice(innerStart, from), kept));
+  const middle = wrapRun(plainRun(text.slice(from, to), { ...kept, [style]: false }));
+  const after = wrapRun(plainRun(text.slice(to, innerEnd), kept));
+  const next = `${text.slice(0, open.at)}${before}${middle}${after}${text.slice(close.at + close.marker.length)}`;
+  if (styledLength(next, style) >= styledLength(text, style) || plainFormattedText(next) !== plainFormattedText(text)) return null;
+  const base = open.at + before.length;
+  return { text: next, start: base + /^\s*[*_]*/.exec(middle)![0].length, end: base + middle.length - /[*_]*\s*$/.exec(middle)![0].length };
+}
+
 function toggleEmptyPair(text: string, at: number, style: TextStyle): TextEdit {
   const marker = EMPTY_PAIR[style];
   const size = marker.length;
@@ -138,6 +194,8 @@ export function toggleTextStyle(text: string, selectionStart: number, selectionE
   if (start === end) return selectionStart === selectionEnd ? toggleEmptyPair(text, start, style) : null;
   const direct = toggleRange(text, start, end, style);
   if (direct) return direct;
+  const split = splitEnclosing(text, start, end, style);
+  if (split) return split;
   const [tokenStart, tokenEnd] = narrow(text, ...toToken(text, start, end));
   return tokenStart < tokenEnd && (tokenStart !== start || tokenEnd !== end) ? toggleRange(text, tokenStart, tokenEnd, style) : null;
 }
