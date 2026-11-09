@@ -42,13 +42,22 @@ interface Anchor {
  */
 function selectionAnchor(field: HTMLTextAreaElement): Anchor | null {
   if (field.selectionStart === field.selectionEnd) return null;
+  const inView = Math.max(-BAR_HEIGHT - GAP, scrollAreaTop(field) + GAP);
   if (window.matchMedia("(pointer: coarse)").matches) {
     const visibleTop = (window.visualViewport?.offsetTop ?? 0) - field.getBoundingClientRect().top + GAP;
-    return { left: field.offsetWidth, top: Math.max(-BAR_HEIGHT - GAP, visibleTop) };
+    return { left: field.offsetWidth, top: Math.max(inView, visibleTop) };
   }
   const caret = caretPosition(field, field.selectionStart);
   // Liegt die Stelle außerhalb des gescrollten Felds, bleibt die Leiste am Feldrand
-  return { left: caret.left, top: Math.min(Math.max(caret.top - BAR_HEIGHT - GAP, -BAR_HEIGHT - GAP), field.offsetHeight + GAP) };
+  return { left: caret.left, top: Math.min(Math.max(caret.top - BAR_HEIGHT - GAP, inView), field.offsetHeight + GAP) };
+}
+
+/** Oberkante des scrollenden Bereichs um das Feld (das Formular im Dialog), vom Feld aus gemessen: Darüber wäre die Leiste abgeschnitten. */
+function scrollAreaTop(field: HTMLElement): number {
+  for (let parent = field.parentElement; parent; parent = parent.parentElement) {
+    if (/auto|scroll/.test(getComputedStyle(parent).overflowY)) return parent.getBoundingClientRect().top - field.getBoundingClientRect().top;
+  }
+  return Number.NEGATIVE_INFINITY;
 }
 
 function moveFocus(event: KeyboardEvent<HTMLElement>, onEscape: () => void): void {
