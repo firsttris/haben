@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { bestaetigen, faktenZeigen } from "./einrichtung.ts";
+import { bestaetigen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
 import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
 
 /**
@@ -526,7 +526,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   // Fehlende Angaben sind ein Hinweis, keine Sperre (eine Vor-GmbH hat noch keine Registernummer)
   await go("/rechnungen/neu");
   await expect(page.locator("#letter-issues")).toContainText("Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): Geschäftsführer fehlt.");
-  await page.getByLabel("Kunde").selectOption({ label: "Hafenkontor Logistik GmbH · Hamburg" });
+  await kundeWaehlen(page, "Hafenkontor Logistik GmbH · Hamburg");
   await page.getByLabel("Beschreibung Position 1").fill("Softwarewartung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("500");

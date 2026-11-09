@@ -54,8 +54,12 @@ import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import type { MandateOption } from "../server/modules/stammdaten/index.ts";
 import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
+import { ArticleCombobox, CatalogCombobox, type ArticleOption } from "./ArticleCombobox.tsx";
+import { ArticleDialog } from "./ArticleDialog.tsx";
+import type { ArticlePrefill } from "./ArticleForm.tsx";
 import { ContactDialog } from "./ContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
+import { CustomerCombobox } from "./CustomerCombobox.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -84,20 +88,6 @@ interface ContactOption {
   isCustomer: boolean;
   /** Für den Hinweis auf eine Dublette beim Anlegen im Dialog */
   ustId: string;
-}
-
-interface ArticleOption {
-  id: string;
-  number: string;
-  /** Bezeichnung, eine Zeile */
-  description: string;
-  /** Text unter der Bezeichnung, mehrzeilig */
-  detail: string;
-  unit: string;
-  unitPrice: number;
-  taxRate: number;
-  /** Preis inklusive Umsatzsteuer */
-  priceIncludesTax: boolean;
 }
 
 /** Abschlagsrechnung, die eine Schlussrechnung abziehen kann */
@@ -303,7 +293,10 @@ export function InvoiceEditor({
   const editable = kind === "rechnung" || quote;
 
   const [contactId, setContactId] = useState(initial.contactId ?? "");
-  const [newContactOpen, setNewContactOpen] = useState(false);
+  /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
+  const [newContactName, setNewContactName] = useState<string | null>(null);
+  /** Offener Dialog „Neuer Artikel“ und die Position, die ihn danach übernimmt */
+  const [newArticle, setNewArticle] = useState<{ lineKey: number; prefill: ArticlePrefill } | null>(null);
   const [issueDate, setIssueDate] = useState(initial.issueDate);
   const [serviceFrom, setServiceFrom] = useState(initial.serviceFrom ?? "");
   const [serviceTo, setServiceTo] = useState(initial.serviceTo ?? "");
@@ -433,24 +426,45 @@ export function InvoiceEditor({
     return formatDecimal(convertPrice(article.unitPrice, article.taxRate, article.priceIncludesTax ? "brutto" : "netto", grossPrices ? "brutto" : "netto"));
   }
 
-  /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Text, Einheit, Preis und Steuersatz */
-  function changeDescription(line: LineState, description: string) {
-    const article = !sameText(line.description, description) ? articles.find((a) => sameText(a.description, description)) : undefined;
-    updateLine(
-      line.key,
-      article
-        ? {
-            description: article.description,
-            // Ein Artikel ohne Text lässt einen schon eingegebenen Text der Position stehen
-            detail: article.detail || line.detail,
-            // Die Position merkt sich die Nummer, nicht den Artikel (#388)
-            itemNumber: article.number,
-            unit: article.unit as UnitLabel,
-            unitPrice: articlePrice(article),
-            taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
-          }
-        : { description },
+  /** Auswahl aus dem Katalog: Die Position übernimmt Text, Nummer, Einheit, Preis und Steuersatz und bleibt danach frei änderbar */
+  function pickArticle(lineKey: number, article: ArticleOption) {
+    setLines((prev) =>
+      prev.map((line) =>
+        line.key === lineKey
+          ? {
+              ...line,
+              description: article.description,
+              // Ein Artikel ohne Text lässt einen schon eingegebenen Text der Position stehen
+              detail: article.detail || line.detail,
+              // Die Position merkt sich die Nummer, nicht den Artikel (#388)
+              itemNumber: article.number,
+              unit: article.unit as UnitLabel,
+              unitPrice: articlePrice(article),
+              taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
+            }
+          : line,
+      ),
     );
+    setDirty(true);
+    setConfirming(false);
+    setConfirmingDelete(false);
+  }
+
+  /** Neuer Artikel aus der Trefferliste: vorgefüllt mit dem getippten Text und dem, was in der Position schon steht */
+  function openNewArticle(line: LineState, description: string) {
+    const price = parseEuro(line.unitPrice);
+    setNewArticle({
+      lineKey: line.key,
+      prefill: {
+        description,
+        detail: line.detail,
+        number: line.itemNumber,
+        unit: line.unit,
+        taxRate: special ? 1900 : line.taxRate,
+        priceIncludesTax: grossPrices,
+        ...(price === null ? {} : { unitPrice: price }),
+      },
+    });
   }
 
   /** Position als Artikel in den Katalog übernehmen; die Position selbst bleibt unverändert */
@@ -475,9 +489,7 @@ export function InvoiceEditor({
   }
 
   /** Position aus dem Katalog; ersetzt eine noch leere einzige Zeile, sonst wird angehängt */
-  function insertArticle(articleId: string) {
-    const article = articles.find((a) => a.id === articleId);
-    if (!article) return;
+  function insertArticle(article: ArticleOption) {
     const line: LineState = {
       ...emptyLine(article.unit as UnitLabel, special ? 0 : (article.taxRate as 1900 | 700 | 0)),
       description: article.description,
@@ -677,9 +689,9 @@ export function InvoiceEditor({
         <p>Der Entwurf{contact ? ` für ${contact.name}` : ""} wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
       </ConfirmDialog>
       <ContactDialog
-        open={newContactOpen}
+        open={newContactName !== null}
         title="Neuen Kunden anlegen"
-        prefill={{ isCustomer: true, isSupplier: false }}
+        prefill={{ isCustomer: true, isSupplier: false, name: newContactName ?? "" }}
         existing={contacts}
         onSaved={(saved) => {
           chooseContact(saved.id, saved);
@@ -687,7 +699,15 @@ export function InvoiceEditor({
           void router.invalidate();
         }}
         onPickExisting={(id) => chooseContact(id)}
-        onClose={() => setNewContactOpen(false)}
+        onClose={() => setNewContactName(null)}
+      />
+      <ArticleDialog
+        open={newArticle !== null}
+        prefill={newArticle?.prefill ?? {}}
+        onSaved={(article) => {
+          if (newArticle) pickArticle(newArticle.lineKey, article);
+        }}
+        onClose={() => setNewArticle(null)}
       />
       <div className="page-head">
         <div>
@@ -798,27 +818,19 @@ export function InvoiceEditor({
                   )}
                 </label>
               )}
-              <label className="field" style={{ gridColumn: "1 / -1" }}>
-                Kunde
-                <select value={contactId} onChange={(e) => chooseContact(e.target.value)} disabled={!editable}>
-                  <option value="">Bitte wählen</option>
-                  {contacts
-                    .filter((c) => c.isCustomer || c.id === contactId)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                        {c.ort ? ` · ${c.ort}` : ""}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              {editable && (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <button type="button" className="btn" onClick={() => setNewContactOpen(true)}>
-                    Neuen Kontakt anlegen
-                  </button>
-                </div>
-              )}
+              <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <label className="field-label" htmlFor="invoice-customer">
+                  Kunde
+                </label>
+                <CustomerCombobox
+                  id="invoice-customer"
+                  contacts={contacts}
+                  contactId={contactId}
+                  disabled={!editable}
+                  onChoose={chooseContact}
+                  onCreate={setNewContactName}
+                />
+              </div>
               {kind === "rechnung" && (variant || quoteId) && (
                 <label className="field" style={{ gridColumn: "1 / -1" }}>
                   Angebot
@@ -1106,17 +1118,6 @@ export function InvoiceEditor({
               <div className="num">{amountLabel}</div>
               <div />
             </div>
-            {articles.length > 0 && (
-              <datalist id="artikel-vorschlaege">
-                {articles.map((a) => (
-                  <option
-                    key={a.id}
-                    value={a.description}
-                    label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`}
-                  />
-                ))}
-              </datalist>
-            )}
             {lines.map((line, index) => {
               const p = parsed[index]!;
               const inCatalog = articles.some(
@@ -1140,16 +1141,16 @@ export function InvoiceEditor({
                       autoComplete="off"
                       onChange={(e) => updateLine(line.key, { itemNumber: e.target.value })}
                     />
-                    <input
-                      className="line-desc"
+                    <ArticleCombobox
+                      label={`Beschreibung Position ${index + 1}`}
                       placeholder={`Beschreibung Position ${index + 1}`}
-                      aria-label={`Beschreibung Position ${index + 1}`}
                       value={line.description}
-                      list={articles.length > 0 ? "artikel-vorschlaege" : undefined}
-                      autoComplete="off"
-                      onChange={(e) => changeDescription(line, e.target.value)}
+                      articles={articles}
+                      invalid={showError(line.key) && line.description.trim() === ""}
+                      onInput={(description) => updateLine(line.key, { description })}
+                      onPick={(article) => pickArticle(line.key, article)}
+                      onCreate={(description) => openNewArticle(line, description)}
                       onBlur={() => markTouched(line.key)}
-                      aria-invalid={showError(line.key) && line.description.trim() === ""}
                     />
                     {quote && <LineKind index={index} kind={line.kind} onKind={(value) => updateLine(line.key, { kind: value })} />}
                   </div>
@@ -1288,26 +1289,7 @@ export function InvoiceEditor({
               >
                 <Icon name="plus" size={16} /> Position hinzufügen
               </button>
-              {articles.length > 0 && (
-                <select
-                  aria-label="Aus dem Artikelkatalog einfügen"
-                  value=""
-                  onChange={(e) => {
-                    insertArticle(e.target.value);
-                    e.target.value = "";
-                  }}
-                  className="catalog-select"
-                >
-                  <option value="">Aus dem Katalog einfügen …</option>
-                  {articles.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.number ? `${a.number} · ` : ""}
-                      {a.description} · {formatEuro(a.unitPrice)}
-                      {a.priceIncludesTax ? " brutto" : ""}/{a.unit}
-                    </option>
-                  ))}
-                </select>
-              )}
+              {articles.length > 0 && <CatalogCombobox articles={articles} onPick={insertArticle} />}
             </div>
             <label className="field">
               Gesamtrabatt (optional)

@@ -4,7 +4,7 @@ import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { bestaetigen, faktenZeigen, dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { bestaetigen, faktenZeigen, dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, kundeWaehlen, ohneAxeVerstoesse, receiptJpeg, trefferliste } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 
 /**
@@ -475,7 +475,9 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await go("/kontakte?rolle=kunde");
   await expect(page.getByRole("region", { name: "Kontaktliste" })).not.toContainText("Hetzner Online GmbH");
   await go("/rechnungen/neu");
-  await expect(page.getByRole("combobox", { name: "Kunde" }).locator("option", { hasText: "Hetzner" })).toHaveCount(0);
+  // Nur Kunden in der Suche: Für den Lieferanten bleibt allein das Anlegen
+  await page.getByRole("combobox", { name: "Kunde", exact: true }).fill("Hetzner");
+  await expect(trefferliste(page).getByRole("option")).toHaveText("„Hetzner“ als neuen Kunden anlegen");
 
   await go("/belege");
   await page
@@ -670,7 +672,7 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
 
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Donaublick GmbH · Wien" });
+  await kundeWaehlen(page, "Donaublick GmbH · Wien");
   await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
   await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
@@ -708,7 +710,7 @@ test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart 
   // Nach der Zusammenfassenden Meldung oben: USt-IdNr. in den Firmendaten und der Kunde in Wien sind angelegt
   const next = YEAR + 1;
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Donaublick GmbH · Wien" });
+  await kundeWaehlen(page, "Donaublick GmbH · Wien");
   await page.getByLabel("Rechnungsdatum").fill(`${next}-05-12`);
   await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("ig_lieferung");
   await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
@@ -795,7 +797,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   const issueDate = day(-2);
   await go("/rechnungen/neu");
   await expect(page.getByLabel("Stufe 1: Skonto in %")).toHaveValue("2");
-  await page.getByLabel("Kunde").selectOption({ label: "Kontor Lindner KG · Hamburg" });
+  await kundeWaehlen(page, "Kontor Lindner KG · Hamburg");
   await expect(page.getByLabel("Stufe 1: Skonto in %")).toHaveValue("3");
   await expect(page.getByLabel("Stufe 1: Frist in Tagen")).toHaveValue("7");
   await page.getByLabel("Rechnungsdatum").fill(issueDate);

@@ -5,6 +5,9 @@ import { day, firstLink, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
+  artikelEinfuegen,
+  artikelInPosition,
+  axeVerstoesse,
   bestaetigen,
   faktenZeigen,
   CUSTOMERS,
@@ -13,9 +16,12 @@ import {
   gehe,
   INVOICES,
   kontaktAnlegen,
+  kundeWaehlen,
+  neuenKontaktOeffnen,
   ohneAxeVerstoesse,
   receiptJpeg,
   rechnungFestschreiben,
+  trefferliste,
 } from "./einrichtung.ts";
 
 /**
@@ -151,7 +157,7 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await go("/rechnungen/neu");
   const sprache = page.getByRole("combobox", { name: /^Sprache/ });
   await expect(sprache).toHaveValue("de");
-  await page.getByLabel("Kunde").selectOption({ label: "Harbour Labs Ltd · London" });
+  await kundeWaehlen(page, "Harbour Labs Ltd · London");
   await expect(sprache).toHaveValue("en");
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
 });
@@ -208,7 +214,7 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await go("/rechnungen/neu");
   await page.getByLabel("Beschreibung Position 1").fill("Workshop Barrierefreiheit");
   const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
-  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await neuenKontaktOeffnen(page);
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel("Kunde", { exact: true })).toBeChecked();
   await expect(dialog.getByLabel("Lieferant", { exact: true })).not.toBeChecked();
@@ -216,13 +222,12 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
 
-  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await neuenKontaktOeffnen(page);
   await dialog.getByLabel("Name oder Firma").fill("Dialogkunde GmbH");
   await dialog.getByLabel("Ort").fill("Bremen");
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByLabel("Kunde")).toHaveValue(/[0-9a-f-]{36}/);
-  await expect(page.getByLabel("Kunde").locator("option:checked")).toHaveText("Dialogkunde GmbH · Bremen");
+  await expect(page.getByLabel("Kunde")).toHaveValue("Dialogkunde GmbH · Bremen");
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
 
   // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
@@ -245,7 +250,7 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
 
   // Im Editor ersetzt der Artikel die leere erste Zeile; gespeichert wird nichts
   await go("/rechnungen/neu");
-  await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "B-01 · Beratung Softwarearchitektur · 110,00\u00a0€/Std." });
+  await artikelEinfuegen(page, "Beratung Softwarearchitektur");
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
   await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
@@ -254,9 +259,9 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   // Bereits im Katalog: nicht noch einmal speichern
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
-  // Vorschlag aus dem Katalog beim Tippen: die Bezeichnung übernimmt Einheit und Preis
+  // Auswahl aus der Trefferliste der Position: die Bezeichnung übernimmt Einheit und Preis
   await page.getByRole("button", { name: "Position hinzufügen" }).click();
-  await page.getByLabel("Beschreibung Position 2").fill("Beratung Softwarearchitektur");
+  await artikelInPosition(page, 2, "Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("110,00");
   await expect(page.getByLabel("Artikelnummer Position 2 (optional)")).toHaveValue("B-01");
 
@@ -267,7 +272,8 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await page.getByRole("button", { name: "Position 3 als Artikel speichern" }).click();
   await expect(page.getByRole("status").filter({ hasText: "„Wartungspauschale“ ist jetzt im Artikelkatalog." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Position 3 als Artikel speichern" })).toBeDisabled();
-  await expect(page.getByLabel("Aus dem Artikelkatalog einfügen").locator("option", { hasText: "Wartungspauschale · 250,00" })).toHaveCount(1);
+  await page.getByLabel("Aus dem Artikelkatalog einfügen").fill("Wartungspauschale");
+  await expect(trefferliste(page).getByRole("option", { name: "Wartungspauschale" })).toContainText("250,00");
 });
 
 test("Positionstext: Artikel mit Bezeichnung und Text, die Vorschau zeigt beides", async () => {
@@ -283,14 +289,14 @@ test("Positionstext: Artikel mit Bezeichnung und Text, die Vorschau zeigt beides
 
   // Aus dem Katalog: Bezeichnung und Text des Artikels in die Position
   await go("/rechnungen/neu");
-  await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "W-01 · Website-Relaunch · 4.800,00\u00a0€/Std." });
+  await artikelEinfuegen(page, "Website-Relaunch");
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Website-Relaunch");
   await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("Konzeption, Design und Umsetzung");
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
-  // Vorschlag beim Tippen der Bezeichnung: ebenso, dazu Preis und Einheit
+  // Auswahl in der Bezeichnung: ebenso, dazu Preis und Einheit
   await page.getByRole("button", { name: "Position hinzufügen" }).click();
-  await page.getByLabel("Beschreibung Position 2").fill("Website-Relaunch");
+  await artikelInPosition(page, 2, "Website-Relaunch");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("4.800,00");
   await expect(page.getByLabel("Text zu Position 2 (optional)")).toHaveValue("Konzeption, Design und Umsetzung");
 
@@ -309,14 +315,14 @@ test("Positionstext: über 500 Zeichen lässt sich die Position als Artikel spei
   await page.getByLabel("Text zu Position 1 (optional)").fill(leistungsumfang);
   await page.getByRole("button", { name: "Position 1 als Artikel speichern" }).click();
   await expect(page.getByRole("status").filter({ hasText: "„Wartungsvertrag“ ist jetzt im Artikelkatalog." })).toBeVisible();
-  await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "Wartungsvertrag · 90,00\u00a0€/Std." });
+  await artikelEinfuegen(page, "Wartungsvertrag");
   await expect(page.getByLabel("Text zu Position 2 (optional)")).toHaveValue(leistungsumfang);
 });
 
-test("Positionstext: ein einzeiliger Artikel beim Tippen lässt den eigenen Text der Position stehen", async () => {
+test("Positionstext: ein einzeiliger Artikel lässt bei der Auswahl den eigenen Text der Position stehen", async () => {
   await go("/rechnungen/neu");
   await page.getByLabel("Text zu Position 1 (optional)").fill("laut Bestellung 4500123456");
-  await page.getByLabel("Beschreibung Position 1").fill("Beratung Softwarearchitektur");
+  await artikelInPosition(page, 1, "Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
   await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("laut Bestellung 4500123456");
 });
@@ -333,7 +339,7 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
 
   // Für diesen Kunden steht der Baustein oben; eingefügt wird eine Kopie in die Einleitung, gespeichert wird nichts
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Nordwerk Software GmbH · Hamburg" });
+  await kundeWaehlen(page, "Nordwerk Software GmbH · Hamburg");
   const insert = page.getByLabel("Kopftext aus den Textbausteinen einfügen");
   await expect(insert.locator('optgroup[label="Für diesen Kunden"] option')).toHaveText(["Bestellnummer Nordwerk"]);
   await insert.selectOption({ label: "Bestellnummer Nordwerk" });
@@ -383,8 +389,7 @@ test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mi
 
   // Netto-Rechnung: der Endpreis wird herausgerechnet
   await go("/rechnungen/neu");
-  const catalog = page.getByLabel("Aus dem Artikelkatalog einfügen");
-  await catalog.selectOption({ label: "Fotoabzug 13 × 18 cm · 9,80\u00a0€ brutto/Stk." });
+  await artikelEinfuegen(page, "Fotoabzug 13 × 18 cm");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("8,24");
 
   // Brutto-Rechnung: der Endpreis bleibt, die Steuer steht unter dem Gesamtbetrag
@@ -394,14 +399,201 @@ test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mi
   await expect(preview).toContainText("Gesamtbetrag (inkl. USt)9,80\u00a0€");
   await expect(preview).toContainText("darin enthalten:");
   await expect(preview).toContainText("Umsatzsteuer 19 %1,56\u00a0€");
-  await catalog.selectOption({ label: "Fotoabzug 13 × 18 cm · 9,80\u00a0€ brutto/Stk." });
+  await artikelEinfuegen(page, "Fotoabzug 13 × 18 cm");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("9,80");
+});
+
+test("Kunde suchen und mit Tastatur oder Maus wählen (#359)", async () => {
+  await go("/rechnungen/neu");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  const treffer = trefferliste(page);
+
+  // Suche nach dem Ort, Name und Ort stehen im Treffer
+  await kunde.fill("hamburg");
+  await expect(kunde).toHaveAttribute("aria-expanded", "true");
+  await expect(treffer.getByRole("option", { name: "Nordwerk Software GmbH" })).toContainText("Hamburg");
+
+  // Enter übernimmt den ersten Treffer und schickt das Formular nicht ab
+  await kunde.fill("rhein");
+  await page.keyboard.press("Enter");
+  await expect(kunde).toHaveValue("Rheinpixel GmbH · Köln");
+  await expect(kunde).toHaveAttribute("aria-expanded", "false");
+  await expect(page).toHaveURL(/rechnungen\/neu/);
+  await expect(page.locator(".sheet").getByText("Rheinpixel GmbH")).toBeVisible();
+
+  // Pfeile bewegen den aktiven Eintrag, der Fokus bleibt im Feld
+  await kunde.fill("gmbh");
+  const ersterAktiv = await kunde.getAttribute("aria-activedescendant");
+  await page.keyboard.press("ArrowDown");
+  await expect(kunde).not.toHaveAttribute("aria-activedescendant", ersterAktiv!);
+  await expect(kunde).toBeFocused();
+
+  // Escape schließt; ohne Auswahl bleibt der bisherige Kunde
+  await page.keyboard.press("Escape");
+  await expect(kunde).toHaveAttribute("aria-expanded", "false");
+  await page.getByLabel("Beschreibung Position 1").click();
+  await expect(kunde).toHaveValue("Rheinpixel GmbH · Köln");
+
+  // Klick zeigt die Liste mit dem gewählten Kunden, die Maus wählt einen anderen
+  await kunde.click();
+  await expect(treffer.getByRole("option", { selected: true })).toContainText("Rheinpixel GmbH");
+  await treffer.getByRole("option", { name: "Alpenblick Media AG" }).click();
+  await expect(kunde).toHaveValue("Alpenblick Media AG · München");
+
+  // Tab übernimmt den aktiven Treffer
+  await kunde.fill("nordwerk");
+  await page.keyboard.press("Tab");
+  await expect(kunde).toHaveValue("Nordwerk Software GmbH · Hamburg");
+
+  // Ein geleertes Feld nimmt den Kunden weg
+  await kunde.fill("");
+  await page.getByLabel("Beschreibung Position 1").click();
+  await expect(kunde).toHaveValue("");
+  await expect(page.locator(".sheet").getByText("Nordwerk Software GmbH")).toHaveCount(0);
+});
+
+test("Suchfeld: Klick neben den Feldnamen und Mausbewegung stören nicht (#359)", async () => {
+  await go("/rechnungen/neu");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  const feldname = page.locator('label[for="invoice-customer"]');
+
+  // Der leere Bereich rechts vom Feldnamen gehört nicht zum Feld
+  await kunde.scrollIntoViewIfNeeded();
+  const feld = (await kunde.boundingBox())!;
+  const name = (await feldname.boundingBox())!;
+  const punkt = { x: feld.x + feld.width - 20, y: name.y + name.height / 2 };
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.className, punkt)).toBe("field");
+  await page.mouse.click(punkt.x, punkt.y);
+  await expect(kunde).not.toBeFocused();
+  await expect(kunde).toHaveAttribute("aria-expanded", "false");
+
+  // Der Feldname selbst fokussiert wie jedes Label, öffnet die Liste aber nicht
+  await feldname.click();
+  await expect(kunde).toBeFocused();
+  await expect(kunde).toHaveAttribute("aria-expanded", "false");
+
+  // Die Maus ändert den aktiven Eintrag der Tastatur nicht, sonst rendert jede Zeile das Feld neu
+  await kunde.fill("gmbh");
+  const aktiv = await kunde.getAttribute("aria-activedescendant");
+  await trefferliste(page).getByRole("option").nth(1).hover();
+  await expect(kunde).toHaveAttribute("aria-activedescendant", aktiv!);
+  await page.keyboard.press("Escape");
+});
+
+test("Kunde aus der Trefferliste neu anlegen, ohne die Eingaben zu verlieren (#359)", async () => {
+  await go("/rechnungen/neu");
+  // Ohne Eingabe steht das Anlegen am Ende der Liste und öffnet den leeren Dialog, auch neben Treffern
+  await page.getByRole("combobox", { name: "Kunde", exact: true }).click();
+  await trefferliste(page).getByRole("option", { name: "Neuen Kontakt anlegen" }).click();
+  const leer = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await expect(leer.getByLabel("Name oder Firma")).toHaveValue("");
+  await leer.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(leer).toBeHidden();
+
+  // Trotz Teiltreffer: „Rhein“ findet Rheinpixel, das Anlegen bleibt daneben angeboten
+  await page.getByRole("combobox", { name: "Kunde", exact: true }).fill("Rhein");
+  await expect(trefferliste(page).getByRole("option", { name: "Rheinpixel GmbH" })).toBeVisible();
+  await expect(trefferliste(page).getByRole("option", { name: "„Rhein“ als neuen Kunden anlegen" })).toBeVisible();
+
+  await page.getByLabel("Beschreibung Position 1").fill("Workshop Suche");
+  await page.getByLabel("Rechnungsdatum").fill(day(-3));
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  await kunde.fill("Kieler Neukunde KG");
+  await trefferliste(page).getByRole("option", { name: "„Kieler Neukunde KG“ als neuen Kunden anlegen" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Kieler Neukunde KG");
+  await dialog.getByLabel("Ort").fill("Kiel");
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect(kunde).toHaveValue("Kieler Neukunde KG · Kiel");
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Suche");
+  await expect(page.getByLabel("Rechnungsdatum")).toHaveValue(day(-3));
+
+  // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Kieler Neukunde KG/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
+test("Artikel in der Position suchen: übernimmt Preis, Einheit und USt, bleibt änderbar, Neuanlage aus der Liste (#359)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Menge Position 1").fill("3");
+  const beschreibung = page.getByLabel("Beschreibung Position 1");
+
+  // Ein Klick zeigt den Katalog wie beim Kunden; vorgewählt ist nichts, denn die Eingabe bleibt frei
+  await beschreibung.click();
+  await expect(trefferliste(page).getByRole("option", { name: "Beratung Softwarearchitektur" })).toBeVisible();
+  await expect(beschreibung).not.toHaveAttribute("aria-activedescendant", /.+/);
+  await page.keyboard.press("Escape");
+  await expect(trefferliste(page)).toBeHidden();
+
+  // Nichts passt: anlegen im Dialog, die Position übernimmt den neuen Artikel
+  await beschreibung.fill("Lektorat Fachtext");
+  await trefferliste(page).getByRole("option", { name: "„Lektorat Fachtext“ als neuen Artikel anlegen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neuen Artikel anlegen" });
+  await expect(dialog.getByLabel("Bezeichnung")).toHaveValue("Lektorat Fachtext");
+  await dialog.getByLabel("Artikelnummer (optional)").fill("L-07");
+  await dialog.getByLabel("Einheit").selectOption("Stk.");
+  await dialog.getByLabel("Preis (€)").fill("45,00");
+  await dialog.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("700");
+  await dialog.getByRole("button", { name: "Anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(beschreibung).toHaveValue("Lektorat Fachtext");
+  await expect(page.getByLabel("Artikelnummer Position 1 (optional)")).toHaveValue("L-07");
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("45,00");
+  await expect(page.getByLabel("Einheit Position 1")).toHaveValue("Stk.");
+  await expect(page.getByLabel("Steuersatz Position 1")).toHaveValue("700");
+  await expect(page.getByLabel("Menge Position 1")).toHaveValue("3");
+
+  // Danach von Hand änderbar
+  await page.getByLabel(/Einzelpreis Position 1/).fill("50,00");
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("50,00");
+  await expect(page.getByLabel("Steuersatz Position 1")).toHaveValue("700");
+
+  // Suche nach der Nummer mit der Tastatur; der Treffer nennt Preis und Einheit
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
+  const zweite = page.getByLabel("Beschreibung Position 2");
+  await zweite.fill("L-07");
+  await expect(trefferliste(page).getByRole("option", { name: "Lektorat Fachtext" })).toContainText("45,00\u00a0€ netto je Stk.");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(zweite).toHaveValue("Lektorat Fachtext");
+  await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("45,00");
+
+  // Freier Text bleibt frei, auch wenn er wie ein Artikel heißt: Nur die Auswahl übernimmt Preis und Einheit
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
+  const dritte = page.getByLabel("Beschreibung Position 3");
+  await dritte.fill("Lektorat Fachtext");
+  await page.keyboard.press("Escape");
+  await expect(dritte).toHaveValue("Lektorat Fachtext");
+  await expect(page.getByLabel(/Einzelpreis Position 3/)).toHaveValue("");
+});
+
+test("Trefferliste ist barrierefrei, hell und dunkel (#359)", async () => {
+  await go("/rechnungen/neu");
+  const pruefen = async () => {
+    const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+    await kunde.fill("gmbh");
+    await expect(trefferliste(page)).toBeVisible();
+    expect(await axeVerstoesse(page)).toEqual([]);
+    await page.getByLabel("Beschreibung Position 1").fill("gibt es nicht im Katalog");
+    await expect(trefferliste(page).getByRole("option")).toContainText("als neuen Artikel anlegen");
+    expect(await axeVerstoesse(page)).toEqual([]);
+  };
+  await pruefen();
+  await page.evaluate(() => localStorage.setItem("haben-theme", "nacht"));
+  await go("/rechnungen/neu");
+  await pruefen();
+  await page.evaluate(() => localStorage.removeItem("haben-theme"));
 });
 
 test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await go("/angebote/neu");
   await expect(page.getByRole("heading", { name: /^Angebot AN-\d{4}-001$/, level: 1 })).toBeVisible();
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Workshop Softwarearchitektur");
   await page.getByLabel("Text zu Position 1 (optional)").fill("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await page.getByLabel("Menge Position 1").fill("16");
@@ -465,7 +657,7 @@ test("Angebot am Handy: Status bleibt beim Scrollen neben dem Titel sichtbar (#3
 
 test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick aus dem Plan", async () => {
   await go("/angebote/neu");
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Website Relaunch");
   await page.getByLabel(/Einzelpreis Position 1/).fill("10000");
   await page.getByLabel("Rabatt Position 1, Prozent oder Betrag").fill("10 %");
@@ -527,7 +719,7 @@ test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick au
 
 test("Rechnung mit Positions- und Gesamtrabatt in der Vorschau", async () => {
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("10");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
@@ -580,7 +772,7 @@ const attachmentPdf = (text: string) => Buffer.from(`%PDF-1.4\n% ${text}\n%%EOF\
 
 test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim Versand auswählen", async () => {
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
   await page.getByLabel("Beschreibung Position 1").fill("Beratung mit Stundennachweis");
   await page.getByLabel("Menge Position 1").fill("8");
   await page.getByLabel(/Einzelpreis Position 1/).fill("120,00");
@@ -648,7 +840,7 @@ test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim
 
 test("Anhänge am Angebot: PDF im Entwurf hochladen, festschreiben, beim Versand auswählen, beim Kopieren übernehmen (#415)", async () => {
   await go("/angebote/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("Wartungsvertrag");
   await page.getByLabel("Menge Position 1").fill("12");
   await page.getByLabel(/Einzelpreis Position 1/).fill("150,00");
@@ -713,7 +905,7 @@ test("Standardanhänge: AGB in den Einstellungen, jedes neue Angebot hat sie, im
   await expect(standard.getByRole("link", { name: "Widerrufsbelehrung.pdf", exact: true })).toBeVisible();
 
   await go("/angebote/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
   await page.getByLabel("Beschreibung Position 1").fill("Konzeption Website");
   await page.getByLabel("Menge Position 1").fill("10");
   await page.getByLabel(/Einzelpreis Position 1/).fill("120,00");
@@ -744,7 +936,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await go("/rechnungen/neu");
   await page.getByRole("combobox", { name: /^Rechnungsart/ }).selectOption("abschlag");
   await expect(page.getByRole("heading", { name: /^Abschlagsrechnung \d{4}-\d{3}$/, level: 1 })).toBeVisible();
-  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("1. Abschlag Relaunch Website");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("2000");
@@ -761,7 +953,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.getByRole("link", { name: "Schlussrechnung erstellen" }).click();
   await page.waitForURL(/rechnungen\/neu\?schluss=/);
   await expect(page.getByRole("heading", { name: /^Schlussrechnung /, level: 1 })).toBeVisible();
-  await expect(page.getByLabel("Kunde")).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByLabel("Kunde")).toHaveValue("Rheinpixel GmbH · Köln");
   const abzug = page.getByRole("checkbox", { name: new RegExp(`Abschlagsrechnung ${number}`) });
   await expect(abzug).toBeChecked();
   await page.getByLabel("Beschreibung Position 1").fill("Relaunch Website gesamt");
@@ -798,7 +990,7 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
 
 test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung aus, Storno der Bareinnahme", async ({ browser }) => {
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Rechnungsdatum").fill(day(-3));
   await page.getByLabel("Beschreibung Position 1").fill("Flyer gedruckt, bar bezahlt");
   await page.getByLabel("Menge Position 1").fill("1");
@@ -1210,7 +1402,7 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   const vorher = page.viewportSize();
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");

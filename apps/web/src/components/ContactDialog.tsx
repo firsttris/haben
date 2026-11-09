@@ -1,20 +1,10 @@
-import { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import type { ContactInput } from "../server/modules/stammdaten/index.ts";
 import { ContactForm, type ExistingContact, type IbanSuggestion, type SavedContact } from "./ContactForm.tsx";
+import { FormDialog } from "./FormDialog.tsx";
 
-/**
- * Neuen Kontakt anlegen, ohne das Formular zu verlassen, in dem er gebraucht wird (Beleg, Rechnungs- und
- * Angebotsentwurf, #330). Ein modaler <dialog> hält den Fokus und schließt mit Escape; er hängt am body, weil
- * das Kontaktformular sonst in einem anderen Formular stünde. Abbrechen und Fehler lassen die Eingaben draußen stehen.
- * Geschlossen steht er gar nicht im Dokument, damit sein Name („Neuen Kunden anlegen“) kein Feld der Seite überdeckt.
- */
-export function ContactDialog(props: Parameters<typeof OpenContactDialog>[0] & { open: boolean }) {
-  if (!props.open || typeof document === "undefined") return null;
-  return createPortal(<OpenContactDialog {...props} />, document.body);
-}
-
-function OpenContactDialog({
+/** Neuen Kontakt anlegen, wo er gebraucht wird (Beleg, Rechnungs- und Angebotsentwurf, #330). Abbrechen und Fehler lassen die Eingaben draußen stehen. */
+export function ContactDialog({
+  open,
   title,
   prefill,
   existing,
@@ -23,6 +13,7 @@ function OpenContactDialog({
   onClose,
   ibanSuggestion = null,
 }: {
+  open: boolean;
   title: string;
   prefill: Partial<ContactInput>;
   existing: ExistingContact[];
@@ -32,16 +23,8 @@ function OpenContactDialog({
   /** IBAN vom Beleg zum ausdrücklichen Übernehmen (#329) */
   ibanSuggestion?: IbanSuggestion | null;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-  }, []);
-
   return (
-    <dialog ref={ref} className="contact-dialog" aria-labelledby="contact-dialog-title" onClose={onClose}>
-      <h2 id="contact-dialog-title">{title}</h2>
+    <FormDialog open={open} title={title} onClose={onClose}>
       <ContactForm
         contact={null}
         prefill={prefill}
@@ -57,6 +40,6 @@ function OpenContactDialog({
         }}
         onCancel={onClose}
       />
-    </dialog>
+    </FormDialog>
   );
 }

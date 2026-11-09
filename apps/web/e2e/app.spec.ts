@@ -15,6 +15,7 @@ import {
   gehe,
   INVOICES,
   kontaktAnlegen,
+  kundeWaehlen,
   receiptJpeg,
   rechnungFestschreiben,
 } from "./einrichtung.ts";
@@ -208,7 +209,7 @@ test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer
   const heading = await page.getByRole("heading", { level: 1 }).textContent();
   // Ohne Kunden gibt es noch kein Dokument
   await expect(page.getByRole("button", { name: "Speichern und als PDF" })).toBeDisabled();
-  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
   await page.getByLabel("Beschreibung Position 1").fill("Konzept zur Prüfung");
   await page.getByLabel("Menge Position 1").fill("2");
   await page.getByLabel(/Einzelpreis Position 1/).fill("300");

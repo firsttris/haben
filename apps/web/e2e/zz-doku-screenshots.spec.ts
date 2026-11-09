@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { day, fullPageScreenshot, USER, vorschauAnheften, YEAR } from "./daten.ts";
-import { dkb, type Rechnung, rechnungFestschreiben } from "./einrichtung.ts";
+import { dkb, kundeWaehlen, type Rechnung, rechnungFestschreiben } from "./einrichtung.ts";
 
 /**
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
@@ -136,7 +136,7 @@ test("Übersicht", async () => {
 
 test("Rechnung schreiben mit Vorschau", async () => {
   await go("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await kundeWaehlen(page, "Alpenblick Media AG · München");
   await page.getByLabel("Beschreibung Position 1").fill("Konzeption und Umsetzung Kundenportal");
   await page.getByLabel("Menge Position 1").fill("24");
   await page.getByLabel(/Einzelpreis Position 1/).fill("95,00");

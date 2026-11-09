@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { firstLink, SESSION, YEAR } from "./daten.ts";
+import { kundeWaehlen, neuenKontaktOeffnen } from "./einrichtung.ts";
 import { HANDY, kopfUnterkante, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 
 /**
@@ -97,7 +98,7 @@ test("Saldenliste: der Tabellenkopf steht unter dem Seitenkopf, nicht dahinter",
 test("Festschreiben im stehenden Kopf: die Rückfrage erscheint im Fenster, auch weit unten auf der Seite", async ({ page }) => {
   await page.setViewportSize(LAPTOP);
   await page.goto("/rechnungen/neu");
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
@@ -136,9 +137,9 @@ for (const [geraet, viewport] of [
 ] as const) {
   test(`Kontaktdialog am ${geraet}: Titel und Knöpfe bleiben stehen, nur das Formular scrollt`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await page.goto("/rechnungen/neu");
+    await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
     // Öffnen und Abbrechen: geschrieben wird nichts
-    await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+    await neuenKontaktOeffnen(page);
     const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
     const titel = dialog.getByRole("heading", { name: "Neuen Kunden anlegen" });
     const anlegen = dialog.getByRole("button", { name: "Kontakt anlegen" });
@@ -174,7 +175,7 @@ for (const [geraet, viewport] of [
     await page.setViewportSize(viewport);
     // Erst nach der Hydration klicken, sonst öffnet der Knopf den Dialog nicht
     await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+    await neuenKontaktOeffnen(page);
     const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
     await dialog.getByLabel("Name").first().fill("Prüfkunde");
     // Ganz oben im Formular beide Rollen abwählen, dann den stehenden Knopf klicken: die Meldung steht am Ende des
@@ -197,7 +198,7 @@ for (const [geraet, viewport] of [
     await page.setViewportSize(viewport);
     // Erst nach der Hydration klicken, sonst öffnet der Knopf den Dialog nicht
     await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+    await neuenKontaktOeffnen(page);
     const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Kontakt anlegen" }).focus();
@@ -206,7 +207,7 @@ for (const [geraet, viewport] of [
       await page.keyboard.press("Shift+Tab");
       const fokus = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
-        const form = el.closest<HTMLElement>(".contact-dialog > .contact-form");
+        const form = el.closest<HTMLElement>(".form-dialog > .contact-form");
         if (!form || el.closest(".form-footer")) return null;
         // Fokusrahmen: 2 px Linie mit 2 px Abstand (styles.css, :focus-visible)
         const oben = el.getBoundingClientRect().top - 4 - (form.getBoundingClientRect().top + form.clientTop);
@@ -221,7 +222,7 @@ for (const [geraet, viewport] of [
 
 async function entwurfAusfuellen(page: Page): Promise<void> {
   await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
-  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await kundeWaehlen(page);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");
   await page.getByLabel("Menge Position 1").fill("1");
   await page.getByLabel(/Einzelpreis Position 1/).fill("100");
