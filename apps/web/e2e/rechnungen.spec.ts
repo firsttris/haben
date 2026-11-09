@@ -553,17 +553,20 @@ test("Artikel und Textbausteine: die Liste zeigt die Auszeichnung statt der Zeic
 
 /** Ob der Knopf in der Mitte wirklich oben liegt; verdeckt oder abgeschnitten bliebe er für Maus und Finger unerreichbar */
 function liegtObenAuf(p: Page): Promise<boolean> {
-  return p
-    .getByRole("button", { name: "Fett", exact: true })
-    .evaluate((knopf) => {
-      const rect = knopf.getBoundingClientRect();
-      return !!document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[role="toolbar"]');
-    });
+  return p.getByRole("button", { name: "Fett", exact: true }).evaluate((knopf) => {
+    const rect = knopf.getBoundingClientRect();
+    return !!document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[role="toolbar"]');
+  });
 }
 
 test("Textknöpfe: auf dem Handy liegt die Leiste auch bei einem hochgescrollten Feld nicht hinter der Navigation", async ({ browser }) => {
   // Mit offener Tastatur bleibt auf dem Handy nur rund die halbe Höhe
-  const context = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: HANDY.width, height: 420 }, hasTouch: true, isMobile: true });
+  const context = await browser.newContext({
+    storageState: await page.context().storageState(),
+    viewport: { width: HANDY.width, height: 420 },
+    hasTouch: true,
+    isMobile: true,
+  });
   const handy = await context.newPage();
   await gehe(handy, "/textbausteine");
   await handy.getByRole("button", { name: "Neuer Textbaustein" }).click();
