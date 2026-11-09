@@ -1,5 +1,5 @@
 import { compactIban, isEwrIban, isValidBic, isValidIban, mandatStatus, mandatsreferenzProblem, type MandatStatus } from "@haben/core";
-import { asc, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -151,18 +151,20 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
   const rows = await q.select().from(schema.sepaMandates).where(where).orderBy(desc(schema.sepaMandates.signedOn), desc(schema.sepaMandates.createdAt));
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
-  const [files, revocations] = await Promise.all([
+  const [files, revocations, invoiced] = await Promise.all([
     q
       .select()
       .from(schema.sepaMandateFiles)
       .where(inArray(schema.sepaMandateFiles.mandateId, ids))
       .orderBy(asc(schema.sepaMandateFiles.createdAt), asc(schema.sepaMandateFiles.id)),
     q.select().from(schema.sepaMandateRevocations).where(inArray(schema.sepaMandateRevocations.mandateId, ids)),
+    lastInvoicedCollections(ids, today, q),
   ]);
   // Das jüngste PDF gilt; die Reihenfolge oben lässt das letzte gewinnen
   const fileOf = new Map(files.map((f) => [f.mandateId, { filename: f.filename, sha256: f.sha256, size: f.size, createdAt: f.createdAt }]));
   const revocationOf = new Map(revocations.map((r) => [r.mandateId, { revokedOn: r.revokedOn, reason: r.reason, createdAt: r.createdAt }]));
-  // Einzüge aus Haben (Lastschriftdateien) zählen für den Verfall wie der letzte Einzug vor Haben
+  // Einzüge aus Haben zählen für den Verfall wie der letzte Einzug vor Haben: Lastschriftdateien und, für Einzüge ohne
+  // Datei aus Haben, die fälligen Rechnungen per Lastschrift
   const collectedInHaben = await lastCollections(ids, q);
   return rows.map(({ createdBy: _createdBy, ...row }) => {
     const revocation = revocationOf.get(row.id) ?? null;
@@ -171,11 +173,38 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
       file: fileOf.get(row.id) ?? null,
       revocation,
       status: mandatStatus(
-        { signedOn: row.signedOn, lastCollectionOn: latest(row.lastCollectionBefore, collectedInHaben.get(row.id)), revokedOn: revocation?.revokedOn ?? null },
+        {
+          signedOn: row.signedOn,
+          lastCollectionOn: latest(latest(row.lastCollectionBefore, collectedInHaben.get(row.id)), invoiced.get(row.id)),
+          revokedOn: revocation?.revokedOn ?? null,
+        },
         today,
       ),
     };
   });
+}
+
+/**
+ * Letzter Einzug aus Haben je Mandat bis zum Stichtag: der Fälligkeitstag der jüngsten festgeschriebenen Rechnung per
+ * Lastschrift. Für den Verfall zählt jeder eingereichte Einzug (SDD Core Rulebook v1.2, Kap. 4.2: „starting from the date
+ * of the latest Collection presented“). Stornierte Rechnungen zählen nicht, denn Haben weiß nicht, ob noch eingezogen wurde.
+ */
+async function lastInvoicedCollections(ids: string[], today: string, q: Db | Tx): Promise<Map<string, string>> {
+  const i = schema.invoices;
+  const rows = await q
+    .select({ mandateId: i.sepaMandateId, last: sql<string>`max(${i.dueDate})::text` })
+    .from(i)
+    .where(
+      and(
+        inArray(i.sepaMandateId, ids),
+        eq(i.status, "final"),
+        eq(i.paymentMethod, "lastschrift"),
+        lte(i.dueDate, today),
+        sql`not exists (select 1 from invoices s where s.corrects_id = ${i.id} and s.kind = 'storno' and s.status = 'final')`,
+      ),
+    )
+    .groupBy(i.sepaMandateId);
+  return new Map(rows.flatMap((r) => (r.mandateId ? [[r.mandateId, r.last] as const] : [])));
 }
 
 /** Widerruf eines Mandats; je Mandat einer */
