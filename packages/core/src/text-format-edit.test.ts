@@ -125,6 +125,32 @@ describe("Auszeichnung per Knopf", () => {
     expect(fillPlaceholders(toggle("Ablage [Kunde]/{jahr}", "underline")!, november)).toBe("Ablage __Kunde/2026__");
   });
 
+  it("lässt den Platzhalter daneben ganz, wenn ein Wort aus einer längeren Auszeichnung gelöst wird", () => {
+    const november = { from: "2026-11-01", to: "2026-11-30" };
+    const fertig = (text: string) => plainFormattedText(fillPlaceholders(toggle(text, "bold") ?? "", november));
+    expect(fertig("*Abrechnung {monat}-{[jahr]} und mehr*")).toBe("Abrechnung November-2026 und mehr");
+    expect(fertig("*Abrechnung {[monat]}-{jahr} und mehr*")).toBe("Abrechnung November-2026 und mehr");
+    expect(fertig("*Abrechnung [Zuschlag]-{jahr} und mehr*")).toBe("Abrechnung Zuschlag-2026 und mehr");
+  });
+
+  it("nimmt ohne Auswahl beim leeren Paar die zweite Auszeichnung dazu statt die erste zu kürzen", () => {
+    const nacheinander = (styles: TextStyle[]) =>
+      styles.reduce(
+        ({ text, start }, style) => {
+          const edit = toggleTextStyle(text, start, start, style)!;
+          return { text: edit.text, start: edit.start };
+        },
+        { text: "", start: 0 },
+      );
+    // Erst Strg+U, dann Strg+I, dann tippen: Wie bei der umgekehrten Reihenfolge ist das Wort beides
+    const beides = nacheinander(["underline", "italic"]);
+    const getippt = `${beides.text.slice(0, beides.start)}Wort${beides.text.slice(beides.start)}`;
+    expect(parseTextFormatting(getippt)).toEqual([{ text: "Wort", bold: false, italic: true, underline: true }]);
+    expect(nacheinander(["underline", "italic", "italic"]).text).toBe("____");
+    expect(nacheinander(["italic", "underline", "underline"]).text).toBe("__");
+    expect(nacheinander(["bold", "bold"]).text).toBe("");
+  });
+
   it("unterstreicht das erste Wort einer kursiven Auszeichnung und umgekehrt", () => {
     const woerter = (text: string | null) => parseTextFormatting(text ?? "").filter((run) => run.text.trim());
     expect(woerter(toggle("_[eins] zwei_", "underline"))).toEqual([

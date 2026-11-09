@@ -480,6 +480,50 @@ test("Textknöpfe: Esc auf einem Knopf schließt die Leiste und führt zurück i
   await einleitung.fill("");
 });
 
+test("Textknöpfe: am ersten Wort einer umbrochenen Zeile steht die Leiste über dem Wort, nicht am Ende der Zeile davor", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  const woerter = Array.from({ length: 40 }, (_, i) => `wort${String(i).padStart(2, "0")}`);
+  await einleitung.fill(woerter.join(" "));
+  await einleitung.focus();
+
+  // Wie viele Wörter in die erste Zeile passen; das nächste beginnt die zweite Zeile
+  const start = await einleitung.evaluate((feld: HTMLTextAreaElement, liste: string[]) => {
+    const stil = getComputedStyle(feld);
+    const messen = document.createElement("canvas").getContext("2d")!;
+    messen.font = stil.font;
+    const breite = feld.clientWidth - parseFloat(stil.paddingLeft) - parseFloat(stil.paddingRight);
+    let anzahl = 1;
+    while (messen.measureText(liste.slice(0, anzahl + 1).join(" ")).width <= breite) anzahl++;
+    return liste.slice(0, anzahl).join(" ").length + 1;
+  }, woerter);
+  await einleitung.evaluate((feld: HTMLTextAreaElement, von: number) => feld.setSelectionRange(von, von + 6), start);
+
+  await expect(leiste).toBeVisible();
+  const box = (await leiste.boundingBox())!;
+  const feld = (await einleitung.boundingBox())!;
+  expect(box.x - feld.x).toBeLessThan(40);
+  await einleitung.fill("");
+});
+
+test("Textknöpfe: ein Klick zwischen die Knöpfe lässt Leiste und Markierung stehen", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  await einleitung.fill("Vielen Dank für Ihren Auftrag");
+  await einleitung.focus();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await expect(leiste).toBeVisible();
+
+  const fett = (await page.getByRole("button", { name: "Fett", exact: true }).boundingBox())!;
+  await page.mouse.click(fett.x + fett.width + 1, fett.y + fett.height / 2);
+
+  await expect(einleitung).toBeFocused();
+  await expect(leiste).toBeVisible();
+  await einleitung.fill("");
+});
+
 test("Artikel und Textbausteine: die Liste zeigt die Auszeichnung statt der Zeichen", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();
