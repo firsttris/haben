@@ -915,7 +915,18 @@ docker compose start app
 
 Die Übernahme ordnet nur dem konfigurierten Issuer zu, verweigert ein schon vergebenes Subject und läuft nicht, solange Haben läuft. Sie steht im Änderungsprotokoll (`sso_takeovers`) und vergibt **keine** Rolle: Die kommt bei der nächsten Anmeldung aus der Gruppe. Bestehende exakte Issuer-/Subject-Zuordnungen melden weiterhin dasselbe Konto an; eine erneute Übernahme ist nicht erforderlich.
 
-Führt der Anbieter dasselbe Konto mit einem **neuen Subject**, etwa weil es dort neu angelegt wurde, endet die Anmeldung mit dem Hinweis auf ein vorhandenes Konto. Dann bei gestoppter Anwendung zusätzlich `--ersetzen` angeben, zuerst ohne `--uebernehmen` zum Prüfen. Die bisherige Identität dieses Issuers wird entfernt, ihre Sitzungen und die bestätigte Rolle enden, und `sso_takeovers` nennt das alte Subject. API-Tokens und Kalender-Abo gelten erst wieder nach der ersten Anmeldung mit dem neuen Subject. Vor dem Ersetzen belegen, dass das neue Subject dieselbe Person ist: Wer die Zuordnung bekommt, erhält das Konto mit allen Daten.
+Führt der Anbieter dasselbe Konto mit einem **neuen Subject**, etwa weil es dort neu angelegt wurde, endet die Anmeldung mit dem Hinweis auf ein vorhandenes Konto. Dann bei gestoppter Anwendung `--ersetzen` angeben:
+
+```sh
+docker compose stop app
+# erst prüfen, nichts ändern; die Ausgabe nennt das bisherige und das neue Subject
+docker compose run --rm --entrypoint bun app apps/web/src/server/db/sso-uebernahme.ts --konto <Konto-ID> --subject <neues-sub> --ersetzen
+# dann ausdrücklich ersetzen
+docker compose run --rm --entrypoint bun app apps/web/src/server/db/sso-uebernahme.ts --konto <Konto-ID> --subject <neues-sub> --ersetzen --uebernehmen
+docker compose start app
+```
+
+Die bisherige Identität dieses Issuers wird entfernt, ihre Sitzungen und die bestätigte Rolle enden, und `sso_takeovers` nennt das alte Subject. API-Tokens und Kalender-Abo gelten erst wieder nach der ersten Anmeldung mit dem neuen Subject. Vor dem Ersetzen belegen, dass das neue Subject dieselbe Person ist: Wer die Zuordnung bekommt, erhält das Konto mit allen Daten.
 
 ### Tokens nach Gruppenentzug
 
@@ -947,7 +958,7 @@ In **Coolify** die Anwendung stoppen und den Betreiberbefehl auf dem Server als 
 
 Beim Wechsel einer bestehenden Instanz erhält die erste erfolgreiche Inhaber-Anmeldung unmittelbar Zugriff auf vorhandene Daten. Deshalb Client, Issuer und Gruppen vor Aktivierung kontrollieren und bestehende Konten ausdrücklich übernehmen.
 
-Das Subject muss belegbar zum Haben-Client gehören, etwa aus `authelia storage user identifiers export --config /config/configuration.yml`. Bei paarweisen Subjects den zum Client beziehungsweise Sector passenden Eintrag verwenden; E-Mail und Benutzername sind kein Ersatz für `sub`. Eine bereits gespeicherte exakte Kombination aus Issuer und Subject meldet weiterhin dasselbe Konto an. Eine erneute Übernahme derselben Zuordnung wird als bereits vorhanden abgewiesen, ein neues Subject braucht `--ersetzen`. Ein anderer Issuer, etwa nach einem Domainwechsel, benötigt neue ausdrückliche Zuordnungen je Konto.
+Das Subject muss belegbar zum Haben-Client gehören, etwa aus `authelia storage user identifiers export --config /config/configuration.yml`. Bei Keycloak ist es ohne eigenen Mapper die ID des Benutzers in der Admin-Konsole. Bei paarweisen Subjects den zum Client beziehungsweise Sector passenden Eintrag verwenden; E-Mail und Benutzername sind kein Ersatz für `sub`. Eine bereits gespeicherte exakte Kombination aus Issuer und Subject meldet weiterhin dasselbe Konto an. Eine erneute Übernahme derselben Zuordnung wird als bereits vorhanden abgewiesen, ein neues Subject braucht `--ersetzen`. Ein anderer Issuer, etwa nach einem Domainwechsel, benötigt neue ausdrückliche Zuordnungen je Konto.
 
 Haben speichert Name und E-Mail beim ersten Login, Issuer und Subject, zuletzt bestätigte Rolle und Prüfzeitpunkt sowie IP und User-Agent der Sitzung. Vollständige Claims und Provider-Tokens werden nicht dauerhaft gespeichert. Uhren per NTP synchronisieren: Die Tokenprüfung bietet keine zusätzliche Ablauf-Toleranz. Backup und Restore müssen Datenbank, Secrets und denselben Issuer zusammen erhalten; abweichende Issuer benötigen eine bewusste Übernahme.
 
