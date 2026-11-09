@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import belegeOhneDatei from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-ohne-datei.json" with { type: "json" };
+import erzeugteRechnungen from "../../test-fixtures/sevdesk/buchhaltung-1.0/rechnungen-aus-vorlage.json" with { type: "json" };
 import belegeRv from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-wiederkehrend-rv.json" with { type: "json" };
 import belege from "../../test-fixtures/sevdesk/buchhaltung-1.0/belege-credit-debit.json" with { type: "json" };
 import dateiDownload from "../../test-fixtures/sevdesk/buchhaltung-1.0/document-download.json" with { type: "json" };
@@ -178,5 +179,33 @@ describe("Vorlagen und Belege ohne Datei in Buchhaltungsversion 1.0", () => {
 
   it("liest die Hülle von Document/download", () => {
     expect(sevFileResponseSchema.parse(dateiDownload)).toMatchObject({ objects: { base64Encoded: true, mimetype: "application/pdf" } });
+  });
+});
+
+/* Noch kein Produktcode: Die Vorlage hat kein Feld dafür, die Tests halten die Regel an den Daten fest. */
+describe("Nachfällig oder vorschüssig an erzeugten Rechnungen in Buchhaltungsversion 1.0", () => {
+  const tag = (datum: string) => datum.slice(0, 10);
+  const abrechnung = (r: (typeof erzeugteRechnungen)[number]) =>
+    tag(r.invoiceDate) === tag(r.deliveryDateUntil) ? "nachfällig" : tag(r.invoiceDate) === tag(r.deliveryDate) ? "vorschüssig" : "unklar";
+  const vonVorlage = (id: string) => erzeugteRechnungen.filter((r) => r.origin.id === id).map(abrechnung);
+
+  it("verweist jede erzeugte Rechnung auf eine Vorlage", () => {
+    const vorlagen = vorlagenWkr.map((v) => v.invoice.id);
+    for (const { origin } of erzeugteRechnungen) {
+      expect(origin.objectName).toBe("Invoice");
+      expect(vorlagen).toContain(origin.id);
+    }
+  });
+
+  it("rechnet nachfällig ab, wenn das Rechnungsdatum das Ende des Leistungszeitraums ist", () => {
+    expect(vonVorlage("ID_26")).toEqual(["nachfällig", "nachfällig"]);
+  });
+
+  it("rechnet vorschüssig ab, wenn das Rechnungsdatum der Beginn des Leistungszeitraums ist", () => {
+    expect(vonVorlage("ID_20")).toEqual(["vorschüssig"]);
+  });
+
+  it("lässt eine Vorlage ohne erzeugte Rechnung unklar", () => {
+    expect(vonVorlage("ID_15")).toEqual([]);
   });
 });
