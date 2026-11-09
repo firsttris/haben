@@ -55,6 +55,7 @@ Für neue Oberflächen gilt:
 
 - Bedienelemente sind `<button>`, `<a>` oder Formularelemente, keine `<div>` mit `onClick`.
 - Jedes Eingabefeld hat ein `<label>` oder ein `aria-label`, auch versteckte Dateiauswahlen.
+- In `<label className="field">` fokussiert nur der Text des Feldnamens das Feld, nicht die leere Fläche daneben. Das regelt `lib/feldname.ts` für alle Felder; das Markup bleibt gleich.
 - Farben über die Variablen in `styles.css`: Text in Akzentfarbe mit `var(--link)`, nicht `var(--accent)`, sonst fällt der Kontrast in den dunklen Themes durch.
 - Wer `outline: none` setzt, zeigt den Fokus anders (z. B. `:focus-within` am umgebenden Element).
 - Was beim Scrollen stehen bleibt, verdeckt kein Element mit Fokus (WCAG 2.4.11): Unter dem festen Seitenkopf beginnt es bei `var(--below-head)`, `scroll-padding-top` an `html` rechnet den Kopf schon ein. Bleibt darunter noch etwas stehen (am Handy die Bereiche der Einstellungen), bekommt es eine feste Höhe, die `scroll-padding-top` dazurechnet. Im Kontaktdialog hält `scroll-padding-bottom` Felder mit Fokus über den stehenden Knöpfen. `kopfzeile.spec.ts` tabbt dazu durch den langen Rechnungsentwurf und den Kontaktdialog. Bei sehr niedrigem Fenster (400 % Zoom, bis 300 px Höhe) scrollt der Kopf mit, weil er sonst das Fenster füllte.

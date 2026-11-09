@@ -1,5 +1,6 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { leereFlaecheIgnorieren } from "../lib/feldname.ts";
 import { THEME_SCRIPT } from "../lib/theme.ts";
 import styles from "../styles.css?url";
 
@@ -29,6 +30,10 @@ function Document({ children }: { children: ReactNode }) {
   // Service Worker nur fürs Installieren als App (Kamera, Teilen-Menü)
   useEffect(() => {
     if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+  useEffect(() => {
+    document.addEventListener("click", leereFlaecheIgnorieren);
+    return () => document.removeEventListener("click", leereFlaecheIgnorieren);
   }, []);
   return (
     // data-theme setzt das Skript vor dem Hydrieren; der Server kennt die Wahl nicht
