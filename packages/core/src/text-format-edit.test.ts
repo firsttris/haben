@@ -143,6 +143,21 @@ describe("Auszeichnung per Knopf", () => {
     expect(fertig("*Abrechnung [Zuschlag]-{jahr} und mehr*")).toBe("Abrechnung Zuschlag-2026 und mehr");
   });
 
+  it("hält Wort und Platzhalter ohne Leerzeichen dazwischen zusammen, sonst stehen nach dem Ersetzen die Zeichen auf dem Beleg", () => {
+    const november = { from: "2026-11-01", to: "2026-11-30" };
+    const fertig = (text: string, style: TextStyle) => plainFormattedText(fillPlaceholders(toggle(text, style) ?? "", november));
+    expect(fertig("[Wartung]{jahr}", "bold")).toBe("Wartung2026");
+    expect(fertig("{monat}[{jahr}]", "italic")).toBe("November2026");
+    expect(fertig("[{quartal}]{jahr} offen", "underline")).toBe("Q42026 offen");
+    expect(fertig("{jahr}[Nachtrag] offen", "bold")).toBe("2026Nachtrag offen");
+  });
+
+  it("zeichnet eine Zahl mit Dezimalkomma ohne Auswahl ganz aus", () => {
+    expect(toggle("Preis 1.0[]00,50 € netto", "bold")).toBe("Preis *1.000,50* € netto");
+    expect(toggle("Preis 1.000,5[]0 € netto", "bold")).toBe("Preis *1.000,50* € netto");
+    expect(toggle("eins, zw[]ei", "bold")).toBe("eins, *zwei*");
+  });
+
   it("nimmt ohne Auswahl beim leeren Paar die zweite Auszeichnung dazu statt die erste zu kürzen", () => {
     const nacheinander = (styles: TextStyle[]) =>
       styles.reduce(
@@ -159,6 +174,21 @@ describe("Auszeichnung per Knopf", () => {
     expect(nacheinander(["underline", "italic", "italic"]).text).toBe("____");
     expect(nacheinander(["italic", "underline", "underline"]).text).toBe("__");
     expect(nacheinander(["bold", "bold"]).text).toBe("");
+  });
+
+  it("nimmt ohne Auswahl auch die äußere von zwei leeren Auszeichnungen zurück", () => {
+    const getippt = (styles: TextStyle[]) => {
+      let [text, at] = ["", 0];
+      for (const style of styles) {
+        const edit = toggleTextStyle(text, at, at, style)!;
+        [text, at] = [edit.text, edit.start];
+      }
+      return parseTextFormatting(`${text.slice(0, at)}Wort${text.slice(at)}`);
+    };
+    expect(getippt(["bold", "italic", "bold"])).toEqual([{ text: "Wort", bold: false, italic: true, underline: false }]);
+    expect(getippt(["italic", "bold", "italic"])).toEqual([{ text: "Wort", bold: true, italic: false, underline: false }]);
+    expect(getippt(["underline", "bold", "underline"])).toEqual([{ text: "Wort", bold: true, italic: false, underline: false }]);
+    expect(getippt(["bold", "underline", "italic", "bold"])).toEqual([{ text: "Wort", bold: false, italic: true, underline: true }]);
   });
 
   it("unterstreicht das erste Wort einer kursiven Auszeichnung und umgekehrt", () => {
