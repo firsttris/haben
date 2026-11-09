@@ -1305,6 +1305,40 @@ test("Rechnung per SEPA-Lastschrift: Mandat wählen, festschreiben, Vorabankünd
   expect(xml).toContain("per SEPA-Lastschrift");
 });
 
+test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danach nicht mehr angeboten (#445)", async () => {
+  await go("/lastschriften");
+  // Ohne Bankkonto gibt es kein Gläubigerkonto, auf dem der Betrag eingeht
+  await expect(page.getByText(/braucht Haben das Konto, auf dem der Betrag eingeht/)).toBeVisible();
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const kontoForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await kontoForm.getByRole("textbox", { name: "Name" }).fill("Girokonto");
+  await kontoForm.getByRole("textbox", { name: "IBAN" }).fill("DE89 3704 0044 0532 0130 00");
+  await kontoForm.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByRole("combobox", { name: "Konto" }).locator("option", { hasText: "Girokonto" })).toHaveCount(1);
+
+  await go("/lastschriften");
+  const form = page.getByRole("form", { name: "SEPA-Lastschrift erzeugen" });
+  const zeile = form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ });
+  await expect(form).toContainText("AB-2026-01");
+  await expect(form).toContainText("CORE · Erstlastschrift");
+  await zeile.check();
+  await expect(form.getByText("1 ausgewählt · 297,50 €")).toBeVisible();
+  const download = page.waitForEvent("download");
+  await form.getByRole("button", { name: "Lastschriftdatei erzeugen" }).click();
+  const datei = await download;
+  expect(datei.suggestedFilename()).toMatch(/^HABEN-[0-9A-F]{16}\.xml$/);
+  const { readFile } = await import("node:fs/promises");
+  const xml = await readFile((await datei.path())!, "utf8");
+  expect(xml).toContain("urn:iso:std:iso:20022:tech:xsd:pain.008.001.08");
+  expect(xml).toContain("<MndtId>AB-2026-01</MndtId>");
+  expect(xml).toContain("<SeqTp>FRST</SeqTp>");
+  // formatEuro trennt den Betrag mit einem geschützten Leerzeichen vom Euro-Zeichen
+  await expect(page.getByText(/1 Lastschrift über 297,50\s€/)).toBeVisible();
+  await expect(form.getByRole("checkbox", { name: /Alpenblick Media AG .* einziehen/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Erzeugte Dateien" })).toContainText("297,50 €");
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",

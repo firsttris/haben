@@ -32,6 +32,7 @@ const PAGES = [
   "/dauerbelege",
   "/dauerbelege/neu",
   "/ueberweisungen",
+  "/lastschriften",
   "/pauschalen",
   "/anlagen",
   "/anlagen/neu",

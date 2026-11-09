@@ -4,6 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation, UserError } from "../../errors.ts";
+import { lastCollections } from "../bank/index.ts";
 import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from "../rechnungen/index.ts";
 
 /**
@@ -61,6 +62,9 @@ export interface Mandate {
   revocation: { revokedOn: string; reason: string; createdAt: Date } | null;
   status: MandatStatus;
 }
+
+/** Der spätere von zwei Tagen; null, wenn keiner da ist */
+const latest = (a: string | null, b: string | undefined): string | null => (a && b ? (a > b ? a : b) : (a ?? b ?? null));
 
 /** Fehler in den Angaben als Satz, oder null */
 function mandateProblem(input: z.infer<typeof mandateInputSchema>, today: string): string | null {
@@ -147,18 +151,21 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
   const rows = await q.select().from(schema.sepaMandates).where(where).orderBy(desc(schema.sepaMandates.signedOn), desc(schema.sepaMandates.createdAt));
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
-  const [files, revocations, collections] = await Promise.all([
+  const [files, revocations, invoiced] = await Promise.all([
     q
       .select()
       .from(schema.sepaMandateFiles)
       .where(inArray(schema.sepaMandateFiles.mandateId, ids))
       .orderBy(asc(schema.sepaMandateFiles.createdAt), asc(schema.sepaMandateFiles.id)),
     q.select().from(schema.sepaMandateRevocations).where(inArray(schema.sepaMandateRevocations.mandateId, ids)),
-    lastCollections(ids, today, q),
+    lastInvoicedCollections(ids, today, q),
   ]);
   // Das jüngste PDF gilt; die Reihenfolge oben lässt das letzte gewinnen
   const fileOf = new Map(files.map((f) => [f.mandateId, { filename: f.filename, sha256: f.sha256, size: f.size, createdAt: f.createdAt }]));
   const revocationOf = new Map(revocations.map((r) => [r.mandateId, { revokedOn: r.revokedOn, reason: r.reason, createdAt: r.createdAt }]));
+  // Einzüge aus Haben zählen für den Verfall wie der letzte Einzug vor Haben: Lastschriftdateien und, für Einzüge ohne
+  // Datei aus Haben, die fälligen Rechnungen per Lastschrift
+  const collectedInHaben = await lastCollections(ids, q);
   return rows.map(({ createdBy: _createdBy, ...row }) => {
     const revocation = revocationOf.get(row.id) ?? null;
     return {
@@ -166,7 +173,11 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
       file: fileOf.get(row.id) ?? null,
       revocation,
       status: mandatStatus(
-        { signedOn: row.signedOn, lastCollectionOn: latest(row.lastCollectionBefore, collections.get(row.id)), revokedOn: revocation?.revokedOn ?? null },
+        {
+          signedOn: row.signedOn,
+          lastCollectionOn: latest(latest(row.lastCollectionBefore, collectedInHaben.get(row.id)), invoiced.get(row.id)),
+          revokedOn: revocation?.revokedOn ?? null,
+        },
         today,
       ),
     };
@@ -178,7 +189,7 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
  * Lastschrift. Für den Verfall zählt jeder eingereichte Einzug (SDD Core Rulebook v1.2, Kap. 4.2: „starting from the date
  * of the latest Collection presented“). Stornierte Rechnungen zählen nicht, denn Haben weiß nicht, ob noch eingezogen wurde.
  */
-async function lastCollections(ids: string[], today: string, q: Db | Tx): Promise<Map<string, string>> {
+async function lastInvoicedCollections(ids: string[], today: string, q: Db | Tx): Promise<Map<string, string>> {
   const i = schema.invoices;
   const rows = await q
     .select({ mandateId: i.sepaMandateId, last: sql<string>`max(${i.dueDate})::text` })
@@ -195,9 +206,6 @@ async function lastCollections(ids: string[], today: string, q: Db | Tx): Promis
     .groupBy(i.sepaMandateId);
   return new Map(rows.flatMap((r) => (r.mandateId ? [[r.mandateId, r.last] as const] : [])));
 }
-
-/** Der spätere zweier Tage; null, wenn es keinen gibt */
-const latest = (a: string | null, b: string | undefined): string | null => (b && (!a || b > a) ? b : a);
 
 /** Widerruf eines Mandats; je Mandat einer */
 export async function revokeMandate(actor: string, mandateId: string, raw: RevocationInput): Promise<void> {

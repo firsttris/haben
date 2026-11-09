@@ -1275,6 +1275,20 @@
       "when": 1794222067454,
       "tag": "0181_lastschrift_zahlungsart",
       "breakpoints": true
+    },
+    {
+      "idx": 182,
+      "version": "7",
+      "when": 1794222120910,
+      "tag": "0182_lastschrift_dateien",
+      "breakpoints": true
+    },
+    {
+      "idx": 183,
+      "version": "7",
+      "when": 1794222122909,
+      "tag": "0183_lastschrift_dateien_trigger",
+      "breakpoints": true
     }
   ]
 }

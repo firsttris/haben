@@ -59,6 +59,7 @@ export * from "./sepa-text.ts";
 export * from "./iban-abgleich.ts";
 export * from "./sepa.ts";
 export * from "./sepa-mandat.ts";
+export * from "./sepa-lastschrift.ts";
 export * from "./skonto.ts";
 export * from "./network.ts";
 export * from "./lebenszyklus.ts";
