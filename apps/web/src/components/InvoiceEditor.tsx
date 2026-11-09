@@ -70,6 +70,7 @@ import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
 import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
+import { Field } from "./Field.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
@@ -821,19 +822,18 @@ export function InvoiceEditor({
                   )}
                 </label>
               )}
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label className="field-label" htmlFor="invoice-customer">
-                  Kunde
-                </label>
-                <CustomerCombobox
-                  id="invoice-customer"
-                  contacts={contacts}
-                  contactId={contactId}
-                  disabled={!editable}
-                  onChoose={chooseContact}
-                  onCreate={setNewContactName}
-                />
-              </div>
+              <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
+                {(control) => (
+                  <CustomerCombobox
+                    {...control}
+                    contacts={contacts}
+                    contactId={contactId}
+                    disabled={!editable}
+                    onChoose={chooseContact}
+                    onCreate={setNewContactName}
+                  />
+                )}
+              </Field>
               {kind === "rechnung" && (variant || quoteId) && (
                 <label className="field" style={{ gridColumn: "1 / -1" }}>
                   Angebot

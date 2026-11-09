@@ -4,6 +4,7 @@ import { parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
+import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
@@ -154,10 +155,9 @@ export function ContactForm({
     <form className="card form-card contact-form" onSubmit={onSubmit} aria-label="Kontakt">
       <section className="form-section" aria-labelledby="contact-basics">
         <h2 id="contact-basics">Allgemein</h2>
-        <label className="field">
-          Name oder Firma
-          <input name="name" defaultValue={initial.name} required autoComplete="organization" placeholder="z. B. Muster GmbH" />
-        </label>
+        <Field label="Name oder Firma">
+          {(control) => <input {...control} name="name" defaultValue={initial.name} required autoComplete="organization" placeholder="z. B. Muster GmbH" />}
+        </Field>
         <fieldset className="field-group" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="small">Rolle</legend>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
@@ -173,60 +173,71 @@ export function ContactForm({
           <p className="field-hint">Kunden stehen bei Rechnungen und Angeboten zur Auswahl, Lieferanten bei den Belegen. Beides geht.</p>
         </fieldset>
         <div className="form-row cols-2">
-          <label className="field">
-            E-Mail
-            <input name="email" type="email" multiple defaultValue={initial.email} autoComplete="email" placeholder="rechnung@kunde.de, freigabe@kunde.de" />
-            <span className="small muted">Mehrere Adressen mit Komma trennen, bis zu fünf. Der Versand schreibt an alle.</span>
-          </label>
-          <label className="field">
-            Telefon
-            <input name="telefon" type="tel" defaultValue={initial.telefon} autoComplete="tel" placeholder="optional, z. B. +49 941 123456" />
-          </label>
+          <Field label="E-Mail" hint="Mehrere Adressen mit Komma trennen, bis zu fünf. Der Versand schreibt an alle.">
+            {(control) => (
+              <input
+                {...control}
+                name="email"
+                type="email"
+                multiple
+                defaultValue={initial.email}
+                autoComplete="email"
+                placeholder="rechnung@kunde.de, freigabe@kunde.de"
+              />
+            )}
+          </Field>
+          <Field label="Telefon">
+            {(control) => (
+              <input {...control} name="telefon" type="tel" defaultValue={initial.telefon} autoComplete="tel" placeholder="optional, z. B. +49 941 123456" />
+            )}
+          </Field>
         </div>
         <div className="form-row cols-2">
-          <label className="field">
-            Kundennummer
-            <input
-              name="kundennummer"
-              defaultValue={initial.kundennummer}
-              placeholder={!contact && nextNumber ? nextNumber : "optional"}
-              aria-describedby={!contact && nextNumber ? "kundennummer-hint" : undefined}
-            />
-            {!contact && nextNumber && (
-              <span id="kundennummer-hint" className="small muted">
-                Leer lassen: Haben vergibt die nächste Nummer, voraussichtlich {nextNumber}.
-              </span>
+          <Field
+            label="Kundennummer"
+            hint={!contact && nextNumber ? `Leer lassen: Haben vergibt die nächste Nummer, voraussichtlich ${nextNumber}.` : undefined}
+          >
+            {(control) => (
+              <input {...control} name="kundennummer" defaultValue={initial.kundennummer} placeholder={!contact && nextNumber ? nextNumber : "optional"} />
             )}
-          </label>
-          <label className="field">
-            Lieferantennummer
-            <input name="lieferantennummer" defaultValue={initial.lieferantennummer} placeholder="optional, z. B. deine Kundennummer beim Lieferanten" />
-          </label>
+          </Field>
+          <Field label="Lieferantennummer">
+            {(control) => (
+              <input
+                {...control}
+                name="lieferantennummer"
+                defaultValue={initial.lieferantennummer}
+                placeholder="optional, z. B. deine Kundennummer beim Lieferanten"
+              />
+            )}
+          </Field>
         </div>
         <div className="field-group">
           <div className="form-row cols-2">
-            <label className="field">
-              DATEV-Debitor
-              <input
-                name="debitorNr"
-                defaultValue={contact?.debitorNr ?? ""}
-                inputMode="numeric"
-                placeholder="optional, 10000 bis 69999"
-                aria-describedby="personenkonten-hint"
-                className="mono"
-              />
-            </label>
-            <label className="field">
-              DATEV-Kreditor
-              <input
-                name="kreditorNr"
-                defaultValue={contact?.kreditorNr ?? ""}
-                inputMode="numeric"
-                placeholder="optional, 70000 bis 99999"
-                aria-describedby="personenkonten-hint"
-                className="mono"
-              />
-            </label>
+            <Field label="DATEV-Debitor" describedBy="personenkonten-hint">
+              {(control) => (
+                <input
+                  {...control}
+                  name="debitorNr"
+                  defaultValue={contact?.debitorNr ?? ""}
+                  inputMode="numeric"
+                  placeholder="optional, 10000 bis 69999"
+                  className="mono"
+                />
+              )}
+            </Field>
+            <Field label="DATEV-Kreditor" describedBy="personenkonten-hint">
+              {(control) => (
+                <input
+                  {...control}
+                  name="kreditorNr"
+                  defaultValue={contact?.kreditorNr ?? ""}
+                  inputMode="numeric"
+                  placeholder="optional, 70000 bis 99999"
+                  className="mono"
+                />
+              )}
+            </Field>
           </div>
           <p id="personenkonten-hint" className="field-hint">
             Personenkonten für den DATEV-Export an die Steuerberatung, getrennt von Kunden- und Lieferantennummer.
@@ -236,87 +247,71 @@ export function ContactForm({
 
       <section className="form-section" aria-labelledby="contact-address">
         <h2 id="contact-address">Anschrift</h2>
-        <label className="field">
-          Straße und Hausnummer
-          <input name="strasse" defaultValue={initial.strasse} autoComplete="street-address" />
-        </label>
+        <Field label="Straße und Hausnummer">
+          {(control) => <input {...control} name="strasse" defaultValue={initial.strasse} autoComplete="street-address" />}
+        </Field>
         <div className="form-row cols-address">
-          <label className="field">
-            PLZ
-            <input name="plz" defaultValue={initial.plz} autoComplete="postal-code" inputMode="numeric" />
-          </label>
-          <label className="field">
-            Ort
-            <input name="ort" defaultValue={initial.ort} autoComplete="address-level2" />
-          </label>
-          <label className="field">
-            Land (ISO-Code)
-            <input name="land" defaultValue={initial.land} maxLength={2} autoComplete="country" className="uppercase" />
-          </label>
+          <Field label="PLZ">{(control) => <input {...control} name="plz" defaultValue={initial.plz} autoComplete="postal-code" inputMode="numeric" />}</Field>
+          <Field label="Ort">{(control) => <input {...control} name="ort" defaultValue={initial.ort} autoComplete="address-level2" />}</Field>
+          <Field label="Land (ISO-Code)">
+            {(control) => <input {...control} name="land" defaultValue={initial.land} maxLength={2} autoComplete="country" className="uppercase" />}
+          </Field>
         </div>
       </section>
 
       <section className="form-section" aria-labelledby="contact-tax">
         <h2 id="contact-tax">Steuer und Zahlung</h2>
         <div className="form-row cols-2">
-          <label className="field">
-            USt-IdNr.
-            <input name="ustId" value={ustId} onChange={(e) => setUstId(e.target.value)} placeholder="DE123456789" className="mono" />
-          </label>
+          <Field label="USt-IdNr.">
+            {(control) => (
+              <input {...control} name="ustId" value={ustId} onChange={(e) => setUstId(e.target.value)} placeholder="DE123456789" className="mono" />
+            )}
+          </Field>
           <div className="stack" style={{ gap: 4 }}>
-            <label className="field">
-              IBAN
-              <input
-                ref={ibanInput}
-                name="iban"
-                defaultValue={initial.iban}
-                placeholder="DE00 0000 0000 0000 0000 00"
-                className="mono"
-                aria-describedby={ibanSuggestion ? "iban-suggestion" : undefined}
-              />
-            </label>
+            <Field label="IBAN" describedBy={ibanSuggestion ? "iban-suggestion" : undefined}>
+              {(control) => (
+                <input {...control} ref={ibanInput} name="iban" defaultValue={initial.iban} placeholder="DE00 0000 0000 0000 0000 00" className="mono" />
+              )}
+            </Field>
             {ibanSuggestion && <IbanSuggestionHint suggestion={ibanSuggestion} onTake={() => takeIban(ibanSuggestion.iban)} />}
           </div>
         </div>
-        <div className="field-group">
-          <label className="field">
-            Leitweg-ID (öffentliche Auftraggeber)
-            <input name="leitwegId" defaultValue={initial.leitwegId} aria-describedby="leitweg-hint" className="mono" />
-          </label>
-          <p id="leitweg-hint" className="field-hint">
-            Nur bei Rechnungen an Behörden nötig; steht in deren Auftrag.
-          </p>
-        </div>
+        <Field label="Leitweg-ID (öffentliche Auftraggeber)" hint="Nur bei Rechnungen an Behörden nötig; steht in deren Auftrag.">
+          {(control) => <input {...control} name="leitwegId" defaultValue={initial.leitwegId} className="mono" />}
+        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="contact-invoices">
         <h2 id="contact-invoices">Rechnungen</h2>
         <div className="form-row cols-2">
-          <label className="field">
-            Standardformat für Rechnungen
-            <select name="defaultFormat" defaultValue={initial.defaultFormat ?? ""}>
-              <option value="">wie in den Einstellungen</option>
-              {FORMATS.map((f) => (
-                <option key={f} value={f}>
-                  {FORMAT_LABEL[f]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Sprache von Rechnungen und Angeboten
-            <select name="language" defaultValue={initial.language ?? "de"}>
-              <option value="de">Deutsch</option>
-              <option value="en">Englisch</option>
-            </select>
-          </label>
-          <label className="field">
-            Skonto
-            <select value={ownSkonto ? "eigen" : "vorgabe"} onChange={(e) => setOwnSkonto(e.target.value === "eigen")}>
-              <option value="vorgabe">wie in den Einstellungen</option>
-              <option value="eigen">eigenes für diesen Kunden</option>
-            </select>
-          </label>
+          <Field label="Standardformat für Rechnungen">
+            {(control) => (
+              <select {...control} name="defaultFormat" defaultValue={initial.defaultFormat ?? ""}>
+                <option value="">wie in den Einstellungen</option>
+                {FORMATS.map((f) => (
+                  <option key={f} value={f}>
+                    {FORMAT_LABEL[f]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Sprache von Rechnungen und Angeboten">
+            {(control) => (
+              <select {...control} name="language" defaultValue={initial.language ?? "de"}>
+                <option value="de">Deutsch</option>
+                <option value="en">Englisch</option>
+              </select>
+            )}
+          </Field>
+          <Field label="Skonto">
+            {(control) => (
+              <select {...control} value={ownSkonto ? "eigen" : "vorgabe"} onChange={(e) => setOwnSkonto(e.target.value === "eigen")}>
+                <option value="vorgabe">wie in den Einstellungen</option>
+                <option value="eigen">eigenes für diesen Kunden</option>
+              </select>
+            )}
+          </Field>
         </div>
         {ownSkonto && (
           <SkontoFields

@@ -775,7 +775,7 @@ test("Kunde suchen und mit Tastatur oder Maus wählen (#359)", async () => {
 test("Suchfeld: Klick neben den Feldnamen und Mausbewegung stören nicht (#359)", async () => {
   await go("/rechnungen/neu");
   const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
-  const feldname = page.locator('label[for="invoice-customer"]');
+  const feldname = page.locator(".field-label", { hasText: /^Kunde$/ });
 
   // Der leere Bereich rechts vom Feldnamen gehört nicht zum Feld
   await kunde.scrollIntoViewIfNeeded();

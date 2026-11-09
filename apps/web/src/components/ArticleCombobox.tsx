@@ -55,7 +55,7 @@ export function ArticleCombobox({
       label={label}
       placeholder={placeholder}
       value={value}
-      invalid={invalid}
+      aria-invalid={invalid}
       onInput={onInput}
       onBlur={onBlur}
       search={() => searchOptions(articles, value, articleFields)}

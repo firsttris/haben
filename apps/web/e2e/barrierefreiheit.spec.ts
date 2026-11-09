@@ -396,3 +396,19 @@ test("Archiv: Nur der gewählte Bereich und die gewählten Filter tragen aria-cu
   await open(page, "/archiv?ansicht=belege");
   expect(await current(page.getByRole("group", { name: "Richtung" }))).toEqual(["Alle"]);
 });
+
+test("Feld aus der gemeinsamen Komponente: Nur der Name klickt, der Hinweis gehört zur Beschreibung", async ({ page }) => {
+  await open(page, "/kontakte/neu");
+  const feld = page.getByRole("textbox", { name: "Ort", exact: true });
+  const flaeche = await feld.boundingBox();
+  if (!flaeche) throw new Error("Feld ohne Fläche");
+
+  // Auf Höhe des Feldnamens am rechten Rand des Felds: dort steht nichts mehr
+  await page.mouse.click(flaeche.x + flaeche.width - 8, flaeche.y - 14);
+  await expect(feld).not.toBeFocused();
+  await page.getByText("Ort", { exact: true }).click();
+  await expect(feld).toBeFocused();
+
+  const email = page.getByRole("textbox", { name: "E-Mail", exact: true });
+  await expect(email).toHaveAccessibleDescription(/Mehrere Adressen/);
+});
