@@ -1,5 +1,8 @@
 # Baut docs/ mit Zensical und veröffentlicht sie auf GitHub Pages:
-# https://firsttris.github.io/haben/
+# https://haben.app/
+# Die eigene Domain steht unter Settings → Pages → Custom domain; ihr DNS liegt bei Cloudflare
+# (A/AAAA auf GitHub Pages, www als CNAME auf firsttris.github.io, ohne Cloudflare-Proxy, damit
+# GitHub das Zertifikat ausstellen kann). firsttris.github.io/haben/ leitet dorthin um.
 # Voraussetzung einmalig: Settings → Pages → Source "GitHub Actions"
 # (configure-pages mit enablement schaltet das beim ersten Lauf selbst ein).
 name: Docs

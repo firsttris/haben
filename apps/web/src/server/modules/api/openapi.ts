@@ -12,7 +12,7 @@ import { DOCUMENT_MEDIA_TYPES, requestSchemas, responseSchemas } from "./schemas
 
 type JsonSchema = Record<string, unknown>;
 
-const DOCS = "https://firsttris.github.io/haben/api.html";
+const DOCS = "https://haben.app/api.html";
 const REF = (id: string) => `#/components/schemas/${id}`;
 const MAX_DOCUMENT_MB = MAX_DOCUMENT_SIZE / 1024 / 1024;
 

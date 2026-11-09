@@ -8,8 +8,8 @@ import { createMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSetting
 
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
-export const MCP_DOCS = "https://firsttris.github.io/haben/ki-assistenten.html";
-export const API_DOCS = "https://firsttris.github.io/haben/api.html";
+export const MCP_DOCS = "https://haben.app/ki-assistenten.html";
+export const API_DOCS = "https://haben.app/api.html";
 
 const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill" } as const;
 

@@ -1,4 +1,4 @@
-# Dokumentation als Website: https://firsttris.github.io/haben/
+# Dokumentation als Website: https://haben.app/
 # Quelle ist docs/, gebaut mit Zensical (.github/workflows/docs.yml), dem Nachfolger von
 # MkDocs Material; es liest diese Datei unverändert (https://zensical.org/docs/setup/basics/).
 # Lokal: pip install -r requirements-docs.txt && zensical serve
@@ -7,7 +7,7 @@ site_description: >-
   Haben, die Open-Source-Buchhaltung für Freiberufler, Selbstständige, Kleinunternehmer, GmbH und UG,
   selbst gehostet: E-Rechnung (ZUGFeRD, XRechnung), Bankabgleich, EÜR oder Bilanz mit E-Bilanz,
   Umsatzsteuer-Voranmeldung und Jahreserklärungen per ELSTER. Alternative zu Lexware Office und sevDesk.
-site_url: https://firsttris.github.io/haben/
+site_url: https://haben.app/
 repo_url: https://github.com/firsttris/haben
 repo_name: firsttris/haben
 edit_uri: edit/main/docs/

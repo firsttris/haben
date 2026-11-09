@@ -7,7 +7,7 @@ invoice PDF and XML in `packages/einvoice`.
 
 ## Documentation
 
-The documentation is in `docs/` (<https://firsttris.github.io/haben/>). Read the pages that touch the
+The documentation is in `docs/` (<https://haben.app/>). Read the pages that touch the
 change before starting: `docs/entwicklung.md` for setup, commands, migrations and conventions,
 `docs/architektur.md` for modules, tables, the audit hash chain and seals, and the user page of the
 area (`rechnungen.md`, `bank.md`, `umsatzsteuer.md`, `lexoffice.md`, …). Links in the README point

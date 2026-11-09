@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
-const DOCS = "https://firsttris.github.io/haben/elster-mit-erweiterung.html";
+const DOCS = "https://haben.app/elster-mit-erweiterung.html";
 
 /**
  * Ohne eigene Hersteller-ID: die Werte einer Erklärung oder Voranmeldung in die Zwischenablage, für die Erweiterung,
