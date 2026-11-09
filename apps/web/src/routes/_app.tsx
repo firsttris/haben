@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_app")({
     if (state.user.role !== "inhaber" && !steuerberatungSieht(location.pathname)) throw redirect({ to: STEUERBERATUNG_START });
     return {
       user: state.user,
+      oidc: state.oidc,
       rechtsform: state.rechtsform ?? "einzelunternehmen",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,

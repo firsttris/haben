@@ -82,6 +82,16 @@ function InvitationPage() {
               Du bist schon als {state.user.name} angemeldet. Melde dich ab, um mit dieser Einladung einen eigenen Zugang anzulegen.
             </p>
           </>
+        ) : invitation.unavailable ? (
+          <>
+            <h1 style={{ fontSize: 24 }}>Einladungen nicht verfügbar</h1>
+            <p className="muted" style={{ margin: 0 }}>
+              Haben nutzt ausschließlich SSO. Zugänge vergibt der Betreiber über die Gruppen im Anmeldedienst; danach genügt die Anmeldung.
+            </p>
+            <a className="btn btn-primary" href="/login">
+              Zur Anmeldung
+            </a>
+          </>
         ) : invitation.valid ? (
           <form className="stack" onSubmit={createAccount}>
             <h1 style={{ fontSize: 24 }}>Zugang für die Steuerberatung</h1>

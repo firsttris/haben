@@ -8,7 +8,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { changeAccountFn, createInvitationFn, revokeInvitationFn, type getZugaenge } from "../server/functions/zugang.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
-type Data = Awaited<ReturnType<typeof getZugaenge>>;
+type Data = Extract<Awaited<ReturnType<typeof getZugaenge>>, { mode: "lokal" }>;
 
 const INVITATION_STATUS = {
   offen: { label: "offen", pill: "pill-info" },
@@ -69,7 +69,7 @@ export function ZugaengeCard({ data }: { data: Data }) {
         <div key={account.id} className="history-row">
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ fontWeight: 500, overflowWrap: "anywhere" }}>
-              {account.name} <span className="pill">{ROLLEN_LABEL[account.role]}</span>
+              {account.name} {account.role && <span className="pill">{ROLLEN_LABEL[account.role]}</span>}
               {account.lockedAt && <span className="pill pill-warn">gesperrt</span>}
             </span>
             <span className="small muted" style={{ overflowWrap: "anywhere" }}>
