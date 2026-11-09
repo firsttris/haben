@@ -885,6 +885,53 @@ test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung
   await expect(zahlungen).toContainText("storniert");
 });
 
+test("Kasse: Bareinnahme ohne Rechnung als Tagessumme mit Steuer und Notiz, Storno (#276)", async ({ browser }) => {
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByRole("button", { name: "Bareinnahme ohne Rechnung" }).click();
+  await expect(form.getByRole("button", { name: "Bareinnahme ohne Rechnung" })).toHaveAttribute("aria-pressed", "true");
+  // Regelbesteuert: 19 %, 7 % oder steuerfrei; die Kleinunternehmer-Option fehlt
+  const steuer = form.getByLabel("Umsatzsteuer");
+  await expect(steuer).toHaveValue("regulaer:1900");
+  await expect(steuer.getByRole("option")).toHaveText(["Regulär 19 %", "Regulär 7 %", "steuerfrei (§ 4 Nr. 8 bis 29 UStG)"]);
+  // Die Notiz ist Pflicht: Ohne Rechnung ist sie der Nachweis
+  await expect(form.getByLabel("Notiz")).toHaveAttribute("required", "");
+  // Das Formular der Bareinnahme prüft axe am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 390]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await axePage.getByRole("button", { name: "Bareinnahme ohne Rechnung" }).click();
+    await expect(axePage.getByLabel("Umsatzsteuer")).toBeVisible();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `/kasse mit Bareinnahme bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+
+  await form.getByLabel("Betrag (€)").fill("107,00");
+  await steuer.selectOption("regulaer:700");
+  await form.getByLabel("Notiz").fill("Wochenmarkt, Tagessumme Bücher");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  const gebucht = page.getByRole("status").filter({ hasText: "gebucht: Bareinnahme über 107,00 €, 7 %." });
+  await expect(gebucht).toBeVisible();
+  const nr = (await gebucht.textContent())?.match(/Nr\. (\d+) gebucht/)?.[1] ?? "";
+  const liste = page.getByRole("region", { name: "Kassenbuch" });
+  await expect(liste).toContainText("Wochenmarkt, Tagessumme Bücher");
+  await expect(liste).toContainText("Bareinnahme · 7 %");
+
+  await liste.getByRole("button", { name: `Nr. ${nr} stornieren` }).click();
+  await bestaetigen(page, "Stornieren");
+  await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr." })).toBeVisible();
+  await expect(liste).toContainText(`Storno Nr. ${nr}: Wochenmarkt, Tagessumme Bücher`);
+});
+
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
   // Ohne ANTHROPIC_API_KEY und EXTRACTION_BASE_URL ist die Belegauslesung aus; die Karte sagt es und verweist auf die Doku
