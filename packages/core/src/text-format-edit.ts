@@ -196,7 +196,9 @@ function splitEnclosing(text: string, start: number, end: number, style: TextSty
 function toggleEmptyPair(text: string, at: number, style: TextStyle): TextEdit {
   const marker = EMPTY_PAIR[style];
   const size = marker.length;
-  if (text.slice(at - size, at) === marker && text.startsWith(marker, at)) {
+  // Der ganze Block links zählt: Der innere `_` von `__|__` ist die Hälfte des Unterstreichens, kein Kursiv-Paar
+  const left = (marker[0] === "_" ? /_*$/ : /\**$/).exec(text.slice(0, at))![0];
+  if (TEXT_MARKERS[left]?.includes(style) && text.startsWith(left, at)) {
     return { text: `${text.slice(0, at - size)}${text.slice(at + size)}`, start: at - size, end: at - size };
   }
   return { text: `${text.slice(0, at)}${marker}${marker}${text.slice(at)}`, start: at + size, end: at + size };
