@@ -1,0 +1,142 @@
+[
+  {
+    "creditNote": {
+      "id": "ID_64",
+      "objectName": "CreditNote",
+      "additionalInformation": null,
+      "creditNoteNumber": "<anon>",
+      "contact": {
+        "id": "ID_16",
+        "objectName": "Contact"
+      },
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "creditNoteDate": "2024-01-15T12:00:00+01:00",
+      "header": "<anon>",
+      "headText": null,
+      "footText": null,
+      "timeToPay": null,
+      "discountTime": "0",
+      "discount": "0",
+      "addressName": "<anon>",
+      "addressStreet": "<anon>",
+      "addressZip": "1",
+      "addressCity": "<anon>",
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": null,
+      "createUser": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "deliveryDate": "2024-01-15T12:00:00+01:00",
+      "status": "100",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_17",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "addressParentName": null,
+      "taxType": "default",
+      "sendDate": null,
+      "creditNoteType": "CN",
+      "accountIntervall": null,
+      "accountLastCreditNote": null,
+      "accountNextCreditNote": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": null,
+      "addressParentName2": null,
+      "addressName2": null,
+      "accountingType": {
+        "id": "ID_65",
+        "objectName": "AccountingType",
+        "name": "Einnahmen / Erlöse / Verkäufe"
+      },
+      "addressGender": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100.0",
+      "sumTax": "100.0",
+      "sumGross": "100",
+      "sumDiscounts": "0",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "sumDiscountsForeignCurrency": "0",
+      "sumNetAccounting": "100.0",
+      "sumTaxAccounting": "100.0",
+      "sumGrossAccounting": "100",
+      "customerInternalNote": null,
+      "taxNumber": "<anon>",
+      "vatNumber": "<anon>",
+      "showNet": "0",
+      "enshrined": null,
+      "sendType": null,
+      "bookingCategory": "ACCOUNTING_TYPE",
+      "deliveryDateUntil": null,
+      "isTransferred": "0",
+      "sumDiscountNet": "0",
+      "sumDiscountGross": "0",
+      "sumDiscountNetForeignCurrency": "0",
+      "sumDiscountGrossForeignCurrency": "0"
+    },
+    "positions": [
+      {
+        "id": "ID_66",
+        "objectName": "CreditNotePos",
+        "additionalInformation": null,
+        "create": "2024-01-15T12:00:00+01:00",
+        "update": "2024-01-15T12:00:00+01:00",
+        "creditNote": {
+          "id": "ID_64",
+          "objectName": "CreditNote"
+        },
+        "quantity": "1",
+        "price": "100",
+        "name": "<anon>",
+        "priority": "100",
+        "unity": {
+          "id": "1",
+          "objectName": "Unity"
+        },
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "positionNumber": "0",
+        "text": null,
+        "discount": "0",
+        "isPercentage": "1",
+        "discountedValue": null,
+        "taxRate": "19",
+        "temporary": "0",
+        "sumNet": "100.0",
+        "sumGross": "100",
+        "sumDiscount": "0",
+        "sumTax": "100.0",
+        "sumNetAccounting": "100.0",
+        "sumTaxAccounting": "100.0",
+        "sumGrossAccounting": "100",
+        "priceNet": "100.00000000",
+        "priceGross": "100",
+        "priceTax": "100.00000000",
+        "sumNetForeignCurrency": "0",
+        "sumTaxForeignCurrency": "0",
+        "sumGrossForeignCurrency": "0",
+        "sumDiscountForeignCurrency": "0",
+        "createNextPart": null
+      }
+    ]
+  }
+]

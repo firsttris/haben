@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import belegeOhneDatei from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-ohne-datei.json" with { type: "json" };
 import erzeugteRechnungen from "../../test-fixtures/sevdesk/buchhaltung-1.0/rechnungen-aus-vorlage.json" with { type: "json" };
 import mahnungMitRechnung from "../../test-fixtures/sevdesk/buchhaltung-1.0/mahnung-mit-rechnung.json" with { type: "json" };
+import gutschriftV1 from "../../test-fixtures/sevdesk/buchhaltung-1.0/gutschrift.json" with { type: "json" };
 import belegeRv from "../../test-fixtures/sevdesk/buchhaltung-1.0/beleg-wiederkehrend-rv.json" with { type: "json" };
 import belege from "../../test-fixtures/sevdesk/buchhaltung-1.0/belege-credit-debit.json" with { type: "json" };
 import dateiDownload from "../../test-fixtures/sevdesk/buchhaltung-1.0/document-download.json" with { type: "json" };
@@ -21,6 +23,7 @@ import {
   mapSevPaymentLogs,
   mapSevVoucher,
 } from "./map.ts";
+import { isDatevFile, parseDatevBuchungsstapel } from "../datev.ts";
 import { sevCheckAccountTransactionLogSchema, sevCreditNoteSchema, sevFileResponseSchema, sevInvoiceSchema, sevVoucherSchema } from "./types.ts";
 
 /* Anonymisierte echte Antworten je Buchhaltungsversion; weicht eine Version ab, fällt es hier auf (#472). */
@@ -240,5 +243,54 @@ describe("Nachfällig oder vorschüssig an erzeugten Rechnungen in Buchhaltungsv
 
   it("lässt eine Vorlage ohne erzeugte Rechnung unklar", () => {
     expect(vonVorlage("ID_15")).toEqual([]);
+  });
+});
+
+describe("Gutschrift (CreditNote) in Buchhaltungsversion 1.0", () => {
+  const { creditNote, positions } = gutschriftV1[0]!;
+
+  it("übernimmt den Entwurf nicht", () => {
+    expect(creditNote.status).toBe("100");
+    expect(isSevCreditNoteImportable(sevCreditNoteSchema.parse(creditNote))).toBe(false);
+  });
+
+  it("führt das Buchungskonto am Kopf, nicht an den Positionen", () => {
+    expect(creditNote).toMatchObject({ bookingCategory: "ACCOUNTING_TYPE", accountingType: { name: "Einnahmen / Erlöse / Verkäufe" } });
+    expect(positions.length).toBeGreaterThan(0);
+    for (const p of positions) expect(p).not.toHaveProperty("accountingType");
+  });
+});
+
+describe("DATEV-Export aus Buchhaltungsversion 1.0", () => {
+  const datei = (name: string) => new Uint8Array(readFileSync(new URL(`../../test-fixtures/sevdesk/buchhaltung-1.0/${name}`, import.meta.url)));
+  const text = (name: string) => new TextDecoder("windows-1252").decode(datei(name));
+  const buchungen = parseDatevBuchungsstapel(datei("extf-buchungsstapel.csv")).bookings;
+  const guids = (inhalt: string, muster: RegExp) => [...inhalt.matchAll(muster)].map((m) => m[1]!);
+  const beleglinks = guids(text("extf-buchungsstapel.csv"), /BEDI ""([0-9a-f-]{36})""/g);
+  const xmlGuids = (name: string) => guids(text(name), /guid="([0-9a-f-]{36})"/g);
+
+  it.each(["extf-buchungsstapel.csv", "extf-gp-stamm.csv"])("behält in %s Windows-1252 und CRLF", (name) => {
+    const bytes = datei(name);
+    expect(() => new TextDecoder("utf-8", { fatal: true }).decode(bytes)).toThrow();
+    expect(text(name).split("\r\n").length).toBeGreaterThan(2);
+    expect(text(name)).not.toMatch(/[^\r]\n/);
+  });
+
+  it("liest Stapel und Personenkonten als EXTF 700", () => {
+    expect(isDatevFile(datei("extf-buchungsstapel.csv"))).toBe(true);
+    expect(buchungen).toHaveLength(7);
+    expect(text("extf-gp-stamm.csv").split("\r\n")[0]).toMatch(/^"?EXTF"?;700;16;/);
+  });
+
+  it("findet zu jedem Beleglink genau eine Datei, und umgekehrt", () => {
+    const xml = [...xmlGuids("document-rechnungseingang.xml"), ...xmlGuids("document-rechnungsausgang.xml")];
+    expect(new Set(xml).size).toBe(xml.length);
+    expect([...beleglinks].sort()).toEqual([...xml].sort());
+  });
+
+  it("führt keine UUID im Belegfeld", () => {
+    const belegfelder = buchungen.map((b) => b.voucherField1).filter(Boolean);
+    expect(belegfelder.length).toBeGreaterThan(0);
+    for (const feld of belegfelder) expect(feld).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i);
   });
 });
