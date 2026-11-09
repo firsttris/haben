@@ -17,6 +17,7 @@ on:
       - 'requirements-docs.txt'
       - 'scripts/doku-aenderungsdatum/**'
       - 'scripts/doku-hinweise/**'
+      - 'scripts/doku-kurzlinks/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -45,10 +46,14 @@ jobs:
       - run: pip install -r requirements-docs.txt
       - run: python -m unittest discover -s scripts/doku-aenderungsdatum
       - run: python -m unittest discover -s scripts/doku-hinweise
+      - run: python -m unittest discover -s scripts/doku-kurzlinks
       - uses: actions/configure-pages@v6
         with:
           enablement: true
       - run: zensical build --strict
+      # Adressen mit Schrägstrich: haben.app/api/ führt auf api.html, statt 404 (scripts/doku-kurzlinks)
+      - run: python scripts/doku-kurzlinks/haben_doku_kurzlinks.py site
+      - run: grep -q 'url=../api.html' site/api/index.html
       # Ohne git-Historie fehlt das Datum, ohne dass der Build scheitert; hier fällt es auf
       - run: grep -q 'class="aenderungsdatum"' site/index.html
       # Das Datum gehört nicht in den Suchindex, sonst findet die Suche nach „Update“ jede Seite
