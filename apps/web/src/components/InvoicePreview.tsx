@@ -199,11 +199,9 @@ export function InvoicePreview({
         style={{
           ...(seller.accent ? sheetColors(seller.accent) : {}),
           fontFamily: `"${LETTERHEAD_FONTS[options.font].name}", var(--sans)`,
-          ...(seller.background
-            ? { backgroundImage: `url("/api/briefpapier?v=${seller.background.slice(0, 12)}")`, backgroundSize: "cover", backgroundPosition: "center" }
-            : {}),
         }}
       >
+        {seller.background && <div className="sheet-background" style={{ backgroundImage: `url("/api/briefpapier?v=${seller.background.slice(0, 12)}")` }} />}
         {options.foldMarks && (
           <>
             <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />

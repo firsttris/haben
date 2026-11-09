@@ -470,7 +470,13 @@ test("Briefpapier: hochladen, auf dem Blatt sehen, entfernen", async ({ browser 
   await page.goto("/rechnungen/neu");
   await page.waitForLoadState("networkidle");
   await vorschauKnopf(page).click();
-  await expect.poll(() => blatt(page).evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("/api/briefpapier");
+  await expect
+    .poll(() =>
+      blatt(page)
+        .locator(".sheet-background")
+        .evaluate((el) => getComputedStyle(el).backgroundImage),
+    )
+    .toContain("/api/briefpapier");
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
@@ -638,7 +644,13 @@ test("Vorschau: Das Briefpapier bleibt auf einem langen Blatt so groß wie im PD
     await page.waitForLoadState("networkidle");
     await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
     await vorschauKnopf(page).click();
-    await expect.poll(() => blatt(page).evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("/api/briefpapier");
+    await expect
+      .poll(() =>
+        blatt(page)
+          .locator(".sheet-background")
+          .evaluate((el) => getComputedStyle(el).backgroundImage),
+      )
+      .toContain("/api/briefpapier");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(600);
     const { width, height } = (await blatt(page).boundingBox())!;

@@ -46,8 +46,12 @@
   for wort in runs.map(run => run.text).join("").split(" ") {
     let laenge = wort.clusters().len()
     let teil = je-zeichen.slice(wortanfang, calc.min(wortanfang + laenge, je-zeichen.len()))
-    let stil = (bold: teil.any(run => run.bold), italic: teil.any(run => run.italic), underline: false)
-    let zu-breit = measure(run-style(stil, text(wort))).width > foot-breite
+    // In den tatsächlichen Schnitten messen, auch wenn nur ein Teil des Worts ausgezeichnet ist
+    let stuecke = ()
+    for (z, run) in wort.clusters().zip(teil) {
+      if stuecke.len() > 0 and stuecke.at(-1).run == run { stuecke.at(-1).text += z } else { stuecke.push((run: run, text: z)) }
+    }
+    let zu-breit = stuecke.len() > 0 and measure(stuecke.map(s => run-style(s.run, text(s.text))).join()).width > foot-breite
     marken += range(laenge).map(_ => zu-breit)
     marken.push(false)
     wortanfang += laenge + 1

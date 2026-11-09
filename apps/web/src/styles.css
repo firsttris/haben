@@ -587,7 +587,9 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 /* Papiervorschau */
 /* Rechnungsvorschau als A4-Blatt; Maße in mm wie templates/rechnung.typ, 1pt = 0,3528 mm */
 .sheet-frame { container-type: inline-size; }
-.sheet { --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); display: flex; flex-direction: column; padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(14 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+.sheet { isolation: isolate; --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); display: flex; flex-direction: column; padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(14 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+/* Genau eine A4-Seite wie im PDF, auch wenn das Blatt in der Vorschau länger ist */
+.sheet-background { position: absolute; inset: 0 0 auto; z-index: -1; height: calc(297 * var(--mm)); background-position: center; background-repeat: no-repeat; background-size: cover; }
 .sheet-fold { position: absolute; left: calc(4 * var(--mm)); width: calc(4 * var(--mm)); border-top: 1px solid var(--rule); }
 .sheet-fold.long { width: calc(6 * var(--mm)); }
 .sheet-logo { position: absolute; top: calc(20 * var(--mm)); right: calc(20 * var(--mm)); object-fit: contain; }
