@@ -513,6 +513,7 @@ export async function reconciliation() {
   const voucherRows = await db
     .select({
       source: schema.lexofficeVouchers.source,
+      lexofficeId: schema.lexofficeVouchers.lexofficeId,
       direction: effectiveDirection("lexoffice_vouchers"),
       type: effectiveType("lexoffice_vouchers"),
       number: schema.lexofficeVouchers.number,
@@ -624,7 +625,8 @@ export async function reconciliation() {
         taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
       }
       const invoices = vouchers
-        .filter((v) => v.type === "invoice" && v.number)
+        // Die Stornorechnung von sevDesk belegt denselben Nummernkreis wie die Rechnungen (#472)
+        .filter((v) => v.number && (v.type === "invoice" || (v.source === "sevdesk" && v.type === "creditnote" && v.lexofficeId.startsWith("invoice/"))))
         .sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number, "de", { numeric: true }));
 
       const checks: ReconciliationCheck[] = [
@@ -735,6 +737,7 @@ export async function legacyVouchersForPeriod(filter: {
     const sevdeskRows = await db
       .select({
         source: schema.lexofficeVouchers.source,
+        direction: effectiveDirection("lexoffice_vouchers"),
         gross: schema.lexofficeVouchers.gross,
         status: schema.lexofficeVouchers.status,
         payment: effectivePayment("lexoffice_vouchers"),
@@ -742,7 +745,8 @@ export async function legacyVouchersForPeriod(filter: {
       })
       .from(schema.lexofficeVouchers)
       .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
-    if (sevdeskRows.some((v) => unclearFrom(v, filter.period))) {
+    // Wie der Abgleich: Bei Ist-Versteuerung zählen die Zahlungen nur auf der Einnahmenseite
+    if (sevdeskRows.some((v) => v.direction === "einnahme" && unclearFrom(v, filter.period))) {
       throw new LexofficeError(
         "sevDesk-Zahlungshistorie unvollständig: Eine zahlungsbezogene Zeitraumabfrage ist bis zur Klärung der Einzelzahlungen gesperrt.",
       );
@@ -832,12 +836,11 @@ export async function findLegacyVouchers(ref: string) {
     .select({ id: schema.lexofficeVouchers.id, raw: schema.lexofficeVouchers.raw })
     .from(schema.lexofficeVouchers)
     .where(
-      UUID.test(value)
-        ? sql`${schema.lexofficeVouchers.id} = ${value}::uuid or ${schema.lexofficeVouchers.lexofficeId} = ${value}`
-        : // sevDesk-Kennungen wie "invoice/101" sind keine UUID
-          sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
-            or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))
-            or ${truncatedNumberMatches("lexoffice_vouchers", sql`${value}`)}`,
+      // Auch eine Belegnummer kann wie eine UUID aussehen; sevDesk-Kennungen wie "invoice/101" sind keine
+      sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
+        or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))
+        or ${truncatedNumberMatches("lexoffice_vouchers", sql`${value}`)}
+        ${UUID.test(value) ? sql`or ${schema.lexofficeVouchers.id} = ${value}::uuid` : sql``}`,
     )
     .limit(10);
   const result = [];
