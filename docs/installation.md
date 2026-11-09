@@ -179,7 +179,7 @@ Läuft auf dem Server schon ein Reverse Proxy, etwa Apache, nginx, Nginx Proxy M
 - die ganze Domain oder Subdomain an Haben geben. Unter einem Unterpfad wie `example.de/haben` läuft Haben nicht: Die Seite lädt ihre Skripte von `/assets/…` und leitet auf `/login` um, jeweils ab der Wurzel der Domain.
 - an `haben-app:3000` weiterleiten (Proxy im selben Container-Netz) oder an `127.0.0.1:3000` (Proxy direkt auf dem Host).
 - Anfragen bis 250 MB annehmen (Archivdateien bis 100 MB, mehrere Belege auf einmal), auch auf einer langsamen Leitung.
-- bis zu 300 Sekunden auf eine Antwort warten. So lange kann etwa die Belegerkennung mit einem lokalen Modell dauern. Der Standard liegt bei Apache und nginx bei 60 Sekunden, bei Nginx Proxy Manager bei 90; danach sieht der Browser einen Fehler 502 oder 504.
+- bis zu 300 Sekunden auf eine Antwort warten. So lange kann etwa die Belegerkennung mit einem lokalen Modell dauern. Der Standard liegt bei nginx und Apache bei 60 Sekunden (im Apache-Paket von Debian bei 300), bei Nginx Proxy Manager bei 90; danach sieht der Browser einen Fehler 502 oder 504.
 - `X-Forwarded-For` mit genau einer Adresse setzen, der des Clients. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Apache, Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx und HAProxy trägst du ihn ein.
 - die Sicherheits-Header setzen wie in den Beispielen: HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer). Haben setzt nur `Content-Security-Policy: frame-ancestors 'self'` selbst.
 
@@ -234,7 +234,7 @@ Getestet sind die Beispiele mit Apache 2.4, nginx 1.30, Nginx Proxy Manager 2.16
     Header always set X-Frame-Options SAMEORIGIN
 
     ProxyPreserveHost On
-    # Standard sind 60 Sekunden
+    # Ohne die Zeile gilt Timeout: 60 Sekunden, im Debian-Paket 300
     ProxyTimeout 300
     RequestHeader set X-Forwarded-Proto "https"
     # Apache hängt die Client-Adresse an; ein mitgeschickter Wert soll nicht davorstehen
