@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideRole, proofExpiry, SSO_PROOF_MS } from "./sso-groups.ts";
+import { decideRole, SSO_PROOF_MS } from "./sso-groups.ts";
 
 const config = { claim: "groups", inhaber: "haben-inhaber", steuerberatung: "haben-steuerberatung" };
 
@@ -37,17 +37,7 @@ describe("Gruppenentscheidung im SSO-Modus", () => {
 });
 
 describe("Frist der Berechtigung", () => {
-  const now = 1_800_000_000_000;
   it("gilt höchstens 15 Minuten", () => {
-    expect(proofExpiry(now, [now + 3_600_000])).toBe(now + SSO_PROOF_MS);
     expect(SSO_PROOF_MS).toBe(15 * 60_000);
-  });
-  it("endet früher, wenn ein Token früher abläuft", () => {
-    expect(proofExpiry(now, [now + 60_000, now + 3_600_000])).toBe(now + 60_000);
-    expect(proofExpiry(now, [undefined, now + 120_000])).toBe(now + 120_000);
-  });
-  it("gibt keine Frist für schon abgelaufene Tokens", () => {
-    expect(proofExpiry(now, [now])).toBeNull();
-    expect(proofExpiry(now, [now - 1])).toBeNull();
   });
 });

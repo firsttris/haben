@@ -17,7 +17,7 @@ export interface SsoProof {
 }
 
 /** Warum ein Callback abgewiesen wurde; bestimmt den Hinweis auf der Anmeldeseite */
-export type CallbackRejection = "gruppen-doppelt" | "profil" | "gruppe" | "nicht-eingerichtet" | "konto-vorhanden" | "fehler";
+export type CallbackRejection = "gruppen-doppelt" | "profil" | "gruppe" | "nicht-eingerichtet" | "konto-vorhanden" | "ausgelastet" | "fehler";
 
 interface CallbackScope {
   tx: Tx;
@@ -31,6 +31,8 @@ const LIMIT = Symbol.for("haben.oidcCallbacks");
 const shared = globalThis as { [LIMIT]?: { active: number } };
 shared[LIMIT] ??= { active: 0 };
 const callbacks = shared[LIMIT];
+/** Der Callback hält während der Anbieteraufrufe eine Verbindung; der Pool hat zehn, lokale Anmeldung braucht auch welche */
+const MAX_CALLBACKS = 4;
 
 /** Adapter und Hooks benutzen im Callback dieselbe Verbindung: Konto, Zuordnung, Rolle und Sitzung entstehen gemeinsam */
 export const authDatabase = () => scope.getStore()?.tx ?? db;
@@ -90,7 +92,7 @@ async function stateConsumed(tx: Tx, identifier: string | undefined): Promise<bo
  */
 export async function atomicAuthCallback(work: () => Promise<Response>, options: AtomicCallbackOptions): Promise<Response> {
   // Netzwerk während des Codeaustauschs darf den Pool nicht erschöpfen. Lokale Anmeldung behält Verbindungen.
-  if (callbacks.active >= 2) return new Response("Bitte die SSO-Anmeldung erneut versuchen.", { status: 429, headers: { "Retry-After": "1" } });
+  if (callbacks.active >= MAX_CALLBACKS) return Response.redirect(options.errorUrl("ausgelastet"), 303);
   callbacks.active++;
   const state: Partial<CallbackScope> = {};
   try {
@@ -124,6 +126,7 @@ export async function atomicAuthCallback(work: () => Promise<Response>, options:
         .catch(() => console.error("SSO: State nach abgewiesenem Callback nicht entwertet"));
     }
     const proof = state.proof;
+    console.error(`SSO: Anmeldung abgewiesen: ${[state.rejection ?? "fehler", proof?.rejection].filter(Boolean).join(", ")}`);
     if (proof?.rejection && options.afterRejection) {
       try {
         await options.afterRejection(proof);

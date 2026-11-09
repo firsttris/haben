@@ -34,6 +34,34 @@ describe("Review: Konfiguration der Betriebsart", () => {
     await expect(load()).resolves.toMatchObject({ OIDC_ONLY: false });
   });
 
+  const sso = () => {
+    vi.stubEnv("OIDC_ONLY", "true");
+    vi.stubEnv("OIDC_ISSUER", "https://auth.example.de");
+    vi.stubEnv("OIDC_CLIENT_ID", "haben");
+    vi.stubEnv("OIDC_CLIENT_SECRET", "secret");
+    vi.stubEnv("OIDC_GROUP_INHABER", "haben-inhaber");
+    vi.stubEnv("OIDC_GROUP_STEUERBERATUNG", "haben-steuerberatung");
+  };
+
+  // OIDC Core 5.1.2: eigene Claims mit kollisionsfreiem Namen, üblich als URL; Auth0 empfiehlt das für eigene Claims
+  it("nimmt einen URL-förmigen Claimnamen an", async () => {
+    sso();
+    vi.stubEnv("OIDC_GROUPS_CLAIM", "https://haben.example.de/groups");
+    await expect(load()).resolves.toMatchObject({ OIDC_GROUPS_CLAIM: "https://haben.example.de/groups" });
+  });
+
+  it("lehnt einen Punkt außerhalb einer URL weiter ab: das sähe wie ein Pfad aus, Haben liest aber einen Claim wörtlich", async () => {
+    sso();
+    vi.stubEnv("OIDC_GROUPS_CLAIM", "realm_access.roles");
+    await expect(load()).rejects.toThrow("OIDC_GROUPS_CLAIM");
+  });
+
+  it.each(["OIDC_ISSUER", "BETTER_AUTH_URL"])("nennt bei ungültiger URL in %s die Variable statt eines TypeError", async (key) => {
+    sso();
+    vi.stubEnv(key, "auth.example.de");
+    await expect(load()).rejects.toThrow(key);
+  });
+
   it.each(["TRUE", "True", "1", "yes", " true"])("verweigert OIDC_ONLY=%s mit Hinweis auf die Variable", async (value) => {
     vi.stubEnv("OIDC_ONLY", value);
     await expect(load()).rejects.toThrow("OIDC_ONLY");

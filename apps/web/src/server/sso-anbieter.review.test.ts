@@ -220,15 +220,32 @@ describe.skipIf(!testDatabaseUrl)("Review: SSO mit anderen Anbietern als Autheli
     });
   });
 
-  // Keycloak und Authentik: Access-Token-Laufzeit 5 Minuten voreingestellt; Pocket ID und Authelia 1 Stunde
-  it("kürzt die Frist bei 5 Minuten Access-Token-Laufzeit auf 5 Minuten (Keycloak, Authentik)", async () => {
+  // Keycloak und Authentik: Access-Token-Laufzeit 5 Minuten voreingestellt. Haben nutzt das Token nach dem Callback nicht
+  // mehr; die Aktualität belegt der Prüfzeitpunkt, nicht das exp eines verworfenen Tokens.
+  it("lässt die Frist bei 5 Minuten Access-Token-Laufzeit bei 15 Minuten (Keycloak, Authentik)", async () => {
     const response = await login({ sub: "kurz", email: "kurz@example.de", userInfo: { groups: ["haben-steuerberatung"] }, accessTokenSeconds: 300 });
     expect(reason(response)).toBeNull();
     const [session] = await database`select s.sso_checked_at, s.sso_expires_at from session s join account a on a.user_id = s.user_id
       where a.account_id = ${JSON.stringify([provider.issuer, "kurz"])}`;
     const minutes = (new Date(session!.sso_expires_at).getTime() - new Date(session!.sso_checked_at).getTime()) / 60_000;
-    expect(minutes).toBeGreaterThan(4.9);
-    expect(minutes).toBeLessThanOrEqual(5);
+    expect(minutes).toBe(15);
+  });
+
+  it("fragt keinen Scope doppelt an", async () => {
+    const { url } = await begin();
+    const requested = url.searchParams.get("scope")!.split(" ");
+    expect(requested).toEqual([...new Set(requested)]);
+  });
+
+  // Intranet-Verzeichnisse und internationalisierte Adressen; die E-Mail ist nur Anzeigewert, Konten laufen über Issuer und Subject
+  it.each(["alice@firma", "jörg@müller.de"])("nimmt die E-Mail-Adresse %s an", async (email) => {
+    const response = await login({ sub: `mail-${email}`, email, userInfo: { groups: ["haben-steuerberatung"] }, idToken: {} });
+    expect(reason(response)).toBeNull();
+  });
+
+  it("weist eine Angabe ohne @ weiter als unvollständiges Profil ab", async () => {
+    const response = await login({ sub: "ohne-at", email: "kein-at", userInfo: { groups: ["haben-steuerberatung"] } });
+    expect(reason(response)).toBe("profil");
   });
 
   // Pocket ID: groups-Scope, Gruppen als Array von Namen in ID-Token und UserInfo (https://pocket-id.org/docs/client-examples)

@@ -15,7 +15,8 @@ const envSchema = z
     /** Name genau eines Claims der UserInfo-Antwort, kein Pfad und kein Ausdruck */
     OIDC_GROUPS_CLAIM: z
       .string()
-      .regex(/^[A-Za-z0-9_:/-]{1,100}$/, "ein einzelner Claimname aus Buchstaben, Ziffern, _ : / -")
+      // Punkte nur in URL-förmigen Namen (OIDC Core 5.1.2, kollisionsfrei): „realm_access.roles“ sähe wie ein Pfad aus
+      .regex(/^(?:https?:\/\/[A-Za-z0-9_:/.-]{1,92}|[A-Za-z0-9_:/-]{1,100})$/, "ein einzelner Claimname aus Buchstaben, Ziffern, _ : / - oder eine URL")
       .default("groups"),
     OIDC_GROUP_INHABER: z.string().optional(),
     OIDC_GROUP_STEUERBERATUNG: z.string().optional(),
@@ -95,7 +96,8 @@ const envSchema = z
         ctx.addIssue({ code: "custom", path: ["OIDC_GROUP_STEUERBERATUNG"], message: "muss sich von OIDC_GROUP_INHABER unterscheiden" });
       }
       for (const field of ["OIDC_ISSUER", "BETTER_AUTH_URL"] as const) {
-        if (!value[field]) continue;
+        // Eine ungültige URL hat Zod schon gemeldet; superRefine läuft trotzdem
+        if (!value[field] || !URL.canParse(value[field])) continue;
         const url = new URL(value[field]);
         const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
         if (

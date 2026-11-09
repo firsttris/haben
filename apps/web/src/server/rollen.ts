@@ -1,7 +1,7 @@
 import { isAPIError } from "better-auth/api";
 import { darf, type Rolle, type Zugriff } from "../lib/rollen.ts";
-import { auth } from "./auth.ts";
-import { effectiveRole, type SessionProof } from "./sso-policy.ts";
+import { auth, authContextReady } from "./auth.ts";
+import { effectiveRole, ssoOnly, type SessionProof } from "./sso-policy.ts";
 
 /*
  * Rechte der Zugänge an einer Stelle. Jede Server Function und jede API-Route mit Sitzung sagt, welchen Zugriff sie
@@ -24,6 +24,8 @@ export interface SessionUser {
  * Frist läuft (sso-policy.ts). Navigation, Server Functions, API-Routen und Audit sehen so dieselbe Rolle.
  */
 export async function sessionUser(headers: Headers): Promise<SessionUser | null> {
+  // Ein hängender Anbieter beim ersten Aufbau darf nicht jede Seite aufhalten; die Anmeldeseite meldet die Störung
+  if (ssoOnly() && !(await authContextReady())) return null;
   let session;
   try {
     session = await auth().api.getSession({ headers });

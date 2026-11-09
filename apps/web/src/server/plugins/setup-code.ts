@@ -15,8 +15,8 @@ export default definePlugin(async (nitroApp) => {
     const release = await holdAppRunningLock();
     nitroApp.hooks.hook("close", release);
     if (!ssoOnly()) void announceSetupCode().catch((e: unknown) => console.error("Einrichtungscode", e));
-  } catch {
-    console.error("Die Startprüfung ist fehlgeschlagen. Datenbank und Serverkonfiguration prüfen.");
+  } catch (error) {
+    console.error(`Die Startprüfung ist fehlgeschlagen (${error instanceof Error ? error.name : "unbekannt"}). Datenbank und Serverkonfiguration prüfen.`);
     process.exit(1);
   }
 });

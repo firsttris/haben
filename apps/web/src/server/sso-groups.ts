@@ -1,8 +1,8 @@
 import type { Rolle } from "../lib/rollen.ts";
 
 /*
- * Gruppenentscheidung im SSO-Modus, ohne Server- oder Datenbankbezug. Authelia liefert die Gruppen über UserInfo als
- * Array aus Zeichenketten (https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/#groups).
+ * Gruppenentscheidung im SSO-Modus, ohne Server- oder Datenbankbezug. Erwartet ein Array aus Zeichenketten, wie es etwa
+ * Authelia über UserInfo liefert (https://www.authelia.com/integration/openid-connect/openid-connect-1.0-claims/#groups).
  */
 
 export interface GroupConfig {
@@ -35,12 +35,3 @@ export function decideRole(profile: Record<string, unknown>, config: GroupConfig
 
 /** Höchstens 15 Minuten gilt eine Haben-Berechtigung, ohne Verlängerung durch Aktivität */
 export const SSO_PROOF_MS = 15 * 60_000;
-
-/**
- * Ende der Berechtigungsfrist: 15 Minuten ab Prüfung, früher, wenn ID- oder Access-Token eher ablaufen. Null, wenn die
- * Frist schon vorbei ist.
- */
-export function proofExpiry(checkedAt: number, tokenExpiries: (number | undefined)[]): number | null {
-  const expiry = Math.min(checkedAt + SSO_PROOF_MS, ...tokenExpiries.filter((value): value is number => typeof value === "number" && Number.isFinite(value)));
-  return expiry > checkedAt ? expiry : null;
-}

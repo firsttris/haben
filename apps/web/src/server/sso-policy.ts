@@ -9,7 +9,7 @@ import { env } from "./env.ts";
 /*
  * Zwei strikt getrennte Betriebsarten. Einziger Schalter ist OIDC_ONLY aus der validierten Serverkonfiguration, nie
  * Browserdaten: im Standardmodus nur lokale Anmeldung (Passwort, Passkey, Einladungen), im SSO-Modus nur OIDC mit
- * Rollen aus den Authelia-Gruppen.
+ * Rollen aus den Gruppen des OIDC-Anbieters.
  */
 export const ssoOnly = () => env().OIDC_ONLY;
 

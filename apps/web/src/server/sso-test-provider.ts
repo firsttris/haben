@@ -34,6 +34,8 @@ export interface TestProvider {
   userInfoCalls: () => number;
   /** Hinterlegt einen Code für einen begonnenen Vorgang */
   issue: (authorizeUrl: URL, identity: TestIdentity) => string;
+  /** Wie der Discovery-Endpunkt antwortet: normal, mit 503 oder gar nicht */
+  setDiscovery: (mode: "ok" | "fehler" | "haengt") => void;
   close: () => Promise<void>;
 }
 
@@ -46,6 +48,7 @@ export async function startTestProvider(): Promise<TestProvider> {
   const accessTokens = new Map<string, Record<string, unknown>>();
   let userInfoCalls = 0;
   let issuer = "";
+  let discovery: "ok" | "fehler" | "haengt" = "ok";
 
   const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => {
     res.statusCode = status;
@@ -72,6 +75,8 @@ export async function startTestProvider(): Promise<TestProvider> {
 
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url!, issuer);
+    if (url.pathname === "/.well-known/openid-configuration" && discovery === "haengt") return;
+    if (url.pathname === "/.well-known/openid-configuration" && discovery === "fehler") return json(res, 503, {});
     if (url.pathname === "/.well-known/openid-configuration")
       return json(res, 200, {
         issuer,
@@ -130,6 +135,9 @@ export async function startTestProvider(): Promise<TestProvider> {
   return {
     issuer,
     userInfoCalls: () => userInfoCalls,
+    setDiscovery: (mode) => {
+      discovery = mode;
+    },
     issue(authorizeUrl, identity) {
       const code = randomBytes(16).toString("hex");
       codes.set(code, { nonce: authorizeUrl.searchParams.get("nonce")!, challenge: authorizeUrl.searchParams.get("code_challenge")!, identity });

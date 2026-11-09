@@ -8,7 +8,7 @@ import { INVITATION_HEADER, accountState, claimInvitation, linkInvitation, login
 import { atomicAuthCallback, authDatabase, authDatabaseProxy, authTransaction } from "./auth-transaction.ts";
 import { schema } from "./db/index.ts";
 import { env } from "./env.ts";
-import { oidcBefore, oidcProvider, withoutProviderTokens } from "./oidc.ts";
+import { oidcProvider, withoutProviderTokens } from "./oidc.ts";
 import { checkSetupCode } from "./setup-code.ts";
 import { confirmSsoSession, requireGrantedProof, revokeRejectedIdentity } from "./sso-callback.ts";
 import { modeStartupProblem } from "./sso-mode.ts";
@@ -55,7 +55,8 @@ function createAuth() {
         ssoExpiresAt: { type: "date", input: false, required: false },
       },
     },
-    logger: { disabled: true },
+    // Nur die erste Zeile der festen Meldung: Argumente und Folgezeilen können SQL-Parameter und Sitzungstokens enthalten
+    logger: { level: "error", log: (_level, message) => console.error(`Better Auth: ${message.split("\n")[0]!.slice(0, 200)}`) },
     // Better-Call würde ungefangene Adapterfehler trotz deaktiviertem Logger samt SQL-Parametern ausgeben.
     onAPIError: { throw: true },
     plugins: [...oidcProvider(), ...(sso ? [] : [passkey({ rpID: baseUrl.hostname, rpName: "Haben", origin: baseUrl.origin })]), tanstackStartCookies()],
@@ -75,7 +76,6 @@ function authHooks(sso: boolean): Pick<BetterAuthOptions, "hooks" | "databaseHoo
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         await enforceMode(ctx);
-        await oidcBefore(ctx);
         // Name und Bild ändert Haben nicht über Better Auth: das schriebe ohne Audit-Akteur und an der Rollenprüfung
         // vorbei, auch für die Steuerberatung, die nur lesen darf
         if (ctx.path === "/update-user") throw forbidden("Das Konto lässt sich hier nicht ändern.");
@@ -146,30 +146,36 @@ export function auth() {
   return instance;
 }
 
+/**
+ * Better Auth holt die Discovery beim ersten Aufbau ohne Zeitlimit. Hängt der Anbieter, soll das weder Discovery-Wartezeit
+ * ohne Ende noch eine belegte Datenbankverbindung kosten: nach zehn Sekunden gilt SSO als gerade nicht verfügbar.
+ */
+export async function authContextReady(): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      auth().$context,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("OIDC_TIMEOUT")), 10_000);
+      }),
+    ]);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const loginUrl = (reason: string) => `${env().BETTER_AUTH_URL.replace(/\/$/, "")}/login?sso=${reason}`;
 
 /** Einstieg für /api/auth/*: Startprüfung der Betriebsart, Callback atomar, Anbieterstörungen ohne Datenbankverbindung */
 async function handleAuthRequest(request: Request): Promise<Response> {
   const problem = await modeStartupProblem();
   if (problem) return new Response(problem, { status: 503 });
+  if (ssoOnly() && !(await authContextReady())) return new Response("Die SSO-Anmeldung ist vorübergehend nicht verfügbar.", { status: 503 });
   const current = auth();
   const path = new URL(request.url).pathname;
-  if (ssoOnly() && (path === "/api/auth/sign-in/social" || path === "/api/auth/callback/oidc")) {
-    // Discovery beim Start des Anbieters darf keine der begrenzten Datenbankverbindungen belegen
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
-        current.$context,
-        new Promise((_, reject) => {
-          timer = setTimeout(() => reject(new Error("OIDC_TIMEOUT")), 10_000);
-        }),
-      ]);
-    } catch {
-      return new Response("Die SSO-Anmeldung ist vorübergehend nicht verfügbar.", { status: 503 });
-    } finally {
-      clearTimeout(timer);
-    }
-  }
   if (ssoOnly() && path === "/api/auth/callback/oidc") {
     const state = new URL(request.url).searchParams.get("state");
     return atomicAuthCallback(() => current.handler(request), {
@@ -185,7 +191,8 @@ async function handleAuthRequest(request: Request): Promise<Response> {
 export async function handleAuth(request: Request): Promise<Response> {
   try {
     return await handleAuthRequest(request);
-  } catch {
+  } catch (error) {
+    console.error(`Anmeldung: unerwarteter Fehler (${error instanceof Error ? error.name : "unbekannt"})`);
     return new Response("Die Anmeldung ist vorübergehend nicht verfügbar.", { status: 503 });
   }
 }
