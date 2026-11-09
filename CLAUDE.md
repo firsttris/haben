@@ -40,8 +40,10 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 
 ## With every change
 
-- Tests first for a bug fix; SKR03 and SKR04, Ist and Soll for bookings and tax.
-- Docs in `docs/` in the same pull request; the README only when a feature area changes.
+- Tests for what changed: Vitest, Postgres tests next to the module, Playwright for what a user clicks; a bug
+  fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax.
+- Docs in `docs/` in the same pull request; the README only when a feature area or its one-line summary changes.
+- Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - Checks green before every push, skipped tests reported (`checks`); then check CI.
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
@@ -51,7 +53,9 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 
 - German for code comments, docs, commit messages, pull requests and everything the user sees;
   identifiers stay English.
-- Functional, no classes; a file past ~400 lines and a function past ~80 get split (Konventionen).
+- Functional, no classes (except the `UserError` subclasses); a file past ~400 lines and a function past ~80
+  get split (Konventionen).
+- Writes go through `withActor`; a new table gets an audit trigger (nothing checks this automatically).
 - Bun, not Node, npm or pnpm: `bun run test` runs Vitest, `bun test` would be Bun's own runner.
 - Server functions in `server/functions/` stay thin: `authMiddleware`, Zod, then a call into
   `server/modules/`; another module only through its `index.ts`.

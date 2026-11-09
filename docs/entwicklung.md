@@ -475,20 +475,20 @@ bun run lint
 bun run typecheck
 TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 bun run build
-E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_e2e bun run e2e   # wenn die Oberfläche betroffen ist
+E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_e2e bun run e2e   # ohne Browser von Playwright nur in der CI
 zensical build --strict                                                       # wenn docs/ oder mkdocs.yml geändert sind
 ```
 
 Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server mit echten Daten zeigen lassen. Was übersprungen wurde, gehört in die Beschreibung des Pull Requests.
 
 - Ein Pull Request, ein Thema; er trägt nur seine eigenen Commits.
-- Neue Fachlogik mit Tests, ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.
-- Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request. Das README nur, wenn ein Bereich dazukommt oder wegfällt; Details gehören nach `docs/`.
+- Tests für das, was sich ändert: Vitest für Logik, Postgres-Integrationstests neben dem Modul, Playwright in `apps/web/e2e/` für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.
+- Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request. Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Eine neue Seite kommt in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` (prüft `bun run lint`).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Nach dem Merge erneuert **Actions → Update screenshots → Run workflow** die Bilder in README und Doku.
+- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub; ein Branch nur für Bilder ist eine Notlösung, nur im eigenen Fork und nie im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
 
 ### Branches, Titel und Commits
 
