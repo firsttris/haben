@@ -74,6 +74,56 @@ describe.skipIf(!testDatabaseUrl)("Token-Verantwortung und geprüfter Gruppenent
     await expect(mcp.reactivateMcpToken("a", token.id)).rejects.toThrow(/anderer/);
     expect(await mcp.authenticateMcp(bearer(token.token))).toBeNull();
   });
+  it("lässt Tokens nach 30 Tagen ohne SSO-Bestätigung des Verantwortlichen nicht mehr gelten, ohne Anmeldung reicht kein Rollenentzug", async () => {
+    const token = await create();
+    const cal = await calendar.createCalendarToken("a");
+    await database`update sso_roles set confirmed_at=now()-interval '31 days' where user_id='a'`;
+    expect(await mcp.authenticateMcp(bearer(token.token))).toBeNull();
+    expect(await calendar.checkCalendarToken(cal)).toBe(false);
+    expect(await calendar.calendarTokenActive()).toBe(false);
+    expect((await mcp.listMcpTokens())[0]).toMatchObject({ status: "unbestaetigt", responsibleId: "a" });
+    // Meldet sich der Verantwortliche wieder an, gilt derselbe Zugang ohne weiteres weiter
+    await database`update sso_roles set confirmed_at=now() where user_id='a'`;
+    expect(await mcp.authenticateMcp(bearer(token.token))).not.toBeNull();
+    expect(await calendar.checkCalendarToken(cal)).toBe(true);
+  });
+  it("lässt Tokens eines Kontos ohne Identität in der Betriebsart nicht gelten; ein aktueller Inhaber kann sie übernehmen", async () => {
+    await database`insert into "user"(id,name,email,role) values('lokal','Lokal','lokal@example.de','inhaber') on conflict do nothing`;
+    const [row] = await database`insert into mcp_tokens(name,token_hash,prefix,scopes,expires_at,created_by,responsible_id)
+      values('Alt','hash-alt','hb_alt',${["haben:lesen"]},now()+interval '30 days','lokal','lokal') returning id`;
+    await database`update company set calendar_token_hash=repeat('a',64),calendar_token_responsible_id='lokal'`;
+    expect((await mcp.listMcpTokens(new Date(), "a"))[0]).toMatchObject({ status: "unbestaetigt", canTakeOver: true });
+    expect(await calendar.calendarTokenStatus("a")).toMatchObject({ ownerConfirmed: false, canTakeOver: true });
+    expect(await calendar.calendarTokenActive()).toBe(false);
+    await mcp.reactivateMcpToken("a", row!.id);
+    await calendar.reactivateCalendarToken("a");
+    expect((await mcp.listMcpTokens())[0]).toMatchObject({ status: "aktiv", responsibleId: "a" });
+    expect(await calendar.calendarTokenActive()).toBe(true);
+  });
+  it("erlaubt dem einzigen aktuellen Inhaber die Reaktivierung eigener Tokens", async () => {
+    const token = await create();
+    await calendar.createCalendarToken("a");
+    await revoke(proof("a"));
+    await database`update sso_roles set role='inhaber',confirmed_at=now() where user_id='a'`;
+    await database`update sso_roles set role=null where user_id='b'`;
+    expect((await mcp.listMcpTokens(new Date(), "a"))[0]).toMatchObject({ status: "deaktiviert", canTakeOver: true });
+    expect(await calendar.calendarTokenStatus("a")).toMatchObject({ canTakeOver: true });
+    await mcp.reactivateMcpToken("a", token.id);
+    await calendar.reactivateCalendarToken("a");
+    expect(await mcp.authenticateMcp(bearer(token.token))).not.toBeNull();
+    expect((await database`select calendar_token_disabled_at from company`)[0]!.calendar_token_disabled_at).toBeNull();
+  });
+  it("zählt einen seit 30 Tagen unbestätigten Inhaber nicht als anderen Inhaber", async () => {
+    const token = await create();
+    await revoke(proof("a"));
+    await database`update sso_roles set role='inhaber',confirmed_at=now() where user_id='a'`;
+    await database`update sso_roles set confirmed_at=now()-interval '31 days' where user_id='b'`;
+    await expect(mcp.reactivateMcpToken("a", token.id)).resolves.toBeUndefined();
+  });
+  it("übernimmt keinen aktiven Token mit gültigem Verantwortlichen", async () => {
+    const token = await create();
+    await expect(mcp.reactivateMcpToken("b", token.id)).rejects.toThrow(/deaktivierter/);
+  });
   it("verbietet Steuerberatung und unbekannten Konten die Übernahme", async () => {
     const token = await create();
     await revoke(proof("a"));

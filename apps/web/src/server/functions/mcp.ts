@@ -19,10 +19,9 @@ import { authMiddleware } from "../middleware.ts";
 export const getMcpSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const [enabled, tokens, calls] = await Promise.all([mcpEnabled(), listMcpTokens(), recentMcpCalls()]);
+    const [enabled, tokens, calls] = await Promise.all([mcpEnabled(), listMcpTokens(new Date(), context.user.id), recentMcpCalls()]);
     return {
       enabled,
-      actorId: context.user.id,
       tokens,
       calls,
       tools: MCP_TOOLS.map((t) => ({ name: t.name, title: t.title })),

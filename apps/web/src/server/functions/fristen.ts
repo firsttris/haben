@@ -14,8 +14,8 @@ export const getFristen = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const now = today();
-    const [fristen, abo, aboStatus] = await Promise.all([listFristen(now), calendarTokenActive(), calendarTokenStatus()]);
-    return { today: now, fristen, abo, aboStatus, actorId: context.user.id };
+    const [fristen, abo, aboStatus] = await Promise.all([listFristen(now), calendarTokenActive(), calendarTokenStatus(context.user.id)]);
+    return { today: now, fristen, abo, aboStatus };
   });
 
 /** Neuer Abo-Link; das Token kommt nur in dieser Antwort vor */

@@ -154,7 +154,7 @@ function FristenPage() {
 
 /** Abo-Link für Kalender-Apps; den Link gibt es nur direkt nach dem Erzeugen */
 function KalenderAbo() {
-  const { abo, aboStatus, actorId } = Route.useLoaderData();
+  const { abo, aboStatus } = Route.useLoaderData();
   const reactivate = useServerFn(reactivateFristenAbo);
   const [takingOver, setTakingOver] = useState(false);
   const router = useRouter();
@@ -198,12 +198,14 @@ function KalenderAbo() {
       >
         <p>Du übernimmst die Verantwortung. Der bisherige Kalender-Link bleibt erhalten.</p>
       </ConfirmDialog>
-      {aboStatus.exists && aboStatus.disabledAt ? (
+      {aboStatus.exists && (aboStatus.disabledAt || !aboStatus.ownerConfirmed) ? (
         <>
           <p role="status">
-            Kalender-Abo deaktiviert: {aboStatus.disabledReason === "inhaberrolle-entzogen" ? "Inhaberrolle entzogen" : "Verantwortung noch nicht zugeordnet"}.
+            {aboStatus.disabledAt
+              ? `Kalender-Abo deaktiviert: ${aboStatus.disabledReason === "inhaberrolle-entzogen" ? "Inhaberrolle entzogen" : "Verantwortung noch nicht zugeordnet"}.`
+              : "Kalender-Abo unbestätigt: Der Verantwortliche hat seine Inhaberrolle seit über 30 Tagen nicht bestätigt."}
           </p>
-          {aboStatus.responsibleId !== actorId && (
+          {aboStatus.canTakeOver && (
             <button type="button" className="btn" disabled={busy} onClick={() => setTakingOver(true)}>
               Übernehmen und reaktivieren
             </button>

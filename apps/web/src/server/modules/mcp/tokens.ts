@@ -1,4 +1,4 @@
-import { requireTokenOwner, tokenEvent } from "../../token-responsibility.ts";
+import { currentTokenOwners, requireTokenOwner, takeoverProblem, tokenEvent } from "../../token-responsibility.ts";
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, gt, isNull, lt } from "drizzle-orm";
 import { z } from "zod";
@@ -127,7 +127,8 @@ export async function revokeMcpToken(id: string, now = new Date()): Promise<void
 }
 
 /** Alle Zugänge, gültige zuerst; widerrufene und abgelaufene bleiben zur Nachvollziehbarkeit sichtbar */
-export async function listMcpTokens(now = new Date()) {
+export async function listMcpTokens(now = new Date(), actor?: string) {
+  const owners = await currentTokenOwners(db, now);
   const rows = await db
     .select({
       id: schema.mcpTokens.id,
@@ -156,14 +157,24 @@ export async function listMcpTokens(now = new Date()) {
           ? ("abgelaufen" as const)
           : row.disabledAt
             ? ("deaktiviert" as const)
-            : ("aktiv" as const),
+            : row.responsibleId && owners.has(row.responsibleId)
+              ? ("aktiv" as const)
+              : ("unbestaetigt" as const),
+    }))
+    .map((row) => ({
+      ...row,
+      canTakeOver:
+        (row.status === "deaktiviert" || row.status === "unbestaetigt") &&
+        !!actor &&
+        owners.has(actor) &&
+        !takeoverProblem(owners, actor, row.responsibleId, !!row.disabledAt),
     }))
     .sort((a, b) => Number(a.status !== "aktiv") - Number(b.status !== "aktiv"));
 }
 
 /**
  * Prüft den Bearer-Header einer Anfrage an /api/mcp oder /api/v1. Null, wenn der Zugang ausgeschaltet ist oder das Token fehlt,
- * unbekannt, abgelaufen oder widerrufen ist.
+ * unbekannt, abgelaufen, widerrufen oder deaktiviert ist oder keinen aktuell bestätigten Verantwortlichen hat.
  */
 export async function authenticateMcp(request: Request, now = new Date()): Promise<McpAccess | null> {
   const header = request.headers.get("authorization") ?? "";
@@ -172,7 +183,7 @@ export async function authenticateMcp(request: Request, now = new Date()): Promi
   if (!(await mcpEnabled())) return null;
   // Gesucht wird über den Hash; ein Vergleich in konstanter Zeit ist damit nicht nötig
   const [row] = await db
-    .select({ id: schema.mcpTokens.id, name: schema.mcpTokens.name, scopes: schema.mcpTokens.scopes })
+    .select({ id: schema.mcpTokens.id, name: schema.mcpTokens.name, scopes: schema.mcpTokens.scopes, responsibleId: schema.mcpTokens.responsibleId })
     .from(schema.mcpTokens)
     .where(
       and(
@@ -182,7 +193,7 @@ export async function authenticateMcp(request: Request, now = new Date()): Promi
         gt(schema.mcpTokens.expiresAt, now),
       ),
     );
-  if (!row) return null;
+  if (!row?.responsibleId || !(await currentTokenOwners(db, now)).has(row.responsibleId)) return null;
   await db.update(schema.mcpTokens).set({ lastUsedAt: now }).where(eq(schema.mcpTokens.id, row.id));
   return { tokenId: row.id, clientName: row.name, scopes: row.scopes.filter((s): s is TokenScope => (TOKEN_SCOPES as readonly string[]).includes(s)) };
 }
@@ -210,14 +221,14 @@ export async function recentMcpCalls(limit = 20) {
     .limit(limit);
 }
 
-/** Explizite Übernahme durch einen anderen Inhaber, ohne Änderung des Geheimnisses, der Rechte oder Frist. */
+/** Explizite Übernahme, ohne Änderung des Geheimnisses, der Rechte oder Frist. */
 export async function reactivateMcpToken(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {
     await requireTokenOwner(tx, actor);
     const [token] = await tx.select().from(schema.mcpTokens).where(eq(schema.mcpTokens.id, id)).for("update");
-    if (!token?.disabledAt || token.revokedAt || token.expiresAt <= new Date())
-      throw new McpError("Nur ein deaktivierter, noch gültiger Token lässt sich übernehmen.");
-    if (token.responsibleId === actor) throw new McpError("Ein anderer Inhaber muss diesen Token übernehmen.");
+    if (!token || token.revokedAt || token.expiresAt <= new Date()) throw new McpError("Nur ein deaktivierter, noch gültiger Token lässt sich übernehmen.");
+    const problem = takeoverProblem(await currentTokenOwners(tx), actor, token.responsibleId, !!token.disabledAt);
+    if (problem) throw new McpError(problem);
     await tx.update(schema.mcpTokens).set({ responsibleId: actor, disabledAt: null, disabledReason: null }).where(eq(schema.mcpTokens.id, id));
     await tokenEvent(tx, actor, "api", id, "reaktiviert", actor, token.responsibleId);
   });

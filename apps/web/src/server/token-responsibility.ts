@@ -1,8 +1,49 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { schema, type Tx } from "./db/index.ts";
 import { env } from "./env.ts";
 import { UserError } from "./errors.ts";
+import { SSO_PROOF_MS } from "./sso-groups.ts";
 import { ssoOnly } from "./sso-policy.ts";
+
+/**
+ * So lange trägt die letzte SSO-Bestätigung des Verantwortlichen dessen Tokens. Einen Gruppenentzug sieht Haben nur beim
+ * Callback; wer nie wiederkommt, soll Tokens nicht bis zu ihrem Ablauf (bis 365 Tage) am Leben halten.
+ */
+export const TOKEN_OWNER_CONFIRMATION_MS = 30 * 86_400_000;
+
+/**
+ * Konten, die in der laufenden Betriebsart Tokens verantworten können: lokal ungesperrte Inhaber, im SSO-Modus Inhaber mit
+ * Bestätigung dieses Issuers innerhalb der Frist. Tokens anderer Konten gelten nicht, auch nach einem Moduswechsel.
+ */
+export async function currentTokenOwners(q: Pick<Tx, "select">, now = new Date()): Promise<Set<string>> {
+  const rows = ssoOnly()
+    ? await q
+        .select({ id: schema.ssoRoles.userId })
+        .from(schema.ssoRoles)
+        .where(
+          and(
+            eq(schema.ssoRoles.issuer, env().OIDC_ISSUER!),
+            eq(schema.ssoRoles.role, "inhaber"),
+            gt(schema.ssoRoles.confirmedAt, new Date(now.getTime() - TOKEN_OWNER_CONFIRMATION_MS)),
+          ),
+        )
+    : await q
+        .select({ id: schema.user.id })
+        .from(schema.user)
+        .where(and(eq(schema.user.role, "inhaber"), isNull(schema.user.lockedAt)));
+  return new Set(rows.map((row) => row.id));
+}
+
+/**
+ * Warum `actor` einen Zugang nicht übernehmen darf, oder null. Übernehmen lässt sich nur, was deaktiviert ist oder keinen
+ * gültigen Verantwortlichen hat. Den eigenen Zugang übernimmt ein anderer Inhaber; nur wer der einzige ist, darf es selbst,
+ * sonst blieben seine Tokens nach einer vorübergehenden Abweisung für immer tot.
+ */
+export function takeoverProblem(owners: Set<string>, actor: string, responsibleId: string | null, disabled: boolean): string | null {
+  if (!disabled && responsibleId && owners.has(responsibleId)) return "Nur ein deaktivierter oder unbestätigter, noch gültiger Zugang lässt sich übernehmen.";
+  if (responsibleId === actor && [...owners].some((id) => id !== actor)) return "Ein anderer Inhaber muss diesen Zugang übernehmen.";
+  return null;
+}
 
 /** Derselbe Lock bei Rollenentzug, Tokenanlage und Übernahme; immer vor Token-Zeilensperren. */
 export async function lockTokenResponsibility(tx: Tx, userId: string) {
@@ -21,7 +62,7 @@ export async function requireTokenOwner(tx: Tx, actor: string) {
       .select()
       .from(schema.ssoRoles)
       .where(and(eq(schema.ssoRoles.userId, actor), eq(schema.ssoRoles.issuer, env().OIDC_ISSUER!)));
-    if (role?.role === "inhaber" && role.confirmedAt.getTime() > Date.now() - 15 * 60_000) return;
+    if (role?.role === "inhaber" && role.confirmedAt.getTime() > Date.now() - SSO_PROOF_MS) return;
   }
   throw new UserError("Nur ein aktuell berechtigter Inhaber darf Tokens verwalten.");
 }

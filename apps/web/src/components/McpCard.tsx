@@ -12,7 +12,7 @@ type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 export const MCP_DOCS = "https://haben.app/ki-assistenten.html";
 export const API_DOCS = "https://haben.app/api.html";
 
-const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill", deaktiviert: "pill-warn" } as const;
+const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill", deaktiviert: "pill-warn", unbestaetigt: "pill-warn" } as const;
 
 /** Einstellungen → KI-Assistenten und API: Zugang ein- und ausschalten, API-Tokens mit Rechten und Protokoll */
 export function McpCard({ data }: { data: Data }) {
@@ -188,7 +188,7 @@ export function McpCard({ data }: { data: Data }) {
               <div key={token.id} className="history-row">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontWeight: 500 }}>
-                    {token.name} <span className={`pill ${STATUS[token.status]}`}>{token.status}</span>
+                    {token.name} <span className={`pill ${STATUS[token.status]}`}>{token.status === "unbestaetigt" ? "unbestätigt" : token.status}</span>
                   </span>
                   <span className="small muted">
                     <span className="mono">{token.prefix}…</span> · angelegt {formatDate(token.createdAt)} ·{" "}
@@ -201,14 +201,17 @@ export function McpCard({ data }: { data: Data }) {
                       Deaktiviert: {token.disabledReason === "inhaberrolle-entzogen" ? "Inhaberrolle entzogen" : "Verantwortung noch nicht zugeordnet"}
                     </span>
                   )}
+                  {token.status === "unbestaetigt" && (
+                    <span className="small muted">Gilt erst wieder, wenn der Verantwortliche sich angemeldet hat oder jemand den Token übernimmt.</span>
+                  )}
                   <span className="small muted">Rechte: {token.scopes.map(label).join(" · ")}</span>
                 </div>
-                {token.status === "deaktiviert" && token.responsibleId !== data.actorId && (
+                {token.canTakeOver && (
                   <button type="button" className="btn" disabled={busy} onClick={() => setTakingOver(token)}>
                     Übernehmen und reaktivieren
                   </button>
                 )}
-                {(token.status === "aktiv" || token.status === "deaktiviert") && (
+                {(token.status === "aktiv" || token.status === "deaktiviert" || token.status === "unbestaetigt") && (
                   <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRevoking(token)}>
                     Widerrufen
                   </button>

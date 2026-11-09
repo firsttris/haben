@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { requireTokenOwner, tokenEvent } from "../../token-responsibility.ts";
+import { currentTokenOwners, requireTokenOwner, takeoverProblem, tokenEvent } from "../../token-responsibility.ts";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   abgabefrist,
@@ -306,9 +306,11 @@ export async function revokeCalendarToken(actor: string): Promise<void> {
   await withActor(actor, (tx) => tx.update(schema.company).set({ calendarTokenHash: null, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }
 
+const calendarOwnerConfirmed = async (responsibleId: string | null) => !!responsibleId && (await currentTokenOwners(db)).has(responsibleId);
+
 export async function calendarTokenActive(): Promise<boolean> {
   const company = await loadCompany();
-  return Boolean(company.calendarTokenHash && !company.calendarTokenDisabledAt);
+  return Boolean(company.calendarTokenHash && !company.calendarTokenDisabledAt && (await calendarOwnerConfirmed(company.calendarTokenResponsibleId)));
 }
 
 export async function checkCalendarToken(token: string): Promise<boolean> {
@@ -318,7 +320,7 @@ export async function checkCalendarToken(token: string): Promise<boolean> {
   if (!stored || !token) return false;
   const a = Buffer.from(hashToken(token), "hex");
   const b = Buffer.from(stored, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
+  return a.length === b.length && timingSafeEqual(a, b) && calendarOwnerConfirmed(company.calendarTokenResponsibleId);
 }
 
 const icsText = (value: string) =>
@@ -393,8 +395,12 @@ export function fristenToIcs(fristen: Frist[], baseUrl: string, now = new Date()
 }
 
 /** Metadaten für die Verwaltung, niemals Hash oder Token. */
-export async function calendarTokenStatus() {
+export async function calendarTokenStatus(actor?: string) {
   const company = await loadCompany();
+  const owners = await currentTokenOwners(db);
+  const responsibleId = company.calendarTokenResponsibleId;
+  const ownerConfirmed = !!responsibleId && owners.has(responsibleId);
+  const unusable = !!company.calendarTokenDisabledAt || !ownerConfirmed;
   const [responsible] = company.calendarTokenResponsibleId
     ? await db.select({ name: schema.user.name }).from(schema.user).where(eq(schema.user.id, company.calendarTokenResponsibleId))
     : [];
@@ -405,6 +411,13 @@ export async function calendarTokenStatus() {
     createdBy: company.calendarTokenCreatedBy,
     disabledAt: company.calendarTokenDisabledAt,
     disabledReason: company.calendarTokenDisabledReason,
+    ownerConfirmed,
+    canTakeOver:
+      !!company.calendarTokenHash &&
+      unusable &&
+      !!actor &&
+      owners.has(actor) &&
+      !takeoverProblem(owners, actor, responsibleId, !!company.calendarTokenDisabledAt),
   };
 }
 
@@ -412,8 +425,9 @@ export async function reactivateCalendarToken(actor: string): Promise<void> {
   await withActor(actor, async (tx) => {
     await requireTokenOwner(tx, actor);
     const [company] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
-    if (!company?.calendarTokenHash || !company.calendarTokenDisabledAt) throw new UserError("Nur ein deaktiviertes Kalender-Abo lässt sich übernehmen.");
-    if (company.calendarTokenResponsibleId === actor) throw new UserError("Ein anderer Inhaber muss das Kalender-Abo übernehmen.");
+    if (!company?.calendarTokenHash) throw new UserError("Es gibt kein Kalender-Abo, das sich übernehmen ließe.");
+    const problem = takeoverProblem(await currentTokenOwners(tx), actor, company.calendarTokenResponsibleId, !!company.calendarTokenDisabledAt);
+    if (problem) throw new UserError(problem);
     await tx
       .update(schema.company)
       .set({ calendarTokenResponsibleId: actor, calendarTokenDisabledAt: null, calendarTokenDisabledReason: null })
