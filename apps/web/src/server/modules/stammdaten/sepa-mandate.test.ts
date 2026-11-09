@@ -63,6 +63,14 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Lastschriftmandate am Kontakt (Postgres,
     );
   });
 
+  it("lehnt eine IBAN außerhalb von SEPA ab (Rulebook SDD Core und B2B v1.2, Kap. 2.2)", async () => {
+    // „The Debtor and Creditor must each hold an account with a Participant located within SEPA.“ Die Türkei gehört nicht dazu.
+    await expect(mandates.createMandate(actor, contactId, input({ debtorIban: "TR33 0006 1005 1978 6457 8413 26" }), "2026-11-09")).rejects.toThrow(
+      "TR330006100519786457841326",
+    );
+    expect(await mandates.listMandates(contactId, "2026-11-09")).toEqual([]);
+  });
+
   it("prüft IBAN, Referenz und Daten", async () => {
     await expect(mandates.createMandate(actor, contactId, input({ debtorIban: "DE00120300000000202051" }), "2026-11-09")).rejects.toThrow(
       "Die IBAN DE00120300000000202051 ist ungültig.",
