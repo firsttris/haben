@@ -298,7 +298,16 @@ proxy_pass $haben;
 
 **Mehrere Adressen in `X-Forwarded-For`:** Haben wertet den Header nur aus, wenn genau eine Adresse darin steht. Bei mehreren zählen alle diese Anfragen zusammen als ein Client. Einen Proxy, der an einen vom Client mitgeschickten Wert anhängt (`$proxy_add_x_forwarded_for`, `option forwardfor`), umgeht also niemand; wer den Header fälscht, landet in diesem gemeinsamen Zähler. Wichtig wird das bei zwei Proxys hintereinander, etwa einem CDN vor nginx: Reicht der innere die ganze Kette weiter, teilen sich alle Nutzer den Zähler, und die Anmeldung meldet schon nach wenigen Versuchen zu viele Anfragen. Der innere Proxy setzt dann die echte Client-Adresse als einzigen Wert.
 
-**Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ und „HSTS“ einschalten, unter Advanced `proxy_read_timeout 300s;` eintragen. Uploads nimmt Nginx Proxy Manager von sich aus bis 2 GB an. Sein HSTS-Header enthält `preload`.
+**Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ und „HSTS“ einschalten, unter Advanced diese Zeilen eintragen:
+
+```nginx
+proxy_read_timeout 300s;
+more_set_headers "X-Content-Type-Options: nosniff";
+more_set_headers "Referrer-Policy: same-origin";
+more_set_headers "X-Frame-Options: SAMEORIGIN";
+```
+
+`add_header` wirkt hier nicht: Nginx Proxy Manager setzt in der Location eigene Header, und dann erbt sie keine aus dem Server-Block. Uploads nimmt Nginx Proxy Manager von sich aus bis 2 GB an. Sein HSTS-Header enthält `preload`.
 
 **Traefik:** Router für die Domain mit TLS auf den Service `haben-app:3000`. Traefik begrenzt die Größe von Anfragen nur mit der Middleware `buffering` (`maxRequestBodyBytes`); nutzt du sie, dann mit mindestens 250 MB. Wichtig ist das Zeitlimit des Entrypoints in der statischen Konfiguration: Standard sind 60 Sekunden für die ganze Anfrage, ein längerer Upload bricht mit 502 ab.
 
