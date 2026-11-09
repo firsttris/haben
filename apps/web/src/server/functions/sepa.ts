@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+  createDirectDebitFile,
   createSepaTransfer,
+  directDebitCandidates,
+  directDebitFileSchema,
+  listDirectDebitFiles,
   decideDocumentIban,
   ibanDecisionSchema,
   listAccounts,
@@ -38,3 +42,23 @@ export const decideDocumentIbanFn = createServerFn({ method: "POST" })
     await decideDocumentIban(context.user.id, data.documentId, data.decision);
     return { ok: true };
   });
+
+/** Lastschriften als pain.008 aus fälligen Rechnungen (#445) */
+export const getDirectDebitPage = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    // Gläubigerkonto kann nur ein Bankkonto mit IBAN sein, kein Zahlungsdienstleister
+    const accounts = (await listAccounts()).filter((a) => a.iban !== null && a.purpose !== "zahlungsdienstleister");
+    const day = today();
+    return {
+      candidates: await directDebitCandidates(day),
+      accounts: accounts.map((a) => ({ id: a.id, name: a.name, iban: a.iban!, purpose: a.purpose })),
+      files: await listDirectDebitFiles(),
+      today: day,
+    };
+  });
+
+export const createDirectDebitFileFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(directDebitFileSchema)
+  .handler(async ({ data, context }) => createDirectDebitFile(context.user.id, data));

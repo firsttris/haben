@@ -86,3 +86,13 @@ export {
   reverseDocumentCashEntry,
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
+export {
+  createDirectDebitFile,
+  directDebitCandidates,
+  directDebitFile,
+  directDebitFileSchema,
+  lastCollections,
+  listDirectDebitFiles,
+  type DirectDebitCandidate,
+  type DirectDebitFileInput,
+} from "./sepa-lastschriften.ts";

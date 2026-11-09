@@ -1928,6 +1928,60 @@ export const sepaTransferItems = pgTable(
   (t) => [index("sepa_transfer_items_document").on(t.documentId), check("sepa_transfer_items_amount", sql`${t.amount} > 0 and ${t.skonto} >= 0`)],
 );
 
+/** Erzeugte Lastschriftdateien (pain.008, #445) mit Gläubigerkonto, Anzahl, Summe und XML; nur anhängen */
+export const sepaDirectDebits = pgTable("sepa_direct_debits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankAccountId: uuid("bank_account_id")
+    .notNull()
+    .references(() => bankAccounts.id),
+  /** MsgId der Datei, zugleich Dateiname */
+  messageId: text("message_id").notNull().unique(),
+  numberOfTransactions: integer("number_of_transactions").notNull(),
+  controlSum: bigint("control_sum", { mode: "number" }).notNull(),
+  /** Die Datei, wie sie heruntergeladen wurde */
+  xml: text("xml").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Eine Lastschrift der Datei je Rechnung: Mandat, Sequenz, Fälligkeit und Sammler (PmtInfId). Die Bank schreibt jeden
+ * Sammler als eine Summe gut; der Bankabgleich teilt sie über diese Zeilen auf die Rechnungen auf. Zählt als Einzug für
+ * den Verfall des Mandats nach 36 Monaten.
+ */
+export const sepaDirectDebitItems = pgTable(
+  "sepa_direct_debit_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    directDebitId: uuid("direct_debit_id")
+      .notNull()
+      .references(() => sepaDirectDebits.id),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    mandateId: uuid("mandate_id")
+      .notNull()
+      .references(() => sepaMandates.id),
+    paymentInfoId: text("payment_info_id").notNull(),
+    endToEndId: text("end_to_end_id").notNull().unique(),
+    scheme: text("scheme", { enum: ["CORE", "B2B"] }).notNull(),
+    sequence: text("sequence", { enum: ["FRST", "RCUR"] }).notNull(),
+    collectionDate: date("collection_date", { mode: "string" }).notNull(),
+    /** Eingezogener Betrag in Cent */
+    amount: integer("amount").notNull(),
+    debtorName: text("debtor_name").notNull(),
+    debtorIban: text("debtor_iban").notNull(),
+    remittance: text("remittance").notNull(),
+  },
+  (t) => [
+    index("sepa_direct_debit_items_invoice").on(t.invoiceId),
+    index("sepa_direct_debit_items_mandate").on(t.mandateId),
+    index("sepa_direct_debit_items_payment_info").on(t.paymentInfoId),
+    check("sepa_direct_debit_items_amount", sql`${t.amount} > 0`),
+    check("sepa_direct_debit_items_scheme", sql`${t.scheme} in ('CORE', 'B2B')`),
+    check("sepa_direct_debit_items_sequence", sql`${t.sequence} in ('FRST', 'RCUR')`),
+  ],
+);
+
 /**
  * Entscheidung je Beleg, welche IBAN gilt, wenn die E-Rechnung (BT-84) eine andere nennt als der Kontakt (#410): die
  * des Kontakts oder die der E-Rechnung nur für diesen Beleg; hat der Kontakt keine IBAN, die Bestätigung der IBAN aus der

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation, UserError } from "../../errors.ts";
+import { lastCollections } from "../bank/index.ts";
 import { attachmentFileProblem, storeAttachmentFile, type AttachmentFile } from "../rechnungen/index.ts";
 
 /**
@@ -60,6 +61,9 @@ export interface Mandate {
   revocation: { revokedOn: string; reason: string; createdAt: Date } | null;
   status: MandatStatus;
 }
+
+/** Der spätere von zwei Tagen; null, wenn keiner da ist */
+const latest = (a: string | null, b: string | undefined): string | null => (a && b ? (a > b ? a : b) : (a ?? b ?? null));
 
 /** Fehler in den Angaben als Satz, oder null */
 function mandateProblem(input: z.infer<typeof mandateInputSchema>, today: string): string | null {
@@ -154,13 +158,18 @@ async function loadMandates(where: SQL, today: string, q: Db | Tx): Promise<Mand
   // Das jüngste PDF gilt; die Reihenfolge oben lässt das letzte gewinnen
   const fileOf = new Map(files.map((f) => [f.mandateId, { filename: f.filename, sha256: f.sha256, size: f.size, createdAt: f.createdAt }]));
   const revocationOf = new Map(revocations.map((r) => [r.mandateId, { revokedOn: r.revokedOn, reason: r.reason, createdAt: r.createdAt }]));
+  // Einzüge aus Haben (Lastschriftdateien) zählen für den Verfall wie der letzte Einzug vor Haben
+  const collectedInHaben = await lastCollections(ids, q);
   return rows.map(({ createdBy: _createdBy, ...row }) => {
     const revocation = revocationOf.get(row.id) ?? null;
     return {
       ...row,
       file: fileOf.get(row.id) ?? null,
       revocation,
-      status: mandatStatus({ signedOn: row.signedOn, lastCollectionOn: row.lastCollectionBefore, revokedOn: revocation?.revokedOn ?? null }, today),
+      status: mandatStatus(
+        { signedOn: row.signedOn, lastCollectionOn: latest(row.lastCollectionBefore, collectedInHaben.get(row.id)), revokedOn: revocation?.revokedOn ?? null },
+        today,
+      ),
     };
   });
 }
