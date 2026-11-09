@@ -34,7 +34,8 @@
 // Pflichtangaben über die ganze Breite unter den Spalten des Fußes
 #let legal-foot = if legal == none { none } else { pad(top: 2mm, footer-col((legal,))) }
 
-#let foot-spalten = {
+// Leer, wenn das Briefpapier selbst den Fuß trägt
+#let foot-spalten = if d.footer.len() == 0 { none } else {
   set block(spacing: 0pt)
   line(length: 100%, stroke: 0.4pt + rule)
   v(3mm)

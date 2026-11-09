@@ -201,6 +201,8 @@ export function InvoicePreview({
     ],
     [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
   ].map((column) => column.filter(Boolean));
+  // Wie im PDF (footerData): nur mit Briefpapier
+  const footerHidden = Boolean(seller.background) && options.footerHidden;
   const footer = options.footerColumns ? customFooter(options.footerColumns, footerValues(seller), { needsVatId }) : automaticFooter;
 
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
@@ -395,16 +397,18 @@ export function InvoicePreview({
             </p>
           )}
         </div>
-        <div className="sheet-foot" style={{ gridTemplateColumns: `repeat(${footer.length}, minmax(0, 1fr))` }}>
-          {footer.map((column, index) => (
-            <div key={index}>
-              {column.map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-            </div>
-          ))}
-          {seller.legal && <div className="sheet-foot-legal">{seller.legal}</div>}
-        </div>
+        {!footerHidden && (
+          <div className="sheet-foot" style={{ gridTemplateColumns: `repeat(${footer.length}, minmax(0, 1fr))` }}>
+            {footer.map((column, index) => (
+              <div key={index}>
+                {column.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+            ))}
+            {seller.legal && <div className="sheet-foot-legal">{seller.legal}</div>}
+          </div>
+        )}
       </div>
     </div>
   );

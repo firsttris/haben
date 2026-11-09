@@ -216,7 +216,12 @@ function SettingsPage() {
               <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
               <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} />
               <AccentColorCard color={design.accent} />
-              <FooterCard key={JSON.stringify(design.footerColumns)} columns={design.footerColumns} seller={company} />
+              <FooterCard
+                key={JSON.stringify(design.footerColumns)}
+                columns={design.footerColumns}
+                seller={company}
+                hidden={design.footerHidden && background !== null}
+              />
               <LayoutsCard design={design} />
             </>
           )}

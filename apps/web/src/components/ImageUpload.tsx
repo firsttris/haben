@@ -31,6 +31,7 @@ export function ImageUpload({
   sha256,
   url,
   maxBytes,
+  accept = "image/png,image/jpeg",
   texts,
   upload,
   remove,
@@ -40,6 +41,7 @@ export function ImageUpload({
   sha256: string | null;
   url: string;
   maxBytes: number;
+  accept?: string;
   texts: ImageUploadTexts;
   upload: (input: { data: { base64: string } }) => Promise<unknown>;
   remove: () => Promise<unknown>;
@@ -74,7 +76,7 @@ export function ImageUpload({
       <div className="actions">
         <label className="btn" style={{ cursor: busy ? "default" : "pointer" }}>
           {current ? texts.replace : texts.upload}
-          <input type="file" accept="image/png,image/jpeg" onChange={onFile} disabled={busy} className="visually-hidden" aria-label={texts.fileLabel} />
+          <input type="file" accept={accept} onChange={onFile} disabled={busy} className="visually-hidden" aria-label={texts.fileLabel} />
         </label>
         {current && (
           <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void change(remove, texts.removed)}>

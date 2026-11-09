@@ -138,16 +138,17 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 | Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
 | Spalte USt je Position | Entfällt nur, wenn alle Positionen denselben Steuersatz haben; bei mehreren Sätzen bleibt sie stehen |
 
-Pflichtangaben und Summen lassen sich nicht ausblenden.
+Pflichtangaben und Summen lassen sich hier nicht ausblenden; zur Fußzeile auf dem Briefpapier siehe [Briefpapier](#briefpapier).
 
 ### Briefpapier
 
 Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hinter den Beleg, etwa deinen gedruckten Briefbogen als Scan.
 
-- Es geht PNG oder JPEG bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
-- Ein PDF als Hintergrund geht nicht: Die Belege sind PDF/A-3, und ein eingebettetes PDF ließe sich darin nicht zuverlässig als gültig ausgeben.
+- Es geht PNG, JPEG oder PDF bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist.
+- Von einem PDF nimmt Haben die erste Seite und wandelt sie mit 200 dpi in ein Bild um, denn die Belege sind PDF/A-3 und können kein PDF einbetten. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
 - **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Das Blatt in der Vorschau zeigt die erste Seite.
-- Logo, Fußzeile und Falzmarken bleiben, soweit eingeschaltet, und liegen über dem Bild. Hat dein Briefbogen schon ein Logo, nimm das hochgeladene heraus.
+- Logo und Falzmarken liegen über dem Bild. Hat dein Briefbogen schon ein Logo, entferne das hochgeladene.
+- Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier, druckt Haben die Fußzeile wieder.
 - Jedes neu erzeugte PDF enthält das Bild, schon festgeschriebene PDFs bleiben unverändert. Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
 ### Fußzeile

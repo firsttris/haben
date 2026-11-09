@@ -86,7 +86,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     taxNote: null,
     note: doc.note?.trim() ? doc.note.trim() : null,
     noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
-    ...footerData(seller, t, doc.options),
+    ...footerData(seller, t, doc),
   };
 }
 

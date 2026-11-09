@@ -24,7 +24,6 @@ import {
   showsVatColumn,
   type Discount,
   type LegalInfo,
-  type LetterheadOptions,
 } from "@haben/core";
 import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
@@ -157,7 +156,7 @@ export function documentPdfData(
     note: doc.note?.trim() ? doc.note.trim() : null,
     introFormatted: doc.intro?.trim() ? parseTextFormatting(doc.intro.trim()) : null,
     noteFormatted: doc.note?.trim() ? parseTextFormatting(doc.note.trim()) : null,
-    ...footerData(seller, t, doc.options, treatment),
+    ...footerData(seller, t, doc, treatment),
   };
 }
 
@@ -327,7 +326,10 @@ export function legalLine(info: LegalInfo | undefined, t: Texts = TEXTS.de): str
 }
 
 /** Fuß für die Vorlagen: drei Spalten und die Pflichtangaben der Gesellschaft */
-export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, options?: LetterheadOptions, treatment: TaxTreatment = "regulaer") {
+export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, letterhead: Letterhead = {}, treatment: TaxTreatment = "regulaer") {
+  const { options } = letterhead;
+  // Nur mit Briefpapier: Ohne stünden die Pflichtangaben nirgends
+  if (letterhead.background && options?.footerHidden) return { footer: [], legal: null };
   const footer = options?.footerColumns
     ? customFooter(
         options.footerColumns,

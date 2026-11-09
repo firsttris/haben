@@ -70,6 +70,8 @@ export interface LetterheadOptions {
   footerColumns: string[] | null;
   font: LetterheadFont;
   backgroundPages: BackgroundPages;
+  /** Das Briefpapier trägt selbst Fußzeile und Pflichtangaben; gilt nur, solange eines hinterlegt ist */
+  footerHidden: boolean;
 }
 
 /** Gestaltung eines Briefkopf-Profils (#113). Neue Einstellungen brauchen eine Vorgabe in DEFAULT_DESIGN, ältere Zeilen kennen sie nicht */
@@ -89,6 +91,7 @@ export const DEFAULT_OPTIONS: LetterheadOptions = {
   footerColumns: null,
   font: "plex-sans",
   backgroundPages: "erste",
+  footerHidden: false,
 };
 
 export const DEFAULT_DESIGN: LetterheadDesign = {
@@ -123,6 +126,7 @@ export const letterheadDesignInputSchema = z
     vatColumn: z.boolean(),
     font: z.enum(Object.keys(LETTERHEAD_FONTS) as [LetterheadFont, ...LetterheadFont[]]),
     backgroundPages: z.enum(["erste", "alle"]),
+    footerHidden: z.boolean(),
     footerColumns: z
       .array(z.string().max(MAX_FOOTER_TEXT))
       .min(MIN_FOOTER_COLUMNS)

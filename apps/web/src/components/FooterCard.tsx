@@ -25,7 +25,7 @@ const COUNT_OPTIONS = Array.from({ length: MAX_FOOTER_COLUMNS - MIN_FOOTER_COLUM
 type FooterSeller = Parameters<typeof footerValues>[0];
 
 /** Fußzeile der Belege: automatisch aus den Firmendaten oder eigene Spalten mit Platzhaltern */
-export function FooterCard({ columns, seller }: { columns: string[] | null; seller: FooterSeller }) {
+export function FooterCard({ columns, seller, hidden }: { columns: string[] | null; seller: FooterSeller; hidden: boolean }) {
   const save = useServerFn(saveLetterheadDesign);
   const router = useRouter();
   const { busy, notice, run } = useAction();
@@ -63,6 +63,11 @@ export function FooterCard({ columns, seller }: { columns: string[] | null; sell
   return (
     <section className="card design-card" aria-labelledby="footer-heading">
       <h2 id="footer-heading">Fußzeile</h2>
+      {hidden && (
+        <div className="banner banner-info" role="status">
+          Ausgeschaltet: Die Fußzeile steht auf dem Briefpapier. Was du hier einstellst, gilt erst wieder, wenn du das unter „Briefpapier“ änderst.
+        </div>
+      )}
       <label className="checkbox">
         <input type="checkbox" checked={own} onChange={(event) => setOwn(event.target.checked)} />
         Eigene Fußzeile
