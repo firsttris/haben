@@ -135,8 +135,9 @@ export function parseEtsy(rows: string[][], headerRow: number): ParsedStatement 
     const label = labelOf(kind);
     // Gebühren beginnen mit „Gebühr“ wie bei den übrigen Dienstleistern: Darauf baut die Zuordnung zur Sammelrechnung
     // (allocateFeesToDocument und der Knopf im Bankabgleich suchen Zwecke, die so beginnen). Etsy-Gebührenzeilen
-    // haben keinen Betrag, nur „Gebühren & Steuern“, und bekämen den Anfang sonst nie.
-    const rowPurpose = label === "Gebühr" ? describe("Gebühr") : purpose;
+    // haben keinen Betrag, nur „Gebühren & Steuern“, und bekämen den Anfang sonst nie. Auch Werbung (Etsy Ads, Offsite
+    // Ads) steht auf der monatlichen Gebührenrechnung von Etsy und gehört dazu; die Art bleibt „Werbung“.
+    const rowPurpose = label === "Gebühr" || label === "Werbung" ? describe("Gebühr") : purpose;
     // Ohne bekannte Art oder ohne Betrag und Gebühren zählt nur der Nettobetrag, sonst stimmte das Guthaben nicht
     if (label === undefined || (!amount(row) && !fees(row))) {
       if (!net(row)) {
