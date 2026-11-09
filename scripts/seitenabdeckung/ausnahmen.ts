@@ -18,6 +18,7 @@ export const EXCEPTIONS: Record<"seiten" | "barrierefreiheit", Record<string, st
     ...REDIRECTS,
     "/angebote/$id": OPEN,
     "/angebote/neu": OPEN,
+    "/anlagen/$id": OPEN,
     "/kontakte/neu": OPEN,
     "/umsatzsteuer/$zeitraum": OPEN,
     "/archiv/beleg/$id": OPEN,
@@ -27,7 +28,12 @@ export const EXCEPTIONS: Record<"seiten" | "barrierefreiheit", Record<string, st
   barrierefreiheit: {
     ...REDIRECTS,
     "/belege/$id": "axe prüft gmbh.spec.ts am stornierten Beleg",
+    "/angebote/$id": OPEN,
+    "/anlagen/$id": OPEN,
     "/archiv/beleg/$id": OPEN,
+    "/kontakte/$id": OPEN,
+    "/rechnungen/$id": OPEN,
     "/rechnungen/mahnwesen/$id": OPEN,
+    "/rechnungen/wiederkehrend/$id": OPEN,
   },
 };

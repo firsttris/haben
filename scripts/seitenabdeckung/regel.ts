@@ -30,12 +30,30 @@ function matcherOf(page: string): RegExp {
   return new RegExp(`^${segments.join("/")}$`);
 }
 
+/** 0 für ein festes Segment, 1 für einen Parameter */
+const rankOf = (page: string) => page.split("/").map((segment) => (segment.startsWith("$") ? 1 : 0));
+
+function compareRanks(a: number[], b: number[]): number {
+  const index = a.findIndex((rank, i) => rank !== b[i]);
+  return index === -1 ? 0 : a[index] - b[index];
+}
+
+/**
+ * Die Seite, die der Router für einen Pfad wählt: Ein festes Segment geht vor einem Parameter (TanStack Router,
+ * „Route Matching“), `/rechnungen/neu` ist also nicht `/rechnungen/$id`.
+ */
+function pageFor(pages: string[], path: string): string | undefined {
+  return pages.filter((page) => matcherOf(page).test(path)).sort((a, b) => compareRanks(rankOf(a), rankOf(b)))[0];
+}
+
+const isCovered = (page: string, pages: string[], specPaths: string[]) => specPaths.some((path) => pageFor(pages, path) === page);
+
 /** Seiten, die in keinem Pfad der Spec vorkommen und nicht ausdrücklich ausgenommen sind */
 export function missingPages(pages: string[], specPaths: string[], exceptions: Record<string, string>): string[] {
-  return pages.filter((page) => !(page in exceptions) && !specPaths.some((path) => matcherOf(page).test(path)));
+  return pages.filter((page) => !(page in exceptions) && !isCovered(page, pages, specPaths));
 }
 
 /** Ausnahmen, die keine Seite mehr betreffen oder inzwischen abgedeckt sind, sollen aus der Liste verschwinden */
 export function staleExceptions(pages: string[], specPaths: string[], exceptions: Record<string, string>): string[] {
-  return Object.keys(exceptions).filter((page) => !pages.includes(page) || specPaths.some((path) => matcherOf(page).test(path)));
+  return Object.keys(exceptions).filter((page) => !pages.includes(page) || isCovered(page, pages, specPaths));
 }
