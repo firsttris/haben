@@ -52,7 +52,11 @@ describe.skipIf(!testDatabaseUrl)("Lastschriften im Bankabgleich: Sammelgutschri
     await sql?.end();
   });
 
-  async function setup(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
+  async function setup(
+    kontenrahmen: "SKR03" | "SKR04",
+    versteuerung: "ist" | "soll",
+    beforeFile: (a: { id: string; number: string | null }) => Promise<void> = async () => {},
+  ) {
     await sql`truncate sepa_direct_debit_items, sepa_direct_debits, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters, sepa_mandate_files,
       sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
@@ -108,6 +112,7 @@ describe.skipIf(!testDatabaseUrl)("Lastschriften im Bankabgleich: Sammelgutschri
       );
     const a = await invoice(25_000);
     const b = await invoice(10_000);
+    await beforeFile(a);
     await bank.createDirectDebitFile(actor, { bankAccountId: accountId, invoiceIds: [a.id, b.id] }, new Date("2026-11-09T08:00:00Z"));
     return { a, b, mandateId };
   }
@@ -214,6 +219,40 @@ describe.skipIf(!testDatabaseUrl)("Lastschriften im Bankabgleich: Sammelgutschri
       });
     }
   }
+
+  describe("Review #481", () => {
+    it("Aufheben der Sammelgutschrift nach einer Rücklastschrift öffnet die Rechnung nicht über ihren Betrag hinaus", async () => {
+      const { a } = await setup("SKR03", "ist");
+      await importRows([row("16.11.26", "SEPA-Lastschrift Sammler", "416,50", true)]);
+      const batchTx = await transactionOn("2026-11-16");
+      await bank.allocateDirectDebitBatch(actor, batchTx);
+      await importRows([row("20.11.26", `RUECKLASTSCHRIFT AM04 Rechnung ${a.number}`, "-297,50", false)]);
+      await bank.allocateDirectDebitReturn(actor, await transactionOn("2026-11-20"));
+      const [batchPart] = await sql`select id from allocations where transaction_id = ${batchTx} and reverses_id is null limit 1`;
+      await bank.reverseAllocation(actor, batchPart!.id).catch(() => {});
+      // Höchstens der Rechnungsbetrag ist offen und wird neu eingezogen, nicht 595,00 €
+      expect(await open(a.id)).toBeLessThanOrEqual(29_750);
+      const candidates = await bank.directDebitCandidates("2026-11-20");
+      expect(candidates.find((c) => c.invoiceId === a.id)?.open ?? 0).toBeLessThanOrEqual(29_750);
+    });
+
+    it("erkennt den Sammler auch mit einer vorher teilweise bezahlten Rechnung", async () => {
+      // 200,00 € der Rechnung über 297,50 € kommen per Überweisung; eingezogen werden die offenen 97,50 €
+      const { a, b } = await setup("SKR04", "soll", async (inv) => {
+        await importRows([row("05.11.26", `Rechnung ${inv.number}`, "200,00", true)]);
+        await bank.allocate(actor, { kind: "invoice", transactionId: await transactionOn("2026-11-05"), invoiceId: inv.id, amount: 20_000 });
+      });
+      await importRows([row("16.11.26", "SEPA-Lastschrift Sammler", "216,50", true)]);
+      const txId = await transactionOn("2026-11-16");
+      expect((await bank.transactionDetail(txId))?.lastschrift).toMatchObject({
+        kind: "sammler",
+        parts: [
+          { invoiceId: a.id, amount: 9_750 },
+          { invoiceId: b.id, amount: 11_900 },
+        ],
+      });
+    });
+  });
 
   it("lehnt eine Rücklastschrift ab, die nicht zum Umsatz passt", async () => {
     const { a } = await setup("SKR03", "ist");

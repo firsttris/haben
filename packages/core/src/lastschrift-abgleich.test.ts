@@ -91,3 +91,20 @@ describe("Rücklastschrift", () => {
     expect(returnReason("Rücklastschrift DE02 1203 0000 0000 2020 51")).toBeNull();
   });
 });
+
+describe("Review #481", () => {
+  it("ordnet eine Rücklastschrift nur mit Mandatsreferenz nicht der ersten Lastschrift desselben Mandats zu", () => {
+    // Zwei Monatsrechnungen auf dasselbe Mandat; zurück kommt die zweite (297,50 € + 3,00 € Entgelt), im Text nur die
+    // Mandatsreferenz. Die erste (119,00 €) passt auch dem Betrag nach (Rest wäre ein „Entgelt“ von 181,50 €).
+    const items = [
+      item({ id: "i1", invoiceId: "r1", invoiceNumber: "2026-041", endToEndId: "HABEN-AAAA", amount: 11_900, state: "gutgeschrieben" }),
+      item({ id: "i2", invoiceId: "r2", invoiceNumber: "2026-042", endToEndId: "HABEN-BBBB", amount: 29_750, state: "gutgeschrieben" }),
+    ];
+    const found = findDirectDebitReturn(tx({ amount: -30_050, purpose: "RUECKLASTSCHRIFT MREF KD-1042-01" }), items);
+    expect(found?.item.id).not.toBe("i1");
+  });
+
+  it("erkennt die Rückgabegründe für SDD aus EPC173-14 (AC13, CNOR, DNOR, ED05)", () => {
+    for (const code of ["AC13", "CNOR", "DNOR", "ED05"]) expect(returnReason(`RETURN ${code}`)?.code).toBe(code);
+  });
+});
