@@ -141,6 +141,24 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 
 Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht; die Artikelnummer trägst du dort je Position selbst ein.
 
+### Fett, kursiv und unterstrichen
+
+In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen drei einfache Auszeichnungen zur Verfügung:
+
+| Eingabe | Darstellung |
+| --- | --- |
+| `*Text*` oder `**Text**` | **Text** |
+| `_Text_` | *Text* |
+| `__Text__` | unterstrichen |
+
+Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
+Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
+Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben.
+HTML, Links und sonstige Markdown- oder Typst-Befehle werden nicht ausgeführt.
+
+Die Formatierung gilt auch im Angebot und in eingefügten Textbausteinen. Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
+Die Zeichen zählen bei der Grenze von 2000 Zeichen mit. Bereits festgeschriebene PDFs und XML-Dateien werden nicht neu erzeugt.
+
 ### Textbausteine
 
 Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußtexte an, die du immer wieder brauchst: Pflichtangaben eines Kunden wie Bestellnummer oder Rahmenvertrag, eine Einleitung je Projekt, einen Dank zum Schluss.
@@ -643,10 +661,10 @@ Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden a
 
 | Feld | Hinweis |
 | --- | --- |
-| Mandatsreferenz | Wie auf dem Mandat; bis 35 Zeichen aus `A–Z a–z 0–9`, Leerzeichen und `+ ? / - : ( ) . , '` (Schema der Deutschen Kreditwirtschaft, [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version), Kap. 2.3.1). Jede Referenz gibt es nur einmal, ohne Rücksicht auf Groß- und Kleinschreibung (Kap. 2.2.2). |
+| Mandatsreferenz | Wie auf dem Mandat; bis 35 Zeichen aus `A–Z a–z 0–9`, Leerzeichen und `+ ? / - : ( ) . , '` (Schema der Deutschen Kreditwirtschaft, [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version), Kap. 2.3.1). Jede Referenz gibt es nur einmal, ohne Rücksicht auf Groß- und Kleinschreibung (Kap. 2.2.2). Sie beginnt und endet nicht mit `/` und enthält kein `//` ([Clarification Paper EPC132-17](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf), Kap. 2.1). |
 | Unterschrieben am | Datum der Unterschrift; nicht in der Zukunft. |
 | Verfahren | Basislastschrift (CORE) oder Firmenlastschrift (B2B). Eine Firmenlastschrift setzt voraus, dass der Kunde kein Verbraucher ist und das Mandat auch seiner Bank vorliegt. |
-| Kontoinhaber, IBAN, BIC | Das Konto, von dem eingezogen wird; vorbelegt mit Name und IBAN des Kontakts. Die BIC ist optional. |
+| Kontoinhaber, IBAN, BIC | Das Konto, von dem eingezogen wird; vorbelegt mit Name und IBAN des Kontakts. Die IBAN muss aus dem EWR sein, wie bei SEPA-Überweisungen: Das Konto muss in SEPA liegen (Rulebook, Kap. 2.2), und außerhalb des EWR verlangt das Mandat die Anschrift des Zahlungspflichtigen. Die BIC ist optional. |
 | Schon eingezogen | Für ein Mandat, auf das vor Haben schon Lastschriften liefen: Der nächste Einzug ist dann eine Folgelastschrift. Mit dem Tag des letzten Einzugs rechnet Haben den Verfall richtig. |
 
 **Verfall nach 36 Monaten.** Ein Mandat, auf das 36 Monate lang keine Lastschrift eingereicht wurde, darf nicht mehr genutzt werden; gezählt ab dem letzten Einzug, auch wenn er zurückgegeben wurde ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) und [SDD B2B Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC222-07%202025%20SDD%20B2B%20Rulebook%20version%201.2.pdf) des EPC, Version 1.2, Kap. 4.2). Für ein Mandat ohne Einzug nennt das Rulebook keinen Beginn; Haben zählt dann vorsichtig ab der Unterschrift. Der Status neben jedem Mandat zeigt, bis wann es gilt oder seit wann es abgelaufen ist; für einen neuen Einzug braucht es dann ein neues Mandat.

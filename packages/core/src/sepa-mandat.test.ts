@@ -44,6 +44,14 @@ describe("Mandatsreferenz", () => {
     expect(mandatsreferenzProblem("A".repeat(36))).toBe("Die Mandatsreferenz hat höchstens 35 Zeichen.");
     expect(mandatsreferenzProblem("Müller_1")).toBe("Die Mandatsreferenz darf nur A–Z, a–z, 0–9, Leerzeichen und + ? / - : ( ) . , ' enthalten.");
   });
+
+  it("lehnt Schrägstriche am Anfang, am Ende und doppelt ab (EPC132-17 v5.1, Kap. 2.1)", () => {
+    // „References, identifications and identifiers … must not start or end with a ‘/’ … must not contain ‘//’s“
+    expect(mandatsreferenzProblem("/KD-1042")).not.toBeNull();
+    expect(mandatsreferenzProblem("KD-1042/")).not.toBeNull();
+    expect(mandatsreferenzProblem("KD//1042")).not.toBeNull();
+    expect(mandatsreferenzProblem("KD/1042/2026")).toBeNull();
+  });
 });
 
 describe("Status des Mandats", () => {

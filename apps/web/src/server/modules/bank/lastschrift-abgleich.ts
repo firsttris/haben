@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { findDirectDebitBatch, findDirectDebitReturn, type CollectedDirectDebit, type DirectDebitState } from "@haben/core";
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
+import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { openBooks } from "../buchhaltung/index.ts";
 import { allocateSplit, BankError, bookPart, invoicePayments, lockTransaction } from "./bank.ts";
@@ -130,9 +131,8 @@ async function transactionFor(transactionId: string) {
       purpose: schema.bankTransactions.purpose,
       bankReference: schema.bankTransactions.bankReference,
       endToEndId: schema.bankTransactions.endToEndId,
-      open: sql<number>`${schema.bankTransactions.amount} - coalesce((select sum(amount) from allocations a where a.transaction_id = ${schema.bankTransactions.id}), 0)`.mapWith(
-        Number,
-      ),
+      // Wie im Bankabgleich: ein verrechneter Umsatz (#457) ist nicht offen
+      open: bankOpenAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.id, transactionId));

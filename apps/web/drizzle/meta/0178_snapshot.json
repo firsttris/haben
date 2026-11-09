@@ -1,6 +1,6 @@
 {
-  "id": "c1536510-e7d7-484c-98cf-2a9ff57e5bb8",
-  "prevId": "2a969617-6ff7-4bc0-8cda-795b4f50394e",
+  "id": "dde0ebd1-4c54-4212-9cb8-98f64c77d95c",
+  "prevId": "9dd9db93-2f08-44ec-8f5b-0e79ab3dc356",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1652,6 +1652,159 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bank_neutralizations": {
+      "name": "bank_neutralizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counter_transaction_id": {
+          "name": "counter_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "reverses_id": {
+          "name": "reverses_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "bank_neutralizations_transaction": {
+          "name": "bank_neutralizations_transaction",
+          "columns": [
+            {
+              "expression": "transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bank_neutralizations_counter": {
+          "name": "bank_neutralizations_counter",
+          "columns": [
+            {
+              "expression": "counter_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bank_neutralizations_reverses": {
+          "name": "bank_neutralizations_reverses",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bank_neutralizations_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_neutralizations_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_neutralizations",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bank_neutralizations_counter_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_neutralizations_counter_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_neutralizations",
+          "tableTo": "bank_transactions",
+          "columnsFrom": [
+            "counter_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bank_neutralizations_reverses_fk": {
+          "name": "bank_neutralizations_reverses_fk",
+          "tableFrom": "bank_neutralizations",
+          "tableTo": "bank_neutralizations",
+          "columnsFrom": [
+            "reverses_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "bank_neutralizations_two": {
+          "name": "bank_neutralizations_two",
+          "value": "\"bank_neutralizations\".\"transaction_id\" <> \"bank_neutralizations\".\"counter_transaction_id\""
+        },
+        "bank_neutralizations_note": {
+          "name": "bank_neutralizations_note",
+          "value": "\"bank_neutralizations\".\"reverses_id\" is not null or length(btrim(\"bank_neutralizations\".\"note\")) > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.bank_transactions": {
@@ -5749,19 +5902,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "payment_method": {
-          "name": "payment_method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ueberweisung'"
-        },
-        "sepa_mandate_id": {
-          "name": "sepa_mandate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "recurring_id": {
           "name": "recurring_id",
           "type": "uuid",
@@ -5951,19 +6091,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "invoices_sepa_mandate_id_sepa_mandates_id_fk": {
-          "name": "invoices_sepa_mandate_id_sepa_mandates_id_fk",
-          "tableFrom": "invoices",
-          "tableTo": "sepa_mandates",
-          "columnsFrom": [
-            "sepa_mandate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "invoices_corrects_fk": {
           "name": "invoices_corrects_fk",
           "tableFrom": "invoices",
@@ -6023,14 +6150,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "invoices_payment_method": {
-          "name": "invoices_payment_method",
-          "value": "\"invoices\".\"payment_method\" in ('ueberweisung', 'lastschrift')"
-        },
-        "invoices_lastschrift_mandat": {
-          "name": "invoices_lastschrift_mandat",
-          "value": "(\"invoices\".\"payment_method\" = 'lastschrift') = (\"invoices\".\"sepa_mandate_id\" is not null)"
-        },
         "invoices_external_ref_pair": {
           "name": "invoices_external_ref_pair",
           "value": "(\"invoices\".\"external_source\" is null) = (\"invoices\".\"external_id\" is null)"
@@ -10222,13 +10341,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'entwurf'"
-        },
-        "payment_method": {
-          "name": "payment_method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ueberweisung'"
         },
         "send_by_mail": {
           "name": "send_by_mail",

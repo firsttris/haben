@@ -113,9 +113,18 @@
 #v(5mm)
 
 // Einleitung (Kopftext) über den Positionen
+#let formatted(runs) = {
+  for run in runs {
+    let body = text(run.text)
+    if run.bold { body = semibold(body) }
+    if run.italic { body = emph(body) }
+    if run.underline { body = underline(body) }
+    body
+  }
+}
 #let intro = d.at("intro", default: none)
 #if intro != none {
-  intro
+  formatted(d.introFormatted)
   v(4mm)
 }
 
@@ -152,7 +161,7 @@
       let parts = ()
       if tag != none { parts.push(medium(text(size: 8pt, fill: accent, tag))) }
       parts.push(if detail == none and tag == none { l.description } else { medium(l.description) })
-      if detail != none { parts.push(text(size: 8.5pt, fill: muted, detail)) }
+      if detail != none { parts.push(text(size: 8.5pt, fill: muted, formatted(l.detailFormatted))) }
       if discount != none { parts.push(text(size: 8.5pt, fill: muted, discount)) }
       stack(spacing: 1.4mm, ..parts)
     }
@@ -259,5 +268,5 @@
 }
 #if d.note != none {
   v(2mm)
-  d.note
+  formatted(d.noteFormatted)
 }
