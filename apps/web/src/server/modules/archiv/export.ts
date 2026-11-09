@@ -788,21 +788,18 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
 
   const allocatedByTransaction = new Map<string, number>();
   for (const a of allocations) allocatedByTransaction.set(a.transactionId, (allocatedByTransaction.get(a.transactionId) ?? 0) + a.amount);
-  // Verrechnungen gegenläufiger Umsätze (#457), an denen ein Umsatz des Jahres beteiligt ist; samt Gegenzeilen
+  // Verrechnungen gegenläufiger Umsätze (#457), an denen ein Umsatz des Jahres beteiligt ist; samt Gegenzeilen. Die Umsätze
+  // des Jahres wählt SQL über das Buchungsdatum: Als Liste von IDs, zweimal, sprengten sie ab 32.768 Umsätzen die
+  // Grenze von 65.534 Parametern
+  const yearTransactionIds = sql`(select t.id from bank_transactions t where t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)`;
   const neutralizations = transactions.length
     ? await db
         .select()
         .from(schema.bankNeutralizations)
         .where(
           or(
-            inArray(
-              schema.bankNeutralizations.transactionId,
-              transactions.map((t) => t.id),
-            ),
-            inArray(
-              schema.bankNeutralizations.counterTransactionId,
-              transactions.map((t) => t.id),
-            ),
+            sql`${schema.bankNeutralizations.transactionId} in ${yearTransactionIds}`,
+            sql`${schema.bankNeutralizations.counterTransactionId} in ${yearTransactionIds}`,
           ),
         )
         .orderBy(asc(schema.bankNeutralizations.createdAt), asc(schema.bankNeutralizations.id))
