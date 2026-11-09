@@ -1,6 +1,6 @@
 {
-  "id": "6b355854-9f69-4a6d-928c-6e684702c7dd",
-  "prevId": "2bfa2083-a3d2-4fad-929b-a18756dc81a0",
+  "id": "5b004eec-6bc3-45eb-b91e-86eb62a4ce18",
+  "prevId": "c07f9396-1f3b-48a1-b2f1-bc5795b4a3a4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2161,6 +2161,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "tax_treatment": {
+          "name": "tax_treatment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_rate": {
+          "name": "tax_rate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "reverses_id": {
           "name": "reverses_id",
           "type": "uuid",
@@ -2294,6 +2306,10 @@
       },
       "policies": {},
       "checkConstraints": {
+        "cash_entries_einnahme": {
+          "name": "cash_entries_einnahme",
+          "value": "case when \"cash_entries\".\"kind\" = 'einnahme' then \"cash_entries\".\"tax_treatment\" is not null and \"cash_entries\".\"tax_rate\" is not null else \"cash_entries\".\"tax_treatment\" is null and \"cash_entries\".\"tax_rate\" is null end"
+        },
         "cash_entries_invoice_kind": {
           "name": "cash_entries_invoice_kind",
           "value": "(\"cash_entries\".\"kind\" = 'rechnung') = (\"cash_entries\".\"invoice_id\" is not null)"
@@ -10555,284 +10571,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.sepa_direct_debit_items": {
-      "name": "sepa_direct_debit_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "direct_debit_id": {
-          "name": "direct_debit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invoice_id": {
-          "name": "invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mandate_id": {
-          "name": "mandate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payment_info_id": {
-          "name": "payment_info_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "end_to_end_id": {
-          "name": "end_to_end_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sequence": {
-          "name": "sequence",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "collection_date": {
-          "name": "collection_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "debtor_name": {
-          "name": "debtor_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "debtor_iban": {
-          "name": "debtor_iban",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "remittance": {
-          "name": "remittance",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "sepa_direct_debit_items_invoice": {
-          "name": "sepa_direct_debit_items_invoice",
-          "columns": [
-            {
-              "expression": "invoice_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "sepa_direct_debit_items_mandate": {
-          "name": "sepa_direct_debit_items_mandate",
-          "columns": [
-            {
-              "expression": "mandate_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "sepa_direct_debit_items_payment_info": {
-          "name": "sepa_direct_debit_items_payment_info",
-          "columns": [
-            {
-              "expression": "payment_info_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sepa_direct_debit_items_direct_debit_id_sepa_direct_debits_id_fk": {
-          "name": "sepa_direct_debit_items_direct_debit_id_sepa_direct_debits_id_fk",
-          "tableFrom": "sepa_direct_debit_items",
-          "tableTo": "sepa_direct_debits",
-          "columnsFrom": [
-            "direct_debit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sepa_direct_debit_items_invoice_id_invoices_id_fk": {
-          "name": "sepa_direct_debit_items_invoice_id_invoices_id_fk",
-          "tableFrom": "sepa_direct_debit_items",
-          "tableTo": "invoices",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sepa_direct_debit_items_mandate_id_sepa_mandates_id_fk": {
-          "name": "sepa_direct_debit_items_mandate_id_sepa_mandates_id_fk",
-          "tableFrom": "sepa_direct_debit_items",
-          "tableTo": "sepa_mandates",
-          "columnsFrom": [
-            "mandate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sepa_direct_debit_items_end_to_end_id_unique": {
-          "name": "sepa_direct_debit_items_end_to_end_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "end_to_end_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "sepa_direct_debit_items_amount": {
-          "name": "sepa_direct_debit_items_amount",
-          "value": "\"sepa_direct_debit_items\".\"amount\" > 0"
-        },
-        "sepa_direct_debit_items_scheme": {
-          "name": "sepa_direct_debit_items_scheme",
-          "value": "\"sepa_direct_debit_items\".\"scheme\" in ('CORE', 'B2B')"
-        },
-        "sepa_direct_debit_items_sequence": {
-          "name": "sepa_direct_debit_items_sequence",
-          "value": "\"sepa_direct_debit_items\".\"sequence\" in ('FRST', 'RCUR')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.sepa_direct_debits": {
-      "name": "sepa_direct_debits",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "bank_account_id": {
-          "name": "bank_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message_id": {
-          "name": "message_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number_of_transactions": {
-          "name": "number_of_transactions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "control_sum": {
-          "name": "control_sum",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "xml": {
-          "name": "xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sepa_direct_debits_bank_account_id_bank_accounts_id_fk": {
-          "name": "sepa_direct_debits_bank_account_id_bank_accounts_id_fk",
-          "tableFrom": "sepa_direct_debits",
-          "tableTo": "bank_accounts",
-          "columnsFrom": [
-            "bank_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sepa_direct_debits_message_id_unique": {
-          "name": "sepa_direct_debits_message_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "message_id"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

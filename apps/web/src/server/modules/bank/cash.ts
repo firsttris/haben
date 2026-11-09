@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { CASH_BOOKINGS, cashEntryLabel, cashPosting, formatEuro, type CashBooking, type Cents, type PostingLine } from "@haben/core";
+import { bareinnahmeText, CASH_BOOKINGS, cashEntryLabel, cashPosting, formatEuro, type CashBooking, type Cents, type PostingLine } from "@haben/core";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -10,7 +10,7 @@ import { negatedShares, reverseLines, reverseWriteOffRow } from "./bank.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem
- * Tag negativ werden; eine Zeile, die das bewirken würde, lehnt Haben ab. Bareinnahmen auf Rechnungen: cash-invoice.ts.
+ * Tag negativ werden; eine Zeile, die das bewirken würde, lehnt Haben ab. Bareinnahmen auf Rechnungen: cash-invoice.ts, ohne Rechnung: cash-income.ts.
  */
 
 export class CashError extends UserError {}
@@ -153,7 +153,7 @@ export async function createCashEntry(actor: string, input: CashInput, today: st
 
 /**
  * Storno einer Zeile ohne Beleg: Gegenzeile mit heutigem Datum und Gegenbuchung. Bei einer Bareinnahme auf eine Rechnung
- * ist die Rechnung danach wieder offen (reverseInvoiceCashEntry).
+ * ist die Rechnung danach wieder offen (reverseBookedCashEntry).
  */
 export async function reverseCashEntry(actor: string, id: string, today: string): Promise<CashEntry> {
   return withActor(actor, async (tx) => {
@@ -165,7 +165,7 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
     if (already) throw new CashError("Die Kassenbuchung ist bereits storniert.");
     const date = today < original.date ? original.date : today;
     await assertNeverNegative(tx, date, -original.amount);
-    if (original.kind === "rechnung") return reverseInvoiceCashEntry(tx, original, date);
+    if (original.kind === "rechnung" || original.kind === "einnahme") return reverseBookedCashEntry(tx, original, date);
     const reversalId = crypto.randomUUID();
     const text = `Storno Nr. ${original.number}: ${original.text}`;
     const journalEntryId = await postCash(tx, {
@@ -194,12 +194,12 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
 }
 
 /**
- * Gegenzeile einer Bareinnahme auf eine Rechnung (GoBD: nichts wird überschrieben): Die Gegenbuchung dreht die Zeilen
- * der ursprünglichen Buchung (Forderungen an Kasse, bei Ist auch die Umsatzsteuer zurück auf „nicht fällig“), der
+ * Gegenzeile einer Bareinnahme auf eine Rechnung oder ohne Rechnung (GoBD: nichts wird überschrieben): Die Gegenbuchung
+ * dreht die Zeilen der ursprünglichen Buchung (Forderungen an Kasse, bei Ist auch die Umsatzsteuer zurück auf „nicht fällig“), der
  * Steueranteil geht genau zurück. Ein mit der Bareinnahme als Skonto ausgebuchter Rest wird am selben Tag mit aufgehoben,
  * wie beim Aufheben einer Zuordnung im Bankabgleich; ohne die Zahlung wäre er falsch.
  */
-async function reverseInvoiceCashEntry(tx: Tx, original: CashEntry, date: string): Promise<CashEntry> {
+async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string): Promise<CashEntry> {
   if (!original.journalEntryId) throw new CashError("Zur Bareinnahme gibt es keine Buchung.");
   const reversalId = crypto.randomUUID();
   const text = `Storno Nr. ${original.number}: ${original.text}`;
@@ -219,9 +219,12 @@ async function reverseInvoiceCashEntry(tx: Tx, original: CashEntry, date: string
       number: await nextNumber(tx),
       date,
       amount: -original.amount,
-      kind: "rechnung",
+      kind: original.kind,
       text,
       invoiceId: original.invoiceId,
+      // Ohne Rechnung (#276): dieselbe Behandlung, damit Voranmeldung und EÜR den Storno wie die Einnahme zuordnen
+      taxTreatment: original.taxTreatment,
+      taxRate: original.taxRate,
       taxShares: negatedShares(original.taxShares),
       taxSharesInvoiceId: original.taxSharesInvoiceId,
       reversesId: original.id,
@@ -250,6 +253,8 @@ export async function cashBook(year: number) {
       documentId: schema.cashEntries.documentId,
       invoiceId: schema.cashEntries.invoiceId,
       invoiceNumber: schema.invoices.number,
+      taxTreatment: schema.cashEntries.taxTreatment,
+      taxRate: schema.cashEntries.taxRate,
       reversesId: schema.cashEntries.reversesId,
     })
     .from(schema.cashEntries)
@@ -282,7 +287,7 @@ const csvAmount = (cents: Cents) => (cents / 100).toFixed(2).replace(".", ",");
 export async function cashBookCsv(year: number): Promise<string> {
   const book = await cashBook(year);
   const lines = [
-    ["Nr.", "Datum", "Art", "Text", "Einnahme", "Ausgabe", "Bestand", "Beleg-ID", "Storno von", "Rechnung"].map(csvText).join(";"),
+    ["Nr.", "Datum", "Art", "Text", "Einnahme", "Ausgabe", "Bestand", "Beleg-ID", "Storno von", "Rechnung", "Steuer"].map(csvText).join(";"),
     [
       csvText(""),
       csvText(`${year}-01-01`),
@@ -291,6 +296,7 @@ export async function cashBookCsv(year: number): Promise<string> {
       "",
       "",
       csvAmount(book.opening),
+      csvText(""),
       csvText(""),
       csvText(""),
       csvText(""),
@@ -307,6 +313,7 @@ export async function cashBookCsv(year: number): Promise<string> {
         csvText(e.documentId ?? ""),
         csvText(e.reversesId ?? ""),
         csvText(e.invoiceNumber ?? ""),
+        csvText(e.taxTreatment && e.taxRate !== null ? bareinnahmeText({ behandlung: e.taxTreatment, steuersatz: e.taxRate }) : ""),
       ].join(";"),
     ),
   ];

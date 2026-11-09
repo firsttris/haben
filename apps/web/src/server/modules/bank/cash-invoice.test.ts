@@ -79,8 +79,8 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
 
   const listed = async (id: string, on = today) => (await invoices.listInvoices(on)).find((i) => i.id === id);
 
-  async function noDeviations() {
-    for (const month of [9, 10]) {
+  async function noDeviations(months = [9, 10]) {
+    for (const month of months) {
       const abgleich = await auswertungen.vatAbgleich({ year: 2026, month });
       expect(abgleich.zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
     }
@@ -115,12 +115,9 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
         // Steueranteil der Teilzahlung: 1.000,00 € × 760/4.760
         expect(first.taxShares).toEqual([{ rate: 1900, base: 84_034, tax: 15_966 }]);
 
-        // Mehr als offen, vor dem Rechnungsdatum, in der Zukunft: abgelehnt
+        // Mehr als offen und in der Zukunft: abgelehnt
         await expect(cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 376_001 }, today)).rejects.toThrow(
           new RegExp(`Rechnung ${invoice.number} ist nur noch über 3\\.760,00\\s€ offen; mehr lässt sich nicht bar kassieren\\.`),
-        );
-        await expect(cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-09-24", amount: 100 }, today)).rejects.toThrow(
-          "Die Bareinnahme liegt vor dem Rechnungsdatum (25.09.2026).",
         );
         await expect(cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-07", amount: 100 }, today)).rejects.toThrow(/Zukunft/);
         await expect(cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 376_000, skonto: true }, today)).rejects.toThrow(
@@ -191,6 +188,37 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
 
         const csv = await cash.cashBookCsv(2026);
         expect(csv).toContain(`1;"2026-09-28";"Bareinnahme Rechnung";"Rechnung ${invoice.number} · Bäckerei Kranz";1000,00;;1000,00;"";"";"${invoice.number}"`);
+      }, 60_000);
+
+      it(`${kontenrahmen}, ${versteuerung}: bar vor dem Rechnungsdatum, etwa vor einer Sammelrechnung (#455)`, async () => {
+        await company(kontenrahmen, versteuerung);
+        // Rechnung vom 25.09.2026; der Kunde hat schon am 20.08. bar bezahlt
+        const invoice = await finalInvoice();
+        const entry = await cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-08-20", amount: 476_000 }, today);
+        expect(entry).toMatchObject({ date: "2026-08-20", kind: "rechnung", invoiceId: invoice.id });
+        expect(await listed(invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+        expect(await balances()).toEqual({ [kasse]: 476_000, [ust]: -76_000, [erloese]: -400_000 });
+        const august = await vat.computeVatFigures({ year: 2026, month: 8 });
+        const september = await vat.computeVatFigures({ year: 2026, month: 9 });
+        if (versteuerung === "ist") {
+          // Ist: Die Steuer entsteht mit der Vereinnahmung (§ 13 Abs. 1 Nr. 1 Buchst. b UStG), also im August
+          expect(august).toMatchObject({ kz81: 400_000, tax81: 76_000 });
+          expect(september).toMatchObject({ kz81: 0, tax81: 0 });
+        } else {
+          // Soll: wie bisher mit der Rechnung; die Zahlung ändert nichts daran
+          expect(august).toMatchObject({ kz81: 0, tax81: 0 });
+          expect(september).toMatchObject({ kz81: 400_000, tax81: 76_000 });
+        }
+        await noDeviations([8, 9, 10]);
+        // EÜR: Zufluss am Tag der Bareinnahme (§ 11 Abs. 1 EStG)
+        const euer = (await reports.euerPayments(2026)).filter((p) => p.kind === "invoice");
+        expect(euer.map((p) => [p.date, p.kind === "invoice" ? p.paid : 0])).toEqual([["2026-08-20", 476_000]]);
+        expect((await cash.invoicePaymentList(invoice.id)).map((p) => [p.via, p.date, p.amount])).toEqual([["bar", "2026-08-20", 476_000]]);
+
+        // Storno wie sonst: Gegenzeile mit heutigem Datum, die Rechnung ist wieder offen
+        await cash.reverseCashEntry(actor, entry.id, today);
+        expect(await listed(invoice.id)).toMatchObject({ open: 476_000 });
+        await noDeviations([8, 9, 10]);
       }, 60_000);
 
       it(`${kontenrahmen}, ${versteuerung}: bar mit Skonto in der Frist, Rest als gewährtes Skonto, Storno hebt beides auf`, async () => {

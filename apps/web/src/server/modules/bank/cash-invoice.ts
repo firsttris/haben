@@ -26,8 +26,6 @@ export const cashInvoiceInputSchema = z.object({
 
 export type CashInvoiceInput = z.input<typeof cashInvoiceInputSchema>;
 
-const formatDay = (iso: string) => iso.split("-").reverse().join(".");
-
 /** Bareinnahme auf eine Rechnung buchen; mit `skonto` den Rest als gewährtes Skonto ausbuchen */
 export async function createCashInvoiceEntry(actor: string, input: CashInvoiceInput, today: string): Promise<CashEntry> {
   const parsed = cashInvoiceInputSchema.parse(input);
@@ -40,9 +38,9 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
     if (invoice?.status !== "final") throw new CashError("Rechnung nicht gefunden.");
     if (invoice.kind === "storno") throw new CashError("Eine Stornorechnung lässt sich nicht bar kassieren.");
     if (invoice.currency !== "EUR") throw new CashError("Bar kassieren geht nur bei Rechnungen in Euro.");
-    if (parsed.date < invoice.issueDate) {
-      throw new CashError(`Die Bareinnahme liegt vor dem Rechnungsdatum (${formatDay(invoice.issueDate)}).`);
-    }
+    // Ein Datum vor dem Rechnungsdatum ist erlaubt (#455), wie im Bankabgleich: Der Kunde hat bar bezahlt, die Rechnung
+    // (etwa eine Sammelrechnung) kam später. Bei Ist zählt die Steuer im Monat der Bareinnahme (§ 13 Abs. 1 Nr. 1 Buchst. b
+    // UStG), bei Soll bleibt sie bei der Rechnung, die EÜR zählt den Zufluss am Tag der Bareinnahme (§ 11 Abs. 1 EStG).
     const [storno] = await tx
       .select({ id: schema.invoices.id })
       .from(schema.invoices)
