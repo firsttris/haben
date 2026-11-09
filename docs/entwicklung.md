@@ -492,7 +492,7 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 - im Commit mit einer Zeile `Co-Authored-By: <Werkzeug oder Modell> <Adresse>`, wie sie die Werkzeuge meist selbst setzen;
 - in der Beschreibung des Pull Requests mit einer Zeile wie „🤖 Generated with <Werkzeug>“.
 
-Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig. Hat ein Commit ein `Co-Authored-By:` eines bekannten Agenten (Claude, Copilot, Codex, Gemini, Cursor, …), verlangt „PR-Regeln“ die Zeile „Generated with“ in der Beschreibung.
+Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
 ### Automatische Prüfungen der Regeln
 
@@ -504,7 +504,6 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Eine Datei höchstens etwa 400 Zeilen | `scripts/dateigroesse/` in `bun run lint` | Fehler |
 | Titel `Bereich: was sich ändert (#Issue)` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
-| KI-Kennzeichnung in der Beschreibung, wenn ein Agent Commits geschrieben hat | `scripts/pr-regeln/` | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |

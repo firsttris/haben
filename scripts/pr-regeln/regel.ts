@@ -32,24 +32,6 @@ export function checkTitle(title: string): Report[] {
   return [];
 }
 
-/** Werkzeuge und Modelle, deren Co-Authored-By einen Commit als von einem Agenten geschrieben kennzeichnet */
-const AGENT = /^co-authored-by:.*\b(claude|anthropic|copilot|codex|openai|chatgpt|gemini|cursor|devin|aider|jules)\b/im;
-
-export function isAgentCommit(message: string): boolean {
-  return AGENT.test(message);
-}
-
-/** Hat ein Agent Commits geschrieben, nennt die Beschreibung das Werkzeug („🤖 Generated with …“) */
-export function checkAgentMarker(body: string, commitMessages: string[]): Report[] {
-  if (!commitMessages.some(isAgentCommit) || /generated with/i.test(body)) return [];
-  return [
-    {
-      level: "error",
-      message: "Commits mit Co-Authored-By eines Agenten, aber die Beschreibung hat keine Zeile „🤖 Generated with <Werkzeug>“ (CLAUDE.md, Pull requests).",
-    },
-  ];
-}
-
 const isTest = (file: string) => /\.(test|spec)\.tsx?$/.test(file) || file.includes("/e2e/");
 const isCode = (file: string) => /^(apps\/web\/src|packages\/[^/]+\/src)\/.*\.tsx?$/.test(file) && !isTest(file) && !file.endsWith("routeTree.gen.ts");
 const isFix = (subject: string) => /^fix(\(.*\))?!?:/.test(subject);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkAgentMarker, checkTitle, hints, isAgentCommit } from "./regel.ts";
+import { checkTitle, hints } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -29,27 +29,6 @@ describe("checkTitle", () => {
 
   it("meldet einen Punkt am Ende", () => {
     expect(checkTitle("Bank: Umsätze abrufen.")[0].message).toContain("ohne Punkt");
-  });
-});
-
-describe("checkAgentMarker", () => {
-  const agent = "feat(belege): Split\n\nCo-Authored-By: Claude <noreply@anthropic.com>";
-  const human = "fix: Tippfehler\n\nCo-Authored-By: Erika Muster <erika@example.org>";
-
-  it("erkennt Commits von Agenten am Co-Authored-By", () => {
-    expect(isAgentCommit(agent)).toBe(true);
-    expect(isAgentCommit("feat: x\n\nCo-authored-by: GitHub Copilot <copilot@github.com>")).toBe(true);
-    expect(isAgentCommit(human)).toBe(false);
-    expect(isAgentCommit("docs: Claude in der Doku erwähnt")).toBe(false);
-  });
-
-  it("verlangt die Zeile „Generated with“, wenn ein Agent mitgeschrieben hat", () => {
-    expect(checkAgentMarker("Was und warum", [human, agent])).toHaveLength(1);
-    expect(checkAgentMarker("Was und warum\n\n🤖 Generated with [Claude Code](…)", [agent])).toEqual([]);
-  });
-
-  it("verlangt nichts ohne Commits von Agenten", () => {
-    expect(checkAgentMarker("", [human])).toEqual([]);
   });
 });
 

@@ -15,7 +15,7 @@ The rules whose breach costs the most; the details follow below.
 - Skipping, weakening or deleting a test to get green; reporting a skipped test as passed.
 - Pushing to `main`, rewriting a contributor's commits, merging without a maintainer.
 
-Scripts check some rules (module boundaries, pages in the E2E specs, file size, pull request title, agent marker); the
+Scripts check some rules (module boundaries, pages in the E2E specs, file size, pull request title); the
 table is in `docs/entwicklung.md`, "Automatische Prüfungen der Regeln". A rule you can turn into such a check
 is better there than here.
 
@@ -102,9 +102,8 @@ Skill `checks` has the details:
   release and the author's answer. Commits inside a pull request: Conventional Commits types with a German
   description (`fix(belege): …`, `test: …`); a recommendation, but `fix` without a changed test gets a warning.
 - Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
-  each commit, and a "🤖 Generated with <tool>" line in the pull request description ("PR-Regeln" fails
-  without it when a commit names an agent). Using agents is welcome; the person who opens the pull request
-  stays responsible for it.
+  each commit, and a "🤖 Generated with <tool>" line in the pull request description. Using agents is
+  welcome; the person who opens the pull request stays responsible for it.
 - Before every push check whether the branch's pull request is still open. If it is merged, start
   again from the current `origin/main` and open a **new** pull request.
 - Merge method: always **squash**, and merge the pull request itself, also a contributor's, so GitHub
