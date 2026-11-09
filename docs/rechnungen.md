@@ -367,7 +367,7 @@ Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das 
 
 **Vor dem Festschreiben** prüft Haben: Gläubiger-ID vorhanden, Mandat des Kunden der Rechnung, Mandat am Einzugstag gültig (nicht widerrufen, nicht nach 36 Monaten ohne Einzug abgelaufen), Rechnung in Euro und ohne Skonto, denn eingezogen wird der volle Betrag. Storno und Rechnungskorrektur werden nie eingezogen; sie bekommen die Zahlungsart Überweisung.
 
-**Wiederkehrende Rechnungen** haben dieselbe Zahlungsart. Jede Rechnung nimmt das jüngste Mandat des Kunden, das an ihrem Fälligkeitstag gilt; so geht es nach einem neuen Mandat ohne Änderung an der Vorlage weiter. Gibt es keins, entsteht für den Termin keine Rechnung; die Vorlage zeigt den Grund, und der nächste Lauf holt den Termin nach, sobald ein Mandat da ist.
+**Wiederkehrende Rechnungen** haben dieselbe Zahlungsart. Jede Rechnung nimmt das jüngste Mandat des Kunden, das an ihrem Fälligkeitstag gilt; so geht es nach einem neuen Mandat ohne Änderung an der Vorlage weiter. Gibt es keins, entsteht für den Termin keine Rechnung; die Vorlage zeigt den Grund, und der nächste Lauf holt den Termin nach, sobald ein Mandat da ist. Liegt der Fälligkeitstag des nachgeholten Termins dann schon zurück, nimmt die Rechnung das am Tag des Laufs gültige Mandat; Rechnungsdatum und Zahlungsziel passt du vor dem Festschreiben an, denn eingezogen wird erst nach der Vorabankündigung.
 
 ## Rechnungen in Fremdwährung
 

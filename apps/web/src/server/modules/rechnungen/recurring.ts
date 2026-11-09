@@ -174,11 +174,13 @@ export function invoiceForDate(
 
 /**
  * Mandat für die Rechnung eines Termins: das jüngste, das am Einzugstag (Fälligkeit) gilt. Ohne gültiges Mandat entsteht
- * keine Rechnung; der Fehler steht an der Vorlage und der Termin wird beim nächsten Lauf nachgeholt.
+ * keine Rechnung; der Fehler steht an der Vorlage und der Termin wird beim nächsten Lauf nachgeholt. Liegt der Einzugstag
+ * eines nachgeholten Termins schon zurück, zählt das am Tag des Laufs gültige Mandat; sonst bliebe die Vorlage mit einem
+ * nach diesem Tag unterschriebenen Mandat für immer stehen. Den Einzugstag prüft dann das Festschreiben.
  */
-async function mandateForRun(recurring: RecurringInvoice, date: string, bundesland: Company["bundesland"]): Promise<string> {
+async function mandateForRun(recurring: RecurringInvoice, date: string, today: string, bundesland: Company["bundesland"]): Promise<string> {
   const dueDate = invoiceDueDate(date, recurring.paymentTermDays, bundesland);
-  const mandate = await validMandateOn(recurring.contactId, dueDate);
+  const mandate = (await validMandateOn(recurring.contactId, dueDate)) ?? (dueDate < today ? await validMandateOn(recurring.contactId, today) : null);
   if (mandate) return mandate.id;
   const [contact] = await db.select({ name: schema.contacts.name }).from(schema.contacts).where(eq(schema.contacts.id, recurring.contactId));
   throw new RecurringError(`Kein gültiges Lastschriftmandat für ${contact?.name ?? "den Kunden"} am ${dueDate.split("-").reverse().join(".")}`);
@@ -217,7 +219,7 @@ async function runOne(recurring: RecurringInvoice, today: string, result: RunRes
       .from(schema.invoices)
       .where(and(eq(schema.invoices.recurringId, recurring.id), eq(schema.invoices.recurringDate, date)));
     if (existing) continue;
-    const mandateId = recurring.paymentMethod === "lastschrift" ? await mandateForRun(recurring, date, company.bundesland) : null;
+    const mandateId = recurring.paymentMethod === "lastschrift" ? await mandateForRun(recurring, date, today, company.bundesland) : null;
     let draftId: string;
     try {
       const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date, contact?.language, skonto, mandateId), {
