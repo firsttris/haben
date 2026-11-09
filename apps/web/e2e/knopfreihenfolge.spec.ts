@@ -95,7 +95,10 @@ test("Formulare für Artikel und Textbausteine: Hauptaktion zuletzt", async ({ p
 
 test("Neues SEPA-Mandat: Hauptaktion zuletzt", async ({ page }) => {
   await gehe(page, "/kontakte");
-  await page.getByRole("region", { name: "Kontaktliste" }).getByRole("link", { name: /Rheinpixel GmbH/ }).click();
+  await page
+    .getByRole("region", { name: "Kontaktliste" })
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .click();
   await page.waitForLoadState("networkidle");
   const karte = page.getByRole("region", { name: "SEPA-Lastschriftmandate" });
   await karte.getByRole("button", { name: "Mandat anlegen" }).click();

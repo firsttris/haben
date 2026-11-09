@@ -408,6 +408,24 @@ test("E-Mail-Versand: Tab aus dem letzten Feld und Enter entfernt den Zugang nic
   await tabUndEnterBehaeltZugang(page.getByRole("form", { name: "E-Mail-Versand" }), "Test-Mail senden");
 });
 
+test("Postfach und E-Mail-Zugang entfernen fragen nach (#394, #404)", async () => {
+  await go("/einstellungen?bereich=email");
+  for (const [form, knopf, titel, meldung] of [
+    ["Belege per E-Mail", "Jetzt abrufen", "Postfach entfernen?", "Postfach entfernt."],
+    ["E-Mail-Versand", "Test-Mail senden", "E-Mail-Zugang entfernen?", "E-Mail-Zugang entfernt."],
+  ] as const) {
+    const karte = page.getByRole("form", { name: form });
+    const entfernen = karte.getByRole("button", { name: "Entfernen", exact: true });
+    await entfernen.click();
+    await abbrechen(titel);
+    await expect(karte.getByRole("button", { name: knopf })).toBeVisible();
+    await entfernen.click();
+    await bestaetigen(page, "Entfernen");
+    await expect(karte.getByRole("status")).toHaveText(meldung);
+    await expect(karte.getByRole("button", { name: knopf })).toHaveCount(0);
+  }
+});
+
 test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", async () => {
   await sql`insert into lexoffice_connection (ciphertext, organization_name) values (${Buffer.from([0])}, 'Testfirma')`;
   const [lauf] = await sql<{ id: string }[]>`insert into lexoffice_imports (source, status, progress)

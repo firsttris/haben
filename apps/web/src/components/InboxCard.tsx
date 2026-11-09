@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { ErrorBanner } from "./ErrorBanner.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { fetchInboxNow, removeInbox, saveInbox, type getInbox } from "../server/functions/inbox.ts";
@@ -20,6 +21,7 @@ export function InboxCard({ data }: { data: Data }) {
   const [port, setPort] = useState(String(s?.port ?? 993));
   const [secure, setSecure] = useState(s?.secure ?? true);
   const action = useAction();
+  const [removing, setRemoving] = useState(false);
   const { busy, notice } = action;
 
   const run = (work: () => Promise<Notice>) =>
@@ -112,20 +114,25 @@ export function InboxCard({ data }: { data: Data }) {
         <input type="checkbox" name="enabled" defaultChecked={s?.enabled ?? true} />
         Stündlich abrufen
       </label>
+      <ConfirmDialog
+        open={removing}
+        title="Postfach entfernen?"
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            await remove();
+            return { tone: "ok", text: "Postfach entfernt." };
+          })
+        }
+        onClose={() => setRemoving(false)}
+      >
+        <p>Haben ruft daraus keine Belege mehr ab und vergisst Server, Benutzername und Passwort. Schon abgelegte Belege bleiben.</p>
+      </ConfirmDialog>
       <div className="actions" style={{ flexWrap: "wrap" }}>
         {s && (
           <>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await remove();
-                  return { tone: "ok", text: "Postfach entfernt." };
-                })
-              }
-            >
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(true)}>
               Entfernen
             </button>
             <button

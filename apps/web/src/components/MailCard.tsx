@@ -12,6 +12,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { errorKind } from "./ErrorBanner.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeMail, saveMail, sendMailTest, type getMailSettings } from "../server/functions/mail.ts";
@@ -33,6 +34,7 @@ export function MailCard({ data }: { data: Data }) {
   const [days, setDays] = useState<number[]>(s?.reminderDays ?? [7, 1]);
   const [templates, setTemplates] = useState<MailTemplates>(s?.templates ?? {});
   const action = useAction();
+  const [removing, setRemoving] = useState(false);
   const { busy, notice } = action;
 
   const run = (work: () => Promise<Notice>) =>
@@ -173,20 +175,25 @@ export function MailCard({ data }: { data: Data }) {
         </p>
       </div>
       <TemplateEditor templates={templates} onChange={setTemplates} />
+      <ConfirmDialog
+        open={removing}
+        title="E-Mail-Zugang entfernen?"
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            await remove();
+            return { tone: "ok", text: "E-Mail-Zugang entfernt." };
+          })
+        }
+        onClose={() => setRemoving(false)}
+      >
+        <p>Haben vergisst Server, Passwort, Erinnerungen und Vorlagen und kann keine E-Mails mehr senden, bis du den Zugang neu einrichtest.</p>
+      </ConfirmDialog>
       <div className="actions" style={{ flexWrap: "wrap" }}>
         {s && (
           <>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await remove();
-                  return { tone: "ok", text: "E-Mail-Zugang entfernt." };
-                })
-              }
-            >
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRemoving(true)}>
               Entfernen
             </button>
             <button
