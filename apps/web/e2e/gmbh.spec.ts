@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { vorschauAnheften } from "./daten.ts";
+import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -68,7 +68,7 @@ test("Einrichtung als GmbH mit SKR04", async () => {
 
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link", { name: "Pauschalen" })).toHaveCount(0);
-  await go(`/jahreserklaerung/${new Date().getFullYear() - 1}`);
+  await go(`/jahreserklaerung/${currentYear() - 1}`);
   await expect(page.getByRole("heading", { name: /^Umsatzsteuererklärung/ }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: /Anlage EÜR/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Einkommensteuererklärung/ })).toHaveCount(0);
@@ -128,7 +128,7 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
 });
 
 test("Eröffnungsbuchung: Bestände zum 1. Januar, in der Saldenliste als Eröffnung", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   await go("/buchungen/neu");
   const form = page.getByRole("form", { name: "Manuelle Buchung" });
   await form.getByLabel("Eröffnungsbuchung").check();
@@ -155,7 +155,7 @@ test("Eröffnungsbuchung: Bestände zum 1. Januar, in der Saldenliste als Eröff
 });
 
 test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await go("/");
   await nav.getByRole("link", { name: "Jahresabschluss" }).click();
@@ -206,7 +206,7 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
 });
 
 test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als PDF", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const regionName = (y: number) => `Hinterlegung beim Unternehmensregister ${y}`;
 
   // Das laufende Jahr ist nicht vorbei; ein altes, nicht abgeschlossenes Jahr zeigt Hinweis und abgelaufene Frist
@@ -260,7 +260,7 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
 });
 
 test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner erfassen", async () => {
-  const year = new Date().getFullYear() - 1;
+  const year = currentYear() - 1;
   await go(`/jahreserklaerung/${year}`);
   await expect(page.getByRole("heading", { name: "Körperschaftsteuererklärung", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Gewerbesteuererklärung", exact: true })).toBeVisible();
@@ -281,7 +281,7 @@ test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner
 });
 
 test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await go("/");
   await nav.getByRole("link", { name: "Ausschüttungen" }).click();
@@ -345,7 +345,7 @@ test("Ausschüttung mit Gewinnvortrag buchen, Steuerbescheinigung des Gesellscha
 });
 
 test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
-  const year = new Date().getFullYear() - 3;
+  const year = currentYear() - 3;
   // Stapel wie aus Lexware Office (SKR04): Eröffnung über 9000, eine Ausgangsrechnung mit Steuerautomatik
   const header = `"EXTF";700;21;"Buchungsstapel";13;${year + 1}0102120000000;;"LO";"";"";1001;12345;${year}0101;4;${year}0101;${year}1231;"Lexware Export";"";1;0;0;"EUR";;"";;;"04";;;"";""`;
   const columns =
@@ -375,7 +375,7 @@ test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
 });
 
 test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, Kasse und Forderungen stehen drin", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   const schluss = year - 1;
   // Stapel des Vorjahres (SKR04): Eröffnung über 9000 mit Bank, Kasse und Stammkapital, eine Rechnung an einen Debitor
   const header = `"EXTF";700;21;"Buchungsstapel";13;${year}0102120000000;;"LO";"";"";1001;12345;${schluss}0101;4;${schluss}0101;${schluss}1231;"Lexware Export";"";1;0;0;"EUR";;"";;;"04";;;"";""`;
@@ -467,7 +467,7 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   const original = page.url();
   await page.getByLabel("Lieferant", { exact: true }).fill("Codewerk Lizenzen GmbH");
   await page.getByLabel("Rechnungsnummer").fill("L-4711");
-  await page.getByLabel("Belegdatum").fill(new Date().toISOString().slice(0, 10));
+  await page.getByLabel("Belegdatum").fill(currentDay());
   await page.getByLabel("Kategorie").selectOption("software");
   // Wie im Anlass (#237): der Bruttobetrag im Feld „Netto“
   await page.getByLabel("Netto", { exact: true }).fill("119,00");
@@ -559,7 +559,7 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
 });
 
 test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen und bestätigen", async () => {
-  const year = new Date().getFullYear();
+  const year = currentYear();
   // Seit der Eröffnung aus dem DATEV-Stapel steht der Gesellschafter mit 300 € unter den Verbindlichkeiten
   await go(`/abschluss/${year}`);
   const passiva = page.getByRole("region", { name: `Passiva zum 31.12.${year}` });
@@ -596,13 +596,11 @@ const LOHN_BMF: Record<number, { lohnsteuer: string; kirchensteuer: string; ausz
   // gesamt: Kz 83 der Lohnsteuer-Anmeldung, Lohnsteuer und Kirchensteuer (kein Soli unter der Freigrenze)
   2026: { lohnsteuer: "1.289,33", kirchensteuer: "116,03", auszahlung: "4.594,64", gesamt: "1.405,36" },
 };
-const lohnHeute = new Date();
-const lohnJahr = lohnHeute.getFullYear();
-const lohnMonat = lohnHeute.getMonth() + 1;
+const [lohnJahr, lohnMonat, lohnTag] = currentDay().split("-").map(Number) as [number, number, number];
 const mm = String(lohnMonat).padStart(2, "0");
 const lohnMonatsname = new Date(lohnJahr, lohnMonat - 1, 1).toLocaleString("de-DE", { month: "long" });
 const lohnLetzter = new Date(lohnJahr, lohnMonat, 0).getDate();
-const zahlungTag = `${String(lohnHeute.getDate()).padStart(2, "0")}.${mm}.${String(lohnJahr).slice(2)}`;
+const zahlungTag = `${String(lohnTag).padStart(2, "0")}.${mm}.${String(lohnJahr).slice(2)}`;
 const lohnText = `Lohn ${lohnMonatsname} ${lohnJahr} · Erika Gesellschafter`;
 const lohnSeite = `/lohn?jahr=${lohnJahr}&monat=${lohnMonat}`;
 const buchungenSeite = `/buchungen?jahr=${lohnJahr}&monat=${lohnMonat}`;
@@ -979,7 +977,7 @@ test("Fahrzeug der GmbH übernehmen: keine Staffel nach § 7 Abs. 2a EStG, linea
 });
 
 test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", async () => {
-  const jahr = new Date().getFullYear();
+  const jahr = currentYear();
   // Die Herabsetzung rechnet mit Einkommensteuer aus der EÜR; eine GmbH zahlt Körperschaftsteuer (§ 31 KStG)
   await go("/finanzamt");
   await expect(page.getByRole("button", { name: "Freie Nachricht" })).toBeVisible();
@@ -1057,7 +1055,7 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
 });
 
 test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steht einmal über beiden", async () => {
-  const jahr = new Date().getFullYear();
+  const jahr = currentYear();
   await go(`/jahreserklaerung/${jahr}`);
   const gemeinsam = page.getByRole("region", { name: "Hinweise zur Körperschaft- und Gewerbesteuererklärung" });
   await expect(gemeinsam).toContainText(`Das Jahr ${jahr} ist noch nicht vorbei.`);

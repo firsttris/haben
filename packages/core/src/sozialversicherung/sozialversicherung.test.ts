@@ -43,9 +43,9 @@ describe("sozialversicherung, Jahressperre", () => {
   });
 
   it("verlangt ab Dezember die Werte des Folgejahres", () => {
-    expect(fehlendeSozialversicherungJahre(new Date(2026, 10, 30))).toEqual([]);
-    expect(fehlendeSozialversicherungJahre(new Date(2026, 11, 1))).toEqual([2027]);
-    expect(fehlendeSozialversicherungJahre(new Date(2027, 0, 2))).toEqual([2027]);
+    expect(fehlendeSozialversicherungJahre(new Date("2026-11-30T12:00:00Z"))).toEqual([]);
+    expect(fehlendeSozialversicherungJahre(new Date("2026-12-01T12:00:00Z"))).toEqual([2027]);
+    expect(fehlendeSozialversicherungJahre(new Date("2027-01-02T12:00:00Z"))).toEqual([2027]);
   });
 
   // Liest das echte Datum: Ab Dezember schlägt er fehl, bis die Werte des nächsten Jahres hinterlegt sind

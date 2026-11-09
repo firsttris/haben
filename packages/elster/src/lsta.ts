@@ -8,7 +8,7 @@ import {
   type LstaKennzahlen,
   type LstaZeitraum,
 } from "@haben/core";
-import { checkSteuernummer13, element, elsterDecimal, ElsterEingabeError, elsterXml, TESTMERKER, type Datenlieferant } from "./xml.ts";
+import { checkSteuernummer13, element, elsterDecimal, ElsterEingabeError, elsterXml, TESTMERKER, type Datenlieferant, yyyymmdd } from "./xml.ts";
 
 /*
  * Lohnsteuer-Anmeldung (Verfahren ElsterAnmeldung, Datenart LStA). Elementnamen und Reihenfolge aus den Schemas
@@ -44,8 +44,6 @@ export interface LStAInput {
 
 /** Betrag wie im Schema: Punkt, immer zwei Nachkommastellen ("1289.33", "0.00") */
 const betrag = (cents: Cents) => elsterDecimal(cents).replace(",", ".");
-
-const datum = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 
 /** Felder _Vorjahr, _lfdJahr, _Folgejahr (nur ungleich 0) und die Kennzahl selbst; ganz weg, wenn optional und 0 */
 function aufgeteilt(kz: string, teile: Jahresteile, pflicht: boolean): string[] {
@@ -110,7 +108,7 @@ export function lstaNutzdaten(input: Omit<LStAInput, "produktVersion" | "test">)
   const { lohnsteuer, rest } = betraege(k);
   const kopf = [
     `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/lsta/v${year}" version="${year}">`,
-    element("Erstellungsdatum", datum(input.erstellungsdatum ?? new Date())),
+    element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
   ];
   if (year === 2026) {
     return [

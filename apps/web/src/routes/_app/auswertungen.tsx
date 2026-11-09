@@ -1,4 +1,4 @@
-import { MONTHS, formatEuro, isKapitalgesellschaft, type EuerLine } from "@haben/core";
+import { currentYear, MONTHS, formatEuro, isKapitalgesellschaft, type EuerLine } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
@@ -13,7 +13,7 @@ import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 export const Route = createFileRoute("/_app/auswertungen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))) }),
   loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => getReports({ data: { year: deps.jahr ?? new Date().getFullYear() } }),
+  loader: ({ deps }) => getReports({ data: { year: deps.jahr ?? currentYear() } }),
   head: () => ({ meta: [{ title: "Auswertungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: ReportsPage,
 });
@@ -31,7 +31,7 @@ function ReportsPage() {
   const netIn = euer.monthly.einnahmen.reduce((s, v) => s + v, 0);
   const netOut = euer.monthly.ausgaben.reduce((s, v) => s + v, 0);
   const overdueCount = open.receivables.filter((r) => r.daysOverdue > 0).length;
-  const yearOptions = [...new Set([...years, year, new Date().getFullYear()])].sort((a, b) => b - a);
+  const yearOptions = [...new Set([...years, year, currentYear()])].sort((a, b) => b - a);
 
   return (
     <>

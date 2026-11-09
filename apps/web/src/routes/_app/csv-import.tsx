@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState, type FormEvent } from "react";
@@ -84,7 +85,7 @@ function CsvImport({ kind }: { kind: Kind }) {
   const importFn = useServerFn(runCsvImportFn);
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [settings, setSettings] = useState<Settings>({ encoding: "auto", delimiter: "auto", stichtag: `${new Date().getFullYear()}-01-01` });
+  const [settings, setSettings] = useState<Settings>({ encoding: "auto", delimiter: "auto", stichtag: `${currentYear()}-01-01` });
   const [preview, setPreview] = useState<Preview | null>(null);
   const { busy, notice, setNotice, run } = useAction();
   // Die Vorschau gilt nur für die Einstellungen, mit denen sie gerechnet ist; der Import schickt die aktuellen

@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
@@ -7,7 +8,7 @@ import { saveDatevNumbersFn, type getDatevNumbers } from "../server/functions/da
 /** DATEV-Buchungsstapel für die Steuerberatung (Einstellungen); Jahre und Nummern kommen aus dem Loader */
 export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaited<ReturnType<typeof getDatevNumbers>> }) {
   const save = useServerFn(saveDatevNumbersFn);
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentYear());
   const [beraterNr, setBeraterNr] = useState(numbers.beraterNr);
   const [mandantNr, setMandantNr] = useState(numbers.mandantNr);
   const [saved, setSaved] = useState(Boolean(numbers.beraterNr && numbers.mandantNr));

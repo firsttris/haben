@@ -13,11 +13,11 @@ describe("lohnsteuer, Jahressperre", () => {
   });
 
   it("verlangt ab Dezember den PAP des Folgejahres", () => {
-    expect(fehlendeLohnsteuerJahre(new Date(2026, 0, 1))).toEqual([]);
-    expect(fehlendeLohnsteuerJahre(new Date(2026, 10, 30))).toEqual([]);
-    expect(fehlendeLohnsteuerJahre(new Date(2026, 11, 1))).toEqual([2027]);
-    expect(fehlendeLohnsteuerJahre(new Date(2027, 0, 2))).toEqual([2027]);
-    expect(fehlendeLohnsteuerJahre(new Date(2025, 11, 31))).toEqual([2025]);
+    expect(fehlendeLohnsteuerJahre(new Date("2026-01-01T12:00:00Z"))).toEqual([]);
+    expect(fehlendeLohnsteuerJahre(new Date("2026-11-30T12:00:00Z"))).toEqual([]);
+    expect(fehlendeLohnsteuerJahre(new Date("2026-12-01T12:00:00Z"))).toEqual([2027]);
+    expect(fehlendeLohnsteuerJahre(new Date("2027-01-02T12:00:00Z"))).toEqual([2027]);
+    expect(fehlendeLohnsteuerJahre(new Date("2025-12-31T12:00:00Z"))).toEqual([2025]);
   });
 
   // Liest als einziger Test das echte Datum: Ab Dezember schlägt er fehl, bis der PAP des nächsten Jahres

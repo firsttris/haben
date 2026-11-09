@@ -1,4 +1,5 @@
 import {
+  currentYear,
   fahrtBetrag,
   FAHRZEUG_LABEL,
   formatEuro,
@@ -25,7 +26,7 @@ import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
-  loaderDeps: ({ search }) => ({ year: search.jahr ?? new Date().getFullYear() }),
+  loaderDeps: ({ search }) => ({ year: search.jahr ?? currentYear() }),
   loader: ({ deps }) => getPauschalen({ data: deps.year }),
   head: () => ({ meta: [{ title: "Pauschalen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: PauschalenPage,
@@ -81,7 +82,7 @@ function PauschalenList() {
   const { year, totals, homeoffice } = data;
   const [art, setArt] = useState<PauschaleArt>("homeoffice");
   const [notice, setNotice] = useState<Notice>(null);
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const years = [...new Set([thisYear, thisYear - 1, thisYear - 2, year])].sort((a, b) => b - a);
   const summe = totals.homeoffice + totals.fahrt + totals.verpflegung;
 

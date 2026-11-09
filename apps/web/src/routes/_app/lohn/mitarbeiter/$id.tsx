@@ -1,6 +1,6 @@
 import { Link, createFileRoute, notFound, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { isKapitalgesellschaft } from "@haben/core";
+import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { beschaeftigungsartenFor, MitarbeiterForm } from "../../../../components/MitarbeiterForm.tsx";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
@@ -22,7 +22,7 @@ function MitarbeiterPage() {
   const save = useServerFn(saveMitarbeiterFn);
   const { busy, notice, setNotice, run } = useAction();
   const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
-  const jahr = new Date().getFullYear();
+  const jahr = currentYear();
   return (
     <>
       <div className="page-head">

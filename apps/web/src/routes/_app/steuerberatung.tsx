@@ -1,3 +1,4 @@
+import { currentYear } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Icon } from "../../components/Icon.tsx";
@@ -97,7 +98,7 @@ function Aenderungen({ data }: { data: Data["aenderungen"] }) {
 }
 
 function Exporte({ years }: { years: number[] }) {
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentYear());
   return (
     <section className="card" aria-labelledby="exporte-heading">
       <h2 id="exporte-heading">Exporte</h2>
