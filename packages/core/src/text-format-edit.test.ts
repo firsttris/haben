@@ -89,6 +89,18 @@ describe("Auszeichnung per Knopf", () => {
     expect(toggleTextStyle("_eins_ zwei", 2, 11, "bold")?.text).toBe("*_eins_* *zwei*");
   });
 
+  it("zählt ein maskiertes Sternchen nicht zur Auszeichnung um die Auswahl", () => {
+    const text = String.raw`\**Wartung** offen`;
+    const start = text.indexOf("Wartung");
+    expect(toggleTextStyle(text, start, start + 7, "italic")?.text).toBe(String.raw`\**_Wartung_** offen`);
+  });
+
+  it("stürzt bei privaten Unicode-Zeichen im Text nicht ab", () => {
+    const text = "*eins _zwei drei_ vier*";
+    const start = text.indexOf("zwei");
+    expect(() => toggleTextStyle(text, start, start + 4, "bold")).not.toThrow();
+  });
+
   it("behält beim Herauslösen die übrigen Auszeichnungen", () => {
     expect(toggle("___eins [zwei]___", "italic")).toBe("___eins___ __zwei__");
     expect(toggle("*_eins [zwei]_*", "bold")).toBe("*_eins_* _zwei_");
