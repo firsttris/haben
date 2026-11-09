@@ -1077,7 +1077,7 @@ function DatenschutzBestaetigung({ bestaetigt }: { bestaetigt: string | null }) 
         zur Kenntnis; so verlangt es der Lizenzvertrag zu ERiC.
       </p>
       {bestaetigt ? (
-        <span className="small">Bestätigt am {new Date(bestaetigt).toLocaleDateString("de-DE")}.</span>
+        <span className="small">Bestätigt am {formatDate(bestaetigt)}.</span>
       ) : (
         <>
           <label className="checkbox">

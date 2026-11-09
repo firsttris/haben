@@ -1,4 +1,4 @@
-import { MONTHS, formatEuro, kontoart, type Kontenrahmen } from "@haben/core";
+import { currentYear, MONTHS, formatEuro, kontoart, type Kontenrahmen } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { Fragment } from "react";
 import { z } from "zod/mini";
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/konten/$konto")({
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) => {
     if (!/^\d{4,8}$/.test(params.konto)) throw notFound();
-    return getKontenblatt({ data: { account: params.konto, year: deps.jahr ?? new Date().getFullYear(), period: deps.zeitraum ?? "jahr" } });
+    return getKontenblatt({ data: { account: params.konto, year: deps.jahr ?? currentYear(), period: deps.zeitraum ?? "jahr" } });
   },
   head: ({ params }) => ({ meta: [{ title: `Konto ${params.konto} · Haben` }], links: [{ rel: "stylesheet", href: styles }] }),
   component: KontenblattPage,

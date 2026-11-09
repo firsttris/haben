@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { zipSync } from "fflate";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
-import { day, EIGENE_SEITE, fakeEigeneSeite, SESSION, YEAR } from "./daten.ts";
+import { currentDay, currentYear, day, EIGENE_SEITE, fakeEigeneSeite, SESSION, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { CUSTOMERS, dkb, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
 
@@ -282,7 +282,7 @@ test("Überweisung als SEPA-Datei: offenen Beleg wählen, Datei herunterladen, V
   expect(xml).toContain(`<CdtrAcct><Id><IBAN>${SUPPLIER_IBAN}</IBAN></Id></CdtrAcct>`);
   expect(xml).toContain("<Cdtr><Nm>Funknetz Mobil GmbH</Nm></Cdtr>");
   expect(xml).toContain("<Ustrd>MF-0815</Ustrd>");
-  expect(xml).toContain(`<ReqdExctnDt><Dt>${day(0)}</Dt></ReqdExctnDt>`);
+  expect(xml).toContain(`<ReqdExctnDt><Dt>${currentDay()}</Dt></ReqdExctnDt>`);
   endToEndId = /<EndToEndId>(HABEN-[0-9A-F]{16})<\/EndToEndId>/.exec(xml)?.[1] ?? "";
   expect(endToEndId).not.toBe("");
   await expect(page.getByRole("status").filter({ hasText: "erzeugt: 1 Überweisung über 45,90 €" })).toBeVisible();
@@ -382,8 +382,8 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const card = page.getByRole("form", { name: "DATEV-Export" });
   await card.getByLabel("Beraternummer").fill("29098");
   await card.getByLabel("Mandantennummer").fill("55003");
-  await card.getByRole("button", { name: "Nummern speichern" }).click();
-  await expect(card.getByRole("status")).toHaveText("Nummern gespeichert.");
+  await card.getByRole("button", { name: "Speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Gespeichert.");
   const link = card.getByRole("link", { name: "Buchungsstapel herunterladen" });
   const response = await page.request.get((await link.getAttribute("href"))!);
   expect(response.status()).toBe(200);
@@ -584,7 +584,7 @@ test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async ({ browser
   await form.getByLabel("Geburtsdatum").fill("2001-03-15");
   await form.getByLabel("Art der Beschäftigung").selectOption("minijob");
   await form.getByLabel("Monatsgehalt brutto in Euro").fill("520,00");
-  await form.getByLabel("Eintritt", { exact: true }).fill(`${new Date().getFullYear()}-01-01`);
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${currentYear()}-01-01`);
   await form.getByLabel("Steuer-ID").fill("47291830467");
   await form.getByLabel("Versicherungsnummer").fill("65150301A123");
   await form.getByLabel("Personengruppe").fill("109");

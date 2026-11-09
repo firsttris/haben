@@ -102,3 +102,11 @@ describe("DATEV-Buchungsstapel", () => {
     expect([...encodeCp1252("Ä€„✓")]).toEqual([0xc4, 0x80, 0x84, 0x3f]);
   });
 });
+
+describe("Kopfzeile: Erzeugt am", () => {
+  it("steht in deutscher Zeit, unabhängig von der Zeitzone des Prozesses", () => {
+    const createdAt = new Date("2026-10-31T23:30:15.042Z");
+    const [kopf] = new TextDecoder("windows-1252").decode(buildDatevBuchungsstapel({ ...header, createdAt }, entries).bytes).split("\r\n");
+    expect(kopf!.split(";")[5]).toBe("20261101003015042");
+  });
+});

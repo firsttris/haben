@@ -1,8 +1,12 @@
+import { currentYear } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { Icon } from "../../components/Icon.tsx";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { PasskeysCard } from "../../components/PasskeysCard.tsx";
+import { downloadFrom } from "../../lib/download.ts";
 import { formatDateTime } from "../../lib/format.ts";
+import { useAction } from "../../lib/use-action.ts";
 import { getSteuerberatungStart } from "../../server/functions/zugang.ts";
 
 /** Startseite der Steuerberatung: was sich seit dem letzten Besuch geändert hat, Exporte, eigener Zugang */
@@ -97,7 +101,13 @@ function Aenderungen({ data }: { data: Data["aenderungen"] }) {
 }
 
 function Exporte({ years }: { years: number[] }) {
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentYear());
+  const { notice, run } = useAction();
+  // Über fetch, damit eine Ablehnung (etwa neue Personenkonten, die nur der Inhaber festschreibt) hier lesbar erscheint (#452)
+  function onDatev(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    void run(() => downloadFrom(`/api/datev/${year}`, `EXTF_Buchungsstapel_${year}.csv`));
+  }
   return (
     <section className="card" aria-labelledby="exporte-heading">
       <h2 id="exporte-heading">Exporte</h2>
@@ -119,13 +129,14 @@ function Exporte({ years }: { years: number[] }) {
         <a className="btn" href={`/api/export/${year}`} download>
           Jahresarchiv (ZIP)
         </a>
-        <a className="btn" href={`/api/datev/${year}`} download>
+        <a className="btn" href={`/api/datev/${year}`} download onClick={onDatev}>
           DATEV-Buchungsstapel
         </a>
         <a className="btn" href={`/api/konten/${year}`} download>
           Saldenliste (CSV)
         </a>
       </div>
+      <NoticeBanner notice={notice} />
     </section>
   );
 }

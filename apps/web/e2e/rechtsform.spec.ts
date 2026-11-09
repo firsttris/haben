@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { SESSION, YEAR } from "./daten.ts";
+import { currentYear, SESSION, YEAR } from "./daten.ts";
 
 /*
  * Anzeige nach Rechtsform im Einzelunternehmen aus app.spec.ts: nichts, was es nur in GmbH und UG gibt (docs/einrichtung.md,
@@ -29,7 +29,7 @@ test("Einzelunternehmen: was nur ein Einzelunternehmen hat, bleibt sichtbar", as
   await page.goto("/finanzamt");
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("button", { name: "Vorauszahlungen herabsetzen" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: `Einkommensteuer-Vorauszahlungen ${new Date().getFullYear()}` })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `Einkommensteuer-Vorauszahlungen ${currentYear()}` })).toBeVisible();
 
   await page.goto(`/jahreserklaerung/${YEAR}`);
   await page.waitForLoadState("networkidle");

@@ -24,7 +24,7 @@ const basis: LStAInput = {
   herstellerId: "12345",
   produktVersion: "0.1.0",
   test: true,
-  erstellungsdatum: new Date(2026, 11, 3),
+  erstellungsdatum: new Date("2026-12-03T12:00:00Z"),
 };
 
 const ohneLeer = (xml: string) => xml.replace(/\n/g, "");
@@ -106,5 +106,12 @@ describe("Lohnsteuer-Anmeldung", () => {
       eingabe: "1289,33",
     });
     expect(liste.felder.at(-1)).toEqual({ kennung: "Kz86", bezeichnung: "Zahl der Arbeitnehmer (Kz 86)", eingabe: "1" });
+  });
+});
+
+describe("Erstellungsdatum der Lohnsteuer-Anmeldung", () => {
+  it("ist der Tag in Deutschland, unabhängig von der Zeitzone des Prozesses", () => {
+    // 02.12.2026 23:30 UTC ist in Deutschland schon der 3. Dezember
+    expect(buildLStAXml({ ...basis, erstellungsdatum: new Date("2026-12-02T23:30:00Z") })).toContain("<Erstellungsdatum>20261203</Erstellungsdatum>");
   });
 });

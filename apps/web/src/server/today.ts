@@ -1,6 +1,6 @@
-const berlin = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" });
+import { germanDay } from "@haben/core";
 
 /** Heutiges Datum in Deutschland als YYYY-MM-DD */
 export function today(now = new Date()): string {
-  return berlin.format(now);
+  return germanDay(now);
 }

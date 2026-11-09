@@ -62,6 +62,7 @@ export * from "./skonto.ts";
 export * from "./network.ts";
 export * from "./lebenszyklus.ts";
 export * from "./email-list.ts";
+export * from "./personenkonten.ts";
 export * from "./telefon.ts";
 export * from "./accent.ts";
 export * from "./letterhead-design.ts";

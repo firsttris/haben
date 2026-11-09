@@ -173,10 +173,21 @@ const compact = (iso: string) => iso.replace(/-/g, "");
 const amount = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
 /** Belegfeld 1 erlaubt laut DATEV nur bestimmte Zeichen, höchstens 36 */
 const voucherField = (value: string) => value.replace(/[^A-Za-z0-9$&%*+\-/.]/g, "").slice(0, 36);
-const pad2 = (n: number) => String(n).padStart(2, "0");
 
+const germanTime = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Berlin",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** „Erzeugt am“ laut DATEV: JJJJMMTTHHMMSSFFF, in deutscher Zeit */
 function stamp(date: Date): string {
-  return `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}${String(date.getMilliseconds()).padStart(3, "0")}`;
+  return `${germanTime.format(date).replace(/\D/g, "")}${String(date.getMilliseconds()).padStart(3, "0")}`;
 }
 
 /** Kopfzeile laut Schnittstellenbeschreibung (31 Felder) */

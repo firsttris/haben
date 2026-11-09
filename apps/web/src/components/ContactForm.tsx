@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
@@ -46,6 +47,8 @@ export interface ExistingContact {
  * Kontakt statt der Weiterleitung, onCancel ersetzt den Link zurück; existing bietet bei gleicher USt-IdNr. den
  * vorhandenen Kontakt an (onPickExisting), ohne ihn still zusammenzuführen.
  */
+const SAVED_NOTICE = { tone: "ok", text: "Gespeichert. Die vorige Fassung bleibt als Version erhalten." } as const;
+
 export function ContactForm({
   contact,
   nextNumber = null,
@@ -55,6 +58,8 @@ export function ContactForm({
   existing = [],
   onPickExisting,
   ibanSuggestion = null,
+  saved = false,
+  onUpdated,
 }: {
   contact: Contact | null;
   nextNumber?: string | null;
@@ -65,11 +70,17 @@ export function ContactForm({
   onPickExisting?: (id: string) => void;
   /** IBAN vom Beleg (#329): nur ein Vorschlag, ins Feld erst auf ausdrücklichen Klick */
   ibanSuggestion?: IbanSuggestion | null;
+  /**
+   * Gerade gespeichert: Die Seite baut das Formular mit der neuen Version neu auf (key), sein Zustand ginge dabei verloren.
+   * Deshalb merkt sich die Seite das Speichern (onUpdated) und gibt es hier zurück, damit die Meldung stehen bleibt.
+   */
+  saved?: boolean;
+  onUpdated?: () => void;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
-  const { busy, notice, setNotice, run } = useAction();
+  const { busy, notice, run } = useAction();
   const ibanInput = useRef<HTMLInputElement>(null);
   const takeIban = (iban: string) => {
     if (!ibanInput.current) return;
@@ -99,8 +110,12 @@ export function ContactForm({
     const isCustomer = form.get("isCustomer") === "on";
     const isSupplier = form.get("isSupplier") === "on";
     const skonto = parseSkontoRows(skontoRows);
+    const debitor = parsePersonenkonto("debitor", text("debitorNr"));
+    const kreditor = parsePersonenkonto("kreditor", text("kreditorNr"));
     void run(async () => {
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
+      if (!debitor.ok) throw new Error(debitor.error);
+      if (!kreditor.ok) throw new Error(kreditor.error);
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const input = {
         kundennummer: text("kundennummer"),
@@ -120,13 +135,15 @@ export function ContactForm({
         isCustomer,
         isSupplier,
         lieferantennummer: text("lieferantennummer"),
+        debitorNr: debitor.value,
+        kreditorNr: kreditor.value,
       } satisfies ContactInput;
       const result = await save({ data: { id: contact?.id ?? null, contact: input } });
       if (onSaved) {
         onSaved({ ...input, id: result.id });
       } else if (contact) {
+        onUpdated?.();
         await router.invalidate();
-        setNotice({ tone: "ok", text: "Gespeichert. Die vorige Fassung bleibt als Version erhalten." });
       } else {
         await navigate({ to: "/kontakte/$id", params: { id: result.id } });
       }
@@ -185,6 +202,35 @@ export function ContactForm({
             Lieferantennummer
             <input name="lieferantennummer" defaultValue={initial.lieferantennummer} placeholder="optional, z. B. deine Kundennummer beim Lieferanten" />
           </label>
+        </div>
+        <div className="field-group">
+          <div className="form-row cols-2">
+            <label className="field">
+              DATEV-Debitor
+              <input
+                name="debitorNr"
+                defaultValue={contact?.debitorNr ?? ""}
+                inputMode="numeric"
+                placeholder="optional, 10000 bis 69999"
+                aria-describedby="personenkonten-hint"
+                className="mono"
+              />
+            </label>
+            <label className="field">
+              DATEV-Kreditor
+              <input
+                name="kreditorNr"
+                defaultValue={contact?.kreditorNr ?? ""}
+                inputMode="numeric"
+                placeholder="optional, 70000 bis 99999"
+                aria-describedby="personenkonten-hint"
+                className="mono"
+              />
+            </label>
+          </div>
+          <p id="personenkonten-hint" className="field-hint">
+            Personenkonten für den DATEV-Export an die Steuerberatung, getrennt von Kunden- und Lieferantennummer.
+          </p>
         </div>
       </section>
 
@@ -295,7 +341,7 @@ export function ContactForm({
           )}
         </div>
       )}
-      <NoticeBanner notice={notice} />
+      <NoticeBanner notice={notice ?? (saved ? SAVED_NOTICE : null)} />
       <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {contact ? "Speichern" : "Kontakt anlegen"}

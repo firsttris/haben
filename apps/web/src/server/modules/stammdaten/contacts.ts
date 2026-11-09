@@ -1,10 +1,32 @@
 import { UserError } from "../../errors.ts";
-import { joinEmails, MAX_EMAIL_RECIPIENTS, normalizeTelefon, skontoProblem, skontoStufenSchema, sortSkonto, splitEmails, telefonProblem } from "@haben/core";
+import {
+  joinEmails,
+  MAX_EMAIL_RECIPIENTS,
+  normalizeTelefon,
+  PERSONENKONTO_LABEL,
+  type PersonenkontoRolle,
+  personenkontoProblem,
+  skontoProblem,
+  skontoStufenSchema,
+  sortSkonto,
+  splitEmails,
+  telefonProblem,
+} from "@haben/core";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
+import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
+
+function personenkonto(rolle: PersonenkontoRolle) {
+  return z.optional(
+    z.nullable(z.number()).superRefine((nr, ctx) => {
+      const problem = nr === null ? null : personenkontoProblem(rolle, nr);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    }),
+  );
+}
 
 export const contactSchema = z.object({
   kundennummer: z.string().trim().max(40),
@@ -64,6 +86,9 @@ export const contactSchema = z.object({
   isCustomer: z.boolean().default(true),
   isSupplier: z.boolean().default(false),
   lieferantennummer: z.string().trim().max(40).default(""),
+  /** DATEV-Personenkonten (#327); null = keins, fehlt = unverändert */
+  debitorNr: personenkonto("debitor"),
+  kreditorNr: personenkonto("kreditor"),
 });
 
 export type ContactRole = "kunde" | "lieferant";
@@ -98,6 +123,11 @@ function clean(input: ContactInput) {
   const isCustomer = input.isCustomer ?? true;
   const isSupplier = input.isSupplier ?? false;
   if (!isCustomer && !isSupplier) throw new ContactError("Ein Kontakt ist Kunde oder Lieferant oder beides.");
+  for (const rolle of ["debitor", "kreditor"] as const) {
+    const nr = input[`${rolle}Nr`];
+    const problem = nr == null ? null : personenkontoProblem(rolle, nr);
+    if (problem) throw new ContactError(problem);
+  }
   return {
     ...input,
     isCustomer,
@@ -123,17 +153,38 @@ export async function insertContact(tx: Tx, input: ContactInput): Promise<Contac
   // ein reiner Lieferant hat keine Kundennummer (#224)
   // Eine eigene Nummer geht immer über die Sperre der Firmenzeile, damit keine gleichzeitige Vergabe sie doppelt nimmt
   const kundennummer = values.isCustomer || values.kundennummer ? await takeCustomerNumber(tx, values.kundennummer) : null;
-  const [created] = await tx
-    .insert(schema.contacts)
-    .values({ ...values, kundennummer })
-    .returning();
+  const [created] = await samePersonenkonto(tx, () =>
+    tx
+      .insert(schema.contacts)
+      .values({ ...values, kundennummer })
+      .returning(),
+  );
   return created!;
+}
+
+/**
+ * Debitor und Kreditor sind eindeutig (Unique-Constraints in contacts). Statt des Fehlers der Datenbank nennt die Meldung
+ * den Kontakt, der die Nummer schon hat. Ein Savepoint hält die Transaktion des Aufrufers für die Abfrage benutzbar.
+ */
+async function samePersonenkonto<T>(tx: Tx, write: () => Promise<T>): Promise<T> {
+  try {
+    return await tx.transaction(write);
+  } catch (error) {
+    for (const rolle of ["debitor", "kreditor"] as const) {
+      if (!isUniqueViolation(error, `contacts_${rolle}_nr_unique`)) continue;
+      const nr = Number(/\((\d+)\)/.exec(String((error as { cause?: { detail?: string } }).cause?.detail))?.[1]);
+      const column = rolle === "debitor" ? schema.contacts.debitorNr : schema.contacts.kreditorNr;
+      const [owner] = Number.isFinite(nr) ? await tx.select({ name: schema.contacts.name }).from(schema.contacts).where(eq(column, nr)) : [];
+      throw new ContactError(`${PERSONENKONTO_LABEL[rolle]} ${nr} hat schon „${owner?.name ?? "einen anderen Kontakt"}“.`);
+    }
+    throw error;
+  }
 }
 
 /** Änderungen erhöhen per Trigger die Version; alte Stände bleiben in contact_versions. */
 export async function updateContact(actor: string, id: string, input: ContactInput): Promise<Contact> {
   return withActor(actor, async (tx) => {
-    const [updated] = await tx.update(schema.contacts).set(clean(input)).where(eq(schema.contacts.id, id)).returning();
+    const [updated] = await samePersonenkonto(tx, () => tx.update(schema.contacts).set(clean(input)).where(eq(schema.contacts.id, id)).returning());
     if (!updated) throw new ContactError("Kontakt nicht gefunden.");
     return updated;
   });
