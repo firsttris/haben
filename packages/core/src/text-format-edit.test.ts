@@ -63,6 +63,27 @@ describe("Auszeichnung per Knopf", () => {
     ]);
   });
 
+  it("erhält die Unterstreichung, wenn die Auswahl mitten in den Zeichen beginnt", () => {
+    expect(toggleTextStyle("__Wort__", 1, 7, "bold")?.text).toBe("*__Wort__*");
+  });
+
+  it("nimmt die Auszeichnung für ein Wort innerhalb einer längeren zurück", () => {
+    expect(toggle("*eins [zwei]*", "bold")).toBe("*eins* zwei");
+    expect(toggle("*[eins] zwei*", "bold")).toBe("eins *zwei*");
+    expect(toggle("*eins [zwei] drei*", "bold")).toBe("*eins* zwei *drei*");
+    expect(toggle("*eins zw[]ei*", "bold")).toBe("*eins* zwei");
+  });
+
+  it("behält beim Herauslösen die übrigen Auszeichnungen", () => {
+    expect(toggle("___eins [zwei]___", "italic")).toBe("___eins___ __zwei__");
+    expect(toggle("*_eins [zwei]_*", "bold")).toBe("*_eins_* _zwei_");
+    expect(toggle("*eins _[zwei]_*", "bold")).toBe("*eins* _zwei_");
+  });
+
+  it("markiert nach dem Herauslösen das Wort ohne Zeichen", () => {
+    expect(toggleTextStyle("*eins zwei*", 6, 10, "bold")).toEqual({ text: "*eins* zwei", start: 7, end: 11 });
+  });
+
   it("zeichnet über mehrere Absätze aus", () => {
     expect(toggle("[eins\n\nzwei]", "bold")).toBe("*eins\n\nzwei*");
   });
