@@ -207,29 +207,33 @@ function enclosingPair(text: string, start: number, end: number, style: TextStyl
 
 const plainRun = (text: string, styles: Partial<Styles>): FormattedTextRun => ({ text, bold: false, italic: false, underline: false, ...styles });
 
-const SELECTION_START = "\uE000";
-const SELECTION_END = "\uE001";
+/** Stelle im gelesenen Text zu einer Stelle im Rohtext: Auszeichnungen und Escapes fehlen dort. */
+function plainOffset(raw: string, plain: string, rawIndex: number): number {
+  let offset = 0;
+  for (let at = 0; at < rawIndex && offset < plain.length; at++) if (raw[at] === plain[offset]) offset++;
+  return offset;
+}
 
 /**
- * Für innere Paare, die über die Auswahl reichen, wie in `*eins _zwei drei_*`: Die Rohtexte der Hälften wären
- * unvollständig, darum werden die gelesenen Abschnitte an der Auswahl geteilt. Marken aus dem privaten Unicode-Bereich
- * tragen die Auswahl durch den Parser.
+ * Für innere Paare wie in `*eins _zwei drei_*`: Die Rohtexte der Hälften wären unvollständig, darum werden die
+ * gelesenen Abschnitte an der Auswahl geteilt.
  */
 function splitParsedRuns(text: string, open: MarkerGroup, close: MarkerGroup, from: number, to: number, style: TextStyle): TextEdit | null {
-  // Die Marken dürfen nicht im Text vorkommen, sonst zählte der Text als Auswahlgrenze
-  if (text.includes(SELECTION_START) || text.includes(SELECTION_END)) return null;
   const spanEnd = close.at + close.marker.length;
-  const marked = `${text.slice(open.at, from)}${SELECTION_START}${text.slice(from, to)}${SELECTION_END}${text.slice(to, spanEnd)}`;
+  const raw = text.slice(open.at, spanEnd);
+  const runs = parseTextFormatting(raw);
+  const plain = runs.map((run) => run.text).join("");
+  const limits = [0, plainOffset(raw, plain, from - open.at), plainOffset(raw, plain, to - open.at), plain.length];
   const zones: FormattedTextRun[][] = [[], [], []];
-  let zone = 0;
-  for (const run of parseTextFormatting(marked)) {
-    for (const piece of run.text.split(/([\uE000\uE001])/)) {
-      if (piece === SELECTION_START || piece === SELECTION_END) zone++;
-      else appendTextRun(zones[zone]!, { ...run, text: piece, ...(zone === 1 ? { [style]: false } : {}) });
-    }
+  let at = 0;
+  for (const run of runs) {
+    zones.forEach((zone, index) => {
+      const piece = run.text.slice(Math.max(limits[index]! - at, 0), Math.max(limits[index + 1]! - at, 0));
+      appendTextRun(zone, { ...run, text: piece, ...(index === 1 ? { [style]: false } : {}) });
+    });
+    at += run.text.length;
   }
-  if (zone !== 2) return null;
-  const [before, middle, after] = zones.map((runs) => runs.map(wrapRun).join("")) as [string, string, string];
+  const [before, middle, after] = zones.map((zone) => zone.map(wrapRun).join("")) as [string, string, string];
   const next = `${text.slice(0, open.at)}${before}${middle}${after}${text.slice(spanEnd)}`;
   if (styledLength(next, style) >= styledLength(text, style) || plainFormattedText(next) !== plainFormattedText(text)) return null;
   const base = open.at + before.length;
@@ -265,6 +269,8 @@ function splitEnclosing(text: string, start: number, end: number, style: TextSty
   const insidePlaceholder = (at: number) => !on && toPlaceholder(text, at, at)[0] !== at;
   while (from > innerStart && widen.test(text[from - 1]!) && !insidePlaceholder(from - 1)) from--;
   while (to < innerEnd && widen.test(text[to]!) && !insidePlaceholder(to + 1)) to++;
+  // Zeichen in den Hälften sind eigene Paare: Roh umschlossen ergäben sie andere, darum die gelesenen Abschnitte teilen
+  if (!on && MARKER.test(`${text.slice(innerStart, from)}${text.slice(to, innerEnd)}`)) return splitParsedRuns(text, open, close, from, to, style);
   const kept = Object.fromEntries(stack.flatMap((marker) => TEXT_MARKERS[marker]!.map((s) => [s, true]))) as Partial<Styles>;
   const before = wrapRun(plainRun(text.slice(innerStart, from), kept));
   const middle = wrapRun(plainRun(text.slice(from, to), { ...kept, [style]: on }));
