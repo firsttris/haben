@@ -30,6 +30,7 @@ on:
       - 'requirements-docs.txt'
       - 'scripts/doku-aenderungsdatum/**'
       - 'scripts/doku-hinweise/**'
+      - 'scripts/doku-kurzlinks/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
