@@ -1,8 +1,13 @@
 /*
  * Jede Seite der App gehört in die Routenliste von e2e/seiten.spec.ts und in e2e/barrierefreiheit.spec.ts
  * (CLAUDE.md, „With every change“). Diese Regel vergleicht die Seiten aus dem Routenbaum von TanStack Router
- * mit den Pfaden, die in einer Spec-Datei vorkommen.
+ * mit den Pfaden, die in einer Spec-Datei vorkommen. Das ist ein Textvergleich: Er sieht, ob ein Pfad in der Datei
+ * steht, nicht, ob ein Test die Seite wirklich lädt (Review von #463). Ein Aufruf, der nur eine 404 erwartet, zählt
+ * deshalb als Treffer; solche Seiten stehen mit Grund in ausnahmen.ts.
  */
+
+/** Grund für Lücken, die schon vor der Prüfung bestanden; sie verschwinden aus der Liste, sobald die Spec sie prüft */
+export const OPEN = "noch offen";
 
 /** Pfade, die keine Seite der App sind: API, Anmeldung ohne Sitzung, Einladung mit Token */
 const NO_PAGE = [/^\/api\//, /^\/login$/, /^\/setup$/, /^\/einladung\//];
@@ -53,7 +58,12 @@ export function missingPages(pages: string[], specPaths: string[], exceptions: R
   return pages.filter((page) => !(page in exceptions) && !isCovered(page, pages, specPaths));
 }
 
-/** Ausnahmen, die keine Seite mehr betreffen oder inzwischen abgedeckt sind, sollen aus der Liste verschwinden */
+/**
+ * Ausnahmen, die verschwinden sollen: Seiten, die es nicht mehr gibt, und offene Lücken, die die Spec inzwischen
+ * aufruft. Eine Ausnahme mit eigenem Grund bleibt, auch wenn der Pfad im Text der Spec steht (etwa als 404-Test).
+ */
 export function staleExceptions(pages: string[], specPaths: string[], exceptions: Record<string, string>): string[] {
-  return Object.keys(exceptions).filter((page) => !pages.includes(page) || isCovered(page, pages, specPaths));
+  return Object.entries(exceptions)
+    .filter(([page, reason]) => !pages.includes(page) || (reason === OPEN && isCovered(page, pages, specPaths)))
+    .map(([page]) => page);
 }

@@ -1,7 +1,8 @@
 /*
  * Eine Datei tut eine Sache: ab etwa 400 Zeilen wird sie geteilt (docs/entwicklung.md, Konventionen). Ältere Dateien
  * sind größer; sie stehen in altdateien.json und dürfen weiter wachsen, denn geteilt werden sie nur in einem eigenen
- * Pull Request. Ein Fehler ist nur eine neue Datei über 400 Zeilen. Wächst eine alte, weist „PR-Regeln“ darauf hin
+ * Pull Request. Ein Fehler ist eine Datei über 400 Zeilen, die nicht in der Liste steht: eine neue oder eine bisher
+ * kleinere, die über die Grenze wächst; dann kommt das Neue in eine eigene Datei. Wächst eine alte, weist „PR-Regeln“ darauf hin
  * (Review von #463: eine feste Grenze je Datei hätte bei fast jedem zweiten Commit angeschlagen, auch bei schema.ts,
  * wohin jede neue Tabelle gehört).
  */
@@ -18,11 +19,14 @@ export function countLines(code: string): number {
 
 const isLarge = (count: number) => count > MAX_LINES;
 
-/** Fehler: Dateien über 400 Zeilen, die nicht in der Liste der alten Dateien stehen */
-export function newLargeFiles(lines: Record<string, number>, oldFiles: string[]): Report[] {
+/** Fehler: Dateien über 400 Zeilen, die nicht in der Liste der alten Dateien stehen (neu oder über die Grenze gewachsen) */
+export function unlistedLargeFiles(lines: Record<string, number>, oldFiles: string[]): Report[] {
   return Object.entries(lines)
     .filter(([file, count]) => isLarge(count) && !oldFiles.includes(file))
-    .map(([file, count]) => ({ file, message: `${count} Zeilen, mehr als ${MAX_LINES}: Datei aufteilen, eine Datei tut eine Sache.` }));
+    .map(([file, count]) => ({
+      file,
+      message: `${count} Zeilen, mehr als ${MAX_LINES} und nicht in altdateien.json: Neues in eine eigene Datei legen. Ist es eine umbenannte alte Datei, den Pfad in altdateien.json mit ändern.`,
+    }));
 }
 
 /** Hinweis: alte Dateien, die gelöscht oder auf 400 Zeilen geschrumpft sind, können aus der Liste */

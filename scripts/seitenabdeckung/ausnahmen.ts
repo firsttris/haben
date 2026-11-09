@@ -1,3 +1,5 @@
+import { OPEN } from "./regel.ts";
+
 /*
  * Seiten, die eine Spec-Datei bewusst nicht aufruft, mit Grund. Eine neue Seite gehört in die Spec, nicht hierher.
  * Stand bei Einführung der Prüfung: Die mit „noch offen“ markierten Seiten fehlten schon vorher; wer eine davon in
@@ -11,8 +13,6 @@ const REDIRECTS: Record<string, string> = {
   "/lohn/anmeldung": "leitet auf /lohn/anmeldung/$zeitraum weiter",
 };
 
-const OPEN = "noch offen";
-
 export const EXCEPTIONS: Record<"seiten" | "barrierefreiheit", Record<string, string>> = {
   seiten: {
     ...REDIRECTS,
@@ -24,6 +24,8 @@ export const EXCEPTIONS: Record<"seiten" | "barrierefreiheit", Record<string, st
     "/archiv/beleg/$id": OPEN,
     "/rechnungen/wiederkehrend/$id": OPEN,
     "/rechnungen/wiederkehrend/neu": OPEN,
+    // Der Pfad steht in der Spec, aber nur im Test „Mahnung zu einer unbekannten Rechnung“, der eine 404 erwartet
+    "/rechnungen/mahnwesen/$id": "nur ein 404-Test ruft sie auf, nicht die Seite selbst",
   },
   barrierefreiheit: {
     ...REDIRECTS,

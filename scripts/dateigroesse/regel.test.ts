@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countLines, grownOldFiles, largeFiles, newLargeFiles, removableOldFiles } from "./regel.ts";
+import { countLines, grownOldFiles, largeFiles, unlistedLargeFiles, removableOldFiles } from "./regel.ts";
 
 describe("countLines", () => {
   it("zählt wie wc -l", () => {
@@ -10,13 +10,16 @@ describe("countLines", () => {
   });
 });
 
-describe("newLargeFiles", () => {
+describe("unlistedLargeFiles", () => {
   it("lässt kleine Dateien und alte große durch, auch wenn diese wachsen", () => {
-    expect(newLargeFiles({ "a.ts": 400, "alt.ts": 3000 }, ["alt.ts"])).toEqual([]);
+    expect(unlistedLargeFiles({ "a.ts": 400, "alt.ts": 3000 }, ["alt.ts"])).toEqual([]);
   });
 
-  it("meldet eine neue Datei über 400 Zeilen", () => {
-    expect(newLargeFiles({ "neu.ts": 401 }, [])).toEqual([{ file: "neu.ts", message: expect.stringContaining("aufteilen") }]);
+  it("meldet eine neue Datei über 400 Zeilen und eine bisher kleine, die über die Grenze wächst", () => {
+    expect(unlistedLargeFiles({ "neu.ts": 401, "war-390.ts": 404 }, [])).toEqual([
+      { file: "neu.ts", message: expect.stringContaining("eigene Datei") },
+      { file: "war-390.ts", message: expect.stringContaining("eigene Datei") },
+    ]);
   });
 });
 

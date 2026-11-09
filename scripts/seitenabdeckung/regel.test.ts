@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingPages, pagesOf, pathsIn, staleExceptions } from "./regel.ts";
+import { missingPages, OPEN, pagesOf, pathsIn, staleExceptions } from "./regel.ts";
 
 /** So steht ein Pfad mit Ausdruck im Quelltext einer Spec, als Text gelesen */
 // biome-ignore lint/suspicious/noTemplateCurlyInString: der Ausdruck ist hier Text aus der Spec, kein Platzhalter
@@ -62,7 +62,12 @@ describe("missingPages", () => {
 
 describe("staleExceptions", () => {
   it("meldet Ausnahmen für entfernte und inzwischen geprüfte Seiten", () => {
-    const exceptions = { "/weg": "Grund", "/bank": "Grund", "/kasse": "Grund" };
+    const exceptions = { "/weg": "Grund", "/bank": OPEN, "/kasse": OPEN };
     expect(staleExceptions(["/bank", "/kasse"], ["/bank"], exceptions)).toEqual(["/weg", "/bank"]);
+  });
+
+  it("behält eine Ausnahme mit eigenem Grund, auch wenn der Pfad in der Spec steht (etwa als 404-Test)", () => {
+    const exceptions = { "/rechnungen/mahnwesen/$id": "nur ein 404-Test ruft sie auf" };
+    expect(staleExceptions(["/rechnungen/mahnwesen/$id"], ["/rechnungen/mahnwesen/[^/]+"], exceptions)).toEqual([]);
   });
 });

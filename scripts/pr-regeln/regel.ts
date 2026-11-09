@@ -60,10 +60,28 @@ export function hints(files: string[], commitSubjects: string[]): Report[] {
   return reports;
 }
 
-/** Hinweis auf alte große Dateien, die im Pull Request gewachsen sind (scripts/dateigroesse) */
+/**
+ * Wachstum, ab dem ein Hinweis kommt: Kleinere Änderungen an alten Dateien sind die Regel (im Review von #463 hätte
+ * der Hinweis ohne Schwelle bei 50 von 100 Pull Requests angeschlagen) und würden ihn überhören lassen.
+ */
+export const GROWTH_THRESHOLD = 20;
+/** Dateien, die wachsen müssen: Jede neue Tabelle oder Spalte gehört nach schema.ts (docs/entwicklung.md, Migrationen) */
+export const MAY_GROW = ["apps/web/src/server/db/schema.ts"];
+
+/** Hinweis auf alte große Dateien, die im Pull Request deutlich gewachsen sind (scripts/dateigroesse) */
 export function growthHints(grown: { file: string; before: number; after: number }[]): Report[] {
-  return grown.map(({ file, before, after }) => ({
-    level: "warning",
-    message: `${file} wächst von ${before} auf ${after} Zeilen: Lässt sich das Neue in eine eigene Datei legen?`,
-  }));
+  return grown
+    .filter(({ file, before, after }) => after - before >= GROWTH_THRESHOLD && !MAY_GROW.includes(file))
+    .map(({ file, before, after }) => ({
+      level: "warning",
+      message: `${file} wächst von ${before} auf ${after} Zeilen: Lässt sich das Neue in eine eigene Datei legen?`,
+    }));
+}
+
+/**
+ * Pull Requests von Bots (Renovate) tragen deren eigene Titel wie „Lock file maintenance“. Sie bekommen keine
+ * Titelprüfung, sonst würde der rote Check den Automerge von Renovate stoppen (Review von #463).
+ */
+export function isBot(user: { login: string; type?: string }): boolean {
+  return user.type === "Bot" || user.login.endsWith("[bot]");
 }

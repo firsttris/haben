@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkTitle, growthHints, hints } from "./regel.ts";
+import { checkTitle, growthHints, hints, isBot } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -52,9 +52,26 @@ describe("hints", () => {
 });
 
 describe("growthHints", () => {
-  it("weist auf gewachsene alte Dateien hin, nur als Warnung", () => {
-    expect(growthHints([{ file: "apps/web/src/server/db/schema.ts", before: 2879, after: 3002 }])).toEqual([
-      { level: "warning", message: expect.stringContaining("von 2879 auf 3002 Zeilen") },
+  it("weist auf deutlich gewachsene alte Dateien hin, nur als Warnung", () => {
+    expect(growthHints([{ file: "apps/web/src/routes/_app/bank.tsx", before: 1513, after: 1561 }])).toEqual([
+      { level: "warning", message: expect.stringContaining("von 1513 auf 1561 Zeilen") },
     ]);
+  });
+
+  it("schweigt bei kleinem Wachstum und bei schema.ts, die wachsen muss", () => {
+    expect(
+      growthHints([
+        { file: "apps/web/src/routes/_app/bank.tsx", before: 1513, after: 1532 },
+        { file: "apps/web/src/server/db/schema.ts", before: 2879, after: 3002 },
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe("isBot", () => {
+  it("erkennt Renovate und andere Bots", () => {
+    expect(isBot({ login: "renovate[bot]", type: "Bot" })).toBe(true);
+    expect(isBot({ login: "renovate[bot]" })).toBe(true);
+    expect(isBot({ login: "Dudeplayz", type: "User" })).toBe(false);
   });
 });

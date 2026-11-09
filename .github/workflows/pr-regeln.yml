@@ -16,7 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pruefen:
+  # Eigener Name, damit der Check im Ruleset nicht mit „pruefen“ aus jahreswerte.yml verwechselt wird
+  pr-regeln:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
