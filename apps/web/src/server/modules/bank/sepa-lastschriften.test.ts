@@ -171,6 +171,26 @@ describe.skipIf(!testDatabaseUrl)("Lastschriftdatei pain.008 aus fälligen Rechn
     );
   });
 
+  it("reicht eine Rechnung bei zwei gleichzeitigen Aufrufen nur einmal ein", async () => {
+    const nordwerk = await customer("Nordwerk Software GmbH");
+    const a = await invoice(nordwerk, await mandate(nordwerk, "KD-1042-01"), "2026-11-02");
+    const input = { bankAccountId: accountId, invoiceIds: [a.id] };
+    const results = await Promise.allSettled([bank.createDirectDebitFile(actor, input, now), bank.createDirectDebitFile(actor, input, now)]);
+    expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const [{ count }] = await sql`select count(*)::int as count from sepa_direct_debit_items where invoice_id = ${a.id}`;
+    expect(count).toBe(1);
+  });
+
+  it("die erste Lastschrift aus Haben auf ein neues Mandat ist FRST, auch wenn nur eine spätere Rechnung gewählt ist", async () => {
+    const nordwerk = await customer("Nordwerk Software GmbH");
+    const m = await mandate(nordwerk, "KD-1042-01");
+    await invoice(nordwerk, m, "2026-11-02");
+    const b = await invoice(nordwerk, m, "2026-11-03");
+    const file = await bank.createDirectDebitFile(actor, { bankAccountId: accountId, invoiceIds: [b.id] }, now);
+    const { xml } = (await bank.directDebitFile(file.id))!;
+    expect(xml).toContain("<SeqTp>FRST</SeqTp>");
+  });
+
   it("Datei und Lastschriften sind nur anhängbar", async () => {
     const nordwerk = await customer("Nordwerk Software GmbH");
     const a = await invoice(nordwerk, await mandate(nordwerk, "KD-1042-01"), "2026-11-02");
