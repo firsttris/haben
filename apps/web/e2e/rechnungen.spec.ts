@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import postgres from "postgres";
 import { day, firstLink, YEAR } from "./daten.ts";
+import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 import {
   bestaetigen,
@@ -1185,6 +1187,32 @@ test("Entwurf aus dem stehenden Kopf speichern: die Bestätigung erscheint im Fe
   await speichern.click();
   await sichtbar(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." }));
   if (vorher) await page.setViewportSize(vorher);
+});
+
+test("Kasse: Bareinnahme ohne Rechnung aus einem Monat, in dem noch § 19 galt, bietet „Kleinunternehmer“ an (#276)", async () => {
+  // Stand im Änderungsprotokoll: vor 40 Tagen Kleinunternehmer, heute nicht mehr (Ausschalten geht jederzeit), wie in
+  // belege-steuern.spec.ts (#295). Der Server prüft die Behandlung gegen den Stand am Ende des Monats der Bareinnahme.
+  const datum = day(-40);
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    await sql`insert into audit_log (at, actor, table_name, row_id, action, new_value)
+      values (${`${datum}T12:00:00Z`}::timestamptz, 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: true })}),
+             (now(), 'e2e', 'company', '1', 'UPDATE', ${sql.json({ kleinunternehmer: false })})`;
+  } finally {
+    await sql.end();
+  }
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByRole("button", { name: "Bareinnahme ohne Rechnung" }).click();
+  await form.getByLabel("Datum").fill(datum);
+  const steuer = form.getByLabel("Umsatzsteuer");
+  // Für dieses Datum ist nur „Kleinunternehmer“ oder „steuerfrei“ buchbar; 19 % lehnt der Server ab
+  await expect(steuer.getByRole("option")).toHaveText(["Kleinunternehmer (§ 19 UStG)", "steuerfrei (§ 4 Nr. 8 bis 29 UStG)"]);
+  await expect(steuer).toHaveValue("kleinunternehmer:0");
+  await form.getByLabel("Betrag (€)").fill("25,00");
+  await form.getByLabel("Notiz").fill("Flohmarkt, Tagessumme");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "gebucht: Bareinnahme über 25,00 €, Kleinunternehmer (§ 19 UStG)." })).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
