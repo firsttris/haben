@@ -1,5 +1,6 @@
-import { type ComponentProps, type KeyboardEvent, useRef, useState } from "react";
+import { type ComponentProps, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { type TextEdit, type TextStyle, toggleTextStyle } from "@haben/core";
+import { caretPosition } from "../lib/textarea-caret.ts";
 
 const BUTTONS: { style: TextStyle; label: string; glyph: React.ReactNode; key: string }[] = [
   { style: "bold", label: "Fett", glyph: <strong>F</strong>, key: "B" },
@@ -25,6 +26,31 @@ function applyEdit(field: HTMLTextAreaElement, edit: TextEdit): void {
   field.setSelectionRange(edit.start, edit.end);
 }
 
+const BAR_HEIGHT = 34;
+const BAR_WIDTH = 96;
+const GAP = 6;
+
+interface Anchor {
+  left: number;
+  top: number;
+}
+
+/**
+ * Am Mauszeiger: über dem Anfang der Auswahl, wie in anderen Programmen. Auf Touchgeräten rechts über dem
+ * Feld, denn dort legt iOS sein Menü (Kopieren, Einfügen) über oder unter die Auswahl, und unter ihr
+ * verdeckt die Tastaturleiste die Knöpfe (im iOS-Simulator geprüft).
+ */
+function selectionAnchor(field: HTMLTextAreaElement): Anchor | null {
+  if (field.selectionStart === field.selectionEnd) return null;
+  if (window.matchMedia("(pointer: coarse)").matches) {
+    const visibleTop = (window.visualViewport?.offsetTop ?? 0) - field.getBoundingClientRect().top + GAP;
+    return { left: field.offsetWidth, top: Math.max(-BAR_HEIGHT - GAP, visibleTop) };
+  }
+  const caret = caretPosition(field, field.selectionStart);
+  // Liegt die Stelle außerhalb des gescrollten Felds, bleibt die Leiste am Feldrand
+  return { left: caret.left, top: Math.min(Math.max(caret.top - BAR_HEIGHT - GAP, -BAR_HEIGHT - GAP), field.offsetHeight + GAP) };
+}
+
 function moveFocus(event: KeyboardEvent<HTMLElement>, field: HTMLTextAreaElement | null): void {
   const buttons = [...event.currentTarget.querySelectorAll("button")];
   const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -37,12 +63,33 @@ function moveFocus(event: KeyboardEvent<HTMLElement>, field: HTMLTextAreaElement
 
 /**
  * Textfeld mit Knöpfen für die Auszeichnungen aus text-format.ts. Gespeichert wird weiter der Text mit den
- * Zeichen. Die Leiste erscheint erst im Feld, damit lange Formulare und viele Positionen ruhig bleiben.
+ * Zeichen. Die Leiste erscheint an der Markierung, damit lange Formulare und viele Positionen ruhig bleiben.
  */
-export function FormattedTextarea({ onKeyDown, onInput, ...props }: Omit<ComponentProps<"textarea">, "ref">) {
+export function FormattedTextarea({ onKeyDown, onInput, "aria-describedby": describedBy, ...props }: Omit<ComponentProps<"textarea">, "ref">) {
   const field = useRef<HTMLTextAreaElement>(null);
+  const dismissed = useRef<string | null>(null);
   const [active, setActive] = useState(0);
   const [status, setStatus] = useState("");
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const hintId = useId();
+
+  const syncAnchor = useCallback(() => {
+    const element = field.current;
+    if (!element || document.activeElement !== element) return;
+    // Mit Esc geschlossen bleibt die Leiste zu, bis sich die Auswahl ändert
+    if (dismissed.current === `${element.selectionStart}:${element.selectionEnd}`) return;
+    dismissed.current = null;
+    setAnchor(selectionAnchor(element));
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("selectionchange", syncAnchor);
+    window.addEventListener("resize", syncAnchor);
+    return () => {
+      document.removeEventListener("selectionchange", syncAnchor);
+      window.removeEventListener("resize", syncAnchor);
+    };
+  }, [syncAnchor]);
 
   function toggle(style: TextStyle) {
     const element = field.current;
@@ -54,11 +101,20 @@ export function FormattedTextarea({ onKeyDown, onInput, ...props }: Omit<Compone
     else {
       setStatus("");
       applyEdit(element, edit);
+      syncAnchor();
     }
   }
 
   function shortcut(event: KeyboardEvent<HTMLTextAreaElement>) {
     onKeyDown?.(event);
+    if (event.key === "Escape" && anchor) {
+      const element = event.currentTarget;
+      dismissed.current = `${element.selectionStart}:${element.selectionEnd}`;
+      setAnchor(null);
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
     const button = BUTTONS.find((b) => b.key === event.key.toUpperCase());
     if (!button) return;
@@ -67,34 +123,54 @@ export function FormattedTextarea({ onKeyDown, onInput, ...props }: Omit<Compone
   }
 
   return (
-    <span className="format-field">
+    <span
+      className="format-field"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setAnchor(null);
+      }}
+    >
       <textarea
         {...props}
         ref={field}
+        aria-describedby={[describedBy, hintId].filter(Boolean).join(" ")}
         onKeyDown={shortcut}
+        onSelect={syncAnchor}
+        onScroll={syncAnchor}
+        onFocus={syncAnchor}
         onInput={(event) => {
           setStatus("");
           onInput?.(event);
         }}
       />
-      <span role="toolbar" aria-label="Textformatierung" className="format-bar" onKeyDown={(event) => moveFocus(event, field.current)}>
-        {BUTTONS.map((button, index) => (
-          <button
-            key={button.style}
-            type="button"
-            tabIndex={index === active ? 0 : -1}
-            aria-label={button.label}
-            aria-keyshortcuts={`Control+${button.key} Meta+${button.key}`}
-            title={`${button.label} (Strg/⌘+${button.key})`}
-            // Die Auswahl im Feld bleibt beim Klick erhalten
-            onMouseDown={(event) => event.preventDefault()}
-            onFocus={() => setActive(index)}
-            onClick={() => toggle(button.style)}
-          >
-            {button.glyph}
-          </button>
-        ))}
+      <span id={hintId} className="visually-hidden">
+        Text markieren, dann erscheinen Knöpfe zum Auszeichnen. Oder Strg beziehungsweise Befehlstaste mit B, I oder U.
       </span>
+      {anchor && (
+        <span
+          role="toolbar"
+          aria-label="Textformatierung"
+          className="format-bar"
+          style={{ left: `min(${anchor.left}px, calc(100% - ${BAR_WIDTH}px))`, top: anchor.top }}
+          onKeyDown={(event) => moveFocus(event, field.current)}
+        >
+          {BUTTONS.map((button, index) => (
+            <button
+              key={button.style}
+              type="button"
+              tabIndex={index === active ? 0 : -1}
+              aria-label={button.label}
+              aria-keyshortcuts={`Control+${button.key} Meta+${button.key}`}
+              title={`${button.label} (Strg/⌘+${button.key})`}
+              // Die Auswahl im Feld bleibt beim Klick erhalten
+              onMouseDown={(event) => event.preventDefault()}
+              onFocus={() => setActive(index)}
+              onClick={() => toggle(button.style)}
+            >
+              {button.glyph}
+            </button>
+          ))}
+        </span>
+      )}
       {status && (
         <span role="alert" className="format-status">
           {status}

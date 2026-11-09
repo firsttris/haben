@@ -347,7 +347,7 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await expect(insert).toHaveValue("");
 });
 
-test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zurück, Leiste nur im Feld", async () => {
+test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zurück, Leiste an der Markierung", async () => {
   await go("/rechnungen/neu");
   const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
   const fett = page.getByRole("button", { name: "Fett", exact: true });
@@ -355,7 +355,10 @@ test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zu
 
   await einleitung.fill("Vielen Dank für Ihren Auftrag");
   await einleitung.focus();
+  // Ohne Markierung keine Leiste, auch nicht im Feld
+  await expect(fett).toBeHidden();
   await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 20));
+  await expect(fett).toBeVisible();
   await fett.click();
   await expect(einleitung).toHaveValue("Vielen Dank für *Ihren* Auftrag");
   await expect(einleitung).toBeFocused();
@@ -365,6 +368,7 @@ test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zu
   await expect(einleitung).toHaveValue("Vielen Dank für *_Ihren_* Auftrag");
   await page.keyboard.press("ControlOrMeta+z");
   await expect(einleitung).toHaveValue("Vielen Dank für *Ihren* Auftrag");
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(17, 22));
   await fett.click();
   await expect(einleitung).toHaveValue("Vielen Dank für Ihren Auftrag");
 
@@ -376,6 +380,7 @@ test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zu
   await detail.fill("Wartung");
   await detail.focus();
   await detail.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(0, 7));
+  await expect(fett).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(fett).toBeFocused();
   await page.keyboard.press("ArrowRight");
@@ -383,6 +388,32 @@ test("Textknöpfe: Auswahl per Knopf und Kürzel auszeichnen, Strg+Z nimmt es zu
   await page.keyboard.press("Enter");
   await expect(detail).toHaveValue("_Wartung_");
   await expect(detail).toBeFocused();
+});
+
+test("Textknöpfe: Leiste folgt der Markierung und schließt mit Esc", async () => {
+  await go("/rechnungen/neu");
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  const leiste = page.getByRole("toolbar", { name: "Textformatierung" });
+  await einleitung.fill("Erstes Wort weit vorn und ein ganz anderes am Ende der Zeile");
+  await einleitung.focus();
+  const markiere = (start: number, end: number) => einleitung.evaluate((feld: HTMLTextAreaElement, [a, b]) => feld.setSelectionRange(a!, b!), [start, end]);
+
+  await markiere(0, 6);
+  await expect(leiste).toBeVisible();
+  const links = (await leiste.boundingBox())!;
+  const feld = (await einleitung.boundingBox())!;
+  // Über der ersten Zeile, also oberhalb des Felds
+  expect(links.y + links.height).toBeLessThanOrEqual(feld.y + 12);
+
+  await markiere(50, 55);
+  await expect.poll(async () => (await leiste.boundingBox())!.x).toBeGreaterThan(links.x + 100);
+
+  await page.keyboard.press("Escape");
+  await expect(leiste).toBeHidden();
+  await markiere(0, 6);
+  await expect(leiste).toBeVisible();
+  await einleitung.evaluate((feld: HTMLTextAreaElement) => feld.setSelectionRange(3, 3));
+  await expect(leiste).toBeHidden();
 });
 
 test("Textknöpfe: Doppelklick am rechten Rand markiert das Wort, das dort stand, bevor das Feld den Fokus hatte", async () => {
