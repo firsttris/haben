@@ -258,6 +258,8 @@ describe("mapSevInvoice ohne Positionen", () => {
     ["Rundung auf einen Cent", "0.99", "0.19", "1.18", 1900, 99, 19],
     ["nächstliegender Satz bei kleinem Betrag", "0.10", "0.01", "0.11", 700, 10, 1],
     ["vom Brutto gerechnet, mehr als ein halber Cent Abstand", "1.71", "0.33", "2.04", 1900, 171, 33],
+    ["regulärer Satz vor dem Satz von 2020", "0.20", "0.01", "0.21", 700, 20, 1],
+    ["16 % aus 2020, wenn kein regulärer Satz passt", "100", "16", "116", 1600, 10_000, 1_600],
   ])("nimmt den Satz aus dem Kopf: %s", (_name, net, tax, gross, rate, netCents, taxCents) => {
     expect(taxesFor(net, tax, gross)).toEqual([{ rate, net: netCents, tax: taxCents }]);
   });
