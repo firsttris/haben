@@ -58,7 +58,11 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
     const frame = frames.at(-1)!;
     // Pfade und URLs sind häufige Bestandteile von IT-Angeboten und bleiben wörtlich.
     if (frame.runs.length === 0 || /\s/.test(text[at - 1] ?? "")) {
-      const path = /^(?:[^\s*_\\/][^\s\\/]*[\\/]|\/|\\\\)[^\s]*/.exec(text.slice(at));
+      const rest = text.slice(at);
+      // Einzelner Backslash ab Laufwerkswurzel: ein weiterer Trenner macht den
+      // Pfad erkennbar. Explizite Paare wie \_wörtlich\_ bleiben dagegen Escapes.
+      const escaped = /^\\([*_])[^\s]*\\\1(?=[.,;:!?)}\]]*(?:\s|$))/.test(rest);
+      const path = /^(?:[^\s*_\\/][^\s\\/]*[\\/]|\/|\\\\)[^\s]*/.exec(rest) ?? (!escaped ? /^\\[^\s\\]+\\[^\s]*/.exec(rest) : null);
       if (path) {
         let end = at + path[0].length;
         // Äußere Auszeichnungen dürfen den ganzen Pfad umschließen. Ihre
