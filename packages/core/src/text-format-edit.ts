@@ -178,8 +178,10 @@ function splitEnclosing(text: string, start: number, end: number, style: TextSty
   }
   // Beim Dazunehmen das ganze Stück: `_a____-b___` läse beim zweiten Klick niemand mehr als zwei Paare
   const widen = on ? TOKEN_PART : PUNCTUATION;
-  while (from > innerStart && widen.test(text[from - 1]!)) from--;
-  while (to < innerEnd && widen.test(text[to]!)) to++;
+  // Satzzeichen bleiben außerhalb der Klammern eines Platzhalters, sonst stünde dort ein Zeichen
+  const insidePlaceholder = (at: number) => !on && toPlaceholder(text, at, at)[0] !== at;
+  while (from > innerStart && widen.test(text[from - 1]!) && !insidePlaceholder(from - 1)) from--;
+  while (to < innerEnd && widen.test(text[to]!) && !insidePlaceholder(to + 1)) to++;
   const kept = Object.fromEntries(stack.flatMap((marker) => TEXT_MARKERS[marker]!.map((s) => [s, true]))) as Partial<Styles>;
   const before = wrapRun(plainRun(text.slice(innerStart, from), kept));
   const middle = wrapRun(plainRun(text.slice(from, to), { ...kept, [style]: on }));
