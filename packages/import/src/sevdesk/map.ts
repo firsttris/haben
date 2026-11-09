@@ -337,12 +337,13 @@ export function isSevVoucherImportable(v: SevVoucher): boolean {
 }
 
 /**
- * Beleg aus der Buchhaltung. creditDebit C ist eine Einnahme, D eine Ausgabe. Negative Summen
- * sind Gutschriften und bleiben negativ, wie beim Lexoffice-Import.
+ * Beleg aus der Buchhaltung. creditDebit D ist eine Einnahme, C eine Ausgabe: Die OpenAPI nennt nur „credit (C) or
+ * debit (D)“, echte Antworten tragen bei C Aufwandskonten, bei D Erlöse und Erstattungen (#472). Negative Summen sind
+ * Gutschriften und bleiben negativ, wie beim Lexoffice-Import.
  */
 export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMappedVoucher {
   const id = String(v.id);
-  const income = (v.creditDebit ?? "D").toUpperCase() === "C";
+  const income = (v.creditDebit ?? "C").toUpperCase() === "D";
   const tax = cents(v.sumTax);
   const gross = cents(v.sumGross);
   const net = gross - tax;

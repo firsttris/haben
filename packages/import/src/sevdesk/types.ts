@@ -156,7 +156,7 @@ export const sevVoucherSchema = z.looseObject({
   sumTax: numeric,
   sumGross: numeric,
   paidAmount: numeric,
-  /** C Einnahme (credit), D Ausgabe (debit) */
+  /** C Ausgabe (credit), D Einnahme (debit); belegt mit echten Antworten, siehe mapSevVoucher */
   creditDebit: str,
   /** VOU Beleg, RV wiederkehrender Beleg (Vorlage) */
   voucherType: str,

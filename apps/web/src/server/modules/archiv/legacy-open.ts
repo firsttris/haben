@@ -27,6 +27,7 @@ import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { effectivePayment, paymentHistoryIssue, settledOn } from "./payment-history.ts";
+import { effectiveDirection, effectiveType } from "./sevdesk-richtung.ts";
 
 export class TakeoverError extends UserError {}
 
@@ -178,9 +179,14 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
 
 async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   const vouchers = await db
-    .select({ ...getTableColumns(schema.lexofficeVouchers), payment: effectivePayment("lexoffice_vouchers") })
+    .select({
+      ...getTableColumns(schema.lexofficeVouchers),
+      type: effectiveType("lexoffice_vouchers"),
+      direction: effectiveDirection("lexoffice_vouchers"),
+      payment: effectivePayment("lexoffice_vouchers"),
+    })
     .from(schema.lexofficeVouchers)
-    .where(inArray(schema.lexofficeVouchers.type, [...SALES, ...PURCHASES]))
+    .where(inArray(effectiveType("lexoffice_vouchers"), [...SALES, ...PURCHASES]))
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
   const [invoices, documents] = await Promise.all([
     db
@@ -203,9 +209,12 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
     .map((v) => {
       const issue = paymentHistoryIssue(v);
       const settled = issue ? settledOn({ ...v, payDate: sevPayDate(v.raw) }) : null;
+      // Am Stichtag war die Rechnung noch eine Forderung; ihr Storno gehört dann in die Bücher von Haben
+      const cancelledLater = v.payment?.history === "storno" && v.date <= cutoff && v.payment.cancelledOn! > cutoff;
       // Vor dem Stichtag ausgeglichen (oder heute ausgeglichen bei Belegen danach): sicher bezahlt, nichts offen
-      const state =
-        settled && (settled <= cutoff || v.date > cutoff)
+      const state = cancelledLater
+        ? { open: Math.abs(v.gross), paidAfter: 0, issue: "Storno nach dem Stichtag" }
+        : settled && (settled <= cutoff || v.date > cutoff)
           ? { open: 0, paidAfter: 0, issue: null }
           : issue
             ? { open: Math.abs(v.payment?.openAmount ?? v.gross), paidAfter: 0, issue }

@@ -62,10 +62,12 @@ Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Hab
 | --- | --- |
 | Rechnung (RE, TR, ER) | Rechnung |
 | Abschlagsrechnung (AR) | Abschlagsrechnung |
-| Stornorechnung (SR) | Gutschrift, negativ |
+| Stornorechnung (SR) | Gutschrift, negativ; hebt die Rechnung aus `origin` auf, siehe [Stornierte Rechnungen](#stornierte-rechnungen) |
 | Gutschrift | Gutschrift, negativ |
-| Beleg „Einnahme“ (C) | Einnahmebeleg, bei negativer Summe Einnahme-Gutschrift |
-| Beleg „Ausgabe“ (D) | Ausgabebeleg, bei negativer Summe Ausgabe-Gutschrift |
+| Beleg „Einnahme“ (`creditDebit` D) | Einnahmebeleg, bei negativer Summe Einnahme-Gutschrift |
+| Beleg „Ausgabe“ (`creditDebit` C) | Ausgabebeleg, bei negativer Summe Ausgabe-Gutschrift |
+
+Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit (D)“; dass C die Ausgabe ist, ist mit echten Antworten der Buchhaltungsversion 1.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Frühere Abrufe hatten beide vertauscht. Die Archivkopie bleibt unverändert, Haben liest Richtung und Belegart von sevDesk-Belegen aus der gespeicherten API-Antwort; ein neuer Abruf ist nicht nötig.
 
 Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
 
@@ -100,6 +102,10 @@ Bei **Ist-Versteuerung** sperrt Haben dann den monatlichen Altbestandsabgleich f
 
 **Reparatur früherer Abrufe:** Ein neuer Abruf ergänzt die Einzelzahlungen auch für schon archivierte Vorgänge, deren Zahlungen bisher zu einer verdichtet oder gar nicht belegt waren. Die Archivkopie bleibt unverändert; die Zahlungen sind eigene, unveränderliche Nachträge, und jede sevDesk-Zuordnung kommt nur einmal an. Weil die Kopie den Zahlungsstand vom Tag ihres Abrufs zeigt, rechnet Haben dafür nur Zuordnungen, die sevDesk bis dahin angelegt hatte; spätere Zuordnungen stehen im Jahresexport, erklären den Stand der Kopie aber nicht. Schlägt der Abruf der Zahlungen fehl, bleibt die Sperre bestehen und der Fortschritt nennt den Fehler. Bereits aktiv übernommene Posten korrigiert Haben nicht rückwirkend; ihre Buchungen sind versiegelt.
 
+#### Stornierte Rechnungen
+
+sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag und wenn zu beiden keine Zahlung besteht; sonst bleibt der Stand unklar. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt.
+
 ### Angebote, Auftragsbestätigungen und Lieferscheine
 
 Haben archiviert die drei Auftragsarten aus sevDesk (`Order`: `AN`, `AB`, `LI`) getrennt von Rechnungen und Buchungsbelegen. Unter **Archiv → Auftragsdokumente** suchst du nach Nummer oder Kontakt und filterst nach Dokumentart und Jahr. Datum, Quellstatus, Positionen, Folgebeziehungen und die vollständigen API-Antworten bleiben erhalten. Auch **Entwürfe**, angenommene, abgelehnte und teilweise oder vollständig berechnete Vorgänge sind enthalten. Es entstehen keine bearbeitbaren Haben-Angebote und keine eigenen Nummern.
@@ -129,6 +135,9 @@ Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF
 ## Schritt 3 bis 5
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
+
+- sevDesk schreibt von Belegnummern über 36 Zeichen nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
+- In Zahlungsbuchungen steht im Belegfeld 1 oft eine interne Kennung von sevDesk (UUID). Sie ist keine Belegnummer und zählt im Abgleich unter „ohne Belegnummer“.
 
 - Eine offene Rechnung ohne Nummer bekommt in Haben die Nummer `SD-` plus die ID aus sevDesk.
 - Den Export für die Betriebsprüfung (GoBD) aus sevDesk legst du als „IDEA-Export“ ab; danach richtet sich die Prüfung „IDEA-Export archiviert“.

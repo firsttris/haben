@@ -194,7 +194,7 @@ describe("mapSevVoucher", () => {
     sumTax: "19.00",
     sumGross: "119.00",
     paidAmount: 0,
-    creditDebit: "D",
+    creditDebit: "C",
     voucherType: "VOU",
     currency: "EUR",
     paymentDeadline: "2024-02-24T00:00:00+01:00",
@@ -225,7 +225,7 @@ describe("mapSevVoucher", () => {
   });
 
   it("erkennt Einnahmen und Gutschriften", () => {
-    expect(mapSevVoucher(sevVoucherSchema.parse({ ...base, creditDebit: "C" }), []).voucher.type).toBe("salesinvoice");
+    expect(mapSevVoucher(sevVoucherSchema.parse({ ...base, creditDebit: "D" }), []).voucher.type).toBe("salesinvoice");
     const credit = mapSevVoucher(sevVoucherSchema.parse({ ...base, sumNet: "-10", sumTax: "-1.90", sumGross: "-11.90" }), []);
     expect(credit.voucher).toMatchObject({ type: "purchasecreditnote", gross: -1190, taxes: [{ rate: 0, net: -1000, tax: -190 }] });
   });

@@ -2381,8 +2381,10 @@ export type LegacyPayment = {
   openAmount: number;
   paidDate: string | null;
   items: { type: string; date: string; amount: number; account?: string | null }[];
-  /** Nur gelesen, nie gespeichert: items stammen aus legacy_voucher_payments (sevDesk-Einzelzahlungen) */
-  history?: "sevdesk";
+  /** Nur gelesen, nie gespeichert: items aus legacy_voucher_payments (sevdesk) bzw. Rechnung und ihr Storno ohne Zahlung */
+  history?: "sevdesk" | "storno";
+  /** Nur gelesen: Datum der Stornorechnung bei history "storno" */
+  cancelledOn?: string;
 };
 
 /** Kaufmännische Dokumente ohne Buchungswirkung. Der Quellstand bleibt unverändert; Dateien sind getrennte Nachträge. */

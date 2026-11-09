@@ -2,6 +2,7 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
+import { datevInternalId, datevVoucherFound } from "./datev-belegnummer.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 
@@ -150,8 +151,8 @@ export async function loadArchiveFile(id: string) {
   return { ...row, bytes: await loadFile(row.sha256) };
 }
 
-/** Gegenstück in Lexoffice: Belegnummer ohne Leerzeichen, Groß-/Kleinschreibung egal */
-const matchedSql = sql<boolean>`exists (select 1 from lexoffice_vouchers v where v.number <> '' and lower(regexp_replace(v.number, '\\s+', '', 'g')) = lower(regexp_replace(datev_bookings.voucher_field1, '\\s+', '', 'g')))`;
+const matchedSql = datevVoucherFound("datev_bookings.voucher_field1");
+const internalIdSql = datevInternalId("datev_bookings.voucher_field1");
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {
   const conditions: SQL[] = [gte(schema.datevBookings.date, `${filter.year}-01-01`), lte(schema.datevBookings.date, `${filter.year}-12-31`)];
@@ -166,7 +167,7 @@ export async function listDatevBookings(filter: { year: number; search: string; 
       )!,
     );
   }
-  if (filter.unmatched) conditions.push(sql`not ${matchedSql}`);
+  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql}`);
   const where = and(...conditions);
   const pageSize = 100;
   const [rows, [total]] = await Promise.all([
@@ -229,7 +230,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
   const conditions: SQL[] = [gte(schema.datevBookings.date, from), lte(schema.datevBookings.date, to)];
   const account = filter.account.trim();
   if (account) conditions.push(or(eq(schema.datevBookings.account, account), eq(schema.datevBookings.contraAccount, account))!);
-  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql}`);
+  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql}`);
   const where = and(...conditions);
   const [rows, [total]] = await Promise.all([
     db
