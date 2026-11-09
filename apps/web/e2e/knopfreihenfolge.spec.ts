@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { firstLink, SESSION } from "./daten.ts";
-import { gehe } from "./einrichtung.ts";
+import { gehe, neuenKontaktOeffnen } from "./einrichtung.ts";
 
 /**
  * Reihenfolge der Knöpfe (#394, docs/entwicklung.md, Gestaltung der Oberfläche): In einer Knopfzeile mit genau einer
@@ -56,7 +56,7 @@ test("Neuer Kontakt: Abbrechen links, Kontakt anlegen rechts, Tab in derselben F
 
 test("Kontaktdialog im Rechnungsentwurf: Hauptaktion zuletzt", async ({ page }) => {
   await gehe(page, "/rechnungen/neu");
-  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await neuenKontaktOeffnen(page);
   const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
   await expect(dialog).toBeVisible();
   const abbrechen = dialog.getByRole("button", { name: "Abbrechen" });
