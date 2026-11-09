@@ -2,7 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import {
-  customFooter,
+  customFooterRuns,
   DEFAULT_FOOTER_COLUMNS,
   FOOTER_PLACEHOLDERS,
   footerIssues,
@@ -15,6 +15,7 @@ import {
 import { useAction } from "../lib/use-action.ts";
 import { saveLetterheadDesign } from "../server/functions/logo.ts";
 import { Segmented } from "./DesignPanel.tsx";
+import { FormattedRuns } from "./FormattedText.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 const COUNT_OPTIONS = Array.from({ length: MAX_FOOTER_COLUMNS - MIN_FOOTER_COLUMNS + 1 }, (_, i) => {
@@ -49,7 +50,7 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
   // Nach dem Verringern kann die zuletzt fokussierte Spalte verborgen sein
   const active = Math.min(focused, count - 1);
   const issues = own ? footerIssues(shown) : [];
-  const preview = customFooter(shown, footerValues(seller));
+  const preview = customFooterRuns(shown, footerValues(seller));
   const noBank = own && !shown.some((text) => text.includes("{iban}"));
 
   const edit = (index: number, text: string) =>
@@ -136,8 +137,10 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
             <div className="footer-columns footer-preview" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
               {preview.map((lines, index) => (
                 <div key={index}>
-                  {lines.map((line, i) => (
-                    <div key={i}>{line}</div>
+                  {lines.map((runs, i) => (
+                    <div key={i}>
+                      <FormattedRuns runs={runs} />
+                    </div>
                   ))}
                 </div>
               ))}

@@ -11,7 +11,7 @@ import {
   LETTERHEAD_FONTS,
   accentPalette,
   DEFAULT_ACCENT,
-  customFooter,
+  customFooterRuns,
   DEFAULT_OPTIONS,
   parseTextFormatting,
   footerValues,
@@ -343,15 +343,15 @@ function softBreaks(line: string): string {
 export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de, letterhead: Letterhead = {}, treatment: TaxTreatment = "regulaer") {
   const { options } = letterhead;
   // Nur mit Briefpapier: Ohne stünden die Pflichtangaben nirgends
-  if (letterhead.background && options?.footerHidden) return { footer: [], legal: null };
-  const footer = options?.footerColumns
-    ? customFooter(
-        options.footerColumns,
-        { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" },
-        { labels: { taxNumber: t.taxNumber, vatId: t.vatId }, needsVatId: needsSellerVatId(treatment) },
-      )
-    : footerColumns(seller, t);
-  return { footer: options?.footerColumns ? footer.map((column) => column.map(softBreaks)) : footer, legal: legalLine(seller.legalInfo, t) };
+  if (letterhead.background && options?.footerHidden) return { footer: [], footerFormatted: null, legal: null };
+  const legal = legalLine(seller.legalInfo, t);
+  if (!options?.footerColumns) return { footer: footerColumns(seller, t), footerFormatted: null, legal };
+  const runs = customFooterRuns(
+    options.footerColumns,
+    { ...footerValues(seller), iban: seller.iban ? formatIban(seller.iban) : "" },
+    { labels: { taxNumber: t.taxNumber, vatId: t.vatId }, needsVatId: needsSellerVatId(treatment) },
+  ).map((column) => column.map((line) => line.map((run) => ({ ...run, text: softBreaks(run.text) }))));
+  return { footer: runs.map((column) => column.map((line) => line.map((run) => run.text).join(""))), footerFormatted: runs, legal };
 }
 
 /** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */

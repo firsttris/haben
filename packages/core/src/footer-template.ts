@@ -1,4 +1,6 @@
-/** Eigene Fußzeile der Belege (#113): Spalten als Text mit Platzhaltern, gleich für PDF und Vorschau */
+import { type FormattedTextRun, parseTextFormatting } from "./text-format.ts";
+
+/** Eigene Fußzeile der Belege (#113): Spalten als Text mit Platzhaltern und Auszeichnungen, gleich für PDF und Vorschau */
 
 export const FOOTER_PLACEHOLDERS = [
   "firma",
@@ -79,18 +81,38 @@ export function footerIssues(columns: readonly string[]): string[] {
   return issues;
 }
 
-/** Eine Zeile ohne Wert fällt weg: Ohne Telefon erscheint nicht „Telefon “ */
-function filledLine(line: string, values: FooterValues): string | null {
+const PLACEHOLDER = /\{([^{}\s]*)\}/g;
+
+/**
+ * Eine Zeile ohne Wert fällt weg: Ohne Telefon erscheint nicht „Telefon “. Ausgezeichnet wird der eingegebene Text, die Werte
+ * kommen erst danach dazu: Ein Unterstrich in einer E-Mail-Adresse bleibt ein Unterstrich.
+ */
+function filledRuns(line: string, values: FooterValues): FormattedTextRun[] | null {
   const names = placeholdersIn(line).filter(isPlaceholder);
   if (names.length > 0 && names.every((name) => !values[name])) return null;
-  return line.replace(/\{([^{}\s]*)\}/g, (whole, name: string) => (isPlaceholder(name) ? values[name] : whole)).trim();
+  const runs = parseTextFormatting(line).map((run) => ({
+    ...run,
+    text: run.text.replace(PLACEHOLDER, (whole, name: string) => (isPlaceholder(name) ? values[name] : whole)),
+  }));
+  const last = runs.length - 1;
+  const trimmed = runs.map((run, index) => {
+    const start = index === 0 ? run.text.trimStart() : run.text;
+    return { ...run, text: index === last ? start.trimEnd() : start };
+  });
+  const filled = trimmed.filter((run) => run.text);
+  return filled.length > 0 ? filled : null;
 }
 
-export function fillFooterColumn(text: string, values: FooterValues): string[] {
-  return text
+const plainLine = (runs: readonly FormattedTextRun[]): string => runs.map((run) => run.text).join("");
+
+const columnRuns = (text: string, values: FooterValues): FormattedTextRun[][] =>
+  text
     .split("\n")
-    .map((line) => filledLine(line, values))
-    .filter((line): line is string => Boolean(line));
+    .map((line) => filledRuns(line, values))
+    .filter((runs): runs is FormattedTextRun[] => runs !== null);
+
+export function fillFooterColumn(text: string, values: FooterValues): string[] {
+  return columnRuns(text, values).map(plainLine);
 }
 
 /**
@@ -109,15 +131,22 @@ export interface FooterTaxLabels {
   vatId: string;
 }
 
-/** Spalten mit eingesetzten Werten; was Pflicht ist und fehlt, kommt ans Ende der letzten Spalte */
-export function customFooter(
+/** Spalten mit eingesetzten Werten, je Zeile die ausgezeichneten Abschnitte; was Pflicht ist und fehlt, kommt ans Ende der letzten Spalte */
+export function customFooterRuns(
   columns: readonly string[],
   values: FooterValues,
   { labels = { taxNumber: "Steuernummer", vatId: "USt-IdNr." }, needsVatId = false }: { labels?: FooterTaxLabels; needsVatId?: boolean } = {},
-): string[][] {
-  const filled = columns.map((column) => fillFooterColumn(column, values));
+): FormattedTextRun[][][] {
+  const filled = columns.map((column) => columnRuns(column, values));
   // Spalten ganz ohne Platzhalter dafür weist footerIssues schon beim Speichern ab
   if (!columns.some((column) => TAX_PLACEHOLDER.test(column))) return filled;
-  const line = missingTaxLine(filled.flat(), values, labels, needsVatId);
-  return line ? filled.map((column, index) => (index === filled.length - 1 ? [...column, line] : column)) : filled;
+  const line = missingTaxLine(filled.flat().map(plainLine), values, labels, needsVatId);
+  if (!line) return filled;
+  const added: FormattedTextRun[] = [{ text: line, bold: false, italic: false, underline: false }];
+  return filled.map((column, index) => (index === filled.length - 1 ? [...column, added] : column));
+}
+
+/** Dieselben Spalten als Text, ohne Auszeichnungen */
+export function customFooter(...args: Parameters<typeof customFooterRuns>): string[][] {
+  return customFooterRuns(...args).map((column) => column.map(plainLine));
 }

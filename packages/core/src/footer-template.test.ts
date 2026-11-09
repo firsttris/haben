@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customFooter,
-  customFooterRuns, DEFAULT_FOOTER_COLUMNS, fillFooterColumn, footerIssues, footerValues, MAX_FOOTER_LINES } from "./footer-template.ts";
+import { customFooter, customFooterRuns, DEFAULT_FOOTER_COLUMNS, fillFooterColumn, footerIssues, footerValues, MAX_FOOTER_LINES } from "./footer-template.ts";
 
 const seller = {
   name: "Testfirma",
@@ -51,11 +50,7 @@ describe("Auszeichnungen in eigenen Spalten", () => {
 
   it("liest fett, kursiv und unterstrichen, auch um Platzhalter", () => {
     expect(customFooterRuns(["*{firma}*\n_Hinweis_\n__Wichtig__"], values)).toEqual([
-      [
-        [{ text: "Testfirma", ...plain, bold: true }],
-        [{ text: "Hinweis", ...plain, italic: true }],
-        [{ text: "Wichtig", ...plain, underline: true }],
-      ],
+      [[{ text: "Testfirma", ...plain, bold: true }], [{ text: "Hinweis", ...plain, italic: true }], [{ text: "Wichtig", ...plain, underline: true }]],
     ]);
   });
 

@@ -1,9 +1,9 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   accentPalette,
   alternativeMain,
   computeInvoice,
-  customFooter,
+  customFooterRuns,
   DEFAULT_OPTIONS,
   footerValues,
   discountedLineAmount,
@@ -30,7 +30,7 @@ import {
 } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
-import { FormattedText } from "./FormattedText.tsx";
+import { FormattedRuns, FormattedText } from "./FormattedText.tsx";
 
 export interface PreviewSeller {
   name: string;
@@ -203,7 +203,11 @@ export function InvoicePreview({
   ].map((column) => column.filter(Boolean));
   // Wie im PDF (footerData): nur mit Briefpapier
   const footerHidden = Boolean(seller.background) && options.footerHidden;
-  const footer = options.footerColumns ? customFooter(options.footerColumns, footerValues(seller), { needsVatId }) : automaticFooter;
+  const footer: ReactNode[][] = options.footerColumns
+    ? customFooterRuns(options.footerColumns, footerValues(seller), { needsVatId }).map((column) =>
+        column.map((runs, index) => <FormattedRuns key={index} runs={runs} />),
+      )
+    : automaticFooter;
 
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (

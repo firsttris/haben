@@ -21,6 +21,17 @@
 #let medium(body) = text(font: font.medium, weight: 500, body)
 #let semibold(body) = text(font: font.semibold, weight: 600, body)
 
+// Auszeichnungen aus parseTextFormatting (packages/core)
+#let formatted(runs) = {
+  for run in runs {
+    let body = text(run.text)
+    if run.bold { body = semibold(body) }
+    if run.italic { body = emph(body) }
+    if run.underline { body = underline(body) }
+    body
+  }
+}
+
 #set document(title: d.docTitle, author: d.author)
 #set text(font: font.regular, size: 9.5pt, fill: ink, lang: "de", region: "de", number-type: "lining", number-width: "tabular")
 #set par(leading: 0.55em, spacing: 0.9em)
@@ -29,6 +40,13 @@
   set text(size: 7pt, fill: muted)
   set par(leading: 0.45em)
   lines.join(linebreak())
+}
+
+// Eigene Spalten: je Zeile die ausgezeichneten Abschnitte
+#let footer-col-formatted(lines) = {
+  set text(size: 7pt, fill: muted)
+  set par(leading: 0.45em)
+  lines.map(formatted).join(linebreak())
 }
 
 // Pflichtangaben über die ganze Breite unter den Spalten des Fußes
@@ -42,7 +60,7 @@
   grid(
     columns: d.footer.map(_ => 1fr),
     column-gutter: 6mm,
-    ..d.footer.map(footer-col),
+    ..if d.at("footerFormatted", default: none) != none { d.footerFormatted.map(footer-col-formatted) } else { d.footer.map(footer-col) },
   )
   if legal-foot != none { legal-foot }
 }

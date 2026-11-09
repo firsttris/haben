@@ -113,11 +113,11 @@ describe("Schalter der Gestaltung im PDF", () => {
 });
 
 /** Ausgabe eines Poppler-Werkzeugs für das PDF; null, wenn es fehlt (Tabelle der übersprungenen Tests in docs/entwicklung.md) */
-function poppler(tool: string, args: string[], pdf: Uint8Array): string | null {
+function poppler(tool: string, args: string[], pdf: Uint8Array, after: string[] = []): string | null {
   const dir = mkdtempSync(join(tmpdir(), "haben-gestaltung-"));
   try {
     writeFileSync(join(dir, "beleg.pdf"), pdf);
-    return execFileSync(tool, [...args, join(dir, "beleg.pdf")], { encoding: "utf8" });
+    return execFileSync(tool, [...args, join(dir, "beleg.pdf"), ...after], { encoding: "utf8" });
   } catch {
     return null;
   } finally {
@@ -249,7 +249,7 @@ describe("Auszeichnungen in der eigenen Fußzeile", () => {
 
   it.skipIf(!hasPoppler)("druckt fett und kursiv mit echten Schnitten und ohne die Zeichen", () => {
     const pdf = renderInvoicePdf(eigene);
-    const text = poppler("pdftotext", ["-layout"], pdf)!;
+    const text = poppler("pdftotext", ["-layout"], pdf, ["-"])!;
     expect(text).toContain("Fettzeile");
     expect(text).not.toContain("*Fettzeile*");
     const fonts = poppler("pdffonts", [], pdf)!;
