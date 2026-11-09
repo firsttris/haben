@@ -14,7 +14,7 @@ import {
   type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
-import { and, eq, getTableColumns, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
@@ -36,6 +36,7 @@ type LegacyVoucher = typeof schema.lexofficeVouchers.$inferSelect;
 /** Belegarten, die als offener Posten nach Haben wandern können */
 const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
+const OPEN_ITEM_TYPES = new Set([...SALES, ...PURCHASES]);
 
 const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
 
@@ -186,7 +187,8 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)
-    .where(inArray(effectiveType("lexoffice_vouchers"), [...SALES, ...PURCHASES]))
+    // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar
+    .where(or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])))
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
   const [invoices, documents] = await Promise.all([
     db
@@ -221,7 +223,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
             : legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
       return { voucher: v, state, takenOver: takenOverOf(v.id) };
     })
-    .filter((c) => c.state.open > 0 || c.state.issue || c.takenOver);
+    .filter((c) => c.takenOver || (OPEN_ITEM_TYPES.has(c.voucher.type) && (c.state.open > 0 || c.state.issue)));
   if (candidates.length === 0) return [];
   const files = await db
     .selectDistinct({ voucherId: schema.lexofficeVoucherFiles.voucherId })
