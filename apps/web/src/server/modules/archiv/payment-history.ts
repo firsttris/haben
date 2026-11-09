@@ -13,15 +13,33 @@ type PaymentSource = {
 };
 
 /**
+ * Stornierte sevDesk-Rechnungen und ihre Stornorechnungen, je ID das Datum des Stornos. sevDesk führt beide als „bezahlt“
+ * ohne Zahlung; erkennbar ist das Paar nur an invoiceType SR und origin (#472). Nur der volle Betrag und nur ohne Zahlung:
+ * Sonst erklärt der Storno den Zahlungsstand nicht. Unverbunden, damit Postgres sie je Abfrage einmal berechnet.
+ */
+const unpaid = (alias: string) => `coalesce(${alias}.raw->>'paidAmount', '') ~ '^0*([.,]0*)?$' and coalesce(${alias}.raw->>'payDate', '') = ''`;
+const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storno.date), '{}'::jsonb)
+  from lexoffice_vouchers storno
+  join lexoffice_vouchers original on original.lexoffice_id = 'invoice/' || (storno.raw->'origin'->>'id') and original.source = 'sevdesk'
+  cross join lateral (values (storno.id::text), (original.id::text)) as member(id)
+  where storno.type = 'creditnote' and storno.source = 'sevdesk' and upper(storno.raw->>'invoiceType') = 'SR'
+    and storno.raw->'origin'->>'objectName' = 'Invoice' and storno.gross = -original.gross
+    and ${unpaid("storno")} and ${unpaid("original")}
+    and not exists (select 1 from legacy_voucher_payments paid where paid.voucher_id in (storno.id, original.id)))`);
+
+/**
  * Zahlungsstand mit den belegten Einzelzahlungen aus legacy_voucher_payments statt der gespeicherten Verdichtung.
  * Die Archivkopie bleibt unverändert; ohne Einzelzahlungen gilt sie wie gespeichert. `alias` ist der Tabellenname
  * oder Alias von lexoffice_vouchers in der Abfrage.
  * Nur Zuordnungen, die sevDesk bis zum Abruf der Kopie angelegt hatte (`create` im CheckAccountTransactionLog): Die Kopie
  * zeigt den Stand von damals; eine spätere Zuordnung kann ihn nicht erklären, auch bei zufällig gleichem Betrag (Review #361).
+ * Stornierte Rechnungen und ihr Storno sind ausgeglichen, ohne dass Geld floss.
  */
 export function effectivePayment(alias: string): SQL<LegacyPayment | null> {
   const v = sql.raw(alias);
   return sql<LegacyPayment | null>`coalesce((
+    select ${v}.payment || jsonb_build_object('status', 'cancelled', 'openAmount', 0, 'paidDate', null, 'items', '[]'::jsonb, 'history', 'storno', 'cancelledOn', pair.cancelled_on)
+    from (select ${STORNO_PAIRS}->>(${v}.id::text) as cancelled_on) pair where pair.cancelled_on is not null and ${v}.payment is not null), (
     select jsonb_set(${v}.payment, '{items}', jsonb_agg(jsonb_build_object(
       'type', 'partPaymentFinancialTransaction', 'date', p.date::text, 'amount', p.amount, 'account', p.account_name)
       order by p.date, p.external_id)) || '{"history":"sevdesk"}'::jsonb
@@ -46,6 +64,7 @@ function historyIssue(gross: number, payment: LegacyPayment): string | null {
 export function paymentHistoryIssue(voucher: PaymentSource): string | null {
   if (voucher.source !== "sevdesk") return null;
   const payment = voucher.payment;
+  if (payment?.history === "storno") return null;
   if (payment?.history === "sevdesk") return historyIssue(voucher.gross, payment);
   const paid = payment && (Math.abs(payment.openAmount) !== Math.abs(voucher.gross) || payment.items.length > 0);
   return paid || voucher.status === "paid" || voucher.status === "partlyPaid"

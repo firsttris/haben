@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_app/archiv/beleg/$id")({
 
 const PAYMENT_STATUS: Record<string, string> = {
   balanced: "ausgeglichen",
+  cancelled: "storniert",
   openRevenue: "offene Forderung",
   openExpense: "offene Verbindlichkeit",
   // aus sevDesk

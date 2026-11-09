@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import logs from "../../test-fixtures/sevdesk/check-account-transaction-log.json" with { type: "json" };
+import logs from "../../test-fixtures/sevdesk/buchhaltung-1.0/check-account-transaction-log.json" with { type: "json" };
 import { SevdeskClient } from "./client.ts";
 import { mapSevPaymentLogs } from "./map.ts";
 import { sevCheckAccountTransactionLogSchema } from "./types.ts";

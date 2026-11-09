@@ -194,11 +194,21 @@ describe("mapSevVoucher", () => {
     sumTax: "19.00",
     sumGross: "119.00",
     paidAmount: 0,
-    creditDebit: "D",
+    creditDebit: "C",
     voucherType: "VOU",
     currency: "EUR",
     paymentDeadline: "2024-02-24T00:00:00+01:00",
   };
+
+  it.each([
+    ["ohne supplierName", { supplierName: null, supplierNameAtSave: " Bürohaus GmbH " }, "Bürohaus GmbH"],
+    ["bei leerem supplierName", { supplierName: "  ", supplierNameAtSave: "Bürohaus GmbH" }, "Bürohaus GmbH"],
+    ["mit supplierName vorrangig", { supplierName: "Eigener Name", supplierNameAtSave: "Bürohaus GmbH" }, "Eigener Name"],
+    ["ohne beide Namen leer", { supplierName: null, supplierNameAtSave: null }, ""],
+  ])("liest den Lieferanten aus supplierNameAtSave: %s", (_fall, namen, erwartet) => {
+    const { voucher } = mapSevVoucher(sevVoucherSchema.parse({ ...base, ...namen }), []);
+    expect(voucher.contactName).toBe(erwartet);
+  });
 
   it("bildet Ausgaben mit Kategorien, Datei und offenem Betrag ab", () => {
     const { voucher, payment } = mapSevVoucher(sevVoucherSchema.parse(base), [
@@ -225,14 +235,36 @@ describe("mapSevVoucher", () => {
   });
 
   it("erkennt Einnahmen und Gutschriften", () => {
-    expect(mapSevVoucher(sevVoucherSchema.parse({ ...base, creditDebit: "C" }), []).voucher.type).toBe("salesinvoice");
+    expect(mapSevVoucher(sevVoucherSchema.parse({ ...base, creditDebit: "D" }), []).voucher.type).toBe("salesinvoice");
     const credit = mapSevVoucher(sevVoucherSchema.parse({ ...base, sumNet: "-10", sumTax: "-1.90", sumGross: "-11.90" }), []);
-    expect(credit.voucher).toMatchObject({ type: "purchasecreditnote", gross: -1190, taxes: [{ rate: 0, net: -1000, tax: -190 }] });
+    expect(credit.voucher).toMatchObject({ type: "purchasecreditnote", gross: -1190, taxes: [{ rate: 1900, net: -1000, tax: -190 }] });
   });
 
   it("lässt Entwürfe und Vorlagen wiederkehrender Belege aus", () => {
     expect(isSevVoucherImportable(sevVoucherSchema.parse({ ...base, status: "50" }))).toBe(false);
     expect(isSevVoucherImportable(sevVoucherSchema.parse({ ...base, voucherType: "RV" }))).toBe(false);
     expect(isSevVoucherImportable(sevVoucherSchema.parse(base))).toBe(true);
+  });
+});
+
+describe("mapSevInvoice ohne Positionen", () => {
+  const head = { id: "9", invoiceNumber: "RE-1", invoiceDate: "2025-03-10", status: "1000", invoiceType: "RE", paidAmount: 0 };
+  const taxesFor = (sumNet: string, sumTax: string, sumGross: string) =>
+    mapSevInvoice(sevInvoiceSchema.parse({ ...head, sumNet, sumTax, sumGross }), []).voucher.taxes;
+
+  it.each([
+    ["19 %", "119", "22.61", "141.61", 1900, 11_900, 2_261],
+    ["7 %", "100", "7", "107", 700, 10_000, 700],
+    ["Rundung auf einen Cent", "0.99", "0.19", "1.18", 1900, 99, 19],
+    ["nächstliegender Satz bei kleinem Betrag", "0.10", "0.01", "0.11", 700, 10, 1],
+    ["vom Brutto gerechnet, mehr als ein halber Cent Abstand", "1.71", "0.33", "2.04", 1900, 171, 33],
+    ["regulärer Satz vor dem Satz von 2020", "0.20", "0.01", "0.21", 700, 20, 1],
+    ["16 % aus 2020, wenn kein regulärer Satz passt", "100", "16", "116", 1600, 10_000, 1_600],
+  ])("nimmt den Satz aus dem Kopf: %s", (_name, net, tax, gross, rate, netCents, taxCents) => {
+    expect(taxesFor(net, tax, gross)).toEqual([{ rate, net: netCents, tax: taxCents }]);
+  });
+
+  it("lässt 0, wenn der Kopf keinen bekannten Satz trägt", () => {
+    expect(taxesFor("100", "12.34", "112.34")).toEqual([{ rate: 0, net: 10_000, tax: 1_234 }]);
   });
 });

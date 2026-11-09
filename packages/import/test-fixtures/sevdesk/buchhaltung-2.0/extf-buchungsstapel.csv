@@ -1,0 +1,4 @@
+"EXTF";700;21;"Buchungsstapel";13;;;"";"";"";0;0;20240101;4;20240101;20241231;"";"";;;0;"EUR";;"";;;"";;;"";
+Umsatz;Soll-/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext;Postensperre;Diverse Adressnummer;Geschäftspartnerbank;Sachverhalt;Zinssperre;Beleglink
+1,00;"H";"EUR";;;;70001;4390;"9";0101;"-BG-EUR-xx-xxxxx-xxxxxxx-xxxxx-xxxxx";"010124";;"Lieferant GmbH, EBA-BG-EUR-xx-xxxxx-xxxxx xx-xxxxx-xxxxx";;;;;;"BEDI ""00000000-0000-4000-8000-000000000002"""
+1,00;"H";"EUR";;;;1201;70001;;0101;"00000000-0000-4000-8000-000000000001";;;"Zahlung zu EBA-SG-EUR-THRFS INVOICE-xxxxxxxxxxxxx_11";;;;;;

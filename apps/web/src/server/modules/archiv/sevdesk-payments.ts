@@ -31,7 +31,8 @@ export async function importSevdeskPayments(
     .from(schema.lexofficeVouchers)
     .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
   // Alle Logs kosten viele Seiten; nur abrufen, wenn noch eine Zahlungshistorie offen ist
-  const pending = new Map(vouchers.filter((v) => paymentHistoryIssue(v)).map((v) => [v.lexofficeId, v.id]));
+  // Auch Stornopaare: Sie gelten nur als storniert, solange keine Zahlung zu ihnen bekannt ist
+  const pending = new Map(vouchers.filter((v) => v.payment?.history === "storno" || paymentHistoryIssue(v)).map((v) => [v.lexofficeId, v.id]));
   if (pending.size === 0) return;
   try {
     const logs: SevCheckAccountTransactionLog[] = [];
