@@ -61,7 +61,7 @@ export function parseTextFormatting(text: string): FormattedTextRun[] {
       const rest = text.slice(at);
       // Einzelner Backslash ab Laufwerkswurzel: ein weiterer Trenner macht den
       // Pfad erkennbar. Explizite Paare wie \_wörtlich\_ bleiben dagegen Escapes.
-      const escaped = /^\\([*_])[^\s]*\\\1(?=[.,;:!?)}\]]*(?:\s|$))/.test(rest);
+      const escaped = /^\\([*_])[^\s]*\\\1/.test(rest);
       const path = /^(?:[^\s*_\\/][^\s\\/]*[\\/]|\/|\\\\)[^\s]*/.exec(rest) ?? (!escaped ? /^\\[^\s\\]+\\[^\s]*/.exec(rest) : null);
       if (path) {
         let end = at + path[0].length;
