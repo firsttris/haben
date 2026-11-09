@@ -1241,7 +1241,26 @@ export async function reverseAllocation(actor: string, allocationId: string): Pr
         .for("update");
       for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
     }
+    await assertNoReturnWithoutPayment(tx, parts);
   });
+}
+
+/**
+ * Eine Rücklastschrift (#445) setzt die Zahlung voraus, die sie zurückholt: Ohne sie stünde die Rechnung über ihren
+ * Betrag hinaus offen und würde so neu eingezogen. Erst die Rücklastschrift aufheben, dann die Zahlung.
+ */
+async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.allocations.$inferSelect)[]) {
+  const ids = [...new Set(parts.filter((p) => p.kind === "invoice" && p.amount > 0 && p.invoiceId).map((p) => p.invoiceId!))];
+  if (ids.length === 0) return;
+  const invoices = await tx
+    .select({ id: schema.invoices.id, number: schema.invoices.number, gross: schema.invoices.gross })
+    .from(schema.invoices)
+    .where(inArray(schema.invoices.id, ids));
+  for (const invoice of invoices) {
+    if (invoice.gross > 0 && (await settledOn(tx, "invoice_id", invoice.id)) < 0) {
+      throw new BankError(`Zu Rechnung ${invoice.number} ist eine Rücklastschrift zugeordnet; bitte zuerst sie aufheben.`);
+    }
+  }
 }
 
 async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
