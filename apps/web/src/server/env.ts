@@ -8,6 +8,7 @@ const envSchema = z
       .default("false")
       .transform((value) => value === "true"),
     OIDC_ISSUER: z.string().url().optional(),
+    OIDC_SCOPES: z.string().optional(),
     OIDC_CLIENT_ID: z.string().min(1).optional(),
     OIDC_CLIENT_SECRET: z.string().min(1).optional(),
     OIDC_DISPLAY_NAME: z.string().trim().min(1).max(80).optional(),
@@ -80,6 +81,8 @@ const envSchema = z
   .superRefine((value, ctx) => {
     // Nur OIDC_ONLY=true schaltet SSO ein; Anbieterwerte allein aktivieren nichts und werden im Standardmodus nicht gelesen
     if (value.OIDC_ONLY) {
+      if (value.OIDC_SCOPES && !value.OIDC_SCOPES.split(/\s+/).includes("openid"))
+        ctx.addIssue({ code: "custom", path: ["OIDC_SCOPES"], message: "muss openid enthalten" });
       for (const field of ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_GROUP_INHABER", "OIDC_GROUP_STEUERBERATUNG"] as const) {
         if (!value[field]?.trim()) ctx.addIssue({ code: "custom", path: [field], message: "fehlt für den SSO-Modus (OIDC_ONLY=true)" });
       }
@@ -125,6 +128,12 @@ let cached: Env | undefined;
 
 export function env(): Env {
   // Leere Zeilen aus haben.env (z. B. „ELSTER_HERSTELLER_ID=“) gelten als nicht gesetzt
-  cached ??= envSchema.parse(Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== "")));
+  cached ??= envSchema.parse(
+    Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key, value]) => value !== "" && (process.env.OIDC_ONLY === "true" || !key.startsWith("OIDC_") || key === "OIDC_ONLY"),
+      ),
+    ),
+  );
   return cached;
 }

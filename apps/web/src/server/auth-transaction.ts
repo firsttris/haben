@@ -13,11 +13,11 @@ export interface SsoProof {
   checkedAt: Date;
   role?: Rolle;
   expiresAt?: Date;
-  rejection?: GroupRejection;
+  rejection?: GroupRejection | "profil";
 }
 
 /** Warum ein Callback abgewiesen wurde; bestimmt den Hinweis auf der Anmeldeseite */
-export type CallbackRejection = "gruppe" | "nicht-eingerichtet" | "konto-vorhanden" | "fehler";
+export type CallbackRejection = "gruppen-doppelt" | "profil" | "gruppe" | "nicht-eingerichtet" | "konto-vorhanden" | "fehler";
 
 interface CallbackScope {
   tx: Tx;
@@ -42,6 +42,9 @@ export function setCallbackProof(proof: SsoProof): void {
   const store = scope.getStore();
   if (!store) throw new Error("SSO-Nachweis außerhalb eines Callbacks");
   store.proof = proof;
+  // Ein vollständig geprüfter Nachweis setzt voraus, dass Better Auth State und Browserbindung schon geprüft hat.
+  // Dies vor weiteren SQL-Anweisungen merken: nach einem DB-Fehler wäre die Transaktion bereits abgebrochen.
+  store.stateConsumed = true;
 }
 export function rejectCallback(reason: CallbackRejection): void {
   const store = scope.getStore();
@@ -100,7 +103,7 @@ export async function atomicAuthCallback(work: () => Promise<Response>, options:
           const failed = failedLocation(response);
           if (failed) {
             if (failed === "account_not_linked") store.rejection ??= "konto-vorhanden";
-            store.stateConsumed = await stateConsumed(tx, options.stateIdentifier);
+            store.stateConsumed ||= await stateConsumed(tx, options.stateIdentifier);
             throw new Error("OIDC_CALLBACK_ROLLBACK");
           }
           return response;
@@ -118,14 +121,14 @@ export async function atomicAuthCallback(work: () => Promise<Response>, options:
       await db
         .delete(schema.verification)
         .where(eq(schema.verification.identifier, options.stateIdentifier))
-        .catch((error: unknown) => console.error("SSO: State nach abgewiesenem Callback nicht entwertet", error));
+        .catch(() => console.error("SSO: State nach abgewiesenem Callback nicht entwertet"));
     }
     const proof = state.proof;
     if (proof?.rejection && options.afterRejection) {
       try {
         await options.afterRejection(proof);
-      } catch (error) {
-        console.error("SSO: Widerruf nach abgewiesener Gruppenprüfung fehlgeschlagen", error);
+      } catch {
+        console.error("SSO: Widerruf nach abgewiesener Gruppenprüfung fehlgeschlagen");
       }
     }
     return Response.redirect(options.errorUrl(state.rejection ?? "fehler"), 303);

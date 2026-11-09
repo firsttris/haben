@@ -78,6 +78,7 @@ export async function startTestProvider(): Promise<TestProvider> {
         authorization_endpoint: `${issuer}/authorize`,
         token_endpoint: `${issuer}/token`,
         jwks_uri: `${issuer}/jwks`,
+        scopes_supported: ["openid", "profile", "email", "groups"],
         userinfo_endpoint: `${issuer}/userinfo`,
         response_types_supported: ["code"],
         id_token_signing_alg_values_supported: ["RS256"],

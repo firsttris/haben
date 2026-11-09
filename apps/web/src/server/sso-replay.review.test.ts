@@ -63,7 +63,9 @@ describe.skipIf(!testDatabaseUrl)("SSO-State nach abgewiesenem Callback (Review)
 
   it("nimmt denselben State nach Abweisung wegen doppelter Gruppen kein zweites Mal an", async () => {
     const flow = await begin();
-    expect(reason(await finish(flow, { sub: "doppelt", email: "doppelt@example.de", groups: ["haben-inhaber", "haben-steuerberatung"] }))).toBe("gruppe");
+    expect(reason(await finish(flow, { sub: "doppelt", email: "doppelt@example.de", groups: ["haben-inhaber", "haben-steuerberatung"] }))).toBe(
+      "gruppen-doppelt",
+    );
     const replay = await finish(flow, { sub: "doppelt", email: "doppelt@example.de", groups: ["haben-steuerberatung"] });
     expect(succeeded(replay)).toBe(false);
     expect(await database`select id from "user" where email = 'doppelt@example.de'`).toHaveLength(0);

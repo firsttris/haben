@@ -3,6 +3,8 @@ import { authClient } from "../lib/auth-client.ts";
 
 /** Hinweise zu ?sso=… nach einem abgewiesenen Callback; der Grund kommt vom Server, nie mit Details zur Identität */
 const ssoReasons = (provider: string): Record<string, string> => ({
+  profil: "Die SSO-Anmeldung liefert kein vollständiges Profil mit gültiger E-Mail-Adresse. Bitte den Betreiber fragen.",
+  "gruppen-doppelt": "Kein Zugang: Dein Konto gehört beiden Haben-Gruppen an. Bitte die Zuordnung beim Anbieter korrigieren lassen.",
   gruppe: `Kein Zugang: Dein Konto ist in ${provider} keiner Haben-Gruppe eindeutig zugeordnet. Bitte den Betreiber fragen.`,
   "nicht-eingerichtet": "Haben ist noch nicht eingerichtet. Die erste Anmeldung muss ein Inhaber übernehmen.",
   "konto-vorhanden": "Zu dieser E-Mail gibt es schon ein Haben-Konto ohne SSO-Zuordnung. Der Betreiber kann es mit der SSO-Übernahme ausdrücklich zuordnen.",

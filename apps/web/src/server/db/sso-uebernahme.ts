@@ -25,7 +25,7 @@ export type TakeoverResult = { ok: true; applied: boolean; message: string } | {
 /** Derselbe Schlüssel wie im Login (oidc.ts, identityKey): Issuer und Subject gemeinsam */
 const identityKey = (issuer: string, subject: string) => JSON.stringify([issuer, subject]);
 
-class Refused extends Error {}
+const refused = (message: string) => ({ refused: true, message });
 
 /**
  * Prüft und übernimmt in einer Transaktion. Abgelehnt wird: laufende Anwendung, fremder Issuer, unbekanntes Konto,
@@ -40,18 +40,18 @@ export async function ssoTakeover(sql: postgres.Sql, request: TakeoverRequest, c
   try {
     return await sql.begin(async (tx) => {
       const [lock] = await tx`select pg_try_advisory_xact_lock(${APP_RUNNING_LOCK}) as free`;
-      if (!lock?.free) throw new Refused("Haben läuft noch. Bitte die Anwendung zuerst stoppen.");
+      if (!lock?.free) throw refused("Haben läuft noch. Bitte die Anwendung zuerst stoppen.");
       await tx`select set_config('haben.actor', 'system:sso-uebernahme', true)`;
       const [user] = await tx`select id, name, email from "user" where id = ${userId} for update`;
-      if (!user) throw new Refused(`Ein Konto ${userId} gibt es nicht.`);
+      if (!user) throw refused(`Ein Konto ${userId} gibt es nicht.`);
       const [taken] = await tx`select user_id from account where provider_id = 'oidc' and account_id = ${key}`;
       if (taken) {
-        if (taken.user_id === userId) throw new Refused("Diese Identität ist dem Konto bereits zugeordnet.");
-        throw new Refused("Dieses Subject ist bereits einem anderen Konto zugeordnet.");
+        if (taken.user_id === userId) throw refused("Diese Identität ist dem Konto bereits zugeordnet.");
+        throw refused("Dieses Subject ist bereits einem anderen Konto zugeordnet.");
       }
       const existing = await tx`select account_id from account where provider_id = 'oidc' and user_id = ${userId}`;
       if (existing.some((row) => (JSON.parse(row.account_id) as unknown[])[0] === issuer))
-        throw new Refused("Das Konto hat schon eine andere Identität dieses Issuers.");
+        throw refused("Das Konto hat schon eine andere Identität dieses Issuers.");
       const target = `Konto ${user.name} <${user.email}> (${userId}) ← ${issuer} / ${subject}`;
       if (!apply) return { ok: true as const, applied: false, message: `Prüfung bestanden, nichts geändert: ${target}` };
       await tx`insert into account (id, account_id, provider_id, user_id, created_at, updated_at)
@@ -60,7 +60,7 @@ export async function ssoTakeover(sql: postgres.Sql, request: TakeoverRequest, c
       return { ok: true as const, applied: true, message: `Übernommen: ${target}. Die Rolle kommt bei der nächsten Anmeldung aus den Gruppen.` };
     });
   } catch (error) {
-    if (error instanceof Refused) return { ok: false, message: error.message };
+    if (typeof error === "object" && error !== null && "refused" in error && "message" in error) return { ok: false, message: String(error.message) };
     throw error;
   }
 }

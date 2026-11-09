@@ -54,7 +54,10 @@ let startupCheck: Promise<string | null> | undefined;
 
 /** Für jede Auth-Anfrage: das Ergebnis der Startprüfung, ohne sie zu wiederholen (je Bundle einmal) */
 export function modeStartupProblem(): Promise<string | null> {
-  startupCheck ??= checkModeOnStartup();
+  startupCheck ??= checkModeOnStartup().catch((error: unknown) => {
+    startupCheck = undefined;
+    throw error;
+  });
   return startupCheck;
 }
 

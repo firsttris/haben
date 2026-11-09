@@ -1,5 +1,5 @@
 import { passkey } from "@better-auth/passkey";
-import { APIError, betterAuth } from "better-auth";
+import { APIError, betterAuth, type BetterAuthOptions } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -56,6 +56,8 @@ function createAuth() {
       },
     },
     logger: { disabled: true },
+    // Better-Call würde ungefangene Adapterfehler trotz deaktiviertem Logger samt SQL-Parametern ausgeben.
+    onAPIError: { throw: true },
     plugins: [...oidcProvider(), ...(sso ? [] : [passkey({ rpID: baseUrl.hostname, rpName: "Haben", origin: baseUrl.origin })]), tanstackStartCookies()],
     user: {
       // Rolle und Sperre setzt nur der Server (Hooks unten, Modul zugang), nie die Anfrage
@@ -64,6 +66,12 @@ function createAuth() {
         lockedAt: { type: "date", input: false, required: false },
       },
     },
+    ...authHooks(sso),
+  });
+}
+
+function authHooks(sso: boolean): Pick<BetterAuthOptions, "hooks" | "databaseHooks"> {
+  return {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         await enforceMode(ctx);
@@ -128,7 +136,7 @@ function createAuth() {
         },
       },
     },
-  });
+  };
 }
 
 let instance: ReturnType<typeof createAuth> | undefined;
@@ -141,7 +149,7 @@ export function auth() {
 const loginUrl = (reason: string) => `${env().BETTER_AUTH_URL.replace(/\/$/, "")}/login?sso=${reason}`;
 
 /** Einstieg für /api/auth/*: Startprüfung der Betriebsart, Callback atomar, Anbieterstörungen ohne Datenbankverbindung */
-export async function handleAuth(request: Request): Promise<Response> {
+async function handleAuthRequest(request: Request): Promise<Response> {
   const problem = await modeStartupProblem();
   if (problem) return new Response(problem, { status: 503 });
   const current = auth();
@@ -171,4 +179,13 @@ export async function handleAuth(request: Request): Promise<Response> {
     });
   }
   return current.handler(request);
+}
+
+/** Keine SQL-Parameter, Codes oder Providerdetails aus unerwarteten Fehlern nach außen oder ins Log geben. */
+export async function handleAuth(request: Request): Promise<Response> {
+  try {
+    return await handleAuthRequest(request);
+  } catch {
+    return new Response("Die Anmeldung ist vorübergehend nicht verfügbar.", { status: 503 });
+  }
 }

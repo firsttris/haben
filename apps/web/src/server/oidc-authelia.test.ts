@@ -167,7 +167,7 @@ describe.skipIf(!issuer || !usersFile || !testDatabaseUrl)("Authelia-Referenzint
     expect(await sessionUser(new Headers({ cookie: promoted.cookie }))).toBeNull();
 
     await setGroups("kanzlei", ["haben-inhaber", "haben-steuerberatung"]);
-    expect((await habenLogin("kanzlei")).reason).toBe("gruppe");
+    expect((await habenLogin("kanzlei")).reason).toBe("gruppen-doppelt");
 
     await setGroups("kanzlei", ["haben-steuerberatung"]);
     const back = await habenLogin("kanzlei");
