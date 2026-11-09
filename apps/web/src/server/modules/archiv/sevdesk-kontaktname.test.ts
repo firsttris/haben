@@ -32,8 +32,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Beleg ohne supplierName (Postgres)", 
   }
 
   /** Echter Belegaufbau, nur offen gestellt: `supplierName` null, `supplier` verweist auf den Kontakt */
-  async function openVoucher(contactName: string | null, stored = "") {
-    const raw = { ...belege[0]!.voucher, status: "100", paidAmount: 0, payDate: null };
+  async function openVoucher(contactName: string | null, stored = "", atSave: string | null = null) {
+    const raw = { ...belege[0]!.voucher, supplierNameAtSave: atSave, status: "100", paidAmount: 0, payDate: null };
     const mapped = mapSevVoucher(raw as SevVoucher, belege[0]!.positions as never[]);
     const [{ id: importId }] = (await sql`select id from lexoffice_imports limit 1`) as unknown as [{ id: string }];
     const [contact] = contactName ? await sql`insert into contacts (name) values (${contactName}) returning id` : [];
@@ -54,6 +54,14 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Beleg ohne supplierName (Postgres)", 
 
     it("nennt in den offenen Posten den verknüpften Kontakt und übernimmt ihn als Lieferant", async () => {
       const { id } = await openVoucher("Bürohaus GmbH");
+      expect((await legacy.openLegacyItems()).map((i) => i.contactName)).toEqual(["Bürohaus GmbH"]);
+      await legacy.takeOverLegacyItem("test-user", id);
+      const [document] = await sql`select supplier_name from documents where lexoffice_voucher_id = ${id}`;
+      expect(document!.supplier_name).toBe("Bürohaus GmbH");
+    });
+
+    it("übernimmt den Namen vom Zeitpunkt des Belegs, auch nach Umbenennen des Kontakts", async () => {
+      const { id } = await openVoucher("Bürohaus Neu AG", "", "Bürohaus GmbH");
       expect((await legacy.openLegacyItems()).map((i) => i.contactName)).toEqual(["Bürohaus GmbH"]);
       await legacy.takeOverLegacyItem("test-user", id);
       const [document] = await sql`select supplier_name from documents where lexoffice_voucher_id = ${id}`;
@@ -87,6 +95,28 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Beleg ohne supplierName (Postgres)", 
       await sql`update lexoffice_vouchers set source = 'lexoffice' where id = ${id}`;
       await sql`set session_replication_role = default`;
       expect((await lexoffice.legacyVoucherDetail(id))!.voucher.contactName).toBe("");
+    });
+
+    it("zeigt, findet und exportiert den Namen vom Zeitpunkt des Belegs statt des umbenannten Kontakts", async () => {
+      const { id, year } = await openVoucher("Bürohaus Neu AG", "", "Bürohaus GmbH");
+      expect((await lexoffice.legacyVoucherDetail(id))!.voucher.contactName).toBe("Bürohaus GmbH");
+      const liste = await lexoffice.listLegacyVouchers({ year, direction: "alle", search: "Bürohaus GmbH", ohneDatei: false });
+      expect(liste.map((v) => v.contactName)).toEqual(["Bürohaus GmbH"]);
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of exporter.exportYear(year)) chunks.push(chunk);
+      const belegeCsv = new TextDecoder().decode(unzipSync(Buffer.concat(chunks))["lexoffice/belege.csv"]!);
+      expect(belegeCsv).toContain("Bürohaus GmbH");
+      expect(belegeCsv).not.toContain("Bürohaus Neu AG");
+    });
+
+    it("nimmt den Kontakt, wenn der Name vom Zeitpunkt des Belegs nur aus Leerzeichen besteht", async () => {
+      const { id } = await openVoucher("Bürohaus GmbH", "", "   ");
+      expect((await lexoffice.legacyVoucherDetail(id))!.voucher.contactName).toBe("Bürohaus GmbH");
+    });
+
+    it("behält einen gespeicherten Namen vor dem Namen vom Zeitpunkt des Belegs", async () => {
+      const { id } = await openVoucher("Bürohaus GmbH", "Name aus sevDesk", "Name beim Speichern");
+      expect((await lexoffice.legacyVoucherDetail(id))!.voucher.contactName).toBe("Name aus sevDesk");
     });
 
     it("behält einen von sevDesk gelieferten Namen", async () => {

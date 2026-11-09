@@ -200,6 +200,16 @@ describe("mapSevVoucher", () => {
     paymentDeadline: "2024-02-24T00:00:00+01:00",
   };
 
+  it.each([
+    ["ohne supplierName", { supplierName: null, supplierNameAtSave: " Bürohaus GmbH " }, "Bürohaus GmbH"],
+    ["bei leerem supplierName", { supplierName: "  ", supplierNameAtSave: "Bürohaus GmbH" }, "Bürohaus GmbH"],
+    ["mit supplierName vorrangig", { supplierName: "Eigener Name", supplierNameAtSave: "Bürohaus GmbH" }, "Eigener Name"],
+    ["ohne beide Namen leer", { supplierName: null, supplierNameAtSave: null }, ""],
+  ])("liest den Lieferanten aus supplierNameAtSave: %s", (_fall, namen, erwartet) => {
+    const { voucher } = mapSevVoucher(sevVoucherSchema.parse({ ...base, ...namen }), []);
+    expect(voucher.contactName).toBe(erwartet);
+  });
+
   it("bildet Ausgaben mit Kategorien, Datei und offenem Betrag ab", () => {
     const { voucher, payment } = mapSevVoucher(sevVoucherSchema.parse(base), [
       { id: 1, accountDatev: { id: 4930, objectName: "AccountDatev" }, taxRate: "19", net: true, sumNet: "100", sumTax: "19", sumGross: "119" },
