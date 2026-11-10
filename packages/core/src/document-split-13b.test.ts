@@ -8,7 +8,7 @@ import { documentPosting, type PostingLine, type ReverseChargeIn, type SelfAsses
  * § 13b mit Aufteilung (#508). Erfundene Sammelrechnung eines Zahlungsdienstleisters aus dem EU-Ausland, alles zu 19 %:
  * 120 € Transaktionsgebühren, 60 € Zahlungsabwicklung, 20 € Einstellgebühren, 50 € Werbung = 250 € netto, 47,50 € Steuer
  * nach § 13b, gezahlt werden nur die 250 €. Mit Vorsteuerabzug trägt jede Aufwandszeile ihr Netto und die Steuer steht je
- * Satz einmal als Umsatzsteuer und Vorsteuer; ohne Vorsteuerabzug trägt jede Zeile Netto plus ihren Anteil an der Steuer.
+ * Satz einmal als Umsatzsteuer und Vorsteuer; ohne Vorsteuerabzug steht neben jedem Netto sein Anteil an der Steuer als Aufwand.
  */
 
 const lines: DocumentSplitLine[] = [
@@ -58,12 +58,16 @@ describe("documentSplitPosting mit § 13b", () => {
         ]);
       });
 
-      it(`${kontenrahmen}, ${rc}: ohne Vorsteuerabzug Netto plus Steueranteil je Zeile, keine Vorsteuer, Umsatzsteuer einmal`, () => {
+      it(`${kontenrahmen}, ${rc}: ohne Vorsteuerabzug Netto und Steueranteil je Zeile, keine Vorsteuer, Umsatzsteuer einmal`, () => {
         expect(documentSplitPosting(totals, allocateSplitTax(lines, amounts), kontenrahmen, "einzelunternehmen", "privat", false, rc)).toEqual([
-          { account: k.geld, debit: 14_280, credit: 0, taxCode: code },
-          { account: k.fremd, debit: 7_140, credit: 0, taxCode: code },
-          { account: k.sonstiges, debit: 2_380, credit: 0, taxCode: code },
-          { account: k.werbung, debit: 5_950, credit: 0, taxCode: code },
+          { account: k.geld, debit: 12_000, credit: 0, taxCode: code },
+          { account: k.geld, debit: 2_280, credit: 0, taxCode: "keineVSt" },
+          { account: k.fremd, debit: 6_000, credit: 0, taxCode: code },
+          { account: k.fremd, debit: 1_140, credit: 0, taxCode: "keineVSt" },
+          { account: k.sonstiges, debit: 2_000, credit: 0, taxCode: code },
+          { account: k.sonstiges, debit: 380, credit: 0, taxCode: "keineVSt" },
+          { account: k.werbung, debit: 5_000, credit: 0, taxCode: code },
+          { account: k.werbung, debit: 950, credit: 0, taxCode: "keineVSt" },
           { account: k.ustRc, debit: 0, credit: 4_750, taxCode: code },
           { account: k.privat, debit: 0, credit: 25_000, taxCode: null },
         ]);
@@ -154,9 +158,16 @@ describe("documentSplitPosting mit § 13b", () => {
       false,
       "drittland",
     );
-    expect(posting.slice(0, 3).map((l) => l.debit)).toEqual([3_967, 3_966, 3_966]);
-    expect(sumOf(posting.slice(0, 3).map((l) => l.debit))).toBe(9_999 + 1_900);
-    expect(posting.slice(0, 3).map((l) => l.taxCode)).toEqual(["RC13bDrittland", "RC13bDrittland", "RC13bDrittland"]);
+    // Je Zeile Netto mit dem Steuerschlüssel und der Steueranteil als Aufwand daneben (#542)
+    expect(posting.slice(0, 6).map((l) => [l.debit, l.taxCode])).toEqual([
+      [3_333, "RC13bDrittland"],
+      [634, "keineVSt"],
+      [3_333, "RC13bDrittland"],
+      [633, "keineVSt"],
+      [3_333, "RC13bDrittland"],
+      [633, "keineVSt"],
+    ]);
+    expect(sumOf(posting.slice(0, 6).map((l) => l.debit))).toBe(9_999 + 1_900);
     expect(posting.some((l) => l.taxCode === "VSt13b")).toBe(false);
     expect(posting.find((l) => l.account === "3837")).toEqual({ account: "3837", debit: 0, credit: 1_900, taxCode: "RC13bDrittland" });
   });
