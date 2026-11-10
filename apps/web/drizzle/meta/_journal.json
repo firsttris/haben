@@ -1345,6 +1345,20 @@
       "when": 1794305446619,
       "tag": "0191_journal_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794326827437,
+      "tag": "0192_bank_konto_ausschliessen",
+      "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794326828660,
+      "tag": "0193_bank_konto_ausschliessen_trigger",
+      "breakpoints": true
     }
   ]
 }
