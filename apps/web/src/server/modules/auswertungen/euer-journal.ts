@@ -9,6 +9,7 @@ import {
   zahlungsStand,
   type EuerAusJournal,
   type EuerHerkunft,
+  type AllocatedSplitLine,
   type EuerPayment,
   type ExpenseCategory,
   type JournalZeile,
@@ -16,6 +17,7 @@ import {
 } from "@haben/core";
 import { and, asc, eq, gte, inArray, lt, ne, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { splitsByDocument } from "../belege/index.ts";
 
 /*
  * EÜR aus dem Journal (#542, Schritt 5b), als Schattenrechnung neben euerForYear. Eine Buchung ohne Forderungen und
@@ -63,6 +65,15 @@ async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]>
       byId.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode });
+  }
+  // Eine Gegenbuchung übernimmt die Zeilen der aufgehobenen Buchung, auch wenn die Firmendaten inzwischen einen anderen
+  // Kontenrahmen haben (Storno einer Bareinnahme aus dem Vorjahr); ihre Konten gehören zum Kontenrahmen der aufgehobenen
+  const aufgehoben = [...new Set([...byId.values()].flatMap((b) => (b.reversesId ? [b.reversesId] : [])))];
+  if (aufgehoben.length > 0) {
+    const kontenrahmen = new Map(
+      (await q.select({ id: e.id, kontenrahmen: e.kontenrahmen }).from(e).where(inArray(e.id, aufgehoben))).map((r) => [r.id, r.kontenrahmen as Kontenrahmen]),
+    );
+    for (const b of byId.values()) if (b.reversesId) b.kontenrahmen = kontenrahmen.get(b.reversesId) ?? b.kontenrahmen;
   }
   return [...byId.values()];
 }
@@ -139,6 +150,7 @@ interface BelegNebenbuch {
   category: ExpenseCategory;
   vorsteuerAbzug: boolean;
   privateShare: number;
+  splits?: AllocatedSplitLine[];
 }
 
 async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
@@ -147,15 +159,15 @@ async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | 
     .select({ category: d.category, vorsteuerAbzug: d.vorsteuerAbzug, privateShare: d.privateShare, reverseCharge: d.reverseCharge })
     .from(d)
     .where(eq(d.id, id));
-  // Nur mit Privatanteil oder ohne Vorsteuerabzug (computeEuer teilt dann erst nach Satz, danach privat bzw. die Steuer zu);
-  // aufgeteilte Belege verteilt die Buchung je Zeile wie computeEuer
-  if (!doc || (doc.privateShare === 0 && doc.vorsteuerAbzug) || !(doc.category && doc.category in EXPENSE_CATEGORIES)) return undefined;
-  const [split] = await q.select({ id: schema.documentSplits.id }).from(schema.documentSplits).where(eq(schema.documentSplits.documentId, id)).limit(1);
-  if (split) return undefined;
+  // Nur mit Privatanteil oder ohne Vorsteuerabzug: computeEuer teilt dann erst nach Satz bzw. Zeile der Aufteilung, danach
+  // privat bzw. die Steuer zu; die Buchung fasst den privaten Teil bzw. Netto und Steuer zusammen
+  if (!doc || (doc.privateShare === 0 && doc.vorsteuerAbzug)) return undefined;
   const amounts = await q.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-  // § 13b und Erwerb: gezahlt ist nur netto (wie reports.ts)
+  // § 13b und Erwerb: gezahlt ist nur netto, auch je Zeile der Aufteilung (wie reports.ts)
   const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: doc.reverseCharge ? 0 : a.tax }));
-  return { totals: totalsFromTaxes(rows), category: doc.category as ExpenseCategory, vorsteuerAbzug: doc.vorsteuerAbzug, privateShare: doc.privateShare };
+  const splits = (await splitsByDocument([id], q)).get(id)?.map((line) => (doc.reverseCharge ? { ...line, tax: 0 } : line));
+  const category = doc.category && doc.category in EXPENSE_CATEGORIES ? (doc.category as ExpenseCategory) : "sonstiges";
+  return { totals: totalsFromTaxes(rows), category, vorsteuerAbzug: doc.vorsteuerAbzug, privateShare: doc.privateShare, ...(splits ? { splits } : {}) };
 }
 
 /** Wirkung einer Teilzahlung auf einen Beleg, gerechnet wie computeEuer */
