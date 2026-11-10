@@ -11,13 +11,14 @@ Haben setzt Belege mit Typst aus einer Vorlage. Neben dem eingebauten Layout kan
 
 ## Mit einem KI-Agenten
 
-Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu die Startvorlagen, Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
+Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu die eingebauten Layouts als Grundlage (eine Datei je Art, ohne Importe), Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
 
 ## Hochladen und zuordnen
 
 Unter **Einstellungen › Beleggestaltung › Layouts**:
 
 - **Hochladen:** Name, Art (Belege oder Mahnung) und die `.typ`-Datei, bis 256 KB. Haben setzt das Layout mit jedem Beispiel seiner Art, darunter Entwurf, Bruttopreise mit 40 Positionen, Fremdwährung, Kleinunternehmer, Storno und Lieferschein, und liest das PDF. Fehlt eine Pflichtangabe (Absender, Empfänger, Nummer und Daten, Positionen, Summen mit Umsatzsteuer, Hinweis ohne Steuerausweis, Steuernummer oder USt-IdNr., bei GmbH und UG die Angaben nach § 35a GmbHG) oder auf einer Seite der Vermerk „ENTWURF“, oder braucht ein Lauf länger als 5 Sekunden, wird nichts gespeichert und die Meldung nennt den Grund.
+- **Grenzen des Betreibers:** Mit `HABEN_LAYOUTS_MAX` (Anzahl) und `HABEN_LAYOUTS_MAX_MB` (Speicher samt Paketen) begrenzt der Betreiber die eigenen Layouts, ohne Angabe gilt keine Grenze ([Installation](installation.md)). Ist sie erreicht, lehnt Haben das Hochladen mit dem Grund ab.
 - **Zuordnen:** Je Belegart wählst du das eingebaute oder ein eigenes Layout. Storno und Korrektur folgen der Rechnung, Mahnungen brauchen ein Layout der Art Mahnung. Das gilt für alles, was ab dann erzeugt wird, auch für Entwürfe und die Vorschau; festgeschriebene Belege behalten ihr PDF.
 - **Ersetzen, umbenennen, löschen:** Ersetzen prüft wie das Hochladen. Nach dem Löschen gilt dort, wo das Layout zugeordnet war, wieder das eingebaute.
 - **Fehler beim Erzeugen:** Lässt sich ein zugeordnetes Layout nicht setzen, etwa nach einem Update von Typst, meldet Haben das mit dem Namen des Layouts. Es fällt nicht still auf das eingebaute zurück; wähle dann ein anderes Layout.

@@ -46,6 +46,10 @@ const envSchema = z
       .optional(),
     /** Ablage der Belegdateien; im Container ein Volume */
     DOCUMENTS_DIR: z.string().default("data/belege"),
+    /** Höchstzahl eigener Belegvorlagen (#113); ohne Angabe unbegrenzt */
+    HABEN_LAYOUTS_MAX: z.coerce.number().int().min(1).optional(),
+    /** Speicher für eigene Belegvorlagen in MB, Quelltexte und Pakete zusammen; ohne Angabe unbegrenzt */
+    HABEN_LAYOUTS_MAX_MB: z.coerce.number().int().min(1).optional(),
     /** Ohne Schlüssel keine KI-Auslesung von Belegen; E-Rechnungen werden trotzdem gelesen */
     ANTHROPIC_API_KEY: z.string().optional(),
     /**

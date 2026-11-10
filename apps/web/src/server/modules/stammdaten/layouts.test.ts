@@ -129,6 +129,32 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     });
   }, 60_000);
 
+  it("hält die Höchstzahl des Betreibers ein (HABEN_LAYOUTS_MAX)", async () => {
+    const limits = { maxCount: 1 };
+    await anlegen({ name: "Eins", art: "mahnung", source: eigene("mahnung") }, { limits });
+    await expect(anlegen({ name: "Zwei", art: "mahnung", source: eigene("mahnung") }, { limits })).rejects.toThrow(/mehr erlaubt diese Installation nicht/);
+  }, 60_000);
+
+  it("hält den Speicher des Betreibers ein, mit Paketen (HABEN_LAYOUTS_MAX_MB)", async () => {
+    const quelltext = Buffer.byteLength(eigene("mahnung"), "utf8");
+    const limits = { maxBytes: quelltext * 2 + 1000 };
+    const { id } = await anlegen({ name: "Platz eins", art: "mahnung", source: eigene("mahnung") }, { limits });
+    // Ersetzen zählt das alte Layout nicht doppelt
+    await layouts.replaceLayoutSource(actor, id, eigene("mahnung", "NEU"), undefined, { limits });
+    await anlegen({ name: "Platz zwei", art: "mahnung", source: eigene("mahnung") }, { limits });
+    await expect(anlegen({ name: "Platz drei", art: "mahnung", source: eigene("mahnung") }, { limits })).rejects.toThrow(/höchstens 1 MB frei/);
+    // Pakete zählen mit: Ein großer Download macht das Layout zu groß, und es bleibt nichts liegen
+    await sql`truncate beleg_layouts`;
+    const gross = async (cacheDir: string, packages: readonly { name: string; version: string }[]) => {
+      await demoPaket(cacheDir, packages);
+      writeFileSync(join(packageCacheRoot(cacheDir), "preview", "demo", "0.1.0", "ballast.bin"), Buffer.alloc(quelltext * 3));
+    };
+    await expect(
+      anlegen({ name: "Zu groß", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: gross, limits: { maxBytes: quelltext * 3 } }),
+    ).rejects.toThrow(/frei, mit diesem Layout wären es mehr/);
+    expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
+  }, 60_000);
+
   it("verlangt eindeutige Namen", async () => {
     await anlegen({ name: "Doppelt", art: "mahnung", source: eigene("mahnung") });
     await expect(anlegen({ name: " Doppelt ", art: "mahnung", source: eigene("mahnung") })).rejects.toThrow(/schon ein Layout/);

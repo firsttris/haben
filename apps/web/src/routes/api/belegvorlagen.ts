@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/belegvorlagen")({
         const art = url.searchParams.get("art") === "mahnung" ? "mahnung" : "beleg";
         switch (url.searchParams.get("datei")) {
           case "start":
-            return text(startvorlage(art), art === "mahnung" ? "startvorlage-mahnung.typ" : "startvorlage-beleg.typ");
+            return text(startvorlage(art), art === "mahnung" ? "klassisch-mahnung.typ" : "klassisch-beleg.typ");
           case "beispiele":
             return json(
               layoutBeispiele()

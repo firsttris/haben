@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRenderClient, packageCacheRoot, type RenderClient } from "@haben/einvoice";
@@ -72,4 +72,15 @@ export async function dropRenderer(id: string): Promise<void> {
   const cacheDir = await packageCache(id);
   renderers.get(cacheDir)?.close();
   renderers.delete(cacheDir);
+}
+
+/** Belegter Platz unter einem Ordner in Byte, etwa der Paket-Cache eines Layouts */
+export async function directorySize(dir: string): Promise<number> {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  let total = 0;
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    total += entry.isDirectory() ? await directorySize(path) : entry.isFile() ? (await stat(path)).size : 0;
+  }
+  return total;
 }

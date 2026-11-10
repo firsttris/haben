@@ -85,7 +85,7 @@ Haben setzt das Layout beim Hochladen mit Beispieldaten und lehnt es ab, wenn au
 
 ## Prüfen
 
-Haben bietet unter Einstellungen › Beleggestaltung › Layouts die Startvorlagen und die Beispieldaten zum Herunterladen an. Die Beispieldaten sind eine Liste aus `name` und `data`; ein Beispiel daraus geht mit der Typst-CLI so (die Schriften oben gibt es frei unter der SIL Open Font License, etwa bei Google Fonts):
+Haben bietet unter Einstellungen › Beleggestaltung › Layouts die eingebauten Layouts als Grundlage und die Beispieldaten zum Herunterladen an. Die Beispieldaten sind eine Liste aus `name` und `data`; ein Beispiel daraus geht mit der Typst-CLI so (die Schriften oben gibt es frei unter der SIL Open Font License, etwa bei Google Fonts):
 
 ```sh
 jq '.[0].data' beispieldaten-beleg.json > beispiel.json

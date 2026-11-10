@@ -3,10 +3,12 @@ import { DEFAULT_LAYOUT, type LayoutDocumentType, type LayoutRef } from "@haben/
 import { LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfRequest } from "@haben/einvoice";
 import { asc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
+import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import { checkLayout, LayoutError, MAX_LAYOUT_BYTES, packagesIn, typstMeldung } from "./layout-pruefung.ts";
 import {
   clearPackages,
+  directorySize,
   downloadPackages,
   dropRenderer,
   type LayoutPackage,
@@ -87,8 +89,57 @@ export interface NeedsApproval {
   needsApproval: string[];
 }
 
+export interface LayoutLimits {
+  /** Höchstzahl eigener Layouts (HABEN_LAYOUTS_MAX) */
+  maxCount?: number | undefined;
+  /** Speicher in Byte, Quelltexte und Pakete zusammen (HABEN_LAYOUTS_MAX_MB) */
+  maxBytes?: number | undefined;
+}
+
 export interface LayoutDeps {
   download?: PackageDownloader;
+  limits?: LayoutLimits;
+}
+
+/** Grenzen des Betreibers aus der Umgebung; ohne Angabe unbegrenzt */
+export function envLimits(): LayoutLimits {
+  const { HABEN_LAYOUTS_MAX, HABEN_LAYOUTS_MAX_MB } = env();
+  return { maxCount: HABEN_LAYOUTS_MAX, maxBytes: HABEN_LAYOUTS_MAX_MB ? HABEN_LAYOUTS_MAX_MB * 1024 * 1024 : undefined };
+}
+
+/** Platz aller Layouts ohne das genannte: Quelltexte in der Datenbank und Paket-Caches */
+async function usedBytes(except?: string): Promise<number> {
+  const rows = await db.select({ id: schema.belegLayouts.id, source: schema.belegLayouts.source }).from(schema.belegLayouts);
+  let total = 0;
+  for (const row of rows.filter((r) => r.id !== except)) total += Buffer.byteLength(row.source, "utf8") + (await directorySize(await packageCache(row.id)));
+  return total;
+}
+
+const megabytes = (bytes: number) => `${Math.ceil(bytes / 1024 / 1024)} MB`;
+
+/** Prüft, ob noch ein Layout bzw. so viel Platz frei ist; replacing ist das Layout, das ersetzt wird */
+async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: string): Promise<void> {
+  if (!replacing && limits.maxCount !== undefined) {
+    const rows = await db.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts);
+    if (rows.length >= limits.maxCount) {
+      throw new LayoutError(`Es sind schon ${rows.length} eigene Layouts gespeichert, mehr erlaubt diese Installation nicht. Lösche erst eines.`);
+    }
+  }
+  if (limits.maxBytes !== undefined && (await usedBytes(replacing)) + bytes > limits.maxBytes) {
+    throw new LayoutError(`Für eigene Layouts sind auf dieser Installation höchstens ${megabytes(limits.maxBytes)} frei, mit diesem Layout wären es mehr.`);
+  }
+}
+
+/** Nach dem Laden der Pakete steht fest, wie groß das Layout wirklich ist; zu groß, dann bleibt nichts liegen */
+async function checkSizeAfterDownload(limits: LayoutLimits, id: string, bytes: number, replacing?: string) {
+  if (limits.maxBytes === undefined) return;
+  try {
+    await checkLimits({ maxBytes: limits.maxBytes }, bytes + (await directorySize(await packageCache(id))), replacing);
+  } catch (error) {
+    await clearPackages(id);
+    await dropRenderer(id);
+    throw error;
+  }
 }
 
 /** Lädt freigegebene Pakete in einen frischen Cache und prüft das Layout damit; bei einem Fehler bleibt kein Cache */
@@ -118,7 +169,7 @@ async function prepare(id: string, source: string, art: LayoutArt, packages: Lay
 export async function createLayout(
   actor: string,
   input: { name: string; art: LayoutArt; source: string; approve?: string[] },
-  { download = downloadPackages }: LayoutDeps = {},
+  { download = downloadPackages, limits = envLimits() }: LayoutDeps = {},
 ): Promise<{ id: string } | NeedsApproval> {
   const name = cleanName(input.name);
   const packages = checkSource(input.source);
@@ -126,7 +177,10 @@ export async function createLayout(
   const specs = packages.map(packageSpec);
   if (specs.length > 0 && !samePackages(specs, input.approve ?? [])) return { needsApproval: specs };
   const id = crypto.randomUUID();
+  const bytes = Buffer.byteLength(input.source, "utf8");
+  await checkLimits(limits, bytes);
   await prepare(id, input.source, input.art, packages, download);
+  await checkSizeAfterDownload(limits, id, bytes);
   const sha256 = createHash("sha256").update(input.source).digest("hex");
   await withActor(actor, (tx) =>
     tx.insert(schema.belegLayouts).values({
@@ -149,14 +203,17 @@ export async function replaceLayoutSource(
   id: string,
   source: string,
   approve?: string[],
-  { download = downloadPackages }: LayoutDeps = {},
+  { download = downloadPackages, limits = envLimits() }: LayoutDeps = {},
 ): Promise<{ ok: true } | NeedsApproval> {
   const [row] = await db.select({ art: schema.belegLayouts.art }).from(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
   if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
   const packages = checkSource(source);
   const specs = packages.map(packageSpec);
   if (specs.length > 0 && !samePackages(specs, approve ?? [])) return { needsApproval: specs };
+  const bytes = Buffer.byteLength(source, "utf8");
+  await checkLimits(limits, bytes, id);
   await prepare(id, source, row.art, packages, download);
+  await checkSizeAfterDownload(limits, id, bytes, id);
   const sha256 = createHash("sha256").update(source).digest("hex");
   await withActor(actor, (tx) =>
     tx

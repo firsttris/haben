@@ -77,7 +77,7 @@ test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", asyn
   await page.context().close();
 });
 
-test("Die Downloads liefern Startvorlage, Beispieldaten, Feldvertrag und Anleitung", async ({ browser }) => {
+test("Die Downloads liefern die eingebauten Layouts, Beispieldaten, Feldvertrag und Anleitung", async ({ browser }) => {
   const page = await einstellungen(browser);
   expect(await startvorlage(page)).toContain("json(bytes(sys.inputs.data))");
   const beispiele = (await (await page.request.get("/api/belegvorlagen?datei=beispiele&art=mahnung")).json()) as { name: string }[];

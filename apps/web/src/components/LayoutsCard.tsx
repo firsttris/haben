@@ -110,23 +110,40 @@ export function LayoutsCard({ design, layouts }: { design: LetterheadDesign; lay
         </tbody>
       </table>
       <NoticeBanner notice={notice} />
+      <section aria-labelledby="eingebaute-layouts-heading">
+        <h3 id="eingebaute-layouts-heading">Eingebaute Layouts</h3>
+        <ul className="own-layouts">
+          {(["beleg", "mahnung"] as const).map((art) => (
+            <li key={art}>
+              <div className="own-layout-name">
+                <strong>{BUILTIN_LAYOUTS[0]!.name}</strong>
+                <span className="small muted">{ART_LABEL[art]} · als Grundlage für ein eigenes Layout</span>
+              </div>
+              <div className="actions">
+                <a
+                  className="btn btn-sm"
+                  href={`${DOWNLOAD}?datei=start&art=${art}`}
+                  download
+                  aria-label={`${BUILTIN_LAYOUTS[0]!.name} für ${ART_LABEL[art]} herunterladen`}
+                >
+                  Herunterladen
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
       <OwnLayouts layouts={layouts} />
       <LayoutUpload />
       <section aria-labelledby="layout-hilfe-heading">
         <h3 id="layout-hilfe-heading">Selbst schreiben</h3>
         <p className="small muted" style={{ margin: "0 0 8px" }}>
-          Ein Layout ist eine Typst-Datei. Am einfachsten mit einem KI-Agenten: Gib ihm die Anleitung und die Startvorlage, beschreibe das Aussehen und lade das
-          Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt.
+          Ein Layout ist eine Typst-Datei. Am einfachsten mit einem KI-Agenten: Gib ihm die Anleitung und ein eingebautes Layout als Grundlage, beschreibe das
+          Aussehen und lade das Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt.
         </p>
         <div className="actions" style={{ flexWrap: "wrap" }}>
           <a className="btn btn-sm" href={`${DOWNLOAD}?datei=anleitung`} download>
             Anleitung für KI-Agenten
-          </a>
-          <a className="btn btn-sm" href={`${DOWNLOAD}?datei=start&art=beleg`} download>
-            Startvorlage Belege
-          </a>
-          <a className="btn btn-sm" href={`${DOWNLOAD}?datei=start&art=mahnung`} download>
-            Startvorlage Mahnung
           </a>
           <a className="btn btn-sm" href={`${DOWNLOAD}?datei=beispiele&art=beleg`} download>
             Beispieldaten Belege
