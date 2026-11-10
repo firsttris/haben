@@ -1,4 +1,4 @@
-import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, zahlungsStand, type Cents, type Kontenrahmen } from "@haben/core";
+import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, istEuerEinnahme, zahlungsStand, type Cents, type EuerLineKey, type Kontenrahmen } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne, or, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { buchungen, offenerPosten, type Buchung } from "./euer-journal-buchungen.ts";
@@ -67,10 +67,13 @@ function offenerAnteil(
     const ausgeglichen = zahlungen.reduce((s, v) => s + v, 0);
     let bezahlt: Cents;
     if (p.beleg) {
-      // Was eine Zahlung nicht als Ausgabe oder Vorsteuer wirkt, ist der private Teil bzw. der nicht wirkende Rest
+      // Was eine Zahlung nicht als Ausgabe oder Vorsteuer wirkt, ist der private Teil bzw. der nicht wirkende Rest; eine
+      // Einnahme (§ 13b: privater Teil der Steuer in Zeile 17) mindert die Wirkung
       bezahlt = zahlungen.reduce((s, betrag) => {
         const wirkung = belegTeilzahlung(Number(stichtag.slice(0, 4)), p.beleg!, -betrag);
-        const ausgabe = Object.values(wirkung.zeilen).reduce((x, v) => x + (v ?? 0), 0) + wirkung.bewirtungNichtAbziehbar;
+        const ausgabe =
+          (Object.entries(wirkung.zeilen) as [EuerLineKey, Cents | undefined][]).reduce((x, [key, v]) => x + (istEuerEinnahme(key) ? -(v ?? 0) : (v ?? 0)), 0) +
+          wirkung.bewirtungNichtAbziehbar;
         return s + (-betrag - ausgabe);
       }, 0);
     } else {
