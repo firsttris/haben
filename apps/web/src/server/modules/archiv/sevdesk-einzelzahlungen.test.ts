@@ -203,7 +203,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
                   return list([]);
                 case "/Invoice/9003/getPositions":
                 case "/Invoice/9001/getPositions":
-                  return list([{ id: 1, taxRate: "19", sumNet: "4000", sumTax: "760" }]);
+                  return list([{ id: 1, taxRate: "19", sumNet: "1000", sumTax: "190" }]);
                 case "/CheckAccount":
                   return list([
                     { id: "501", name: "Geschäftskonto A", currency: "EUR" },
@@ -243,7 +243,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       expect(latest.status).toBe("fertig");
       expect(latest.progress.failed).toMatchObject([{ message: expect.stringMatching(/Einzelzahlungen/) }]);
       expect(await rows()).toHaveLength(0);
-      expect((await item("2026-08-25"))!.blocker).toMatch(/Zahlungshistorie/);
+      expect((await item("2025-03-20"))!.blocker).toMatch(/Zahlungshistorie/);
     });
 
     it("repariert die schon archivierte Rechnung beim nächsten Abruf: drei Zahlungen über zwei Konten", async () => {
@@ -251,25 +251,25 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       await sevdesk.startSevdeskImport("test-user", { wait: true });
       expect((await sevdesk.latestSevdeskImport())!.progress.failed).toEqual([]);
       expect(await rows()).toEqual([
-        { external_id: "8002", account_name: "Geschäftskonto A", date: "2026-08-21", amount: 200000 },
-        { external_id: "8001", account_name: "Geschäftskonto B", date: "2026-08-27", amount: 200000 },
-        { external_id: "8003", account_name: "Geschäftskonto A", date: "2026-09-08", amount: 76000 },
+        { external_id: "8002", account_name: "Geschäftskonto A", date: "2025-03-16", amount: 50000 },
+        { external_id: "8001", account_name: "Geschäftskonto B", date: "2025-03-22", amount: 50000 },
+        { external_id: "8003", account_name: "Geschäftskonto A", date: "2025-04-03", amount: 19000 },
       ]);
-      expect(await item("2026-08-25")).toMatchObject({ open: 276000, paidAfter: 276000 });
-      expect(await item("2026-08-31")).toMatchObject({ open: 76000, paidAfter: 76000 });
-      expect((await item("2026-08-31"))!.blocker ?? "").not.toMatch(/Zahlungshistorie/);
-      expect(await item("2026-09-08")).toBeUndefined();
+      expect(await item("2025-03-20")).toMatchObject({ open: 69000, paidAfter: 69000 });
+      expect(await item("2025-03-26")).toMatchObject({ open: 19000, paidAfter: 19000 });
+      expect((await item("2025-03-26"))!.blocker ?? "").not.toMatch(/Zahlungshistorie/);
+      expect(await item("2025-04-03")).toBeUndefined();
     });
 
     // Echte V1-Antwort nach dem Aufheben einer Zuordnung in sevDesk: Der Log-Eintrag ist gelöscht, es gibt keine
-    // Gegenbuchung. Status 750, paidAmount 1.760, payDate bleibt auf dem Tag der aufgehobenen Zahlung stehen.
+    // Gegenbuchung. Status 750, paidAmount 440, payDate bleibt auf dem Tag der aufgehobenen Zahlung stehen.
     it("übernimmt nach einer aufgehobenen Zuordnung nur die verbliebene Teilzahlung und ignoriert das alte payDate", async () => {
       const [v] = await sql`select id, status, payment from lexoffice_vouchers where lexoffice_id = 'invoice/9003'`;
-      expect(v).toMatchObject({ status: "open", payment: { status: "partlyPaid", openAmount: 300000, paidDate: null } });
+      expect(v).toMatchObject({ status: "open", payment: { status: "partlyPaid", openAmount: 75000, paidDate: null } });
       const payments = await sql`select date::text as date, amount from legacy_voucher_payments where voucher_id = ${v!.id}`;
-      expect(payments).toEqual([{ date: "2026-10-22", amount: 176000 }]);
-      const item = (await legacy.openLegacyItems("2026-10-31")).find((i) => i.id === v!.id)!;
-      expect(item).toMatchObject({ open: 300000, paidAfter: 0 });
+      expect(payments).toEqual([{ date: "2025-05-17", amount: 44000 }]);
+      const item = (await legacy.openLegacyItems("2025-05-26")).find((i) => i.id === v!.id)!;
+      expect(item).toMatchObject({ open: 75000, paidAfter: 0 });
       expect(item.blocker ?? "").not.toMatch(/Zahlungshistorie/);
       expect((await archive.legacyVoucherDetail(v!.id as string))!.voucher.paymentHistoryIssue).toBeNull();
     });
