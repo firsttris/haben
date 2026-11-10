@@ -122,7 +122,9 @@ export function bemessungsZeilen(
   const minus = (feld: JournalKennzahl, betrag: Cents) => quelle.set(feld, (quelle.get(feld) ?? 0) - betrag);
   for (const r of figures.revenue) {
     if (r.type === "entnahme" && r.rate === 1900) minus("kz81", r.base);
-    if (r.type === "invoice" && korrekturen.has(r.invoiceId) && r.treatment === "regulaer") minus(r.rate === 1900 ? "kz81" : "kz86", r.base);
+    // Nur 19 % und 7 %: eine übernommene Rechnung zu 0 % steht in keiner der beiden Kennzahlen
+    if (r.type === "invoice" && korrekturen.has(r.invoiceId) && r.treatment === "regulaer" && (r.rate === 1900 || r.rate === 700))
+      minus(r.rate === 1900 ? "kz81" : "kz86", r.base);
   }
   for (const s of figures.reverseCharge) if (ausgenommeneBelege.has(s.documentId)) minus(s.reverseCharge === "eu" ? "kz46" : "kz84", s.base);
   for (const s of figures.igErwerb) if (ausgenommeneBelege.has(s.documentId)) minus(s.rate === 1900 ? "kz89" : "kz93", s.base);
