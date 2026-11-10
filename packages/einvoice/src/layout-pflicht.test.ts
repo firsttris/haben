@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
+import { layoutAnleitung } from "./layout-anleitung.ts";
 import { fehlendeAngaben } from "./layout-pflicht.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 
@@ -58,5 +59,18 @@ describe("Prüfung der Pflichtangaben", () => {
   it("verlangt den Vermerk des Entwurfs auf jeder Seite", () => {
     const text = JSON.stringify(entwurf.data);
     expect(fehlendeAngaben(entwurf, [text, "nur Positionen"])).toContain("Vermerk „ENTWURF“ auf Seite 2");
+  });
+  it("verlangt den Steuersatz zu den Steuerbeträgen, nicht nur die Beträge (§ 14 Abs. 4 Nr. 8 UStG)", () => {
+    const brutto = layoutBeispiele().find((b) => b.name.startsWith("Rechnung mit Bruttopreisen"))!;
+    const ohneSaetze = JSON.stringify(brutto.data).replace(/\d+(,\d+)? %/g, "");
+    expect(fehlendeAngaben(brutto, [ohneSaetze]).join()).toContain("Steuersatz");
+  });
+
+  it("die Anleitung verspricht keine Anschrift nur in der Fußzeile, die die Prüfung ablehnt", () => {
+    // Ein Layout ohne Absenderzeile, das die Anschrift nur aus footer zeigt: Im Beispiel „Rechnung“ steht dort keine PLZ und kein Ort
+    const d = rechnung.data as { senderLine: string; author: string };
+    const nurFuss = voll.replaceAll(d.senderLine, d.author);
+    expect(fehlendeAngaben(rechnung, [nurFuss]).join()).toContain("Anschrift des Absenders");
+    expect(layoutAnleitung()).not.toMatch(/Anschrift darf auch nur im `footer` stehen/);
   });
 });
