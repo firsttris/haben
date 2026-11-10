@@ -182,7 +182,8 @@ function JournalPage() {
               {periodLabel(next)} ›
             </Link>
           )}
-          {inhaber && isKapitalgesellschaft(rechtsform) && (
+          {/* Im Einzelunternehmen ab dem Stichjahr (freie Buchungen); davor erklärt die Seite, warum noch nicht */}
+          {inhaber && (
             <Link to="/buchungen/neu" className="btn btn-primary">
               Buchung erfassen
             </Link>

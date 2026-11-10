@@ -1071,3 +1071,32 @@ test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steh
   await expect(page.getByRole("region", { name: /^Gewerbesteuererklärung/ }).first()).toContainText(`nicht für ${jahr}`);
   expect(await axe(), `/jahreserklaerung/${jahr} GmbH`).toEqual([]);
 });
+
+test("Freie Buchung mit Steuerschlüssel: Leistung an den Gesellschafter, brutto geteilt, im Journal mit Umsatzsteuer", async () => {
+  await go("/buchungen/neu");
+  const form = page.getByRole("form", { name: "Manuelle Buchung" });
+  await form.getByLabel("Buchungstext").fill("Software für den Gesellschafter privat");
+  await form.getByLabel("Konto Zeile 1").fill("3510");
+  await form.getByLabel("Soll Zeile 1").fill("119,00");
+  // Der Schlüssel füllt das Erlöskonto seines Satzes vor; auf einem anderen Konto ist er nicht buchbar
+  await form.getByLabel("Steuerschlüssel Zeile 2").selectOption("USt19");
+  await expect(form.getByLabel("Konto Zeile 2")).toHaveValue("4400");
+  await form.getByLabel("Haben Zeile 2").fill("119,00");
+  const gebucht = form.getByRole("status", { name: "Gebucht wird" });
+  await expect(gebucht).toContainText("4400");
+  await expect(gebucht).toContainText("Haben 100,00");
+  await expect(gebucht).toContainText("3806");
+  await expect(gebucht).toContainText("Haben 19,00");
+  await form.getByLabel("Konto Zeile 2").fill("4300");
+  await expect(form.getByRole("status", { name: "Noch nicht buchbar" })).toContainText("Mit USt19 bucht die Zeile auf 4400");
+  await form.getByLabel("Konto Zeile 2").fill("4400");
+  expect(await axe(), "/buchungen/neu mit Steuerschlüssel").toEqual([]);
+  await form.getByRole("button", { name: "Buchen" }).click();
+
+  await page.waitForURL(/\/buchungen\?/);
+  const row = page.getByRole("region", { name: "Buchungen" }).getByRole("row").filter({ hasText: "Software für den Gesellschafter privat" });
+  await expect(row).toContainText("Manuell");
+  await expect(row).toContainText("119,00");
+  await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
+  await expect(page.getByRole("region", { name: "Buchungen" })).toContainText("3806");
+});

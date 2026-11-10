@@ -19,6 +19,21 @@ export interface ManualLine {
   account: string;
   debit: Cents;
   credit: Cents;
+  /**
+   * Steuerschlüssel einer freien Buchung (#542, #502), nur auf den Erlöskonten (freieBuchungKonto); der Betrag ist dann
+   * brutto, freieBuchungPosting teilt in Netto und Steuer
+   */
+  taxCode?: FreierSteuerschluessel | null;
+}
+
+/** Steuerschlüssel freier Buchungen und ihr Steuersatz in Basispunkten (docs/adr/journal-als-quelle.md, Entscheidung 4) */
+export const FREIE_STEUERSCHLUESSEL = { USt19: 1900, USt7: 700, frei: 0 } as const;
+export type FreierSteuerschluessel = keyof typeof FREIE_STEUERSCHLUESSEL;
+
+/** Das Erlöskonto eines Steuerschlüssels; eine Zeile mit Schlüssel bucht genau dieses Konto */
+export function freieBuchungKonto(kontenrahmen: Kontenrahmen, code: FreierSteuerschluessel): string {
+  const satz = FREIE_STEUERSCHLUESSEL[code];
+  return ACCOUNTS[kontenrahmen].erloese[satz];
 }
 
 export const MANUAL_MAX_LINES = 20;
@@ -120,6 +135,9 @@ export function manualPostingIssues(
     } else if (kind === "eroeffnung" && !carriesForward(kontenrahmen, line.account)) {
       issues.push(`${row}: Konto ${line.account} ist ein Erfolgskonto; die Eröffnung übernimmt nur Bestände`);
     } else if (line.account.startsWith("9")) issues.push(`${row}: Konto ${line.account} ist ein Vortrags- oder statistisches Konto`);
+    else if (line.taxCode && line.account === freieBuchungKonto(kontenrahmen, line.taxCode)) {
+      // Freie Buchung mit Steuerschlüssel auf das Erlöskonto des Schlüssels (freieBuchungIssues prüft den Rest)
+    } else if (line.taxCode) issues.push(`${row}: Mit ${line.taxCode} bucht die Zeile auf ${freieBuchungKonto(kontenrahmen, line.taxCode)}`);
     else if (managed.has(line.account)) issues.push(`${row}: Konto ${line.account} führt das Nebenbuch ${managed.get(line.account)}`);
     else if (isKapitalgesellschaft(rechtsform) && isPrivateAccount(kontenrahmen, line.account)) {
       issues.push(`${row}: Konto ${line.account} ist ein Privatkonto; eine GmbH oder UG bucht auf das Gesellschafter-Verrechnungskonto`);
@@ -136,12 +154,18 @@ export function manualPostingIssues(
   return issues;
 }
 
-/** Buchungszeilen einer geprüften manuellen Buchung: ohne Steuerschlüssel, Umsatzsteuer bucht sie nie */
+/** Buchungszeilen einer geprüften manuellen Buchung ohne Steuerschlüssel; mit Steuerschlüssel siehe freieBuchungPosting */
 export function manualPosting(lines: readonly ManualLine[]): PostingLine[] {
   return lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: null }));
 }
 
-/** Gegenbuchung: Soll und Haben getauscht */
+/** Gegenbuchung: Soll und Haben getauscht, Steuerschlüssel bleibt, die Bemessungsgrundlage dreht ihr Vorzeichen (#542) */
 export function reverseManualPosting(lines: readonly PostingLine[]): PostingLine[] {
-  return lines.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode }));
+  return lines.map((l) => ({
+    account: l.account,
+    debit: l.credit,
+    credit: l.debit,
+    taxCode: l.taxCode,
+    ...(l.basis != null ? { basis: -l.basis } : {}),
+  }));
 }
