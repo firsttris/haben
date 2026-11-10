@@ -91,3 +91,31 @@ test("ein langer Firmenname passt in die Navigation", async () => {
   });
   expect(ueberlauf).toEqual({ nav: 0, link: 0 });
 });
+
+// Review Runde 2: Der Seitenkopf klebt am Handy bei --nav-height (60px) unter der Navigation; mit dem Firmennamen unter
+// „Haben“ darf die Leiste nicht höher werden, sonst verdeckt sie beim Scrollen den Kopf. Auch ein langer Name auf 320px
+test("am Handy bleibt die Leiste mit dem Firmennamen so hoch wie --nav-height", async () => {
+  const hoehen: Record<string, number> = {};
+  let variable = 0;
+  for (const [breite, name] of [
+    [375, "Studio Nord"],
+    [320, "Garten- und Landschaftsbau Müller und Söhne GmbH & Co. KG"],
+  ] as const) {
+    await page.setViewportSize({ width: breite, height: 812 });
+    await gehe(page, "/");
+    await nav()
+      .locator(".brand-firma")
+      .evaluate((el, text) => {
+        el.textContent = text;
+      }, name);
+    const gemessen = await page.evaluate(() => ({
+      leiste: Math.round(document.querySelector<HTMLElement>("nav.nav")!.getBoundingClientRect().height),
+      variable: Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")),
+    }));
+    hoehen[`${breite}px`] = gemessen.leiste;
+    variable = gemessen.variable;
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  expect(variable).toBe(60);
+  expect(hoehen).toEqual({ "375px": 60, "320px": 60 });
+});

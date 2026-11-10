@@ -324,6 +324,17 @@ describe("Firmen wechseln", () => {
     expect([listeGueltig("firma1"), listeGueltig("firma2")]).toEqual([true, true]);
   });
 
+  // Review Runde 2: parseFirmen schneidet Leerzeichen am Rand ab, das Werkzeug vergleicht die Namen ungeschnitten
+  it.each([
+    ["Studio Nord", "Studio Nord "],
+    ["Studio Nord", " Studio Nord"],
+    ["Studio Nord", " "],
+  ])("schreibt mit den Firmennamen %j und %j keine Liste, die die App ablehnt", (erster, zweiter) => {
+    lauf("neu", "firma1", "firma1.example.de", "--firmenname", erster);
+    lauf("neu", "firma2", "firma2.example.de", "--firmenname", zweiter);
+    expect([listeGueltig("firma1"), existsSync(join(basis, "firma2")) ? listeGueltig("firma2") : true]).toEqual([true, true]);
+  });
+
   it("startet mit firmen eine laufende Instanz neu, deren .env nach neu --nicht-starten eine neue Liste hat", () => {
     lauf("neu", "firma1", "firma1.example.de");
     lauf("neu", "firma2", "firma2.example.de", "--nicht-starten");
