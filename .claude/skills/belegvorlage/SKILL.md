@@ -46,7 +46,7 @@ Nur diese Schriften sind eingebettet; andere fehlen auf dem Server, und PDF/A ve
 
 Haben setzt das Layout beim Hochladen mit Beispieldaten und lehnt es ab, wenn auf dem Blatt etwas davon fehlt:
 
-- Absender (`senderLine` oder `footer`) und Empfänger (`recipient`), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
+- Absender mit Name und vollständiger Anschrift, also Straße sowie PLZ und Ort (`author` und `senderLine`, die Anschrift darf auch nur im `footer` stehen; § 14 Abs. 4 Nr. 1 UStG) und Empfänger (`recipient`), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
 - Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer je Satz (`totals.rows`, bei Bruttopreisen in `totals.included`, bei Fremdwährung zusätzlich in Euro in `totals.euroTax`), der Hinweis ohne Steuerausweis (`taxNote`), Steuernummer oder USt-IdNr. aus der Fußzeile (`footer`) und bei GmbH oder UG die Pflichtangaben aus `legal` (§ 14 Abs. 4 UStG, § 35a GmbHG).
 - Bei einem Entwurf der Vermerk aus `draft` auf jeder Seite.
 - Mehrseitige Belege müssen gehen: Die Beispiele haben bis zu 40 Positionen.
