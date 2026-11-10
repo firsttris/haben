@@ -118,6 +118,11 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
     }
   });
 
+  it("nimmt eine Skontofrist über 120 Tagen an, wie sie der Editor beim Tippen durchlässt, und lässt sie weg", async () => {
+    const result = await preview.documentPreview(input({ skonto: [{ days: 150, percent: 200 }] }));
+    expect(text(result.text)).not.toContain("Skonto");
+  });
+
   it("nimmt unfertige Datumsfelder an", async () => {
     await expect(preview.documentPreview(input({ dueDate: "" }))).resolves.toMatchObject({ pages: 1 });
   });
