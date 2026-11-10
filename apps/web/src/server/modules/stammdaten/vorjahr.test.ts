@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /**
  * Umstellung zum Jahreswechsel: Wer zum 1. Januar Kleinunternehmer wird, schuldet die Voranmeldung für Dezember und die
@@ -31,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer ab dem neuen Jahr, Vorjahr r
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, company cascade`;
     // Firmendaten angelegt (regulär), im Vorjahr gebucht, dann zum neuen Jahr auf Kleinunternehmer umgestellt
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY', false)`;
@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("Meldungen der Datenbank-Trigger (Postgres)", 
     const { userMessage } = await import("../../errors.ts");
     const { eq } = await import("drizzle-orm");
     const year = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date()).slice(0, 4);
-    await sql`truncate journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, kontenrahmen) values (1, 'SKR03')`;
     await sql.begin(async (tx) => {
       const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)

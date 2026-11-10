@@ -2,7 +2,7 @@ import { buildEInvoice } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { sampleDocument } from "../../../../../../packages/einvoice/src/samples.ts";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /** TDD-Review #420: Ein angenommenes Briefpapier darf kein PDF verhindern */
 // 4×4 Pixel JPEG im Farbraum CMYK, wie Druckereien sie liefern
@@ -31,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("Briefpapier: nur Dateien annehmen, aus denen 
   });
 
   beforeEach(async () => {
-    await sql`truncate letterhead_profiles, letterhead_background, company_logo, company cascade`;
+    await leeren(sql)`truncate letterhead_profiles, letterhead_background, company_logo, company cascade`;
     await sql`insert into company (id, name) values (1, 'Testfirma')`;
   });
 

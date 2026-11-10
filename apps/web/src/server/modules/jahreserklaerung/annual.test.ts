@@ -1,7 +1,7 @@
 import { EricGeprueftClient } from "../../test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 31.12.2025:";"10.000,00 €"\n""\n`;
@@ -58,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, vat_return_submissions,
       vat_returns, elster_certificates, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
@@ -325,7 +325,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   it("Einkommensteuer: Gewinn aus der EÜR, gespeicherte Angaben und Zusammenveranlagung", async () => {
     const taxpayer = await import("../stammdaten/taxpayer.ts");
     const incomeTax = await import("./income-tax.ts");
-    await sql`truncate income_tax_inputs`;
+    await leeren(sql)`truncate income_tax_inputs`;
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
     const client = new EricGeprueftClient();
@@ -384,7 +384,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     const taxpayer = await import("../stammdaten/taxpayer.ts");
     const incomeTax = await import("./income-tax.ts");
     const pauschalen = await import("../buchhaltung/pauschalen.ts");
-    await sql`truncate income_tax_inputs`;
+    await leeren(sql)`truncate income_tax_inputs`;
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
     const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };

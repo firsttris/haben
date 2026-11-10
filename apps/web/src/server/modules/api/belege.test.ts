@@ -1,7 +1,7 @@
 import { computeInvoiceTotals } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // Die KI wird nicht aufgerufen: ausgeschaltet, außer im Test der Auslesung, der feste Werte bekommt
 const ki = vi.hoisted(() => ({ available: false }));
@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/belege (Postgres)", () => {
   beforeEach(async () => {
     ki.available = false;
     mcpServer.resetRateLimitForTests();
-    await sql`truncate mcp_calls, mcp_tokens, journal_lines, journal_entries, document_amounts, documents, company cascade`;
+    await leeren(sql)`truncate mcp_calls, mcp_tokens, journal_lines, journal_entries, document_amounts, documents, company cascade`;
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
   });
 

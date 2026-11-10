@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Stichjahr anzeigen und vorziehen (#542, docs/adr/journal-als-quelle.md, Entscheidung 1): nur ohne gesendete
@@ -27,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Stichjahr vorziehen (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", journalAb: number | null) {
-    await sql`truncate vat_return_submissions, vat_returns, allocations, journal_lines, journal_entries, invoice_lines, invoices,
+    await leeren(sql)`truncate vat_return_submissions, vat_returns, allocations, journal_lines, journal_entries, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
