@@ -24,7 +24,7 @@ export function previewBuchhaltungsbutlerExport(parts: ExportPart[], skr: Konten
   const year = Number((stack.header.dateFrom ?? stack.header.fiscalYearStart).slice(0, 4));
   const vouchers = rows.flatMap((row) => {
     if (row.info.url !== "") return [mapVoucher(row, directionOf(row, skr), receiptFiles.get(row.info.bookingId)!, year)];
-    // Ohne Beleg nur Einnahmen und Ausgaben (Erlös- oder Aufwandskonto); Zahlungen, Geldtransit und Umbuchungen stehen
+    // Ohne Beleg nur Einnahmen und Ausgaben (nicht neutral); Zahlungen, Geldtransit und Umbuchungen stehen
     // im DATEV-Buchungsstapel, sonst fehlten sie in den Summen des Jahresabgleichs oder zählten doppelt
     const mapping = withoutReceiptMapping(row, skr);
     return mapping ? [mapVoucher(row, mapping, [], year)] : [];
@@ -55,7 +55,8 @@ export function previewBuchhaltungsbutlerExport(parts: ExportPart[], skr: Konten
 function withoutReceiptMapping(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen): DirectionMapping | null {
   try {
     const mapping = directionOf(row, skr);
-    return mapping.basis === "erloes" || mapping.basis === "aufwand" ? mapping : null;
+    // Anlagekonten ohne Beleg nicht: in SKR03 liegen unter 1000 auch Verbindlichkeiten und Kapital (0600 ff.)
+    return mapping.neutral || mapping.basis === "anlage" ? null : mapping;
   } catch (error) {
     if (error instanceof BuchhaltungsbutlerError) return null;
     throw error;

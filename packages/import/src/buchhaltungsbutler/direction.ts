@@ -34,6 +34,16 @@ function accountKind(account: string, skr: Kontenrahmen): AccountKind {
   return null;
 }
 
+/**
+ * Weitere Erträge und Aufwendungen außerhalb der Erlös- und Aufwandsklassen: SKR03 Klasse 2 (Abgrenzungskonten,
+ * z. B. 2110 Zinsaufwand, 2650 Zinserträge), SKR04 Klasse 7 (z. B. 7310 Zinsaufwand, 7685 Kfz-Steuer)
+ */
+function isOtherIncomeOrExpense(account: string, skr: Kontenrahmen): boolean {
+  if (!/^\d+$/.test(account)) return false;
+  const value = Number(account);
+  return skr === "SKR03" ? value >= 2000 && value <= 2999 : value >= 7000 && value <= 7999;
+}
+
 /** Richtung und Vorzeichen aus Soll und Haben, ohne sie aus dem PDF-Namen zu schätzen. */
 export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen): DirectionMapping {
   const debit = accountKind(row.debitAccount, skr);
@@ -60,6 +70,14 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       neutral: false,
     };
   }
+  // Vor den Personenkonten: Anlagekauf über ein Kreditorenkonto ist eine Ausgabe mit Vorsteuer, keine Zahlung
+  if (debit === "anlage" || credit === "anlage") {
+    const assetAccount = debit === "anlage" ? row.debitAccount : row.creditAccount;
+    const asset = { positive: true, categoryAccount: assetAccount, basis: "anlage" as const, neutral: false };
+    if (debit === "bank") return { direction: "einnahme", ...asset };
+    if (credit === "bank") return { direction: "ausgabe", ...asset };
+    return { direction: debit === "anlage" ? "ausgabe" : "einnahme", ...asset };
+  }
   if (debit === "debitor" || credit === "debitor") {
     return {
       direction: "einnahme",
@@ -78,20 +96,16 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       neutral: true,
     };
   }
-  if (debit === "anlage" || credit === "anlage") {
-    const assetAccount = debit === "anlage" ? row.debitAccount : row.creditAccount;
-    const asset = { positive: true, categoryAccount: assetAccount, basis: "anlage" as const, neutral: false };
-    if (debit === "bank") return { direction: "einnahme", ...asset };
-    if (credit === "bank") return { direction: "ausgabe", ...asset };
-    return { direction: debit === "anlage" ? "ausgabe" : "einnahme", ...asset };
-  }
   if (debit === "bank" || credit === "bank") {
+    const other = debit === "bank" ? row.creditAccount : row.debitAccount;
     return {
       direction: debit === "bank" ? "einnahme" : "ausgabe",
       positive: true,
-      categoryAccount: debit === "bank" ? row.creditAccount : row.debitAccount,
+      categoryAccount: other,
       basis: "bank",
-      neutral: true,
+      // Einnahme oder Ausgabe nur mit weiteren Erträgen und Aufwendungen; Geldtransit, Privat, Kapital, Steuerzahlungen
+      // und Darlehen (Geld-, Eigenkapital- und Verbindlichkeitskonten) sind neutral
+      neutral: !isOtherIncomeOrExpense(other, skr),
     };
   }
   throw new BuchhaltungsbutlerError(

@@ -41,12 +41,12 @@ Erst ein fehlerfreier Testlauf lässt den Import zu.
 
 - alle Zeilen des DATEV-Buchungsstapels,
 - je Buchung mit Beleg-URL einen historischen Archivbeleg,
-- je Einnahme oder Ausgabe ohne Beleg (Buchung auf einem Erlös- oder Aufwandskonto) eine Buchung ohne Beleg, damit die Summen im Abgleich vollständig sind; Zahlungen, Geldtransit und Umbuchungen ohne Beleg stehen nur im DATEV-Buchungsstapel,
+- je Einnahme oder Ausgabe ohne Beleg (Buchung auf einem Erlös- oder Aufwandskonto oder auf weitere Erträge und Aufwendungen, SKR03 Klasse 2, SKR04 Klasse 7) eine Buchung ohne Beleg, damit die Summen im Abgleich vollständig sind; Zahlungen, Geldtransit und Umbuchungen ohne Beleg stehen nur im DATEV-Buchungsstapel,
 - Rechnungsnummer, Rechnungsdatum, Gegenpartei, Betrag und Steuersatz,
 - die zugehörigen Original-PDFs, auch mehrere Dateien einer Buchung,
 - die unveränderten Originalexporte mit ihren SHA-256-Prüfsummen.
 
-Die Zuordnung erfolgt über die Buchungsnummer: `127` wird mit `127.pdf` verknüpft, Dateien wie `97_1.pdf` und `97_2.pdf` mit derselben Buchung. Einnahmen, Ausgaben und Gutschriften ergeben sich aus Soll und Haben im konfigurierten Kontenrahmen. Ein Beleg zu Geld zwischen Geldkonten (Geldtransit, Privates) oder zu einer Zahlung auf ein Debitoren- oder Kreditorenkonto ist weder Einnahme noch Ausgabe: Er steht im Abgleich getrennt (Einzelunternehmen unter „Privat und Geldtransit“, GmbH und UG unter „Geldtransit“) und trägt keine Umsatzsteuer. Erlöse auf Automatikkonten ohne BU-Schlüssel (etwa SKR03 8400, SKR04 4400) zählen als regulär besteuert.
+Die Zuordnung erfolgt über die Buchungsnummer: `127` wird mit `127.pdf` verknüpft, Dateien wie `97_1.pdf` und `97_2.pdf` mit derselben Buchung. Einnahmen, Ausgaben und Gutschriften ergeben sich aus Soll und Haben im konfigurierten Kontenrahmen. Ein Anlagekauf zählt als Ausgabe mit Vorsteuer, auch wenn er über ein Kreditorenkonto läuft. Zahlungen zwischen Geldkonten und Privat-, Kapital- oder Verbindlichkeitskonten (Geldtransit, Privates, Steuerzahlungen, Darlehen) oder auf ein Debitoren- oder Kreditorenkonto sind weder Einnahme noch Ausgabe; Zinsen, Kfz-Steuer und andere weitere Erträge und Aufwendungen (SKR03 Klasse 2, SKR04 Klasse 7) zählen dagegen mit. Ein Beleg zu einer neutralen Buchung steht im Abgleich getrennt (Einzelunternehmen unter „Privat und Geldtransit“, GmbH und UG unter „Geldtransit“) und trägt keine Umsatzsteuer. Erlöse auf Automatikkonten ohne BU-Schlüssel (etwa SKR03 8400, SKR04 4400) zählen als regulär besteuert.
 
 **Kontenrahmen, Rechtsform und Versteuerungsart kommen aus den Firmendaten in Haben.** Sie werden nicht aus den Exporten erraten. Vorhandene Kontakte werden nur verknüpft, wenn der Name genau und ohne Mehrdeutigkeit übereinstimmt; neue Kontaktdatensätze entstehen aus den Belegdaten nicht.
 
