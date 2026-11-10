@@ -17,6 +17,9 @@ interface Daten {
   senderLine?: string;
   recipient: string[];
   meta: Zeile[];
+  title: string;
+  reference?: string | null;
+  payment?: string | null;
   draft?: string;
   legal?: string | null;
   footer: string[][];
@@ -40,7 +43,11 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
       .map((text) => ({ was: "Anschrift des Absenders", text })),
     ...d.recipient.filter(Boolean).map((text) => ({ was: "Anschrift des Empfängers", text })),
     ...steuer.map((text) => ({ was: "Steuernummer oder USt-IdNr.", text })),
-    ...(d.legal ? [{ was: "Pflichtangaben der GmbH (legal)", text: d.legal }] : []),
+    // Je Angabe (§ 35a Abs. 1 GmbHG), denn ein Layout darf sie auf eigene Zeilen verteilen
+    ...(d.legal ?? "")
+      .split(" · ")
+      .filter((text) => text.trim())
+      .map((text) => ({ was: "Pflichtangaben der GmbH (legal)", text })),
   ];
   if (art === "mahnung") {
     return [
@@ -53,6 +60,10 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
   const steuerzeilen = t ? [...(t.included ? t.included.rows : t.rows), ...(t.euroTax?.rows ?? [])] : [];
   return [
     ...gemeinsam,
+    // Eine feste Überschrift machte aus Storno oder Angebot eine „Rechnung“
+    { was: "Bezeichnung des Belegs (title)", text: d.title },
+    // Storno und Korrektur beziehen sich spezifisch und eindeutig auf die Rechnung (§ 31 Abs. 5 UStDV)
+    ...(d.reference ? [{ was: "Bezug auf die ursprüngliche Rechnung (reference)", text: d.reference }] : []),
     ...d.meta.map((m) => ({ was: `Angabe „${m.label}“`, text: m.value })),
     ...(d.lines ?? []).flatMap((l) => [
       { was: "Bezeichnung einer Position", text: l.description },
@@ -67,6 +78,8 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
       .flatMap((r) => /\d+(?:,\d+)? ?%/.exec(r.label) ?? [])
       .map((satz) => ({ was: "Steuersatz", text: satz })),
     ...(d.taxNote ? [{ was: "Hinweis ohne Steuerausweis", text: d.taxNote }] : []),
+    // Skonto ist eine im Voraus vereinbarte Minderung des Entgelts (§ 14 Abs. 4 Nr. 7 UStG); er steht im Zahlungssatz
+    ...(d.payment && /Skonto/.test(d.payment) ? [{ was: "Hinweis auf Skonto (payment)", text: d.payment }] : []),
   ];
 }
 

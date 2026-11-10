@@ -46,8 +46,8 @@ Nur diese Schriften sind eingebettet; andere fehlen auf dem Server, und PDF/A ve
 
 Haben setzt das Layout beim Hochladen mit Beispieldaten und lehnt es ab, wenn auf dem Blatt etwas davon fehlt:
 
-- Absender mit Name und vollständiger Anschrift, also Straße sowie PLZ und Ort (`author` und `senderLine`; die Fußzeile genügt dafür nicht, denn was dort steht, legt die Gestaltung fest; § 14 Abs. 4 Nr. 1 UStG) und Empfänger (`recipient`), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
-- Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer und Steuersatz je Satz, etwa „Umsatzsteuer 19 %“ (`totals.rows`, bei Bruttopreisen in `totals.included`, bei Fremdwährung zusätzlich in Euro in `totals.euroTax`), der Hinweis ohne Steuerausweis (`taxNote`), Steuernummer oder USt-IdNr. aus der Fußzeile (`footer`) und bei GmbH oder UG die Pflichtangaben aus `legal` (§ 14 Abs. 4 UStG, § 35a GmbHG).
+- Absender mit Name und vollständiger Anschrift, also Straße sowie PLZ und Ort (`author` und `senderLine`; die Fußzeile genügt dafür nicht, denn was dort steht, legt die Gestaltung fest; § 14 Abs. 4 Nr. 1 UStG) und Empfänger (`recipient`), die Bezeichnung des Belegs (`title`, keine feste Überschrift wie „Rechnung“), bei Storno und Korrektur der Bezug auf die Rechnung (`reference`; § 31 Abs. 5 UStDV), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
+- Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer und Steuersatz je Satz, etwa „Umsatzsteuer 19 %“ (`totals.rows`, bei Bruttopreisen in `totals.included`, bei Fremdwährung zusätzlich in Euro in `totals.euroTax`), der Hinweis ohne Steuerausweis (`taxNote`), bei Skonto der Zahlungssatz (`payment`; § 14 Abs. 4 Nr. 7 UStG), Steuernummer oder USt-IdNr. aus der Fußzeile (`footer`) und bei GmbH oder UG die Pflichtangaben aus `legal`, gern je Angabe auf eigener Zeile (Trenner „ · “; § 14 Abs. 4 UStG, § 35a GmbHG).
 - Bei einem Entwurf der Vermerk aus `draft` auf jeder Seite.
 - Mehrseitige Belege müssen gehen: Die Beispiele haben bis zu 40 Positionen.
 
@@ -69,6 +69,7 @@ Haben setzt das Layout beim Hochladen mit Beispieldaten und lehnt es ab, wenn au
 
 #for m in d.meta [ #m.label: #m.value \ ]
 = #d.title
+#if d.reference != none { par(d.reference) }
 #table(columns: 4, [Pos.], [Bezeichnung], [Menge], [Betrag], ..d.lines.map(l => (l.pos, l.description, l.quantity, l.net)).flatten())
 #if d.totals != none {
   for r in d.totals.rows [ #r.label: #r.value \ ]
