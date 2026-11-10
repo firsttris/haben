@@ -50,12 +50,15 @@ in_dir() {
   (cd "$dir" && "$@")
 }
 
-# Wert eines Schlüssels aus einer .env, ohne umschließende Anführungszeichen
+# Wert eines Schlüssels aus einer .env, ohne umschließende einfache oder doppelte Anführungszeichen
 env_lesen() {
   local wert
   wert="$(grep -m1 "^$2=" "$1" 2> /dev/null | cut -d= -f2-)" || true
-  wert="${wert#\'}"
-  echo "${wert%\'}"
+  case "$wert" in
+    \'*\') wert="${wert#\'}"; wert="${wert%\'}" ;;
+    \"*\") wert="${wert#\"}"; wert="${wert%\"}" ;;
+  esac
+  echo "$wert"
 }
 
 # Setzt KEY=Wert in einer .env: ersetzt die erste Zeile KEY= oder # KEY=, sonst wird angehängt
@@ -170,8 +173,12 @@ warten_auf_app() {
   return 1
 }
 
+# 0: der Dienst läuft, 1: er läuft nicht, 2: Compose meldet einen Fehler (etwa eine fehlerhafte .env). Erst die
+# ganze Ausgabe, dann suchen: grep -q in einer Pipe mit pipefail ließe docker an SIGPIPE scheitern
 laeuft() {
-  in_dir "$1" docker compose ps --status running --services 2> /dev/null | grep -qx "$2"
+  local dienste
+  dienste="$(in_dir "$1" docker compose ps --status running --services 2> /dev/null)" || return 2
+  grep -qx "$2" <<< "$dienste"
 }
 
 cmd_neu() {
@@ -211,12 +218,20 @@ cmd_neu() {
     fehler "--oidc-… nur zusammen mit --sso."
   fi
 
-  local dir="$basis/$name" andere
+  local dir="$basis/$name" andere projekte
   # Vorhandenes bleibt unangetastet, vor allem .env und Schlüssel
   [ ! -e "$dir" ] || fehler "$dir gibt es schon; nichts geändert."
   while IFS= read -r andere <&3; do
     [ "$(env_lesen "$andere/.env" DOMAIN)" != "$domain" ] || fehler "Die Domain $domain gehört schon zur Instanz $(basename "$andere")."
+    # Gleiches Projekt hieße gleiche Container, Volumes und gleicher Name im Netz des Proxys, etwa bei einer
+    # Instanz haben-firma1, die von Hand nach der Doku angelegt ist
+    [ "$(env_lesen "$andere/.env" COMPOSE_PROJECT_NAME)" != "haben-$name" ] \
+      || fehler "Das Compose-Projekt haben-$name gehört schon zur Instanz $andere; bitte einen anderen Namen wählen."
   done 3< <(instanzen)
+  # Auch ein Projekt dieses Namens außerhalb der Basis, solange docker es kennt
+  if projekte="$(docker compose ls -a -q 2> /dev/null)"; then
+    ! grep -qx "haben-$name" <<< "$projekte" || fehler "Docker kennt schon ein Compose-Projekt haben-$name; bitte einen anderen Namen wählen."
+  fi
   command -v openssl > /dev/null || fehler "openssl fehlt."
 
   mkdir -p "$basis"
@@ -316,7 +331,11 @@ cmd_update() {
   while IFS= read -r dir <&3; do
     name="$(basename "$dir")"
     echo "== $name"
-    if ! laeuft "$dir" app; then
+    if laeuft "$dir" app; then
+      :
+    elif [ $? -eq 2 ]; then
+      fehler "$name: docker compose meldet einen Fehler (cd $dir && docker compose ps); $name und die folgenden Instanzen sind nicht aktualisiert."
+    else
       echo "gestoppt, übersprungen"
       uebersprungen="$uebersprungen $name"
       continue
@@ -344,6 +363,9 @@ cmd_status() {
       # Version des heruntergeladenen ERiC (AKTUELL zeigt auf den Ordner) oder des von Hand eingebundenen
       eric="$(in_dir "$dir" docker compose exec -T app sh -c 'd="${ERIC_HOME:-}"; if [ -z "$d" ] && a="$(cat /var/lib/haben/eric/AKTUELL 2> /dev/null)"; then d="/var/lib/haben/eric/$a"; fi
         if [ -f "$d/HABEN_ERIC_VERSION" ]; then cat "$d/HABEN_ERIC_VERSION"; elif [ -n "${ERIC_HOME:-}" ]; then echo "von Hand"; else echo fehlt; fi' 2> /dev/null || echo "?")"
+    elif [ $? -eq 2 ]; then
+      version=Fehler
+      eric="–"
     else
       version=gestoppt
       eric="–"

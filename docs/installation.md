@@ -394,8 +394,8 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
 | Befehl | Was es tut |
 | --- | --- |
-| `neu <name> <domain>` | Verzeichnis, `.env` mit eigenen Zufallswerten für `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`, die Override-Datei und der Eintrag im gemeinsamen Caddy. Startet Proxy und Instanz und nennt den Einrichtungscode. Gibt es das Verzeichnis schon oder gehört die Domain einer anderen Instanz, bricht es ab und ändert nichts |
-| `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende |
+| `neu <name> <domain>` | Verzeichnis, `.env` mit eigenen Zufallswerten für `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`, die Override-Datei und der Eintrag im gemeinsamen Caddy. Startet Proxy und Instanz und nennt den Einrichtungscode. Gibt es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon oder gehört die Domain einer anderen Instanz, bricht es ab und ändert nichts |
+| `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende; meldet Compose für eine Instanz einen Fehler, hält es dort an |
 | `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung aus `backup_status`; eine gestoppte Instanz steht als „gestoppt“ in der Liste |
 | `liste` | Name, Domain und Verzeichnis |
 

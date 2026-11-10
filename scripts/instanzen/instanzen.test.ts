@@ -50,6 +50,7 @@ case "$1" in
       *sh\\ -c*) echo 44.3.6.0 ;;
     esac ;;
   logs) echo "app-1  | Haben ist noch nicht eingerichtet. Einrichtungscode für https://x/setup: abcd-efgh" ;;
+  ls) [ ! -f "$s/projekte" ] || cat "$s/projekte" ;;
   up|pull) ;;
   *) exit 2 ;;
 esac
@@ -202,7 +203,8 @@ describe("neu", () => {
     lauf("neu", "firma1", "firma1.example.de", "--eric-home", "/opt/eric", "--nicht-starten");
     expect(env("firma1").ERIC_HOME).toBe("/opt/eric");
     expect(readFileSync(join(basis, "firma1", "compose.override.yml"), "utf8")).toContain("- /opt/eric:/opt/eric:ro");
-    expect(aufrufe()).toEqual([]);
+    // Nur nachgesehen, welche Projekte es gibt; nichts gestartet
+    expect(aufrufe().map((a) => a.replace(/^\S+ /, ""))).toEqual(["compose ls -a -q"]);
   });
 
   it("meldet eine App, die nicht gesund wird", () => {
@@ -281,6 +283,14 @@ describe("status und liste", () => {
 });
 
 describe("Review", () => {
+  it("lehnt einen Namen ab, dessen Compose-Projekt docker schon kennt", () => {
+    writeFileSync(join(dir, "projekte"), "haben\nhaben-firma1\n");
+    const r = lauf("neu", "firma1", "firma1.example.de");
+    expect(r.stderr).toContain("Docker kennt schon ein Compose-Projekt haben-firma1");
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+    expect(aufrufe().some((a) => a.includes(" up "))).toBe(false);
+  });
+
   it("lehnt einen Namen ab, dessen Projekt und Alias schon eine von Hand angelegte Instanz trägt", () => {
     // Von Hand nach der Doku: Verzeichnis haben-firma1, COMPOSE_PROJECT_NAME=haben-firma1, Alias haben-firma1
     mkdirSync(join(basis, "haben-firma1"), { recursive: true });
@@ -299,6 +309,14 @@ describe("Review", () => {
     expect(r.status).not.toBe(0);
     expect(r.stderr).toContain("firma2");
     expect(aufrufe().some((a) => a.startsWith("firma3 compose pull"))).toBe(false);
+  });
+
+  it("zeigt im Status eine Instanz, bei der Compose einen Fehler meldet, als Fehler statt gestoppt", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    writeFileSync(join(dir, "compose-kaputt-firma1"), "");
+    const r = lauf("status");
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim().split("\n")[1]).toMatch(/^firma1\s+firma1\.example\.de\s+Fehler\s/);
   });
 
   it("erkennt eine laufende App auch, wenn docker die Dienste einzeln ausgibt (pipefail und grep -q)", () => {
