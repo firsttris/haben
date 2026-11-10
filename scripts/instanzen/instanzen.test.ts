@@ -503,3 +503,89 @@ describe("Review, dritte Runde", () => {
     expect(existsSync(join(basis, "firma1"))).toBe(false);
   });
 });
+
+describe("Review, unabhängige Runde", () => {
+  /** Wie lauf, mit zusätzlichen Variablen aus der Shell der Person */
+  function laufMit(extra: Record<string, string>, ...args: string[]) {
+    const result = spawnSync("bash", [SKRIPT, "--basis", basis, ...args], {
+      env: {
+        PATH: `${join(dir, "bin")}:/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin`,
+        HOME: dir,
+        FAKE_STATE: dir,
+        HABEN_INSTANZEN_TAKT: "0",
+        HABEN_INSTANZEN_WARTEN: "3",
+        ...extra,
+      },
+      encoding: "utf8",
+    });
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  }
+
+  /** Ersetzt docker durch eine Hülle um FAKE_DOCKER; vorher gibt die Hülle ihren Shell-Code aus */
+  function huelle(vorher: string) {
+    writeFileSync(join(dir, "bin", "docker-fake"), FAKE_DOCKER);
+    chmodSync(join(dir, "bin", "docker-fake"), 0o755);
+    writeFileSync(join(dir, "bin", "docker"), `#!/bin/sh\ns="$FAKE_STATE"\nd="$(basename "$PWD")"\n${vorher}\nexec "$(dirname "$0")/docker-fake" "$@"\n`);
+    chmodSync(join(dir, "bin", "docker"), 0o755);
+  }
+
+  it("lässt ein in der Shell gesetztes COMPOSE_PROJECT_NAME oder COMPOSE_FILE nicht an docker compose durch", () => {
+    // Compose gibt Variablen aus der Shell Vorrang vor der .env (geprüft mit docker compose config): Mit
+    // COMPOSE_PROJECT_NAME=haben-firma1 in der Shell liefe update in firma2 gegen Container und Volumes von firma1,
+    // und up -d setzte die App von firma1 mit DOMAIN, Schlüsseln und Alias von firma2 neu auf
+    for (const n of ["firma1", "firma2"]) lauf("neu", n, `${n}.example.de`, "--nicht-starten");
+    huelle(`[ "$1" != compose ] || echo "$d \${COMPOSE_PROJECT_NAME:-}|\${COMPOSE_FILE:-}|\${COMPOSE_PROFILES:-}" >>"$s/umgebung"`);
+    const r = laufMit({ COMPOSE_PROJECT_NAME: "haben-firma1", COMPOSE_FILE: "compose.yml", COMPOSE_PROFILES: "eigener-proxy" }, "update");
+    expect(r.status).toBe(0);
+    const umgebung = readFileSync(join(dir, "umgebung"), "utf8").trim().split("\n");
+    expect(umgebung.filter((z) => !z.endsWith(" ||"))).toEqual([]);
+  });
+
+  it("lässt in der Shell exportierte Schlüssel aus der .env wie ENCRYPTION_KEY oder DOMAIN nicht an docker compose durch", () => {
+    // Auch diese Variablen gewinnen in Compose über die .env; die App von firma2 liefe sonst mit Schlüssel und
+    // Domain aus der Shell
+    for (const n of ["firma1", "firma2"]) lauf("neu", n, `${n}.example.de`, "--nicht-starten");
+    huelle(`[ "$1" != compose ] || echo "$d \${ENCRYPTION_KEY:-}|\${DOMAIN:-}|\${DB_PASSWORD:-}" >>"$s/umgebung"`);
+    const r = laufMit({ ENCRYPTION_KEY: "fremd", DOMAIN: "firma1.example.de", DB_PASSWORD: "fremd" }, "update");
+    expect(r.status).toBe(0);
+    const umgebung = readFileSync(join(dir, "umgebung"), "utf8").trim().split("\n");
+    expect(umgebung.filter((z) => !z.endsWith(" ||"))).toEqual([]);
+  });
+
+  it("überspringt eine App, die ständig neu startet, beim Update nicht als gestoppt", () => {
+    // Nach einer fehlgeschlagenen Migration startet die App immer wieder neu: docker compose ps --status running
+    // nennt sie nicht, ps -a zeigt restarting. Das ist ein Fehler, keine gestoppte Instanz
+    for (const n of ["firma1", "firma2", "firma3"]) lauf("neu", n, `${n}.example.de`, "--nicht-starten");
+    huelle(`if [ "$1 $2" = "compose ps" ] && [ -f "$s/schleife-$d" ]; then
+  echo "$d $*" >>"$s/aufrufe"
+  case "$*" in *--services*) printf 'db\\nbackup\\n' ;; *) echo "restarting " ;; esac
+  exit 0
+fi`);
+    writeFileSync(join(dir, "schleife-firma2"), "");
+    const r = lauf("update");
+    expect(r.stdout).not.toContain("gestoppt, übersprungen");
+    expect(r.status).not.toBe(0);
+    expect(aufrufe().some((a) => a.startsWith("firma3 compose pull"))).toBe(false);
+  });
+
+  it("zeigt im Status eine App, die ständig neu startet, nicht als gestoppt", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    huelle(`if [ "$1 $2" = "compose ps" ] && [ -f "$s/schleife-$d" ]; then
+  case "$*" in *--services*) printf 'db\\nbackup\\n' ;; *) echo "restarting " ;; esac
+  exit 0
+fi`);
+    writeFileSync(join(dir, "schleife-firma1"), "");
+    const zeile = lauf("status").stdout.trim().split("\n")[1];
+    expect(zeile).not.toMatch(/\sgestoppt\s/);
+  });
+
+  it("lehnt eine Domain ab, für die im gemeinsamen Caddy schon ein Eintrag steht", () => {
+    // Übrig nach dem Löschen einer Instanz (Verzeichnis entfernt, proxy/sites/alt.caddy nicht): zwei Blöcke für
+    // dieselbe Domain lehnt Caddy ab (ambiguous site definition); reload scheitert, ein Neustart des Proxys auch
+    mkdirSync(join(basis, "proxy", "sites"), { recursive: true });
+    writeFileSync(join(basis, "proxy", "sites", "alt.caddy"), "firma1.example.de {\n\treverse_proxy haben-alt:3000\n}\n");
+    const r = lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+  });
+});
