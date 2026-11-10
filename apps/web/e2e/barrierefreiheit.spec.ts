@@ -510,6 +510,42 @@ test("Kontrollkästchen mit Hinweis: Der Name ist nur die Beschriftung, der Hinw
   await expect(tageskurs).toBeChecked({ checked: !vorher });
 });
 
+test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  // Auf Touchgeräten sind Felder und Zeilen mit Kästchen 44px hoch (DESIGN.md); der Hinweis darunter nimmt davon nichts weg
+  test("Die Zeile mit dem Kästchen ist mindestens 44px hoch", async ({ page }) => {
+    await open(page, "/einstellungen");
+    for (const name of [
+      "Kleinunternehmer nach § 19 UStG",
+      "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+      "Basiszinssatz automatisch abrufen",
+    ]) {
+      const zeile = page.locator("label.checkbox", { has: page.getByRole("checkbox", { name, exact: true }) });
+      const box = await zeile.boundingBox();
+      expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
+test("Kontrollkästchen mit Hinweis: Der Hinweis fluchtet mit dem Text der Beschriftung", async ({ page }) => {
+  await open(page, "/einstellungen");
+  for (const name of [
+    "Kleinunternehmer nach § 19 UStG",
+    "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+    "Basiszinssatz automatisch abrufen",
+  ]) {
+    const block = page.locator(".checkbox-hinted", { has: page.getByRole("checkbox", { name, exact: true }) });
+    // Linke Textkante: Beschriftung = Rand des span; Hinweis = Rand der Box plus ihr Innenabstand links
+    const versatz = await block.evaluate((el) => {
+      const text = el.querySelector("label.checkbox > span")!.getBoundingClientRect().left;
+      const hinweis = el.querySelector<HTMLElement>(".field-hint")!;
+      return hinweis.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(hinweis).paddingLeft) - text;
+    });
+    expect(Math.abs(versatz), name).toBeLessThanOrEqual(1);
+  }
+});
+
 /** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
 const FILE_PICKER_PAGES = [
   "/dauerbelege/neu",
