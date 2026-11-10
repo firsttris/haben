@@ -235,7 +235,8 @@ firmen_abgleichen() {
 }
 
 # Baut die Liste aller Instanzen für HABEN_FIRMEN in FIRMEN_LISTE und prüft sie wie die App (parseFirmen): gültige,
-# eindeutige Namen, höchstens 50 Firmen. Bricht ab, bevor irgendetwas geschrieben ist.
+# eindeutige Namen, höchstens 50 Firmen. Bricht ab, bevor irgendetwas geschrieben ist. Erstes Argument: so viele
+# Firmen kommen noch hinzu (neu prüft vor dem Anlegen mit 1)
 firmen_pruefen() {
   local dir name namen="" anzahl=0
   FIRMEN_LISTE=""
@@ -247,7 +248,7 @@ firmen_pruefen() {
     anzahl=$((anzahl + 1))
     FIRMEN_LISTE="${FIRMEN_LISTE:+$FIRMEN_LISTE;}$name|https://$(env_lesen "$dir/.env" DOMAIN)"
   done < <(instanzen)
-  [ "$anzahl" -le 50 ] || fehler "Höchstens 50 Firmen in der Liste zum Wechseln; nichts geändert."
+  [ $((anzahl + ${1:-0})) -le 50 ] || fehler "Höchstens 50 Firmen in der Liste zum Wechseln; nichts geändert."
 }
 
 # Name in der Navigation wie ihn die App annimmt (parseFirmen in apps/web/src/lib/firmen.ts): nicht leer, höchstens
@@ -334,8 +335,8 @@ cmd_neu() {
   projekte="$(docker volume ls -q --filter "label=com.docker.compose.project=haben-$name" 2> /dev/null)" \
     || fehler "docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt."
   [ -z "$projekte" ] || fehler "Es gibt schon Volumes des Compose-Projekts haben-$name ($(echo $projekte)); bitte einen anderen Namen wählen."
-  # Eine Instanz mit ungültigem Firmennamen von Hand fiele sonst erst nach dem Anlegen auf
-  firmen_pruefen
+  # Eine Instanz mit ungültigem Firmennamen von Hand oder eine volle Liste fiele sonst erst nach dem Anlegen auf
+  firmen_pruefen 1
   command -v openssl > /dev/null || fehler "openssl fehlt."
 
   mkdir -p "$basis"
