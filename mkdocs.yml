@@ -49,6 +49,7 @@ nav:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
       - CSV-Import: csv-import.md
+      - Belegimport: belegimport.md
       - KI-Assistenten (MCP): ki-assistenten.md
       - REST-API: api.md
       - Eigene Seiten: eigene-seiten.md

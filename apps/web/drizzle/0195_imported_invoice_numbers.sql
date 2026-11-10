@@ -1,0 +1,2 @@
+ALTER TABLE "invoices" DROP CONSTRAINT "invoices_number_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "invoices_number_local" ON "invoices" USING btree ("number") WHERE "invoices"."external_source" is null;

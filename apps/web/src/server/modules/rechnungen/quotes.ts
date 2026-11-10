@@ -598,7 +598,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
   const data = await getQuote(id);
   if (!data) throw new QuoteError("Angebot nicht gefunden.");
   const { quote, lines } = data;
-  const validDays = Math.max(0, Math.round((Date.parse(quote.validUntil) - Date.parse(quote.issueDate)) / 86_400_000));
+  const validDays = quote.validUntil ? Math.max(0, Math.round((Date.parse(quote.validUntil) - Date.parse(quote.issueDate)) / 86_400_000)) : QUOTE_VALID_DAYS;
   const input: QuoteDraftInput = {
     contactId: quote.contactId,
     issueDate: today,

@@ -1345,6 +1345,41 @@
       "when": 1794305446619,
       "tag": "0191_journal_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794308160624,
+      "tag": "0192_external_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794308185430,
+      "tag": "0193_external_import_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 194,
+      "version": "7",
+      "when": 1794310127476,
+      "tag": "0194_imported_quote_validity",
+      "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794313238394,
+      "tag": "0195_imported_invoice_numbers",
+      "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1794313241065,
+      "tag": "0196_imported_invoice_number_trigger",
+      "breakpoints": true
     }
   ]
 }

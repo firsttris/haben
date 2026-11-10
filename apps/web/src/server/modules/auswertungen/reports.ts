@@ -23,6 +23,7 @@ import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
+import { importedEuerPayments } from "./import-payments.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
 
@@ -399,7 +400,12 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
 }
 
 export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
-  return computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  return computeEuer(
+    year,
+    [...(await euerPayments(year, q)), ...(await importedEuerPayments(year, q))],
+    await depreciationForEuer(year, q),
+    await withdrawalsForEuer(year, q),
+  );
 }
 
 export interface OpenPosition {

@@ -23,7 +23,7 @@ type Data = Awaited<ReturnType<typeof getReports>>;
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
-  const { euer, open, years, today, versteuerung } = Route.useLoaderData();
+  const { euer, open, years, today, versteuerung, importNotice } = Route.useLoaderData();
   // GmbH und UG bilanzieren (§ 238 HGB): Die Zahlen nach Zahlung sind dort keine EÜR, den Gewinn zeigt der Jahresabschluss
   const { rechtsform, user } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
@@ -72,6 +72,11 @@ function ReportsPage() {
         </div>
       </div>
 
+      {importNotice && (
+        <div className="banner banner-info" role="status">
+          {importNotice}
+        </div>
+      )}
       <div className="grid-4">
         <div className="card">
           <div className="kpi-label">Einnahmen {year} (netto)</div>

@@ -99,14 +99,14 @@ export interface QuoteFacts {
   decision: QuoteDecision | null;
   /** Rechnung, die aus dem Angebot entstanden ist */
   invoiceId: string | null;
-  validUntil: string;
+  validUntil: string | null;
 }
 
 export function quoteStatus(q: QuoteFacts, today: string): QuoteListStatus {
   if (q.status === "draft") return "entwurf";
   if (q.invoiceId) return "abgerechnet";
   if (q.decision) return q.decision;
-  return q.validUntil < today ? "abgelaufen" : "offen";
+  return q.validUntil && q.validUntil < today ? "abgelaufen" : "offen";
 }
 
 export function quoteEditProblem(q: Pick<QuoteFacts, "status">): string | null {

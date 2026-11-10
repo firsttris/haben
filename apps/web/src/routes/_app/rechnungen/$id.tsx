@@ -505,7 +505,8 @@ function Payments({ invoiceId, payments, open, cashable }: { invoiceId: string; 
       {payments.map((p) => (
         <div key={p.id} className="history-row">
           <span style={{ textDecoration: p.reversed ? "line-through" : undefined }}>
-            {p.via === "bar" ? "bar" : "Bank"} am {formatDate(p.date)}
+            {p.via === "import" ? "Übernommener Zahlungsstand" : `${p.via === "bar" ? "bar" : "Bank"} am ${formatDate(p.date!)}`}
+            {p.via === "import" && <span className="small muted"> · {p.text}</span>}
             {p.via === "bar" && (
               <span className="small muted">
                 {" "}

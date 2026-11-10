@@ -1100,7 +1100,7 @@ export const invoices = pgTable(
     kind: invoiceKindEnum("kind").notNull().default("rechnung"),
     status: invoiceStatusEnum("status").notNull().default("draft"),
     /** Erst beim Festschreiben vergeben */
-    number: text("number").unique(),
+    number: text("number"),
     /** Kreis des Zählers: Jahr des Belegdatums, 0 = durchlaufender Zähler (counterCircle) */
     numberYear: smallint("number_year"),
     numberCounter: integer("number_counter"),
@@ -1192,6 +1192,7 @@ export const invoices = pgTable(
     // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen
     check("invoices_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("invoices_external_ref").on(t.externalSource, t.externalId),
+    uniqueIndex("invoices_number_local").on(t.number).where(sql`${t.externalSource} is null`),
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_quote_kind", sql`${t.quoteId} is null or ${t.kind} = 'rechnung'`),
@@ -1310,14 +1311,18 @@ export const quotes = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     status: invoiceStatusEnum("status").notNull().default("draft"),
-    number: text("number").unique(),
+    number: text("number"),
+    /** Originalangebote können in der Quelle dieselbe Nummer tragen; ihre Herkunft identifiziert sie eindeutig. */
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
     /** Kreis des Zählers: Jahr des Belegdatums, 0 = durchlaufender Zähler (counterCircle) */
     numberYear: smallint("number_year"),
     numberCounter: integer("number_counter"),
     contactId: uuid("contact_id").references(() => contacts.id),
     contactVersion: integer("contact_version"),
     issueDate: date("issue_date", { mode: "string" }).notNull(),
-    validUntil: date("valid_until", { mode: "string" }).notNull(),
+    /** Bei Originalangeboten kann die Gültigkeitsfrist unbekannt sein; neue Entwürfe verlangen sie weiterhin. */
+    validUntil: date("valid_until", { mode: "string" }),
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
     /** Einleitung über den Positionen (Kopftext) */
@@ -1366,6 +1371,9 @@ export const quotes = pgTable(
     check("quotes_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
     check("quotes_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
     uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
+    uniqueIndex("quotes_external_ref").on(t.externalSource, t.externalId),
+    uniqueIndex("quotes_number_local").on(t.number).where(sql`${t.externalSource} is null`),
+    check("quotes_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
   ],
 );
 
@@ -1570,7 +1578,7 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn"],
+      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -3143,3 +3151,39 @@ export const tokenEvents = pgTable("token_events", {
   previousResponsibleId: text("previous_responsible_id"),
   responsibleId: text("responsible_id"),
 });
+
+/** Allgemeiner Umzug: unveränderliche Herkunft, Zahlungsstand und belegte EÜR-Zahlungen, ohne fingierte Bankumsätze. */
+export const externalImports = pgTable(
+  "external_imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    source: text("source").notNull(),
+    externalId: text("external_id").notNull(),
+    kind: text("kind", { enum: ["quote", "invoice", "journal"] }).notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    quoteId: uuid("quote_id").references(() => quotes.id),
+    entryId: uuid("entry_id").references(() => journalEntries.id),
+    /** Nur ein übernommener Zahlungsstand; kein erfundener Zahlungstag und keine weitere Journalbuchung. */
+    settledAmount: integer("settled_amount").notNull().default(0),
+    paymentUncertain: boolean("payment_uncertain").notNull().default(false),
+    /** Nachgewiesene Zu-/Abflüsse der übernommenen Buchung; Beträge in Cent, Ausgabe negativ. */
+    cashFlows: jsonb("cash_flows").$type<{ date: string; amount: number; category: string; evidence: string }[]>().notNull().default([]),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_imports_identity").on(t.source, t.kind, t.externalId),
+    uniqueIndex("external_imports_invoice").on(t.invoiceId),
+    uniqueIndex("external_imports_quote").on(t.quoteId),
+    uniqueIndex("external_imports_entry").on(t.entryId),
+    check("external_imports_kind", sql`${t.kind} in ('quote', 'invoice', 'journal')`),
+    check(
+      "external_imports_target",
+      sql`case ${t.kind}
+    when 'quote' then ${t.quoteId} is not null and ${t.invoiceId} is null and ${t.entryId} is null
+    when 'invoice' then ${t.invoiceId} is not null and ${t.quoteId} is null and ${t.entryId} is null
+    when 'journal' then ${t.entryId} is not null and ${t.invoiceId} is null and ${t.quoteId} is null end`,
+    ),
+  ],
+);

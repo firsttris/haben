@@ -10,6 +10,11 @@ function sampleQuote(overrides: Partial<QuoteDocument> = {}): QuoteDocument {
 }
 
 describe("Angebot", () => {
+  it("erfindet bei einem übernommenen Angebot ohne bekannte Frist kein Gültigkeitsdatum", () => {
+    const data = quotePdfData(sampleQuote({ validUntil: null }));
+    expect(data.meta.some((row) => row.label === "Gültig bis")).toBe(false);
+    expect(data.payment).toBe("");
+  });
   it("hat Titel, Gültigkeit und keine Zahlungsaufforderung", () => {
     const data = quotePdfData(sampleQuote({ serviceFrom: "2026-11-01", serviceTo: "2026-11-30" }));
     expect(data.title).toBe("Angebot");

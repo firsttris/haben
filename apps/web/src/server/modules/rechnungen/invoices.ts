@@ -1120,6 +1120,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
 async function originalProblem(original: Invoice, q: Db | Tx = db, of?: Invoice): Promise<string | null> {
+  const [imported] = await q.select({ id: schema.externalImports.id }).from(schema.externalImports).where(eq(schema.externalImports.invoiceId, original.id));
+  if (imported)
+    return "Diese Originalrechnung wurde mit fremden Buchungen übernommen. Storno und Korrektur müssen zuerst mit diesen Originalbuchungen abgestimmt werden";
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)

@@ -42,6 +42,7 @@ const LINK_LABEL = {
   "/umsatzsteuer": "Zur Umsatzsteuer",
   "/bank": "Zur Bank",
   "/pauschalen": "Zu den Pauschalen",
+  "/auswertungen": "Zu den Auswertungen",
 } as const;
 
 function AnnualPage() {

@@ -107,3 +107,4 @@ export {
   updateRecurring,
 } from "./recurring.ts";
 export { startRunning, type NumberKind } from "./number-counter.ts";
+export { importIssuedDocument } from "./import-document.ts";
