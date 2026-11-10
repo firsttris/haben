@@ -494,3 +494,26 @@ describe("Steuer aus Brutto", () => {
     expect(taxFromGross(100, 1900)).toEqual({ net: 84, tax: 16 });
   });
 });
+
+describe("Accountable-Export in SKR04 (Review #579)", () => {
+  // SKR04: Bank 1800, Privatentnahmen 2100, Privateinlagen 2180, Geldtransit 1460 (Kontenrahmen in packages/core/src/posting.ts)
+  const zeile04 = (betrag: string, gegen: string, ttmm: string, nr: string, text: string) =>
+    [betrag, "H", "EUR", "", betrag, "EUR", "1800", gegen, "", ttmm, nr, `${ttmm}2025`, "", text, ""].join(";");
+
+  function export04(bookings: string[]): Uint8Array {
+    return zipSync({
+      "datev_skr04_10112026/EXTF_Buchungsstapel_2025Test.csv": strToU8([KOPF, SPALTEN, ...bookings].join("\n")),
+      "datev_skr04_10112026/Belege.zip": zipSync({ "document.xml": strToU8(XML), "beleg-rechnung.pdf": strToU8("%PDF-1.4 beleg") }),
+    });
+  }
+
+  it("erkennt Privatentnahme und Geldtransit im SKR04 und legt dafür keinen Beleg an", () => {
+    const mapping = mapAccountableExport(
+      readAccountableExport(
+        export04([zeile04("271,40", "2100", "1903", "19032025_27140", "Privatentnahme"), zeile04("50,00", "1460", "2003", "20032025_5000", "Umbuchung")]),
+      ),
+    );
+    expect(mapping.privateRows).toBe(2);
+    expect(mapping.vouchers).toEqual([]);
+  });
+});
