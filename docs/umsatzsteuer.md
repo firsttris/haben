@@ -359,6 +359,8 @@ Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, steht im Än
 
 Der Bereich **Verlauf** listet für den Zeitraum jede Prüfung, Testübermittlung und Übermittlung mit „OK“ oder „Fehler <Code>“, Zeitpunkt, Transfer-Ticket und Fehlermeldung, dazu jeden Abgabevermerk mit Tag der Abgabe, Ticket und Kz 83. Wo es ein Protokoll gibt, öffnet **Protokoll** das PDF. Darunter stehen die zuletzt gesendeten oder vermerkten Voranmeldungen aller Zeiträume mit ihrer Zahllast.
 
+Schlägt ein Vorgang mit einem Fehler des ELSTER-Annahmeservers fehl, steht in der Fehlermeldung hinter dem allgemeinen Text von ERiC, was der Server bemängelt: „Antwort des ELSTER-Servers: Transferheader <Code> – <Text>“, bei Fehlern in den Nutzdaten „Nutzdatenheader“, bei mehreren Rückmeldungen alle nacheinander. Haben liest Code und Text aus der Serverantwort, die unter den Antworten von ERiC und Server steht. Das gilt für alle Verfahren, nicht nur für die Voranmeldung. Einträge, die vor dieser Änderung entstanden sind, behalten ihre Meldung; ihre Serverantwort steht weiter ungekürzt im Verlauf. Gab es keine Antwort des Servers, etwa weil ERiC schon vor dem Senden abgelehnt hat, bleibt die Meldung von ERiC allein.
+
 Im Jahresarchiv (`umsatzsteuer/<JJJJ-MM>/`) liegen das ERiC-Protokoll jeder Übermittlung und das Protokoll aus Mein ELSTER jedes Vermerks (`<Tag>_vermerk_…_protokoll.pdf`); `übermittlungen.csv` nennt beide, den Vermerk mit Kz 83 und SHA-256 der Datei.
 
 ## Zahlung an das Finanzamt
