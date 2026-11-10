@@ -7,11 +7,35 @@ description: >-
 
 # Eigene Belegvorlagen
 
-Haben setzt Belege mit Typst aus einer Vorlage. Eigene Layouts hochladen geht noch nicht, das folgt. Diese Seite beschreibt schon, was ein Layout bekommt und wie Haben dafür sorgt, dass es mit neuen Versionen weiter funktioniert. Die Vorlage bekommt die Daten des Belegs fertig formatiert, sie rechnet nichts; das PDF/A-3 und die eingebettete E-Rechnung erzeugt Haben selbst.
+Haben setzt Belege mit Typst aus einer Vorlage. Neben dem eingebauten Layout kannst du eigene hochladen und je Belegart zuordnen. Die Vorlage bekommt die Daten des Belegs fertig formatiert, sie rechnet nichts; das PDF/A-3 und die eingebettete E-Rechnung erzeugt Haben selbst.
 
 ## Mit einem KI-Agenten
 
-Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften und Pflichtangaben stehen darin. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
+Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Haben bietet ihn unter **Einstellungen › Beleggestaltung › Layouts** als „Anleitung für KI-Agenten“ zum Herunterladen an, dazu die Startvorlagen, Beispieldaten und den Feldvertrag als JSON Schema. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
+
+## Hochladen und zuordnen
+
+Unter **Einstellungen › Beleggestaltung › Layouts**:
+
+- **Hochladen:** Name, Art (Belege oder Mahnung) und die `.typ`-Datei, bis 256 KB. Haben setzt das Layout mit jedem Beispiel seiner Art, darunter Entwurf, Bruttopreise mit 40 Positionen, Fremdwährung, Kleinunternehmer, Storno und Lieferschein, und liest das PDF. Fehlt eine Pflichtangabe (Absender, Empfänger, Nummer und Daten, Positionen, Summen mit Umsatzsteuer, Hinweis ohne Steuerausweis, Steuernummer oder USt-IdNr., bei GmbH und UG die Angaben nach § 35a GmbHG) oder auf einer Seite der Vermerk „ENTWURF“, oder braucht ein Lauf länger als 5 Sekunden, wird nichts gespeichert und die Meldung nennt den Grund.
+- **Zuordnen:** Je Belegart wählst du das eingebaute oder ein eigenes Layout. Storno und Korrektur folgen der Rechnung, Mahnungen brauchen ein Layout der Art Mahnung. Das gilt für alles, was ab dann erzeugt wird, auch für Entwürfe und die Vorschau; festgeschriebene Belege behalten ihr PDF.
+- **Ersetzen, umbenennen, löschen:** Ersetzen prüft wie das Hochladen. Nach dem Löschen gilt dort, wo das Layout zugeordnet war, wieder das eingebaute.
+- **Fehler beim Erzeugen:** Lässt sich ein zugeordnetes Layout nicht setzen, etwa nach einem Update von Typst, meldet Haben das mit dem Namen des Layouts. Es fällt nicht still auf das eingebaute zurück; wähle dann ein anderes Layout.
+
+### Pakete
+
+Ein Layout darf Typst-Pakete aus `@preview` mit fester Version importieren, nur nach Freigabe:
+
+- Beim Hochladen nennt Haben jedes Paket mit Version und fragt nach. Erst nach der Bestätigung lädt es genau diese Pakete einmal in einen eigenen Ordner des Layouts (`DOCUMENTS_DIR/vorlagen/<id>/pakete`, im Backup). Ein Layout sieht die Pakete eines anderen nicht.
+- Gesetzt wird immer ohne Netz. Das Festschreiben hängt so nie an einem fremden Server.
+- Ändert sich der Quelltext, fragt Haben erneut, auch für eine neue Version eines Pakets.
+- Fehlen die Pakete, etwa nach einer Wiederherstellung der Datenbank ohne das Volume, zeigt die Liste das an. Nachgeladen wird nur, wenn du **Pakete neu laden** klickst; bis dahin lässt sich mit dem Layout nichts erzeugen.
+
+Typst lädt Pakete beim Kompilieren; den Download macht deshalb ein eigener Prozess, der nur die freigegebenen Importe kompiliert, nicht das Layout.
+
+## Sicherheit
+
+Ein Layout ist Code, den Haben auf dem Server ausführt; hochladen kann nur, wer Inhaber ist. Gesetzt wird in einem eigenen Prozess: ohne die Umgebung der App (keine Datenbank, keine Schlüssel), ohne Netz, mit einem eigenen, sonst leeren Ordner als Projektwurzel und nach 5 Sekunden hart beendet. Typst liest keine Datei außerhalb dieses Ordners. Bei jedem Update des Typst-Compilers prüft `render-client.test.ts` diese Grenzen erneut.
 
 ## Abwärtskompatibilität
 

@@ -1,6 +1,6 @@
 ---
 name: "belegvorlage"
-description: "Eigenes Layout für Belege von Haben in Typst schreiben oder ändern: Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung. Mit allen Feldern, die Haben der Vorlage übergibt (Feldvertrag v1), den Schriften und den Pflichtangaben. Braucht kein Repository."
+description: "Eigenes Layout für Belege von Haben in Typst schreiben oder ändern: Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung. Mit allen Feldern, die Haben der Vorlage übergibt (Feldvertrag v1), den Schriften, den Pflichtangaben und dem, was Haben beim Hochladen prüft. Braucht kein Repository."
 ---
 
 # Eigene Belegvorlage für Haben
@@ -13,7 +13,7 @@ Haben setzt Belege mit [Typst](https://typst.app/docs/) 0.14.2 als PDF/A-3b. Ein
 #let d = json(bytes(sys.inputs.data))
 ```
 
-Es gibt zwei Arten mit eigenen Feldern: **Beleg** (Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein) und **Mahnung**.
+Es gibt zwei Arten mit eigenen Feldern: **Beleg** (Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein) und **Mahnung**. Beim Hochladen wählt man, wofür das Layout ist.
 
 - Ein Feld mit „Immer da: nein“ kann fehlen. Lies es mit `d.at("feld", default: none)`, sonst bricht das Layout bei Belegen ohne dieses Feld.
 - `null` heißt: auf diesem Beleg gibt es das nicht. Prüfe mit `!= none`.
@@ -39,17 +39,17 @@ Nur diese Schriften sind eingebettet; andere fehlen auf dem Server, und PDF/A ve
 
 - Logo und Briefpapier liegen beim Setzen neben der Vorlage, ihre Dateinamen stehen in `d.logo` und `d.background` (fehlen ohne). Lies sie mit `image(d.logo)`, nie mit festem Namen.
 - Andere Dateien gibt es nicht, und Typst liest nichts außerhalb des Ordners der Vorlage.
-- Keine Pakete (`#import "@preview/…"`): Haben setzt ohne Netz.
+- Pakete (`#import "@preview/name:1.2.3"`) nur mit fester Version. Haben fragt beim Hochladen nach, lädt sie nach der Bestätigung einmal und setzt danach ohne Netz. Ohne Paket ist ein Layout einfacher zu prüfen; ein zur Laufzeit zusammengesetzter Paketname scheitert.
 - Ein Lauf darf höchstens 5 Sekunden dauern, sonst bricht Haben ihn ab.
 
 ## Pflichtangaben
 
-Ein Layout muss auf dem Blatt zeigen:
+Haben setzt das Layout beim Hochladen mit Beispieldaten und lehnt es ab, wenn auf dem Blatt etwas davon fehlt:
 
 - Absender (`senderLine` oder `footer`) und Empfänger (`recipient`), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
 - Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer je Satz (`totals.rows`, bei Bruttopreisen in `totals.included`, bei Fremdwährung zusätzlich in Euro in `totals.euroTax`), der Hinweis ohne Steuerausweis (`taxNote`), Steuernummer oder USt-IdNr. aus der Fußzeile (`footer`) und bei GmbH oder UG die Pflichtangaben aus `legal` (§ 14 Abs. 4 UStG, § 35a GmbHG).
 - Bei einem Entwurf der Vermerk aus `draft` auf jeder Seite.
-- Mehrseitige Belege müssen gehen, etwa mit 40 Positionen.
+- Mehrseitige Belege müssen gehen: Die Beispiele haben bis zu 40 Positionen.
 
 ## Grundgerüst
 
@@ -85,10 +85,11 @@ Ein Layout muss auf dem Blatt zeigen:
 
 ## Prüfen
 
-Mit der Typst-CLI und einer JSON-Datei nach den Feldern unten:
+Haben bietet unter Einstellungen › Beleggestaltung › Layouts die Startvorlagen und die Beispieldaten zum Herunterladen an. Die Beispieldaten sind eine Liste aus `name` und `data`; ein Beispiel daraus geht mit der Typst-CLI so (die Schriften oben gibt es frei unter der SIL Open Font License, etwa bei Google Fonts):
 
 ```sh
-typst compile --input data="$(cat beispiel-rechnung.json)" --font-path schriften/ vorlage.typ
+jq '.[0].data' beispieldaten-beleg.json > beispiel.json
+typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage.typ
 ```
 
 ## Felder (Feldvertrag v1)
