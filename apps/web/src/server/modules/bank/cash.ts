@@ -54,7 +54,7 @@ async function cashByDay(q: Db | Tx): Promise<Map<string, Cents>> {
 
 /** Prüft, ob der Bestand mit der neuen Bewegung an jedem Tag ab ihrem Datum nicht negativ wird */
 async function assertNeverNegative(tx: Tx, date: string, amount: Cents) {
-  if (amount >= 0) return;
+  if (amount > 0) return;
   const days = await cashByDay(tx);
   days.set(date, (days.get(date) ?? 0) + amount);
   // Bestand am Ende jedes Tages, aufsteigend
@@ -81,6 +81,26 @@ export async function checkCashReversal(tx: Tx, date: string, amount: Cents): Pr
 export async function nextNumber(tx: Tx): Promise<number> {
   const [row] = await tx.select({ max: sql<number | null>`max(${schema.cashEntries.number})` }).from(schema.cashEntries);
   return Number(row?.max ?? 0) + 1;
+}
+
+export interface ImportedCashEntry {
+  date: string;
+  amount: Cents;
+  text: string;
+  journalEntryId: string;
+}
+
+/** Originalbewegungen nur im Nebenbuch ergänzen: Journal und belegte EÜR-Zahlungen übernimmt der Import selbst. */
+export async function addImportedCashEntries(tx: Tx, entries: ImportedCashEntry[]): Promise<void> {
+  // Der Aufrufer sperrt die Kasse vor seinem ersten Audit-Eintrag; die Sperre ist mehrfach aufrufbar.
+  await lockCash(tx);
+  // Exportreihenfolge ist beliebig. Wie bei nativen Buchungen zählt der Tagesendbestand, also Eingänge vor Ausgängen.
+  const ordered = [...entries].sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
+  for (const entry of ordered) {
+    await tx.insert(schema.cashEntries).values({ ...entry, number: await nextNumber(tx), kind: "import" });
+  }
+  // Das ganze Paket zählt: Ein späterer Eingang kann einen schon vorhandenen späteren Ausgang decken.
+  if (ordered.length > 0) await assertNeverNegative(tx, ordered[0]!.date, 0);
 }
 
 /** Zeile für einen bar bezahlten Beleg; die Buchung „an Kasse“ macht der Beleg selbst */
@@ -160,6 +180,8 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
     await tx.execute(lock);
     const [original] = await tx.select().from(schema.cashEntries).where(eq(schema.cashEntries.id, id));
     if (!original || original.reversesId) throw new CashError("Kassenbuchung nicht gefunden.");
+    if (original.kind === "import")
+      throw new CashError("Diese Kassenbewegung wurde mit fremden Originalbuchungen übernommen. Eine Korrektur muss zuerst mit diesen abgestimmt werden.");
     if (original.kind === "beleg") throw new CashError("Bar bezahlte Belege sind gebucht und lassen sich hier nicht stornieren.");
     const [already] = await tx.select({ id: schema.cashEntries.id }).from(schema.cashEntries).where(eq(schema.cashEntries.reversesId, id));
     if (already) throw new CashError("Die Kassenbuchung ist bereits storniert.");

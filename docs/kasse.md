@@ -25,6 +25,8 @@ In einer GmbH oder UG heißen Einlage und Entnahme „Vom Gesellschafter“ und 
 
 Bei Abhebung und Einzahlung ordnest du den Umsatz auf dem Bankkonto im [Bankabgleich](bank.md) als **Geldtransit** zu; dann ist das Geldtransitkonto wieder ausgeglichen.
 
+Der [vorbereitete Belegimport](belegimport.md) übernimmt ursprüngliche Bewegungen auf dem Kassenkonto als **Übernommene Kassenbewegung** mit Datum, Betrag und Originaltext. Sie zählen zum Bestand und stehen auch im CSV. Journal und belegte EÜR-Zahlungen werden dabei nur einmal übernommen. Diese Originalbewegungen lassen sich hier nicht stornieren, solange ihre Korrektur nicht mit den fremden Originalbuchungen abgestimmt ist.
+
 ## Rechnung bar bezahlt
 
 Bezahlt ein Kunde eine Rechnung bar, wählst du unter **Eintragen** die Art **Rechnung bar bezahlt**, dann die Rechnung, das Datum und den Betrag. Zur Auswahl stehen festgeschriebene Rechnungen in Euro mit offenem Betrag; der Betrag ist mit dem offenen vorbelegt. Auf der Seite einer offenen Rechnung führt **Barzahlung in der Kasse erfassen** unter **Zahlungen** direkt hierher, mit der Rechnung schon gewählt.

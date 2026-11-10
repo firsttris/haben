@@ -33,6 +33,8 @@ Grundlage des Zufluss-/Abflussprinzips ist [§ 11 EStG](https://www.gesetze-im-i
 
 Rechnungen und ursprüngliche Journalbuchungen werden getrennt übergeben: Der Import einer Rechnung erzeugt keine zweite Erlösbuchung neben dem bereits übernommenen Journal. Die Journalbuchungen durchlaufen Habens bestehenden Buchungskern einschließlich Jahres-, Kontenrahmen-, Ausgleichs- und Siegelsperren. Storno und Korrektur solcher Originalrechnungen sind vorerst gesperrt: Deren Wirkung muss zuerst mit den fremden Originalbuchungen abgestimmt werden.
 
+Bargeldbewegungen auf dem Kassenkonto 1000 (SKR03) beziehungsweise 1600 (SKR04) erscheinen zusätzlich als „Übernommene Kassenbewegung“ im Kassenbuch und dessen CSV. Sie verweisen auf dieselbe Originalbuchung; es entsteht weder eine zweite Journalbuchung noch eine weitere EÜR-Zahlung oder Bezahlt-Markierung. Der Tagesbestand darf auch nach der Übernahme und bei späteren nativen Buchungen nie negativ werden. Die Übernahme ordnet Kassenbewegungen nach Datum; innerhalb eines Tages zählen Eingänge vor Ausgängen. Storno solcher Originalbewegungen bleibt bis zur Abstimmung mit den fremden Originalbuchungen gesperrt.
+
 ## Aufruf
 
 Vorher eine vollständige Sicherung erstellen und den Bestand auf einer getrennten Kopie prüfen. Der Befehl läuft mit den Umgebungsvariablen der Installation, insbesondere `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` und `HABEN_ENCRYPTION_KEY`. Keine Kennwörter in den Befehlsverlauf schreiben.

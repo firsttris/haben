@@ -326,7 +326,7 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
               </div>
               <div className="num muted">{formatEuro(e.balance)}</div>
               <div style={{ justifySelf: "end" }}>
-                {e.kind !== "beleg" && !e.reversesId && !e.reversed && (
+                {e.kind !== "beleg" && e.kind !== "import" && !e.reversesId && !e.reversed && (
                   <button type="button" className="btn btn-sm" onClick={() => setConfirming(e)} aria-label={`Nr. ${e.number} stornieren`}>
                     Stornieren
                   </button>

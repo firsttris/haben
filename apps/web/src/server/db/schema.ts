@@ -857,7 +857,7 @@ export const cashEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Cent; Eingang positiv, Ausgang negativ */
     amount: integer("amount").notNull(),
-    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme"] }).notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme", "import"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
     /** Bareinnahme auf eine Ausgangsrechnung (Kasse an Forderungen), auch bei ihrer Gegenzeile; mehrere Zeilen je Rechnung bei Teilzahlungen */

@@ -1,9 +1,11 @@
+import { ACCOUNTS } from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import { addImportedCashEntries, lockCash, type ImportedCashEntry } from "../bank/index.ts";
 import { importIssuedDocument } from "../rechnungen/index.ts";
 import { externalImportSchema, type ExternalImport, type ExternalJournal } from "./external-schema.ts";
 
@@ -74,6 +76,8 @@ export async function runExternalImport(
   }
   return withActor(actor, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`external-import:${parsed.source}`}, 0))`);
+    // Das ganze Paket kann Kassenbewegungen enthalten: Kasse vor dem ersten Beleg-/Journal-Audit sperren.
+    await lockCash(tx);
     const company = await openBooks(tx);
     if (!company.kleinunternehmer || company.rechtsform !== "einzelunternehmen" || company.kontenrahmen !== parsed.kontenrahmen)
       throw new ExternalImportError("Dieser Import unterstützt derzeit Einzelunternehmen mit Kleinunternehmerprofil im eingestellten Kontenrahmen.");
@@ -83,6 +87,7 @@ export async function runExternalImport(
     const rank = { quote: 0, invoice: 1, journal: 2 };
     const entries = [...parsed.entries].sort((a, b) => rank[a.kind] - rank[b.kind]);
     const result: ExternalImportResult = { created: 0, duplicates: 0, items: [] };
+    const cashEntries: ImportedCashEntry[] = [];
     for (const entry of entries) {
       const hash = importPayloadHash({ version: parsed.version, kontenrahmen: parsed.kontenrahmen, entry });
       const old = known.get(`${entry.kind}:${entry.externalId}`);
@@ -95,7 +100,7 @@ export async function runExternalImport(
       }
       const id = randomUUID();
       let target: { invoiceId?: string; quoteId?: string; entryId?: string };
-      if (entry.kind === "journal")
+      if (entry.kind === "journal") {
         target = {
           entryId: await post(tx, company, {
             date: entry.date,
@@ -105,7 +110,11 @@ export async function runExternalImport(
             lines: entry.lines.map((l) => ({ ...l, taxCode: null })),
           }),
         };
-      else {
+        const amount = entry.lines
+          .filter((line) => line.account === ACCOUNTS[company.kontenrahmen].kasse)
+          .reduce((sum, line) => sum + line.debit - line.credit, 0);
+        if (amount !== 0) cashEntries.push({ date: entry.date, amount, text: entry.description, journalEntryId: target.entryId! });
+      } else {
         const quoteId = entry.kind === "invoice" && entry.quoteExternalId ? quoteIds.get(entry.quoteExternalId) : null;
         if (entry.kind === "invoice" && entry.quoteExternalId && !quoteId) throw new ExternalImportError("Das verknüpfte Angebot fehlt im Bestand.");
         const document = entry.kind === "quote" ? { ...entry, source: parsed.source } : { ...entry, source: parsed.source, quoteId: quoteId ?? null };
@@ -128,6 +137,7 @@ export async function runExternalImport(
       result.created++;
       result.items.push({ kind: entry.kind, externalId: entry.externalId, id: (target.invoiceId ?? target.quoteId ?? target.entryId)! });
     }
+    await addImportedCashEntries(tx, cashEntries);
     return result;
   });
 }

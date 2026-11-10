@@ -76,6 +76,7 @@ export {
 } from "./cash-invoice.ts";
 export {
   addDocumentCashEntry,
+  addImportedCashEntries,
   cashBook,
   cashBookCsv,
   cashInputSchema,
@@ -84,6 +85,7 @@ export {
   lockCash,
   reverseCashEntry,
   reverseDocumentCashEntry,
+  type ImportedCashEntry,
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {
