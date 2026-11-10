@@ -1380,6 +1380,13 @@
       "when": 1794313241065,
       "tag": "0196_imported_invoice_number_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 197,
+      "version": "7",
+      "when": 1794314195260,
+      "tag": "0197_imported_invoice_native_number_guard",
+      "breakpoints": true
     }
   ]
 }
