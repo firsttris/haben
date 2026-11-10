@@ -41,11 +41,11 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 </archive>`;
 
 /** `guid`: echte Exporte tragen eine UUID; die übrigen Tests bleiben beim lesbaren Platzhalter */
-function export_(guid = "guid-hosting"): Uint8Array {
+function export_(guid = "guid-hosting", ordner = "datev_skr03_10112026"): Uint8Array {
   const belege = zipSync({ "document.xml": strToU8(XML.replace("guid-hosting", guid)), "beleg-hosting.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n") });
   return zipSync({
-    "datev_skr03_10112026/EXTF_Buchungsstapel_2025Test.csv": strToU8([KOPF, SPALTEN, ...BUCHUNGEN].join("\n").replaceAll("guid-hosting", guid)),
-    "datev_skr03_10112026/Belege.zip": belege,
+    [`${ordner}/EXTF_Buchungsstapel_2025Test.csv`]: strToU8([KOPF, SPALTEN, ...BUCHUNGEN].join("\n").replaceAll("guid-hosting", guid)),
+    [`${ordner}/Belege.zip`]: belege,
     "PDF/Einkäufe/beleg-hosting_Wdn.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n"),
   });
 }
@@ -194,5 +194,20 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
     const { years } = await lexoffice.reconciliation();
     // Hosting über Nummer und GUID, Software über die Nummer; Privatzeile 1801 und Ausgangsrechnung 8400 ohne Beleg
     expect(years.find((y) => y.year === 2025)!.bookings).toMatchObject({ total: 5, unmatched: 0 });
+  });
+  it("übernimmt die Buchungen eines Jahres nicht zweimal, wenn das Jahr schon einen Stapel hat (Review #579, Runde 2)", async () => {
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03') on conflict (id) do nothing`;
+    const lexoffice = await import("./lexoffice.ts");
+    accountable.analyseAccountableUpload(export_(), "Accountable_Max_Mustermann_skr03_2026-11-10_a.zip");
+    await accountable.startAccountableImport(actor, { wait: true });
+    // Ein zweiter Export desselben Jahres (in Accountable neu erstellt): andere Bytes, dieselben Buchungen
+    accountable.analyseAccountableUpload(export_("guid-hosting", "datev_skr03_11112026"), "Accountable_Max_Mustermann_skr03_2026-11-11_b.zip");
+    await accountable.startAccountableImport(actor, { wait: true });
+    const year = (await lexoffice.reconciliation()).years.find((y) => y.year === 2025)!;
+    // Die Ausgangsrechnung über 833,00 € steht einmal im Jahr, nicht zweimal
+    expect(year.einnahmen.gross).toBe(83300);
+    expect(year.bookings!.total).toBe(5);
   });
 });
