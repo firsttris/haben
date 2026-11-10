@@ -335,7 +335,7 @@ function LayoutUpload() {
       }}
     >
       <h3 id="layout-upload-heading">Layout hochladen</h3>
-      <div className="banner banner-warn">
+      <div className="banner banner-warn" style={{ marginBottom: 16 }}>
         <span>
           Für eigene Layouts übernimmt Haben keine Gewähr. Die Prüfung beim Hochladen findet nur Offensichtliches; du bist selbst dafür verantwortlich, dass
           dein Layout alle Angaben richtig zeigt und die Belege den gesetzlichen Anforderungen genügen.
