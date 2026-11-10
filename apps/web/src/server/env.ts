@@ -83,6 +83,10 @@ const envSchema = z
     ENABLE_BANKING_KEY: z.string().optional(),
     ENABLE_BANKING_KEY_FILE: z.string().optional(),
     ENABLE_BANKING_API_URL: z.string().url().optional(),
+    /** Nur zum Testen: nachgebaute APIs für den Abruf der Store-Finanzberichte */
+    GOOGLE_PLAY_TOKEN_URL: z.string().url().optional(),
+    GOOGLE_PLAY_STORAGE_URL: z.string().url().optional(),
+    APP_STORE_CONNECT_URL: z.string().url().optional(),
   })
   // Unvollständig eingerichteter Dienst: lieber nicht starten als stillschweigend einen anderen Anbieter nehmen
   .superRefine((value, ctx) => {

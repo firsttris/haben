@@ -7,6 +7,7 @@
 export {
   accountTotals,
   addArchiveFile,
+  archiveFetchedFile,
   ARCHIVE_KINDS,
   ArchiveError,
   datevBookingsForPeriod,
