@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DOKU, mitFeldern, SKILL } from "../../../scripts/feldvertrag/schreiben.ts";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
@@ -53,3 +54,38 @@ describe("Anleitung für eigene Belegvorlagen", () => {
     expect(layoutAnleitung()).not.toMatch(/packages\/|apps\/|scripts\/|github\.com/);
   });
 });
+
+const hasPoppler = spawnSync("pdftotext", ["-v"]).status === 0;
+
+/** Grundgerüst mit einem Beispiel setzen und den Text des PDFs lesen, Leerraum zusammengefasst */
+function geruestText(data: object): string {
+  const ordner = mkdtempSync(join(tmpdir(), "haben-geruest-text-"));
+  try {
+    const vorlage = join(ordner, "vorlage.typ");
+    writeFileSync(vorlage, GERUEST.replace(/^```typst\n/, "").replace(/```$/, ""));
+    for (const datei of ["logo.png", "briefpapier.png"]) writeFileSync(join(ordner, datei), BEISPIEL_PNG);
+    writeFileSync(join(ordner, "beleg.pdf"), compileWith(createCompiler(ordner), vorlage, data, "2026-10-02", "Das Grundgerüst"));
+    return execFileSync("pdftotext", [join(ordner, "beleg.pdf"), "-"], { encoding: "utf8" }).replace(/\s+/g, " ");
+  } finally {
+    rmSync(ordner, { recursive: true, force: true });
+  }
+}
+
+describe.skipIf(!hasPoppler)("Grundgerüst mit Pflichtangaben", () => {
+  const beispiel = (name: string) => layoutBeispiele().find((b) => b.name.startsWith(name))!.data as {
+    totals: { included?: { rows: { value: string }[] } | null; euroTax?: { rows: { value: string }[] } | null };
+  };
+
+  it("zeigt bei Bruttopreisen die enthaltene Umsatzsteuer je Satz", () => {
+    const data = beispiel("Rechnung mit Bruttopreisen");
+    const text = geruestText(data);
+    for (const zeile of data.totals.included!.rows) expect(text).toContain(zeile.value.replace(/\s+/g, " "));
+  });
+
+  it("zeigt bei Fremdwährung die Umsatzsteuer in Euro", () => {
+    const data = beispiel("Rechnung in Fremdwährung");
+    const text = geruestText(data);
+    for (const zeile of data.totals.euroTax!.rows) expect(text).toContain(zeile.value.replace(/\s+/g, " "));
+  });
+});
+
