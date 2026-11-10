@@ -26,7 +26,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { euerAusJournal } from "./euer-journal.ts";
-import { euerForYear } from "./reports.ts";
+import { euerAusNebenbuechern } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
 
 /*
@@ -175,7 +175,8 @@ export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
 export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgleich> {
   const { from, to } = yearRange(year);
   const sums = await journalSums(from, to, q);
-  const euer = await euerForYear(year, q);
+  // Gegenprobe ist immer die Rechnung aus den Nebenbüchern; ab dem Stichjahr ist euerForYear die aus dem Journal (#542)
+  const euer = await euerAusNebenbuechern(year, q);
   const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
   const zeitraum = String(year);
   const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "euer", zeitraum, posten, journal, quelle });
@@ -243,11 +244,7 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
   const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
   const ausJournal = await euerAusJournal(year, q);
-  if (euerAusDemJournal && ausJournal.uebernommen > 0) {
-    hinweise.push(
-      `${ausJournal.uebernommen === 1 ? "Eine Zahlung" : `${ausJournal.uebernommen} Zahlungen`} ${year} auf aus Lexoffice übernommene Rechnungen bzw. Belege: Einnahmen und Ausgaben werden für ${year} nicht je Zeile abgeglichen.`,
-    );
-  } else if (euerAusDemJournal) {
+  if (euerAusDemJournal) {
     const label = (key: EuerLineKey) =>
       [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??
       (key.startsWith("ausgabe:") ? EXPENSE_CATEGORIES[key.slice(8) as keyof typeof EXPENSE_CATEGORIES].label : EUER_LABELS[key as keyof typeof EUER_LABELS]);

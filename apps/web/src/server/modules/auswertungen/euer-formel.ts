@@ -1,7 +1,8 @@
 import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, zahlungsStand, type Cents, type Kontenrahmen } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne, or, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { belegNebenbuch, belegTeilzahlung, buchungen, offenerPosten, type BelegNebenbuch, type Buchung } from "./euer-journal.ts";
+import { buchungen, offenerPosten, type Buchung } from "./euer-journal.ts";
+import { belegNebenbuch, belegTeilzahlung, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
 /*
  * Gewinn der EÜR nach der DATEV-Formel (#542, Schritt 5c), als Gegenprobe zum Gewinn aus den Zeilen: der negative Saldo
