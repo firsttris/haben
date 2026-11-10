@@ -47,6 +47,8 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
       ...overrides,
     });
 
+  /** Ohne Glyphen: Der warme Render-Prozess führt sie über die Läufe mit, gesetzt ist dasselbe */
+  const gesetzt = (svg: string) => svg.replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "");
   const text = (parts: { lines: string[] }[]) => parts.flatMap((part) => part.lines).join("\n");
 
   it("setzt ein ungespeichertes Formular als Blatt, ohne Kunden mit Hinweis", async () => {
@@ -65,9 +67,9 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
   it("zeigt ungespeicherte Gestaltung, ohne etwas zu speichern", async () => {
     const standard = await preview.documentPreview(input());
     const farbig = await preview.documentPreview(input({ design: { accent: "#9B1C1C" } }));
-    expect(farbig.svg).not.toBe(standard.svg);
+    expect(gesetzt(farbig.svg)).not.toBe(gesetzt(standard.svg));
     const danach = await preview.documentPreview(input());
-    expect(danach.svg).toBe(standard.svg);
+    expect(gesetzt(danach.svg)).toBe(gesetzt(standard.svg));
   });
 
   it("setzt Angebote mit optionalen Positionen und Zahlungsplan", async () => {
