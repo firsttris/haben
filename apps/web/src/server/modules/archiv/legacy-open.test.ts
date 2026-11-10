@@ -268,6 +268,56 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(found).toEqual([]);
   });
 
+  // Gefunden im TDD-Review von #547: Das Storno einer Korrektur zu einer übernommenen Rechnung bucht gegen die Erlöse
+  // statt gegen den Saldenvortrag; die EÜR zeigt dann Erlöse, die es nicht gibt
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["soll", "ist"] as const) {
+      it(`Storno einer teilkorrigierten übernommenen Rechnung bucht keine Erlöse (${kontenrahmen}, ${versteuerung})`, async () => {
+        await sql`update company set versteuerung = ${versteuerung}, kontenrahmen = ${kontenrahmen}`;
+        const id = await legacyVoucher({
+          type: "invoice",
+          direction: "einnahme",
+          number: `RE2005-${kontenrahmen}-${versteuerung}`,
+          date: "2026-09-20",
+          net: 100_000,
+          tax: 19_000,
+          file: PDF,
+          contact: "Nordwerk Software GmbH",
+        });
+        const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+        // Korrektur um die Hälfte, danach Storno der Rechnung (samt Storno der Korrektur)
+        const draft = await invoices.createCorrection(actor, invoiceId, "2026-10-12");
+        const { invoice, lines } = await invoices.getInvoice(draft.id);
+        await invoices.updateDraft(actor, draft.id, {
+          contactId: invoice.contactId,
+          issueDate: invoice.issueDate,
+          serviceFrom: invoice.serviceFrom,
+          serviceTo: invoice.serviceTo,
+          paymentTermDays: 0,
+          format: invoice.format,
+          note: "",
+          taxTreatment: invoice.taxTreatment,
+          exemptionReason: invoice.exemptionReason,
+          priceMode: invoice.priceMode,
+          lines: lines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unit: l.unit,
+            unitPrice: Math.round(l.unitPrice * 0.5),
+            taxRate: l.taxRate,
+          })),
+        } as never);
+        await invoices.finalizeInvoice(actor, draft.id);
+        await invoices.cancelInvoice(actor, invoiceId, "2026-11-03");
+        // Kein Erlöskonto: Korrektur, Storno und Storno der Korrektur gehen gegen den Saldenvortrag
+        const erloese = await sql`select l.account, sum(l.credit) - sum(l.debit) as saldo from journal_lines l
+          join journal_entries e on e.id = l.entry_id where e.source_type = 'invoice' and l.account in ('8400', '4400')
+          group by l.account having sum(l.credit) - sum(l.debit) <> 0`;
+        expect(erloese).toEqual([]);
+      }, 60_000);
+    }
+  }
+
   it("Soll: die Rechnung zählt nicht noch einmal in der Voranmeldung", async () => {
     await sql`update company set versteuerung = 'soll'`;
     const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF });
