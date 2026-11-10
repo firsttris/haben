@@ -92,7 +92,9 @@ export function MailCard({ data }: { data: Data }) {
         });
         (event.target as HTMLFormElement)
           .querySelectorAll<HTMLInputElement>("input[name=clientSecret], input[name=certificate], input[name=privateKey]")
-          .forEach((input) => (input.value = ""));
+          .forEach((input) => {
+            input.value = "";
+          });
       }
       return { tone: "ok", text: "E-Mail-Zugang gespeichert." };
     });
