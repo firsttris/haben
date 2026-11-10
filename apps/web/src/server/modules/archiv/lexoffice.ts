@@ -540,10 +540,17 @@ export async function reconciliation() {
   const businessRows = classified.filter((v) => !v.neutral);
   // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
   // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
-  const vatIssueOf = (year: number) =>
-    versteuerung === "ist" && businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))
-      ? "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt."
-      : null;
+  const vatIssueOf = (year: number) => {
+    if (versteuerung !== "ist") return null;
+    if (businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))) {
+      return "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt.";
+    }
+    // Der BuchhaltungsButler-Export enthält keine Zahlungen je Rechnung; ohne sie bliebe die Umsatzsteuer still 0
+    if (businessRows.some((v) => v.source === "buchhaltungsbutler" && v.direction === "einnahme" && v.date.startsWith(`${year}-`))) {
+      return "BuchhaltungsButler-Export ohne Zahlungen je Rechnung: Die Umsatzsteuer nach vereinnahmten Entgelten lässt sich je Monat nicht nachrechnen.";
+    }
+    return null;
+  };
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,

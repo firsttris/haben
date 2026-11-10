@@ -41,11 +41,12 @@ Erst ein fehlerfreier Testlauf lässt den Import zu.
 
 - alle Zeilen des DATEV-Buchungsstapels,
 - je Buchung mit Beleg-URL einen historischen Archivbeleg,
+- je Einnahme oder Ausgabe ohne Beleg (Buchung auf einem Erlös- oder Aufwandskonto) eine Buchung ohne Beleg, damit die Summen im Abgleich vollständig sind; Zahlungen, Geldtransit und Umbuchungen ohne Beleg stehen nur im DATEV-Buchungsstapel,
 - Rechnungsnummer, Rechnungsdatum, Gegenpartei, Betrag und Steuersatz,
 - die zugehörigen Original-PDFs, auch mehrere Dateien einer Buchung,
 - die unveränderten Originalexporte mit ihren SHA-256-Prüfsummen.
 
-Die Zuordnung erfolgt über die Buchungsnummer: `127` wird mit `127.pdf` verknüpft, Dateien wie `97_1.pdf` und `97_2.pdf` mit derselben Buchung. Einnahmen, Ausgaben und Gutschriften ergeben sich aus Soll und Haben im konfigurierten Kontenrahmen.
+Die Zuordnung erfolgt über die Buchungsnummer: `127` wird mit `127.pdf` verknüpft, Dateien wie `97_1.pdf` und `97_2.pdf` mit derselben Buchung. Einnahmen, Ausgaben und Gutschriften ergeben sich aus Soll und Haben im konfigurierten Kontenrahmen. Ein Beleg zu Geld zwischen Geldkonten (Geldtransit, Privates) oder zu einer Zahlung auf ein Debitoren- oder Kreditorenkonto ist weder Einnahme noch Ausgabe: Er steht im Abgleich getrennt (Einzelunternehmen unter „Privat und Geldtransit“, GmbH und UG unter „Geldtransit“) und trägt keine Umsatzsteuer. Erlöse auf Automatikkonten ohne BU-Schlüssel (etwa SKR03 8400, SKR04 4400) zählen als regulär besteuert.
 
 **Kontenrahmen, Rechtsform und Versteuerungsart kommen aus den Firmendaten in Haben.** Sie werden nicht aus den Exporten erraten. Vorhandene Kontakte werden nur verknüpft, wenn der Name genau und ohne Mehrdeutigkeit übereinstimmt; neue Kontaktdatensätze entstehen aus den Belegdaten nicht.
 
@@ -57,7 +58,7 @@ Ein erneuter Import überspringt bereits vorhandene Belege und Originalexporte. 
 - **Keine Zahlungshistorie:** Der Export liefert keine verlässlichen Einzelzahlungen. Der Status lautet deshalb „archiviert“; bezahlte oder offene Beträge werden nicht geschätzt.
 - **Keine Rechnungspositionen:** Die Exporte enthalten Kopfdaten und Kontierungen, aber keine vollständigen Positionen wie Artikel, Menge und Einzelpreis.
 - **Keine vollständigen Kontakte:** Für Stammdaten verwendest du bei Bedarf den [CSV-Import](csv-import.md).
-- **Keine monatliche Ist-Versteuerung aus Zahlungen:** Ohne Einzelzahlungen lässt sich die Zahlungsperiode nicht rekonstruieren. Vergleiche historische Steuerwerte mit den Originalauswertungen.
+- **Keine monatliche Ist-Versteuerung aus Zahlungen:** Ohne Einzelzahlungen lässt sich die Zahlungsperiode nicht rekonstruieren. Bei Ist-Versteuerung zeigt der Abgleich für Jahre mit Einnahmen aus BuchhaltungsButler deshalb einen Hinweis statt Monatswerten. Vergleiche historische Steuerwerte mit den Originalauswertungen.
 
 Ergänze je Geschäftsjahr noch den Datenexport für die Betriebsprüfung, ELSTER-Protokolle und Kontoauszüge unter **Exporte ablegen**. Danach vergleichst du im **Abgleich je Jahr** Buchungen, Dateien und Summen mit BuchhaltungsButler.
 
