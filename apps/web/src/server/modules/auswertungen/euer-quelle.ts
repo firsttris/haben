@@ -2,7 +2,8 @@ import { euerAusZeilen, euerErgebnis, leereEuerAusJournal, type Cents, type Euer
 import { and, eq, gte, lt } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
-import { buchungen, euerAusJournal } from "./euer-journal.ts";
+import { euerAusJournal } from "./euer-journal.ts";
+import { buchungen } from "./euer-journal-buchungen.ts";
 
 /*
  * EÜR ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md, Entscheidung 3): die Zeilen aus euerAusJournal,
