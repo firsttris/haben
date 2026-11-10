@@ -680,18 +680,36 @@ export const brmRequests = pgTable("brm_requests", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** SMTP-Zugang für E-Mails von Haben (Erinnerungen an Fristen), genau eine Zeile (id = 1) */
+/**
+ * Zugang für E-Mails von Haben (Rechnungen, Erinnerungen an Fristen), genau eine Zeile (id = 1): SMTP oder Microsoft Graph
+ * (`transport`). Bei `smtp` sind Server, Port, Verschlüsselung und Benutzer gesetzt, bei `graph` Tenant, Client und Anmeldeart.
+ */
 export const mailSettings = pgTable(
   "mail_settings",
   {
     id: smallint("id").primaryKey().default(1),
-    host: text("host").notNull(),
-    port: integer("port").notNull(),
+    /** Versandweg; bestehende Zeilen sind SMTP */
+    transport: text("transport", { enum: ["smtp", "graph"] })
+      .notNull()
+      .default("smtp"),
+    host: text("host"),
+    port: integer("port"),
     /** true: TLS ab Verbindungsaufbau (meist Port 465); false: STARTTLS (meist Port 587) */
-    secure: boolean("secure").notNull(),
-    username: text("username").notNull(),
-    /** Passwort AES-256-GCM-verschlüsselt wie das Zertifikat; bleibt aus dem Audit-Log */
-    ciphertext: bytea("ciphertext").notNull(),
+    secure: boolean("secure"),
+    username: text("username"),
+    /**
+     * Das eine Geheimnis des Versandwegs, AES-256-GCM-verschlüsselt wie das Zertifikat; bleibt aus dem Audit-Log:
+     * bei SMTP das Passwort, bei Graph das Client Secret oder der private Schlüssel des Zertifikats (PEM)
+     */
+    ciphertext: bytea("ciphertext"),
+    /** Microsoft Graph: Verzeichnis (Tenant) der Entra-ID-App, Anwendungs-ID (Client) und Art der Anmeldung */
+    graphTenantId: text("graph_tenant_id"),
+    graphClientId: text("graph_client_id"),
+    graphAuth: text("graph_auth", { enum: ["secret", "certificate"] }),
+    /** SHA-256-Fingerabdruck des Zertifikats (hex), nur bei `certificate`; kein Geheimnis */
+    graphThumbprint: text("graph_thumbprint"),
+    /** Postfach, aus dem gesendet wird (UPN oder Objekt-ID), wenn es von `from_address` abweicht; leer: `from_address` */
+    graphMailbox: text("graph_mailbox"),
     fromAddress: text("from_address").notNull(),
     /** Name vor der Absenderadresse; leer: der Firmenname, ohne den „Haben“ (senderName in mail.ts) */
     fromName: text("from_name").notNull().default(""),
@@ -709,7 +727,15 @@ export const mailSettings = pgTable(
     pruefwertMail: boolean("pruefwert_mail").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
+  (t) => [
+    check("mail_settings_single_row", sql`${t.id} = 1`),
+    check(
+      "mail_settings_transport",
+      sql`(${t.transport} = 'smtp' and ${t.host} is not null and ${t.port} is not null and ${t.secure} is not null and ${t.username} is not null and ${t.ciphertext} is not null)
+        or (${t.transport} = 'graph' and ${t.graphTenantId} is not null and ${t.graphClientId} is not null and ${t.graphAuth} is not null and ${t.ciphertext} is not null
+        and (${t.graphAuth} <> 'certificate' or ${t.graphThumbprint} is not null))`,
+    ),
+  ],
 );
 
 /**
@@ -769,6 +795,10 @@ export const inboxMessages = pgTable("inbox_messages", {
 export const mailLog = pgTable("mail_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung", "angebot", "pruefwert"] }).notNull(),
+  /** Versandweg dieses Versuchs; ältere Zeilen sind SMTP */
+  transport: text("transport", { enum: ["smtp", "graph"] })
+    .notNull()
+    .default("smtp"),
   /** Empfänger, bei mehreren durch Komma getrennt */
   recipient: text("recipient").notNull(),
   /** Blindkopie an sich selbst */

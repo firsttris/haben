@@ -1331,6 +1331,13 @@
       "when": 1794251557631,
       "tag": "0189_briefpapier_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1794270841658,
+      "tag": "0190_mail_graph",
+      "breakpoints": true
     }
   ]
 }

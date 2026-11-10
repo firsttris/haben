@@ -144,7 +144,7 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-passwor
 | `haben-anthropic-key` (optional) | `ANTHROPIC_API_KEY` | Für die KI-Auslesung, siehe unten |
 
 > [!IMPORTANT]
-> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, den Schlüssel und die Sitzung des Bankabrufs und die API-Schlüssel für Lexoffice und sevDesk (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup sichert ihn nicht mit. Dasselbe gilt für das Passwort des Backups. Die Werte liest du aus mit `podman exec haben-app printenv HABEN_ENCRYPTION_KEY` (solange der Container läuft) und `podman secret inspect --showsecret haben-restic-password`.
+> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, Client Secret oder Zertifikatsschlüssel für Microsoft 365, den Schlüssel und die Sitzung des Bankabrufs und die API-Schlüssel für Lexoffice und sevDesk (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup sichert ihn nicht mit. Dasselbe gilt für das Passwort des Backups. Die Werte liest du aus mit `podman exec haben-app printenv HABEN_ENCRYPTION_KEY` (solange der Container läuft) und `podman secret inspect --showsecret haben-restic-password`.
 
 ### Konfiguration
 
