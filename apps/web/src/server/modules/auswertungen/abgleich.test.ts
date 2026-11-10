@@ -199,7 +199,15 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       // Der Abgleich hat wirklich etwas verglichen
       const feb = await abgleich.vatAbgleich({ year: 2026, month: 2 });
       expect(feb.zeilen.find((z) => z.posten.startsWith("Vorsteuer (Kz 66)"))!.quelle).toBe(1_900 + 140 + 665);
+      // Bemessungsgrundlagen aus Konto und Steuerschlüssel (#542): bei Soll verglichen, bei Ist erst mit der
+      // Bemessungsgrundlage an der Zahlung
+      const jan = await abgleich.vatAbgleich({ year: 2026, month: 1 });
+      const kz81 = jan.zeilen.find((z) => z.posten === "Bemessungsgrundlage 19 % (Kz 81)");
+      if (versteuerung === "soll") expect(kz81).toMatchObject({ journal: 400_000, quelle: 400_000 });
+      else expect(kz81).toBeUndefined();
       const march = await abgleich.vatAbgleich({ year: 2026, month: 3 });
+      // § 13b mit Privatanteil: das Journal trennt den privaten Teil nicht, deshalb benannte Ausnahme
+      expect(march.zeilen.find((z) => z.posten.includes("(Kz 46)"))).toBeUndefined();
       expect(march.zeilen.find((z) => z.posten.startsWith("Umsatzsteuer § 13b"))!.journal).toBe(3_800);
       expect(march.zeilen.find((z) => z.posten.startsWith("Vorsteuer § 13b"))!.journal).toBe(2_850);
 
@@ -258,6 +266,22 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     expect(report.abgleich.abweichungen).toHaveLength(2);
     // (Siegel früherer Tests in dieser Datenbank melden gelöschte Datensätze; hier zählt nur die Zuordnung)
     expect(report.problems).toContainEqual(expect.objectContaining({ tabelle: "allocations", zeile: allocation!.id, befund: "Inhalt passt nicht zum Siegel" }));
+  }, 60_000);
+
+  it("findet eine falsche Bemessungsgrundlage über den Steuerschlüssel im Journal (Soll, #542)", async () => {
+    await reset("soll");
+    await geschaeftsjahr();
+    const [line] = await sql`select l.id from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_type = 'invoice' and e.date = '2026-01-15' and l.account = '8400' limit 1`;
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update journal_lines set tax_code = 'USt7' where id = ${line!.id}`;
+    });
+    const found = abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 1 })).zeilen);
+    expect(found).toEqual([
+      expect.objectContaining({ posten: "Bemessungsgrundlage 19 % (Kz 81)", journal: 0, quelle: 400_000 }),
+      expect.objectContaining({ posten: "Bemessungsgrundlage 7 % (Kz 86)", journal: 500_000, quelle: 100_000 }),
+    ]);
   }, 60_000);
 
   it("AfA und Privatnutzung: Hinweis, solange das Jahr nicht gebucht ist, danach Abgleich", async () => {
