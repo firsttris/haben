@@ -60,6 +60,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: fünfte unabhängige Reviewrunde
   const cases = [
     { taxType: "thirdPartyCountryService", treatment: "drittland", kz: "kz45" },
     { taxType: "intraCommunitySupply", treatment: "ig_lieferung", kz: null },
+    { taxType: "externalService13b", treatment: "reverse_charge", kz: null },
   ] as const;
   for (const { taxType, treatment, kz } of cases)
     for (const chart of ["SKR03", "SKR04"] as const)
@@ -71,6 +72,14 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: fünfte unabhängige Reviewrunde
             { version: 2, source: "erfundener-originalexport", kontenrahmen: chart, entries: [invoice({ taxType })] },
             async () => pdf,
           );
+          if (treatment === "drittland" && tax === "ist") {
+            // Kz 45 meldet Haben auch bei Ist mit der Rechnung, das Quellprogramm bei Ist mit der Zahlung: Eine am Stichtag
+            // offene Drittlandsleistung stünde nach der Übernahme in keiner Voranmeldung. Sie wird deshalb nicht übernommen.
+            await expect(archive.takeOverLegacyItem("review-user", imported.items[0]!.id, "2025-12-31")).rejects.toThrow(/Drittland bei Ist/);
+            expect(await sql`select id from invoices`, "Eine abgelehnte Übernahme legt keine Rechnung an").toHaveLength(0);
+            expect(await sql`select id from journal_entries where source_type = 'eroeffnung'`).toHaveLength(0);
+            return;
+          }
           const taken = await archive.takeOverLegacyItem("review-user", imported.items[0]!.id, "2025-12-31");
           const [row] = await sql`select tax_treatment from invoices where id=${taken.id}`;
           expect.soft(row!.tax_treatment, `Die ausdrückliche Steuerart ${taxType} darf bei der OPOS-Übernahme nicht verloren gehen`).toBe(treatment);
@@ -81,6 +90,19 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: fünfte unabhängige Reviewrunde
             expect.soft(figures[kz], `Die bezahlte Leistung ins Drittland muss in ${kz} stehen`).toBe(100000);
           }
         });
+
+  for (const taxType of ["constructionService13b", "photovoltaicEquipment"])
+    it(`übernimmt eine Rechnung mit der Steuerart ${taxType} ohne native Behandlung nicht als reguläre Forderung`, async () => {
+      const imported = await imports.runExternalImport(
+        "review-user",
+        { version: 2, source: "erfundener-originalexport", kontenrahmen: "SKR03", entries: [invoice({ taxType })] },
+        async () => pdf,
+      );
+      const item = (await archive.openLegacyItems("2025-12-31")).find((i) => i.id === imported.items[0]!.id);
+      expect(item?.blocker).toMatch(/keine eigene Behandlung/);
+      await expect(archive.takeOverLegacyItem("review-user", imported.items[0]!.id, "2025-12-31")).rejects.toThrow(/keine eigene Behandlung/);
+      expect(await sql`select id from invoices`).toHaveLength(0);
+    });
 
   it("bietet eine stornierte (voided) Originalrechnung nicht als offenen Posten zur Übernahme an", async () => {
     const imported = await imports.runExternalImport(
