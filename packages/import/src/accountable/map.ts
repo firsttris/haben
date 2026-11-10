@@ -148,6 +148,12 @@ export function mapAccountableExport(exp: AccountableExport): AccountableMapping
   let unknownTaxRows = 0;
 
   for (const booking of exp.stack.bookings) {
+    // Vor der Seite prüfen: Eine Privateinlage steht wie ein Erlös im Soll der Bank, ist aber keine Rechnung
+    if (isAccountablePrivateAccount(booking.contraAccount.trim(), exp.kontenrahmen)) {
+      privateRows += 1;
+      continue;
+    }
+
     if (booking.side === "S") {
       invoices.push({
         number: booking.voucherField1,
@@ -156,11 +162,6 @@ export function mapAccountableExport(exp: AccountableExport): AccountableMapping
         text: booking.text,
         row: booking.row,
       });
-      continue;
-    }
-
-    if (isAccountablePrivateAccount(booking.contraAccount.trim(), exp.kontenrahmen)) {
-      privateRows += 1;
       continue;
     }
 
