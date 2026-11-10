@@ -335,3 +335,53 @@ describe("Review", () => {
     expect(existsSync(join(basis, "firma1"))).toBe(false);
   });
 });
+
+describe("Review, Zusatzrunde", () => {
+  it("lehnt einen Namen ab, dessen Projekt nur noch als Volumes besteht (nach docker compose down)", () => {
+    // Von Hand angelegte Instanz außerhalb der Basis nach docker compose down: keine Container, also nicht in
+    // compose ls -a, aber die Volumes mit Datenbank und Belegen der Firma sind noch da
+    writeFileSync(join(dir, "volumen"), "haben-firma1_db\nhaben-firma1_belege\nhaben-firma1_backups\n");
+    writeFileSync(join(dir, "bin", "docker-fake"), FAKE_DOCKER);
+    chmodSync(join(dir, "bin", "docker-fake"), 0o755);
+    writeFileSync(
+      join(dir, "bin", "docker"),
+      `#!/bin/sh\nif [ "$1" = volume ]; then echo "$(basename "$PWD") $*" >>"$FAKE_STATE/aufrufe"; cat "$FAKE_STATE/volumen"; exit 0; fi\nexec "$(dirname "$0")/docker-fake" "$@"\n`,
+    );
+    const r = lauf("neu", "firma1", "firma1.example.de");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+    expect(aufrufe().some((a) => a.startsWith("firma1 compose up"))).toBe(false);
+  });
+
+  it("vergibt keinen Alias, der im Netz haben-proxy schon der Containername einer anderen Instanz ist", () => {
+    // Die App von firma1 heißt im Netz haben-proxy auch haben-firma1-app-1; der Alias von firma1-app-1 wäre derselbe
+    expect(lauf("neu", "firma1", "firma1.example.de", "--nicht-starten").status).toBe(0);
+    const r = lauf("neu", "firma1-app-1", "x.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1-app-1"))).toBe(false);
+  });
+
+  it("lehnt einen Namen mit - am Ende ab (haben-firma1- ist kein gültiger Hostname für reverse_proxy)", () => {
+    const r = lauf("neu", "firma1-", "firma1.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1-"))).toBe(false);
+  });
+
+  it("meldet im Status bei einem Compose-Fehler die Datenbank nicht als gestoppt", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    writeFileSync(join(dir, "compose-kaputt-firma1"), "");
+    const zeile = lauf("status").stdout.trim().split("\n")[1];
+    expect(zeile).toMatch(/\sFehler\s/);
+    expect(zeile).not.toContain("Datenbank gestoppt");
+  });
+
+  it("erkennt das Projekt einer von Hand angelegten Instanz auch mit Kommentar am Zeilenende", () => {
+    // Compose liest COMPOSE_PROJECT_NAME=haben-firma1 # Firma 1 als haben-firma1
+    mkdirSync(join(basis, "haben-firma1"), { recursive: true });
+    writeFileSync(join(basis, "haben-firma1", "compose.yml"), "");
+    writeFileSync(join(basis, "haben-firma1", ".env"), "COMPOSE_PROJECT_NAME=haben-firma1 # Firma 1\nDOMAIN=alt.example.de\n");
+    const r = lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+  });
+});
