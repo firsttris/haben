@@ -177,9 +177,12 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const sums = await journalSums(from, to, q);
   // Gegenprobe ist immer die Rechnung aus den Nebenbüchern; ab dem Stichjahr ist euerForYear die aus dem Journal (#542)
   const euer = await euerAusNebenbuechern(year, q);
-  // Gezahlt über die Bank oder, im Einzelunternehmen ab dem Stichjahr, privat als freie Buchung (#502); die Gegenprobe zählt
-  // freie Buchungen ebenso (mitFreienBuchungen)
-  const zahlung = (s: Summe) => s.sourceType === "allocation" || s.sourceType === "manuell";
+  // Gezahlt über die Bank oder, im Einzelunternehmen, privat als freie Buchung (#502); die Gegenprobe zählt freie Buchungen
+  // ebenso (mitFreienBuchungen). Manuelle Buchungen einer GmbH oder UG sind Abschlussbuchungen (etwa Rückstellungen), keine
+  // Zahlung, und die Gegenprobe zählt sie dort nicht
+  const [rechtsform] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
+  const freieZaehlen = !rechtsform || !isKapitalgesellschaft(rechtsform.rechtsform);
+  const zahlung = (s: Summe) => s.sourceType === "allocation" || (freieZaehlen && s.sourceType === "manuell");
   const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
   const zeitraum = String(year);
   const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "euer", zeitraum, posten, journal, quelle });
