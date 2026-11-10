@@ -141,13 +141,12 @@ export function LayoutsCard({ design, layouts }: { design: LetterheadDesign; lay
         <h3 id="layout-hilfe-heading">Selbst schreiben</h3>
         <p className="small muted" style={{ margin: "0 0 8px" }}>
           Ein Layout ist eine Typst-Datei. Am einfachsten mit einem KI-Agenten: Gib ihm die Anleitung und ein eingebautes Layout als Grundlage, beschreibe das
-          Aussehen und lade das Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt. Felder, Prüfung und Pakete erklärt die{" "}
-          <a href={LAYOUTS_DOCS} target="_blank" rel="noreferrer">
-            Dokumentation
-          </a>
-          .
+          Aussehen und lade das Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt.
         </p>
         <div className="actions" style={{ flexWrap: "wrap" }}>
+          <a className="btn btn-sm" href={LAYOUTS_DOCS} target="_blank" rel="noreferrer">
+            Dokumentation
+          </a>
           <a className="btn btn-sm" href={`${DOWNLOAD}?datei=anleitung`} download>
             Anleitung für KI-Agenten
           </a>
