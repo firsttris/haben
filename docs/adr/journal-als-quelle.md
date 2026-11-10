@@ -171,3 +171,8 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Was sie je Rechnung bzw. Beleg braucht (Buchungen, Ausgleiche in der Reihenfolge des Audit-Logs, Aufteilung aus dem
   Nebenbuch), lädt sie vor der Schleife für alle Posten des Jahres in Blöcken (`euer-journal-buchungen.ts`); mit 300
   bezahlten Rechnungen braucht sie so rund 50 statt 550 ms.
+  Schritt 3: freie Buchungen (`freie-buchung.ts` in core, `manual.ts`): Steuerschlüssel `USt19`, `USt7`, `frei` auf den
+  Erlöskonten 19 %, 7 % und 0 %, im Einzelunternehmen auch ohne Schlüssel erst ab dem Stichjahr. Die Gegenprobe im
+  Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Abweichend vom Entwurf noch ohne
+  die Sachentnahme (SKR03 8910, SKR04 4620): Für ihre eigene Zeile der Anlage EÜR und die Kennzahl fehlt hier noch die
+  geprüfte Zuordnung im ELSTER-Formular; sie folgt mit eigenem Pull Request.
