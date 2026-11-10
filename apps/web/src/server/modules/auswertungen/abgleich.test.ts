@@ -205,6 +205,12 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       const kz81 = jan.zeilen.find((z) => z.posten === "Bemessungsgrundlage 19 % (Kz 81)");
       if (versteuerung === "soll") expect(kz81).toMatchObject({ journal: 400_000, quelle: 400_000 });
       else expect(kz81).toBeUndefined();
+      // Bei Ist mit den Zahlungen im Februar, seit die Zahlungsbuchung die Bemessungsgrundlage trägt (#542 Schritt 4)
+      if (versteuerung === "ist") {
+        const febKz81 = feb.zeilen.find((z) => z.posten === "Bemessungsgrundlage 19 % (Kz 81)");
+        expect(febKz81!.journal).toBeGreaterThan(0);
+        expect(febKz81!.journal).toBe(febKz81!.quelle);
+      }
       const march = await abgleich.vatAbgleich({ year: 2026, month: 3 });
       // § 13b mit Privatanteil: das Journal trennt den privaten Teil nicht, deshalb benannte Ausnahme
       expect(march.zeilen.find((z) => z.posten.includes("(Kz 46)"))).toBeUndefined();
@@ -259,13 +265,32 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     expect(moved.map((z) => `${z.bereich} ${z.zeitraum} ${z.posten}`)).toEqual([
       "ustva 2026-02 Umsatzsteuer 19 % (Kz 81)",
       "ustva 2026-02 Umsatzsteuer 7 % (Kz 86)",
+      // Seit die Zahlung ihre Bemessungsgrundlage trägt, fallen auch die Bemessungsgrundlagen bei Ist auf (#542)
+      "ustva 2026-02 Bemessungsgrundlage 19 % (Kz 81)",
+      "ustva 2026-02 Bemessungsgrundlage 7 % (Kz 86)",
     ]);
 
     // Die Integritätsprüfung meldet es; Kette und Siegel sehen die Zuordnung ebenfalls (seit 0064 versiegelt)
     const report = await integrity.checkIntegrity("2026-03-31");
-    expect(report.abgleich.abweichungen).toHaveLength(2);
+    expect(report.abgleich.abweichungen).toHaveLength(4);
     // (Siegel früherer Tests in dieser Datenbank melden gelöschte Datensätze; hier zählt nur die Zuordnung)
     expect(report.problems).toContainEqual(expect.objectContaining({ tabelle: "allocations", zeile: allocation!.id, befund: "Inhalt passt nicht zum Siegel" }));
+  }, 60_000);
+
+  it("Ist: ältere Zahlung ohne Bemessungsgrundlage im Journal, Kz 81 und 86 nicht verglichen, kein Fehlalarm (#542)", async () => {
+    await reset("ist");
+    await geschaeftsjahr();
+    // Wie eine Zahlung, die vor #542 Schritt 4 gebucht wurde: die Umbuchung der Umsatzsteuer ohne Bemessungsgrundlage
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update journal_lines set basis = null where entry_id in (
+        select e.id from journal_entries e where e.source_type = 'allocation' and e.date = '2026-02-01')`;
+    });
+    const feb = await abgleich.vatAbgleich({ year: 2026, month: 2 });
+    expect(abgleich.abweichungen(feb.zeilen)).toEqual([]);
+    expect(feb.zeilen.find((z) => z.posten.startsWith("Bemessungsgrundlage"))).toBeUndefined();
+    // Die Steuer wird weiter verglichen
+    expect(feb.zeilen.find((z) => z.posten === "Umsatzsteuer 19 % (Kz 81)")!.journal).toBeGreaterThan(0);
   }, 60_000);
 
   it("findet eine falsche Bemessungsgrundlage über den Steuerschlüssel im Journal (Soll, #542)", async () => {

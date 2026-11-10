@@ -73,7 +73,7 @@ Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pausch
 | | Vorsteuer nach § 13b (Kz 67) | Saldo des Kontos „Abziehbare Vorsteuer nach § 13b“ |
 | | Erwerbsteuer (Kz 89, 93) | Saldo der Konten „Umsatzsteuer aus innergemeinschaftlichem Erwerb“ |
 | | Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61) | Saldo der Konten „Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb“ |
-| | Bemessungsgrundlagen: Kz 81, 86, 21, 41, 43, 45, 48, 46, 84, 89 und 93; bei Ist-Versteuerung nur Kz 21, 41, 45, 46, 84, 89 und 93 | Erlös- und Aufwandszeilen nach ihrem Steuerschlüssel ([Steuerschlüssel und Kennzahlen](#steuerschlüssel-und-kennzahlen)); bei Ist zählt ein Verkauf auf Ziel erst mit der Zahlung (`packages/core/src/journal-kennzahlen.ts`) |
+| | Bemessungsgrundlagen: Kz 81, 86, 21, 41, 43, 45, 48, 46, 84, 89 und 93; bei Ist-Versteuerung ohne Kz 43 und 48, Kz 81 und 86 nur, wenn jede Zahlung im Zeitraum ihre Bemessungsgrundlage trägt | Erlös- und Aufwandszeilen nach ihrem Steuerschlüssel ([Steuerschlüssel und Kennzahlen](#steuerschlüssel-und-kennzahlen)); bei Ist zählt ein Verkauf auf Ziel erst mit der Zahlung (`packages/core/src/journal-kennzahlen.ts`) |
 | EÜR, je Jahr | Pauschalen | Aufwandskonten der Pauschalen |
 | | Umsatzsteuer an das Finanzamt abzüglich Erstattungen | Konto Umsatzsteuer-Vorauszahlungen, Sondervorauszahlung und Umsatzsteuer früherer Jahre aus Zuordnungen |
 | | Zinsen und Zuschläge zu betrieblichen Steuern | abziehbare Zinsen §§ 233a bis 237 AO, abziehbare andere Nebenleistungen, abziehbare Verspätungszuschläge |
@@ -85,8 +85,8 @@ Nicht verglichen werden:
 
 - **Einnahmen und Ausgaben der EÜR.** Die EÜR rechnet nach Zahlung, das Journal bucht Rechnungen und Belege zum Rechnungs- bzw. Belegdatum. Zwischen beiden liegen Forderungen und Verbindlichkeiten.
 - **Privatnutzung von Fahrzeugen in der Voranmeldung.** Sie zählt monatlich, gebucht wird sie erst mit der AfA im Dezember. Abgeglichen wird sie deshalb mit der EÜR, sobald das Jahr gebucht ist.
-- **Bemessungsgrundlagen von Kz 81, 86, 43 und 48 bei Ist-Versteuerung.** Die Voranmeldung meldet sie mit der Zahlung; die Zahlungsbuchung trägt bisher nur die Steuer, nicht die Bemessungsgrundlage ([#542](https://github.com/firsttris/haben/issues/542)).
-- **Belege mit § 13b oder innergemeinschaftlichem Erwerb, deren Steuer nicht voll abziehbar ist** (Privatanteil, ohne Vorsteuerabzug), bei den Bemessungsgrundlagen Kz 46, 84, 89 und 93: Das Journal trennt den privaten Teil bzw. die Steuer nicht mit Steuerschlüssel von der Bemessungsgrundlage. Die Steuerbeträge dieser Belege werden verglichen.
+- **Bemessungsgrundlagen bei Ist-Versteuerung aus älteren Zahlungen.** Die Voranmeldung meldet Kz 81, 86, 43 und 48 mit der Zahlung; die Zahlungsbuchung trägt die Bemessungsgrundlage erst seit [#542](https://github.com/firsttris/haben/issues/542). Kz 81 und 86 vergleicht der Abgleich deshalb nur in Zeiträumen, in denen jede Umbuchung der Umsatzsteuer eine Bemessungsgrundlage trägt; Kz 43 und 48 bei Ist nicht, weil sich eine ältere Zahlung auf eine steuerfreie Rechnung nicht von einer Zahlung ohne Meldung unterscheiden lässt.
+- **Belege mit § 13b oder innergemeinschaftlichem Erwerb, deren Steuer nicht voll abziehbar ist** (Privatanteil, ohne Vorsteuerabzug), bei den Bemessungsgrundlagen Kz 46, 84, 89 und 93: Ältere Buchungen trennen den privaten Teil bzw. die Steuer nicht mit Steuerschlüssel von der Bemessungsgrundlage. Die Steuerbeträge dieser Belege werden verglichen.
 - **Korrekturen übernommener Lexoffice-Rechnungen** bei den Bemessungsgrundlagen: Sie buchen das Netto gegen den Saldenvortrag, ohne Steuerschlüssel.
 - **Eröffnungen.** Was eine Eröffnung (etwa aus dem DATEV-Stapel) auf Umsatz- und Vorsteuer vorträgt, ist in den Voranmeldungen der bisherigen Buchhaltung angemeldet und gehört nicht zum Januar.
 

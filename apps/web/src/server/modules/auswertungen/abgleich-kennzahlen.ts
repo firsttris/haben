@@ -18,11 +18,14 @@ import type { computeVatFigures } from "../umsatzsteuer/index.ts";
  * abgleich.ts schon über die Steuerkonten; hier kommen die Bemessungsgrundlagen dazu.
  *
  * Was das Journal noch nicht trägt, bleibt als benannte Ausnahme draußen, auf beiden Seiten:
- * - Ist-Versteuerung: Kz 81, 86, 43 und 48 meldet die Voranmeldung mit der Zahlung, an der Zahlungsbuchung fehlt die
- *   Bemessungsgrundlage noch (#542, Schritt 4). Verglichen werden bei Ist nur die Kennzahlen nach Rechnungs- bzw. Belegdatum.
+ * - Ist-Versteuerung: Kz 81, 86, 43 und 48 meldet die Voranmeldung mit der Zahlung. Die Zahlungsbuchung trägt die
+ *   Bemessungsgrundlage erst seit #542 Schritt 4. Kz 81 und 86 vergleicht der Abgleich deshalb nur in Zeiträumen, in denen
+ *   jede Umbuchung von „Umsatzsteuer nicht fällig“ eine Bemessungsgrundlage trägt; Kz 43 und 48 bei Ist gar nicht, weil
+ *   sich eine ältere Zahlung auf eine steuerfreie Rechnung im Journal nicht von einer ohne Meldung unterscheiden lässt.
  * - Privatnutzung von Fahrzeugen: in der Voranmeldung monatlich, im Journal erst mit der AfA (wie bei der Steuer).
  * - Belege mit § 13b oder innergemeinschaftlichem Erwerb, deren Steuer nicht voll abziehbar ist (Privatanteil, ohne
- *   Vorsteuerabzug): Das Journal trennt den privaten Teil bzw. die Steuer nicht mit Steuerschlüssel von der Bemessungsgrundlage.
+ *   Vorsteuerabzug): Ältere Buchungen trennen den privaten Teil bzw. die Steuer nicht mit Steuerschlüssel von der
+ *   Bemessungsgrundlage (seit #551 schon).
  * - Korrekturen übernommener Lexoffice-Rechnungen: Sie buchen das Netto gegen den Saldenvortrag, ohne Steuerschlüssel.
  */
 
@@ -49,6 +52,7 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       debit: l.debit,
       credit: l.credit,
       taxCode: l.taxCode,
+      basis: l.basis,
     })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
@@ -62,7 +66,7 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       sourceId: r.sourceId,
       zeilen: [],
     };
-    buchung.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode });
+    buchung.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode, basis: r.basis });
     byEntry.set(r.id, buchung);
   }
   return [...byEntry.values()];
@@ -70,18 +74,21 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
 
 type Figures = Awaited<ReturnType<typeof computeVatFigures>>;
 
-const POSTEN: { feld: JournalKennzahl; posten: string; beiIst: boolean }[] = [
-  { feld: "kz81", posten: "Bemessungsgrundlage 19 % (Kz 81)", beiIst: false },
-  { feld: "kz86", posten: "Bemessungsgrundlage 7 % (Kz 86)", beiIst: false },
-  { feld: "kz21", posten: "Reverse Charge, Leistung ins EU-Ausland (Kz 21)", beiIst: true },
-  { feld: "kz41", posten: "Innergemeinschaftliche Lieferung (Kz 41)", beiIst: true },
-  { feld: "kz43", posten: "Ausfuhrlieferung (Kz 43)", beiIst: false },
-  { feld: "kz45", posten: "Leistung ins Drittland, nicht steuerbar (Kz 45)", beiIst: true },
-  { feld: "kz48", posten: "Steuerfrei ohne Vorsteuerabzug (Kz 48)", beiIst: false },
-  { feld: "kz46", posten: "Bemessungsgrundlage § 13b EU-Ausland (Kz 46)", beiIst: true },
-  { feld: "kz84", posten: "Bemessungsgrundlage § 13b Drittland (Kz 84)", beiIst: true },
-  { feld: "kz89", posten: "Innergemeinschaftlicher Erwerb 19 % (Kz 89)", beiIst: true },
-  { feld: "kz93", posten: "Innergemeinschaftlicher Erwerb 7 % (Kz 93)", beiIst: true },
+/** Bei Ist: immer verglichen, nur wenn die Zahlungen des Zeitraums ihre Bemessungsgrundlage tragen, oder nie (siehe oben) */
+type BeiIst = "immer" | "mitBasis" | "nie";
+
+const POSTEN: { feld: JournalKennzahl; posten: string; beiIst: BeiIst }[] = [
+  { feld: "kz81", posten: "Bemessungsgrundlage 19 % (Kz 81)", beiIst: "mitBasis" },
+  { feld: "kz86", posten: "Bemessungsgrundlage 7 % (Kz 86)", beiIst: "mitBasis" },
+  { feld: "kz21", posten: "Reverse Charge, Leistung ins EU-Ausland (Kz 21)", beiIst: "immer" },
+  { feld: "kz41", posten: "Innergemeinschaftliche Lieferung (Kz 41)", beiIst: "immer" },
+  { feld: "kz43", posten: "Ausfuhrlieferung (Kz 43)", beiIst: "nie" },
+  { feld: "kz45", posten: "Leistung ins Drittland, nicht steuerbar (Kz 45)", beiIst: "immer" },
+  { feld: "kz48", posten: "Steuerfrei ohne Vorsteuerabzug (Kz 48)", beiIst: "nie" },
+  { feld: "kz46", posten: "Bemessungsgrundlage § 13b EU-Ausland (Kz 46)", beiIst: "immer" },
+  { feld: "kz84", posten: "Bemessungsgrundlage § 13b Drittland (Kz 84)", beiIst: "immer" },
+  { feld: "kz89", posten: "Innergemeinschaftlicher Erwerb 19 % (Kz 89)", beiIst: "immer" },
+  { feld: "kz93", posten: "Innergemeinschaftlicher Erwerb 7 % (Kz 93)", beiIst: "immer" },
 ];
 
 /** Bemessungsgrundlagen eines Zeitraums: Journal gegen Nebenbuch, ohne die benannten Ausnahmen (siehe oben) */
@@ -129,7 +136,16 @@ export function bemessungsZeilen(
   for (const s of figures.reverseCharge) if (ausgenommeneBelege.has(s.documentId)) minus(s.reverseCharge === "eu" ? "kz46" : "kz84", s.base);
   for (const s of figures.igErwerb) if (ausgenommeneBelege.has(s.documentId)) minus(s.rate === 1900 ? "kz89" : "kz93", s.base);
 
-  return POSTEN.filter(({ beiIst }) => figures.versteuerung === "soll" || beiIst).map(({ feld, posten }) => ({
+  // Bei Ist: Trägt jede Umbuchung der Umsatzsteuer bei Zahlung ihre Bemessungsgrundlage? Ältere tun es nicht.
+  const umbuchungOhneBasis = imZeitraum.some((b) => {
+    const a = ACCOUNTS[b.kontenrahmen];
+    const nichtFaellig = new Set<string>(Object.values(a.ustNichtFaellig));
+    const ust = new Set<string>(Object.values(a.ust));
+    return b.zeilen.some((z) => nichtFaellig.has(z.account)) && b.zeilen.some((z) => ust.has(z.account) && z.basis == null);
+  });
+  const verglichen = ({ beiIst }: { beiIst: BeiIst }) =>
+    figures.versteuerung === "soll" || beiIst === "immer" || (beiIst === "mitBasis" && !umbuchungOhneBasis);
+  return POSTEN.filter(verglichen).map(({ feld, posten }) => ({
     posten,
     journal: journal.get(feld) ?? 0,
     quelle: quelle.get(feld) ?? 0,

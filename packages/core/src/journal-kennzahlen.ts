@@ -7,10 +7,9 @@ import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
  * nachzurechnen und mit dem Nebenbuch abzugleichen. Die Felder heißen wie in VatFigures.
  *
  * Gemessen an allen Postgres-Tests (1364 Voranmeldungen): bei Soll-Versteuerung stimmen 98,5 % in allen Kennzahlen
- * überein. Was das Journal noch nicht trägt, steht in #542 unter „Messung“: die Bemessungsgrundlage an der Zahlung bei
- * Ist-Versteuerung für Zahlungen vor #542 Schritt 4, die Privatnutzung von Fahrzeugen im Monat der Nutzung und § 13b ohne Vorsteuerabzug bzw. mit Privatanteil
- * und den innergemeinschaftlichen Erwerb mit Privatanteil (der private Teil der Bemessungsgrundlage steht ohne Steuerschlüssel
- * auf den Entnahmen; Kz 89/93 enthalten ihn deshalb nicht, die Erwerbsteuer schon).
+ * überein. Was das Journal nicht trägt, steht in #542 unter „Messung“: die Privatnutzung von Fahrzeugen im Monat der
+ * Nutzung und, nur in älteren Buchungen, die Bemessungsgrundlage an der Zahlung bei Ist-Versteuerung sowie § 13b bzw.
+ * Erwerb ohne Vorsteuerabzug oder mit Privatanteil (seit #551 trägt das Journal sie voll).
  */
 
 export const JOURNAL_KENNZAHLEN = [
