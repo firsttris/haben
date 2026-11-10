@@ -106,7 +106,9 @@ export async function main(args: string[], a: Abhaengigkeiten): Promise<number> 
       a.fehler(HILFE);
       return 1;
     }
-    const k: Kontext = { ...a, basis: resolve(werte.basis ?? a.shell.HABEN_INSTANZEN ?? resolve(a.shell.HOME ?? homedir(), "haben")) };
+    // Leer gesetzt wie nicht gesetzt (wie ${HABEN_INSTANZEN:-…}): resolve("") wäre das aktuelle Verzeichnis, also der Checkout
+    const basis = werte.basis || a.shell.HABEN_INSTANZEN || resolve(a.shell.HOME || homedir(), "haben");
+    const k: Kontext = { ...a, basis: resolve(basis) };
     if (befehl === "neu") {
       await neu(k, neuAngaben(werte, rest));
       return 0;

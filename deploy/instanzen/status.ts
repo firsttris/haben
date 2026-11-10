@@ -32,9 +32,13 @@ export function standAus(r: Ergebnis): AppStand {
   }
 }
 
+/**
+ * Erreichbar, wenn /login über den Proxy antwortet: 200, oder eine Weiterleitung der App, die nicht verfolgt wird
+ * (bis zur Einrichtung leitet /login nach /setup weiter, apps/web/src/routes/login.tsx)
+ */
 async function erreichbar(k: Kontext, domain: string): Promise<string> {
   const code = await k.abrufen(`https://${domain}/login`);
-  return code === 200 ? "ja" : `nein (${String(code ?? 0).padStart(3, "0")})`;
+  return code !== null && code >= 200 && code < 400 ? "ja" : `nein (${String(code ?? 0).padStart(3, "0")})`;
 }
 
 export async function status(k: Kontext): Promise<void> {
