@@ -200,29 +200,36 @@ firmenname() {
 }
 
 # Trägt die Liste aller Instanzen als HABEN_FIRMEN in jede .env ein, damit die Navigation zwischen ihnen wechselt.
-# Mit „starten“ startet Compose laufende Apps, deren Liste sich geändert hat, mit der neuen Liste neu, außer der
-# Instanz im zweiten Argument (die neue, die gleich ohnehin startet).
+# Erst prüfen, dann schreiben: Eine Liste, die die App ablehnt (doppelter oder ungültiger Name), ließe nach dem
+# Neustart keine Instanz mehr starten. Mit „starten“ bringt Compose jede laufende App auf den Stand ihrer .env, außer
+# der Instanz im zweiten Argument (die neue, die gleich ohnehin startet); unveränderte erstellt Compose nicht neu.
 firmen_abgleichen() {
-  local starten="${1:-}" ausser="${2:-}" dir liste="" eintrag
+  local starten="${1:-}" ausser="${2:-}" dir liste="" namen="" name
   while IFS= read -r dir; do
-    eintrag="$(firmenname "$dir")|https://$(env_lesen "$dir/.env" DOMAIN)"
-    liste="${liste:+$liste;}$eintrag"
+    name="$(firmenname "$dir")"
+    pruefe_firmenname "$name" "$dir/.env, HABEN_FIRMENNAME"
+    ! grep -qxF -- "$name" <<< "$namen" || fehler "Den Firmennamen „$name“ tragen zwei Instanzen ($dir); nichts geändert."
+    namen="$namen"$'\n'"$name"
+    liste="${liste:+$liste;}$name|https://$(env_lesen "$dir/.env" DOMAIN)"
   done < <(instanzen)
   while IFS= read -r dir <&3; do
-    [ "$(env_lesen "$dir/.env" HABEN_FIRMEN)" != "$liste" ] || continue
-    env_setzen "$dir/.env" HABEN_FIRMEN "'$liste'"
-    grep -q "HABEN_FIRMEN" "$dir/compose.yml" \
-      || echo "Hinweis: $(basename "$dir")/compose.yml reicht HABEN_FIRMEN nicht an die App weiter; die aktuelle compose.yml aus deploy/ übernehmen." >&2
+    if [ "$(env_lesen "$dir/.env" HABEN_FIRMEN)" != "$liste" ]; then
+      env_setzen "$dir/.env" HABEN_FIRMEN "'$liste'"
+      grep -q "HABEN_FIRMEN" "$dir/compose.yml" \
+        || echo "Hinweis: $(basename "$dir")/compose.yml reicht HABEN_FIRMEN nicht an die App weiter; die aktuelle compose.yml aus deploy/ übernehmen." >&2
+    fi
     if [ "$starten" = starten ] && [ "$dir" != "$ausser" ] && laeuft "$dir" app; then
       in_dir "$dir" docker compose up -d app
     fi
   done 3< <(instanzen)
 }
 
-# Name in der Navigation: nicht leer, höchstens 60 Zeichen, ohne die Trenner von HABEN_FIRMEN und ohne ' (.env)
+# Name in der Navigation wie ihn die App annimmt (parseFirmen in apps/web/src/lib/firmen.ts): nicht leer, höchstens
+# 60 Zeichen, ohne Steuerzeichen und die Trenner von HABEN_FIRMEN, dazu ohne ' (.env). Zweites Argument: woher er kommt
 pruefe_firmenname() {
-  [ -n "$1" ] && [ "${#1}" -le 60 ] || fehler "Der Firmenname braucht 1 bis 60 Zeichen."
-  case "$1" in *[\|\;\']* | *[[:cntrl:]]*) fehler "Der Firmenname darf weder | noch ; noch ' enthalten: $1" ;; esac
+  local herkunft="${2:---firmenname}"
+  [ -n "$1" ] && [ "${#1}" -le 60 ] || fehler "Der Firmenname braucht 1 bis 60 Zeichen ($herkunft): $1"
+  case "$1" in *[\|\;\']* | *[[:cntrl:]]*) fehler "Der Firmenname darf weder | noch ; noch ' enthalten ($herkunft): $1" ;; esac
 }
 
 cmd_neu() {
@@ -280,6 +287,9 @@ cmd_neu() {
     # Instanz haben-firma1, die von Hand nach der Doku angelegt ist
     [ "$(env_lesen "$andere/.env" COMPOSE_PROJECT_NAME)" != "haben-$name" ] \
       || fehler "Das Compose-Projekt haben-$name gehört schon zur Instanz $andere; bitte einen anderen Namen wählen."
+    # In der Liste zum Wechseln (HABEN_FIRMEN) muss jeder Name eindeutig sein, sonst startet keine App mehr
+    [ "$(firmenname "$andere")" != "${firma:-$name}" ] \
+      || fehler "Den Firmennamen „${firma:-$name}“ trägt schon die Instanz $(basename "$andere"); bitte --firmenname angeben."
   done 3< <(instanzen)
   # Auch ein Projekt dieses Namens außerhalb der Basis: mit Containern oder, nach docker compose down, nur noch mit
   # seinen Volumes (Datenbank und Belege einer anderen Firma). Kann docker das nicht sagen, lieber nichts anlegen

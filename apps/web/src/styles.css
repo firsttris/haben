@@ -136,7 +136,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
 .brand-firma { font-size: 12px; font-weight: 400; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
 .brand-mark { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
-.nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; }
+.nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; overflow-wrap: anywhere; }
 .nav-link:hover { color: #fff; }
 .nav-link[data-status="active"] { background: var(--nav-active); color: #fff; font-weight: 500; }
 .nav-link[aria-disabled="true"] { opacity: 0.5; cursor: default; }

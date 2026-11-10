@@ -398,7 +398,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende; meldet Compose für eine Instanz einen Fehler, hält es dort an |
 | `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung aus `backup_status`; eine gestoppte Instanz steht als „gestoppt“ in der Liste |
 | `liste` | Name, Domain und Verzeichnis |
-| `firmen` | gleicht die Liste zum [Wechseln der Firma](#firma-wechseln) in allen Instanzen ab, etwa nach einer Änderung von `HABEN_FIRMENNAME` von Hand, und startet geänderte neu; `neu` tut das von selbst |
+| `firmen` | gleicht die Liste zum [Wechseln der Firma](#firma-wechseln) in allen Instanzen ab, etwa nach einer Änderung von `HABEN_FIRMENNAME` von Hand oder nach `neu --nicht-starten`, und bringt laufende Apps auf den Stand ihrer `.env`; `neu` tut das von selbst. Eine Liste mit doppeltem oder ungültigem Namen schreibt es nicht |
 
 `update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 
@@ -406,7 +406,7 @@ Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
-| `--firmenname NAME` | Name der Firma in der Navigation, bis 60 Zeichen ohne senkrechten Strich, Semikolon und Apostroph; Vorgabe ist `<name>`. Steht als `HABEN_FIRMENNAME` in der `.env` |
+| `--firmenname NAME` | Name der Firma in der Navigation, bis 60 Zeichen ohne senkrechten Strich, Semikolon und Apostroph; Vorgabe ist `<name>`, je Instanz verschieden. Steht als `HABEN_FIRMENNAME` in der `.env` |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID`. Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](#eric-einbinden) |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |

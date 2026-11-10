@@ -288,7 +288,7 @@ describe("Firmen wechseln", () => {
     expect(existsSync(join(basis, "firma1"))).toBe(false);
   });
 
-  it("gleicht mit firmen ab, auch nach einer Änderung von Hand, und startet nur geänderte neu", () => {
+  it("gleicht mit firmen ab, auch nach einer Änderung von Hand, und bringt jede laufende App auf den Stand ihrer .env", () => {
     lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
     lauf("neu", "firma2", "firma2.example.de", "--nicht-starten");
     const datei = join(basis, "firma2", ".env");
@@ -297,8 +297,10 @@ describe("Firmen wechseln", () => {
     expect(r.status).toBe(0);
     expect(env("firma1").HABEN_FIRMEN).toBe("'firma1|https://firma1.example.de;Werkstatt|https://firma2.example.de'");
     expect(aufrufe().filter((a) => a.endsWith("compose up -d app"))).toEqual(["firma1 compose up -d app", "firma2 compose up -d app"]);
+    // Ohne Änderung bleibt die .env gleich; up -d erstellt einen unveränderten Container nicht neu
+    const vorher = readFileSync(join(basis, "firma1", ".env"), "utf8");
     expect(lauf("firmen").status).toBe(0);
-    expect(aufrufe().filter((a) => a.endsWith("compose up -d app"))).toHaveLength(2);
+    expect(readFileSync(join(basis, "firma1", ".env"), "utf8")).toBe(vorher);
   });
 
   // Review: Eine Liste, die die App ablehnt, ließe nach dem Neustart keine der Instanzen mehr starten (env.ts)
