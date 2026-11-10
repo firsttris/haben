@@ -66,14 +66,34 @@ export async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buc
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode });
   }
-  // Eine Gegenbuchung übernimmt die Zeilen der aufgehobenen Buchung, auch wenn die Firmendaten inzwischen einen anderen
-  // Kontenrahmen haben (Storno einer Bareinnahme aus dem Vorjahr); ihre Konten gehören zum Kontenrahmen der aufgehobenen
+  // Bis #570 übernahm das Storno einer Bareinnahme bzw. das Aufheben einer Ausbuchung nach einem Wechsel des Kontenrahmens
+  // die Kontonummern der aufgehobenen Buchung unverändert; solche Gegenbuchungen gehören zum Kontenrahmen der aufgehobenen.
+  // Seitdem bucht die Gegenbuchung mit den Konten des neuen Rahmens und bleibt, wie sie ist.
   const aufgehoben = [...new Set([...byId.values()].flatMap((b) => (b.reversesId ? [b.reversesId] : [])))];
   if (aufgehoben.length > 0) {
-    const kontenrahmen = new Map(
-      (await q.select({ id: e.id, kontenrahmen: e.kontenrahmen }).from(e).where(inArray(e.id, aufgehoben))).map((r) => [r.id, r.kontenrahmen as Kontenrahmen]),
-    );
-    for (const b of byId.values()) if (b.reversesId) b.kontenrahmen = kontenrahmen.get(b.reversesId) ?? b.kontenrahmen;
+    const original = new Map<string, { kontenrahmen: Kontenrahmen; konten: string[] }>();
+    for (const r of await q
+      .select({ id: e.id, kontenrahmen: e.kontenrahmen, account: l.account })
+      .from(l)
+      .innerJoin(e, eq(e.id, l.entryId))
+      .where(inArray(e.id, aufgehoben))) {
+      const o = original.get(r.id) ?? { kontenrahmen: r.kontenrahmen as Kontenrahmen, konten: [] };
+      o.konten.push(r.account);
+      original.set(r.id, o);
+    }
+    const gleich = (x: string[], y: string[]) => x.length === y.length && [...x].sort().join() === [...y].sort().join();
+    for (const b of byId.values()) {
+      const o = b.reversesId ? original.get(b.reversesId) : undefined;
+      if (
+        o &&
+        o.kontenrahmen !== b.kontenrahmen &&
+        gleich(
+          o.konten,
+          b.zeilen.map((z) => z.account),
+        )
+      )
+        b.kontenrahmen = o.kontenrahmen;
+    }
   }
   return [...byId.values()];
 }

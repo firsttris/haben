@@ -1,12 +1,22 @@
 import { UserError } from "../../errors.ts";
-import { bareinnahmeText, CASH_BOOKINGS, cashEntryLabel, cashPosting, formatEuro, type CashBooking, type Cents, type PostingLine } from "@haben/core";
+import {
+  bareinnahmeText,
+  CASH_BOOKINGS,
+  cashEntryLabel,
+  cashPosting,
+  formatEuro,
+  type CashBooking,
+  type Cents,
+  type Kontenrahmen,
+  type PostingLine,
+} from "@haben/core";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
-import { negatedShares, reverseLines, reverseWriteOffRow } from "./bank.ts";
+import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem
@@ -204,13 +214,21 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
   const reversalId = crypto.randomUUID();
   const text = `Storno Nr. ${original.number}: ${original.text}`;
   const lines = await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, original.journalEntryId));
-  const journalEntryId = await post(tx, await openBooks(tx), {
+  const [entry] = await tx
+    .select({ kontenrahmen: schema.journalEntries.kontenrahmen })
+    .from(schema.journalEntries)
+    .where(eq(schema.journalEntries.id, original.journalEntryId));
+  const books = await openBooks(tx);
+  const journalEntryId = await post(tx, books, {
     date,
     description: text,
     sourceType: "kasse",
     sourceId: reversalId,
     reversesId: original.journalEntryId,
-    lines: reverseLines(
+    // Nach einem Wechsel des Kontenrahmens mit den Konten derselben Rolle im neuen Rahmen
+    lines: reverseLinesIn(
+      (entry?.kontenrahmen ?? books.kontenrahmen) as Kontenrahmen,
+      books.kontenrahmen,
       lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
     ),
   });

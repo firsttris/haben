@@ -92,20 +92,6 @@ export async function post(tx: Tx, books: Books, posting: Posting): Promise<stri
       `Das Jahr ${year} ist im Kontenrahmen ${other.kontenrahmen} gebucht, eingestellt ist jetzt ${books.kontenrahmen}. In dieses Jahr lässt sich nach dem Wechsel nichts mehr buchen.`,
     );
   }
-  // Eine Gegenbuchung übernimmt die Zeilen der aufgehobenen Buchung. Nach einem Wechsel des Kontenrahmens stünden deren
-  // Kontonummern unter dem neuen Rahmen, wo sie etwas anderes bedeuten (Storno einer Bareinnahme oder Ausbuchung aus dem
-  // Vorjahr); wie beim Storno eines Belegs (cancellation.ts) geht das nach dem Wechsel nicht mehr
-  if (posting.reversesId) {
-    const [reversed] = await tx
-      .select({ kontenrahmen: schema.journalEntries.kontenrahmen })
-      .from(schema.journalEntries)
-      .where(eq(schema.journalEntries.id, posting.reversesId));
-    if (reversed && reversed.kontenrahmen !== books.kontenrahmen) {
-      throw new LedgerError(
-        `Die aufgehobene Buchung ist im Kontenrahmen ${reversed.kontenrahmen} gebucht, eingestellt ist jetzt ${books.kontenrahmen}. Stornieren geht nach dem Wechsel nicht mehr.`,
-      );
-    }
-  }
   // Mit einer Eröffnung beginnen die Bücher; davor gebucht, zählten die übernommenen Salden doppelt
   const [opening] = await tx
     .select({ date: schema.journalEntries.date })
