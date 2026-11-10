@@ -7,6 +7,7 @@ import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { deleteExchangeRateFn, importExchangeRatesFn, refreshExchangeRatesFn, saveExchangeRateFn, type getExchangeRates } from "../server/functions/company.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
+import { Field } from "./Field.tsx";
 
 type Data = Awaited<ReturnType<typeof getExchangeRates>>;
 
@@ -87,18 +88,13 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
           ersetzt der amtliche Kurs deinen.
         </p>
         <div className="form-row cols-3">
-          <label className="field">
-            Währung
-            <input name="currency" required maxLength={3} placeholder="USD" className="mono" style={{ textTransform: "uppercase" }} />
-          </label>
-          <label className="field">
-            Monat
-            <input name="month" type="month" required />
-          </label>
-          <label className="field">
-            1 EUR = …
-            <input name="rate" required inputMode="decimal" placeholder="1,0812" className="mono" />
-          </label>
+          <Field label="Währung">
+            {(control) => (
+              <input {...control} name="currency" required maxLength={3} placeholder="USD" className="mono" style={{ textTransform: "uppercase" }} />
+            )}
+          </Field>
+          <Field label="Monat">{(control) => <input {...control} name="month" type="month" required />}</Field>
+          <Field label="1 EUR = …">{(control) => <input {...control} name="rate" required inputMode="decimal" placeholder="1,0812" className="mono" />}</Field>
         </div>
         <div className="actions">
           <button type="submit" className="btn" disabled={busy}>
@@ -114,29 +110,30 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
           hochladen.
         </p>
         <div className="form-row cols-3">
-          <label className="field">
-            Jahr der Datei
-            <input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))} />
-          </label>
-          <label className="field">
-            Datei
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              disabled={busy}
-              onChange={(e) => {
-                const input = e.currentTarget;
-                const file = input.files?.[0];
-                if (!file) return;
-                void run(async () => {
-                  const result = await upload({ data: { year: Number(year), text: await readText(file) } });
-                  input.value = "";
-                  await router.invalidate();
-                  setNotice({ tone: "ok", text: `${plural(result.fetched, "Kurs", "Kurse")} gelesen: ${summary(result)}` });
-                });
-              }}
-            />
-          </label>
+          <Field label="Jahr der Datei">
+            {(control) => <input {...control} inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, "").slice(0, 4))} />}
+          </Field>
+          <Field label="Datei">
+            {(control) => (
+              <input
+                {...control}
+                type="file"
+                accept=".csv,text/csv"
+                disabled={busy}
+                onChange={(e) => {
+                  const input = e.currentTarget;
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  void run(async () => {
+                    const result = await upload({ data: { year: Number(year), text: await readText(file) } });
+                    input.value = "";
+                    await router.invalidate();
+                    setNotice({ tone: "ok", text: `${plural(result.fetched, "Kurs", "Kurse")} gelesen: ${summary(result)}` });
+                  });
+                }}
+              />
+            )}
+          </Field>
         </div>
       </div>
 

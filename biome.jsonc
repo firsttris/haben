@@ -17,6 +17,8 @@
     "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all", "arrowParentheses": "always" }
   },
   "assist": { "enabled": false },
+  // Eigene Regeln als GritQL-Muster; siehe docs/entwicklung.md, Automatische Prüfungen der Regeln
+  "plugins": ["./scripts/felder/kein-label-field.grit"],
   "linter": {
     "enabled": true,
     // Wie bisher mit ESLint: nur JavaScript und TypeScript; CSS und SVG bleiben außen vor

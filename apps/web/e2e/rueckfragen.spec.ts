@@ -334,6 +334,29 @@ test("Passkey entfernen fragt nach", async () => {
   await expect(karte.getByText("Laptop")).toHaveCount(0);
 });
 
+test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
+  const jahr = new Date().getFullYear();
+  // Wie eine bestehende Instanz nach Migration 0192: Stichjahr im nächsten Jahr
+  await sql`update company set journal_ab = ${jahr + 1}`;
+  await go("/einstellungen?bereich=firma");
+  const karte = page.getByRole("region", { name: "Voranmeldung und EÜR aus dem Journal" });
+  await expect(karte).toContainText(`Stichjahr ${jahr + 1}`);
+  await expect(karte).toContainText(`${jahr} rechnet noch aus den Nebenbüchern`);
+  const vorziehen = karte.getByRole("button", { name: `Ab ${jahr} aus dem Journal` });
+
+  await vorziehen.click();
+  await faktenZeigen(page, "Bisher", "Neu");
+  await abbrechen(`Stichjahr auf ${jahr} vorziehen?`);
+  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr + 1 }]);
+
+  await vorziehen.click();
+  await bestaetigen(page, "Vorziehen");
+  await expect(page.getByText(`Voranmeldung und EÜR rechnen jetzt ab ${jahr} aus dem Journal.`)).toBeVisible();
+  await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
+  await expect(vorziehen).toHaveCount(0);
+  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
+});
+
 test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", async () => {
   await sql`insert into lexoffice_connection (ciphertext, organization_name) values (${Buffer.from([0])}, 'Testfirma')`;
   const [lauf] = await sql<{ id: string }[]>`insert into lexoffice_imports (source, status, progress)

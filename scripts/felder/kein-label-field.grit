@@ -1,0 +1,10 @@
+language js(typescript, jsx);
+
+// Formularfelder gehören in `Field` (apps/web/src/components/Field.tsx), nicht in ein umschließendes <label className="field">.
+// $props sind alle Attribute des Labels als Text; gemeint ist `field` als ganzes Wort in className, nicht `field-label`.
+// Erfasst "field", "field weitere", {"field"} und Varianten mit Backticks; berechnete Klassen sieht ein Muster nicht,
+// dafür gibt es den Playwright-Test in apps/web/e2e/barrierefreiheit.spec.ts.
+`<label $props>$children</label>` where {
+    $props <: r"(?s).*className=\{?[\"'`](?:[^\"'`]* )?field(?:[ \"'`][^\"'`]*)?[\"'`]\}?.*",
+    register_diagnostic(span=$props, message="Umschließendes label mit Klasse field: Formularfelder gehören in <Field label=…> (components/Field.tsx, DESIGN.md, Felder).", severity="error")
+}

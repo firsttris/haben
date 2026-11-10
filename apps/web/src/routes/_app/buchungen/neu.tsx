@@ -21,6 +21,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { createManualEntryFn, getManualEntryForm } from "../../../server/functions/journal.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/buchungen/neu")({
   loader: () => getManualEntryForm(),
@@ -157,14 +158,12 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
           </fieldset>
         )}
         <div className="form-row cols-2">
-          <label className="field">
-            Datum
-            <input type="date" value={date} max={data.today} onChange={(e) => setDate(e.target.value)} required />
-          </label>
-          <label className="field">
-            Buchungstext
-            <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} required minLength={3} />
-          </label>
+          <Field label="Datum">
+            {(control) => <input {...control} type="date" value={date} max={data.today} onChange={(e) => setDate(e.target.value)} required />}
+          </Field>
+          <Field label="Buchungstext">
+            {(control) => <input {...control} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} required minLength={3} />}
+          </Field>
         </div>
 
         {/* Am Handy scrollt die Tabelle für sich (styles.css); relativ, damit die unsichtbaren Spaltennamen (visually-hidden,

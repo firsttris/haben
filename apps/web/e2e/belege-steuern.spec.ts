@@ -1466,7 +1466,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
   await page.waitForLoadState("networkidle");
   const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
-  const kategorie = page.getByLabel("Kategorie").locator("xpath=ancestor::label");
+  const kategorie = page.locator(".field").filter({ has: page.getByLabel("Kategorie") });
   await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
   const bezahlung = page.getByRole("group", { name: "Bezahlung" });
   await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);

@@ -173,6 +173,11 @@ export async function journalAbJahr(q: Db | Tx = db): Promise<number> {
   return first?.date ? Number(first.date.slice(0, 4)) : Number(today(new Date()).slice(0, 4));
 }
 
+/** Stichjahr setzen (Vorziehen in den Einstellungen; prüft auswertungen/stichjahr.ts), in der Transaktion des Aufrufers */
+export async function setJournalAb(tx: Tx, year: number): Promise<void> {
+  await tx.update(schema.company).set({ journalAb: year, updatedAt: new Date() }).where(eq(schema.company.id, 1));
+}
+
 /**
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
