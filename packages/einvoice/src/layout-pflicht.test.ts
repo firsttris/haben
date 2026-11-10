@@ -46,6 +46,11 @@ describe("Prüfung der Pflichtangaben", () => {
     expect(fehlendeAngaben(rechnung, [ohne]).join()).toContain("Gesamtbetrag");
   });
 
+  it("verlangt die vollständige Anschrift des Ausstellers, nicht nur den Namen (§ 14 Abs. 4 Nr. 1 UStG)", () => {
+    const ohne = voll.replaceAll("Lindenstraße 12", "").replaceAll("10969 Berlin", "");
+    expect(fehlendeAngaben(rechnung, [ohne]).join()).toContain("Anschrift des Absenders");
+  });
+
   it("verzeiht Leerraum und Umbrüche im Text des Blatts", () => {
     expect(fehlendeAngaben(rechnung, [voll.split("").join(" ")])).toEqual([]);
   });
