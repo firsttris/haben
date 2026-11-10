@@ -293,7 +293,6 @@ export function RecurringForm({
                 </>
               )
             }
-            describedBy={paymentMethod === "lastschrift" ? "recurring-payment-hint" : undefined}
           >
             {(control) => (
               <select {...control} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value === "lastschrift" ? "lastschrift" : "ueberweisung")}>

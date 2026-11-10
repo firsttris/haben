@@ -439,3 +439,27 @@ for (const group of chunks(PAGES, GROUP)) {
     }
   });
 }
+
+/** Verweise (`aria-describedby`, `aria-labelledby`, `list`), deren Ziel im Dokument fehlt, als lesbare Liste */
+function danglingReferences(p: Page) {
+  return p.evaluate(() =>
+    ["aria-describedby", "aria-labelledby", "list"].flatMap((name) =>
+      [...document.querySelectorAll(`[${name}]`)].flatMap((el) =>
+        (el.getAttribute(name) ?? "")
+          .split(/\s+/)
+          .filter((id) => id && !document.getElementById(id))
+          .map((id) => `${el.tagName.toLowerCase()} ${name}→${id}`),
+      ),
+    ),
+  );
+}
+
+test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zahlungsart Lastschrift", async ({ page }) => {
+  await open(page, "/rechnungen/wiederkehrend/neu");
+  const zahlungsart = page.getByLabel("Zahlungsart");
+  for (const art of ["ueberweisung", "lastschrift"]) {
+    await zahlungsart.selectOption(art);
+    expect(await danglingReferences(page), art).toEqual([]);
+  }
+  await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
+});
