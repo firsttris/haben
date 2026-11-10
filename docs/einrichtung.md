@@ -188,7 +188,7 @@ Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wir
 | Anlage EÜR, Einkommensteuer, [Belege von ELSTER](jahreserklaerung.md#belege-von-elster), [Herabsetzung der Einkommensteuer-Vorauszahlungen](finanzamt.md#vorauszahlungen-herabsetzen) | ja | nein |
 | [Gesellschafter-Geschäftsführer](lohn.md#was-haben-abrechnet) im Lohn | nein | ja |
 | Voranmeldung, Umsatzsteuererklärung, DATEV-Export | ja | ja |
-| [Manuelle Buchungen](buchhaltung.md#manuelle-buchungen-gmbh-und-ug) | nein | ja |
+| [Manuelle und freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) | ab dem Stichjahr | ja |
 | [Saldenvortrag, Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) | nein, jedes Jahr beginnt bei null | ja |
 | [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug): Bilanz und GuV (Entwurf), Jahr abschließen | nein | ja |
 | [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |

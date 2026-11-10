@@ -135,7 +135,9 @@ async function journalAlsQuelle(period: VatPeriod, figures: VatFigures, q: Db | 
   const entnahme = figures.revenue.filter((r) => r.type === "entnahme");
   journal.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
   journal.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
-  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld]])) as JournalKennzahlen;
+  // Freie Buchungen haben kein Nebenbuch; die Gegenprobe zählt sie aus der festgeschriebenen Buchung selbst
+  const manuell = await kennzahlenAusDemJournal(period, figures.versteuerung, q, true);
+  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld] + manuell[feld]])) as JournalKennzahlen;
   return { ...figures, ...journal, quelle: "journal", nebenbuecher };
 }
 
