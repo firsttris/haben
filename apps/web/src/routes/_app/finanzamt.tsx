@@ -20,6 +20,7 @@ import {
 import { today } from "../../server/today.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/finanzamt")({
   // Datum in Deutschland, nicht UTC; kommt beim ersten Aufruf mit den Loader-Daten vom Server
@@ -242,31 +243,36 @@ function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
           Voraussichtliche Steuer im Antrag nennen
         </label>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <label className="field" style={{ flex: "1 1 200px" }}>
-            Bisherige Vorauszahlung je Quartal (€)
-            <input
-              inputMode="decimal"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              placeholder="laut letztem Bescheid"
-              aria-invalid={current.trim() !== "" && currentCents === null}
-            />
-          </label>
-          <label className="field" style={{ flex: "1 1 200px" }}>
-            Gewünschte Vorauszahlung je Quartal (€)
-            <input
-              inputMode="decimal"
-              value={wanted}
-              onChange={(e) => setWanted(e.target.value)}
-              placeholder="z. B. 1.000,00"
-              aria-invalid={wanted.trim() !== "" && wantedCents === null}
-            />
-          </label>
+          <Field label="Bisherige Vorauszahlung je Quartal (€)" style={{ flex: "1 1 200px" }}>
+            {(control) => (
+              <input
+                {...control}
+                inputMode="decimal"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                placeholder="laut letztem Bescheid"
+                aria-invalid={current.trim() !== "" && currentCents === null}
+              />
+            )}
+          </Field>
+          <Field label="Gewünschte Vorauszahlung je Quartal (€)" style={{ flex: "1 1 200px" }}>
+            {(control) => (
+              <input
+                {...control}
+                inputMode="decimal"
+                value={wanted}
+                onChange={(e) => setWanted(e.target.value)}
+                placeholder="z. B. 1.000,00"
+                aria-invalid={wanted.trim() !== "" && wantedCents === null}
+              />
+            )}
+          </Field>
         </div>
-        <label className="field">
-          Weitere Begründung (optional)
-          <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="z. B. ein großer Auftrag ist weggefallen" />
-        </label>
+        <Field label="Weitere Begründung (optional)">
+          {(control) => (
+            <textarea {...control} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="z. B. ein großer Auftrag ist weggefallen" />
+          )}
+        </Field>
         <p className="small muted" style={{ margin: 0 }}>
           Die Hochrechnung nimmt den bisherigen Gewinn taggenau aufs Jahr. Die gewünschte Vorauszahlung ist mit einem Viertel der voraussichtlichen Steuer
           vorbelegt, du kannst sie ändern.
@@ -312,22 +318,22 @@ function MessageForm({
           An {data.company.finanzamt || "das Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"}.
           {data.basis && " Für Einzelunternehmer ist das meist auch die Steuernummer der Einkommensteuer."}
         </p>
-        <label className="field">
-          Betreff
-          <input value={betreff} onChange={(e) => setBetreff(e.target.value)} maxLength={99} required />
-        </label>
-        <label className="field">
-          Text
-          <textarea
-            className="autogrow"
-            rows={topic === "vorauszahlung" ? 14 : 10}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={15_000}
-            required
-          />
-          <span className="small muted">{text.length} von 15.000 Zeichen</span>
-        </label>
+        <Field label="Betreff">
+          {(control) => <input {...control} value={betreff} onChange={(e) => setBetreff(e.target.value)} maxLength={99} required />}
+        </Field>
+        <Field label="Text" hint={<>{text.length} von 15.000 Zeichen</>}>
+          {(control) => (
+            <textarea
+              {...control}
+              className="autogrow"
+              rows={topic === "vorauszahlung" ? 14 : 10}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={15_000}
+              required
+            />
+          )}
+        </Field>
       </section>
     </SendPanel>
   );
@@ -365,23 +371,29 @@ function BankChangeForm({ data }: { data: Data }) {
             Es fehlt noch: {data.bankIssues.join(", ")}. <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
           </div>
         )}
-        <label className="field">
-          IBAN
-          <input
-            value={iban}
-            onChange={(e) => setIban(e.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="DE.."
-            aria-invalid={iban.trim() !== "" && !plausible}
-          />
-          <span className="small muted">
-            {data.taxAccount
-              ? `Vorbelegt mit deinem Steuerkonto ${data.taxAccount.name} (Zweck unter Bank). `
-              : "Vorbelegt mit der IBAN aus den Firmendaten; ein Konto mit dem Zweck „Steuerkonto“ unter Bank würde stattdessen vorgeschlagen. "}
-            Die Prüfziffer prüft der Server.
-          </span>
-        </label>
+        <Field
+          label="IBAN"
+          hint={
+            <>
+              {data.taxAccount
+                ? `Vorbelegt mit deinem Steuerkonto ${data.taxAccount.name} (Zweck unter Bank). `
+                : "Vorbelegt mit der IBAN aus den Firmendaten; ein Konto mit dem Zweck „Steuerkonto“ unter Bank würde stattdessen vorgeschlagen. "}
+              Die Prüfziffer prüft der Server.
+            </>
+          }
+        >
+          {(control) => (
+            <input
+              {...control}
+              value={iban}
+              onChange={(e) => setIban(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="DE.."
+              aria-invalid={iban.trim() !== "" && !plausible}
+            />
+          )}
+        </Field>
       </section>
     </SendPanel>
   );
@@ -527,10 +539,9 @@ function Postfach({ data }: { data: Data }) {
           </div>
         )}
         <CertificateStatus certificate={data.certificate} />
-        <label className="field">
-          Zertifikats-PIN
-          <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" />
-        </label>
+        <Field label="Zertifikats-PIN">
+          {(control) => <input {...control} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" />}
+        </Field>
         <TestOnlyToggle setup={data} testOnly={testOnly} onChange={setTestOnly} />
         {live && !auto.enabled && (
           <label className="checkbox">

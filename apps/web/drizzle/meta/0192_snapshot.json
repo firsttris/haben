@@ -1,5 +1,5 @@
 {
-  "id": "a66bd3a9-570c-4b42-bb7f-d70482f0bfe6",
+  "id": "9cd146f8-8c94-404d-8378-4a0db5acfd5e",
   "prevId": "4e51060c-a3ad-4ef6-9091-e632fa3da64a",
   "version": "7",
   "dialect": "postgresql",
@@ -2672,6 +2672,12 @@
         },
         "datev_personenkonten_ab": {
           "name": "datev_personenkonten_ab",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "journal_ab": {
+          "name": "journal_ab",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -11960,191 +11966,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.store_connections": {
-      "name": "store_connections",
-      "schema": "",
-      "columns": {
-        "store": {
-          "name": "store",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "config": {
-          "name": "config",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ciphertext": {
-          "name": "ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetch_from": {
-          "name": "fetch_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_sync_at": {
-          "name": "last_sync_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "store_connections_store": {
-          "name": "store_connections_store",
-          "value": "\"store_connections\".\"store\" in ('googleplay', 'appstore')"
-        },
-        "store_connections_config": {
-          "name": "store_connections_config",
-          "value": "\"store_connections\".\"config\"->>'store' = \"store_connections\".\"store\""
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.store_reports": {
-      "name": "store_reports",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "store": {
-          "name": "store",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "report_kind": {
-          "name": "report_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "part": {
-          "name": "part",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period": {
-          "name": "period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "archive_file_id": {
-          "name": "archive_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fetched_at": {
-          "name": "fetched_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "store_reports_period": {
-          "name": "store_reports_period",
-          "columns": [
-            {
-              "expression": "store",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "report_kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "period",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "part",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "store_reports_archive_file_id_archive_files_id_fk": {
-          "name": "store_reports_archive_file_id_archive_files_id_fk",
-          "tableFrom": "store_reports",
-          "tableTo": "archive_files",
-          "columnsFrom": [
-            "archive_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "store_reports_period_format": {
-          "name": "store_reports_period_format",
-          "value": "\"store_reports\".\"period\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        },
-        "store_reports_kind": {
-          "name": "store_reports_kind",
-          "value": "(\"store_reports\".\"store\" = 'googleplay' and \"store_reports\".\"report_kind\" = 'earnings') or (\"store_reports\".\"store\" = 'appstore' and \"store_reports\".\"report_kind\" = 'finance_detail')"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.sv_portal_filings": {

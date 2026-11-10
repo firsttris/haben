@@ -9,6 +9,7 @@ import { ElsterSubmit } from "./ElsterSubmit.tsx";
 import { teileHinweise } from "../lib/hinweise.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Field } from "./Field.tsx";
 
 /*
  * GmbH und UG auf der Seite Jahreserklärung: Körperschaftsteuer- und Gewerbesteuererklärung mit den Werten aus der
@@ -295,18 +296,15 @@ export function KapgAngaben({ data }: { data: Data }) {
       {!data.kapg!.gespeichert && a.anteilseigner.length > 0 && <p className="small muted">Aus {data.year - 1} übernommen; bitte prüfen und speichern.</p>}
       <form onSubmit={submit} aria-label="Angaben zur Körperschaft- und Gewerbesteuererklärung" className="stack" style={{ gap: 16 }}>
         <div className="form-row cols-3">
-          <label className="field">
-            Gegründet am (nur im Gründungsjahr)
-            <input type="date" value={gruendung} onChange={(e) => setGruendung(e.target.value)} />
-          </label>
-          <label className="field">
-            Steuerliches Einlagekonto zum 31.12.{data.year - 1}
-            <input inputMode="decimal" value={einlagekonto} onChange={(e) => setEinlagekonto(e.target.value)} />
-          </label>
-          <label className="field">
-            Lizenzen an beschränkt Steuerpflichtige (§ 50a EStG)
-            <input inputMode="decimal" value={rechte} onChange={(e) => setRechte(e.target.value)} />
-          </label>
+          <Field label="Gegründet am (nur im Gründungsjahr)">
+            {(control) => <input {...control} type="date" value={gruendung} onChange={(e) => setGruendung(e.target.value)} />}
+          </Field>
+          <Field label={<>Steuerliches Einlagekonto zum 31.12.{data.year - 1}</>}>
+            {(control) => <input {...control} inputMode="decimal" value={einlagekonto} onChange={(e) => setEinlagekonto(e.target.value)} />}
+          </Field>
+          <Field label="Lizenzen an beschränkt Steuerpflichtige (§ 50a EStG)">
+            {(control) => <input {...control} inputMode="decimal" value={rechte} onChange={(e) => setRechte(e.target.value)} />}
+          </Field>
         </div>
 
         <fieldset className="stack fieldset-plain" style={{ gap: 16 }}>
@@ -317,63 +315,122 @@ export function KapgAngaben({ data }: { data: Data }) {
                 Anteilseigner {i + 1}
               </div>
               <div className="form-row cols-3 align-end">
-                <label className="field">
-                  Name<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <input value={p.name} onChange={(e) => setPerson(i, { name: e.target.value })} required />
-                </label>
-                <label className="field">
-                  Straße und Hausnummer<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <input value={p.strasse} onChange={(e) => setPerson(i, { strasse: e.target.value })} required />
-                </label>
-                <label className="field">
-                  PLZ und Ort<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <input value={p.plzOrt} onChange={(e) => setPerson(i, { plzOrt: e.target.value })} required />
-                </label>
+                <Field
+                  label={
+                    <>
+                      Name<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} value={p.name} onChange={(e) => setPerson(i, { name: e.target.value })} required />}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      Straße und Hausnummer<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} value={p.strasse} onChange={(e) => setPerson(i, { strasse: e.target.value })} required />}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      PLZ und Ort<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} value={p.plzOrt} onChange={(e) => setPerson(i, { plzOrt: e.target.value })} required />}
+                </Field>
               </div>
               <div className="form-row cols-3 align-end">
-                <label className="field">
-                  Identifikationsnummer oder Steuernummer (13 Ziffern)<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <input inputMode="numeric" value={p.nummer} onChange={(e) => setPerson(i, { nummer: e.target.value })} required />
-                </label>
-                <label className="field">
-                  Beteiligung in Euro<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <input inputMode="decimal" value={p.beteiligung} onChange={(e) => setPerson(i, { beteiligung: e.target.value })} required />
-                </label>
-                <label className="field">
-                  Anteil in Prozent<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <input inputMode="decimal" value={p.anteil} onChange={(e) => setPerson(i, { anteil: e.target.value })} required />
-                </label>
+                <Field
+                  label={
+                    <>
+                      Identifikationsnummer oder Steuernummer (13 Ziffern)<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} inputMode="numeric" value={p.nummer} onChange={(e) => setPerson(i, { nummer: e.target.value })} required />}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      Beteiligung in Euro<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => (
+                    <input {...control} inputMode="decimal" value={p.beteiligung} onChange={(e) => setPerson(i, { beteiligung: e.target.value })} required />
+                  )}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      Anteil in Prozent<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} inputMode="decimal" value={p.anteil} onChange={(e) => setPerson(i, { anteil: e.target.value })} required />}
+                </Field>
               </div>
               <div className="form-row cols-3 align-end">
-                <label className="field">
-                  Kirchensteuer bei Ausschüttungen<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                  <select value={p.kirchensteuer} onChange={(e) => setPerson(i, { kirchensteuer: Number(e.target.value) as Person["kirchensteuer"] })}>
-                    <option value={0}>keine</option>
-                    <option value={8}>8 % (Bayern, Baden-Württemberg)</option>
-                    <option value={9}>9 %</option>
-                  </select>
-                </label>
+                <Field
+                  label={
+                    <>
+                      Kirchensteuer bei Ausschüttungen<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => (
+                    <select
+                      {...control}
+                      value={p.kirchensteuer}
+                      onChange={(e) => setPerson(i, { kirchensteuer: Number(e.target.value) as Person["kirchensteuer"] })}
+                    >
+                      <option value={0}>keine</option>
+                      <option value={8}>8 % (Bayern, Baden-Württemberg)</option>
+                      <option value={9}>9 %</option>
+                    </select>
+                  )}
+                </Field>
                 {p.kirchensteuer > 0 && (
-                  <label className="field">
-                    Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                    <input
-                      inputMode="numeric"
-                      value={p.religionsschluessel}
-                      onChange={(e) => setPerson(i, { religionsschluessel: e.target.value })}
-                      placeholder="z. B. 010100"
-                      required
-                    />
-                  </label>
+                  <Field
+                    label={
+                      <>
+                        Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                      </>
+                    }
+                  >
+                    {(control) => (
+                      <input
+                        {...control}
+                        inputMode="numeric"
+                        value={p.religionsschluessel}
+                        onChange={(e) => setPerson(i, { religionsschluessel: e.target.value })}
+                        placeholder="z. B. 010100"
+                        required
+                      />
+                    )}
+                  </Field>
                 )}
                 {p.kirchensteuer > 0 && (
-                  <label className="field">
-                    Kirchensteuererhebende Religionsgemeinschaft<span className="visually-hidden"> Anteilseigner {i + 1}</span>
-                    <input
-                      value={p.religionsgemeinschaft}
-                      onChange={(e) => setPerson(i, { religionsgemeinschaft: e.target.value })}
-                      placeholder="z. B. römisch-katholisch"
-                    />
-                  </label>
+                  <Field
+                    label={
+                      <>
+                        Kirchensteuererhebende Religionsgemeinschaft<span className="visually-hidden"> Anteilseigner {i + 1}</span>
+                      </>
+                    }
+                  >
+                    {(control) => (
+                      <input
+                        {...control}
+                        value={p.religionsgemeinschaft}
+                        onChange={(e) => setPerson(i, { religionsgemeinschaft: e.target.value })}
+                        placeholder="z. B. römisch-katholisch"
+                      />
+                    )}
+                  </Field>
                 )}
               </div>
               <div className="actions" style={{ justifyContent: "space-between" }}>
@@ -419,22 +476,52 @@ export function KapgAngaben({ data }: { data: Data }) {
           {vertraege.map((v, i) => (
             <div key={i} className="stack sub-group" style={{ gap: 12 }} role="group" aria-label={`Vertrag ${i + 1}`}>
               <div className="form-row cols-2 align-end">
-                <label className="field">
-                  Vertragsart<span className="visually-hidden"> Vertrag {i + 1}</span>
-                  <input value={v.art} onChange={(e) => setVertrag(i, { art: e.target.value })} placeholder="z. B. Geschäftsführervertrag" required />
-                </label>
-                <label className="field">
-                  Abschluss oder letzte Änderung<span className="visually-hidden"> Vertrag {i + 1}</span>
-                  <input type="date" value={v.datum} onChange={(e) => setVertrag(i, { datum: e.target.value })} required />
-                </label>
-                <label className="field">
-                  Vertragspartner<span className="visually-hidden"> Vertrag {i + 1}</span>
-                  <input value={v.partner} onChange={(e) => setVertrag(i, { partner: e.target.value })} required />
-                </label>
-                <label className="field">
-                  Vergütung im Jahr<span className="visually-hidden"> Vertrag {i + 1}</span>
-                  <input inputMode="decimal" value={v.verguetung} onChange={(e) => setVertrag(i, { verguetung: e.target.value })} required />
-                </label>
+                <Field
+                  label={
+                    <>
+                      Vertragsart<span className="visually-hidden"> Vertrag {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => (
+                    <input
+                      {...control}
+                      value={v.art}
+                      onChange={(e) => setVertrag(i, { art: e.target.value })}
+                      placeholder="z. B. Geschäftsführervertrag"
+                      required
+                    />
+                  )}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      Abschluss oder letzte Änderung<span className="visually-hidden"> Vertrag {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} type="date" value={v.datum} onChange={(e) => setVertrag(i, { datum: e.target.value })} required />}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      Vertragspartner<span className="visually-hidden"> Vertrag {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => <input {...control} value={v.partner} onChange={(e) => setVertrag(i, { partner: e.target.value })} required />}
+                </Field>
+                <Field
+                  label={
+                    <>
+                      Vergütung im Jahr<span className="visually-hidden"> Vertrag {i + 1}</span>
+                    </>
+                  }
+                >
+                  {(control) => (
+                    <input {...control} inputMode="decimal" value={v.verguetung} onChange={(e) => setVertrag(i, { verguetung: e.target.value })} required />
+                  )}
+                </Field>
               </div>
               <div>
                 <button type="button" className="btn btn-sm btn-danger" onClick={() => setVertraege(vertraege.filter((_, j) => j !== i))}>

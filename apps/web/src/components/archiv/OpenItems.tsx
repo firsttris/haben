@@ -6,6 +6,7 @@ import { errorMessage, formatDate } from "../../lib/format.ts";
 import { takeOverAllOpenItems, takeOverOpenItem, type getMigration } from "../../server/functions/archive.ts";
 import { Icon } from "../Icon.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
+import { Field } from "../Field.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type Item = MigrationData["openItems"][number];
@@ -156,10 +157,9 @@ function CutoffForm({ cutoff, error, disabled }: { cutoff: Cutoff; error: string
       </p>
       {!cutoff.fixed && (
         <form onSubmit={onSubmit} style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
-          <label className="field">
-            Stichtag (letzter Tag der alten Buchhaltung)
-            <input type="date" value={value} onChange={(e) => setValue(e.target.value)} required aria-describedby="cutoff-summary" disabled={disabled} />
-          </label>
+          <Field label="Stichtag (letzter Tag der alten Buchhaltung)" describedBy="cutoff-summary">
+            {(control) => <input {...control} type="date" value={value} onChange={(e) => setValue(e.target.value)} required disabled={disabled} />}
+          </Field>
           <button type="submit" className="btn" disabled={disabled || value === cutoff.date}>
             Stichtag ändern
           </button>

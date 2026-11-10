@@ -7,6 +7,7 @@ import { JOURNAL_SOURCE, SaldoBetrag, ZEITRAEUME, lastDayBefore, shortDate } fro
 import { formatDate } from "../../../lib/format.ts";
 import { getKontenblatt } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/konten/$konto")({
   validateSearch: z.object({
@@ -80,16 +81,21 @@ function KontenblattPage() {
           </h1>
         </div>
         <div className="actions" style={{ alignItems: "end" }}>
-          <label className="field">
-            Zeitraum
-            <select value={zeitraum} onChange={(e) => navigate({ to: "/konten/$konto", params: { konto }, search: { jahr: year, zeitraum: e.target.value } })}>
-              {ZEITRAEUME.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Zeitraum">
+            {(control) => (
+              <select
+                {...control}
+                value={zeitraum}
+                onChange={(e) => navigate({ to: "/konten/$konto", params: { konto }, search: { jahr: year, zeitraum: e.target.value } })}
+              >
+                {ZEITRAEUME.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
           <a className="btn" href={`/api/konten/${year}?zeitraum=${zeitraum}&konto=${konto}`}>
             CSV
           </a>

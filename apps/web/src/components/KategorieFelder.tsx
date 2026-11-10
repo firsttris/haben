@@ -1,5 +1,6 @@
 import { formatEuro, kategorieAnteil, type DirektKategorie } from "@haben/core";
 import { Link } from "@tanstack/react-router";
+import { Field } from "./Field.tsx";
 
 /** Kategorie und Steuersatz eines direkt gebuchten Bankumsatzes (packages/core/src/direkt-kategorie.ts) */
 export interface KategorieWahl {
@@ -43,37 +44,40 @@ export function KategorieFelder({
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="form-row cols-2">
-        <label className="field">
-          Kategorie
-          <select
-            value={value.kategorie}
-            onChange={(e) => {
-              const kategorie = e.target.value as DirektKategorie;
-              onChange({ kategorie, steuersatz: steuersatzFuer(options, kategorie) });
-            }}
-          >
-            {(["einnahme", "ausgabe"] as const).map((art) => (
-              <optgroup key={art} label={art === "einnahme" ? "Einnahmen" : "Ausgaben"}>
-                {options.kategorien
-                  .filter((k) => k.art === art)
-                  .map((k) => (
-                    <option key={k.value} value={k.value}>
-                      {k.label}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-        {mitAuswahl && (
-          <label className="field">
-            Steuersatz
-            <select value={value.steuersatz} onChange={(e) => onChange({ ...value, steuersatz: Number(e.target.value) })}>
-              <option value={1900}>19 %</option>
-              <option value={700}>7 %</option>
-              {(options.kleinunternehmer || ohneSteuer) && <option value={0}>ohne (Kleinunternehmer)</option>}
+        <Field label="Kategorie">
+          {(control) => (
+            <select
+              {...control}
+              value={value.kategorie}
+              onChange={(e) => {
+                const kategorie = e.target.value as DirektKategorie;
+                onChange({ kategorie, steuersatz: steuersatzFuer(options, kategorie) });
+              }}
+            >
+              {(["einnahme", "ausgabe"] as const).map((art) => (
+                <optgroup key={art} label={art === "einnahme" ? "Einnahmen" : "Ausgaben"}>
+                  {options.kategorien
+                    .filter((k) => k.art === art)
+                    .map((k) => (
+                      <option key={k.value} value={k.value}>
+                        {k.label}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
             </select>
-          </label>
+          )}
+        </Field>
+        {mitAuswahl && (
+          <Field label="Steuersatz">
+            {(control) => (
+              <select {...control} value={value.steuersatz} onChange={(e) => onChange({ ...value, steuersatz: Number(e.target.value) })}>
+                <option value={1900}>19 %</option>
+                <option value={700}>7 %</option>
+                {(options.kleinunternehmer || ohneSteuer) && <option value={0}>ohne (Kleinunternehmer)</option>}
+              </select>
+            )}
+          </Field>
         )}
       </div>
       <span className="small muted">

@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { saveNextNumber } from "../server/functions/invoices.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Field } from "./Field.tsx";
 
 export interface Numbering {
   kind: "rechnung" | "angebot";
@@ -39,10 +40,9 @@ export function NumberingCard({ numbering }: { numbering: Numbering }) {
         Nächste Nummer: <span className="mono">{numbering.next}</span>. Nummern werden erst beim Festschreiben vergeben und laufen lückenlos. Um nach Lexoffice
         oder sevDesk weiterzuzählen, die nächste laufende Nummer eintragen; zurücksetzen geht nicht.
       </p>
-      <label className="field">
-        Nächste laufende Nummer
-        <input name="next" type="number" min={numbering.last + 1} defaultValue={numbering.last + 1} required />
-      </label>
+      <Field label="Nächste laufende Nummer">
+        {(control) => <input {...control} name="next" type="number" min={numbering.last + 1} defaultValue={numbering.last + 1} required />}
+      </Field>
       <div className="actions">
         <button type="submit" className="btn" disabled={busy}>
           Übernehmen

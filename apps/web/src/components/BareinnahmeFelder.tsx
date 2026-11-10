@@ -1,4 +1,5 @@
 import { bareinnahmeText, type BareinnahmeAngabe } from "@haben/core";
+import { Field } from "./Field.tsx";
 
 /** Steuer einer Bareinnahme ohne Rechnung (#276); Kleinunternehmer ohne Umsatzsteuer, sonst 19 % oder 7 % */
 const OPTIONEN: { angabe: BareinnahmeAngabe; kleinunternehmer: boolean | null }[] = [
@@ -32,15 +33,20 @@ export function BareinnahmeFelder({
 }) {
   const optionen = passend(kleinunternehmer);
   return (
-    <label className="field">
-      Umsatzsteuer
-      <select value={wert(value)} onChange={(e) => onChange(optionen.find((o) => wert(o.angabe) === e.target.value)?.angabe ?? optionen[0]!.angabe)}>
-        {optionen.map((o) => (
-          <option key={wert(o.angabe)} value={wert(o.angabe)}>
-            {o.angabe.behandlung === "regulaer" ? `Regulär ${bareinnahmeText(o.angabe)}` : bareinnahmeText(o.angabe)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Field label="Umsatzsteuer">
+      {(control) => (
+        <select
+          {...control}
+          value={wert(value)}
+          onChange={(e) => onChange(optionen.find((o) => wert(o.angabe) === e.target.value)?.angabe ?? optionen[0]!.angabe)}
+        >
+          {optionen.map((o) => (
+            <option key={wert(o.angabe)} value={wert(o.angabe)}>
+              {o.angabe.behandlung === "regulaer" ? `Regulär ${bareinnahmeText(o.angabe)}` : bareinnahmeText(o.angabe)}
+            </option>
+          ))}
+        </select>
+      )}
+    </Field>
   );
 }

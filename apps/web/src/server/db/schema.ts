@@ -161,6 +161,11 @@ export const company = pgTable(
      * Änderung, die abgelaufene oder laufende Jahre mit Buchungen trifft, braucht eine ausdrückliche Bestätigung.
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
+    /**
+     * Voranmeldung und EÜR aus dem Journal ab diesem Jahr (#542, docs/adr/journal-als-quelle.md); null = ab dem Jahr der ersten
+     * Buchung. Davor rechnen sie aus den Nebenbüchern. Bestehende Instanzen beginnen mit dem Jahr nach dem Update (Migration).
+     */
+    journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */

@@ -1,9 +1,10 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { errorMessage } from "../../lib/format.ts";
 import { uploadArchiveFiles } from "../../server/functions/archive.ts";
 import { FilePicker } from "../FilePicker.tsx";
+import { Field } from "../Field.tsx";
 
 type Message = { tone: "ok" | "warn" | "danger"; text: string };
 type Kind = { value: "datev" | "idea" | "elster" | "kontoauszug" | "storebericht" | "sonstiges"; label: string };
@@ -12,7 +13,6 @@ export function ArchiveUpload({ kinds }: { kinds: Kind[] }) {
   const router = useRouter();
   const upload = useServerFn(uploadArchiveFiles);
   const fileInput = useRef<HTMLInputElement>(null);
-  const id = useId();
   const [kind, setKind] = useState<Kind["value"]>("datev");
   const [year, setYear] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,32 +55,31 @@ export function ArchiveUpload({ kinds }: { kinds: Kind[] }) {
   return (
     <form className="stack" onSubmit={onSubmit} style={{ gap: 12 }}>
       <div className="upload-row">
-        <label className="field" htmlFor={`${id}-kind`}>
-          Art
-          <select id={`${id}-kind`} value={kind} onChange={(event) => setKind(event.target.value as Kind["value"])}>
-            {kinds.map((k) => (
-              <option key={k.value} value={k.value}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field" htmlFor={`${id}-year`}>
-          Geschäftsjahr
-          <input
-            id={`${id}-year`}
-            inputMode="numeric"
-            placeholder={kind === "datev" ? "aus der Datei" : "z. B. 2024"}
-            required={kind !== "datev"}
-            pattern="[0-9]{4}"
-            value={year}
-            onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
-          />
-        </label>
-        <label className="field" htmlFor={`${id}-files`}>
-          Dateien
-          <FilePicker id={`${id}-files`} inputRef={fileInput} multiple ariaLabel="Dateien für das Archiv" />
-        </label>
+        <Field label="Art">
+          {(control) => (
+            <select {...control} value={kind} onChange={(event) => setKind(event.target.value as Kind["value"])}>
+              {kinds.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Geschäftsjahr">
+          {(control) => (
+            <input
+              {...control}
+              inputMode="numeric"
+              placeholder={kind === "datev" ? "aus der Datei" : "z. B. 2024"}
+              required={kind !== "datev"}
+              pattern="[0-9]{4}"
+              value={year}
+              onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
+            />
+          )}
+        </Field>
+        <Field label="Dateien">{(control) => <FilePicker {...control} inputRef={fileInput} multiple ariaLabel="Dateien für das Archiv" />}</Field>
       </div>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>

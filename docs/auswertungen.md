@@ -28,6 +28,8 @@ Oben wählst du das Jahr (Vor- und Folgejahr per Pfeil, dazu alle Jahre mit Bank
 
 Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde. Die Berechnung steht in `packages/core/src/euer.ts`, die Daten sammelt `apps/web/src/server/modules/auswertungen/reports.ts`.
 
+**Ab dem Stichjahr aus dem Journal.** Im Einzelunternehmen rechnet Haben die EÜR ab dem Stichjahr ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen)) wie DATEV aus den Buchungen; in GmbH und UG, die bilanzieren, bleibt die Übersicht nach Zahlung aus Rechnungen, Belegen und Zahlungen, sonst zählten Abschlussbuchungen wie Rückstellungen als Ausgabe: Eine Buchung ohne Forderung oder Verbindlichkeit (Bank, Kasse, privat bezahlt, Pauschale) zählt mit ihrem Datum nach ihren Konten; eine Rechnung bzw. ein Beleg auf Ziel zählt mit jeder Zahlung anteilig, gerundet wie die Zahlung. AfA und Privatnutzung kommen aus dem Journal, sobald das Jahr gebucht ist, vorher aus dem Anlagenverzeichnis. Für aus Lexoffice übernommene Rechnungen und Belege verteilt Haben die Zahlung auf die Zeilen, die es für Rechnung bzw. Beleg gebucht hätte. Was unten steht, gilt in beiden Fällen; die Rechnung aus Rechnungen, Belegen und Zahlungen bleibt die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
+
 ### Was zählt
 
 | Quelle | Datum | EÜR-Position |
