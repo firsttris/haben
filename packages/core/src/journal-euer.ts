@@ -3,6 +3,7 @@ import { DARLEHEN_KONTEN } from "./darlehen.ts";
 import type { EuerLineKey } from "./euer.ts";
 import type { JournalZeile } from "./journal-kennzahlen.ts";
 import { kontoart } from "./ledger.ts";
+import { isSachentnahmeKonto } from "./manual.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 import { PAUSCHALE_KONTEN, type PauschaleArt } from "./pauschalen.ts";
@@ -38,6 +39,7 @@ const EINNAHMEN: ReadonlySet<EuerLineKey> = new Set<EuerLineKey>([
   "einnahmenSteuerpflichtig",
   "einnahmenSteuerfrei",
   "privateKfz",
+  "sachentnahmen",
   "ustEntnahmen",
   "vereinnahmteUst",
   "kursgewinne",
@@ -83,6 +85,7 @@ export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herku
   // Privatnutzung von Fahrzeugen
   const privat = PRIVATE_USE_ACCOUNTS[kontenrahmen];
   if (account === privat.mitUst || account === privat.ohneUst) return "privateKfz";
+  if (isSachentnahmeKonto(kontenrahmen, account)) return "sachentnahmen";
   // Anlagen: AfA, GWG, Sammelposten, Restbuchwert; die Anschaffung selbst wirkt nicht
   const anlage = ASSET_ACCOUNTS[kontenrahmen];
   // Das GWG-Konto ist bei einer Anlage Anlagevermögen, bei einem Beleg die Kategorie „Hardware“ (unten)

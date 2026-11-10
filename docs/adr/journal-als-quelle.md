@@ -173,6 +173,6 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   bezahlten Rechnungen braucht sie so rund 50 statt 550 ms.
   Schritt 3: freie Buchungen (`freie-buchung.ts` in core, `manual.ts`): Steuerschlüssel `USt19`, `USt7`, `frei` auf den
   Erlöskonten 19 %, 7 % und 0 %, im Einzelunternehmen auch ohne Schlüssel erst ab dem Stichjahr. Die Gegenprobe im
-  Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Abweichend vom Entwurf noch ohne
-  die Sachentnahme (SKR03 8910, SKR04 4620): Für ihre eigene Zeile der Anlage EÜR und die Kennzahl fehlt hier noch die
-  geprüfte Zuordnung im ELSTER-Formular; sie folgt mit eigenem Pull Request.
+  Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Die Sachentnahme
+  (SKR03 8910/8915, SKR04 4620/4630 für 19 bzw. 7 %) bucht nur mit Schlüssel; in der EÜR steht sie in der eigenen Zeile
+  `sachentnahmen` („Sonstige Sach-, Nutzungs- und Leistungsentnahmen“), ihre Steuer bei der vereinnahmten Umsatzsteuer.

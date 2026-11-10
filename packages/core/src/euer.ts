@@ -109,6 +109,7 @@ export type EuerLineKey =
   | "einnahmenSteuerpflichtig"
   | "einnahmenSteuerfrei"
   | "privateKfz"
+  | "sachentnahmen"
   | "ustEntnahmen"
   | "vereinnahmteUst"
   | "erstatteteUst"
@@ -158,6 +159,7 @@ export const EUER_LABELS = {
   einnahmenSteuerpflichtig: "Umsatzsteuerpflichtige Betriebseinnahmen (netto)",
   einnahmenSteuerfrei: "Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen",
   privateKfz: "Private Kfz-Nutzung",
+  sachentnahmen: "Sonstige Sach-, Nutzungs- und Leistungsentnahmen",
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
   ustEntnahmen: "Umsatzsteuer auf unentgeltliche Wertabgaben",
   erstatteteUst: "Vom Finanzamt erstattete Umsatzsteuer",
@@ -404,13 +406,23 @@ export function euerErgebnis(
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
   const optional = (
-    key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal" | "steuerNebenleistungen" | "schuldzinsenAnlage" | "schuldzinsen",
+    key:
+      | "privateKfz"
+      | "sachentnahmen"
+      | "ustEntnahmen"
+      | "kursgewinne"
+      | "kursverluste"
+      | "personal"
+      | "steuerNebenleistungen"
+      | "schuldzinsenAnlage"
+      | "schuldzinsen",
   ) => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
     line("einnahmenSteuerfrei", EUER_LABELS.einnahmenSteuerfrei),
     ...optional("privateKfz"),
+    ...optional("sachentnahmen"),
     ...optional("kursgewinne"),
     line("vereinnahmteUst", EUER_LABELS.vereinnahmteUst),
     ...optional("ustEntnahmen"),
