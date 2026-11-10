@@ -2,7 +2,8 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { datevGuidFound, datevInternalId, datevVoucherFound } from "./datev-belegnummer.ts";
+import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt } from "./datev-belegnummer.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 
@@ -167,7 +168,10 @@ export async function listDatevBookings(filter: { year: number; search: string; 
       )!,
     );
   }
-  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql}`);
+  // Dieselbe Ausnahme wie im Abgleich (reconciliation): Privat, Geldtransit, Vortrag und Accountable-Erlöse brauchen keinen Beleg
+  const { kontenrahmen } = await loadCompany();
+  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
   const where = and(...conditions);
   const pageSize = 100;
   const [rows, [total]] = await Promise.all([
@@ -184,7 +188,7 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
         // Eine interne Kennung ist nichts, wozu ein Beleg fehlt
-        matched: sql<boolean>`${matchedSql} or ${internalIdSql}`,
+        matched: sql<boolean>`${matchedSql} or ${internalIdSql} or ${withoutReceiptSql}`,
         filename: schema.archiveFiles.filename,
       })
       .from(schema.datevBookings)
