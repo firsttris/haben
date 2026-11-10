@@ -167,7 +167,9 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
           </label>
         </div>
 
-        <table className="report-table">
+        {/* Am Handy scrollt die Tabelle für sich (styles.css); relativ, damit die unsichtbaren Spaltennamen (visually-hidden,
+            absolut) im Scrollbereich bleiben und die Seite nicht verbreitern */}
+        <table className="report-table" style={{ position: "relative" }}>
           <caption className="visually-hidden">Buchungszeilen</caption>
           <thead>
             <tr>
