@@ -85,27 +85,24 @@ export function LayoutsCard({ design, layouts }: { design: LetterheadDesign; lay
             <tr key={type}>
               <td>{LAYOUT_DOCUMENT_LABELS[type]}</td>
               <td>
-                <div className="field">
-                  <select
-                    aria-label={`Layout für ${LAYOUT_DOCUMENT_LABELS[type]}`}
-                    value={refValue(design.layouts[type])}
-                    disabled={busy}
-                    onChange={(event) => void onAssign(type, event.target.value)}
-                  >
-                    {BUILTIN_LAYOUTS.map((entry) => (
-                      <option key={entry.id} value={refValue(entry)}>
-                        {entry.name} (eingebaut)
-                      </option>
-                    ))}
-                    {layouts
-                      .filter((layout) => layout.art === artFor(type))
-                      .map((layout) => (
-                        <option key={layout.id} value={`eigen:${layout.id}`}>
-                          {layout.name}
+                <Field label={`Layout für ${LAYOUT_DOCUMENT_LABELS[type]}`} hideLabel>
+                  {(control) => (
+                    <select {...control} value={refValue(design.layouts[type])} disabled={busy} onChange={(event) => void onAssign(type, event.target.value)}>
+                      {BUILTIN_LAYOUTS.map((entry) => (
+                        <option key={entry.id} value={refValue(entry)}>
+                          {entry.name} (eingebaut)
                         </option>
                       ))}
-                  </select>
-                </div>
+                      {layouts
+                        .filter((layout) => layout.art === artFor(type))
+                        .map((layout) => (
+                          <option key={layout.id} value={`eigen:${layout.id}`}>
+                            {layout.name}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </Field>
               </td>
             </tr>
           ))}
