@@ -83,6 +83,8 @@ test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", asyn
   const page = await einstellungen(browser);
   await datei(page, "Rotes Angebot", `${await startvorlage(page)}\n${ROT}\n`);
   await expect(hochladen(page).locator(".banner")).toContainText("Geprüft und gespeichert");
+  // Die Dateiauswahl ist danach wieder leer, für das nächste Layout
+  await expect(hochladen(page).getByText("Keine Datei gewählt")).toBeVisible();
   const auswahl = karte(page).getByLabel("Layout für Angebot");
   try {
     await auswahl.selectOption({ label: "Rotes Angebot" });

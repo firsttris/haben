@@ -7,6 +7,7 @@ import { useAction } from "../lib/use-action.ts";
 import { assignLayoutFn, reloadLayoutPackages, removeLayout, renameLayoutFn, replaceLayout, uploadLayout } from "../server/functions/layouts.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
+import { FilePicker } from "./FilePicker.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 export interface LayoutRow {
@@ -307,6 +308,8 @@ function LayoutUpload() {
   const [name, setName] = useState("");
   const [art, setArt] = useState<"beleg" | "mahnung">("beleg");
   const [file, setFile] = useState<File | null>(null);
+  // Neuer key leert die Dateiauswahl samt Anzeige nach dem Speichern
+  const [saved, setSaved] = useState(0);
   const [approving, setApproving] = useState<{ source: string; packages: string[] } | null>(null);
 
   const send = (source: string, approve?: string[]) =>
@@ -318,6 +321,7 @@ function LayoutUpload() {
       }
       setName("");
       setFile(null);
+      setSaved((n) => n + 1);
       await router.invalidate();
     }, "Geprüft und gespeichert. Ordne es oben einer Belegart zu, damit es gilt.");
 
@@ -341,7 +345,9 @@ function LayoutUpload() {
           )}
         </Field>
         <Field label="Typst-Datei" hint=".typ, bis 256 KB">
-          {(control) => <input {...control} type="file" accept=".typ,text/plain" required onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
+          {(control) => (
+            <FilePicker key={saved} {...control} accept=".typ,text/plain" required onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          )}
         </Field>
       </div>
       <div className="actions">
