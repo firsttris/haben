@@ -1188,6 +1188,7 @@ export function InvoiceEditor({
                     />
                   </LineCell>
                   <LineCell label="Einheit">
+                    {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
                     <select
                       aria-label={`Einheit Position ${index + 1}`}
                       value={line.unit}
@@ -1223,6 +1224,7 @@ export function InvoiceEditor({
                     />
                   </LineCell>
                   <LineCell label="USt">
+                    {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
                     <select
                       aria-label={`Steuersatz Position ${index + 1}`}
                       value={line.taxRate}
