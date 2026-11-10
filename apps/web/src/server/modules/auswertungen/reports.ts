@@ -35,8 +35,11 @@ function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]
 }
 
 /** Summen je Beleg; reverseCharge sind die Belege mit selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
-async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<{ totals: Map<string, InvoiceTotals>; reverseCharge: Set<string> }> {
-  if (ids.length === 0) return { totals: new Map(), reverseCharge: new Set() };
+async function documentTotalsById(
+  ids: string[],
+  q: Db | Tx = db,
+): Promise<{ totals: Map<string, InvoiceTotals>; reverseCharge: Set<string>; selbstGeschuldet: Map<string, number[]> }> {
+  if (ids.length === 0) return { totals: new Map(), reverseCharge: new Set(), selbstGeschuldet: new Map() };
   const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
   const reverseCharge = new Set(
     (
@@ -54,7 +57,11 @@ async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<{ tot
       return [id, documentTotals(reverseCharge.has(id) ? rows.map((a) => ({ ...a, tax: 0 })) : rows)];
     }),
   );
-  return { totals, reverseCharge };
+  return {
+    totals,
+    reverseCharge,
+    selbstGeschuldet: new Map([...reverseCharge].map((id) => [id, amounts.filter((a) => a.documentId === id).map((a) => a.tax)])),
+  };
 }
 
 /**
@@ -204,7 +211,11 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
     q,
   );
-  const { totals: docTotals, reverseCharge } = await documentTotalsById(
+  const {
+    totals: docTotals,
+    reverseCharge,
+    selbstGeschuldet,
+  } = await documentTotalsById(
     [
       ...new Set([
         ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
@@ -214,13 +225,15 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     ],
     q,
   );
-  // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs
+  // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs; § 13b: die selbst geschuldete Steuer
   const docSplits = await splitsByDocument([...docTotals.keys()], q);
-  const splitsOf = (documentId: string) => {
+  const belegAngaben = (documentId: string) => {
     const splits = docSplits.get(documentId);
-    if (!splits) return {};
+    const steuer = selbstGeschuldet.get(documentId);
+    const rc = steuer ? { selbstGeschuldet: steuer } : {};
+    if (!splits) return rc;
     // § 13b (#508): Die Zeilen tragen ihren Anteil der selbst geschuldeten Steuer; gezahlt ist wie in docTotals nur netto
-    return { splits: reverseCharge.has(documentId) ? splits.map((line) => ({ ...line, tax: 0 })) : splits };
+    return { ...rc, splits: reverseCharge.has(documentId) ? splits.map((line) => ({ ...line, tax: 0 })) : splits };
   };
 
   const payments: EuerPayment[] = [];
@@ -249,7 +262,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(a.category) ? a.category : "sonstiges",
         vorsteuerAbzug: a.vorsteuerAbzug ?? true,
         privateShare: a.privateShare ?? 0,
-        ...splitsOf(a.documentId),
+        ...belegAngaben(a.documentId),
         group,
       });
     } else if (
@@ -308,7 +321,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(w.category) ? w.category : "sonstiges",
         vorsteuerAbzug: w.vorsteuerAbzug ?? true,
         privateShare: w.privateShare ?? 0,
-        ...splitsOf(w.documentId),
+        ...belegAngaben(w.documentId),
         group,
       });
     }
@@ -341,7 +354,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     category: isCategory(d.category) ? d.category : "sonstiges",
     vorsteuerAbzug: d.vorsteuerAbzug,
     privateShare: d.privateShare,
-    ...splitsOf(d.id),
+    ...belegAngaben(d.id),
   });
   for (const d of privateDocs) payments.push(documentPayment(d, d.date!, d.gross));
   for (const d of cancelledDocs) payments.push(documentPayment(d, d.date, -d.gross));

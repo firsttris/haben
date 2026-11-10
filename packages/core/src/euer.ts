@@ -43,6 +43,8 @@ export type EuerPayment =
       privateShare?: number;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
       splits?: AllocatedSplitLine[];
+      /** § 13b und Erwerb: selbst geschuldete Steuer des ganzen Belegs je Steuersatz (totals tragen dann keine Steuer) */
+      selbstGeschuldet?: readonly Cents[];
       group?: string;
     }
   | {
@@ -281,6 +283,13 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           bewirtungNichtAbziehbar += nichtAbziehbar;
           add(`ausgabe:${category}`, ausgabe - nichtAbziehbar);
           monthlyOut[month]! += ausgabe - nichtAbziehbar;
+        }
+        {
+          // § 13b und Erwerb: Der private Teil der selbst geschuldeten Steuer ist keine Vorsteuer, geht aber mit der
+          // Voranmeldung ans Finanzamt (gezahlteUst). Wie bei DATEV zählt er als Umsatzsteuer auf die Entnahme; anteilig
+          // zur Zahlung, Vorzeichen wie der Beleg
+          const privat = (p.selbstGeschuldet ?? []).reduce((s, steuer) => s + splitPrivateShare(steuer, p.privateShare ?? 0).private, 0);
+          if (privat !== 0 && p.totals.gross !== 0) add("vereinnahmteUst", roundHalfAwayFromZero((privat * p.sum) / p.totals.gross));
         }
         break;
       case "ustVorauszahlung":
