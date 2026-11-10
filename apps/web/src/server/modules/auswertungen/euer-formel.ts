@@ -48,17 +48,21 @@ function offenerAnteil(
   let summe = 0;
   for (const [key, p] of posten) {
     const bis = p.gebucht.filter((b) => datum.get(b.id)! <= stichtag);
-    if (bis.length === 0) continue;
-    const kr: Kontenrahmen = bis[0]!.kontenrahmen;
-    const zeilen = bis.flatMap((b) =>
-      b.zeilen.filter((z) => !offenerPosten(b.kontenrahmen, z)).map((z) => ({ ...z, ausserhalb: !zaehlt(b, z.account, anlagen) })),
-    );
-    const gesamt = bis.flatMap((b) => b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z))).reduce((s, z) => s + z.debit - z.credit, 0);
-    const ausserhalb = zeilen.filter((z) => z.ausserhalb).reduce((s, z) => s + z.debit - z.credit, 0);
-    if (gesamt === 0 || ausserhalb === 0) continue;
     const zahlungen = (ausgleiche.get(key) ?? [])
       .filter((b) => datum.get(b.id)! <= stichtag)
       .map((b) => -b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0));
+    // Im Voraus bezahlt (Zahlung vor dem Belegdatum): verteilt wird auf die spätere Buchung, gebucht ist noch nichts
+    if (bis.length === 0 && zahlungen.length === 0) continue;
+    const verteilt = bis.length > 0 ? bis : p.gebucht;
+    const kr: Kontenrahmen = verteilt[0]!.kontenrahmen;
+    const zeilen = verteilt.flatMap((b) =>
+      b.zeilen.filter((z) => !offenerPosten(b.kontenrahmen, z)).map((z) => ({ ...z, ausserhalb: !zaehlt(b, z.account, anlagen) })),
+    );
+    const gesamt = verteilt.flatMap((b) => b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z))).reduce((s, z) => s + z.debit - z.credit, 0);
+    const ausserhalbVerteilt = zeilen.filter((z) => z.ausserhalb).reduce((s, z) => s + z.debit - z.credit, 0);
+    if (gesamt === 0 || ausserhalbVerteilt === 0) continue;
+    // Was davon schon gebucht ist; im Voraus bezahlt noch nichts
+    const ausserhalb = bis.length > 0 ? ausserhalbVerteilt : 0;
     const ausgeglichen = zahlungen.reduce((s, v) => s + v, 0);
     let bezahlt: Cents;
     if (p.beleg) {
@@ -95,8 +99,8 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
   const ende = `${year}-12-31`;
   const vorjahr = `${year - 1}-12-31`;
   const jahr = await buchungen(q, ohneEroeffnung(and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`))));
-  // Rechnungen und Belege auf Ziel bis zum Jahresende
-  const aufZiel = (await buchungen(q, ohneEroeffnung(and(lt(e.date, `${year + 1}-01-01`), inArray(e.sourceType, ["invoice", "document"]))))).filter((b) =>
+  // Rechnungen und Belege auf Ziel, auch mit späterem Datum: eine Zahlung kann vor dem Belegdatum liegen (Vorkasse)
+  const aufZiel = (await buchungen(q, ohneEroeffnung(inArray(e.sourceType, ["invoice", "document"])))).filter((b) =>
     b.zeilen.some((z) => offenerPosten(b.kontenrahmen, z)),
   );
   // Belege der Kategorie Anlage: das GWG-Konto ist dort Anlagevermögen
@@ -126,10 +130,7 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
   // Auch die übrigen Buchungen derselben Rechnung bzw. desselben Belegs (Storno): sie gehören zum selben Posten
   const ids = [...new Set(ursprung.map((b) => b.sourceId))];
   if (ids.length > 0) {
-    for (const b of await buchungen(
-      q,
-      ohneEroeffnung(and(lt(e.date, `${year + 1}-01-01`), inArray(e.sourceId, ids), inArray(e.sourceType, ["invoice", "document"]))),
-    )) {
+    for (const b of await buchungen(q, ohneEroeffnung(and(inArray(e.sourceId, ids), inArray(e.sourceType, ["invoice", "document"]))))) {
       const key = `${b.sourceType}|${b.sourceId}`;
       const vorhanden = posten.get(key);
       if (vorhanden && !vorhanden.gebucht.some((x) => x.id === b.id)) vorhanden.gebucht.push(b);
