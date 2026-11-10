@@ -2,7 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { renderDocumentPreview } from "../server/functions/invoices.ts";
 import type { DocumentPreview, DocumentPreviewInput } from "../server/modules/rechnungen/index.ts";
-import { outdatedAfterRender, renderDelay, rendersOnDemand } from "./vorschau-render.ts";
+import { afterRender, renderDelay, rendersOnDemand } from "./vorschau-render.ts";
 
 export type LoadedSheet = Omit<DocumentPreview, "svg" | "ms"> & { url: string };
 
@@ -23,6 +23,8 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
   current.current = input;
   const currentKey = useRef(key);
   currentKey.current = key;
+  const again = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const loadRef = useRef<() => Promise<void>>(async () => {});
 
   const load = useCallback(async () => {
     const run = ++latest.current;
@@ -40,12 +42,16 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
       lastMs.current = ms;
       setSheet({ ...rest, url: next });
       setFailure(null);
-      // Wer während eines langsamen Laufs weitertippt, sieht weiter den Knopf
-      setOutdated(outdatedAfterRender(requested, currentKey.current, ms));
+      // Wer während eines Laufs weitertippt, sieht bei langsamen den Knopf, bei schnellen setzt Haben gleich neu
+      const folge = afterRender(requested, currentKey.current, ms);
+      setOutdated(folge === "knopf");
+      clearTimeout(again.current);
+      if (folge === "neu") again.current = setTimeout(() => void loadRef.current(), renderDelay(ms));
     } catch (error) {
       if (run === latest.current) setFailure(error instanceof Error ? error.message : "Die Vorschau ließ sich nicht erzeugen.");
     }
   }, [render]);
+  loadRef.current = load;
 
   const shown = useRef<string | null>(null);
   useEffect(() => {
@@ -67,6 +73,7 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
   useEffect(
     () => () => {
       latest.current++;
+      clearTimeout(again.current);
       if (url.current) URL.revokeObjectURL(url.current);
     },
     [],

@@ -7,5 +7,11 @@ export const renderDelay = (lastMs: number): number => Math.max(RENDER_MIN_DELAY
 
 export const rendersOnDemand = (lastMs: number): boolean => lastMs > RENDER_MANUAL_ABOVE_MS;
 
-/** Nach einem Lauf: Hat sich das Formular inzwischen geändert und rendert nur der Knopf neu, bleibt der Hinweis stehen */
-export const outdatedAfterRender = (renderedKey: string, currentKey: string, ms: number): boolean => rendersOnDemand(ms) && renderedKey !== currentKey;
+/**
+ * Nach einem Lauf: Passt das Blatt zum Formular, ist es fertig. Sonst bleibt bei langsamen Läufen der Knopf, bei
+ * schnellen wird gleich neu gesetzt; die Entprellung der Eingabe hatte noch mit der alten Renderzeit gerechnet.
+ */
+export function afterRender(renderedKey: string, currentKey: string, ms: number): "fertig" | "knopf" | "neu" {
+  if (renderedKey === currentKey) return "fertig";
+  return rendersOnDemand(ms) ? "knopf" : "neu";
+}

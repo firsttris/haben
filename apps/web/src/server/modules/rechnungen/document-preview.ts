@@ -91,7 +91,11 @@ export const documentPreviewSchema = z.object({
   variant: z.enum(["abschlag", "schluss"]).nullable(),
   corrects: z.object({ number: z.string().nullable(), issueDate: z.string() }).nullable(),
   currency: z.string().max(3),
-  skonto: z.array(z.object(skontoStufeSchema.shape)).max(10),
+  // Beim Tippen lässt der Editor auch Fristen über 120 Tage durch; solche Stufen fehlen auf dem Blatt, wie das Speichern sie ablehnt
+  skonto: z
+    .array(z.object({ days: z.number(), percent: z.number() }))
+    .max(10)
+    .transform((stufen) => stufen.filter((stufe) => skontoStufeSchema.safeParse(stufe).success)),
   sepaMandateId: z.uuid().nullable(),
   design: letterheadDesignInputSchema,
 });
