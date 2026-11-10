@@ -323,9 +323,16 @@ describe("DATEV-Export aus Buchhaltungsversion 1.0", () => {
     expect([...beleglinks].sort()).toEqual([...xml].sort());
   });
 
-  it("führt keine UUID im Belegfeld", () => {
+  // Belegfelder sind auf 1 und X maskiert, eine UUID hätte hier dieselbe Form.
+  const maskierteUuid = /[1X]{8}-[1X]{4}-[1X]{4}-[1X]{4}-[1X]{12}/;
+
+  it("erkennt eine maskierte UUID", () => {
+    expect("1XX1X11X-1X1X-1X1X-1X11-1X1XX1X11X1X").toMatch(maskierteUuid);
+  });
+
+  it("führt keine maskierte UUID im Belegfeld", () => {
     const belegfelder = buchungen.map((b) => b.voucherField1).filter(Boolean);
     expect(belegfelder.length).toBeGreaterThan(0);
-    for (const feld of belegfelder) expect(feld).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i);
+    for (const feld of belegfelder) expect(feld).not.toMatch(maskierteUuid);
   });
 });
