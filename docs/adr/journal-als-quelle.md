@@ -104,20 +104,34 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
 
 - Eingabe: Datum, Text, Soll-Konto, Haben-Konto, Betrag (brutto) und ein **Steuerschlüssel**. Haben teilt in Netto und
   Steuer und bucht die Steuerzeile auf das Konto des Schlüssels, wie die DATEV-Automatik; die Netto-Zeile trägt den
-  Schlüssel.
-- **Erlaubte Schlüssel**, ausdrücklich: `USt19`, `USt7` und `frei` auf ein Erlöskonto; `VSt19`, `VSt7` und `keineVSt` auf
-  ein Aufwandskonto. Nicht erlaubt sind § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer (ohne Brutto, das
-  sich teilen ließe; die Einfuhrumsatzsteuer braucht den Bescheid), Reverse Charge und innergemeinschaftliche Lieferung
-  (sie gehören in die Zusammenfassende Meldung, die aus den Rechnungen rechnet), Ausfuhr und Drittland (ohne
-  Ausfuhrnachweis bzw. Rechnung). Als Kleinunternehmer (Stand am Buchungstag) gibt es keinen Steuerschlüssel
-  (§ 19 Abs. 1 UStG).
-- **Gegenkonto** einer Zeile mit Steuerschlüssel ist ein Erfolgs- oder ein Privatkonto (Sachentnahme, Einlage). Konten,
-  die ein Nebenbuch führt (Forderungen, Verbindlichkeiten, Kasse, Bank), Steuerkonten direkt und Anlagekonten sind
-  ausgeschlossen. Damit gibt es keinen Verkauf auf Ziel ohne Rechnung, dessen Steuer bei Ist erst mit der Zahlung entstünde
-  (§ 13 Abs. 1 Nr. 1 Buchst. b UStG).
-- **Datum:** nicht in einem Zeitraum, dessen Voranmeldung gesendet ist. Das **Storno** einer freien Buchung bucht wie das
-  eines Belegs in den laufenden Zeitraum, wenn der ursprüngliche schon gemeldet ist (`belege/cancellation.ts`,
-  `periodReported`).
+  Schlüssel. Die automatische Steuerzeile ist erlaubt, obwohl `manualPostingIssues` Umsatzsteuerkonten sonst als Nebenbuch
+  sperrt; von Hand bebucht werden sie weiter nicht.
+- **Erlaubte Schlüssel**, ausdrücklich: `USt19`, `USt7` und `frei` auf ein Konto der festen Liste für Erlöse und
+  Entnahmen. Keine Vorsteuer: Eine freie Buchung ist ein Eigenbeleg, der Vorsteuerabzug braucht eine Rechnung
+  (§ 15 Abs. 1 Nr. 1 Satz 2 UStG, §§ 14, 14a UStG); dafür gibt es Belege, auch privat bezahlt. Aufwand ohne Vorsteuer bucht
+  eine freie Buchung ohne Schlüssel bzw. mit `keineVSt`. Nicht erlaubt sind § 13b, innergemeinschaftlicher Erwerb und
+  Einfuhrumsatzsteuer (ohne Brutto, das sich teilen ließe; die Einfuhrumsatzsteuer braucht den Bescheid), Reverse Charge
+  und innergemeinschaftliche Lieferung (sie gehören in die Zusammenfassende Meldung, die aus den Rechnungen rechnet),
+  Ausfuhr, Drittland und `Steuerfrei` (ohne Nachweis bzw. Rechnung). Als Kleinunternehmer (Stand am Buchungstag) gibt es
+  keinen Steuerschlüssel (§ 19 Abs. 1 UStG).
+- **Feste Kontenliste je SKR03 und SKR04**, jedes Konto mit einer EÜR-Zeile: die Erlöskonten 19 %, 7 % und 0 % (die
+  `manualPostingIssues` heute als Nebenbuch Rechnungen sperrt, für freie Buchungen mit Schlüssel geöffnet) und die
+  Sachentnahme (SKR03 8910, SKR04 4620; unentgeltliche Wertabgabe nach § 3 Abs. 1b UStG). Die Sachentnahme bekommt eine
+  eigene Zeile der Anlage EÜR („Sonstige Sach-, Nutzungs- und Leistungsentnahmen“, § 6 Abs. 1 Nr. 4 Satz 1 EStG), ihre
+  Umsatzsteuer zählt wie bei der Privatnutzung als Umsatzsteuer auf unentgeltliche Wertabgaben. Die Konten der
+  Privatnutzung von Fahrzeugen sind ausgeschlossen; sie rechnet das Anlagenverzeichnis, sonst zählte sie doppelt.
+- **Gegenkonto** einer Zeile mit Steuerschlüssel ist im Einzelunternehmen ein Erfolgs- oder ein Privatkonto (Entnahme,
+  Einlage), in GmbH und UG ein Erfolgskonto oder das Gesellschafter-Verrechnungskonto (unentgeltliche Wertabgabe an
+  Gesellschafter, § 3 Abs. 1b Nr. 2 UStG); Privatkonten gibt es dort nicht. Konten, die ein Nebenbuch führt (Forderungen,
+  Verbindlichkeiten, Kasse, Bank), Steuerkonten direkt und Anlagekonten sind ausgeschlossen. Damit gibt es keinen Verkauf
+  auf Ziel ohne Rechnung, dessen Steuer bei Ist erst mit der Zahlung entstünde (§ 13 Abs. 1 Nr. 1 Buchst. b UStG).
+- **Datum:** nicht in einem gemeldeten Zeitraum nach derselben Regel wie beim Storno eines Belegs (`periodReported` in
+  `belege/cancellation.ts`, dann über `belege/index.ts`): gesendete Voranmeldung, gesendete Umsatzsteuererklärung des
+  Jahres (auch ohne Voranmeldungspflicht) oder abgeschlossenes Jahr.
+- **Storno:** Die Gegenbuchung übernimmt die Steuerschlüssel (und Bemessungsgrundlagen) der Zeilen, damit sich auch die
+  Bemessungsgrundlagen aufheben. Sie bucht in den laufenden Zeitraum, wenn der ursprüngliche gemeldet ist, wie beim Beleg.
+  Liegt dazwischen ein Wechsel des Kontenrahmens, überträgt sie die Konten wie #570 (`kontoImKontenrahmen`); die Konten der
+  festen Liste haben alle eine Entsprechung, sonst lehnt Haben ab.
 - Unbekannte Kombinationen lehnt Haben vor dem Buchen ab; Buchungen sind sofort festgeschrieben.
 - Freie Buchungen mit Steuerschlüssel gibt es nur ab dem Stichjahr, in jeder Rechtsform; davor sähe die Voranmeldung aus
   den Nebenbüchern sie nicht. Im Einzelunternehmen wirken sie ab dem Stichjahr auch in der EÜR.
@@ -137,5 +151,6 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
 - **Entschieden:** Stichjahr statt Umbau; Vorziehen auf das laufende Jahr nur mit sauberem Abgleich und ohne gesendete
   Voranmeldung; Kennzahlen und EÜR wie DATEV aus dem Journal; Privatnutzung in der Voranmeldung immer aus dem
   Anlagenverzeichnis, AfA und Privatnutzung in der EÜR vor dem Buchen ebenso; Lexoffice-Zahlungen aus dem Nebenbuch;
-  freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel.
+  freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel und Konten,
+  ohne Vorsteuer (Eigenbeleg), Storno mit Steuerschlüssel.
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
