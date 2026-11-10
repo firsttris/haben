@@ -122,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Anlagen
   }
 
   it.each([
-    ["SKR03", "0650", "1200", "03"],
+    ["SKR03", "0420", "1200", "03"],
     ["SKR04", "0650", "1800", "04"],
   ] as const)("%s: Anlage über das Kreditorenkonto behält ihre Vorsteuer (Kz 66)", async (skr, asset, bank, code) => {
     await company(skr, "soll", "gmbh");
@@ -189,5 +189,67 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Anlagen
     const y = await year2023();
     expect(y.ausgaben.gross).toBe(0);
     expect(y.neutral).toMatchObject([{ count: 1 }]);
+  });
+
+  it.each([
+    ["SKR03", "2200", "1200", "03"],
+    ["SKR04", "7600", "1800", "04"],
+  ] as const)("GmbH %s: Körperschaftsteuer (%s) mit Bescheid ist keine Ausgabe", async (skr, account, bank, code) => {
+    await company(skr, "soll", "gmbh");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts([{ id: "1", debit: account, credit: bank, bu: "", rate: "0", receipt: true, amount: "5.000,00" }], code),
+    );
+    const y = await year2023();
+    expect(y.ausgaben.gross).toBe(0);
+    expect(y.neutral).toMatchObject([{ kind: "ertragsteuern", count: 1 }]);
+  });
+
+  it("GmbH SKR04: Kfz-Steuer (7685) bleibt eine Ausgabe", async () => {
+    await company("SKR04", "soll", "gmbh");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts([{ id: "1", debit: "7685", credit: "1800", bu: "", rate: "0", receipt: true, amount: "180,00" }], "04"),
+    );
+    const y = await year2023();
+    expect(y.ausgaben.gross).toBe(18000);
+    expect(y.neutral).toEqual([]);
+  });
+
+  it("SKR04: Erstattung der Kfz-Steuer (1800 an 7685) mindert die Ausgaben wie in SKR03 (1200 an 4510)", async () => {
+    await company("SKR03", "soll", "einzelunternehmen");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts([{ id: "1", debit: "1200", credit: "4510", bu: "", rate: "0", receipt: true, amount: "50,00" }], "03"),
+    );
+    const skr03 = await year2023();
+    await company("SKR04", "soll", "einzelunternehmen");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts([{ id: "1", debit: "1800", credit: "7685", bu: "", rate: "0", receipt: true, amount: "50,00" }], "04"),
+    );
+    const skr04 = await year2023();
+    expect(skr03.ausgaben.gross).toBe(-5000);
+    expect({ einnahmen: skr04.einnahmen.gross, ausgaben: skr04.ausgaben.gross }).toEqual({ einnahmen: skr03.einnahmen.gross, ausgaben: skr03.ausgaben.gross });
+  });
+
+  it("SKR03: Darlehensauszahlung (1200 an 0630) mit Darlehensvertrag ist keine Einnahme, wie SKR04 (1800 an 3150)", async () => {
+    await company("SKR03", "soll", "einzelunternehmen");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts([{ id: "1", debit: "1200", credit: "0630", bu: "", rate: "0", receipt: true, amount: "10.000,00" }], "03"),
+    );
+    const y = await year2023();
+    expect(y.einnahmen.gross).toBe(0);
+  });
+
+  it("SKR03: Erlös auf dem Automatikkonto 8400 ohne BU-Schlüssel und ohne Beleg trägt 19 % Umsatzsteuer (Kz 81)", async () => {
+    await company("SKR03", "soll", "einzelunternehmen");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts([{ id: "1", debit: "1200", credit: "8400", bu: "", rate: "", receipt: false, amount: "119,00" }], "03"),
+    );
+    const y = await year2023();
+    expect(y.einnahmen).toMatchObject({ net: 10000, tax: 1900, gross: 11900 });
   });
 });
