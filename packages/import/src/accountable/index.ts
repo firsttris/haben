@@ -12,6 +12,12 @@ export {
 } from "./map.ts";
 export { readAccountableExport, type AccountableExport } from "./source.ts";
 export { accountableStatement } from "./statement.ts";
+export {
+  sammelrechnungen,
+  zeilenInSammelrechnungen,
+  type AccountableSammelrechnung,
+  type AccountableSplitPosition,
+} from "./sammelrechnung.ts";
 export type {
   AccountableBankMovement,
   AccountableExpenseRow,
