@@ -157,7 +157,6 @@ describe("BuchhaltungsButler-Export", () => {
       ["purchaseinvoice", 11900, 1900, false],
       ["invoice", 11900, 0, true],
     ]);
-    expect(result.vouchers[2]?.raw).toMatchObject({ privat: true });
   });
 
   it("mappt Einnahmen und Ausgaben auch mit SKR04", () => {
@@ -171,7 +170,7 @@ describe("BuchhaltungsButler-Export", () => {
     expect(result.vouchers.map((item) => item.voucher.type)).toEqual(["creditnote", "purchaseinvoice"]);
   });
 
-  it("übernimmt Erlöse ohne Beleg ohne Datei und liest mehrere PDFs", () => {
+  it("lässt Buchungen ohne Beleg aus und liest mehrere PDFs", () => {
     const parts = makeParts([
       { id: "97", number: "R-97", debit: "4964", credit: "1203" },
       { id: "98", debit: "1203", credit: "8400", side: "S", bu: "0" },
@@ -185,9 +184,7 @@ describe("BuchhaltungsButler-Export", () => {
     };
     const result = previewBuchhaltungsbutlerExport(parts, "SKR03");
     expect(result.bookings).toBe(2);
-    expect(result.vouchers).toHaveLength(2);
-    expect(result.vouchers[1]).toMatchObject({ bookingId: "98", files: [], neutral: false, voucher: { type: "invoice", gross: 11900 } });
-    expect(result.vouchers[1]?.raw).toMatchObject({ ohneBeleg: true });
+    expect(result.vouchers).toHaveLength(1);
     expect(result.files).toBe(2);
     expect(result.withoutReceipt).toBe(1);
     expect(result.multipleFiles).toBe(1);
@@ -231,18 +228,35 @@ describe("BuchhaltungsButler-Export", () => {
     expect(() => previewBuchhaltungsbutlerExport(parts, "SKR03")).toThrow("nicht eindeutig");
   });
 
-  it("übernimmt Zahlungen, Geldtransit und Umbuchungen ohne Beleg nicht als Einnahme oder Ausgabe", () => {
+  it("übernimmt Erlöse, Zahlungen, Geldtransit und Umbuchungen ohne Beleg nicht ins Archiv der Belege", () => {
     const result = previewBuchhaltungsbutlerExport(
       makeParts([
         { id: "1", number: "R-1", debit: "10000", credit: "8400", side: "S", bu: "" },
         { id: "2", debit: "1200", credit: "10000", side: "S", bu: "" },
         { id: "3", debit: "1360", credit: "1200", side: "S", bu: "" },
         { id: "4", debit: "2000", credit: "2001", side: "S", bu: "" },
+        { id: "5", debit: "1200", credit: "8400", side: "S", bu: "" },
       ]),
       "SKR03",
     );
-    expect(result.bookings).toBe(4);
+    expect(result.bookings).toBe(5);
     expect(result.vouchers.map((item) => item.bookingId)).toEqual(["1"]);
     expect(result.vouchers[0]?.raw).toMatchObject({ taxType: "net" });
+  });
+
+  it("nimmt die Richtung aus dem Steuerschlüssel, wenn der GuV-Posten sie nicht zeigt", () => {
+    const result = previewBuchhaltungsbutlerExport(
+      makeParts([
+        // Erlöse aus Anlagenverkäufen bei Buchverlust (SKR03 8800 ff.) stehen in der GuV unter den sonstigen Aufwendungen
+        { id: "1", number: "A-1", debit: "1200", credit: "8801", side: "S", bu: "3" },
+        // Wareneinkauf auf das Bestandskonto Waren (SKR03 3980) über den Kreditor
+        { id: "2", number: "W-2", debit: "3980", credit: "70000", side: "S", bu: "9" },
+      ]),
+      "SKR03",
+    );
+    expect(result.vouchers.map((item) => [item.voucher.type, item.voucher.gross, item.voucher.tax, item.neutral])).toEqual([
+      ["invoice", 11900, 1900, false],
+      ["purchaseinvoice", 11900, 1900, false],
+    ]);
   });
 });

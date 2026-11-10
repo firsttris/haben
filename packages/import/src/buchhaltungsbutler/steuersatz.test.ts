@@ -121,8 +121,8 @@ function meta(): string[] {
 }
 
 describe("BuchhaltungsButler-Export: Steuersatz aus dem BU-Schlüssel", () => {
-  it("rechnet 19 % aus BU-Schlüssel 3 bei einem Erlös ohne Beleg und ohne Steuersatz-Text", () => {
-    const result = previewBuchhaltungsbutlerExport(makeParts([{ id: "1", debit: "1200", credit: "8400", bu: "3", rate: "" }]), "SKR03");
+  it("rechnet 19 % aus BU-Schlüssel 3 bei einem Erlös ohne Steuersatz-Text", () => {
+    const result = previewBuchhaltungsbutlerExport(makeParts([{ id: "1", number: "R-1", debit: "1200", credit: "8400", bu: "3", rate: "" }]), "SKR03");
     expect(result.vouchers[0]!.voucher).toMatchObject({ net: 10000, tax: 1900, gross: 11900, taxes: [{ rate: 1900, net: 10000, tax: 1900 }] });
   });
 

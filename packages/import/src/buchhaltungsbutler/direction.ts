@@ -1,4 +1,4 @@
-import { KAPG_STEUER_KONTEN, postenOf } from "@haben/core";
+import { postenOf } from "@haben/core";
 import type { Kontenrahmen } from "../datev.ts";
 import type { BuchhaltungsbutlerJoinedRow } from "./types.ts";
 import { BuchhaltungsbutlerError } from "./types.ts";
@@ -9,8 +9,6 @@ export interface DirectionMapping {
   direction: "einnahme" | "ausgabe";
   positive: boolean;
   categoryAccount: string;
-  /** Konto, an dem die Richtung hängt: Erlös, Aufwand, Personenkonto, Anlage oder nur Geldkonten */
-  basis: Exclude<AccountKind, null>;
   /**
    * Weder Einnahme noch Ausgabe: Geld zwischen Geldkonten (Geldtransit, Privat), Zahlung auf ein Personenkonto
    * ohne Erlös- oder Aufwandskonto. Die Einnahme oder Ausgabe steht in der Buchung auf dem Erlös- bzw. Aufwandskonto.
@@ -40,10 +38,29 @@ function accountKind(account: string, skr: Kontenrahmen): AccountKind {
   return "aufwand";
 }
 
-/** Steuern vom Einkommen und Ertrag samt Vorjahren und Solidaritätszuschlag (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG) */
-export function isErtragsteuerKonto(account: string, skr: Kontenrahmen): boolean {
-  const k = KAPG_STEUER_KONTEN[skr];
-  return [k.kst, k.soli, k.gewst, k.kstVorjahre, k.soliWeitere, k.gewstVorjahre].some((list) => (list as readonly string[]).includes(account));
+/**
+ * Mit Steuerschlüssel legt DATEV die Steuerart selbst fest: BU 2 und 3 Umsatzsteuer, 8 und 9 Vorsteuer (DATEV,
+ * Steuerschlüssel im Buchungsstapel). Das gilt auch für Konten, deren GuV-Posten die Richtung nicht zeigt, etwa Erlöse aus
+ * Anlagenverkäufen bei Buchverlust (SKR03 8800 ff., unter den sonstigen Aufwendungen) oder Wareneinkauf auf ein
+ * Bestandskonto (SKR03 3970 ff.). Das Sachkonto ist die Seite, die kein Geld- oder Personenkonto ist.
+ */
+function directionOfTaxKey(row: BuchhaltungsbutlerJoinedRow, debit: AccountKind, credit: AccountKind): DirectionMapping | null {
+  const bu = row.datev.buKey.trim().replace(/^0+/, "");
+  const direction = bu === "2" || bu === "3" ? "einnahme" : bu === "8" || bu === "9" ? "ausgabe" : null;
+  if (!direction) return null;
+  // Gegen ein Personenkonto ist die andere Seite das Sachkonto, auch ein Bestandskonto; sonst die Seite ohne Geldkonto
+  const person = (kind: AccountKind) => kind === "debitor" || kind === "kreditor";
+  const money = (kind: AccountKind) => person(kind) || kind === "bank";
+  let onDebit: boolean;
+  if (person(debit) !== person(credit)) onDebit = person(credit);
+  else if (money(debit) !== money(credit)) onDebit = money(credit);
+  else return null;
+  return {
+    direction,
+    positive: direction === "einnahme" ? !onDebit : onDebit,
+    categoryAccount: onDebit ? row.debitAccount : row.creditAccount,
+    neutral: false,
+  };
 }
 
 /** Richtung und Vorzeichen aus Soll und Haben, ohne sie aus dem PDF-Namen zu schätzen. */
@@ -51,6 +68,8 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
   const debit = accountKind(row.debitAccount, skr);
   const credit = accountKind(row.creditAccount, skr);
   const id = row.info.bookingId;
+  const byTaxKey = directionOfTaxKey(row, debit, credit);
+  if (byTaxKey) return byTaxKey;
   if ((debit === "erloes" && credit === "aufwand") || (debit === "aufwand" && credit === "erloes")) {
     throw new BuchhaltungsbutlerError(`Buchung ${id}: Erlös- und Aufwandskonto in derselben Buchung; die Richtung ist nicht eindeutig.`);
   }
@@ -59,7 +78,6 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       direction: "einnahme",
       positive: credit === "erloes",
       categoryAccount: debit === "erloes" ? row.debitAccount : row.creditAccount,
-      basis: "erloes",
       neutral: false,
     };
   }
@@ -68,14 +86,13 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       direction: "ausgabe",
       positive: debit === "aufwand",
       categoryAccount: debit === "aufwand" ? row.debitAccount : row.creditAccount,
-      basis: "aufwand",
       neutral: false,
     };
   }
   // Vor den Personenkonten: Anlagekauf über ein Kreditorenkonto ist eine Ausgabe mit Vorsteuer, keine Zahlung
   if (debit === "anlage" || credit === "anlage") {
     const assetAccount = debit === "anlage" ? row.debitAccount : row.creditAccount;
-    const asset = { positive: true, categoryAccount: assetAccount, basis: "anlage" as const, neutral: false };
+    const asset = { positive: true, categoryAccount: assetAccount, neutral: false };
     if (debit === "bank") return { direction: "einnahme", ...asset };
     if (credit === "bank") return { direction: "ausgabe", ...asset };
     return { direction: debit === "anlage" ? "ausgabe" : "einnahme", ...asset };
@@ -85,7 +102,6 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       direction: "einnahme",
       positive: credit === "debitor",
       categoryAccount: debit === "debitor" ? row.debitAccount : row.creditAccount,
-      basis: "debitor",
       neutral: true,
     };
   }
@@ -94,7 +110,6 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       direction: "ausgabe",
       positive: debit === "kreditor",
       categoryAccount: debit === "kreditor" ? row.debitAccount : row.creditAccount,
-      basis: "kreditor",
       neutral: true,
     };
   }
@@ -104,7 +119,6 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
       direction: debit === "bank" ? "einnahme" : "ausgabe",
       positive: true,
       categoryAccount: debit === "bank" ? row.creditAccount : row.debitAccount,
-      basis: "bank",
       neutral: true,
     };
   }
