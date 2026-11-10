@@ -12,8 +12,11 @@ COPY packages/elster/package.json packages/elster/
 COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY . .
-# Danach nur noch die Laufzeitabhängigkeiten; neu installieren statt entfernen, die Pakete liegen im Cache
+# Danach nur noch die Laufzeitabhängigkeiten; neu installieren statt entfernen, die Pakete liegen im Cache.
+# Der Befehl haben (Betriebsstatus) als eine Datei; Pakete aus node_modules bleiben außen vor und kommen zur Laufzeit
+# aus apps/web/node_modules, so bleibt etwa die native Bibliothek von Typst nur einmal im Image
 RUN bun run build \
+ && bun build apps/web/src/server/modules/betrieb/cli.ts --target bun --packages external --outfile apps/web/.output/haben-cli.js \
  && rm -rf node_modules apps/web/node_modules packages/*/node_modules \
  && bun install --frozen-lockfile --production
 
@@ -37,6 +40,8 @@ COPY --from=build /app/apps/web/src ./apps/web/src
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
+# haben status [--json]: Version, ERiC und letzte Sicherung, etwa für deploy/instanzen
+COPY deploy/haben.sh /usr/local/bin/haben
 # pdftoppm: PDFs als Seitenbilder für einen selbst betriebenen KI-Dienst (Belegauslesung), als eigener Prozess
 RUN apt-get update \
  && apt-get install -y --no-install-recommends poppler-utils \
