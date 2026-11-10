@@ -168,3 +168,6 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Schritt 2: EÜR aus dem Journal (`euer-quelle.ts`). Abweichend vom Entwurf rechnet sie Zahlungen auf übernommene
   Lexoffice-Posten nicht aus dem Nebenbuch, sondern verteilt sie auf die Zeilen, die Haben für Rechnung bzw. Beleg gebucht
   hätte (`uebernommeneZeilen`); so gilt für sie dieselbe Rundung, und der Abgleich vergleicht sie ohne Ausnahme.
+  Was sie je Rechnung bzw. Beleg braucht (Buchungen, Ausgleiche in der Reihenfolge des Audit-Logs, Aufteilung aus dem
+  Nebenbuch), lädt sie vor der Schleife für alle Posten des Jahres in Blöcken (`euer-journal-buchungen.ts`); mit 300
+  bezahlten Rechnungen braucht sie so rund 50 statt 550 ms.

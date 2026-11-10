@@ -6,12 +6,12 @@ import {
   zahlungsStand,
   type EuerAusJournal,
   type EuerHerkunft,
-  type JournalZeile,
   type Kontenrahmen,
 } from "@haben/core";
-import { and, asc, eq, gte, inArray, lt, ne, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { belegNebenbuch, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
+import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
+import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
 /*
  * EÜR aus dem Journal (#542, Schritt 5b), als Schattenrechnung neben euerForYear. Eine Buchung ohne Forderungen und
@@ -21,88 +21,6 @@ import { belegNebenbuch, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbu
  * Skonto und Forderungsausfall wirken nicht, die EÜR zählt nur, was gezahlt wird.
  */
 
-type Zeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
-
-export interface Buchung {
-  id: string;
-  date: string;
-  reversesId: string | null;
-  kontenrahmen: Kontenrahmen;
-  sourceType: string;
-  sourceId: string;
-  zeilen: Zeile[];
-}
-
-export async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]> {
-  const e = schema.journalEntries;
-  const l = schema.journalLines;
-  const rows = await q
-    .select({
-      id: e.id,
-      date: e.date,
-      reversesId: e.reversesId,
-      kontenrahmen: e.kontenrahmen,
-      sourceType: e.sourceType,
-      sourceId: e.sourceId,
-      account: l.account,
-      debit: l.debit,
-      credit: l.credit,
-      taxCode: l.taxCode,
-    })
-    .from(l)
-    .innerJoin(e, eq(e.id, l.entryId))
-    .where(where)
-    .orderBy(asc(e.date), asc(e.createdAt), asc(e.id));
-  const byId = new Map<string, Buchung>();
-  for (const r of rows) {
-    let b = byId.get(r.id);
-    if (!b) {
-      b = {
-        id: r.id,
-        date: r.date,
-        reversesId: r.reversesId,
-        kontenrahmen: r.kontenrahmen as Kontenrahmen,
-        sourceType: r.sourceType,
-        sourceId: r.sourceId,
-        zeilen: [],
-      };
-      byId.set(r.id, b);
-    }
-    b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode });
-  }
-  // Bis #570 übernahm das Storno einer Bareinnahme bzw. das Aufheben einer Ausbuchung nach einem Wechsel des Kontenrahmens
-  // die Kontonummern der aufgehobenen Buchung unverändert; solche Gegenbuchungen gehören zum Kontenrahmen der aufgehobenen.
-  // Seitdem bucht die Gegenbuchung mit den Konten des neuen Rahmens und bleibt, wie sie ist.
-  const aufgehoben = [...new Set([...byId.values()].flatMap((b) => (b.reversesId ? [b.reversesId] : [])))];
-  if (aufgehoben.length > 0) {
-    const original = new Map<string, { kontenrahmen: Kontenrahmen; konten: string[] }>();
-    for (const r of await q
-      .select({ id: e.id, kontenrahmen: e.kontenrahmen, account: l.account })
-      .from(l)
-      .innerJoin(e, eq(e.id, l.entryId))
-      .where(inArray(e.id, aufgehoben))) {
-      const o = original.get(r.id) ?? { kontenrahmen: r.kontenrahmen as Kontenrahmen, konten: [] };
-      o.konten.push(r.account);
-      original.set(r.id, o);
-    }
-    const gleich = (x: string[], y: string[]) => x.length === y.length && [...x].sort().join() === [...y].sort().join();
-    for (const b of byId.values()) {
-      const o = b.reversesId ? original.get(b.reversesId) : undefined;
-      if (
-        o &&
-        o.kontenrahmen !== b.kontenrahmen &&
-        gleich(
-          o.konten,
-          b.zeilen.map((z) => z.account),
-        )
-      )
-        b.kontenrahmen = o.kontenrahmen;
-    }
-  }
-  return [...byId.values()];
-}
-
-export const offenerPosten = (kr: Kontenrahmen, z: Zeile) => z.account === ACCOUNTS[kr].forderungen || z.account === ACCOUNTS[kr].verbindlichkeiten;
 const offen = (b: Buchung) => b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
 const ausbuchungOhneZahlung = (b: Buchung) => {
   const a = ACCOUNTS[b.kontenrahmen];
@@ -120,54 +38,15 @@ async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
   const result = new Map<string, Ziel>();
   if (ids.length === 0) return result;
   const a = schema.allocations;
-  for (const r of await q.select({ id: a.id, invoiceId: a.invoiceId, documentId: a.documentId, loanId: a.loanId }).from(a).where(inArray(a.id, ids)))
-    result.set(r.id, r);
   const w = schema.writeOffs;
-  for (const r of await q.select({ id: w.id, invoiceId: w.invoiceId, documentId: w.documentId }).from(w).where(inArray(w.id, ids))) result.set(r.id, r);
   const c = schema.cashEntries;
-  for (const r of await q.select({ id: c.id, invoiceId: c.invoiceId, documentId: c.documentId }).from(c).where(inArray(c.id, ids))) result.set(r.id, r);
+  for (const block of bloecke(ids)) {
+    for (const r of await q.select({ id: a.id, invoiceId: a.invoiceId, documentId: a.documentId, loanId: a.loanId }).from(a).where(inArray(a.id, block)))
+      result.set(r.id, r);
+    for (const r of await q.select({ id: w.id, invoiceId: w.invoiceId, documentId: w.documentId }).from(w).where(inArray(w.id, block))) result.set(r.id, r);
+    for (const r of await q.select({ id: c.id, invoiceId: c.invoiceId, documentId: c.documentId }).from(c).where(inArray(c.id, block))) result.set(r.id, r);
+  }
   return result;
-}
-
-/**
- * Alle Buchungen, die eine Rechnung ausgleichen (auch aus anderen Jahren), in der Reihenfolge, in der sie entstanden sind:
- * nach der Position im Audit-Log, nicht nach Datum. Danach richtet sich der gespeicherte Anteil jeder Zahlung
- * (settlementTaxShares gegen alles bis dahin Erfasste); Zahlung und Ausbuchung einer Transaktion haben dasselbe created_at.
- */
-async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchung[]> {
-  const ids = (
-    await Promise.all([
-      q.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.invoiceId, invoiceId)),
-      q.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.invoiceId, invoiceId)),
-      q.select({ id: schema.cashEntries.id }).from(schema.cashEntries).where(eq(schema.cashEntries.invoiceId, invoiceId)),
-    ])
-  ).flatMap((rows) => rows.map((r) => r.id));
-  if (ids.length === 0) return [];
-  // Mit der Herkunft, damit der Index journal_entries_source (source_type, source_id) greift
-  const e = schema.journalEntries;
-  const gefunden = await buchungen(q, and(inArray(e.sourceType, ["allocation", "ausbuchung", "kasse"]), inArray(e.sourceId, ids)));
-  if (gefunden.length < 2) return gefunden;
-  const log = schema.auditLog;
-  const position = new Map(
-    (
-      await q
-        .select({ rowId: log.rowId, id: log.id })
-        .from(log)
-        .where(
-          and(
-            eq(log.tableName, "journal_entries"),
-            eq(log.action, "INSERT"),
-            inArray(
-              log.rowId,
-              gefunden.map((b) => b.id),
-            ),
-          ),
-        )
-    ).map((r) => [r.rowId, r.id]),
-  );
-  // Ohne Eintrag im Audit-Log (nicht vorgesehen) bleibt die Reihenfolge nach Datum
-  const index = new Map(gefunden.map((b, i) => [b.id, i]));
-  return [...gefunden].sort((a, b) => (position.get(a.id) ?? Infinity) - (position.get(b.id) ?? Infinity) || index.get(a.id)! - index.get(b.id)!);
 }
 
 export interface EuerJournal {
@@ -243,6 +122,20 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
         ).map((r) => r.id),
   );
 
+  // Was die Zahlungen ausgleichen, gesammelt für alle Rechnungen und Belege des Jahres statt je Posten (#542, Schritt 9)
+  const rechnungIds = [...new Set([...zielVon.values()].flatMap((z) => (z.invoiceId ? [z.invoiceId] : [])))];
+  const belegIds = [...new Set([...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : [])))];
+  const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: await buchungenJe(q, "document", belegIds) };
+  const ausgleicheVon = await ausgleichsBuchungenJe(q, rechnungIds);
+  const nebenbuchVon = await belegNebenbuecher(q, belegIds);
+  const anlagen = new Set<string>();
+  for (const block of bloecke(belegIds))
+    for (const r of await q
+      .select({ id: schema.documents.id })
+      .from(schema.documents)
+      .where(and(inArray(schema.documents.id, block), eq(schema.documents.category, "anlage"))))
+      anlagen.add(r.id);
+
   const summe = leereEuerAusJournal();
   let uebernommen = 0;
   const ursprung = new Map<string, Ursprung>();
@@ -250,7 +143,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     const key = `${typ}|${id}`;
     const vorhanden = ursprung.get(key);
     if (vorhanden) return vorhanden;
-    const gebucht = await buchungen(q, and(eq(e.sourceType, typ), eq(e.sourceId, id)));
+    const gebucht = gebuchtVon[typ].get(id) ?? [];
     const kontenrahmen = gebucht[0]?.kontenrahmen ?? kr;
     const alle = gebucht.flatMap((b) => b.zeilen);
     const istUebernommen = gebucht.length === 0 || alle.some((z) => z.account === ACCOUNTS[kontenrahmen].saldenvortrag);
@@ -258,19 +151,15 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     const ersatz = istUebernommen ? await uebernommeneZeilen(q, typ, id, kontenrahmen) : null;
     const zeilen = ersatz?.zeilen ?? alle.filter((z) => !offenerPosten(kontenrahmen, z));
     const gesamt = ersatz ? ersatz.gesamt : alle.filter((z) => offenerPosten(kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
-    let herkunft: EuerHerkunft = "sonst";
-    if (typ === "document") {
-      const [doc] = await q.select({ category: schema.documents.category }).from(schema.documents).where(eq(schema.documents.id, id));
-      if (doc?.category === "anlage") herkunft = "anlage";
-    }
+    const herkunft: EuerHerkunft = typ === "document" && anlagen.has(id) ? "anlage" : "sonst";
     const u: Ursprung = {
       uebernommen: istUebernommen,
       kontenrahmen,
       zeilen,
       gesamt,
       herkunft,
-      ...(typ === "invoice" && gesamt !== 0 ? { anteile: rechnungsAnteile(kontenrahmen, zeilen, gesamt, await ausgleichsBuchungen(q, id)) } : {}),
-      ...(typ === "document" ? { beleg: await belegNebenbuch(q, id) } : {}),
+      ...(typ === "invoice" && gesamt !== 0 ? { anteile: rechnungsAnteile(kontenrahmen, zeilen, gesamt, ausgleicheVon.get(id) ?? []) } : {}),
+      ...(typ === "document" ? { beleg: nebenbuchVon.get(id) } : {}),
     };
     ursprung.set(key, u);
     return u;

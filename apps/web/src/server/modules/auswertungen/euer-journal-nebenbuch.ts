@@ -1,5 +1,4 @@
 import {
-  ACCOUNTS,
   computeEuer,
   documentPosting,
   EXPENSE_CATEGORIES,
@@ -10,24 +9,20 @@ import {
   type EuerAusJournal,
   type EuerPayment,
   type ExpenseCategory,
-  type JournalZeile,
   type Kontenrahmen,
   type TaxTreatment,
 } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { splitsByDocument } from "../belege/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { bloecke, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
 
 /*
  * Was die EÜR aus dem Journal (euer-journal.ts) aus dem Nebenbuch braucht, weil die Buchung allein es nicht hergibt: die
  * Rundung von Teilzahlungen auf Belege mit Privatanteil oder ohne Vorsteuerabzug und die Zeilen übernommener
  * Lexoffice-Posten, deren Buchung gegen den Saldenvortrag steht.
  */
-
-type Zeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
-
-const offenerPosten = (kr: Kontenrahmen, z: Zeile) => z.account === ACCOUNTS[kr].forderungen || z.account === ACCOUNTS[kr].verbindlichkeiten;
 
 /** Aufteilung eines Belegs aus dem Nebenbuch, für Teilzahlungen, deren Rundung die Buchung allein nicht hergibt */
 export interface BelegNebenbuch {
@@ -38,21 +33,39 @@ export interface BelegNebenbuch {
   splits?: AllocatedSplitLine[];
 }
 
-export async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
+/** Aufteilung je Beleg aus dem Nebenbuch, für alle `ids` gesammelt geladen; Belege, die keine brauchen, fehlen in der Map */
+export async function belegNebenbuecher(q: Db | Tx, ids: string[]): Promise<Map<string, BelegNebenbuch>> {
   const d = schema.documents;
-  const [doc] = await q
-    .select({ category: d.category, vorsteuerAbzug: d.vorsteuerAbzug, privateShare: d.privateShare, reverseCharge: d.reverseCharge })
-    .from(d)
-    .where(eq(d.id, id));
-  // Nur mit Privatanteil oder ohne Vorsteuerabzug: computeEuer teilt dann erst nach Satz bzw. Zeile der Aufteilung, danach
-  // privat bzw. die Steuer zu; die Buchung fasst den privaten Teil bzw. Netto und Steuer zusammen
-  if (!doc || (doc.privateShare === 0 && doc.vorsteuerAbzug)) return undefined;
-  const amounts = await q.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-  // § 13b und Erwerb: gezahlt ist nur netto, auch je Zeile der Aufteilung (wie reports.ts)
-  const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: doc.reverseCharge ? 0 : a.tax }));
-  const splits = (await splitsByDocument([id], q)).get(id)?.map((line) => (doc.reverseCharge ? { ...line, tax: 0 } : line));
-  const category = doc.category && doc.category in EXPENSE_CATEGORIES ? (doc.category as ExpenseCategory) : "sonstiges";
-  return { totals: totalsFromTaxes(rows), category, vorsteuerAbzug: doc.vorsteuerAbzug, privateShare: doc.privateShare, ...(splits ? { splits } : {}) };
+  const result = new Map<string, BelegNebenbuch>();
+  for (const block of bloecke([...new Set(ids)])) {
+    const docs = await q
+      .select({ id: d.id, category: d.category, vorsteuerAbzug: d.vorsteuerAbzug, privateShare: d.privateShare, reverseCharge: d.reverseCharge })
+      .from(d)
+      .where(inArray(d.id, block));
+    // Nur mit Privatanteil oder ohne Vorsteuerabzug: computeEuer teilt dann erst nach Satz bzw. Zeile der Aufteilung, danach
+    // privat bzw. die Steuer zu; die Buchung fasst den privaten Teil bzw. Netto und Steuer zusammen
+    const noetig = docs.filter((doc) => !(doc.privateShare === 0 && doc.vorsteuerAbzug));
+    if (noetig.length === 0) continue;
+    const noetigIds = noetig.map((doc) => doc.id);
+    const amounts = new Map<string, (typeof schema.documentAmounts.$inferSelect)[]>();
+    for (const a of await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, noetigIds)))
+      amounts.set(a.documentId, [...(amounts.get(a.documentId) ?? []), a]);
+    const splitsJe = await splitsByDocument(noetigIds, q);
+    for (const doc of noetig) {
+      // § 13b und Erwerb: gezahlt ist nur netto, auch je Zeile der Aufteilung (wie reports.ts)
+      const rows = (amounts.get(doc.id) ?? []).map((a) => ({ rate: a.taxRate, base: a.net, tax: doc.reverseCharge ? 0 : a.tax }));
+      const splits = splitsJe.get(doc.id)?.map((line) => (doc.reverseCharge ? { ...line, tax: 0 } : line));
+      const category = doc.category && doc.category in EXPENSE_CATEGORIES ? (doc.category as ExpenseCategory) : "sonstiges";
+      result.set(doc.id, {
+        totals: totalsFromTaxes(rows),
+        category,
+        vorsteuerAbzug: doc.vorsteuerAbzug,
+        privateShare: doc.privateShare,
+        ...(splits ? { splits } : {}),
+      });
+    }
+  }
+  return result;
 }
 
 /** Wirkung einer Teilzahlung auf einen Beleg, gerechnet wie computeEuer */
