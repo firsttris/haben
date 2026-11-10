@@ -32,6 +32,8 @@ export interface AccountableExport {
   expenses: AccountableExpenseRow[];
   /** Was beim Entpacken aufgefallen ist; der Import zeigt es als Hinweis an */
   warnings: string[];
+  /** Kontenrahmen des Stapels: aus dem Kopf, sonst aus dem Ordnernamen (`datev_skr04_…`), sonst SKR03 */
+  kontenrahmen: "SKR03" | "SKR04";
 }
 
 const decoder = new TextDecoder("utf-8");
@@ -104,7 +106,11 @@ export function readAccountableExport(archive: Uint8Array): AccountableExport {
 
   const receiptByGuid = new Map(receipts.map((receipt) => [receipt.guid, receipt]));
 
-  return { stack, receipts, receiptByGuid, files, expenses, warnings };
+  // Accountable füllt das Feld Sachkontenrahmen im Kopf nicht; der Ordner trägt ihn (`datev_skr03_…`, `datev_skr04_…`)
+  const kontenrahmen =
+    stack.header.kontenrahmen === "SKR04" || (stack.header.kontenrahmen === "" && /(^|\/)datev_skr04[_/]/i.test(stackName)) ? "SKR04" : "SKR03";
+
+  return { stack, receipts, receiptByGuid, files, expenses, warnings, kontenrahmen };
 }
 
 /** Die Zeilen des Sheets „Ausgaben“ in die Form, mit der `map.ts` arbeitet */

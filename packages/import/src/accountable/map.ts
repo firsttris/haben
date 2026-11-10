@@ -20,6 +20,17 @@ export const ACCOUNTABLE_PRIVATE_ACCOUNTS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Dieselben Zeilen im SKR04 (packages/core/src/posting.ts): Privatentnahmen 2100–2199, Privateinlagen 2180, Geldtransit
+ * 1460. Dort ist 1800 die Bank und kein Privatkonto.
+ */
+const ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR04 = /^(21[0-9]{2}|1460)$/;
+
+/** Privat- oder Umbuchungszeile im Kontenrahmen des Exports */
+export function isAccountablePrivateAccount(account: string, kontenrahmen: "SKR03" | "SKR04"): boolean {
+  return kontenrahmen === "SKR04" ? ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR04.test(account) : ACCOUNTABLE_PRIVATE_ACCOUNTS.has(account);
+}
+
+/**
  * BU-Schlüssel, die Haben nicht kennt. `506` steht im Export bei steuerfreien Kleinbeträgen
  * (etwa Bitwarden über 10,00 €), `19` offenbar als Steuersatz statt als Schlüssel. Beide werden
  * ohne Steueranteil übernommen und als Hinweis gemeldet — raten wäre hier falsch.
@@ -148,7 +159,7 @@ export function mapAccountableExport(exp: AccountableExport): AccountableMapping
       continue;
     }
 
-    if (ACCOUNTABLE_PRIVATE_ACCOUNTS.has(booking.contraAccount.trim())) {
+    if (isAccountablePrivateAccount(booking.contraAccount.trim(), exp.kontenrahmen)) {
       privateRows += 1;
       continue;
     }
