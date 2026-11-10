@@ -6,6 +6,7 @@ import { useAction } from "../../lib/use-action.ts";
 import { vermerkenFn, zuruecknehmenFn } from "../../server/functions/sv-meldungen.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Field } from "../Field.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 
 export interface VermerkStandDaten {
   vermerke: { id: string; datum: string; notiz: string; protokollDateiname: string | null; protokollGroesse: number | null; geaendert: boolean }[];
@@ -25,6 +26,8 @@ export function Vermerk({ gegenstand, titel, stand, heute }: { gegenstand: strin
   const [datum, setDatum] = useState(heute);
   const [notiz, setNotiz] = useState("");
   const datei = useRef<HTMLInputElement>(null);
+  // Ein neuer key leert das Feld samt angezeigtem Dateinamen
+  const [vermerkt, setVermerkt] = useState(0);
 
   function absenden(event: FormEvent) {
     event.preventDefault();
@@ -37,7 +40,7 @@ export function Vermerk({ gegenstand, titel, stand, heute }: { gegenstand: strin
       if (file) form.append("protokoll", file);
       await vermerken({ data: form });
       setNotiz("");
-      if (datei.current) datei.current.value = "";
+      setVermerkt((n) => n + 1);
       await router.invalidate();
     }, "Vermerkt: im Portal abgegeben.");
   }
@@ -62,7 +65,7 @@ export function Vermerk({ gegenstand, titel, stand, heute }: { gegenstand: strin
           {(control) => <input {...control} type="date" value={datum} max={heute} onChange={(e) => setDatum(e.target.value)} required />}
         </Field>
         <Field label="Protokoll (PDF oder Bild, optional)">
-          {(control) => <input {...control} ref={datei} type="file" accept="application/pdf,image/png,image/jpeg" />}
+          {(control) => <FilePicker key={vermerkt} {...control} inputRef={datei} accept="application/pdf,image/png,image/jpeg" />}
         </Field>
         <Field label="Notiz (optional)">
           {(control) => <input {...control} type="text" value={notiz} maxLength={500} onChange={(e) => setNotiz(e.target.value)} />}

@@ -177,6 +177,12 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const sums = await journalSums(from, to, q);
   // Gegenprobe ist immer die Rechnung aus den Nebenbüchern; ab dem Stichjahr ist euerForYear die aus dem Journal (#542)
   const euer = await euerAusNebenbuechern(year, q);
+  // Gezahlt über die Bank oder, im Einzelunternehmen, privat als freie Buchung (#502); die Gegenprobe zählt freie Buchungen
+  // ebenso (mitFreienBuchungen). Manuelle Buchungen einer GmbH oder UG sind Abschlussbuchungen (etwa Rückstellungen), keine
+  // Zahlung, und die Gegenprobe zählt sie dort nicht
+  const [rechtsform] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
+  const freieZaehlen = !rechtsform || !isKapitalgesellschaft(rechtsform.rechtsform);
+  const zahlung = (s: Summe) => s.sourceType === "allocation" || (freieZaehlen && s.sourceType === "manuell");
   const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
   const zeitraum = String(year);
   const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "euer", zeitraum, posten, journal, quelle });
@@ -201,7 +207,7 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
         sums,
         // Mit der Umsatzsteuer früherer Jahre (Steuerzahlungen, steuerzahlung.ts): gezahlt bzw. erstattet im Jahr der Zahlung
         (kr) => [ACCOUNTS[kr].ustVorauszahlung, ACCOUNTS[kr].sondervorauszahlung, STEUER_KONTEN[kr].ustVorjahr, STEUER_KONTEN[kr].ustFruehereJahre],
-        (s) => s.sourceType === "allocation",
+        zahlung,
       ),
       line("gezahlteUst") - line("erstatteteUst"),
     ),
@@ -210,7 +216,7 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   // Steuerzahlungen: Zinsen und Zuschläge zu betrieblichen Steuern als Ausgabe, Gewerbesteuer samt Nebenleistungen nur
   // nachrichtlich. Im Einzelunternehmen gibt es keine Körperschaftsteuer; die nicht abziehbaren Zinskonten bucht dort nur
   // die Gewerbesteuer, dazu Hinterziehungszinsen (§ 235 AO) zur Umsatzsteuer.
-  const zahlung = (s: Summe) => s.sourceType === "allocation";
+
   const nebenleistungen = saldo(sums, (kr) => abziehbareNebenleistungen(kr), zahlung);
   if (nebenleistungen !== 0 || line("steuerNebenleistungen") !== 0) {
     zeilen.push(row("Zinsen und Zuschläge zu betrieblichen Steuern", nebenleistungen, line("steuerNebenleistungen")));

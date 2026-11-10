@@ -464,6 +464,114 @@ test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zah
   await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
 });
 
+/** Kontrollkästchen und Optionsfelder, deren Hinweis im umschließenden `<label>` steht und damit zum Namen zählt */
+function hintsInCheckboxLabel(p: Page) {
+  return p.evaluate(() => {
+    const where = (el: Element) =>
+      `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
+    return [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]')].flatMap((input) => {
+      const labels = [...(input.labels ?? [])];
+      const ids = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
+      const inLabel = ids.filter((id) => labels.some((label) => label.contains(document.getElementById(id))));
+      const hint = labels.some((label) => label.querySelector(".field-hint"));
+      return inLabel.length || hint ? [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`] : [];
+    });
+  });
+}
+
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Kein Hinweis im Label eines Kontrollkästchens: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await hintsInCheckboxLabel(page), path).toEqual([]);
+    }
+  });
+}
+
+test("Kontrollkästchen mit Hinweis: Der Name ist nur die Beschriftung, der Hinweis die Beschreibung, der Text schaltet um", async ({ page }) => {
+  await open(page, "/einstellungen");
+  const faelle = [
+    { name: "Kleinunternehmer nach § 19 UStG", hinweis: /^Rechnungen ohne Umsatzsteuer, keine Voranmeldung/ },
+    { name: "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)", hinweis: /^Ohne Gestattung rechnet Haben Fremdwährung/ },
+    { name: "Basiszinssatz automatisch abrufen", hinweis: /^Haben fragt die Bundesbank nur nach dem 1\. Januar/ },
+  ];
+  for (const { name, hinweis } of faelle) {
+    const kasten = page.getByRole("checkbox", { name, exact: true });
+    await expect(kasten, name).toHaveCount(1);
+    await expect(kasten, name).toHaveAccessibleDescription(hinweis);
+    // Der Name enthält den Hinweis nicht, die Beschreibung nicht den Namen: Nichts wird doppelt vorgelesen
+    await expect(kasten, name).not.toHaveAccessibleDescription(new RegExp(name.slice(0, 12)));
+  }
+
+  // Der Beschriftungstext schaltet weiter um (Tageskurs ist nie gesperrt); nichts wird gespeichert
+  const tageskurs = page.getByRole("checkbox", { name: faelle[1]!.name, exact: true });
+  const vorher = await tageskurs.isChecked();
+  await page.getByText(faelle[1]!.name, { exact: true }).click();
+  await expect(tageskurs).toBeChecked({ checked: !vorher });
+});
+
+test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  // Auf Touchgeräten sind Felder und Zeilen mit Kästchen 44px hoch (DESIGN.md); der Hinweis darunter nimmt davon nichts weg
+  test("Die Zeile mit dem Kästchen ist mindestens 44px hoch", async ({ page }) => {
+    await open(page, "/einstellungen");
+    for (const name of [
+      "Kleinunternehmer nach § 19 UStG",
+      "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+      "Basiszinssatz automatisch abrufen",
+    ]) {
+      const zeile = page.locator("label.checkbox", { has: page.getByRole("checkbox", { name, exact: true }) });
+      const box = await zeile.boundingBox();
+      expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
+test("Kontrollkästchen mit Hinweis: Der Hinweis fluchtet mit dem Text der Beschriftung", async ({ page }) => {
+  await open(page, "/einstellungen");
+  for (const name of [
+    "Kleinunternehmer nach § 19 UStG",
+    "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+    "Basiszinssatz automatisch abrufen",
+  ]) {
+    const block = page.locator(".checkbox-hinted", { has: page.getByRole("checkbox", { name, exact: true }) });
+    // Linke Textkante: Beschriftung = Rand des span; Hinweis = Rand der Box plus ihr Innenabstand links
+    const versatz = await block.evaluate((el) => {
+      const text = el.querySelector("label.checkbox > span")!.getBoundingClientRect().left;
+      const hinweis = el.querySelector<HTMLElement>(".field-hint")!;
+      return hinweis.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(hinweis).paddingLeft) - text;
+    });
+    expect(Math.abs(versatz), name).toBeLessThanOrEqual(1);
+  }
+});
+
+test("Kontrollkästchen mit Hinweis am Desktop: Die Zeile ist nur so hoch wie der Text", async ({ page }) => {
+  await open(page, "/einstellungen");
+  for (const name of [
+    "Kleinunternehmer nach § 19 UStG",
+    "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+    "Basiszinssatz automatisch abrufen",
+  ]) {
+    const zeile = page.locator("label.checkbox", { has: page.getByRole("checkbox", { name, exact: true }) });
+    // 44px gelten nur auf Touchgeräten (pointer: coarse); am Desktop bliebe sonst eine Leerzeile zwischen Text und Hinweis
+    expect((await zeile.boundingBox())?.height ?? 99, name).toBeLessThan(44);
+  }
+});
+
+test("Kontrollkästchen mit Hinweis: Ein Klick auf den Hinweis schaltet nicht um", async ({ page }) => {
+  await open(page, "/einstellungen");
+  const name = "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)";
+  const kasten = page.getByRole("checkbox", { name, exact: true });
+  const vorher = await kasten.isChecked();
+  const block = page.locator(".checkbox-hinted", { has: kasten });
+  await block.locator(".field-hint").click();
+  await expect(kasten).toBeChecked({ checked: vorher });
+  // Gegenprobe: derselbe Klick auf den Beschriftungstext schaltet um
+  await block.locator("label.checkbox > span").click();
+  await expect(kasten).toBeChecked({ checked: !vorher });
+});
+
 /** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
 const FILE_PICKER_PAGES = [
   "/dauerbelege/neu",

@@ -184,6 +184,7 @@ export async function createSepaTransfer(actor: string, input: SepaTransferInput
   if (input.executionDate < today(now)) throw new BankError("Das Ausführungsdatum liegt in der Vergangenheit.");
   const [account] = await db.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, input.bankAccountId));
   if (!account?.iban || account.purpose === "zahlungsdienstleister") throw new BankError("Bitte ein Bankkonto mit IBAN als Auftraggeberkonto wählen.");
+  if (account.excludedAt) throw new BankError(`${account.name} ist ausgeschlossen und kann nicht Auftraggeberkonto sein.`);
   const company = await loadCompany();
   const debtorName = (company.kontoinhaber || company.name).trim();
   if (debtorName === "") throw new BankError("Der Firmenname fehlt in den Einstellungen; er steht als Auftraggeber in der Datei.");

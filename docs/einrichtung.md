@@ -136,6 +136,7 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 | Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |
 | GiroCode | QR-Code für die Überweisung, auf Rechnung und Mahnung |
 | Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
+| Artikelnummer | Spalte „Art.-Nr.“, sobald eine Position eine Nummer hat; nur auf dem Blatt, das XML der E-Rechnung nennt sie weiter |
 | Spalte USt je Position | Entfällt nur, wenn alle Positionen denselben Steuersatz haben; bei mehreren Sätzen bleibt sie stehen |
 
 Pflichtangaben und Summen lassen sich hier nicht ausblenden; zur Fußzeile auf dem Briefpapier siehe [Briefpapier](#briefpapier).
@@ -146,7 +147,7 @@ Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hi
 
 - Es geht PNG, JPEG oder PDF bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist.
 - Von einem PDF nimmt Haben die erste Seite und wandelt sie mit 200 dpi in ein Bild um, denn die Belege sind PDF/A-3 und können kein PDF einbetten. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
-- **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Das Blatt in der Vorschau zeigt die erste Seite.
+- **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Die Vorschau zeigt es genauso, auf jeder Seite des Belegs.
 - Logo und Falzmarken liegen über dem Bild. Hat dein Briefbogen schon ein Logo, entferne das hochgeladene.
 - Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier, druckt Haben die Fußzeile wieder.
 - Jedes neu erzeugte PDF enthält das Bild, schon festgeschriebene PDFs bleiben unverändert. Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
@@ -188,7 +189,7 @@ Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wir
 | Anlage EÜR, Einkommensteuer, [Belege von ELSTER](jahreserklaerung.md#belege-von-elster), [Herabsetzung der Einkommensteuer-Vorauszahlungen](finanzamt.md#vorauszahlungen-herabsetzen) | ja | nein |
 | [Gesellschafter-Geschäftsführer](lohn.md#was-haben-abrechnet) im Lohn | nein | ja |
 | Voranmeldung, Umsatzsteuererklärung, DATEV-Export | ja | ja |
-| [Manuelle Buchungen](buchhaltung.md#manuelle-buchungen-gmbh-und-ug) | nein | ja |
+| [Manuelle und freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) | ab dem Stichjahr | ja |
 | [Saldenvortrag, Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) | nein, jedes Jahr beginnt bei null | ja |
 | [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug): Bilanz und GuV (Entwurf), Jahr abschließen | nein | ja |
 | [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |

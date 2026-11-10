@@ -10,6 +10,7 @@ import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 
 /** Zahlungsarten in Lexoffice, die Geld bewegen; Skonto, Mahnkosten, Kursdifferenz und Forderungsausfall zählen nicht als Entgelt */
 export const LEGACY_PAYMENT_TYPES: ReadonlySet<string> = new Set([
+  "payment",
   "partPaymentFinancialTransaction",
   "partPaymentCashBox",
   "manualPayment",

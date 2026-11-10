@@ -2,7 +2,8 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { datevInternalId, datevVoucherFound } from "./datev-belegnummer.ts";
+import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt } from "./datev-belegnummer.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 
@@ -13,6 +14,7 @@ export const ARCHIVE_KINDS = {
   idea: "IDEA-Export",
   elster: "ELSTER-Protokoll",
   kontoauszug: "Kontoauszug",
+  storebericht: "Finanzbericht eines App-Stores",
   sonstiges: "Sonstiges",
 } as const;
 
@@ -33,6 +35,7 @@ function mimeTypeOf(bytes: Uint8Array, filename: string): string {
   const sniffed = sniff(bytes);
   if (sniffed) return sniffed.mimeType;
   if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) return "application/zip";
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) return "application/gzip";
   const extension = filename.toLowerCase().split(".").pop() ?? "";
   return EXTENSION_TYPES[extension] ?? "application/octet-stream";
 }
@@ -41,12 +44,16 @@ function mimeTypeOf(bytes: Uint8Array, filename: string): string {
  * Legt eine Originaldatei unverändert ins Archiv. Ein DATEV-Buchungsstapel wird zusätzlich zeilenweise
  * übernommen; Zeiträume dürfen sich nicht mit schon übernommenen Stapeln überschneiden.
  */
+/** Notiz an den Originaldateien des BuchhaltungsButler-Imports */
+export const BB_ORIGINAL_NOTE = "BuchhaltungsButler-Originalexport";
+
 export async function addArchiveFile(
   actor: string,
   file: { bytes: Uint8Array; filename: string; kind: ArchiveKind; year: number | null; note?: string },
+  maxBytes = MAX_ARCHIVE_SIZE,
 ): Promise<{ id: string; bookings: number; warnings: string[] }> {
   if (file.bytes.byteLength === 0) throw new ArchiveError(`${file.filename}: Datei ist leer.`);
-  if (file.bytes.byteLength > MAX_ARCHIVE_SIZE) throw new ArchiveError(`${file.filename}: größer als 100 MB.`);
+  if (file.bytes.byteLength > maxBytes) throw new ArchiveError(`${file.filename}: größer als ${Math.floor(maxBytes / 1024 / 1024)} MB.`);
   const sha256 = sha256Of(file.bytes);
   const [existing] = await db.select({ filename: schema.archiveFiles.filename }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256));
   if (existing) throw new ArchiveError(`${file.filename}: liegt schon im Archiv (als ${existing.filename}).`);
@@ -127,6 +134,33 @@ export async function addArchiveFile(
   return { id, bookings: bookings.length, warnings };
 }
 
+/**
+ * Legt eine Originaldatei aus einem automatischen Abruf in der Transaktion des Aufrufers ab (z. B. Finanzberichte der
+ * App-Stores); die Datei selbst muss vorher mit storeFile geschrieben sein. Liegt dieselbe Datei schon im Archiv, gilt
+ * deren Eintrag.
+ */
+export async function archiveFetchedFile(
+  tx: Tx,
+  file: { bytes: Uint8Array; sha256: string; filename: string; kind: ArchiveKind; year: number; note: string; meta?: Record<string, unknown> },
+): Promise<string> {
+  const [existing] = await tx.select({ id: schema.archiveFiles.id }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, file.sha256));
+  if (existing) return existing.id;
+  const [row] = await tx
+    .insert(schema.archiveFiles)
+    .values({
+      kind: file.kind,
+      year: file.year,
+      filename: file.filename.slice(0, 200),
+      sha256: file.sha256,
+      mimeType: mimeTypeOf(file.bytes, file.filename),
+      size: file.bytes.byteLength,
+      note: file.note.slice(0, 500),
+      meta: file.meta ?? null,
+    })
+    .returning({ id: schema.archiveFiles.id });
+  return row!.id;
+}
+
 export async function listArchiveFiles() {
   return db
     .select({
@@ -151,7 +185,7 @@ export async function loadArchiveFile(id: string) {
   return { ...row, bytes: await loadFile(row.sha256) };
 }
 
-const matchedSql = datevVoucherFound("datev_bookings.voucher_field1");
+const matchedSql = sql<boolean>`(${datevVoucherFound("datev_bookings.voucher_field1")} or ${datevGuidFound("datev_bookings.document_link")})`;
 const internalIdSql = datevInternalId("datev_bookings.voucher_field1");
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {
@@ -167,7 +201,10 @@ export async function listDatevBookings(filter: { year: number; search: string; 
       )!,
     );
   }
-  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql}`);
+  // Dieselbe Ausnahme wie im Abgleich (reconciliation): Privat, Geldtransit, Vortrag und Accountable-Erlöse brauchen keinen Beleg
+  const { kontenrahmen } = await loadCompany();
+  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
   const where = and(...conditions);
   const pageSize = 100;
   const [rows, [total]] = await Promise.all([
@@ -184,7 +221,7 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
         // Eine interne Kennung ist nichts, wozu ein Beleg fehlt
-        matched: sql<boolean>`${matchedSql} or ${internalIdSql}`,
+        matched: sql<boolean>`${matchedSql} or ${internalIdSql} or ${withoutReceiptSql}`,
         filename: schema.archiveFiles.filename,
       })
       .from(schema.datevBookings)
@@ -231,7 +268,11 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
   const conditions: SQL[] = [gte(schema.datevBookings.date, from), lte(schema.datevBookings.date, to)];
   const account = filter.account.trim();
   if (account) conditions.push(or(eq(schema.datevBookings.account, account), eq(schema.datevBookings.contraAccount, account))!);
-  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql}`);
+  // Dieselbe Ausnahme wie im Abgleich (reconciliation) und in listDatevBookings
+  const { kontenrahmen } = await loadCompany();
+  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  if (filter.unmatched)
+    conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
   const where = and(...conditions);
   const [rows, [total]] = await Promise.all([
     db
@@ -244,7 +285,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        matched: matchedSql,
+        matched: sql<boolean>`${matchedSql} or ${withoutReceiptSql}`,
         internalId: internalIdSql,
       })
       .from(schema.datevBookings)
@@ -257,7 +298,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
 }
 
 /** Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage */
-async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
+export async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
   const [overlap] = await q
     .select({
       filename: schema.archiveFiles.filename,

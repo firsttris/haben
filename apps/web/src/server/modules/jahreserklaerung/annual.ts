@@ -240,6 +240,7 @@ function euerFigures(euer: EuerResult): EuerFigures {
         einnahmenSteuerpflichtig: "steuerpflichtig",
         einnahmenSteuerfrei: "steuerfrei",
         privateKfz: "privateKfz",
+        sachentnahmen: "sachentnahmen",
         vereinnahmteUst: "vereinnahmteUst",
         ustEntnahmen: "vereinnahmteUst",
         erstatteteUst: "erstatteteUst",

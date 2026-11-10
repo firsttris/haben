@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { type PostingLine, type TaxCode, zeilenWieHeute } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -6,8 +6,10 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
+
+export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
 import { loadSplits } from "./splits.ts";
 
@@ -53,39 +55,6 @@ async function documentEntry(tx: Db | Tx, documentId: string) {
     .where(and(eq(schema.journalEntries.sourceType, "document"), eq(schema.journalEntries.sourceId, documentId), isNull(schema.journalEntries.reversesId)));
   if (!entry) throw new DocumentError("Zum Beleg gibt es keine Buchung.");
   return entry;
-}
-
-/** Monat und Quartal (41–44 wie in vat_returns), in deren Voranmeldung eine Buchung mit diesem Datum zählt */
-export function vatPeriodsOf(date: string): { year: number; months: number[] } {
-  const year = Number(date.slice(0, 4));
-  const month = Number(date.slice(5, 7));
-  return { year, months: [month, 40 + Math.ceil(month / 3)] };
-}
-
-/**
- * Ist der Zeitraum eines Buchungsdatums schon gemeldet? Eine gesendete oder vermerkte Voranmeldung für den Monat oder das
- * Quartal (je nach Einstellung gibt es nur eins von beiden), eine gesendete Jahreserklärung des Jahres oder ein
- * abgeschlossenes Jahr. Jede Jahreserklärung zählt: Bei einer GmbH meldet die E-Bilanz (mit KSt und GewSt) die Zahlen
- * des Jahres, auch ohne Voranmeldung oder Umsatzsteuererklärung (Kleinunternehmer, befreit); ebenso die ESt-Erklärung.
- */
-async function periodReported(q: Db | Tx, date: string): Promise<boolean> {
-  const { year, months } = vatPeriodsOf(date);
-  const r = schema.vatReturns;
-  const [sent] = await q
-    .select({ id: r.id })
-    .from(r)
-    .where(and(eq(r.year, year), inArray(r.month, months), eq(r.status, "sent")))
-    .limit(1);
-  if (sent) return true;
-  const a = schema.annualSubmissions;
-  const [annual] = await q
-    .select({ id: a.id })
-    .from(a)
-    .where(and(eq(a.year, year), eq(a.kind, "send"), eq(a.ok, true)))
-    .limit(1);
-  if (annual) return true;
-  const [closed] = await q.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
-  return Boolean(closed);
 }
 
 /**

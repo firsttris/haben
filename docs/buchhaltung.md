@@ -441,11 +441,11 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug), der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-und-freie-buchungen), der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
 
-## Manuelle Buchungen (GmbH und UG)
+## Manuelle und freie Buchungen
 
-In einer GmbH oder UG steht auf der Seite **Buchungen** der Knopf **Buchung erfassen**. Damit buchst du Soll an Haben auf frei gewählten Konten, etwa:
+Auf der Seite **Buchungen** steht der Knopf **Buchung erfassen**. Damit buchst du Soll an Haben auf frei gewählten Konten. In GmbH und UG geht das immer, im Einzelunternehmen ab dem Stichjahr, wenn Voranmeldung und EÜR aus dem Journal rechnen ([Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür)). Davor rechnet die Anlage EÜR aus Rechnungen, Belegen und Zahlungen, eine Buchung nur im Journal käme dort nicht an. Beispiele in GmbH und UG:
 
 | Vorgang | SKR03 | SKR04 |
 | --- | --- | --- |
@@ -453,7 +453,25 @@ In einer GmbH oder UG steht auf der Seite **Buchungen** der Knopf **Buchung erfa
 | Auslagen des Gesellschafters in ein längerfristiges Darlehen umwandeln | 0730 an 0740 Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre | 3510 an 3514 |
 | Falsche Kontierung umbuchen | neues an altes Aufwandskonto | ebenso |
 
-Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben, bis zu 20 Zeilen je Buchung; Soll und Haben müssen gleich sein. Die Kontobezeichnung erscheint, wenn Haben das Konto kennt. Umsatzsteuer bucht eine manuelle Buchung nie: Sie hat keinen Steuerschlüssel und erscheint nicht in der Voranmeldung.
+Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben, bis zu 20 Zeilen je Buchung; Soll und Haben müssen gleich sein. Die Kontobezeichnung erscheint, wenn Haben das Konto kennt.
+
+Im Einzelunternehmen steht neben einem Erfolgskonto nur ein Privatkonto, etwa eine Ausgabe ohne Beleg, privat bezahlt (Aufwand an Privateinlagen). Jedes Erfolgskonto braucht eine Zeile der Anlage EÜR; Zahlungen gehen über Bank oder Kasse.
+
+**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entwurf, Entscheidung 4](adr/journal-als-quelle.md)):
+
+| Steuerschlüssel | Erlöskonto SKR03 | SKR04 | Voranmeldung |
+| --- | --- | --- | --- |
+| USt 19 % | 8400 | 4400 | Kz 81 |
+| USt 7 % | 8300 | 4300 | Kz 86 |
+| 0 % | 8200 | 4200 | keine Kennzahl |
+
+- Der Betrag der Zeile ist **brutto**. Haben teilt ihn in Netto auf das Erlöskonto und Umsatzsteuer auf das Umsatzsteuerkonto des Satzes, kaufmännisch gerundet; das Formular zeigt vor dem Buchen, was gebucht wird. Beide Zeilen tragen den Schlüssel.
+- **Gegenkonto** ist ein Erfolgskonto oder, für eine Leistung für private Zwecke (§ 3 Abs. 9a UStG), im Einzelunternehmen ein Privatkonto, in GmbH und UG das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510). Forderungen gehören zu einer Rechnung: Ein Verkauf auf Ziel ohne Rechnung, dessen Steuer bei Ist erst mit der Zahlung entstünde, geht so nicht.
+- **Keine Vorsteuer:** Eine freie Buchung ist ein Eigenbeleg, der Vorsteuerabzug braucht eine Rechnung (§ 15 Abs. 1 Nr. 1 Satz 2 UStG). Dafür gibt es [Belege](belege.md), auch privat bezahlt.
+- **Als Kleinunternehmer** gibt es keinen Steuerschlüssel (§ 19 Abs. 1 UStG).
+- **Datum:** nicht in einem gemeldeten Zeitraum, also nicht nach einer gesendeten Voranmeldung des Monats oder Quartals, einer gesendeten Jahreserklärung oder einem abgeschlossenen Jahr; das gilt auch für jede manuelle Buchung im Einzelunternehmen.
+- Voranmeldung und EÜR zählen die Buchung aus dem Journal; im [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) zählt die Gegenprobe sie aus der festgeschriebenen Buchung selbst, denn ein Nebenbuch hat sie nicht.
+- **Sachentnahme:** Entnehmt ihr Waren oder Gegenstände des Betriebs für private Zwecke (unentgeltliche Wertabgabe, § 3 Abs. 1b UStG), bucht ihr Privat an das Konto der Sachentnahme mit Steuerschlüssel: SKR03 8910 (19 %) bzw. 8915 (7 %), SKR04 4620 bzw. 4630. Als Betrag den Wert der Entnahme brutto: den Einkaufspreis zum Zeitpunkt der Entnahme bzw. die Selbstkosten zuzüglich Umsatzsteuer (§ 10 Abs. 4 Nr. 1 UStG). In der Voranmeldung zählt das Netto in Kz 81 bzw. 86, in der Anlage EÜR in der Zeile „Sonstige Sach-, Nutzungs- und Leistungsentnahmen“ (§ 6 Abs. 1 Nr. 4 Satz 1 EStG), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer. Ohne Steuerschlüssel lassen sich diese Konten nicht bebuchen; als Kleinunternehmer gibt es die Buchung deshalb nicht.
 
 Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung daran vorbei den Abgleich zwischen Nebenbuch und Journal bräche:
 
@@ -469,7 +487,7 @@ Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung dar
 | Klasse 9 (Saldenvorträge, statistische Konten) | – |
 | Privatkonten (SKR03 1800–1899, SKR04 2100–2199) | gibt es in GmbH und UG nicht |
 
-Das Formular zeigt beim Tippen, was fehlt; der Server prüft beim Buchen dasselbe noch einmal. Das Datum darf nicht in der Zukunft liegen. Die Buchung ist sofort festgeschrieben und versiegelt wie jede andere (Herkunft „Manuell“); sie steht im Journal, in der Saldenliste, im Jahresexport und im DATEV-Export. Korrigiert wird mit **Stornieren** in den aufgeklappten Buchungszeilen: Die Gegenbuchung steht am selben Tag, damit sich beide im selben Zeitraum aufheben.
+Das Formular zeigt beim Tippen, was fehlt; der Server prüft beim Buchen dasselbe noch einmal. Das Datum darf nicht in der Zukunft liegen. Die Buchung ist sofort festgeschrieben und versiegelt wie jede andere (Herkunft „Manuell“); sie steht im Journal, in der Saldenliste, im Jahresexport und im DATEV-Export. Korrigiert wird mit **Stornieren** in den aufgeklappten Buchungszeilen: Die Gegenbuchung steht am selben Tag, damit sich beide im selben Zeitraum aufheben. Steuerschlüssel und Bemessungsgrundlagen dreht sie mit. Ist der Zeitraum einer freien Buchung schon gemeldet oder der Kontenrahmen inzwischen ein anderer, steht der Storno am Tag des Stornos, mit den Konten derselben Rolle im neuen Kontenrahmen.
 
 ## Saldenvortrag und Eröffnung (GmbH und UG)
 
@@ -528,7 +546,7 @@ Unter den Posten stehen Vermerke, die das Gesetz auch der Kleinstkapitalgesellsc
 Hat die Bilanz eine Vorjahresspalte, steht der Vorjahresstichtag darunter; was du für das Vorjahr bestätigt hast, gilt dort schon. **Restlaufzeiten bestätigen** speichert beides für das Jahr (Tabelle `residual_terms`, mit Änderungsprotokoll). Bestätige nach den Abschlussbuchungen; ändert sich danach ein Betrag, etwa durch eine Buchung ins Jahr, sagt die Seite, dass neu zu bestätigen ist. Ohne bestätigte Restlaufzeiten fehlen sie unter der Bilanz und in der E-Bilanz, und die Bilanz zur Hinterlegung lässt sich nicht herunterladen.
 
 > [!WARNING]
-> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft--und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Die Bilanz zur Hinterlegung beim Unternehmensregister erstellt Haben aus denselben Zahlen ([unten](#hinterlegung-beim-unternehmensregister-gmbh-und-ug)).
+> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft--und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-und-freie-buchungen). Die Bilanz zur Hinterlegung beim Unternehmensregister erstellt Haben aus denselben Zahlen ([unten](#hinterlegung-beim-unternehmensregister-gmbh-und-ug)).
 
 **Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt der Knopf **‹Jahr› abschließen** (etwa „2025 abschließen“) im Abschnitt **Jahr abschließen** das Jahr ab, nach einer Rückfrage mit Häkchen. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
 
@@ -705,10 +723,10 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 ## Was Haben nicht bucht
 
 - Gebäude, Sonderabschreibungen nach § 7g EStG und Investitionsabzugsbetrag
-- Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
+- Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte; Sachentnahmen nur als [freie Buchung](#manuelle-und-freie-buchungen) ab dem Stichjahr, nicht als Kleinunternehmer
 - Dreiecksgeschäfte, Konsignationslager und innergemeinschaftliches Verbringen; Einfuhrumsatzsteuer nur aus dem Bescheid des Zolls als Beleg ([Belege](belege.md#einfuhrumsatzsteuer)); innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
-- Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
+- Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-und-freie-buchungen) erfassen
 
 > [!NOTE]
 > Haben ersetzt keine Steuerberatung. Arbeitet die Steuerberatung mit den Daten weiter, bekommt sie das Journal aus dem Jahresexport; die Kontenzuordnung sollte einmal mit ihr abgestimmt werden.

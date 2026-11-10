@@ -18,7 +18,7 @@ import {
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { journalAbJahr, loadCompany } from "../stammdaten/index.ts";
-import { euerAusDemJournal } from "./euer-quelle.ts";
+import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { splitsByDocument } from "../belege/index.ts";
@@ -403,7 +403,9 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
 
 /** Die EÜR aus den Nebenbüchern (Zahlungen, Belege, Pauschalen, Anlagenverzeichnis); ab dem Stichjahr die Gegenprobe */
 export async function euerAusNebenbuechern(year: number, q: Db | Tx = db): Promise<EuerResult> {
-  return computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  const euer = computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  // Freie Buchungen gibt es in der EÜR nur im Einzelunternehmen; manuelle Buchungen einer GmbH sind Abschlussbuchungen
+  return isKapitalgesellschaft((await loadCompany(q)).rechtsform) ? euer : mitFreienBuchungen(euer, q);
 }
 
 /**
@@ -534,7 +536,7 @@ export async function openPositions(today: string) {
 export async function reportYears(): Promise<number[]> {
   const rows = await db.execute<{ year: number }>(sql`
     select distinct extract(year from d)::int as year from (
-      select booking_date as d from bank_transactions
+      select booking_date as d from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
       union all select issue_date from invoices where status = 'final'
       union all select document_date from documents where status = 'gebucht' and document_date is not null
     ) dates order by 1`);

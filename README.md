@@ -84,7 +84,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 | 🖥️ [Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
 | 📊 [Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
 | 📚 [Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
-| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
+| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
 | 🔐 [Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
 | 📥 [CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
 | 🔌 [REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |

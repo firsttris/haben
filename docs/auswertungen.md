@@ -114,7 +114,7 @@ Unter **Einstellungen › Export › DATEV-Export** lädst du die Buchungen eine
 - **Format:** EXTF, Formatkategorie 21, Version 13, Windows-1252.
 - **Kopfdaten:** Berater- und Mandantennummer (von der Kanzlei), Wirtschaftsjahr ist das Kalenderjahr, Sachkontenlänge 4, Kontenrahmen SKR03 bzw. SKR04 wie in Haben.
 - **Buchungssätze:** Jede Buchung aus dem Journal wird in Buchungssätze „Konto an Gegenkonto“ zerlegt. Die Summe je Konto ist danach genau die aus der [Saldenliste](buchhaltung.md#die-seite-konten); mit Personenkonten steht die Summe von Forderungen bzw. Verbindlichkeiten auf den Debitoren bzw. Kreditoren.
-- **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300) den BU-Schlüssel 40 (Aufhebung der Automatik).
+- **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300, dazu die Sachentnahme SKR03 8910 und 8915, SKR04 4620 und 4630) den BU-Schlüssel 40 (Aufhebung der Automatik).
 - **Belegfeld 1:** die Rechnungsnummer bzw. die Belegnummer des Lieferanten; **Buchungstext:** wie im Journal, auf 60 Zeichen gekürzt.
 - **Festschreibung:** gesetzt, wie in Haben.
 - **Personenkonten:** auf Wunsch statt der Sammelkonten, siehe unten.
@@ -187,7 +187,7 @@ Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [
 | `lexoffice/belege.csv` | Je Beleg Art, Richtung, Nummer, Kontakt, Beträge, Status, Zahlungsdatum, Steuersätze und Kategorien als JSON, Dateien mit SHA-256 und Lexoffice-ID |
 | `lexoffice/zahlungen.csv` | Einzelzahlungen zu sevDesk-Vorgängen nach Zahlungsdatum: Belegnummer, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle |
 | `lexoffice/datev-buchungen.csv` | Die Zeilen des DATEV-Buchungsstapels mit Datei und Zeilennummer im Original |
-| `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `sonstiges` |
+| `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `storebericht` (Finanzberichte von Google Play und App Store), `sonstiges` |
 
 PDF-, XML- und Bilddateien sind byte-genau die gespeicherten Originale. Fehlt eine Belegdatei im Speicher oder passt ihr Inhalt nicht mehr zum Hash, bricht der Export nicht ab: Die Zeile in `belege.csv` trägt dann „FEHLT“, und `FEHLER.txt` nennt den Beleg.
 

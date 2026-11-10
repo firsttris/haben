@@ -6,6 +6,7 @@ import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
+import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
@@ -37,10 +38,12 @@ import {
 } from "../../server/functions/bank.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
+import { ExcludeAccountButton, ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
+import { UploadButton } from "../../components/UploadButton.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -159,7 +162,13 @@ const FORMAT_LABEL = (format: string) =>
               ? "eBay"
               : format === "etsy-csv"
                 ? "Etsy"
-                : "CSV";
+                : format === "googleplay-earnings"
+                  ? "Google Play"
+                  : format === "appstore-finance"
+                    ? "App Store"
+                    : format === "store-payout"
+                      ? "Auszahlung"
+                      : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -236,7 +245,13 @@ function BankPage() {
           </nav>
           {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
           {selectedAccount && (
-            <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} ledger={data.ledgers[selectedAccount.id]} />
+            <AccountSettings
+              key={selectedAccount.id}
+              account={selectedAccount}
+              purposes={data.purposes}
+              ledger={data.ledgers[selectedAccount.id]}
+              excludeBlockedBy={data.excludeBlockedBy}
+            />
           )}
 
           <div className="grid-main">
@@ -316,6 +331,8 @@ function BankPage() {
           </div>
         </>
       )}
+
+      <ExcludedAccounts accounts={data.excludedAccounts} />
     </>
   );
 }
@@ -329,7 +346,17 @@ const PURPOSE_SHORT = {
 } as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
-function AccountSettings({ account, purposes, ledger }: { account: Data["accounts"][number]; purposes: Data["purposes"]; ledger: string | undefined }) {
+function AccountSettings({
+  account,
+  purposes,
+  ledger,
+  excludeBlockedBy,
+}: {
+  account: Data["accounts"][number];
+  purposes: Data["purposes"];
+  ledger: string | undefined;
+  excludeBlockedBy: string | null;
+}) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const updateFn = useServerFn(updateBankAccount);
@@ -348,6 +375,7 @@ function AccountSettings({ account, purposes, ledger }: { account: Data["account
         <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
           Name und Zweck
         </button>
+        <ExcludeAccountButton account={account} blockedBy={excludeBlockedBy} />
       </div>
     );
   }
@@ -752,7 +780,6 @@ function ImportControls({ data }: { data: Data }) {
   const addAccount = useServerFn(addBankAccount);
   const addProvider = useServerFn(addProviderAccount);
   const [accountType, setAccountType] = useState<"bank" | "provider">("bank");
-  const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
@@ -788,7 +815,6 @@ function ImportControls({ data }: { data: Data }) {
       setMessages([{ tone: "danger", text: errorMessage(error) }]);
     } finally {
       setBusy(false);
-      if (fileInput.current) fileInput.current.value = "";
     }
   }
 
@@ -832,19 +858,16 @@ function ImportControls({ data }: { data: Data }) {
         <button type="button" className="btn" onClick={() => setShowAccount((v) => !v)} disabled={busy}>
           Konto hinzufügen
         </button>
-        <button type="button" className="btn btn-primary" onClick={() => fileInput.current?.click()} disabled={busy}>
-          {busy ? "Importiere …" : "CSV / CAMT importieren"}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
+        <UploadButton
+          className="btn btn-primary"
           multiple
           accept=".csv,.xml,.txt,text/csv,application/xml,text/xml"
-          className="visually-hidden"
-          tabIndex={-1}
-          aria-label="Kontoauszugsdateien"
-          onChange={(e) => void onFiles([...(e.target.files ?? [])])}
-        />
+          disabled={busy}
+          inputLabel="Kontoauszugsdateien"
+          onFiles={onFiles}
+        >
+          {busy ? "Importiere …" : "CSV / CAMT importieren"}
+        </UploadButton>
       </div>
       {showAccount && (
         <form className="card" onSubmit={onAddAccount} style={{ minWidth: 320 }}>
@@ -1097,6 +1120,10 @@ function AllocationPanel({
             </div>
           ))}
         </div>
+      )}
+
+      {detail.storePayout && tx.open === tx.amount && (
+        <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />

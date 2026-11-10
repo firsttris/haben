@@ -2,11 +2,13 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DEFAULT_OPTIONS } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { buildDeliveryNotePdf, deliveryNotePdfData } from "./order.ts";
 import { pdfData, renderInvoicePdf } from "./pdf.ts";
 import { quotePdfData } from "./quote.ts";
 import { sampleBuyer, sampleDocument, sampleSeller } from "./samples.ts";
+import { type SheetData, sheetText } from "./sheet-text.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { buildEInvoice } from "./xml.ts";
 
@@ -113,5 +115,51 @@ describe("Artikelnummer im PDF", () => {
     // Lieferschein ohne Preise: Pos., Art.-Nr., Beschreibung, Menge
     const text = pdfText(buildDeliveryNotePdf(deliveryNote));
     if (text !== null) expect(text).toMatch(/1\s+ET-1042\s+Softwareentwicklung September/);
+  });
+});
+
+describe("Schalter „Artikelnummer“ der Gestaltung", () => {
+  const aus = { ...DEFAULT_OPTIONS, itemNumber: false };
+  const doc = () => withItemNumber(sampleDocument({}));
+
+  it("zeigt die Spalte als Vorgabe, sobald eine Position eine Nummer hat", () => {
+    expect(pdfData({ ...doc(), options: DEFAULT_OPTIONS }).itemNumbers).toBe(true);
+  });
+
+  it("blendet die Spalte in Rechnung, Angebot und Lieferschein aus", () => {
+    expect(pdfData({ ...doc(), options: aus }).itemNumbers).toBe(false);
+    const quote = { ...doc(), validUntil: "2026-12-31", options: aus } as unknown as Parameters<typeof quotePdfData>[0];
+    expect(quotePdfData(quote).itemNumbers).toBe(false);
+    const note = {
+      reference: { kind: "rechnung", number: "R-1", issueDate: "2026-10-01" },
+      deliveryDate: "2026-10-02",
+      date: "2026-10-02",
+      seller: sampleSeller,
+      buyer: sampleBuyer,
+      lines: doc().lines,
+      options: aus,
+    } as const;
+    expect(deliveryNotePdfData({ ...note, lines: [...note.lines] }).itemNumbers).toBe(false);
+  });
+
+  it("nimmt die Spalte auch aus dem PDF", () => {
+    const text = pdfText(renderInvoicePdf({ ...doc(), options: aus }));
+    if (text === null) return;
+    expect(text).not.toContain("ET-1042");
+    expect(text).not.toContain("Art.-Nr.");
+  });
+
+  it("lässt die Nummer im XML stehen (BT-155)", async () => {
+    const { xml } = await buildEInvoice({ ...withItemNumber(sampleDocument({ format: "zugferd" })), options: aus });
+    expect(xml).toContain("<ram:SellerAssignedID>ET-1042</ram:SellerAssignedID>");
+  });
+
+  it("nimmt die Nummer auch aus dem Text für Screenreader", () => {
+    const data = pdfData({ ...doc(), options: aus }) as unknown as SheetData;
+    expect(
+      sheetText(data)
+        .flatMap((part) => part.lines)
+        .join("\n"),
+    ).not.toContain("ET-1042");
   });
 });

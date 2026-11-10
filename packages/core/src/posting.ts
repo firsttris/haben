@@ -825,7 +825,8 @@ export function cashBookingLabel(kind: CashBooking, rechtsform: Rechtsform): str
 }
 
 /** Art einer Zeile im Kassenbuch: bar bezahlter Beleg, Bareinnahme auf eine oder ohne Rechnung oder eine Kassenbuchung ohne Beleg */
-export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung" | "einnahme", rechtsform: Rechtsform): string {
+export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung" | "einnahme" | "import", rechtsform: Rechtsform): string {
+  if (kind === "import") return "Übernommene Kassenbewegung";
   if (kind === "beleg") return "Beleg";
   if (kind === "rechnung") return "Bareinnahme Rechnung";
   return kind === "einnahme" ? "Bareinnahme" : cashBookingLabel(kind, rechtsform);

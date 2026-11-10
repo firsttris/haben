@@ -62,9 +62,11 @@ git clone https://github.com/firsttris/haben.git && cd haben
 podman build -t haben -f Containerfile .   # oder docker build
 ```
 
-Das `Containerfile` baut die App in zwei Stufen auf Basis von `oven/bun` (Debian, slim); Laufzeit ist Bun, Node ist nicht im Image.
+Das `Containerfile` baut die App in zwei Stufen: gebaut wird auf `oven/bun` (Debian, slim), die Laufzeit-Stufe ist [Wolfi](https://github.com/wolfi-dev) (`cgr.dev/chainguard/wolfi-base`) mit dem Bun aus der Build-Stufe. Wolfi nutzt glibc wie Debian, was ERiC voraussetzt, liefert aber aktuelle Versionen der Systempakete, vor allem von poppler, das jedes hochgeladene PDF liest. Node ist nicht im Image, ebenso keine Build-Werkzeuge wie Vite oder esbuild: Installiert sind nur die Laufzeitabhängigkeiten ohne Peer-Abhängigkeiten. Der Digest von `wolfi-base` ist im `Containerfile` festgehalten, damit ein Build nachvollziehbar bleibt; Renovate hebt ihn jede Woche an. Die Pakete kommen aus dem freien Wolfi-Repository `packages.wolfi.dev`; wer selbst baut, braucht von dort und von `cgr.dev` Zugriff.
 
-Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
+Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH`, `HABEN_EINVOICE_DIR` und `XDG_CACHE_HOME=/tmp/.cache` (Cache der Schriften für `pdftoppm`).
+
+`compose.yml` und `haben-app.container` starten die App gehärtet: Das Dateisystem des Containers ist schreibgeschützt, beschreibbar sind nur die Volumes unter `/var/lib/haben` und `/tmp` (tmpfs, beim Neustart leer). Dazu kommen keine Capabilities (`cap_drop: [ALL]` bzw. `DropCapability=ALL`) und `no-new-privileges`. Haben braucht nichts davon; ein Angreifer, der über eine Lücke Code im Container ausführt, kann so weder Programme im Image verändern noch sich höhere Rechte verschaffen. Schreibt etwas Eigenes außerhalb dieser Verzeichnisse, hängst du dafür ein Volume ein, statt den Schreibschutz abzuschalten.
 
 ## Docker Compose
 
@@ -454,6 +456,8 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
 | `ENABLE_BANKING_API_URL` | nein | Andere Basis-URL der API, nur zum Testen. Standard `https://api.enablebanking.com` | `http://localhost:4555` |
+| `GOOGLE_PLAY_TOKEN_URL`, `GOOGLE_PLAY_STORAGE_URL` | nein | Andere Adressen für Anmeldung und Cloud Storage beim Abruf der [Google-Play-Berichte](bank.md#google-play-und-app-store), nur zum Testen. Standard `https://oauth2.googleapis.com/token` bzw. `https://storage.googleapis.com` | `http://localhost:4556` |
+| `APP_STORE_CONNECT_URL` | nein | Andere Basis-URL von App Store Connect beim Abruf der [Finanzberichte](bank.md#google-play-und-app-store), nur zum Testen. Standard `https://api.appstoreconnect.apple.com` | `http://localhost:4557` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
@@ -681,7 +685,7 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 
 Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
-ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
+ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
 
 Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [Erste Schritte](einrichtung.md#elster-einrichten), dort auch, wer bei Haben als Hersteller gilt.
 

@@ -383,6 +383,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln**: 152 Stunden = 152000, 0,5 Tage = 500.
+- **Daten der Belegvorlagen:** Jedes Feld, das eine Vorlage bekommt, steht mit Beschreibung im Feldvertrag (`packages/einvoice/src/layout-schema.ts`). Danach schreibt `bun scripts/feldvertrag/schreiben.ts` den Skill `belegvorlage` und die Feldtabellen in [Eigene Belegvorlagen](belegvorlagen.md) neu. Felder kommen nur dazu: Wegfallen, umbenennen oder den Typ wechseln darf keines einer veröffentlichten Version, sonst brechen eigene Layouts.
 - **Formatierung mit Biome:** `bun run format` formatiert JavaScript, TypeScript und JSON (160 Zeichen breit, doppelte Anführungszeichen); `bun run lint` und die CI prüfen das. CSS und Markdown formatiert Biome nicht. Reine Formatier-Commits stehen in `.git-blame-ignore-revs`; damit `git blame` sie lokal überspringt, einmal `git config blame.ignoreRevsFile .git-blame-ignore-revs` und `git config blame.markIgnoredLines true`. Der Squash-Commit von #201 ändert auch `biome.jsonc`, `package.json` und diese Seite; solche Zeilen schreibt `git blame` einem älteren Commit zu und markiert sie mit `?`.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.
 - **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen unter Bun direkt aus den Quellen, ohne Build.
@@ -412,7 +413,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
@@ -521,6 +522,10 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
+| Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |
+| Kein Feld einer Version fällt weg, wird umbenannt oder wechselt den Typ | `layout-schema.test.ts` gegen `layout-schema.v<n>.json` | Fehler |
+| Alte Layouts ergeben mit heutigen Daten ein PDF | `layout-kompatibel.test.ts` mit `templates/kompatibel/` | Fehler |
+| Skill `belegvorlage` und Feldtabellen aktuell | `layout-anleitung.test.ts` | Fehler |
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
 
 Die Feldregel ist ein GritQL-Muster für Biome (`scripts/felder/kein-label-field.grit`, in `biome.jsonc` unter `plugins`). Sie meldet ein `<label>` mit `field` als Wort in einem festen `className` (`"field"`, `"field weitere"`, `{"field"}`), nicht `field-label` und nicht `div.field`. Eine berechnete Klasse sieht ein Muster nicht; dafür prüft der Playwright-Test auf allen Seiten der Routenliste, dass es kein `label.field` gibt und jeder Feldname per `for` auf sein Feld zeigt. Was nur hinter Dialogen oder Zuständen erscheint, erreicht er nicht.
