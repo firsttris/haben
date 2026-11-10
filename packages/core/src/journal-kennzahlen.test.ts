@@ -103,6 +103,26 @@ describe.each(KONTENRAHMEN)("Kennzahlen aus dem Journal (%s)", (kr) => {
     expect(kennzahlen(kr, drittland)).toEqual({ kz84: 10_000, kz85: 1_900, kz67: 1_900 });
   });
 
+  // #542 Schritt 4: Das Journal trägt die volle Bemessungsgrundlage auch ohne Vorsteuerabzug und mit Privatanteil,
+  // wie computeVatFigures (Kz 46/84/89/93 voll, nur Kz 67/61 betrieblich)
+  it("§ 13b ohne Vorsteuerabzug (Kleinunternehmer): Kz 46 ist das Netto, die Steuer zählt nur in Kz 47", () => {
+    const t = { ...totals({ rate: 1900, base: 10_000 }), gross: 10_000 };
+    const lines = documentPosting(t, "software", kr, "einzelunternehmen", "bank", false, undefined, 0, "eu");
+    expect(kennzahlen(kr, lines)).toEqual({ kz46: 10_000, kz47: 1_900 });
+  });
+
+  it("§ 13b mit Privatanteil: Kz 46 und 47 voll, nur Kz 67 betrieblich", () => {
+    const t = { ...totals({ rate: 1900, base: 20_000 }), gross: 20_000 };
+    const lines = documentPosting(t, "software", kr, "einzelunternehmen", "bank", true, undefined, 25, "eu");
+    expect(kennzahlen(kr, lines)).toEqual({ kz46: 20_000, kz47: 3_800, kz67: 2_850 });
+  });
+
+  it("Innergemeinschaftlicher Erwerb mit Privatanteil: Kz 89 und Erwerbsteuer voll, nur Kz 61 betrieblich", () => {
+    const t = { ...totals({ rate: 1900, base: 10_000 }), gross: 10_000 };
+    const lines = documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "bank", true, undefined, 30, "ig_erwerb");
+    expect(kennzahlen(kr, lines)).toEqual({ kz89: 10_000, tax89: 1_900, kz61: 1_330 });
+  });
+
   it("Innergemeinschaftlicher Erwerb ergibt Kz 89/93 mit Erwerbsteuer und die Vorsteuer Kz 61", () => {
     const t = { ...totals({ rate: 1900, base: 10_000 }, { rate: 700, base: 5_000 }), gross: 15_000 };
     const lines = documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "bank", true, undefined, 0, "ig_erwerb");
