@@ -464,6 +464,51 @@ test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zah
   await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
 });
 
+/** Kontrollkästchen und Optionsfelder, deren Hinweis im umschließenden `<label>` steht und damit zum Namen zählt */
+function hintsInCheckboxLabel(p: Page) {
+  return p.evaluate(() => {
+    const where = (el: Element) => `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
+    return [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]')].flatMap((input) => {
+      const labels = [...(input.labels ?? [])];
+      const ids = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
+      const inLabel = ids.filter((id) => labels.some((label) => label.contains(document.getElementById(id))));
+      const hint = labels.some((label) => label.querySelector(".field-hint"));
+      return inLabel.length || hint ? [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`] : [];
+    });
+  });
+}
+
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Kein Hinweis im Label eines Kontrollkästchens: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await hintsInCheckboxLabel(page), path).toEqual([]);
+    }
+  });
+}
+
+test("Kontrollkästchen mit Hinweis: Der Name ist nur die Beschriftung, der Hinweis die Beschreibung, der Text schaltet um", async ({ page }) => {
+  await open(page, "/einstellungen");
+  const faelle = [
+    { name: "Kleinunternehmer nach § 19 UStG", hinweis: /^Rechnungen ohne Umsatzsteuer, keine Voranmeldung/ },
+    { name: "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)", hinweis: /^Ohne Gestattung rechnet Haben Fremdwährung/ },
+    { name: "Basiszinssatz automatisch abrufen", hinweis: /^Haben fragt die Bundesbank nur nach dem 1\. Januar/ },
+  ];
+  for (const { name, hinweis } of faelle) {
+    const kasten = page.getByRole("checkbox", { name, exact: true });
+    await expect(kasten, name).toHaveCount(1);
+    await expect(kasten, name).toHaveAccessibleDescription(hinweis);
+    // Der Name enthält den Hinweis nicht, die Beschreibung nicht den Namen: Nichts wird doppelt vorgelesen
+    await expect(kasten, name).not.toHaveAccessibleDescription(new RegExp(name.slice(0, 12)));
+  }
+
+  // Der Beschriftungstext schaltet weiter um (Tageskurs ist nie gesperrt); nichts wird gespeichert
+  const tageskurs = page.getByRole("checkbox", { name: faelle[1]!.name, exact: true });
+  const vorher = await tageskurs.isChecked();
+  await page.getByText(faelle[1]!.name, { exact: true }).click();
+  await expect(tageskurs).toBeChecked({ checked: !vorher });
+});
+
 /** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
 const FILE_PICKER_PAGES = [
   "/dauerbelege/neu",
