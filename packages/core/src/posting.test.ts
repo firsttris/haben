@@ -345,7 +345,8 @@ describe("legacyCorrectionPosting", () => {
     expect(legacyCorrectionPosting(storno, "SKR04", "soll")).toEqual([
       { account: "1200", debit: 0, credit: 119_000, taxCode: null },
       { account: "3806", debit: 19_000, credit: 0, taxCode: "USt19" },
-      { account: "9000", debit: 100_000, credit: 0, taxCode: null },
+      // Mit Steuerschlüssel: die Bemessungsgrundlage der Korrektur (#542)
+      { account: "9000", debit: 100_000, credit: 0, taxCode: "USt19" },
     ]);
   });
 });
