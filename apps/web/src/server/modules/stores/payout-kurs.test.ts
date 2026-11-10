@@ -94,4 +94,13 @@ describe.skipIf(!testDatabaseUrl)("Auszahlung von Apple mit einer Währung ohne 
     const [count] = await sql`select count(*)::int as n from store_payouts`;
     expect(count!.n).toBe(0);
   });
+
+  it("nimmt die Auszahlung an, sobald der Kurs eingetragen und die Währung übernommen ist", async () => {
+    await sql`insert into exchange_rates (currency, month, rate, source) values ('TWD', '2026-10', 35.0, 'manuell')`;
+    expect((await stores.syncStore(actor, "appstore", NOW)).imported.added).toBe(1);
+    const [deposit] = await sql`select id from bank_transactions where bank_reference = 'bank-apple'`;
+    const view = await stores.storePayoutView(deposit!.id);
+    expect(view!.months.map((m) => m.amount)).toEqual([700, 100, 1000]);
+    expect(await stores.takeOverStorePayout(actor, { transactionId: deposit!.id, monthIds: view!.months.map((m) => m.id) })).toEqual({ difference: 0 });
+  });
 });

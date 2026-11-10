@@ -1,5 +1,5 @@
-import { formatEuro, PAYMENT_PROVIDERS } from "@haben/core";
-import { and, asc, eq, like, or } from "drizzle-orm";
+import { formatEuro, formatRateMonth, PAYMENT_PROVIDERS } from "@haben/core";
+import { and, asc, eq, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { allocateExchangeDifferenceIn, allocateTransferIn, BankError, storeStatement } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -7,6 +7,7 @@ import { bankOpenAmountSql } from "../../db/bank-open.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import type { Store } from "../../db/schema.ts";
 import { STORE_LABELS } from "./connections.ts";
+import { archivedSettlements } from "./import.ts";
 
 /*
  * Auszahlung eines App-Stores auf das Bankkonto. Keiner der Berichte nennt sie: Google zahlt den Monatsbetrag einige
@@ -114,6 +115,38 @@ export type StorePayoutView = NonNullable<Awaited<ReturnType<typeof storePayoutV
 export const storePayoutSchema = z.object({ transactionId: z.uuid(), monthIds: z.array(z.uuid()).min(1).max(60) });
 
 /**
+ * Apple: Jede Währung der gewählten Fiskalmonate muss im Konto stehen. Fehlt eine (meist ohne Umrechnungskurs), steckt
+ * ihr Erlösanteil in der Zahlung und landete sonst als Kursdifferenz statt als Umsatz an die Store-Gesellschaft.
+ */
+async function requireAllCurrencies(tx: Tx, accountId: string, chosen: { reference: string }[]) {
+  const periods = [...new Set(chosen.map((m) => /^appstore-finance-(\d{4}-\d{2})-/.exec(m.reference)?.[1]).filter((p): p is string => !!p))];
+  const settlements = await archivedSettlements("appstore", periods);
+  if (settlements.length === 0) return;
+  const present = new Set(
+    (
+      await tx
+        .select({ reference: schema.bankTransactions.bankReference })
+        .from(schema.bankTransactions)
+        .where(
+          and(
+            eq(schema.bankTransactions.bankAccountId, accountId),
+            inArray(
+              schema.bankTransactions.bankReference,
+              settlements.map((s) => s.reference),
+            ),
+          ),
+        )
+    ).map((r) => r.reference),
+  );
+  const missing = settlements.filter((s) => !present.has(s.reference));
+  if (missing.length > 0) {
+    throw new BankError(
+      `Im Konto fehlt noch der Erlösanteil ${missing.map((s) => `${s.currency} (Fiskalmonat ${formatRateMonth(s.period)})`).join(", ")}, meist weil der Umsatzsteuer-Umrechnungskurs fehlt. Trage ihn unter Einstellungen › Fremdwährung ein und rufe die Berichte erneut ab; sonst bucht Haben den Anteil als Kursdifferenz.`,
+    );
+  }
+}
+
+/**
  * Legt aus dem Bankeingang die Auszahlung im Konto des Stores an, verbindet beide als Geldtransit und bucht bei Apple die
  * Kursdifferenz. Alles in einer Transaktion: Passt etwas nicht, bleibt nichts zurück.
  */
@@ -148,6 +181,7 @@ export async function takeOverStorePayout(actor: string, input: z.input<typeof s
     const unpaid = await unpaidMonths(tx, store, account.id);
     const chosen = unpaid.filter((m) => data.monthIds.includes(m.id));
     if (chosen.length !== new Set(data.monthIds).size) throw new BankError("Ein gewählter Monat ist schon ausgezahlt oder gehört nicht zu diesem Konto.");
+    if (store === "appstore") await requireAllCurrencies(tx, account.id, chosen);
     const sum = chosen.reduce((s, m) => s + m.amount, 0);
     const difference = bank.amount - sum;
     if (store === "googleplay" && difference !== 0) {

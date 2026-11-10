@@ -137,6 +137,12 @@ export async function importStoreReports(actor: string, store: Store): Promise<S
   return result;
 }
 
+/** Abrechnungen der archivierten Berichte eines Stores in diesen Berichtsmonaten, auch die ohne Kurs (euro null) */
+export async function archivedSettlements(store: Store, periods: string[]): Promise<StoreSettlement[]> {
+  const { parsed } = await readReports(store);
+  return parsed.flatMap((p) => p.report.settlements).filter((s) => periods.includes(s.period));
+}
+
 /** Rechnungsentwürfe für alle archivierten Abrechnungen, die noch keinen haben (Einstellungen › Bank) */
 export async function createAllStoreDrafts(actor: string, store: Store): Promise<DraftOutcome> {
   const { parsed, messages } = await readReports(store);
