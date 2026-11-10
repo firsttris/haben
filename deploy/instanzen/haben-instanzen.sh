@@ -47,7 +47,18 @@ TEXT
 in_dir() {
   local dir="$1"
   shift
-  (cd "$dir" && "$@")
+  (
+    cd "$dir" || exit 1
+    # Compose gibt Variablen aus der Shell Vorrang vor der .env: ein exportiertes COMPOSE_PROJECT_NAME, DOMAIN oder
+    # ENCRYPTION_KEY liefe sonst gegen das Projekt oder mit den Schlüsseln einer anderen Firma
+    unset COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_PROFILES COMPOSE_ENV_FILES COMPOSE_PATH_SEPARATOR
+    local k
+    for k in $( (sed -n 's/^[[:space:]]*\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' .env 2> /dev/null
+      grep -o '\${[A-Za-z_][A-Za-z0-9_]*' compose.yml compose.override.yml 2> /dev/null | sed 's/.*\${//') | sort -u); do
+      case "$k" in PATH | HOME | USER | DOCKER_* ) ;; *) unset "$k" ;; esac
+    done
+    "$@"
+  )
 }
 
 # Wert eines Schlüssels aus einer .env wie Compose ihn liest: ohne umschließende Anführungszeichen, ohne Kommentar
@@ -182,9 +193,13 @@ warten_auf_app() {
 # 0: der Dienst läuft, 1: er läuft nicht, 2: Compose meldet einen Fehler (etwa eine fehlerhafte .env). Erst die
 # ganze Ausgabe, dann suchen: grep -q in einer Pipe mit pipefail ließe docker an SIGPIPE scheitern
 laeuft() {
-  local dienste
+  local dienste zustand
   dienste="$(in_dir "$1" docker compose ps --status running --services 2> /dev/null)" || return 2
-  grep -qx "$2" <<< "$dienste"
+  ! grep -qx "$2" <<< "$dienste" || return 0
+  # 3: der Dienst startet ständig neu (etwa nach einer fehlgeschlagenen Migration); das ist ein Fehler, nicht gestoppt
+  zustand="$(in_dir "$1" docker compose ps -a --format '{{.State}}' "$2" 2> /dev/null)" || return 2
+  case "$zustand" in restarting*) return 3 ;; esac
+  return 1
 }
 
 cmd_neu() {
@@ -241,6 +256,13 @@ cmd_neu() {
     [ "$(env_lesen "$andere/.env" COMPOSE_PROJECT_NAME)" != "haben-$name" ] \
       || fehler "Das Compose-Projekt haben-$name gehört schon zur Instanz $andere; bitte einen anderen Namen wählen."
   done 3< <(instanzen)
+  # Ein übrig gebliebener Eintrag einer gelöschten Instanz: zwei Blöcke für dieselbe Domain lehnt Caddy ab, und der
+  # gemeinsame Proxy startete für keine Instanz mehr
+  local site
+  for site in "$basis"/proxy/sites/*.caddy; do
+    [ -f "$site" ] && [ "$site" != "$basis/proxy/sites/$name.caddy" ] || continue
+    ! grep -qxF "$domain {" "$site" || fehler "Für $domain steht schon ein Eintrag im gemeinsamen Caddy ($site); nichts angelegt."
+  done
   # Auch ein Projekt dieses Namens außerhalb der Basis: mit Containern oder, nach docker compose down, nur noch mit
   # seinen Volumes (Datenbank und Belege einer anderen Firma). Kann docker das nicht sagen, lieber nichts anlegen
   projekte="$(docker compose ls -a -q 2> /dev/null)" || fehler "docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt."
@@ -342,20 +364,23 @@ cmd_neu() {
 }
 
 cmd_update() {
-  local dir name uebersprungen=""
+  local dir name rc uebersprungen=""
   # Die Liste über Kanal 3: docker compose exec liest sonst den Rest aus der Standardeingabe
   while IFS= read -r dir <&3; do
     name="$(basename "$dir")"
     echo "== $name"
-    if laeuft "$dir" app; then
-      :
-    elif [ $? -eq 2 ]; then
-      fehler "$name: docker compose meldet einen Fehler (cd $dir && docker compose ps); $name und die folgenden Instanzen sind nicht aktualisiert."
-    else
-      echo "gestoppt, übersprungen"
-      uebersprungen="$uebersprungen $name"
-      continue
-    fi
+    rc=0
+    laeuft "$dir" app || rc=$?
+    case "$rc" in
+      0) ;;
+      2) fehler "$name: docker compose meldet einen Fehler (cd $dir && docker compose ps); $name und die folgenden Instanzen sind nicht aktualisiert." ;;
+      3) fehler "$name: Die App startet ständig neu; siehe: cd $dir && docker compose logs app. $name und die folgenden Instanzen sind nicht aktualisiert." ;;
+      *)
+        echo "gestoppt, übersprungen"
+        uebersprungen="$uebersprungen $name"
+        continue
+        ;;
+    esac
     in_dir "$dir" docker compose exec -T backup backup.sh || fehler "$name: Sicherung vor dem Update fehlgeschlagen; $name und die folgenden Instanzen sind nicht aktualisiert."
     in_dir "$dir" docker compose pull || fehler "$name: Images konnten nicht geladen werden; $name und die folgenden Instanzen sind nicht aktualisiert."
     in_dir "$dir" docker compose up -d || fehler "$name: Start fehlgeschlagen; die folgenden Instanzen sind nicht aktualisiert."
@@ -367,30 +392,37 @@ cmd_update() {
 }
 
 cmd_status() {
-  local dir name domain version erreichbar eric sicherung code
+  local dir name domain version erreichbar eric sicherung code rc
   printf '%-20s %-32s %-10s %-11s %-12s %s\n' Instanz Domain Version Erreichbar ERiC "Letzte Sicherung"
   while IFS= read -r dir <&3; do
     name="$(basename "$dir")"
     domain="$(env_lesen "$dir/.env" DOMAIN)"
     code="$(curl -s -o /dev/null -m 10 -w '%{http_code}' "https://$domain/login" 2> /dev/null || true)"
     if [ "$code" = 200 ]; then erreichbar=ja; else erreichbar="nein (${code:-000})"; fi
-    if laeuft "$dir" app; then
+    rc=0
+    laeuft "$dir" app || rc=$?
+    if [ "$rc" = 0 ]; then
       version="$(in_dir "$dir" docker compose exec -T app bun -e 'console.log(require("/app/package.json").version)' 2> /dev/null || echo "?")"
       # Version des heruntergeladenen ERiC (AKTUELL zeigt auf den Ordner) oder des von Hand eingebundenen
       eric="$(in_dir "$dir" docker compose exec -T app sh -c 'd="${ERIC_HOME:-}"; if [ -z "$d" ] && a="$(cat /var/lib/haben/eric/AKTUELL 2> /dev/null)"; then d="/var/lib/haben/eric/$a"; fi
         if [ -f "$d/HABEN_ERIC_VERSION" ]; then cat "$d/HABEN_ERIC_VERSION"; elif [ -n "${ERIC_HOME:-}" ]; then echo "von Hand"; else echo fehlt; fi' 2> /dev/null || echo "?")"
-    elif [ $? -eq 2 ]; then
+    elif [ "$rc" = 2 ]; then
       version=Fehler
+      eric="–"
+    elif [ "$rc" = 3 ]; then
+      version="startet neu"
       eric="–"
     else
       version=gestoppt
       eric="–"
     fi
-    if laeuft "$dir" db; then
+    rc=0
+    laeuft "$dir" db || rc=$?
+    if [ "$rc" = 0 ]; then
       sicherung="$(in_dir "$dir" docker compose exec -T db psql -U haben -d haben -XAtc \
         "SELECT coalesce(to_char(max(at) AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI'), 'keine') FROM backup_status WHERE kind = 'backup' AND ok" \
         2> /dev/null || echo "?")"
-    elif [ $? -eq 2 ]; then
+    elif [ "$rc" = 2 ] || [ "$rc" = 3 ]; then
       sicherung="? (Compose-Fehler)"
     else
       sicherung="– (Datenbank gestoppt)"
