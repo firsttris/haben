@@ -2396,7 +2396,7 @@ export const sevdeskConnection = pgTable(
 );
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 export type LexofficeImportProgress = {
@@ -2503,7 +2503,7 @@ export const legacyOrderPdfAttempts = pgTable(
 );
 
 /**
- * Rechnungen, Gutschriften und Belege aus Lexoffice oder sevDesk, so wie die API sie geliefert hat. Nur anhängen.
+ * Rechnungen, Gutschriften und Belege aus Lexoffice, sevDesk oder BuchhaltungsButler mit unveränderten Quelldaten. Nur anhängen.
  * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".
  */
 export const lexofficeVouchers = pgTable(

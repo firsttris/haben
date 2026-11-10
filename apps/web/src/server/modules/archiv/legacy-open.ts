@@ -38,7 +38,7 @@ const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
 const OPEN_ITEM_TYPES = new Set([...SALES, ...PURCHASES]);
 
-const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
+const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk", buchhaltungsbutler: "BuchhaltungsButler" } as const;
 
 export interface OpenLegacyItem {
   id: string;

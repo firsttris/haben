@@ -412,7 +412,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |

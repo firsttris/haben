@@ -1,5 +1,5 @@
 /*
- * Archiv und Umzug: Jahresarchiv (GoBD-Export), Import aus Lexoffice und sevDesk, übernommene offene Posten und Altbelege.
+ * Archiv und Umzug: Jahresarchiv (GoBD-Export), Import aus Lexoffice, sevDesk und BuchhaltungsButler, offene Posten und Altbelege.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
@@ -44,5 +44,6 @@ export {
   sevdeskConnectionStatus,
   startSevdeskImport,
 } from "./sevdesk.ts";
+export { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "./buchhaltungsbutler.ts";
 export { bookDatevEroeffnung, datevEroeffnung, DatevEroeffnungError, datevEroeffnungSchema, type DatevEroeffnung } from "./datev-eroeffnung.ts";
 export { attachOrderPdf, listOrderDocuments, orderArchiveOverview, orderDocumentDetail, orderDocumentFile, ORDER_KINDS, ORDER_STATUSES } from "./orders.ts";

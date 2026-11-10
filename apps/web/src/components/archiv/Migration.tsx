@@ -23,10 +23,11 @@ import { ScrollBox } from "../ScrollTable.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
+import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
-type Source = "lexoffice" | "sevdesk";
+type Source = "lexoffice" | "sevdesk" | "buchhaltungsbutler";
 
 /** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
 const SOURCES = {
@@ -59,13 +60,25 @@ const SOURCES = {
   },
 } as const;
 
+const BB_CONFIG = {
+  product: "BuchhaltungsButler",
+  importHelp: "Liest Buchungen, Belege und PDFs aus den Exportdateien von BuchhaltungsButler ein.",
+  exportsHelp:
+    "Der BB-Import legt die Originalexporte bereits an. Ergänze je Geschäftsjahr noch den Datenexport für die Betriebsprüfung, ELSTER-Protokolle und Kontoauszüge.",
+} as const;
+const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG } as const;
+
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
   const [source, setSource] = useState<Source>(
-    (data.sevdeskConnection || data.sevdeskImport) && !(data.connection || data.lastImport) ? "sevdesk" : "lexoffice",
+    data.bbImport && !(data.connection || data.lastImport || data.sevdeskConnection || data.sevdeskImport)
+      ? "buchhaltungsbutler"
+      : (data.sevdeskConnection || data.sevdeskImport) && !(data.connection || data.lastImport)
+        ? "sevdesk"
+        : "lexoffice",
   );
-  const config = SOURCES[source];
-  const lastImport = source === "sevdesk" ? data.sevdeskImport : data.lastImport;
+  const config = ALL_SOURCES[source];
+  const lastImport = source === "buchhaltungsbutler" ? data.bbImport : source === "sevdesk" ? data.sevdeskImport : data.lastImport;
   return (
     <div className="stack">
       {data.orderArchive.count > 0 && (
@@ -81,29 +94,39 @@ export function Migration({ data }: { data: MigrationData }) {
         der Abgleich unten für jedes Jahr aufgeht. Alles, was hier landet, ist danach unveränderlich.
       </div>
       <div className="chip-row" role="group" aria-label="Bisherige Buchhaltung">
-        {(Object.keys(SOURCES) as Source[]).map((s) => (
+        {(Object.keys(ALL_SOURCES) as Source[]).map((s) => (
           <button key={s} type="button" className={`chip${source === s ? " active" : ""}`} aria-pressed={source === s} onClick={() => setSource(s)}>
-            Umzug aus {SOURCES[s].product}
+            Umzug aus {ALL_SOURCES[s].product}
           </button>
         ))}
       </div>
-      {source === "sevdesk" ? (
-        <Connection key="sevdesk" source="sevdesk" connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null} />
+      {source !== "buchhaltungsbutler" &&
+        (source === "sevdesk" ? (
+          <Connection key="sevdesk" source="sevdesk" connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null} />
+        ) : (
+          <Connection
+            key="lexoffice"
+            source="lexoffice"
+            connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
+          />
+        ))}
+      {source === "lexoffice" && !data.connection && <WebBackup />}
+      {source === "buchhaltungsbutler" ? (
+        <BuchhaltungsButlerImport key="buchhaltungsbutler" initial={data.bbImport} />
       ) : (
-        <Connection
-          key="lexoffice"
-          source="lexoffice"
-          connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
+        <ImportCard
+          key={`${source}-${lastImport?.id ?? "neu"}`}
+          source={source}
+          connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
+          initial={lastImport}
         />
       )}
-      {source === "lexoffice" && !data.connection && <WebBackup />}
-      <ImportCard
-        key={`${source}-${lastImport?.id ?? "neu"}`}
-        source={source}
-        connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
-        initial={lastImport}
+      <OpenItems
+        items={data.openItems}
+        cutoff={data.cutoff}
+        cutoffError={data.cutoffError}
+        imported={Boolean(data.lastImport || data.sevdeskImport || data.bbImport)}
       />
-      <OpenItems items={data.openItems} cutoff={data.cutoff} cutoffError={data.cutoffError} imported={Boolean(data.lastImport || data.sevdeskImport)} />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
           <span className="step-num">4</span>
@@ -144,7 +167,7 @@ export function Migration({ data }: { data: MigrationData }) {
   );
 }
 
-function Connection({ source, connected }: { source: Source; connected: { name: string; since: Date } | null }) {
+function Connection({ source, connected }: { source: "lexoffice" | "sevdesk"; connected: { name: string; since: Date } | null }) {
   const router = useRouter();
   const config = SOURCES[source];
   const save = useServerFn(config.save);
@@ -237,7 +260,7 @@ function Connection({ source, connected }: { source: Source; connected: { name: 
 
 const PHASES = { kontakte: "Kontakte", liste: "Belegliste", belege: "Belege und Dateien", fertig: "Fertig" } as const;
 
-function ImportCard({ source, connected, initial }: { source: Source; connected: boolean; initial: ImportRow | null }) {
+function ImportCard({ source, connected, initial }: { source: "lexoffice" | "sevdesk"; connected: boolean; initial: ImportRow | null }) {
   const router = useRouter();
   const config = SOURCES[source];
   const startLexoffice = useServerFn(startLexofficeImport);

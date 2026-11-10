@@ -33,7 +33,7 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LegacyCategoryRow, LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
+import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, sniff, storeFile } from "../../storage.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 
@@ -382,7 +382,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
-    source: "lexoffice" | "sevdesk";
+    source: LegacySource;
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -469,7 +469,7 @@ export async function legacyVoucherFile(fileId: string) {
 }
 
 /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
-function legacyPayments(v: { source: "lexoffice" | "sevdesk"; gross: number; status: string; payment: LegacyPayment | null }) {
+function legacyPayments(v: { source: LegacySource; gross: number; status: string; payment: LegacyPayment | null }) {
   if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
     .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
@@ -761,7 +761,7 @@ export async function legacyVouchersForPeriod(filter: {
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
-    source: "lexoffice" | "sevdesk";
+    source: LegacySource;
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;

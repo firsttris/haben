@@ -48,6 +48,7 @@ nav:
       - Auswertungen und Jahresexport: auswertungen.md
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
+      - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - CSV-Import: csv-import.md
       - KI-Assistenten (MCP): ki-assistenten.md
       - REST-API: api.md

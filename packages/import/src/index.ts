@@ -14,3 +14,4 @@ export * from "./lexoffice/index.ts";
 export * from "./sevdesk/index.ts";
 export * from "./enablebanking/index.ts";
 export * from "./csv-import/index.ts";
+export * from "./buchhaltungsbutler/index.ts";

@@ -1,10 +1,10 @@
 import { formatEuro } from "@haben/core";
 import { lexDate } from "@haben/import";
 import { sql, type SQL } from "drizzle-orm";
-import type { LegacyPayment } from "../../db/schema.ts";
+import type { LegacyPayment, LegacySource } from "../../db/schema.ts";
 
 type PaymentSource = {
-  source: "lexoffice" | "sevdesk";
+  source: LegacySource;
   gross: number;
   status: string;
   payment: LegacyPayment | null;
