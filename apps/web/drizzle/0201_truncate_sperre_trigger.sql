@@ -239,3 +239,98 @@ CREATE TRIGGER year_closings_no_truncate BEFORE TRUNCATE ON year_closings
 --> statement-breakpoint
 CREATE TRIGGER zm_submissions_no_truncate BEFORE TRUNCATE ON zm_submissions
   FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+-- Tabellen mit Audit-Trigger, deren Zeilen gelöscht werden dürfen: DELETE steht im Audit-Log, TRUNCATE nicht. Damit das
+-- Log lückenlos bleibt, lehnen auch sie TRUNCATE ab; DELETE bleibt erlaubt und wird wie bisher protokolliert.
+CREATE TRIGGER articles_no_truncate BEFORE TRUNCATE ON articles
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER bank_accounts_no_truncate BEFORE TRUNCATE ON bank_accounts
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER bank_connections_no_truncate BEFORE TRUNCATE ON bank_connections
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER company_no_truncate BEFORE TRUNCATE ON company
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER company_logo_no_truncate BEFORE TRUNCATE ON company_logo
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER corporate_tax_inputs_no_truncate BEFORE TRUNCATE ON corporate_tax_inputs
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER custom_pages_no_truncate BEFORE TRUNCATE ON custom_pages
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER elster_certificates_no_truncate BEFORE TRUNCATE ON elster_certificates
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER employees_no_truncate BEFORE TRUNCATE ON employees
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER enable_banking_settings_no_truncate BEFORE TRUNCATE ON enable_banking_settings
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER exchange_rates_no_truncate BEFORE TRUNCATE ON exchange_rates
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER inbox_settings_no_truncate BEFORE TRUNCATE ON inbox_settings
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER income_tax_inputs_no_truncate BEFORE TRUNCATE ON income_tax_inputs
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER letterhead_background_no_truncate BEFORE TRUNCATE ON letterhead_background
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER letterhead_profiles_no_truncate BEFORE TRUNCATE ON letterhead_profiles
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER lexoffice_connection_no_truncate BEFORE TRUNCATE ON lexoffice_connection
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER loans_no_truncate BEFORE TRUNCATE ON loans
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER lsta_turnus_no_truncate BEFORE TRUNCATE ON lsta_turnus
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER mail_settings_no_truncate BEFORE TRUNCATE ON mail_settings
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER payroll_runs_no_truncate BEFORE TRUNCATE ON payroll_runs
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER quote_default_attachments_no_truncate BEFORE TRUNCATE ON quote_default_attachments
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER recurring_documents_no_truncate BEFORE TRUNCATE ON recurring_documents
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER recurring_invoices_no_truncate BEFORE TRUNCATE ON recurring_invoices
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER residual_terms_no_truncate BEFORE TRUNCATE ON residual_terms
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER sevdesk_connection_no_truncate BEFORE TRUNCATE ON sevdesk_connection
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER sso_roles_no_truncate BEFORE TRUNCATE ON sso_roles
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER store_connections_no_truncate BEFORE TRUNCATE ON store_connections
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER text_blocks_no_truncate BEFORE TRUNCATE ON text_blocks
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER user_no_truncate BEFORE TRUNCATE ON "user"
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER vat_extensions_no_truncate BEFORE TRUNCATE ON vat_extensions
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
+CREATE TRIGGER vat_frequencies_no_truncate BEFORE TRUNCATE ON vat_frequencies
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
