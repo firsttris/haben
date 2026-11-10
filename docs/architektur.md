@@ -185,6 +185,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `postfach_documents` | Abgeholte Bescheide und Mitteilungen, Datei im Dokumentenspeicher | nur anhängen, Audit |
 | `vast_requests` | Belegabrufe (Liste und Abholung) mit XML, je Person und Jahr | nur anhängen, Audit ohne XML |
 | `enable_banking_settings` | Zugang zu Enable Banking (eine Zeile): Application ID, privater Schlüssel verschlüsselt; geht vor den Umgebungsvariablen | Audit ohne Schlüssel |
+| `store_connections` | Zugänge zu den Finanzberichten von Google Play und App Store Connect, eine Zeile je Store: Angaben ohne Geheimnis, Servicekonto-JSON bzw. .p8 verschlüsselt, Stand des Abrufs | Audit ohne Schlüssel |
 | `mail_settings` | Zugang für E-Mails (eine Zeile): Versandweg `smtp` (Server, Port, Benutzer) oder `graph` (Tenant, Client, Anmeldeart, Fingerabdruck des Zertifikats, Postfach); das eine Geheimnis (SMTP-Passwort, Client Secret oder privater Schlüssel des Zertifikats) liegt verschlüsselt in `ciphertext`; Einstellungen der Erinnerungen und der wöchentlichen Mail mit dem Prüfwert des Audit-Logs; ein CHECK sichert die Spalten des gewählten Weges | Audit ohne Geheimnis |
 | `inbox_settings` | IMAP-Zugang für Belege per E-Mail (Passwort verschlüsselt), Ordner, letzter Abruf und Fehler | Audit nur bei Änderungen am Zugang, ohne Passwort |
 | `inbox_messages` | Abgerufene Mails je Message-ID mit angelegten Belegen, Dubletten und übersprungenen Anhängen | nur anhängen, Audit |
@@ -219,6 +220,8 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
 | `archive_files` | Originalexporte (DATEV, IDEA, ELSTER-Protokolle, Kontoauszüge) unter SHA-256 | nur anhängen, Audit |
+| `store_reports` | Abgerufene Finanzberichte der App-Stores je Store, Monat und Teil, mit Verweis auf die Originaldatei in `archive_files` | nur anhängen, Audit |
+| `store_payouts` | Übernommene Auszahlungen der App-Stores: Bankeingang, angelegte Auszahlung und Kursdifferenz im Konto des Stores, bezahlte Monatsumsätze | nur anhängen, Audit |
 | `datev_bookings` | Zeilen eines DATEV-Buchungsstapels, unverändert | nur anhängen |
 | `lexoffice_connection` | API-Schlüssel für Lexware Office, verschlüsselt; eine Zeile | Audit ohne Chiffrat |
 | `sevdesk_connection` | API-Token für sevDesk, verschlüsselt, mit Buchhaltungsversion; eine Zeile | Audit ohne Chiffrat |

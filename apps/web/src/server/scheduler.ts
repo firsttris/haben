@@ -7,6 +7,7 @@ import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePruefwertMail } from "./modules/mail/index.ts";
 import { runDuePostfachFetch } from "./modules/finanzamt/index.ts";
 import { applyPublishedRatesToDrafts, runDueBaseRate, runDueRecurring } from "./modules/rechnungen/index.ts";
+import { runDueStoreSyncs } from "./modules/stores/index.ts";
 import { today } from "./today.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -39,6 +40,13 @@ export async function runScheduledJobs(): Promise<void> {
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Kontoabruf", error);
+  }
+  try {
+    const result = await runDueStoreSyncs();
+    if (result.added > 0) console.log(`Store-Finanzberichte: ${result.synced} Stores, ${result.added} neue Berichte im Archiv`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("Store-Finanzberichte", error);
   }
   try {
     if (elsterMode() === "eric") {
