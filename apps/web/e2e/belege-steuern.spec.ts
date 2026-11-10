@@ -472,6 +472,55 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg mit § 13b aufteilen: Steuer § 13b je Zeile, innergemeinschaftlicher Erwerb bleibt gesperrt", async ({ browser }) => {
+  // Erfundene Sammelrechnung (#508): 200 € Gebühren und 50 € Werbung zu 19 % nach § 13b, 47,50 € Steuer
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gebuehren.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Beispiel Payments Ltd.") }]);
+  await expect(page.getByText("gebuehren.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gebuehren\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Beispiel Payments Ltd.");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await page.getByLabel("Kategorie").selectOption("geldverkehr");
+  await page.getByLabel("Netto", { exact: true }).fill("250,00");
+
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await expect(page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" })).toBeDisabled();
+  await expect(page.getByText("mit innergemeinschaftlichem Erwerb noch nicht möglich")).toBeVisible();
+
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("47,50");
+  await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
+  await expect(split.getByLabel("Kategorie").first()).toHaveValue("geldverkehr");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("200,00");
+  await split.getByLabel("Kategorie").nth(1).selectOption("werbung");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
+  await expect(split.getByText("19 %: Zeilen 250,00 € von 250,00 € netto · stimmt")).toBeVisible();
+  await expect(split.getByText("Steuer § 13b 38,00")).toBeVisible();
+  await expect(split.getByText("Steuer § 13b 9,50")).toBeVisible();
+
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("aufgeteilt auf 2 Zeilen")).toBeVisible();
+  await expect(page.getByText(/Vor dem Buchen/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Bestätigen und buchen" })).toBeEnabled();
+  // Nicht buchen: Buchung, Voranmeldung, EÜR und DATEV prüfen die Integrationstests in server/modules/belege/splits-13b.test.ts
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
 test("Beleg am Handy: Beträge sind auch mit 16 px Schrift ganz zu lesen", async ({ browser }) => {
   const context = await browser.newContext({
     storageState: await page.context().storageState(),

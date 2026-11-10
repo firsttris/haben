@@ -294,7 +294,21 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 
 **Storno und Neuerfassung.** Ein [Storno](#stornieren-und-neu-erfassen) bucht die ganze Buchung mit allen Zeilen zurück; **Neu erfassen** übernimmt die Aufteilung in den neuen Entwurf.
 
-**Noch nicht mit Aufteilung:** § 13b und innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („§ 13b mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei § 13b, innergemeinschaftlichem Erwerb und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
+**Mit § 13b.** Ein Beleg mit [§ 13b](#reverse-charge-als-leistungsempfänger--13b) aus dem EU-Ausland oder dem Drittland lässt sich ebenso aufteilen, etwa die monatliche Sammelrechnung eines Zahlungsdienstleisters mit Transaktionsgebühren, Zahlungsabwicklung, Einstellgebühren und Werbung. § 13b gilt dann für den ganzen Beleg. Unter jedem Netto steht statt der Vorsteuer der Anteil an der **Steuer § 13b**, verteilt und gerundet wie oben. Gebucht wird der Aufwand je Zeile mit dem Steuerschlüssel RC13bEU bzw. RC13bDrittland auf das Konto ihrer Kategorie; Umsatzsteuer und Vorsteuer nach § 13b stehen wie ohne Aufteilung je Steuersatz einmal in der Buchung, mit der Steuer des Belegs. Beispiel, alles zu 19 % aus dem EU-Ausland: 120,00 € Transaktionsgebühren, 60,00 € Zahlungsabwicklung, 20,00 € Einstellgebühren und 50,00 € Werbung ergeben 250,00 € netto, 47,50 € Steuer nach § 13b und 250,00 € Zahlbetrag (SKR04 in Klammern):
+
+| Konto | Soll | Haben |
+| --- | ---: | ---: |
+| 4970 (6855) Kontoführung und Gebühren | 120,00 | |
+| 3100 (5900) Fremdleistungen | 60,00 | |
+| 4900 (6300) Sonstiger Aufwand | 20,00 | |
+| 4600 (6600) Werbung | 50,00 | |
+| 1577 (1407) Vorsteuer nach § 13b | 47,50 | |
+| 1787 (3837) Umsatzsteuer nach § 13b | | 47,50 |
+| 1600 (3300) Verbindlichkeiten | | 250,00 |
+
+Ohne Vorsteuerabzug (als Kleinunternehmer, der die Steuer nach § 13b trotzdem schuldet) fehlt die Vorsteuerzeile, und jede Aufwandszeile trägt Netto plus ihren Anteil an der Steuer, im Beispiel 142,80 €, 71,40 €, 23,80 € und 59,50 €; zusammen genau Netto und Steuer des Belegs. Die Voranmeldung (Kz 46/47 bzw. 84/85 und 67) kommt wie ohne Aufteilung aus den Beträgen je Satz. In der [EÜR](auswertungen.md) zählt die Zahlung je Zeile mit ihrem Netto; die Summe ist dieselbe wie ohne Aufteilung, denn gezahlt ist nur netto, und die Steuer nach § 13b geht mit der Voranmeldung ans Finanzamt. Wie ohne Aufteilung gilt § 13b nicht für Wareneinkäufe und nur zu 19 % oder 7 %. Die Gebühren im Konto des Dienstleisters ordnest du dem aufgeteilten Beleg wie jedem anderen mit [Alle offenen Gebühren … diesem Beleg zuordnen](bank.md#zahlungsdienstleister) zu.
+
+**Noch nicht mit Aufteilung:** innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („Innergemeinschaftlicher Erwerb mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei innergemeinschaftlichem Erwerb und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
 
 ## Privatanteil
 
@@ -545,7 +559,7 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 
 - Fremdwährung: Für den Monat gilt das Belegdatum; ein abweichendes Leistungsdatum hat der Beleg nicht.
 - Nur die Steuersätze 19 %, 7 % und 0 %, je Satz eine Zeile.
-- Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur mit deutscher Umsatzsteuer in Euro: nicht mit § 13b, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
+- Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur in Euro mit deutscher Umsatzsteuer oder § 13b (EU und Drittland): nicht mit innergemeinschaftlichem Erwerb, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
 - § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Waren aus dem EU-Ausland sind ein [innergemeinschaftlicher Erwerb](#innergemeinschaftlicher-erwerb--1a-ustg); einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
 - Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland ist kein Erwerb; die Einfuhrumsatzsteuer erfasst du mit dem Bescheid des Zolls (siehe [Einfuhrumsatzsteuer](#einfuhrumsatzsteuer)).
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.

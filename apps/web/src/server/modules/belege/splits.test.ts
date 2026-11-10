@@ -267,12 +267,13 @@ describe.skipIf(!testDatabaseUrl)("Beleg aufteilen (Postgres)", () => {
     expect((await vat.computeVatFigures({ year: 2026, month: 9 })).kz66).toBe(2_040);
   });
 
-  it("lehnt ab: Summe passt nicht, § 13b, Privatanteil, Fremdwährung, Anlagegut", async () => {
+  it("lehnt ab: Summe passt nicht, § 13b auf Wareneinkauf, Privatanteil, Fremdwährung, Anlagegut", async () => {
     await reset("SKR03", "soll");
     const mismatch = await draft({ splits: ISSUE_SPLITS.slice(0, 2) });
     await expect(documents.bookDocument(actor, mismatch)).rejects.toThrow("Aufteilung 19 %: Zeilen zusammen 150,00 € netto, Beleg 170,00 €");
+    // § 13b mit Aufteilung geht seit #508 (splits-13b.test.ts), aber wie ohne Aufteilung nicht für Wareneinkäufe
     const rc = await draft({ reverseCharge: "eu" });
-    await expect(documents.bookDocument(actor, rc)).rejects.toThrow(/§ 13b mit Aufteilung/);
+    await expect(documents.bookDocument(actor, rc)).rejects.toThrow(/§ 13b gilt nicht für Wareneinkäufe/);
     const privat = await draft({ privateShare: 20 });
     await expect(documents.bookDocument(actor, privat)).rejects.toThrow(/Privatanteil mit Aufteilung/);
     const usd = await draft({ currency: "USD" });
