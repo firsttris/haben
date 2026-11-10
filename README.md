@@ -40,7 +40,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-## <img src="docs/icons/info.svg" width="24" height="24" alt=""> Warum Haben?
+## <img src="docs/icons/info.svg" width="24" height="24" align="absmiddle" alt=""> Warum Haben?
 
 In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
 
@@ -61,7 +61,7 @@ auf deinem eigenen Server betreibst.
   Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
   Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
 
-## <img src="docs/icons/overview.svg" width="24" height="24" alt=""> Funktionen
+## <img src="docs/icons/overview.svg" width="24" height="24" align="absmiddle" alt=""> Funktionen
 
 Kurz je Bereich, gegliedert wie die Navigation der App; die Details stehen auf der verlinkten Seite der
 [Dokumentation](https://haben.app/).
@@ -70,51 +70,51 @@ Kurz je Bereich, gegliedert wie die Navigation der App; die Details stehen auf d
 
 | Bereich | Was Haben kann |
 |---|---|
-| <img src="docs/icons/invoice.svg" width="20" height="20" alt=""> [Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Abschlags- und wiederkehrende Rechnungen, Skonto, GiroCode, [SEPA-Lastschrift](https://haben.app/rechnungen.html#lastschrift) mit Mandaten und Sammeldatei, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
-| <img src="docs/icons/quote.svg" width="20" height="20" alt=""> [Angebote](https://haben.app/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, [Auftragsbestätigung und Lieferschein](https://haben.app/angebote.html#auftragsbestätigung-und-lieferschein), mit einem Klick zur Rechnung |
-| <img src="docs/icons/textblock.svg" width="20" height="20" alt=""> [Eigene Belegvorlagen](https://haben.app/belegvorlagen.html) | Eigenes Layout in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung, mit Schriften und Briefpapier |
+| <img src="docs/icons/invoice.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Abschlags- und wiederkehrende Rechnungen, Skonto, GiroCode, [SEPA-Lastschrift](https://haben.app/rechnungen.html#lastschrift) mit Mandaten und Sammeldatei, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
+| <img src="docs/icons/quote.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Angebote](https://haben.app/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, [Auftragsbestätigung und Lieferschein](https://haben.app/angebote.html#auftragsbestätigung-und-lieferschein), mit einem Klick zur Rechnung |
+| <img src="docs/icons/textblock.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Eigene Belegvorlagen](https://haben.app/belegvorlagen.html) | Eigenes Layout in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung, mit Schriften und Briefpapier |
 
 ### Ausgaben und Geld
 
 | Bereich | Was Haben kann |
 |---|---|
-| <img src="docs/icons/receipt.svg" width="20" height="20" alt=""> [Belege](https://haben.app/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung, § 13b und innergemeinschaftlicher Erwerb |
-| <img src="docs/icons/bank.svg" width="20" height="20" alt=""> [Bankabgleich](https://haben.app/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053, PayPal, Stripe, Etsy, Google Play, App Store …), Vorschläge mit Begründung, Rücklastschriften, Steuerzahlungen und Darlehen |
-| <img src="docs/icons/cash.svg" width="20" height="20" alt=""> [Kasse](https://haben.app/kasse.html) · [Pauschalen](https://haben.app/pauschalen.html) | Kassenbuch für Barzahlungen und Bareinnahmen ohne Rechnung; Homeoffice, Kilometer, Verpflegungsmehraufwand |
-| <img src="docs/icons/assets.svg" width="20" height="20" alt=""> [Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
-| <img src="docs/icons/payroll.svg" width="20" height="20" alt=""> [Lohn](https://haben.app/lohn.html) | Abrechnung nach dem Programmablaufplan des BMF, Minijob und Gesellschafter-Geschäftsführer, Lohnsteuer-Anmeldung über ELSTER, Lohnkonto |
+| <img src="docs/icons/receipt.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Belege](https://haben.app/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung, § 13b und innergemeinschaftlicher Erwerb |
+| <img src="docs/icons/bank.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Bankabgleich](https://haben.app/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053, PayPal, Stripe, Etsy, Google Play, App Store …), Vorschläge mit Begründung, Rücklastschriften, Steuerzahlungen und Darlehen |
+| <img src="docs/icons/cash.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Kasse](https://haben.app/kasse.html) · [Pauschalen](https://haben.app/pauschalen.html) | Kassenbuch für Barzahlungen und Bareinnahmen ohne Rechnung; Homeoffice, Kilometer, Verpflegungsmehraufwand |
+| <img src="docs/icons/assets.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
+| <img src="docs/icons/payroll.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Lohn](https://haben.app/lohn.html) | Abrechnung nach dem Programmablaufplan des BMF, Minijob und Gesellschafter-Geschäftsführer, Lohnsteuer-Anmeldung über ELSTER, Lohnkonto |
 
 ### Steuern und Finanzamt
 
 | Bereich | Was Haben kann |
 |---|---|
-| <img src="docs/icons/vat.svg" width="20" height="20" alt=""> [Voranmeldung](https://haben.app/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll) mit Herkunft jeder Zahl, Dauerfristverlängerung, Zusammenfassende Meldung |
-| <img src="docs/icons/send.svg" width="20" height="20" alt=""> [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) | Direkt per ERiC oder ohne Hersteller-ID über Mein ELSTER: XML-Upload, Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html) oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome |
-| <img src="docs/icons/annual.svg" width="20" height="20" alt=""> [Jahreserklärungen](https://haben.app/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR, Einkommensteuer; für GmbH und UG Körperschaft- und Gewerbesteuer |
-| <img src="docs/icons/mail.svg" width="20" height="20" alt=""> [Finanzamt](https://haben.app/finanzamt.html) · [Fristen](https://haben.app/fristen.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen; alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
-| <img src="docs/icons/building.svg" width="20" height="20" alt=""> [GmbH und UG](https://haben.app/gmbh.html) | Bilanz und GuV, E-Bilanz per ERiC, Gesellschafter-Verrechnungskonto, Gewinnausschüttung mit Kapitalertragsteuer |
+| <img src="docs/icons/vat.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Voranmeldung](https://haben.app/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll) mit Herkunft jeder Zahl, Dauerfristverlängerung, Zusammenfassende Meldung |
+| <img src="docs/icons/send.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Abgabe an ELSTER](https://haben.app/elster-abgabe.html) | Direkt per ERiC oder ohne Hersteller-ID über Mein ELSTER: XML-Upload, Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html) oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome |
+| <img src="docs/icons/annual.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Jahreserklärungen](https://haben.app/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR, Einkommensteuer; für GmbH und UG Körperschaft- und Gewerbesteuer |
+| <img src="docs/icons/mail.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Finanzamt](https://haben.app/finanzamt.html) · [Fristen](https://haben.app/fristen.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen; alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
+| <img src="docs/icons/building.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[GmbH und UG](https://haben.app/gmbh.html) | Bilanz und GuV, E-Bilanz per ERiC, Gesellschafter-Verrechnungskonto, Gewinnausschüttung mit Kapitalertragsteuer |
 
 ### Buchhaltung und Auswertungen
 
 | Bereich | Was Haben kann |
 |---|---|
-| <img src="docs/icons/journal.svg" width="20" height="20" alt=""> [Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, freie Buchungen mit Steuerschlüssel, Saldenliste, Kontenblätter, DATEV-Export |
-| <img src="docs/icons/reports.svg" width="20" height="20" alt=""> [Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
-| <img src="docs/icons/archive.svg" width="20" height="20" alt=""> Umzug aus [Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen oder im Archiv aufbewahren, mit Abgleich je Jahr |
-| <img src="docs/icons/upload.svg" width="20" height="20" alt=""> [CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
+| <img src="docs/icons/journal.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, freie Buchungen mit Steuerschlüssel, Saldenliste, Kontenblätter, DATEV-Export |
+| <img src="docs/icons/reports.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
+| <img src="docs/icons/archive.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;Umzug aus [Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen oder im Archiv aufbewahren, mit Abgleich je Jahr |
+| <img src="docs/icons/upload.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
 
 ### Betrieb und Anbindung
 
 | Bereich | Was Haben kann |
 |---|---|
-| <img src="docs/icons/key.svg" width="20" height="20" alt=""> [Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
-| <img src="docs/icons/code.svg" width="20" height="20" alt=""> [REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
-| <img src="docs/icons/chat.svg" width="20" height="20" alt=""> [KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html) | Haben im Gespräch mit Claude oder einem lokalen Modell abfragen („Welche Rechnungen sind überfällig?“), nur lesend |
-| <img src="docs/icons/external.svg" width="20" height="20" alt=""> [Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
-| <img src="docs/icons/access.svg" width="20" height="20" alt=""> [Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
-| <img src="docs/icons/server.svg" width="20" height="20" alt=""> [Installation](https://haben.app/installation.html) | Docker Compose oder Podman Quadlets, Image für amd64 und arm64, tägliches Backup mit restic |
+| <img src="docs/icons/key.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
+| <img src="docs/icons/code.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
+| <img src="docs/icons/chat.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html) | Haben im Gespräch mit Claude oder einem lokalen Modell abfragen („Welche Rechnungen sind überfällig?“), nur lesend |
+| <img src="docs/icons/external.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
+| <img src="docs/icons/access.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
+| <img src="docs/icons/server.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Installation](https://haben.app/installation.html) | Docker Compose oder Podman Quadlets, Image für amd64 und arm64, tägliches Backup mit restic |
 
-## <img src="docs/icons/eye.svg" width="24" height="24" alt=""> Screenshots
+## <img src="docs/icons/eye.svg" width="24" height="24" align="absmiddle" alt=""> Screenshots
 
 Hell oder dunkel, je nach Einstellung deines Systems.
 
@@ -129,7 +129,7 @@ Hell oder dunkel, je nach Einstellung deines Systems.
   </tr>
 </table>
 
-## <img src="docs/icons/server.svg" width="24" height="24" alt=""> Schnellstart
+## <img src="docs/icons/server.svg" width="24" height="24" align="absmiddle" alt=""> Schnellstart
 
 Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL, Caddy für HTTPS und ein
 tägliches Backup mit restic.
@@ -162,7 +162,7 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
 > einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
 
-## <img src="docs/icons/help.svg" width="24" height="24" alt=""> FAQ
+## <img src="docs/icons/help.svg" width="24" height="24" align="absmiddle" alt=""> FAQ
 
 <details>
 <summary><b>Was kostet Haben?</b></summary>
@@ -249,7 +249,7 @@ Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabh�
   beschrieben.
 </details>
 
-## <img src="docs/icons/docs.svg" width="24" height="24" alt=""> Dokumentation
+## <img src="docs/icons/docs.svg" width="24" height="24" align="absmiddle" alt=""> Dokumentation
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
@@ -259,7 +259,7 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
   [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)
 
-## <img src="docs/icons/code.svg" width="24" height="24" alt=""> Entwicklung
+## <img src="docs/icons/code.svg" width="24" height="24" align="absmiddle" alt=""> Entwicklung
 
 Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
@@ -291,18 +291,18 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, N26, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 
-## <img src="docs/icons/external.svg" width="24" height="24" alt=""> Mehr von uns
+## <img src="docs/icons/external.svg" width="24" height="24" align="absmiddle" alt=""> Mehr von uns
 
 - Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
 - Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
 
-## <img src="docs/icons/contacts.svg" width="24" height="24" alt=""> Mitwirken
+## <img src="docs/icons/contacts.svg" width="24" height="24" align="absmiddle" alt=""> Mitwirken
 
 Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `bun run lint`, `bun run typecheck` und
 `bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://haben.app/entwicklung.html)).
 
-## <img src="docs/icons/star.svg" width="24" height="24" alt=""> Sterne im Verlauf
+## <img src="docs/icons/star.svg" width="24" height="24" align="absmiddle" alt=""> Sterne im Verlauf
 
 <a href="https://www.star-history.com/#firsttris/haben&Date">
   <picture>
@@ -315,8 +315,8 @@ kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte
 
 <div align="center">
 
-<img src="docs/icons/star.svg" width="16" height="16" alt=""> Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
-<img src="docs/icons/bug.svg" width="16" height="16" alt=""> [Fehler melden](https://github.com/firsttris/haben/issues/new) · <img src="docs/icons/info.svg" width="16" height="16" alt=""> [Idee vorschlagen](https://github.com/firsttris/haben/issues/new)
+<img src="docs/icons/star.svg" width="16" height="16" align="absmiddle" alt=""> Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
+<img src="docs/icons/bug.svg" width="16" height="16" align="absmiddle" alt=""> [Fehler melden](https://github.com/firsttris/haben/issues/new) · <img src="docs/icons/info.svg" width="16" height="16" align="absmiddle" alt=""> [Idee vorschlagen](https://github.com/firsttris/haben/issues/new)
 
 <sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
 Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation. Eine kommerzielle Lizenz ohne diese Pflichten gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
