@@ -154,3 +154,5 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel und Konten,
   ohne Vorsteuer (Eigenbeleg), Storno mit Steuerschlüssel.
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
+- **Umgesetzt:** Schritt 1 ohne Oberfläche (Stichjahr, Migration 0192, Voranmeldung aus dem Journal, Abgleich mit
+  getauschten Rollen). Anzeige und Vorziehen des Stichjahrs in den Einstellungen folgen in einem eigenen Pull Request.
