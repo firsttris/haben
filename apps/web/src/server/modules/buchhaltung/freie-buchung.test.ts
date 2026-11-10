@@ -98,6 +98,32 @@ describe.skipIf(!testDatabaseUrl)("Freie Buchungen mit Steuerschlüssel (Postgre
       }, 60_000);
     }
 
+    it(`Sachentnahme: Kz 81, eigene Zeile der EÜR, ohne Abweichung im Abgleich (${kontenrahmen})`, async () => {
+      await setup({ kontenrahmen, versteuerung: "ist" });
+      const sach = kontenrahmen === "SKR03" ? "8910" : "4620";
+      await manual.createManualEntry(
+        actor,
+        {
+          date: "2026-09-10",
+          description: "Ware aus dem Lager privat entnommen",
+          lines: [
+            { account: k.privat, debit: 11_900, credit: 0 },
+            { account: sach, debit: 0, credit: 11_900, taxCode: "USt19" },
+          ],
+        },
+        today,
+      );
+      const va = await figures.computeVatFigures({ year: 2026, month: 9 });
+      expect(kennzahlen(va)).toEqual({ kz81: 10_000, tax81: 1_900 });
+      expect(abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 9 })).zeilen)).toEqual([]);
+      const euer = await reports.euerForYear(2026);
+      expect(euerZeile(euer, "sachentnahmen")).toBe(10_000);
+      expect(euer.einnahmen.find((l) => l.key === "sachentnahmen")?.label).toBe("Sonstige Sach-, Nutzungs- und Leistungsentnahmen");
+      expect(euerZeile(euer, "vereinnahmteUst")).toBe(1_900);
+      expect(euer.gewinn).toBe(11_900);
+      expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
+    }, 60_000);
+
     it(`frei: auf das Erlöskonto zu 0 %, ohne Steuerzeile, nicht in einer gemeldeten Kennzahl (${kontenrahmen})`, async () => {
       await setup({ kontenrahmen });
       const id = await manual.createManualEntry(actor, entnahme(kontenrahmen, "2026-09-10", "frei", 5_000), today);

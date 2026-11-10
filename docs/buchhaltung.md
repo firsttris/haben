@@ -471,7 +471,7 @@ Im Einzelunternehmen steht neben einem Erfolgskonto nur ein Privatkonto, etwa ei
 - **Als Kleinunternehmer** gibt es keinen Steuerschlüssel (§ 19 Abs. 1 UStG).
 - **Datum:** nicht in einem gemeldeten Zeitraum, also nicht nach einer gesendeten Voranmeldung des Monats oder Quartals, einer gesendeten Jahreserklärung oder einem abgeschlossenen Jahr; das gilt auch für jede manuelle Buchung im Einzelunternehmen.
 - Voranmeldung und EÜR zählen die Buchung aus dem Journal; im [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) zählt die Gegenprobe sie aus der festgeschriebenen Buchung selbst, denn ein Nebenbuch hat sie nicht.
-- Eine Sachentnahme (Gegenstand des Betriebs privat entnommen, § 3 Abs. 1b UStG) hat noch keine eigene Zeile; sie folgt.
+- **Sachentnahme:** Entnehmt ihr Waren oder Gegenstände des Betriebs für private Zwecke (unentgeltliche Wertabgabe, § 3 Abs. 1b UStG), bucht ihr Privat an das Konto der Sachentnahme mit Steuerschlüssel: SKR03 8910 (19 %) bzw. 8915 (7 %), SKR04 4620 bzw. 4630. Als Betrag den Wert der Entnahme brutto: den Einkaufspreis zum Zeitpunkt der Entnahme bzw. die Selbstkosten zuzüglich Umsatzsteuer (§ 10 Abs. 4 Nr. 1 UStG). In der Voranmeldung zählt das Netto in Kz 81 bzw. 86, in der Anlage EÜR in der Zeile „Sonstige Sach-, Nutzungs- und Leistungsentnahmen“ (§ 6 Abs. 1 Nr. 4 Satz 1 EStG), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer. Ohne Steuerschlüssel lassen sich diese Konten nicht bebuchen; als Kleinunternehmer gibt es die Buchung deshalb nicht.
 
 Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung daran vorbei den Abgleich zwischen Nebenbuch und Journal bräche:
 
@@ -723,7 +723,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 ## Was Haben nicht bucht
 
 - Gebäude, Sonderabschreibungen nach § 7g EStG und Investitionsabzugsbetrag
-- Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
+- Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte; Sachentnahmen nur als [freie Buchung](#manuelle-und-freie-buchungen) ab dem Stichjahr, nicht als Kleinunternehmer
 - Dreiecksgeschäfte, Konsignationslager und innergemeinschaftliches Verbringen; Einfuhrumsatzsteuer nur aus dem Bescheid des Zolls als Beleg ([Belege](belege.md#einfuhrumsatzsteuer)); innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
 - Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-und-freie-buchungen) erfassen
