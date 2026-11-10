@@ -20,7 +20,15 @@ import { abziehbareNebenleistungen, nichtAbziehbareNebenleistungen, STEUER_KONTE
  * die AfA, ein Privatanteil ist Entnahme, die Gewerbesteuer und nicht abziehbare Nebenleistungen stehen nur nachrichtlich,
  * von der Bewirtung sind 70 % abziehbar.
  *
- * Offen für Schritt 5b, weil das Konto allein nicht reicht:
+ * Die Summe gilt je Buchung (`euerAusZeilen` mit den Zeilen einer Buchung): Eine Ausbuchung (Skonto, Forderungsausfall)
+ * wirkt als Ganzes nicht, in der EÜR zählt nur, was gezahlt wird; in einer Buchung mit § 13b oder Erwerb wirkt die nicht
+ * abziehbare Steuer (keineVSt) nicht, sie geht mit der Voranmeldung ans Finanzamt.
+ *
+ * Offen für Schritt 5b, weil die Buchung allein nicht reicht:
+ * - Zahlung und ihre Gegenbuchung (aufgehobene Zuordnung) verrechnet computeEuer je Gruppe, bevor es nach gezahlter und
+ *   erstatteter Umsatzsteuer trennt; 5b verrechnet sie über den Verweis auf die aufgehobene Buchung.
+ * - Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege: Deren Eröffnungsbuchung steht gegen den Saldenvortrag
+ *   ohne Erlös- bzw. Aufwandszeilen; 5b braucht Summen und Kategorie aus dem Nebenbuch.
  * - Gebühren eines Darlehens stehen auf einem Konto, die EÜR trennt sie nach dem Zweck des Darlehens (Anlagevermögen oder
  *   nicht); hier zählen sie als übrige Schuldzinsen.
  * - Die Kategorie „Hardware (GWG)“ bucht auf das GWG-Konto (SKR03 0480, SKR04 0670), das auch ein Anlagegut als GWG
@@ -38,6 +46,9 @@ const EINNAHMEN: ReadonlySet<EuerLineKey> = new Set<EuerLineKey>([
   "vereinnahmteUst",
   "kursgewinne",
 ]);
+
+/** Steuerschlüssel der Bemessungsgrundlage bei selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
+const SELBST_GESCHULDET: ReadonlySet<string> = new Set(["RC13bEU", "RC13bDrittland", "IGE19", "IGE7"]);
 
 /** Was eine Zeile in der EÜR bewirkt, außer einer festen Zeile: Umsatzsteuer an das bzw. vom Finanzamt, nachrichtlich */
 export type EuerZuordnung = EuerLineKey | "ustZahlung" | "nichtAbziehbar";
@@ -115,14 +126,20 @@ export function leereEuerAusJournal(): EuerAusJournal {
  */
 export function euerAusZeilen(
   kontenrahmen: Kontenrahmen,
-  zeilen: readonly Pick<JournalZeile, "account" | "debit" | "credit">[],
+  zeilen: readonly Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">[],
   herkunft: EuerHerkunft = "sonst",
   summe: EuerAusJournal = leereEuerAusJournal(),
 ): EuerAusJournal {
   const add = (key: EuerLineKey, betrag: Cents) => {
     if (betrag !== 0) summe.zeilen[key] = (summe.zeilen[key] ?? 0) + betrag;
   };
+  const a = ACCOUNTS[kontenrahmen];
+  // Ausbuchung: computeEuer zählt nur Zahlungen, Skonto und Forderungsausfall wirken nicht
+  if (zeilen.some((z) => z.account === a.skontiGewaehrt || z.account === a.skontiErhalten || z.account === a.forderungsverluste)) return summe;
+  // § 13b und Erwerb: die nicht abziehbare Steuer geht mit der Voranmeldung ans Finanzamt, sie ist keine Ausgabe des Belegs
+  const selbstGeschuldet = zeilen.some((z) => z.taxCode !== null && SELBST_GESCHULDET.has(z.taxCode));
   for (const zeile of zeilen) {
+    if (selbstGeschuldet && zeile.taxCode === "keineVSt") continue;
     const zuordnung = euerZuordnung(kontenrahmen, zeile.account, herkunft);
     if (zuordnung === null) continue;
     const soll = zeile.debit - zeile.credit;
