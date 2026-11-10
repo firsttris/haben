@@ -467,7 +467,8 @@ test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zah
 /** Kontrollkästchen und Optionsfelder, deren Hinweis im umschließenden `<label>` steht und damit zum Namen zählt */
 function hintsInCheckboxLabel(p: Page) {
   return p.evaluate(() => {
-    const where = (el: Element) => `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
+    const where = (el: Element) =>
+      `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
     return [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]')].flatMap((input) => {
       const labels = [...(input.labels ?? [])];
       const ids = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);

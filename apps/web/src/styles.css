@@ -340,6 +340,10 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
 .checkbox input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+/* Kontrollkästchen mit Hinweis: Der Hinweis steht außerhalb des Labels (sonst zählte er zum Namen) und gehört per aria-describedby dazu.
+   Er rückt unter den Text ein: Breite des Kästchens (18px) plus Abstand (10px) von .checkbox */
+.checkbox-hinted > .checkbox { align-items: flex-start; min-height: 0; }
+.checkbox-hinted > .field-hint { display: block; padding-left: 28px; }
 
 .pill { display: inline-block; white-space: nowrap; font-size: 12px; font-weight: 500; line-height: 16px; padding: 4px 8px; border-radius: 12px; background: var(--line-soft); color: var(--ink-2); }
 .pill-ok { background: var(--accent-soft); color: var(--accent-ink); }
