@@ -49,6 +49,8 @@ Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der j
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
 
+**Aus Deutschland, für das deutsche Steuerrecht.**
+
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
