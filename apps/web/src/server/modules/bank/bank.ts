@@ -926,7 +926,8 @@ function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex:
 }
 
 export function reverseLines(lines: PostingLine[]): PostingLine[] {
-  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
+  // Die Bemessungsgrundlage trägt ihr Vorzeichen selbst (#542) und dreht sich mit
+  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
 }
 
 const DIRECT_KINDS = [
@@ -1055,7 +1056,7 @@ async function returnBooking(
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
   const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
   return {
-    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares),
+    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment),
     description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
     target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
   };
@@ -1105,7 +1106,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
-    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares);
+    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment);
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
     target = { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id };
     // IBAN des Kunden für künftige Vorschläge merken
@@ -1308,7 +1309,9 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
       sourceId: reversal!.id,
-      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      lines: reverseLines(
+        lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+      ),
       reversesId: entry.id,
     });
   }
@@ -1395,7 +1398,11 @@ export async function bookWriteOff(
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
       const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-      lines = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares }, amount, company.kontenrahmen);
+      lines = exchangeDifferencePosting(
+        { kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares, treatment: invoice.taxTreatment },
+        amount,
+        company.kontenrahmen,
+      );
       description = `Kursdifferenz · Rechnung ${invoice.number}`;
       target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
     } else {
@@ -1613,7 +1620,9 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
       description: `Storno: ${entry.description}`,
       sourceType: "ausbuchung",
       sourceId: reversal!.id,
-      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      lines: reverseLines(
+        lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+      ),
       reversesId: entry.id,
     });
   }

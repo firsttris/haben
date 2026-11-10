@@ -1338,6 +1338,13 @@
       "when": 1794270841658,
       "tag": "0190_mail_graph",
       "breakpoints": true
+    },
+    {
+      "idx": 191,
+      "version": "7",
+      "when": 1794305446619,
+      "tag": "0191_journal_basis",
+      "breakpoints": true
     }
   ]
 }
