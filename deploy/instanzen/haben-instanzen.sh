@@ -204,14 +204,9 @@ firmenname() {
 # Neustart keine Instanz mehr starten. Mit „starten“ bringt Compose jede laufende App auf den Stand ihrer .env, außer
 # der Instanz im zweiten Argument (die neue, die gleich ohnehin startet); unveränderte erstellt Compose nicht neu.
 firmen_abgleichen() {
-  local starten="${1:-}" ausser="${2:-}" dir liste="" namen="" name
-  while IFS= read -r dir; do
-    name="$(firmenname "$dir")"
-    pruefe_firmenname "$name" "$dir/.env, HABEN_FIRMENNAME"
-    ! grep -qxF -- "$name" <<< "$namen" || fehler "Den Firmennamen „$name“ tragen zwei Instanzen ($dir); nichts geändert."
-    namen="$namen"$'\n'"$name"
-    liste="${liste:+$liste;}$name|https://$(env_lesen "$dir/.env" DOMAIN)"
-  done < <(instanzen)
+  local starten="${1:-}" ausser="${2:-}" dir liste
+  firmen_pruefen
+  liste="$FIRMEN_LISTE"
   while IFS= read -r dir <&3; do
     if [ "$(env_lesen "$dir/.env" HABEN_FIRMEN)" != "$liste" ]; then
       env_setzen "$dir/.env" HABEN_FIRMEN "'$liste'"
@@ -224,11 +219,29 @@ firmen_abgleichen() {
   done 3< <(instanzen)
 }
 
+# Baut die Liste aller Instanzen für HABEN_FIRMEN in FIRMEN_LISTE und prüft sie wie die App (parseFirmen): gültige,
+# eindeutige Namen, höchstens 50 Firmen. Bricht ab, bevor irgendetwas geschrieben ist.
+firmen_pruefen() {
+  local dir name namen="" anzahl=0
+  FIRMEN_LISTE=""
+  while IFS= read -r dir; do
+    name="$(firmenname "$dir")"
+    pruefe_firmenname "$name" "$dir/.env, HABEN_FIRMENNAME"
+    ! grep -qxF -- "$name" <<< "$namen" || fehler "Den Firmennamen „$name“ tragen zwei Instanzen ($dir); nichts geändert."
+    namen="$namen"$'\n'"$name"
+    anzahl=$((anzahl + 1))
+    FIRMEN_LISTE="${FIRMEN_LISTE:+$FIRMEN_LISTE;}$name|https://$(env_lesen "$dir/.env" DOMAIN)"
+  done < <(instanzen)
+  [ "$anzahl" -le 50 ] || fehler "Höchstens 50 Firmen in der Liste zum Wechseln; nichts geändert."
+}
+
 # Name in der Navigation wie ihn die App annimmt (parseFirmen in apps/web/src/lib/firmen.ts): nicht leer, höchstens
 # 60 Zeichen, ohne Steuerzeichen und die Trenner von HABEN_FIRMEN, dazu ohne ' (.env). Zweites Argument: woher er kommt
 pruefe_firmenname() {
   local herkunft="${2:---firmenname}"
   [ -n "$1" ] && [ "${#1}" -le 60 ] || fehler "Der Firmenname braucht 1 bis 60 Zeichen ($herkunft): $1"
+  # Die App schneidet Leerzeichen am Rand ab; „Nord“ und „Nord “ wären dort derselbe Name
+  [[ "$1" != [[:space:]]* && "$1" != *[[:space:]] ]] || fehler "Der Firmenname darf nicht mit einem Leerzeichen beginnen oder enden ($herkunft): „$1“"
   case "$1" in *[\|\;\']* | *[[:cntrl:]]*) fehler "Der Firmenname darf weder | noch ; noch ' enthalten ($herkunft): $1" ;; esac
 }
 
@@ -282,7 +295,8 @@ cmd_neu() {
   # Vorhandenes bleibt unangetastet, vor allem .env und Schlüssel
   [ ! -e "$dir" ] || fehler "$dir gibt es schon; nichts geändert."
   while IFS= read -r andere <&3; do
-    [ "$(env_lesen "$andere/.env" DOMAIN)" != "$domain" ] || fehler "Die Domain $domain gehört schon zur Instanz $(basename "$andere")."
+    # Domains ohne Rücksicht auf Groß- und Kleinschreibung, wie die App die Adressen vergleicht
+    [ "$(env_lesen "$andere/.env" DOMAIN | tr '[:upper:]' '[:lower:]')" != "$domain" ] || fehler "Die Domain $domain gehört schon zur Instanz $(basename "$andere")."
     # Gleiches Projekt hieße gleiche Container, Volumes und gleicher Name im Netz des Proxys, etwa bei einer
     # Instanz haben-firma1, die von Hand nach der Doku angelegt ist
     [ "$(env_lesen "$andere/.env" COMPOSE_PROJECT_NAME)" != "haben-$name" ] \
@@ -298,6 +312,8 @@ cmd_neu() {
   projekte="$(docker volume ls -q --filter "label=com.docker.compose.project=haben-$name" 2> /dev/null)" \
     || fehler "docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt."
   [ -z "$projekte" ] || fehler "Es gibt schon Volumes des Compose-Projekts haben-$name ($(echo $projekte)); bitte einen anderen Namen wählen."
+  # Eine Instanz mit ungültigem Firmennamen von Hand fiele sonst erst nach dem Anlegen auf
+  firmen_pruefen
   command -v openssl > /dev/null || fehler "openssl fehlt."
 
   mkdir -p "$basis"
