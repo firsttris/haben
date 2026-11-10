@@ -6,6 +6,7 @@ import { SaldoBetrag, ZEITRAEUME, lastDayBefore } from "../../../components/Ledg
 import { formatDate } from "../../../lib/format.ts";
 import { getSaldenliste } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { Field } from "../../../components/Field.tsx";
 
 const search = z.object({
   jahr: z.optional(z.int()),
@@ -80,26 +81,28 @@ function KontenPage() {
           <h1>Konten {year}</h1>
         </div>
         <div className="actions" style={{ alignItems: "end", flexWrap: "wrap" }}>
-          <label className="field">
-            Jahr
-            <select value={year} onChange={(e) => navigate({ to: "/konten", search: { jahr: Number(e.target.value), zeitraum } })}>
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Zeitraum
-            <select value={zeitraum} onChange={(e) => navigate({ to: "/konten", search: { jahr: year, zeitraum: e.target.value } })}>
-              {ZEITRAEUME.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Jahr">
+            {(control) => (
+              <select {...control} value={year} onChange={(e) => navigate({ to: "/konten", search: { jahr: Number(e.target.value), zeitraum } })}>
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Zeitraum">
+            {(control) => (
+              <select {...control} value={zeitraum} onChange={(e) => navigate({ to: "/konten", search: { jahr: year, zeitraum: e.target.value } })}>
+                {ZEITRAEUME.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
           <a className="btn" href={`/api/konten/${year}?zeitraum=${zeitraum}`}>
             CSV
           </a>
@@ -127,10 +130,9 @@ function KontenPage() {
               ? "Eröffnung = Saldenvortrag aus den Vorjahren und Eröffnungsbuchungen, dazu der Saldo ab Jahresbeginn bis zum Beginn des Zeitraums."
               : "Eröffnung = Saldo ab Jahresbeginn bis zum Beginn des Zeitraums, ohne Vortrag aus dem Vorjahr."}
           </p>
-          <label className="field" style={{ minWidth: 240 }}>
-            Konto suchen
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nummer oder Name" />
-          </label>
+          <Field label="Konto suchen" style={{ minWidth: 240 }}>
+            {(control) => <input {...control} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nummer oder Name" />}
+          </Field>
         </div>
         {data.rows.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

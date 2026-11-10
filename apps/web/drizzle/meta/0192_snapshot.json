@@ -1,5 +1,5 @@
 {
-  "id": "dbf6aaf2-9886-4742-8e09-8a0e83d7f654",
+  "id": "9cd146f8-8c94-404d-8378-4a0db5acfd5e",
   "prevId": "4e51060c-a3ad-4ef6-9091-e632fa3da64a",
   "version": "7",
   "dialect": "postgresql",
@@ -2676,6 +2676,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "journal_ab": {
+          "name": "journal_ab",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "taxpayer": {
           "name": "taxpayer",
           "type": "jsonb",
@@ -5068,199 +5074,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.external_imports": {
-      "name": "external_imports",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload_hash": {
-          "name": "payload_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "voucher_id": {
-          "name": "voucher_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "order_document_id": {
-          "name": "order_document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "entry_id": {
-          "name": "entry_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "imported_at": {
-          "name": "imported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "external_imports_identity": {
-          "name": "external_imports_identity",
-          "columns": [
-            {
-              "expression": "source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "external_imports_voucher": {
-          "name": "external_imports_voucher",
-          "columns": [
-            {
-              "expression": "voucher_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "external_imports_order": {
-          "name": "external_imports_order",
-          "columns": [
-            {
-              "expression": "order_document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "external_imports_entry": {
-          "name": "external_imports_entry",
-          "columns": [
-            {
-              "expression": "entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "external_imports_voucher_id_lexoffice_vouchers_id_fk": {
-          "name": "external_imports_voucher_id_lexoffice_vouchers_id_fk",
-          "tableFrom": "external_imports",
-          "tableTo": "lexoffice_vouchers",
-          "columnsFrom": [
-            "voucher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "external_imports_order_document_id_legacy_order_documents_id_fk": {
-          "name": "external_imports_order_document_id_legacy_order_documents_id_fk",
-          "tableFrom": "external_imports",
-          "tableTo": "legacy_order_documents",
-          "columnsFrom": [
-            "order_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "external_imports_entry_id_journal_entries_id_fk": {
-          "name": "external_imports_entry_id_journal_entries_id_fk",
-          "tableFrom": "external_imports",
-          "tableTo": "journal_entries",
-          "columnsFrom": [
-            "entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "external_imports_target": {
-          "name": "external_imports_target",
-          "value": "(\"external_imports\".\"kind\" = 'invoice' and \"external_imports\".\"voucher_id\" is not null and \"external_imports\".\"order_document_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'quote' and \"external_imports\".\"order_document_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'journal' and \"external_imports\".\"entry_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"order_document_id\" is null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.inbox_messages": {
       "name": "inbox_messages",
       "schema": "",
@@ -6890,13 +6703,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sevdesk'"
         },
         "import_id": {
           "name": "import_id",

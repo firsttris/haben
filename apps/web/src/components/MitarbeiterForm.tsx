@@ -1,5 +1,6 @@
 import { BESCHAEFTIGUNGSARTEN, formatDecimal, KONFESSIONEN, parseEuro, type Beschaeftigungsart, type Konfession } from "@haben/core";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Field } from "./Field.tsx";
 
 /*
  * Stammdaten eines Mitarbeiters für die Lohnabrechnung. Beträge in Euro, Sätze in Prozent, Faktor und Kinderfreibeträge
@@ -198,63 +199,42 @@ export function MitarbeiterForm({
     <form onSubmit={absenden} aria-label="Stammdaten des Mitarbeiters" className="card form-card">
       <Abschnitt titel="Person">
         <div className="form-row cols-2">
-          <label className="field">
-            Vorname
-            <input {...feld("vorname")} required autoComplete="off" />
-          </label>
-          <label className="field">
-            Nachname
-            <input {...feld("nachname")} required autoComplete="off" />
-          </label>
+          <Field label="Vorname">{(control) => <input {...control} {...feld("vorname")} required autoComplete="off" />}</Field>
+          <Field label="Nachname">{(control) => <input {...control} {...feld("nachname")} required autoComplete="off" />}</Field>
         </div>
-        <label className="field">
-          Straße und Hausnummer
-          <input {...feld("strasse")} autoComplete="off" />
-        </label>
+        <Field label="Straße und Hausnummer">{(control) => <input {...control} {...feld("strasse")} autoComplete="off" />}</Field>
         <div className="form-row cols-place">
-          <label className="field">
-            PLZ
-            <input {...feld("plz")} inputMode="numeric" autoComplete="off" />
-          </label>
-          <label className="field">
-            Ort
-            <input {...feld("ort")} autoComplete="off" />
-          </label>
-          <label className="field">
-            Geburtsdatum
-            <input type="date" value={w.geburtsdatum} onChange={(e) => set("geburtsdatum", e.target.value)} required />
-          </label>
+          <Field label="PLZ">{(control) => <input {...control} {...feld("plz")} inputMode="numeric" autoComplete="off" />}</Field>
+          <Field label="Ort">{(control) => <input {...control} {...feld("ort")} autoComplete="off" />}</Field>
+          <Field label="Geburtsdatum">
+            {(control) => <input {...control} type="date" value={w.geburtsdatum} onChange={(e) => set("geburtsdatum", e.target.value)} required />}
+          </Field>
         </div>
-        <label className="field">
-          IBAN für die Auszahlung
-          <input {...feld("iban")} className="mono" autoComplete="off" />
-        </label>
+        <Field label="IBAN für die Auszahlung">{(control) => <input {...control} {...feld("iban")} className="mono" autoComplete="off" />}</Field>
       </Abschnitt>
 
       <Abschnitt titel="Beschäftigung">
         <div className="form-row cols-2">
-          <label className="field">
-            Art der Beschäftigung
-            <select value={w.art} onChange={(e) => set("art", e.target.value as Beschaeftigungsart)}>
-              {arten.map((key) => (
-                <option key={key} value={key}>
-                  {BESCHAEFTIGUNGSARTEN[key]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Monatsgehalt brutto in Euro
-            <input {...text("monatsgehalt")} inputMode="decimal" placeholder="0,00" required />
-          </label>
-          <label className="field">
-            Eintritt
-            <input type="date" value={w.eintritt} onChange={(e) => set("eintritt", e.target.value)} required />
-          </label>
-          <label className="field">
-            Austritt (optional)
-            <input type="date" value={w.austritt ?? ""} onChange={(e) => set("austritt", e.target.value || null)} />
-          </label>
+          <Field label="Art der Beschäftigung">
+            {(control) => (
+              <select {...control} value={w.art} onChange={(e) => set("art", e.target.value as Beschaeftigungsart)}>
+                {arten.map((key) => (
+                  <option key={key} value={key}>
+                    {BESCHAEFTIGUNGSARTEN[key]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Monatsgehalt brutto in Euro">
+            {(control) => <input {...control} {...text("monatsgehalt")} inputMode="decimal" placeholder="0,00" required />}
+          </Field>
+          <Field label="Eintritt">
+            {(control) => <input {...control} type="date" value={w.eintritt} onChange={(e) => set("eintritt", e.target.value)} required />}
+          </Field>
+          <Field label="Austritt (optional)">
+            {(control) => <input {...control} type="date" value={w.austritt ?? ""} onChange={(e) => set("austritt", e.target.value || null)} />}
+          </Field>
         </div>
         {w.art === "beschaeftigt" && (
           <p className="field-hint">
@@ -262,88 +242,83 @@ export function MitarbeiterForm({
           </p>
         )}
         {w.art === "ggf" && (
-          <label className="field">
-            Statusfeststellung (§ 7a SGB IV)
-            <select value={w.statusfeststellung} onChange={(e) => set("statusfeststellung", e.target.value as MitarbeiterWerte["statusfeststellung"])}>
-              <option value="">noch nicht beantragt</option>
-              <option value="beantragt">beantragt, noch kein Ergebnis</option>
-              <option value="versicherungsfrei">versicherungsfrei festgestellt</option>
-              <option value="versicherungspflichtig">versicherungspflichtig festgestellt</option>
-            </select>
-          </label>
+          <Field label="Statusfeststellung (§ 7a SGB IV)">
+            {(control) => (
+              <select
+                {...control}
+                value={w.statusfeststellung}
+                onChange={(e) => set("statusfeststellung", e.target.value as MitarbeiterWerte["statusfeststellung"])}
+              >
+                <option value="">noch nicht beantragt</option>
+                <option value="beantragt">beantragt, noch kein Ergebnis</option>
+                <option value="versicherungsfrei">versicherungsfrei festgestellt</option>
+                <option value="versicherungspflichtig">versicherungspflichtig festgestellt</option>
+              </select>
+            )}
+          </Field>
         )}
       </Abschnitt>
 
       <Abschnitt titel="Lohnsteuerabzugsmerkmale (ELStAM)">
         <div className="form-row cols-2">
-          <label className="field">
-            Steuer-ID
-            <input {...feld("steuerId")} inputMode="numeric" className="mono" autoComplete="off" />
-          </label>
-          <label className="field">
-            Steuerklasse
-            <select value={w.steuerklasse} onChange={(e) => set("steuerklasse", Number(e.target.value))}>
-              {STEUERKLASSEN.map((k, i) => (
-                <option key={k} value={i + 1}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Steuer-ID">{(control) => <input {...control} {...feld("steuerId")} inputMode="numeric" className="mono" autoComplete="off" />}</Field>
+          <Field label="Steuerklasse">
+            {(control) => (
+              <select {...control} value={w.steuerklasse} onChange={(e) => set("steuerklasse", Number(e.target.value))}>
+                {STEUERKLASSEN.map((k, i) => (
+                  <option key={k} value={i + 1}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
           {w.steuerklasse === 4 && (
-            <label className="field">
-              Faktor (Steuerklasse IV)
-              <input {...text("faktor")} inputMode="decimal" />
-            </label>
+            <Field label="Faktor (Steuerklasse IV)">{(control) => <input {...control} {...text("faktor")} inputMode="decimal" />}</Field>
           )}
-          <label className="field">
-            Kinderfreibeträge
-            <input {...text("kinderfreibetraege")} inputMode="decimal" />
-          </label>
-          <label className="field">
-            Kirchensteuermerkmal
-            <select value={w.konfession ?? ""} onChange={(e) => set("konfession", (e.target.value || null) as Konfession | null)}>
-              <option value="">keine Kirchensteuer</option>
-              {Object.entries(KONFESSIONEN).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {key} – {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Kinderfreibeträge">{(control) => <input {...control} {...text("kinderfreibetraege")} inputMode="decimal" />}</Field>
+          <Field label="Kirchensteuermerkmal">
+            {(control) => (
+              <select {...control} value={w.konfession ?? ""} onChange={(e) => set("konfession", (e.target.value || null) as Konfession | null)}>
+                <option value="">keine Kirchensteuer</option>
+                {Object.entries(KONFESSIONEN).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {key} – {label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         </div>
       </Abschnitt>
 
       <Abschnitt titel="Kranken- und Pflegeversicherung">
         <div className="form-row cols-2">
-          <label className="field">
-            Krankenversicherung
-            <select value={w.krankenversicherung} onChange={(e) => set("krankenversicherung", e.target.value as "gesetzlich" | "privat")}>
-              <option value="gesetzlich">gesetzlich</option>
-              <option value="privat">privat</option>
-            </select>
-          </label>
+          <Field label="Krankenversicherung">
+            {(control) => (
+              <select {...control} value={w.krankenversicherung} onChange={(e) => set("krankenversicherung", e.target.value as "gesetzlich" | "privat")}>
+                <option value="gesetzlich">gesetzlich</option>
+                <option value="privat">privat</option>
+              </select>
+            )}
+          </Field>
           {w.krankenversicherung === "gesetzlich" ? (
-            <label className="field">
-              Zusatzbeitrag der Kasse in Prozent
-              <input {...text("zusatzbeitrag")} inputMode="decimal" />
-            </label>
+            <Field label="Zusatzbeitrag der Kasse in Prozent">{(control) => <input {...control} {...text("zusatzbeitrag")} inputMode="decimal" />}</Field>
           ) : (
             <>
-              <label className="field">
-                Beitrag Basiskranken- und Pflegeversicherung im Monat in Euro
-                <input {...text("pkvBasisbeitrag")} inputMode="decimal" />
-              </label>
-              <label className="field">
-                Zuschuss des Arbeitgebers im Monat in Euro
-                <input {...text("pkvZuschuss")} inputMode="decimal" />
-              </label>
+              <Field label="Beitrag Basiskranken- und Pflegeversicherung im Monat in Euro">
+                {(control) => <input {...control} {...text("pkvBasisbeitrag")} inputMode="decimal" />}
+              </Field>
+              <Field label="Zuschuss des Arbeitgebers im Monat in Euro">
+                {(control) => <input {...control} {...text("pkvZuschuss")} inputMode="decimal" />}
+              </Field>
             </>
           )}
-          <label className="field">
-            Kinder unter 25
-            <input type="number" min={0} max={20} value={w.kinderUnter25} onChange={(e) => set("kinderUnter25", Number(e.target.value) || 0)} />
-          </label>
+          <Field label="Kinder unter 25">
+            {(control) => (
+              <input {...control} type="number" min={0} max={20} value={w.kinderUnter25} onChange={(e) => set("kinderUnter25", Number(e.target.value) || 0)} />
+            )}
+          </Field>
         </div>
         <label className="checkbox">
           <input type="checkbox" checked={w.kinderlosenzuschlag} onChange={(e) => set("kinderlosenzuschlag", e.target.checked)} />
@@ -351,22 +326,12 @@ export function MitarbeiterForm({
         </label>
         {kasse && (
           <div className="form-row cols-2">
-            <label className="field">
-              Krankenkasse
-              <input {...feld("krankenkasse")} autoComplete="off" />
-            </label>
-            <label className="field">
-              Betriebsnummer der Krankenkasse
-              <input {...feld("krankenkasseBetriebsnummer")} inputMode="numeric" className="mono" autoComplete="off" />
-            </label>
-            <label className="field">
-              Umlage U1 in Prozent (leer ohne Teilnahme)
-              <input {...text("u1Satz")} inputMode="decimal" />
-            </label>
-            <label className="field">
-              Umlage U2 in Prozent
-              <input {...text("u2Satz")} inputMode="decimal" />
-            </label>
+            <Field label="Krankenkasse">{(control) => <input {...control} {...feld("krankenkasse")} autoComplete="off" />}</Field>
+            <Field label="Betriebsnummer der Krankenkasse">
+              {(control) => <input {...control} {...feld("krankenkasseBetriebsnummer")} inputMode="numeric" className="mono" autoComplete="off" />}
+            </Field>
+            <Field label="Umlage U1 in Prozent (leer ohne Teilnahme)">{(control) => <input {...control} {...text("u1Satz")} inputMode="decimal" />}</Field>
+            <Field label="Umlage U2 in Prozent">{(control) => <input {...control} {...text("u2Satz")} inputMode="decimal" />}</Field>
           </div>
         )}
       </Abschnitt>
@@ -374,22 +339,20 @@ export function MitarbeiterForm({
       {mitSv && (
         <Abschnitt titel="Meldedaten der Sozialversicherung">
           <div className="form-row cols-2">
-            <label className="field">
-              Versicherungsnummer
-              <input {...feld("svNummer")} className="mono uppercase" autoComplete="off" />
-            </label>
-            <label className="field">
-              Personengruppe
-              <input {...feld("personengruppe")} inputMode="numeric" className="mono" placeholder={w.art === "minijob" ? "109" : "101"} />
-            </label>
-            <label className="field">
-              Beitragsgruppenschlüssel
-              <input {...feld("beitragsgruppen")} inputMode="numeric" className="mono" placeholder={w.art === "minijob" ? "6500" : "1111"} />
-            </label>
-            <label className="field">
-              Tätigkeitsschlüssel
-              <input {...feld("taetigkeitsschluessel")} inputMode="numeric" className="mono" />
-            </label>
+            <Field label="Versicherungsnummer">{(control) => <input {...control} {...feld("svNummer")} className="mono uppercase" autoComplete="off" />}</Field>
+            <Field label="Personengruppe">
+              {(control) => (
+                <input {...control} {...feld("personengruppe")} inputMode="numeric" className="mono" placeholder={w.art === "minijob" ? "109" : "101"} />
+              )}
+            </Field>
+            <Field label="Beitragsgruppenschlüssel">
+              {(control) => (
+                <input {...control} {...feld("beitragsgruppen")} inputMode="numeric" className="mono" placeholder={w.art === "minijob" ? "6500" : "1111"} />
+              )}
+            </Field>
+            <Field label="Tätigkeitsschlüssel">
+              {(control) => <input {...control} {...feld("taetigkeitsschluessel")} inputMode="numeric" className="mono" />}
+            </Field>
           </div>
           {w.art === "minijob" && (
             <>

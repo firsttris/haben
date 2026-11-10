@@ -50,9 +50,9 @@ export async function extractWithOpenAiCompatible(
 ): Promise<ProviderResult> {
   const { images, text, warnings } = await modelInput(config, bytes, readableKind(kind), deps);
   const signal = AbortSignal.timeout(config.timeoutMs);
-  let response = await post(config, deps, requestBody(config.model, images, text, true), signal);
+  let response = await post(config, deps, requestBody(config, images, text, true), signal);
   if (!response.ok && (await rejectsStructuredOutput(response))) {
-    response = await post(config, deps, requestBody(config.model, images, text, false), signal);
+    response = await post(config, deps, requestBody(config, images, text, false), signal);
   }
   if (!response.ok) throw await httpError(config, response);
   const content = await answerText(response, signal, config);
@@ -104,12 +104,21 @@ function dataUrl(mediaType: string, bytes: Uint8Array): string {
   return `data:${mediaType};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
-function requestBody(model: string, images: string[], text: string | null, structured: boolean) {
+/**
+ * Felder, die Haben selbst bestimmt: ein Eintrag in EXTRACTION_EXTRA_BODY darf sie nicht überschreiben, sonst
+ * ginge der Beleg an ein anderes Modell oder ohne Bild raus.
+ */
+const RESERVED_BODY_FIELDS = ["model", "messages", "stream", "response_format"];
+
+function requestBody(config: OpenAiConfig, images: string[], text: string | null, structured: boolean) {
   const pageText = text ? [{ type: "text", text: `Text des Belegs aus der Textschicht des PDFs:\n${text}` }] : [];
+  const extra = Object.fromEntries(Object.entries(config.extraBody).filter(([key]) => !RESERVED_BODY_FIELDS.includes(key)));
   return {
-    model,
+    model: config.model,
     stream: false,
     temperature: 0,
+    // EXTRACTION_EXTRA_BODY, z. B. reasoning_effort: "none" für ein Modell, das sonst nur denkt
+    ...extra,
     messages: [
       { role: "system", content: INSTRUCTIONS },
       {

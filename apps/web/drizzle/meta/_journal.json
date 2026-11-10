@@ -1349,15 +1349,36 @@
     {
       "idx": 192,
       "version": "7",
-      "when": 1794319478690,
-      "tag": "0192_external_import",
+      "when": 1794325051228,
+      "tag": "0192_journal_ab",
       "breakpoints": true
     },
     {
       "idx": 193,
       "version": "7",
-      "when": 1794319481647,
-      "tag": "0193_external_import_trigger",
+      "when": 1794335823476,
+      "tag": "0193_store_berichte",
+      "breakpoints": true
+    },
+    {
+      "idx": 194,
+      "version": "7",
+      "when": 1794335824905,
+      "tag": "0194_store_berichte_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794338496440,
+      "tag": "0195_external_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1794338497793,
+      "tag": "0196_external_import_trigger",
       "breakpoints": true
     }
   ]

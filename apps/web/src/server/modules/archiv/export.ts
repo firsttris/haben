@@ -1701,7 +1701,8 @@ lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege
                          (zahlungen.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
                          Originalexporte des Jahres (originale/: DATEV, IDEA,
-                         ELSTER-Protokolle, Kontoauszüge).
+                         ELSTER-Protokolle, Kontoauszüge, Finanzberichte der
+                         App-Stores).
 protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert, in der
                          Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
 protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am

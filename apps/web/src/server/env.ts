@@ -68,6 +68,12 @@ const envSchema = z
      * Seitenbilder, „text“ nur den Text für ein reines Textmodell, „bild“ nur Seitenbilder wie früher
      */
     EXTRACTION_INPUT: z.enum(["text-und-bild", "text", "bild"]).default("text-und-bild"),
+    /**
+     * Zusätzliche Felder im Request-Body an den OpenAI-kompatiblen Dienst, als JSON-Objekt, z. B.
+     * {"reasoning_effort":"none"} für ein Modell, das sonst sein Antwortbudget mit Denken verbraucht. Ohne Angabe
+     * geht der Body unverändert raus. `model`, `messages` und `stream` setzt Haben selbst und überschreibt sie.
+     */
+    EXTRACTION_EXTRA_BODY: z.string().optional(),
     /** Basis-URL der Lexware-Office-API, nur zum Testen oder falls Lexware die Adresse ändert */
     LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
     /** Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert */
@@ -77,6 +83,10 @@ const envSchema = z
     ENABLE_BANKING_KEY: z.string().optional(),
     ENABLE_BANKING_KEY_FILE: z.string().optional(),
     ENABLE_BANKING_API_URL: z.string().url().optional(),
+    /** Nur zum Testen: nachgebaute APIs für den Abruf der Store-Finanzberichte */
+    GOOGLE_PLAY_TOKEN_URL: z.string().url().optional(),
+    GOOGLE_PLAY_STORAGE_URL: z.string().url().optional(),
+    APP_STORE_CONNECT_URL: z.string().url().optional(),
   })
   // Unvollständig eingerichteter Dienst: lieber nicht starten als stillschweigend einen anderen Anbieter nehmen
   .superRefine((value, ctx) => {
@@ -121,6 +131,22 @@ const envSchema = z
     }
     if (local && !value.EXTRACTION_MODEL) {
       ctx.addIssue({ code: "custom", path: ["EXTRACTION_MODEL"], message: "fehlt für den OpenAI-kompatiblen Dienst" });
+    }
+    // Ein Tippfehler im JSON soll beim Start auffallen, nicht erst beim ersten Beleg
+    if (value.EXTRACTION_EXTRA_BODY?.trim()) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(value.EXTRACTION_EXTRA_BODY);
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["EXTRACTION_EXTRA_BODY"],
+          message: 'muss ein JSON-Objekt sein, z. B. {"reasoning_effort":"none"}',
+        });
+      }
     }
   });
 

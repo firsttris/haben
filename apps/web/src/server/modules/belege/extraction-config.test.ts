@@ -28,8 +28,25 @@ describe("Anbieterwahl der Belegauslesung", () => {
       maxPages: 4,
       // PDF-Text zuerst (#329): Text der Seiten zusammen mit den Bildern
       input: "text-und-bild",
+      // Ohne EXTRACTION_EXTRA_BODY geht der Body unverändert raus
+      extraBody: {},
     });
     expect(JSON.stringify(config)).not.toContain("sk-ant");
+  });
+
+  it("EXTRACTION_EXTRA_BODY landet als zusätzliche Felder im Body-Auftrag", () => {
+    const local = { EXTRACTION_BASE_URL: "http://ollama:11434/v1", EXTRACTION_MODEL: "deepseek-v4.1-flash" };
+    // Ein Modell, das sonst sein Antwortbudget mit Denken verbraucht, lässt sich so still stellen
+    const config = extractionConfig({ ...base, ...local, EXTRACTION_EXTRA_BODY: '{"reasoning_effort":"none","temperature":0}' });
+    expect(config).toMatchObject({ extraBody: { reasoning_effort: "none", temperature: 0 } });
+    expect(extractionConfig({ ...base, ...local, EXTRACTION_EXTRA_BODY: "  " })).toMatchObject({ extraBody: {} });
+  });
+
+  it("EXTRACTION_EXTRA_BODY: kein Objekt, kein Zusatz", () => {
+    const local = { EXTRACTION_BASE_URL: "http://ollama:11434/v1", EXTRACTION_MODEL: "qwen2.5vl:7b" };
+    // env.ts weist das beim Start ab; hier zählt: nie ein kaputter Body
+    expect(extractionConfig({ ...base, ...local, EXTRACTION_EXTRA_BODY: "[1,2]" })).toMatchObject({ extraBody: {} });
+    expect(extractionConfig({ ...base, ...local, EXTRACTION_EXTRA_BODY: "{kaputt" })).toMatchObject({ extraBody: {} });
   });
 
   it("Eingabe für den eigenen Dienst: nur Text für ein reines Textmodell (#329)", () => {

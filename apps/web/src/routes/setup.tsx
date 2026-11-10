@@ -4,6 +4,7 @@ import { SsoSignIn } from "../components/SsoSignIn.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
+import { Field } from "../components/Field.tsx";
 
 export const Route = createFileRoute("/setup")({
   beforeLoad: async () => {
@@ -90,25 +91,17 @@ function SetupPage() {
             <p className="muted" style={{ margin: 0 }}>
               Haben hat genau ein Konto. Nach dem Anlegen fügst du einen Passkey hinzu.
             </p>
-            <label className="field">
-              Einrichtungscode
-              <input name="setupCode" required autoComplete="off" spellCheck={false} aria-describedby="setup-code-hint" />
-            </label>
+            <Field label="Einrichtungscode" describedBy="setup-code-hint">
+              {(control) => <input {...control} name="setupCode" required autoComplete="off" spellCheck={false} />}
+            </Field>
             <p id="setup-code-hint" className="field-hint">
               Steht beim Start im Log des Servers, z. B. mit <code>docker compose logs app</code>.
             </p>
-            <label className="field">
-              Name
-              <input name="name" required autoComplete="name" />
-            </label>
-            <label className="field">
-              E-Mail
-              <input name="email" type="email" required autoComplete="email" />
-            </label>
-            <label className="field">
-              Passwort (mindestens 12 Zeichen)
-              <input name="password" type="password" required minLength={12} autoComplete="new-password" />
-            </label>
+            <Field label="Name">{(control) => <input {...control} name="name" required autoComplete="name" />}</Field>
+            <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" required autoComplete="email" />}</Field>
+            <Field label="Passwort (mindestens 12 Zeichen)">
+              {(control) => <input {...control} name="password" type="password" required minLength={12} autoComplete="new-password" />}
+            </Field>
             <button type="submit" className="btn btn-primary" disabled={busy}>
               Konto anlegen
             </button>

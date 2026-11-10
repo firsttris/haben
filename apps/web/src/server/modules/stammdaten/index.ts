@@ -20,6 +20,8 @@ export {
   loadCompany,
   sellerIssues,
   versteuerungForYear,
+  journalAbJahr,
+  setJournalAb,
   type Company,
 } from "./company.ts";
 export {

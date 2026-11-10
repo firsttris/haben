@@ -23,6 +23,7 @@ import { ScrollBox } from "../ScrollTable.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
+import { Field } from "../Field.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
@@ -217,19 +218,19 @@ function Connection({ source, connected }: { source: Source; connected: { name: 
           <p className="small muted" style={{ margin: 0 }}>
             {config.keyHelp}
           </p>
-          <label className="field" htmlFor={keyId}>
-            {config.keyLabel}
-            <input
-              id={keyId}
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={key}
-              onChange={(event) => setKey(event.target.value)}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? `${keyId}-error` : undefined}
-            />
-          </label>
+          <Field label={config.keyLabel} describedBy={error ? `${keyId}-error` : undefined}>
+            {(control) => (
+              <input
+                {...control}
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={key}
+                onChange={(event) => setKey(event.target.value)}
+                aria-invalid={error ? true : undefined}
+              />
+            )}
+          </Field>
           {error && (
             <div id={`${keyId}-error`} className="banner banner-danger" role="alert">
               {error}

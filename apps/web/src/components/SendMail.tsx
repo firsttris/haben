@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { errorMessage } from "../lib/format.ts";
 import { getMailDraft, sendDocumentMail } from "../server/functions/invoice-mail.ts";
+import { Field } from "./Field.tsx";
 
 type Draft = Awaited<ReturnType<typeof getMailDraft>>;
 
@@ -91,23 +92,16 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
       onSubmit={onSubmit}
       aria-label={`${{ rechnung: "Rechnung", mahnung: "Mahnung", angebot: "Angebot" }[kind]} per E-Mail senden`}
     >
-      <label className="field">
-        An
-        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="kunde@example.com" required />
-      </label>
+      <Field label="An">
+        {(control) => <input {...control} value={to} onChange={(e) => setTo(e.target.value)} placeholder="kunde@example.com" required />}
+      </Field>
       {!draft.to && (
         <p className="small muted" style={{ margin: "-6px 0 0" }}>
           Beim Kunden ist keine E-Mail-Adresse hinterlegt; im Kontakt eintragen, dann ist sie beim nächsten Mal vorbelegt.
         </p>
       )}
-      <label className="field">
-        Betreff
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} required />
-      </label>
-      <label className="field">
-        Text
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={8} required />
-      </label>
+      <Field label="Betreff">{(control) => <input {...control} value={subject} onChange={(e) => setSubject(e.target.value)} required />}</Field>
+      <Field label="Text">{(control) => <textarea {...control} value={body} onChange={(e) => setBody(e.target.value)} rows={8} required />}</Field>
       {draft.signature && (
         <div className="small muted" style={{ overflowWrap: "anywhere" }}>
           <p style={{ margin: 0 }}>Darunter hängt Haben die Pflichtangaben der Gesellschaft an (§ 35a GmbHG):</p>

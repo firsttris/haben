@@ -118,58 +118,59 @@ export function MailCard({ data }: { data: Data }) {
       {transport === "graph" && <MailGraphFields stored={s} auth={graphAuth} onAuthChange={setGraphAuth} />}
       {transport === "smtp" && (
         <>
-          <label className="field">
-            Anbieter
-            <select defaultValue="" onChange={(e) => preset(e.target.value)}>
-              <option value="">Eigener Server</option>
-              {Object.entries(data.presets).map(([key, p]) => (
-                <option key={key} value={key}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-row cols-server">
-            <label className="field">
-              SMTP-Server
-              <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" required />
-            </label>
-            <label className="field">
-              Port
-              <input name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
-            </label>
-            <label className="field">
-              Verschlüsselung
-              <select value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
-                <option value="tls">TLS (meist Port 465)</option>
-                <option value="starttls">STARTTLS (meist Port 587)</option>
+          <Field label="Anbieter">
+            {(control) => (
+              <select {...control} defaultValue="" onChange={(e) => preset(e.target.value)}>
+                <option value="">Eigener Server</option>
+                {Object.entries(data.presets).map(([key, p]) => (
+                  <option key={key} value={key}>
+                    {p.label}
+                  </option>
+                ))}
               </select>
-            </label>
+            )}
+          </Field>
+          <div className="form-row cols-server">
+            <Field label="SMTP-Server">
+              {(control) => <input {...control} name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" required />}
+            </Field>
+            <Field label="Port">
+              {(control) => (
+                <input {...control} name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
+              )}
+            </Field>
+            <Field label="Verschlüsselung">
+              {(control) => (
+                <select {...control} value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
+                  <option value="tls">TLS (meist Port 465)</option>
+                  <option value="starttls">STARTTLS (meist Port 587)</option>
+                </select>
+              )}
+            </Field>
           </div>
           <div className="form-row cols-2">
-            <label className="field">
-              Benutzername
-              <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />
-            </label>
-            <label className="field">
-              Passwort
-              <input name="password" type="password" autoComplete="new-password" placeholder={s?.transport === "smtp" ? "unverändert lassen" : undefined} />
-            </label>
+            <Field label="Benutzername">
+              {(control) => <input {...control} name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />}
+            </Field>
+            <Field label="Passwort">
+              {(control) => (
+                <input
+                  {...control}
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={s?.transport === "smtp" ? "unverändert lassen" : undefined}
+                />
+              )}
+            </Field>
           </div>
         </>
       )}
       <div className="form-row cols-2">
-        <label className="field">
-          Absender
-          <input name="fromAddress" type="email" defaultValue={s?.fromAddress ?? ""} required />
-        </label>
-        <label className="field">
-          Absendername
-          <input name="fromName" defaultValue={s?.fromName ?? ""} placeholder={data.companyName || "Haben"} aria-describedby="mail-from-name-hint" />
-          <span id="mail-from-name-hint" className="small muted">
-            Leer lassen für den Firmennamen
-          </span>
-        </label>
+        <Field label="Absender">{(control) => <input {...control} name="fromAddress" type="email" defaultValue={s?.fromAddress ?? ""} required />}</Field>
+        <Field label="Absendername" hint="Leer lassen für den Firmennamen">
+          {(control) => <input {...control} name="fromName" defaultValue={s?.fromName ?? ""} placeholder={data.companyName || "Haben"} />}
+        </Field>
       </div>
       <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 12 }}>
         <legend className="small" style={{ fontWeight: 500, marginBottom: 8 }}>
@@ -195,10 +196,7 @@ export function MailCard({ data }: { data: Data }) {
         <p className="small muted" style={{ margin: 0 }}>
           Morgens nach 7 Uhr, mehrere Fristen in einer Mail; Überfälliges einmal. Erledigte Fristen werden nicht erinnert.
         </p>
-        <label className="field">
-          Erinnerungen an
-          <input name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />
-        </label>
+        <Field label="Erinnerungen an">{(control) => <input {...control} name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />}</Field>
       </fieldset>
       <div>
         <label className="checkbox">
@@ -303,42 +301,24 @@ function TemplateEditor({ templates, onChange }: { templates: MailTemplates; onC
             </button>
           ))}
         </div>
-        <label className="field">
-          Vorlage für
-          <select value={current} onChange={(e) => setKind(e.target.value as MailTemplateKind)}>
-            {kinds.map((k) => (
-              <option key={k} value={k}>
-                {MAIL_TEMPLATE_KINDS[k].label}
-                {custom(k) ? " · eigene Vorlage" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Betreff
-          <input
-            value={value.subject}
-            onChange={(e) => set("subject", e.target.value)}
-            placeholder={fallback("subject").text}
-            aria-describedby="template-subject-hint"
-          />
-          <span id="template-subject-hint" className="small muted">
-            {hint("subject")}
-          </span>
-        </label>
-        <label className="field">
-          Text
-          <textarea
-            value={value.body}
-            onChange={(e) => set("body", e.target.value)}
-            rows={6}
-            placeholder={fallback("body").text}
-            aria-describedby="template-body-hint"
-          />
-          <span id="template-body-hint" className="small muted">
-            {hint("body")}
-          </span>
-        </label>
+        <Field label="Vorlage für">
+          {(control) => (
+            <select {...control} value={current} onChange={(e) => setKind(e.target.value as MailTemplateKind)}>
+              {kinds.map((k) => (
+                <option key={k} value={k}>
+                  {MAIL_TEMPLATE_KINDS[k].label}
+                  {custom(k) ? " · eigene Vorlage" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Betreff" hint={hint("subject")}>
+          {(control) => <input {...control} value={value.subject} onChange={(e) => set("subject", e.target.value)} placeholder={fallback("subject").text} />}
+        </Field>
+        <Field label="Text" hint={hint("body")}>
+          {(control) => <textarea {...control} value={value.body} onChange={(e) => set("body", e.target.value)} rows={6} placeholder={fallback("body").text} />}
+        </Field>
       </div>
     </details>
   );
