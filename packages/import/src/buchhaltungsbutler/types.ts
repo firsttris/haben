@@ -25,6 +25,7 @@ export interface BuchhaltungsbutlerJoinedRow {
 export interface BuchhaltungsbutlerFile {
   filename: string;
   bytes: Uint8Array;
+  role: "pdf" | "xml";
 }
 
 export interface BuchhaltungsbutlerVoucher {

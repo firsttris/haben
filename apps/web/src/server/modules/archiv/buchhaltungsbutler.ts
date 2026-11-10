@@ -164,10 +164,10 @@ async function importVoucher(actor: string, importId: string, item: Buchhaltungs
     for (const file of item.files) {
       await tx.insert(schema.lexofficeVoucherFiles).values({
         voucherId: row!.id,
-        role: "pdf",
+        role: file.role,
         lexofficeFileId: null,
         filename: file.filename.slice(0, 200),
-        mimeType: "application/pdf",
+        mimeType: file.role === "xml" ? "application/xml" : "application/pdf",
         sha256: sha256Of(file.bytes),
         size: file.bytes.byteLength,
       });

@@ -50,14 +50,18 @@ export function readReceiptFiles(bytes: Uint8Array): Map<string, Buchhaltungsbut
   for (const [path, content] of Object.entries(files)) {
     if (path.endsWith("/")) continue;
     const filename = path.split("/").pop()!;
-    const match = /^(\d+)(?:_(\d+))?\.pdf$/i.exec(filename);
-    if (!match) throw new BuchhaltungsbutlerError(`Belege.zip: Dateiname „${path}“ passt nicht zu <Buchungsnummer>.pdf oder <Buchungsnummer>_<lfd>.pdf.`);
-    if (content.subarray(0, 5).length !== 5 || new TextDecoder().decode(content.subarray(0, 5)) !== "%PDF-") {
+    const match = /^(\d+)(?:_(\d+))?\.(pdf|xml)$/i.exec(filename);
+    if (!match) throw new BuchhaltungsbutlerError(`Belege.zip: Dateiname „${path}“ passt nicht zu <Buchungsnummer>.pdf/.xml oder <Buchungsnummer>_<lfd>.pdf/.xml.`);
+    const role = match[3]!.toLowerCase() === "xml" ? "xml" : "pdf";
+    if (role === "pdf" && (content.subarray(0, 5).length !== 5 || new TextDecoder().decode(content.subarray(0, 5)) !== "%PDF-")) {
       throw new BuchhaltungsbutlerError(`Belege.zip: ${path} ist keine PDF-Datei.`);
+    }
+    if (role === "xml" && !new TextDecoder().decode(content.subarray(0, 200)).trimStart().startsWith("<")) {
+      throw new BuchhaltungsbutlerError(`Belege.zip: ${path} ist keine XML-Datei.`);
     }
     const bookingId = String(Number(match[1]));
     const list = result.get(bookingId) ?? [];
-    list.push({ filename, bytes: content });
+    list.push({ filename, bytes: content, role });
     result.set(bookingId, list);
   }
   for (const list of result.values()) list.sort((a, b) => a.filename.localeCompare(b.filename, "de", { numeric: true }));

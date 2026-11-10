@@ -190,6 +190,16 @@ describe("BuchhaltungsButler-Export", () => {
     expect(result.multipleFiles).toBe(1);
   });
 
+  it("übernimmt eine E-Rechnung als XML", () => {
+    const parts = makeParts([{ id: "1831", number: "R-1831", debit: "4964", credit: "1203" }]);
+    parts[2] = {
+      name: "Belege.zip",
+      bytes: zipSync({ "Belege/1831.xml": new TextEncoder().encode('<?xml version="1.0"?><rsm:CrossIndustryInvoice />') }),
+    };
+    const result = previewBuchhaltungsbutlerExport(parts, "SKR03");
+    expect(result.vouchers[0]?.files[0]).toMatchObject({ filename: "1831.xml", role: "xml" });
+  });
+
   it("liest das äußere datenexport.zip", () => {
     const parts = makeParts([{ id: "127", number: "R-127", debit: "4964", credit: "1203" }]);
     const outer = zipSync(Object.fromEntries(parts.map((part) => [part.name, part.bytes])));
