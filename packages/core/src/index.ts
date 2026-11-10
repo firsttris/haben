@@ -26,6 +26,7 @@ export * from "./ausschuettung.ts";
 export * from "./matching.ts";
 export * from "./ustva-posten.ts";
 export * from "./euer.ts";
+export * from "./journal-kennzahlen.ts";
 export * from "./legacy-vat.ts";
 export * from "./legacy-takeover.ts";
 export * from "./legacy-einordnung.ts";
