@@ -1,0 +1,75 @@
+{
+  "rechnungen": [
+    {
+      "id": "ID_B1",
+      "objectName": "Invoice",
+      "invoiceNumber": "XX-1111-11-1111",
+      "invoiceDate": "2024-01-15T00:00:00+01:00",
+      "invoiceType": "RE",
+      "status": "1000",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "paidAmount": 100,
+      "payDate": null
+    }
+  ],
+  "belege": [
+    {
+      "id": "ID_B2",
+      "objectName": "Voucher",
+      "description": "11111111-11111112",
+      "voucherDate": "2024-01-15T00:00:00+01:00",
+      "voucherType": "VOU",
+      "status": "1000",
+      "creditDebit": "C",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "paidAmount": 100,
+      "payDate": null
+    },
+    {
+      "id": "ID_B3",
+      "objectName": "Voucher",
+      "description": "X11111111113",
+      "voucherDate": "2024-01-15T00:00:00+01:00",
+      "voucherType": "VOU",
+      "status": "1000",
+      "creditDebit": "C",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "paidAmount": 100,
+      "payDate": null
+    },
+    {
+      "id": "ID_B4",
+      "objectName": "Voucher",
+      "description": "XX-XX-1111111111-1111-15",
+      "voucherDate": "2024-01-15T00:00:00+01:00",
+      "voucherType": "VOU",
+      "status": "1000",
+      "creditDebit": "D",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "paidAmount": 100,
+      "payDate": null
+    },
+    {
+      "id": "ID_B5",
+      "objectName": "Voucher",
+      "description": "11111111-11111114XXXXXXXXXXXXXXXXX",
+      "voucherDate": "2024-01-15T00:00:00+01:00",
+      "voucherType": "VOU",
+      "status": "1000",
+      "creditDebit": "C",
+      "sumNet": "100.00",
+      "sumTax": "0.00",
+      "sumGross": "100.00",
+      "paidAmount": 100,
+      "payDate": null
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "objects": [
+    {
+      "id": "ID_9",
+      "objectName": "VatReport",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+02:00",
+      "update": "2024-01-15T12:00:00+02:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "country": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "reportDate": "2024-01-15T12:00:00+02:00",
+      "reportingYear": "1",
+      "reportingPeriod": "1",
+      "reportingPeriodCode": "quarterly",
+      "reportingValues": "{\"41\":0,\"42\":0,\"48\":0,\"62\":\"0.00\",\"66\":\"100.00\",\"81\":100,\"83\":\"100.00\",\"86\":0}",
+      "testCase": "0",
+      "actualTaxation": "0",
+      "corrected": "0",
+      "resultFinanceAuthority": null,
+      "financeAuthorityTicketNumber": "<anon>",
+      "document": {
+        "id": "ID_10",
+        "objectName": "Document"
+      }
+    },
+    {
+      "id": "ID_11",
+      "objectName": "VatReport",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "country": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "reportDate": "2024-01-15T12:00:00+01:00",
+      "reportingYear": "1",
+      "reportingPeriod": "1",
+      "reportingPeriodCode": "quarterly",
+      "reportingValues": "{\"41\":0,\"42\":0,\"48\":0,\"62\":\"0.00\",\"66\":\"100.00\",\"81\":100,\"83\":\"100.00\",\"86\":0}",
+      "testCase": "0",
+      "actualTaxation": "1",
+      "corrected": "0",
+      "resultFinanceAuthority": null,
+      "financeAuthorityTicketNumber": "<anon>",
+      "document": {
+        "id": "ID_12",
+        "objectName": "Document"
+      }
+    },
+    {
+      "id": "ID_13",
+      "objectName": "VatReport",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+02:00",
+      "update": "2024-01-15T12:00:00+02:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "country": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "reportDate": "2024-01-15T12:00:00+02:00",
+      "reportingYear": "1",
+      "reportingPeriod": "1",
+      "reportingPeriodCode": "monthly",
+      "reportingValues": "{\"41\":0,\"42\":0,\"48\":0,\"62\":\"0.00\",\"66\":\"100.00\",\"81\":100,\"83\":\"100.00\",\"86\":0}",
+      "testCase": "0",
+      "actualTaxation": "1",
+      "corrected": "0",
+      "resultFinanceAuthority": null,
+      "financeAuthorityTicketNumber": "<anon>",
+      "document": {
+        "id": "ID_14",
+        "objectName": "Document"
+      }
+    }
+  ]
+}
