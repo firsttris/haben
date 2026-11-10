@@ -117,6 +117,23 @@ export async function plannedCancellationDate(id: string, todayDate: string): Pr
 }
 
 /**
+ * Die Zeilen des Belegs, wie Haben ihn heute bucht; null, wenn die heutige Buchungslogik ihn nicht mehr annimmt (etwa eine
+ * später verschärfte Regel). Dann bleibt es beim Storno der gebuchten Zeilen.
+ */
+function heutigeBelegZeilen(
+  doc: Document,
+  amounts: { taxRate: number; net: number; tax: number }[],
+  splits: Awaited<ReturnType<typeof loadSplits>>,
+  books: Awaited<ReturnType<typeof openBooks>>,
+): PostingLine[] | null {
+  try {
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Storniert einen gebuchten Beleg: Gegenbuchung im noch offenen Zeitraum der Belegbuchung, sonst am Tag des Stornos
  * (siehe cancellationDate), bei Barzahlung eine Gegenzeile im Kassenbuch, dazu die Zeile in `document_cancellations`.
  * Ein abgeschlossenes Jahr lehnt das Hauptbuch ab.
@@ -163,7 +180,7 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
     const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
     const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
     const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
-    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, belegZeilen(doc, amounts, await loadSplits(id, tx), books, doc.vorsteuerAbzug)) : gebucht;
+    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books) ?? []) : gebucht;
     const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
     const journalEntryId = await post(tx, books, {
       date,
