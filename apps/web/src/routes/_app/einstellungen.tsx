@@ -17,6 +17,7 @@ import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
+import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
@@ -46,6 +47,7 @@ import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
+import { getStoreConnections } from "../../server/functions/stores.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
@@ -91,6 +93,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      stores,
       customPages,
       zugaenge,
       extraction,
@@ -112,6 +115,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getMcpSettings(),
       getExchangeRates(),
       getEnableBankingSettings(),
+      getStoreConnections(),
       getCustomPages(),
       getZugaenge(),
       getExtractionSettings(),
@@ -135,6 +139,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      stores,
       customPages,
       zugaenge,
       extraction,
@@ -164,6 +169,7 @@ function SettingsPage() {
     mcp,
     rates,
     enableBanking,
+    stores,
     customPages,
     zugaenge,
     extraction,
@@ -232,7 +238,12 @@ function SettingsPage() {
               <InboxCard data={inbox} />
             </>
           )}
-          {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
+          {bereich === "bank" && (
+            <>
+              <EnableBankingCard data={enableBanking} />
+              <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
+            </>
+          )}
           {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}
           {bereich === "sicherheit" && zugaenge.mode === "lokal" && (
             <>

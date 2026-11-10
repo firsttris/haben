@@ -1854,7 +1854,7 @@ export const bankAccounts = pgTable(
       .notNull()
       .default("geschaeft"),
     /** Nur Zahlungsdienstleister: Anbieter (PAYMENT_PROVIDERS) und Nummer des Verrechnungskontos (1361 … bzw. 1461 …) */
-    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"] }),
+    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "googleplay", "appstore", "sonstige"] }),
     ledgerIndex: smallint("ledger_index").unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -2304,7 +2304,7 @@ export const archiveFiles = pgTable(
   "archive_files",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    kind: text("kind", { enum: ["datev", "idea", "elster", "kontoauszug", "sonstiges"] }).notNull(),
+    kind: text("kind", { enum: ["datev", "idea", "elster", "kontoauszug", "storebericht", "sonstiges"] }).notNull(),
     /** Geschäftsjahr, auf das sich die Datei bezieht */
     year: smallint("year"),
     filename: text("filename").notNull(),
@@ -2369,6 +2369,100 @@ export const datevBookings = pgTable(
   },
   (t) => [uniqueIndex("datev_bookings_file_row").on(t.fileId, t.row), index("datev_bookings_date").on(t.date)],
 );
+
+/** App-Stores, deren Finanzberichte Haben abruft (Google Play Console, App Store Connect) */
+export const STORES = ["googleplay", "appstore"] as const;
+export type Store = (typeof STORES)[number];
+
+/** Nicht geheime Angaben eines Store-Zugangs; das Geheimnis (Servicekonto-JSON bzw. .p8) steht nur in ciphertext */
+export type StoreConfig = (
+  | { store: "googleplay"; bucket: string; clientEmail: string }
+  | { store: "appstore"; issuerId: string; keyId: string; vendorNumber: string }
+) & {
+  /** Kontakt der Store-Gesellschaft (Google Commerce Ltd, Apple Distribution International Ltd …) für die Rechnungsentwürfe */
+  contactId?: string;
+};
+
+/**
+ * Zugang zu den Finanzberichten eines App-Stores, eine Zeile je Store. Der Abruf legt die Berichte unverändert ins Archiv
+ * (store_reports); fetch_from ist der älteste Berichtsmonat, den der nächste Abruf noch sucht.
+ */
+export const storeConnections = pgTable(
+  "store_connections",
+  {
+    store: text("store", { enum: STORES }).primaryKey(),
+    config: jsonb("config").$type<StoreConfig>().notNull(),
+    /** Servicekonto-JSON (Google) bzw. privater Schlüssel .p8 (Apple), AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Berichtsmonat (Tag 1), den der Abruf noch sucht */
+    fetchFrom: date("fetch_from").notNull(),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("store_connections_store", sql`${t.store} in ('googleplay', 'appstore')`),
+    check("store_connections_config", sql`${t.config}->>'store' = ${t.store}`),
+  ],
+);
+
+/**
+ * Abgerufene Finanzberichte der App-Stores, je Store, Berichtsart, Monat und Teil genau einer; das Original liegt im
+ * Archiv. Nur anhängen: Ein später geänderter Bericht desselben Monats ersetzt den ersten nicht.
+ */
+export const storeReports = pgTable(
+  "store_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    store: text("store", { enum: STORES }).notNull(),
+    /** earnings (Google Play, earnings_YYYYMM.zip) oder finance_detail (App Store Connect, FINANCE_DETAIL/Z1) */
+    reportKind: text("report_kind", { enum: ["earnings", "finance_detail"] }).notNull(),
+    /**
+     * Teil des Monats: bei Google der Objektname im Bucket (ein Monat kann aus mehreren Dateien bestehen), bei Apple die
+     * Berichtsregion (Z1)
+     */
+    part: text("part").notNull(),
+    /** Berichtsmonat YYYY-MM; bei Apple der Fiskalmonat */
+    period: text("period").notNull(),
+    sha256: text("sha256").notNull(),
+    archiveFileId: uuid("archive_file_id")
+      .notNull()
+      .references(() => archiveFiles.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("store_reports_period").on(t.store, t.reportKind, t.period, t.part),
+    check("store_reports_period_format", sql`${t.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check(
+      "store_reports_kind",
+      sql`(${t.store} = 'googleplay' and ${t.reportKind} = 'earnings') or (${t.store} = 'appstore' and ${t.reportKind} = 'finance_detail')`,
+    ),
+  ],
+);
+
+/**
+ * Auszahlungen der App-Stores: Der Bankeingang wird als Geldtransit mit einem Auszahlungsumsatz im Konto des Stores
+ * verbunden, den Haben dafür anlegt; covered nennt die Monatsumsätze (bank_reference), die damit bezahlt sind. Bei
+ * Apple gleicht ein weiterer Umsatz die Kursdifferenz zwischen umgerechneten Monatsbeträgen und Zahlung aus. Nur anhängen.
+ */
+export const storePayouts = pgTable("store_payouts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  store: text("store", { enum: STORES }).notNull(),
+  /** Eingang auf dem Bankkonto */
+  bankTransactionId: uuid("bank_transaction_id")
+    .notNull()
+    .unique()
+    .references(() => bankTransactions.id),
+  /** Angelegte Auszahlung im Konto des Stores */
+  payoutTransactionId: uuid("payout_transaction_id")
+    .notNull()
+    .unique()
+    .references(() => bankTransactions.id),
+  /** Angelegte Kursdifferenz im Konto des Stores; null ohne Differenz */
+  differenceTransactionId: uuid("difference_transaction_id").references(() => bankTransactions.id),
+  covered: text("covered").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** API-Schlüssel für Lexware Office, AES-256-GCM-verschlüsselt; eine Zeile */
 export const lexofficeConnection = pgTable(

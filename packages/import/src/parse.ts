@@ -10,7 +10,13 @@ import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShop
 import { findHeaderRow } from "./table.ts";
 import type { ParsedStatement, StatementFormat } from "./types.ts";
 
-type Detected = { format: "camt053"; text: string } | { format: Exclude<StatementFormat, "camt053" | "enablebanking">; rows: string[][]; headerRow: number };
+type Detected =
+  | { format: "camt053"; text: string }
+  | {
+      format: Exclude<StatementFormat, "camt053" | "enablebanking" | "googleplay-earnings" | "appstore-finance" | "store-payout">;
+      rows: string[][];
+      headerRow: number;
+    };
 
 function detect(text: string, label: string): Detected {
   const trimmed = text.trimStart();

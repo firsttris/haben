@@ -1345,6 +1345,34 @@
       "when": 1794305446619,
       "tag": "0191_journal_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794323418710,
+      "tag": "0192_store_berichte",
+      "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794323430992,
+      "tag": "0193_store_berichte_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 194,
+      "version": "7",
+      "when": 1794325345555,
+      "tag": "0194_store_auszahlungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794325347865,
+      "tag": "0195_store_auszahlungen_trigger",
+      "breakpoints": true
     }
   ]
 }
