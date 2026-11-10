@@ -287,7 +287,9 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
         // Korrektur um die Hälfte, danach Storno der Rechnung (samt Storno der Korrektur)
         const draft = await invoices.createCorrection(actor, invoiceId, "2026-10-12");
-        const { invoice, lines } = await invoices.getInvoice(draft.id);
+        const detail = await invoices.getInvoice(draft.id);
+        if (!detail) throw new Error("Korrektur fehlt");
+        const { invoice, lines } = detail;
         await invoices.updateDraft(actor, draft.id, {
           contactId: invoice.contactId,
           issueDate: invoice.issueDate,
