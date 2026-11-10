@@ -376,6 +376,10 @@ async function takeOverInvoice(
   const xmlFile = files.find((f) => f.role === "xml");
   const pdf = await loadFile(pdfFile.sha256);
   const xml = xmlFile ? (await loadFile(xmlFile.sha256)).toString("utf8") : null;
+  // Die ausdrückliche Ausfuhrart des JSON-Originals steuert auch spätere Zahlungen (wie native Ausfuhrrechnungen).
+  const taxTreatment = voucher.source === "import" && voucher.raw.taxType === "thirdPartyCountryDelivery" ? "ausfuhr" : "regulaer";
+  if (taxTreatment === "ausfuhr" && voucher.taxes.some((t) => t.rate !== 0 || t.tax !== 0))
+    throw new TakeoverError("Die Ausfuhr-Steuerart und die Steuerbeträge des Originals widersprechen sich.");
 
   // Eine Position je Steuersatz. Die Summen müssen exakt zu Lexoffice passen, sonst stimmt die Steuer nicht,
   // auch nicht bei einem späteren Storno: erst netto nachbilden, sonst brutto (in Lexoffice mit Endpreisen gerechnet)
@@ -436,6 +440,7 @@ async function takeOverInvoice(
         dueDate,
         note: `Aus ${SOURCE_LABEL[voucher.source]} übernommen; das PDF ist das Original.`,
         priceMode,
+        taxTreatment,
         net: totals.net,
         tax: totals.tax,
         gross: totals.gross,

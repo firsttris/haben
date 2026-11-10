@@ -84,4 +84,41 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: vierte unabhängige Reviewrunde 
             expect.soft(paymentLines).toContainEqual({ tax_code: "Ausfuhr", basis: 100000 });
           }
         });
+  it("weist einen Widerspruch zwischen Ausfuhr-Steuerart und ausgewiesener Umsatzsteuer vor der nativen Übernahme ab", async () => {
+    const imported = await imports.runExternalImport(
+      "review-user",
+      {
+        version: 2,
+        source: "erfundener-originalexport",
+        kontenrahmen: "SKR03",
+        entries: [
+          {
+            kind: "invoice",
+            type: "invoice",
+            direction: "einnahme",
+            externalId: "widerspruch-42",
+            number: "ALT-42",
+            date: "2025-12-15",
+            dueDate: "2026-01-15",
+            contactId: null,
+            contactName: "Erfundener Ausfuhrkunde",
+            currency: "EUR",
+            net: 100000,
+            tax: 19000,
+            gross: 119000,
+            taxes: [{ rate: 1900, net: 100000, tax: 19000 }],
+            taxType: "thirdPartyCountryDelivery",
+            status: "open",
+            payment: null,
+            pdfSha256: createHash("sha256").update(pdf).digest("hex"),
+          },
+        ],
+      },
+      async () => pdf,
+    );
+    await expect(archive.takeOverLegacyItem("review-user", imported.items[0]!.id, "2025-12-31")).rejects.toThrow("widersprechen sich");
+    expect(await sql`select * from invoices`).toHaveLength(0);
+    expect(await sql`select * from journal_entries`).toHaveLength(0);
+    expect(await sql`select * from lexoffice_vouchers`).toHaveLength(1);
+  });
 });
