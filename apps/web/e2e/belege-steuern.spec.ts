@@ -1,3 +1,4 @@
+import { filePickerPruefen } from "./dateiauswahl.ts";
 import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -1105,11 +1106,14 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(vermerk.getByRole("button", { name: "Abgabe vermerken" })).toBeDisabled();
   await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
   await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
-  await vermerk.getByLabel("Übermittlungsprotokoll (PDF)").setInputFiles({
+  const protokollFeld = vermerk.locator(".field", { has: page.getByText("Übermittlungsprotokoll (PDF)", { exact: true }) });
+  const protokollDialog = await filePickerPruefen(page, protokollFeld, "Übermittlungsprotokoll");
+  await protokollDialog.setFiles({
     name: "Uebermittlungsprotokoll.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4\n% Übermittlungsprotokoll Juni\n%%EOF\n"),
   });
+  await expect(protokollFeld.locator(".file-picker-name")).toHaveText("Uebermittlungsprotokoll.pdf");
   // Kz 83 laut Protokoll weicht ab: Haben lehnt ab
   await vermerk.getByLabel("Kz 83 laut Protokoll").fill("200,00");
   await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();

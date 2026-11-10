@@ -802,12 +802,12 @@ fieldset.card > legend + * { clear: both; }
 
 /* Dateiauswahl: der Knopf sieht aus wie .btn, Text daneben senkrecht mittig */
 .file-picker { display: flex; align-items: center; gap: 12px; min-height: var(--control-h); padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.file-picker .btn { flex-shrink: 0; white-space: nowrap; }
 .file-picker:hover .btn { border-color: var(--muted); }
+.file-picker:has(input:disabled) { cursor: default; opacity: 0.6; }
+.file-picker:has(input:disabled) .btn { border-color: var(--line-strong); }
 .file-picker input:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
 .file-picker-name { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.field input[type="file"] { display: flex; align-items: center; padding: 6px; min-height: var(--control-h); font-size: 13px; color: var(--muted); }
-.field input[type="file"]::file-selector-button { min-height: 32px; margin-right: 12px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
-.field input[type="file"]::file-selector-button:hover { border-color: var(--muted); }
 
 @media (max-width: 720px) {
   /* Kennzahlen auf dem Handy kompakt: eine Spalte, kein Platzhalter für zweizeilige Beschriftungen */
