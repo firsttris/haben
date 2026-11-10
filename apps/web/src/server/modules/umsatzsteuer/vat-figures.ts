@@ -19,7 +19,7 @@ import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { journalAbJahr, kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
 import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bankOpenAmountSql } from "../../db/bank-open.ts";
+import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
@@ -575,7 +575,14 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
       outgoing: sql<number>`count(*) filter (where ${schema.bankTransactions.amount} < 0)::int`,
     })
     .from(schema.bankTransactions)
-    .where(and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end), sql`${open} <> 0`));
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, start),
+        lt(schema.bankTransactions.bookingDate, end),
+        sql`${open} <> 0`,
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    );
   if (bank && bank.outgoing > 0) {
     issues.push({
       tone: "warn",

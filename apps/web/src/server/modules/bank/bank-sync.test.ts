@@ -188,6 +188,26 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(after!.accounts.map((a) => a.syncedTo)).toEqual(["2026-10-09", "2026-10-09"]);
   });
 
+  it("ruft ein ausgeschlossenes Konto nicht mehr ab, die Verbindung und das andere Konto laufen weiter (#462)", async () => {
+    const [connection] = await sync.listConnections();
+    const fremd = connection!.accounts.find((a) => a.iban === IBAN_B)!;
+    const exclude = await import("./konto-ausschliessen.ts");
+    await exclude.excludeAccount(actor, fremd.bankAccountId);
+    api.calls.length = 0;
+    const result = await sync.syncConnection(actor, connection!.id, "2026-10-09");
+    expect(result.error).toBeNull();
+    expect(api.calls.filter((c) => c.path.endsWith("/transactions")).map((c) => c.path)).toEqual([expect.stringContaining("uid-a")]);
+    expect(api.calls.some((c) => c.path.includes("uid-b"))).toBe(false);
+    const [after] = await sync.listConnections();
+    expect(after!.accounts.find((a) => a.iban === IBAN_B)).toMatchObject({ excluded: true, syncedTo: "2026-10-09" });
+    expect(after!.accounts.find((a) => a.iban === IBAN_A)).toMatchObject({ excluded: false, syncedTo: "2026-10-09" });
+    // Wieder aufgenommen, wird es mit dem nächsten Abruf nachgeholt
+    await exclude.includeAccount(actor, fremd.bankAccountId);
+    api.calls.length = 0;
+    await sync.syncConnection(actor, connection!.id, "2026-10-09");
+    expect(api.calls.some((c) => c.path.includes("uid-b"))).toBe(true);
+  });
+
   it("followUpStart: überlappt sieben Tage, aber nicht in die Tage einer Datei", () => {
     expect(sync.followUpStart("2026-11-01", null, "2026-11-02")).toBe("2026-10-25");
     // Finom: camt-Datei bis 31.10., erster Abruf am 01.11.

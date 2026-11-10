@@ -1366,6 +1366,20 @@
       "when": 1794335824905,
       "tag": "0194_store_berichte_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794338142258,
+      "tag": "0195_bank_konto_ausschliessen",
+      "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1794338143826,
+      "tag": "0196_bank_konto_ausschliessen_trigger",
+      "breakpoints": true
     }
   ]
 }

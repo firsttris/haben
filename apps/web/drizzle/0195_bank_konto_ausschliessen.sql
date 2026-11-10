@@ -1,0 +1,1 @@
+ALTER TABLE "bank_accounts" ADD COLUMN "excluded_at" timestamp with time zone;

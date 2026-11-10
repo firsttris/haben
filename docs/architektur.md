@@ -121,7 +121,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `sepa_mandate_files` | Unterschriebenes Mandat als PDF im Dokumentenspeicher (SHA-256); das jüngste gilt | nur anhängen, Audit |
 | `sepa_mandate_revocations` | Widerruf eines Mandats mit Tag und Grund; je Mandat höchstens einer | nur anhängen, Audit |
 | `datev_personenkonten` | Debitoren und Kreditoren, die ein DATEV-Export geschrieben hat, je Kontakt und Rolle die erste Ausgabe; ab dann ist die Nummer am Kontakt fest (Trigger auf `contacts`) | nur anhängen, Audit |
-| `bank_accounts` | Bankkonten, über die IBAN zugeordnet | Audit |
+| `bank_accounts` | Bankkonten, über die IBAN zugeordnet; `excluded_at` markiert ein Konto, das nicht zu dieser Firma gehört (ausgeblendet, kein Abruf, kein Import; nur ohne zugeordneten, verrechneten oder ausgebuchten Umsatz, ein Trigger prüft es) | Audit |
 | `company_logo` | Aktuelles Firmenlogo (PNG oder JPEG) für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile | Audit ohne Bilddaten (mit SHA-256) |
 | `letterhead_background` | Aktuelles Briefpapier (PNG oder JPEG, aus einem PDF die erste Seite als Bild) hinter den Belegen; höchstens eine Zeile | Audit ohne Bilddaten (mit SHA-256) |
 | `letterhead_profiles` | Gestaltung der Belege als JSON (`settings`: Layout je Belegart, Akzentfarbe, Logo-Größe und -Seite, Schalter, eigene Fußzeile); heute genau ein Standardprofil (`is_default`), ohne Zeile gelten die Vorgaben aus `packages/core` | höchstens ein Standardprofil, Akzentfarbe nur `#RRGGBB`, Audit |

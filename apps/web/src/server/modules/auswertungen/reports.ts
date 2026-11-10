@@ -536,7 +536,7 @@ export async function openPositions(today: string) {
 export async function reportYears(): Promise<number[]> {
   const rows = await db.execute<{ year: number }>(sql`
     select distinct extract(year from d)::int as year from (
-      select booking_date as d from bank_transactions
+      select booking_date as d from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
       union all select issue_date from invoices where status = 'final'
       union all select document_date from documents where status = 'gebucht' and document_date is not null
     ) dates order by 1`);
