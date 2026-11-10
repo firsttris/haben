@@ -109,8 +109,11 @@ function vatRows(
   period: VatPeriod,
   sums: Summe[],
   buchungen: readonly JournalBuchung[],
-  figures: Awaited<ReturnType<typeof computeVatFigures>>,
+  voranmeldung: Awaited<ReturnType<typeof computeVatFigures>>,
 ): AbgleichZeile[] {
+  // Ab dem Stichjahr sind die Kennzahlen der Voranmeldung die aus dem Journal; verglichen wird dann mit den Nebenbüchern
+  // als Gegenprobe (#542, docs/adr/journal-als-quelle.md)
+  const figures = voranmeldung.nebenbuecher ? { ...voranmeldung, ...voranmeldung.nebenbuecher } : voranmeldung;
   const zeitraum = periodKey(period);
   const months = new Set(monthsOfPeriod(period).map((m) => m.month));
   const monat = sums.filter((s) => months.has(s.month));
