@@ -266,6 +266,89 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     }
   }
 
+  // Review #562: Der Anteil einer Zahlung richtet sich nach dem gespeicherten Anteil (settlementTaxShares), nicht nach dem Datum
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`EÜR aus dem Journal: frühere Teilzahlung aufgehoben (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const a = await invoice("2026-01-10", [{ net: 10_000, rate: 1900 }]);
+        const txs = await transactions([eingang("01.02.26", `RE ${a.number} Teil 1`, "39,67"), eingang("15.02.26", `RE ${a.number} Teil 2`, "39,67")]);
+        for (const t of txs) await bank.allocate(actor, { kind: "invoice", transactionId: t.id, invoiceId: a.id, amount: t.amount });
+        // Die erste Zahlung war für eine andere Rechnung gedacht und wird aufgehoben
+        const [first] = await sql`select a.id from allocations a join bank_transactions t on t.id = a.transaction_id where t.booking_date = '2026-02-01'`;
+        await bank.reverseAllocation(actor, first!.id);
+        const euer = await abgleich.euerAbgleich(2026);
+        expect(euer.hinweise).toEqual([]);
+        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+      }, 60_000);
+
+      it(`EÜR aus dem Journal: Zahlungen in anderer Reihenfolge zugeordnet, als sie gebucht sind (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const a = await invoice("2026-12-01", [{ net: 10_000, rate: 1900 }]);
+        const txs = await transactions([eingang("20.12.26", `RE ${a.number} Teil 1`, "39,67"), eingang("08.01.27", `RE ${a.number} Teil 2`, "39,67")]);
+        // Erst die Januar-Zahlung zugeordnet, dann die vom Dezember
+        for (const t of [...txs].reverse()) await bank.allocate(actor, { kind: "invoice", transactionId: t.id, invoiceId: a.id, amount: t.amount });
+        for (const year of [2026, 2027]) {
+          const euer = await abgleich.euerAbgleich(year);
+          expect(euer.hinweise, String(year)).toEqual([]);
+          expect(abgleich.abweichungen(euer.zeilen), String(year)).toEqual([]);
+        }
+      }, 60_000);
+
+      it(`EÜR aus dem Journal: Rest nach Teilzahlung als Forderungsausfall ausgebucht (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        // Zahlung und Ausbuchung entstehen in einer Transaktion: gleiches Datum, gleiches created_at; mehrere Rechnungen,
+        // damit eine Reihenfolge nach der zufälligen id mindestens einmal die Ausbuchung zuerst liefert
+        const rechnungen = [];
+        for (let i = 0; i < 6; i++) rechnungen.push(await invoice("2026-01-10", [{ net: 10_000, rate: 1900 }]));
+        const txs = await transactions(
+          rechnungen.flatMap((r, i) => [
+            eingang(`0${i + 1}.02.26`, `RE ${r.number} Teil 1`, "39,67"),
+            eingang(`${10 + i}.03.26`, `RE ${r.number} Rest`, "78,56"),
+          ]),
+        );
+        for (const [i, r] of rechnungen.entries()) {
+          const teil = txs.find((t) => t.booking_date === `2026-02-0${i + 1}`)!;
+          const rest = txs.find((t) => t.booking_date === `2026-03-${10 + i}`)!;
+          await bank.allocate(actor, { kind: "invoice", transactionId: teil.id, invoiceId: r.id, amount: teil.amount });
+          // 77 Cent bleiben offen und werden als Forderungsausfall ausgebucht
+          await bank.allocateWithRest(actor, { transactionId: rest.id, target: { kind: "invoice", invoiceId: r.id }, rest: "forderungsausfall" });
+        }
+        const euer = await abgleich.euerAbgleich(2026);
+        expect(euer.hinweise).toEqual([]);
+        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+      }, 60_000);
+
+      it(`EÜR aus dem Journal: Teilzahlung auf einen Beleg mit Privatanteil (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const doc = await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 5_001, tax: 950 }], { privateShare: 30, category: "telefon" });
+        const [tx] = await transactions([ausgang("05.03.26", "Lieferant", "-29,75")]);
+        await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: doc, amount: -2_975 });
+        const euer = await abgleich.euerAbgleich(2026);
+        expect(euer.hinweise).toEqual([]);
+        expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+      }, 60_000);
+    }
+  }
+
+  // Review #562: Ein Einzelunternehmen darf den Kontenrahmen zum Jahreswechsel wechseln, auch mit offenen Rechnungen
+  // (settings-guard.ts sperrt dann nur die Versteuerung)
+  for (const [vorher, nachher] of [
+    ["SKR03", "SKR04"],
+    ["SKR04", "SKR03"],
+  ] as const) {
+    it(`EÜR aus dem Journal: Rechnung im Vorjahr in ${vorher}, Zahlung nach dem Wechsel zu ${nachher}`, async () => {
+      await reset("soll", vorher);
+      const a = await invoice("2025-12-10", [{ net: 10_000, rate: 1900 }]);
+      await sql`update company set kontenrahmen = ${nachher} where id = 1`;
+      const [tx] = await transactions([eingang("15.01.26", `RE ${a.number}`, "119,00")]);
+      await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: a.id, amount: 11_900 });
+      const euer = await abgleich.euerAbgleich(2026);
+      expect(euer.hinweise).toEqual([]);
+      expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+    }, 60_000);
+  }
+
   it("findet Abweichungen, wenn Journal oder Nebenbuch an Haben vorbei geändert werden", async () => {
     await reset("ist");
     const { a } = await geschaeftsjahr();

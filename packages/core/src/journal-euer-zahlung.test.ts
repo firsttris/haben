@@ -140,3 +140,24 @@ describe.each(KONTENRAHMEN)("Zahlung anteilig auf die ausgeglichene Buchung (%s)
     });
   });
 });
+
+// Review #562: Teilzahlung auf Belege, deren Buchung mehr Zeilen hat als Sätze (Privatanteil, Bewirtung ohne Vorsteuerabzug).
+// Die Buchung allein reicht nicht, um computeEuer nachzurunden; die Schattenrechnung nimmt dafür die Aufteilung des Belegs
+// (euer-journal.ts). Hier nur, dass zahlungsAnteil bei voller Zahlung genau die Zeilen ergibt.
+describe.each(KONTENRAHMEN)("Belege mit Privatanteil bzw. ohne Vorsteuerabzug, voll bezahlt (%s)", (kr) => {
+  it("Privatanteil 30 %", () => {
+    const t = totals({ rate: 1900, base: 5_001 });
+    const lines = documentPosting(t, "telefon", kr, "einzelunternehmen", "bank", true, undefined, 30);
+    expect(verteilt(kr, lines, [-t.gross], false)).toEqual(
+      ausEuer([{ kind: "document", date: DATUM, paid: t.gross, totals: t, category: "telefon", privateShare: 30 }]),
+    );
+  });
+
+  it("Bewirtung ohne Vorsteuerabzug zu 19 % und 7 %", () => {
+    const t = totals({ rate: 1900, base: 10_001 }, { rate: 700, base: 3_333 });
+    const lines = documentPosting(t, "bewirtung", kr, "einzelunternehmen", "bank", false);
+    expect(verteilt(kr, lines, [-t.gross], false)).toEqual(
+      ausEuer([{ kind: "document", date: DATUM, paid: t.gross, totals: t, category: "bewirtung", vorsteuerAbzug: false }]),
+    );
+  });
+});
