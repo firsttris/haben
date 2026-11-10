@@ -8,7 +8,9 @@ import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
  *
  * Gemessen an allen Postgres-Tests (1364 Voranmeldungen): bei Soll-Versteuerung stimmen 98,5 % in allen Kennzahlen
  * überein. Was das Journal noch nicht trägt, steht in #542 unter „Messung“: die Bemessungsgrundlage an der Zahlung bei
- * Ist-Versteuerung, die Privatnutzung von Fahrzeugen im Monat der Nutzung und § 13b ohne Vorsteuerabzug bzw. mit Privatanteil.
+ * Ist-Versteuerung, die Privatnutzung von Fahrzeugen im Monat der Nutzung und § 13b ohne Vorsteuerabzug bzw. mit Privatanteil
+ * und den innergemeinschaftlichen Erwerb mit Privatanteil (der private Teil der Bemessungsgrundlage steht ohne Steuerschlüssel
+ * auf den Entnahmen; Kz 89/93 enthalten ihn deshalb nicht, die Erwerbsteuer schon).
  */
 
 export const JOURNAL_KENNZAHLEN = [
