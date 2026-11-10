@@ -320,7 +320,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
 .dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
-.field-hint, .field .small { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .field input.mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
 .field input.uppercase { text-transform: uppercase; }
 .form-footer { padding: 16px 24px; border-top: 1px solid var(--line); align-items: center; }
@@ -812,7 +812,7 @@ fieldset.card > legend + * { clear: both; }
 /* Dateiauswahl: der Knopf sieht aus wie .btn, Text daneben senkrecht mittig */
 .file-picker { display: flex; align-items: center; gap: 12px; min-height: var(--control-h); padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .file-picker:hover .btn { border-color: var(--muted); }
-.file-picker input:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus-visible + .file-picker .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
 .file-picker-name { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .field input[type="file"] { display: flex; align-items: center; padding: 6px; min-height: var(--control-h); font-size: 13px; color: var(--muted); }
 .field input[type="file"]::file-selector-button { min-height: 32px; margin-right: 12px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }

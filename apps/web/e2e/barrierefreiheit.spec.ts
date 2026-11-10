@@ -208,7 +208,7 @@ function fieldsOffSurface(p: Page) {
       .filter((el) => getComputedStyle(el).backgroundColor !== surface)
       .map(
         (el) =>
-          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
+          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? (el as HTMLInputElement).labels?.[0]?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
       );
   });
 }
