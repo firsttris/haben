@@ -53,7 +53,7 @@ Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen. 
 3. Die Belegdatei aus `document.xml` wird über die GUID als Original an den Beleg gehängt. Fehlt eine verlinkte Datei, steht das als Hinweis am Lauf.
 4. Der Lieferant kommt aus dem Buchungstext, ohne Vorsätze wie „ER“, „AR“, „EB“ oder „AB“.
 
-Private Zeilen bleiben Zahlungen ohne Beleg: im SKR03 Privatentnahmen (`1800`, `1801`), Privateinlagen und -entnahmen (`1890`) und Umbuchungen zwischen Unterkonten des Kontos 1200 (`1360`), im SKR04 Privat (`2100` bis `2199`) und Geldtransit (`1460`). Der Import zählt sie und legt dafür nichts an. Den Kontenrahmen liest Haben aus dem Ordnernamen im Export (`datev_skr03_…` bzw. `datev_skr04_…`).
+Private Zeilen bleiben Zahlungen ohne Beleg: im SKR03 der ganze Privatbereich `1800` bis `1899`, also Privatentnahmen (`1800`, `1801`), Privatsteuern (`1810`), Sonderausgaben und Privateinlagen (`1890`), und Umbuchungen zwischen Unterkonten des Kontos 1200 (`1360`), im SKR04 Privat (`2100` bis `2199`) und Geldtransit (`1460`). Der Import zählt sie und legt dafür nichts an. Den Kontenrahmen liest Haben aus dem Ordnernamen im Export (`datev_skr03_…` bzw. `datev_skr04_…`).
 
 Die Belege landen im Archiv, mit ihrer Datei. Belege in Haben legt der Import nicht an: Accountable bucht zahlungsbasiert, die Belege sind dort bezahlt und die Vorsteuer ist angemeldet. Als Beleg in Haben stünden sie als offene Verbindlichkeit im Bankabgleich. Was am Stichtag noch offen war (in `Daten.xlsx` nicht bezahlt), übernimmst du in Schritt 3 wie bei Lexoffice.
 
@@ -103,7 +103,7 @@ Zwei Konten bleiben anders beschrieben, als Accountable sie meint:
 - 4288 ist bei Accountable das häusliche Arbeitszimmer. Haben führt 4288 als Homeoffice-Tagespauschale (`Häusliches Arbeitszimmer, Tagespauschale`). Meint eine Buchung die Jahrespauschale oder tatsächliche Zimmerkosten, ändere sie nach dem Import auf die passende Kategorie und prüfe den Abzug in der EÜR.
 - 4985 gibt es in Haben nicht. Buche die betroffenen Belege auf 4980 (Sonstiger Betriebsbedarf) um. Die Kategorie kommt trotzdem aus `Daten.xlsx`, das Konto bleibt nur als Herkunft im Beleg stehen.
 
-Private Zeilen (SKR03 Gegenkonto 1800, 1801, 1890, 1360; SKR04 2100 bis 2199, 1460) bleiben Zahlungen ohne Beleg; dazu gehören auch die Privatanteile der Arbeitszimmer-Buchungen und der 20-%-Privatanteil einer Geräterechnung.
+Private Zeilen (SKR03 Gegenkonto 1800 bis 1899 und 1360; SKR04 2100 bis 2199, 1460) bleiben Zahlungen ohne Beleg; dazu gehören auch die Privatanteile der Arbeitszimmer-Buchungen und der 20-%-Privatanteil einer Geräterechnung.
 
 ## Belegverknüpfung außerhalb des Imports
 

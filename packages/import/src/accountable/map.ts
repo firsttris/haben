@@ -4,13 +4,15 @@ import type { AccountableExport } from "./source.ts";
 import type { AccountableExpenseRow, AccountableInvoice, AccountableVoucher } from "./types.ts";
 
 /**
- * Konten, die im Accountable-Stapel keine Belege sind:
+ * Konten, die im Accountable-Stapel keine Belege sind (SKR03):
  *
- * - `1801` Privatentnahmen allgemein (privater Anteil von Miete, Strom, Anschaffungen)
- * - `1890` Privat (Einlagen/Entnahmen des Inhabers)
+ * - `1800`–`1899` Privat: Privatentnahmen (`1800`, `1801`: privater Anteil von Miete, Strom, Anschaffungen),
+ *   Privatsteuern (`1810`), Sonderausgaben (`1820`, `1830`), … bis Privateinlagen (`1890`). Die Einkommensteuer vom
+ *   Geschäftskonto ist keine Betriebsausgabe.
  * - `1360` Umbuchungen zwischen Unterkonten des Kontos 1200
  *
- * Diese Zeilen bleiben Zahlungen ohne Beleg; der Umzug zählt sie und legt nichts an.
+ * Diese Zeilen bleiben Zahlungen ohne Beleg; der Umzug zählt sie und legt nichts an. Dieselben Bereiche nimmt der Abgleich
+ * aus (datevWithoutReceipt in apps/web).
  */
 export const ACCOUNTABLE_PRIVATE_ACCOUNTS: ReadonlySet<string> = new Set([
   "1800", // Privatentnahmen (allgemein)
@@ -18,6 +20,9 @@ export const ACCOUNTABLE_PRIVATE_ACCOUNTS: ReadonlySet<string> = new Set([
   "1890", // Privateinlagen/Entnahmen
   "1360", // Umbuchungen zwischen Unterkonten des Kontos 1200
 ]);
+
+/** Der ganze Privatbereich im SKR03 (packages/core/src/posting.ts) und der Geldtransit 1360 */
+const ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR03 = /^(18[0-9]{2}|1360)$/;
 
 /**
  * Dieselben Zeilen im SKR04 (packages/core/src/posting.ts): Privatentnahmen 2100–2199, Privateinlagen 2180, Geldtransit
@@ -27,7 +32,7 @@ const ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR04 = /^(21[0-9]{2}|1460)$/;
 
 /** Privat- oder Umbuchungszeile im Kontenrahmen des Exports */
 export function isAccountablePrivateAccount(account: string, kontenrahmen: "SKR03" | "SKR04"): boolean {
-  return kontenrahmen === "SKR04" ? ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR04.test(account) : ACCOUNTABLE_PRIVATE_ACCOUNTS.has(account);
+  return kontenrahmen === "SKR04" ? ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR04.test(account) : ACCOUNTABLE_PRIVATE_ACCOUNTS_SKR03.test(account);
 }
 
 /**
