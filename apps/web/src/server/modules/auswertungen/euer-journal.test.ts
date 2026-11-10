@@ -115,7 +115,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       payment?: "bank" | "privat";
       privateShare?: number;
       reverseCharge?: "eu" | "drittland" | null;
-      category?: "edv" | "telefon" | "sonstiges";
+      category?: "edv" | "telefon" | "sonstiges" | "hardware";
       splits?: { category: "software" | "buero"; taxRate: 1900 | 700 | 0; net: number }[];
     } = {},
   ) {
@@ -320,6 +320,39 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       await sql`update company set kontenrahmen = ${nachher} where id = 1`;
       await cash.reverseCashEntry(actor, bar.id, "2026-01-15");
       await pruefe(2025, 2026);
+    }, 60_000);
+  }
+
+  // Gewinn nach der DATEV-Formel (#542, Schritt 5c): Erfolgs- und Steuerkonten, Forderungen und Verbindlichkeiten
+  const formel = async (year: number) => (await abgleich.euerAbgleich(year)).zeilen.find((z) => z.posten === "EÜR: Gewinn nach der DATEV-Formel");
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`Gewinn nach der DATEV-Formel: Beleg mit Privatanteil, offen über den Jahreswechsel (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        // Der private Teil steckt in den Verbindlichkeiten, ist aber keine Ausgabe; erst bezahlt wirkt der betriebliche Teil
+        const doc = await bookedDocument("2026-12-10", [{ taxRate: 1900, net: 5_001, tax: 950 }], { privateShare: 30, category: "telefon" });
+        const a = await invoice("2026-12-01", [{ net: 10_000, rate: 1900 }]);
+        const txs = await transactions([
+          eingang("15.12.26", `RE ${a.number}`, "119,00"),
+          ausgang("05.01.27", "Lieferant", "-20,00"),
+          ausgang("20.01.27", "Lieferant", "-39,51"),
+        ]);
+        await bank.allocate(actor, { kind: "invoice", transactionId: txs.find((t) => t.amount === 11_900)!.id, invoiceId: a.id, amount: 11_900 });
+        for (const t of txs.filter((t) => t.amount < 0))
+          await bank.allocate(actor, { kind: "document", transactionId: t.id, documentId: doc, amount: t.amount });
+        await pruefe(2026, 2027);
+        expect(await formel(2026)).toMatchObject({ journal: 11_900, quelle: 11_900 });
+        expect((await formel(2027))!.journal).toBeLessThan(0);
+      }, 60_000);
+    }
+
+    it(`Gewinn nach der DATEV-Formel: Hardware (GWG) als Ausgabe, nicht als Anlage (${kontenrahmen})`, async () => {
+      await reset("ist", kontenrahmen);
+      const doc = await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 50_000, tax: 9_500 }], { category: "hardware" });
+      const [tx] = await transactions([ausgang("05.03.26", "Lieferant", "-595,00")]);
+      await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: doc, amount: -59_500 });
+      await pruefe(2026);
+      expect(await formel(2026)).toMatchObject({ journal: -59_500, quelle: -59_500 });
     }, 60_000);
   }
 });

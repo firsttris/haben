@@ -23,6 +23,7 @@ import { and, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
+import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
@@ -289,6 +290,10 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
       row("Private Kfz-Nutzung", -saldo(sums, (kr) => Object.values(PRIVATE_USE_ACCOUNTS[kr]), anlage), privat.privateKfz),
       row("Umsatzsteuer auf die private Kfz-Nutzung", -saldo(sums, ust(1900), anlage), privat.ustEntnahmen),
     );
+    // Gegenprobe (#542): der Gewinn nach der DATEV-Formel aus Erfolgs- und Steuerkonten, Forderungen und Verbindlichkeiten;
+    // erst, wenn AfA und Privatnutzung gebucht sind, denn die EÜR rechnet sie aus dem Anlagenverzeichnis
+    const nichtAbziehbar = ausJournal.summe.bewirtungNichtAbziehbar + ausJournal.summe.gewerbesteuerNichtAbziehbar;
+    zeilen.push(row("EÜR: Gewinn nach der DATEV-Formel", await gewinnNachDatevFormel(year, nichtAbziehbar, q), euer.gewinn));
   }
   return { zeilen, hinweise };
 }
