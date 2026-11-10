@@ -120,7 +120,7 @@ Kommt nach den geplanten Plätzen, in dieser Reihenfolge:
 | S14 | Gutschrift als Rechnungsersatz | Abrechnungsgutschrift nach § 14 Abs. 2 Satz 2 UStG ausstellen | M |
 | S15 | Lieferschein als eigener Beleg, Sammelrechnung | Lieferschein mit eigenem Nummernkreis, unabhängig von Angebot und Rechnung; mehrere Lieferscheine zu einer Rechnung zusammenfassen, ihre Nummern in der E-Rechnung (BT-16 gibt es schon am Beleg) ([#390](https://github.com/firsttris/haben/issues/390)) | M |
 | S16 | Belege aus Cloud-Speichern | Belege aus Google Drive, Dropbox oder OneDrive übernehmen | M |
-| S17 | E-Mail-Versand über Google oder Microsoft | Anmeldung per OAuth statt SMTP-Passwort | M |
+| S17 | E-Mail-Versand über Google | Anmeldung per OAuth statt SMTP-Passwort; für Microsoft 365 gibt es den Versand über Graph schon ([E-Mail über Microsoft 365](einrichtung.md#e-mail-über-microsoft-365)) | M |
 | S18 | Module ausblenden | Nicht genutzte Bereiche in der Navigation ausblenden ([#266](https://github.com/firsttris/haben/issues/266)) | S–M |
 | S19 | Kleinere Belegfunktionen | Tags, Pro-forma-Rechnung, freier Brief, eigene Kontaktfelder | S |
 | S20 | § 13b für Bauleistungen | Bauleistungen als Leistender und als Empfänger | M |
