@@ -117,8 +117,10 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Das Änderungsdatum unter jeder Seite schreibt `scripts/doku-aenderungsdatum` aus dem letzten Commit der Datei, bis Zensical es selbst kann; Tests: `python -m unittest discover -s scripts/doku-aenderungsdatum`. Hinweise stehen im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile), damit sie auf GitHub und auf der Website als Kasten erscheinen; die deutschen Titel setzt `scripts/doku-hinweise`, Tests: `python -m unittest discover -s scripts/doku-hinweise`. Nach dem Build legt `scripts/doku-kurzlinks` für jede Seite einen Ordner mit Weiterleitung an, damit auch `haben.app/api/` mit Schrägstrich auf `api.html` führt statt auf die 404-Seite (`/api` ohne Schrägstrich liefert GitHub Pages selbst aus); Tests: `python -m unittest discover -s scripts/doku-kurzlinks`. Jede Seite beginnt mit Front Matter: `title:` (Titel für Suchmaschinen, höchstens etwa 60 Zeichen; die Navigation behält ihren Namen aus `mkdocs.yml`) und `description:` (höchstens etwa 160 Zeichen). Daraus setzt `overrides/main.html` Beschreibung, Open Graph und Twitter-Card; die CI bricht ab, wenn einer Seite `description:` fehlt |
-| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
+| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
+| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, Bild oben in der README) |
+| `bun run docs:icons` | Erzeugt die Symbole der README (`docs/icons/*.svg`) aus `apps/web/src/components/Icon.tsx`, als Kachel in Akzentfarbe, hell und dunkel per `prefers-color-scheme` im SVG |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
 ## Tests
@@ -274,8 +276,13 @@ Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-beri
 
 Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
 läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und ergänzt zuerst, was nur die Bilder
-brauchen: Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen. Dann fotografiert es Übersicht,
-Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
+brauchen: Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen, ein ELSTER-Zertifikat (ohne ERiC
+ungeprüft), einen Backup-Lauf und eine testweise gesendete Voranmeldung. Dann fotografiert es Übersicht,
+Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy, jedes Bild im
+Theme Wald (`screenshot-<name>.png`) und Nacht (`screenshot-<name>-dunkel.png`). Die README wählt das passende per
+`<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark` am Bild. Das Bild oben in der
+README ist kein Screenshot: `scripts/hero/hero.html` mit den Farben und Schriften der App, `bun run docs:hero` rendert
+es nach `docs/hero-hell.png` und `docs/hero-dunkel.png`. Ohne
 `DOKU_SCREENSHOTS=1` überspringt es sich selbst; die CI legt diese Daten also nie an und wird dadurch nicht langsamer.
 
 ```sh
