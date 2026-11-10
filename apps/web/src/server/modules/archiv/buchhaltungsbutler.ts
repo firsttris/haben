@@ -2,6 +2,7 @@ import {
   BuchhaltungsbutlerError,
   DatevParseError,
   previewBuchhaltungsbutlerExport,
+  readExportFiles,
   type BuchhaltungsbutlerPreview,
   type BuchhaltungsbutlerVoucher,
   type ExportPart,
@@ -103,31 +104,25 @@ export function bbSummary(preview: BuchhaltungsbutlerPreview) {
   };
 }
 
-/** Legt die Originalexporte ab; liefert die Archivdateien des DATEV-Stapels, auch schon vorhandene */
+/**
+ * Legt die hochgeladenen Dateien unverändert ab und den erkannten DATEV-Buchungsstapel als DATEV-Datei, auch wenn er
+ * aus einer .zip kommt. Liefert die Archivdatei des Stapels, auch eine schon vorhandene (gleiche Prüfsumme).
+ */
 async function archiveOriginals(actor: string, parts: ExportPart[], year: number): Promise<string[]> {
-  const datevFileIds: string[] = [];
+  const stack = readExportFiles(parts);
+  const stackSha = sha256Of(stack.datev);
+  const existingId = async (sha256: string) =>
+    (await db.select({ id: schema.archiveFiles.id }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256)))[0]?.id;
   for (const part of parts) {
     const sha256 = sha256Of(part.bytes);
-    const isDatev = part.name.toLowerCase().startsWith("extf_") && part.name.toLowerCase().endsWith(".csv");
-    const [existing] = await db.select({ id: schema.archiveFiles.id }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256));
-    if (existing) {
-      if (isDatev) datevFileIds.push(existing.id);
-      continue;
-    }
-    const added = await addArchiveFile(
-      actor,
-      {
-        bytes: part.bytes,
-        filename: part.name,
-        kind: isDatev ? "datev" : "sonstiges",
-        year,
-        note: BB_ORIGINAL_NOTE,
-      },
-      isDatev ? MAX_ARCHIVE_SIZE : MAX_BB_EXPORT_SIZE,
-    );
-    if (isDatev) datevFileIds.push(added.id);
+    // Der Stapel selbst folgt unten als DATEV-Datei
+    if (sha256 === stackSha || (await existingId(sha256))) continue;
+    await addArchiveFile(actor, { bytes: part.bytes, filename: part.name, kind: "sonstiges", year, note: BB_ORIGINAL_NOTE }, MAX_BB_EXPORT_SIZE);
   }
-  return datevFileIds;
+  const existing = await existingId(stackSha);
+  if (existing) return [existing];
+  const added = await addArchiveFile(actor, { bytes: stack.datev, filename: stack.datevName, kind: "datev", year, note: BB_ORIGINAL_NOTE }, MAX_ARCHIVE_SIZE);
+  return [added.id];
 }
 
 async function importVoucher(actor: string, importId: string, item: BuchhaltungsbutlerVoucher, linkedContacts: Set<string>): Promise<boolean> {

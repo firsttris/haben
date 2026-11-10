@@ -11,6 +11,8 @@ export interface ExportPart {
 
 export interface ExportFiles {
   datev: Uint8Array;
+  /** Dateiname des Buchungsstapels ohne Ordner, auch wenn er aus einer .zip kommt */
+  datevName: string;
   bb: Uint8Array;
   receipts: Uint8Array;
 }
@@ -82,13 +84,13 @@ export function readExportFiles(parts: ExportPart[]): ExportFiles {
   const datev = uniqueFile(files, (name) => name.startsWith("extf_") && name.endsWith("_buchungsstapel.csv"), "EXTF-Buchungsstapel");
   const bb = uniqueFile(files, (name) => name.startsWith("bb_") && name.endsWith(".csv"), "BB Standardexport");
   const receipts = uniqueFile(files, (name) => name.endsWith("belege.zip"), "Belege.zip");
-  return { datev, bb, receipts };
+  return { datev: datev.bytes, datevName: datev.name.split("/").pop()!, bb: bb.bytes, receipts: receipts.bytes };
 }
 
-function uniqueFile(parts: ExportPart[], matches: (name: string) => boolean, label: string): Uint8Array {
+function uniqueFile(parts: ExportPart[], matches: (name: string) => boolean, label: string): ExportPart {
   const found = parts.filter((part) => matches(part.name.toLowerCase()));
   if (found.length !== 1) throw new BuchhaltungsbutlerError(`${label}: erwartet genau eine Datei, gefunden ${found.length}.`);
-  return found[0]!.bytes;
+  return found[0]!;
 }
 
 function unzip(bytes: Uint8Array, name: string): Record<string, Uint8Array> {

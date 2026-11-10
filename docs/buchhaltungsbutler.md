@@ -17,7 +17,7 @@ Je Geschäftsjahr brauchst du:
 - den **DATEV-Buchungsstapel** als `EXTF_Buchungsstapel.csv`,
 - die **Belegdateien** als `Belege.zip`.
 
-Diese drei Dateien kannst du getrennt auswählen. Alternativ verwendest du `datenexport.zip`, das den BB Standardexport und `Belege.zip` enthält, zusammen mit dem separaten EXTF-Buchungsstapel.
+Diese drei Dateien kannst du getrennt auswählen. Alternativ verwendest du `datenexport.zip`, das den BB Standardexport und `Belege.zip` enthält, zusammen mit dem separaten EXTF-Buchungsstapel. Liegt der EXTF-Buchungsstapel ebenfalls in einer .zip, legt Haben ihn beim Import zusätzlich als eigene DATEV-Datei unter **Originaldateien** ab; die hochgeladene .zip bleibt unverändert erhalten.
 
 In BuchhaltungsButler findest du den Export unter **Abschluss → Buchungssätze und Belege exportieren**. Wähle den Zeitraum und aktiviere **Belege anhängen**. Der [BuchhaltungsButler-Hilfeartikel zum Export](https://wissen.buchhaltungsbutler.de/hc/de/articles/11445407988637-Buchungss%C3%A4tze-und-Belegbilder-in-unterschiedlichen-Formaten-exportieren) beschreibt die Formate.
 
