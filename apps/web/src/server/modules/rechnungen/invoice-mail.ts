@@ -313,7 +313,7 @@ function quoteValues(quote: typeof schema.quotes.$inferSelect, firma: string) {
     return {
       nummer: quote.number ?? "",
       datum: t.date(quote.issueDate),
-      gueltig: quote.validUntil ? t.date(quote.validUntil) : "",
+      gueltig: t.date(quote.validUntil),
       betrag: t.money(quote.gross),
       kunde: (quote.buyer as { name?: string } | null)?.name ?? "",
       firma,
@@ -322,7 +322,7 @@ function quoteValues(quote: typeof schema.quotes.$inferSelect, firma: string) {
   return {
     nummer: quote.number ?? "",
     datum: germanDate(quote.issueDate),
-    gueltig: quote.validUntil ? germanDate(quote.validUntil) : "",
+    gueltig: germanDate(quote.validUntil),
     betrag: formatEuro(quote.gross),
     kunde: (quote.buyer as { name?: string } | null)?.name ?? "",
     firma,

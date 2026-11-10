@@ -25,14 +25,18 @@ const PAYMENT_STATUS: Record<string, string> = {
   partlyPaid: "teilweise bezahlt",
 };
 
-const SOURCE = { lexoffice: { name: "Lexoffice", product: "Lexware Office" }, sevdesk: { name: "sevDesk", product: "sevDesk" } } as const;
+const SOURCE = {
+  lexoffice: { name: "Lexoffice", product: "Lexware Office" },
+  sevdesk: { name: "sevDesk", product: "sevDesk" },
+  import: { name: "JSON-Import", product: "Quellprogramm" },
+} as const;
 
 function LegacyVoucherPage() {
   const { voucher, files } = Route.useLoaderData();
   const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
-  const source = SOURCE[voucher.source];
+  const source = voucher.source === "import" ? { name: voucher.sourceName || "JSON-Import", product: "Quellprogramm" } : SOURCE[voucher.source];
   return (
     <>
       <div className="page-head">
@@ -153,7 +157,7 @@ function LegacyVoucherPage() {
             </section>
           )}
           <p className="small muted" style={{ margin: 0 }}>
-            Übernommen am {formatDateTime(voucher.createdAt)} · {source.name}-ID {voucher.lexofficeId}
+            Übernommen am {formatDateTime(voucher.createdAt)} · {source.name}-ID {voucher.externalId}
           </p>
         </div>
       </div>

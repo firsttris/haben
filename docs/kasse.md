@@ -25,8 +25,6 @@ In einer GmbH oder UG heißen Einlage und Entnahme „Vom Gesellschafter“ und 
 
 Bei Abhebung und Einzahlung ordnest du den Umsatz auf dem Bankkonto im [Bankabgleich](bank.md) als **Geldtransit** zu; dann ist das Geldtransitkonto wieder ausgeglichen.
 
-Der [vorbereitete Belegimport](belegimport.md) übernimmt ursprüngliche Bewegungen auf dem Kassenkonto als **Übernommene Kassenbewegung** mit Datum, Betrag und Originaltext. Sie zählen zum Bestand und stehen auch im CSV. Journal und belegte EÜR-Zahlungen werden dabei nur einmal übernommen. Diese Originalbewegungen lassen sich hier nicht stornieren, solange ihre Korrektur nicht mit den fremden Originalbuchungen abgestimmt ist.
-
 ## Rechnung bar bezahlt
 
 Bezahlt ein Kunde eine Rechnung bar, wählst du unter **Eintragen** die Art **Rechnung bar bezahlt**, dann die Rechnung, das Datum und den Betrag. Zur Auswahl stehen festgeschriebene Rechnungen in Euro mit offenem Betrag; der Betrag ist mit dem offenen vorbelegt. Auf der Seite einer offenen Rechnung führt **Barzahlung in der Kasse erfassen** unter **Zahlungen** direkt hierher, mit der Rechnung schon gewählt.
@@ -65,6 +63,8 @@ Verkaufst du bar an Privatkunden, etwa am Marktstand, brauchst du keine Rechnung
 - Im Kassenbuch und in der CSV steht die Zeile als „Bareinnahme“ mit der Behandlung (Spalte „Steuer“), in der Voranmeldung unter den Quellen der Kennzahl als „Bareinnahme“ mit der Notiz.
 
 ## Regeln
+
+**Übernommene Originalbuchungen:** Der [JSON-Eingang für Umzüge](belegimport.md) ergänzt Kassenbewegungen aus einem Originaljournal mit derselben Journalreferenz. Sie stehen als „Übernommen“ in der Liste; es entsteht keine zweite Buchung oder zusätzliche EÜR-Zahlung. Auch dabei darf der Kassenbestand an keinem Tag negativ werden. Solche Bewegungen lassen sich hier nicht einzeln stornieren: Eine Korrektur muss mit dem übernommenen Originaljournal abgestimmt werden.
 
 - Jede Zeile wird sofort gebucht und festgeschrieben. Ändern oder Löschen geht nicht (GoBD), auch nicht in der Datenbank.
 - Eine falsche Zeile hebst du mit **Stornieren** auf: Haben schreibt eine Gegenzeile mit neuer Nummer und heutigem Datum und bucht gegen. Danach trägst du sie richtig neu ein. Bar bezahlte Belege sind gebucht und lassen sich hier nicht stornieren; das geht am Beleg selbst mit **Beleg stornieren**, dann schreibt Haben die Gegenzeile ins Kassenbuch (siehe [Belege](belege.md#stornieren-und-neu-erfassen)).

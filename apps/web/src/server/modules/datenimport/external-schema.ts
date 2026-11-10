@@ -1,86 +1,123 @@
-import { EXPENSE_CATEGORY_KEYS, UNITS, LINE_DETAIL_MAX, type UnitLabel } from "@haben/core";
+import { LEGACY_TAX_TYPES, type TaxCode } from "@haben/core";
 import { z } from "zod";
 
 const cents = z.number().int().min(-2_147_483_647).max(2_147_483_647);
 const key = z.string().trim().min(1).max(200);
-const party = z.object({
-  name: z.string().trim().min(1).max(300),
-  strasse: z.string().max(300),
-  plz: z.string().max(20),
-  ort: z.string().max(100),
-  land: z.string().regex(/^[A-Z]{2}$/),
-  email: z.string().max(500).optional(),
-  kundennummer: z.string().max(100).optional(),
-});
-const line = z.object({
-  description: z.string().trim().min(1).max(500),
-  detail: z.string().max(LINE_DETAIL_MAX).default(""),
-  quantity: z.number().int().positive().max(1_000_000_000),
-  unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
-  unitPrice: cents,
-  kind: z.enum(["optional", "alternative"]).nullable().default(null),
-});
-const document = {
+const tax = z.strictObject({ rate: z.number().int().min(0).max(10000), net: cents, tax: cents });
+const original = {
   externalId: key,
   number: key,
   date: z.iso.date(),
   contactId: z.uuid().nullable(),
-  buyer: party,
+  contactName: z.string().trim().min(1).max(300),
+  address: z
+    .strictObject({
+      name: z.string().max(300),
+      street: z.string().max(300),
+      zip: z.string().max(20),
+      city: z.string().max(100),
+      countryCode: z.string().regex(/^[A-Z]{2}$/),
+    })
+    .optional(),
+  currency: z.literal("EUR"),
+  net: cents,
+  tax: cents,
   gross: cents,
-  lines: z.array(line).min(1).max(200),
   pdfSha256: z.string().regex(/^[a-f0-9]{64}$/),
-  serviceFrom: z.iso.date().nullable().default(null),
-  serviceTo: z.iso.date().nullable().default(null),
   note: z.string().max(2000).default(""),
   evidence: z.record(z.string(), z.unknown()).default({}),
 };
 
-export const externalQuoteSchema = z.object({
-  ...document,
+export const externalQuoteSchema = z.strictObject({
+  ...original,
   kind: z.literal("quote"),
-  validUntil: z.iso.date().nullable(),
-  decision: z.enum(["angenommen", "abgelehnt"]).nullable().default(null),
+  documentKind: z.enum(["AN", "AB", "LI"]).default("AN"),
+  status: z.enum(["draft", "open", "declined", "accepted", "partlyInvoiced", "invoiced"]),
+  validUntil: z.iso.date().nullable().default(null),
+  positions: z.array(z.record(z.string(), z.unknown())).max(200).default([]),
+  relatedObjects: z.array(z.record(z.string(), z.unknown())).max(200).default([]),
 });
-export const externalInvoiceSchema = z.object({
-  ...document,
-  gross: cents.positive(),
+
+export const externalInvoiceSchema = z.strictObject({
+  ...original,
   kind: z.literal("invoice"),
-  dueDate: z.iso.date(),
-  quoteExternalId: key.nullable().default(null),
-  /** Übernommener Zahlungsstand; ohne nachgewiesenen Zufluss entsteht daraus keine EÜR-Einnahme. */
-  settledAmount: cents.default(0),
-  paymentUncertain: z.boolean().default(false),
+  type: z.enum(["invoice", "creditnote", "purchaseinvoice", "purchasecreditnote"]),
+  direction: z.enum(["einnahme", "ausgabe"]),
+  dueDate: z.iso.date().nullable(),
+  serviceFrom: z.iso.date().nullable().default(null),
+  serviceTo: z.iso.date().nullable().default(null),
+  status: z.enum(["open", "paid", "partlyPaid", "voided", "unknown"]),
+  taxes: z.array(tax).min(1).max(20),
+  taxType: z.enum(LEGACY_TAX_TYPES as [string, ...string[]]),
+  categories: z
+    .array(z.strictObject({ categoryId: key, name: z.string().max(300), ...tax.shape }))
+    .max(200)
+    .default([]),
+  payment: z
+    .strictObject({
+      openAmount: cents,
+      paidDate: z.iso.date().nullable(),
+      items: z
+        .array(
+          z.strictObject({
+            date: z.iso.date(),
+            amount: cents.refine((n) => n !== 0, "Zahlbetrag fehlt."),
+            evidence: z.string().min(1).max(2000),
+            account: z.string().max(300).nullable().default(null),
+          }),
+        )
+        .max(1000),
+    })
+    .nullable(),
+  positions: z.array(z.record(z.string(), z.unknown())).max(200).default([]),
 });
-const postingLine = z
-  .object({
-    account: z.string().regex(/^\d{4,8}$/),
-    debit: cents.nonnegative(),
-    credit: cents.nonnegative(),
-  })
-  .refine((l) => l.debit === 0 || l.credit === 0, "Eine Buchungszeile hat nur Soll oder Haben.");
-export const externalJournalSchema = z.object({
+
+const taxCodes = [
+  "USt19",
+  "USt7",
+  "frei",
+  "RC",
+  "Drittland",
+  "Steuerfrei",
+  "KU",
+  "VSt19",
+  "VSt7",
+  "keineVSt",
+  "RC13bEU",
+  "RC13bDrittland",
+  "VSt13b",
+  "IGL",
+  "Ausfuhr",
+  "IGE19",
+  "IGE7",
+  "VStIGE",
+  "EUSt",
+] as const satisfies readonly TaxCode[];
+export const externalJournalSchema = z.strictObject({
   kind: z.literal("journal"),
   externalId: key,
   date: z.iso.date(),
   description: z.string().min(1).max(2000),
-  lines: z.array(postingLine).min(2).max(200),
-  evidence: z.record(z.string(), z.unknown()).default({}),
-  /** Nur belegte Zu-/Abflüsse (§ 11 EStG), unabhängig von übernommenen Bezahlt-Markierungen. */
-  cashFlows: z
+  lines: z
     .array(
-      z.object({
-        date: z.iso.date(),
-        amount: cents.refine((n) => n !== 0, "Zahlbetrag fehlt."),
-        category: z.enum(["einnahme", ...EXPENSE_CATEGORY_KEYS]),
-        evidence: z.string().min(1).max(2000),
-      }),
+      z
+        .strictObject({
+          account: z.string().regex(/^\d{4,8}$/),
+          debit: cents.nonnegative(),
+          credit: cents.nonnegative(),
+          taxCode: z.enum(taxCodes).nullable().default(null),
+          basis: cents.optional(),
+        })
+        .refine((l) => l.debit === 0 || l.credit === 0, "Eine Buchungszeile hat nur Soll oder Haben."),
     )
-    .max(100)
-    .default([]),
+    .min(2)
+    .max(200),
+  evidence: z.record(z.string(), z.unknown()).default({}),
 });
 
-export const externalImportSchema = z.object({
-  version: z.literal(1),
+/** V2 verwendet den gemeinsamen Umzugsbestand. V1 wird nicht stillschweigend umgedeutet. */
+export const externalImportSchema = z.strictObject({
+  version: z.literal(2),
   source: key,
   kontenrahmen: z.enum(["SKR03", "SKR04"]),
   entries: z

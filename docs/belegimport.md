@@ -1,79 +1,71 @@
 ---
-title: "Angebote, Rechnungen und Buchungen übernehmen"
+title: "Geprüfte Bestände über JSON übernehmen"
 description: >-
-  Geprüfte Originalbelege und Buchungen eines anderen Programms per Betreiber-CLI in Haben übernehmen,
-  mit Herkunft, Zahlungsständen und belegten EÜR-Zahlungen.
+  Originalbelege und Buchungen per Betreiber-CLI in den gemeinsamen Umzugsbestand übernehmen,
+  mit Herkunft, Prüflauf und vorhandener OPOS-Weiterverarbeitung.
 ---
 
-# Allgemeiner Belegimport
+# Gemeinsamer JSON-Eingang für Umzüge
 
-Der Betreiberimport übernimmt einen vorbereiteten Bestand in die normalen Bereiche **Angebote**, **Rechnungen**, **Buchungen**, **offene Posten** und **EÜR**. Er ergänzt den CSV-Import der Stammdaten und die anbieterbezogenen Umzüge. Er ist kein PDF-Erkennungsdienst: Ein Exportadapter bereitet das JSON-Paket vor; fachliche Zuordnungen müssen vor dem Anwenden geprüft sein.
+Die Betreiber-CLI übernimmt einen vorbereiteten Bestand in die vorhandenen Umzugsbausteine. Rechnungen und Eingangsbelege stehen zusammen mit Lexoffice- und sevDesk-Belegen unter **Archiv → Belege**, Angebote und andere kaufmännische Originale unter **Archiv → Auftragsdokumente**. Ihre Herkunft nennt das tatsächliche Quellprogramm. Ursprüngliche Buchungen durchlaufen Habens Buchungskern und erscheinen im Journal; Kassenbewegungen stehen zusätzlich im Kassenbuch.
 
-Die erste Ausbaustufe unterstützt **Einzelunternehmen mit Kleinunternehmerprofil**, Euro und SKR03 oder SKR04. Reguläre Umsatzsteuer, Fremdwährung, importierte Ausgangsgutschriften und Anlagen werden nicht umgedeutet. Eingangsbelege kommen über den bestehenden Belegimport; die Anlagen über den Anlagenimport.
+Offene Posten werden anschließend über **Umzug → Offene Posten** und dessen bestehenden Stichtags-/Eröffnungsablauf übernommen. Dabei bleiben die global eindeutigen nativen Belegnummern erhalten. Eine kollidierende Rechnungsnummer blockiert die native Übernahme; das Original im Umzugsbestand bleibt verfügbar. Verschiedene Originale werden weder allein wegen gleicher Nummern zusammengeführt noch umnummeriert.
 
-## Originale und Herkunft
+Der Eingang unterstützt EUR und den eingestellten Kontenrahmen SKR03 oder SKR04. Er ergänzt die Stammdatenimporte und Anbieteradapter; er erkennt und bewertet keine PDFs selbst. Ein Exportadapter bereitet das normalisierte Paket vor. Die fachliche Prüfung von Herkunft, Stichtag, Kontierung und Zahlungen gehört dazu.
 
-Jeder Vorgang hat eine Quelle und eine stabile Kennung innerhalb seiner Art. Die Kennung ist nicht die Belegnummer: Verschiedene Originalangebote oder Originalrechnungen können dieselbe Nummer tragen. Haben erhält sie getrennt, ohne die fremden Originale umzunummerieren. Neue native Belegnummern bleiben gegen Kollisionen mit dem gesamten Bestand geschützt. Eine bereits doppelt vergebene Quellnummer wird dadurch nicht nachträglich zu einer ordnungsgemäßen Nummernvergabe erklärt.
+## Prüfen und anwenden
 
-Das Paket enthält nur die jeweils aktuelle Version eines Angebots. Frühere Originale bleiben im Archiv. Der Adapter übernimmt eine bestätigte Versionsgruppe; er führt nicht allein aufgrund gleicher Nummern verschiedene Empfänger zusammen.
-
-Die PDFs werden unverändert übernommen, mit SHA-256 geprüft und beim Import festgeschrieben. Es entstehen weder neue Belegnummern noch neue PDFs oder Versandversuche. Strukturierte Positionen müssen den übernommenen Gesamtbetrag centgenau ergeben. Wenn die Quelle nur einen Gesamtbetrag bietet, kennzeichnet der Adapter eine zusammengefasste Position ausdrücklich; Einzelpositionen bleiben im Original nachlesbar.
-
-Quellakteur, frühere Identitäten und weitere Nachweise gehören in `evidence`. Die Übernahme selbst steht mit dem übergebenen Akteur im Änderungsprotokoll. Importierte Daten und Herkunftszuordnungen sind anschließend unveränderlich. Ein anderer Inhalt mit derselben Kennung wird abgewiesen, statt den ersten Stand zu überschreiben.
-
-Das Jahresarchiv enthält unter `importe/uebernahmen.json` die Herkunft, die Originaldaten, den übernommenen Zahlungsstand und die belegten EÜR-Zahlungen. Maßgeblich ist das Belegjahr; die Nachweise bleiben deshalb auch bei einem späteren Umzug im Archiv des ursprünglichen Jahres erhalten.
-
-## Zahlungsstand, OPOS und EÜR
-
-`settledAmount` ist der übernommene Zahlungsstand einer Rechnung. Er vermindert den offenen Posten, erzeugt aber keinen erfundenen Bankumsatz und keine weitere Zahlung im Journal. Sind Betrag oder Zahlungszeitpunkt nicht ausreichend belegt, steht `paymentUncertain` auf `true`. Haben zeigt den Stand ausdrücklich als übernommen an und weist in der EÜR auf die ungeklärten Anteile hin. Eine ELSTER-Abgabe bleibt damit gesperrt, bis die Angaben geklärt sind. Eine Bezahlt-Bestätigung wird nicht als Banknachweis ausgegeben.
-
-Nur nachgewiesene Zu-/Abflüsse stehen in den `cashFlows` der ursprünglichen Journalbuchung. Jeder Eintrag braucht Datum, Centbetrag, Kategorie und Nachweis. Datum und Geldbewegung müssen zur Buchung passen. Diese Einträge fließen einmalig in die EÜR ein; bloße Bezahlt-Markierungen nicht. Einnahme ist die Kategorie `einnahme`, eine Ausgabe eine vorhandene Ausgabekategorie, mit negativem Betrag. Ausgaben werden im Kleinunternehmerprofil brutto gerechnet; Anlagen sind kein sofortiger Aufwand.
-
-Grundlage des Zufluss-/Abflussprinzips ist [§ 11 EStG](https://www.gesetze-im-internet.de/estg/__11.html). Der Import entscheidet keine unsicheren steuerlichen Zeitpunkte und verteilt auch keine regelmäßig wiederkehrenden Zahlungen eigenständig auf andere Jahre.
-
-Rechnungen und ursprüngliche Journalbuchungen werden getrennt übergeben: Der Import einer Rechnung erzeugt keine zweite Erlösbuchung neben dem bereits übernommenen Journal. Die Journalbuchungen durchlaufen Habens bestehenden Buchungskern einschließlich Jahres-, Kontenrahmen-, Ausgleichs- und Siegelsperren. Storno und Korrektur solcher Originalrechnungen sind vorerst gesperrt: Deren Wirkung muss zuerst mit den fremden Originalbuchungen abgestimmt werden.
-
-Bargeldbewegungen auf dem Kassenkonto 1000 (SKR03) beziehungsweise 1600 (SKR04) erscheinen zusätzlich als „Übernommene Kassenbewegung“ im Kassenbuch und dessen CSV. Sie verweisen auf dieselbe Originalbuchung; es entsteht weder eine zweite Journalbuchung noch eine weitere EÜR-Zahlung oder Bezahlt-Markierung. Der Tagesbestand darf auch nach der Übernahme und bei späteren nativen Buchungen nie negativ werden. Die Übernahme ordnet Kassenbewegungen nach Datum; innerhalb eines Tages zählen Eingänge vor Ausgängen. Storno solcher Originalbewegungen bleibt bis zur Abstimmung mit den fremden Originalbuchungen gesperrt.
-
-## Aufruf
-
-Vorher eine vollständige Sicherung erstellen und den Bestand auf einer getrennten Kopie prüfen. Der Befehl läuft mit den Umgebungsvariablen der Installation, insbesondere `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` und `HABEN_ENCRYPTION_KEY`. Keine Kennwörter in den Befehlsverlauf schreiben.
+Vorher eine vollständige Sicherung erstellen und den Bestand auf einer getrennten Kopie prüfen. Der Befehl nutzt die Umgebungsvariablen der Installation. Zugangsdaten gehören in die geschützte Betriebskonfiguration, nicht in den Befehlsverlauf.
 
 Im Verzeichnis `apps/web`:
 
 ```sh
-bun src/server/modules/datenimport/import-cli.ts --paket /migration/bestand.json --originale /migration/originale --akteur migration:mein-programm
-bun src/server/modules/datenimport/import-cli.ts --paket /migration/bestand.json --originale /migration/originale --akteur migration:mein-programm --anwenden
+bun src/server/modules/datenimport/import-cli.ts --paket /migration/bestand.json --originale /migration/originale --akteur migration:quelle
+bun src/server/modules/datenimport/import-cli.ts --paket /migration/bestand.json --originale /migration/originale --akteur migration:quelle --anwenden
 ```
 
-Der erste Aufruf prüft Struktur und Originalhashes, ohne den Zielbestand zu ändern. Der zweite prüft und übernimmt den Bestand in einer Transaktion. Scheitert ein Datensatz, bleibt das ganze Paket unangewendet. Wiederholte und gleichzeitige Aufrufe legen denselben Bestand nicht erneut an. PDF-Dateien heißen `<sha256>.pdf` und liegen im übergebenen Originalordner.
+Der erste Aufruf prüft Struktur, Beträge, Buchungsgleichheit und Originalhashes, ohne den Zielbestand zu ändern. Der zweite prüft den Zielbestand und übernimmt das gesamte Paket mit Akteur in einer Transaktion. Fehler rollen die Geschäftsdaten des Pakets zurück. Identische Wiederholungen und gleichzeitige Aufrufe erzeugen keine Duplikate; veränderte Inhalte derselben Quellidentität werden abgewiesen. Kontenrahmen, abgeschlossene Jahre und Siegelsperren gelten auch beim Import.
+
+Originale heißen `<sha256>.pdf`. Ein PDF darf höchstens 20 MiB groß sein, die unterschiedlichen Originale eines Pakets zusammen höchstens 128 MiB. Größere Bestände werden in mehrere Pakete aufgeteilt. Die Originaldateien werden in der vorhandenen, nach ihrem Inhalt adressierten Ablage gespeichert. Bei einem späteren Transaktionsfehler kann dort eine unreferenzierte Datei bleiben; es entsteht dadurch kein Geschäftsdatensatz.
+
+## Originale und unbekannte Angaben
+
+Das Paket enthält die jeweils maßgeblichen Originalstände mit ihren Quellenkennungen. Frühere Versionen können separat im Archiv erhalten bleiben. Ein Angebot mit unbekannter Frist wird als Original mit `validUntil: null` gespeichert; die Pflichtangaben neuer nativer Angebote bleiben erhalten. Eine fehlende Fälligkeit bleibt im Umzugsbestand ebenfalls unbekannt.
+
+Die Herkunftszuordnung ist nur anhängbar und auditiert. Das Jahresarchiv enthält sie nach Belegjahr zusammen mit Originalen und belegten Einzelzahlungen, auch wenn das Jahr erst später importiert wurde. Storno importierter Kassenbewegungen und generisch übernommener Originalrechnungen bleibt bis zur Abstimmung der fremden Originalbuchungen gesperrt.
+
+## Zahlungen, Journal und EÜR
+
+Ein bestätigter Bezahlt-Status und ein Zahlungsnachweis sind unterschiedliche Angaben. Der Quellstand steht am Originalbeleg; belegte Einzelzahlungen liegen im bereits vorhandenen Zahlungsbestand. Betrag, Datum und Nachweis werden einzeln übergeben. Fehlende Nachweise erscheinen als ungeklärt und blockieren eine unsichere Stichtagsübernahme. Ein geschätztes Datum wird nicht zum Zahlungsbeleg. Die Übernahme erzeugt keine Bankumsätze.
+
+Rechnungen werden beim Einlesen nicht erneut ausgestellt und erzeugen keine Erlösbuchung. Vor der späteren Übernahme offener Posten ist zu prüfen, welche Forderungen und Verbindlichkeiten schon durch Originalbuchungen oder eine Eröffnung gedeckt sind. Der vorhandene Umzugsablauf berücksichtigt Eröffnungen; eine beliebige freie Originalbuchung wird nicht stillschweigend als solche interpretiert. Sind freie Originaljournale derselben Quelle vorhanden, bleibt eine zusätzliche native OPOS-Übernahme bis zum Abgleich gesperrt. Umgekehrt wird nach einer nativen OPOS-Übernahme kein freies Originaljournal derselben Quelle ungeprüft nachgebucht. Auch eine fehlende Fälligkeit blockiert die native Weiterübernahme eines generischen Originals.
+
+Die CLI ergänzt keine eigene EÜR-Berechnung. Originaljournal und belegte Zahlungen bleiben für die Projektumstellung [EÜR aus dem Journal (#542)](https://github.com/firsttris/haben/issues/542) erhalten. Die dort bereits eingeführte Kontenzuordnung ist eine Grundlage; die Schattenrechnung und der spätere Umstieg sind weitere Schritte. Deshalb beweist eine sichtbare importierte Journalbuchung allein noch nicht, dass sie in der aktuellen EÜR oder Voranmeldung enthalten ist. Die Auswertungen müssen vor einer steuerlichen Abgabe über die vorhandene Prüfstrecke abgeglichen sein.
+
+Kassenbewegungen auf 1000 (SKR03) beziehungsweise 1600 (SKR04) werden im bestehenden Kassenbuch mit derselben Journalreferenz ergänzt. Der gesamte Tagesbestand wird geprüft; negative Bestände werden abgewiesen. Es entsteht keine zweite Journalbuchung oder zusätzliche Rechnungszahlung.
 
 ## Paketformat
 
-Das versionierte Schema steht in [`external-schema.ts`](https://github.com/firsttris/haben/blob/main/apps/web/src/server/modules/datenimport/external-schema.ts). Geld wird in ganzen Cent, Mengen in Tausendsteln übergeben. Alle Datumsfelder sind ISO-Daten; fehlende Fristen müssen vor dem Import geklärt oder ausdrücklich als unbekannte Quellangabe dokumentiert werden. Der Betreiberimport ersetzt keine fachliche Abnahme.
+Das verbindliche Schema ist `external-schema.ts`. **Version 2** nutzt den gemeinsamen Umzugsbestand. Version 1 des früheren Entwurfs wird ausdrücklich abgewiesen; ein bereits installierter Prototyp benötigt einen gesondert geprüften Datenübergang. Geldbeträge sind ganze Cent, Steuersätze Basispunkte, Datumsangaben ISO-Daten. Eine Quellidentität besteht aus `source`, Art und `externalId`; die Belegnummer ist kein Dublettenschlüssel.
 
 ```json
 {
-  "version": 1,
-  "source": "mein-programm",
+  "version": 2,
+  "source": "Beispielprogramm",
   "kontenrahmen": "SKR03",
-  "entries": [
-    {
-      "kind": "invoice",
-      "externalId": "rechnung-42",
-      "number": "10042",
-      "date": "2026-01-03",
-      "dueDate": "2026-01-17",
-      "contactId": null,
-      "buyer": { "name": "Beispielkunde", "strasse": "Musterweg 1", "plz": "10115", "ort": "Berlin", "land": "DE" },
-      "gross": 100000,
-      "settledAmount": 100000,
-      "paymentUncertain": true,
-      "lines": [{ "description": "Leistung gemäß Original", "quantity": 1000, "unit": "Psch.", "unitPrice": 100000 }],
-      "pdfSha256": "ERSETZEN_DURCH_64_KLEINE_HEXZEICHEN"
-    }
-  ]
+  "entries": [{
+    "kind": "invoice", "type": "invoice", "direction": "einnahme",
+    "externalId": "rechnung-42", "number": "10042",
+    "date": "2026-01-03", "dueDate": "2026-01-17",
+    "contactId": null, "contactName": "Beispielkunde", "currency": "EUR",
+    "net": 100000, "tax": 0, "gross": 100000,
+    "taxes": [{ "rate": 0, "net": 100000, "tax": 0 }],
+    "taxType": "vatfree", "status": "open", "payment": null,
+    "pdfSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }]
 }
 ```
 
-Angebote verwenden `kind: "quote"` und `validUntil`; bei unbekannter Frist ist `validUntil: null` zulässig. Haben zeigt dann „Keine Frist übernommen“ und erklärt das Angebot nicht anhand eines erfundenen Datums für abgelaufen. Neue native Entwürfe verlangen weiterhin eine Frist. Optional ist `decision` mit `angenommen` oder `abgelehnt`. Eine Rechnung kann über `quoteExternalId` auf ein Angebot derselben Quelle zeigen. Buchungen verwenden `kind: "journal"`, `date`, `description`, `lines` aus Konto/Soll/Haben und gegebenenfalls `cashFlows`. Die Erkennung und fachliche Prüfung von Quellformaten bleiben Aufgabe des Adapters, nicht einer neuen Parallelbuchhaltung.
+Die Beispiel-Prüfsumme ist durch den tatsächlichen Hash des PDFs zu ersetzen. Für Rechnungen mit Zahlungseingang enthält `payment` den Quellrestbetrag `openAmount`, ein nur bei vollständig belegtem Ausgleich gesetztes `paidDate` und `items` aus `date`, `amount`, `evidence` und optional `account`. Ein bestätigter Bezahlt-Status ohne Zahlungsnachweis verwendet `status: "paid"`, `openAmount: 0`, `paidDate: null` und leere `items`.
+
+Angebote verwenden `kind: "quote"`, `documentKind` (`AN`, `AB`, `LI`), `status`, `validUntil`, Originalbeträge und PDF-Hash. Positionen, Beziehungen und weitere Quellenangaben stehen in `positions`, `relatedObjects` und `evidence`. Buchungen verwenden `kind: "journal"`, Datum, Beschreibung und Zeilen aus Konto, Soll, Haben sowie gegebenenfalls vorhandenem Steuerschlüssel und Bemessungsgrundlage. Steuerwerte werden aus der Quelle übernommen und nicht rückwirkend geraten.

@@ -1,10 +1,10 @@
 import { formatEuro } from "@haben/core";
 import { lexDate } from "@haben/import";
 import { sql, type SQL } from "drizzle-orm";
-import type { LegacyPayment } from "../../db/schema.ts";
+import type { LegacyPayment, LegacySource } from "../../db/schema.ts";
 
 type PaymentSource = {
-  source: "lexoffice" | "sevdesk";
+  source: LegacySource;
   gross: number;
   status: string;
   payment: LegacyPayment | null;
@@ -41,8 +41,8 @@ export function effectivePayment(alias: string): SQL<LegacyPayment | null> {
     select ${v}.payment || jsonb_build_object('status', 'cancelled', 'openAmount', 0, 'paidDate', null, 'items', '[]'::jsonb, 'history', 'storno', 'cancelledOn', pair.cancelled_on)
     from (select ${STORNO_PAIRS}->>(${v}.id::text) as cancelled_on) pair where pair.cancelled_on is not null and ${v}.payment is not null), (
     select jsonb_set(${v}.payment, '{items}', jsonb_agg(jsonb_build_object(
-      'type', 'partPaymentFinancialTransaction', 'date', p.date::text, 'amount', p.amount, 'account', p.account_name)
-      order by p.date, p.external_id)) || '{"history":"sevdesk"}'::jsonb
+      'type', case when ${v}.source = 'import' then 'payment' else 'partPaymentFinancialTransaction' end, 'date', p.date::text, 'amount', p.amount, 'account', p.account_name)
+      order by p.date, p.external_id)) || jsonb_build_object('history', case when ${v}.source = 'import' then 'import' else 'sevdesk' end)
     from legacy_voucher_payments p where p.voucher_id = ${v}.id and ${v}.payment is not null
       and case when p.raw->>'create' ~ '^\\d{4}-\\d{2}-\\d{2}T' then (p.raw->>'create')::timestamptz <= ${v}.created_at else true end
     having count(*) > 0), ${v}.payment)`;
@@ -62,6 +62,14 @@ function historyIssue(gross: number, payment: LegacyPayment): string | null {
 
 /** Ohne belegte Einzelzahlungen enthalten auch Altimporte nur den Gesamtbetrag am letzten Zahldatum. */
 export function paymentHistoryIssue(voucher: PaymentSource): string | null {
+  if (voucher.source === "import") {
+    const payment = voucher.payment;
+    if (voucher.status === "unknown") return "Übernommener Zahlungsstand ungeklärt; Stand am Stichtag und Zahlungszeitpunkte müssen geprüft werden.";
+    if (payment?.history === "import") return historyIssue(voucher.gross, payment)?.replaceAll("sevDesk", "Import") ?? null;
+    return (payment && Math.abs(payment.openAmount) !== Math.abs(voucher.gross)) || voucher.status === "paid" || voucher.status === "partlyPaid"
+      ? "Übernommene Zahlungsdaten ungeklärt: Der Bezahlt-Status ist kein Nachweis von Betrag und Zahlungszeitpunkt."
+      : null;
+  }
   if (voucher.source !== "sevdesk") return null;
   const payment = voucher.payment;
   if (payment?.history === "storno") return null;
@@ -78,6 +86,13 @@ export function paymentHistoryIssue(voucher: PaymentSource): string | null {
  * Originaldaten, nicht aus `payment.paidDate`: Altimporte setzten dort ohne payDate ersatzweise das Belegdatum.
  */
 export function settledOn(voucher: PaymentSource): string | null {
+  if (voucher.source === "import")
+    return voucher.payment?.status === "balanced" && !paymentHistoryIssue(voucher)
+      ? (voucher.payment.items
+          .map((p) => p.date)
+          .sort()
+          .at(-1) ?? null)
+      : null;
   if (voucher.source !== "sevdesk" || voucher.payment?.status !== "balanced") return null;
   return lexDate(voucher.payDate);
 }

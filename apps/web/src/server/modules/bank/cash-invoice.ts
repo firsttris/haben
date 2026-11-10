@@ -130,10 +130,10 @@ export async function cashInvoiceCandidates(): Promise<CashInvoiceCandidate[]> {
 
 export interface InvoicePayment {
   id: string;
-  date: string | null;
+  date: string;
   amount: Cents;
   /** bank: Zuordnung eines Bankumsatzes; bar: Bareinnahme im Kassenbuch */
-  via: "bank" | "bar" | "import";
+  via: "bank" | "bar";
   text: string;
   /** Nur bar: Nummer der Zeile im Kassenbuch */
   cashNumber: number | null;
@@ -142,7 +142,6 @@ export interface InvoicePayment {
 
 /** Zahlungen auf eine Rechnung, über die Bank und bar, ohne Gegenzeilen, mit Merker „storniert“ bzw. „aufgehoben“ */
 export async function invoicePaymentList(invoiceId: string): Promise<InvoicePayment[]> {
-  const imported = await db.select().from(schema.externalImports).where(eq(schema.externalImports.invoiceId, invoiceId));
   const allocations = await db
     .select({
       id: schema.allocations.id,
@@ -158,19 +157,6 @@ export async function invoicePaymentList(invoiceId: string): Promise<InvoicePaym
   const cash = await db.select().from(schema.cashEntries).where(eq(schema.cashEntries.invoiceId, invoiceId)).orderBy(asc(schema.cashEntries.number));
   const reversed = new Set([...allocations, ...cash].flatMap((r) => (r.reversesId ? [r.reversesId] : [])));
   const payments: InvoicePayment[] = [
-    ...imported
-      .filter((r) => r.settledAmount !== 0)
-      .map((r) => ({
-        id: r.id,
-        date: null,
-        amount: r.settledAmount,
-        via: "import" as const,
-        text: r.paymentUncertain
-          ? "Zahlungsdaten teilweise ungeklärt; ungeklärte Anteile fehlen in der EÜR."
-          : "Zahlungsnachweise sind in den übernommenen Buchungen erhalten.",
-        cashNumber: null,
-        reversed: false,
-      })),
     ...allocations
       .filter((a) => !a.reversesId)
       .map((a) => ({ id: a.id, date: a.date, amount: a.amount, via: "bank" as const, text: a.text, cashNumber: null, reversed: reversed.has(a.id) })),
@@ -178,5 +164,5 @@ export async function invoicePaymentList(invoiceId: string): Promise<InvoicePaym
       .filter((c) => !c.reversesId)
       .map((c) => ({ id: c.id, date: c.date, amount: c.amount, via: "bar" as const, text: c.text, cashNumber: c.number, reversed: reversed.has(c.id) })),
   ];
-  return payments.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  return payments.sort((a, b) => a.date.localeCompare(b.date));
 }

@@ -16,7 +16,7 @@ export interface QuoteDocument extends Letterhead {
   number: string;
   /** ISO-Datum */
   issueDate: string;
-  validUntil: string | null;
+  validUntil: string;
   serviceFrom?: string;
   serviceTo?: string;
   seller: Seller;
@@ -96,11 +96,11 @@ export function quotePdfData(doc: QuoteDocument) {
     meta: [
       { label: t.quoteNumber, value: doc.number },
       { label: t.quoteDate, value: t.date(doc.issueDate) },
-      ...(doc.validUntil ? [{ label: t.validUntil, value: t.date(doc.validUntil) }] : []),
+      { label: t.validUntil, value: t.date(doc.validUntil) },
       ...quoteDetails(doc, t),
     ],
     totals: { rows: totalRows, gross: { label: grossLabel(t.quoteTotal), value: t.money(doc.totals.gross) }, included },
-    payment: doc.validUntil ? t.quoteValid(t.date(doc.validUntil)) : "",
+    payment: t.quoteValid(t.date(doc.validUntil)),
   };
 }
 

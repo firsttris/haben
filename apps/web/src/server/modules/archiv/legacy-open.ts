@@ -38,7 +38,7 @@ const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
 const OPEN_ITEM_TYPES = new Set([...SALES, ...PURCHASES]);
 
-const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
+const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk", import: "JSON-Import" } as const;
 
 export interface OpenLegacyItem {
   id: string;
@@ -240,6 +240,12 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
       ),
     );
   const withFile = new Set(files.map((f) => f.voucherId));
+  const journalCovered = new Set(
+    (
+      await db.execute<{ id: string }>(sql`select i.voucher_id as id from external_imports i
+    where i.kind='invoice' and exists (select 1 from external_imports j where j.source=i.source and j.kind='journal')`)
+    ).map((r) => r.id),
+  );
   return candidates.map(({ voucher: v, state, takenOver }) => ({
     id: v.id,
     source: v.source,
@@ -254,7 +260,13 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
     openKnown: state.issue === null,
     paidAfter: v.date <= cutoff ? state.paidAfter : 0,
     takenOver,
-    blocker: blockerFor(v, state, cutoff, withFile.has(v.id)),
+    blocker:
+      blockerFor(v, state, cutoff, withFile.has(v.id)) ??
+      (!takenOver && journalCovered.has(v.id)
+        ? "Quelljournal bereits übernommen: Forderungen und Verbindlichkeiten vor einer weiteren Eröffnungsbuchung abgleichen."
+        : v.source === "import" && !v.dueDate
+          ? "Fälligkeit fehlt im Original; vor der nativen Übernahme klären."
+          : null),
   }));
 }
 
@@ -331,6 +343,22 @@ async function takeOver(actor: string, item: OpenLegacyItem, cutoff: TakeoverCut
  * anderen Tag zu buchen als angezeigt.
  */
 async function lockedCovering(tx: Tx, voucher: LegacyVoucher, cutoff: TakeoverCutoff) {
+  if (voucher.source === "import") {
+    const [origin] = await tx
+      .select({ source: schema.externalImports.source })
+      .from(schema.externalImports)
+      .where(eq(schema.externalImports.voucherId, voucher.id));
+    if (!origin) throw new TakeoverError("Herkunftsnachweis des Betreiberimports fehlt.");
+    // Derselbe Quell-Lock wie der Paketimport: keine parallele Eröffnung neben einem nachgereichten Journal.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`external-import:${origin.source}`}, 0))`);
+    const [journal] = await tx
+      .select({ id: schema.externalImports.id })
+      .from(schema.externalImports)
+      .where(and(eq(schema.externalImports.source, origin.source), eq(schema.externalImports.kind, "journal")))
+      .limit(1);
+    if (journal) throw new TakeoverError("Quelljournal bereits übernommen: Vor einer weiteren Eröffnungsbuchung abgleichen.");
+    if (!voucher.dueDate) throw new TakeoverError("Fälligkeit fehlt im Original; vor der nativen Übernahme klären.");
+  }
   const covering = await stapelOpeningCovering(tx, voucher.date);
   const current = await legacyTakeoverCutoff(cutoff.fixed ? null : cutoff.date, tx);
   if (current.date !== cutoff.date) throw new TakeoverError("Der Stichtag hat sich inzwischen geändert. Bitte die Seite neu laden.");

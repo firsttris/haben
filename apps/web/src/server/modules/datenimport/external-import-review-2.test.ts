@@ -27,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
   beforeEach(async () => {
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
-      await tx`truncate seals, company, cash_entries, journal_entries, external_imports cascade`;
+      await tx`truncate seals, company, contacts, quotes, invoices, cash_entries, journal_entries, external_imports, lexoffice_imports cascade`;
     });
     await sql`insert into company (id,name,kleinunternehmer,rechtsform,kontenrahmen,bundesland)
       values (1,'Erfundener Reviewbetrieb',true,'einzelunternehmen','SKR03','NI')`;
@@ -41,7 +41,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
         await imports.runExternalImport(
           "review-user",
           {
-            version: 1,
+            version: 2,
             source: "erfundener-kassenexport",
             kontenrahmen: chart,
             entries: [
@@ -54,7 +54,6 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
                   { account, debit: 40000, credit: 0 },
                   { account: chart === "SKR03" ? "1400" : "1200", debit: 0, credit: 40000 },
                 ],
-                cashFlows: [{ date: "2026-01-05", amount: 40000, category: "einnahme", evidence: "Erfundenes Originalkassenbuch, Zeile 42" }],
               },
             ],
           },
@@ -63,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
         const journal = await ledger.kontenblatt(account, { from: "2026-01-01", to: "2027-01-01" });
         expect(journal.saldo).toBe(40000);
         expect((await cash.cashBook(2026)).closing, "Übernommenes Bargeld muss auch im Kassenbuch verfügbar sein").toBe(journal.saldo);
-        expect((await reports.euerForYear(2026)).totalEinnahmen).toBe(40000);
+        expect((await reports.euerForYear(2026)).totalEinnahmen).toBe(0);
         const book = await cash.cashBook(2026);
         const original = book.entries[0]!;
         expect(original).toMatchObject({ kind: "import", amount: 40000, invoiceId: null, taxTreatment: null });
@@ -72,7 +71,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
         expect(await sql`select actor from audit_log where table_name='cash_entries' and row_id=${original.id}`).toEqual([{ actor: "review-user" }]);
         await expect(cash.reverseCashEntry("review-user", original.id, "2026-01-06")).rejects.toThrow("Originalbuchungen");
         expect((await cash.cashBook(2026)).closing).toBe(40000);
-        expect((await reports.euerForYear(2026)).totalEinnahmen).toBe(40000);
+        expect((await reports.euerForYear(2026)).totalEinnahmen).toBe(0);
         expect(await sql`select * from haben_integrity_problems(5)`).toHaveLength(0);
         await expect(cash.createCashEntry("review-user", { kind: "entnahme", date: "2026-01-06", amount: 10000 }, "2026-01-06")).resolves.toBeDefined();
       });
@@ -88,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
     ],
   });
   const run = (entries: Parameters<typeof imports.runExternalImport>[1]["entries"]) =>
-    imports.runExternalImport("review-user", { version: 1, source: "review-kasse", kontenrahmen: "SKR03", entries }, async () => new Uint8Array());
+    imports.runExternalImport("review-user", { version: 2, source: "review-kasse", kontenrahmen: "SKR03", entries }, async () => new Uint8Array());
 
   it("übernimmt die Kasse chronologisch und idempotent ohne erfundene EÜR-Zahlung", async () => {
     const entries = [cashJournal("ausgang", "2026-01-06", -10000), cashJournal("eingang", "2026-01-05", 40000)];
@@ -115,22 +114,28 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
     const result = await imports.runExternalImport(
       "review-user",
       {
-        version: 1,
+        version: 2,
         source: "review-ungeklaerte-kasse",
         kontenrahmen: "SKR03",
         entries: [
           {
             kind: "invoice",
+            type: "invoice",
+            direction: "einnahme",
+            status: "paid",
+            currency: "EUR",
             externalId: "rechnung-42",
             number: "ALT-42",
             date: "2026-01-03",
             dueDate: "2026-01-17",
             contactId: null,
-            buyer: { name: "Erfundener Kunde", strasse: "Musterweg 1", plz: "10115", ort: "Berlin", land: "DE" },
+            contactName: "Erfundener Kunde",
+            net: 40000,
+            tax: 0,
             gross: 40000,
-            settledAmount: 40000,
-            paymentUncertain: true,
-            lines: [{ description: "Erfundene Leistung", quantity: 1000, unit: "Psch.", unitPrice: 40000 }],
+            taxes: [{ rate: 0, net: 40000, tax: 0 }],
+            taxType: "vatfree",
+            payment: { openAmount: 0, paidDate: null, items: [] },
             pdfSha256: createHash("sha256").update(pdf).digest("hex"),
           },
           cashJournal("kasse-42", "2026-01-05", 40000),
@@ -138,14 +143,18 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
       },
       async () => pdf,
     );
-    const invoices = await import("../rechnungen/index.ts");
-    expect((await invoices.listInvoices("2026-01-06"))[0]).toMatchObject({ paid: 40000, open: 0 });
-    expect(await reports.uncertainImportPayments(2026)).toBe(1);
+    const archive = await import("../archiv/index.ts");
+    const invoiceId = result.items.find((i) => i.kind === "invoice")!.id;
+    expect((await archive.legacyVoucherDetail(invoiceId))?.voucher).toMatchObject({
+      status: "paid",
+      paymentHistoryIssue: expect.stringContaining("ungeklärt"),
+    });
+    expect(await sql`select * from invoices`).toHaveLength(0);
     expect((await reports.euerForYear(2026)).totalEinnahmen).toBe(0);
     expect((await cash.cashBook(2026)).closing).toBe(40000);
     const [movement] = await sql`select id from cash_entries where kind='import'`;
     await expect(cash.reverseCashEntry("review-user", movement!.id as string, "2026-01-06")).rejects.toThrow("Originalbuchungen");
-    expect(await reports.uncertainImportPayments(2026)).toBe(1);
+    expect((await archive.legacyVoucherDetail(invoiceId))?.voucher.paymentHistoryIssue).toContain("ungeklärt");
     expect(result.created).toBe(2);
   });
 
@@ -179,20 +188,23 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: zweite unabhängige Reviewrunde 
     const imported = imports.runExternalImport(
       "review-user",
       {
-        version: 1,
+        version: 2,
         source: "review-locks",
         kontenrahmen: "SKR03",
         entries: [
           {
             kind: "quote",
+            status: "open",
+            currency: "EUR",
             externalId: "angebot-vor-kasse",
             number: "ALT-42",
             date: "2026-01-03",
             validUntil: null,
             contactId: null,
-            buyer: { name: "Erfundener Kunde", strasse: "Musterweg 1", plz: "10115", ort: "Berlin", land: "DE" },
+            contactName: "Erfundener Kunde",
+            net: 40000,
+            tax: 0,
             gross: 40000,
-            lines: [{ description: "Erfundene Leistung", quantity: 1000, unit: "Psch.", unitPrice: 40000 }],
             pdfSha256: createHash("sha256").update(pdf).digest("hex"),
           },
           cashJournal("eingang", "2026-01-05", 40000),

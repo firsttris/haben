@@ -15,6 +15,12 @@ export const ORDER_STATUSES: Record<string, string> = {
   "500": "Angenommen",
   "750": "Teilweise berechnet",
   "1000": "Vollständig berechnet",
+  draft: "Entwurf",
+  open: "Offen",
+  declined: "Geschlossen / abgelehnt",
+  accepted: "Angenommen",
+  partlyInvoiced: "Teilweise berechnet",
+  invoiced: "Vollständig berechnet",
 };
 type Row = Awaited<ReturnType<typeof getOrderDocuments>>[number];
 
@@ -27,7 +33,7 @@ export function OrderDocuments({ rows, year, years, search }: { rows: Row[]; yea
   }
   return (
     <section className="card stack" aria-label="Auftragsdokumente">
-      <p className="muted">Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk. Archivkopien ohne Buchungswirkung.</p>
+      <p className="muted">Übernommene Angebote, Auftragsbestätigungen und Lieferscheine. Originale ohne zusätzliche Buchungswirkung.</p>
       <YearSwitch year={year} years={years} search={search} />
       <form className="archive-filter" onSubmit={submit} style={{ alignItems: "end" }}>
         <label className="field">

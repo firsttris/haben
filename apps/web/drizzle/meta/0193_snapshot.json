@@ -1,6 +1,6 @@
 {
-  "id": "d0fd40d0-ae96-4c35-8823-92d89bfb5a35",
-  "prevId": "5cce9ce4-3c51-4201-a63b-eefc8e06305a",
+  "id": "2c457504-b4e7-4317-b1a3-30942fd5ddd1",
+  "prevId": "dbf6aaf2-9886-4742-8e09-8a0e83d7f654",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5103,14 +5103,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "invoice_id": {
-          "name": "invoice_id",
+        "voucher_id": {
+          "name": "voucher_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "quote_id": {
-          "name": "quote_id",
+        "order_document_id": {
+          "name": "order_document_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -5120,27 +5120,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "settled_amount": {
-          "name": "settled_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "payment_uncertain": {
-          "name": "payment_uncertain",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "cash_flows": {
-          "name": "cash_flows",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
         },
         "payload": {
           "name": "payload",
@@ -5184,11 +5163,11 @@
           "method": "btree",
           "concurrently": false
         },
-        "external_imports_invoice": {
-          "name": "external_imports_invoice",
+        "external_imports_voucher": {
+          "name": "external_imports_voucher",
           "columns": [
             {
-              "expression": "invoice_id",
+              "expression": "voucher_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5199,11 +5178,11 @@
           "method": "btree",
           "concurrently": false
         },
-        "external_imports_quote": {
-          "name": "external_imports_quote",
+        "external_imports_order": {
+          "name": "external_imports_order",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "order_document_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5231,26 +5210,26 @@
         }
       },
       "foreignKeys": {
-        "external_imports_invoice_id_invoices_id_fk": {
-          "name": "external_imports_invoice_id_invoices_id_fk",
+        "external_imports_voucher_id_lexoffice_vouchers_id_fk": {
+          "name": "external_imports_voucher_id_lexoffice_vouchers_id_fk",
           "tableFrom": "external_imports",
           "columnsFrom": [
-            "invoice_id"
+            "voucher_id"
           ],
-          "tableTo": "invoices",
+          "tableTo": "lexoffice_vouchers",
           "columnsTo": [
             "id"
           ],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
-        "external_imports_quote_id_quotes_id_fk": {
-          "name": "external_imports_quote_id_quotes_id_fk",
+        "external_imports_order_document_id_legacy_order_documents_id_fk": {
+          "name": "external_imports_order_document_id_legacy_order_documents_id_fk",
           "tableFrom": "external_imports",
           "columnsFrom": [
-            "quote_id"
+            "order_document_id"
           ],
-          "tableTo": "quotes",
+          "tableTo": "legacy_order_documents",
           "columnsTo": [
             "id"
           ],
@@ -5275,13 +5254,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "external_imports_kind": {
-          "name": "external_imports_kind",
-          "value": "\"external_imports\".\"kind\" in ('quote', 'invoice', 'journal')"
-        },
         "external_imports_target": {
           "name": "external_imports_target",
-          "value": "case \"external_imports\".\"kind\"\n    when 'quote' then \"external_imports\".\"quote_id\" is not null and \"external_imports\".\"invoice_id\" is null and \"external_imports\".\"entry_id\" is null\n    when 'invoice' then \"external_imports\".\"invoice_id\" is not null and \"external_imports\".\"quote_id\" is null and \"external_imports\".\"entry_id\" is null\n    when 'journal' then \"external_imports\".\"entry_id\" is not null and \"external_imports\".\"invoice_id\" is null and \"external_imports\".\"quote_id\" is null end"
+          "value": "(\"external_imports\".\"kind\" = 'invoice' and \"external_imports\".\"voucher_id\" is not null and \"external_imports\".\"order_document_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'quote' and \"external_imports\".\"order_document_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"entry_id\" is null)\n      or (\"external_imports\".\"kind\" = 'journal' and \"external_imports\".\"entry_id\" is not null and \"external_imports\".\"voucher_id\" is null and \"external_imports\".\"order_document_id\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -6915,6 +6890,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sevdesk'"
         },
         "import_id": {
           "name": "import_id",
@@ -10200,18 +10182,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "external_source": {
-          "name": "external_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "number_year": {
           "name": "number_year",
           "type": "smallint",
@@ -10454,43 +10424,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "quotes_external_ref": {
-          "name": "quotes_external_ref",
-          "columns": [
-            {
-              "expression": "external_source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "quotes_number_local": {
-          "name": "quotes_number_local",
-          "columns": [
-            {
-              "expression": "number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "where": "\"quotes\".\"external_source\" is null",
-          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -10522,7 +10455,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "quotes_number_unique": {
+          "name": "quotes_number_unique",
+          "columns": [
+            "number"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "quotes_final_has_number": {
@@ -10540,10 +10481,6 @@
         "quotes_discount_percent": {
           "name": "quotes_discount_percent",
           "value": "\"quotes\".\"discount_percent\" is null or \"quotes\".\"discount_percent\" between 1 and 10000"
-        },
-        "quotes_external_ref_pair": {
-          "name": "quotes_external_ref_pair",
-          "value": "(\"quotes\".\"external_source\" is null) = (\"quotes\".\"external_id\" is null)"
         }
       },
       "isRLSEnabled": false

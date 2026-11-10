@@ -4,31 +4,21 @@ CREATE TABLE "external_imports" (
 	"external_id" text NOT NULL,
 	"kind" text NOT NULL,
 	"payload_hash" text NOT NULL,
-	"invoice_id" uuid,
-	"quote_id" uuid,
+	"voucher_id" uuid,
+	"order_document_id" uuid,
 	"entry_id" uuid,
-	"settled_amount" integer DEFAULT 0 NOT NULL,
-	"payment_uncertain" boolean DEFAULT false NOT NULL,
-	"cash_flows" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"payload" jsonb NOT NULL,
 	"imported_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "external_imports_kind" CHECK ("external_imports"."kind" in ('quote', 'invoice', 'journal')),
-	CONSTRAINT "external_imports_target" CHECK (case "external_imports"."kind"
-    when 'quote' then "external_imports"."quote_id" is not null and "external_imports"."invoice_id" is null and "external_imports"."entry_id" is null
-    when 'invoice' then "external_imports"."invoice_id" is not null and "external_imports"."quote_id" is null and "external_imports"."entry_id" is null
-    when 'journal' then "external_imports"."entry_id" is not null and "external_imports"."invoice_id" is null and "external_imports"."quote_id" is null end)
+	CONSTRAINT "external_imports_target" CHECK (("external_imports"."kind" = 'invoice' and "external_imports"."voucher_id" is not null and "external_imports"."order_document_id" is null and "external_imports"."entry_id" is null)
+      or ("external_imports"."kind" = 'quote' and "external_imports"."order_document_id" is not null and "external_imports"."voucher_id" is null and "external_imports"."entry_id" is null)
+      or ("external_imports"."kind" = 'journal' and "external_imports"."entry_id" is not null and "external_imports"."voucher_id" is null and "external_imports"."order_document_id" is null))
 );
 --> statement-breakpoint
-ALTER TABLE "quotes" DROP CONSTRAINT "quotes_number_unique";--> statement-breakpoint
-ALTER TABLE "quotes" ADD COLUMN "external_source" text;--> statement-breakpoint
-ALTER TABLE "quotes" ADD COLUMN "external_id" text;--> statement-breakpoint
-ALTER TABLE "external_imports" ADD CONSTRAINT "external_imports_invoice_id_invoices_id_fk" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "external_imports" ADD CONSTRAINT "external_imports_quote_id_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."quotes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "legacy_order_documents" ADD COLUMN "source" text DEFAULT 'sevdesk' NOT NULL;--> statement-breakpoint
+ALTER TABLE "external_imports" ADD CONSTRAINT "external_imports_voucher_id_lexoffice_vouchers_id_fk" FOREIGN KEY ("voucher_id") REFERENCES "public"."lexoffice_vouchers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "external_imports" ADD CONSTRAINT "external_imports_order_document_id_legacy_order_documents_id_fk" FOREIGN KEY ("order_document_id") REFERENCES "public"."legacy_order_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "external_imports" ADD CONSTRAINT "external_imports_entry_id_journal_entries_id_fk" FOREIGN KEY ("entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "external_imports_identity" ON "external_imports" USING btree ("source","kind","external_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "external_imports_invoice" ON "external_imports" USING btree ("invoice_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "external_imports_quote" ON "external_imports" USING btree ("quote_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "external_imports_entry" ON "external_imports" USING btree ("entry_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "quotes_external_ref" ON "quotes" USING btree ("external_source","external_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "quotes_number_local" ON "quotes" USING btree ("number") WHERE "quotes"."external_source" is null;--> statement-breakpoint
-ALTER TABLE "quotes" ADD CONSTRAINT "quotes_external_ref_pair" CHECK (("quotes"."external_source" is null) = ("quotes"."external_id" is null));
+CREATE UNIQUE INDEX "external_imports_voucher" ON "external_imports" USING btree ("voucher_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "external_imports_order" ON "external_imports" USING btree ("order_document_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "external_imports_entry" ON "external_imports" USING btree ("entry_id");

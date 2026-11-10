@@ -2,16 +2,14 @@ import { ACCOUNTS } from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
-import { schema } from "../../db/index.ts";
-import { UserError } from "../../errors.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { schema, type Tx } from "../../db/index.ts";
+import { storeLegacyOrder, storeLegacyVoucher } from "../archiv/index.ts";
 import { addImportedCashEntries, lockCash, type ImportedCashEntry } from "../bank/index.ts";
-import { importIssuedDocument } from "../rechnungen/index.ts";
-import { externalImportSchema, type ExternalImport, type ExternalJournal } from "./external-schema.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
+import type { ExternalImport, ExternalInvoice, ExternalQuote } from "./external-schema.ts";
+import { ExternalImportError, validateExternalImport } from "./external-validation.ts";
 
-export class ExternalImportError extends UserError {}
-
-/** Stabile Identität auch dann, wenn JSON-Eigenschaften im Quellsystem anders angeordnet werden. */
+/** Quellidentität und Hash sind unabhängig von JSON-Eigenschaftsreihenfolgen. */
 export function importPayloadHash(value: unknown): string {
   const canonical = (v: unknown): unknown =>
     Array.isArray(v)
@@ -28,116 +26,173 @@ export function importPayloadHash(value: unknown): string {
     .digest("hex");
 }
 
-function checkJournal(input: ExternalJournal, chart: "SKR03" | "SKR04") {
-  const sum = (part: "debit" | "credit") => input.lines.reduce((n, l) => n + l[part], 0);
-  if (sum("debit") !== sum("credit") || sum("debit") === 0) throw new ExternalImportError("Die Buchung ist nicht ausgeglichen.");
-  if (input.cashFlows.length === 0) return;
-  const liquid = chart === "SKR03" ? /^(10|12)\d{2}$/ : /^(16|18)\d{2}$/;
-  const movement = input.lines.filter((l) => liquid.test(l.account)).reduce((n, l) => n + l.debit - l.credit, 0);
-  if (input.cashFlows.some((f) => f.date !== input.date)) throw new ExternalImportError("EÜR-Zahlung und Buchung haben unterschiedliche Tage.");
-  if (input.cashFlows.reduce((n, f) => n + f.amount, 0) !== movement)
-    throw new ExternalImportError("EÜR-Zahlungen stimmen nicht mit der Geldbewegung überein.");
-  if (input.cashFlows.some((f) => f.category === "anlage" || f.category === "hardware"))
-    throw new ExternalImportError("Anlagen werden über den Anlagenimport übernommen, nicht als sofortiger Aufwand.");
-}
-
 export interface ExternalImportResult {
   created: number;
   duplicates: number;
   items: { kind: "quote" | "invoice" | "journal"; externalId: string; id: string }[];
 }
 
-/** Ein geprüfter Bestand in einer Transaktion. Nie Mailversand, Nummernverbrauch oder eine neue PDF-Ausstellung. */
+/** Originale bleiben im gemeinsamen Umzugsbestand; die Belegnummer ist keine Quellidentität. */
+async function storeOriginal(tx: Tx, source: string, entry: ExternalInvoice | ExternalQuote, importId: string, bytes: Uint8Array) {
+  if (entry.contactId) {
+    const [contact] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, entry.contactId));
+    if (!contact) throw new ExternalImportError("Der zugeordnete Kontakt fehlt.");
+  }
+  // Namespace des lokalen Betreibereingangs, keine nachgebildete Anbieterkennung.
+  const externalKey = `import:${importPayloadHash([source, entry.kind, entry.externalId])}`;
+  const originals = [{ role: "pdf" as const, sourceFileId: null, filename: `${entry.number}.pdf`, mimeType: "application/pdf", bytes: bytes }];
+  const raw = { ...entry, sourceName: source };
+  if (entry.kind === "quote") {
+    const stored = await storeLegacyOrder(
+      tx,
+      {
+        source: "import",
+        externalId: externalKey,
+        importId,
+        kind: entry.documentKind,
+        number: entry.number,
+        date: entry.date,
+        status: entry.status,
+        contactId: entry.contactId,
+        contactName: entry.contactName,
+        currency: entry.currency,
+        net: entry.net,
+        tax: entry.tax,
+        gross: entry.gross,
+        raw,
+      },
+      originals,
+    );
+    if (!stored) throw new ExternalImportError("Quellidentität ohne Herkunftsnachweis bereits vorhanden.");
+    return { orderDocumentId: stored.id };
+  } else {
+    const payment = entry.payment
+      ? {
+          status: entry.payment.openAmount === 0 ? "balanced" : "open",
+          openAmount: entry.payment.openAmount,
+          paidDate: entry.payment.paidDate,
+          items: [],
+        }
+      : null;
+    const stored = await storeLegacyVoucher(
+      tx,
+      {
+        source: "import",
+        lexofficeId: externalKey,
+        importId,
+        type: entry.type,
+        direction: entry.direction,
+        number: entry.number,
+        date: entry.date,
+        dueDate: entry.dueDate,
+        serviceFrom: entry.serviceFrom,
+        serviceTo: entry.serviceTo,
+        status: entry.status,
+        contactId: entry.contactId,
+        contactName: entry.contactName,
+        currency: entry.currency,
+        net: entry.net,
+        tax: entry.tax,
+        gross: entry.gross,
+        taxes: entry.taxes,
+        categories: entry.categories,
+        payment,
+        remark: entry.note,
+        raw,
+      },
+      originals,
+      (entry.payment?.items ?? []).map((p, index) => ({
+        externalId: `import:${importPayloadHash([source, entry.externalId, index])}`,
+        date: p.date,
+        amount: p.amount,
+        accountName: p.account,
+        evidence: { ...p, sourceName: source, sourceDocumentId: entry.externalId },
+      })),
+    );
+    if (!stored) throw new ExternalImportError("Quellidentität ohne Herkunftsnachweis bereits vorhanden.");
+    return { voucherId: stored.id };
+  }
+}
+
+/** Gemeinsamer Umzugsbestand und vorhandener Buchungskern, ohne neue Rechnungen oder zusätzliche EÜR-Quelle. */
 export async function runExternalImport(
   actor: string,
   input: ExternalImport,
   fileForHash: (hash: string) => Promise<Uint8Array>,
 ): Promise<ExternalImportResult> {
-  const parsed = externalImportSchema.parse(input);
-  const keys = parsed.entries.map((e) => `${e.kind}:${e.externalId}`);
-  if (new Set(keys).size !== keys.length) throw new ExternalImportError("Eine Quellidentität kommt mehrfach im Paket vor.");
-  const files = new Map<string, Uint8Array>();
-  for (const entry of parsed.entries) {
-    if (entry.kind === "journal") {
-      checkJournal(entry, parsed.kontenrahmen);
-      continue;
-    }
-    const bytes = files.get(entry.pdfSha256) ?? (await fileForHash(entry.pdfSha256));
-    if (bytes.length > 20 * 1024 * 1024 || !Buffer.from(bytes.subarray(0, 5)).equals(Buffer.from("%PDF-")))
-      throw new ExternalImportError("Ungültiges Original-PDF.");
-    if (createHash("sha256").update(bytes).digest("hex") !== entry.pdfSha256)
-      throw new ExternalImportError("Original-PDF und Herkunfts-Hash stimmen nicht überein.");
-    files.set(entry.pdfSha256, bytes);
-    if (
-      entry.kind === "invoice" &&
-      (Math.abs(entry.settledAmount) > Math.abs(entry.gross) || (entry.settledAmount !== 0 && Math.sign(entry.settledAmount) !== Math.sign(entry.gross)))
-    )
-      throw new ExternalImportError("Ungültiger übernommener Zahlungsstand.");
-  }
+  const { parsed, files } = await validateExternalImport(input, fileForHash);
   return withActor(actor, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`external-import:${parsed.source}`}, 0))`);
-    // Das ganze Paket kann Kassenbewegungen enthalten: Kasse vor dem ersten Beleg-/Journal-Audit sperren.
     await lockCash(tx);
     const company = await openBooks(tx);
-    if (!company.kleinunternehmer || company.rechtsform !== "einzelunternehmen" || company.kontenrahmen !== parsed.kontenrahmen)
-      throw new ExternalImportError("Dieser Import unterstützt derzeit Einzelunternehmen mit Kleinunternehmerprofil im eingestellten Kontenrahmen.");
+    if (company.kontenrahmen !== parsed.kontenrahmen) throw new ExternalImportError("Paket und Firma verwenden unterschiedliche Kontenrahmen.");
     const previous = await tx.select().from(schema.externalImports).where(eq(schema.externalImports.source, parsed.source));
     const known = new Map(previous.map((r) => [`${r.kind}:${r.externalId}`, r]));
-    const quoteIds = new Map(previous.filter((r) => r.kind === "quote").map((r) => [r.externalId, r.quoteId!]));
-    const rank = { quote: 0, invoice: 1, journal: 2 };
-    const entries = [...parsed.entries].sort((a, b) => rank[a.kind] - rank[b.kind]);
+    if (parsed.entries.some((e) => e.kind === "journal" && !known.has(`journal:${e.externalId}`))) {
+      const [taken] = await tx.execute<{ id: string }>(sql`select v.id from external_imports o
+        join lexoffice_vouchers v on v.id=o.voucher_id where o.source=${parsed.source}
+        and (exists (select 1 from invoices i where i.lexoffice_voucher_id=v.id)
+          or exists (select 1 from documents d where d.lexoffice_voucher_id=v.id)) limit 1`);
+      if (taken) throw new ExternalImportError("Offene Posten dieser Quelle sind schon nativ übernommen. Originaljournal vor weiteren Buchungen abgleichen.");
+    }
     const result: ExternalImportResult = { created: 0, duplicates: 0, items: [] };
-    const cashEntries: ImportedCashEntry[] = [];
-    for (const entry of entries) {
+    const cash: ImportedCashEntry[] = [];
+    let importId: string | undefined;
+    for (const entry of parsed.entries) {
       const hash = importPayloadHash({ version: parsed.version, kontenrahmen: parsed.kontenrahmen, entry });
       const old = known.get(`${entry.kind}:${entry.externalId}`);
       if (old) {
         if (old.payloadHash !== hash)
           throw new ExternalImportError(`Quellvorgang ${entry.externalId} ist verändert; der importierte Stand bleibt unverändert.`);
         result.duplicates++;
-        result.items.push({ kind: entry.kind, externalId: entry.externalId, id: (old.invoiceId ?? old.quoteId ?? old.entryId)! });
+        result.items.push({ kind: entry.kind, externalId: entry.externalId, id: (old.voucherId ?? old.orderDocumentId ?? old.entryId)! });
         continue;
       }
-      const id = randomUUID();
-      let target: { invoiceId?: string; quoteId?: string; entryId?: string };
-      if (entry.kind === "journal") {
-        target = {
-          entryId: await post(tx, company, {
-            date: entry.date,
-            description: entry.description,
-            sourceType: "import",
-            sourceId: id,
-            lines: entry.lines.map((l) => ({ ...l, taxCode: null })),
-          }),
-        };
-        const amount = entry.lines
-          .filter((line) => line.account === ACCOUNTS[company.kontenrahmen].kasse)
-          .reduce((sum, line) => sum + line.debit - line.credit, 0);
-        if (amount !== 0) cashEntries.push({ date: entry.date, amount, text: entry.description, journalEntryId: target.entryId! });
-      } else {
-        const quoteId = entry.kind === "invoice" && entry.quoteExternalId ? quoteIds.get(entry.quoteExternalId) : null;
-        if (entry.kind === "invoice" && entry.quoteExternalId && !quoteId) throw new ExternalImportError("Das verknüpfte Angebot fehlt im Bestand.");
-        const document = entry.kind === "quote" ? { ...entry, source: parsed.source } : { ...entry, source: parsed.source, quoteId: quoteId ?? null };
-        const targetId = await importIssuedDocument(tx, company, document, files.get(entry.pdfSha256)!);
-        target = entry.kind === "quote" ? { quoteId: targetId } : { invoiceId: targetId };
-        if (entry.kind === "quote") quoteIds.set(entry.externalId, targetId);
+      if (!importId) {
+        const [row] = await tx
+          .insert(schema.lexofficeImports)
+          .values({
+            source: "import",
+            status: "fertig",
+            finishedAt: new Date(),
+            progress: { phase: "fertig", contacts: 0, contactsLinked: 0, listed: parsed.entries.length, imported: 0, skipped: 0, files: 0, failed: [] },
+          })
+          .returning({ id: schema.lexofficeImports.id });
+        importId = row!.id;
       }
-      await tx.insert(schema.externalImports).values({
-        id,
-        source: parsed.source,
-        externalId: entry.externalId,
-        kind: entry.kind,
-        payloadHash: hash,
-        ...target,
-        payload: entry,
-        settledAmount: entry.kind === "invoice" ? entry.settledAmount : 0,
-        paymentUncertain: entry.kind === "invoice" && entry.paymentUncertain,
-        cashFlows: entry.kind === "journal" ? entry.cashFlows : [],
-      });
+      const id = randomUUID();
+      let target: { voucherId?: string; orderDocumentId?: string; entryId?: string };
+      if (entry.kind === "journal") {
+        const entryId = await post(tx, company, { date: entry.date, description: entry.description, sourceType: "import", sourceId: id, lines: entry.lines });
+        target = { entryId };
+        const amount = entry.lines.filter((l) => l.account === ACCOUNTS[company.kontenrahmen].kasse).reduce((n, l) => n + l.debit - l.credit, 0);
+        if (amount !== 0) cash.push({ date: entry.date, amount, text: entry.description, journalEntryId: entryId });
+      } else {
+        target = await storeOriginal(tx, parsed.source, entry, importId, files.get(entry.pdfSha256)!);
+      }
+      await tx
+        .insert(schema.externalImports)
+        .values({ id, source: parsed.source, externalId: entry.externalId, kind: entry.kind, payloadHash: hash, ...target, payload: entry });
       result.created++;
-      result.items.push({ kind: entry.kind, externalId: entry.externalId, id: (target.invoiceId ?? target.quoteId ?? target.entryId)! });
+      result.items.push({ kind: entry.kind, externalId: entry.externalId, id: (target.voucherId ?? target.orderDocumentId ?? target.entryId)! });
     }
-    await addImportedCashEntries(tx, cashEntries);
+    await addImportedCashEntries(tx, cash);
+    if (importId)
+      await tx
+        .update(schema.lexofficeImports)
+        .set({
+          progress: {
+            phase: "fertig",
+            contacts: 0,
+            contactsLinked: 0,
+            listed: parsed.entries.length,
+            imported: result.created,
+            skipped: result.duplicates,
+            files: result.items.filter((i) => i.kind !== "journal" && !known.has(`${i.kind}:${i.externalId}`)).length,
+            failed: [],
+          },
+        })
+        .where(eq(schema.lexofficeImports.id, importId));
     return result;
   });
 }

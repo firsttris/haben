@@ -90,7 +90,7 @@ export interface ImportedCashEntry {
   journalEntryId: string;
 }
 
-/** Originalbewegungen nur im Nebenbuch ergänzen: Journal und belegte EÜR-Zahlungen übernimmt der Import selbst. */
+/** Originalbewegungen nur im Nebenbuch ergänzen; keine zweite Journalbuchung oder zusätzliche Zahlungsprojektion. */
 export async function addImportedCashEntries(tx: Tx, entries: ImportedCashEntry[]): Promise<void> {
   // Der Aufrufer sperrt die Kasse vor seinem ersten Audit-Eintrag; die Sperre ist mehrfach aufrufbar.
   await lockCash(tx);

@@ -51,7 +51,7 @@ function QuotesPage() {
               <Link key={quote.id} to="/angebote/$id" params={{ id: quote.id }} className="table-row invoice-cols">
                 <div className="mono small">{quote.number ?? "–"}</div>
                 <div>{quote.customer}</div>
-                <div className="muted small">{quote.validUntil ? formatDate(quote.validUntil) : "Keine Frist übernommen"}</div>
+                <div className="muted small">{formatDate(quote.validUntil)}</div>
                 <div className="num">{formatEuro(quote.gross)}</div>
                 <div>
                   <QuoteStatus status={quote.listStatus} />

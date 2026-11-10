@@ -383,7 +383,6 @@ async function paidByTarget(column: "invoice_id" | "document_id", ids: string[],
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}
           union all select ${col} as id, amount from write_offs where ${col} in ${ids}
-          ${column === "invoice_id" ? sql`union all select invoice_id as id, settled_amount as amount from external_imports where invoice_id in ${ids}` : sql``}
           ${cash}
         ) settled group by 1`,
   );
@@ -404,8 +403,7 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
   const rows = await tx.execute<{ amount: number; tax_shares: TaxShare[] | null; tax_shares_invoice_id: string | null }>(
     sql`select amount, tax_shares, tax_shares_invoice_id from allocations where invoice_id = ${invoiceId}
         union all select amount, tax_shares, tax_shares_invoice_id from write_offs where invoice_id = ${invoiceId}
-        union all select amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id = ${invoiceId}
-        union all select settled_amount as amount, null as tax_shares, null as tax_shares_invoice_id from external_imports where invoice_id = ${invoiceId}`,
+        union all select amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id = ${invoiceId}`,
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist

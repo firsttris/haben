@@ -1215,7 +1215,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 }
 
-const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
+const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk", import: "JSON-Import" } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
   invoice: "Rechnung",
@@ -1663,9 +1663,6 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
                          ursprünglichem Dateinamen.
-importe/uebernahmen.json Herkunft, Originaldaten, übernommene Zahlungsstände und
-                        belegte EÜR-Zahlungen des allgemeinen Belegimports,
-                        zugeordnet nach Belegjahr statt Importzeitpunkt.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
                          Steuerschlüssel, Bemessungsgrundlage bei Ist-Versteuerung an
                          der Zahlung); Stornos verweisen auf die Ursprungsbuchung.

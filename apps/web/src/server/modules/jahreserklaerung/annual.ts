@@ -40,7 +40,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
-import { euerForYear, lohnZahlungenUmJahreswechsel, umsatzsteuerVorjahreUmJahreswechsel, uncertainImportPayments } from "../auswertungen/index.ts";
+import { euerForYear, lohnZahlungenUmJahreswechsel, umsatzsteuerVorjahreUmJahreswechsel } from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -52,7 +52,7 @@ export interface Issue {
   /** fehler: nicht sendbar; hinweis: sendbar, aber prüfen */
   tone: "fehler" | "hinweis";
   text: string;
-  link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank" | "/pauschalen" | "/auswertungen";
+  link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank" | "/pauschalen";
 }
 
 // ------------------------------------------------------------------ Umsatzsteuererklärung
@@ -310,7 +310,6 @@ export interface EuerYear {
   anlagen: AveuerAnlage[];
   /** Anlagen, deren AfA bzw. Privatnutzung für das Jahr noch nicht gebucht ist */
   pendingAssets: number;
-  pendingImportedPayments: number;
   /** Lohnzahlungen um den Jahreswechsel (§ 11 Abs. 2 Satz 2 EStG), siehe lohnZahlungenUmJahreswechsel */
   lohnUmJahreswechsel: number;
   /** Umsatzsteuer früherer Jahre um den Jahreswechsel, siehe umsatzsteuerVorjahreUmJahreswechsel */
@@ -318,13 +317,12 @@ export interface EuerYear {
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel, pendingImportedPayments] = await Promise.all([
+  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
     listAssets(year),
     lohnZahlungenUmJahreswechsel(year),
     umsatzsteuerVorjahreUmJahreswechsel(year),
-    uncertainImportPayments(year),
   ]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
@@ -342,25 +340,11 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  return {
-    figures,
-    ...euerTotals(figures),
-    anlagen,
-    pendingAssets: assets.filter((a) => a.pending).length,
-    pendingImportedPayments,
-    lohnUmJahreswechsel,
-    ustUmJahreswechsel,
-  };
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel, ustUmJahreswechsel };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
   const issues: Issue[] = [];
-  if (data.pendingImportedPayments > 0)
-    issues.push({
-      tone: "fehler",
-      text: `Bei ${data.pendingImportedPayments} übernommenen Rechnungen sind Zahlungsdaten ungeklärt und deshalb nicht vollständig in der EÜR enthalten. Vor einer Abgabe klären.`,
-      link: "/auswertungen",
-    });
   if (!company.einkunftsart || !company.taetigkeit.trim()) {
     issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen" });
   }

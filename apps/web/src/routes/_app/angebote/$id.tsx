@@ -38,7 +38,7 @@ function QuotePage() {
         initial={{
           contactId: quote.contactId,
           issueDate: quote.issueDate,
-          validUntil: quote.validUntil ?? "",
+          validUntil: quote.validUntil,
           serviceFrom: quote.serviceFrom,
           serviceTo: quote.serviceTo,
           paymentTermDays: 0,
@@ -182,7 +182,7 @@ function FinalQuote({ data }: { data: Detail }) {
               <>
                 <p className="small muted" style={{ margin: 0 }}>
                   {listStatus === "abgelaufen"
-                    ? `Das Angebot ist seit dem ${formatDate(quote.validUntil!)} abgelaufen. Nimmt der Kunde trotzdem an, kannst du es weiter abrechnen.`
+                    ? `Das Angebot ist seit dem ${formatDate(quote.validUntil)} abgelaufen. Nimmt der Kunde trotzdem an, kannst du es weiter abrechnen.`
                     : listStatus === "abgelehnt"
                       ? "Als abgelehnt markiert."
                       : "Nimmt der Kunde an, entsteht aus dem Angebot ein Rechnungsentwurf mit denselben Positionen, den du vor dem Festschreiben noch anpassen kannst."}
@@ -298,7 +298,7 @@ function FinalQuote({ data }: { data: Detail }) {
               <dt>Angebotsdatum</dt>
               <dd>{formatDate(quote.issueDate)}</dd>
               <dt>Gültig bis</dt>
-              <dd>{quote.validUntil ? formatDate(quote.validUntil) : "Keine Frist übernommen"}</dd>
+              <dd>{formatDate(quote.validUntil)}</dd>
               <dt>Netto</dt>
               <dd className="mono">{formatEuro(quote.net)}</dd>
               <dt>Umsatzsteuer</dt>

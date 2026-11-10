@@ -1,10 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { createHash } from "node:crypto";
 import { closeDatabase } from "../../db/index.ts";
 import { userMessage } from "../../errors.ts";
-import { externalImportSchema, runExternalImport } from "./index.ts";
+import { externalImportSchema, runExternalImport, validateExternalImport } from "./index.ts";
 
 /** Lokaler Betreiberimport; dieselbe Transaktion und dieselben Sperren wie die Geschäftslogik. */
 const { values } = parseArgs({
@@ -23,11 +22,7 @@ try {
   const directory = resolve(values.originale);
   const file = (hash: string) => readFile(resolve(directory, `${hash}.pdf`));
   if (!values.anwenden) {
-    for (const entry of input.entries) {
-      if (entry.kind === "journal") continue;
-      const bytes = await file(entry.pdfSha256);
-      if (createHash("sha256").update(bytes).digest("hex") !== entry.pdfSha256) throw new Error("Originalhash abweichend.");
-    }
+    await validateExternalImport(input, file);
     console.log(
       JSON.stringify({
         structureAndOriginalHashesChecked: true,

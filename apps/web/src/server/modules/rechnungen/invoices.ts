@@ -1132,9 +1132,14 @@ async function correctsLegacyInvoice(q: Db | Tx, corrects: Invoice | undefined):
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
 async function originalProblem(original: Invoice, q: Db | Tx = db, of?: Invoice): Promise<string | null> {
-  const [imported] = await q.select({ id: schema.externalImports.id }).from(schema.externalImports).where(eq(schema.externalImports.invoiceId, original.id));
-  if (imported)
-    return "Diese Originalrechnung wurde mit fremden Buchungen übernommen. Storno und Korrektur müssen zuerst mit diesen Originalbuchungen abgestimmt werden";
+  if (original.lexofficeVoucherId) {
+    const [source] = await q
+      .select({ source: schema.lexofficeVouchers.source })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.id, original.lexofficeVoucherId));
+    if (source?.source === "import")
+      return "Diese Rechnung wurde mit fremden Originalbuchungen übernommen. Eine Korrektur muss zuerst mit diesen abgestimmt werden.";
+  }
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)

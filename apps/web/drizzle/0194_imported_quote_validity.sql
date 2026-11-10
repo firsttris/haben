@@ -1,1 +1,0 @@
-ALTER TABLE "quotes" ALTER COLUMN "valid_until" DROP NOT NULL;
