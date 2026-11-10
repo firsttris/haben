@@ -115,12 +115,13 @@ export type StorePayoutView = NonNullable<Awaited<ReturnType<typeof storePayoutV
 export const storePayoutSchema = z.object({ transactionId: z.uuid(), monthIds: z.array(z.uuid()).min(1).max(60) });
 
 /**
- * Apple: Jede Währung der gewählten Fiskalmonate muss im Konto stehen. Fehlt eine (meist ohne Umrechnungskurs), steckt
+ * Apple: Jede Währung der gewählten Fiskalmonate mit einem Erlösanteil muss im Konto stehen. Fehlt eine (meist ohne Umrechnungskurs), steckt
  * ihr Erlösanteil in der Zahlung und landete sonst als Kursdifferenz statt als Umsatz an die Store-Gesellschaft.
  */
 async function requireAllCurrencies(tx: Tx, accountId: string, chosen: { reference: string }[]) {
   const periods = [...new Set(chosen.map((m) => /^appstore-finance-(\d{4}-\d{2})-/.exec(m.reference)?.[1]).filter((p): p is string => !!p))];
-  const settlements = await archivedSettlements("appstore", periods);
+  // Ein Erlösanteil von null (Verkauf und Rückgabe im selben Fiskalmonat) fehlt nicht, auch ohne Kurs
+  const settlements = (await archivedSettlements("appstore", periods)).filter((s) => s.net !== 0);
   if (settlements.length === 0) return;
   const present = new Set(
     (
