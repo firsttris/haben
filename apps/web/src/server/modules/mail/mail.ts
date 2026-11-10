@@ -1,18 +1,20 @@
 import { UserError } from "../../errors.ts";
 import { MAIL_TEMPLATE_KEYS, tageBis, type MailTemplates } from "@haben/core";
 import { and, desc, eq, sql } from "drizzle-orm";
-import nodemailer, { type Transporter } from "nodemailer";
 import { z } from "zod";
-import { decrypt, encrypt } from "../../crypto.ts";
+import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
 import { listFristen, type Frist } from "../finanzamt/index.ts";
 import { chainHead, checkIntegrity, formatPruefwert } from "../auswertungen/index.ts";
+import { transportFor } from "./transport.ts";
+
+export { setMailTransportForTests } from "./transport.ts";
 
 /**
- * E-Mail über SMTP: jeder Anbieter mit SMTP-Zugang, auch Gmail (smtp.gmail.com mit App-Passwort).
- * Das Passwort liegt verschlüsselt wie das ELSTER-Zertifikat in der Datenbank.
+ * E-Mail: Einstellungen, Versand mit Protokoll, Erinnerungen und Prüfwert-Mail. Der Versandweg (SMTP, auch Gmail mit
+ * App-Passwort) steckt hinter `transport.ts`; das Passwort liegt verschlüsselt wie das ELSTER-Zertifikat in der Datenbank.
  */
 
 export class MailError extends UserError {}
@@ -97,23 +99,6 @@ export async function deleteMailSettings(actor: string): Promise<void> {
   await withActor(actor, (tx) => tx.delete(schema.mailSettings).where(eq(schema.mailSettings.id, 1)));
 }
 
-/** Austauschbar für Tests */
-let transportFactory = (settings: NonNullable<Awaited<ReturnType<typeof loadMailSettings>>>): Transporter =>
-  nodemailer.createTransport({
-    host: settings.host,
-    port: settings.port,
-    secure: settings.secure,
-    requireTLS: !settings.secure,
-    auth: { user: settings.username, pass: new TextDecoder().decode(decrypt(settings.ciphertext)) },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-    socketTimeout: 30_000,
-  });
-
-export function setMailTransportForTests(factory: typeof transportFactory): void {
-  transportFactory = factory;
-}
-
 export interface Message {
   kind: "test" | "fristen" | "rechnung" | "mahnung" | "angebot" | "pruefwert";
   /** ein oder mehrere Empfänger, durch Komma getrennt */
@@ -142,7 +127,7 @@ export async function send(actor: string, message: Message): Promise<{ ok: boole
   const [company] = await db.select({ name: schema.company.name }).from(schema.company).where(eq(schema.company.id, 1));
   let error: string | null = null;
   try {
-    await transportFactory(settings).sendMail({
+    await transportFor(settings).sendMail({
       from: { name: senderName(settings.fromName, company?.name ?? ""), address: settings.fromAddress },
       to: message.to,
       ...(message.bcc ? { bcc: message.bcc } : {}),
