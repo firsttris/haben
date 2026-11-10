@@ -216,6 +216,9 @@ Wir haben geprüft, und du kannst es auch: Der Code ist offen.
   `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
 - **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
   Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
+- **Aktuell gehalten:** Renovate bringt Updates der Abhängigkeiten als Pull Request durch die CI; bekannte Lücken
+  (Dependabot-Warnungen und OSV-Datenbank) behebt es außerhalb des Zeitplans, siehe
+  [SECURITY.md](SECURITY.md#abhängigkeiten-aktuell-halten).
 - **Offen für alle:** Jeder kann den Code lesen und Lücken melden, bitte vertraulich wie in [SECURITY.md](SECURITY.md)
   beschrieben.
 </details>
