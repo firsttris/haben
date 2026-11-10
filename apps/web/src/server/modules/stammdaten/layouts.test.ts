@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildEInvoice, startvorlage } from "@haben/einvoice";
@@ -168,6 +168,16 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
       anlegen({ name: "Zu groß", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: gross, limits: { maxBytes: quelltext * 3 } }),
     ).rejects.toThrow(/frei, mit diesem Layout wären es mehr/);
     expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
+  }, 60_000);
+
+  it("räumt beim Start Ordner ohne Layout weg und lässt die übrigen stehen", async () => {
+    const { id } = await anlegen({ name: "Bleibt", art: "mahnung", source: eigene("mahnung") });
+    const vorlagen = join(process.env.DOCUMENTS_DIR!, "vorlagen");
+    const verwaist = join(vorlagen, crypto.randomUUID());
+    mkdirSync(join(verwaist, "pakete"), { recursive: true });
+    expect(await layouts.removeOrphanWorkspaces()).toEqual([verwaist.split("/").pop()]);
+    expect(existsSync(verwaist)).toBe(false);
+    expect(existsSync(join(vorlagen, id))).toBe(true);
   }, 60_000);
 
   it("verlangt eindeutige Namen", async () => {

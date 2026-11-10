@@ -68,6 +68,7 @@ export {
   listLayouts,
   MAX_LAYOUT_BYTES,
   reloadPackages,
+  removeOrphanWorkspaces,
   renameLayout,
   replaceLayoutSource,
   withCustomLayout,

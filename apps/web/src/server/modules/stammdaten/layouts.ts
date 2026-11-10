@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readdir, rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { DEFAULT_LAYOUT, type LayoutDocumentType, type LayoutRef } from "@haben/core";
 import { LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfRequest } from "@haben/einvoice";
 import { asc, eq, sql } from "drizzle-orm";
@@ -236,6 +238,19 @@ export async function reloadPackages(id: string, { fetch = universeFetcher(env()
     throw new LayoutError("Die Pakete des Layouts haben sich geändert. Lade das Layout neu hoch, um sie freizugeben.");
   }
   await prepare(id, row.source, row.art, packages);
+}
+
+/**
+ * Beim Start: Ordner unter DOCUMENTS_DIR/vorlagen ohne zugehöriges Layout entfernen, etwa nach einem Absturz mitten im
+ * Hochladen oder nach einer Wiederherstellung der Datenbank auf einen älteren Stand
+ */
+export async function removeOrphanWorkspaces(): Promise<string[]> {
+  const root = join(resolve(env().DOCUMENTS_DIR), "vorlagen");
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+  const ids = new Set((await db.select({ id: schema.belegLayouts.id }).from(schema.belegLayouts)).map((row) => row.id));
+  const removed = entries.filter((entry) => entry.isDirectory() && !ids.has(entry.name)).map((entry) => entry.name);
+  for (const name of removed) await rm(join(root, name), { recursive: true, force: true });
+  return removed;
 }
 
 export async function renameLayout(actor: string, id: string, input: string): Promise<void> {
