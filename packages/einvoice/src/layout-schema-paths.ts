@@ -20,7 +20,10 @@ function typeOf(schema: JsonSchema): string {
   if (schema.anyOf) return schema.anyOf.map(typeOf).sort().join(" | ");
   if (schema.enum) return schema.enum.map((value) => JSON.stringify(value)).join(" | ");
   const type = Array.isArray(schema.type) ? schema.type.join(" | ") : (schema.type ?? "unbekannt");
-  return type === "array" && schema.items ? `${typeOf(schema.items)}[]` : type;
+  if (type !== "array" || !schema.items) return type;
+  // Klammern, sonst sähe eine nullbare Liste aus wie eine Liste mit nullbaren Einträgen
+  const items = typeOf(schema.items);
+  return items.includes(" | ") ? `(${items})[]` : `${items}[]`;
 }
 
 /** Der eigentliche Inhalt hinter „x | null“, damit auch Felder unter einem nullbaren Objekt erscheinen */

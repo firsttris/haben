@@ -46,7 +46,9 @@ export function layoutBeispiele(): LayoutBeispiel[] {
   const rechnung = {
     ...sampleDocument({ intro: "Vielen *Dank* für Ihren Auftrag.", note: "Bitte _pünktlich_ zahlen." }),
     seller: gmbhSeller,
-    lines: sampleDocument({}).lines.map((line, i) => (i === 0 ? { ...line, itemNumber: "ET-1042", detail: "Konzeption und *Umsetzung*" } : line)),
+    lines: sampleDocument({}).lines.map((line, i) =>
+      i === 0 ? { ...line, itemNumber: "ET-1042", detail: "Konzeption und *Umsetzung*" } : { ...line, discount: { kind: "prozent" as const, value: 1000 } },
+    ),
     ...kopf,
   };
   const brutto = { ...sampleDocument({ priceMode: "brutto", discount: { kind: "prozent", value: 1000 }, lines: viele }), ...briefkopf() };

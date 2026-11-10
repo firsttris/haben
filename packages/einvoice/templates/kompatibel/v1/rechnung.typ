@@ -4,7 +4,7 @@
 // formatiert als JSON über sys.inputs.data; hier wird nichts berechnet.
 
 #let d = json(bytes(sys.inputs.data))
-#import "../../entwurf.typ": entwurf-vermerk, girocode-feld
+#import "entwurf.typ": entwurf-vermerk, girocode-feld
 // Pflichtangaben einer GmbH oder UG (§ 35a GmbHG) unter den Spalten des Fußes; ohne sie bleibt der Fuß wie bisher
 #let legal = d.at("legal", default: none)
 
