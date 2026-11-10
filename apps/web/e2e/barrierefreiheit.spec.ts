@@ -463,3 +463,40 @@ test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zah
   }
   await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
 });
+
+/** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
+const FILE_PICKER_PAGES = [
+  "/dauerbelege/neu",
+  "/csv-import?art=kontakte",
+  "/einstellungen?bereich=bank",
+  "/einstellungen?bereich=elster",
+  "/archiv",
+  "/archiv/auftrag/723bf34b-f8ab-48f0-b391-656af4b72a96",
+];
+
+test("Dateiwähler: Ein Klick auf „Datei wählen“ öffnet an jeder Stelle den Dialog und der Feldname benennt das Feld", async ({ page }) => {
+  for (const path of FILE_PICKER_PAGES) {
+    await open(page, path);
+    const pickers = page.locator(".file-picker");
+    expect(await pickers.count(), `${path} hat einen Dateiwähler`).toBeGreaterThan(0);
+    for (let i = 0; i < (await pickers.count()); i++) {
+      const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5_000 }), pickers.nth(i).locator(".btn").click()]);
+      expect(chooser, `${path} Nr. ${i + 1}`).toBeTruthy();
+      const input = pickers.nth(i).locator("input[type=file]");
+      expect(await input.evaluate((el: HTMLInputElement) => el.labels?.length ?? 0), `${path} Nr. ${i + 1}: Feldname`).toBeGreaterThan(0);
+    }
+  }
+});
+
+test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört zum Eingabefeld", async ({ page }) => {
+  await open(page, "/einstellungen?bereich=email");
+  await page.getByLabel("Versandweg").selectOption("graph");
+  for (const name of ["Zertifikat", "Privater Schlüssel"]) {
+    const feld = page
+      .locator(".field", { has: page.getByText(name, { exact: false }) })
+      .locator(".file-picker")
+      .first();
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5_000 }), feld.locator(".btn").click()]);
+    expect(chooser, name).toBeTruthy();
+  }
+});
