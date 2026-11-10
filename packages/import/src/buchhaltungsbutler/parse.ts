@@ -98,6 +98,7 @@ function taxRate(row: BuchhaltungsbutlerJoinedRow): number {
 function taxTypeOf(row: BuchhaltungsbutlerJoinedRow, direction: "einnahme" | "ausgabe"): string {
   if (direction !== "einnahme") return "net";
   const bu = row.datev.buKey.trim().replace(/^0+/, "");
-  if (bu === "2" || bu === "3") return "net";
+  // Ohne BU-Schlüssel rechnet DATEV auf Automatikkonten (SKR03 8400/8300, SKR04 4400/4300) die Steuer selbst: regulär
+  if (bu === "" || bu === "2" || bu === "3") return "net";
   return `bb:${bu || "unbekannt"}`;
 }
