@@ -264,6 +264,29 @@ jobs:
           curl -sf -o /dev/null http://localhost:3000/login
           docker logs haben-app 2>&1 | grep -q "Migrationen angewendet"
           docker exec haben-app sh -c 'cd /app/packages/elster && bun -e "require.resolve(\"koffi\")"'
+      # Werkzeug für mehrere Instanzen (#504) mit dem Image dieses Laufs: zwei Firmen, getrennte Datenbanken
+      - name: Mehrere Instanzen
+        env:
+          HABEN_INSTANZEN: ${{ runner.temp }}/haben
+        run: |
+          set -x
+          docker tag haben:ci tristanteu/haben:latest
+          deploy/instanzen/haben-instanzen.sh neu firma1 firma1.haben.test --eigener-proxy
+          deploy/instanzen/haben-instanzen.sh neu firma2 firma2.haben.test --eigener-proxy
+          # Ein Beleg in Firma 1 ist in Firma 2 nicht zu finden
+          sha="$(echo beleg | sha256sum | cut -d' ' -f1)"
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -qc \
+            "INSERT INTO documents (sha256, filename, mime_type, size, net, tax, gross) VALUES ('$sha', 'beleg.pdf', 'application/pdf', 6, 0, 0, 0)")
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -Atc 'SELECT count(*) FROM documents')" = 1
+          test "$(cd "$HABEN_INSTANZEN/firma2" && docker compose exec -T db psql -U haben -d haben -Atc 'SELECT count(*) FROM documents')" = 0
+          # Ein Proxy im Netz haben-proxy erreicht jede App unter ihrem eigenen Namen
+          for n in firma1 firma2; do
+            docker run --rm --network haben-proxy --entrypoint bun haben:ci \
+              -e "fetch('http://haben-$n:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+          done
+          deploy/instanzen/haben-instanzen.sh status | tee "$RUNNER_TEMP/status.txt"
+          grep -E '^firma1 +firma1\.haben\.test +[0-9]+\.[0-9]+\.[0-9]+ ' "$RUNNER_TEMP/status.txt"
+          grep -E '^firma2 +firma2\.haben\.test +[0-9]+\.[0-9]+\.[0-9]+ ' "$RUNNER_TEMP/status.txt"
       - if: failure()
         run: docker logs haben-app || true
 
