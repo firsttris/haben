@@ -17,9 +17,9 @@ export { createRenderClient, packageCacheRoot, type RenderClient } from "./rende
 export type { RenderedSheet, RenderJob } from "./render-protocol.ts";
 export { sheetText, type SheetData, type SheetTextPart } from "./sheet-text.ts";
 export { BEISPIEL_PNG, layoutBeispiele, type LayoutBeispiel } from "./layout-beispiele.ts";
-export { belegDatenSchema, LAYOUT_SCHEMA_VERSION, layoutJsonSchema, mahnungDatenSchema } from "./layout-schema.ts";
+export { belegDatenSchema, LAYOUT_PFLICHTFELDER, LAYOUT_SCHEMA_VERSION, layoutJsonSchema, mahnungDatenSchema } from "./layout-schema.ts";
 export { layoutAnleitung, TYPST_VERSION } from "./layout-anleitung.ts";
-export { fehlendeAngaben } from "./layout-pflicht.ts";
+export { fehlendeAngaben, ungenutztePflichtfelder } from "./layout-pflicht.ts";
 export { startvorlage } from "./layout-startvorlage.ts";
 export { buildQuoteDraftPdf, buildQuotePdf, quotePdfData, type QuoteDocument, type QuoteDocumentLine } from "./quote.ts";
 export { buildConfirmationPdf, buildDeliveryNotePdf, confirmationPdfData, deliveryNotePdfData, type DeliveryNoteDocument } from "./order.ts";

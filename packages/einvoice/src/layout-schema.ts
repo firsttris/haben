@@ -180,3 +180,44 @@ export function layoutJsonSchema() {
     mahnung: z.toJSONSchema(mahnungDatenSchema),
   };
 }
+
+/**
+ * Felder, die ein eigenes Layout verwenden muss (#113): Haben sucht ihren Namen im Quelltext, bevor es setzt. So fällt
+ * ein vergessenes Feld auch dann auf, wenn kein Beispiel es füllt, etwa der Hinweis bei Reverse Charge in taxNote.
+ * Mehrere Namen mit „|“: einer davon genügt. Bei Listen zählt der letzte Teil des Pfads (lines[].rate → rate).
+ * Ob das Feld auch auf dem Blatt erscheint, prüft erst das Setzen der Beispiele; mehr garantiert Haben nicht.
+ */
+export const LAYOUT_PFLICHTFELDER = {
+  beleg: [
+    "title",
+    "reference",
+    "senderLine",
+    "recipient",
+    "meta",
+    "lines",
+    "lines[].description",
+    "lines[].quantity",
+    "lines[].rate",
+    "lines[].net",
+    "totals",
+    "taxNote",
+    "payment",
+    "footer|footerFormatted",
+    "legal",
+    "draft",
+  ],
+  mahnung: [
+    "title",
+    "senderLine",
+    "recipient",
+    "meta",
+    "intro|introFormatted",
+    "invoices",
+    "rows",
+    "total",
+    "closing|closingFormatted",
+    "footer|footerFormatted",
+    "legal",
+    "draft",
+  ],
+} as const satisfies Record<"beleg" | "mahnung", readonly string[]>;

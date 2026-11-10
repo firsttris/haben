@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dunningAmounts } from "@haben/core";
-import { buildDeliveryNotePdf, buildDunningPdf, buildEInvoice, startvorlage } from "@haben/einvoice";
+import { buildDeliveryNotePdf, buildDunningPdf, buildEInvoice, LAYOUT_PFLICHTFELDER, startvorlage } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { gmbhSeller, sampleBuyer, sampleDocument, sampleSeller } from "../../../../../../packages/einvoice/src/samples.ts";
@@ -32,6 +32,9 @@ const universum = (extra: Record<string, Buffer> = {}) =>
     "@preview/hilfe:1.0.0": paketArchiv("hilfe", "1.0.0", "#let x = 1"),
     ...extra,
   });
+
+/** Am Ende eines Probe-Quelltexts: nennt alle Pflichtfelder, damit die Prüfung bis zum Setzen kommt; Zeilennummern bleiben */
+const FELDER = `\n// ${LAYOUT_PFLICHTFELDER.beleg.join(" ").replaceAll("|", " ")}`;
 
 /** Die eingebaute Vorlage mit einem Erkennungszeichen auf dem Blatt */
 const eigene = (art: "beleg" | "mahnung", zeichen = "EIGENES LAYOUT") => `${startvorlage(art)}\n#place(top + left, dx: 5mm, dy: 5mm, text(8pt)[${zeichen}])\n`;
@@ -74,18 +77,18 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
   }, 60_000);
 
   it("lehnt ein Layout ohne Pflichtangaben ab und speichert nichts", async () => {
-    await expect(anlegen({ name: "Leer", art: "beleg", source: "#let d = json(bytes(sys.inputs.data))\n= #d.title" })).rejects.toThrow(
+    await expect(anlegen({ name: "Leer", art: "beleg", source: `#let d = json(bytes(sys.inputs.data))\n= #d.title${FELDER}` })).rejects.toThrow(
       /Es fehlt .*Anschrift des Empfängers/,
     );
     expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
   }, 60_000);
 
   it("meldet Fehler von Typst mit Zeile", async () => {
-    await expect(anlegen({ name: "Kaputt", art: "beleg", source: "#let d = 1\n#nichtda" })).rejects.toThrow(/Zeile 2: unknown variable: nichtda/);
+    await expect(anlegen({ name: "Kaputt", art: "beleg", source: `#let d = 1\n#nichtda${FELDER}` })).rejects.toThrow(/Zeile 2: unknown variable: nichtda/);
   }, 60_000);
 
   it("bricht eine zu lange Vorlage nach dem Zeitlimit ab", async () => {
-    await expect(anlegen({ name: "Lang", art: "beleg", source: "#{ for i in range(4000000000) { } }" })).rejects.toThrow(/Zeitlimit/);
+    await expect(anlegen({ name: "Lang", art: "beleg", source: `#{ for i in range(4000000000) { } }${FELDER}` })).rejects.toThrow(/Zeitlimit/);
   }, 60_000);
 
   it("fragt bei Paketen erst nach und speichert nichts ohne Freigabe", async () => {
@@ -152,7 +155,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const fetch = universum();
     const { id } = await anlegen({ name: "Bleibt nutzbar", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch });
     await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
-    await expect(layouts.replaceLayoutSource(actor, id, "#nichtda", undefined, { fetch })).rejects.toThrow(/Zeile 1/);
+    await expect(layouts.replaceLayoutSource(actor, id, `#nichtda${FELDER}`, undefined, { fetch })).rejects.toThrow(/Zeile 1/);
     expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
     const { pdf } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
     expect(pdfText(pdf)).toContain("AUS DEM PAKET");
@@ -190,6 +193,12 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     expect(existsSync(verwaist)).toBe(false);
     expect(existsSync(join(vorlagen, id))).toBe(true);
   }, 60_000);
+
+  it("lehnt ein Layout ab, das ein Pflichtfeld nicht nennt, bevor es setzt", async () => {
+    const ohne = eigene("beleg").replace(/(?<![A-Za-z0-9_])taxNote(?![A-Za-z0-9_])/g, "hinweis");
+    await expect(anlegen({ name: "Ohne Hinweis", art: "beleg", source: ohne })).rejects.toThrow(/verwendet diese Pflichtfelder nicht: taxNote/);
+    expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
+  });
 
   it("verlangt eindeutige Namen", async () => {
     await anlegen({ name: "Doppelt", art: "mahnung", source: eigene("mahnung") });
@@ -234,7 +243,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const { id } = await anlegen({ name: "Alt", art: "beleg", source: eigene("beleg") });
     await layouts.renameLayout(actor, id, "Neu");
     await layouts.replaceLayoutSource(actor, id, eigene("beleg", "ZWEITE FASSUNG"));
-    await expect(layouts.replaceLayoutSource(actor, id, "#nichtda")).rejects.toThrow(/Zeile 1/);
+    await expect(layouts.replaceLayoutSource(actor, id, `#nichtda${FELDER}`)).rejects.toThrow(/Zeile 1/);
     const [row] = await sql`select name, source from beleg_layouts where id = ${id}`;
     expect(row!.name).toBe("Neu");
     expect(row!.source).toContain("ZWEITE FASSUNG");

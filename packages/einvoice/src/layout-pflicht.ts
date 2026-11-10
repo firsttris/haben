@@ -1,4 +1,5 @@
 import type { LayoutBeispiel } from "./layout-beispiele.ts";
+import { LAYOUT_PFLICHTFELDER } from "./layout-schema.ts";
 
 /*
  * Was ein eigenes Layout auf dem Blatt zeigen muss (§ 14 Abs. 4 UStG, § 35a GmbHG), geprüft am Text des gesetzten PDFs
@@ -97,4 +98,20 @@ export function fehlendeAngaben(beispiel: LayoutBeispiel, seiten: readonly strin
     if (ohne.length > 0) fehlt.push(`Vermerk „${d.draft}“ auf Seite ${ohne.join(", ")}`);
   }
   return [...new Set(fehlt)];
+}
+
+const feldname = (pfad: string) =>
+  pfad
+    .split(/[.[\]]+/)
+    .filter(Boolean)
+    .pop() ?? pfad;
+
+/**
+ * Pflichtfelder aus dem Feldvertrag, deren Namen der Quelltext nirgends nennt; leer = in Ordnung. Nur ein grober Blick:
+ * Ein genanntes Feld kann trotzdem fehlen, das zeigt erst das Setzen der Beispiele.
+ */
+export function ungenutztePflichtfelder(source: string, art: LayoutBeispiel["art"]): string[] {
+  return LAYOUT_PFLICHTFELDER[art].filter(
+    (eintrag) => !eintrag.split("|").some((pfad) => new RegExp(`(?<![A-Za-z0-9_])${feldname(pfad)}(?![A-Za-z0-9_])`).test(source)),
+  );
 }

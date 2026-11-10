@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { BEISPIEL_PNG, fehlendeAngaben, layoutBeispiele, type Letterhead, type RenderClient } from "@haben/einvoice";
+import { BEISPIEL_PNG, fehlendeAngaben, layoutBeispiele, type Letterhead, type RenderClient, ungenutztePflichtfelder } from "@haben/einvoice";
 import { UserError } from "../../errors.ts";
 import { customLayoutJob, layoutRenderer } from "./layout-renderer.ts";
 
@@ -70,6 +70,11 @@ const probeLetterhead: Letterhead = { logo: { data: BEISPIEL_PNG, format: "png" 
 
 /** Setzt das Layout mit allen Beispielen seiner Art; wirft LayoutError mit allem, was fehlt oder scheitert */
 export async function checkLayout(layout: { id: string; source: string; art: "beleg" | "mahnung" }, renderer: RenderClient = layoutRenderer): Promise<void> {
+  // Vor dem Setzen: Ein Pflichtfeld, das der Quelltext nicht nennt, kann auf keinem Blatt stehen
+  const ungenutzt = ungenutztePflichtfelder(layout.source, layout.art);
+  if (ungenutzt.length > 0) {
+    throw new LayoutError(`Das Layout verwendet diese Pflichtfelder nicht: ${ungenutzt.map((f) => f.replaceAll("|", " oder ")).join(", ")}.`);
+  }
   const probleme: string[] = [];
   for (const beispiel of layoutBeispiele().filter((b) => b.art === layout.art)) {
     let pdf: Uint8Array;

@@ -1,11 +1,14 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
 import { layoutAnleitung } from "./layout-anleitung.ts";
-import { fehlendeAngaben } from "./layout-pflicht.ts";
+import { fehlendeAngaben, ungenutztePflichtfelder } from "./layout-pflicht.ts";
+import { LAYOUT_PFLICHTFELDER, layoutJsonSchema } from "./layout-schema.ts";
+import { flattenSchema } from "./layout-schema-paths.ts";
+import { startvorlage } from "./layout-startvorlage.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 
 const hasPoppler = spawnSync("pdftotext", ["-v"]).status === 0;
@@ -110,5 +113,34 @@ describe("Prüfung der Pflichtangaben", () => {
     const d = mitSkonto!.data as { payment: string };
     const ohne = JSON.stringify(mitSkonto!.data).replaceAll(d.payment, "");
     expect(fehlendeAngaben(mitSkonto!, [ohne]).join()).toContain("Skonto");
+  });
+});
+
+describe("Pflichtfelder im Quelltext", () => {
+  const vorlage = (datei: string) => readFileSync(join(templates, datei), "utf8");
+
+  it("jedes Pflichtfeld steht im Feldvertrag", () => {
+    const schema = layoutJsonSchema();
+    for (const art of ["beleg", "mahnung"] as const) {
+      const pfade = new Set(flattenSchema(schema[art] as never).map((f) => f.path));
+      for (const eintrag of LAYOUT_PFLICHTFELDER[art]) for (const pfad of eintrag.split("|")) expect(pfade.has(pfad), `${art}: ${pfad}`).toBe(true);
+    }
+  });
+
+  it("die eingebauten Vorlagen und die Startvorlagen nennen alle Pflichtfelder", () => {
+    expect(ungenutztePflichtfelder(vorlage("rechnung.typ"), "beleg")).toEqual([]);
+    expect(ungenutztePflichtfelder(vorlage("mahnung.typ"), "mahnung")).toEqual([]);
+    expect(ungenutztePflichtfelder(startvorlage("beleg"), "beleg")).toEqual([]);
+    expect(ungenutztePflichtfelder(startvorlage("mahnung"), "mahnung")).toEqual([]);
+  });
+
+  it("meldet ein Feld, das kein Beispiel füllt, etwa den Hinweis bei Reverse Charge", () => {
+    const ohne = vorlage("rechnung.typ").replace(/(?<![A-Za-z0-9_])taxNote(?![A-Za-z0-9_])/g, "x");
+    expect(ungenutztePflichtfelder(ohne, "beleg")).toEqual(["taxNote"]);
+  });
+
+  it("einer von mehreren Namen genügt, und ein längerer Name zählt nicht für einen kürzeren", () => {
+    expect(ungenutztePflichtfelder("d.closingFormatted d.introFormatted", "mahnung")).not.toContain("intro|introFormatted");
+    expect(ungenutztePflichtfelder("d.docTitle", "beleg")).toContain("title");
   });
 });

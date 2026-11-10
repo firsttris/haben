@@ -36,6 +36,8 @@ async function einstellungen(browser: Browser): Promise<Page> {
 
 const karte = (p: Page) => p.getByRole("region", { name: "Layouts", exact: true });
 const hochladen = (p: Page) => karte(p).getByRole("form", { name: "Layout hochladen" });
+/** Meldung nach dem Hochladen; der Hinweis „Keine Gewähr“ steht immer darüber */
+const meldung = (p: Page) => hochladen(p).locator(".banner:not(.banner-warn)");
 
 async function datei(page: Page, name: string, inhalt: string) {
   await hochladen(page).getByLabel("Name").fill(name);
@@ -50,8 +52,10 @@ const ROT = `#place(top + left, dx: 5mm, dy: 5mm, text(14pt, fill: rgb("#d40000"
 
 test("Ein Layout ohne Pflichtangaben wird abgelehnt und nicht gespeichert", async ({ browser }) => {
   const page = await einstellungen(browser);
+  await expect(hochladen(page).locator(".banner-warn")).toContainText("keine Gewähr");
   await datei(page, "Nur Titel", "#let d = json(bytes(sys.inputs.data))\n= #d.title");
-  await expect(hochladen(page).locator(".banner")).toContainText("Es fehlt");
+  // Ohne die Pflichtfelder lehnt Haben schon vor dem Setzen ab
+  await expect(meldung(page)).toContainText("verwendet diese Pflichtfelder nicht");
   await expect(karte(page).getByText("Nur Titel", { exact: true })).toHaveCount(0);
   await page.context().close();
 });
@@ -68,7 +72,7 @@ test("Bei Paketen fragt Haben erst nach, mit Abhängigkeiten; Abbrechen speicher
 
   await datei(page, "Mit Paket", quelltext);
   await frage.getByRole("button", { name: "Pakete laden und prüfen" }).click();
-  await expect(hochladen(page).locator(".banner")).toContainText("Geprüft und gespeichert");
+  await expect(meldung(page)).toContainText("Geprüft und gespeichert");
   const zeile = karte(page).getByRole("listitem").filter({ hasText: "Mit Paket" });
   await zeile.getByRole("button", { name: "Löschen" }).click();
   await page
@@ -82,7 +86,7 @@ test("Bei Paketen fragt Haben erst nach, mit Abhängigkeiten; Abbrechen speicher
 test("Hochladen, dem Angebot zuordnen, in der Vorschau sehen und löschen", async ({ browser }) => {
   const page = await einstellungen(browser);
   await datei(page, "Rotes Angebot", `${await startvorlage(page)}\n${ROT}\n`);
-  await expect(hochladen(page).locator(".banner")).toContainText("Geprüft und gespeichert");
+  await expect(meldung(page)).toContainText("Geprüft und gespeichert");
   // Die Dateiauswahl ist danach wieder leer, für das nächste Layout
   await expect(hochladen(page).getByText("Keine Datei gewählt")).toBeVisible();
   const auswahl = karte(page).getByLabel("Layout für Angebot");

@@ -335,6 +335,12 @@ function LayoutUpload() {
       }}
     >
       <h3 id="layout-upload-heading">Layout hochladen</h3>
+      <div className="banner banner-warn">
+        <span>
+          Für eigene Layouts übernimmt Haben keine Gewähr. Die Prüfung beim Hochladen findet nur Offensichtliches; du bist selbst dafür verantwortlich, dass
+          dein Layout alle Angaben richtig zeigt und die Belege den gesetzlichen Anforderungen genügen.
+        </span>
+      </div>
       <div className="form-grid">
         <Field label="Name">{(control) => <input {...control} value={name} maxLength={60} required onChange={(event) => setName(event.target.value)} />}</Field>
         <Field label="Für">
