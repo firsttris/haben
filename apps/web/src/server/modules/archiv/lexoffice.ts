@@ -1,5 +1,4 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { BB_ORIGINAL_NOTE } from "./archive.ts";
 import { datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
@@ -531,6 +530,7 @@ export async function reconciliation() {
       taxSubType: TAX_SUB_TYPE,
       ohneBeleg: WITHOUT_RECEIPT,
       privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
+      bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
       // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
       files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
     })
@@ -569,10 +569,17 @@ export async function reconciliation() {
       contraAccount: schema.datevBookings.contraAccount,
       buKey: schema.datevBookings.buKey,
       accountLength: sql<number | null>`(${schema.archiveFiles.meta} -> 'header' ->> 'accountLength')::int`,
-      note: schema.archiveFiles.note,
+      fileId: schema.datevBookings.fileId,
     })
     .from(schema.datevBookings)
     .leftJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId));
+
+  // DATEV-Stapel der BuchhaltungsButler-Importe, auch wenn die Datei schon vorher im Archiv lag
+  const bbImports = await db
+    .select({ progress: schema.lexofficeImports.progress })
+    .from(schema.lexofficeImports)
+    .where(eq(schema.lexofficeImports.source, "buchhaltungsbutler"));
+  const bbFileIds = new Set(bbImports.flatMap((i) => i.progress.datevFileIds ?? []));
 
   const years = new Set<number>();
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
@@ -589,7 +596,7 @@ export async function reconciliation() {
       const yearDatev = datevRows.filter((b) => b.date.startsWith(`${year}-`));
       const fromDatev = vouchers.length === 0 && yearDatev.length > 0 ? datevYearSums(yearDatev, company.kontenrahmen) : null;
       // Mischjahr (Wechsel unter dem Jahr): Belege aus Lexoffice oder sevDesk, dazu der BuchhaltungsButler-Teil aus dessen Stapel
-      const bbDatev = yearDatev.filter((b) => b.note === BB_ORIGINAL_NOTE);
+      const bbDatev = yearDatev.filter((b) => b.fileId !== null && bbFileIds.has(b.fileId));
       const bbPart = vouchers.length > 0 && bbDatev.length > 0 ? datevYearSums(bbDatev, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
         const pick = (sums: NonNullable<typeof fromDatev>) => (direction === "einnahme" ? sums.einnahmen : sums.ausgaben);
@@ -638,7 +645,7 @@ export async function reconciliation() {
         taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
       }
       // Auch die Rechnungen aus BuchhaltungsButler: Der Nummernkreis läuft in Haben weiter (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)
-      const invoices = [...vouchers, ...yearRows.filter((v) => v.source === "buchhaltungsbutler")]
+      const invoices = [...vouchers, ...yearRows.filter((v) => v.source === "buchhaltungsbutler" && !v.bbNeutral)]
         // Stornorechnung und Abschlagsrechnung von sevDesk belegen denselben Nummernkreis wie die Rechnungen (#472)
         .filter(
           (v) =>

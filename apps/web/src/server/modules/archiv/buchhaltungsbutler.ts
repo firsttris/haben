@@ -68,7 +68,7 @@ export async function startBuchhaltungsbutlerImport(actor: string, parts: Export
   );
   const importId = run!.id;
   try {
-    await archiveOriginals(actor, parts, preview.year);
+    progress.datevFileIds = await archiveOriginals(actor, parts, preview.year);
     const linkedContacts = new Set<string>();
     for (const item of preview.vouchers) {
       const imported = await importVoucher(actor, importId, item, linkedContacts);
@@ -103,13 +103,18 @@ export function bbSummary(preview: BuchhaltungsbutlerPreview) {
   };
 }
 
-async function archiveOriginals(actor: string, parts: ExportPart[], year: number) {
+/** Legt die Originalexporte ab; liefert die Archivdateien des DATEV-Stapels, auch schon vorhandene */
+async function archiveOriginals(actor: string, parts: ExportPart[], year: number): Promise<string[]> {
+  const datevFileIds: string[] = [];
   for (const part of parts) {
     const sha256 = sha256Of(part.bytes);
-    const [existing] = await db.select({ id: schema.archiveFiles.id }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256));
-    if (existing) continue;
     const isDatev = part.name.toLowerCase().startsWith("extf_") && part.name.toLowerCase().endsWith(".csv");
-    await addArchiveFile(
+    const [existing] = await db.select({ id: schema.archiveFiles.id }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256));
+    if (existing) {
+      if (isDatev) datevFileIds.push(existing.id);
+      continue;
+    }
+    const added = await addArchiveFile(
       actor,
       {
         bytes: part.bytes,
@@ -120,7 +125,9 @@ async function archiveOriginals(actor: string, parts: ExportPart[], year: number
       },
       isDatev ? MAX_ARCHIVE_SIZE : MAX_BB_EXPORT_SIZE,
     );
+    if (isDatev) datevFileIds.push(added.id);
   }
+  return datevFileIds;
 }
 
 async function importVoucher(actor: string, importId: string, item: BuchhaltungsbutlerVoucher, linkedContacts: Set<string>): Promise<boolean> {

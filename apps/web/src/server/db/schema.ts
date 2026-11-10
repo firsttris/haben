@@ -2413,6 +2413,8 @@ export type LexofficeImportProgress = {
   skipped: number;
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
+  /** BuchhaltungsButler: Archivdateien mit dem DATEV-Stapel des Exports, auch wenn sie schon vorher im Archiv lagen */
+  datevFileIds?: string[];
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */

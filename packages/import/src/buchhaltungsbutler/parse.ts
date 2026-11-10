@@ -66,6 +66,8 @@ function mapVoucher(
     info: row.info.raw,
     taxType,
     taxConditions: { taxType },
+    // Geldtransit, Privates oder Zahlung: keine Ausgangsrechnung, auch wenn die Richtung „einnahme“ ist
+    neutral: mapping.neutral,
   };
   const voucher: LegacyVoucher = {
     lexofficeId: `booking/${year}/${row.info.bookingId}`,
