@@ -6,6 +6,8 @@ export type StatementFormat =
   | "n26-csv"
   | "camt053"
   | "enablebanking"
+  /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
+  | "accountable-xlsx"
   | "paypal-csv"
   | "stripe-csv"
   | "shopify-payments-csv"
