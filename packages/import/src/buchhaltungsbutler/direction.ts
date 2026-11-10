@@ -1,3 +1,4 @@
+import { KAPG_STEUER_KONTEN, postenOf } from "@haben/core";
 import type { Kontenrahmen } from "../datev.ts";
 import type { BuchhaltungsbutlerJoinedRow } from "./types.ts";
 import { BuchhaltungsbutlerError } from "./types.ts";
@@ -17,31 +18,32 @@ export interface DirectionMapping {
   neutral: boolean;
 }
 
+/**
+ * Art eines Kontos nach den Posten des DATEV-Kontenrahmens 2026 (`postenOf`, SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175):
+ * GuV-Erträge sind Erlöse, GuV-Aufwendungen und Steuern Aufwand, Anlagevermögen Anlage, alle übrigen Bilanzkonten (Geld,
+ * Forderungen, Umsatz- und Vorsteuer, Privat, Kapital, Verbindlichkeiten, Rückstellungen) Geldkonten im Sinne der
+ * Richtung. Personenkonten (fünfstellig und länger) nach den DATEV-Nummernkreisen.
+ */
 function accountKind(account: string, skr: Kontenrahmen): AccountKind {
   if (!/^\d+$/.test(account)) return null;
   const value = Number(account);
-  if (value >= 10000 && value <= 69999) return "debitor";
-  if (value >= 70000 && value <= 99999) return "kreditor";
-  if (value < 1000) return "anlage";
-  if (value < 2000) return "bank";
-  if (skr === "SKR03") {
-    if (value >= 3000 && value <= 4999) return "aufwand";
-    if (value >= 8000 && value <= 8999) return "erloes";
-  } else {
-    if (value >= 4000 && value <= 4999) return "erloes";
-    if (value >= 5000 && value <= 6999) return "aufwand";
+  if (account.length > 4) {
+    if (value >= 10000 && value <= 69999) return "debitor";
+    if (value >= 70000 && value <= 99999) return "kreditor";
+    return null;
   }
-  return null;
+  const posten = postenOf(skr, account.padStart(4, "0"));
+  if (posten === null) return null;
+  if (posten === "umsatzerloese" || posten === "sonstigeErtraege") return "erloes";
+  if (posten === "aktiva.A") return "anlage";
+  if (posten.startsWith("aktiva.") || posten.startsWith("passiva.")) return "bank";
+  return "aufwand";
 }
 
-/**
- * Weitere Erträge und Aufwendungen außerhalb der Erlös- und Aufwandsklassen: SKR03 Klasse 2 (Abgrenzungskonten,
- * z. B. 2110 Zinsaufwand, 2650 Zinserträge), SKR04 Klasse 7 (z. B. 7310 Zinsaufwand, 7685 Kfz-Steuer)
- */
-function isOtherIncomeOrExpense(account: string, skr: Kontenrahmen): boolean {
-  if (!/^\d+$/.test(account)) return false;
-  const value = Number(account);
-  return skr === "SKR03" ? value >= 2000 && value <= 2999 : value >= 7000 && value <= 7999;
+/** Steuern vom Einkommen und Ertrag samt Vorjahren und Solidaritätszuschlag (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG) */
+export function isErtragsteuerKonto(account: string, skr: Kontenrahmen): boolean {
+  const k = KAPG_STEUER_KONTEN[skr];
+  return [k.kst, k.soli, k.gewst, k.kstVorjahre, k.soliWeitere, k.gewstVorjahre].some((list) => (list as readonly string[]).includes(account));
 }
 
 /** Richtung und Vorzeichen aus Soll und Haben, ohne sie aus dem PDF-Namen zu schätzen. */
@@ -97,15 +99,13 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
     };
   }
   if (debit === "bank" || credit === "bank") {
-    const other = debit === "bank" ? row.creditAccount : row.debitAccount;
+    // Nur Bilanzkonten ohne Anlagevermögen: Geldtransit, Privat, Kapital, Steuerzahlungen, Darlehen
     return {
       direction: debit === "bank" ? "einnahme" : "ausgabe",
       positive: true,
-      categoryAccount: other,
+      categoryAccount: debit === "bank" ? row.creditAccount : row.debitAccount,
       basis: "bank",
-      // Einnahme oder Ausgabe nur mit weiteren Erträgen und Aufwendungen; Geldtransit, Privat, Kapital, Steuerzahlungen
-      // und Darlehen (Geld-, Eigenkapital- und Verbindlichkeitskonten) sind neutral
-      neutral: !isOtherIncomeOrExpense(other, skr),
+      neutral: true,
     };
   }
   throw new BuchhaltungsbutlerError(

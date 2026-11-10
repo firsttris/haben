@@ -1,9 +1,9 @@
 import { taxIncluded } from "@haben/core";
-import { BU_RATES, parseDatevBuchungsstapel, type Kontenrahmen } from "../datev.ts";
+import { AUTOMATIC, BU_RATES, parseDatevBuchungsstapel, shortAccount, type Kontenrahmen } from "../datev.ts";
 import { parseDate, parseGermanAmount } from "../text.ts";
 import type { LegacyVoucher } from "../lexoffice/map.ts";
 import { joinRows } from "./datev-info.ts";
-import { directionOf, type DirectionMapping } from "./direction.ts";
+import { directionOf, isErtragsteuerKonto, type DirectionMapping } from "./direction.ts";
 import { readBbRows, readExportFiles, readReceiptFiles, type ExportPart } from "./export-files.ts";
 import type { BuchhaltungsbutlerJoinedRow, BuchhaltungsbutlerPreview, BuchhaltungsbutlerVoucher } from "./types.ts";
 import { BuchhaltungsbutlerError } from "./types.ts";
@@ -23,11 +23,11 @@ export function previewBuchhaltungsbutlerExport(parts: ExportPart[], skr: Konten
   }
   const year = Number((stack.header.dateFrom ?? stack.header.fiscalYearStart).slice(0, 4));
   const vouchers = rows.flatMap((row) => {
-    if (row.info.url !== "") return [mapVoucher(row, directionOf(row, skr), receiptFiles.get(row.info.bookingId)!, year)];
+    if (row.info.url !== "") return [mapVoucher(row, directionOf(row, skr), receiptFiles.get(row.info.bookingId)!, year, skr)];
     // Ohne Beleg nur Einnahmen und Ausgaben (nicht neutral); Zahlungen, Geldtransit und Umbuchungen stehen
     // im DATEV-Buchungsstapel, sonst fehlten sie in den Summen des Jahresabgleichs oder zählten doppelt
     const mapping = withoutReceiptMapping(row, skr);
-    return mapping ? [mapVoucher(row, mapping, [], year)] : [];
+    return mapping ? [mapVoucher(row, mapping, [], year, skr)] : [];
   });
   const withReceiptVouchers = vouchers.filter((item) => item.files.length > 0);
   const warnings: string[] = [];
@@ -68,9 +68,10 @@ function mapVoucher(
   mapping: DirectionMapping,
   files: BuchhaltungsbutlerVoucher["files"],
   year: number,
+  skr: Kontenrahmen,
 ): BuchhaltungsbutlerVoucher {
   // Geldtransit, Privates und Zahlungen tragen keine Umsatzsteuer, auch wenn die Beleginfo einen Satz nennt
-  const rate = mapping.neutral ? 0 : taxRate(row);
+  const rate = mapping.neutral ? 0 : taxRate(row, mapping.categoryAccount, skr);
   const sign = mapping.positive ? 1 : -1;
   const gross = sign * row.datev.amount;
   const tax = sign * taxIncluded(row.datev.amount, rate);
@@ -111,18 +112,22 @@ function mapVoucher(
     fileIds: [],
     remark: row.bb.Kommentar || row.bb.Buchungstext || "",
   };
-  return { voucher, bookingId: row.info.bookingId, files, raw, neutral: mapping.neutral };
+  const categoryName = mapping.neutral ? "Geldtransit" : isErtragsteuerKonto(mapping.categoryAccount, skr) ? "Körperschaft- und Gewerbesteuer" : "";
+  return { voucher, bookingId: row.info.bookingId, files, raw, neutral: mapping.neutral, categoryName };
 }
 
-function taxRate(row: BuchhaltungsbutlerJoinedRow): number {
+function taxRate(row: BuchhaltungsbutlerJoinedRow, account: string, skr: Kontenrahmen): number {
   const text = row.info.taxRateText || row.bb.Umsatzsteuer;
   if (text) {
     const rate = parseGermanAmount(text);
     if (rate === null || rate < 0) throw new BuchhaltungsbutlerError(`Buchung ${row.info.bookingId}: ungültiger Steuersatz „${text}“.`);
     return rate;
   }
-  // BU_RATES nennt den Satz in Prozent, Steuersätze sind Basispunkte
-  return (BU_RATES[row.datev.buKey.trim().replace(/^0+/, "")] ?? 0) * 100;
+  // BU_RATES und AUTOMATIC nennen den Satz in Prozent, Steuersätze sind Basispunkte; ohne BU-Schlüssel rechnet DATEV auf
+  // Automatikkonten die Steuer selbst (wie datevYearSums)
+  const bu = row.datev.buKey.trim().replace(/^0+/, "");
+  const percent = bu === "" ? AUTOMATIC[skr][shortAccount(account)] : BU_RATES[bu];
+  return (percent ?? 0) * 100;
 }
 
 function taxTypeOf(row: BuchhaltungsbutlerJoinedRow, direction: "einnahme" | "ausgabe"): string {

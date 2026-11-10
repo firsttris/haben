@@ -35,6 +35,8 @@ export interface BuchhaltungsbutlerVoucher {
   raw: Record<string, unknown>;
   /** Weder Einnahme noch Ausgabe (Geldtransit, Privat, Zahlung auf ein Personenkonto) */
   neutral: boolean;
+  /** Name der Kategorie für die Einordnung bei GmbH und UG (legacyNeutralKind): „Geldtransit“, Ertragsteuer oder leer */
+  categoryName: string;
 }
 
 export interface BuchhaltungsbutlerPreview {
