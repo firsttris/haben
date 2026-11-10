@@ -47,6 +47,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
+- New data for the document templates: describe each field in the field contract (`packages/einvoice/src/layout-schema.ts`), then `bun scripts/feldvertrag/schreiben.ts` rewrites the `belegvorlage` skill and `docs/belegvorlagen.md`. Never remove, rename or retype a field of a released contract version; custom layouts depend on it (`docs/belegvorlagen.md`).
 - Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - The pull request description becomes the squash commit message on `main`: update it with every push that changes what the PR does or how it was checked, also after review fixes and rebases.
