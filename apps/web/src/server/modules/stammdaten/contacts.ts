@@ -108,6 +108,34 @@ export async function listContacts(includeArchived = false, role?: ContactRole):
     .orderBy(asc(schema.contacts.name));
 }
 
+/** Ein Kontakt zur Auswahl in einem Formular (ContactCombobox): mit der Nummer der Rolle, Kunden- oder Lieferantennummer */
+export interface ContactChoice {
+  id: string;
+  name: string;
+  ort: string;
+  nummer: string | null;
+  ustId: string;
+  isCustomer: boolean;
+  isSupplier: boolean;
+}
+
+/**
+ * Alle Kontakte (ohne archivierte) zur Auswahl; welche Rolle zur Wahl steht, entscheidet die Combobox. So bleibt ein schon
+ * gewählter Kontakt auch sichtbar, wenn er die Rolle nicht mehr hat. role bestimmt, welche Nummer als Nummer gilt.
+ */
+export async function listContactChoices(role: ContactRole): Promise<ContactChoice[]> {
+  const contacts = await listContacts();
+  return contacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+    ort: c.ort,
+    nummer: role === "lieferant" ? c.lieferantennummer : c.kundennummer,
+    ustId: c.ustId,
+    isCustomer: c.isCustomer,
+    isSupplier: c.isSupplier,
+  }));
+}
+
 export async function getContact(id: string) {
   const [contact] = await db.select().from(schema.contacts).where(eq(schema.contacts.id, id));
   if (!contact) return null;

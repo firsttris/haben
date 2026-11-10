@@ -3,45 +3,82 @@ import { searchOptions } from "../lib/combobox.ts";
 import { Combobox } from "./Combobox.tsx";
 import type { FieldControlProps } from "./Field.tsx";
 
-export interface CustomerOption {
+export interface ContactChoice {
   id: string;
   name: string;
   ort: string;
-  kundennummer: string | null;
+  /** Kundennummer, bei Lieferanten die Lieferantennummer */
+  nummer: string | null;
   isCustomer: boolean;
+  isSupplier: boolean;
+  ustId: string;
 }
 
-const customerText = (c: CustomerOption) => `${c.name}${c.ort ? ` · ${c.ort}` : ""}`;
+export type ContactRole = "kunde" | "lieferant" | "alle";
+
+/** Was sich je Rolle unterscheidet: Platzhalter und Beschriftung der Zeile zum Anlegen */
+const ROLE_TEXT: Record<ContactRole, { placeholder: string; createNamed: (name: string) => string; createEmpty: string }> = {
+  kunde: {
+    placeholder: "Name, Kundennummer oder Ort",
+    createNamed: (name) => `„${name}“ als neuen Kunden anlegen`,
+    createEmpty: "Neuen Kontakt anlegen",
+  },
+  lieferant: {
+    placeholder: "Name, Lieferantennummer oder Ort",
+    createNamed: (name) => `„${name}“ als neuen Lieferanten anlegen`,
+    createEmpty: "Neuen Lieferanten anlegen",
+  },
+  alle: {
+    placeholder: "Name oder Ort",
+    createNamed: (name) => `„${name}“ als neuen Kontakt anlegen`,
+    createEmpty: "Neuen Kontakt anlegen",
+  },
+};
+
+const inRole = (c: ContactChoice, rolle: ContactRole) => rolle === "alle" || (rolle === "kunde" ? c.isCustomer : c.isSupplier);
+
+const contactText = (c: ContactChoice) => `${c.name}${c.ort ? ` · ${c.ort}` : ""}`;
 
 /**
- * Kunde im Rechnungs- und Angebotsentwurf, suchbar nach Name, Kundennummer und Ort. Zur Auswahl stehen nur Kunden; ein
- * schon gewählter Kontakt bleibt sichtbar. Wer die Eingabe stehen lässt, ohne zu wählen, behält den bisherigen Kunden;
- * ein geleertes Feld nimmt ihn weg.
+ * Kontakt suchen und wählen: der Kunde im Rechnungs- und Angebotsentwurf, der Lieferant am Beleg und im Dauerbeleg,
+ * suchbar nach Name, Nummer und Ort. Zur Auswahl stehen die Kontakte der Rolle (Kunde, Lieferant oder alle); ein
+ * schon gewählter Kontakt bleibt sichtbar. Wer die Eingabe stehen lässt, ohne zu wählen, behält den bisherigen
+ * Kontakt; ein geleertes Feld nimmt ihn weg (onChoose mit leerer id). Ohne onCreate fehlt die Zeile zum Anlegen.
  */
-export function CustomerCombobox({
+export function ContactCombobox({
   contacts,
   contactId,
-  disabled,
+  rolle,
+  disabled = false,
+  required = false,
+  placeholder,
   onChoose,
   onCreate,
   ...control
 }: FieldControlProps & {
-  contacts: CustomerOption[];
+  contacts: ContactChoice[];
   contactId: string;
-  disabled: boolean;
+  rolle: ContactRole;
+  disabled?: boolean;
+  required?: boolean;
+  /** Statt des Platzhalters der Rolle, etwa „Für alle Kunden“ bei einer Auswahl, die leer bleiben darf */
+  placeholder?: string;
   onChoose: (contactId: string) => void;
   /** Dialog für den neuen Kontakt, mit dem getippten Namen */
-  onCreate: (name: string) => void;
+  onCreate?: (name: string) => void;
 }) {
-  /** Was gerade getippt ist; null = es steht der gewählte Kunde im Feld */
+  const text = ROLE_TEXT[rolle];
+  /** Was gerade getippt ist; null = es steht der gewählte Kontakt im Feld */
   const [query, setQuery] = useState<string | null>(null);
-  const customers = contacts.filter((c) => c.isCustomer || c.id === contactId);
+  const choosable = contacts.filter((c) => inRole(c, rolle) || c.id === contactId);
   const chosen = contacts.find((c) => c.id === contactId);
   const typed = query?.trim() ?? "";
+  /** Bei Lieferanten hilft die USt-IdNr. bei der Wahl: Sie steht in der zweiten Zeile und ist durchsuchbar */
+  const ustIdOf = (c: ContactChoice) => (rolle === "lieferant" ? c.ustId : "");
 
   function choose(next: string) {
     setQuery(null);
-    // Derselbe Kunde noch einmal: nichts ändern, sonst setzte das Format, Sprache und Skonto zurück
+    // Derselbe Kontakt noch einmal: nichts ändern, sonst setzte das Format, Sprache und Skonto zurück
     if (next !== contactId) onChoose(next);
   }
 
@@ -49,25 +86,30 @@ export function CustomerCombobox({
     <Combobox
       {...control}
       commitOnTab
-      value={query ?? (chosen ? customerText(chosen) : "")}
+      value={query ?? (chosen ? contactText(chosen) : "")}
       onInput={setQuery}
-      search={() => searchOptions(customers, query ?? "", (c) => [c.name, c.kundennummer, c.ort])}
+      search={() => searchOptions(choosable, query ?? "", (c) => [c.name, c.nummer, c.ort, ustIdOf(c)])}
       describe={(c) => ({
         key: c.id,
         label: c.name,
-        meta: [c.kundennummer, c.ort].filter(Boolean).join(" · "),
+        meta: [c.nummer, c.ort, ustIdOf(c)].filter(Boolean).join(" · "),
         selected: c.id === contactId,
       })}
       onPick={(c) => choose(c.id)}
-      create={{
-        label: typed ? `„${typed}“ als neuen Kunden anlegen` : "Neuen Kontakt anlegen",
-        run: () => {
-          setQuery(null);
-          onCreate(typed);
-        },
-      }}
-      placeholder="Name, Kundennummer oder Ort"
+      create={
+        onCreate
+          ? {
+              label: typed ? text.createNamed(typed) : text.createEmpty,
+              run: () => {
+                setQuery(null);
+                onCreate(typed);
+              },
+            }
+          : null
+      }
+      placeholder={placeholder ?? text.placeholder}
       disabled={disabled}
+      required={required}
       onBlur={() => {
         if (query === null) return;
         if (typed === "") choose("");

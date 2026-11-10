@@ -7,6 +7,7 @@ import { FormattedText } from "../../../components/FormattedText.tsx";
 import { FormattedTextarea } from "../../../components/FormattedTextarea.tsx";
 import type { Notice } from "../../../lib/use-action.ts";
 import { archiveTextBlock, getTextBlocks, saveTextBlock } from "../../../server/functions/text-blocks.ts";
+import { ContactCombobox, type ContactChoice } from "../../../components/ContactCombobox.tsx";
 import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/textbausteine/")({
@@ -17,15 +18,16 @@ export const Route = createFileRoute("/_app/textbausteine/")({
 
 type Data = Awaited<ReturnType<typeof getTextBlocks>>;
 type Block = Data["blocks"][number];
-type ContactOption = Data["contacts"][number];
 
 const KIND_LABEL = { kopf: "Kopftext", fuss: "Fußtext" } as const;
 
-function TextBlockForm({ block, contacts, onDone }: { block: Block | null; contacts: ContactOption[]; onDone: (notice: Notice) => void }) {
+function TextBlockForm({ block, contacts, onDone }: { block: Block | null; contacts: ContactChoice[]; onDone: (notice: Notice) => void }) {
   const router = useRouter();
   const save = useServerFn(saveTextBlock);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Kunde, für den der Baustein gilt; leer = für alle Kunden */
+  const [contactId, setContactId] = useState(block?.contactId ?? "");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +43,7 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
             name: value("name"),
             kind: value("kind") === "fuss" ? "fuss" : "kopf",
             text: value("text"),
-            contactId: value("contactId") || null,
+            contactId: contactId || null,
           },
         },
       });
@@ -93,17 +95,7 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
         </Field>
         <Field label="Kunde (optional)" hint="Bei Belegen an diesen Kunden steht der Baustein in der Auswahl oben." style={{ gridColumn: "1 / -1" }}>
           {(control) => (
-            <select {...control} name="contactId" defaultValue={block?.contactId ?? ""}>
-              <option value="">Für alle Kunden</option>
-              {contacts
-                .filter((c) => c.isCustomer || c.id === block?.contactId)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.ort ? ` · ${c.ort}` : ""}
-                  </option>
-                ))}
-            </select>
+            <ContactCombobox {...control} rolle="kunde" contacts={contacts} contactId={contactId} placeholder="Für alle Kunden" onChoose={setContactId} />
           )}
         </Field>
       </div>

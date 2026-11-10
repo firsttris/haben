@@ -28,11 +28,13 @@ export {
   contactSchema,
   createContact,
   getContact,
+  listContactChoices,
   listContacts,
   setContactArchived,
   setContactIbanIfEmpty,
   updateContact,
   type Contact,
+  type ContactChoice,
   type ContactInput,
   type ContactRole,
 } from "./contacts.ts";
