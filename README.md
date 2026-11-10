@@ -210,8 +210,14 @@ eigene Werkzeuge und Automationen gibt es die [REST-API](https://haben.app/api.h
 <details>
 <summary><b>Ist das sicher?</b></summary>
 
-Prüf es selbst, der Code ist offen: Lass deinen Agenten Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) oder
-`/security-review` von Claude Code über dieses Repository laufen.
+Wir haben geprüft, und du kannst es auch: Der Code ist offen.
+
+- **Geprüft:** mit Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) und
+  `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
+- **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
+  Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
+- **Offen für alle:** Jeder kann den Code lesen und Lücken melden, bitte vertraulich wie in [SECURITY.md](SECURITY.md)
+  beschrieben.
 </details>
 
 ## 📚 Dokumentation
