@@ -6,7 +6,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, readFileSync } from "node:fs";
 import { type FileHandle, mkdir, mkdtemp, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { basename, dirname, join, normalize } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -116,7 +115,12 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
     );
   }
   const url = ericDownloadUrl(options.version, options.baseUrl);
-  const work = await mkdtemp(join(tmpdir(), "haben-ericdl-"));
+  // Das Ziel ist im Container ein Volume und lässt sich nicht umbenennen: Versionen liegen in
+  // Unterordnern, AKTUELL zeigt auf die aktive; umgeschaltet wird erst nach vollständigem Entpacken.
+  const root = normalize(options.dir).replace(/\/+$/, "");
+  await mkdir(root, { recursive: true });
+  // Das Paket (rund 520 MB) kommt ins Ziel, nicht nach /tmp: Das ist im gehärteten Container ein tmpfs im Arbeitsspeicher
+  const work = await mkdtemp(join(root, ".download-"));
   try {
     const jar = join(work, "eric.jar");
     // ERiC wird als native Bibliothek in den Prozess geladen: Herkunft, Größe und Prüfsumme prüfen
@@ -125,10 +129,6 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
       throw new EricInstallError(`Die Prüfsumme des ERiC-Pakets stimmt nicht: erwartet ${options.sha256.trim()}, erhalten ${sha256}.`);
     }
 
-    // Das Ziel ist im Container ein Volume und lässt sich nicht umbenennen: Versionen liegen in
-    // Unterordnern, AKTUELL zeigt auf die aktive; umgeschaltet wird erst nach vollständigem Entpacken.
-    const root = normalize(options.dir).replace(/\/+$/, "");
-    await mkdir(root, { recursive: true });
     const name = `ERiC-${options.version}`;
     const fresh = join(root, `${name}.neu`);
     await rm(fresh, { recursive: true, force: true });
