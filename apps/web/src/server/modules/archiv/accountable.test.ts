@@ -40,10 +40,11 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   </content>
 </archive>`;
 
-function export_(): Uint8Array {
-  const belege = zipSync({ "document.xml": strToU8(XML), "beleg-hosting.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n") });
+/** `guid`: echte Exporte tragen eine UUID; die übrigen Tests bleiben beim lesbaren Platzhalter */
+function export_(guid = "guid-hosting"): Uint8Array {
+  const belege = zipSync({ "document.xml": strToU8(XML.replace("guid-hosting", guid)), "beleg-hosting.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n") });
   return zipSync({
-    "datev_skr03_10112026/EXTF_Buchungsstapel_2025Test.csv": strToU8([KOPF, SPALTEN, ...BUCHUNGEN].join("\n")),
+    "datev_skr03_10112026/EXTF_Buchungsstapel_2025Test.csv": strToU8([KOPF, SPALTEN, ...BUCHUNGEN].join("\n").replaceAll("guid-hosting", guid)),
     "datev_skr03_10112026/Belege.zip": belege,
     "PDF/Einkäufe/beleg-hosting_Wdn.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n"),
   });
@@ -136,24 +137,11 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
     expect(files).toHaveLength(1);
     expect(files[0]).toMatchObject({ filename: "beleg-hosting.pdf", mime_type: "application/pdf" });
 
-    // Beleg in Haben: gesperrt, mit Beträgen je Steuersatz und Verweis auf den Archivbeleg
-    const docs =
-      await sql`select supplier_name, invoice_number, document_date, category, split_part(note, ';', 1) as note, net, tax, gross, status, locked_at, lexoffice_voucher_id from documents`;
-    expect(docs).toHaveLength(1);
-    expect(docs[0]).toMatchObject({
-      supplier_name: "Beispiel Hosting GmbH",
-      invoice_number: "06012025_9281",
-      document_date: "2025-01-06",
-      category: "edv",
-      net: 7799,
-      tax: 1482,
-      gross: 9281,
-      status: "gebucht",
-    });
-    expect(docs[0]!.locked_at).toBeTruthy();
-    expect(docs[0]!.lexoffice_voucher_id).toBe(vouchers[1]!.id);
-    const amounts = await sql`select tax_rate, net, tax from document_amounts`;
-    expect(amounts).toEqual([expect.objectContaining({ tax_rate: 1900, net: 7799, tax: 1482 })]);
+    // Kein Beleg in Haben: Accountable hat ihn bezahlt, er gehört ins Archiv und nicht in den Bankabgleich (Review #579).
+    // Die Datei hängt am Archivbeleg.
+    expect(await sql`select count(*)::int as n from documents`).toEqual([{ n: 0 }]);
+    const [attached] = await sql`select v.lexoffice_id from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id`;
+    expect(attached!.lexoffice_id).toBe("accountable/guid-hosting");
 
     // Der Export liegt im Archiv, das Jahr aus dem Stapel-Kopf
     const archived = await sql`select kind, year, filename, meta from archive_files where kind = 'datev'`;
@@ -178,7 +166,7 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
       (select count(*)::int from documents) as documents,
       (select count(*)::int from document_amounts) as amounts,
       (select count(*)::int from archive_files) as archived`;
-    expect(counts[0]).toEqual({ vouchers: 2, files: 1, documents: 1, amounts: 1, archived: 1 });
+    expect(counts[0]).toEqual({ vouchers: 2, files: 1, documents: 0, amounts: 0, archived: 1 });
 
     // Accountable bucht zahlungsbasiert: alles ist bezahlt, es gibt keine offenen Posten.
     // Übernommene Belege mit Restbetrag 0 gehören nicht in die Liste (`open > 0 || issue`).
@@ -195,5 +183,16 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
     // Accountable bucht zahlungsbasiert: Der Beleg ist dort bezahlt. Als offener Posten in Haben zöge er die nächste
     // Abbuchung über 92,81 € auf sich und buchte gegen eine Verbindlichkeit, die es nie gab.
     expect((await bank.openItems()).filter((i) => i.type === "document")).toEqual([]);
+  });
+  it("Abgleich: Erlös- und Privatzeilen aus dem Accountable-Stapel brauchen keinen Beleg (Review #579)", async () => {
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03') on conflict (id) do nothing`;
+    const lexoffice = await import("./lexoffice.ts");
+    accountable.analyseAccountableUpload(export_("3f2b8c1e-7d4a-4e9b-9c2f-1a6d5e8b0c47"), "Accountable_Max_Mustermann_skr03_2025-01-01_test.zip");
+    await accountable.startAccountableImport(actor, { wait: true });
+    const { years } = await lexoffice.reconciliation();
+    // Hosting über Nummer und GUID, Software über die Nummer; Privatzeile 1801 und Ausgangsrechnung 8400 ohne Beleg
+    expect(years.find((y) => y.year === 2025)!.bookings).toMatchObject({ total: 5, unmatched: 0 });
   });
 });

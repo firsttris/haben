@@ -1,14 +1,14 @@
 import type { AccountableExport, AccountableReceipt, AccountableVoucher } from "@haben/import";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db, schema, type Tx } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
 import { progressMessage } from "./lexoffice.ts";
-import { categoryFor, categoryRow, documentBlocker, externalId, mimeTypeOf, paymentOf, receiptFilename, SOURCE_LABEL } from "./accountable-mapping.ts";
+import { categoryRow, documentBlocker, externalId, mimeTypeOf, paymentOf, receiptFilename } from "./accountable-mapping.ts";
 import { type AccountableAnalysis, AccountableError, cancelled, OPEN_ITEM_LIMIT, type StagedExport } from "./accountable-state.ts";
 
 /*
- * Der Lauf selbst: Export ins Archiv, Buchungen als Archivbelege, Belege mit Datei in documents.
+ * Der Lauf selbst: Export ins Archiv, Buchungen als Archivbelege mit ihrer Datei.
  *
  * 1. Ein Beleg in Accountable kann auf mehrere Buchungen verteilt sein (etwa zwei Aufwandskonten); dann steht dieselbe GUID
  *    zweimal im Stapel. Weil lexoffice_vouchers.lexoffice_id eindeutig ist, trägt die erste Buchung je GUID den Beleg. Die
@@ -19,8 +19,11 @@ import { type AccountableAnalysis, AccountableError, cancelled, OPEN_ITEM_LIMIT,
  *    Vorsteuer ohne Beleginhalt anzusetzen hieße raten. Also: archivieren, als offenen Posten melden, nichts anlegen.
  * 3. Ausgangsrechnungen legt der Lauf nicht an (Haben verlangt Positionen, die der DATEV-Stapel nicht enthält). Sie werden
  *    gezählt und im Ergebnis gemeldet.
- * 4. Belege entstehen gesperrt wie bei takeOverDocument; die Vorsteuer ist in Accountable schon angemeldet, die Eröffnung
- *    liefert der Buchungsstapel im Archiv. Idempotent ist der Lauf über GUID (Archivbeleg) und sha256 (Datei, Beleg).
+ * 4. Belege in Haben (documents) legt der Lauf nicht an. Accountable bucht zahlungsbasiert, die Belege sind dort bezahlt;
+ *    als gebuchter Beleg mit Zahlart Bank stünde jeder als offene Verbindlichkeit im Bankabgleich, ohne dass es eine
+ *    Eröffnungsbuchung gibt (Review #579). Was am Stichtag offen war (Daten.xlsx: nicht bezahlt), übernimmt Schritt 3
+ *    „Offene Posten übernehmen“ wie bei Lexoffice und sevDesk, mit Eröffnungsbuchung. Idempotent ist der Lauf über die
+ *    GUID (Archivbeleg) und die sha256 (Datei).
  */
 
 export async function runAccountableImport(tx: Tx, importId: string, upload: StagedExport, progress: LexofficeImportProgress) {
@@ -90,8 +93,8 @@ export async function runAccountableImport(tx: Tx, importId: string, upload: Sta
       } else {
         progress.imported += 1;
         if (receiptGuid) firstOfGuid.set(receiptGuid, key);
-        // Ohne Datei oder mit unbekanntem Steuersatz kein Beleg-Kopf: bleibt offener Posten (Entscheidung 2)
-        if (receipt && blocker === null && (await takeOverAccountableDocument(tx, voucher, receipt))) progress.files += 1;
+        // Die Datei hängt am Archivbeleg; einen Beleg in Haben legt der Lauf nicht an (Entscheidung 4)
+        if (receipt) progress.files += 1;
       }
     } catch (error) {
       progress.failed.push({ lexofficeId: key, number: voucher.invoiceNumber, message: progressMessage(error) });
@@ -115,7 +118,7 @@ function noteFor(accountable: AccountableAnalysis, warnings: string[]): string {
     accountable.unknownTaxRows > 0
       ? `${accountable.unknownTaxRows} Buchung(en) haben einen BU-Schlüssel, den Haben nicht kennt; ohne Steueranteil übernommen.`
       : "",
-    accountable.openItemCount > 0 ? `${accountable.openItemCount} Buchung(en) ohne Belegdatei stehen nur im Archiv und warten im Bankabgleich.` : "",
+    accountable.openItemCount > 0 ? `${accountable.openItemCount} Buchung(en) ohne Belegdatei stehen nur im Archiv.` : "",
     accountable.invoices.length > 0
       ? `${accountable.invoices.length} Ausgangsrechnung(en) nicht angelegt: Positionen fehlen im DATEV-Stapel; Nummern ${accountable.invoices.map((i) => i.number).join(", ")}.`
       : "",
@@ -267,58 +270,4 @@ async function attachReceiptFile(tx: Tx, voucherId: string, receipt: Accountable
       size: receipt.bytes.byteLength,
     })
     .onConflictDoNothing({ target: [schema.lexofficeVoucherFiles.voucherId, schema.lexofficeVoucherFiles.sha256] });
-}
-
-/**
- * Beleg in Haben, denselben Weg wie takeOverDocument: Datei unter sha256, Beleg mit Kopfdaten, Beträge je Steuersatz,
- * gesperrt. Keine Eröffnungsbuchung, weil Accountable die Vorsteuer bereits angemeldet hat und der Stapel im Archiv liegt.
- * Idempotent über die sha256 der Datei und über lexoffice_voucher_id. true, wenn der Beleg neu ist.
- */
-async function takeOverAccountableDocument(tx: Tx, voucher: AccountableVoucher, receipt: AccountableReceipt): Promise<boolean> {
-  const sha256 = sha256Of(receipt.bytes);
-  const [archived] = await tx
-    .select({ id: schema.lexofficeVouchers.id })
-    .from(schema.lexofficeVouchers)
-    .where(eq(schema.lexofficeVouchers.lexofficeId, externalId(voucher)));
-  if (!archived) throw new AccountableError("Der Archivbeleg fehlt; bitte den Lauf erneut starten.");
-  const [existing] = await tx
-    .select({ id: schema.documents.id, linked: schema.documents.lexofficeVoucherId })
-    .from(schema.documents)
-    .where(and(eq(schema.documents.sha256, sha256), isNull(schema.documents.replacesDocumentId)))
-    .limit(1);
-  if (existing) {
-    // Schon als Beleg da (etwa aus einer früheren Übernahme): nur den Verweis ergänzen, solange der Beleg ungesperrt ist
-    if (!existing.linked) {
-      await tx
-        .update(schema.documents)
-        .set({ lexofficeVoucherId: archived.id })
-        .where(and(eq(schema.documents.id, existing.id), isNull(schema.documents.lockedAt)));
-    }
-    return false;
-  }
-  const now = new Date();
-  const [doc] = await tx
-    .insert(schema.documents)
-    .values({
-      sha256,
-      filename: receiptFilename(receipt, voucher),
-      mimeType: mimeTypeOf(receipt),
-      size: receipt.bytes.byteLength,
-      extractedBy: "manuell",
-      supplierName: voucher.supplierName ?? "",
-      invoiceNumber: voucher.invoiceNumber,
-      documentDate: voucher.documentDate,
-      category: categoryFor(voucher),
-      payment: "bank",
-      note: `Aus ${SOURCE_LABEL} übernommen; die Vorsteuer ist dort schon angemeldet.`,
-      net: voucher.net,
-      tax: voucher.tax,
-      gross: voucher.gross,
-      lexofficeVoucherId: archived.id,
-    })
-    .returning({ id: schema.documents.id });
-  const id = doc!.id;
-  await tx.insert(schema.documentAmounts).values({ documentId: id, taxRate: voucher.taxRate, net: voucher.net, tax: voucher.tax });
-  await tx.update(schema.documents).set({ status: "gebucht", lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
-  return true;
 }
