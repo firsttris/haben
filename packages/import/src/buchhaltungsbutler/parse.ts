@@ -120,7 +120,8 @@ function taxRate(row: BuchhaltungsbutlerJoinedRow): number {
     if (rate === null || rate < 0) throw new BuchhaltungsbutlerError(`Buchung ${row.info.bookingId}: ungültiger Steuersatz „${text}“.`);
     return rate;
   }
-  return BU_RATES[row.datev.buKey.trim().replace(/^0+/, "")] ?? 0;
+  // BU_RATES nennt den Satz in Prozent, Steuersätze sind Basispunkte
+  return (BU_RATES[row.datev.buKey.trim().replace(/^0+/, "")] ?? 0) * 100;
 }
 
 function taxTypeOf(row: BuchhaltungsbutlerJoinedRow, direction: "einnahme" | "ausgabe"): string {
