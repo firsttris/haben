@@ -7,6 +7,7 @@ import { FilePicker } from "./FilePicker.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeEnableBanking, saveEnableBanking, type getEnableBankingSettings } from "../server/functions/bank.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 type Data = Awaited<ReturnType<typeof getEnableBankingSettings>>;
 
@@ -94,14 +95,14 @@ export function EnableBankingCard({ data }: { data: Data }) {
           </ConfirmDialog>
         </div>
       )}
-      <label className="field">
-        {stored ? "Neuer Schlüssel (.pem, leer lassen zum Behalten)" : "Privater Schlüssel (.pem)"}
-        <FilePicker name="key" accept=".pem" required={!stored} />
-      </label>
-      <label className="field">
-        Application ID
-        <input value={applicationId} onChange={(e) => setApplicationId(e.target.value)} required autoComplete="off" spellCheck={false} />
-      </label>
+      <Field label={stored ? "Neuer Schlüssel (.pem, leer lassen zum Behalten)" : "Privater Schlüssel (.pem)"}>
+        {(control) => <FilePicker {...control} name="key" accept=".pem" required={!stored} />}
+      </Field>
+      <Field label="Application ID">
+        {(control) => (
+          <input {...control} value={applicationId} onChange={(e) => setApplicationId(e.target.value)} required autoComplete="off" spellCheck={false} />
+        )}
+      </Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Prüfe …" : "Prüfen und speichern"}

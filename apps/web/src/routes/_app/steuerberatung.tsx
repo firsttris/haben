@@ -8,6 +8,7 @@ import { downloadFrom } from "../../lib/download.ts";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getSteuerberatungStart } from "../../server/functions/zugang.ts";
+import { Field } from "../../components/Field.tsx";
 
 /** Startseite der Steuerberatung: was sich seit dem letzten Besuch geändert hat, Exporte, eigener Zugang */
 export const Route = createFileRoute("/_app/steuerberatung")({
@@ -115,16 +116,17 @@ function Exporte({ years }: { years: number[] }) {
         Das Jahresarchiv enthält alle Rechnungen, Belege, Buchungen, Bankumsätze und Voranmeldungen eines Jahres mit den Originaldateien, CSV-Tabellen und
         Prüfsummen. Der DATEV-Buchungsstapel braucht Berater- und Mandantennummer, die der Inhaber in den Einstellungen hinterlegt.
       </p>
-      <label className="field" style={{ maxWidth: 200 }}>
-        Jahr
-        <select value={year} onChange={(event) => setYear(Number(event.target.value))}>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Field label="Jahr" style={{ maxWidth: 200 }}>
+        {(control) => (
+          <select {...control} value={year} onChange={(event) => setYear(Number(event.target.value))}>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
       <div className="actions">
         <a className="btn" href={`/api/export/${year}`} download>
           Jahresarchiv (ZIP)

@@ -1,7 +1,7 @@
 import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { GewstSection, KapgAngaben, KapgGemeinsameHinweise, KstSection } from "../../../components/KapgErklaerungen.tsx";
@@ -15,6 +15,7 @@ import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../../components/ScrollTable.tsx";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
   loader: ({ params }) => {
@@ -47,7 +48,6 @@ const LINK_LABEL = {
 function AnnualPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const selectId = useId();
   // GmbH und UG: Körperschaftsteuer statt Einkommensteuer, Bilanz statt EÜR; hier bleibt die Umsatzsteuer
   const gesellschaft = isKapitalgesellschaft(data.rechtsform);
 
@@ -58,16 +58,17 @@ function AnnualPage() {
           <div className="eyebrow">Jahreserklärung</div>
           <h1>Steuerjahr {data.year}</h1>
         </div>
-        <label className="field" htmlFor={selectId}>
-          Jahr
-          <select id={selectId} value={data.year} onChange={(e) => navigate({ to: "/jahreserklaerung/$jahr", params: { jahr: e.target.value } })}>
-            {(data.years.includes(data.year) ? data.years : [data.year, ...data.years]).map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Jahr">
+          {(control) => (
+            <select {...control} value={data.year} onChange={(e) => navigate({ to: "/jahreserklaerung/$jahr", params: { jahr: e.target.value } })}>
+              {(data.years.includes(data.year) ? data.years : [data.year, ...data.years]).map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
 
       {data.mode === "simuliert" && (
@@ -319,11 +320,9 @@ const centsText = (cents: number | undefined) => (cents ? formatDecimal(cents) :
 /** Ein Betragsfeld; leer heißt 0 */
 function Amount({ name, label, value, hint }: { name: string; label: string; value: number | undefined; hint?: string }) {
   return (
-    <label className="field">
-      {label}
-      <input name={name} inputMode="decimal" defaultValue={centsText(value)} placeholder="0,00" />
-      {hint && <span className="small muted">{hint}</span>}
-    </label>
+    <Field label={label} hint={hint && hint}>
+      {(control) => <input {...control} name={name} inputMode="decimal" defaultValue={centsText(value)} placeholder="0,00" />}
+    </Field>
   );
 }
 
@@ -554,35 +553,36 @@ function EstSection({ data }: { data: Data }) {
         >
           {kinder.map((k, index) => (
             <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
-              <label className="field">
-                Vorname
-                <input value={k.vorname} onChange={(e) => updateKind(k.key, { vorname: e.target.value })} required />
-              </label>
-              <label className="field">
-                Geburtsdatum
-                <input type="date" value={k.geburtsdatum} onChange={(e) => updateKind(k.key, { geburtsdatum: e.target.value })} required />
-              </label>
-              <label className="field">
-                Steuer-ID
-                <input inputMode="numeric" value={k.idnr ?? ""} onChange={(e) => updateKind(k.key, { idnr: e.target.value })} />
-              </label>
-              <label className="field">
-                Familienkasse
-                <input required value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
-              </label>
-              <label className="field">
-                Abweichender Nachname
-                <input value={k.name ?? ""} onChange={(e) => updateKind(k.key, { name: e.target.value })} />
-              </label>
-              <label className="field">
-                Kinderbetreuungskosten (€)
-                <input
-                  inputMode="decimal"
-                  value={k.kinderbetreuung}
-                  onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })}
-                  placeholder="0,00"
-                />
-              </label>
+              <Field label="Vorname">
+                {(control) => <input {...control} value={k.vorname} onChange={(e) => updateKind(k.key, { vorname: e.target.value })} required />}
+              </Field>
+              <Field label="Geburtsdatum">
+                {(control) => (
+                  <input {...control} type="date" value={k.geburtsdatum} onChange={(e) => updateKind(k.key, { geburtsdatum: e.target.value })} required />
+                )}
+              </Field>
+              <Field label="Steuer-ID">
+                {(control) => <input {...control} inputMode="numeric" value={k.idnr ?? ""} onChange={(e) => updateKind(k.key, { idnr: e.target.value })} />}
+              </Field>
+              <Field label="Familienkasse">
+                {(control) => (
+                  <input {...control} required value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
+                )}
+              </Field>
+              <Field label="Abweichender Nachname">
+                {(control) => <input {...control} value={k.name ?? ""} onChange={(e) => updateKind(k.key, { name: e.target.value })} />}
+              </Field>
+              <Field label="Kinderbetreuungskosten (€)">
+                {(control) => (
+                  <input
+                    {...control}
+                    inputMode="decimal"
+                    value={k.kinderbetreuung}
+                    onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })}
+                    placeholder="0,00"
+                  />
+                )}
+              </Field>
               <div className="actions" style={{ gridColumn: "1 / -1" }}>
                 <button type="button" className="btn btn-danger" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
                   Kind entfernen

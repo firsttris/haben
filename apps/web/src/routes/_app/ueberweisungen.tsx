@@ -6,6 +6,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { formatDate, formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { createSepaTransferFn, getTransferPage } from "../../server/functions/sepa.ts";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/ueberweisungen")({
   loader: () => getTransferPage(),
@@ -103,20 +104,20 @@ function TransferForm({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-label="SEPA-Überweisung erzeugen">
       <h2 style={{ margin: 0, fontSize: 16 }}>Offene Belege</h2>
       <div className="form-grid">
-        <label className="field">
-          Auftraggeberkonto
-          <select name="account" defaultValue={data.accounts.find((a) => a.purpose === "geschaeft")?.id ?? data.accounts[0]!.id}>
-            {data.accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} · {groupedIban(a.iban)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Ausführungsdatum
-          <input type="date" value={executionDate} min={data.today} required onChange={(e) => setExecutionDate(e.target.value)} />
-        </label>
+        <Field label="Auftraggeberkonto">
+          {(control) => (
+            <select {...control} name="account" defaultValue={data.accounts.find((a) => a.purpose === "geschaeft")?.id ?? data.accounts[0]!.id}>
+              {data.accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} · {groupedIban(a.iban)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Ausführungsdatum">
+          {(control) => <input {...control} type="date" value={executionDate} min={data.today} required onChange={(e) => setExecutionDate(e.target.value)} />}
+        </Field>
       </div>
       {data.candidates.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>

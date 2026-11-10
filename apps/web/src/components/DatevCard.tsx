@@ -4,6 +4,7 @@ import { useState, type FormEvent, type MouseEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveDatevNumbersFn, type getDatevNumbers } from "../server/functions/datev-export.ts";
+import { Field } from "./Field.tsx";
 
 /** DATEV-Buchungsstapel für die Steuerberatung (Einstellungen); Jahre und Nummern kommen aus dem Loader */
 export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaited<ReturnType<typeof getDatevNumbers>> }) {
@@ -57,56 +58,61 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
         Saldenliste in Haben überein; die Umsatzsteuer steht wie im Journal auf eigenen Steuerkonten.
       </p>
       <div className="form-grid">
-        <label className="field">
-          Beraternummer
-          <input
-            value={beraterNr}
-            onChange={(e) => {
-              setBeraterNr(e.target.value.replace(/\D/g, ""));
-              setSaved(false);
-            }}
-            inputMode="numeric"
-            maxLength={7}
-            required
-          />
-        </label>
-        <label className="field">
-          Mandantennummer
-          <input
-            value={mandantNr}
-            onChange={(e) => {
-              setMandantNr(e.target.value.replace(/\D/g, ""));
-              setSaved(false);
-            }}
-            inputMode="numeric"
-            maxLength={5}
-            required
-          />
-        </label>
+        <Field label="Beraternummer">
+          {(control) => (
+            <input
+              {...control}
+              value={beraterNr}
+              onChange={(e) => {
+                setBeraterNr(e.target.value.replace(/\D/g, ""));
+                setSaved(false);
+              }}
+              inputMode="numeric"
+              maxLength={7}
+              required
+            />
+          )}
+        </Field>
+        <Field label="Mandantennummer">
+          {(control) => (
+            <input
+              {...control}
+              value={mandantNr}
+              onChange={(e) => {
+                setMandantNr(e.target.value.replace(/\D/g, ""));
+                setSaved(false);
+              }}
+              inputMode="numeric"
+              maxLength={5}
+              required
+            />
+          )}
+        </Field>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         Beide Nummern bekommst du von deiner Steuerberatung.
       </p>
       <div className="field-group">
-        <label className="field">
-          DATEV-Personenkonten
-          <select
-            value={ab ?? ""}
-            onChange={(e) => {
-              setAb(e.target.value ? Number(e.target.value) : null);
-              setBestaetigt(false);
-              setSaved(false);
-            }}
-            aria-describedby="personenkonten-hint"
-          >
-            <option value="">nicht verwenden (Sammelkonten)</option>
-            {abYears.map((y) => (
-              <option key={y} value={y}>
-                ab {y}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="DATEV-Personenkonten" describedBy="personenkonten-hint">
+          {(control) => (
+            <select
+              {...control}
+              value={ab ?? ""}
+              onChange={(e) => {
+                setAb(e.target.value ? Number(e.target.value) : null);
+                setBestaetigt(false);
+                setSaved(false);
+              }}
+            >
+              <option value="">nicht verwenden (Sammelkonten)</option>
+              {abYears.map((y) => (
+                <option key={y} value={y}>
+                  ab {y}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
         <p id="personenkonten-hint" className="field-hint">
           Statt der Sammelkonten für Forderungen und Verbindlichkeiten steht im Stapel der Debitor des Kunden bzw. der Kreditor des Lieferanten, wie am Kontakt
           eingetragen. Gilt ab Jahresbeginn; ab dem ersten Export ist die Nummer am Kontakt fest.
@@ -124,16 +130,17 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
         </button>
       </div>
       <div className="actions" style={{ alignItems: "flex-end", borderTop: "1px solid var(--line)", paddingTop: 16 }}>
-        <label className="field" style={{ minWidth: 120 }}>
-          Jahr
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Jahr" style={{ minWidth: 120 }}>
+          {(control) => (
+            <select {...control} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
         {saved ? (
           <a className="btn btn-primary" href={`/api/datev/${year}`} download onClick={onDownload}>
             Buchungsstapel herunterladen
