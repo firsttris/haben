@@ -55,6 +55,23 @@ const brand = async (p: Page) => {
 };
 /** Ohne die Glyphen: Der warme Render-Prozess führt sie über die Läufe mit, gesetzt ist dasselbe */
 const gesetzt = async (p: Page) => (await svg(p)).replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "");
+/** Nach dem ersten Bild kann das Formular noch nachziehen; verglichen wird erst, wenn das Blatt zur Ruhe gekommen ist */
+async function ruhigesBlatt(p: Page): Promise<string> {
+  await expect(blatt(p).locator(".sheet-page img").first()).toBeVisible();
+  let davor = "";
+  await expect
+    .poll(
+      async () => {
+        const jetzt = await gesetzt(p);
+        const ruhig = jetzt === davor;
+        davor = jetzt;
+        return ruhig;
+      },
+      { intervals: [800] },
+    )
+    .toBe(true);
+  return davor;
+}
 const fuss = (p: Page) => blatt(p).locator('[data-teil="fuss"]');
 
 async function gestaltungOeffnen(p: Page): Promise<void> {
@@ -128,10 +145,9 @@ test("Das Logo lässt sich im Panel hochladen und entfernen, das Formular bleibt
 test("Schalter wirken auf das Blatt", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await gestaltungOeffnen(page);
-  await expect(blatt(page).locator(".sheet-page img").first()).toBeVisible();
-  const mitMarken = await svg(page);
+  const mitMarken = await ruhigesBlatt(page);
   await panel(page).getByLabel("Falz- und Lochmarken").uncheck();
-  await expect.poll(() => svg(page)).not.toBe(mitMarken);
+  await expect.poll(() => gesetzt(page)).not.toBe(mitMarken);
   await page.context().close();
 });
 
@@ -477,8 +493,7 @@ test("Eine Fußzeile über 400 Zeichen meldet das verständlich auf Deutsch", as
 test("Die Schrift wirkt sofort aufs Blatt", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await gestaltungOeffnen(page);
-  await expect(blatt(page).locator(".sheet-page img").first()).toBeVisible();
-  const ohneWechsel = await gesetzt(page);
+  const ohneWechsel = await ruhigesBlatt(page);
 
   await panel(page).getByLabel("Schrift").selectOption({ label: "IBM Plex Serif" });
   await expect.poll(() => gesetzt(page)).not.toBe(ohneWechsel);
