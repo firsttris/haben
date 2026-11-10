@@ -103,6 +103,8 @@ Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `Fo
 
 ### Vorschau der Belegeditoren
 
+Das Blatt setzt Typst aus derselben Vorlage wie das PDF (`RenderedSheet`), es gibt keinen Nachbau in HTML. Eine Änderung am Aussehen eines Belegs gehört deshalb in die Vorlage unter `packages/einvoice/templates/`. Das Papier bleibt in jedem Theme weiß. Das Bild ersetzt den Text nicht: Für Screenreader steht derselbe Inhalt versteckt daneben (`sheetText`).
+
 `components/DocumentPreview.tsx` ist die Hülle für alle Editoren mit Dokumentvorschau (#357): `useDocumentPreview` hält den Modus, `PreviewButton` ist der Split-Button im Seitenkopf, `PreviewLayout` stellt Formular und Vorschau nebeneinander oder öffnet die Überblendung als `<dialog>`. Ob Anheften geht und was ohne gespeicherte Wahl gilt, entscheidet die Breite des Editors (`previewLayout` in `lib/vorschau.ts`, Mindestbreiten dort und in `.preview-layout`). Die Wahl liegt im `localStorage` (`haben-vorschau`). Die Vorschau steht nur im Dokument, wenn sie zu sehen ist.
 
 ## Barrierefreiheit
@@ -115,7 +117,7 @@ Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an di
 
 - **4px-Raster:** 71 Zeilen in `apps/web/src/**/*.css` haben in `padding`, `margin` oder `gap` (auch `scroll-padding-*`, `row-gap`, `column-gap`) mindestens einen px-Wert, der nicht durch 4 teilbar ist. Bei 19 davon sind das nur 1 oder 2px, die übrigen 52 enthalten 6, 9, 10, 14, 22, 30 oder 78px.
 - **Farben:** 19 Zeilen in `apps/web/src/**/*.css` haben außerhalb von Variablendefinitionen und Kommentaren einen festen Hex-Wert, meist `#fff`, etwa für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
-- **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`. Das Blatt der Belegvorschau (`.sheet`) rechnet seine Schrift mit der Seitenbreite um (`var(--mm)`).
+- **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).
 - **Felder:** 413-mal in 86 Dateien steht noch `<label className="field">`. `Field` nutzen bisher das Kontaktformular und das Feld „Kunde“ im Rechnungseditor; die übrigen stellt ein Folge-Pull-Request um.
 - **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `‹` und `›` an Blätter-Knöpfen (`components/archiv/DatevBookings.tsx`, `routes/_app/auswertungen.tsx`, `routes/_app/buchungen/index.tsx`, `routes/_app/belege/$id.tsx`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.
