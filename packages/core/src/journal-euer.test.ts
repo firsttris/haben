@@ -10,9 +10,11 @@ import {
   ACCOUNTS,
   directPosting,
   documentPosting,
+  documentWriteOffPosting,
   exchangeDifferencePosting,
   EXPENSE_CATEGORY_KEYS,
   invoicePosting,
+  invoiceWriteOffPosting,
   type Kontenrahmen,
   type PostingLine,
 } from "./posting.ts";
@@ -100,6 +102,16 @@ describe.each(KONTENRAHMEN)("EÜR-Zeilen aus dem Journal wie computeEuer (%s)", 
       );
     });
 
+    // TDD-Review #557: Seit #551 steht die nicht abziehbare Steuer nach § 13b als eigene Zeile (keineVSt) auf dem
+    // Aufwandskonto; computeEuer zählt sie nicht als Ausgabe, sie geht mit der Voranmeldung ans Finanzamt
+    it.each(["eu", "drittland"] as const)("§ 13b ohne Vorsteuerabzug (%s): Ausgabe netto, die selbst geschuldete Steuer wirkt nicht", (rc) => {
+      const t = { ...totals({ rate: 1900, base: 20_000 }), gross: 20_000 };
+      const ohneSteuer = { ...t, tax: 0, taxes: t.taxes.map((r) => ({ ...r, tax: 0 })) };
+      expect(ausJournal(kr, documentPosting(t, "software", kr, "einzelunternehmen", "bank", false, undefined, 0, rc))).toEqual(
+        erwartet([{ kind: "document", date: DATUM, paid: ohneSteuer.gross, totals: ohneSteuer, category: "software", vorsteuerAbzug: false }]),
+      );
+    });
+
     it("Einfuhrumsatzsteuer ist Vorsteuer", () => {
       const t = totals({ rate: 0, base: 1_900 });
       expect(ausJournal(kr, documentPosting(t, "einfuhrumsatzsteuer", kr, "einzelunternehmen", "bank"))).toEqual(
@@ -146,6 +158,14 @@ describe.each(KONTENRAHMEN)("EÜR-Zeilen aus dem Journal wie computeEuer (%s)", 
 
     it.each(["lohn", "lohnsteuer", "sozialversicherung"] as const)("Zahlung aus der Lohnabrechnung (%s) ist Personal", (kind) => {
       expect(ausJournal(kr, directPosting(kind, -100_000, kr, "einzelunternehmen"))).toEqual(erwartet([{ kind: "lohn", date: DATUM, amount: -100_000 }]));
+    });
+
+    // TDD-Review #557: computeEuer kennt Skonto und Forderungsausfall nicht, es zählt nur, was gezahlt wird
+    it("Ausbuchungen (Skonto gewährt, Forderungsausfall, Skonto erhalten) wirken nicht", () => {
+      const t = totals({ rate: 1900, base: 100_000 });
+      expect(ausJournal(kr, invoiceWriteOffPosting("skonto", t, 2_380, kr, "soll"))).toEqual(erwartet([]));
+      expect(ausJournal(kr, invoiceWriteOffPosting("forderungsausfall", t, 2_380, kr, "ist"))).toEqual(erwartet([]));
+      expect(ausJournal(kr, documentWriteOffPosting(t, -238, kr, true))).toEqual(erwartet([]));
     });
 
     it("Kursdifferenz: Aufwand und Ertrag", () => {
