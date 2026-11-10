@@ -24,16 +24,11 @@ import { abziehbareNebenleistungen, nichtAbziehbareNebenleistungen, STEUER_KONTE
  * wirkt als Ganzes nicht, in der EÜR zählt nur, was gezahlt wird; in einer Buchung mit § 13b oder Erwerb wirkt die nicht
  * abziehbare Steuer (keineVSt) nicht, sie geht mit der Voranmeldung ans Finanzamt.
  *
- * Offen für Schritt 5b, weil die Buchung allein nicht reicht:
- * - Zahlung und ihre Gegenbuchung (aufgehobene Zuordnung) verrechnet computeEuer je Gruppe, bevor es nach gezahlter und
- *   erstatteter Umsatzsteuer trennt; 5b verrechnet sie über den Verweis auf die aufgehobene Buchung.
- * - Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege: Deren Eröffnungsbuchung steht gegen den Saldenvortrag
- *   ohne Erlös- bzw. Aufwandszeilen; 5b braucht Summen und Kategorie aus dem Nebenbuch.
- * - Gebühren eines Darlehens stehen auf einem Konto, die EÜR trennt sie nach dem Zweck des Darlehens (Anlagevermögen oder
- *   nicht); hier zählen sie als übrige Schuldzinsen.
- * - Die Kategorie „Hardware (GWG)“ bucht auf das GWG-Konto (SKR03 0480, SKR04 0670), das auch ein Anlagegut als GWG
- *   anspricht; hier zählt es als Ausgabe „Hardware“, ein Anlagegut darauf wirkt aber nur über die AfA. 5b unterscheidet
- *   über die Kategorie des Belegs.
+ * Was die Buchung allein nicht sagt, gibt der Aufrufer als Herkunft mit: Gebühren eines Darlehens stehen auf einem Konto,
+ * die EÜR trennt sie nach dem Zweck (Herkunft „darlehenAnlagevermoegen“); das GWG-Konto (SKR03 0480, SKR04 0670) ist bei
+ * einem Beleg die Kategorie „Hardware“, bei einer Anlage (Herkunft „anlage“ bzw. „asset“) Anlagevermögen ohne Wirkung.
+ *
+ * Eine Zahlung auf eine Rechnung oder einen Beleg verteilt `zahlungsAnteil` auf deren Zeilen (#542, Schritt 5b).
  */
 
 /** Zeilen der EÜR, deren Betrag eine Einnahme ist (Haben − Soll); alle übrigen sind Ausgaben (Soll − Haben) */
@@ -53,8 +48,11 @@ const SELBST_GESCHULDET: ReadonlySet<string> = new Set(["RC13bEU", "RC13bDrittla
 /** Was eine Zeile in der EÜR bewirkt, außer einer festen Zeile: Umsatzsteuer an das bzw. vom Finanzamt, nachrichtlich */
 export type EuerZuordnung = EuerLineKey | "ustZahlung" | "nichtAbziehbar";
 
-/** Herkunft der Buchung, soweit sie die Zuordnung ändert */
-export type EuerHerkunft = "pauschale" | "asset" | "sonst";
+/**
+ * Herkunft der Buchung, soweit sie die Zuordnung ändert: „anlage“ ist ein Beleg der Kategorie Anlage, „asset“ eine Buchung
+ * des Anlagenverzeichnisses, „darlehenAnlagevermoegen“ eine Zahlung auf ein Darlehen für Anlagevermögen
+ */
+export type EuerHerkunft = "pauschale" | "asset" | "anlage" | "darlehenAnlagevermoegen" | "sonst";
 
 /**
  * Die EÜR-Zeile eines Kontos, oder null, wenn es in der EÜR nicht wirkt (Bank, Kasse, Forderungen, Verbindlichkeiten,
@@ -86,6 +84,8 @@ export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herku
   if (account === privat.mitUst || account === privat.ohneUst) return "privateKfz";
   // Anlagen: AfA, GWG, Sammelposten, Restbuchwert; die Anschaffung selbst wirkt nicht
   const anlage = ASSET_ACCOUNTS[kontenrahmen];
+  // Das GWG-Konto ist bei einer Anlage Anlagevermögen, bei einem Beleg die Kategorie „Hardware“ (unten)
+  if ((herkunft === "asset" || herkunft === "anlage") && account === anlage.gwg) return null;
   if (account === anlage.afa || account === anlage.afaKfz) return "afa";
   if (account === anlage.afaGwg) return "gwg";
   if (account === anlage.afaSammelposten) return "sammelposten";
@@ -96,7 +96,8 @@ export function euerZuordnung(kontenrahmen: Kontenrahmen, account: string, herku
   // Darlehen: Zinsen und Gebühren
   const darlehen = DARLEHEN_KONTEN[kontenrahmen];
   if (account === darlehen.zinsenAnlagevermoegen) return "schuldzinsenAnlage";
-  if (account === darlehen.zinsenKurzfristig || account === darlehen.zinsenLangfristig || account === darlehen.gebuehren) return "schuldzinsen";
+  if (account === darlehen.gebuehren) return herkunft === "darlehenAnlagevermoegen" ? "schuldzinsenAnlage" : "schuldzinsen";
+  if (account === darlehen.zinsenKurzfristig || account === darlehen.zinsenLangfristig) return "schuldzinsen";
   // Personal: Aufwand der Lohnabrechnung und, bei der Zahlung, die Verbindlichkeiten daraus
   const lohn = LOHN_KONTEN[kontenrahmen];
   if (Object.values(lohn).includes(account as never)) return "personal";
@@ -159,4 +160,75 @@ export function euerAusZeilen(
     }
   }
   return summe;
+}
+
+export type EuerJournalZeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
+
+const sollSaldo = (z: EuerJournalZeile) => z.debit - z.credit;
+const alsZeile = (z: EuerJournalZeile, saldo: Cents): EuerJournalZeile => ({ ...z, debit: saldo > 0 ? saldo : 0, credit: saldo < 0 ? -saldo : 0 });
+
+/** Rest auf die Zeile mit dem größten Betrag, sodass die Anteile genau `ziel` ergeben (wie paidTaxShares) */
+function mitRest(anteile: Cents[], betraege: Cents[], ziel: Cents): Cents[] {
+  if (anteile.length === 0) return anteile;
+  const groesste = betraege.reduce((best, b, i) => (Math.abs(b) > Math.abs(betraege[best]!) ? i : best), 0);
+  const rest = ziel - anteile.reduce((s, a) => s + a, 0);
+  return anteile.map((a, i) => (i === groesste ? a + rest : a));
+}
+
+/**
+ * Anteil (Soll − Haben) jeder Zeile, wenn `bezahlt` von `gesamt` ausgeglichen ist, gerundet wie paidTaxShares: erst die
+ * Steuer, das Übrige ist Netto, der Rest auf die größte Zeile. Für den Anteil einer Zahlung gegen das schon Erfasste
+ * (wie settlementTaxShares) zieht der Aufrufer die bisherigen Anteile ab.
+ */
+export function zahlungsStand(kontenrahmen: Kontenrahmen, zeilen: readonly EuerJournalZeile[], gesamt: Cents, bezahlt: Cents): Cents[] {
+  if (gesamt === 0) return zeilen.map(() => 0);
+  const anteil = (v: Cents) => roundHalfAwayFromZero((v * bezahlt) / gesamt);
+  const istSteuer = zeilen.map((z) => {
+    const zuordnung = euerZuordnung(kontenrahmen, z.account);
+    return zuordnung === "vereinnahmteUst" || zuordnung === "vorsteuer";
+  });
+  const gruppe = (steuer: boolean) => zeilen.map((z, i) => ({ i, saldo: sollSaldo(z) })).filter((x) => istSteuer[x.i] === steuer);
+  const steuer = gruppe(true);
+  const netto = gruppe(false);
+  const steuerSumme = anteil(steuer.reduce((s, x) => s + x.saldo, 0));
+  // Die Zeilen ohne offenen Posten ergeben zusammen −gesamt; ihr Anteil −bezahlt
+  const nettoSumme = -bezahlt - steuerSumme;
+  const ergebnis: Cents[] = zeilen.map(() => 0);
+  for (const [teil, summe] of [
+    [steuer, steuerSumme],
+    [netto, nettoSumme],
+  ] as const) {
+    const werte = mitRest(
+      teil.map((x) => anteil(x.saldo)),
+      teil.map((x) => x.saldo),
+      summe,
+    );
+    teil.forEach((x, k) => {
+      ergebnis[x.i] = werte[k]!;
+    });
+  }
+  return ergebnis;
+}
+
+/**
+ * Anteil einer Zahlung (oder Ausbuchung) an den Zeilen der Buchung, die sie ausgleicht (#542, Schritt 5b). `zeilen` sind die
+ * Zeilen ohne offenen Posten (ohne Forderungen bzw. Verbindlichkeiten), `gesamt` der offene Posten der Buchung (Soll − Haben,
+ * bei einer Rechnung positiv), `betrag` der ausgeglichene Teil mit demselben Vorzeichen, `bisher` was frühere Zahlungen
+ * schon ausgeglichen haben.
+ *
+ * Gerundet wie die Nebenbücher: erst die Steuer anteilig, das Übrige ist Netto, der Rest auf die größte Zeile
+ * (paidTaxShares). Mit `bisher` wie settlementTaxShares: der Anteil am dann Ausgeglichenen abzüglich des Anteils davor,
+ * sodass alle Zahlungen zusammen genau die Zeilen der Buchung ergeben.
+ */
+export function zahlungsAnteil(
+  kontenrahmen: Kontenrahmen,
+  zeilen: readonly EuerJournalZeile[],
+  gesamt: Cents,
+  betrag: Cents,
+  bisher: Cents = 0,
+): EuerJournalZeile[] {
+  if (gesamt === 0) return [];
+  const danach = zahlungsStand(kontenrahmen, zeilen, gesamt, bisher + betrag);
+  const davor = bisher === 0 ? zeilen.map(() => 0) : zahlungsStand(kontenrahmen, zeilen, gesamt, bisher);
+  return zeilen.map((z, i) => alsZeile(z, danach[i]! - davor[i]!));
 }

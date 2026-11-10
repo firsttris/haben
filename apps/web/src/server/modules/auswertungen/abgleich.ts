@@ -9,7 +9,9 @@ import {
   DARLEHEN_KONTEN,
   abziehbareNebenleistungen,
   nichtAbziehbareNebenleistungen,
+  EUER_LABELS,
   type Cents,
+  type EuerLineKey,
   type Kontenrahmen,
   type PauschaleArt,
   formatEuro,
@@ -21,6 +23,7 @@ import { and, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
+import { euerAusJournal } from "./euer-journal.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
 
@@ -32,8 +35,10 @@ import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts
  * Verglichen wird, was sich im Journal eindeutig wiederfindet:
  * - Umsatzsteuer: je Monat die Steuerkonten gegen die Kennzahlen der Voranmeldung, ohne Privatnutzung von Fahrzeugen
  *   (deren Umsatzsteuer bucht erst die AfA im Dezember; sie wird mit der EÜR verglichen, sobald das Jahr gebucht ist).
- * - EÜR: Pauschalen, Umsatzsteuer-Vorauszahlungen und Erstattungen, AfA und Privatnutzung. Einnahmen und Ausgaben
- *   stehen in der EÜR nach Zahlung, im Journal nach Rechnungs- bzw. Belegdatum; sie lassen sich nicht 1:1 vergleichen.
+ * - EÜR: Pauschalen, Umsatzsteuer-Vorauszahlungen und Erstattungen, AfA und Privatnutzung; Einnahmen, Umsatzsteuer,
+ *   Vorsteuer, Personal und Ausgaben je Kategorie nach Zahlung aus dem Journal (euer-journal.ts, #542): Jede Zahlung wird
+ *   anteilig auf die Rechnung bzw. den Beleg verteilt, die sie ausgleicht. Ausnahme: Zahlungen auf aus Lexoffice
+ *   übernommene Rechnungen und Belege, deren Buchung keine Erlös- und Aufwandszeilen hat.
  */
 
 export interface AbgleichZeile {
@@ -142,6 +147,16 @@ function vatRows(
   ];
 }
 
+/** Zeilen der EÜR nach Zahlung, die nur der Abgleich aus dem Journal prüft (dazu die Ausgaben je Kategorie) */
+const NACH_ZAHLUNG: EuerLineKey[] = [
+  "einnahmenKleinunternehmer",
+  "einnahmenSteuerpflichtig",
+  "einnahmenSteuerfrei",
+  "vereinnahmteUst",
+  "vorsteuer",
+  "personal",
+];
+
 const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-01-01` });
 
 /** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
@@ -216,6 +231,29 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const kurs = saldo(sums, (kr) => [ACCOUNTS[kr].kursAufwand, ACCOUNTS[kr].kursErtrag]);
   const kursQuelle = line("kursverluste") - line("kursgewinne");
   if (kurs !== 0 || kursQuelle !== 0) zeilen.push(row("Kursdifferenzen (Aufwand abzüglich Ertrag)", kurs, kursQuelle));
+
+  // Einnahmen und Ausgaben nach Zahlung, aus dem Journal mit jeder Zahlung anteilig auf die ausgeglichene Buchung
+  const ausJournal = await euerAusJournal(year, q);
+  if (ausJournal.uebernommen > 0) {
+    hinweise.push(
+      `${ausJournal.uebernommen === 1 ? "Eine Zahlung" : `${ausJournal.uebernommen} Zahlungen`} ${year} auf aus Lexoffice übernommene Rechnungen bzw. Belege: Einnahmen und Ausgaben werden für ${year} nicht je Zeile abgeglichen.`,
+    );
+  } else {
+    const label = (key: EuerLineKey) =>
+      [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??
+      (key.startsWith("ausgabe:") ? EXPENSE_CATEGORIES[key.slice(8) as keyof typeof EXPENSE_CATEGORIES].label : EUER_LABELS[key as keyof typeof EUER_LABELS]);
+    const journalZeile = (key: EuerLineKey) => ausJournal.summe.zeilen[key] ?? 0;
+    const keys = new Set<EuerLineKey>([...NACH_ZAHLUNG]);
+    for (const key of [...Object.keys(ausJournal.summe.zeilen), ...euer.ausgaben.map((l) => l.key)] as EuerLineKey[]) {
+      if (key.startsWith("ausgabe:")) keys.add(key);
+    }
+    for (const key of keys) {
+      if (journalZeile(key) !== 0 || line(key) !== 0) zeilen.push(row(`EÜR: ${label(key)}`, journalZeile(key), line(key)));
+    }
+    if (ausJournal.summe.bewirtungNichtAbziehbar !== 0 || euer.bewirtungNichtAbziehbar !== 0) {
+      zeilen.push(row("EÜR: Bewirtung, nicht abziehbarer Teil", ausJournal.summe.bewirtungNichtAbziehbar, euer.bewirtungNichtAbziehbar));
+    }
+  }
 
   // AfA und Privatnutzung stehen erst im Journal, wenn das Jahr gebucht ist
   const pending = (await listAssets(year, q)).filter((a) => a.pending).length;

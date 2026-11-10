@@ -1,0 +1,40 @@
+﻿Datum,Art,Titel,Info,Währung,Betrag,Gebühren & Steuern,Netto,Steuerliche Angaben
+05. November 2026,Fee,Transaction fee: Shipping,Order #XXX-001,EUR,--,-€0.08,-€0.08,--
+05. November 2026,Fee,Processing fee,Order #XXX-001,EUR,--,-€0.65,-€0.65,--
+05. November 2026,Fee,Transaction fee: Produkt A,Order #XXX-001,EUR,--,-€0.49,-€0.49,--
+05. November 2026,Sale,Payment for Order #XXX-001,,EUR,€8.73,--,€8.73,--
+05. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-A,EUR,--,-€0.18,-€0.18,--
+05. November 2026,Marketing,Etsy Ads,"Bill for click-throughs to your shop on Nov 4, 2026",EUR,--,-€0.46,-€0.46,--
+04. November 2026,Marketing,Gebühr für Verkauf über Offsite Ads,Bestellnr. XXX-002,EUR,--,-€1.31,-€1.31,--
+04. November 2026,Fee,Transaction fee: Shipping,Order #XXX-002,EUR,--,-€0.08,-€0.08,--
+04. November 2026,Fee,Transaction fee: Produkt A,Order #XXX-002,EUR,--,-€0.49,-€0.49,--
+04. November 2026,Fee,Processing fee,Order #XXX-002,EUR,--,-€0.65,-€0.65,--
+04. November 2026,Sale,Payment for Order #XXX-002,,EUR,€8.73,--,€8.73,--
+04. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-A,EUR,--,-€0.18,-€0.18,--
+04. November 2026,Marketing,Etsy Ads,"Bill for click-throughs to your shop on Nov 3, 2026",EUR,--,-€0.54,-€0.54,--
+03. November 2026,Marketing,Gebühr für Verkauf über Offsite Ads,Bestellnr. XXX-003,EUR,--,-€1.31,-€1.31,--
+03. November 2026,Fee,Transaction fee: Shipping,Order #XXX-003,EUR,--,-€0.08,-€0.08,--
+03. November 2026,Fee,Transaction fee: Produkt A,Order #XXX-003,EUR,--,-€0.49,-€0.49,--
+03. November 2026,Fee,Processing fee,Order #XXX-003,EUR,--,-€0.65,-€0.65,--
+03. November 2026,Sale,Payment for Order #XXX-003,,EUR,€8.73,--,€8.73,--
+03. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-A,EUR,--,-€0.18,-€0.18,--
+03. November 2026,Fee,Transaction fee: Shipping,Order #XXX-004,EUR,--,-€0.21,-€0.21,--
+03. November 2026,Fee,Transaction fee: Produkt B,Order #XXX-004,EUR,--,-€1.30,-€1.30,--
+03. November 2026,Fee,Processing fee,Order #XXX-004,EUR,--,-€1.23,-€1.23,--
+03. November 2026,Sale,Payment for Order #XXX-004,,EUR,€23.30,--,€23.30,--
+03. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-B,EUR,--,-€0.18,-€0.18,--
+03. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-B,EUR,--,-€0.18,-€0.18,--
+03. November 2026,Marketing,Etsy Ads,"Bill for click-throughs to your shop on Nov 2, 2026",EUR,--,-€0.47,-€0.47,--
+02. November 2026,Überweisung,€69.75 an dein Bankkonto überwiesen,,EUR,--,--,--,--
+02. November 2026,Marketing,Etsy Ads,"Bill for click-throughs to your shop on Nov 1, 2026",EUR,--,-€0.47,-€0.47,--
+01. November 2026,Fee,Transaction fee: Shipping,Order #XXX-005,EUR,--,-€0.08,-€0.08,--
+01. November 2026,Fee,Transaction fee: Produkt A,Order #XXX-005,EUR,--,-€0.49,-€0.49,--
+01. November 2026,Fee,Processing fee,Order #XXX-005,EUR,--,-€0.65,-€0.65,--
+01. November 2026,Sale,Payment for Order #XXX-005,,EUR,€8.73,--,€8.73,--
+01. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-A,EUR,--,-€0.18,-€0.18,--
+01. November 2026,Marketing,Gebühr für Verkauf über Offsite Ads,Bestellnr. XXX-006,EUR,--,-€1.31,-€1.31,--
+01. November 2026,Fee,Transaction fee: Shipping,Order #XXX-006,EUR,--,-€0.08,-€0.08,--
+01. November 2026,Fee,Transaction fee: Produkt A,Order #XXX-006,EUR,--,-€0.49,-€0.49,--
+01. November 2026,Fee,Processing fee,Order #XXX-006,EUR,--,-€0.65,-€0.65,--
+01. November 2026,Sale,Payment for Order #XXX-006,,EUR,€8.73,--,€8.73,--
+01. November 2026,Fee,"Einstellgebühr (0,20 USD)",Artikel Nr. XXX-A,EUR,--,-€0.18,-€0.18,--
