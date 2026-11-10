@@ -37,6 +37,7 @@ import {
 } from "../../server/functions/bank.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
+import { ExcludeAccountButton, ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
@@ -235,7 +236,13 @@ function BankPage() {
           </nav>
           {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
           {selectedAccount && (
-            <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} ledger={data.ledgers[selectedAccount.id]} />
+            <AccountSettings
+              key={selectedAccount.id}
+              account={selectedAccount}
+              purposes={data.purposes}
+              ledger={data.ledgers[selectedAccount.id]}
+              excludeBlockedBy={data.excludeBlockedBy}
+            />
           )}
 
           <div className="grid-main">
@@ -315,6 +322,8 @@ function BankPage() {
           </div>
         </>
       )}
+
+      <ExcludedAccounts accounts={data.excludedAccounts} />
     </>
   );
 }
@@ -328,7 +337,17 @@ const PURPOSE_SHORT = {
 } as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
-function AccountSettings({ account, purposes, ledger }: { account: Data["accounts"][number]; purposes: Data["purposes"]; ledger: string | undefined }) {
+function AccountSettings({
+  account,
+  purposes,
+  ledger,
+  excludeBlockedBy,
+}: {
+  account: Data["accounts"][number];
+  purposes: Data["purposes"];
+  ledger: string | undefined;
+  excludeBlockedBy: string | null;
+}) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const updateFn = useServerFn(updateBankAccount);
@@ -347,6 +366,7 @@ function AccountSettings({ account, purposes, ledger }: { account: Data["account
         <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
           Name und Zweck
         </button>
+        <ExcludeAccountButton account={account} blockedBy={excludeBlockedBy} />
       </div>
     );
   }
