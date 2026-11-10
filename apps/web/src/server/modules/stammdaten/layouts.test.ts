@@ -1,12 +1,13 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildEInvoice, packageCacheRoot, startvorlage } from "@haben/einvoice";
+import { buildEInvoice, startvorlage } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { sampleDocument } from "../../../../../../packages/einvoice/src/samples.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { fakeUniverse, paketArchiv, tarEintrag } from "./test-paket.ts";
 
 const hasPoppler = spawnSync("pdftotext", ["-v"]).status === 0;
 
@@ -20,18 +21,16 @@ function pdfText(pdf: Uint8Array): string {
   }
 }
 
-/** Ein Paket @preview/demo, wie Typst es im Cache ablegt; steht für den Download aus dem Netz */
-const demoPaket = async (cacheDir: string, packages: readonly { name: string; version: string }[]) => {
-  for (const { version } of packages) {
-    const dir = join(packageCacheRoot(cacheDir), "preview", "demo", version);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, "typst.toml"),
-      `[package]\nname = "demo"\nversion = "${version}"\nentrypoint = "lib.typ"\nauthors = ["Test"]\nlicense = "MIT"\ndescription = "Test"\n`,
-    );
-    writeFileSync(join(dir, "lib.typ"), "#let marke() = text(8pt)[AUS DEM PAKET]");
-  }
-};
+/** Typst Universe im Test: @preview/demo in zwei Versionen, 0.3.0 braucht @preview/hilfe */
+const demoLib = "#let marke() = text(8pt)[AUS DEM PAKET]";
+const universum = (extra: Record<string, Buffer> = {}) =>
+  fakeUniverse({
+    "@preview/demo:0.1.0": paketArchiv("demo", "0.1.0", demoLib),
+    "@preview/demo:0.2.0": paketArchiv("demo", "0.2.0", demoLib),
+    "@preview/demo:0.3.0": paketArchiv("demo", "0.3.0", `#import "@preview/hilfe:1.0.0": x\n${demoLib}`),
+    "@preview/hilfe:1.0.0": paketArchiv("hilfe", "1.0.0", "#let x = 1"),
+    ...extra,
+  });
 
 /** Die eingebaute Vorlage mit einem Erkennungszeichen auf dem Blatt */
 const eigene = (art: "beleg" | "mahnung", zeichen = "EIGENES LAYOUT") => `${startvorlage(art)}\n#place(top + left, dx: 5mm, dy: 5mm, text(8pt)[${zeichen}])\n`;
@@ -88,16 +87,33 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     await expect(anlegen({ name: "Lang", art: "beleg", source: "#{ for i in range(4000000000) { } }" })).rejects.toThrow(/Zeitlimit/);
   }, 60_000);
 
-  it("fragt bei Paketen erst nach und speichert und lädt nichts ohne Freigabe", async () => {
-    let geladen = 0;
-    const result = await layouts.createLayout(actor, { name: "Paket", art: "beleg", source: mitPaket }, { download: async () => void geladen++ });
+  it("fragt bei Paketen erst nach und speichert nichts ohne Freigabe", async () => {
+    const vorlagen = join(process.env.DOCUMENTS_DIR!, "vorlagen");
+    const vorher = existsSync(vorlagen) ? readdirSync(vorlagen) : [];
+    const result = await layouts.createLayout(actor, { name: "Paket", art: "beleg", source: mitPaket }, { fetch: universum() });
     expect(result).toEqual({ needsApproval: ["@preview/demo:0.1.0"] });
-    expect(geladen).toBe(0);
     expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
+    expect(existsSync(vorlagen) ? readdirSync(vorlagen) : []).toEqual(vorher);
   });
 
+  it("nennt in der Rückfrage auch die Abhängigkeiten und verlangt die Freigabe aller", async () => {
+    const source = mitPaket.replaceAll("demo:0.1.0", "demo:0.3.0");
+    const fetch = universum();
+    const alle = ["@preview/demo:0.3.0", "@preview/hilfe:1.0.0"];
+    expect(await layouts.createLayout(actor, { name: "Tief", art: "beleg", source }, { fetch })).toEqual({ needsApproval: alle });
+    expect(await layouts.createLayout(actor, { name: "Tief", art: "beleg", source, approve: ["@preview/demo:0.3.0"] }, { fetch })).toEqual({
+      needsApproval: alle,
+    });
+    const { id } = await anlegen({ name: "Tief", art: "beleg", source, approve: alle }, { fetch });
+    const [row] = await sql`select packages from beleg_layouts where id = ${id}`;
+    expect(row?.packages).toEqual([
+      { name: "@preview/demo", version: "0.3.0" },
+      { name: "@preview/hilfe", version: "1.0.0" },
+    ]);
+  }, 60_000);
+
   it("lädt freigegebene Pakete in den Cache des Layouts und setzt danach ohne Netz", async () => {
-    const { id } = await anlegen({ name: "Mit Paket", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: demoPaket });
+    const { id } = await anlegen({ name: "Mit Paket", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: universum() });
     const [row] = await sql`select packages, approved_sha256 = sha256 as frei from beleg_layouts where id = ${id}`;
     expect(row).toMatchObject({ packages: [{ name: "@preview/demo", version: "0.1.0" }], frei: true });
     await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
@@ -105,26 +121,28 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     expect(pdfText(pdf)).toContain("AUS DEM PAKET");
   }, 60_000);
 
-  it("ein Layout sieht den Paket-Cache eines anderen nicht", async () => {
-    await anlegen({ name: "Hat Paket", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: demoPaket });
-    // Freigegeben, aber der Download legt nichts ab: Der Cache des ersten Layouts hilft nicht
-    await expect(
-      anlegen({ name: "Ohne Cache", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: async () => {} }),
-    ).rejects.toThrow(/Paket @preview\/demo:0\.1\.0 ist nicht freigegeben oder fehlt im Cache/);
+  it("ein zusammengesetzter Paketname findet den Cache eines anderen Layouts nicht", async () => {
+    await anlegen({ name: "Hat Paket", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: universum() });
+    // Ohne erkennbaren Import gibt es keine Rückfrage und keinen Cache; das Setzen scheitert ohne Netz
+    const versteckt = mitPaket.replace('#import "@preview/demo:0.1.0"', '#import "@preview/" + "demo:0.1.0"');
+    await expect(anlegen({ name: "Versteckt", art: "beleg", source: versteckt })).rejects.toThrow(
+      /Paket @preview\/demo:0\.1\.0 ist nicht freigegeben oder fehlt im Cache/,
+    );
   }, 60_000);
 
   it("meldet einen fehlenden Cache und lädt nur auf Zuruf nach", async () => {
-    const { id } = await anlegen({ name: "Restore", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: demoPaket });
+    const { id } = await anlegen({ name: "Restore", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: universum() });
     rmSync(join(process.env.DOCUMENTS_DIR!, "vorlagen", id, "pakete"), { recursive: true, force: true });
     expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(true);
-    await layouts.reloadPackages(id, { download: demoPaket });
+    await layouts.reloadPackages(id, { fetch: universum() });
     expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
   }, 60_000);
 
   it("ein geänderter Quelltext fragt neu", async () => {
-    const { id } = await anlegen({ name: "Ändern", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: demoPaket });
+    const fetch = universum();
+    const { id } = await anlegen({ name: "Ändern", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch });
     const anders = mitPaket.replaceAll("demo:0.1.0", "demo:0.2.0");
-    expect(await layouts.replaceLayoutSource(actor, id, anders, ["@preview/demo:0.1.0"], { download: demoPaket })).toEqual({
+    expect(await layouts.replaceLayoutSource(actor, id, anders, ["@preview/demo:0.1.0"], { fetch })).toEqual({
       needsApproval: ["@preview/demo:0.2.0"],
     });
   }, 60_000);
@@ -145,12 +163,9 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     await expect(anlegen({ name: "Platz drei", art: "mahnung", source: eigene("mahnung") }, { limits })).rejects.toThrow(/höchstens 1 MB frei/);
     // Pakete zählen mit: Ein großer Download macht das Layout zu groß, und es bleibt nichts liegen
     await sql`truncate beleg_layouts`;
-    const gross = async (cacheDir: string, packages: readonly { name: string; version: string }[]) => {
-      await demoPaket(cacheDir, packages);
-      writeFileSync(join(packageCacheRoot(cacheDir), "preview", "demo", "0.1.0", "ballast.bin"), Buffer.alloc(quelltext * 3));
-    };
+    const gross = universum({ "@preview/demo:0.1.0": paketArchiv("demo", "0.1.0", demoLib, [tarEintrag("./ballast.bin", Buffer.alloc(quelltext * 3))]) });
     await expect(
-      anlegen({ name: "Zu groß", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { download: gross, limits: { maxBytes: quelltext * 3 } }),
+      anlegen({ name: "Zu groß", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: gross, limits: { maxBytes: quelltext * 3 } }),
     ).rejects.toThrow(/frei, mit diesem Layout wären es mehr/);
     expect(await sql`select 1 from beleg_layouts`).toHaveLength(0);
   }, 60_000);

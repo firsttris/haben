@@ -6,19 +6,16 @@ import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import { checkLayout, LayoutError, MAX_LAYOUT_BYTES, packagesIn, typstMeldung } from "./layout-pruefung.ts";
+import { clearPackages, directorySize, dropRenderer, packageCache, packagesPresent, rendererFor, samePackages } from "./layout-pakete.ts";
 import {
-  clearPackages,
-  directorySize,
-  downloadPackages,
-  dropRenderer,
   type LayoutPackage,
-  type PackageDownloader,
-  packageCache,
+  type PackageFetcher,
   packageSpec,
-  packagesPresent,
-  rendererFor,
-  samePackages,
-} from "./layout-pakete.ts";
+  type ResolvedPackage,
+  resolvePackages,
+  universeFetcher,
+  writePackages,
+} from "./paket-download.ts";
 import { customLayoutJob, dataForVersion } from "./layout-renderer.ts";
 import { loadDesign } from "./letterhead.ts";
 
@@ -97,7 +94,8 @@ export interface LayoutLimits {
 }
 
 export interface LayoutDeps {
-  download?: PackageDownloader;
+  /** Archiv eines Pakets holen; ohne Angabe aus Typst Universe */
+  fetch?: PackageFetcher;
   limits?: LayoutLimits;
 }
 
@@ -130,11 +128,13 @@ async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: stri
   }
 }
 
-/** Nach dem Laden der Pakete steht fest, wie groß das Layout wirklich ist; zu groß, dann bleibt nichts liegen */
-async function checkSizeAfterDownload(limits: LayoutLimits, id: string, bytes: number, replacing?: string) {
-  if (limits.maxBytes === undefined) return;
+/** Schreibt die geladenen Pakete in einen frischen Cache und prüft das Layout damit; bei einem Fehler bleibt kein Cache */
+async function prepare(id: string, source: string, art: LayoutArt, packages: readonly ResolvedPackage[]) {
+  await clearPackages(id);
+  await dropRenderer(id);
   try {
-    await checkLimits({ maxBytes: limits.maxBytes }, bytes + (await directorySize(await packageCache(id))), replacing);
+    if (packages.length > 0) await writePackages(await packageCache(id), packages);
+    await checkLayout({ id, source, art }, await rendererFor({ id, packages }));
   } catch (error) {
     await clearPackages(id);
     await dropRenderer(id);
@@ -142,24 +142,23 @@ async function checkSizeAfterDownload(limits: LayoutLimits, id: string, bytes: n
   }
 }
 
-/** Lädt freigegebene Pakete in einen frischen Cache und prüft das Layout damit; bei einem Fehler bleibt kein Cache */
-async function prepare(id: string, source: string, art: LayoutArt, packages: LayoutPackage[], download: PackageDownloader) {
-  await clearPackages(id);
-  await dropRenderer(id);
-  try {
-    if (packages.length > 0) {
-      try {
-        await download(await packageCache(id), packages);
-      } catch (error) {
-        throw new LayoutError(`Die Pakete ließen sich nicht laden: ${typstMeldung(error)}`);
-      }
-    }
-    await checkLayout({ id, source, art }, await rendererFor({ id, packages }));
-  } catch (error) {
-    await clearPackages(id);
-    await dropRenderer(id);
-    throw error;
-  }
+const plain = (packages: readonly ResolvedPackage[]): LayoutPackage[] => packages.map(({ name, version }) => ({ name, version }));
+const packageBytes = (packages: readonly ResolvedPackage[]) => packages.reduce((sum, p) => sum + p.bytes, 0);
+
+/**
+ * Pakete samt Abhängigkeiten laden (nur in den Speicher) und gegen die Freigabe halten: Ohne genau diese Liste als approve
+ * kommt die Liste zurück, und nichts ist gespeichert.
+ */
+async function approvedPackages(
+  source: string,
+  approve: readonly string[] | undefined,
+  fetch: PackageFetcher,
+): Promise<{ packages: ResolvedPackage[] } | NeedsApproval> {
+  const roots = checkSource(source);
+  if (roots.length === 0) return { packages: [] };
+  const packages = await resolvePackages(roots, fetch);
+  const specs = packages.map(packageSpec);
+  return samePackages(specs, approve ?? []) ? { packages } : { needsApproval: specs };
 }
 
 /**
@@ -169,18 +168,19 @@ async function prepare(id: string, source: string, art: LayoutArt, packages: Lay
 export async function createLayout(
   actor: string,
   input: { name: string; art: LayoutArt; source: string; approve?: string[] },
-  { download = downloadPackages, limits = envLimits() }: LayoutDeps = {},
+  { fetch = universeFetcher(env().LAYOUTS_PACKAGES_URL), limits = envLimits() }: LayoutDeps = {},
 ): Promise<{ id: string } | NeedsApproval> {
   const name = cleanName(input.name);
-  const packages = checkSource(input.source);
+  checkSource(input.source);
   if (await nameTaken(name)) throw new LayoutError(`Es gibt schon ein Layout „${name}“.`);
-  const specs = packages.map(packageSpec);
-  if (specs.length > 0 && !samePackages(specs, input.approve ?? [])) return { needsApproval: specs };
-  const id = crypto.randomUUID();
   const bytes = Buffer.byteLength(input.source, "utf8");
   await checkLimits(limits, bytes);
-  await prepare(id, input.source, input.art, packages, download);
-  await checkSizeAfterDownload(limits, id, bytes);
+  const approval = await approvedPackages(input.source, input.approve, fetch);
+  if ("needsApproval" in approval) return approval;
+  const id = crypto.randomUUID();
+  await checkLimits(limits, bytes + packageBytes(approval.packages));
+  await prepare(id, input.source, input.art, approval.packages);
+  const packages = plain(approval.packages);
   const sha256 = createHash("sha256").update(input.source).digest("hex");
   await withActor(actor, (tx) =>
     tx.insert(schema.belegLayouts).values({
@@ -203,17 +203,18 @@ export async function replaceLayoutSource(
   id: string,
   source: string,
   approve?: string[],
-  { download = downloadPackages, limits = envLimits() }: LayoutDeps = {},
+  { fetch = universeFetcher(env().LAYOUTS_PACKAGES_URL), limits = envLimits() }: LayoutDeps = {},
 ): Promise<{ ok: true } | NeedsApproval> {
   const [row] = await db.select({ art: schema.belegLayouts.art }).from(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
   if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
-  const packages = checkSource(source);
-  const specs = packages.map(packageSpec);
-  if (specs.length > 0 && !samePackages(specs, approve ?? [])) return { needsApproval: specs };
+  checkSource(source);
   const bytes = Buffer.byteLength(source, "utf8");
   await checkLimits(limits, bytes, id);
-  await prepare(id, source, row.art, packages, download);
-  await checkSizeAfterDownload(limits, id, bytes, id);
+  const approval = await approvedPackages(source, approve, fetch);
+  if ("needsApproval" in approval) return approval;
+  await checkLimits(limits, bytes + packageBytes(approval.packages), id);
+  await prepare(id, source, row.art, approval.packages);
+  const packages = plain(approval.packages);
   const sha256 = createHash("sha256").update(source).digest("hex");
   await withActor(actor, (tx) =>
     tx
@@ -225,11 +226,16 @@ export async function replaceLayoutSource(
 }
 
 /** Lädt die schon freigegebenen Pakete neu, etwa nach einem Restore ohne Cache; nur auf Klick, nie von selbst */
-export async function reloadPackages(id: string, { download = downloadPackages }: LayoutDeps = {}): Promise<void> {
+export async function reloadPackages(id: string, { fetch = universeFetcher(env().LAYOUTS_PACKAGES_URL) }: LayoutDeps = {}): Promise<void> {
   const [row] = await db.select().from(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
   if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
   if (row.packages.length === 0 || row.approvedSha256 !== row.sha256) throw new LayoutError("Dieses Layout hat keine freigegebenen Pakete.");
-  await prepare(id, row.source, row.art, row.packages, download);
+  // Versionen in Typst Universe ändern sich nicht; kommt doch eine andere Liste heraus, braucht es eine neue Freigabe
+  const packages = await resolvePackages(checkSource(row.source), fetch);
+  if (!samePackages(packages.map(packageSpec), row.packages.map(packageSpec))) {
+    throw new LayoutError("Die Pakete des Layouts haben sich geändert. Lade das Layout neu hoch, um sie freizugeben.");
+  }
+  await prepare(id, row.source, row.art, packages);
 }
 
 export async function renameLayout(actor: string, id: string, input: string): Promise<void> {

@@ -14,7 +14,7 @@ const DEAD_PROXY = "http://127.0.0.1:9";
  * Umgebung des Render-Prozesses: Nichts aus der App (Datenbank, Schlüssel) wird vererbt, das Netz ist über einen toten
  * Proxy gesperrt, und HOME zeigt ins Leere, damit Typst keinen Paket-Cache des Rechners findet.
  */
-export function renderWorkerEnv(cacheDir?: string, network = false): Record<string, string> {
+export function renderWorkerEnv(cacheDir?: string): Record<string, string> {
   const home = cacheDir ?? join(tmpdir(), "haben-render-ohne-home");
   return {
     PATH: process.env.PATH ?? "",
@@ -23,9 +23,7 @@ export function renderWorkerEnv(cacheDir?: string, network = false): Record<stri
     HOME: home,
     XDG_CACHE_HOME: home,
     XDG_DATA_HOME: home,
-    ...(network
-      ? {}
-      : Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].map((name) => [name, DEAD_PROXY]))),
+    ...Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].map((name) => [name, DEAD_PROXY])),
   };
 }
 
@@ -48,8 +46,6 @@ export interface RenderClientOptions {
   workerPath?: string;
   /** Eigener Paket-Cache, etwa eines Layouts mit freigegebenen Paketen; ohne gibt es keine Pakete */
   cacheDir?: string;
-  /** Nur zum Laden freigegebener Pakete: ohne gesperrten Proxy */
-  network?: boolean;
 }
 
 export interface RenderClient {
@@ -68,7 +64,6 @@ export function createRenderClient({
   idleMs = RENDER_IDLE_MS,
   workerPath = WORKER_PATH,
   cacheDir,
-  network = false,
 }: RenderClientOptions = {}): RenderClient {
   const queue: Pending[] = [];
   let child: ChildProcess | undefined;
@@ -100,7 +95,7 @@ export function createRenderClient({
     const started = spawn("/bin/sh", ["-c", 'ulimit -c 0 && exec "$@"', "sh", process.execPath, workerPath], {
       stdio: ["ignore", "ignore", "ignore", "ipc"],
       serialization: "json",
-      env: renderWorkerEnv(cacheDir, network),
+      env: renderWorkerEnv(cacheDir),
       cwd: tmpdir(),
     });
     started.on("message", (message) => onMessage(message as RenderResponse));

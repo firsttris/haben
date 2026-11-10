@@ -27,12 +27,23 @@ Unter **Einstellungen › Beleggestaltung › Layouts**:
 
 Ein Layout darf Typst-Pakete aus `@preview` mit fester Version importieren, nur nach Freigabe:
 
-- Beim Hochladen nennt Haben jedes Paket mit Version und fragt nach. Erst nach der Bestätigung lädt es genau diese Pakete einmal in einen eigenen Ordner des Layouts (`DOCUMENTS_DIR/vorlagen/<id>/pakete`, im Backup). Ein Layout sieht die Pakete eines anderen nicht.
+- Beim Hochladen lädt Haben die genannten Pakete aus Typst Universe (`packages.typst.org`) in den Speicher, sucht in ihren Importen die Abhängigkeiten und lädt auch diese. Dann nennt es alle Pakete mit Version, die Abhängigkeiten eingeschlossen, und fragt nach. Gespeichert wird erst nach der Bestätigung, in einen eigenen Ordner des Layouts (`DOCUMENTS_DIR/vorlagen/<id>/pakete`, im Backup). Ein Layout sieht die Pakete eines anderen nicht.
 - Gesetzt wird immer ohne Netz. Das Festschreiben hängt so nie an einem fremden Server.
 - Ändert sich der Quelltext, fragt Haben erneut, auch für eine neue Version eines Pakets.
 - Fehlen die Pakete, etwa nach einer Wiederherstellung der Datenbank ohne das Volume, zeigt die Liste das an. Nachgeladen wird nur, wenn du **Pakete neu laden** klickst; bis dahin lässt sich mit dem Layout nichts erzeugen.
 
-Typst lädt Pakete beim Kompilieren; den Download macht deshalb ein eigener Prozess, der nur die freigegebenen Importe kompiliert, nicht das Layout.
+Den Download macht Haben selbst, nicht Typst, damit Grenzen gegen kaputte oder bösartige Archive gelten:
+
+| Grenze | Wert |
+| --- | --- |
+| Archiv gepackt, je Paket | 5 MB (der Download bricht ab, sobald es mehr wird) |
+| Archiv entpackt, je Paket | 20 MB (geprüft beim Entpacken, bevor mehr im Speicher liegt) |
+| Dateien je Paket | 1000 |
+| Pakete je Layout, samt Abhängigkeiten | 20 |
+| alle Pakete eines Layouts entpackt | 50 MB |
+| Zeit je Paket | 30 Sekunden |
+
+Ein Archiv darf nur Dateien und Ordner enthalten, keine Links und keine Pfade außerhalb des Pakets, und muss das verlangte Paket sein (Name und Version in `typst.toml`). Nur der Namensraum `@preview` ist möglich. Ein Paketname, der erst beim Setzen zusammengesetzt wird, ist nie freigegeben: Ohne Netz findet Typst ihn nicht, und das Hochladen scheitert. Zur Speichergrenze des Betreibers (`LAYOUTS_MAX_MB`) zählen die entpackten Pakete mit.
 
 ## Sicherheit
 

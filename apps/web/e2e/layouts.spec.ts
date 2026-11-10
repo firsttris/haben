@@ -1,5 +1,8 @@
+import { createServer, type Server } from "node:http";
 import { type Browser, expect, type Page, test } from "@playwright/test";
+import { paketArchiv } from "../src/server/modules/stammdaten/test-paket.ts";
 import { SESSION } from "./daten.ts";
+import { LAYOUT_PAKETE_PORT } from "./durchlaeufe.ts";
 
 /*
  * Eigene Belegvorlagen (#113): hochladen mit Prüfung, Rückfrage bei Paketen, zuordnen, in der Vorschau sehen, löschen.
@@ -7,6 +10,22 @@ import { SESSION } from "./daten.ts";
  */
 
 test.describe.configure({ mode: "serial" });
+
+/** Paketquelle wie Typst Universe: marke 0.1.0 braucht hilfe 1.0.0 */
+const ARCHIVE: Record<string, Buffer> = {
+  "/marke-0.1.0.tar.gz": paketArchiv("marke", "0.1.0", '#import "@preview/hilfe:1.0.0": gruss\n#let marke() = text(8pt)[AUS DEM PAKET #gruss]'),
+  "/hilfe-1.0.0.tar.gz": paketArchiv("hilfe", "1.0.0", '#let gruss = "HALLO"'),
+};
+let paketquelle: Server;
+test.beforeAll(async () => {
+  paketquelle = createServer((request, response) => {
+    const archiv = ARCHIVE[new URL(request.url ?? "/", "http://localhost").pathname];
+    response.writeHead(archiv ? 200 : 404, { "content-type": "application/gzip" });
+    response.end(archiv ?? "");
+  });
+  await new Promise<void>((resolve) => paketquelle.listen(LAYOUT_PAKETE_PORT, "127.0.0.1", resolve));
+});
+test.afterAll(() => new Promise<void>((resolve) => paketquelle.close(() => resolve())));
 
 async function einstellungen(browser: Browser): Promise<Page> {
   const page = await (await browser.newContext({ viewport: { width: 1400, height: 1000 }, storageState: SESSION })).newPage();
@@ -37,12 +56,25 @@ test("Ein Layout ohne Pflichtangaben wird abgelehnt und nicht gespeichert", asyn
   await page.context().close();
 });
 
-test("Bei Paketen fragt Haben erst nach; Abbrechen speichert nichts", async ({ browser }) => {
+test("Bei Paketen fragt Haben erst nach, mit Abhängigkeiten; Abbrechen speichert nichts, Bestätigen schon", async ({ browser }) => {
   const page = await einstellungen(browser);
-  await datei(page, "Mit Paket", `#import "@preview/cetz:0.3.4"\n${await startvorlage(page)}`);
+  const quelltext = `#import "@preview/marke:0.1.0": marke\n${await startvorlage(page)}\n#marke()\n`;
+  await datei(page, "Mit Paket", quelltext);
   const frage = page.getByRole("dialog", { name: "Pakete aus dem Netz laden?" });
-  await expect(frage).toContainText("@preview/cetz:0.3.4");
+  await expect(frage).toContainText("@preview/marke:0.1.0");
+  await expect(frage).toContainText("@preview/hilfe:1.0.0");
   await frage.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(karte(page).getByText("Mit Paket", { exact: true })).toHaveCount(0);
+
+  await datei(page, "Mit Paket", quelltext);
+  await frage.getByRole("button", { name: "Pakete laden und prüfen" }).click();
+  await expect(hochladen(page).locator(".banner")).toContainText("Geprüft und gespeichert");
+  const zeile = karte(page).getByRole("listitem").filter({ hasText: "Mit Paket" });
+  await zeile.getByRole("button", { name: "Löschen" }).click();
+  await page
+    .getByRole("dialog", { name: /Layout „Mit Paket“ löschen\?/ })
+    .getByRole("button", { name: "Layout löschen" })
+    .click();
   await expect(karte(page).getByText("Mit Paket", { exact: true })).toHaveCount(0);
   await page.context().close();
 });

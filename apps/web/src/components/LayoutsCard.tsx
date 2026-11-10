@@ -29,14 +29,14 @@ function PackageDialog({ packages, onConfirm, onClose }: { packages: string[] | 
       onConfirm={onConfirm}
       onClose={onClose}
     >
-      <p>Das Layout importiert diese Typst-Pakete:</p>
+      <p>Das Layout braucht diese Typst-Pakete aus Typst Universe, die Abhängigkeiten eingeschlossen:</p>
       <ul className="mono">
         {packages?.map((spec) => (
           <li key={spec}>{spec}</li>
         ))}
       </ul>
       <p>
-        Pakete sind fremder Code. Haben lädt genau diese Versionen einmal und setzt danach ohne Netz. Bestätige nur, wenn du der Vorlage und ihren Paketen
+        Pakete sind fremder Code. Haben speichert genau diese Versionen und setzt danach ohne Netz. Bestätige nur, wenn du der Vorlage und ihren Paketen
         vertraust. Ändert sich die Vorlage, fragt Haben erneut.
       </p>
     </ConfirmDialog>

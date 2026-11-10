@@ -50,6 +50,8 @@ const envSchema = z
     LAYOUTS_MAX_COUNT: z.coerce.number().int().min(1).optional(),
     /** Speicher für eigene Belegvorlagen in MB, Quelltexte und Pakete zusammen; ohne Angabe unbegrenzt */
     LAYOUTS_MAX_MB: z.coerce.number().int().min(1).optional(),
+    /** Quelle der Typst-Pakete für eigene Belegvorlagen, etwa ein Spiegel; Standard Typst Universe */
+    LAYOUTS_PACKAGES_URL: z.string().url().optional(),
     /** Ohne Schlüssel keine KI-Auslesung von Belegen; E-Rechnungen werden trotzdem gelesen */
     ANTHROPIC_API_KEY: z.string().optional(),
     /**

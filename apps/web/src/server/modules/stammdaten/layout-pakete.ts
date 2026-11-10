@@ -1,22 +1,14 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createRenderClient, packageCacheRoot, type RenderClient } from "@haben/einvoice";
 import { layoutRenderer, layoutWorkspace } from "./layout-renderer.ts";
+import type { LayoutPackage } from "./paket-download.ts";
 
 /*
- * Pakete aus @preview für eigene Layouts (#113): nur nach ausdrücklicher Freigabe, je Layout ein eigener Cache unter
- * DOCUMENTS_DIR/vorlagen/<id>/pakete (im Backup). Geladen wird einmal mit Netz und nur ein Stub, der genau die
- * freigegebenen Pakete importiert, nie der Quelltext des Layouts. Gesetzt wird immer ohne Netz, aus diesem Cache.
+ * Paket-Cache eigener Layouts (#113): nur nach ausdrücklicher Freigabe, je Layout ein eigener unter
+ * DOCUMENTS_DIR/vorlagen/<id>/pakete (im Backup). Laden: paket-download.ts. Gesetzt wird immer ohne Netz, aus diesem Cache.
  */
-
-export interface LayoutPackage {
-  name: string;
-  version: string;
-}
-
-export const packageSpec = ({ name, version }: LayoutPackage) => `${name}:${version}`;
 
 export const samePackages = (a: readonly string[], b: readonly string[]) => [...a].sort().join() === [...b].sort().join();
 
@@ -32,22 +24,6 @@ export async function packagesPresent(id: string, packages: readonly LayoutPacka
     return existsSync(join(root, namespace, paket, version));
   });
 }
-
-export type PackageDownloader = (cacheDir: string, packages: readonly LayoutPackage[]) => Promise<void>;
-
-/** Lädt die Pakete in den Cache: ein eigener Prozess mit Netz, der nur die Importe kompiliert */
-export const downloadPackages: PackageDownloader = async (cacheDir, packages) => {
-  const dir = await mkdtemp(join(tmpdir(), "haben-pakete-"));
-  const loader = createRenderClient({ cacheDir, network: true, timeoutMs: 60_000, idleMs: 1_000 });
-  try {
-    const main = join(dir, "laden.typ");
-    await writeFile(main, packages.map((p) => `#import "${packageSpec(p)}"`).join("\n"));
-    await loader.render({ workspace: dir, main, data: {}, files: [] });
-  } finally {
-    loader.close();
-    await rm(dir, { recursive: true, force: true });
-  }
-};
 
 export async function clearPackages(id: string): Promise<void> {
   await rm(await packageCache(id), { recursive: true, force: true });
