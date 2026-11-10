@@ -59,6 +59,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
   identifiers stay English.
 - Functional, no classes (except the `UserError` subclasses); a file past ~400 lines and a function past ~80
   get split (Konventionen).
+- A new icon: first look in `EXTRA` in `scripts/readme-icons/render.ts` (drawn for the README in the app's grid) and move it to `Icon.tsx` (DESIGN.md, Symbole).
 - Writes go through `withActor`; a new table gets an audit trigger (nothing checks this automatically).
 - Bun, not Node, npm or pnpm: `bun run test` runs Vitest, `bun test` would be Bun's own runner.
 - Server functions in `server/functions/` stay thin: `authMiddleware`, Zod, then a call into

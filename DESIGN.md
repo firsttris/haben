@@ -49,6 +49,8 @@ Die Knopfarten (#30, `styles.css`):
 
 Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
+Weitere Symbole im selben Raster (24 × 24, Strich 1,8, runde Enden) liegen in `EXTRA` in `scripts/readme-icons/render.ts`, bisher nur für die README: GmbH, Senden, Hochladen, Schlüssel, Gespräch, Barrierefreiheit, Server, Hilfe, Stern, Fehler. Braucht die App eins davon, wandert es nach `apps/web/src/components/Icon.tsx` und aus `EXTRA` in die Liste `APP` desselben Skripts, statt neu gezeichnet zu werden.
+
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.

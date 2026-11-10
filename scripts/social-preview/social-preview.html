@@ -31,13 +31,18 @@
   .shot { position: absolute; left: 488px; top: 56px; width: 960px; border: 1px solid var(--line); border-radius: 12px 0 0 0; overflow: hidden; }
   /* Ohne die Navigation der App: die steht links schon */
   .shot img { width: 1080px; margin-left: -174px; display: block; }
-  /* Ganzes Gerät, aufrecht: Rahmen in --nav, Kamera als Pille, Bildschirm im Seitenverhältnis von 390 × 844 */
-  .phone { position: absolute; right: 48px; top: 68px; width: 244px; padding: 10px; background: var(--nav); border-radius: 40px; box-shadow: 0 12px 32px rgba(22, 33, 28, 0.22), 0 0 0 1px #2a3b34 inset; }
-  /* Statusleiste über dem Bild, in der Farbe der Kopfzeile der App am Handy; das Bild selbst hat keine */
-  .phone .screen { position: relative; border-radius: 30px; overflow: hidden; height: 500px; padding-top: 28px; background: var(--nav); }
-  .phone .time { position: absolute; top: 7px; left: 24px; font-size: 12px; font-weight: 600; color: #fff; }
+  /* Handy rechts, unten angeschnitten wie aus dem Bild ragend: schmaler Rahmen mit Kante, Seitentasten,
+     Statusleiste in der Farbe der Kopfzeile der App am Handy und Kamera als Pille. Das Bild selbst hat keine Statusleiste */
+  .phone { position: absolute; right: 40px; top: 136px; width: 244px; height: 520px; padding: 7px 7px 0; background: #0b100e; border-radius: 40px 40px 0 0; box-shadow: 0 0 0 1.5px #3a4741, 0 16px 40px rgba(22, 33, 28, 0.25); }
+  .phone::before, .phone::after { content: ""; position: absolute; width: 3px; border-radius: 2px; background: #3a4741; }
+  .phone::before { left: -4px; top: 96px; height: 48px; box-shadow: 0 -64px 0 0 #3a4741; }
+  .phone::after { right: -4px; top: 120px; height: 72px; }
+  .phone .screen { position: relative; height: 100%; border-radius: 33px 33px 0 0; overflow: hidden; padding-top: 30px; background: var(--nav); }
   .phone .screen img { width: 100%; display: block; }
-  .phone .island { position: absolute; top: 6px; left: 50%; width: 64px; height: 18px; margin-left: -32px; border-radius: 9px; background: #000; }
+  .phone .time { position: absolute; top: 8px; left: 26px; font-size: 13px; font-weight: 600; color: #fff; }
+  .phone .bars { position: absolute; top: 11px; right: 22px; display: flex; gap: 2px; align-items: flex-end; }
+  .phone .bars i { display: block; width: 3px; border-radius: 1px; background: #fff; }
+  .phone .island { position: absolute; top: 7px; left: 50%; width: 72px; height: 20px; margin-left: -36px; border-radius: 10px; background: #000; }
 </style>
 </head>
 <body>
@@ -48,6 +53,6 @@
     <div class="facts"><span>E-Rechnung</span><span>ELSTER</span><span>GoBD</span><span>AGPL</span></div>
   </aside>
   <div class="shot"><img src="../../docs/screenshot-uebersicht.png" alt=""></div>
-  <div class="phone"><div class="screen"><img src="../../docs/screenshot-mobil.png" alt=""><div class="island"></div><div class="time">9:41</div></div></div>
+  <div class="phone"><div class="screen"><img src="../../docs/screenshot-mobil.png" alt=""><div class="island"></div><div class="time">9:41</div><div class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:10px"></i></div></div></div>
 </body>
 </html>
