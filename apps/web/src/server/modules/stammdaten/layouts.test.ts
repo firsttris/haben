@@ -147,6 +147,16 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     });
   }, 60_000);
 
+  it("ein abgelehnter neuer Quelltext lässt das bisherige Layout samt Paketen setzbar", async () => {
+    const fetch = universum();
+    const { id } = await anlegen({ name: "Bleibt nutzbar", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch });
+    await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
+    await expect(layouts.replaceLayoutSource(actor, id, "#nichtda", undefined, { fetch })).rejects.toThrow(/Zeile 1/);
+    expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
+    const { pdf } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
+    expect(pdfText(pdf)).toContain("AUS DEM PAKET");
+  }, 60_000);
+
   it("hält die Höchstzahl des Betreibers ein (LAYOUTS_MAX_COUNT)", async () => {
     const limits = { maxCount: 1 };
     await anlegen({ name: "Eins", art: "mahnung", source: eigene("mahnung") }, { limits });
