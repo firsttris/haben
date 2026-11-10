@@ -17,6 +17,7 @@ import { BackupCard } from "../../components/BackupCard.tsx";
 import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
+import { StoreReportsCard } from "../../components/StoreReportsCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
@@ -46,6 +47,7 @@ import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
+import { getStoreConnections } from "../../server/functions/stores.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
@@ -66,6 +68,8 @@ import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
+import { StichjahrCard } from "../../components/StichjahrCard.tsx";
+import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
 
@@ -92,10 +96,12 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      stores,
       customPages,
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      stichjahr,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -113,10 +119,12 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getMcpSettings(),
       getExchangeRates(),
       getEnableBankingSettings(),
+      getStoreConnections(),
       getCustomPages(),
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
+      getStichjahr(),
     ]);
     return {
       ...company,
@@ -136,10 +144,12 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      stores,
       customPages,
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      stichjahr,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -165,10 +175,12 @@ function SettingsPage() {
     mcp,
     rates,
     enableBanking,
+    stores,
     customPages,
     zugaenge,
     extraction,
     quoteDefaultAttachments,
+    stichjahr,
   } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const areas = settingsAreas(oidc.only);
@@ -194,7 +206,12 @@ function SettingsPage() {
           ))}
         </nav>
         <div className="stack settings-content" aria-label={area.label}>
-          {bereich === "firma" && <CompanyForm />}
+          {bereich === "firma" && (
+            <>
+              <CompanyForm />
+              <StichjahrCard stand={stichjahr} />
+            </>
+          )}
           {bereich === "persoenlich" && <TaxpayerForm />}
           {bereich === "rechnungen" && (
             <>
@@ -233,7 +250,12 @@ function SettingsPage() {
               <InboxCard data={inbox} />
             </>
           )}
-          {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
+          {bereich === "bank" && (
+            <>
+              <EnableBankingCard data={enableBanking} />
+              <StoreReportsCard connections={stores.connections} contacts={stores.contacts} />
+            </>
+          )}
           {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}
           {bereich === "sicherheit" && zugaenge.mode === "lokal" && (
             <>

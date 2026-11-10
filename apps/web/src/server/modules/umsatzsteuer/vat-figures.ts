@@ -131,11 +131,17 @@ export interface VatFigures {
  */
 async function journalAlsQuelle(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
   if (period.year < (await journalAbJahr(q))) return figures;
+  return ausDemJournal(period, figures, q);
+}
+
+async function ausDemJournal(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
   const journal = await kennzahlenAusDemJournal(period, figures.versteuerung, q);
   const entnahme = figures.revenue.filter((r) => r.type === "entnahme");
   journal.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
   journal.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
-  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld]])) as JournalKennzahlen;
+  // Freie Buchungen haben kein Nebenbuch; die Gegenprobe zählt sie aus der festgeschriebenen Buchung selbst
+  const manuell = await kennzahlenAusDemJournal(period, figures.versteuerung, q, true);
+  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld] + manuell[feld]])) as JournalKennzahlen;
   return { ...figures, ...journal, quelle: "journal", nebenbuecher };
 }
 
@@ -621,4 +627,16 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
     });
   }
   return issues;
+}
+
+/**
+ * Kennzahlen eines Zeitraums aus dem Journal und aus den Nebenbüchern, unabhängig vom Stichjahr. Für das Vorziehen des
+ * Stichjahrs (auswertungen/stichjahr.ts): Es ändert keine Zahl, wenn beide gleich sind. Der Abgleich allein reicht dafür
+ * nicht, er lässt ältere Buchungen ohne Bemessungsgrundlage bzw. Steuerschlüssel bewusst aus.
+ */
+export async function kennzahlenBeiderQuellen(period: VatPeriod, q: Db | Tx = db): Promise<{ journal: JournalKennzahlen; nebenbuecher: JournalKennzahlen }> {
+  const figures = await computeVatFigures(period, q);
+  const beide = figures.quelle === "journal" ? figures : await ausDemJournal(period, figures, q);
+  const journal = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, beide[feld]])) as JournalKennzahlen;
+  return { journal, nebenbuecher: beide.nebenbuecher! };
 }

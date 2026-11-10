@@ -15,6 +15,7 @@ import {
   suggestDirectBooking,
 } from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
+import { storePayoutView } from "../modules/stores/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { suggestMatches } from "@haben/core";
@@ -117,7 +118,9 @@ export const getBankOverview = createServerFn({ method: "GET" })
       excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
       transactions,
       detail:
-        detail && detail.transaction.bankAccountId === account?.id ? { ...detail, neutralization: await neutralizationView(detail.transaction.id) } : null,
+        detail && detail.transaction.bankAccountId === account?.id
+          ? { ...detail, neutralization: await neutralizationView(detail.transaction.id), storePayout: await storePayoutView(detail.transaction.id) }
+          : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
         return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));

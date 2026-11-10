@@ -1356,15 +1356,29 @@
     {
       "idx": 193,
       "version": "7",
-      "when": 1794336164031,
-      "tag": "0193_bank_konto_ausschliessen",
+      "when": 1794335823476,
+      "tag": "0193_store_berichte",
       "breakpoints": true
     },
     {
       "idx": 194,
       "version": "7",
-      "when": 1794336172794,
-      "tag": "0194_bank_konto_ausschliessen_trigger",
+      "when": 1794335824905,
+      "tag": "0194_store_berichte_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794338142258,
+      "tag": "0195_bank_konto_ausschliessen",
+      "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1794338143826,
+      "tag": "0196_bank_konto_ausschliessen_trigger",
       "breakpoints": true
     }
   ]

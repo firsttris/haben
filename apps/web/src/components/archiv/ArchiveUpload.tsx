@@ -7,7 +7,7 @@ import { FilePicker } from "../FilePicker.tsx";
 import { Field } from "../Field.tsx";
 
 type Message = { tone: "ok" | "warn" | "danger"; text: string };
-type Kind = { value: "datev" | "idea" | "elster" | "kontoauszug" | "sonstiges"; label: string };
+type Kind = { value: "datev" | "idea" | "elster" | "kontoauszug" | "storebericht" | "sonstiges"; label: string };
 
 export function ArchiveUpload({ kinds }: { kinds: Kind[] }) {
   const router = useRouter();

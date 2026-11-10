@@ -6,6 +6,7 @@ import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
+import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
@@ -160,7 +161,13 @@ const FORMAT_LABEL = (format: string) =>
               ? "eBay"
               : format === "etsy-csv"
                 ? "Etsy"
-                : "CSV";
+                : format === "googleplay-earnings"
+                  ? "Google Play"
+                  : format === "appstore-finance"
+                    ? "App Store"
+                    : format === "store-payout"
+                      ? "Auszahlung"
+                      : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -1117,6 +1124,10 @@ function AllocationPanel({
             </div>
           ))}
         </div>
+      )}
+
+      {detail.storePayout && tx.open === tx.amount && (
+        <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
       )}
 
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />

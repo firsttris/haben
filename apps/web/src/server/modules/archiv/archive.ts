@@ -13,6 +13,7 @@ export const ARCHIVE_KINDS = {
   idea: "IDEA-Export",
   elster: "ELSTER-Protokoll",
   kontoauszug: "Kontoauszug",
+  storebericht: "Finanzbericht eines App-Stores",
   sonstiges: "Sonstiges",
 } as const;
 
@@ -33,6 +34,7 @@ function mimeTypeOf(bytes: Uint8Array, filename: string): string {
   const sniffed = sniff(bytes);
   if (sniffed) return sniffed.mimeType;
   if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) return "application/zip";
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) return "application/gzip";
   const extension = filename.toLowerCase().split(".").pop() ?? "";
   return EXTENSION_TYPES[extension] ?? "application/octet-stream";
 }
@@ -125,6 +127,33 @@ export async function addArchiveFile(
     return fileId;
   });
   return { id, bookings: bookings.length, warnings };
+}
+
+/**
+ * Legt eine Originaldatei aus einem automatischen Abruf in der Transaktion des Aufrufers ab (z. B. Finanzberichte der
+ * App-Stores); die Datei selbst muss vorher mit storeFile geschrieben sein. Liegt dieselbe Datei schon im Archiv, gilt
+ * deren Eintrag.
+ */
+export async function archiveFetchedFile(
+  tx: Tx,
+  file: { bytes: Uint8Array; sha256: string; filename: string; kind: ArchiveKind; year: number; note: string; meta?: Record<string, unknown> },
+): Promise<string> {
+  const [existing] = await tx.select({ id: schema.archiveFiles.id }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, file.sha256));
+  if (existing) return existing.id;
+  const [row] = await tx
+    .insert(schema.archiveFiles)
+    .values({
+      kind: file.kind,
+      year: file.year,
+      filename: file.filename.slice(0, 200),
+      sha256: file.sha256,
+      mimeType: mimeTypeOf(file.bytes, file.filename),
+      size: file.bytes.byteLength,
+      note: file.note.slice(0, 500),
+      meta: file.meta ?? null,
+    })
+    .returning({ id: schema.archiveFiles.id });
+  return row!.id;
 }
 
 export async function listArchiveFiles() {

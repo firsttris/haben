@@ -161,7 +161,7 @@ export async function updateAccount(actor: string, input: z.infer<typeof account
 
 export const providerAccountSchema = z.object({
   name: z.string().trim().min(1, "Name fehlt").max(100),
-  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"]),
+  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "googleplay", "appstore", "sonstige"]),
 });
 
 /**
@@ -854,7 +854,12 @@ export const transferSchema = z.object({
  * Schritt über das Geldtransitkonto buchen. Auf dem Geldtransitkonto heben sich beide Seiten auf.
  */
 export async function allocateTransfer(actor: string, input: z.infer<typeof transferSchema>): Promise<void> {
-  await withActor(actor, async (tx) => {
+  await withActor(actor, (tx) => allocateTransferIn(tx, input));
+}
+
+/** Geldtransit in der Transaktion des Aufrufers (etwa nach dem Anlegen der Auszahlung eines App-Stores) */
+export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferSchema>): Promise<void> {
+  {
     const company = await openBooks(tx);
     // Feste Reihenfolge beim Sperren, damit zwei gleichzeitige Aufrufe sich nicht gegenseitig blockieren
     const ids = [...new Set([input.transactionId, input.counterpartId, ...(input.payoutIds ?? [])])].sort();
@@ -919,7 +924,18 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen, company.rechtsform), company.kontenrahmen, bank.ledgerIndex),
       });
     }
-  });
+  }
+}
+
+/**
+ * Bucht einen ganz offenen Umsatz vollständig als Kursdifferenz (Ertrag bei Eingang, Aufwand bei Ausgang), etwa die
+ * Differenz zwischen den umgerechneten Monatsbeträgen eines App-Stores und seiner Auszahlung in Euro.
+ */
+export async function allocateExchangeDifferenceIn(tx: Tx, transactionId: string): Promise<void> {
+  const company = await openBooks(tx);
+  const bank = await lockTransaction(tx, transactionId);
+  if (bank.open !== bank.amount || bank.amount === 0) throw new BankError("Der Umsatz muss noch ganz offen sein.");
+  await bookPart(tx, company, bank, { kind: "kursdifferenz", amount: bank.amount }, null);
 }
 
 /**

@@ -1,6 +1,6 @@
 {
-  "id": "c65bcd70-73c4-4315-b76c-d8f209c693d0",
-  "prevId": "bcf13096-7ace-4205-9014-1c8304a0a015",
+  "id": "a0958ad4-57c0-46ad-b455-9930edd09006",
+  "prevId": "2638fcaa-c603-4e95-b6ba-64360cf3c568",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1460,12 +1460,6 @@
         "ledger_index": {
           "name": "ledger_index",
           "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "excluded_at": {
-          "name": "excluded_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -11972,6 +11966,303 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.store_connections": {
+      "name": "store_connections",
+      "schema": "",
+      "columns": {
+        "store": {
+          "name": "store",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetch_from": {
+          "name": "fetch_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "store_connections_store": {
+          "name": "store_connections_store",
+          "value": "\"store_connections\".\"store\" in ('googleplay', 'appstore')"
+        },
+        "store_connections_config": {
+          "name": "store_connections_config",
+          "value": "\"store_connections\".\"config\"->>'store' = \"store_connections\".\"store\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.store_payouts": {
+      "name": "store_payouts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store": {
+          "name": "store",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_transaction_id": {
+          "name": "bank_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payout_transaction_id": {
+          "name": "payout_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "difference_transaction_id": {
+          "name": "difference_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "covered": {
+          "name": "covered",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "store_payouts_bank_transaction_id_bank_transactions_id_fk": {
+          "name": "store_payouts_bank_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "store_payouts",
+          "columnsFrom": [
+            "bank_transaction_id"
+          ],
+          "tableTo": "bank_transactions",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "store_payouts_payout_transaction_id_bank_transactions_id_fk": {
+          "name": "store_payouts_payout_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "store_payouts",
+          "columnsFrom": [
+            "payout_transaction_id"
+          ],
+          "tableTo": "bank_transactions",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "store_payouts_difference_transaction_id_bank_transactions_id_fk": {
+          "name": "store_payouts_difference_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "store_payouts",
+          "columnsFrom": [
+            "difference_transaction_id"
+          ],
+          "tableTo": "bank_transactions",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "store_payouts_bank_transaction_id_unique": {
+          "name": "store_payouts_bank_transaction_id_unique",
+          "columns": [
+            "bank_transaction_id"
+          ],
+          "nullsNotDistinct": false
+        },
+        "store_payouts_payout_transaction_id_unique": {
+          "name": "store_payouts_payout_transaction_id_unique",
+          "columns": [
+            "payout_transaction_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.store_reports": {
+      "name": "store_reports",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store": {
+          "name": "store",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_kind": {
+          "name": "report_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "part": {
+          "name": "part",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period": {
+          "name": "period",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archive_file_id": {
+          "name": "archive_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "store_reports_period": {
+          "name": "store_reports_period",
+          "columns": [
+            {
+              "expression": "store",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "report_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "period",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "part",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "store_reports_archive_file_id_archive_files_id_fk": {
+          "name": "store_reports_archive_file_id_archive_files_id_fk",
+          "tableFrom": "store_reports",
+          "columnsFrom": [
+            "archive_file_id"
+          ],
+          "tableTo": "archive_files",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "store_reports_period_format": {
+          "name": "store_reports_period_format",
+          "value": "\"store_reports\".\"period\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        },
+        "store_reports_kind": {
+          "name": "store_reports_kind",
+          "value": "(\"store_reports\".\"store\" = 'googleplay' and \"store_reports\".\"report_kind\" = 'earnings') or (\"store_reports\".\"store\" = 'appstore' and \"store_reports\".\"report_kind\" = 'finance_detail')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.sv_portal_filings": {

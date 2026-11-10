@@ -155,7 +155,10 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   ohne Vorsteuer (Eigenbeleg), Storno mit Steuerschlüssel.
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
 - **Umgesetzt:** Schritt 1 ohne Oberfläche (Stichjahr, Migration 0192, Voranmeldung aus dem Journal, Abgleich mit
-  getauschten Rollen). Anzeige und Vorziehen des Stichjahrs in den Einstellungen folgen in einem eigenen Pull Request.
+  getauschten Rollen). Anzeige und Vorziehen des Stichjahrs: Karte in Einstellungen › Firma (`auswertungen/stichjahr.ts`); der
+  Abgleich des laufenden Jahres (`abgleichJahr`) muss ohne Abweichung sein, und jede Voranmeldung des Jahres sowie die EÜR
+  müssen aus beiden Quellen gleich herauskommen (`kennzahlenBeiderQuellen`); der Abgleich allein lässt ältere Buchungen
+  ohne Bemessungsgrundlage aus.
   Ergänzt beim Umsetzen: Ein Storno im Stichjahr kopierte die Zeilen einer Buchung aus der Zeit davor samt ihrer Lücken
   (ohne Bemessungsgrundlage an der Zahlung, #552; ohne Steuerschlüssel am privaten Teil bei § 13b und Erwerb, #551). Der
   Storno einer Bareinnahme auf eine Rechnung und eines Belegs aus der Zeit vor dem Stichjahr bucht deshalb die Zeilen, wie
@@ -165,3 +168,8 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Schritt 2: EÜR aus dem Journal (`euer-quelle.ts`). Abweichend vom Entwurf rechnet sie Zahlungen auf übernommene
   Lexoffice-Posten nicht aus dem Nebenbuch, sondern verteilt sie auf die Zeilen, die Haben für Rechnung bzw. Beleg gebucht
   hätte (`uebernommeneZeilen`); so gilt für sie dieselbe Rundung, und der Abgleich vergleicht sie ohne Ausnahme.
+  Schritt 3: freie Buchungen (`freie-buchung.ts` in core, `manual.ts`): Steuerschlüssel `USt19`, `USt7`, `frei` auf den
+  Erlöskonten 19 %, 7 % und 0 %, im Einzelunternehmen auch ohne Schlüssel erst ab dem Stichjahr. Die Gegenprobe im
+  Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Abweichend vom Entwurf noch ohne
+  die Sachentnahme (SKR03 8910, SKR04 4620): Für ihre eigene Zeile der Anlage EÜR und die Kennzahl fehlt hier noch die
+  geprüfte Zuordnung im ELSTER-Formular; sie folgt mit eigenem Pull Request.
