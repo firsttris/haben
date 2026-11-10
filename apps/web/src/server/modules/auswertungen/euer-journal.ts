@@ -143,7 +143,9 @@ async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchu
     ])
   ).flatMap((rows) => rows.map((r) => r.id));
   if (ids.length === 0) return [];
-  const gefunden = (await buchungen(q, inArray(schema.journalEntries.sourceId, ids))).filter((b) => b.sourceType !== "invoice" && b.sourceType !== "document");
+  // Mit der Herkunft, damit der Index journal_entries_source (source_type, source_id) greift
+  const e = schema.journalEntries;
+  const gefunden = await buchungen(q, and(inArray(e.sourceType, ["allocation", "ausbuchung", "kasse"]), inArray(e.sourceId, ids)));
   if (gefunden.length < 2) return gefunden;
   const log = schema.auditLog;
   const position = new Map(
