@@ -84,6 +84,7 @@ export default defineConfig({
         "barrierefreiheit.spec.ts",
         "dateiauswahl.spec.ts",
         "gestaltung.spec.ts",
+        "layouts.spec.ts",
         "handy-felder.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
