@@ -26,9 +26,11 @@ export function renderWorkerEnv(): Record<string, string> {
   };
 }
 
+type Result = { sheet: RenderedSheet } | { pdf: string };
+
 interface Pending {
   job: RenderJob;
-  resolve: (sheet: RenderedSheet) => void;
+  resolve: (result: Result) => void;
   reject: (error: Error) => void;
 }
 
@@ -41,6 +43,8 @@ export interface RenderClientOptions {
 
 export interface RenderClient {
   render: (job: RenderJob) => Promise<RenderedSheet>;
+  /** Dasselbe als PDF/A-3b, etwa beim Festschreiben mit einem eigenen Layout */
+  renderPdf: (job: RenderJob, date: string) => Promise<Uint8Array>;
   close: () => void;
 }
 
@@ -75,7 +79,7 @@ export function createRenderClient({
 
   const onMessage = (response: RenderResponse) => {
     if (response.id !== running?.id) return;
-    finish((pending) => (response.ok ? pending.resolve(response.sheet) : pending.reject(new Error(response.message))));
+    finish((pending) => (response.ok ? pending.resolve(response) : pending.reject(new Error(response.message))));
   };
 
   const start = (): ChildProcess => {
@@ -118,12 +122,18 @@ export function createRenderClient({
     child.send(request);
   }
 
+  const enqueue = (job: RenderJob) =>
+    new Promise<Result>((resolve, reject) => {
+      queue.push({ job, resolve, reject });
+      next();
+    });
+
   return {
-    render: (job) =>
-      new Promise<RenderedSheet>((resolve, reject) => {
-        queue.push({ job, resolve, reject });
-        next();
-      }),
+    render: (job) => enqueue(job).then((result) => ("sheet" in result ? result.sheet : Promise.reject(new Error("Kein SVG")))),
+    renderPdf: (job, date) =>
+      enqueue({ ...job, pdf: { date } }).then((result) =>
+        "pdf" in result ? new Uint8Array(Buffer.from(result.pdf, "base64")) : Promise.reject(new Error("Kein PDF")),
+      ),
     close: () => {
       clearTimeout(idleTimer);
       stop();

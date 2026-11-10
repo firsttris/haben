@@ -44,7 +44,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
-import { loadLetterhead } from "../stammdaten/index.ts";
+import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -1075,7 +1075,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
   );
-  const rendered = await buildEInvoice({ ...doc, ...(await loadLetterhead()) });
+  const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
   await takeNumber(tx, "rechnung", circle, counter);
