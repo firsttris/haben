@@ -76,7 +76,11 @@ export function readExportFiles(parts: ExportPart[]): ExportFiles {
   for (const part of parts) {
     const lower = part.name.toLowerCase();
     if (lower.endsWith(".zip") && !lower.endsWith("belege.zip")) {
-      for (const [name, bytes] of Object.entries(unzip(part.bytes, part.name))) files.push({ name, bytes });
+      for (const [name, bytes] of Object.entries(unzip(part.bytes, part.name))) {
+        // Ordnereinträge und Metadaten von macOS (__MACOSX/, ._Datei) sind keine Exportdateien
+        if (name.endsWith("/") || name.split("/").includes("__MACOSX") || baseName(name).startsWith("._")) continue;
+        files.push({ name, bytes });
+      }
     } else {
       files.push(part);
     }
@@ -84,11 +88,12 @@ export function readExportFiles(parts: ExportPart[]): ExportFiles {
   const datev = uniqueFile(files, (name) => name.startsWith("extf_") && name.endsWith("_buchungsstapel.csv"), "EXTF-Buchungsstapel");
   const bb = uniqueFile(files, (name) => name.startsWith("bb_") && name.endsWith(".csv"), "BB Standardexport");
   const receipts = uniqueFile(files, (name) => name.endsWith("belege.zip"), "Belege.zip");
-  return { datev: datev.bytes, datevName: datev.name.split("/").pop()!, bb: bb.bytes, receipts: receipts.bytes };
+  return { datev: datev.bytes, datevName: baseName(datev.name), bb: bb.bytes, receipts: receipts.bytes };
 }
 
 function uniqueFile(parts: ExportPart[], matches: (name: string) => boolean, label: string): ExportPart {
-  const found = parts.filter((part) => matches(part.name.toLowerCase()));
+  // Nach dem Dateinamen ohne Ordner, auch wenn die .zip einen Ordner enthält
+  const found = parts.filter((part) => matches(baseName(part.name).toLowerCase()));
   if (found.length !== 1) throw new BuchhaltungsbutlerError(`${label}: erwartet genau eine Datei, gefunden ${found.length}.`);
   return found[0]!;
 }
@@ -100,3 +105,5 @@ function unzip(bytes: Uint8Array, name: string): Record<string, Uint8Array> {
     throw new BuchhaltungsbutlerError(`${name}: ZIP-Datei kann nicht gelesen werden (${error instanceof Error ? error.message : String(error)}).`);
   }
 }
+
+const baseName = (path: string) => path.split("/").pop() ?? path;

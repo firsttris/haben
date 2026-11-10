@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
@@ -125,7 +126,7 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler: Originale und Stapel im A
 
   const row1: Row = { id: "1", debit: "1200", credit: "8400", bu: "3", rate: "19", receipt: true, date: "0108" };
   const files = () => sql`select kind, filename, sha256, note from archive_files order by kind, filename`;
-  const sha = async (bytes: Uint8Array) => Buffer.from(await crypto.subtle.digest("SHA-256", bytes)).toString("hex");
+  const sha = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
   const datevIds = async () =>
     (await sql`select progress from lexoffice_imports where source = 'buchhaltungsbutler' order by started_at`).map(
       (r) => (r.progress as { datevFileIds?: string[] }).datevFileIds,
