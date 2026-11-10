@@ -30,6 +30,16 @@ import {
 } from "../modules/archiv/index.ts";
 import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
+  accountableImportStatus,
+  AccountableError,
+  analyseAccountableUpload,
+  cancelAccountableImport as cancelAccountable,
+  discardAccountableUpload,
+  latestAccountableImport,
+  MAX_ACCOUNTABLE_SIZE as MAX_ACCOUNTABLE,
+  startAccountableImport as startAccountable,
+} from "../modules/archiv/index.ts";
+import {
   cancelSevdeskImport as cancelSevdesk,
   latestSevdeskImport,
   removeSevdeskKey,
@@ -50,21 +60,24 @@ export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema.optional() }))
   .handler(async ({ data }) => {
-    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport, orderArchive, bbImport] = await Promise.all([
-      connectionStatus(),
-      reconciliation(),
-      listArchiveFiles(),
-      openItemsOverview(data.stichtag),
-      sevdeskConnectionStatus(),
-      latestSevdeskImport(),
-      orderArchiveOverview(),
-      latestBuchhaltungsbutlerImport(),
-    ]);
+    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport, accountableImport, orderArchive, bbImport] =
+      await Promise.all([
+        connectionStatus(),
+        reconciliation(),
+        listArchiveFiles(),
+        openItemsOverview(data.stichtag),
+        sevdeskConnectionStatus(),
+        latestSevdeskImport(),
+        latestAccountableImport(),
+        orderArchiveOverview(),
+        latestBuchhaltungsbutlerImport(),
+      ]);
     return {
       connection,
       sevdeskConnection,
       sevdeskImport,
       bbImport,
+      accountableImport,
       openItems,
       cutoff,
       cutoffError,
@@ -165,6 +178,52 @@ export const importBuchhaltungsbutler = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(bbFiles)
   .handler(async ({ data, context }) => startBuchhaltungsbutlerImport(context.user.id, await bbParts(data.files)));
+
+/*
+ * Accountable hat keine API: Der Export (ZIP je Geschäftsjahr) wird hochgeladen, geprüft und erst auf Knopfdruck
+ * übernommen. Die Analyse liefert, was der Export enthält, bevor etwas geschrieben wird.
+ */
+
+/** Ein Export je Aufruf; mehrere Jahre lädt die Oberfläche nacheinander hoch, jedes Jahr ist ein eigener Lauf. */
+export const uploadAccountableExport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => {
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
+    const files = data.getAll("files").filter((f): f is File => f instanceof File);
+    if (files.length === 0) throw new UserError("Keine Datei ausgewählt.");
+    if (files.length > 1) throw new UserError("Bitte je Aufruf einen Export (ein Geschäftsjahr) hochladen.");
+    if (files[0]!.size > MAX_ACCOUNTABLE) throw new UserError("Der Export ist größer als 100 MB.");
+    return { file: files[0]! };
+  })
+  .handler(async ({ data }) => analyseAccountableUpload(new Uint8Array(await data.file.arrayBuffer()), data.file.name));
+
+export const startAccountableImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => ({ id: await startAccountable(context.user.id) }));
+
+export const cancelAccountableImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => ({ cancelled: cancelAccountable(data.id) }));
+
+/** Der laufende oder letzte Lauf; ohne id der letzte, sonst der, den die Oberfläche beobachtet. */
+export const getAccountableStatus = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid().optional() }))
+  .handler(async ({ data }) => {
+    if (!data.id) return latestAccountableImport();
+    const run = await accountableImportStatus(data.id);
+    if (!run) throw new AccountableError("Den Lauf gibt es nicht.");
+    return run;
+  });
+
+/** Hochgeladenen Export wieder verwerfen (falsche Datei); angestoßene Läufe bleiben davon unberührt. */
+export const discardAccountableExport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    discardAccountableUpload();
+    return { ok: true };
+  });
 
 const kindSchema = z.enum(Object.keys(ARCHIVE_KINDS) as [ArchiveKind, ...ArchiveKind[]]);
 

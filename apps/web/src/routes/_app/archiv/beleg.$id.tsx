@@ -29,6 +29,7 @@ const SOURCE = {
   lexoffice: { name: "Lexoffice", product: "Lexware Office" },
   sevdesk: { name: "sevDesk", product: "sevDesk" },
   buchhaltungsbutler: { name: "BuchhaltungsButler", product: "BuchhaltungsButler" },
+  accountable: { name: "Accountable", product: "Accountable" },
 } as const;
 
 function LegacyVoucherPage() {

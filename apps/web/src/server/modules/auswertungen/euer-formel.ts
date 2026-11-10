@@ -1,8 +1,8 @@
 import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, zahlungsStand, type Cents, type Kontenrahmen } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne, or, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { buchungen, offenerPosten, type Buchung } from "./euer-journal.ts";
-import { belegNebenbuch, belegTeilzahlung, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
+import { buchungen, offenerPosten, type Buchung } from "./euer-journal-buchungen.ts";
+import { belegNebenbuecher, belegTeilzahlung, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
 /*
  * Gewinn der EÜR nach der DATEV-Formel (#542, Schritt 5c), als Gegenprobe zum Gewinn aus den Zeilen: der negative Saldo
@@ -158,7 +158,11 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
       ausgleiche.set(key, [...(ausgleiche.get(key) ?? []), b]);
     }
   }
-  for (const [key, p] of posten) if (key.startsWith("document|")) p.beleg = await belegNebenbuch(q, key.slice(9));
+  const nebenbuch = await belegNebenbuecher(
+    q,
+    [...posten.keys()].flatMap((key) => (key.startsWith("document|") ? [key.slice(9)] : [])),
+  );
+  for (const [key, p] of posten) if (key.startsWith("document|")) p.beleg = nebenbuch.get(key.slice(9));
   const datum = await daten(
     q,
     [...[...posten.values()].flatMap((p) => p.gebucht), ...[...ausgleiche.values()].flat()].map((b) => b.id),

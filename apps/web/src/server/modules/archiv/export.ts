@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { bankAccountIncludedSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
@@ -265,7 +266,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     select extract(year from issue_date)::int as y from invoices where status = 'final'
     union select extract(year from coalesce(document_date, (uploaded_at at time zone 'Europe/Berlin')::date))::int from documents
     union select extract(year from date)::int from journal_entries
-    union select extract(year from booking_date)::int from bank_transactions
+    union select extract(year from booking_date)::int from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
     union select year::int from vat_returns
     union select extract(year from date)::int from lexoffice_vouchers
     union select extract(year from date)::int from legacy_order_documents
@@ -759,12 +760,19 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 
   // Bank ------------------------------------------------------------------
-  const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.iban));
+  // Ein ausgeschlossenes Konto (#462) gehört nicht zu dieser Firma und fehlt im Archiv
+  const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const transactions = await db
     .select()
     .from(schema.bankTransactions)
-    .where(and(gte(schema.bankTransactions.bookingDate, yearStart(year)), lte(schema.bankTransactions.bookingDate, yearEnd(year))))
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, yearStart(year)),
+        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
     .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
   const transactionById = new Map(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
@@ -783,9 +791,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     .select()
     .from(schema.bankImports)
     .where(
-      sql`exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
+      and(
+        sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
             and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)`,
+          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date))`,
+        bankAccountIncludedSql("bank_account_id"),
+      ),
     )
     .orderBy(asc(schema.bankImports.createdAt));
   const importById = new Map(imports.map((i) => [i.id, i]));
@@ -1213,7 +1224,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 }
 
-const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk", buchhaltungsbutler: "BuchhaltungsButler" } as const;
+const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk", buchhaltungsbutler: "BuchhaltungsButler", accountable: "Accountable" } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
   invoice: "Rechnung",

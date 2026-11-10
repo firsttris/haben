@@ -38,7 +38,7 @@ const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
 const OPEN_ITEM_TYPES = new Set([...SALES, ...PURCHASES]);
 
-const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk", buchhaltungsbutler: "BuchhaltungsButler" } as const;
+const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk", buchhaltungsbutler: "BuchhaltungsButler", accountable: "Accountable" } as const;
 
 export interface OpenLegacyItem {
   id: string;
@@ -225,7 +225,9 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
             : legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
       return { voucher: v, state, takenOver: takenOverOf(v.id) };
     })
-    .filter((c) => c.takenOver || (OPEN_ITEM_TYPES.has(c.voucher.type) && (c.state.open > 0 || c.state.issue)));
+    // Ein Posten ohne offenen Betrag und ohne Problem ist kein offener Posten — auch dann nicht, wenn er
+    // schon übernommen wurde. Sonst füllt eine vollständig bezahlte Altdatenbank die Tabelle mit 0,00-Zeilen.
+    .filter((c) => (c.state.open > 0 || c.state.issue) && (c.takenOver || OPEN_ITEM_TYPES.has(c.voucher.type)));
   if (candidates.length === 0) return [];
   const files = await db
     .selectDistinct({ voucherId: schema.lexofficeVoucherFiles.voucherId })
