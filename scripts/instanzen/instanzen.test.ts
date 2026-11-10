@@ -204,7 +204,7 @@ describe("neu", () => {
     expect(env("firma1").ERIC_HOME).toBe("/opt/eric");
     expect(readFileSync(join(basis, "firma1", "compose.override.yml"), "utf8")).toContain("- /opt/eric:/opt/eric:ro");
     // Nur nachgesehen, welche Projekte es gibt; nichts gestartet
-    expect(aufrufe().map((a) => a.replace(/^\S+ /, ""))).toEqual(["compose ls -a -q"]);
+    expect(aufrufe().map((a) => a.replace(/^\S+ /, ""))).toEqual(["compose ls -a -q", "volume ls -q --filter label=com.docker.compose.project=haben-firma1"]);
   });
 
   it("meldet eine App, die nicht gesund wird", () => {

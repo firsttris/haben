@@ -50,13 +50,19 @@ in_dir() {
   (cd "$dir" && "$@")
 }
 
-# Wert eines Schlüssels aus einer .env, ohne umschließende einfache oder doppelte Anführungszeichen
+# Wert eines Schlüssels aus einer .env wie Compose ihn liest: ohne umschließende Anführungszeichen, ohne Kommentar
+# am Zeilenende (bei Werten ohne Anführungszeichen mit Leerzeichen davor)
 env_lesen() {
   local wert
   wert="$(grep -m1 "^$2=" "$1" 2> /dev/null | cut -d= -f2-)" || true
   case "$wert" in
-    \'*\') wert="${wert#\'}"; wert="${wert%\'}" ;;
-    \"*\") wert="${wert#\"}"; wert="${wert%\"}" ;;
+    \'*) wert="${wert#\'}"; wert="${wert%%\'*}" ;;
+    \"*) wert="${wert#\"}"; wert="${wert%%\"*}" ;;
+    *)
+      wert="${wert%% #*}"
+      wert="${wert%%$'\t'#*}"
+      while [[ "$wert" == *[[:space:]] ]]; do wert="${wert%?}"; done
+      ;;
   esac
   echo "$wert"
 }
@@ -202,7 +208,11 @@ cmd_neu() {
     shift
   done
 
-  [[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,30}$ ]] || fehler "Name nur aus a–z, 0–9 und -, beginnend mit Buchstabe oder Ziffer, höchstens 31 Zeichen: $name"
+  [[ "$name" =~ ^[a-z0-9]([a-z0-9-]{0,29}[a-z0-9])?$ ]] \
+    || fehler "Name nur aus a–z, 0–9 und -, am Anfang und Ende Buchstabe oder Ziffer, höchstens 31 Zeichen: $name"
+  # Container heißen <projekt>-<dienst>-<nummer> und sind im Netz des Proxys unter diesem Namen erreichbar; der Alias
+  # haben-<name> darf keinem davon gleichen (etwa firma1-app-1 und der App von firma1)
+  [[ ! "$name" =~ -(app|db|backup|restore|caddy)-[0-9]+$ ]] || fehler "Der Name darf nicht auf -app-1, -db-1 o. Ä. enden: $name"
   [ "$name" != proxy ] || fehler "Der Name proxy ist für den gemeinsamen Caddy reserviert."
   [[ "$domain" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] || fehler "Domain ohne https:// und ohne Pfad, klein geschrieben, z. B. firma1.example.de: $domain"
   [ -z "$hersteller" ] || [[ "$hersteller" =~ ^[0-9]{1,10}$ ]] || fehler "Die Hersteller-ID besteht nur aus Ziffern."
@@ -228,9 +238,13 @@ cmd_neu() {
     [ "$(env_lesen "$andere/.env" COMPOSE_PROJECT_NAME)" != "haben-$name" ] \
       || fehler "Das Compose-Projekt haben-$name gehört schon zur Instanz $andere; bitte einen anderen Namen wählen."
   done 3< <(instanzen)
-  # Auch ein Projekt dieses Namens außerhalb der Basis, solange docker es kennt
+  # Auch ein Projekt dieses Namens außerhalb der Basis, solange docker es kennt: mit Containern oder, nach
+  # docker compose down, nur noch mit seinen Volumes (Datenbank und Belege einer anderen Firma)
   if projekte="$(docker compose ls -a -q 2> /dev/null)"; then
     ! grep -qx "haben-$name" <<< "$projekte" || fehler "Docker kennt schon ein Compose-Projekt haben-$name; bitte einen anderen Namen wählen."
+  fi
+  if projekte="$(docker volume ls -q --filter "label=com.docker.compose.project=haben-$name" 2> /dev/null)"; then
+    [ -z "$projekte" ] || fehler "Es gibt schon Volumes des Compose-Projekts haben-$name ($(echo $projekte)); bitte einen anderen Namen wählen."
   fi
   command -v openssl > /dev/null || fehler "openssl fehlt."
 
@@ -374,6 +388,8 @@ cmd_status() {
       sicherung="$(in_dir "$dir" docker compose exec -T db psql -U haben -d haben -XAtc \
         "SELECT coalesce(to_char(max(at) AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI'), 'keine') FROM backup_status WHERE kind = 'backup' AND ok" \
         2> /dev/null || echo "?")"
+    elif [ $? -eq 2 ]; then
+      sicherung="? (Compose-Fehler)"
     else
       sicherung="– (Datenbank gestoppt)"
     fi
