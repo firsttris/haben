@@ -27,6 +27,7 @@ import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as AppSteuerberatungRouteImport } from './routes/_app/steuerberatung'
 import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeportal'
 import { Route as AppUeberweisungenRouteImport } from './routes/_app/ueberweisungen'
+import { Route as ApiBelegvorlagenRouteImport } from './routes/api/belegvorlagen'
 import { Route as ApiBriefpapierRouteImport } from './routes/api/briefpapier'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
@@ -202,6 +203,11 @@ const AppUeberweisungenRoute = AppUeberweisungenRouteImport.update({
   id: '/ueberweisungen',
   path: '/ueberweisungen',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiBelegvorlagenRoute = ApiBelegvorlagenRouteImport.update({
+  id: '/api/belegvorlagen',
+  path: '/api/belegvorlagen',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBriefpapierRoute = ApiBriefpapierRouteImport.update({
   id: '/api/briefpapier',
@@ -665,6 +671,7 @@ export interface FileRoutesByFullPath {
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
+  '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -769,6 +776,7 @@ export interface FileRoutesByTo {
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
+  '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -876,6 +884,7 @@ export interface FileRoutesById {
   '/_app/steuerberatung': typeof AppSteuerberatungRoute
   '/_app/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/_app/ueberweisungen': typeof AppUeberweisungenRoute
+  '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -984,6 +993,7 @@ export interface FileRouteTypes {
     | '/steuerberatung'
     | '/sv-meldeportal'
     | '/ueberweisungen'
+    | '/api/belegvorlagen'
     | '/api/briefpapier'
     | '/api/logo'
     | '/api/mcp'
@@ -1088,6 +1098,7 @@ export interface FileRouteTypes {
     | '/steuerberatung'
     | '/sv-meldeportal'
     | '/ueberweisungen'
+    | '/api/belegvorlagen'
     | '/api/briefpapier'
     | '/api/logo'
     | '/api/mcp'
@@ -1194,6 +1205,7 @@ export interface FileRouteTypes {
     | '/_app/steuerberatung'
     | '/_app/sv-meldeportal'
     | '/_app/ueberweisungen'
+    | '/api/belegvorlagen'
     | '/api/briefpapier'
     | '/api/logo'
     | '/api/mcp'
@@ -1287,6 +1299,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  ApiBelegvorlagenRoute: typeof ApiBelegvorlagenRoute
   ApiBriefpapierRoute: typeof ApiBriefpapierRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMcpRoute: typeof ApiMcpRoute
@@ -1457,6 +1470,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/ueberweisungen'
       preLoaderRoute: typeof AppUeberweisungenRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/belegvorlagen': {
+      id: '/api/belegvorlagen'
+      path: '/api/belegvorlagen'
+      fullPath: '/api/belegvorlagen'
+      preLoaderRoute: typeof ApiBelegvorlagenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/briefpapier': {
       id: '/api/briefpapier'
@@ -2195,6 +2215,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  ApiBelegvorlagenRoute: ApiBelegvorlagenRoute,
   ApiBriefpapierRoute: ApiBriefpapierRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMcpRoute: ApiMcpRoute,

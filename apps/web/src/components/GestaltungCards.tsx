@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { type BackgroundPages, BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LetterheadDesign, type LayoutRef } from "@haben/core";
+import type { BackgroundPages, LetterheadDesign } from "@haben/core";
 import { useAction } from "../lib/use-action.ts";
 import { deleteBackground, getBackground, saveLetterheadDesign, uploadBackground } from "../server/functions/logo.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
@@ -138,38 +138,6 @@ export function LetterheadBackgroundCard({ design, background }: { design: Lette
         </p>
         <p>Haben kann das im Bild nicht prüfen.</p>
       </ConfirmDialog>
-    </section>
-  );
-}
-
-const layoutName = (layout: LayoutRef) => BUILTIN_LAYOUTS.find((entry) => entry.id === layout.id)?.name ?? layout.id;
-
-/** Welches Layout welche Belegart bekommt; zur Wahl steht es, sobald es ein zweites gibt */
-export function LayoutsCard({ design }: { design: LetterheadDesign }) {
-  return (
-    <section className="card" aria-labelledby="layouts-heading">
-      <h2 id="layouts-heading">Layouts</h2>
-      <p className="small muted" style={{ margin: 0 }}>
-        Jede Belegart hat ihr eigenes Layout. Noch gibt es nur das eingebaute Layout „{BUILTIN_LAYOUTS[0]!.name}“.
-      </p>
-      <table className="layouts-table">
-        <thead>
-          <tr>
-            <th scope="col">Belegart</th>
-            <th scope="col">Layout</th>
-            <th scope="col">Art</th>
-          </tr>
-        </thead>
-        <tbody>
-          {LAYOUT_DOCUMENT_TYPES.map((type) => (
-            <tr key={type}>
-              <td>{LAYOUT_DOCUMENT_LABELS[type]}</td>
-              <td>{layoutName(design.layouts[type])}</td>
-              <td>Eingebaut</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </section>
   );
 }
