@@ -6,7 +6,7 @@
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
-direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
+direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 
 ![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
@@ -54,7 +54,7 @@ auf deinem eigenen Server betreibst.
 **🇩🇪 Made in Germany**
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
-- **GoBD-konform von Anfang an**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
+- **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
@@ -168,8 +168,10 @@ erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesel
 <details>
 <summary><b>Ist Haben GoBD-konform?</b></summary>
 
-Ja. Gebuchtes wird festgeschrieben und lässt sich nur per Storno korrigieren, jede Änderung steht im
-Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
+Haben setzt die technischen Anforderungen der GoBD um: Gebuchtes wird festgeschrieben und lässt sich nur per Storno
+korrigieren, jede Änderung steht im Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Zur Ordnungsmäßigkeit
+gehören außerdem dein Betrieb (Backups, Aufbewahrung) und deine Verfahrensdokumentation; ein Testat für die Software gibt
+es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 </details>
 
 <details>
@@ -210,9 +212,9 @@ eigene Werkzeuge und Automationen gibt es die [REST-API](https://haben.app/api.h
 <details>
 <summary><b>Ist das sicher?</b></summary>
 
-Wir haben geprüft, und du kannst es auch: Der Code ist offen.
+Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabhängiges Audit gibt es bisher nicht.
 
-- **Geprüft:** mit Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) und
+- **Automatisiert geprüft:** mit Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) und
   `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
 - **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
   Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
