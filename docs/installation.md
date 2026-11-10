@@ -363,7 +363,61 @@ backend haben-app
 
 ## Mehrere Instanzen
 
-Haben führt genau eine Buchhaltung: ein Unternehmen, ein Inhaber, auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+Haben führt genau eine Buchhaltung: ein Unternehmen, ein Inhaber, auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel, eine eigene Audit-Kette und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+
+### Mit dem Werkzeug
+
+`deploy/instanzen/haben-instanzen.sh` legt Instanzen an, aktualisiert alle nacheinander und zeigt ihren Stand. Es braucht `bash`, Docker mit Compose 2.23 oder neuer, `openssl` und `curl`:
+
+```sh
+curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/instanzen/haben-instanzen.sh
+chmod +x haben-instanzen.sh
+./haben-instanzen.sh neu firma1 firma1.example.de
+./haben-instanzen.sh neu firma2 firma2.example.de
+```
+
+Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
+
+```
+~/haben/
+  proxy/                   # gemeinsamer Caddy für alle Instanzen
+    compose.yml
+    Caddyfile              # import sites/*.caddy
+    sites/firma1.caddy     # eine Datei je Domain
+  firma1/
+    compose.yml            # unverändert aus deploy/
+    compose.override.yml   # eigener Caddy aus, App im Netz haben-proxy als haben-firma1
+    .env                   # eigene Schlüssel, Rechte 600
+  firma2/
+    …
+```
+
+| Befehl | Was es tut |
+| --- | --- |
+| `neu <name> <domain>` | Verzeichnis, `.env` mit eigenen Zufallswerten für `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`, die Override-Datei und der Eintrag im gemeinsamen Caddy. Startet Proxy und Instanz und nennt den Einrichtungscode. Gibt es das Verzeichnis schon oder gehört die Domain einer anderen Instanz, bricht es ab und ändert nichts |
+| `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende |
+| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung aus `backup_status`; eine gestoppte Instanz steht als „gestoppt“ in der Liste |
+| `liste` | Name, Domain und Verzeichnis |
+
+`update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
+
+Optionen für `neu`:
+
+| Option | Wirkung |
+| --- | --- |
+| `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID`. Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
+| `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](#eric-einbinden) |
+| `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
+| `--sso --oidc-issuer URL --oidc-client-id ID --oidc-client-secret WERT` | ausschließlich [Single Sign-on](#single-sign-on-mit-openid-connect), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia) |
+| `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen |
+
+`ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
+
+**Mit SSO:** Jede Instanz ist ein eigener Client beim Anmeldedienst und bekommt eigene Gruppen, `haben-<name>-inhaber` und `haben-<name>-steuerberatung`. Teilen sich Instanzen einen Anmeldedienst und dieselben Gruppennamen, wäre jedes Mitglied der Inhaber-Gruppe Inhaber in allen Firmen. Das Werkzeug nennt nach `neu` die Gruppen und die Redirect-URI `https://<domain>/api/auth/callback/oidc`; den Client legst du wie unter [Authelia konfigurieren](#authelia-konfigurieren) an, je Instanz mit eigener `client_id` und eigenem Secret. Wer in mehreren Firmen arbeitet, ist Mitglied in den Gruppen jeder dieser Firmen und meldet sich beim Anmeldedienst nur einmal an.
+
+### Von Hand
+
+Ohne Werkzeug legst du dieselben Dateien selbst an:
 
 ```
 haben-firma1/
@@ -401,10 +455,11 @@ firma2.example.de {
 
 (Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).) Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`. Jede Instanz hat ihren eigenen Dienst `backup`. Teilen sich mehrere Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (z. B. `BACKUP_HOST=haben-firma1`), sonst räumt das Aufräumen der einen die Stände der anderen ab und `restore latest` nimmt den falschen Stand.
 
-Weitere Punkte:
+### Weitere Punkte
 
-- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](#eric-einbinden).
-- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, bist du für diese Person Softwarehersteller nach der ERiC-Lizenz, siehe [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller). Wer Buchhaltungsdaten für andere hostet, ist zudem Auftragsverarbeiter nach DSGVO.
+- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](#eric-einbinden); mit dem Werkzeug über `--eric-home /opt/eric`. ERiC darf nicht mit Haben weitergegeben werden. Jede Instanz bestätigt die Datenschutzhinweise der Finanzverwaltung für sich.
+- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, bist du für diese Person Softwarehersteller nach der ERiC-Lizenz (Support, Mindestversion von ERiC, Bestätigung der Datenschutzhinweise vor der ersten Nutzung), siehe [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller). Bei Verstößen kann das Landesamt die ID sperren; dann sendet keine Instanz mit dieser ID mehr.
+- **Betrieb für andere:** Wer Buchhaltungsdaten für andere hostet, ist Auftragsverarbeiter nach DSGVO. Sendest du mit deinem eigenen Zertifikat im Auftrag anderer, gilt [§ 87d AO](https://www.gesetze-im-internet.de/ao_1977/__87d.html) (Auftraggeber identifizieren, Aufzeichnungen fünf Jahre aufbewahren). Ob eine Hersteller-ID für mehrere fremde Firmen reicht und ob ein gemeinsames `ERIC_HOME` dabei als Weitergabe gilt, ist nicht geklärt. Haben löst diese Fragen nicht; kläre sie vorher mit Steuerberatung und Anwalt, beim Landesamt für Steuern auch die Fragen zu ERiC ([#504](https://github.com/firsttris/haben/issues/504)).
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
 Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.

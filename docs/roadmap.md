@@ -65,6 +65,10 @@ Stand 9. November 2026, nach Abgleich mit Lexware Office und sevDesk und den off
 - Sperre bei unklarer Zahlungshistorie ([sevDesk](sevdesk.md), [#343](https://github.com/firsttris/haben/issues/343)); Einzelzahlungen mit Konto und Belegbezug, verdichtete Zahlungen repariert, Beitrag von Dudeplayz ([sevDesk](sevdesk.md), [#343](https://github.com/firsttris/haben/issues/343))
 - Angebote, Auftragsbestätigungen und Lieferscheine im Archiv, Beitrag von Dudeplayz ([sevDesk](sevdesk.md), [#346](https://github.com/firsttris/haben/issues/346))
 
+**Betrieb**
+
+- Mehrere Instanzen mit einem Werkzeug anlegen, aktualisieren und prüfen, je Firma eine eigene Instanz ([Mehrere Instanzen](installation.md#mit-dem-werkzeug), [#504](https://github.com/firsttris/haben/issues/504))
+
 **Oberfläche und Zugänge**
 
 - Seitenkopf mit Titel, Status und Hauptaktionen bleibt beim Scrollen stehen ([Barrierefreiheit](barrierefreiheit.md), [#356](https://github.com/firsttris/haben/issues/356))
@@ -133,7 +137,6 @@ Kommt nach den geplanten Plätzen, in dieser Reihenfolge:
 | S27 | Zeitstempel für das Audit-Log | Qualifizierter Zeitstempel nach RFC 3161 auf die Hash-Kette, zusätzlich zu den Siegeln ([#78](https://github.com/firsttris/haben/issues/78)) | S–M |
 | S28 | Backup in der Wochenmail | Stand der Sicherung und des Test-Restores in der wöchentlichen Mail ([#95](https://github.com/firsttris/haben/issues/95)) | S |
 | S29 | Installationsvorlagen | Vorlagen und Anleitungen für Unraid, TrueNAS, Synology, Coolify und Dokploy auf Basis von `deploy/compose.yml`, mit HTTPS, Schlüsseln, Backup und ERiC nur auf x86_64 ([#414](https://github.com/firsttris/haben/issues/414)) | S–M |
-| S30 | Mehrere Instanzen mit einem Werkzeug | Ein Skript in `deploy/` legt eine Instanz je Firma mit eigenen Schlüsseln, eigener Datenbank und Proxy-Eintrag an, aktualisiert alle nacheinander mit Stopp beim ersten Fehler und zeigt je Instanz Version, Erreichbarkeit, ERiC-Version und letzte Sicherung; die Trennung je Firma bleibt ([#504](https://github.com/firsttris/haben/issues/504)) | S |
 | S31 | Privatkonten je Gesellschafter | Für Personengesellschaften (GbR, PartG) Privatentnahmen und -einlagen je Gesellschafter auf eigenen Unterkonten; ohne gesonderte und einheitliche Feststellung (ESt 1 B), die macht weiter die Steuerberatung ([#502](https://github.com/firsttris/haben/issues/502)) | M |
 
 ## Bewusst nicht
@@ -146,7 +149,7 @@ Kommt nach den geplanten Plätzen, in dieser Reihenfolge:
 | Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
 | Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |
 | CRM mit Aufgaben und Push-Erinnerungen, Mitarbeiterportal | Kein Kern einer Buchhaltung für kleine Betriebe |
-| Mehrere Firmen in einer Installation | Eine Instanz je Firma; so bleiben Daten, Sperren und Audit getrennt, und ein Fehler macht keine fremde Buchhaltung sichtbar ([#66](https://github.com/firsttris/haben/issues/66)) |
+| Mehrere Firmen in einer Installation | Eine Instanz je Firma, angelegt und aktualisiert mit einem Werkzeug ([Mehrere Instanzen](installation.md#mehrere-instanzen)); so bleiben Daten, Sperren und Audit getrennt, und ein Fehler macht keine fremde Buchhaltung sichtbar ([#66](https://github.com/firsttris/haben/issues/66)) |
 | Vereine und gemeinnützige Körperschaften | Brauchen Sphären (ideeller Bereich, Vermögensverwaltung, Zweckbetrieb, wirtschaftlicher Geschäftsbetrieb), Zuwendungsbestätigungen, Anlage Gem und einen Vereinskontenrahmen wie SKR42 oder SKR49. Das planen wir nicht selbst; ausgeschlossen ist es nicht, wenn jemand mit Erfahrung in Vereinsbuchhaltung es umsetzen und dauerhaft betreuen will, nach einem gemeinsamen Entwurf, wie die Sphären ins Datenmodell passen ([#412](https://github.com/firsttris/haben/issues/412), [#497](https://github.com/firsttris/haben/issues/497)) |
 | Mehrere Geschäftsidentitäten mit eigenen Steuerdaten | Ein Unternehmer hat ein Unternehmen (§ 2 Abs. 1 Satz 2 UStG), auf der Rechnung steht sein vollständiger Name; Marken mit Logo, Kontakt und Bankkonto kommen als Profile (S2) ([#245](https://github.com/firsttris/haben/issues/245)) |
 | E-Mails als HTML mit Editor | Hoher Aufwand (Editor, Vorschau, sicheres HTML, Darstellung in vielen Mailprogrammen) bei wenig Nutzen; auch kein schlichter HTML-Rahmen mit Logo und Signatur. Textvorlagen je Art und Sprache mit Platzhaltern gibt es ([#115](https://github.com/firsttris/haben/issues/115)) |
