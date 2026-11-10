@@ -29,7 +29,7 @@ import { splitsByDocument } from "../belege/index.ts";
 
 type Zeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
 
-interface Buchung {
+export interface Buchung {
   id: string;
   reversesId: string | null;
   kontenrahmen: Kontenrahmen;
@@ -38,7 +38,7 @@ interface Buchung {
   zeilen: Zeile[];
 }
 
-async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]> {
+export async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]> {
   const e = schema.journalEntries;
   const l = schema.journalLines;
   const rows = await q
@@ -66,19 +66,39 @@ async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]>
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode });
   }
-  // Eine Gegenbuchung übernimmt die Zeilen der aufgehobenen Buchung, auch wenn die Firmendaten inzwischen einen anderen
-  // Kontenrahmen haben (Storno einer Bareinnahme aus dem Vorjahr); ihre Konten gehören zum Kontenrahmen der aufgehobenen
+  // Bis #570 übernahm das Storno einer Bareinnahme bzw. das Aufheben einer Ausbuchung nach einem Wechsel des Kontenrahmens
+  // die Kontonummern der aufgehobenen Buchung unverändert; solche Gegenbuchungen gehören zum Kontenrahmen der aufgehobenen.
+  // Seitdem bucht die Gegenbuchung mit den Konten des neuen Rahmens und bleibt, wie sie ist.
   const aufgehoben = [...new Set([...byId.values()].flatMap((b) => (b.reversesId ? [b.reversesId] : [])))];
   if (aufgehoben.length > 0) {
-    const kontenrahmen = new Map(
-      (await q.select({ id: e.id, kontenrahmen: e.kontenrahmen }).from(e).where(inArray(e.id, aufgehoben))).map((r) => [r.id, r.kontenrahmen as Kontenrahmen]),
-    );
-    for (const b of byId.values()) if (b.reversesId) b.kontenrahmen = kontenrahmen.get(b.reversesId) ?? b.kontenrahmen;
+    const original = new Map<string, { kontenrahmen: Kontenrahmen; konten: string[] }>();
+    for (const r of await q
+      .select({ id: e.id, kontenrahmen: e.kontenrahmen, account: l.account })
+      .from(l)
+      .innerJoin(e, eq(e.id, l.entryId))
+      .where(inArray(e.id, aufgehoben))) {
+      const o = original.get(r.id) ?? { kontenrahmen: r.kontenrahmen as Kontenrahmen, konten: [] };
+      o.konten.push(r.account);
+      original.set(r.id, o);
+    }
+    const gleich = (x: string[], y: string[]) => x.length === y.length && [...x].sort().join() === [...y].sort().join();
+    for (const b of byId.values()) {
+      const o = b.reversesId ? original.get(b.reversesId) : undefined;
+      if (
+        o &&
+        o.kontenrahmen !== b.kontenrahmen &&
+        gleich(
+          o.konten,
+          b.zeilen.map((z) => z.account),
+        )
+      )
+        b.kontenrahmen = o.kontenrahmen;
+    }
   }
   return [...byId.values()];
 }
 
-const offenerPosten = (kr: Kontenrahmen, z: Zeile) => z.account === ACCOUNTS[kr].forderungen || z.account === ACCOUNTS[kr].verbindlichkeiten;
+export const offenerPosten = (kr: Kontenrahmen, z: Zeile) => z.account === ACCOUNTS[kr].forderungen || z.account === ACCOUNTS[kr].verbindlichkeiten;
 const offen = (b: Buchung) => b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
 const ausbuchungOhneZahlung = (b: Buchung) => {
   const a = ACCOUNTS[b.kontenrahmen];
@@ -145,7 +165,7 @@ async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchu
 }
 
 /** Aufteilung eines Belegs aus dem Nebenbuch, für Teilzahlungen, deren Rundung die Buchung allein nicht hergibt */
-interface BelegNebenbuch {
+export interface BelegNebenbuch {
   totals: ReturnType<typeof totalsFromTaxes>;
   category: ExpenseCategory;
   vorsteuerAbzug: boolean;
@@ -153,7 +173,7 @@ interface BelegNebenbuch {
   splits?: AllocatedSplitLine[];
 }
 
-async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
+export async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
   const d = schema.documents;
   const [doc] = await q
     .select({ category: d.category, vorsteuerAbzug: d.vorsteuerAbzug, privateShare: d.privateShare, reverseCharge: d.reverseCharge })
@@ -171,11 +191,12 @@ async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | 
 }
 
 /** Wirkung einer Teilzahlung auf einen Beleg, gerechnet wie computeEuer */
-function belegTeilzahlung(year: number, beleg: BelegNebenbuch, paid: number, summe: EuerAusJournal) {
+export function belegTeilzahlung(year: number, beleg: BelegNebenbuch, paid: number, summe: EuerAusJournal = leereEuerAusJournal()): EuerAusJournal {
   const payment: EuerPayment = { kind: "document", date: `${year}-06-30`, paid, ...beleg };
   const result = computeEuer(year, [payment]);
   for (const l of [...result.einnahmen, ...result.ausgaben]) if (l.amount !== 0) summe.zeilen[l.key] = (summe.zeilen[l.key] ?? 0) + l.amount;
   summe.bewirtungNichtAbziehbar += result.bewirtungNichtAbziehbar;
+  return summe;
 }
 
 export interface EuerJournal {

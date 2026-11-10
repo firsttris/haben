@@ -2,6 +2,7 @@ import { ASSET_ACCOUNTS } from "./afa.ts";
 import { DARLEHEN_KONTEN } from "./darlehen.ts";
 import type { EuerLineKey } from "./euer.ts";
 import type { JournalZeile } from "./journal-kennzahlen.ts";
+import { kontoart } from "./ledger.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 import { PAUSCHALE_KONTEN, type PauschaleArt } from "./pauschalen.ts";
@@ -231,4 +232,37 @@ export function zahlungsAnteil(
   const danach = zahlungsStand(kontenrahmen, zeilen, gesamt, bisher + betrag);
   const davor = bisher === 0 ? zeilen.map(() => 0) : zahlungsStand(kontenrahmen, zeilen, gesamt, bisher);
   return zeilen.map((z, i) => alsZeile(z, danach[i]! - davor[i]!));
+}
+
+/**
+ * Konten, aus denen die DATEV-Formel den Gewinn der EÜR rechnet (#542, Schritt 5c; DATEV-Hilfe-Center, Dok.-Nr. 1036819,
+ * 1029628, 1036906): Erfolgskonten, Umsatz- und Vorsteuer samt „nicht fällig“, Umsatzsteuer an das Finanzamt, Forderungen,
+ * Verbindlichkeiten und die Verbindlichkeiten der Lohnabrechnung. Der Gewinn ist der negative Saldo dieser Konten im
+ * Jahr: Erlöse und Aufwand nach Rechnungs- bzw. Belegdatum, korrigiert um die Veränderung von Forderungen und
+ * Verbindlichkeiten, also nach Zahlung. Bank, Kasse, Privat, Anlagen und Darlehen gehören nicht dazu.
+ */
+export function datevFormelKonto(kontenrahmen: Kontenrahmen, account: string): boolean {
+  if (kontoart(kontenrahmen, account) !== "bestand") return true;
+  const a = ACCOUNTS[kontenrahmen];
+  const lohn = LOHN_KONTEN[kontenrahmen];
+  const steuer = STEUER_KONTEN[kontenrahmen];
+  return [
+    ...Object.values(a.ust),
+    ...Object.values(a.ustNichtFaellig),
+    ...Object.values(a.vorsteuer),
+    a.ustRc,
+    a.vorsteuerRc,
+    ...Object.values(a.ustIge),
+    ...Object.values(a.vorsteuerIge),
+    a.ustVorauszahlung,
+    a.sondervorauszahlung,
+    steuer.ustVorjahr,
+    steuer.ustFruehereJahre,
+    EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen],
+    a.forderungen,
+    a.verbindlichkeiten,
+    lohn.verbLohn,
+    lohn.verbLohnsteuer,
+    lohn.verbSv,
+  ].includes(account as never);
 }

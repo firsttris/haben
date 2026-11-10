@@ -103,9 +103,12 @@ export function bemessungsZeilen(
   // Belege mit § 13b oder Erwerb, deren Steuer nicht voll abziehbar ist
   const teilweise = [...figures.reverseCharge, ...figures.igErwerb].filter((s) => s.deductible !== s.tax);
   const ausgenommeneBelege = new Set(teilweise.map((s) => s.documentId));
-  // Korrekturen übernommener Lexoffice-Rechnungen: Rechnungsbuchung gegen den Saldenvortrag
+  // Korrekturen übernommener Lexoffice-Rechnungen: Rechnungsbuchung gegen den Saldenvortrag, bis #542 ohne Steuerschlüssel;
+  // seitdem trägt die Zeile bei Soll den Steuerschlüssel und wird verglichen
   const korrekturen = new Set(
-    imZeitraum.filter((b) => b.sourceType === "invoice" && b.zeilen.some((z) => z.account === ACCOUNTS[b.kontenrahmen].saldenvortrag)).map((b) => b.sourceId),
+    imZeitraum
+      .filter((b) => b.sourceType === "invoice" && b.zeilen.some((z) => z.account === ACCOUNTS[b.kontenrahmen].saldenvortrag && z.taxCode === null))
+      .map((b) => b.sourceId),
   );
   const ausgenommen = (b: JournalBuchung) =>
     b.sourceType === "asset" ||

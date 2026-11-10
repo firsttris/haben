@@ -15,6 +15,7 @@ import {
   type Kontenrahmen,
   type PauschaleArt,
   formatEuro,
+  isKapitalgesellschaft,
   monthsOfPeriod,
   periodKey,
   type VatPeriod,
@@ -23,6 +24,7 @@ import { and, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
+import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
@@ -232,13 +234,17 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const kursQuelle = line("kursverluste") - line("kursgewinne");
   if (kurs !== 0 || kursQuelle !== 0) zeilen.push(row("Kursdifferenzen (Aufwand abzüglich Ertrag)", kurs, kursQuelle));
 
-  // Einnahmen und Ausgaben nach Zahlung, aus dem Journal mit jeder Zahlung anteilig auf die ausgeglichene Buchung
+  // Einnahmen und Ausgaben nach Zahlung, aus dem Journal mit jeder Zahlung anteilig auf die ausgeglichene Buchung. Nur im
+  // Einzelunternehmen: GmbH und UG bilanzieren und machen keine EÜR; Körperschaftsteuer, Ergebnisverwendung und manuelle
+  // Buchungen stehen dort auf Erfolgskonten, die die EÜR nicht kennt
+  const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
+  const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
   const ausJournal = await euerAusJournal(year, q);
-  if (ausJournal.uebernommen > 0) {
+  if (euerAusDemJournal && ausJournal.uebernommen > 0) {
     hinweise.push(
       `${ausJournal.uebernommen === 1 ? "Eine Zahlung" : `${ausJournal.uebernommen} Zahlungen`} ${year} auf aus Lexoffice übernommene Rechnungen bzw. Belege: Einnahmen und Ausgaben werden für ${year} nicht je Zeile abgeglichen.`,
     );
-  } else {
+  } else if (euerAusDemJournal) {
     const label = (key: EuerLineKey) =>
       [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??
       (key.startsWith("ausgabe:") ? EXPENSE_CATEGORIES[key.slice(8) as keyof typeof EXPENSE_CATEGORIES].label : EUER_LABELS[key as keyof typeof EUER_LABELS]);
@@ -289,6 +295,12 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
       row("Private Kfz-Nutzung", -saldo(sums, (kr) => Object.values(PRIVATE_USE_ACCOUNTS[kr]), anlage), privat.privateKfz),
       row("Umsatzsteuer auf die private Kfz-Nutzung", -saldo(sums, ust(1900), anlage), privat.ustEntnahmen),
     );
+    // Gegenprobe (#542): der Gewinn nach der DATEV-Formel aus Erfolgs- und Steuerkonten, Forderungen und Verbindlichkeiten;
+    // erst, wenn AfA und Privatnutzung gebucht sind, denn die EÜR rechnet sie aus dem Anlagenverzeichnis
+    if (euerAusDemJournal) {
+      const nichtAbziehbar = ausJournal.summe.bewirtungNichtAbziehbar + ausJournal.summe.gewerbesteuerNichtAbziehbar;
+      zeilen.push(row("EÜR: Gewinn nach der DATEV-Formel", await gewinnNachDatevFormel(year, nichtAbziehbar, q), euer.gewinn));
+    }
   }
   return { zeilen, hinweise };
 }

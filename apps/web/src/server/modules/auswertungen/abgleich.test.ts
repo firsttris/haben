@@ -250,10 +250,12 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     const found = await manipulated((tx) => tx`update journal_lines set credit = credit - 100 where id = ${line!.id}`);
     expect(found).toEqual([
       expect.objectContaining({ bereich: "ustva", zeitraum: "2026-02", posten: "Umsatzsteuer 19 % (Kz 81)" }),
-      // Die EÜR aus dem Journal sieht es ebenfalls: Die Umbuchung der Steuer hebt sich nicht mehr auf (#542)
+      // Die EÜR aus dem Journal sieht es ebenfalls: Die Umbuchung der Steuer hebt sich nicht mehr auf (#542), auch im
+      // Gewinn nach der DATEV-Formel
       expect.objectContaining({ bereich: "euer", zeitraum: "2026", posten: "EÜR: Vereinnahmte Umsatzsteuer" }),
+      expect.objectContaining({ bereich: "euer", zeitraum: "2026", posten: "EÜR: Gewinn nach der DATEV-Formel" }),
     ]);
-    expect(found.map((z) => z.quelle - z.journal)).toEqual([100, 100]);
+    expect(found.map((z) => z.quelle - z.journal)).toEqual([100, 100, 100]);
     await bypass((tx) => tx`update journal_lines set credit = credit + 100 where id = ${line!.id}`);
 
     // Nebenbuch: Steuer eines gebuchten Belegs geändert

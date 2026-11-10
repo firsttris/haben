@@ -82,6 +82,7 @@ export default defineConfig({
       testMatch: [
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
+        "dateiauswahl.spec.ts",
         "gestaltung.spec.ts",
         "handy-felder.spec.ts",
         "basiszinssatz.spec.ts",

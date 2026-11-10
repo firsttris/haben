@@ -412,3 +412,50 @@ test("Feld aus der gemeinsamen Komponente: Nur der Name klickt, der Hinweis geh�
   const email = page.getByRole("textbox", { name: "E-Mail", exact: true });
   await expect(email).toHaveAccessibleDescription(/Mehrere Adressen/);
 });
+
+// Kennzahlentabelle der Voranmeldung am Handy (#376): Bezeichnung über die volle Breite, darunter Bemessung und
+// Steuer nebeneinander; nichts läuft unter ein Feld, keine Zeile wird zehnmal so hoch wie am Desktop
+test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, nichts unter einem Feld", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await withTheme(page, "nacht");
+  let gefunden = false;
+  for (const candidate of [`/umsatzsteuer/${YEAR}-Q1`, `/umsatzsteuer/${YEAR}-03`, `/umsatzsteuer/${YEAR - 1}-03`, `/umsatzsteuer/${YEAR + 1}-03`]) {
+    await open(page, candidate);
+    if (await page.getByRole("button", { name: "Manuell überschreiben" }).count()) {
+      gefunden = true;
+      break;
+    }
+  }
+  expect(gefunden, "Voranmeldung zum manuellen Überschreiben").toBe(true);
+  await page.getByRole("button", { name: "Manuell überschreiben" }).click();
+  await expect(page.locator(".kz-row input").first()).toBeVisible();
+
+  const probleme = await page.evaluate(() => {
+    const tabelle = document.querySelector<HTMLElement>(".kz-table");
+    if (!tabelle) return ["keine Kennzahlentabelle"];
+    const breite = tabelle.getBoundingClientRect().width;
+    const meldungen: string[] = [];
+    const zeilen = [...tabelle.querySelectorAll<HTMLElement>(".kz-row:not(.head):not(.total)")];
+    if (zeilen.length < 5) meldungen.push(`nur ${zeilen.length} Zeilen`);
+    for (const zeile of zeilen) {
+      const kz = zeile.querySelector(".kz-num")?.textContent?.trim();
+      const label = zeile.querySelector<HTMLElement>(".kz-label");
+      if (!label) continue;
+      const lr = label.getBoundingClientRect();
+      if (lr.width < breite * 0.7) meldungen.push(`Kz ${kz}: Bezeichnung nur ${Math.round(lr.width)} von ${Math.round(breite)} px breit`);
+      if (label.scrollWidth > label.clientWidth + 1) meldungen.push(`Kz ${kz}: Bezeichnung abgeschnitten`);
+      // Eine Zeile am Desktop ist 64 px hoch; höchstens das Dreifache
+      if (zeile.getBoundingClientRect().height > 192) meldungen.push(`Kz ${kz}: ${Math.round(zeile.getBoundingClientRect().height)} px hoch`);
+      for (const feld of zeile.querySelectorAll<HTMLElement>("input, output, .kz-amount")) {
+        const fr = feld.getBoundingClientRect();
+        if (fr.width === 0) continue;
+        if (fr.top < lr.bottom - 1 && fr.bottom > lr.top + 1) meldungen.push(`Kz ${kz}: Feld überlappt die Bezeichnung`);
+        if (fr.right > breite + tabelle.getBoundingClientRect().left + 1) meldungen.push(`Kz ${kz}: Feld ragt über den Rand`);
+      }
+    }
+    return meldungen;
+  });
+  expect(probleme).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await axe(page), "axe am Handy").toEqual([]);
+});
