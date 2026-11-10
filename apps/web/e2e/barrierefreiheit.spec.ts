@@ -546,6 +546,32 @@ test("Kontrollkästchen mit Hinweis: Der Hinweis fluchtet mit dem Text der Besch
   }
 });
 
+test("Kontrollkästchen mit Hinweis am Desktop: Die Zeile ist nur so hoch wie der Text", async ({ page }) => {
+  await open(page, "/einstellungen");
+  for (const name of [
+    "Kleinunternehmer nach § 19 UStG",
+    "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+    "Basiszinssatz automatisch abrufen",
+  ]) {
+    const zeile = page.locator("label.checkbox", { has: page.getByRole("checkbox", { name, exact: true }) });
+    // 44px gelten nur auf Touchgeräten (pointer: coarse); am Desktop bliebe sonst eine Leerzeile zwischen Text und Hinweis
+    expect((await zeile.boundingBox())?.height ?? 99, name).toBeLessThan(44);
+  }
+});
+
+test("Kontrollkästchen mit Hinweis: Ein Klick auf den Hinweis schaltet nicht um", async ({ page }) => {
+  await open(page, "/einstellungen");
+  const name = "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)";
+  const kasten = page.getByRole("checkbox", { name, exact: true });
+  const vorher = await kasten.isChecked();
+  const block = page.locator(".checkbox-hinted", { has: kasten });
+  await block.locator(".field-hint").click();
+  await expect(kasten).toBeChecked({ checked: vorher });
+  // Gegenprobe: derselbe Klick auf den Beschriftungstext schaltet um
+  await block.locator("label.checkbox > span").click();
+  await expect(kasten).toBeChecked({ checked: !vorher });
+});
+
 /** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
 const FILE_PICKER_PAGES = [
   "/dauerbelege/neu",
