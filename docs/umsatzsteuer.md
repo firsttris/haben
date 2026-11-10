@@ -182,6 +182,8 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 
+**Ab dem Stichjahr aus dem Journal.** Ab einem Stichjahr rechnet Haben die Kennzahlen wie DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen)); bei Ist-Versteuerung zählt ein Verkauf auf Ziel mit der Zahlung, die die Bemessungsgrundlage trägt. Die Privatnutzung von Fahrzeugen kommt weiter je Monat aus dem Anlagenverzeichnis. Die Abschnitte unten beschreiben, was die Rechnungen, Belege und Zahlungen dazu beitragen; sie bleiben die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Das Stichjahr ist das Jahr der ersten Buchung; bei Instanzen, die schon vor diesem Update gebucht haben, das Jahr nach dem Update. Davor rechnet Haben wie bisher aus den Rechnungen, Belegen und Zahlungen; gesendete Voranmeldungen ändern sich nicht. Hintergrund: [Entwurf „Voranmeldung und EÜR aus dem Journal“](adr/journal-als-quelle.md).
+
 ### Umsatzsteuer (Kz 81 und 86)
 
 | Versteuerung | Maßgeblich | Quelle |
