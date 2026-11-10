@@ -44,7 +44,7 @@ Die ZIP ist die einzige Schnittstelle zwischen den beiden Programmen.
 
 Die Zuordnung Buchung zu Beleg läuft über die GUID und nicht über den Dateinamen. Derselbe Beleg heißt in `Belege.zip` anders als im PDF-Ordner (etwa `…_012` gegen `…_Wdn`). Wenn du vor dem Upload Dateien umbenennst, geht die Verknüpfung kaputt. Lade die ZIP unverändert hoch, Haben speichert sie mit Prüfsumme im Archiv.
 
-Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen. Haben nimmt sie der Reihe nach und übernimmt jede für sich.
+Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen. Haben nimmt sie der Reihe nach und übernimmt jede für sich. Wie im Archiv gilt: Jeder Zeitraum wird nur einmal übernommen. Liegt für das Jahr schon ein Buchungsstapel im Archiv, etwa aus einem früheren Export desselben Jahres, bricht der Lauf mit einem Hinweis ab, statt die Buchungen doppelt abzulegen. Dieselbe ZIP noch einmal hochzuladen geht dagegen und übernimmt nur, was fehlt.
 
 ## Was übernommen wird
 
