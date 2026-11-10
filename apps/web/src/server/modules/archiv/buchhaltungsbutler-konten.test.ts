@@ -1,5 +1,5 @@
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
