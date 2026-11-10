@@ -129,13 +129,13 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     });
   }, 60_000);
 
-  it("hält die Höchstzahl des Betreibers ein (HABEN_LAYOUTS_MAX)", async () => {
+  it("hält die Höchstzahl des Betreibers ein (LAYOUTS_MAX_COUNT)", async () => {
     const limits = { maxCount: 1 };
     await anlegen({ name: "Eins", art: "mahnung", source: eigene("mahnung") }, { limits });
     await expect(anlegen({ name: "Zwei", art: "mahnung", source: eigene("mahnung") }, { limits })).rejects.toThrow(/mehr erlaubt diese Installation nicht/);
   }, 60_000);
 
-  it("hält den Speicher des Betreibers ein, mit Paketen (HABEN_LAYOUTS_MAX_MB)", async () => {
+  it("hält den Speicher des Betreibers ein, mit Paketen (LAYOUTS_MAX_MB)", async () => {
     const quelltext = Buffer.byteLength(eigene("mahnung"), "utf8");
     const limits = { maxBytes: quelltext * 2 + 1000 };
     const { id } = await anlegen({ name: "Platz eins", art: "mahnung", source: eigene("mahnung") }, { limits });

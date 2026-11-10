@@ -90,9 +90,9 @@ export interface NeedsApproval {
 }
 
 export interface LayoutLimits {
-  /** Höchstzahl eigener Layouts (HABEN_LAYOUTS_MAX) */
+  /** Höchstzahl eigener Layouts (LAYOUTS_MAX_COUNT) */
   maxCount?: number | undefined;
-  /** Speicher in Byte, Quelltexte und Pakete zusammen (HABEN_LAYOUTS_MAX_MB) */
+  /** Speicher in Byte, Quelltexte und Pakete zusammen (LAYOUTS_MAX_MB) */
   maxBytes?: number | undefined;
 }
 
@@ -103,8 +103,8 @@ export interface LayoutDeps {
 
 /** Grenzen des Betreibers aus der Umgebung; ohne Angabe unbegrenzt */
 export function envLimits(): LayoutLimits {
-  const { HABEN_LAYOUTS_MAX, HABEN_LAYOUTS_MAX_MB } = env();
-  return { maxCount: HABEN_LAYOUTS_MAX, maxBytes: HABEN_LAYOUTS_MAX_MB ? HABEN_LAYOUTS_MAX_MB * 1024 * 1024 : undefined };
+  const { LAYOUTS_MAX_COUNT, LAYOUTS_MAX_MB } = env();
+  return { maxCount: LAYOUTS_MAX_COUNT, maxBytes: LAYOUTS_MAX_MB ? LAYOUTS_MAX_MB * 1024 * 1024 : undefined };
 }
 
 /** Platz aller Layouts ohne das genannte: Quelltexte in der Datenbank und Paket-Caches */
