@@ -80,6 +80,7 @@ describe("Anbieter der Auslesung", () => {
     timeoutMs: 1_000,
     maxPages: 4,
     input: "bild" as const,
+    extraBody: {},
   };
   const pdfWarning = "Das PDF hat mehr als 4 Seiten; ausgelesen wurden nur die ersten 4.";
   const providers = () => ({
