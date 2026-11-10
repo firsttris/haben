@@ -52,12 +52,13 @@ export interface DatevBookingRow {
  * Erlöskonten mit Umsatzsteuer-Automatik (AM) in den DATEV-Standardkontenrahmen, die Haben bebucht: Erlöse 19 % und 7 %,
  * die Sachentnahme (Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 19 % bzw. 7 % USt) und die
  * private Kfz-Nutzung mit Umsatzsteuer (Verwendung von Gegenständen … 19 % USt (Fahrzeug-Nutzung)). Das Konto der
- * Kfz-Nutzung ohne Umsatzsteuer (SKR03 8924, SKR04 4639) ist ein KU-Konto ohne Automatik. Quelle: DATEV-Kontenrahmen
+ * Kfz-Nutzung ohne Umsatzsteuer (SKR03 8924, SKR04 4639) ist ein KU-Konto ohne Automatik. SKR04 4630 („Verwendung von
+ * Gegenständen … 7 % USt“, ebenfalls AM) trägt Sachentnahmen 7 %, die Haben vor #598 dort gebucht hat. Quelle: DATEV-Kontenrahmen
  * SKR03 Art.-Nr. 11174 und SKR04 Art.-Nr. 11175, gültig für 2026.
  */
 export const DATEV_AUTOMATIC_ACCOUNTS: Record<DatevExportHeader["kontenrahmen"], ReadonlySet<string>> = {
   SKR03: new Set(["8400", "8300", "8910", "8915", "8921"]),
-  SKR04: new Set(["4400", "4300", "4620", "4610", "4645"]),
+  SKR04: new Set(["4400", "4300", "4620", "4610", "4630", "4645"]),
 };
 
 /**

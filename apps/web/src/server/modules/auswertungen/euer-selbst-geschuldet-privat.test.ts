@@ -9,7 +9,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Abgleich beim Gewinn nach der DATEV-Formel eine Abweichung in Höhe dieses Teils (#542).
  */
 
-describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten Steuer", () => {
+describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten Steuer, Sachentnahme auf 4630", () => {
   let cash: typeof import("../bank/cash-income.ts");
   let documents: typeof import("../belege/documents.ts");
   let cancellation: typeof import("../belege/cancellation.ts");
@@ -113,4 +113,29 @@ describe.skipIf(!testDatabaseUrl)("EÜR: privater Teil der selbst geschuldeten S
       expect(abgleich.abweichungen((await abgleich.euerAbgleich(2025)).zeilen)).toEqual([]);
     }, 60_000);
   }
+
+  // TDD-Review #598: Bis zu diesem Pull Request buchte die Sachentnahme 7 % in SKR04 auf 4630 (jetzt 4610); was dort
+  // gebucht ist, zählt weiter in der Zeile der Sachentnahmen
+  it("SKR04: gebuchte Sachentnahme 7 % auf 4630 zählt weiter in der EÜR", async () => {
+    await reset("soll", "SKR04");
+    const { withActor } = await import("../../db/actor.ts");
+    const ledger = await import("../buchhaltung/ledger.ts");
+    await withActor(actor, async (tx) =>
+      ledger.post(tx, await ledger.openBooks(tx), {
+        date: "2026-09-10",
+        description: "Sachentnahme 7 %",
+        sourceType: "manuell",
+        sourceId: crypto.randomUUID(),
+        lines: [
+          { account: "2100", debit: 1_070, credit: 0, taxCode: null },
+          { account: "4630", debit: 0, credit: 1_000, taxCode: "USt7" },
+          { account: "3801", debit: 0, credit: 70, taxCode: "USt7" },
+        ],
+      }),
+    );
+    const zeile = (euer: { einnahmen: { key: string; amount: number }[] }) => euer.einnahmen.find((l) => l.key === "sachentnahmen")?.amount ?? 0;
+    expect(zeile(await quelle.euerAusDemJournal(2026, db))).toBe(1_000);
+    expect(zeile(await reports.euerAusNebenbuechern(2026, db))).toBe(1_000);
+    expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
+  }, 60_000);
 });

@@ -119,6 +119,8 @@ describe("Sachentnahme auf den Automatikkonten (#590)", () => {
     ["SKR03", "1800", "8915", "1771"],
     ["SKR04", "2100", "4620", "3806"],
     ["SKR04", "2100", "4610", "3801"],
+    // Bis #598 die Sachentnahme 7 % in SKR04; ebenfalls ein AM-Konto („Verwendung von Gegenständen … 7 % USt“)
+    ["SKR04", "2100", "4630", "3801"],
   ] as const) {
     it(`${kr} ${sach}: BU-Schlüssel 40`, () => {
       const rows = splitEntry(
