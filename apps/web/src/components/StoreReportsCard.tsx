@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 import { FilePicker } from "./FilePicker.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import {
@@ -172,18 +173,19 @@ function StoreForm({ store, connection, contacts }: { store: Store; connection: 
       )}
       {connection && (
         <div className="stack" style={{ gap: 8 }}>
-          <label className="field">
-            Store-Gesellschaft für die Rechnungsentwürfe
-            <select value={connection.config.contactId ?? ""} onChange={(e) => onContact(e.target.value)} disabled={busy}>
-              <option value="">Keine Rechnungsentwürfe</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.land}
-                  {c.ustId ? `, ${c.ustId}` : ""})
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Store-Gesellschaft für die Rechnungsentwürfe">
+            {(control) => (
+              <select {...control} value={connection.config.contactId ?? ""} onChange={(e) => onContact(e.target.value)} disabled={busy}>
+                <option value="">Keine Rechnungsentwürfe</option>
+                {contacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.land}
+                    {c.ustId ? `, ${c.ustId}` : ""})
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
           <p className="small muted" style={{ margin: 0 }}>
             Lege die Gesellschaft unter Kontakte an, mit Anschrift und USt-IdNr. aus deinem Vertrag mit {label} (
             {store === "googleplay" ? "in der Regel Google Commerce Ltd, Irland" : "für die meisten Länder Apple Distribution International Ltd, Irland"}).
@@ -203,42 +205,43 @@ function StoreForm({ store, connection, contacts }: { store: Store; connection: 
           {connection.lastError}
         </div>
       )}
-      <label className="field">
-        {connection ? "Neuer Schlüssel (leer lassen zum Behalten)" : store === "googleplay" ? "Schlüssel des Servicekontos (.json)" : "Schlüssel (.p8)"}
-        <FilePicker name="key" accept={store === "googleplay" ? ".json" : ".p8"} required={!connection} />
-      </label>
+      <Field
+        label={connection ? "Neuer Schlüssel (leer lassen zum Behalten)" : store === "googleplay" ? "Schlüssel des Servicekontos (.json)" : "Schlüssel (.p8)"}
+      >
+        {(control) => <FilePicker {...control} name="key" accept={store === "googleplay" ? ".json" : ".p8"} required={!connection} />}
+      </Field>
       {store === "googleplay" ? (
-        <label className="field">
-          Cloud-Storage-URI
-          <input
-            value={bucket}
-            onChange={(e) => setBucket(e.target.value)}
-            required
-            placeholder="gs://pubsite_prod_rev_…"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
+        <Field label="Cloud-Storage-URI">
+          {(control) => (
+            <input
+              {...control}
+              value={bucket}
+              onChange={(e) => setBucket(e.target.value)}
+              required
+              placeholder="gs://pubsite_prod_rev_…"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          )}
+        </Field>
       ) : (
         <>
-          <label className="field">
-            Issuer ID
-            <input value={issuerId} onChange={(e) => setIssuerId(e.target.value)} required autoComplete="off" spellCheck={false} />
-          </label>
-          <label className="field">
-            Key ID
-            <input value={keyId} onChange={(e) => setKeyId(e.target.value)} required autoComplete="off" spellCheck={false} />
-          </label>
-          <label className="field">
-            Vendor-Nummer
-            <input value={vendorNumber} onChange={(e) => setVendorNumber(e.target.value)} required inputMode="numeric" autoComplete="off" />
-          </label>
+          <Field label="Issuer ID">
+            {(control) => <input {...control} value={issuerId} onChange={(e) => setIssuerId(e.target.value)} required autoComplete="off" spellCheck={false} />}
+          </Field>
+          <Field label="Key ID">
+            {(control) => <input {...control} value={keyId} onChange={(e) => setKeyId(e.target.value)} required autoComplete="off" spellCheck={false} />}
+          </Field>
+          <Field label="Vendor-Nummer">
+            {(control) => (
+              <input {...control} value={vendorNumber} onChange={(e) => setVendorNumber(e.target.value)} required inputMode="numeric" autoComplete="off" />
+            )}
+          </Field>
         </>
       )}
-      <label className="field">
-        Berichte ab Monat
-        <input type="month" value={fetchFrom} onChange={(e) => setFetchFrom(e.target.value)} required />
-      </label>
+      <Field label="Berichte ab Monat">
+        {(control) => <input {...control} type="month" value={fetchFrom} onChange={(e) => setFetchFrom(e.target.value)} required />}
+      </Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? "Prüfe …" : "Prüfen und speichern"}
