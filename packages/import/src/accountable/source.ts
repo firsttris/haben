@@ -53,6 +53,7 @@ const COLUMNS = {
   net: "Betrag Ohne USt.", // F
   tax: "USt.-Betrag", // G
   currency: "Währung", // H
+  taxStatus: "USt.-Status", // I
   taxRate: "USt.-Satz", // J
   code: "Buchungscode", // M
   codeName: "Codebeschreibung", // N
@@ -129,6 +130,7 @@ function expensesOf(xlsx: Uint8Array): AccountableExpenseRow[] {
     net: euros(row[COLUMNS.net]),
     tax: euros(row[COLUMNS.tax]),
     currency: (row[COLUMNS.currency] ?? "").trim().toUpperCase(),
+    taxStatus: (row[COLUMNS.taxStatus] ?? "").trim(),
     taxRate: basisPoints(row[COLUMNS.taxRate]),
     code: normalizeCode(row[COLUMNS.code]),
     codeName: (row[COLUMNS.codeName] ?? "").trim(),

@@ -14,10 +14,7 @@ type Detected =
   | { format: "camt053"; text: string }
   | {
       // accountable-xlsx steht nicht in der Liste: diese Umsaetze kommen mit dem Export, nie als Datei
-      format: Exclude<
-        StatementFormat,
-        "camt053" | "enablebanking" | "googleplay-earnings" | "appstore-finance" | "store-payout" | "accountable-xlsx"
-      >;
+      format: Exclude<StatementFormat, "camt053" | "enablebanking" | "googleplay-earnings" | "appstore-finance" | "store-payout" | "accountable-xlsx">;
       rows: string[][];
       headerRow: number;
     };

@@ -75,6 +75,12 @@ export interface AccountableExpenseRow {
   tax: number | null;
   /** H; leer heißt Euro. Beträge in anderer Währung sind nicht die des Stapels */
   currency: string;
+  /**
+   * I „USt.-Status“: „normal“ oder „Importieren“. Importieren heißt, dass der Lieferant im
+   * Drittland sitzt und die Steuer nach § 13b vom Empfänger geschuldet wird. Nicht aus fehlendem
+   * Steuersatz raten: Rechnungen ohne Netto-Spalte sehen genauso aus.
+   */
+  taxStatus: string;
   /** J in Basispunkten: 1900 = 19 % */
   taxRate: number | null;
   /** M; führende Nullen bleiben erhalten („0490“) */

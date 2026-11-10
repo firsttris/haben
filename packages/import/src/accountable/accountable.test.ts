@@ -240,6 +240,7 @@ describe("Accountable-Export lesen", () => {
       net: 7799,
       tax: 1482,
       currency: "EUR",
+      taxStatus: "",
       taxRate: 1900,
       code: "4806",
       codeName: "Hosting",
