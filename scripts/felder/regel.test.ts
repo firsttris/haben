@@ -47,6 +47,7 @@ describe("Keine Auswahlliste ohne Field", () => {
     ['<select className="x" value="a" onChange={() => {}}><option>a</option></select>', "mit Eigenschaften"],
     ['<div className="field"><select></select></div>', "div.field statt Field"],
     ["<label>Name<select></select></label>", "in einem label"],
+    ['<select aria-label="Art" />', "selbstschließend"],
   ])("meldet %s (%s)", (source) => {
     expect(findings(source)).toBe(1);
   });
@@ -54,7 +55,8 @@ describe("Keine Auswahlliste ohne Field", () => {
   it.each([
     ['<Field label="Art">{(control) => <select {...control}><option>a</option></select>}</Field>', "in Field"],
     ['<Field label="Art" hideLabel>{(control) => (<span><select {...control} /></span>)}</Field>', "tiefer in Field"],
-    ['{/* biome-ignore lint/plugin: Zelle einer Tabelle */}\n    <select aria-label="Art" />', "mit Begründung ausgenommen"],
+    ['{/* biome-ignore lint/plugin: Zelle einer Tabelle */}\n    <select aria-label="Art"><option>a</option></select>', "mit Begründung ausgenommen"],
+    ['{/* biome-ignore lint/plugin: Zelle einer Tabelle */}\n    <select aria-label="Art" />', "selbstschließend mit Begründung ausgenommen"],
     ['<input type="text" />', "anderes Feld"],
   ])("lässt %s zu (%s)", (source) => {
     expect(findings(source)).toBe(0);
