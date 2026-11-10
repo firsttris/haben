@@ -61,6 +61,11 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
     ]),
     ...(t ? [{ was: "Gesamtbetrag", text: t.gross.value }] : []),
     ...steuerzeilen.map((r) => ({ was: `Summenzeile „${r.label}“`, text: r.value })),
+    // Steuersatz zum Steuerbetrag (§ 14 Abs. 4 Nr. 8 UStG): der Satz aus der Beschriftung der Steuerzeile, etwa „19 %“
+    ...steuerzeilen
+      .filter((r) => /Umsatzsteuer|Netto|VAT|Net\b/.test(r.label))
+      .flatMap((r) => /\d+(?:,\d+)? ?%/.exec(r.label) ?? [])
+      .map((satz) => ({ was: "Steuersatz", text: satz })),
     ...(d.taxNote ? [{ was: "Hinweis ohne Steuerausweis", text: d.taxNote }] : []),
   ];
 }
