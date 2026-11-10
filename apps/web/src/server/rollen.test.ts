@@ -162,7 +162,7 @@ describe("API-Routen", () => {
     }
     for (const id of STEUERBERATUNG_LAEDT) {
       const code = routes.find((route) => route.id === id)?.code ?? "";
-      expect(code, id).toMatch(/^\s+GET: lesend\(async /m);
+      expect(code, id).toMatch(/^\s+GET: lesend(?:<[^>]*>)?\(async /m);
     }
   });
 
@@ -170,7 +170,9 @@ describe("API-Routen", () => {
     const mitSitzung = routes.filter((route) => !OHNE_SITZUNG.includes(route.id));
     const lesen: string[] = [];
     for (const route of mitSitzung) {
-      const zugriffe = [...route.code.matchAll(/requireUser\(request, "(\w+)"\)|darf\(user\.role, "(\w+)"\)|\blesend\(/g)].map(([, a, b]) => a ?? b ?? "lesen");
+      const zugriffe = [...route.code.matchAll(/requireUser\(request, "(\w+)"\)|darf\(user\.role, "(\w+)"\)|\blesend(?:<[^>]*>)?\(/g)].map(
+        ([, a, b]) => a ?? b ?? "lesen",
+      );
       expect(zugriffe.length, route.id).toBeGreaterThan(0);
       if (zugriffe.every((z) => z === "lesen")) lesen.push(route.id);
       else expect(zugriffe, route.id).toEqual(zugriffe.map(() => "inhaber"));
@@ -182,7 +184,7 @@ describe("API-Routen", () => {
     for (const id of STEUERBERATUNG_LAEDT) {
       const code = routes.find((route) => route.id === id)?.code ?? "";
       expect(
-        [...code.matchAll(/^\s+(\w+): (?:lesend\()?async/gm)].map(([, m]) => m),
+        [...code.matchAll(/^\s+(\w+): (?:lesend(?:<[^>]*>)?\()?async/gm)].map(([, m]) => m),
         id,
       ).toEqual(["GET"]);
     }
@@ -209,7 +211,7 @@ describe("Wo Server-Code steht", () => {
   it("jeder Handler einer Route mit Sitzung prüft den Zugriff selbst", () => {
     for (const route of apiRoutes().filter((r) => !OHNE_SITZUNG.includes(r.id))) {
       const handlers = route.code.match(/^\s+(GET|POST|PUT|PATCH|DELETE): /gm)?.length ?? 0;
-      const checks = route.code.match(/requireUser\(request, "\w+"\)|darf\(user\.role, "\w+"\)|\blesend\(/g)?.length ?? 0;
+      const checks = route.code.match(/requireUser\(request, "\w+"\)|darf\(user\.role, "\w+"\)|\blesend(?:<[^>]*>)?\(/g)?.length ?? 0;
       expect(checks, route.id).toBe(handlers);
     }
   });

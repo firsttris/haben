@@ -171,7 +171,9 @@ describe.skipIf(!testDatabaseUrl)("Zugang der Steuerberatung (Postgres)", () => 
     const euer = await route("auswertungen/$jahr", ownerCookie, { jahr: "2026" });
     expect(euer.status).toBe(200);
     expect(await sql`select count(*)::int as n from company`).toEqual([{ n: 1 }]);
-    expect(await (await route("auswertungen/$jahr", stb.cookie, { jahr: "2026" })).text()).toBe(await euer.text());
+    // Byte für Byte, samt BOM am Anfang der CSV
+    const bytes = async (response: Response) => Buffer.from(await response.arrayBuffer());
+    expect((await bytes(await route("auswertungen/$jahr", stb.cookie, { jahr: "2026" }))).equals(await bytes(euer))).toBe(true);
 
     // Das Jahresarchiv entsteht erst beim Lesen; die Steuerberatung bekommt es vollständig
     const archiv = await route("export/$jahr", stb.cookie, { jahr: "2026" });

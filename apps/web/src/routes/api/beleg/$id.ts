@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { requireUser } from "../../../server/rollen.ts";
+import { lesend } from "../../../server/lese-route.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 import { loadFile } from "../../../server/storage.ts";
@@ -10,9 +10,7 @@ import { loadFile } from "../../../server/storage.ts";
 export const Route = createFileRoute("/api/beleg/$id")({
   server: {
     handlers: {
-      GET: async ({ request, params }) => {
-        const user = await requireUser(request, "lesen");
-        if (user instanceof Response) return user;
+      GET: lesend<"id">(async ({ request, params }) => {
         const id = z.uuid().safeParse(params.id);
         if (!id.success) return new Response("Nicht gefunden", { status: 404 });
         const [doc] = await db
@@ -22,7 +20,7 @@ export const Route = createFileRoute("/api/beleg/$id")({
         if (!doc) return new Response("Nicht gefunden", { status: 404 });
 
         return fileResponse(await loadFile(doc.sha256), doc, new URL(request.url).searchParams.has("download"));
-      },
+      }),
     },
   },
 });

@@ -1,14 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireUser } from "../../../server/rollen.ts";
+import { lesend } from "../../../server/lese-route.ts";
 import { DatevExportError, datevExport } from "../../../server/modules/auswertungen/index.ts";
 
 /** DATEV-Buchungsstapel eines Jahres: /api/datev/2026 */
 export const Route = createFileRoute("/api/datev/$jahr")({
   server: {
     handlers: {
-      GET: async ({ request, params }) => {
-        const user = await requireUser(request, "lesen");
-        if (user instanceof Response) return user;
+      GET: lesend<"jahr">(async ({ params }, user) => {
         const year = Number(params.jahr);
         if (!Number.isInteger(year) || year < 2000 || year > 2100) return new Response("Ungültiges Jahr", { status: 400 });
         try {
@@ -26,7 +24,7 @@ export const Route = createFileRoute("/api/datev/$jahr")({
           if (error instanceof DatevExportError) return new Response(error.message, { status: 409 });
           throw error;
         }
-      },
+      }),
     },
   },
 });

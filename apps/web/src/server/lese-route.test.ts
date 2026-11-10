@@ -15,7 +15,7 @@ const { ReadOnlyError, isReadOnly, withActor } = await import("./db/actor.ts");
 
 const steuerberatung = { id: "stb", name: "Kanzlei", email: "k@example.de", role: "steuerberatung" as const };
 const inhaber = { id: "inhaber", name: "Inhaber", email: "i@example.de", role: "inhaber" as const };
-const request = () => new Request("http://localhost:3000/api/export/2026");
+const anfrage = () => ({ request: new Request("http://localhost:3000/api/export/2026"), params: {} });
 
 /** Body, der seine Teile erst erzeugt, wenn jemand liest (wie das Jahresarchiv); jeder Teil sagt, ob er im Rahmen lief */
 function gestreamt(teile: number, schreibtZuletzt = false): Response {
@@ -60,9 +60,9 @@ describe("API-Routen mit Zugriff „lesen“", () => {
     const abgelehnt = new Response("Nicht angemeldet", { status: 401 });
     pruefeZugriff.mockResolvedValue(abgelehnt);
     const handler = vi.fn();
-    const r = request();
-    expect(await lesend(handler)({ request: r })).toBe(abgelehnt);
-    expect(pruefeZugriff).toHaveBeenCalledWith(r, "lesen");
+    const a = anfrage();
+    expect(await lesend(handler)(a)).toBe(abgelehnt);
+    expect(pruefeZugriff).toHaveBeenCalledWith(a.request, "lesen");
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -72,27 +72,27 @@ describe("API-Routen mit Zugriff „lesen“", () => {
     const ok = await lesend(async (_args, user) => {
       gesehen.push(isReadOnly());
       return new Response(user.id);
-    })({ request: request() });
+    })(anfrage());
     expect(await ok.text()).toBe("stb");
     expect(gesehen).toEqual([true]);
 
     const schreibt = await lesend(async () => {
       await withActor("stb", async () => undefined);
       return new Response("geschrieben");
-    })({ request: request() });
+    })(anfrage());
     expect(schreibt.status).toBe(403);
     expect(await schreibt.text()).toBe(new ReadOnlyError().message);
   });
 
   it("die Steuerberatung: der Rahmen gilt auch, während der gestreamte Body gelesen wird", async () => {
     pruefeZugriff.mockResolvedValue(steuerberatung);
-    const response = await lesend(async () => gestreamt(3))({ request: request() });
+    const response = await lesend(async () => gestreamt(3))(anfrage());
     expect(response.headers.get("Content-Type")).toBe("application/zip");
     expect(response.headers.get("X-Test")).toBe("1");
     expect(await liesSpaeter(response)).toBe("true;true;true;");
 
     // Ein Schreibversuch erst im Stream bricht den Download ab, statt zu schreiben
-    const schreibt = await lesend(async () => gestreamt(2, true))({ request: request() });
+    const schreibt = await lesend(async () => gestreamt(2, true))(anfrage());
     await expect(liesSpaeter(schreibt)).rejects.toBeInstanceOf(ReadOnlyError);
   });
 
@@ -103,7 +103,7 @@ describe("API-Routen mit Zugriff „lesen“", () => {
       expect(user).toBe(inhaber);
       expect(isReadOnly()).toBe(false);
       return antwort;
-    })({ request: request() });
+    })(anfrage());
     expect(response).toBe(antwort);
     expect(await liesSpaeter(response)).toBe("false;false;");
   });
