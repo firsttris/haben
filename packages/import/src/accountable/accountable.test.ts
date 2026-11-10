@@ -517,3 +517,13 @@ describe("Accountable-Export in SKR04 (Review #579)", () => {
     expect(mapping.vouchers).toEqual([]);
   });
 });
+
+describe("Privateinlage im Accountable-Stapel (Review #579, Runde 2)", () => {
+  it("zählt eine Privateinlage (S auf 1200 gegen 1890) als Privatzeile und nicht als Ausgangsrechnung", () => {
+    // Einlage des Inhabers: Geld kommt aufs Bankkonto, Gegenkonto 1890 (SKR03 Privateinlagen). Keine Rechnung.
+    const einlage = zeile("500,00", "S", "1890", "", "0102", "01022025_50000", "01022025", "Privateinlage");
+    const mapping = mapAccountableExport(readAccountableExport(export_(XML, undefined, [einlage])));
+    expect(mapping.invoices).toEqual([]);
+    expect(mapping.privateRows).toBe(1);
+  });
+});
