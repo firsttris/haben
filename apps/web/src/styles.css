@@ -133,7 +133,9 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 12px 28px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
-.brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
+.brand-text { display: flex; flex-direction: column; min-width: 0; }
+.brand-firma { font-size: 12px; font-weight: 400; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.brand-mark { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; }
 .nav-link:hover { color: #fff; }
 .nav-link[data-status="active"] { background: var(--nav-active); color: #fff; font-weight: 500; }
@@ -164,7 +166,11 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
   .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
-  .brand { padding: 4px 12px; }
+  /* Marke und Firmenname in einer Zeile, damit die Leiste --nav-height hoch bleibt; der Name wird gekürzt */
+  .brand { padding: 4px 12px; flex: 1 1 0; min-width: 0; }
+  .brand-text { flex-direction: row; align-items: baseline; gap: 8px; }
+  .brand-firma { flex: 0 1 auto; min-width: 0; max-width: none; }
+  .nav-toggle { flex-shrink: 0; }
   .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
   .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); overflow-y: auto; }

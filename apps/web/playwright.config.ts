@@ -83,6 +83,7 @@ export default defineConfig({
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
         "dateiauswahl.spec.ts",
+        "firmenname.spec.ts",
         "gestaltung.spec.ts",
         "handy-felder.spec.ts",
         "basiszinssatz.spec.ts",

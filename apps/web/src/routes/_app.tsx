@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_app")({
       rechtsform: state.rechtsform ?? "einzelunternehmen",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
+      firma: state.firma,
     };
   },
   component: AppLayout,
@@ -111,7 +112,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -161,7 +162,16 @@ function AppLayout() {
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
-          <span className="brand-mark">H</span>Haben
+          <span className="brand-mark">H</span>
+          <span className="brand-text">
+            Haben
+            {/* Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet; gekürzt, der volle Name im Tooltip */}
+            {firma && (
+              <span className="brand-firma" title={firma}>
+                {firma}
+              </span>
+            )}
+          </span>
         </Link>
         <button
           ref={toggle}
