@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BUILTIN_LAYOUTS, LAYOUT_DOCUMENT_LABELS, LAYOUT_DOCUMENT_TYPES, type LayoutDocumentType, type LayoutRef, type LetterheadDesign } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
-import { assignLayoutFn, removeLayout, renameLayoutFn, replaceLayout, uploadLayout } from "../server/functions/layouts.ts";
+import { assignLayoutFn, reloadLayoutPackages, removeLayout, renameLayoutFn, replaceLayout, uploadLayout } from "../server/functions/layouts.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { Field } from "./Field.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
@@ -14,6 +14,33 @@ export interface LayoutRow {
   name: string;
   art: "beleg" | "mahnung";
   updatedAt: Date | string;
+  /** Freigegebene Pakete fehlen im Cache, etwa nach einem Restore */
+  packagesMissing: boolean;
+}
+
+/** Rückfrage, bevor Haben Pakete aus dem Netz lädt; erst „Pakete laden“ schickt die Freigabe mit */
+function PackageDialog({ packages, onConfirm, onClose }: { packages: string[] | null; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <ConfirmDialog
+      open={packages !== null}
+      title="Pakete aus dem Netz laden?"
+      confirmLabel="Pakete laden und prüfen"
+      danger
+      onConfirm={onConfirm}
+      onClose={onClose}
+    >
+      <p>Das Layout importiert diese Typst-Pakete:</p>
+      <ul className="mono">
+        {packages?.map((spec) => (
+          <li key={spec}>{spec}</li>
+        ))}
+      </ul>
+      <p>
+        Pakete sind fremder Code. Haben lädt genau diese Versionen einmal und setzt danach ohne Netz. Bestätige nur, wenn du der Vorlage und ihren Paketen
+        vertraust. Ändert sich die Vorlage, fragt Haben erneut.
+      </p>
+    </ConfirmDialog>
+  );
 }
 
 const ART_LABEL = { beleg: "Belege", mahnung: "Mahnungen" } as const;
@@ -120,8 +147,20 @@ function OwnLayouts({ layouts }: { layouts: LayoutRow[] }) {
   const rename = useServerFn(renameLayoutFn);
   const replace = useServerFn(replaceLayout);
   const remove = useServerFn(removeLayout);
+  const reload = useServerFn(reloadLayoutPackages);
   const { busy, notice, run } = useAction();
   const [deleting, setDeleting] = useState<LayoutRow | null>(null);
+  const [approving, setApproving] = useState<{ id: string; name: string; source: string; packages: string[] } | null>(null);
+
+  const replaceWith = (layout: { id: string; name: string }, source: string, approve?: string[]) =>
+    run(async () => {
+      const result = await replace({ data: { id: layout.id, source, ...(approve ? { approve } : {}) } });
+      if ("needsApproval" in result) {
+        setApproving({ ...layout, source, packages: result.needsApproval });
+        throw new Error("Das Layout braucht Pakete. Bestätige sie, damit Haben es prüfen kann.");
+      }
+      await router.invalidate();
+    }, `„${layout.name}“ geprüft und ersetzt.`);
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
 
   if (layouts.length === 0) return <p className="small muted">Noch keine eigenen Layouts.</p>;
@@ -164,6 +203,24 @@ function OwnLayouts({ layouts }: { layouts: LayoutRow[] }) {
                 </span>
               </div>
             )}
+            {layout.packagesMissing && (
+              <div className="banner banner-warn" role="status">
+                Die freigegebenen Pakete fehlen, etwa nach einer Wiederherstellung. Bis du sie neu lädst, lässt sich mit diesem Layout nichts erzeugen.
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await reload({ data: layout.id });
+                      await router.invalidate();
+                    }, "Pakete geladen und geprüft.")
+                  }
+                >
+                  Pakete neu laden
+                </button>
+              </div>
+            )}
             <div className="actions">
               <a className="btn btn-sm" href={`${DOWNLOAD}?datei=layout&id=${layout.id}`} download>
                 Herunterladen
@@ -179,11 +236,7 @@ function OwnLayouts({ layouts }: { layouts: LayoutRow[] }) {
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = "";
-                    if (file)
-                      void run(async () => {
-                        await replace({ data: { id: layout.id, source: await readText(file) } });
-                        await router.invalidate();
-                      }, `„${layout.name}“ geprüft und ersetzt.`);
+                    if (file) void readText(file).then((source) => replaceWith(layout, source));
                   }}
                 />
               </label>
@@ -218,6 +271,11 @@ function OwnLayouts({ layouts }: { layouts: LayoutRow[] }) {
       >
         <p>Wo es zugeordnet ist, gilt danach wieder das eingebaute Layout. Festgeschriebene Belege behalten ihr PDF.</p>
       </ConfirmDialog>
+      <PackageDialog
+        packages={approving?.packages ?? null}
+        onConfirm={() => approving && void replaceWith(approving, approving.source, approving.packages)}
+        onClose={() => setApproving(null)}
+      />
     </section>
   );
 }
@@ -230,19 +288,26 @@ function LayoutUpload() {
   const [name, setName] = useState("");
   const [art, setArt] = useState<"beleg" | "mahnung">("beleg");
   const [file, setFile] = useState<File | null>(null);
+  const [approving, setApproving] = useState<{ source: string; packages: string[] } | null>(null);
+
+  const send = (source: string, approve?: string[]) =>
+    run(async () => {
+      const result = await upload({ data: { name, art, source, ...(approve ? { approve } : {}) } });
+      if ("needsApproval" in result) {
+        setApproving({ source, packages: result.needsApproval });
+        throw new Error("Das Layout braucht Pakete. Bestätige sie, damit Haben es prüfen kann.");
+      }
+      setName("");
+      setFile(null);
+      await router.invalidate();
+    }, "Geprüft und gespeichert. Ordne es oben einer Belegart zu, damit es gilt.");
 
   return (
     <form
       aria-labelledby="layout-upload-heading"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!file) return;
-        void run(async () => {
-          await upload({ data: { name, art, source: await readText(file) } });
-          setName("");
-          setFile(null);
-          await router.invalidate();
-        }, "Geprüft und gespeichert. Ordne es oben einer Belegart zu, damit es gilt.");
+        if (file) void readText(file).then((source) => send(source));
       }}
     >
       <h3 id="layout-upload-heading">Layout hochladen</h3>
@@ -271,6 +336,11 @@ function LayoutUpload() {
         </p>
       )}
       <NoticeBanner notice={notice} />
+      <PackageDialog
+        packages={approving?.packages ?? null}
+        onConfirm={() => approving && void send(approving.source, approving.packages)}
+        onClose={() => setApproving(null)}
+      />
     </form>
   );
 }

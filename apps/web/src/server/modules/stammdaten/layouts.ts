@@ -5,7 +5,19 @@ import { asc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { checkLayout, LayoutError, MAX_LAYOUT_BYTES, packagesIn, typstMeldung } from "./layout-pruefung.ts";
-import { customLayoutJob, dataForVersion, layoutRenderer } from "./layout-renderer.ts";
+import {
+  clearPackages,
+  downloadPackages,
+  dropRenderer,
+  type LayoutPackage,
+  type PackageDownloader,
+  packageCache,
+  packageSpec,
+  packagesPresent,
+  rendererFor,
+  samePackages,
+} from "./layout-pakete.ts";
+import { customLayoutJob, dataForVersion } from "./layout-renderer.ts";
 import { loadDesign } from "./letterhead.ts";
 
 /*
@@ -32,7 +44,17 @@ const columns = {
 };
 
 export async function listLayouts() {
-  return db.select(columns).from(schema.belegLayouts).orderBy(asc(schema.belegLayouts.name));
+  const rows = await db
+    .select({ ...columns, approvedSha256: schema.belegLayouts.approvedSha256 })
+    .from(schema.belegLayouts)
+    .orderBy(asc(schema.belegLayouts.name));
+  return Promise.all(
+    rows.map(async ({ approvedSha256, ...row }) => ({
+      ...row,
+      // Nach einem Restore ohne das Volume: freigegeben, aber nicht mehr da; nachladen nur von Hand
+      packagesMissing: row.packages.length > 0 && approvedSha256 === row.sha256 && !(await packagesPresent(row.id, row.packages)),
+    })),
+  );
 }
 
 export async function layoutSource(id: string): Promise<{ name: string; source: string } | null> {
@@ -54,45 +76,103 @@ async function nameTaken(name: string, except?: string): Promise<boolean> {
   return rows.some((row) => row.id !== except);
 }
 
-function checkSource(source: string) {
+function checkSource(source: string): LayoutPackage[] {
   if (!source.trim()) throw new LayoutError("Die Datei ist leer.");
   if (Buffer.byteLength(source, "utf8") > MAX_LAYOUT_BYTES) throw new LayoutError("Ein Layout darf höchstens 256 KB groß sein.");
-  const packages = packagesIn(source);
-  if (packages.length > 0) {
-    throw new LayoutError(
-      `Das Layout braucht Pakete aus dem Netz (${packages.map((p) => `${p.name}:${p.version}`).join(", ")}). Das geht noch nicht; bitte ohne Pakete.`,
-    );
-  }
-  return packages;
+  return packagesIn(source);
 }
 
-/** Prüft und speichert ein neues Layout; die Probe läuft vor dem Speichern, ein ungültiges Layout entsteht gar nicht */
-export async function createLayout(actor: string, input: { name: string; art: LayoutArt; source: string }): Promise<{ id: string }> {
+/** Ergebnis, wenn das Layout Pakete braucht, die noch nicht freigegeben sind: nichts ist gespeichert oder geladen */
+export interface NeedsApproval {
+  needsApproval: string[];
+}
+
+export interface LayoutDeps {
+  download?: PackageDownloader;
+}
+
+/** Lädt freigegebene Pakete in einen frischen Cache und prüft das Layout damit; bei einem Fehler bleibt kein Cache */
+async function prepare(id: string, source: string, art: LayoutArt, packages: LayoutPackage[], download: PackageDownloader) {
+  await clearPackages(id);
+  await dropRenderer(id);
+  try {
+    if (packages.length > 0) {
+      try {
+        await download(await packageCache(id), packages);
+      } catch (error) {
+        throw new LayoutError(`Die Pakete ließen sich nicht laden: ${typstMeldung(error)}`);
+      }
+    }
+    await checkLayout({ id, source, art }, await rendererFor({ id, packages }));
+  } catch (error) {
+    await clearPackages(id);
+    await dropRenderer(id);
+    throw error;
+  }
+}
+
+/**
+ * Prüft und speichert ein neues Layout; ein ungültiges entsteht gar nicht. Braucht es Pakete, kommt erst die Liste zurück,
+ * und Haben lädt sie erst, wenn genau diese Liste als approve wiederkommt (Rückfrage in der Oberfläche).
+ */
+export async function createLayout(
+  actor: string,
+  input: { name: string; art: LayoutArt; source: string; approve?: string[] },
+  { download = downloadPackages }: LayoutDeps = {},
+): Promise<{ id: string } | NeedsApproval> {
   const name = cleanName(input.name);
   const packages = checkSource(input.source);
   if (await nameTaken(name)) throw new LayoutError(`Es gibt schon ein Layout „${name}“.`);
+  const specs = packages.map(packageSpec);
+  if (specs.length > 0 && !samePackages(specs, input.approve ?? [])) return { needsApproval: specs };
   const id = crypto.randomUUID();
-  await checkLayout({ id, source: input.source, art: input.art });
+  await prepare(id, input.source, input.art, packages, download);
   const sha256 = createHash("sha256").update(input.source).digest("hex");
   await withActor(actor, (tx) =>
-    tx.insert(schema.belegLayouts).values({ id, name, art: input.art, source: input.source, sha256, schemaVersion: LAYOUT_SCHEMA_VERSION, packages }),
+    tx.insert(schema.belegLayouts).values({
+      id,
+      name,
+      art: input.art,
+      source: input.source,
+      sha256,
+      schemaVersion: LAYOUT_SCHEMA_VERSION,
+      packages,
+      approvedSha256: packages.length > 0 ? sha256 : null,
+    }),
   );
   return { id };
 }
 
-/** Neuer Quelltext für ein bestehendes Layout, etwa nach dem Bearbeiten; die Zuordnung bleibt */
-export async function replaceLayoutSource(actor: string, id: string, source: string): Promise<void> {
+/** Neuer Quelltext für ein bestehendes Layout; die Zuordnung bleibt, Pakete fragen neu */
+export async function replaceLayoutSource(
+  actor: string,
+  id: string,
+  source: string,
+  approve?: string[],
+  { download = downloadPackages }: LayoutDeps = {},
+): Promise<{ ok: true } | NeedsApproval> {
   const [row] = await db.select({ art: schema.belegLayouts.art }).from(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
   if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
   const packages = checkSource(source);
-  await checkLayout({ id, source, art: row.art });
+  const specs = packages.map(packageSpec);
+  if (specs.length > 0 && !samePackages(specs, approve ?? [])) return { needsApproval: specs };
+  await prepare(id, source, row.art, packages, download);
   const sha256 = createHash("sha256").update(source).digest("hex");
   await withActor(actor, (tx) =>
     tx
       .update(schema.belegLayouts)
-      .set({ source, sha256, packages, approvedSha256: null, schemaVersion: LAYOUT_SCHEMA_VERSION, updatedAt: new Date() })
+      .set({ source, sha256, packages, approvedSha256: packages.length > 0 ? sha256 : null, schemaVersion: LAYOUT_SCHEMA_VERSION, updatedAt: new Date() })
       .where(eq(schema.belegLayouts.id, id)),
   );
+  return { ok: true };
+}
+
+/** Lädt die schon freigegebenen Pakete neu, etwa nach einem Restore ohne Cache; nur auf Klick, nie von selbst */
+export async function reloadPackages(id: string, { download = downloadPackages }: LayoutDeps = {}): Promise<void> {
+  const [row] = await db.select().from(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
+  if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
+  if (row.packages.length === 0 || row.approvedSha256 !== row.sha256) throw new LayoutError("Dieses Layout hat keine freigegebenen Pakete.");
+  await prepare(id, row.source, row.art, row.packages, download);
 }
 
 export async function renameLayout(actor: string, id: string, input: string): Promise<void> {
@@ -103,6 +183,8 @@ export async function renameLayout(actor: string, id: string, input: string): Pr
 
 /** Löscht das Layout; wo es zugeordnet war, gilt wieder das eingebaute */
 export async function deleteLayout(actor: string, id: string): Promise<void> {
+  await dropRenderer(id);
+  await clearPackages(id);
   await withActor(actor, async (tx) => {
     await tx.delete(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
     const fallback = JSON.stringify(DEFAULT_LAYOUT);
@@ -173,7 +255,8 @@ export async function withCustomLayout<T>(type: LayoutDocumentType, letterhead: 
   if (!request) return build(letterhead);
   let pdf: Uint8Array;
   try {
-    pdf = await layoutRenderer.renderPdf(await customLayoutJob(layout, dataForVersion(layout.schemaVersion, request.data), letterhead), request.date);
+    const renderer = await rendererFor(layout);
+    pdf = await renderer.renderPdf(await customLayoutJob(layout, dataForVersion(layout.schemaVersion, request.data), letterhead), request.date);
   } catch (error) {
     throw new LayoutRenderError(
       `Das Layout „${layout.name}“ ließ sich nicht setzen: ${typstMeldung(error)}. Bitte unter Einstellungen › Beleggestaltung ein anderes wählen.`,

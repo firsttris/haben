@@ -2,7 +2,16 @@ import { LAYOUT_DOCUMENT_TYPES, layoutRefSchema } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
-import { assignLayout, createLayout, deleteLayout, listLayouts, MAX_LAYOUT_BYTES, renameLayout, replaceLayoutSource } from "../modules/stammdaten/index.ts";
+import {
+  assignLayout,
+  createLayout,
+  deleteLayout,
+  listLayouts,
+  MAX_LAYOUT_BYTES,
+  reloadPackages,
+  renameLayout,
+  replaceLayoutSource,
+} from "../modules/stammdaten/index.ts";
 
 const source = z.string().max(MAX_LAYOUT_BYTES);
 const name = z.string().max(80);
@@ -14,14 +23,20 @@ export const getLayouts = createServerFn({ method: "GET" })
 /** Prüft und speichert ein eigenes Layout; die Prüfung setzt es mit Beispieldaten und kann einige Sekunden dauern */
 export const uploadLayout = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ name, art: z.enum(["beleg", "mahnung"]), source }))
+  .validator(z.object({ name, art: z.enum(["beleg", "mahnung"]), source, approve: z.array(z.string().max(200)).max(20).optional() }))
   .handler(({ data, context }) => createLayout(context.user.id, data));
 
 export const replaceLayout = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ id: z.uuid(), source }))
-  .handler(async ({ data, context }) => {
-    await replaceLayoutSource(context.user.id, data.id, data.source);
+  .validator(z.object({ id: z.uuid(), source, approve: z.array(z.string().max(200)).max(20).optional() }))
+  .handler(({ data, context }) => replaceLayoutSource(context.user.id, data.id, data.source, data.approve));
+
+/** Lädt freigegebene Pakete neu, wenn der Cache fehlt; nur auf Klick */
+export const reloadLayoutPackages = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data }) => {
+    await reloadPackages(data);
     return { ok: true };
   });
 

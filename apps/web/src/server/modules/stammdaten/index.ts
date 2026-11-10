@@ -54,6 +54,7 @@ export { AccentColorError, loadDesign, loadLetterhead, saveAccentColor, saveDesi
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
 export { backgroundInfo, loadBackground, MAX_BACKGROUND_BYTES, removeBackground, saveBackground } from "./background.ts";
 export { customLayoutJob, dataForVersion, layoutRenderer } from "./layout-renderer.ts";
+export { rendererFor } from "./layout-pakete.ts";
 export { typstMeldung } from "./layout-pruefung.ts";
 export {
   artFor,
@@ -66,6 +67,7 @@ export {
   layoutSource,
   listLayouts,
   MAX_LAYOUT_BYTES,
+  reloadPackages,
   renameLayout,
   replaceLayoutSource,
   withCustomLayout,

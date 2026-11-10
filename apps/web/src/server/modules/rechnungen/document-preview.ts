@@ -42,6 +42,7 @@ import {
   layoutRenderer,
   loadCompany,
   loadLetterhead,
+  rendererFor,
   typstMeldung,
 } from "../stammdaten/index.ts";
 import { buyerFrom, sellerFrom } from "./invoices.ts";
@@ -246,7 +247,8 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
     ? await customLayoutJob(layout, dataForVersion(layout.schemaVersion, templateInputs(sheet, letterhead)), letterhead)
     : renderJob("rechnung.typ", sheet, letterhead);
   try {
-    return { ...(await layoutRenderer.render(job)), text: sheetText(sheet as unknown as SheetData) };
+    const renderer = layout ? await rendererFor(layout) : layoutRenderer;
+    return { ...(await renderer.render(job)), text: sheetText(sheet as unknown as SheetData) };
   } catch (error) {
     if (layout) throw new DocumentPreviewError(`Das Layout „${layout.name}“ ließ sich nicht setzen: ${typstMeldung(error)}`);
     throw new DocumentPreviewError(

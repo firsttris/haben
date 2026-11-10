@@ -13,7 +13,7 @@ export {
   templateInputs,
   type DraftPdf,
 } from "./pdf.ts";
-export { createRenderClient, type RenderClient } from "./render-client.ts";
+export { createRenderClient, packageCacheRoot, type RenderClient } from "./render-client.ts";
 export type { RenderedSheet, RenderJob } from "./render-protocol.ts";
 export { sheetText, type SheetData, type SheetTextPart } from "./sheet-text.ts";
 export { BEISPIEL_PNG, layoutBeispiele, type LayoutBeispiel } from "./layout-beispiele.ts";

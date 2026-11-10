@@ -14,17 +14,24 @@ const DEAD_PROXY = "http://127.0.0.1:9";
  * Umgebung des Render-Prozesses: Nichts aus der App (Datenbank, Schlüssel) wird vererbt, das Netz ist über einen toten
  * Proxy gesperrt, und HOME zeigt ins Leere, damit Typst keinen Paket-Cache des Rechners findet.
  */
-export function renderWorkerEnv(): Record<string, string> {
-  const empty = join(tmpdir(), "haben-render-ohne-home");
+export function renderWorkerEnv(cacheDir?: string, network = false): Record<string, string> {
+  const home = cacheDir ?? join(tmpdir(), "haben-render-ohne-home");
   return {
     PATH: process.env.PATH ?? "",
     HABEN_EINVOICE_DIR: PACKAGE_DIR,
-    HOME: empty,
-    XDG_CACHE_HOME: empty,
-    XDG_DATA_HOME: empty,
-    ...Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].map((name) => [name, DEAD_PROXY])),
+    // Typst sucht Pakete unter dem Cache des Nutzers: unter Linux XDG_CACHE_HOME, unter macOS HOME/Library/Caches
+    HOME: home,
+    XDG_CACHE_HOME: home,
+    XDG_DATA_HOME: home,
+    ...(network
+      ? {}
+      : Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].map((name) => [name, DEAD_PROXY]))),
   };
 }
+
+/** Wo Typst Pakete aus @preview ablegt, wenn HOME und XDG_CACHE_HOME auf cacheDir zeigen */
+export const packageCacheRoot = (cacheDir: string): string =>
+  process.platform === "darwin" ? join(cacheDir, "Library", "Caches", "typst", "packages") : join(cacheDir, "typst", "packages");
 
 type Result = { sheet: RenderedSheet } | { pdf: string };
 
@@ -39,6 +46,10 @@ export interface RenderClientOptions {
   idleMs?: number;
   /** Austauschbar für Tests */
   workerPath?: string;
+  /** Eigener Paket-Cache, etwa eines Layouts mit freigegebenen Paketen; ohne gibt es keine Pakete */
+  cacheDir?: string;
+  /** Nur zum Laden freigegebener Pakete: ohne gesperrten Proxy */
+  network?: boolean;
 }
 
 export interface RenderClient {
@@ -56,6 +67,8 @@ export function createRenderClient({
   timeoutMs = RENDER_TIMEOUT_MS,
   idleMs = RENDER_IDLE_MS,
   workerPath = WORKER_PATH,
+  cacheDir,
+  network = false,
 }: RenderClientOptions = {}): RenderClient {
   const queue: Pending[] = [];
   let child: ChildProcess | undefined;
@@ -87,7 +100,7 @@ export function createRenderClient({
     const started = spawn("/bin/sh", ["-c", 'ulimit -c 0 && exec "$@"', "sh", process.execPath, workerPath], {
       stdio: ["ignore", "ignore", "ignore", "ipc"],
       serialization: "json",
-      env: renderWorkerEnv(),
+      env: renderWorkerEnv(cacheDir, network),
       cwd: tmpdir(),
     });
     started.on("message", (message) => onMessage(message as RenderResponse));
