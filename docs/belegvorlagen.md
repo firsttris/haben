@@ -7,17 +7,17 @@ description: >-
 
 # Eigene Belegvorlagen
 
-Haben setzt Belege mit Typst aus einer Vorlage. Neben den eingebauten Layouts kannst du eigene schreiben. Die Vorlage bekommt die Daten des Belegs fertig formatiert, sie rechnet nichts; das PDF/A-3 und die eingebettete E-Rechnung erzeugt Haben selbst.
+Haben setzt Belege mit Typst aus einer Vorlage. Eigene Layouts hochladen geht noch nicht, das folgt. Diese Seite beschreibt schon, was ein Layout bekommt und wie Haben dafür sorgt, dass es mit neuen Versionen weiter funktioniert. Die Vorlage bekommt die Daten des Belegs fertig formatiert, sie rechnet nichts; das PDF/A-3 und die eingebettete E-Rechnung erzeugt Haben selbst.
 
 ## Mit einem KI-Agenten
 
-Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften, Pflichtangaben und Prüfungen stehen darin. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
+Die Anleitung für Agenten gibt es als Skill, der ohne das Repository von Haben auskommt: alle Felder, Schriften und Pflichtangaben stehen darin. Im Repository liegt er unter `.claude/skills/belegvorlage/SKILL.md`.
 
 ## Abwärtskompatibilität
 
 Ein eigenes Layout soll mit jeder neuen Version von Haben weiter funktionieren. Deshalb gilt für die Felder, die eine Vorlage bekommt (Feldvertrag):
 
-- **Version je Layout:** Haben merkt sich beim Hochladen, für welche Version des Feldvertrags ein Layout geschrieben ist (heute Version 1).
+- **Version je Layout:** Ein Layout gehört zu einer Version des Feldvertrags (heute Version 1); Haben merkt sich die Version beim Hochladen.
 - **Nur Ergänzen:** Neue Felder kommen dazu. Ein Feld fällt nicht weg, wird nicht umbenannt, wechselt nicht den Typ und bleibt da, wenn es immer da war. Ein Test vergleicht dazu mit dem eingefrorenen Stand jeder Version.
 - **Alte Layouts als Testfälle:** Unter `packages/einvoice/templates/kompatibel/` liegen Vorlagen je Version. Sie müssen mit den heutigen Daten weiter ein PDF ergeben; das fängt auch Updates von Typst ab.
 - **Bruch nur mit neuer Version:** Lässt sich ein Bruch nicht vermeiden, gibt es eine neue Version, und Layouts der alten bekommen ihre Daten über einen Adapter weiter im alten Format.
