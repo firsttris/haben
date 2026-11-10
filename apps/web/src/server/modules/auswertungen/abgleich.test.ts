@@ -67,13 +67,13 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     await sql?.end();
   });
 
-  async function reset(versteuerung: "ist" | "soll") {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04" = "SKR03") {
     await sql`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, 'SKR03')`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -248,8 +248,12 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     const [line] = await sql`select l.id, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
       where e.source_type = 'allocation' and e.date = '2026-02-01' and l.account = '1776' limit 1`;
     const found = await manipulated((tx) => tx`update journal_lines set credit = credit - 100 where id = ${line!.id}`);
-    expect(found).toEqual([expect.objectContaining({ bereich: "ustva", zeitraum: "2026-02", posten: "Umsatzsteuer 19 % (Kz 81)" })]);
-    expect(found[0]!.quelle - found[0]!.journal).toBe(100);
+    expect(found).toEqual([
+      expect.objectContaining({ bereich: "ustva", zeitraum: "2026-02", posten: "Umsatzsteuer 19 % (Kz 81)" }),
+      // Die EÜR aus dem Journal sieht es ebenfalls: Die Umbuchung der Steuer hebt sich nicht mehr auf (#542)
+      expect.objectContaining({ bereich: "euer", zeitraum: "2026", posten: "EÜR: Vereinnahmte Umsatzsteuer" }),
+    ]);
+    expect(found.map((z) => z.quelle - z.journal)).toEqual([100, 100]);
     await bypass((tx) => tx`update journal_lines set credit = credit + 100 where id = ${line!.id}`);
 
     // Nebenbuch: Steuer eines gebuchten Belegs geändert
