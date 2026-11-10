@@ -40,3 +40,13 @@ test("Die Tastatur öffnet den Dateidialog am Eingabefeld", async ({ page }) => 
 
   await Promise.all([page.waitForEvent("filechooser", { timeout: 5000 }), page.keyboard.press("Enter")]);
 });
+
+test("Nach dem Klick auf Datei wählen liegt der Fokus auf dem Eingabefeld, Tab führt zum nächsten Feld", async ({ page }) => {
+  await page.goto("/csv-import?art=kontakte");
+
+  await Promise.all([page.waitForEvent("filechooser", { timeout: 5000 }), page.getByText("Datei wählen", { exact: true }).first().click()]);
+  await expect(page.locator(".file-picker input[type=file]").first()).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Trennzeichen")).toBeFocused();
+});
