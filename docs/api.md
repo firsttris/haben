@@ -51,7 +51,7 @@ Schreiben und anlegen schließen lesen ein. Ein Token ohne das nötige Recht bek
 - **Einheiten wie überall in Haben:** Beträge in ganzen Cent (`5712` = 57,12 €), Steuersätze in Basispunkten (`1900` = 19 %, `700` = 7 %, `0`), Mengen in Tausendsteln (`1000` = 1 Stück, `1500` = 1,5 Stunden), Datum als `JJJJ-MM-TT`. Bei Fremdwährung sind `net`, `tax` und `gross` in Euro umgerechnet, die Einzelpreise stehen in der Währung der Rechnung.
 - **Listen** haben `limit` (1 bis 500, Vorgabe 100) und `offset` und antworten mit `{ "data": […], "total": …, "limit": …, "offset": … }`.
 - **Grenze:** 120 Anfragen je Minute und Token, darüber `429` mit `Retry-After: 60`. Werkzeuge über MCP und die API zählen zusammen.
-- **Protokoll:** Jeder Aufruf steht ohne Inhalte unter **Letzte Aufrufe** (z. B. `POST /rechnungen`), 90 Tage lang. Was die API anlegt oder ändert, steht im Änderungsprotokoll mit dem Namen des Tokens als Akteur (`api:Shop-Automation`).
+- **Protokoll:** Jeder Aufruf steht ohne Inhalte unter **Letzte Aufrufe** (z. B. `POST /rechnungen`), 90 Tage lang. Was die API anlegt oder ändert, steht im Änderungsprotokoll mit dem Token als Akteur: seiner ID und seinem Namen (`api:5b1d0c4e-…:Shop-Automation`). Über die ID bleiben zwei Tokens mit gleichem Namen unterscheidbar, etwa nach Widerruf und Neuanlage; ältere Einträge tragen nur den Namen (`api:Shop-Automation`).
 
 ### Fehler
 
