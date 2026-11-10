@@ -6,6 +6,7 @@
 #   haben-instanzen.sh update                           alle nacheinander sichern, aktualisieren, Stopp beim ersten Fehler
 #   haben-instanzen.sh status                           je Instanz Version, Erreichbarkeit, ERiC und letzte Sicherung
 #   haben-instanzen.sh liste                            Name, Domain und Verzeichnis
+#   haben-instanzen.sh firmen                           Liste zum Wechseln (HABEN_FIRMEN) in allen Instanzen abgleichen
 #
 # Ablage unter --basis bzw. $HABEN_INSTANZEN (Vorgabe ~/haben): je Instanz ein Verzeichnis mit compose.yml,
 # compose.override.yml und .env, dazu proxy/ mit dem gemeinsamen Caddy und einer Datei je Domain in proxy/sites/.
@@ -26,10 +27,11 @@ fehler() {
 }
 
 hilfe() {
-  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   cat << 'TEXT'
 
 Optionen für neu:
+  --firmenname NAME          Name in der Navigation der anderen Instanzen (Vorgabe: <name>)
   --hersteller-id ID         ELSTER_HERSTELLER_ID setzen (sonst bleibt sie leer)
   --eric-home PFAD           von Hand entpacktes ERiC einbinden, das sich alle Instanzen teilen können
   --eigener-proxy            keinen gemeinsamen Caddy starten; Netz haben-proxy anlegen und den Block für den
@@ -67,15 +69,18 @@ env_lesen() {
   echo "$wert"
 }
 
-# Setzt KEY=Wert in einer .env: ersetzt die erste Zeile KEY= oder # KEY=, sonst wird angehängt
+# Setzt KEY=Wert in einer .env: ersetzt die erste Zeile KEY=, ohne sie die erste # KEY= (ein Beispiel in der
+# Vorlage), sonst wird angehängt. Gibt es KEY= schon, bleiben auskommentierte Beispiele stehen; sonst gälte die
+# spätere, leere Zeile
 env_setzen() {
   local datei="$1" tmp
   tmp="$(mktemp "$datei.XXXXXX")"
   KEY="$2" WERT="$3" awk '
-    !done && ($0 ~ "^" ENVIRON["KEY"] "=" || $0 ~ "^# " ENVIRON["KEY"] "=") { print ENVIRON["KEY"] "=" ENVIRON["WERT"]; done = 1; next }
+    NR == FNR { if ($0 ~ "^" ENVIRON["KEY"] "=") aktiv = 1; next }
+    !done && ($0 ~ "^" ENVIRON["KEY"] "=" || (!aktiv && $0 ~ "^# " ENVIRON["KEY"] "=")) { print ENVIRON["KEY"] "=" ENVIRON["WERT"]; done = 1; next }
     { print }
     END { if (!done) print ENVIRON["KEY"] "=" ENVIRON["WERT"] }
-  ' "$datei" > "$tmp"
+  ' "$datei" "$datei" > "$tmp"
   cat "$tmp" > "$datei"
   rm -f "$tmp"
 }
@@ -187,11 +192,44 @@ laeuft() {
   grep -qx "$2" <<< "$dienste"
 }
 
+# Name einer Instanz in der Navigation der anderen (#504): HABEN_FIRMENNAME aus der .env, sonst der Verzeichnisname
+firmenname() {
+  local name
+  name="$(env_lesen "$1/.env" HABEN_FIRMENNAME)"
+  echo "${name:-$(basename "$1")}"
+}
+
+# Trägt die Liste aller Instanzen als HABEN_FIRMEN in jede .env ein, damit die Navigation zwischen ihnen wechselt.
+# Mit „starten“ startet Compose laufende Apps, deren Liste sich geändert hat, mit der neuen Liste neu, außer der
+# Instanz im zweiten Argument (die neue, die gleich ohnehin startet).
+firmen_abgleichen() {
+  local starten="${1:-}" ausser="${2:-}" dir liste="" eintrag
+  while IFS= read -r dir; do
+    eintrag="$(firmenname "$dir")|https://$(env_lesen "$dir/.env" DOMAIN)"
+    liste="${liste:+$liste;}$eintrag"
+  done < <(instanzen)
+  while IFS= read -r dir <&3; do
+    [ "$(env_lesen "$dir/.env" HABEN_FIRMEN)" != "$liste" ] || continue
+    env_setzen "$dir/.env" HABEN_FIRMEN "'$liste'"
+    grep -q "HABEN_FIRMEN" "$dir/compose.yml" \
+      || echo "Hinweis: $(basename "$dir")/compose.yml reicht HABEN_FIRMEN nicht an die App weiter; die aktuelle compose.yml aus deploy/ übernehmen." >&2
+    if [ "$starten" = starten ] && [ "$dir" != "$ausser" ] && laeuft "$dir" app; then
+      in_dir "$dir" docker compose up -d app
+    fi
+  done 3< <(instanzen)
+}
+
+# Name in der Navigation: nicht leer, höchstens 60 Zeichen, ohne die Trenner von HABEN_FIRMEN und ohne ' (.env)
+pruefe_firmenname() {
+  [ -n "$1" ] && [ "${#1}" -le 60 ] || fehler "Der Firmenname braucht 1 bis 60 Zeichen."
+  case "$1" in *[\|\;\']* | *[[:cntrl:]]*) fehler "Der Firmenname darf weder | noch ; noch ' enthalten: $1" ;; esac
+}
+
 cmd_neu() {
   [ $# -ge 2 ] || fehler "Aufruf: haben-instanzen.sh neu <name> <domain> [Optionen]"
   local name="$1" domain="$2"
   shift 2
-  local hersteller="" eric_home="" eigener_proxy=0 sso=0 starten=1 issuer="" client_id="" client_secret="" oidc_name="Authelia"
+  local hersteller="" eric_home="" eigener_proxy=0 sso=0 starten=1 issuer="" client_id="" client_secret="" oidc_name="Authelia" firma=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --hersteller-id) hersteller="${2:?--hersteller-id braucht einen Wert}"; shift ;;
@@ -202,6 +240,7 @@ cmd_neu() {
       --oidc-client-id) client_id="${2:?--oidc-client-id braucht einen Wert}"; shift ;;
       --oidc-client-secret) client_secret="${2:?--oidc-client-secret braucht einen Wert}"; shift ;;
       --oidc-name) oidc_name="${2:?--oidc-name braucht einen Wert}"; shift ;;
+      --firmenname) firma="${2:?--firmenname braucht einen Wert}"; shift ;;
       --nicht-starten) starten=0 ;;
       *) fehler "Unbekannte Option: $1" ;;
     esac
@@ -218,6 +257,7 @@ cmd_neu() {
   # haben-app ist der Alias einer einzelnen Instanz nach deploy/compose.override.example.yml
   [ "$name" != app ] || fehler "Der Name app ist reserviert (Alias haben-app einer einzelnen Instanz)."
   [[ "$domain" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] || fehler "Domain ohne https:// und ohne Pfad, klein geschrieben, z. B. firma1.example.de: $domain"
+  [ -z "$firma" ] || pruefe_firmenname "$firma"
   [ -z "$hersteller" ] || [[ "$hersteller" =~ ^[0-9]{1,10}$ ]] || fehler "Die Hersteller-ID besteht nur aus Ziffern."
   [ -z "$eric_home" ] || [[ "$eric_home" =~ ^/[A-Za-z0-9._/-]+$ ]] || fehler "--eric-home braucht einen absoluten Pfad ohne Leerzeichen."
   if [ "$sso" = 1 ]; then
@@ -269,6 +309,7 @@ cmd_neu() {
   env_setzen "$e" RESTIC_PASSWORD "$(openssl rand -base64 32)"
   # Eigener Name je Instanz, falls sich mehrere ein restic-Repository teilen
   env_setzen "$e" BACKUP_HOST "haben-$name"
+  [ -z "$firma" ] || env_setzen "$e" HABEN_FIRMENNAME "'$firma'"
   [ -z "$hersteller" ] || env_setzen "$e" ELSTER_HERSTELLER_ID "$hersteller"
   [ -z "$eric_home" ] || env_setzen "$e" ERIC_HOME "$eric_home"
   if [ "$sso" = 1 ]; then
@@ -306,6 +347,8 @@ cmd_neu() {
   mv "$neu" "$dir"
   trap - EXIT
   echo "Angelegt: $dir"
+  # Alle Instanzen kennen einander zum Wechseln in der Navigation; laufende starten mit der neuen Liste neu
+  if [ "$starten" = 1 ]; then firmen_abgleichen starten "$dir"; else firmen_abgleichen; fi
   echo "ENCRYPTION_KEY und RESTIC_PASSWORD aus $dir/.env zusätzlich an einem zweiten Ort sichern (Passwortmanager)."
 
   if [ "$eigener_proxy" = 1 ]; then
@@ -399,6 +442,14 @@ cmd_status() {
   done 3< <(instanzen)
 }
 
+cmd_firmen() {
+  firmen_abgleichen starten
+  local dir
+  while IFS= read -r dir; do
+    printf '%-20s %-32s %s\n' "$(basename "$dir")" "$(env_lesen "$dir/.env" DOMAIN)" "$(firmenname "$dir")"
+  done < <(instanzen)
+}
+
 cmd_liste() {
   local dir
   while IFS= read -r dir; do
@@ -420,6 +471,7 @@ case "$befehl" in
   update) cmd_update ;;
   status) cmd_status ;;
   liste) cmd_liste ;;
+  firmen) cmd_firmen ;;
   "") hilfe; exit 1 ;;
-  *) fehler "Unbekannter Befehl: $befehl (neu, update, status, liste)" ;;
+  *) fehler "Unbekannter Befehl: $befehl (neu, update, status, liste, firmen)" ;;
 esac

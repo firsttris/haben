@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseFirmen } from "../lib/firmen.ts";
 
 const envSchema = z
   .object({
@@ -77,6 +78,8 @@ const envSchema = z
     ENABLE_BANKING_KEY: z.string().optional(),
     ENABLE_BANKING_KEY_FILE: z.string().optional(),
     ENABLE_BANKING_API_URL: z.string().url().optional(),
+    /** Instanzen der eigenen Firmen zum Wechseln in der Navigation (#504): „Name|https://adresse“, getrennt durch „;“ */
+    HABEN_FIRMEN: z.string().optional(),
   })
   // Unvollständig eingerichteter Dienst: lieber nicht starten als stillschweigend einen anderen Anbieter nehmen
   .superRefine((value, ctx) => {
@@ -114,6 +117,10 @@ const envSchema = z
           });
         }
       }
+    }
+    if (value.HABEN_FIRMEN) {
+      const firmen = parseFirmen(value.HABEN_FIRMEN);
+      if ("fehler" in firmen) ctx.addIssue({ code: "custom", path: ["HABEN_FIRMEN"], message: firmen.fehler });
     }
     const local = value.EXTRACTION_PROVIDER === "openai-compatible" || (!value.EXTRACTION_PROVIDER && value.EXTRACTION_BASE_URL);
     if (local && !value.EXTRACTION_BASE_URL) {

@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_app")({
       rechtsform: state.rechtsform ?? "einzelunternehmen",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
+      firmen: state.firmen,
     };
   },
   component: AppLayout,
@@ -111,7 +112,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -161,7 +162,12 @@ function AppLayout() {
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
-          <span className="brand-mark">H</span>Haben
+          <span className="brand-mark">H</span>
+          <span className="brand-text">
+            Haben
+            {/* Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet */}
+            {firmen.aktuell && <span className="brand-firma">{firmen.aktuell}</span>}
+          </span>
         </Link>
         <button
           ref={toggle}
@@ -205,6 +211,20 @@ function AppLayout() {
                   <Icon name="external" />
                   {seite.name}
                 </Link>
+              ))}
+            </div>
+          )}
+          {/* Firmen wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung */}
+          {firmen.andere.length > 0 && (
+            <div className="nav-group" role="group" aria-label="Firma wechseln">
+              <div className="nav-group-label" aria-hidden="true">
+                Firma wechseln
+              </div>
+              {firmen.andere.map((firma) => (
+                <a key={firma.url} href={firma.url} className="nav-link">
+                  <Icon name="external" />
+                  {firma.name}
+                </a>
               ))}
             </div>
           )}

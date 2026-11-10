@@ -43,6 +43,8 @@ function webServer(durchlauf?: Durchlauf) {
       ANTHROPIC_API_KEY: "",
       EXTRACTION_PROVIDER: "",
       EXTRACTION_BASE_URL: "",
+      // Firmen wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und eine zweite, die es nicht geben muss
+      HABEN_FIRMEN: durchlauf === "firmen" ? `Studio Nord|${serverURL};Werkstatt Süd|https://werkstatt.example.de` : "",
     },
   };
 }

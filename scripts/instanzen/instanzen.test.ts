@@ -255,6 +255,52 @@ describe("update", () => {
   });
 });
 
+describe("Firmen wechseln", () => {
+  it("trägt in jede Instanz die Liste aller ein und startet laufende mit der neuen Liste neu", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--firmenname", "Studio Nord");
+    expect(env("firma1").HABEN_FIRMEN).toBe("'Studio Nord|https://firma1.example.de'");
+    lauf("neu", "firma2", "firma2.example.de");
+    const liste = "'Studio Nord|https://firma1.example.de;firma2|https://firma2.example.de'";
+    expect([env("firma1").HABEN_FIRMEN, env("firma2").HABEN_FIRMEN]).toEqual([liste, liste]);
+    expect(env("firma1").HABEN_FIRMENNAME).toBe("'Studio Nord'");
+    // Die laufende firma1 mit der neuen Liste neu, die neue firma2 startet ohnehin
+    expect(aufrufe()).toContain("firma1 compose up -d app");
+    expect(aufrufe()).not.toContain("firma2 compose up -d app");
+  });
+
+  it("lässt das Beispiel aus der Vorlage stehen und setzt nur die eine Zeile", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    const zeilen = readFileSync(join(basis, "firma1", ".env"), "utf8").split("\n");
+    expect(zeilen.filter((z) => z.startsWith("HABEN_FIRMEN="))).toEqual(["HABEN_FIRMEN='firma1|https://firma1.example.de'"]);
+    expect(zeilen.some((z) => z.startsWith("# HABEN_FIRMEN="))).toBe(true);
+  });
+
+  it("startet mit --nicht-starten nichts neu und ändert nur die .env", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    lauf("neu", "firma2", "firma2.example.de", "--nicht-starten");
+    expect(env("firma1").HABEN_FIRMEN).toContain("firma2|https://firma2.example.de");
+    expect(aufrufe().some((a) => a.includes(" up "))).toBe(false);
+  });
+
+  it.each(["A|B", "A;B", "it's", ""])("lehnt den Firmennamen %j ab", (firma) => {
+    expect(lauf("neu", "firma1", "firma1.example.de", "--firmenname", firma, "--nicht-starten").status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+  });
+
+  it("gleicht mit firmen ab, auch nach einer Änderung von Hand, und startet nur geänderte neu", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    lauf("neu", "firma2", "firma2.example.de", "--nicht-starten");
+    const datei = join(basis, "firma2", ".env");
+    writeFileSync(datei, `${readFileSync(datei, "utf8")}HABEN_FIRMENNAME='Werkstatt'\n`);
+    const r = lauf("firmen");
+    expect(r.status).toBe(0);
+    expect(env("firma1").HABEN_FIRMEN).toBe("'firma1|https://firma1.example.de;Werkstatt|https://firma2.example.de'");
+    expect(aufrufe().filter((a) => a.endsWith("compose up -d app"))).toEqual(["firma1 compose up -d app", "firma2 compose up -d app"]);
+    expect(lauf("firmen").status).toBe(0);
+    expect(aufrufe().filter((a) => a.endsWith("compose up -d app"))).toHaveLength(2);
+  });
+});
+
 describe("status und liste", () => {
   it("zeigt je Instanz Version, Erreichbarkeit, ERiC und Sicherung und meldet eine gestoppte", () => {
     lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
