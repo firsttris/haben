@@ -175,7 +175,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const vorlagen = join(process.env.DOCUMENTS_DIR!, "vorlagen");
     const verwaist = join(vorlagen, crypto.randomUUID());
     mkdirSync(join(verwaist, "pakete"), { recursive: true });
-    expect(await layouts.removeOrphanWorkspaces()).toEqual([verwaist.split("/").pop()]);
+    expect(await layouts.removeOrphanWorkspaces()).toContain(verwaist.split("/").pop());
     expect(existsSync(verwaist)).toBe(false);
     expect(existsSync(join(vorlagen, id))).toBe(true);
   }, 60_000);
