@@ -7,6 +7,7 @@ import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { ErrorBanner } from "./ErrorBanner.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { fetchInboxNow, removeInbox, saveInbox, type getInbox } from "../server/functions/inbox.ts";
+import { Field } from "./Field.tsx";
 
 type Data = Awaited<ReturnType<typeof getInbox>>;
 
@@ -68,47 +69,42 @@ export function InboxCard({ data }: { data: Data }) {
         gelesen. Am besten ein eigener Ordner oder eine eigene Adresse, an die du Rechnungen weiterleitest. Bei Gmail, GMX und web.de brauchst du ein
         App-Passwort bzw. freigeschaltetes IMAP.
       </p>
-      <label className="field">
-        Anbieter
-        <select defaultValue="" onChange={(e) => preset(e.target.value)}>
-          <option value="">Eigener Server</option>
-          {Object.entries(data.presets).map(([key, p]) => (
-            <option key={key} value={key}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="form-row cols-server">
-        <label className="field">
-          IMAP-Server
-          <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="imap.gmail.com" required />
-        </label>
-        <label className="field">
-          Port
-          <input name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
-        </label>
-        <label className="field">
-          Verschlüsselung
-          <select value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
-            <option value="tls">TLS (meist Port 993)</option>
-            <option value="starttls">STARTTLS (meist Port 143)</option>
+      <Field label="Anbieter">
+        {(control) => (
+          <select {...control} defaultValue="" onChange={(e) => preset(e.target.value)}>
+            <option value="">Eigener Server</option>
+            {Object.entries(data.presets).map(([key, p]) => (
+              <option key={key} value={key}>
+                {p.label}
+              </option>
+            ))}
           </select>
-        </label>
+        )}
+      </Field>
+      <div className="form-row cols-server">
+        <Field label="IMAP-Server">
+          {(control) => <input {...control} name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="imap.gmail.com" required />}
+        </Field>
+        <Field label="Port">
+          {(control) => (
+            <input {...control} name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
+          )}
+        </Field>
+        <Field label="Verschlüsselung">
+          {(control) => (
+            <select {...control} value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
+              <option value="tls">TLS (meist Port 993)</option>
+              <option value="starttls">STARTTLS (meist Port 143)</option>
+            </select>
+          )}
+        </Field>
       </div>
       <div className="form-row cols-3">
-        <label className="field">
-          Benutzername
-          <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />
-        </label>
-        <label className="field">
-          Passwort
-          <input name="password" type="password" autoComplete="new-password" placeholder={s ? "unverändert lassen" : undefined} />
-        </label>
-        <label className="field">
-          Ordner
-          <input name="folder" defaultValue={s?.folder ?? "INBOX"} placeholder="INBOX" />
-        </label>
+        <Field label="Benutzername">{(control) => <input {...control} name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />}</Field>
+        <Field label="Passwort">
+          {(control) => <input {...control} name="password" type="password" autoComplete="new-password" placeholder={s ? "unverändert lassen" : undefined} />}
+        </Field>
+        <Field label="Ordner">{(control) => <input {...control} name="folder" defaultValue={s?.folder ?? "INBOX"} placeholder="INBOX" />}</Field>
       </div>
       <label className="checkbox">
         <input type="checkbox" name="enabled" defaultChecked={s?.enabled ?? true} />

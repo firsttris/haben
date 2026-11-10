@@ -163,6 +163,8 @@ Die KI-Auslesung ist optional. Sie liest entweder Claude über die Anthropic-API
 
 Eine Seite gilt nur dann als lesbar, wenn ihr Text mehr ist als ein Stempel, ein Wasserzeichen oder eine Seitenzahl (mindestens 40 Buchstaben und Ziffern). Mit `text` gilt: Fehlt einer Seite der Text, steht „Seite 2 hat keinen auslesbaren Text und fehlt in der Auslesung“ am Beleg; hat das PDF gar keinen (Scan) oder ist der Beleg ein Foto, schickt Haben nichts an den Dienst und sagt das am Beleg, statt ein Bild an ein Textmodell oder still anderswohin zu senden. Eine Texterkennung (OCR) für Scans gibt es nicht; solche Belege füllst du von Hand aus oder nimmst `text-und-bild` mit einem Vision-Modell. Sehr langer Text wird gekürzt, auch das steht am Beleg. Claude über die Anthropic-API bekommt das PDF wie bisher als Dokument und liest den Text selbst.
 
+**Denkende Modelle still stellen (`EXTRACTION_EXTRA_BODY`):** Manche Modelle antworten erst nach einem Denkschritt und verbrauchen dabei ihr Antwortbudget, sodass für die Belegfelder nichts mehr übrig bleibt (`reasoning_tokens` in der Antwort des Dienstes, leerer Text). Dagegen nimmt `EXTRACTION_EXTRA_BODY` zusätzliche Felder für den Request-Body als JSON-Objekt auf, etwa `{"reasoning_effort":"none"}`; `model`, `messages`, `stream` und `response_format` setzt Haben selbst und überschreibt sie. Ohne Angabe geht der Body unverändert raus, das Verhalten bleibt also wie bisher ([Installation](installation.md#umgebungsvariablen)).
+
 **Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsempfänger und dessen USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten; dazu die IBAN des Lieferanten mit dem Textausschnitt, in dem sie steht. Diese IBAN ist nur ein Vorschlag für einen neuen Kontakt (siehe [So gehst du vor](#so-gehst-du-vor)): Sie steht nicht am Beleg und geht nie in eine Überweisung. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Fehlen in der Antwort nur Rechnungsempfänger und dessen USt-IdNr. oder die IBAN, gelten sie als unbekannt. Passt sie sonst nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
 
 Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
@@ -294,7 +296,21 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 
 **Storno und Neuerfassung.** Ein [Storno](#stornieren-und-neu-erfassen) bucht die ganze Buchung mit allen Zeilen zurück; **Neu erfassen** übernimmt die Aufteilung in den neuen Entwurf.
 
-**Noch nicht mit Aufteilung:** § 13b und innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („§ 13b mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei § 13b, innergemeinschaftlichem Erwerb und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
+**Mit § 13b.** Ein Beleg mit [§ 13b](#reverse-charge-als-leistungsempfänger--13b) aus dem EU-Ausland oder dem Drittland lässt sich ebenso aufteilen, etwa die monatliche Sammelrechnung eines Zahlungsdienstleisters mit Transaktionsgebühren, Zahlungsabwicklung, Einstellgebühren und Werbung. § 13b gilt dann für den ganzen Beleg. Unter jedem Netto steht statt der Vorsteuer der Anteil an der **Steuer § 13b**, verteilt und gerundet wie oben. Gebucht wird der Aufwand je Zeile mit dem Steuerschlüssel RC13bEU bzw. RC13bDrittland auf das Konto ihrer Kategorie; Umsatzsteuer und Vorsteuer nach § 13b stehen wie ohne Aufteilung je Steuersatz einmal in der Buchung, mit der Steuer des Belegs. Beispiel, alles zu 19 % aus dem EU-Ausland: 120,00 € Transaktionsgebühren, 60,00 € Zahlungsabwicklung, 20,00 € Einstellgebühren und 50,00 € Werbung ergeben 250,00 € netto, 47,50 € Steuer nach § 13b und 250,00 € Zahlbetrag (SKR04 in Klammern):
+
+| Konto | Soll | Haben |
+| --- | ---: | ---: |
+| 4970 (6855) Kontoführung und Gebühren | 120,00 | |
+| 3100 (5900) Fremdleistungen | 60,00 | |
+| 4900 (6300) Sonstiger Aufwand | 20,00 | |
+| 4600 (6600) Werbung | 50,00 | |
+| 1577 (1407) Vorsteuer nach § 13b | 47,50 | |
+| 1787 (3837) Umsatzsteuer nach § 13b | | 47,50 |
+| 1600 (3300) Verbindlichkeiten | | 250,00 |
+
+Ohne Vorsteuerabzug (als Kleinunternehmer, der die Steuer nach § 13b trotzdem schuldet) fehlt die Vorsteuerzeile, und neben jedem Netto steht auf demselben Konto sein Anteil an der Steuer als Aufwand (Steuerschlüssel `keineVSt`), im Beispiel 22,80 €, 11,40 €, 3,80 € und 9,50 €; zusammen genau Netto und Steuer des Belegs. So trägt das Journal die Bemessungsgrundlage (Kz 46 bzw. 84) netto, wie die Voranmeldung. Die Voranmeldung (Kz 46/47 bzw. 84/85 und 67) kommt wie ohne Aufteilung aus den Beträgen je Satz. In der [EÜR](auswertungen.md) zählt die Zahlung je Zeile mit ihrem Netto; die Summe ist dieselbe wie ohne Aufteilung, denn gezahlt ist nur netto, und die Steuer nach § 13b geht mit der Voranmeldung ans Finanzamt. Wie ohne Aufteilung gilt § 13b nicht für Wareneinkäufe und nur zu 19 % oder 7 %. Die Gebühren im Konto des Dienstleisters ordnest du dem aufgeteilten Beleg wie jedem anderen mit [Alle offenen Gebühren … diesem Beleg zuordnen](bank.md#zahlungsdienstleister) zu.
+
+**Noch nicht mit Aufteilung:** innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („Innergemeinschaftlicher Erwerb mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei innergemeinschaftlichem Erwerb und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
 
 ## Privatanteil
 
@@ -326,7 +342,7 @@ Gebucht wird (SKR03, SKR04 in Klammern):
 - Aufwand netto an Verbindlichkeiten bzw. Privateinlage,
 - Vorsteuer nach § 13b auf 1577 (1407) an Umsatzsteuer nach § 13b auf 1787 (3837).
 
-In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich Steuer und Vorsteuer auf. Als Kleinunternehmer schuldest du die Steuer trotzdem, ziehst aber nichts ab: Sie wird Teil des Aufwands und ist mit der Voranmeldung zu zahlen. Mit Privatanteil ist die Steuer voll geschuldet, abziehbar nur der betriebliche Teil. In der EÜR zählt der gezahlte Nettobetrag; die Steuer an das Finanzamt erscheint dort, wenn sie gezahlt wird.
+In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich Steuer und Vorsteuer auf. Als Kleinunternehmer schuldest du die Steuer trotzdem, ziehst aber nichts ab: Sie wird Teil des Aufwands und ist mit der Voranmeldung zu zahlen. Mit Privatanteil ist die Steuer voll geschuldet, abziehbar nur der betriebliche Teil. Gebucht wird die nicht abziehbare Steuer als eigene Aufwandszeile neben dem Netto; mit Privatanteil steht der private Teil des Nettos mit dem Steuerschlüssel des § 13b auf den Entnahmen, die private Steuer ohne. So trägt das Journal die volle Bemessungsgrundlage wie die Voranmeldung (Kz 46/84). Beim innergemeinschaftlichen Erwerb mit Privatanteil ebenso (Kz 89/93). In der EÜR zählt der gezahlte Nettobetrag; die Steuer an das Finanzamt erscheint dort, wenn sie gezahlt wird.
 
 ## Innergemeinschaftlicher Erwerb (§ 1a UStG)
 
@@ -545,7 +561,7 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 
 - Fremdwährung: Für den Monat gilt das Belegdatum; ein abweichendes Leistungsdatum hat der Beleg nicht.
 - Nur die Steuersätze 19 %, 7 % und 0 %, je Satz eine Zeile.
-- Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur mit deutscher Umsatzsteuer in Euro: nicht mit § 13b, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
+- Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur in Euro mit deutscher Umsatzsteuer oder § 13b (EU und Drittland): nicht mit innergemeinschaftlichem Erwerb, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
 - § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Waren aus dem EU-Ausland sind ein [innergemeinschaftlicher Erwerb](#innergemeinschaftlicher-erwerb--1a-ustg); einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
 - Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland ist kein Erwerb; die Einfuhrumsatzsteuer erfasst du mit dem Bescheid des Zolls (siehe [Einfuhrumsatzsteuer](#einfuhrumsatzsteuer)).
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.

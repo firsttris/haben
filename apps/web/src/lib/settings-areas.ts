@@ -14,4 +14,7 @@ export const SETTINGS_AREAS = [
   { id: "export", label: "Export", hint: "Archiv, DATEV, Prüfung, Backup" },
 ] as const;
 
-export type SettingsArea = (typeof SETTINGS_AREAS)[number]["id"];
+/** Im SSO-Modus ersetzt „Zugänge“ den Bereich Sicherheit: Passkeys, Passwort und Einladungen gibt es dort nicht */
+const SSO_ACCOUNTS_AREA = { id: "zugaenge", label: "Zugänge", hint: "Per SSO angemeldete Konten" } as const;
+export const settingsAreas = (only: boolean) => SETTINGS_AREAS.map((area) => (only && area.id === "sicherheit" ? SSO_ACCOUNTS_AREA : area));
+export type SettingsArea = (typeof SETTINGS_AREAS)[number]["id"] | "zugaenge";

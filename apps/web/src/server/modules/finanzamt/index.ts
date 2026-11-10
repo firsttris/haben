@@ -24,14 +24,18 @@ export {
   sendMessage,
 } from "./finanzamt.ts";
 export {
-  calendarTokenActive,
-  checkCalendarToken,
-  createCalendarToken,
   fristenToIcs,
   listFristen,
-  revokeCalendarToken,
   type Frist,
 } from "./fristen.ts";
+export {
+  calendarTokenActive,
+  calendarTokenStatus,
+  reactivateCalendarToken,
+  checkCalendarToken,
+  createCalendarToken,
+  revokeCalendarToken,
+} from "./kalender-abo.ts";
 export {
   autoFetchStatus,
   disableAutoFetch,

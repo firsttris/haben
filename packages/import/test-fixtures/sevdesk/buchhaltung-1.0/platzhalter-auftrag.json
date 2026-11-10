@@ -1,0 +1,10 @@
+[
+  {
+    "objectName": "Order",
+    "orderType": "AN",
+    "status": "100",
+    "header": "<anon>",
+    "headText": "<anon>",
+    "footText": "<anon> [%KONTAKTPERSON%]"
+  }
+]

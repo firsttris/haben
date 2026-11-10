@@ -14,7 +14,7 @@ import {
   type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
-import { and, eq, getTableColumns, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
@@ -27,6 +27,7 @@ import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { effectivePayment, paymentHistoryIssue, settledOn } from "./payment-history.ts";
+import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 
 export class TakeoverError extends UserError {}
 
@@ -35,6 +36,7 @@ type LegacyVoucher = typeof schema.lexofficeVouchers.$inferSelect;
 /** Belegarten, die als offener Posten nach Haben wandern können */
 const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
+const OPEN_ITEM_TYPES = new Set([...SALES, ...PURCHASES]);
 
 const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
 
@@ -178,9 +180,17 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
 
 async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   const vouchers = await db
-    .select({ ...getTableColumns(schema.lexofficeVouchers), payment: effectivePayment("lexoffice_vouchers") })
+    .select({
+      ...getTableColumns(schema.lexofficeVouchers),
+      type: effectiveType("lexoffice_vouchers"),
+      direction: effectiveDirection("lexoffice_vouchers"),
+      contactName: effectiveContactName("lexoffice_vouchers"),
+      taxes: effectiveTaxes("lexoffice_vouchers"),
+      payment: effectivePayment("lexoffice_vouchers"),
+    })
     .from(schema.lexofficeVouchers)
-    .where(inArray(schema.lexofficeVouchers.type, [...SALES, ...PURCHASES]))
+    // Auch die gespeicherte Art: Früher als Ausgabebeleg übernommene D-Belege bleiben als übernommen sichtbar
+    .where(or(inArray(effectiveType("lexoffice_vouchers"), [...OPEN_ITEM_TYPES]), inArray(schema.lexofficeVouchers.type, [...OPEN_ITEM_TYPES])))
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
   const [invoices, documents] = await Promise.all([
     db
@@ -203,16 +213,19 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
     .map((v) => {
       const issue = paymentHistoryIssue(v);
       const settled = issue ? settledOn({ ...v, payDate: sevPayDate(v.raw) }) : null;
+      // Am Stichtag war die Rechnung noch eine Forderung; ihr Storno gehört dann in die Bücher von Haben
+      const cancelledLater = v.payment?.history === "storno" && v.date <= cutoff && v.payment.cancelledOn! > cutoff;
       // Vor dem Stichtag ausgeglichen (oder heute ausgeglichen bei Belegen danach): sicher bezahlt, nichts offen
-      const state =
-        settled && (settled <= cutoff || v.date > cutoff)
+      const state = cancelledLater
+        ? { open: Math.abs(v.gross), paidAfter: 0, issue: "Storno nach dem Stichtag" }
+        : settled && (settled <= cutoff || v.date > cutoff)
           ? { open: 0, paidAfter: 0, issue: null }
           : issue
             ? { open: Math.abs(v.payment?.openAmount ?? v.gross), paidAfter: 0, issue }
             : legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
       return { voucher: v, state, takenOver: takenOverOf(v.id) };
     })
-    .filter((c) => c.state.open > 0 || c.state.issue || c.takenOver);
+    .filter((c) => c.takenOver || (OPEN_ITEM_TYPES.has(c.voucher.type) && (c.state.open > 0 || c.state.issue)));
   if (candidates.length === 0) return [];
   const files = await db
     .selectDistinct({ voucherId: schema.lexofficeVoucherFiles.voucherId })
@@ -300,7 +313,14 @@ export async function takeOverLegacyItem(
 }
 
 async function takeOver(actor: string, item: OpenLegacyItem, cutoff: TakeoverCutoff): Promise<{ kind: "invoice" | "document"; id: string }> {
-  const [voucher] = await db.select().from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.id, item.id));
+  const [voucher] = await db
+    .select({
+      ...getTableColumns(schema.lexofficeVouchers),
+      contactName: effectiveContactName("lexoffice_vouchers"),
+      taxes: effectiveTaxes("lexoffice_vouchers"),
+    })
+    .from(schema.lexofficeVouchers)
+    .where(eq(schema.lexofficeVouchers.id, item.id));
   const files = await db.select().from(schema.lexofficeVoucherFiles).where(eq(schema.lexofficeVoucherFiles.voucherId, item.id));
   return item.direction === "einnahme" ? takeOverInvoice(actor, voucher!, files, cutoff) : takeOverDocument(actor, voucher!, files, cutoff);
 }

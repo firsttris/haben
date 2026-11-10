@@ -40,7 +40,8 @@ export function Combobox<T>({
   commitOnTab = false,
   placeholder,
   disabled = false,
-  invalid = false,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid = false,
   className = "",
   onBlur,
 }: {
@@ -57,7 +58,8 @@ export function Combobox<T>({
   commitOnTab?: boolean;
   placeholder?: string;
   disabled?: boolean;
-  invalid?: boolean;
+  "aria-describedby"?: string | undefined;
+  "aria-invalid"?: boolean | undefined;
   className?: string;
   onBlur?: () => void;
 }) {
@@ -133,6 +135,7 @@ export function Combobox<T>({
         aria-expanded={expanded}
         aria-controls={expanded ? listId : undefined}
         aria-activedescendant={expanded && active >= 0 ? rowId(active) : undefined}
+        aria-describedby={describedBy}
         aria-invalid={invalid}
         autoComplete="off"
         value={value}

@@ -24,9 +24,12 @@ import {
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
+import { FormattedText } from "./FormattedText.tsx";
+import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { Icon } from "./Icon.tsx";
+import { Field } from "./Field.tsx";
 
 type Rate = 1900 | 700 | 0;
 
@@ -187,131 +190,153 @@ export function RecurringForm({
         <div className="form-section" role="group" aria-labelledby="recurring-basics">
           <h2 id="recurring-basics">Vorlage</h2>
           <div className="form-row cols-2">
-            <label className="field">
-              Bezeichnung
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="z. B. Wartungsvertrag Nordwerk" required />
-            </label>
-            <label className="field">
-              Kunde
-              <select value={contactId} onChange={(e) => setContactId(e.target.value)} required>
-                <option value="">Bitte wählen</option>
-                {contacts
-                  .filter((c) => c.isCustomer || c.id === contactId)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {c.ort ? ` · ${c.ort}` : ""}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            <Field label="Bezeichnung">
+              {(control) => (
+                <input
+                  {...control}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={200}
+                  placeholder="z. B. Wartungsvertrag Nordwerk"
+                  required
+                />
+              )}
+            </Field>
+            <Field label="Kunde">
+              {(control) => (
+                <select {...control} value={contactId} onChange={(e) => setContactId(e.target.value)} required>
+                  <option value="">Bitte wählen</option>
+                  {contacts
+                    .filter((c) => c.isCustomer || c.id === contactId)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                        {c.ort ? ` · ${c.ort}` : ""}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </Field>
           </div>
         </div>
         <div className="form-section" role="group" aria-labelledby="recurring-dates">
           <h2 id="recurring-dates">Termine</h2>
           <div className="form-row cols-2">
-            <label className="field">
-              Nächste Rechnung am
-              <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required aria-describedby="next-hint" />
-            </label>
-            <label className="field">
-              Intervall
-              <select value={intervalMonths} onChange={(e) => setIntervalMonths(Number(e.target.value) as RecurringInterval)}>
-                {Object.entries(RECURRING_INTERVALS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Field label="Nächste Rechnung am" describedBy="next-hint">
+              {(control) => <input {...control} type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required />}
+            </Field>
+            <Field label="Intervall">
+              {(control) => (
+                <select {...control} value={intervalMonths} onChange={(e) => setIntervalMonths(Number(e.target.value) as RecurringInterval)}>
+                  {Object.entries(RECURRING_INTERVALS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
           </div>
           <p id="next-hint" className="field-hint">
             Rechnungsdatum. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird zum Monatsende.
           </p>
           <div className="form-row cols-2">
-            <label className="field">
-              Endet nach dem (optional)
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-invalid={Boolean(endDate) && endDate < nextDate} />
-            </label>
-            <label className="field">
-              Leistungszeitraum
-              <select value={servicePeriod} onChange={(e) => setServicePeriod(e.target.value as ServicePeriodMode)}>
-                {Object.entries(SERVICE_PERIOD_MODES).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Field label="Endet nach dem (optional)">
+              {(control) => (
+                <input
+                  {...control}
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  aria-invalid={Boolean(endDate) && endDate < nextDate}
+                />
+              )}
+            </Field>
+            <Field label="Leistungszeitraum">
+              {(control) => (
+                <select {...control} value={servicePeriod} onChange={(e) => setServicePeriod(e.target.value as ServicePeriodMode)}>
+                  {Object.entries(SERVICE_PERIOD_MODES).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
           </div>
         </div>
         <div className="form-section" role="group" aria-labelledby="recurring-invoice">
           <h2 id="recurring-invoice">Rechnung</h2>
           <div className="form-row cols-2">
-            <label className="field">
-              Zahlungsziel in Tagen
-              <input inputMode="numeric" value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)} />
-            </label>
-            <label className="field">
-              E-Rechnungsformat
-              <select value={format} onChange={(e) => setFormat(e.target.value as InvoiceFormat)}>
-                {FORMATS.map((f) => (
-                  <option key={f} value={f}>
-                    {FORMAT_LABEL[f]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="field">
-            Zahlungsart
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value === "lastschrift" ? "lastschrift" : "ueberweisung")}
-              aria-describedby={paymentMethod === "lastschrift" ? "recurring-payment-hint" : undefined}
-            >
-              <option value="ueberweisung">Überweisung</option>
-              <option value="lastschrift">SEPA-Lastschrift</option>
-            </select>
-            {paymentMethod === "lastschrift" && (
-              <span id="recurring-payment-hint" className="field-hint">
-                Jede Rechnung nimmt das jüngste Mandat des Kunden, das am Fälligkeitstag gilt, und kündigt den Einzug an diesem Tag an. Ohne gültiges Mandat
-                entsteht keine Rechnung; der Hinweis steht dann an der Vorlage.
-              </span>
-            )}
-          </label>
-          <div className="form-row cols-2">
-            <label className="field">
-              Umsatzsteuer
-              <select value={taxTreatment} onChange={(e) => setTaxTreatment(e.target.value as TaxTreatment)} disabled={kleinunternehmer}>
-                {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
-                  .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
-                  .map((t) => (
-                    <option key={t} value={t}>
-                      {TAX_TREATMENTS[t].label}
+            <Field label="Zahlungsziel in Tagen">
+              {(control) => <input {...control} inputMode="numeric" value={paymentTermDays} onChange={(e) => setPaymentTermDays(e.target.value)} />}
+            </Field>
+            <Field label="E-Rechnungsformat">
+              {(control) => (
+                <select {...control} value={format} onChange={(e) => setFormat(e.target.value as InvoiceFormat)}>
+                  {FORMATS.map((f) => (
+                    <option key={f} value={f}>
+                      {FORMAT_LABEL[f]}
                     </option>
                   ))}
-              </select>
-            </label>
-            {!special && (
-              <label className="field">
-                Preise
-                <select value={priceMode} onChange={(e) => setPriceMode(e.target.value as PriceMode)}>
-                  <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
-                  <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
                 </select>
-              </label>
+              )}
+            </Field>
+          </div>
+          <Field
+            label="Zahlungsart"
+            hint={
+              paymentMethod === "lastschrift" && (
+                <>
+                  Jede Rechnung nimmt das jüngste Mandat des Kunden, das am Fälligkeitstag gilt, und kündigt den Einzug an diesem Tag an. Ohne gültiges Mandat
+                  entsteht keine Rechnung; der Hinweis steht dann an der Vorlage.
+                </>
+              )
+            }
+          >
+            {(control) => (
+              <select {...control} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value === "lastschrift" ? "lastschrift" : "ueberweisung")}>
+                <option value="ueberweisung">Überweisung</option>
+                <option value="lastschrift">SEPA-Lastschrift</option>
+              </select>
+            )}
+          </Field>
+          <div className="form-row cols-2">
+            <Field label="Umsatzsteuer">
+              {(control) => (
+                <select {...control} value={taxTreatment} onChange={(e) => setTaxTreatment(e.target.value as TaxTreatment)} disabled={kleinunternehmer}>
+                  {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
+                    .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
+                    .map((t) => (
+                      <option key={t} value={t}>
+                        {TAX_TREATMENTS[t].label}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </Field>
+            {!special && (
+              <Field label="Preise">
+                {(control) => (
+                  <select {...control} value={priceMode} onChange={(e) => setPriceMode(e.target.value as PriceMode)}>
+                    <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
+                    <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
+                  </select>
+                )}
+              </Field>
             )}
             {special && (
-              <label className="field">
-                {taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}
-                <input
-                  value={exemptionReason}
-                  onChange={(e) => setExemptionReason(e.target.value)}
-                  maxLength={300}
-                  placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
-                />
-              </label>
+              <Field label={taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}>
+                {(control) => (
+                  <input
+                    {...control}
+                    value={exemptionReason}
+                    onChange={(e) => setExemptionReason(e.target.value)}
+                    maxLength={300}
+                    placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
+                  />
+                )}
+              </Field>
             )}
           </div>
         </div>
@@ -383,7 +408,7 @@ export function RecurringForm({
                   aria-invalid={line.description.trim() === ""}
                 />
               </div>
-              <textarea
+              <FormattedTextarea
                 className="line-detail"
                 rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
                 placeholder="Text zur Position (optional, mehrzeilig)"
@@ -504,7 +529,11 @@ export function RecurringForm({
               .map((l, i) => (
                 <li key={i}>
                   {fillPlaceholders(l.description, reference)}
-                  {l.detail && <div style={{ whiteSpace: "pre-wrap" }}>{fillPlaceholders(l.detail, reference)}</div>}
+                  {l.detail && (
+                    <div style={{ whiteSpace: "pre-wrap" }}>
+                      <FormattedText text={fillPlaceholders(l.detail, reference)} />
+                    </div>
+                  )}
                 </li>
               ))}
           </ul>

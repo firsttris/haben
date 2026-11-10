@@ -1,5 +1,6 @@
 import type { DarlehenTeil } from "@haben/core";
 import { Link } from "@tanstack/react-router";
+import { Field } from "./Field.tsx";
 
 /** Darlehen und Teil (Auszahlung, Tilgung, Zinsen, Gebühren) eines Bankumsatzes (packages/core/src/darlehen.ts) */
 export interface DarlehenWahl {
@@ -35,26 +36,28 @@ export function DarlehenFelder({ options, value, onChange }: { options: Darlehen
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="form-row cols-2">
-        <label className="field">
-          Darlehen
-          <select value={value.loanId} onChange={(e) => onChange({ ...value, loanId: e.target.value })}>
-            {options.loans.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Teil der Rate
-          <select value={value.part} onChange={(e) => onChange({ ...value, part: e.target.value as DarlehenTeil })}>
-            {options.loanParts.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Darlehen">
+          {(control) => (
+            <select {...control} value={value.loanId} onChange={(e) => onChange({ ...value, loanId: e.target.value })}>
+              {options.loans.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Teil der Rate">
+          {(control) => (
+            <select {...control} value={value.part} onChange={(e) => onChange({ ...value, part: e.target.value as DarlehenTeil })}>
+              {options.loanParts.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       <span className="small muted">{WIRKUNG[value.part]}</span>
     </div>

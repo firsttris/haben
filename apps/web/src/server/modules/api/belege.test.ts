@@ -41,6 +41,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/belege (Postgres)", () => {
 
   beforeAll(async () => {
     sql = await setupTestDb();
+    await sql`insert into "user"(id,name,email,role) values (${actor}, 'Testinhaber', 'inhaber@example.de', 'inhaber')`;
     api = await import("./index.ts");
     schemas = await import("./schemas.ts");
     mcp = await import("../mcp/index.ts");
@@ -64,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/belege (Postgres)", () => {
 
   async function token(scopes: Scope[]) {
     await mcp.setMcpEnabled(actor, true);
-    return (await mcp.createMcpToken({ name: "Dokumentenarchiv", days: 30, scopes })).token;
+    return (await mcp.createMcpToken({ name: "Dokumentenarchiv", days: 30, scopes }, new Date(), actor)).token;
   }
 
   async function send(tokenValue: string | null, method: string, path: string, init: { body?: BodyInit; headers?: Record<string, string> } = {}) {

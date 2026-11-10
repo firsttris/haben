@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, portFuer } from "./e2e/durchlaeufe.ts";
+import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, portFuer } from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -43,6 +43,11 @@ function webServer(durchlauf?: Durchlauf) {
       ANTHROPIC_API_KEY: "",
       EXTRACTION_PROVIDER: "",
       EXTRACTION_BASE_URL: "",
+      // Nachgebaute API in belege-steuern.spec.ts; ohne gespeicherten Zugang fragt kein Server dort an
+      ENABLE_BANKING_API_URL: `http://127.0.0.1:${ENABLE_BANKING_PORT}`,
+      ENABLE_BANKING_APP_ID: "",
+      ENABLE_BANKING_KEY: "",
+      ENABLE_BANKING_KEY_FILE: "",
     },
   };
 }
@@ -77,7 +82,9 @@ export default defineConfig({
       testMatch: [
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
+        "dateiauswahl.spec.ts",
         "gestaltung.spec.ts",
+        "handy-felder.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",

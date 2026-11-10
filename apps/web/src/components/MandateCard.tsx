@@ -8,6 +8,7 @@ import { revokeMandateFn, saveMandate, uploadMandateFile } from "../server/funct
 import type { Mandate } from "../server/modules/stammdaten/index.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Field } from "./Field.tsx";
 
 /** Mandate eines Kunden für SEPA-Lastschriften (#445): anlegen, PDF hinterlegen, widerrufen; nichts wird überschrieben */
 
@@ -132,52 +133,33 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
       )}
       {adding && (
         <form className="stack" onSubmit={onSubmit} aria-label="Neues Mandat">
-          <label className="field">
-            Mandatsreferenz
-            <input name="reference" required maxLength={35} className="mono" aria-describedby="reference-hint" />
-            <span id="reference-hint" className="field-hint">
-              Steht auf dem Mandat; bis 35 Zeichen, nur A–Z, a–z, 0–9, Leerzeichen und + ? / - : ( ) . , &apos;
-            </span>
-          </label>
+          <Field label="Mandatsreferenz" hint={<>Steht auf dem Mandat; bis 35 Zeichen, nur A–Z, a–z, 0–9, Leerzeichen und + ? / - : ( ) . , &apos;</>}>
+            {(control) => <input {...control} name="reference" required maxLength={35} className="mono" />}
+          </Field>
           <div className="form-row cols-2">
-            <label className="field">
-              Unterschrieben am
-              <input name="signedOn" type="date" required max={today} defaultValue={today} />
-            </label>
-            <label className="field">
-              Verfahren
-              <select name="scheme" defaultValue="CORE">
-                <option value="CORE">{MANDAT_SCHEMA_LABEL.CORE}</option>
-                <option value="B2B">{MANDAT_SCHEMA_LABEL.B2B}</option>
-              </select>
-            </label>
+            <Field label="Unterschrieben am">{(control) => <input {...control} name="signedOn" type="date" required max={today} defaultValue={today} />}</Field>
+            <Field label="Verfahren">
+              {(control) => (
+                <select {...control} name="scheme" defaultValue="CORE">
+                  <option value="CORE">{MANDAT_SCHEMA_LABEL.CORE}</option>
+                  <option value="B2B">{MANDAT_SCHEMA_LABEL.B2B}</option>
+                </select>
+              )}
+            </Field>
           </div>
-          <label className="field">
-            Kontoinhaber
-            <input name="debtorName" required maxLength={70} defaultValue={contactName} />
-          </label>
+          <Field label="Kontoinhaber">{(control) => <input {...control} name="debtorName" required maxLength={70} defaultValue={contactName} />}</Field>
           <div className="form-row cols-2">
-            <label className="field">
-              IBAN
-              <input name="debtorIban" required defaultValue={contactIban} className="mono" />
-            </label>
-            <label className="field">
-              BIC (optional)
-              <input name="debtorBic" className="mono" />
-            </label>
+            <Field label="IBAN">{(control) => <input {...control} name="debtorIban" required defaultValue={contactIban} className="mono" />}</Field>
+            <Field label="BIC (optional)">{(control) => <input {...control} name="debtorBic" className="mono" />}</Field>
           </div>
           <label className="checkbox">
             <input type="checkbox" checked={migrated} onChange={(e) => setMigrated(e.target.checked)} />
             <span>Auf dieses Mandat wurde schon eingezogen (Folgelastschrift)</span>
           </label>
           {migrated && (
-            <label className="field">
-              Letzter Einzug
-              <input name="lastCollectionBefore" type="date" max={today} aria-describedby="last-collection-hint" />
-              <span id="last-collection-hint" className="field-hint">
-                Ab diesem Tag zählen die 36 Monate bis zum Verfall. Leer, wenn unbekannt; dann zählt die Unterschrift.
-              </span>
-            </label>
+            <Field label="Letzter Einzug" hint="Ab diesem Tag zählen die 36 Monate bis zum Verfall. Leer, wenn unbekannt; dann zählt die Unterschrift.">
+              {(control) => <input {...control} name="lastCollectionBefore" type="date" max={today} />}
+            </Field>
           )}
           <div className="actions">
             <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>

@@ -25,6 +25,7 @@ import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadDesign } from "./letterhead.ts";
+import { backgroundInfo } from "./background.ts";
 import { logoInfo } from "./logo.ts";
 import { mandateOptions } from "./sepa-mandate.ts";
 import { today } from "../../today.ts";
@@ -161,6 +162,23 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
 }
 
 /**
+ * Ab welchem Jahr Voranmeldung und EÜR aus dem Journal rechnen (#542, docs/adr/journal-als-quelle.md): das eingestellte
+ * Stichjahr, sonst das Jahr der ersten Buchung, ohne Buchung das laufende Jahr. Bestehende Instanzen setzt die Migration
+ * 0192 auf das Jahr nach dem Update.
+ */
+export async function journalAbJahr(q: Db | Tx = db): Promise<number> {
+  const company = await loadCompany(q);
+  if (company.journalAb !== null) return company.journalAb;
+  const [first] = await q.select({ date: min(schema.journalEntries.date) }).from(schema.journalEntries);
+  return first?.date ? Number(first.date.slice(0, 4)) : Number(today(new Date()).slice(0, 4));
+}
+
+/** Stichjahr setzen (Vorziehen in den Einstellungen; prüft auswertungen/stichjahr.ts), in der Transaktion des Aufrufers */
+export async function setJournalAb(tx: Tx, year: number): Promise<void> {
+  await tx.update(schema.company).set({ journalAb: year, updatedAt: new Date() }).where(eq(schema.company.id, 1));
+}
+
+/**
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
  * Stand. Einschalten geht nur, solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
@@ -204,17 +222,18 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, design, mandates] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
     listArticles(),
     listTextBlocks(),
     logoInfo(),
+    backgroundInfo(),
     loadDesign(),
     kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
   ]);
-  const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
+  const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
     contacts,
     /** Gültige Lastschriftmandate je Kunde (#445), für die Zahlungsart der Rechnung */
@@ -236,6 +255,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       plz,
       ort,
       email,
+      telefon,
       steuernummer,
       ustId,
       iban,
@@ -243,6 +263,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       bank,
       kontoinhaber,
       logo: logo?.sha256 ?? null,
+      background: background?.sha256 ?? null,
       accent: design.accent,
       design,
       legal: legalLine(legalInfo(company)),

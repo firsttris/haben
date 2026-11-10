@@ -10,7 +10,7 @@ import {
   type Bundesland,
   type Rechtsform,
 } from "@haben/core";
-import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { redirect, Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
@@ -23,7 +23,8 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
-import { LayoutsCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
+import { LayoutsCard, LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
+import { FooterCard } from "../../components/FooterCard.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { NumberingCard } from "../../components/NumberingCard.tsx";
@@ -37,6 +38,7 @@ import { McpCard } from "../../components/McpCard.tsx";
 import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { PasskeysCard } from "../../components/PasskeysCard.tsx";
+import { SsoZugaengeCard } from "../../components/SsoZugaengeCard.tsx";
 import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
 import { formatDate } from "../../lib/format.ts";
@@ -46,7 +48,7 @@ import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
-import { SETTINGS_AREAS, type SettingsArea } from "../../lib/settings-areas.ts";
+import { SETTINGS_AREAS, settingsAreas, type SettingsArea } from "../../lib/settings-areas.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import reportStyles from "../../styles/auswertungen.css?url";
@@ -57,15 +59,23 @@ import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getChainHead } from "../../server/functions/integrity.ts";
-import { getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
+import { getBackground, getLetterheadDesign, getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
 import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
+import { StichjahrCard } from "../../components/StichjahrCard.tsx";
+import { getStichjahr } from "../../server/functions/stichjahr.ts";
+import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
+  beforeLoad: ({ context, search }) => {
+    if (context.oidc.only && search.bereich === "sicherheit") throw redirect({ to: "/einstellungen", search: { bereich: "zugaenge" }, replace: true });
+    if (!context.oidc.only && search.bereich === "zugaenge") throw redirect({ to: "/einstellungen", search: { bereich: "sicherheit" }, replace: true });
+  },
   loader: async () => {
     const [
       company,
@@ -74,6 +84,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       eric,
       mail,
       logo,
+      background,
       design,
       inbox,
       exportYears,
@@ -87,6 +98,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      stichjahr,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -94,6 +106,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getEricStatus(),
       getMailSettings(),
       getLogo(),
+      getBackground(),
       getLetterheadDesign(),
       getInbox(),
       getExportYears(),
@@ -107,6 +120,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
+      getStichjahr(),
     ]);
     return {
       ...company,
@@ -116,6 +130,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       eric,
       mail,
       logo,
+      background,
       design,
       inbox,
       exportYears,
@@ -129,19 +144,22 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      stichjahr,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
-    SETTINGS_AREAS.some((a) => a.id === search.bereich) ? { bereich: search.bereich as SettingsArea } : {},
+    search.bereich === "zugaenge" || SETTINGS_AREAS.some((a) => a.id === search.bereich) ? { bereich: search.bereich as SettingsArea } : {},
   component: SettingsPage,
 });
 
 function SettingsPage() {
+  const { oidc } = Route.useRouteContext();
   const {
     company,
     numbering,
     logo,
+    background,
     design,
     mail,
     inbox,
@@ -156,11 +174,13 @@ function SettingsPage() {
     zugaenge,
     extraction,
     quoteDefaultAttachments,
+    stichjahr,
   } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
-  const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
+  const areas = settingsAreas(oidc.only);
+  const area = areas.find((a) => a.id === bereich)!;
   // Eine GmbH oder UG zahlt keine Einkommensteuer; die persönlichen Angaben braucht ELSTER dort für Nachrichten und Postfach
-  const hint = (a: (typeof SETTINGS_AREAS)[number]) =>
+  const hint = (a: ReturnType<typeof settingsAreas>[number]) =>
     a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? "Für Nachrichten an das Finanzamt" : a.hint;
   return (
     <>
@@ -172,7 +192,7 @@ function SettingsPage() {
       </div>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label="Bereiche der Einstellungen">
-          {SETTINGS_AREAS.map((a) => (
+          {areas.map((a) => (
             <Link key={a.id} to="/einstellungen" search={{ bereich: a.id }} className="settings-nav-link" aria-current={a.id === bereich ? "page" : undefined}>
               <span>{a.label}</span>
               <span className="settings-nav-hint">{hint(a)}</span>
@@ -180,7 +200,12 @@ function SettingsPage() {
           ))}
         </nav>
         <div className="stack settings-content" aria-label={area.label}>
-          {bereich === "firma" && <CompanyForm />}
+          {bereich === "firma" && (
+            <>
+              <CompanyForm />
+              <StichjahrCard stand={stichjahr} />
+            </>
+          )}
           {bereich === "persoenlich" && <TaxpayerForm />}
           {bereich === "rechnungen" && (
             <>
@@ -201,7 +226,9 @@ function SettingsPage() {
           {bereich === "gestaltung" && (
             <>
               <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
+              <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} />
               <AccentColorCard color={design.accent} />
+              <FooterCard columns={design.footerColumns} seller={company} hidden={design.footerHidden && background !== null} />
               <LayoutsCard design={design} />
             </>
           )}
@@ -218,7 +245,8 @@ function SettingsPage() {
             </>
           )}
           {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
-          {bereich === "sicherheit" && (
+          {bereich === "zugaenge" && zugaenge.mode === "sso" && <SsoZugaengeCard accounts={zugaenge.ssoAccounts} providerName={oidc.name} />}
+          {bereich === "sicherheit" && zugaenge.mode === "lokal" && (
             <>
               <PasskeysCard />
               <ZugaengeCard data={zugaenge} />
@@ -333,53 +361,39 @@ function CompanyForm() {
       <section className="form-section" aria-labelledby="company-basics">
         <h3 id="company-basics">Unternehmen</h3>
         <div className="form-row cols-2">
-          <label className="field">
-            Name
-            <input name="name" defaultValue={company.name} autoComplete="organization" />
-          </label>
-          <label className="field">
-            Art des Betriebs (Anlage EÜR) bzw. Gegenstand des Unternehmens
-            <input name="taetigkeit" defaultValue={company.taetigkeit} placeholder="z. B. Softwareentwicklung" maxLength={100} />
-          </label>
+          <Field label="Name">{(control) => <input {...control} name="name" defaultValue={company.name} autoComplete="organization" />}</Field>
+          <Field label="Art des Betriebs (Anlage EÜR) bzw. Gegenstand des Unternehmens">
+            {(control) => <input {...control} name="taetigkeit" defaultValue={company.taetigkeit} placeholder="z. B. Softwareentwicklung" maxLength={100} />}
+          </Field>
         </div>
         <div className="form-row cols-2">
-          <label className="field">
-            E-Mail
-            <input name="email" type="email" defaultValue={company.email} autoComplete="email" />
-          </label>
-          <label className="field">
-            Telefon (Pflicht für XRechnung)
-            <input name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />
-          </label>
+          <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" defaultValue={company.email} autoComplete="email" />}</Field>
+          <Field label="Telefon (Pflicht für XRechnung)">
+            {(control) => <input {...control} name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />}
+          </Field>
         </div>
       </section>
 
       <section className="form-section" aria-labelledby="company-address">
         <h3 id="company-address">Anschrift</h3>
-        <label className="field">
-          Straße und Hausnummer
-          <input name="strasse" defaultValue={company.strasse} autoComplete="street-address" />
-        </label>
+        <Field label="Straße und Hausnummer">
+          {(control) => <input {...control} name="strasse" defaultValue={company.strasse} autoComplete="street-address" />}
+        </Field>
         <div className="form-row cols-place">
-          <label className="field">
-            PLZ
-            <input name="plz" defaultValue={company.plz} inputMode="numeric" autoComplete="postal-code" />
-          </label>
-          <label className="field">
-            Ort
-            <input name="ort" defaultValue={company.ort} autoComplete="address-level2" />
-          </label>
-          <label className="field">
-            Bundesland
-            <select name="bundesland" defaultValue={company.bundesland ?? ""}>
-              <option value="">Bitte wählen</option>
-              {Object.entries(BUNDESLAENDER).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="PLZ">{(control) => <input {...control} name="plz" defaultValue={company.plz} inputMode="numeric" autoComplete="postal-code" />}</Field>
+          <Field label="Ort">{(control) => <input {...control} name="ort" defaultValue={company.ort} autoComplete="address-level2" />}</Field>
+          <Field label="Bundesland">
+            {(control) => (
+              <select {...control} name="bundesland" defaultValue={company.bundesland ?? ""}>
+                <option value="">Bitte wählen</option>
+                {Object.entries(BUNDESLAENDER).map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         </div>
       </section>
 
@@ -396,44 +410,43 @@ function CompanyForm() {
             </div>
           )}
           <div className="form-row cols-2">
-            <label className="field">
-              Sitz
-              <input name="sitz" defaultValue={company.sitz} maxLength={100} placeholder={company.ort} aria-describedby="sitz-hint" />
-              <span id="sitz-hint" className="small muted">
-                Laut Gesellschaftsvertrag; leer = Ort der Anschrift.
-              </span>
-            </label>
-            <label className="field">
-              Registergericht
-              <input name="registergericht" defaultValue={company.registergericht} maxLength={100} placeholder="z. B. Amtsgericht Bremen" />
-            </label>
-            <label className="field">
-              Registernummer
-              <input name="registernummer" defaultValue={company.registernummer} maxLength={40} placeholder="z. B. HRB 12345 HB" className="mono" />
-            </label>
+            <Field label="Sitz" hint="Laut Gesellschaftsvertrag; leer = Ort der Anschrift.">
+              {(control) => <input {...control} name="sitz" defaultValue={company.sitz} maxLength={100} placeholder={company.ort} />}
+            </Field>
+            <Field label="Registergericht">
+              {(control) => (
+                <input {...control} name="registergericht" defaultValue={company.registergericht} maxLength={100} placeholder="z. B. Amtsgericht Bremen" />
+              )}
+            </Field>
+            <Field label="Registernummer">
+              {(control) => (
+                <input
+                  {...control}
+                  name="registernummer"
+                  defaultValue={company.registernummer}
+                  maxLength={40}
+                  placeholder="z. B. HRB 12345 HB"
+                  className="mono"
+                />
+              )}
+            </Field>
           </div>
           <div className="form-row cols-2">
-            <label className="field">
-              Geschäftsführer
-              <textarea
-                name="geschaeftsfuehrer"
-                defaultValue={company.geschaeftsfuehrer}
-                maxLength={1000}
-                rows={2}
-                placeholder="z. B. Erika Mustermann"
-                aria-describedby="geschaeftsfuehrer-hint"
-              />
-              <span id="geschaeftsfuehrer-hint" className="small muted">
-                Alle, einer je Zeile, mit ausgeschriebenem Vornamen.
-              </span>
-            </label>
-            <label className="field">
-              Vorsitz des Aufsichtsrats
-              <input name="aufsichtsratVorsitz" defaultValue={company.aufsichtsratVorsitz} maxLength={200} aria-describedby="aufsichtsrat-hint" />
-              <span id="aufsichtsrat-hint" className="small muted">
-                Nur, wenn die Gesellschaft einen Aufsichtsrat mit Vorsitz hat.
-              </span>
-            </label>
+            <Field label="Geschäftsführer" hint="Alle, einer je Zeile, mit ausgeschriebenem Vornamen.">
+              {(control) => (
+                <textarea
+                  {...control}
+                  name="geschaeftsfuehrer"
+                  defaultValue={company.geschaeftsfuehrer}
+                  maxLength={1000}
+                  rows={2}
+                  placeholder="z. B. Erika Mustermann"
+                />
+              )}
+            </Field>
+            <Field label="Vorsitz des Aufsichtsrats" hint="Nur, wenn die Gesellschaft einen Aufsichtsrat mit Vorsitz hat.">
+              {(control) => <input {...control} name="aufsichtsratVorsitz" defaultValue={company.aufsichtsratVorsitz} maxLength={200} />}
+            </Field>
           </div>
         </section>
       )}
@@ -441,92 +454,82 @@ function CompanyForm() {
       <section className="form-section" aria-labelledby="company-tax">
         <h3 id="company-tax">Steuern</h3>
         <div className="form-row cols-2">
-          <label className="field">
-            Steuernummer (wie auf dem Bescheid)
-            <input name="steuernummer" defaultValue={company.steuernummer} placeholder="z. B. 21/815/08150" className="mono" />
-          </label>
-          <label className="field">
-            Finanzamt
-            <input name="finanzamt" defaultValue={company.finanzamt} />
-          </label>
+          <Field label="Steuernummer (wie auf dem Bescheid)">
+            {(control) => <input {...control} name="steuernummer" defaultValue={company.steuernummer} placeholder="z. B. 21/815/08150" className="mono" />}
+          </Field>
+          <Field label="Finanzamt">{(control) => <input {...control} name="finanzamt" defaultValue={company.finanzamt} />}</Field>
         </div>
         <div className="form-row cols-2">
-          <label className="field">
-            USt-IdNr.
-            <input name="ustId" defaultValue={company.ustId} placeholder="DE123456789" className="mono" />
-          </label>
-          <label className="field">
-            Rechtsform
-            <select
-              value={rechtsform}
-              onChange={(e) => setRechtsform(e.target.value as Rechtsform)}
-              disabled={Boolean(locks.rechtsform)}
-              aria-describedby="rechtsform-hint"
-            >
-              {RECHTSFORM_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {RECHTSFORMEN[key]}
-                </option>
-              ))}
-            </select>
-            <span id="rechtsform-hint" className="small">
-              {locks.rechtsform ??
-                (gesellschaft
-                  ? "Ohne EÜR, Einkommensteuer, Pauschalen und Privatanteile; Geld vom und an den Gesellschafter geht auf das Verrechnungskonto."
-                  : "Mit Privatkonten, Anlage EÜR und Einkommensteuer.")}
-            </span>
-          </label>
+          <Field label="USt-IdNr.">
+            {(control) => <input {...control} name="ustId" defaultValue={company.ustId} placeholder="DE123456789" className="mono" />}
+          </Field>
+          <Field
+            label="Rechtsform"
+            hint={
+              locks.rechtsform ??
+              (gesellschaft
+                ? "Ohne EÜR, Einkommensteuer, Pauschalen und Privatanteile; Geld vom und an den Gesellschafter geht auf das Verrechnungskonto."
+                : "Mit Privatkonten, Anlage EÜR und Einkommensteuer.")
+            }
+          >
+            {(control) => (
+              <select {...control} value={rechtsform} onChange={(e) => setRechtsform(e.target.value as Rechtsform)} disabled={Boolean(locks.rechtsform)}>
+                {RECHTSFORM_KEYS.map((key) => (
+                  <option key={key} value={key}>
+                    {RECHTSFORMEN[key]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         </div>
         {!gesellschaft && (
           <div className="form-row cols-2">
-            <label className="field">
-              Einkunftsart (für die Anlage EÜR)
-              <select name="einkunftsart" defaultValue={company.einkunftsart ?? ""}>
-                <option value="">Bitte wählen</option>
-                <option value="selbstaendig">Selbständige Arbeit (freier Beruf, z. B. Entwickler, Berater)</option>
-                <option value="gewerbe">Gewerbebetrieb</option>
-              </select>
-            </label>
+            <Field label="Einkunftsart (für die Anlage EÜR)">
+              {(control) => (
+                <select {...control} name="einkunftsart" defaultValue={company.einkunftsart ?? ""}>
+                  <option value="">Bitte wählen</option>
+                  <option value="selbstaendig">Selbständige Arbeit (freier Beruf, z. B. Entwickler, Berater)</option>
+                  <option value="gewerbe">Gewerbebetrieb</option>
+                </select>
+              )}
+            </Field>
           </div>
         )}
         <div className="form-row cols-2">
-          <label className="field">
-            Versteuerung
-            {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
-            <select
-              name={locks.versteuerung ? undefined : "versteuerung"}
-              defaultValue={company.versteuerung}
-              disabled={Boolean(locks.versteuerung)}
-              aria-describedby={locks.versteuerung ? "lock-versteuerung" : undefined}
-            >
-              <option value="ist">Ist (nach vereinnahmten Entgelten)</option>
-              <option value="soll">Soll (nach vereinbarten Entgelten)</option>
-            </select>
-            {locks.versteuerung && (
-              <span id="lock-versteuerung" className="small">
-                {locks.versteuerung}
-              </span>
+          <Field label="Versteuerung" hint={locks.versteuerung}>
+            {(control) => (
+              <>
+                {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
+                <select
+                  {...control}
+                  name={locks.versteuerung ? undefined : "versteuerung"}
+                  defaultValue={company.versteuerung}
+                  disabled={Boolean(locks.versteuerung)}
+                >
+                  <option value="ist">Ist (nach vereinnahmten Entgelten)</option>
+                  <option value="soll">Soll (nach vereinbarten Entgelten)</option>
+                </select>
+              </>
             )}
-          </label>
-          <label className="field">
-            Kontenrahmen (wie in Lexoffice)
-            {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}
-            {locks.kontenrahmen && <input type="hidden" name="kontenrahmen" value={company.kontenrahmen} />}
-            <select
-              name={locks.kontenrahmen ? undefined : "kontenrahmen"}
-              defaultValue={company.kontenrahmen}
-              disabled={Boolean(locks.kontenrahmen)}
-              aria-describedby={locks.kontenrahmen ? "lock-kontenrahmen" : undefined}
-            >
-              <option value="SKR03">SKR03</option>
-              <option value="SKR04">SKR04</option>
-            </select>
-            {locks.kontenrahmen && (
-              <span id="lock-kontenrahmen" className="small">
-                {locks.kontenrahmen}
-              </span>
+          </Field>
+          <Field label="Kontenrahmen (wie in Lexoffice)" hint={locks.kontenrahmen}>
+            {(control) => (
+              <>
+                {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}
+                {locks.kontenrahmen && <input type="hidden" name="kontenrahmen" value={company.kontenrahmen} />}
+                <select
+                  {...control}
+                  name={locks.kontenrahmen ? undefined : "kontenrahmen"}
+                  defaultValue={company.kontenrahmen}
+                  disabled={Boolean(locks.kontenrahmen)}
+                >
+                  <option value="SKR03">SKR03</option>
+                  <option value="SKR04">SKR04</option>
+                </select>
+              </>
             )}
-          </label>
+          </Field>
         </div>
         <label className="checkbox" style={{ alignItems: "flex-start" }}>
           {/* Einschalten mitten im Jahr gesperrt; Ausschalten geht immer (Umsatzgrenze überschritten) */}
@@ -567,55 +570,54 @@ function CompanyForm() {
 
       <section className="form-section" aria-labelledby="company-bank">
         <h3 id="company-bank">Bankverbindung</h3>
-        <label className="field">
-          IBAN
-          <input name="iban" defaultValue={company.iban} placeholder="DE00 0000 0000 0000 0000 00" className="mono" />
-        </label>
-        <label className="field">
-          Kontoinhaber
-          <input name="kontoinhaber" defaultValue={company.kontoinhaber} maxLength={70} placeholder={company.name} aria-describedby="kontoinhaber-hint" />
-          <span id="kontoinhaber-hint" className="small muted">
-            Nur nötig, wenn das Konto nicht auf den Firmennamen läuft, z. B. auf dich als Person. Steht im GiroCode und in der E-Rechnung; die Bank des Kunden
-            vergleicht ihn beim Überweisen mit dem Inhaber des Kontos.
-          </span>
-        </label>
+        <Field label="IBAN">
+          {(control) => <input {...control} name="iban" defaultValue={company.iban} placeholder="DE00 0000 0000 0000 0000 00" className="mono" />}
+        </Field>
+        <Field
+          label="Kontoinhaber"
+          hint={
+            <>
+              Nur nötig, wenn das Konto nicht auf den Firmennamen läuft, z. B. auf dich als Person. Steht im GiroCode und in der E-Rechnung; die Bank des Kunden
+              vergleicht ihn beim Überweisen mit dem Inhaber des Kontos.
+            </>
+          }
+        >
+          {(control) => <input {...control} name="kontoinhaber" defaultValue={company.kontoinhaber} maxLength={70} placeholder={company.name} />}
+        </Field>
         <div className="form-row cols-2">
-          <label className="field">
-            Bank
-            <input name="bank" defaultValue={company.bank} />
-          </label>
-          <label className="field">
-            BIC
-            <input name="bic" defaultValue={company.bic} className="mono" />
-          </label>
+          <Field label="Bank">{(control) => <input {...control} name="bank" defaultValue={company.bank} />}</Field>
+          <Field label="BIC">{(control) => <input {...control} name="bic" defaultValue={company.bic} className="mono" />}</Field>
         </div>
-        <label className="field">
-          Gläubiger-ID
-          <input name="glaeubigerId" defaultValue={company.glaeubigerId} placeholder="DE98ZZZ09999999999" className="mono" aria-describedby="glaeubiger-hint" />
-          <span id="glaeubiger-hint" className="small muted">
-            Nur für SEPA-Lastschriften nötig. Die Bundesbank vergibt sie auf Antrag; sie steht auf jedem Mandat und auf der Rechnung, die per Lastschrift
-            eingezogen wird.
-          </span>
-        </label>
+        <Field
+          label="Gläubiger-ID"
+          hint={
+            <>
+              Nur für SEPA-Lastschriften nötig. Die Bundesbank vergibt sie auf Antrag; sie steht auf jedem Mandat und auf der Rechnung, die per Lastschrift
+              eingezogen wird.
+            </>
+          }
+        >
+          {(control) => <input {...control} name="glaeubigerId" defaultValue={company.glaeubigerId} placeholder="DE98ZZZ09999999999" className="mono" />}
+        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="company-invoices">
         <h3 id="company-invoices">Rechnungen und Angebote</h3>
         <div className="form-row cols-2">
-          <label className="field">
-            Standard-Zahlungsziel in Tagen
-            <input name="paymentTermDays" inputMode="numeric" defaultValue={company.paymentTermDays} />
-          </label>
-          <label className="field">
-            Standardformat für Rechnungen
-            <select name="defaultFormat" defaultValue={company.defaultFormat}>
-              {FORMATS.map((f) => (
-                <option key={f} value={f}>
-                  {FORMAT_LABEL[f]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Standard-Zahlungsziel in Tagen">
+            {(control) => <input {...control} name="paymentTermDays" inputMode="numeric" defaultValue={company.paymentTermDays} />}
+          </Field>
+          <Field label="Standardformat für Rechnungen">
+            {(control) => (
+              <select {...control} name="defaultFormat" defaultValue={company.defaultFormat}>
+                {FORMATS.map((f) => (
+                  <option key={f} value={f}>
+                    {FORMAT_LABEL[f]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         </div>
         <SkontoFields
           id="company-skonto"
@@ -624,14 +626,12 @@ function CompanyForm() {
           hint="Vorgabe für neue Rechnungen, z. B. 2 % bei Zahlung innerhalb von 10 Tagen; am Kunden und in der Rechnung änderbar. Die Frist zählt ab dem Rechnungsdatum und endet spätestens mit dem Zahlungsziel."
         />
         <div className="form-row cols-2">
-          <label className="field">
-            Standard-Einleitung für Rechnungen
-            <textarea name="invoiceIntro" rows={3} maxLength={2000} defaultValue={company.invoiceIntro} aria-describedby="intro-hint" />
-          </label>
-          <label className="field">
-            Standard-Einleitung für Angebote
-            <textarea name="quoteIntro" rows={3} maxLength={2000} defaultValue={company.quoteIntro} aria-describedby="intro-hint" />
-          </label>
+          <Field label="Standard-Einleitung für Rechnungen" describedBy="intro-hint">
+            {(control) => <FormattedTextarea {...control} name="invoiceIntro" rows={3} maxLength={2000} defaultValue={company.invoiceIntro} />}
+          </Field>
+          <Field label="Standard-Einleitung für Angebote" describedBy="intro-hint">
+            {(control) => <FormattedTextarea {...control} name="quoteIntro" rows={3} maxLength={2000} defaultValue={company.quoteIntro} />}
+          </Field>
         </div>
         <p id="intro-hint" className="field-hint">
           Steht in neuen Rechnungen und Angeboten als Einleitung über den Positionen und lässt sich dort anpassen. Rechnungen und Angebote, die es schon gibt,
@@ -643,26 +643,16 @@ function CompanyForm() {
         <section className="form-section" aria-labelledby="company-private">
           <h3 id="company-private">Privatanteile</h3>
           <div className="form-row cols-2">
-            <label className="field">
-              Privatanteil Telefon in %
-              <input
-                name="privateShare-telefon"
-                inputMode="numeric"
-                defaultValue={company.privateShares.telefon ?? ""}
-                placeholder="0"
-                aria-describedby="private-share-hint"
-              />
-            </label>
-            <label className="field">
-              Privatanteil Internet in %
-              <input
-                name="privateShare-internet"
-                inputMode="numeric"
-                defaultValue={company.privateShares.internet ?? ""}
-                placeholder="0"
-                aria-describedby="private-share-hint"
-              />
-            </label>
+            <Field label="Privatanteil Telefon in %" describedBy="private-share-hint">
+              {(control) => (
+                <input {...control} name="privateShare-telefon" inputMode="numeric" defaultValue={company.privateShares.telefon ?? ""} placeholder="0" />
+              )}
+            </Field>
+            <Field label="Privatanteil Internet in %" describedBy="private-share-hint">
+              {(control) => (
+                <input {...control} name="privateShare-internet" inputMode="numeric" defaultValue={company.privateShares.internet ?? ""} placeholder="0" />
+              )}
+            </Field>
           </div>
           <p id="private-share-hint" className="field-hint">
             Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
@@ -674,21 +664,21 @@ function CompanyForm() {
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>
         <div className="form-row cols-2">
-          <label className="field">
-            Basiszinssatz in %
-            <input
-              name="dunning-baseRate"
-              inputMode="decimal"
-              value={baseRate}
-              onChange={(event) => setBaseRate(event.target.value)}
-              placeholder="z. B. 1,27"
-              aria-describedby="base-rate-hint"
-            />
-          </label>
-          <label className="field">
-            Zahlungsfrist in Mahnungen (Tage)
-            <input name="dunning-deadlineDays" inputMode="numeric" defaultValue={company.dunning.deadlineDays} />
-          </label>
+          <Field label="Basiszinssatz in %" describedBy="base-rate-hint">
+            {(control) => (
+              <input
+                {...control}
+                name="dunning-baseRate"
+                inputMode="decimal"
+                value={baseRate}
+                onChange={(event) => setBaseRate(event.target.value)}
+                placeholder="z. B. 1,27"
+              />
+            )}
+          </Field>
+          <Field label="Zahlungsfrist in Mahnungen (Tage)">
+            {(control) => <input {...control} name="dunning-deadlineDays" inputMode="numeric" defaultValue={company.dunning.deadlineDays} />}
+          </Field>
         </div>
         <p id="base-rate-hint" className="field-hint">
           Der Basiszinssatz ändert sich zum 1. Januar und 1. Juli, veröffentlicht von der Deutschen Bundesbank. Der Knopf fragt den aktuellen Satz dort ab und
@@ -707,18 +697,15 @@ function CompanyForm() {
           </span>
         </label>
         <div className="form-row cols-3">
-          <label className="field">
-            Gebühr Zahlungserinnerung (€)
-            <input name="dunning-fee-1" inputMode="decimal" defaultValue={fee("1")} placeholder="0,00" />
-          </label>
-          <label className="field">
-            Gebühr 1. Mahnung (€)
-            <input name="dunning-fee-2" inputMode="decimal" defaultValue={fee("2")} placeholder="0,00" />
-          </label>
-          <label className="field">
-            Gebühr letzte Mahnung (€)
-            <input name="dunning-fee-3" inputMode="decimal" defaultValue={fee("3")} placeholder="0,00" />
-          </label>
+          <Field label="Gebühr Zahlungserinnerung (€)">
+            {(control) => <input {...control} name="dunning-fee-1" inputMode="decimal" defaultValue={fee("1")} placeholder="0,00" />}
+          </Field>
+          <Field label="Gebühr 1. Mahnung (€)">
+            {(control) => <input {...control} name="dunning-fee-2" inputMode="decimal" defaultValue={fee("2")} placeholder="0,00" />}
+          </Field>
+          <Field label="Gebühr letzte Mahnung (€)">
+            {(control) => <input {...control} name="dunning-fee-3" inputMode="decimal" defaultValue={fee("3")} placeholder="0,00" />}
+          </Field>
         </div>
       </section>
 
@@ -739,48 +726,51 @@ function PersonFields({ prefix, person }: { prefix: PersonKey; person: TaxpayerP
   return (
     <>
       <div className="form-row cols-2">
-        <label className="field">
-          Anrede
-          <select name={id("anrede")} defaultValue={person?.anrede ?? "Herrn"}>
-            <option value="Herrn">Herr</option>
-            <option value="Frau">Frau</option>
-          </select>
-        </label>
-        <label className="field">
-          Steuer-ID
-          <input name={id("idnr")} inputMode="numeric" defaultValue={person?.idnr ?? ""} placeholder="11 Ziffern" autoComplete="off" className="mono" />
-        </label>
+        <Field label="Anrede">
+          {(control) => (
+            <select {...control} name={id("anrede")} defaultValue={person?.anrede ?? "Herrn"}>
+              <option value="Herrn">Herr</option>
+              <option value="Frau">Frau</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Steuer-ID">
+          {(control) => (
+            <input
+              {...control}
+              name={id("idnr")}
+              inputMode="numeric"
+              defaultValue={person?.idnr ?? ""}
+              placeholder="11 Ziffern"
+              autoComplete="off"
+              className="mono"
+            />
+          )}
+        </Field>
       </div>
       <div className="form-row cols-2">
-        <label className="field">
-          Vorname
-          <input name={id("vorname")} defaultValue={person?.vorname ?? ""} />
-        </label>
-        <label className="field">
-          Nachname
-          <input name={id("name")} defaultValue={person?.name ?? ""} />
-        </label>
+        <Field label="Vorname">{(control) => <input {...control} name={id("vorname")} defaultValue={person?.vorname ?? ""} />}</Field>
+        <Field label="Nachname">{(control) => <input {...control} name={id("name")} defaultValue={person?.name ?? ""} />}</Field>
       </div>
       <div className="form-row cols-2">
-        <label className="field">
-          Geburtsdatum
-          <input name={id("geburtsdatum")} type="date" defaultValue={person?.geburtsdatum ?? ""} />
-        </label>
-        <label className="field">
-          Religion
-          <select name={id("religion")} defaultValue={person?.religion ?? "11"}>
-            {RELIGIONEN.map((r) => (
-              <option key={r.code} value={r.code}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Geburtsdatum">
+          {(control) => <input {...control} name={id("geburtsdatum")} type="date" defaultValue={person?.geburtsdatum ?? ""} />}
+        </Field>
+        <Field label="Religion">
+          {(control) => (
+            <select {...control} name={id("religion")} defaultValue={person?.religion ?? "11"}>
+              {RELIGIONEN.map((r) => (
+                <option key={r.code} value={r.code}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
-      <label className="field">
-        Ausgeübter Beruf
-        <input name={id("beruf")} defaultValue={person?.beruf ?? ""} placeholder="z. B. IT-Berater" />
-      </label>
+      <Field label="Ausgeübter Beruf">
+        {(control) => <input {...control} name={id("beruf")} defaultValue={person?.beruf ?? ""} placeholder="z. B. IT-Berater" />}
+      </Field>
     </>
   );
 }
@@ -849,18 +839,18 @@ function TaxpayerForm() {
           <fieldset className="form-section">
             <legend>Veranlagung</legend>
             <div className="form-row cols-2">
-              <label className="field">
-                Art
-                <select value={veranlagung} onChange={(e) => setVeranlagung(e.target.value === "zusammen" ? "zusammen" : "einzel")}>
-                  <option value="einzel">Einzelveranlagung</option>
-                  <option value="zusammen">Zusammenveranlagung mit Ehegatten</option>
-                </select>
-              </label>
+              <Field label="Art">
+                {(control) => (
+                  <select {...control} value={veranlagung} onChange={(e) => setVeranlagung(e.target.value === "zusammen" ? "zusammen" : "einzel")}>
+                    <option value="einzel">Einzelveranlagung</option>
+                    <option value="zusammen">Zusammenveranlagung mit Ehegatten</option>
+                  </select>
+                )}
+              </Field>
               {veranlagung === "zusammen" && (
-                <label className="field">
-                  Verheiratet seit
-                  <input name="verheiratetSeit" type="date" defaultValue={taxpayer.verheiratetSeit ?? ""} />
-                </label>
+                <Field label="Verheiratet seit">
+                  {(control) => <input {...control} name="verheiratetSeit" type="date" defaultValue={taxpayer.verheiratetSeit ?? ""} />}
+                </Field>
               )}
             </div>
           </fieldset>
@@ -934,14 +924,10 @@ function CertificateForm() {
           </ConfirmDialog>
         </div>
       )}
-      <label className="field">
-        {certificate ? "Neue Zertifikatsdatei" : "Zertifikatsdatei"}
-        <FilePicker name="file" accept=".pfx" required />
-      </label>
-      <label className="field">
-        Gültig bis (für die Erinnerung 30 Tage vorher)
-        <input name="validUntil" type="date" />
-      </label>
+      <Field label={certificate ? "Neue Zertifikatsdatei" : "Zertifikatsdatei"}>
+        {(control) => <FilePicker {...control} name="file" accept=".pfx" required />}
+      </Field>
+      <Field label="Gültig bis (für die Erinnerung 30 Tage vorher)">{(control) => <input {...control} name="validUntil" type="date" />}</Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           Hochladen
@@ -1028,17 +1014,22 @@ function EricCard() {
         </p>
       ) : (
         <>
-          <label className="field">
-            Version
-            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder={eric.defaultVersion} disabled={running} />
-            <span className="small">
-              Die aktuelle Version steht auf der{" "}
-              <a href={ERIC_INFO_URL} target="_blank" rel="noreferrer">
-                ERiC-Infoseite von ELSTER
-              </a>
-              . Neue Vordrucke (etwa für das nächste Steuerjahr) brauchen meist eine neue Version.
-            </span>
-          </label>
+          <Field
+            label="Version"
+            hint={
+              <>
+                Die aktuelle Version steht auf der{" "}
+                <a href={ERIC_INFO_URL} target="_blank" rel="noreferrer">
+                  ERiC-Infoseite von ELSTER
+                </a>
+                . Neue Vordrucke (etwa für das nächste Steuerjahr) brauchen meist eine neue Version.
+              </>
+            }
+          >
+            {(control) => (
+              <input {...control} value={version} onChange={(e) => setVersion(e.target.value)} placeholder={eric.defaultVersion} disabled={running} />
+            )}
+          </Field>
           <label className="checkbox">
             <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={running} />
             Ich stimme den Nutzungsbedingungen von ERiC zu (siehe Infoseite).

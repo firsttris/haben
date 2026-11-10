@@ -1,4 +1,5 @@
 import { allocateSplitTax, formatDecimal, formatEuro, parseEuro, type ExpenseCategory } from "@haben/core";
+import { Field } from "./Field.tsx";
 
 /*
  * Aufteilung eines Belegs auf mehrere Kategorien (#271): Zeilen mit Kategorie, Steuersatz und Netto. Die Vorsteuer je
@@ -37,6 +38,7 @@ export function DocumentSplits({
   disabled,
   onChange,
   onDissolve,
+  taxLabel = "Vorsteuer",
 }: {
   rows: SplitRowState[];
   /** Beträge des Belegs je Satz in Euro; null, solange ein Betrag oben nicht lesbar ist */
@@ -47,6 +49,8 @@ export function DocumentSplits({
   onChange: (rows: SplitRowState[]) => void;
   /** Aufteilung aufheben: wieder eine Kategorie für den ganzen Beleg */
   onDissolve: () => void;
+  /** Steuer je Zeile: Vorsteuer, bei § 13b (#508) die selbst geschuldete Steuer */
+  taxLabel?: string;
 }) {
   const parsed = rows.map((row) => parseEuro(row.net || "0"));
   const lines = parseSplitRows(rows);
@@ -61,51 +65,50 @@ export function DocumentSplits({
     <fieldset className="card" style={{ margin: 0 }} disabled={disabled} aria-describedby="split-hint">
       <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Aufteilung auf Kategorien</legend>
       <p id="split-hint" className="small muted" style={{ margin: 0 }}>
-        Netto je Zeile; zusammen ergibt jeder Steuersatz das Netto des Belegs. Die Vorsteuer verteilt Haben anteilig, den Rundungscent bekommt die größte Zeile.
+        Netto je Zeile; zusammen ergibt jeder Steuersatz das Netto des Belegs. Die {taxLabel} verteilt Haben anteilig, den Rundungscent bekommt die größte
+        Zeile.
       </p>
       {rows.map((row, index) => (
         <div className="document-split-row" key={row.key}>
-          <label className="field">
-            Kategorie
-            <select
-              value={row.category}
-              onChange={(e) => update(row.key, { category: e.target.value as ExpenseCategory | "" })}
-              aria-invalid={row.category === ""}
-            >
-              <option value="">Bitte wählen</option>
-              {options.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Satz
-            <select value={row.taxRate} onChange={(e) => update(row.key, { taxRate: Number(e.target.value) as Rate })}>
-              <option value={1900}>19 %</option>
-              <option value={700}>7 %</option>
-              <option value={0}>0 %</option>
-            </select>
-          </label>
-          <div className="field">
-            <label className="field">
-              Netto
+          <Field label="Kategorie">
+            {(control) => (
+              <select
+                {...control}
+                value={row.category}
+                onChange={(e) => update(row.key, { category: e.target.value as ExpenseCategory | "" })}
+                aria-invalid={row.category === ""}
+              >
+                <option value="">Bitte wählen</option>
+                {options.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Satz">
+            {(control) => (
+              <select {...control} value={row.taxRate} onChange={(e) => update(row.key, { taxRate: Number(e.target.value) as Rate })}>
+                <option value={1900}>19 %</option>
+                <option value={700}>7 %</option>
+                <option value={0}>0 %</option>
+              </select>
+            )}
+          </Field>
+          <Field label="Netto" hint={`${taxLabel} ${allocated ? formatDecimal(allocated[index]!.tax) : "–"}`}>
+            {(control) => (
               <input
+                {...control}
                 className="mono"
                 inputMode="decimal"
                 value={row.net}
                 placeholder="0,00"
                 onChange={(e) => update(row.key, { net: e.target.value })}
                 aria-invalid={parsed[index] === null}
-                aria-describedby={`split-tax-${row.key}`}
               />
-            </label>
-            {/* Außerhalb des Labels, damit das Feld schlicht „Netto“ heißt */}
-            <span id={`split-tax-${row.key}`} className="small muted">
-              Vorsteuer {allocated ? formatDecimal(allocated[index]!.tax) : "–"}
-            </span>
-          </div>
+            )}
+          </Field>
           <button
             type="button"
             className="icon-btn"

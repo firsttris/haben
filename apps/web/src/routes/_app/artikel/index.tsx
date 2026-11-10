@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { errorMessage } from "../../../lib/format.ts";
 import { ArticleForm } from "../../../components/ArticleForm.tsx";
+import { FormattedText } from "../../../components/FormattedText.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import type { Notice } from "../../../lib/use-action.ts";
 import { archiveArticle, getArticles } from "../../../server/functions/articles.ts";
@@ -115,7 +116,7 @@ function ArticlesPage() {
                     <div style={{ fontWeight: 500, overflowWrap: "anywhere" }}>{a.description}</div>
                     {a.detail && (
                       <div className="small" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                        {a.detail}
+                        <FormattedText text={a.detail} />
                       </div>
                     )}
                     {(a.number || a.note) && (

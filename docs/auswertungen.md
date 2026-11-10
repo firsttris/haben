@@ -28,6 +28,8 @@ Oben wählst du das Jahr (Vor- und Folgejahr per Pfeil, dazu alle Jahre mit Bank
 
 Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde. Die Berechnung steht in `packages/core/src/euer.ts`, die Daten sammelt `apps/web/src/server/modules/auswertungen/reports.ts`.
 
+**Ab dem Stichjahr aus dem Journal.** Im Einzelunternehmen rechnet Haben die EÜR ab dem Stichjahr ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen)) wie DATEV aus den Buchungen; in GmbH und UG, die bilanzieren, bleibt die Übersicht nach Zahlung aus Rechnungen, Belegen und Zahlungen, sonst zählten Abschlussbuchungen wie Rückstellungen als Ausgabe: Eine Buchung ohne Forderung oder Verbindlichkeit (Bank, Kasse, privat bezahlt, Pauschale) zählt mit ihrem Datum nach ihren Konten; eine Rechnung bzw. ein Beleg auf Ziel zählt mit jeder Zahlung anteilig, gerundet wie die Zahlung. AfA und Privatnutzung kommen aus dem Journal, sobald das Jahr gebucht ist, vorher aus dem Anlagenverzeichnis. Für aus Lexoffice übernommene Rechnungen und Belege verteilt Haben die Zahlung auf die Zeilen, die es für Rechnung bzw. Beleg gebucht hätte. Was unten steht, gilt in beiden Fällen; die Rechnung aus Rechnungen, Belegen und Zahlungen bleibt die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
+
 ### Was zählt
 
 | Quelle | Datum | EÜR-Position |
@@ -161,7 +163,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `anlagen/anlagenverzeichnis.csv` | Anlagenverzeichnis des Jahres je Anlage: Anschaffung, Abschreibung mit Nutzungsdauer, degressivem Satz, Jahr des Wechsels zur linearen AfA und Erinnerungswert (Verzeichnis nach § 7a Abs. 8 EStG), Buchwert am Jahresanfang, Zugang, AfA, Abgang, Buchwert am Jahresende, ob die AfA gebucht ist |
 | `pauschalen/pauschalen.csv` | Nur wenn vorhanden: Pauschalen ohne Beleg mit ihren Angaben als Eigenbeleg; Stornos als Gegenzeile |
 | `kasse/kassenbuch.csv` | Nur wenn vorhanden: Kassenbuch mit fortlaufender Nummer, Anfangsbestand und Bestand nach jeder Zeile, bei Bareinnahmen die Rechnungsnummer |
-| `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben und Steuerschlüssel; Gegenbuchungen verweisen auf die Ursprungsbuchung |
+| `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben, Steuerschlüssel und, bei Ist-Versteuerung an der Zahlung, der Bemessungsgrundlage; Gegenbuchungen verweisen auf die Ursprungsbuchung |
 | `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit zugeordnetem und offenem Betrag und ob der Umsatz verrechnet ist |
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |

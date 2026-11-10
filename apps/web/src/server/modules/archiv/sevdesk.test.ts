@@ -64,12 +64,12 @@ const VOUCHERS = [
     sumTax: "19.00",
     sumGross: "119.00",
     paidAmount: 0,
-    creditDebit: "D",
+    creditDebit: "C",
     voucherType: "VOU",
     currency: "EUR",
     paymentDeadline: "2024-02-24T00:00:00+01:00",
   },
-  { id: "302", voucherDate: "2024-02-11", status: "50", creditDebit: "D", voucherType: "VOU", sumGross: "5", sumTax: "0" },
+  { id: "302", voucherDate: "2024-02-11", status: "50", creditDebit: "C", voucherType: "VOU", sumGross: "5", sumTax: "0" },
 ];
 
 /** Nachgebaute sevDesk-API */

@@ -1,11 +1,11 @@
 ---
 name: "tdd-review"
-description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer. Für jeden Pull Request vor dem Merge."
+description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request vor dem Merge."
 ---
 
 # TDD-Review
 
-Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
+Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
 
 ## 0. Wer reviewt?
 
@@ -42,20 +42,41 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
 - Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/entwicklung.md` unter „Review“, Schritt 4.
-- Dann alle Prüfungen nach Skill `checks`, übersprungene Tests im Abschlusskommentar nennen.
+- **PR aus einem Fork, Session in der Cloud (claude.ai/code):** Die Session schreibt nur in die Repositories, die beim Start als Quelle gewählt wurden. Ein Fork heißt meist ebenfalls `haben`; neben `firsttris/haben` lässt er sich nicht nachträglich hinzufügen (gleicher Name, gleiches Verzeichnis), und `git push`, `add_repo` und das GitHub-Werkzeug lehnen ihn ab. Nicht durchprobieren und die Person nicht selbst pushen lassen, sondern sofort so:
+  1. Die Fixes in dieser Session fertig machen und prüfen (Commits auf einer lokalen Kopie des PR-Branches, `git fetch origin pull/<nr>/head:pr-<nr>`).
+  2. Mit `create_session` eine **Session mit dem Fork als einziger Quelle** starten: `source_url` `https://github.com/<owner>/haben`, `source_revision` der Branch des PR. Im Prompt: der Maintainer hat den Push angewiesen, der erwartete HEAD-SHA, die Änderung genau (Datei, alte und neue Zeilen, notfalls als Patch), die Prüfung (z. B. Biome), die Commit-Nachricht wörtlich, `git push origin HEAD:<branch-des-pr>` ohne Force und nicht auf einen anderen Branch, am Ende den SHA melden.
+  3. Den Push prüfen: `git ls-remote origin refs/pull/<nr>/head` zeigt den neuen SHA. Danach weiter mit Schritt 5.
+  - Lokal (Claude Code auf dem Rechner der Person) gibt es die Grenze nicht: Dort pusht git mit ihren Zugangsdaten, wenn „Allow edits by maintainers“ an ist.
+- Dann gezielt prüfen, was der PR und die Fixes berühren. Die volle Suite läuft in der CI, lokal nicht noch einmal (Befehle und Umgebung: Skill `checks`):
+  - immer `lint` und `typecheck`;
+  - Vitest und Postgres-Tests nur für die neuen Tests und die geänderten Module (`bun --bun vitest run <pfade>`, Postgres mit `TEST_DATABASE_URL`);
+  - Playwright nur, wenn die Oberfläche betroffen ist, und nur die passenden Spec-Dateien oder Tests (`bun run e2e <datei>`, `-g <name>`);
+  - Doku-Build nur, wenn `docs/` geändert ist;
+  - breiter nur, wenn die Änderung viele Stellen trifft (Schema und Migrationen, viel genutzte Funktionen in `packages/*`, globale Styles, `playwright.config.ts`, Abhängigkeiten): dann die Aufrufer mitprüfen.
+- Im Abschlusskommentar nennen, was lokal lief und was übersprungen wurde.
 - Auf den PR-Branch pushen.
 
 ## 5. Grün prüfen
 
+- Die CI prüft die volle Suite; ohne grüne CI ist das Review nicht fertig. Auf Entwürfen läuft sie nicht: Dann ist der PR vor dem Merge auf „Ready for review“ zu setzen, nur auf Freigabe der Person.
 - Die CI-Checks des PR abwarten. Bei roten Checks die Ursache beheben und erneut pushen; keinen Test überspringen, keinen leeren Commit, um CI neu zu starten.
 - Abschlusskommentar im PR: welche Findings behoben sind, welche Tests neu sind, Stand der Checks.
 
-## 6. Merge (nur Maintainer)
+## Wie viele Runden
 
-- Mergen darf nur, wer Maintainer von Haben ist und das ausdrücklich will. Wer beiträgt, hört nach Schritt 5 auf.
-- Vor dem Merge prüfen: alle Findings behoben, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`.
+- **Zwei reguläre Runden** je Pull Request (Schritte 1–5 sind eine Runde). Grund: Jeder Fix ist neuer Code, und weitere Runden prüfen vor allem den Code, den die Reviews selbst erzeugt haben.
+- **Eine Runde, ein Stand:** Codex oder ein anderes KI-Review zählt zur selben Runde und prüft denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
+- **Weitere Runden nur nach einem schweren Befund** (roter Test und Sicherheit, falsche Buchung oder Steuer, GoBD oder Datenverlust). Sie prüfen nur den Fix und den betroffenen Bereich.
+- **Höchstens vier Runden.** Danach noch ein schwerer Befund offen: nicht weiter fixen, nicht mergen, an den Maintainer zurückmelden.
+- **Konstruierte Eingaben** (Daten, die in echten Antworten nicht vorkommen): notieren, nicht fixen; lohnt es sich, ein eigenes Issue vorschlagen. Ausnahme: Sicherheit.
+- Die Regel steht in `docs/entwicklung.md` unter „Review“.
+
+## 6. Merge (Maintainer oder Collaborator mit Zustimmung)
+
+- Mergen darf, wer Maintainer von Haben ist und das ausdrücklich will, oder ein Collaborator mit Zustimmung des Maintainers. Wer sonst beiträgt, hört nach Schritt 5 auf.
+- Vor dem Merge prüfen: alle Findings behoben oder nach „Wie viele Runden“ notiert, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`, Titel und Beschreibung passen zum Stand (sie werden der Squash-Commit auf `main`).
 - Merge-Methode nach `docs/entwicklung.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
-- **Nicht mergen**, wenn ein Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
+- **Nicht mergen**, wenn ein zu behebendes Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
 
 ## Abschlussbericht
 

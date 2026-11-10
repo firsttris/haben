@@ -125,6 +125,8 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 
 Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src`, `packages/*/src` und `scripts/` ein und führt die Dateien parallel aus, eine Datei je Worker.
 
+Komponenten rendern die Tests wie Browser und SSR mit TanStack Redact: `vitest.config.ts` lädt das Plugin `redact()`, das Imports aus `react` und `react-dom/server` umleitet. Dafür steht `@tanstack/redact` zusätzlich in den Dev-Abhängigkeiten der Wurzel, weil Bun isoliert installiert und die Wurzel das Paket aus `apps/web` nicht sieht; beide Einträge tragen dieselbe feste Version (`apps/web/src/components/redact-laufzeit.test.ts` prüft das). Pakete aus `node_modules` lädt Vitest weiter extern, sie sehen also React; eine Komponente, die Hooks eines solchen Pakets nutzt (etwa aus `@tanstack/react-router`), bricht im Test deshalb mit `dispatcher.useContext` ab.
+
 ```sh
 bun run test
 TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
@@ -142,8 +144,9 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 
 | Fehlt | Folge | Im Dev-Container | In der CI |
 | --- | --- | --- | --- |
+| `AUTHELIA_TEST_ISSUER`, `AUTHELIA_TEST_USERS_FILE` | Reale Authelia-Referenztests ohne eigene Testinstanz übersprungen | nein | nein |
 | `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
-| `pdftotext`, `pdftoppm` (poppler-utils) | Textebene und Seitenbilder von PDFs übersprungen | ja | ja |
+| `pdftotext`, `pdftoppm`, `pdffonts`, `pdfimages` (poppler-utils) | Textebene, Seitenbilder, eingebettete Schriften und Bilder von PDFs übersprungen | ja | ja |
 | `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
 | `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
@@ -232,7 +235,7 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen Auftrag im Archiv, eine eigene Seite, einen Mitarbeiter und einen Dauerbeleg. Alles andere spielen zwei weitere Durchläufe mit eigenem Server und eigener Datenbank daneben durch, damit diese Kette kurz bleibt:
 
 - `rechnungen.spec.ts`: Rechnungen, Angebote, Versand per E-Mail, Kasse, REST-API und CSV-Import.
-- `belege-steuern.spec.ts`: Belege, Bankabgleich, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen.
+- `belege-steuern.spec.ts`: Belege, Bankabgleich, Bank verbinden für den automatischen Abruf, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen. Den Abruf beantwortet eine nachgebaute Enable-Banking-API im Test auf Port `E2E_PORT` + 9; `playwright.config.ts` richtet `ENABLE_BANKING_API_URL` aller Server darauf.
 
 Beide richten sich mit `e2e/einrichtung.ts` dasselbe Unternehmen ein und prüfen am Ende die Seiten mit ihren Daten wie `barrierefreiheit.spec.ts` und `seiten.spec.ts`: axe am Desktop und am Handy, kein waagrechtes Scrollen auf dem Handy. Ports und Datenbanken der Durchläufe stehen in `e2e/durchlaeufe.ts`. Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht.
 
@@ -395,7 +398,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
 - **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
-- **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
+- **Quellen statt Gedächtnis:** Details richten sich nach der Quelle, und wo sie ein Detail entscheidet, steht sie im Kommentar und in der Commit-Nachricht. E-Rechnung: EN 16931 und XRechnung (Business Terms wie BT-22), geprüft vom KoSIT-Validator mit `itplr-kosit/validator-configuration-xrechnung` (Versionen in `.github/workflows/ci.yml`). ELSTER: die [Entwicklerdokumentation von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric). DATEV: die Formatbeschreibung für EXTF/Buchungsstapel; Exporte von Lexware Office weichen davon ab ([Lexoffice](lexoffice.md)). Kontenrahmen: SKR03 und SKR04 von DATEV in dem Stand, den `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` nennt (Kontonummer, Bezeichnung, Funktion); DATEV entscheidet nur über Format und Kontenrahmen. Widerspricht eine Kontenfunktion dem Gesetz, einer ELSTER-Kennzahl oder der Taxonomie der E-Bilanz, gilt die Norm. [Enable Banking](https://enablebanking.com/docs/api/reference/), [Lexware Office](https://developers.lexware.io/docs/).
 
 ## Projektstruktur
 
@@ -491,6 +494,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht. Vor jedem Push prüfen, ob der Pull Request des Branches noch offen ist; ist er gemergt, neu von `origin/main` und ein neuer Pull Request. Force-Push nur mit `--force-with-lease` auf den eigenen Branch nach einem Merge.
 - **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE` und löscht oder verschiebt dabei keine Datei, erkennt das der Job `changes` in `ci.yml`, und die übrigen Jobs werden übersprungen; das zählt für die Regeln auf `main` als bestanden. Geprüft ist dann nichts außer der Doku: Die baut der Workflow „Docs“ im Pull Request mit `zensical build --strict`, ohne zu veröffentlichen.
 - **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
+- **Beschreibung:** Beim Squash wird die Beschreibung des Pull Requests die Nachricht des Commits auf `main` (Einstellung des Repositorys: `PR_BODY`) und bleibt so in der Historie. Sie muss deshalb bis zum Merge zum Stand des Pull Requests passen: Ändert ein weiterer Push, was der Pull Request tut oder wie er geprüft wurde, ändert sich die Beschreibung mit, auch nach Fixes aus dem Review und nach einem Rebase. Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin; Zwischenstände und Antworten auf Reviews gehören in Kommentare.
 - **Issues in der Beschreibung:** mit `Refs #…`, nie `Closes` oder `Fixes`. GitHub schlösse das Issue sonst beim Merge; es bleibt aber mit `rückmeldung` offen, bis es veröffentlicht ist und der Ersteller geantwortet hat.
 - **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
 
@@ -512,11 +516,14 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Formularfelder über `Field`, kein umschließendes `<label className="field">` | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
+
+Die Feldregel ist ein GritQL-Muster für Biome (`scripts/felder/kein-label-field.grit`, in `biome.jsonc` unter `plugins`). Sie meldet ein `<label>` mit `field` als Wort in einem festen `className` (`"field"`, `"field weitere"`, `{"field"}`), nicht `field-label` und nicht `div.field`. Eine berechnete Klasse sieht ein Muster nicht; dafür prüft der Playwright-Test auf allen Seiten der Routenliste, dass es kein `label.field` gibt und jeder Feldname per `for` auf sein Feld zeigt. Was nur hinter Dialogen oder Zuständen erscheint, erreicht er nicht.
 
 Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`, nicht aber auf eine feste Nachbarseite wie `/rechnungen/neu`, denn die wählt der Router vor dem Parameter. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen. Die Prüfung vergleicht Text: Sie sieht, ob ein Pfad in der Datei steht, nicht, ob ein Test die Seite lädt. Eine Seite, deren Pfad nur in einem Test steht, der eine 404 erwartet, steht deshalb mit eigenem Grund in den Ausnahmen; solche Ausnahmen meldet die Prüfung nicht als veraltet.
 
@@ -559,9 +566,47 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit C
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
 3. **Im Pull Request:** Befunde mit Testname und Ausgabe des roten Tests als Kommentar, auch wenn es keine gibt.
 4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Repo oder im Fork mit „Allow edits by maintainers“); geht das nicht, bitten wir darum, „Allow edits by maintainers“ einzuschalten, und nur als letzter Ausweg gibt es einen eigenen Pull Request. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
-5. **Grün:** alle Prüfungen von oben lokal und in der CI, dann ein Abschlusskommentar mit den behobenen Befunden.
-6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht, und sein Pull Request wird mit einem Link auf den Ersatz geschlossen.
+5. **Grün:** Lokal gezielt, was der Pull Request und die Fixes berühren: Lint, Typecheck, die Tests zu den geänderten Stellen, Playwright nur für die betroffenen Dateien, der Doku-Build nur bei Änderungen in `docs/`. Die volle Suite läuft in der CI und muss dort grün sein; auf Entwürfen läuft sie erst nach „Ready for review“. Dann ein Abschlusskommentar mit den behobenen Befunden und dem, was lokal lief.
+6. **Merge:** durch einen Maintainer oder, mit dessen Zustimmung, durch einen Collaborator, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. Vorher prüfen, ob Titel und Beschreibung noch zum Stand passen; sie werden der Commit auf `main`. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Beschreibung, denn sie wird die Commit-Nachricht, und sein Pull Request wird mit einem Link auf den Ersatz geschlossen.
+
+**Wie viele Runden:** zwei reguläre Runden je Pull Request. Jeder Fix ist neuer Code, und jede weitere Runde prüft vor allem den Code, den die Reviews selbst erzeugt haben; eine Runde ganz ohne Befund wird so kaum erreicht, und der Pull Request wächst.
+
+- **Eine Runde, ein Stand:** Ein Codex- oder anderes KI-Review zählt zur selben Runde. Alle Reviewer einer Runde prüfen denselben Stand; ihre Befunde werden zusammengeführt und dann gemeinsam behoben. Sonst prüft der zweite die Fixes des ersten, und aus einer Runde werden zwei.
+- **Weitere Runden nur nach einem schweren Befund:** belegt durch einen roten Test und eines von Sicherheit (Rechteprüfung, Secrets, Zugriff auf fremde Daten), falsche Buchungen oder Steuerbeträge (Journal, EÜR, Umsatzsteuer, ELSTER), GoBD (Siegel, Audit-Kette) oder Datenverlust. Ein kleiner Fehler im normalen Gebrauch wird in Runde zwei behoben oder ein eigenes Issue, öffnet aber keine weitere Runde. Zusatzrunden prüfen nur den Fix und den betroffenen Bereich, nicht den ganzen Pull Request.
+- **Höchstens vier Runden:** zwei reguläre und höchstens zwei wegen schwerer Befunde. Ist danach noch ein schwerer Befund offen, wird nicht weiter behoben und nicht gemergt; der Maintainer entscheidet, ob der Pull Request geteilt oder neu angesetzt wird.
+- **Konstruierte Eingaben:** Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen, werden im Pull Request notiert und nicht mehr behoben; lohnen sie sich, werden sie ein eigenes Issue. Das gilt nicht für Sicherheit: Ein Angriff ist immer eine konstruierte Eingabe.
 
 Haben steht unter der AGPL-3.0.
+
+## SSO entwickeln und prüfen
+
+Die SSO-Anbindung nutzt Better Auth 1.7.14 (`genericOAuth`, `addOAuthServerContext`, `getOAuthState`). Bei Updates besonders prüfen: Signatur- und Nonce-Prüfung vor `getUserInfo`, Reihenfolge von State, Codeaustausch und Kontoanlage im Callback (`oauth2/callback.mjs`), das Rate-Limit für `/sign-in/*` und dass Fehler weiterhin als Redirect mit `error` enden (darauf baut das Rollback in `auth-transaction.ts`). Keine Sicherheitsoption abschalten, um einen Anbieter passend zu machen. Aufbau: [Architektur › SSO-Modus](architektur.md#sso-modus).
+
+| Test | Was er prüft |
+| --- | --- |
+| `sso-groups.test.ts`, `sso-policy.test.ts`, `oidc-config.test.ts` | Gruppenentscheidung, Frist, wirksame Rolle und gesperrte Endpunkte je Betriebsart, Konfiguration (ohne Datenbank) |
+| `sso.test.ts` | Ersteinrichtung, automatische Anlage, Claims, Parallelität, Replay, Datenbankfehler, Beförderung, Herabstufung, Gruppenentzug trotz Fehler-Redirect, feste Frist, gesperrte lokale Wege und Verwaltung |
+| `sso-moduswechsel.test.ts` | Wechsel in beide Richtungen, laufende Callbacks, Übernahme bestehender Konten, fehlender lokaler Rückfallzugang |
+
+Die Postgres-Tests starten mit `sso-test-provider.ts` einen Anbieter auf Loopback mit RSA-signierten ID-Tokens, JWKS, PKCE und Gruppen nur über UserInfo, wie Authelia. Sie brauchen `TEST_DATABASE_URL` und nur erfundene Identitäten.
+
+### Browserprüfung
+
+```sh
+E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_sso_e2e bun run --cwd apps/web e2e --config playwright.sso-only.config.ts
+```
+
+Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein. Der Durchlauf prüft Ersteinrichtung nur durch die Inhaber-Gruppe, automatische Anlage der Steuerberatung, die reine Zugangsübersicht, alte Sicherheits- und Einladungslinks, Gruppenentzug mit Sitzungswiderruf und die erneute Anmeldung nach Fristablauf, jeweils mit axe. `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Better Auth lässt je Adresse drei Anmeldeversuche in zehn Sekunden zu; der Test wartet deshalb zwischen zwei Anmeldungen. Die reguläre CI führt zusätzlich SSO gegen den Produktionsbuild aus. `E2E_SERVER_COMMAND` aktiviert einen lokalen HTTPS-Testanbieter und HTTPS-Reverse-Proxy. Die Test-CA wird dem Haben-Server explizit vertraut; der Browser akzeptiert ausschließlich den erzeugten lokalen Testschlüssel. Der Betriebscode erhält keine HTTP-Ausnahme. `openssl` wird für die Testzertifikate benötigt.
+
+### Mit Authelia
+
+`oidc-authelia.test.ts` läuft nur mit `AUTHELIA_TEST_ISSUER` gegen eine eigene Authelia-Instanz auf Loopback (geprüft mit Authelia 4.39) und wird sonst übersprungen. Die Instanz braucht TLS (dem Zertifikat der Test-CA über `NODE_EXTRA_CA_CERTS` vertrauen, die TLS-Prüfung bleibt an), den Client aus [Installation › Authelia konfigurieren](installation.md#authelia-konfigurieren) mit Callback `http://localhost:3000/api/auth/callback/oidc`, Clientsecret `secret` und testweise `consent_mode: implicit`, `refresh_interval: always`, ein Dateibackend mit `watch: true` und die Testnutzer aus dem Kopf der Testdatei mit synthetischem TOTP-Schlüssel. Der Test ändert die Gruppen in der Benutzerdatei (`AUTHELIA_TEST_USERS_FILE`) bei bestehender Authelia-Sitzung und prüft, dass Haben die neue Rolle beim nächsten Durchlauf übernimmt und beim Entzug ablehnt.
+
+```sh
+NODE_EXTRA_CA_CERTS=/pfad/test-ca.crt AUTHELIA_TEST_ISSUER=https://127.0.0.1:9091 AUTHELIA_TEST_USERS_FILE=/pfad/users.yml   TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test apps/web/src/server/oidc-authelia.test.ts
+```
+
+Testinstanz, Schlüssel und Konten sind ausschließlich für den Test; niemals Werte daraus im Betrieb verwenden.
+
 
 [Zurück zur Übersicht](ueberblick.md)

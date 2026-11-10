@@ -1,3 +1,6 @@
+import { FormattedTextarea } from "./FormattedTextarea.tsx";
+import { Field } from "./Field.tsx";
+
 /** Textbaustein zum Einfügen: Kopftext (Einleitung) oder Fußtext (Hinweis) */
 export interface TextBlockOption {
   id: string;
@@ -54,10 +57,9 @@ export function TextBlockField({
     ));
   return (
     <div className="field-group">
-      <label className="field">
-        {label}
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />
-      </label>
+      <Field label={label}>
+        {(control) => <FormattedTextarea {...control} value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />}
+      </Field>
       {any && (
         <select
           aria-label={`${kind === "kopf" ? "Kopftext" : "Fußtext"} aus den Textbausteinen einfügen`}

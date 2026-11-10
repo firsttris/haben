@@ -10,6 +10,7 @@ import { existsSync } from "node:fs";
  * welche Signatur gilt, sagt EricVersion() der geladenen Bibliothek.
  */
 import { parsePostfachAntwort, type PostfachBereitstellung } from "./postfach.ts";
+import { mitServerMeldung } from "./serverantwort.ts";
 import { parseTransferTicket } from "./ticket.ts";
 import { buildVastAbholungXml, parseVastBelegListe, parseVastDatenpakete, VAST_DATENART_VERSION, type VastBelegRef, type VastXmlInput } from "./vast.ts";
 
@@ -245,11 +246,14 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
         const code = mitTransferhandle
           ? eric.EricBearbeiteVorgang43(xml, request.datenartVersion, flags, druck, crypto, datenabholung ? [0] : null, rueckgabe, serverantwort)
           : eric.EricBearbeiteVorgang(xml, request.datenartVersion, flags, druck, crypto, rueckgabe, serverantwort);
+        const serverResponseXml = eric.EricRueckgabepufferInhalt(serverantwort) ?? "";
+        const message = fehlerText(eric, code);
         return {
           code,
-          message: fehlerText(eric, code),
+          // Bei einem Fehler nennt ERiC nur den allgemeinen Text; was der Server bemängelt, steht in seiner Antwort (#525)
+          message: code === ERIC_OK ? message : mitServerMeldung(message, serverResponseXml),
           responseXml: eric.EricRueckgabepufferInhalt(rueckgabe) ?? "",
-          serverResponseXml: eric.EricRueckgabepufferInhalt(serverantwort) ?? "",
+          serverResponseXml,
         };
       } finally {
         eric.EricRueckgabepufferFreigeben(rueckgabe);

@@ -6,6 +6,7 @@ import type { Notice } from "../lib/use-action.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { ConfirmDialog, type ConfirmFact } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 /** Was eine Seite über ERiC und das Zertifikat aus dem Loader mitbringt */
 export interface ElsterSetup {
@@ -127,10 +128,9 @@ export function ElsterSubmit({
     <form className={className} onSubmit={send} aria-labelledby={headingId}>
       <h2 id={headingId}>{title}</h2>
       <CertificateStatus certificate={setup.certificate} />
-      <label className="field">
-        Zertifikats-PIN
-        <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />
-      </label>
+      <Field label="Zertifikats-PIN">
+        {(control) => <input {...control} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />}
+      </Field>
       <TestOnlyToggle setup={setup} testOnly={testOnly} lockedHint={lockedHint} onChange={setTestOnly} />
       <ConfirmDialog
         open={confirming}

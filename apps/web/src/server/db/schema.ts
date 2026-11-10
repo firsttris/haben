@@ -161,6 +161,11 @@ export const company = pgTable(
      * Änderung, die abgelaufene oder laufende Jahre mit Buchungen trifft, braucht eine ausdrückliche Bestätigung.
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
+    /**
+     * Voranmeldung und EÜR aus dem Journal ab diesem Jahr (#542, docs/adr/journal-als-quelle.md); null = ab dem Jahr der ersten
+     * Buchung. Davor rechnen sie aus den Nebenbüchern. Bestehende Instanzen beginnen mit dem Jahr nach dem Update (Migration).
+     */
+    journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
@@ -183,6 +188,10 @@ export const company = pgTable(
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
     calendarTokenHash: text("calendar_token_hash"),
+    calendarTokenCreatedBy: text("calendar_token_created_by"),
+    calendarTokenResponsibleId: text("calendar_token_responsible_id"),
+    calendarTokenDisabledAt: timestamp("calendar_token_disabled_at", { withTimezone: true }),
+    calendarTokenDisabledReason: text("calendar_token_disabled_reason"),
     /** Zugang mit API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1); ausdrücklich einzuschalten, standardmäßig aus */
     mcpEnabled: boolean("mcp_enabled").notNull().default(false),
     /** Das Finanzamt hat den Tageskurs statt der monatlichen USt-Umrechnungskurse gestattet (§ 16 Abs. 6 Satz 3 UStG) */
@@ -676,18 +685,36 @@ export const brmRequests = pgTable("brm_requests", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** SMTP-Zugang für E-Mails von Haben (Erinnerungen an Fristen), genau eine Zeile (id = 1) */
+/**
+ * Zugang für E-Mails von Haben (Rechnungen, Erinnerungen an Fristen), genau eine Zeile (id = 1): SMTP oder Microsoft Graph
+ * (`transport`). Bei `smtp` sind Server, Port, Verschlüsselung und Benutzer gesetzt, bei `graph` Tenant, Client und Anmeldeart.
+ */
 export const mailSettings = pgTable(
   "mail_settings",
   {
     id: smallint("id").primaryKey().default(1),
-    host: text("host").notNull(),
-    port: integer("port").notNull(),
+    /** Versandweg; bestehende Zeilen sind SMTP */
+    transport: text("transport", { enum: ["smtp", "graph"] })
+      .notNull()
+      .default("smtp"),
+    host: text("host"),
+    port: integer("port"),
     /** true: TLS ab Verbindungsaufbau (meist Port 465); false: STARTTLS (meist Port 587) */
-    secure: boolean("secure").notNull(),
-    username: text("username").notNull(),
-    /** Passwort AES-256-GCM-verschlüsselt wie das Zertifikat; bleibt aus dem Audit-Log */
-    ciphertext: bytea("ciphertext").notNull(),
+    secure: boolean("secure"),
+    username: text("username"),
+    /**
+     * Das eine Geheimnis des Versandwegs, AES-256-GCM-verschlüsselt wie das Zertifikat; bleibt aus dem Audit-Log:
+     * bei SMTP das Passwort, bei Graph das Client Secret oder der private Schlüssel des Zertifikats (PEM)
+     */
+    ciphertext: bytea("ciphertext"),
+    /** Microsoft Graph: Verzeichnis (Tenant) der Entra-ID-App, Anwendungs-ID (Client) und Art der Anmeldung */
+    graphTenantId: text("graph_tenant_id"),
+    graphClientId: text("graph_client_id"),
+    graphAuth: text("graph_auth", { enum: ["secret", "certificate"] }),
+    /** SHA-256-Fingerabdruck des Zertifikats (hex), nur bei `certificate`; kein Geheimnis */
+    graphThumbprint: text("graph_thumbprint"),
+    /** Postfach, aus dem gesendet wird (UPN oder Objekt-ID), wenn es von `from_address` abweicht; leer: `from_address` */
+    graphMailbox: text("graph_mailbox"),
     fromAddress: text("from_address").notNull(),
     /** Name vor der Absenderadresse; leer: der Firmenname, ohne den „Haben“ (senderName in mail.ts) */
     fromName: text("from_name").notNull().default(""),
@@ -705,7 +732,15 @@ export const mailSettings = pgTable(
     pruefwertMail: boolean("pruefwert_mail").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
+  (t) => [
+    check("mail_settings_single_row", sql`${t.id} = 1`),
+    check(
+      "mail_settings_transport",
+      sql`(${t.transport} = 'smtp' and ${t.host} is not null and ${t.port} is not null and ${t.secure} is not null and ${t.username} is not null and ${t.ciphertext} is not null)
+        or (${t.transport} = 'graph' and ${t.graphTenantId} is not null and ${t.graphClientId} is not null and ${t.graphAuth} is not null and ${t.ciphertext} is not null
+        and (${t.graphAuth} <> 'certificate' or ${t.graphThumbprint} is not null))`,
+    ),
+  ],
 );
 
 /**
@@ -765,6 +800,10 @@ export const inboxMessages = pgTable("inbox_messages", {
 export const mailLog = pgTable("mail_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung", "angebot", "pruefwert"] }).notNull(),
+  /** Versandweg dieses Versuchs; ältere Zeilen sind SMTP */
+  transport: text("transport", { enum: ["smtp", "graph"] })
+    .notNull()
+    .default("smtp"),
   /** Empfänger, bei mehreren durch Komma getrennt */
   recipient: text("recipient").notNull(),
   /** Blindkopie an sich selbst */
@@ -1445,6 +1484,20 @@ export const companyLogo = pgTable(
   (t) => [check("company_logo_single", sql`${t.id} = 1`)],
 );
 
+/** Briefpapier als Bild hinter Rechnungen, Angeboten und Mahnungen; höchstens eine Zeile */
+export const letterheadBackground = pgTable(
+  "letterhead_background",
+  {
+    id: smallint("id").primaryKey().default(1),
+    /** PNG oder JPEG; bleibt wie alle Binärdaten aus dem Änderungsprotokoll */
+    background: bytea("background").notNull(),
+    format: text("format", { enum: ["png", "jpg"] }).notNull(),
+    sha256: text("sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("letterhead_background_single", sql`${t.id} = 1`)],
+);
+
 /** Gestaltung der Belege (#113): heute genau ein Standardprofil, die Markenprofile aus #245 werden weitere Zeilen */
 export const letterheadProfiles = pgTable(
   "letterhead_profiles",
@@ -1559,6 +1612,13 @@ export const journalLines = pgTable(
     debit: integer("debit").notNull().default(0),
     credit: integer("credit").notNull().default(0),
     taxCode: text("tax_code"),
+    /**
+     * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent mit Vorzeichen (positiv
+     * erhöht die Kennzahl): bei Ist-Versteuerung an der Zahlung (Umbuchung der Umsatzsteuer, Anteil zu 0 % an der
+     * Forderung, Anteil ohne Steuer an einer Umsatzsteuerzeile ohne Betrag), #542. Ältere Zeilen haben keine; neue Spalten
+     * ändern die Siegel nicht.
+     */
+    basis: integer("basis"),
   },
   (t) => [
     check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`),
@@ -2381,8 +2441,10 @@ export type LegacyPayment = {
   openAmount: number;
   paidDate: string | null;
   items: { type: string; date: string; amount: number; account?: string | null }[];
-  /** Nur gelesen, nie gespeichert: items stammen aus legacy_voucher_payments (sevDesk-Einzelzahlungen) */
-  history?: "sevdesk";
+  /** Nur gelesen, nie gespeichert: items aus legacy_voucher_payments (sevdesk) bzw. Rechnung und ihr Storno ohne Zahlung */
+  history?: "sevdesk" | "storno";
+  /** Nur gelesen: Datum der Stornorechnung bei history "storno" */
+  cancelledOn?: string;
 };
 
 /** Kaufmännische Dokumente ohne Buchungswirkung. Der Quellstand bleibt unverändert; Dateien sind getrennte Nachträge. */
@@ -2719,6 +2781,10 @@ export const backupStatus = pgTable(
  * Audit-Log und Siegel (wie die Passkeys).
  */
 export const mcpTokens = pgTable("mcp_tokens", {
+  createdBy: text("created_by"),
+  responsibleId: text("responsible_id"),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  disabledReason: text("disabled_reason"),
   id: uuid("id").primaryKey().defaultRandom(),
   /** Vom Nutzer vergeben, z. B. „Claude Code am Laptop“ */
   name: text("name").notNull(),
@@ -3070,3 +3136,15 @@ export const lstbSubmissions = pgTable(
     check("lstb_submissions_ref", sql`${t.art} = 'neu' or ${t.kind} = 'portal' or ${t.refKmId} is not null`),
   ],
 );
+
+/** Token-Verwaltungsereignisse ohne Hash, Geheimnis oder Claims. Nur anhängen, Audit-Log per Trigger. */
+export const tokenEvents = pgTable("token_events", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  actor: text("actor").notNull(),
+  tokenId: text("token_id").notNull(),
+  kind: text("kind").notNull(),
+  action: text("action").notNull(),
+  previousResponsibleId: text("previous_responsible_id"),
+  responsibleId: text("responsible_id"),
+});

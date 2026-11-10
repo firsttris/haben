@@ -29,6 +29,8 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 
 ## Konto anlegen
 
+Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läuft Haben im SSO-Modus (`OIDC_ONLY=true`), zeigt `/setup` nur die Schaltfläche zum Einrichten über den Anbieter: Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein, ohne Einrichtungscode, Passwort oder Passkey. Siehe [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
+
 Beim ersten Aufruf leitet Haben auf `/setup` weiter. Das erste Konto ist der **Inhaber** mit allen Rechten: Du gibst den Einrichtungscode, Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“.
 
 Den Einrichtungscode schreibt Haben beim Start ins Log, solange es noch kein Konto gibt, etwa `Einrichtungscode für https://haben.example.de/setup: K7QM-3XRP-W9TD`. Du findest ihn mit `docker compose logs app` bzw. `journalctl --user -u haben-app`. Er sorgt dafür, dass niemand anderes eine frisch gestartete Instanz zuerst erreicht und das Konto anlegt. Nach jedem Neustart gibt es einen neuen Code; einen festen setzt du mit `HABEN_SETUP_CODE`. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet. Weitere Zugänge gibt es nur per Einladung.“), und `/setup` leitet auf die Anmeldung um. Der Einrichtungscode gilt nur für dieses erste Konto.
@@ -45,7 +47,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -128,6 +130,7 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 
 | Einstellung | Bedeutung |
 | --- | --- |
+| Schrift | IBM Plex Sans (ab Werk), IBM Plex Serif, Source Sans 3, Figtree, Fira Sans, Inter, Libre Franklin, Literata, Lora oder Nunito Sans; im PDF eingebettet, wie PDF/A es verlangt |
 | Logo S, M, L | Höchstens 12 × 40 mm, 18 × 60 mm (ab Werk) oder 24 × 80 mm; auch L endet über dem Anschriftfeld |
 | Logo links, rechts | Seite im Briefkopf |
 | Falz- und Lochmarken | Striche am linken Rand für den Fensterumschlag nach DIN 5008 |
@@ -135,7 +138,31 @@ Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Za
 | Kundennummer | Nur auf dem Blatt; das XML der E-Rechnung nennt sie weiter |
 | Spalte USt je Position | Entfällt nur, wenn alle Positionen denselben Steuersatz haben; bei mehreren Sätzen bleibt sie stehen |
 
-Pflichtangaben und Summen lassen sich nicht ausblenden.
+Pflichtangaben und Summen lassen sich hier nicht ausblenden; zur Fußzeile auf dem Briefpapier siehe [Briefpapier](#briefpapier).
+
+### Briefpapier
+
+Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hinter den Beleg, etwa deinen gedruckten Briefbogen als Scan.
+
+- Es geht PNG, JPEG oder PDF bis 2 MB, am besten im Format A4 hochkant mit mindestens 1240 × 1754 Pixeln. Ein abweichendes Seitenverhältnis wird beschnitten, damit die Seite voll bedeckt ist.
+- Von einem PDF nimmt Haben die erste Seite und wandelt sie mit 200 dpi in ein Bild um, denn die Belege sind PDF/A-3 und können kein PDF einbetten. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
+- **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Das Blatt in der Vorschau zeigt die erste Seite.
+- Logo und Falzmarken liegen über dem Bild. Hat dein Briefbogen schon ein Logo, entferne das hochgeladene.
+- Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier, druckt Haben die Fußzeile wieder.
+- Jedes neu erzeugte PDF enthält das Bild, schon festgeschriebene PDFs bleiben unverändert. Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
+
+### Fußzeile
+
+Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der automatischen Fußzeile auf eigene Spalten um. Ab Werk setzt Haben sie aus den Firmendaten zusammen: Kontakt, Bank, Steuernummern.
+
+- Du wählst zwei bis vier Spalten mit je höchstens fünf Zeilen und schreibst freien Text mit Platzhaltern: `{firma}`, `{strasse}`, `{plz}`, `{ort}`, `{email}`, `{telefon}`, `{bank}`, `{kontoinhaber}`, `{iban}`, `{bic}`, `{steuernummer}`, `{ustid}`. Unten in der Karte siehst du, wie sie auf dem Blatt steht.
+- Text lässt sich auszeichnen wie in den Belegtexten: markieren und **F**, **K** oder **U** wählen, oder die Zeichen tippen (`*fett*`, `_kursiv_`, `__unterstrichen__`). Das gilt für deinen Text, auch um Platzhalter herum; Zeichen aus den Firmendaten bleiben wörtlich.
+- Fehlt der Wert zu einem Platzhalter, entfällt die ganze Zeile: Ohne Telefonnummer erscheint keine Zeile „Telefon“.
+- Steuernummer oder USt-IdNr. muss auf der Rechnung stehen (§ 14 Abs. 4 Nr. 2 UStG). Haben speichert die Fußzeile nur, wenn `{steuernummer}` oder `{ustid}` vorkommt. Die Pflichtangaben einer GmbH oder UG stehen weiter darunter.
+- Hat deine Firma die genannte Nummer nicht, setzt Haben die vorhandene ans Ende der letzten Spalte. Bei Reverse Charge und innergemeinschaftlicher Lieferung steht die USt-IdNr. immer auf der Rechnung (§ 14a UStG).
+- Bricht eine Zeile um oder sind die Spalten hoch, wächst der untere Rand mit; es steht dann weniger Inhalt auf der Seite.
+- Dein Text wird nicht übersetzt: Auf englischen Belegen steht er so, wie du ihn schreibst.
+- Sie gilt wie die übrige Gestaltung für alles, was ab dann erzeugt wird.
 
 ### Layouts
 
@@ -433,7 +460,7 @@ Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatz
 
 ## E-Mail
 
-Für [Rechnungen, Angebote und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP. Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. Der **Absendername** steht beim Empfänger vor der Adresse; bleibt er leer, nimmt Haben den Firmennamen aus den Firmendaten, ohne Firmennamen „Haben“. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
+Für [Rechnungen, Angebote und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP oder, für Postfächer in Microsoft 365, über [Microsoft Graph](#e-mail-über-microsoft-365). Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. Der **Absendername** steht beim Empfänger vor der Adresse; bleibt er leer, nimmt Haben den Firmennamen aus den Firmendaten, ohne Firmennamen „Haben“. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
 
 - **Gmail:** Zwei-Faktor-Anmeldung einschalten und unter myaccount.google.com › Sicherheit › App-Passwörter ein App-Passwort erzeugen; das ist das Passwort für Haben, Benutzername ist die Gmail-Adresse. Eine eigene Gmail-Anbindung über die Google-API braucht es nicht.
 - **GMX und web.de:** im Postfach unter Einstellungen › POP3/IMAP den Zugriff per externem Programm erlauben.
@@ -441,6 +468,83 @@ Für [Rechnungen, Angebote und Mahnungen per E-Mail](rechnungen.md#per-e-mail-ve
 Unter **Vorlagen** legst du Betreff und Text der E-Mails je Art und Sprache fest (siehe [Per E-Mail versenden](rechnungen.md#per-e-mail-versenden)).
 
 Das Passwort speichert Haben AES-256-GCM-verschlüsselt wie das ELSTER-Zertifikat; es steht nicht im Audit-Log und wird nie angezeigt. Zum Ändern anderer Angaben das Passwortfeld leer lassen.
+
+### E-Mail über Microsoft 365
+
+Microsoft schaltet Basic Auth für SMTP AUTH in Exchange Online ab. Für Postfächer in Microsoft 365 verschickt Haben deshalb auch über **Microsoft Graph**. Haben meldet sich dabei als App ohne Benutzer bei Microsoft Entra ID an (Client Credentials) und sendet mit `POST /users/{Postfach}/sendMail`. Das geht aus einem Benutzerpostfach und aus einer **Shared Mailbox**; die Mail steht danach in „Gesendete Elemente“ dieses Postfachs. SMTP bleibt unverändert, der Versandweg ist unter **Einstellungen › E-Mail › E-Mail-Versand** wählbar. Für die Einrichtung brauchst du Administratorrechte im Tenant (Entra ID und Exchange Online).
+
+> [!WARNING]
+> Die Berechtigung `Mail.Send` (Application) mit Administratorzustimmung erlaubt der App, **als jedes Postfach des Tenants** zu senden. Beschränke sie auf die Postfächer, aus denen Haben senden soll (Schritt 5).
+
+**1. App registrieren.** Im Entra-Admin-Center unter **Anwendungen › App-Registrierungen › Neue Registrierung** einen Namen wählen (etwa „Haben Mailversand“), Konten nur in diesem Verzeichnis, keine Umleitungs-URI. Auf der Übersicht stehen **Anwendungs-ID (Client)** und **Verzeichnis-ID (Mandant)**; beide trägst du in Haben ein.
+
+**2. Zertifikat erzeugen und hochladen (empfohlen).** Ein Zertifikat ersetzt das Secret, das nach höchstens 24 Monaten abläuft. Auf einem beliebigen Rechner:
+
+```sh
+openssl req -x509 -newkey rsa:2048 -nodes -keyout haben-mail.key -out haben-mail.crt -days 730 -subj "/CN=Haben Mailversand"
+```
+
+`haben-mail.crt` lädst du in der App-Registrierung unter **Zertifikate & Geheimnisse › Zertifikate** hoch. In Haben wählst du **Zertifikat** als Anmeldung und gibst beide Dateien an (`.crt` und `.key`, ohne Passwort). Haben prüft, dass Schlüssel und Zertifikat zusammengehören und das Zertifikat nicht abgelaufen ist, speichert den privaten Schlüssel AES-256-GCM-verschlüsselt und zeigt danach nur noch den Fingerabdruck. Lösche `haben-mail.key` anschließend vom Rechner. Das Zertifikat läuft nach 730 Tagen ab; Haben erinnert nicht daran, trage den Termin in deinen Kalender ein.
+
+*Alternative Client Secret:* unter **Zertifikate & Geheimnisse › Geheimnisse › Neues Clientgeheimnis** erzeugen, den **Wert** (nicht die ID) sofort kopieren und in Haben unter **Client Secret** eintragen.
+
+**3. Berechtigung vergeben.** Es gibt zwei Wege:
+
+- **Eingeschränkt (empfohlen):** Die Rechte kommen aus **Exchange Online** (RBAC für Anwendungen), die App bekommt in Entra ID **keine** Graph-Berechtigung. Weiter mit Schritt 4 und 5.
+- **Tenantweit (schnell, nicht empfohlen):** In der App-Registrierung unter **API-Berechtigungen › Berechtigung hinzufügen › Microsoft Graph › Anwendungsberechtigungen** `Mail.Send` wählen und **Administratorzustimmung erteilen**. Danach darf die App aus jedem Postfach senden. Eine Einschränkung nach Schritt 5 wirkt dann **nicht**, weil Microsoft die Rechte aus Entra ID und aus Exchange vereinigt.
+
+**4. Dienstprinzipal in Exchange Online anlegen.** In PowerShell mit dem Modul `ExchangeOnlineManagement` als Administrator:
+
+```powershell
+Connect-ExchangeOnline
+# AppId = Anwendungs-ID (Client). ObjectId = Objekt-ID der *Unternehmensanwendung* (Entra ID › Unternehmensanwendungen),
+# nicht die Objekt-ID der App-Registrierung: Beide Seiten zeigen verschiedene Werte.
+New-ServicePrincipal -AppId <Anwendungs-ID> -ObjectId <Objekt-ID der Unternehmensanwendung> -DisplayName "Haben Mailversand"
+```
+
+**5. Auf bestimmte Postfächer beschränken.** Ein Verwaltungsbereich nennt die erlaubten Postfächer, die Rollenzuweisung gibt der App `Mail.Send` nur dafür:
+
+```powershell
+New-ManagementScope -Name "Haben Postfächer" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'rechnung@firma.example'"
+New-ManagementRoleAssignment -App <Objekt-ID der Unternehmensanwendung> -Role "Application Mail.Send" -CustomResourceScope "Haben Postfächer"
+Test-ServicePrincipalAuthorization -Identity <Objekt-ID der Unternehmensanwendung> -Resource rechnung@firma.example
+```
+
+Mehrere Postfächer verbindest du im Filter mit `-or`; statt eines Filters geht auch eine Administrative Unit (`-RecipientAdministrativeUnitScope`). `InScope` muss bei `Test-ServicePrincipalAuthorization` für das Postfach `True` sein und für ein anderes `False`. Änderungen wirken laut Microsoft nach 30 Minuten bis 2 Stunden; der Testbefehl umgeht diesen Zwischenspeicher. Ältere Anleitungen nennen **Application Access Policies**; Microsoft hat sie durch RBAC für Anwendungen ersetzt. Quellen: [RBAC for Applications in Exchange Online](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac), [user: sendMail](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0).
+
+**6. In Haben eintragen.** Unter **Einstellungen › E-Mail › E-Mail-Versand** den Versandweg **Microsoft 365 (Graph)** wählen und eintragen:
+
+| Feld | Inhalt |
+| --- | --- |
+| Verzeichnis-ID (Tenant) | GUID oder Domäne des Tenants (`firma.onmicrosoft.com`) |
+| Anwendungs-ID (Client) | GUID der App-Registrierung |
+| Anmeldung | Zertifikat oder Client Secret |
+| Absender | Adresse des Postfachs, aus dem gesendet wird, auch die einer Shared Mailbox |
+| Postfach | Nur nötig, wenn es von der Absenderadresse abweicht: Benutzerprinzipalname (UPN) oder Objekt-ID, etwa bei einer Alias-Adresse |
+
+Dann **Speichern** und **Test-Mail senden**; sie geht an die Adresse für Erinnerungen. Beim Ändern anderer Angaben lässt du Secret oder Zertifikat leer, dann bleibt das gespeicherte. Beim Wechsel des Versandwegs oder der Anmeldeart musst du das Geheimnis neu angeben.
+
+**Shared Mailbox als Absender.** Trage die Adresse der Shared Mailbox als **Absender** ein. Die Mail geht als diese Mailbox hinaus und liegt in deren „Gesendeten Elementen“. Die Shared Mailbox braucht keine Anmeldung; die Rechte der App in Schritt 5 müssen sie einschließen. „Blindkopie an mich“ schickt die Kopie an diese Adresse.
+
+**Grenzen gegenüber SMTP:**
+
+- **Anhänge:** höchstens 2,5 MB zusammen. Darüber lehnt Haben den Versand vor dem Senden mit einer Meldung ab. Größere Anhänge bräuchten zusätzlich `Mail.ReadWrite` (die App könnte dann alle Mails der erlaubten Postfächer lesen); das hat Haben bewusst nicht eingebaut. Bei größeren Anhängen nutze SMTP.
+- **Nur HTML:** Eine Nachricht über Graph hat einen Inhalt. Haben sendet den HTML-Teil, einen Nur-Text-Teil daneben gibt es nicht.
+- **Absendername:** Haben schickt den Namen aus den Einstellungen mit. Ob Exchange ihn übernimmt oder den Anzeigenamen des Postfachs verwendet, ist nicht geprüft.
+- **Ungeprüft:** Haben ist gegen einen gemockten Endpunkt getestet, nicht gegen einen echten Tenant. Meldet sich etwas anders als hier beschrieben, bitte als Issue melden (ohne Tenant-IDs und Adressen).
+
+**Fehlerbilder.** Jeder Versuch steht im Versandprotokoll mit dem Versandweg. Die Meldung nennt dahinter den Fehlercode und die Anfrage-ID von Microsoft; mit ihr findet der Support die Anfrage.
+
+| Meldung | Ursache und Abhilfe |
+| --- | --- |
+| „Die Anmeldung bei Microsoft Entra ID ist fehlgeschlagen … AADSTS…“ | Tenant, Client-ID, Secret oder Zertifikat stimmen nicht, das Secret ist abgelaufen oder das Zertifikat fehlt in Entra ID. Den Code (AADSTS) in der [Fehlerliste von Microsoft](https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes) nachschlagen |
+| „Die App darf nicht aus dem Postfach … senden“ (403) | Die Rolle `Application Mail.Send` fehlt, das Postfach liegt nicht im Verwaltungsbereich, oder die Änderung ist noch nicht wirksam (bis zu 2 Stunden). Mit `Test-ServicePrincipalAuthorization` prüfen |
+| „Das Postfach … gibt es nicht“ (404) | Absenderadresse oder Feld Postfach falsch; bei einer Alias-Adresse den Benutzerprinzipalnamen eintragen |
+| „Microsoft 365 hat die Mail abgelehnt“ (400) | Ungültiger Empfänger oder Inhalt |
+| „Microsoft 365 ist überlastet“ (429) | Haben hat nach der Wartezeit von Microsoft dreimal versucht (höchstens 30 Sekunden). Später erneut senden. Für Outlook gelten je App und Postfach 10 000 Anfragen in 10 Minuten und vier gleichzeitige ([Limits](https://learn.microsoft.com/en-us/graph/throttling-limits)) |
+| „Keine Verbindung zu Microsoft 365“ | Netzwerk oder Zeitüberschreitung. Haben wiederholt dann **nicht** von selbst: Die Mail ist vielleicht doch angekommen, prüfe „Gesendete Elemente“, bevor du erneut sendest |
+
+Client Secret und privater Schlüssel liegen wie das SMTP-Passwort AES-256-GCM-verschlüsselt in der Datenbank; sie stehen nicht im Audit-Log und werden nie angezeigt. Tenant, Client, Fingerabdruck und Postfach stehen im Audit-Log, sie sind keine Geheimnisse. Sichere `HABEN_ENCRYPTION_KEY` wie sonst getrennt vom Backup.
 
 ## KI-Auslesung von Belegen
 

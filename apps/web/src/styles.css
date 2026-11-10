@@ -1,5 +1,6 @@
 /* Schriften selbst ausgeliefert (fontsource) statt von Google Fonts: Latein und Latein-Erweitert als woff2,
    der Browser lädt je Schnitt nur die Teilmenge, deren Zeichen auf der Seite vorkommen. */
+@import "./styles/belegschriften.css";
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
@@ -57,6 +58,10 @@
   --main-pad-x: 40px;
 }
 @media (pointer: coarse) { :root { --control-h: 44px; } }
+/* Safari auf dem iPhone vergrößert die Seite beim Fokus in ein Feld mit weniger als 16 px Schrift und bleibt vergrößert:
+   Die Seite lässt sich dann seitlich verschieben. Vergrößern per Geste bleibt erlaubt (kein maximum-scale). !important,
+   weil die Felder ihre Schrift an vielen Stellen mit höherer Spezifität setzen; Häkchen und Datei-Wähler zoomen nicht. */
+@media (pointer: coarse) { input:not([type="checkbox"], [type="radio"], [type="file"]), select, textarea { font-size: 16px !important; } }
 @media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
 /* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
 html { scroll-padding-top: calc(var(--below-head) + 16px); }
@@ -218,6 +223,9 @@ dialog .form-footer { justify-content: flex-end; }
 .btn-dashed { border-style: dashed; background: transparent; }
 /* Suchfeld mit Trefferliste (Combobox.tsx); die Pfeile und Maße wie bei den Auswahlfeldern */
 .field-label { align-self: flex-start; }
+/* Feldname links neben dem Feld statt darüber, etwa „Konto“ neben der Auswahl */
+.field-inline { flex-direction: row; align-items: center; gap: 8px; }
+.field-inline > .field-label { align-self: center; }
 .combobox { position: relative; min-width: 0; }
 .combobox input { width: 100%; min-height: var(--control-h); padding: 0 36px 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
 .combobox input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -314,7 +322,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
 .dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
-.field-hint, .field .small { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .field input.mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
 .field input.uppercase { text-transform: uppercase; }
 .form-footer { padding: 16px 24px; border-top: 1px solid var(--line); align-items: center; }
@@ -343,6 +351,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
+.banner-warn { background: var(--warn-soft); color: var(--warn-ink); }
 .banner-ok { background: var(--accent-soft); color: var(--accent-ink); }
 .banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
 .banner a { color: inherit; font-weight: 500; }
@@ -369,9 +378,26 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
 @media (max-width: 640px) {
-  .kz-row { grid-template-columns: 32px minmax(0, 1fr) minmax(96px, auto); }
-  /* Steuer als eigene Zeile über die volle Breite: Beschriftung links, Betrag rechts */
-  .kz-row:not(.head):not(.total) > :nth-child(4) { grid-column: 2 / -1; display: flex; justify-content: space-between; }
+  /* Handy: Bezeichnung über die volle Breite, darunter Bemessung und Steuer nebeneinander mit Beschriftung (#376).
+     Die Beschriftungen sind Pseudo-Elemente der Zeile, weil ein Eingabefeld keine eigenen hat; das Feld selbst
+     bleibt über die Bezeichnung benannt. */
+  .kz-row { grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px; }
+  .kz-row.head { display: none; }
+  .kz-row:not(.head):not(.total) { row-gap: 2px; align-items: center; padding-top: 8px; padding-bottom: 12px; }
+  .kz-row:not(.head):not(.total) > .kz-num { grid-area: 1 / 1; align-self: start; }
+  .kz-row:not(.head):not(.total) > .kz-label { grid-area: 1 / 2 / 2 / 4; }
+  .kz-row:not(.head):not(.total)::before,
+  .kz-row:not(.head):not(.total)::after { padding-top: 6px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
+  .kz-row:not(.head):not(.total)::before { content: "Bemessung"; grid-area: 2 / 2; }
+  .kz-row:not(.head):not(.total)::after { content: "Steuer"; grid-area: 2 / 3; text-align: right; }
+  /* Ohne Steuer keine Beschriftung; bei den Vorsteuerzeilen (leere dritte Spalte) steht der Betrag unter „Steuer“, nicht unter „Bemessung“ */
+  .kz-row:not(:has(> :nth-child(4))):not(.head)::after,
+  .kz-row:has(> div.kz-amount:nth-child(4):empty)::after,
+  .kz-row:has(> div:nth-child(3):empty)::before { display: none; }
+  .kz-row:not(.head):not(.total) > :nth-child(3) { grid-area: 3 / 2; }
+  .kz-row:not(.head):not(.total) > :nth-child(4) { grid-area: 3 / 3; }
+  .kz-row:not(.head):not(.total) > .kz-amount { display: flex; justify-content: flex-end; align-items: center; min-height: 40px; }
+  .kz-row.total { grid-template-columns: 32px minmax(0, 1fr) auto; }
 }
 
 .history-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; min-height: 52px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
@@ -474,6 +500,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
    rechts herein, am Handy von unten. Ohne Anlaufpause und lange weich auslaufend (Material 3 „standard“), hinaus dieselbe Kurve kürzer; der Übergang
    gilt jeweils für den Zustand, in den es geht. Ohne
    Bewegung (prefers-reduced-motion) schaltet die Regel weiter unten die Übergänge ab */
+/* Blätter von unten am Handy (ConfirmDialog, Überblendung, Gestaltung) runden gleich */
+:root { --sheet-radius: 16px; }
 :root { --sheet-in-time: 400ms; --sheet-out-time: 300ms; --sheet-curve: cubic-bezier(0.2, 0, 0, 1); --sheet-in: var(--sheet-in-time) var(--sheet-curve); --sheet-out: var(--sheet-out-time) var(--sheet-curve); }
 .preview-dialog { --sheet-hidden: translateX(100%); width: min(960px, calc(100vw - 96px)); max-width: none; height: 100dvh; max-height: none; margin: 0 0 0 auto; padding: 0; border: 0; border-left: 1px solid var(--line); border-radius: 12px 0 0 12px; background: var(--ground); color: var(--ink); box-shadow: -12px 0 32px rgb(0 0 0 / 0.2); flex-direction: column; overflow: hidden; transform: var(--sheet-hidden); transition: transform var(--sheet-out), overlay var(--sheet-out) allow-discrete, display var(--sheet-out) allow-discrete; }
 .preview-dialog[open] { display: flex; transform: none; transition: transform var(--sheet-in), overlay var(--sheet-in) allow-discrete, display var(--sheet-in) allow-discrete; }
@@ -503,8 +531,10 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 .preview-dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 16px 20px 24px; }
 /* Handy: von unten, oben bleibt ein Streifen der Seite sichtbar */
 @media (max-width: 720px) {
-  .preview-dialog { --sheet-hidden: translateY(100%); width: 100vw; height: calc(100dvh - 12px); margin: auto 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 12px 12px 0 0; box-shadow: 0 -12px 32px rgb(0 0 0 / 0.2); }
-  .preview-dialog-head { padding: 12px; }
+  .preview-dialog { --sheet-hidden: translateY(100%); width: 100vw; height: calc(100dvh - 12px); margin: auto 0 0; border: 0; border-top: 1px solid var(--line); border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; box-shadow: 0 -12px 32px rgb(0 0 0 / 0.2); }
+  .preview-dialog .sheet-grip { display: flex; }
+  .preview-dialog-title { touch-action: none; }
+  .preview-dialog-head { padding: 4px 12px 12px; }
   .preview-dialog-body { padding: 12px; }
 }
 /* Split-Button: Hauptaktion und Pfeil teilen sich einen Rahmen, das Menü hängt rechtsbündig darunter */
@@ -544,7 +574,8 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 /* Artikelnummer (BT-155) als schmales Feld vor der Bezeichnung, wie die Spalte „Art.-Nr.“ im PDF; im Angebot die Art dahinter */
 .line-row > .line-title { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr); gap: 8px; }
 .line-row > .line-title.with-kind { grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr) minmax(11em, 16em); }
-.line-row > .line-detail { grid-column: 1 / -1; min-height: var(--control-h); padding: 9px 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
+.line-row > .format-field { grid-column: 1 / -1; }
+.line-row .line-detail { width: 100%; min-height: var(--control-h); padding: 9px 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.4; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
 .line-row input, .line-row select { min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; }
 /* Zahlen in der Schrift des Formulars, rechtsbündig mit gleich breiten Ziffern */
 .line-row input.num { font-family: var(--sans); font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -578,19 +609,21 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 /* Papiervorschau */
 /* Rechnungsvorschau als A4-Blatt; Maße in mm wie templates/rechnung.typ, 1pt = 0,3528 mm */
 .sheet-frame { container-type: inline-size; }
-.sheet { --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(40 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+.sheet { isolation: isolate; --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); display: flex; flex-direction: column; padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(14 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+/* Genau eine A4-Seite wie im PDF, auch wenn das Blatt in der Vorschau länger ist */
+.sheet-background { position: absolute; inset: 0 0 auto; z-index: -1; height: calc(297 * var(--mm)); background-position: center; background-repeat: no-repeat; background-size: cover; }
 .sheet-fold { position: absolute; left: calc(4 * var(--mm)); width: calc(4 * var(--mm)); border-top: 1px solid var(--rule); }
 .sheet-fold.long { width: calc(6 * var(--mm)); }
 .sheet-logo { position: absolute; top: calc(20 * var(--mm)); right: calc(20 * var(--mm)); object-fit: contain; }
 .sheet-logo[data-seite="links"] { right: auto; left: calc(25 * var(--mm)); }
 .sheet-address { position: absolute; left: calc(20 * var(--mm)); top: calc(45 * var(--mm)); width: calc(85 * var(--mm)); height: calc(45 * var(--mm)); line-height: 1.35; }
-.sheet-sender { height: calc(17.7 * var(--mm)); display: flex; align-items: flex-end; padding-bottom: calc(2 * var(--mm)); font-size: calc(7 * 0.3528 * var(--mm)); color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-sender { height: calc(17.7 * var(--mm)); display: flex; align-items: flex-end; padding-bottom: calc(2 * var(--mm)); font-size: calc(7 * 0.3528 * var(--mm)); color: var(--ink-muted); line-height: 1.2; }
 .sheet-meta { position: absolute; left: calc(125 * var(--mm)); top: calc(50 * var(--mm)); width: calc(75 * var(--mm)); margin: 0; display: grid; grid-template-columns: auto 1fr; gap: calc(2.2 * var(--mm)) calc(4 * var(--mm)); font-size: calc(8.5 * 0.3528 * var(--mm)); line-height: 1.2; }
 .sheet-meta dt { color: var(--ink-muted); }
 .sheet-meta dd { margin: 0; text-align: right; white-space: nowrap; }
 .sheet-muted { color: var(--ink-muted); }
 .sheet-strong { font-weight: 600; }
-.sheet-body { display: flex; flex-direction: column; }
+.sheet-body { display: flex; flex-direction: column; margin-bottom: calc(8 * var(--mm)); }
 .sheet-body p { margin: 0 0 calc(2 * var(--mm)); }
 .sheet-title { font-size: calc(16 * 0.3528 * var(--mm)); font-weight: 600; line-height: 1.2; letter-spacing: -0.005em; }
 .sheet-table { width: 100%; border-collapse: collapse; margin-top: calc(5 * var(--mm)); }
@@ -602,14 +635,16 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-tag { color: var(--brand); font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); }
 .sheet-plan caption { text-align: left; font-weight: 600; caption-side: top; }
 .sheet-plan td.num { white-space: normal; }
-.sheet-totals { align-self: flex-end; width: calc(80 * var(--mm)); margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
+/* Wie die Vorlage: mindestens 80 mm, sonst so breit wie die längste Zeile */
+.sheet-totals { align-self: flex-end; width: max-content; min-width: calc(80 * var(--mm)); max-width: 100%; margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
 .sheet-totals dt, .sheet-totals dd { margin: 0; padding: 0 calc(1.6 * var(--mm)); }
-.sheet-totals dt { color: var(--ink-muted); }
+.sheet-totals dt { color: var(--ink-muted); white-space: nowrap; }
 .sheet-totals dd { text-align: right; white-space: nowrap; }
 .sheet-totals .gross { color: var(--ink); font-weight: 600; border-top: 0.6pt solid var(--brand); padding-top: calc(2.2 * var(--mm)); margin-top: 0; }
 /* Bruttopreise: Netto und Umsatzsteuer, die im Gesamtbetrag enthalten sind */
 .sheet-totals .sheet-included { color: var(--ink-muted); font-size: 0.9em; }
-.sheet-foot { position: absolute; left: calc(25 * var(--mm)); right: calc(20 * var(--mm)); bottom: calc(14 * var(--mm)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
+/* Im Fluss statt fest unten: Ein hoher eigener Fuß schiebt das Blatt länger, statt den Text zu verdecken */
+.sheet-foot { margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
 .sheet-foot-legal { grid-column: 1 / -1; }
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }
@@ -660,8 +695,12 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .document-split-row { display: grid; grid-template-columns: minmax(0, 2fr) 90px minmax(0, 1fr) 40px; gap: 8px; align-items: start; }
 .document-split-row input, .document-split-row select { width: 100%; min-width: 0; }
 .document-split-row .icon-btn { margin-top: 22px; }
+/* Auf dem Handy haben Felder 16 px Schrift: Beträge brauchen die halbe Breite, in schmaleren Spalten fehlten die Cent */
 @media (max-width: 560px) {
-  .document-split-row { grid-template-columns: minmax(0, 1fr) 90px; }
+  .amount-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .amount-row > .field:first-child { grid-column: 1; grid-row: 1; }
+  .amount-row > .icon-btn { grid-column: 2; grid-row: 1; justify-self: end; }
+  .document-split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .document-split-row .field:first-child { grid-column: 1 / -1; }
 }
 .page-head .actions { align-items: center; }
@@ -756,9 +795,6 @@ fieldset.card > legend + * { clear: both; }
 }
 
 @media (max-width: 640px) {
-  /* Kennzahlen: Steuer steht in eigener Zeile, deshalb beschriftet; Kopfspalte dafür entfällt */
-  .kz-row.head > :nth-child(4) { display: none; }
-  .kz-row:not(.head):not(.total) > .kz-amount:nth-child(4)::before { content: "Steuer"; color: var(--muted); font-size: 12px; font-family: var(--sans); }
   .kz-row.total > :nth-child(3) { display: none; }
   .kz-row.total > :nth-child(4) { grid-column: 3; grid-row: 1; }
 }
@@ -851,7 +887,9 @@ summary { cursor: pointer; min-height: 24px; }
 .confirm-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .confirm-dialog > h2 { flex: none; margin: 0; padding: 24px 24px 8px; font-size: 18px; }
 .confirm-dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 24px 24px; font-size: 14px; }
-.confirm-dialog-grip { display: none; }
+/* Griff eines Blatts von unten (SheetGrip), sichtbar nur in Handybreite */
+.sheet-grip { display: none; flex: none; justify-content: center; padding: 8px 0; touch-action: none; cursor: grab; }
+.sheet-grip::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); }
 .confirm-dialog-body p { margin: 0; }
 .confirm-dialog-facts { margin: 0 0 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; border-radius: 8px; background: var(--ground); }
 .confirm-dialog-facts > div { display: flex; justify-content: space-between; gap: 16px; }
@@ -863,10 +901,9 @@ summary { cursor: pointer; min-height: 24px; }
 .confirm-dialog-actions .btn:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Am Handy ein Blatt von unten (#404): die Knöpfe voll breit in Daumennähe, die Aktion über Abbrechen */
 @media (max-width: 640px) {
-  .confirm-dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: 16px 16px 0 0; }
+  .confirm-dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; }
   /* Griff und Titel nehmen die Geste selbst an, statt die Seite zu scrollen */
-  .confirm-dialog-grip { display: flex; flex: none; justify-content: center; padding: 8px 0; touch-action: none; cursor: grab; }
-  .confirm-dialog-grip::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); }
+  .confirm-dialog .sheet-grip { display: flex; }
   .confirm-dialog > h2 { padding: 8px 16px 8px; touch-action: none; }
   .confirm-dialog-body { padding: 0 16px 16px; }
   .confirm-dialog-actions { flex-direction: column-reverse; gap: 8px; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); border-top: 0; }
@@ -890,6 +927,8 @@ summary { cursor: pointer; min-height: 24px; }
 .preview-dialog-actions { flex-shrink: 0; display: flex; gap: 8px; }
 .preview-dialog-main { flex: 1 1 auto; min-height: 0; display: flex; }
 .preview-dialog-main > .sheet-frame { min-width: 0; }
+/* Nur am Handy eine eigene Karte, sonst zählt allein die Spalte */
+.design-sheet { display: contents; }
 .design-panel { flex: 0 0 340px; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); }
 .design-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
 .design-panel h3, .design-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
@@ -927,7 +966,11 @@ summary { cursor: pointer; min-height: 24px; }
   .preview-dialog-actions { margin-left: auto; }
   .preview-dialog-main[data-design] { flex-direction: column; }
   .preview-dialog-main[data-design] > .sheet-frame { flex: 0 0 32dvh; }
-  .design-panel { flex: 1 1 auto; border-left: 0; border-top: 1px solid var(--line); }
+  .design-sheet { flex: 1 1 auto; min-height: 0; position: relative; z-index: 2; display: flex; flex-direction: column; margin-top: -16px; overflow: hidden; border-top: 1px solid var(--line); border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; background: var(--surface); box-shadow: 0 -8px 24px rgb(0 0 0 / 0.18); }
+  .design-panel { flex: 1 1 auto; border-left: 0; }
+  /* Offen trägt die Karte den Griff, zwei übereinander verwirren */
+  .preview-dialog[data-design] > .sheet-grip { display: none; }
+  .preview-dialog[data-design] > .preview-dialog-head { padding-top: 12px; }
 }
 .logo-upload { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .logo-upload p { margin: 0; }
@@ -936,3 +979,16 @@ summary { cursor: pointer; min-height: 24px; }
 /* Auszeichnungen bleiben in der Vorschau an die vorhandene Schrift gebunden. */
 .formatted-text strong { font-weight: 600; }
 .formatted-text u { text-underline-offset: 0.15em; }
+/* Knöpfe für fett, kursiv und unterstrichen: schweben an der Markierung, über dem stehenden Seitenkopf und der Navigation am Handy */
+.format-field { position: relative; display: block; }
+.format-field > textarea { display: block; box-sizing: border-box; width: 100%; }
+.format-bar { position: absolute; z-index: 21; display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: 0 2px 8px rgb(0 0 0 / 0.18); }
+.format-bar button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.format-bar button:hover { background: var(--line); }
+.format-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.format-status { display: block; margin-top: 4px; font-size: 12px; color: var(--danger-ink); }
+.footer-columns { display: grid; gap: 10px; }
+.footer-columns textarea { min-width: 0; font-size: 12px; line-height: 1.5; resize: vertical; }
+.footer-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.footer-chips .btn { font-size: 12px; }
+.footer-preview { font-size: 12px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }

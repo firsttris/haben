@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { bookSteuerrueckstellungenFn, saveKapgAngabenFn } from "../server/functions/abschluss.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Field } from "./Field.tsx";
 
 export interface KapgSteuernData {
   angaben: KapgSteuerAngaben | null;
@@ -66,22 +67,18 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
         die klärt die Steuerberatung.
       </p>
       <form id={formId} onSubmit={submit} aria-label="Angaben zur Körperschaft- und Gewerbesteuer" className="stack" style={{ gap: 12, maxWidth: 520 }}>
-        <label className="field">
-          Hebesatz der Gemeinde (%)
-          <input inputMode="numeric" value={hebesatz} onChange={(e) => setHebesatz(e.target.value)} required />
-        </label>
-        <label className="field">
-          Verlustvortrag Körperschaftsteuer zum 31.12.{year - 1}
-          <input inputMode="decimal" value={vortragKst} onChange={(e) => setVortragKst(e.target.value)} placeholder="0,00" />
-        </label>
-        <label className="field">
-          Gewerbeverlust zum 31.12.{year - 1}
-          <input inputMode="decimal" value={vortragGewst} onChange={(e) => setVortragGewst(e.target.value)} placeholder="0,00" />
-        </label>
-        <label className="field">
-          Verlustrücktrag in die Vorjahre (nur bei Verlust; leer = Verzicht)
-          <input inputMode="decimal" value={ruecktrag} onChange={(e) => setRuecktrag(e.target.value)} placeholder="0,00" />
-        </label>
+        <Field label="Hebesatz der Gemeinde (%)">
+          {(control) => <input {...control} inputMode="numeric" value={hebesatz} onChange={(e) => setHebesatz(e.target.value)} required />}
+        </Field>
+        <Field label={<>Verlustvortrag Körperschaftsteuer zum 31.12.{year - 1}</>}>
+          {(control) => <input {...control} inputMode="decimal" value={vortragKst} onChange={(e) => setVortragKst(e.target.value)} placeholder="0,00" />}
+        </Field>
+        <Field label={<>Gewerbeverlust zum 31.12.{year - 1}</>}>
+          {(control) => <input {...control} inputMode="decimal" value={vortragGewst} onChange={(e) => setVortragGewst(e.target.value)} placeholder="0,00" />}
+        </Field>
+        <Field label="Verlustrücktrag in die Vorjahre (nur bei Verlust; leer = Verzicht)">
+          {(control) => <input {...control} inputMode="decimal" value={ruecktrag} onChange={(e) => setRuecktrag(e.target.value)} placeholder="0,00" />}
+        </Field>
         {data.angaben && !data.gespeichert && (
           <p className="small muted" style={{ margin: 0 }}>
             Vorgeschlagen aus {year - 1}: Hebesatz und die Verlustvorträge nach der Rechnung des Vorjahres. Bitte mit dem Bescheid abgleichen und speichern.

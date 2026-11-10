@@ -12,10 +12,12 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../../../../lib/format.ts";
+import { FormattedTextarea } from "../../../../components/FormattedTextarea.tsx";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
 import { saveBase64File } from "../../../../lib/download.ts";
 import { createDunningFn, dunningDraftPdfFn, getDunningDraft } from "../../../../server/functions/dunning.ts";
+import { Field } from "../../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
   loader: ({ params }) => getDunningDraft({ data: params.id }),
@@ -94,60 +96,66 @@ function NewDunningPage() {
             {formatDate(draft.invoice.dueDate)}, offen {formatEuro(draft.invoice.open)}.
           </p>
           <div className="form-grid">
-            <label className="field">
-              Stufe
-              <select value={level} onChange={(e) => chooseLevel(Number(e.target.value) as DunningLevel)}>
-                {([1, 2, 3] as const)
-                  .filter((l) => l >= draft.level)
-                  .map((l) => (
-                    <option key={l} value={l}>
-                      {DUNNING_LEVELS[l].label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="field">
-              Neue Zahlungsfrist
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={dueDate <= draft.date} />
-            </label>
-            <label className="field">
-              Mahngebühr (€)
-              <input inputMode="decimal" value={fee} placeholder="0,00" onChange={(e) => setFee(e.target.value)} aria-invalid={parsedFee === null} />
-            </label>
-            <label className="field">
-              Verzugszinsen
-              <select
-                value={interest}
-                onChange={(e) => setInterest(e.target.value as CustomerType | "")}
-                disabled={draft.baseRate === null}
-                aria-describedby="interest-hint"
-              >
-                <option value="">keine</option>
-                <option value="geschaeftskunde">Geschäftskunde (Basiszins + 9 Prozentpunkte)</option>
-                <option value="verbraucher">Verbraucher (Basiszins + 5 Prozentpunkte)</option>
-              </select>
-              <span id="interest-hint" className="small">
-                {draft.baseRate === null ? (
+            <Field label="Stufe">
+              {(control) => (
+                <select {...control} value={level} onChange={(e) => chooseLevel(Number(e.target.value) as DunningLevel)}>
+                  {([1, 2, 3] as const)
+                    .filter((l) => l >= draft.level)
+                    .map((l) => (
+                      <option key={l} value={l}>
+                        {DUNNING_LEVELS[l].label}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </Field>
+            <Field label="Neue Zahlungsfrist">
+              {(control) => (
+                <input {...control} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-invalid={dueDate <= draft.date} />
+              )}
+            </Field>
+            <Field label="Mahngebühr (€)">
+              {(control) => (
+                <input
+                  {...control}
+                  inputMode="decimal"
+                  value={fee}
+                  placeholder="0,00"
+                  onChange={(e) => setFee(e.target.value)}
+                  aria-invalid={parsedFee === null}
+                />
+              )}
+            </Field>
+            <Field
+              label="Verzugszinsen"
+              hint={
+                draft.baseRate === null ? (
                   <>
                     Für Zinsen den Basiszinssatz in den <Link to="/einstellungen">Einstellungen</Link> eintragen.
                   </>
                 ) : (
                   `Basiszinssatz ${percent(draft.baseRate)}`
-                )}
-              </span>
-            </label>
+                )
+              }
+            >
+              {(control) => (
+                <select {...control} value={interest} onChange={(e) => setInterest(e.target.value as CustomerType | "")} disabled={draft.baseRate === null}>
+                  <option value="">keine</option>
+                  <option value="geschaeftskunde">Geschäftskunde (Basiszins + 9 Prozentpunkte)</option>
+                  <option value="verbraucher">Verbraucher (Basiszins + 5 Prozentpunkte)</option>
+                </select>
+              )}
+            </Field>
             <label className="checkbox" style={{ gridColumn: "1 / -1" }}>
               <input type="checkbox" checked={flatFee} onChange={(e) => setFlatFee(e.target.checked)} />
               Verzugspauschale 40 € (nur bei Geschäftskunden, § 288 Abs. 5 BGB)
             </label>
-            <label className="field" style={{ gridColumn: "1 / -1" }}>
-              Einleitung
-              <textarea value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />
-            </label>
-            <label className="field" style={{ gridColumn: "1 / -1" }}>
-              Schluss
-              <textarea value={closing} onChange={(e) => setClosing(e.target.value)} maxLength={2000} rows={3} />
-            </label>
+            <Field label="Einleitung" style={{ gridColumn: "1 / -1" }}>
+              {(control) => <FormattedTextarea {...control} value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={2000} rows={4} />}
+            </Field>
+            <Field label="Schluss" style={{ gridColumn: "1 / -1" }}>
+              {(control) => <FormattedTextarea {...control} value={closing} onChange={(e) => setClosing(e.target.value)} maxLength={2000} rows={3} />}
+            </Field>
           </div>
         </section>
         <section className="card stack" aria-label="Forderung">

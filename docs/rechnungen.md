@@ -28,7 +28,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
    Optional **Bestellnummer**, **Eigene Auftragsnummer** und **Lieferscheinnummer** (siehe [Bestellnummer, Auftrag und Lieferschein](#bestellnummer-auftrag-und-lieferschein)).
 5. **E-Rechnungsformat** prüfen.
-6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär besteuert“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
+6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
 7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
 8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Rahmenvertrag oder Anrede; Bestell-, Auftrags- und Lieferscheinnummer haben eigene Felder. Vorbelegt ist sie mit der Standard-Einleitung für Rechnungen aus den [Firmendaten](einrichtung.md). **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
 9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
@@ -43,6 +43,8 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 
 **Vorschau** im Kopf des Editors zeigt die Rechnung so, wie sie gerade im Formular steht: Sie fährt von rechts über das Formular herein, am Handy von unten. **Schließen**, Esc oder ein Klick daneben bringt dich an dieselbe Stelle im Formular zurück; Eingaben und Scrollposition bleiben.
 
+Die kleine Absenderzeile über dem Anschriftfeld (Name, Straße, PLZ und Ort aus den Firmendaten) steht in der Vorschau wie im PDF: Ist sie länger als das 85 mm breite Anschriftfeld, bricht sie in eine zweite Zeile um, unten am Feld ausgerichtet.
+
 Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet der Pfeil neben **Vorschau** ein Menü:
 
 - **Neben Formular anheften** fährt die Vorschau von rechts neben das Formular. Sie bleibt beim Scrollen stehen und scrollt selbst, wenn die Rechnung länger ist als das Fenster. **Vergrößern** lässt sie breiter über das Formular fahren, **Ausblenden** gibt dem Formular wieder die volle Breite.
@@ -50,7 +52,7 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 
 Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
-**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
+**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
 
 ### Entwurf als PDF
 
@@ -115,7 +117,7 @@ Zwischen Unternehmen sind Nettopreise üblich, das ist die Vorgabe. Wer an Verbr
 
 Der Gesamtbetrag stimmt damit auf den Cent mit den Endpreisen überein. Weil die Steuer aus der Summe je Satz herausgerechnet wird und nicht je Zeile, kann sie einen Cent von der Summe der einzelnen Zeilen abweichen; so verlangt es auch EN 16931.
 
-- Bruttopreise gibt es nur bei „Regulär besteuert“. Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei, Nicht-EU-Ausland) sind netto und brutto gleich; Haben speichert die Rechnung dann als netto.
+- Bruttopreise gibt es nur bei „Regulär“. Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei, Nicht-EU-Ausland) sind netto und brutto gleich; Haben speichert die Rechnung dann als netto.
 - Stornorechnung und Rechnungskorrektur rechnen immer wie die ursprüngliche Rechnung. Die Stornorechnung hebt sie auf den Cent genau auf.
 - Eine Schlussrechnung mit Bruttopreisen zieht die Abschlagsrechnungen brutto ab, also mit Netto und Umsatzsteuer der Abschlagsrechnung zusammen. Legst du sie aus einer Abschlagsrechnung an, übernimmt sie deren Preismodus.
 - Angebote und wiederkehrende Rechnungen haben dieselbe Auswahl. Eine Rechnung aus einem Angebot oder einer Vorlage übernimmt den Preismodus.
@@ -152,13 +154,16 @@ In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen 
 | `*Text*` oder `**Text**` | **Text** |
 | `_Text_` | *Text* |
 | `__Text__` | unterstrichen |
+| `___Text___` | kursiv und unterstrichen |
+
+Du musst die Zeichen nicht tippen: Sobald du Text markierst, erscheinen direkt darüber die Knöpfe **F**, **K** und **U**, am Handy rechts über dem Feld. Oder nimm <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>B</kbd>, <kbd>I</kbd> oder <kbd>U</kbd>; ohne Markierung gilt das Kürzel für das Wort unter dem Cursor. Ein zweiter Klick nimmt die Auszeichnung zurück. Die Knöpfe zeichnen immer ganze Wörter aus, auch wenn nur ein Teil markiert ist. <kbd>Esc</kbd> blendet die Knöpfe aus. Du findest sie auch bei Artikeln, Textbausteinen, den Standard-Einleitungen und in Einleitung und Schluss einer [Mahnung](#mahnwesen).
 
 Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
 Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
-Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben.
+Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben; innerhalb von Pfaden ist das nicht nötig, dort bleibt auch der Backslash stehen.
 HTML, Links und sonstige Markdown- oder Typst-Befehle werden nicht ausgeführt.
 
-Die Formatierung gilt auch im Angebot und in eingefügten Textbausteinen. Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
+Die Formatierung gilt auch im Angebot, in eingefügten Textbausteinen und in der [Mahnung](#mahnwesen). Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
 Die Zeichen zählen bei der Grenze von 2000 Zeichen mit. Bereits festgeschriebene PDFs und XML-Dateien werden nicht neu erzeugt.
 
 ### Textbausteine
@@ -180,7 +185,7 @@ Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt
 
 | Auswahl | Wann | Hinweis auf der Rechnung (Standard) | Steuerkategorie im XML |
 | --- | --- | --- | --- |
-| Regulär besteuert (19 %, 7 % oder 0 %) | Normalfall | – | S, bei 0 % Z |
+| Regulär (19 %, 7 % oder 0 %) | Normalfall | – | S, bei 0 % Z |
 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | Sonstige Leistung an ein Unternehmen mit USt-IdNr. in einem anderen EU-Land | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL). | AE, Grund `VATEX-EU-AE` |
 | Leistung ins Nicht-EU-Ausland | Sonstige Leistung (Dienstleistung) mit Leistungsort im Drittland, im Inland nicht steuerbar | Im Inland nicht steuerbare Leistung (Leistungsort im Drittland). | O, Grund `VATEX-EU-O` |
 | Innergemeinschaftliche Lieferung | Ware, die zu einem Unternehmen mit USt-IdNr. in einem anderen EU-Land gelangt (§ 4 Nr. 1 Buchst. b, § 6a UStG) | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG). | K, Grund `VATEX-EU-IC` |
@@ -188,7 +193,7 @@ Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt
 | Steuerfrei nach § 4 UStG | Steuerfreie Leistung, etwa nach § 4 Nr. 14 UStG | die Befreiungsvorschrift, die du einträgst | E |
 | Kleinunternehmer nach § 19 UStG | Nur wählbar, wenn du in den Einstellungen als Kleinunternehmer eingetragen bist | Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. | E |
 
-Außer bei „Regulär besteuert“ gilt:
+Außer bei „Regulär“ gilt:
 
 - Alle Positionen stehen auf 0 %, der Steuersatz lässt sich nicht ändern. In der Vorschau und im PDF steht in der Spalte für den Steuersatz „–“, und die Zeile „Umsatzsteuer 0 %“ entfällt.
 - Der Hinweis steht fett über dem Satz zur Zahlung. Im Feld **Hinweis zur Umsatzsteuer** kannst du einen eigenen Text eintragen, der den Standardtext ersetzt. Bei „Steuerfrei nach § 4 UStG“ heißt das Feld **Befreiungsvorschrift** und ist Pflicht, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“.
@@ -225,7 +230,7 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 
 - Firmendaten: Name, Anschrift, E-Mail-Adresse, IBAN, Steuernummer oder USt-IdNr.
 - Kunde gewählt, mindestens eine Position, keine Position mit Betrag 0.
-- Umsatzsteuer: Außer bei „Regulär besteuert“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Bei „Leistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfrei nach § 4 UStG“ braucht die Befreiungsvorschrift.
+- Umsatzsteuer: Außer bei „Regulär“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Die innergemeinschaftliche Lieferung braucht deine USt-IdNr., eine USt-IdNr. des Kunden aus einem anderen EU-Land und einen Kunden in einem anderen EU-Land. Die Ausfuhrlieferung braucht deine USt-IdNr. und einen Kunden außerhalb der EU. Bei „Leistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfrei nach § 4 UStG“ braucht die Befreiungsvorschrift.
 - Kleinunternehmer: Bist du in den Einstellungen als Kleinunternehmer eingetragen, lässt sich nur eine Kleinunternehmer-Rechnung festschreiben; bist du es nicht, keine.
 - Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
 - GmbH und UG: Fehlen Pflichtangaben nach § 35a GmbHG (Registergericht, Registernummer, Geschäftsführer), zeigt der Editor einen Hinweis. Festschreiben geht trotzdem, siehe [Pflichtangaben einer GmbH oder UG](#pflichtangaben-einer-gmbh-oder-ug).
@@ -486,9 +491,9 @@ Im Formular legst du fest:
 | Mahngebühr | Vorschlag je Stufe aus den Einstellungen |
 | Verzugszinsen | Geschäftskunde: Basiszinssatz plus 9 Prozentpunkte, Verbraucher: plus 5 (§ 288 BGB). Taggenau ab dem Tag nach der Fälligkeit bis heute, auf 365 Tage, auf den offenen Betrag. Nur mit Basiszinssatz in den Einstellungen. |
 | Verzugspauschale | 40 € nach § 288 Abs. 5 BGB, nur gegenüber Geschäftskunden |
-| Einleitung und Schluss | Vorlage je Stufe, frei änderbar |
+| Einleitung und Schluss | Vorlage je Stufe, frei änderbar, auch [fett, kursiv und unterstrichen](#fett-kursiv-und-unterstrichen) |
 
-Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung, in der aktuellen Gestaltung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
+Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung, in der aktuellen Gestaltung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue. Bereits erstellte Mahnungen behalten ihr PDF; Zeichen wie `*`, die dort als Text stehen, bleiben also stehen.
 
 Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
 
@@ -550,7 +555,7 @@ Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschni
 | Umsatzsteuer (bei Ist: nicht fällig) | | Steuer | |
 | 1400 Forderungen | 1200 Forderungen | | brutto |
 
-Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf; zusammen mit einer Bareinnahme mit deren Storno im Kassenbuch. Stornorechnungen lassen sich nicht ausbuchen.
+Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung; nach einem Wechsel des Kontenrahmens mit den Konten des neuen Rahmens). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf; zusammen mit einer Bareinnahme mit deren Storno im Kassenbuch. Stornorechnungen lassen sich nicht ausbuchen.
 
 Zahlt der Kunde später doch, hebst du die Ausbuchung nach einer Rückfrage mit Art und Betrag auf und ordnest die Zahlung zu. Die Aufhebung bucht Haben am Tag, an dem du sie vornimmst: Bei Soll-Versteuerung ist die Umsatzsteuer dann im Monat des Zahlungseingangs erneut zu berichtigen (§ 17 Abs. 2 Nr. 1 Satz 2 UStG), die schon gesendete Voranmeldung des Ausbuchungsmonats bleibt richtig. Hebe die Ausbuchung deshalb im Monat der Zahlung auf.
 
@@ -694,5 +699,5 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 - Ausfuhrlieferungen nur an Kunden mit Anschrift außerhalb der EU; den Ausfuhrnachweis führt Haben nicht.
 - Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zuschläge auf Belegebene; Abschläge auf Belegebene nur als [Gesamtrabatt](#rabatte).
 - Höchstens 200 Positionen je Rechnung.
-- Rechnungen gehen per E-Mail über deinen SMTP-Zugang, nicht über Peppol oder die Portale öffentlicher Auftraggeber.
+- Rechnungen gehen per E-Mail über deinen SMTP-Zugang oder über [Microsoft 365](einrichtung.md#e-mail-über-microsoft-365), nicht über Peppol oder die Portale öffentlicher Auftraggeber. Über Microsoft 365 gehen Anhänge nur bis 2,5 MB zusammen.
 - Zusätzliche Anhänge nur als PDF, bis 20 MB je Datei und zehn je Rechnung. Viele Mailserver nehmen Mails ab etwa 25 MB nicht mehr an; das Versandprotokoll zeigt dann die Meldung des Servers. Anhänge lassen sich nur in Haben hochladen, nicht über die [REST-API](api.md); [wiederkehrende Rechnungen](#wiederkehrende-rechnungen) haben keine Anhänge und versenden ohne sie. Mahnungen gehen ohne die Anhänge der Rechnung.

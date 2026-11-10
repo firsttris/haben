@@ -1,8 +1,13 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useSwipeToClose } from "../lib/use-swipe-to-close.ts";
 import { returnsFocusOnClose } from "../lib/vorschau.ts";
 import { Icon } from "./Icon.tsx";
+import { SheetGrip } from "./SheetGrip.tsx";
 import { SheetScroll } from "./SheetScroll.tsx";
+
+/** Wie die Breite in styles.css, ab der die Überblendung ein Blatt von unten ist */
+const SHEET_MEDIA = "(max-width: 720px)";
 
 /**
  * Modaler <dialog> als Seitenleiste, die von rechts hereinfährt: hält den Fokus, Escape und ein Klick neben das Blatt
@@ -34,6 +39,9 @@ export function PreviewDialog({
   const titleId = useId();
   const replaced = useRef(false);
   const pressedBeside = useRef(false);
+  const swipe = useSwipeToClose(ref, () => ref.current?.close(), SHEET_MEDIA);
+  const designSheet = useRef<HTMLDivElement>(null);
+  const designSwipe = useSwipeToClose(designSheet, onToggleDesign, SHEET_MEDIA);
 
   useEffect(() => {
     replaced.current = false;
@@ -75,8 +83,9 @@ export function PreviewDialog({
         if (e.target === e.currentTarget && pressedBeside.current) e.currentTarget.close();
       }}
     >
+      <SheetGrip {...swipe} />
       <div className="preview-dialog-head">
-        <div>
+        <div className="preview-dialog-title" {...swipe}>
           <h2 id={titleId}>{label}</h2>
           <span className="small muted">{caption}</span>
         </div>
@@ -95,7 +104,12 @@ export function PreviewDialog({
       </div>
       <div className="preview-dialog-main" data-design={designOpen || undefined}>
         <SheetScroll className="preview-dialog-body">{children}</SheetScroll>
-        {designOpen && designPanel}
+        {designOpen && (
+          <div ref={designSheet} className="design-sheet">
+            <SheetGrip {...designSwipe} />
+            {designPanel}
+          </div>
+        )}
       </div>
     </dialog>,
     document.body,

@@ -1,0 +1,12 @@
+﻿Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"
+"March 31, 2025",Deposit,"€1,225.76 sent to your bank account",,EUR,--,--,--,--
+"March 28, 2025",Marketing,"Etsy Ads","Bill for click-throughs to your shop on Mar 27, 2025",EUR,--,-€0.86,-€0.86,--
+"March 20, 2025",Refund,"Refund to buyer for Order #2500000002",,EUR,-€17.37,--,-€17.37,--
+"March 20, 2025",Fee,"Credit for processing fee","Order #2500000002",EUR,--,€0.89,€0.89,--
+"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #2500000002",EUR,--,€1.30,€1.30,--
+"March 9, 2025",Fee,"Listing fee (€0.18)","Listing #1500000002",EUR,--,-€0.18,-€0.18,--
+"March 8, 2025",Fee,"Transaction fee: Shipping","Order #2500000001",EUR,--,-€0.31,-€0.31,--
+"March 8, 2025",Fee,"Transaction fee: Notebook, ""handmade"" cover","Order #2500000001",EUR,--,-€2.73,-€2.73,--
+"March 8, 2025",Tax,"Sales tax paid by buyer","Order #2500000001",EUR,--,-€3.36,-€3.36,--
+"March 8, 2025",Fee,"Processing fee","Order #2500000001",EUR,--,-€1.62,-€1.62,--
+"March 8, 2025",Sale,"Payment for Order #2500000001",,EUR,"€1,250.00",--,"€1,250.00",--

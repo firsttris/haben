@@ -35,7 +35,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Store a secret outside a `ciphertext` column; run ERiC in the app process.
 - Point tests at a database with real data; skip, weaken or delete a test to get green; report a skipped
   test as passed.
-- Push to `main`, rewrite a contributor's commits, merge (only a maintainer merges), review your own code.
+- Push to `main`, rewrite a contributor's commits, merge (only a maintainer, or a collaborator with the maintainer's approval), review your own code.
 - Create or comment on issues and pull requests without being asked.
 - Stop the user's processes or touch their `haben-dev` compose project; work around `sudo`.
 
@@ -47,8 +47,9 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
-- Checks green before every push, skipped tests reported (`checks`); then check CI.
+- Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
+- The pull request description becomes the squash commit message on `main`: update it with every push that changes what the PR does or how it was checked, also after review fixes and rebases.
 - An independent TDD review by a separate subagent before the merge (`tdd-review`).
 
 ## Working style
@@ -61,6 +62,6 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Bun, not Node, npm or pnpm: `bun run test` runs Vitest, `bun test` would be Bun's own runner.
 - Server functions in `server/functions/` stay thin: `authMiddleware`, Zod, then a call into
   `server/modules/`; another module only through its `index.ts`.
-- Name the source (EN 16931, ERiC docs, DATEV format) where it settles a detail; clone GitHub sources
+- Name the source (EN 16931, ERiC docs, DATEV format and SKR03/SKR04 charts; law over DATEV) where it settles a detail; clone GitHub sources
   shallowly into the scratchpad.
 - Use other ports for tests (the E2E server uses 3100); an own compose project per worktree (`checks`).

@@ -5,6 +5,7 @@ import { FilePicker } from "../../../components/FilePicker.tsx";
 import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getOrderDocument, uploadOrderPdf } from "../../../server/functions/archive.ts";
 import styles from "../../../styles/archiv.css?url";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/archiv/auftrag/$id")({
   loader: ({ params }) => getOrderDocument({ data: { id: params.id } }),
@@ -78,10 +79,9 @@ function OrderPdfUpload({ id }: { id: string }) {
     <form onSubmit={upload} className="stack">
       <input type="hidden" name="id" value={id} />
       <fieldset className="fieldset-plain" disabled={busy}>
-        <label className="field">
-          Original-PDF ergänzen
-          <FilePicker key={fileVersion} name="file" accept="application/pdf,.pdf" required />
-        </label>
+        <Field label="Original-PDF ergänzen">
+          {(control) => <FilePicker {...control} key={fileVersion} name="file" accept="application/pdf,.pdf" required />}
+        </Field>
       </fieldset>
       <button type="submit" className="btn btn-secondary" disabled={busy}>
         {busy ? "Wird gespeichert …" : "PDF anhängen"}
@@ -104,16 +104,17 @@ function OrderFiles({ files, id }: { files: OrderDetail["files"]; id: string }) 
   return (
     <section className="card stack" aria-label="Dateien">
       {files.length > 1 && (
-        <label className="field">
-          Datei auswählen
-          <select value={file?.id} onChange={(event) => setSelected(event.target.value)}>
-            {files.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.filename}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Datei auswählen">
+          {(control) => (
+            <select {...control} value={file?.id} onChange={(event) => setSelected(event.target.value)}>
+              {files.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.filename}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       )}
       {file ? (
         <>

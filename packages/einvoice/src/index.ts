@@ -1,5 +1,6 @@
 export * from "./types.ts";
 export { LANGUAGES, texts, type Language } from "./i18n.ts";
+export { embedsInPdf } from "./typst-compiler.ts";
 export { legalLine, legalLines, logoFormat, renderInvoiceDraftPdf, renderInvoicePdf, type DraftPdf } from "./pdf.ts";
 export { buildQuoteDraftPdf, buildQuotePdf, quotePdfData, type QuoteDocument, type QuoteDocumentLine } from "./quote.ts";
 export { buildConfirmationPdf, buildDeliveryNotePdf, confirmationPdfData, deliveryNotePdfData, type DeliveryNoteDocument } from "./order.ts";

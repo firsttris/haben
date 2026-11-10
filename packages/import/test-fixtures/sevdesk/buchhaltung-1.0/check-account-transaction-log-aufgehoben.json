@@ -1,0 +1,56 @@
+{
+  "objects": [
+    {
+      "id": "8005",
+      "objectName": "CheckAccountTransactionLog",
+      "additionalInformation": null,
+      "create": "2025-06-01T19:57:51+02:00",
+      "checkAccountTransaction": {
+        "id": "7004",
+        "objectName": "CheckAccountTransaction",
+        "additionalInformation": null,
+        "create": "2025-05-17T08:23:22+02:00",
+        "update": "2025-06-01T19:57:51+02:00",
+        "sevClient": {
+          "id": "1",
+          "objectName": "SevClient"
+        },
+        "valueDate": "2025-05-17T00:00:00+02:00",
+        "entryDate": "2025-05-17T00:00:00+02:00",
+        "amount": "440",
+        "feeAmount": null,
+        "gvCode": null,
+        "entryText": null,
+        "primaNotaNo": "0",
+        "paymtPurpose": "Rechnung RE-0003",
+        "payeePayerBankCode": "XXXXDEXX",
+        "payeePayerAcctNo": "DE00000000000000000000",
+        "payeePayerName": "Kunde GmbH",
+        "checkAccount": {
+          "id": "501",
+          "objectName": "CheckAccount"
+        },
+        "status": "400",
+        "score": null,
+        "compareHash": "00000000000000000000000000000000",
+        "enshrined": null,
+        "obonoReceiptUuid": null,
+        "externalId": "1",
+        "deletedAt": null,
+        "restoredAt": null
+      },
+      "fromStatus": "100",
+      "toStatus": "400",
+      "amountPaid": 440,
+      "bookingDate": "2025-05-17T00:00:00+02:00",
+      "sevClient": {
+        "id": "1",
+        "objectName": "SevClient"
+      },
+      "object": {
+        "id": "9003",
+        "objectName": "Invoice"
+      }
+    }
+  ]
+}

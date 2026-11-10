@@ -182,6 +182,8 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 
+**Ab dem Stichjahr aus dem Journal.** Ab einem Stichjahr rechnet Haben die Kennzahlen wie DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen)); bei Ist-Versteuerung zählt ein Verkauf auf Ziel mit der Zahlung, die die Bemessungsgrundlage trägt. Die Privatnutzung von Fahrzeugen kommt weiter je Monat aus dem Anlagenverzeichnis. Die Abschnitte unten beschreiben, was die Rechnungen, Belege und Zahlungen dazu beitragen; sie bleiben die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Das Stichjahr ist das Jahr der ersten Buchung; bei Instanzen, die schon vor diesem Update gebucht haben, das Jahr nach dem Update. Unter **Einstellungen › Firma** steht es in der Karte „Voranmeldung und EÜR aus dem Journal“. Dort lässt es sich auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist, der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) des Jahres keine Abweichung zeigt und jede Voranmeldung des Jahres sowie die EÜR aus dem Journal genauso herauskommen wie aus Rechnungen, Belegen und Zahlungen; dann ändert der Umstieg keine Zahl. Ältere Buchungen ohne Bemessungsgrundlage oder Steuerschlüssel, die der Abgleich bewusst auslässt, verhindern das Vorziehen deshalb. Zurück geht es nicht. Davor rechnet Haben wie bisher aus den Rechnungen, Belegen und Zahlungen; gesendete Voranmeldungen ändern sich nicht. Storniert ihr im Stichjahr eine Bareinnahme oder einen Beleg aus der Zeit davor, bucht Haben die Gegenbuchung mit den Steuerangaben von heute, damit sie in der Voranmeldung voll zählt. Hintergrund: [Entwurf „Voranmeldung und EÜR aus dem Journal“](adr/journal-als-quelle.md).
+
 ### Umsatzsteuer (Kz 81 und 86)
 
 | Versteuerung | Maßgeblich | Quelle |
@@ -204,10 +206,10 @@ Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf
 | 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
 | 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
-| 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+| 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
 | 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 
-Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
 In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
@@ -225,7 +227,7 @@ Aus [Belegen mit § 13b](belege.md#reverse-charge-als-leistungsempfänger--13b) 
 | 84 / 85 | Andere Leistungen nach § 13b Abs. 2, hier Leistungen von Unternehmern aus dem Drittland: Netto in vollen Euro, Steuer centgenau |
 | 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; bei Kleinunternehmern 0 |
 
-Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst.
+Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst. Ein [auf mehrere Kategorien aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt mit seinen Beträgen je Satz, genau wie ohne Aufteilung.
 
 ### Innergemeinschaftlicher Erwerb
 
@@ -358,6 +360,8 @@ Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, steht im Än
 ### Verlauf und Protokoll
 
 Der Bereich **Verlauf** listet für den Zeitraum jede Prüfung, Testübermittlung und Übermittlung mit „OK“ oder „Fehler <Code>“, Zeitpunkt, Transfer-Ticket und Fehlermeldung, dazu jeden Abgabevermerk mit Tag der Abgabe, Ticket und Kz 83. Wo es ein Protokoll gibt, öffnet **Protokoll** das PDF. Darunter stehen die zuletzt gesendeten oder vermerkten Voranmeldungen aller Zeiträume mit ihrer Zahllast.
+
+Schlägt ein Vorgang mit einem Fehler des ELSTER-Annahmeservers fehl, steht in der Fehlermeldung hinter dem allgemeinen Text von ERiC, was der Server bemängelt: „Antwort des ELSTER-Servers: Transferheader <Code> – <Text>“, bei Fehlern in den Nutzdaten „Nutzdatenheader“, bei mehreren Rückmeldungen alle nacheinander. Haben liest Code und Text aus der Serverantwort, die unter den Antworten von ERiC und Server steht. Das gilt für alle Verfahren, nicht nur für die Voranmeldung. Einträge, die vor dieser Änderung entstanden sind, behalten ihre Meldung; ihre Serverantwort steht weiter ungekürzt im Verlauf. Gab es keine Antwort des Servers, etwa weil ERiC schon vor dem Senden abgelehnt hat, bleibt die Meldung von ERiC allein.
 
 Im Jahresarchiv (`umsatzsteuer/<JJJJ-MM>/`) liegen das ERiC-Protokoll jeder Übermittlung und das Protokoll aus Mein ELSTER jedes Vermerks (`<Tag>_vermerk_…_protokoll.pdf`); `übermittlungen.csv` nennt beide, den Vermerk mit Kz 83 und SHA-256 der Datei.
 

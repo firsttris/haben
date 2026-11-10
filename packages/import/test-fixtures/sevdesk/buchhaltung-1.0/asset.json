@@ -1,0 +1,91 @@
+{
+  "objects": [
+    {
+      "id": "ID_1",
+      "objectName": "Asset",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+02:00",
+      "update": "2024-01-15T12:00:00+02:00",
+      "voucherPos": {
+        "id": "ID_2",
+        "objectName": "VoucherPos"
+      },
+      "name": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "usefulLife": "0",
+      "acquisitionDate": "2024-01-15T12:00:00+01:00",
+      "purchasePrice": "100.0",
+      "purchasePriceAccounting": "100.0",
+      "taxRate": "19",
+      "assetNumber": "1",
+      "accountingType": {
+        "id": "ID_4",
+        "objectName": "AccountingType"
+      },
+      "status": "500",
+      "enshrined": null,
+      "saleDate": null
+    },
+    {
+      "id": "ID_5",
+      "objectName": "Asset",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+02:00",
+      "update": "2024-01-15T12:00:00+02:00",
+      "voucherPos": {
+        "id": "ID_6",
+        "objectName": "VoucherPos"
+      },
+      "name": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "usefulLife": "1",
+      "acquisitionDate": "2024-01-15T12:00:00+02:00",
+      "purchasePrice": "100.00",
+      "purchasePriceAccounting": "100.00",
+      "taxRate": "19",
+      "assetNumber": "1",
+      "accountingType": {
+        "id": "ID_4",
+        "objectName": "AccountingType"
+      },
+      "status": "100",
+      "enshrined": null,
+      "saleDate": null
+    },
+    {
+      "id": "ID_7",
+      "objectName": "Asset",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "voucherPos": {
+        "id": "ID_8",
+        "objectName": "VoucherPos"
+      },
+      "name": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "usefulLife": "3",
+      "acquisitionDate": "2024-01-15T12:00:00+02:00",
+      "purchasePrice": "100.00",
+      "purchasePriceAccounting": "100.00",
+      "taxRate": "19",
+      "assetNumber": "1",
+      "accountingType": {
+        "id": "ID_4",
+        "objectName": "AccountingType"
+      },
+      "status": "100",
+      "enshrined": null,
+      "saleDate": null
+    }
+  ]
+}

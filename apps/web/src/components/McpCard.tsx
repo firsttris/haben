@@ -5,14 +5,15 @@ import { formatDate, formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import { createMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSettings } from "../server/functions/mcp.ts";
+import { createMcpTokenFn, reactivateMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSettings } from "../server/functions/mcp.ts";
+import { Field } from "./Field.tsx";
 
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
 export const MCP_DOCS = "https://haben.app/ki-assistenten.html";
 export const API_DOCS = "https://haben.app/api.html";
 
-const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill" } as const;
+const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill", deaktiviert: "pill-warn", unbestaetigt: "pill-warn" } as const;
 
 /** Einstellungen → KI-Assistenten und API: Zugang ein- und ausschalten, API-Tokens mit Rechten und Protokoll */
 export function McpCard({ data }: { data: Data }) {
@@ -20,6 +21,8 @@ export function McpCard({ data }: { data: Data }) {
   const setEnabled = useServerFn(setMcpEnabledFn);
   const create = useServerFn(createMcpTokenFn);
   const revoke = useServerFn(revokeMcpTokenFn);
+  const reactivate = useServerFn(reactivateMcpTokenFn);
+  const [takingOver, setTakingOver] = useState<Data["tokens"][number] | null>(null);
   const { busy, notice, run } = useAction();
   const [created, setCreated] = useState<{ name: string; token: string; scopes: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -123,18 +126,32 @@ export function McpCard({ data }: { data: Data }) {
             Jeder Assistent und jedes Werkzeug bekommt ein eigenes Token mit nur den Rechten, die es braucht, und du kannst es jederzeit widerrufen. Haben
             speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen.
           </p>
+          <ConfirmDialog
+            open={takingOver !== null}
+            title="Token übernehmen und reaktivieren?"
+            confirmLabel="Übernehmen und reaktivieren"
+            onClose={() => setTakingOver(null)}
+            onConfirm={() => {
+              if (!takingOver) return;
+              const id = takingOver.id;
+              void run(async () => {
+                await reactivate({ data: { id } });
+                await router.invalidate();
+              }, "Token übernommen und reaktiviert.");
+            }}
+          >
+            <p>Du übernimmst die Verantwortung für diesen Zugang. Der bisherige Token bleibt gültig; Rechte und Ablaufdatum bleiben erhalten.</p>
+          </ConfirmDialog>
           {created && (
             <div className="stack" style={{ gap: 8 }}>
-              <label className="field">
-                Token für „{created.name}“ (wird nur jetzt angezeigt)
-                <input readOnly className="mono" value={created.token} onFocus={(e) => e.currentTarget.select()} />
-              </label>
+              <Field label={<>Token für „{created.name}“ (wird nur jetzt angezeigt)</>}>
+                {(control) => <input {...control} readOnly className="mono" value={created.token} onFocus={(e) => e.currentTarget.select()} />}
+              </Field>
               {created.scopes.includes("haben:lesen") && (
                 <>
-                  <label className="field">
-                    In Claude Code eintragen
-                    <textarea readOnly className="mono" rows={3} value={command} onFocus={(e) => e.currentTarget.select()} />
-                  </label>
+                  <Field label="In Claude Code eintragen">
+                    {(control) => <textarea {...control} readOnly className="mono" rows={3} value={command} onFocus={(e) => e.currentTarget.select()} />}
+                  </Field>
                   <div className="actions">
                     <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(command).then(() => setCopied(true))}>
                       {copied ? "Kopiert" : "Befehl kopieren"}
@@ -170,16 +187,30 @@ export function McpCard({ data }: { data: Data }) {
               <div key={token.id} className="history-row">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontWeight: 500 }}>
-                    {token.name} <span className={`pill ${STATUS[token.status]}`}>{token.status}</span>
+                    {token.name} <span className={`pill ${STATUS[token.status]}`}>{token.status === "unbestaetigt" ? "unbestätigt" : token.status}</span>
                   </span>
                   <span className="small muted">
                     <span className="mono">{token.prefix}…</span> · angelegt {formatDate(token.createdAt)} ·{" "}
                     {token.status === "widerrufen" ? `widerrufen ${formatDate(token.revokedAt!)}` : `gültig bis ${formatDate(token.expiresAt)}`} ·{" "}
                     {token.lastUsedAt ? `zuletzt benutzt ${formatDateTime(token.lastUsedAt)}` : "noch nicht benutzt"}
                   </span>
+                  <span className="small muted">Verantwortlich: {token.responsibleName ?? token.responsibleId ?? "Noch nicht zugeordnet"}</span>
+                  {token.disabledAt && (
+                    <span className="small muted">
+                      Deaktiviert: {token.disabledReason === "inhaberrolle-entzogen" ? "Inhaberrolle entzogen" : "Verantwortung noch nicht zugeordnet"}
+                    </span>
+                  )}
+                  {token.status === "unbestaetigt" && (
+                    <span className="small muted">Gilt erst wieder, wenn der Verantwortliche sich angemeldet hat oder jemand den Token übernimmt.</span>
+                  )}
                   <span className="small muted">Rechte: {token.scopes.map(label).join(" · ")}</span>
                 </div>
-                {token.status === "aktiv" && (
+                {token.canTakeOver && (
+                  <button type="button" className="btn" disabled={busy} onClick={() => setTakingOver(token)}>
+                    Übernehmen und reaktivieren
+                  </button>
+                )}
+                {(token.status === "aktiv" || token.status === "deaktiviert" || token.status === "unbestaetigt") && (
                   <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRevoking(token)}>
                     Widerrufen
                   </button>
@@ -188,18 +219,16 @@ export function McpCard({ data }: { data: Data }) {
             ))
           )}
           <form className="form-grid" onSubmit={onCreate} aria-label="Neues Token">
-            <label className="field">
-              Name
-              <input name="name" required maxLength={80} placeholder="Claude Code am Laptop" />
-            </label>
-            <label className="field">
-              Gültig
-              <select name="days" defaultValue="90">
-                <option value="30">30 Tage</option>
-                <option value="90">90 Tage</option>
-                <option value="365">1 Jahr</option>
-              </select>
-            </label>
+            <Field label="Name">{(control) => <input {...control} name="name" required maxLength={80} placeholder="Claude Code am Laptop" />}</Field>
+            <Field label="Gültig">
+              {(control) => (
+                <select {...control} name="days" defaultValue="90">
+                  <option value="30">30 Tage</option>
+                  <option value="90">90 Tage</option>
+                  <option value="365">1 Jahr</option>
+                </select>
+              )}
+            </Field>
             <fieldset style={{ border: 0, padding: 0, margin: 0, gridColumn: "1 / -1" }}>
               <legend className="small" style={{ fontWeight: 500, marginBottom: 4 }}>
                 Rechte

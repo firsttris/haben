@@ -1,9 +1,11 @@
+import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
-import { databaseUrlFuer } from "./durchlaeufe.ts";
+import { databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
   faktenZeigen,
@@ -40,6 +42,25 @@ test.afterAll(async () => {
 });
 
 const go = (path: string) => gehe(page, path);
+
+/**
+ * Nachgebaute Enable-Banking-API mit drei Banken; der Server des Durchlaufs fragt sie über ENABLE_BANKING_API_URL
+ * (playwright.config.ts). N26 bietet Privat- und Geschäftskonto an, damit die Kontoart erscheint.
+ */
+async function enableBankingAttrappe(): Promise<Server> {
+  const aspsps = [
+    { name: "N26", country: "DE", psu_types: ["personal", "business"], maximum_consent_validity: 180 * 86_400 },
+    { name: "Fyrst", country: "DE", psu_types: ["business"], maximum_consent_validity: 90 * 86_400 },
+    { name: "DKB", country: "DE", psu_types: ["personal"], maximum_consent_validity: 180 * 86_400 },
+  ];
+  const server = createServer((request, response) => {
+    const found = new URL(request.url ?? "/", "http://localhost").pathname === "/aspsps";
+    response.writeHead(found ? 200 : 404, { "content-type": "application/json" });
+    response.end(JSON.stringify(found ? { aspsps } : { message: "nicht nachgebaut" }));
+  });
+  await new Promise<void>((resolve) => server.listen(ENABLE_BANKING_PORT, "127.0.0.1", resolve));
+  return server;
+}
 
 test("Einrichtung", async () => {
   await einrichten(page);
@@ -212,6 +233,64 @@ test("Kontoabruf: Enable Banking in den Einstellungen, ein falscher Schlüssel w
   await expect(card.getByLabel("Application ID")).toHaveValue("0b7c3f1e-1234-4abc-9def-0123456789ab");
   await card.getByRole("button", { name: "Prüfen und speichern" }).click();
   await expect(card.getByRole("alert")).toContainText("keine gültige .pem-Datei");
+});
+
+test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer der Suche (#555)", async () => {
+  const api = await enableBankingAttrappe();
+  try {
+    await go("/einstellungen?bereich=bank");
+    const card = page.getByRole("form", { name: "Automatischer Kontoabruf" });
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    await card.getByLabel("Privater Schlüssel (.pem)").setInputFiles({
+      name: "0b7c3f1e-1234-4abc-9def-0123456789ab.pem",
+      mimeType: "application/x-pem-file",
+      buffer: Buffer.from(privateKey.export({ type: "pkcs8", format: "pem" })),
+    });
+    await card.getByRole("button", { name: "Prüfen und speichern" }).click();
+    await expect(card.getByText("Zugang geprüft und verschlüsselt gespeichert")).toBeVisible();
+
+    await go("/bank");
+    await page.getByRole("button", { name: "Bank verbinden" }).click();
+    const banken = page.getByRole("listbox");
+    const weiter = page.getByRole("button", { name: "Weiter zur Bank" });
+    // Markiert und gewählt ist dasselbe: zu Beginn die erste Bank der Liste
+    await expect(banken.getByRole("option")).toHaveText(["DKB", "Fyrst", "N26"]);
+    await expect(banken).toHaveValue("DKB");
+    await expect(page.getByText("Du wirst zu DKB weitergeleitet")).toBeVisible();
+    await expect(weiter).toBeEnabled();
+
+    // Bleibt nach der Suche nur eine Bank, ist sie markiert und auch gewählt; vorher blieb der Knopf grau (#555)
+    await page.getByLabel("Bank suchen").fill("N26");
+    await expect(banken.getByRole("option")).toHaveText(["N26"]);
+    await banken.getByRole("option", { name: "N26" }).click();
+    await expect(weiter).toBeEnabled();
+    await expect(page.getByText("Du wirst zu N26 weitergeleitet")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Kontoart" })).toBeVisible();
+
+    // Ohne Klick: der einzige Treffer ist gewählt und bleibt es, wenn die Suche wieder alle zeigt
+    await page.getByLabel("Bank suchen").fill("fyrst");
+    await expect(banken.getByRole("option")).toHaveText(["Fyrst"]);
+    await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
+    await expect(weiter).toBeEnabled();
+    await page.getByLabel("Bank suchen").fill("");
+    await expect(banken.getByRole("option")).toHaveCount(3);
+    await expect(banken).toHaveValue("Fyrst");
+    await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
+
+    // Kein Treffer: nichts gewählt
+    await page.getByLabel("Bank suchen").fill("Sparkasse");
+    await expect(banken.getByRole("option")).toHaveCount(0);
+    await expect(weiter).toBeDisabled();
+    await page.getByRole("button", { name: "Abbrechen" }).click();
+
+    // Zugang wieder entfernen, damit die folgenden Tests die Bankseite wie zuvor sehen
+    await go("/einstellungen?bereich=bank");
+    await card.getByRole("button", { name: "Entfernen" }).click();
+    await bestaetigen(page, "Entfernen");
+    await expect(card.getByLabel("Privater Schlüssel (.pem)")).toBeVisible();
+  } finally {
+    await new Promise((resolve) => api.close(resolve));
+  }
 });
 
 test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
@@ -470,6 +549,102 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg mit § 13b aufteilen: Steuer § 13b je Zeile, innergemeinschaftlicher Erwerb bleibt gesperrt", async ({ browser }) => {
+  // Erfundene Sammelrechnung (#508): 200 € Gebühren und 50 € Werbung zu 19 % nach § 13b, 47,50 € Steuer
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "gebuehren.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Beispiel Payments Ltd.") }]);
+  await expect(page.getByText("gebuehren.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /gebuehren\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Beispiel Payments Ltd.");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await page.getByLabel("Kategorie").selectOption("geldverkehr");
+  await page.getByLabel("Netto", { exact: true }).fill("250,00");
+
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await expect(page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" })).toBeDisabled();
+  await expect(page.getByText("mit innergemeinschaftlichem Erwerb noch nicht möglich")).toBeVisible();
+
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("47,50");
+  await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
+  await expect(split.getByLabel("Kategorie").first()).toHaveValue("geldverkehr");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("200,00");
+  await split.getByLabel("Kategorie").nth(1).selectOption("werbung");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
+  await expect(split.getByText("19 %: Zeilen 250,00 € von 250,00 € netto · stimmt")).toBeVisible();
+  await expect(split.getByText("Steuer § 13b 38,00")).toBeVisible();
+  await expect(split.getByText("Steuer § 13b 9,50")).toBeVisible();
+
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("aufgeteilt auf 2 Zeilen")).toBeVisible();
+  await expect(page.getByText(/Vor dem Buchen/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Bestätigen und buchen" })).toBeEnabled();
+  // Nicht buchen: Buchung, Voranmeldung, EÜR und DATEV prüfen die Integrationstests in server/modules/belege/splits-13b.test.ts
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(page, "Beleg löschen");
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg am Handy: Beträge sind auch mit 16 px Schrift ganz zu lesen", async ({ browser }) => {
+  const context = await browser.newContext({
+    storageState: await page.context().storageState(),
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const handy = await context.newPage();
+  await handy.goto("/belege");
+  await handy.waitForLoadState("networkidle");
+  await handy
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "handy-betraege.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(handy.getByText("handy-betraege.jpg: abgelegt.")).toBeVisible();
+  await handy
+    .getByRole("link", { name: /handy-betraege\.jpg/ })
+    .first()
+    .click();
+  await handy.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await handy.waitForLoadState("networkidle");
+
+  /** Felder, deren Inhalt breiter ist als das Feld: Beim Betrag wären die letzten Ziffern nicht zu sehen */
+  const abgeschnitten = (selektor: string) =>
+    handy
+      .locator(selektor)
+      .evaluateAll((felder) =>
+        (felder as HTMLInputElement[]).filter((f) => f.scrollWidth > f.clientWidth + 1).map((f) => `${f.value}: ${f.scrollWidth} > ${f.clientWidth}`),
+      );
+
+  await handy.getByLabel("Kategorie").selectOption("wareneinkauf");
+  await handy.locator(".amount-row").getByLabel("Netto", { exact: true }).fill("500,00");
+  await handy.locator(".amount-row").getByLabel("Vorsteuer", { exact: true }).fill("95,00");
+  expect.soft(await abgeschnitten(".amount-row input[inputmode='decimal']"), "Netto und Vorsteuer des Belegs").toEqual([]);
+
+  await handy.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const netto = handy.locator(".document-split-row input[inputmode='decimal']");
+  await expect(netto.first()).toBeVisible();
+  await netto.first().fill("1.234,56");
+  expect.soft(await abgeschnitten(".document-split-row input[inputmode='decimal']"), "Netto in der Aufteilung").toEqual([]);
+
+  // Nicht buchen: Die folgenden Tests zählen die Belege und Auswertungen
+  await handy.getByRole("button", { name: "Löschen", exact: true }).click();
+  await bestaetigen(handy, "Beleg löschen");
+  await handy.waitForURL(/\/belege$/);
+  await context.close();
 });
 
 test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser }) => {
@@ -1291,7 +1466,7 @@ test("Beleg: Kategorie und Bezahlung aus früheren Belegen des Lieferanten, mit 
   await page.locator(".doc-actions").getByRole("button", { name: "Speichern" }).click();
   await page.waitForLoadState("networkidle");
   const heute = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Berlin" });
-  const kategorie = page.getByLabel("Kategorie").locator("xpath=ancestor::label");
+  const kategorie = page.locator(".field").filter({ has: page.getByLabel("Kategorie") });
   await expect(kategorie).toContainText(`Bisher 2× als Telefon gebucht, zuletzt am ${heute}`);
   const bezahlung = page.getByRole("group", { name: "Bezahlung" });
   await expect(bezahlung).toContainText(`Bisher 2× privat bezahlt, zuletzt am ${heute}`);

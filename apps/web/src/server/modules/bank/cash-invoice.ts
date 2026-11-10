@@ -77,7 +77,7 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
       description: text,
       sourceType: "kasse",
       sourceId: id,
-      lines: invoiceCashPaymentPosting(totals, parsed.amount, books.kontenrahmen, books.versteuerung, taxShares),
+      lines: invoiceCashPaymentPosting(totals, parsed.amount, books.kontenrahmen, books.versteuerung, taxShares, invoice.taxTreatment),
     });
     const [row] = await tx
       .insert(schema.cashEntries)

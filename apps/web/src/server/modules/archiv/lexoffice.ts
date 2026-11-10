@@ -1,5 +1,7 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
+import { datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
+import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -392,12 +394,12 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     gross: number;
     files: number;
   }>(sql`
-    select v.id, v.source, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.net, v.tax, v.gross,
+    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.net, v.tax, v.gross,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
     from lexoffice_vouchers v
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
-      ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
-      ${term ? sql`and (v.number ilike ${term} or v.contact_name ilike ${term} or v.remark ilike ${term})` : sql``}
+      ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
+      ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
       ${filter.ohneDatei ? sql`and not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id) and not coalesce((v.raw->>'ohneBeleg')::boolean, false)` : sql``}
     order by v.date, v.number
     limit 1000`);
@@ -423,8 +425,8 @@ export async function legacyVoucherDetail(id: string) {
       id: schema.lexofficeVouchers.id,
       lexofficeId: schema.lexofficeVouchers.lexofficeId,
       source: schema.lexofficeVouchers.source,
-      type: schema.lexofficeVouchers.type,
-      direction: schema.lexofficeVouchers.direction,
+      type: effectiveType("lexoffice_vouchers"),
+      direction: effectiveDirection("lexoffice_vouchers"),
       number: schema.lexofficeVouchers.number,
       date: schema.lexofficeVouchers.date,
       dueDate: schema.lexofficeVouchers.dueDate,
@@ -432,12 +434,12 @@ export async function legacyVoucherDetail(id: string) {
       serviceTo: schema.lexofficeVouchers.serviceTo,
       status: schema.lexofficeVouchers.status,
       contactId: schema.lexofficeVouchers.contactId,
-      contactName: schema.lexofficeVouchers.contactName,
+      contactName: effectiveContactName("lexoffice_vouchers"),
       currency: schema.lexofficeVouchers.currency,
       net: schema.lexofficeVouchers.net,
       tax: schema.lexofficeVouchers.tax,
       gross: schema.lexofficeVouchers.gross,
-      taxes: schema.lexofficeVouchers.taxes,
+      taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
@@ -511,15 +513,16 @@ export async function reconciliation() {
   const voucherRows = await db
     .select({
       source: schema.lexofficeVouchers.source,
-      direction: schema.lexofficeVouchers.direction,
-      type: schema.lexofficeVouchers.type,
+      lexofficeId: schema.lexofficeVouchers.lexofficeId,
+      direction: effectiveDirection("lexoffice_vouchers"),
+      type: effectiveType("lexoffice_vouchers"),
       number: schema.lexofficeVouchers.number,
       date: schema.lexofficeVouchers.date,
       status: schema.lexofficeVouchers.status,
       net: schema.lexofficeVouchers.net,
       tax: schema.lexofficeVouchers.tax,
       gross: schema.lexofficeVouchers.gross,
-      taxes: schema.lexofficeVouchers.taxes,
+      taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
@@ -544,10 +547,8 @@ export async function reconciliation() {
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
-      count(*) filter (where b.voucher_field1 <> '' and not exists (
-        select 1 from lexoffice_vouchers v where v.number <> ''
-          and lower(regexp_replace(v.number, '\\s+', '', 'g')) = lower(regexp_replace(b.voucher_field1, '\\s+', '', 'g'))))::int as unmatched,
-      count(*) filter (where b.voucher_field1 = '')::int as without_number
+      count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")} and not ${datevVoucherFound("b.voucher_field1")})::int as unmatched,
+      count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
     from datev_bookings b group by 1`);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
   const lastImport = await latestImport();
@@ -624,7 +625,13 @@ export async function reconciliation() {
         taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
       }
       const invoices = vouchers
-        .filter((v) => v.type === "invoice" && v.number)
+        // Stornorechnung und Abschlagsrechnung von sevDesk belegen denselben Nummernkreis wie die Rechnungen (#472)
+        .filter(
+          (v) =>
+            v.number &&
+            (v.type === "invoice" ||
+              (v.source === "sevdesk" && (v.type === "downpaymentinvoice" || (v.type === "creditnote" && v.lexofficeId.startsWith("invoice/"))))),
+        )
         .sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number, "de", { numeric: true }));
 
       const checks: ReconciliationCheck[] = [
@@ -735,6 +742,7 @@ export async function legacyVouchersForPeriod(filter: {
     const sevdeskRows = await db
       .select({
         source: schema.lexofficeVouchers.source,
+        direction: effectiveDirection("lexoffice_vouchers"),
         gross: schema.lexofficeVouchers.gross,
         status: schema.lexofficeVouchers.status,
         payment: effectivePayment("lexoffice_vouchers"),
@@ -742,7 +750,8 @@ export async function legacyVouchersForPeriod(filter: {
       })
       .from(schema.lexofficeVouchers)
       .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
-    if (sevdeskRows.some((v) => unclearFrom(v, filter.period))) {
+    // Wie der Abgleich: Bei Ist-Versteuerung zählen die Zahlungen nur auf der Einnahmenseite
+    if (sevdeskRows.some((v) => v.direction === "einnahme" && unclearFrom(v, filter.period))) {
       throw new LexofficeError(
         "sevDesk-Zahlungshistorie unvollständig: Eine zahlungsbezogene Zeitraumabfrage ist bis zur Klärung der Einzelzahlungen gesperrt.",
       );
@@ -771,8 +780,8 @@ export async function legacyVouchersForPeriod(filter: {
     tax_sub_type: string | null;
     files: number;
   }>(sql`
-    select v.id, v.source, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
-      v.taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
+    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, v.net, v.tax, v.gross,
+      ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
@@ -780,7 +789,7 @@ export async function legacyVouchersForPeriod(filter: {
     where (v.date::text like ${like}
       ${
         filter.withPayments
-          ? sql`or (v.direction = 'einnahme' and exists (
+          ? sql`or (${effectiveDirection("v")} = 'einnahme' and exists (
               select 1 from jsonb_array_elements(coalesce((${effectivePayment("v")})->'items', '[]'::jsonb)) i
               where i->>'date' like ${like} and i->>'type' in (${sql.join(
                 [...LEGACY_PAYMENT_TYPES].map((t) => sql`${t}`),
@@ -788,8 +797,8 @@ export async function legacyVouchersForPeriod(filter: {
               )})))`
           : sql``
       })
-      ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
-      ${term ? sql`and (v.number ilike ${term} or v.contact_name ilike ${term} or v.remark ilike ${term})` : sql``}
+      ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
+      ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
     order by v.date, v.number`);
   // Was weder Einnahme noch Ausgabe ist, geht nicht in die Umsatzsteuer ein, wie im Abgleich; es steht summiert daneben
   const { rechtsform } = await loadCompany();
@@ -832,11 +841,11 @@ export async function findLegacyVouchers(ref: string) {
     .select({ id: schema.lexofficeVouchers.id, raw: schema.lexofficeVouchers.raw })
     .from(schema.lexofficeVouchers)
     .where(
-      UUID.test(value)
-        ? sql`${schema.lexofficeVouchers.id} = ${value}::uuid or ${schema.lexofficeVouchers.lexofficeId} = ${value}`
-        : // sevDesk-Kennungen wie "invoice/101" sind keine UUID
-          sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
-            or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))`,
+      // Auch eine Belegnummer kann wie eine UUID aussehen; sevDesk-Kennungen wie "invoice/101" sind keine
+      sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
+        or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))
+        or ${truncatedNumberMatches("lexoffice_vouchers", sql`${value}`)}
+        ${UUID.test(value) ? sql`or ${schema.lexofficeVouchers.id} = ${value}::uuid` : sql``}`,
     )
     .limit(10);
   const result = [];

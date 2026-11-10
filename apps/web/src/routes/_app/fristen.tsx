@@ -6,8 +6,9 @@ import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { formatDate } from "../../lib/format.ts";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { useAction } from "../../lib/use-action.ts";
-import { createFristenAbo, getFristen, revokeFristenAbo } from "../../server/functions/fristen.ts";
+import { createFristenAbo, getFristen, reactivateFristenAbo, revokeFristenAbo } from "../../server/functions/fristen.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/fristen")({
   loader: () => getFristen(),
@@ -154,7 +155,9 @@ function FristenPage() {
 
 /** Abo-Link für Kalender-Apps; den Link gibt es nur direkt nach dem Erzeugen */
 function KalenderAbo() {
-  const { abo } = Route.useLoaderData();
+  const { abo, aboStatus } = Route.useLoaderData();
+  const reactivate = useServerFn(reactivateFristenAbo);
+  const [takingOver, setTakingOver] = useState(false);
   const router = useRouter();
   const create = useServerFn(createFristenAbo);
   const revoke = useServerFn(revokeFristenAbo);
@@ -181,12 +184,59 @@ function KalenderAbo() {
         vorher und am Morgen des Tages; Erledigtes verschwindet beim nächsten Abgleich. Manche Kalender, etwa Google, übernehmen die Erinnerungen aus Abos
         nicht; dort stellst du sie für den abonnierten Kalender selbst ein.
       </p>
-      {url ? (
+      {aboStatus.exists && <p className="small muted">Verantwortlich: {aboStatus.responsibleName ?? aboStatus.responsibleId ?? "Noch nicht zugeordnet"}</p>}
+      <ConfirmDialog
+        open={takingOver}
+        title="Kalender-Abo übernehmen und reaktivieren?"
+        confirmLabel="Übernehmen und reaktivieren"
+        onClose={() => setTakingOver(false)}
+        onConfirm={() =>
+          void run(async () => {
+            await reactivate();
+            await router.invalidate();
+          }, "Kalender-Abo übernommen und reaktiviert.")
+        }
+      >
+        <p>Du übernimmst die Verantwortung. Der bisherige Kalender-Link bleibt erhalten.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={rueckfrage === "beenden"}
+        title="Kalender-Abo beenden?"
+        confirmLabel="Abo beenden"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            await revoke();
+            await router.invalidate();
+          })
+        }
+        onClose={() => setRueckfrage(null)}
+      >
+        <p>Der Link wird sofort ungültig, abonnierte Kalender bekommen die Fristen nicht mehr. Ein neues Abo muss jeder Kalender wieder einrichten.</p>
+      </ConfirmDialog>
+      {aboStatus.exists && (aboStatus.disabledAt || !aboStatus.ownerConfirmed) ? (
         <>
-          <label className="field">
-            Abo-Link (wird nur jetzt angezeigt)
-            <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
-          </label>
+          <p role="status">
+            {aboStatus.disabledAt
+              ? `Kalender-Abo deaktiviert: ${aboStatus.disabledReason === "inhaberrolle-entzogen" ? "Inhaberrolle entzogen" : "Verantwortung noch nicht zugeordnet"}.`
+              : "Kalender-Abo unbestätigt: Der Verantwortliche hat seine Inhaberrolle seit über 30 Tagen nicht bestätigt."}
+          </p>
+          <div className="actions" style={{ flexWrap: "wrap" }}>
+            {aboStatus.canTakeOver && (
+              <button type="button" className="btn" disabled={busy} onClick={() => setTakingOver(true)}>
+                Übernehmen und reaktivieren
+              </button>
+            )}
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRueckfrage("beenden")}>
+              Abo beenden
+            </button>
+          </div>
+        </>
+      ) : url ? (
+        <>
+          <Field label="Abo-Link (wird nur jetzt angezeigt)">
+            {(control) => <input {...control} readOnly value={url} onFocus={(e) => e.currentTarget.select()} />}
+          </Field>
           <div className="actions" style={{ flexWrap: "wrap" }}>
             <a className="btn" href={url.replace(/^https?:/, "webcal:")}>
               Im Kalender öffnen
@@ -221,21 +271,6 @@ function KalenderAbo() {
             onClose={() => setRueckfrage(null)}
           >
             <p>Der bisherige Link wird sofort ungültig. Jeder Kalender muss danach den neuen Link abonnieren.</p>
-          </ConfirmDialog>
-          <ConfirmDialog
-            open={rueckfrage === "beenden"}
-            title="Kalender-Abo beenden?"
-            confirmLabel="Abo beenden"
-            danger
-            onConfirm={() =>
-              void run(async () => {
-                await revoke();
-                await router.invalidate();
-              })
-            }
-            onClose={() => setRueckfrage(null)}
-          >
-            <p>Der Link wird sofort ungültig, abonnierte Kalender bekommen die Fristen nicht mehr. Ein neues Abo muss jeder Kalender wieder einrichten.</p>
           </ConfirmDialog>
         </>
       ) : (

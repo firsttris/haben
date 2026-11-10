@@ -1,0 +1,1 @@
+ALTER TABLE "sso_takeovers" ADD COLUMN "replaced_subject" text;

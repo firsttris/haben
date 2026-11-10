@@ -1,6 +1,9 @@
+import { redact } from "@tanstack/redact/vite";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // Komponenten rendern in den Tests mit derselben Laufzeit wie in Browser und SSR (apps/web/vite.config.ts)
+  plugins: [redact()],
   test: {
     include: ["{apps,packages}/*/src/**/*.test.ts", "scripts/**/*.test.ts"],
     // Die Testdateien laufen parallel; jeder Worker hat eine eigene Datenbank, geklont aus einer einmal migrierten Vorlage

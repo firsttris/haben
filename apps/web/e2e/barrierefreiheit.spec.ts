@@ -208,7 +208,7 @@ function fieldsOffSurface(p: Page) {
       .filter((el) => getComputedStyle(el).backgroundColor !== surface)
       .map(
         (el) =>
-          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
+          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? (el as HTMLInputElement).labels?.[0]?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
       );
   });
 }
@@ -395,4 +395,155 @@ test("Archiv: Nur der gewählte Bereich und die gewählten Filter tragen aria-cu
 
   await open(page, "/archiv?ansicht=belege");
   expect(await current(page.getByRole("group", { name: "Richtung" }))).toEqual(["Alle"]);
+});
+
+test("Feld aus der gemeinsamen Komponente: Nur der Name klickt, der Hinweis gehört zur Beschreibung", async ({ page }) => {
+  await open(page, "/kontakte/neu");
+  const feld = page.getByRole("textbox", { name: "Ort", exact: true });
+  const flaeche = await feld.boundingBox();
+  if (!flaeche) throw new Error("Feld ohne Fläche");
+
+  // Auf Höhe des Feldnamens am rechten Rand des Felds: dort steht nichts mehr
+  await page.mouse.click(flaeche.x + flaeche.width - 8, flaeche.y - 14);
+  await expect(feld).not.toBeFocused();
+  await page.getByText("Ort", { exact: true }).click();
+  await expect(feld).toBeFocused();
+
+  const email = page.getByRole("textbox", { name: "E-Mail", exact: true });
+  await expect(email).toHaveAccessibleDescription(/Mehrere Adressen/);
+});
+
+/** Felder, die nicht über `Field` gebaut sind: ein umschließendes `label.field`, oder ein Feldname, dessen `for` ins Leere zeigt */
+function fieldsOffComponent(p: Page) {
+  return p.evaluate(() => {
+    const where = (el: Element) => `${el.tagName.toLowerCase()}.${el.className} „${(el.textContent ?? "").trim().slice(0, 40)}“`;
+    const wrapping = [...document.querySelectorAll("label.field")].map((el) => `umschließendes ${where(el)}`);
+    const dangling = [...document.querySelectorAll(".field")].flatMap((field) => {
+      const name = field.querySelector(":scope > .field-label");
+      if (!name) return [];
+      const id = name.getAttribute("for");
+      const target = id ? document.getElementById(id) : null;
+      const labels = target && "labels" in target ? [...((target as HTMLInputElement).labels ?? [])] : [];
+      return labels.includes(name as HTMLLabelElement) ? [] : [`Feldname ohne Feld: ${where(name)} (for=${id})`];
+    });
+    return [...wrapping, ...dangling];
+  });
+}
+
+// Was nur hinter einem Zustand erscheint (Dialoge, aufgeklappte Bereiche, Fehler), sieht dieser Test nicht; dafür gilt das AST-Inventar der Umstellung
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Alle Felder stammen aus der gemeinsamen Komponente: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await fieldsOffComponent(page), path).toEqual([]);
+    }
+  });
+}
+
+/** Verweise (`aria-describedby`, `aria-labelledby`, `list`), deren Ziel im Dokument fehlt, als lesbare Liste */
+function danglingReferences(p: Page) {
+  return p.evaluate(() =>
+    ["aria-describedby", "aria-labelledby", "list"].flatMap((name) =>
+      [...document.querySelectorAll(`[${name}]`)].flatMap((el) =>
+        (el.getAttribute(name) ?? "")
+          .split(/\s+/)
+          .filter((id) => id && !document.getElementById(id))
+          .map((id) => `${el.tagName.toLowerCase()} ${name}→${id}`),
+      ),
+    ),
+  );
+}
+
+test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zahlungsart Lastschrift", async ({ page }) => {
+  await open(page, "/rechnungen/wiederkehrend/neu");
+  const zahlungsart = page.getByLabel("Zahlungsart");
+  for (const art of ["ueberweisung", "lastschrift"]) {
+    await zahlungsart.selectOption(art);
+    expect(await danglingReferences(page), art).toEqual([]);
+  }
+  await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
+});
+
+/** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
+const FILE_PICKER_PAGES = [
+  "/dauerbelege/neu",
+  "/csv-import?art=kontakte",
+  "/einstellungen?bereich=bank",
+  "/einstellungen?bereich=elster",
+  "/archiv",
+  "/archiv/auftrag/723bf34b-f8ab-48f0-b391-656af4b72a96",
+];
+
+test("Dateiwähler: Ein Klick auf „Datei wählen“ öffnet an jeder Stelle den Dialog und der Feldname benennt das Feld", async ({ page }) => {
+  for (const path of FILE_PICKER_PAGES) {
+    await open(page, path);
+    const pickers = page.locator(".file-picker");
+    expect(await pickers.count(), `${path} hat einen Dateiwähler`).toBeGreaterThan(0);
+    for (let i = 0; i < (await pickers.count()); i++) {
+      const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5_000 }), pickers.nth(i).locator(".btn").click()]);
+      expect(chooser, `${path} Nr. ${i + 1}`).toBeTruthy();
+      const input = pickers.nth(i).locator("input[type=file]");
+      expect(await input.evaluate((el: HTMLInputElement) => el.labels?.length ?? 0), `${path} Nr. ${i + 1}: Feldname`).toBeGreaterThan(0);
+    }
+  }
+});
+
+test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört zum Eingabefeld", async ({ page }) => {
+  await open(page, "/einstellungen?bereich=email");
+  await page.getByLabel("Versandweg").selectOption("graph");
+  for (const name of ["Zertifikat", "Privater Schlüssel"]) {
+    const feld = page
+      .locator(".field", { has: page.getByText(name, { exact: false }) })
+      .locator(".file-picker")
+      .first();
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5_000 }), feld.locator(".btn").click()]);
+    expect(chooser, name).toBeTruthy();
+  }
+});
+
+// Kennzahlentabelle der Voranmeldung am Handy (#376): Bezeichnung über die volle Breite, darunter Bemessung und
+// Steuer nebeneinander; nichts läuft unter ein Feld, keine Zeile wird zehnmal so hoch wie am Desktop
+test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, nichts unter einem Feld", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await withTheme(page, "nacht");
+  let gefunden = false;
+  for (const candidate of [`/umsatzsteuer/${YEAR}-Q1`, `/umsatzsteuer/${YEAR}-03`, `/umsatzsteuer/${YEAR - 1}-03`, `/umsatzsteuer/${YEAR + 1}-03`]) {
+    await open(page, candidate);
+    if (await page.getByRole("button", { name: "Manuell überschreiben" }).count()) {
+      gefunden = true;
+      break;
+    }
+  }
+  expect(gefunden, "Voranmeldung zum manuellen Überschreiben").toBe(true);
+  await page.getByRole("button", { name: "Manuell überschreiben" }).click();
+  await expect(page.locator(".kz-row input").first()).toBeVisible();
+
+  const probleme = await page.evaluate(() => {
+    const tabelle = document.querySelector<HTMLElement>(".kz-table");
+    if (!tabelle) return ["keine Kennzahlentabelle"];
+    const breite = tabelle.getBoundingClientRect().width;
+    const meldungen: string[] = [];
+    const zeilen = [...tabelle.querySelectorAll<HTMLElement>(".kz-row:not(.head):not(.total)")];
+    if (zeilen.length < 5) meldungen.push(`nur ${zeilen.length} Zeilen`);
+    for (const zeile of zeilen) {
+      const kz = zeile.querySelector(".kz-num")?.textContent?.trim();
+      const label = zeile.querySelector<HTMLElement>(".kz-label");
+      if (!label) continue;
+      const lr = label.getBoundingClientRect();
+      if (lr.width < breite * 0.7) meldungen.push(`Kz ${kz}: Bezeichnung nur ${Math.round(lr.width)} von ${Math.round(breite)} px breit`);
+      if (label.scrollWidth > label.clientWidth + 1) meldungen.push(`Kz ${kz}: Bezeichnung abgeschnitten`);
+      // Eine Zeile am Desktop ist 64 px hoch; höchstens das Dreifache
+      if (zeile.getBoundingClientRect().height > 192) meldungen.push(`Kz ${kz}: ${Math.round(zeile.getBoundingClientRect().height)} px hoch`);
+      for (const feld of zeile.querySelectorAll<HTMLElement>("input, output, .kz-amount")) {
+        const fr = feld.getBoundingClientRect();
+        if (fr.width === 0) continue;
+        if (fr.top < lr.bottom - 1 && fr.bottom > lr.top + 1) meldungen.push(`Kz ${kz}: Feld überlappt die Bezeichnung`);
+        if (fr.right > breite + tabelle.getBoundingClientRect().left + 1) meldungen.push(`Kz ${kz}: Feld ragt über den Rand`);
+      }
+    }
+    return meldungen;
+  });
+  expect(probleme).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await axe(page), "axe am Handy").toEqual([]);
 });

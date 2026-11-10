@@ -10,6 +10,7 @@ import type {
   SevVoucher,
   SevVoucherPos,
 } from "./types.ts";
+import { taxesFromPositions } from "./steuersaetze.ts";
 
 /*
  * Reine Abbildungen der sevDesk-Antworten auf dieselben Strukturen wie beim Lexoffice-Import,
@@ -113,34 +114,6 @@ export function firstByContact<T extends { contact?: { id: string | number } | n
 
 // ------------------------------------------------------------ Steuersätze
 
-type Bucket = { rate: number; net: number; tax: number };
-
-/**
- * Netto und Steuer je Steuersatz aus den Positionen. Maßgeblich sind die Summen des Belegs:
- * Rundungsdifferenzen zwischen Positionen und Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer.
- */
-function taxesFromPositions(positions: { taxRate?: string | number | null; net: number; tax: number }[], net: number, tax: number): Bucket[] {
-  const byRate = new Map<number, Bucket>();
-  for (const p of positions) {
-    const rate = lexToBasisPoints(sevNumber(p.taxRate));
-    const b = byRate.get(rate) ?? { rate, net: 0, tax: 0 };
-    b.net += p.net;
-    b.tax += p.tax;
-    byRate.set(rate, b);
-  }
-  const buckets = [...byRate.values()];
-  if (buckets.length <= 1) {
-    if (net === 0 && tax === 0 && buckets.length === 0) return [];
-    return [{ rate: buckets[0]?.rate ?? 0, net, tax }];
-  }
-  const largestOf = (list: Bucket[]) => list.reduce((a, b) => (Math.abs(b.net) > Math.abs(a.net) ? b : a));
-  largestOf(buckets).net += net - buckets.reduce((s, b) => s + b.net, 0);
-  // Steuerdifferenzen nur auf einen Satz mit Steuer, sonst stünde beim 0-%-Satz Steuer
-  const taxed = buckets.filter((b) => b.rate !== 0);
-  largestOf(taxed.length > 0 ? taxed : buckets).tax += tax - buckets.reduce((s, b) => s + b.tax, 0);
-  return buckets;
-}
-
 function positionAmounts(p: SevDocumentPos | SevVoucherPos): { net: number; tax: number } {
   const net = cents(p.sumNet ?? p.sumNetAccounting);
   const grossRaw = p.sumGross ?? p.sumGrossAccounting;
@@ -231,6 +204,16 @@ export function isSevInvoiceImportable(i: SevInvoice): boolean {
   return !["WKR", "MA"].includes((i.invoiceType ?? "RE").toUpperCase());
 }
 
+// Das Brutto zeigt wie im Kopf des Belegs, ob die Positionen schon negativ stehen; das Netto kann null sein oder gegenläufig.
+// Heben sie sich brutto auf, entscheidet die Steuer. Zeilen mit Gegenvorzeichen sind Rabatte oder Verrechnungen
+function creditPositionSign(positions: SevDocumentPos[]): (n: number) => number {
+  const amounts = positions.map(positionAmounts);
+  const tax = amounts.reduce((sum, a) => sum + a.tax, 0);
+  const gross = amounts.reduce((sum, a) => sum + a.net + a.tax, 0);
+  const positive = (gross || tax) > 0;
+  return (n) => (positive ? neg(n) : n);
+}
+
 export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMappedVoucher {
   const id = String(i.id);
   const invoiceType = (i.invoiceType ?? "RE").toUpperCase();
@@ -238,6 +221,7 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
   const storno = invoiceType === "SR";
   const type: LegacyVoucherType = storno ? "creditnote" : invoiceType === "AR" ? "downpaymentinvoice" : "invoice";
   const sign = (n: number) => (storno ? neg(Math.abs(n)) : n);
+  const positionSign = storno ? creditPositionSign(positions) : (n: number) => n;
 
   const tax = sign(cents(i.sumTax));
   const gross = sign(cents(i.sumGross));
@@ -245,7 +229,7 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
   const taxes = taxesFromPositions(
     positions.map((p) => {
       const a = positionAmounts(p);
-      return { taxRate: p.taxRate, net: sign(a.net), tax: sign(a.tax) };
+      return { rate: lexToBasisPoints(sevNumber(p.taxRate)), net: positionSign(a.net), tax: positionSign(a.tax) };
     }),
     net,
     tax,
@@ -288,13 +272,14 @@ export function isSevCreditNoteImportable(c: SevCreditNote): boolean {
 
 export function mapSevCreditNote(c: SevCreditNote, positions: SevDocumentPos[]): SevMappedVoucher {
   const id = String(c.id);
+  const positionSign = creditPositionSign(positions);
   const tax = neg(Math.abs(cents(c.sumTax)));
   const gross = neg(Math.abs(cents(c.sumGross)));
   const net = gross - tax;
   const taxes = taxesFromPositions(
     positions.map((p) => {
       const a = positionAmounts(p);
-      return { taxRate: p.taxRate, net: neg(Math.abs(a.net)), tax: neg(Math.abs(a.tax)) };
+      return { rate: lexToBasisPoints(sevNumber(p.taxRate)), net: positionSign(a.net), tax: positionSign(a.tax) };
     }),
     net,
     tax,
@@ -337,12 +322,13 @@ export function isSevVoucherImportable(v: SevVoucher): boolean {
 }
 
 /**
- * Beleg aus der Buchhaltung. creditDebit C ist eine Einnahme, D eine Ausgabe. Negative Summen
- * sind Gutschriften und bleiben negativ, wie beim Lexoffice-Import.
+ * Beleg aus der Buchhaltung. creditDebit D ist eine Einnahme, C eine Ausgabe: Die OpenAPI nennt nur „credit (C) or
+ * debit (D)“, echte Antworten tragen bei C Aufwandskonten, bei D Erlöse und Erstattungen (#472). Negative Summen sind
+ * Gutschriften und bleiben negativ, wie beim Lexoffice-Import.
  */
 export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMappedVoucher {
   const id = String(v.id);
-  const income = (v.creditDebit ?? "D").toUpperCase() === "C";
+  const income = (v.creditDebit ?? "C").toUpperCase() === "D";
   const tax = cents(v.sumTax);
   const gross = cents(v.sumGross);
   const net = gross - tax;
@@ -359,7 +345,7 @@ export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMap
     };
   });
   const taxes = taxesFromPositions(
-    categories.map((c) => ({ taxRate: c.rate / 100, net: c.net, tax: c.tax })),
+    categories.map((c) => ({ rate: c.rate, net: c.net, tax: c.tax })),
     net,
     tax,
   );
@@ -381,7 +367,7 @@ export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMap
       serviceTo: lexDate(v.deliveryDateUntil) ?? serviceFrom,
       status: statusName(status, String(v.status ?? "")),
       contactLexofficeId: refId(v.supplier),
-      contactName: v.supplierName?.trim() ?? "",
+      contactName: v.supplierName?.trim() || v.supplierNameAtSave?.trim() || "",
       currency: v.currency?.trim() || "EUR",
       net,
       tax,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { searchOptions } from "../lib/combobox.ts";
 import { Combobox } from "./Combobox.tsx";
+import type { FieldControlProps } from "./Field.tsx";
 
 export interface CustomerOption {
   id: string;
@@ -18,14 +19,13 @@ const customerText = (c: CustomerOption) => `${c.name}${c.ort ? ` · ${c.ort}` :
  * ein geleertes Feld nimmt ihn weg.
  */
 export function CustomerCombobox({
-  id,
   contacts,
   contactId,
   disabled,
   onChoose,
   onCreate,
-}: {
-  id: string;
+  ...control
+}: FieldControlProps & {
   contacts: CustomerOption[];
   contactId: string;
   disabled: boolean;
@@ -47,8 +47,8 @@ export function CustomerCombobox({
 
   return (
     <Combobox
+      {...control}
       commitOnTab
-      id={id}
       value={query ?? (chosen ? customerText(chosen) : "")}
       onInput={setQuery}
       search={() => searchOptions(customers, query ?? "", (c) => [c.name, c.kundennummer, c.ort])}

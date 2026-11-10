@@ -1,7 +1,19 @@
 import { letterheadDesignInputSchema } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { loadDesign, logoInfo, MAX_LOGO_BYTES, removeLogo, saveAccentColor, saveDesign, saveLogo } from "../modules/stammdaten/index.ts";
+import {
+  backgroundInfo,
+  loadDesign,
+  logoInfo,
+  MAX_BACKGROUND_BYTES,
+  MAX_LOGO_BYTES,
+  removeBackground,
+  removeLogo,
+  saveAccentColor,
+  saveBackground,
+  saveDesign,
+  saveLogo,
+} from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getLogo = createServerFn({ method: "GET" })
@@ -25,6 +37,25 @@ export const deleteLogo = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await removeLogo(context.user.id);
+    return { ok: true };
+  });
+
+export const getBackground = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => backgroundInfo());
+
+export const uploadBackground = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ base64: z.string().max(Math.ceil((MAX_BACKGROUND_BYTES * 4) / 3) + 16) }))
+  .handler(async ({ data, context }) => {
+    await saveBackground(context.user.id, new Uint8Array(Buffer.from(data.base64, "base64")));
+    return { ok: true };
+  });
+
+export const deleteBackground = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await removeBackground(context.user.id);
     return { ok: true };
   });
 

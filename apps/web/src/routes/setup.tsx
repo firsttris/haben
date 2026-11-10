@@ -1,12 +1,16 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
+import { SsoSignIn } from "../components/SsoSignIn.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
+import { Field } from "../components/Field.tsx";
 
 export const Route = createFileRoute("/setup")({
   beforeLoad: async () => {
     const state = await getAuthState();
+    // SSO-Modus: Passkeys gibt es nicht, nach der Einrichtung geht es nur über die Anmeldeseite hinein
+    if (state.oidc.only && state.user) throw redirect({ to: "/" });
     if (state.initialized && !state.user) throw redirect({ to: "/login" });
     return { state };
   },
@@ -61,7 +65,16 @@ function SetupPage() {
         <div className="brand" style={{ color: "var(--ink)", padding: 0 }}>
           <span className="brand-mark">H</span>Haben
         </div>
-        {state.user ? (
+        {state.oidc.only ? (
+          <>
+            <h1 style={{ fontSize: 24 }}>Haben einrichten</h1>
+            <p className="muted" style={{ margin: 0 }}>
+              Haben nutzt ausschließlich {state.oidc.name}. Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein; danach entstehen Zugänge
+              automatisch bei der ersten Anmeldung. Ein Einrichtungscode, Passwort oder Passkey wird nicht gebraucht.
+            </p>
+            <SsoSignIn name={state.oidc.name} label={`Mit ${state.oidc.name} einrichten`} />
+          </>
+        ) : state.user ? (
           <>
             <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
             <p className="muted">Melde dich künftig mit einem Passkey an, ohne Passwort. Das Passwort bleibt als Rückfallebene.</p>
@@ -78,25 +91,17 @@ function SetupPage() {
             <p className="muted" style={{ margin: 0 }}>
               Haben hat genau ein Konto. Nach dem Anlegen fügst du einen Passkey hinzu.
             </p>
-            <label className="field">
-              Einrichtungscode
-              <input name="setupCode" required autoComplete="off" spellCheck={false} aria-describedby="setup-code-hint" />
-            </label>
+            <Field label="Einrichtungscode" describedBy="setup-code-hint">
+              {(control) => <input {...control} name="setupCode" required autoComplete="off" spellCheck={false} />}
+            </Field>
             <p id="setup-code-hint" className="field-hint">
               Steht beim Start im Log des Servers, z. B. mit <code>docker compose logs app</code>.
             </p>
-            <label className="field">
-              Name
-              <input name="name" required autoComplete="name" />
-            </label>
-            <label className="field">
-              E-Mail
-              <input name="email" type="email" required autoComplete="email" />
-            </label>
-            <label className="field">
-              Passwort (mindestens 12 Zeichen)
-              <input name="password" type="password" required minLength={12} autoComplete="new-password" />
-            </label>
+            <Field label="Name">{(control) => <input {...control} name="name" required autoComplete="name" />}</Field>
+            <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" required autoComplete="email" />}</Field>
+            <Field label="Passwort (mindestens 12 Zeichen)">
+              {(control) => <input {...control} name="password" type="password" required minLength={12} autoComplete="new-password" />}
+            </Field>
             <button type="submit" className="btn btn-primary" disabled={busy}>
               Konto anlegen
             </button>

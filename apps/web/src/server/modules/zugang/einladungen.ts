@@ -5,6 +5,7 @@ import { invitationHash } from "../../anmeldung.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
+import { ssoOnly } from "../../sso-policy.ts";
 
 /*
  * Einladungen für die Steuerberatung (Roadmap Platz 10, Stufe 1). Der Inhaber erzeugt einen Link, die Eingeladene legt
@@ -15,6 +16,11 @@ import { UserError } from "../../errors.ts";
 export const EINLADUNG_GUELTIG_STUNDEN = 72;
 
 export class ZugangError extends UserError {}
+
+/** Einladen, Sperren, Freigeben und Entfernen gibt es nur im Standardmodus; im SSO-Modus entscheidet der Anbieter */
+export function requireLocalManagement(): void {
+  if (ssoOnly()) throw new ZugangError("Im SSO-Modus werden Zugänge beim OIDC-Anbieter verwaltet, nicht in Haben.");
+}
 
 export const invitationInputSchema = z.object({
   label: z.string().trim().min(1, "Bezeichnung fehlt").max(80, "Die Bezeichnung darf höchstens 80 Zeichen lang sein."),
@@ -33,6 +39,7 @@ function statusOf(row: { acceptedAt: Date | null; revokedAt: Date | null; expire
  * später nicht wieder anzeigen.
  */
 export async function createInvitation(actor: string, input: z.input<typeof invitationInputSchema>, now = new Date()) {
+  requireLocalManagement();
   const { label } = invitationInputSchema.parse(input);
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(now.getTime() + EINLADUNG_GUELTIG_STUNDEN * 3_600_000);
@@ -65,6 +72,7 @@ export async function listInvitations(now = new Date()) {
 
 /** Zieht eine noch nicht eingelöste Einladung zurück; der Link gilt danach nicht mehr */
 export async function revokeInvitation(actor: string, id: string): Promise<void> {
+  requireLocalManagement();
   const rows = await withActor(actor, (tx) =>
     tx
       .update(schema.invitations)

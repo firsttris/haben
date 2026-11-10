@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { and, asc, between, desc, eq, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { effectivePayment } from "./payment-history.ts";
+import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -626,6 +628,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       line.debit ? money(line.debit) : "",
       line.credit ? money(line.credit) : "",
       line.taxCode,
+      line.basis === null ? "" : money(line.basis),
       entry.reversesId,
       iso(entry.lockedAt),
       iso(entry.createdAt),
@@ -646,6 +649,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         "Soll",
         "Haben",
         "Steuerschlüssel",
+        "Bemessungsgrundlage",
         "Gegenbuchung zu",
         "Festgeschrieben",
         "Erfasst",
@@ -1285,7 +1289,14 @@ async function* orderFiles(year: number, problems: string[]): AsyncGenerator<Arc
 
 async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
   const vouchers = await db
-    .select()
+    .select({
+      ...getTableColumns(schema.lexofficeVouchers),
+      type: effectiveType("lexoffice_vouchers"),
+      direction: effectiveDirection("lexoffice_vouchers"),
+      contactName: effectiveContactName("lexoffice_vouchers"),
+      taxes: effectiveTaxes("lexoffice_vouchers"),
+      payment: effectivePayment("lexoffice_vouchers"),
+    })
     .from(schema.lexofficeVouchers)
     .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
     .orderBy(asc(schema.lexofficeVouchers.date), asc(schema.lexofficeVouchers.number), asc(schema.lexofficeVouchers.id));
@@ -1651,7 +1662,8 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
                          ursprünglichem Dateinamen.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
-                         Steuerschlüssel); Stornos verweisen auf die Ursprungsbuchung.
+                         Steuerschlüssel, Bemessungsgrundlage bei Ist-Versteuerung an
+                         der Zahlung); Stornos verweisen auf die Ursprungsbuchung.
 anlagen/anlagenverzeichnis.csv
                          Anlagenverzeichnis des Jahres: Anschaffung, Buchwert am
                          Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.

@@ -155,6 +155,12 @@ jobs:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_e2e
           # Der gebaute Server statt des Entwicklungsservers
           E2E_SERVER_COMMAND: bun .output/server/index.mjs
+      - name: SSO-Ende-zu-Ende mit Produktionsbuild und TLS
+        if: matrix.teil == 1
+        run: bun run e2e --config playwright.sso-only.config.ts
+        env:
+          E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_sso_e2e
+          E2E_SERVER_COMMAND: bun .output/server/index.mjs
       - if: always()
         uses: actions/upload-artifact@v7
         with:
