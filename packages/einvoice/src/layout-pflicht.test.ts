@@ -52,6 +52,17 @@ describe("Prüfung der Pflichtangaben", () => {
     expect(fehlendeAngaben(rechnung, [ohne]).join()).toContain("Anschrift des Absenders");
   });
 
+  it("verlangt Steuernummer oder USt-IdNr. nur auf Rechnungen (§ 14 Abs. 4 Nr. 2 UStG), nicht auf Angebot, Lieferschein oder Mahnung", () => {
+    const ohneSteuer = (b: typeof rechnung) => JSON.stringify(b.data).replaceAll("13/345/67890", "").replaceAll("DE123456789", "");
+    expect(fehlendeAngaben(rechnung, [ohneSteuer(rechnung)]).join()).toContain("Steuernummer oder USt-IdNr.");
+    // Eine der beiden genügt
+    expect(fehlendeAngaben(rechnung, [JSON.stringify(rechnung.data).replaceAll("DE123456789", "")])).toEqual([]);
+    for (const name of ["Angebot", "Auftragsbestätigung", "Lieferschein", "Mahnung"]) {
+      const b = layoutBeispiele().find((x) => x.name === name)!;
+      expect(fehlendeAngaben(b, [ohneSteuer(b)]), name).toEqual([]);
+    }
+  });
+
   it("verzeiht Leerraum und Umbrüche im Text des Blatts", () => {
     expect(fehlendeAngaben(rechnung, [voll.split("").join(" ")])).toEqual([]);
   });
