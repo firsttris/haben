@@ -107,7 +107,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace: Typen für Node aus den Dev-Abhängigkeiten der Wurzel, der benutzte Teil von Bun in `deploy/instanzen/bun.d.ts`, weil `@types/bun` in der Wurzel auch die Typen von `apps/web` ändern würde) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
@@ -123,7 +123,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 
 ## Tests
 
-Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src`, `packages/*/src` und `scripts/` ein und führt die Dateien parallel aus, eine Datei je Worker.
+Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src`, `packages/*/src`, `scripts/` und `deploy/` ein und führt die Dateien parallel aus, eine Datei je Worker.
 
 Komponenten rendern die Tests wie Browser und SSR mit TanStack Redact: `vitest.config.ts` lädt das Plugin `redact()`, das Imports aus `react` und `react-dom/server` umleitet. Dafür steht `@tanstack/redact` zusätzlich in den Dev-Abhängigkeiten der Wurzel, weil Bun isoliert installiert und die Wurzel das Paket aus `apps/web` nicht sieht; beide Einträge tragen dieselbe feste Version (`apps/web/src/components/redact-laufzeit.test.ts` prüft das). Pakete aus `node_modules` lädt Vitest weiter extern, sie sehen also React; eine Komponente, die Hooks eines solchen Pakets nutzt (etwa aus `@tanstack/react-router`), bricht im Test deshalb mit `dispatcher.useContext` ab.
 
@@ -415,7 +415,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 | `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
-| `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
+| `deploy` | Compose, Quadlets, Caddyfile, Startskript, Befehl `haben` im Image (`haben.sh`); `deploy/backup`: Backup-Image (backup.sh, restore.sh); `deploy/instanzen`: Werkzeug für mehrere Instanzen (TypeScript, läuft mit Bun ohne `bun install`, nur `node:`-Module und Bun) |
 | `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://haben.app/ |
 
 ## Neues Bankformat

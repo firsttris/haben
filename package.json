@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "bun run --cwd apps/web dev",
     "build": "bun run --cwd apps/web build",
-    "typecheck": "bun run --workspaces typecheck",
+    "typecheck": "bun run --workspaces typecheck && bun --bun tsc -p deploy",
     "release:patch": "bun pm version patch",
     "release:minor": "bun pm version minor",
     "release:major": "bun pm version major",
@@ -29,6 +29,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@tanstack/redact": "0.3.1",
+    "@types/node": "^26.0.0",
     "oxc-parser": "^0.156.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

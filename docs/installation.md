@@ -367,14 +367,16 @@ Haben führt genau eine Buchhaltung: ein Unternehmen, ein Inhaber, auf Wunsch mi
 
 ### Mit dem Werkzeug
 
-`deploy/instanzen/haben-instanzen.sh` legt Instanzen an, aktualisiert alle nacheinander und zeigt ihren Stand. Es braucht `bash`, Docker mit Compose 2.23 oder neuer, `openssl` und `curl`:
+`deploy/instanzen/haben-instanzen.ts` legt Instanzen an, aktualisiert alle nacheinander und zeigt ihren Stand. Es läuft mit [Bun](https://bun.com) direkt aus einem Checkout des Repositorys, ohne `bun install` und ohne Build, und braucht dazu Docker mit Compose 2.23 oder neuer. Die Vorlagen (`compose.yml`, `compose.env.example`) nimmt es aus `deploy/` im Checkout:
 
 ```sh
-curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/instanzen/haben-instanzen.sh
-chmod +x haben-instanzen.sh
-./haben-instanzen.sh neu firma1 firma1.example.de
-./haben-instanzen.sh neu firma2 firma2.example.de
+git clone --depth 1 https://github.com/firsttris/haben.git ~/haben-werkzeug
+cd ~/haben-werkzeug
+bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.example.de
+bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.example.de
 ```
+
+Das Werkzeug selbst aktualisierst du mit `git pull` im Checkout; die Instanzen aktualisiert danach `update`. Eine neue Vorlage übernimmt `update` nicht: Die `compose.yml` jeder Instanz bleibt, wie sie beim Anlegen war, bis du sie aus `deploy/` neu kopierst.
 
 Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 
@@ -396,7 +398,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | --- | --- |
 | `neu <name> <domain>` | Verzeichnis, `.env` mit eigenen Zufallswerten für `DB_PASSWORD`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`, die Override-Datei und der Eintrag im gemeinsamen Caddy. Startet Proxy und Instanz und nennt den Einrichtungscode. Gibt es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon (auch nur noch seine Volumes) oder gehört die Domain einer anderen Instanz oder einem übrig gebliebenen Eintrag in `proxy/sites/`, bricht es ab und ändert nichts; ebenso, wenn docker nicht antwortet. Der Name besteht aus a–z, 0–9 und `-`; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben |
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende; startet eine App ständig neu oder meldet Compose für eine Instanz einen Fehler, hält es dort an |
-| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung aus `backup_status`; eine gestoppte Instanz steht als „gestoppt“ in der Liste, eine App, die ständig neu startet, als „startet neu“ |
+| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung. Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste. Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“ |
 | `liste` | Name, Domain und Verzeichnis |
 
 Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter. Wer eine Instanz löscht, entfernt auch ihre Datei in `proxy/sites/`.
@@ -407,7 +409,7 @@ Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
-| `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID`. Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
+| `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](#eric-einbinden) |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 | `--sso --oidc-issuer URL --oidc-client-id ID --oidc-client-secret WERT` | ausschließlich [Single Sign-on](#single-sign-on-mit-openid-connect), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia) |
@@ -544,6 +546,7 @@ Ein Update lässt sich nicht einfach zurücknehmen: Migrationen ändern die Date
 | Zeitplan | Dienst `backup`, täglich um `BACKUP_TIME` (Standard 03:15, Zeitzone Europe/Berlin) | `haben-backup.timer` startet `haben-backup.container` täglich um 03:15 Uhr, ein verpasster Lauf wird nachgeholt (`Persistent=true`) |
 | Backup jetzt | `docker compose exec backup backup.sh` | `systemctl --user start haben-backup` |
 | Protokoll | `docker compose logs backup` | `journalctl --user -u haben-backup` |
+| Stand | `docker compose exec app haben status`: Version, ERiC und letzte erfolgreiche Sicherung, mit Hinweis, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner gelang (`--json` für Skripte) | `podman exec haben-app haben status` |
 | Passwort des Backups | `RESTIC_PASSWORD` in `.env` | Secret `haben-restic-password` |
 | Repository auf einem zweiten System | `RESTIC_REPOSITORY` in `.env` | `RESTIC_REPOSITORY` in `~/.config/haben/backup.env` |
 | Test-Restore | alle `RESTORE_CHECK_DAYS` Tage (`.env`, Standard 7) | alle `RESTORE_CHECK_DAYS` Tage (`backup.env`, Standard 7) |
