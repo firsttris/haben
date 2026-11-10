@@ -66,6 +66,8 @@ import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
+import { StichjahrCard } from "../../components/StichjahrCard.tsx";
+import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
@@ -95,6 +97,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      stichjahr,
     ] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -116,6 +119,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getZugaenge(),
       getExtractionSettings(),
       getQuoteDefaultAttachments(),
+      getStichjahr(),
     ]);
     return {
       ...company,
@@ -139,6 +143,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       zugaenge,
       extraction,
       quoteDefaultAttachments,
+      stichjahr,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -168,6 +173,7 @@ function SettingsPage() {
     zugaenge,
     extraction,
     quoteDefaultAttachments,
+    stichjahr,
   } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const areas = settingsAreas(oidc.only);
@@ -193,7 +199,12 @@ function SettingsPage() {
           ))}
         </nav>
         <div className="stack settings-content" aria-label={area.label}>
-          {bereich === "firma" && <CompanyForm />}
+          {bereich === "firma" && (
+            <>
+              <CompanyForm />
+              <StichjahrCard stand={stichjahr} />
+            </>
+          )}
           {bereich === "persoenlich" && <TaxpayerForm />}
           {bereich === "rechnungen" && (
             <>
