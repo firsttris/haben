@@ -123,10 +123,11 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import im Jahresabgleich (
 
   beforeEach(() => company("soll"));
 
-  it("zählt Erlöse auf dem Automatikkonto 8400 (ohne BU-Schlüssel) in Kz 81", async () => {
+  it("zählt Erlöse auf dem Automatikkonto 8400 (ohne BU-Schlüssel) mit Umsatzsteuer", async () => {
     await bb.startBuchhaltungsbutlerImport("test-user", parts([{ id: "1", debit: "1200", credit: "8400", bu: "", rate: "19", receipt: true }]));
     const y = await year2023();
-    expect(y.vat[0]).toMatchObject({ month: "2023-01", kz81: 10000, tax81: 1900 });
+    expect(y.sumsFrom).toBe("datev");
+    expect(y.einnahmen).toMatchObject({ net: 10000, tax: 1900 });
   });
 
   it("zählt Geldtransit zwischen Bankkonten nicht als Einnahme", async () => {
@@ -147,11 +148,14 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import im Jahresabgleich (
     expect(y.einnahmen.net).toBe(10000);
   });
 
-  it("zeigt bei Ist-Versteuerung die Umsatzsteuer der Erlöse oder einen Hinweis statt still 0", async () => {
+  it("zeigt bei Ist-Versteuerung keine Umsatzsteuer je Monat aus BB-Belegen, die Jahressummen kommen aus dem DATEV-Stapel", async () => {
     await company("ist");
     await bb.startBuchhaltungsbutlerImport("test-user", parts([{ id: "1", debit: "1200", credit: "8400", bu: "3", rate: "19", receipt: true }]));
     const y = await year2023();
-    expect(y.vatIssue !== null || y.vat.some((m) => m.kz81 === 10000)).toBe(true);
+    // Der Export enthält keine Zahlungen je Rechnung; ohne sie gibt es keine Monate nach vereinnahmten Entgelten
+    expect(y.vat).toEqual([]);
+    expect(y.sumsFrom).toBe("datev");
+    expect(y.einnahmen).toMatchObject({ net: 10000, tax: 1900 });
   });
 
   it("zählt die Zahlung einer Rechnung über das Debitorenkonto nicht ein zweites Mal", async () => {
@@ -166,11 +170,11 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import im Jahresabgleich (
     expect(y.einnahmen).toMatchObject({ net: 10000, tax: 1900 });
   });
 
-  it("ordnet Geldtransit auch bei einer GmbH als neutral ein", async () => {
+  it("zählt Geldtransit auch bei einer GmbH nicht als Einnahme", async () => {
     await company("soll", "gmbh");
     await bb.startBuchhaltungsbutlerImport("test-user", parts([{ id: "1", debit: "1360", credit: "1200", bu: "", rate: "19", receipt: true }]));
     const y = await year2023();
     expect(y.einnahmen.gross).toBe(0);
-    expect(y.neutral).toMatchObject([{ kind: "geldtransit", count: 1 }]);
+    expect(y.ausgaben.gross).toBe(0);
   });
 });

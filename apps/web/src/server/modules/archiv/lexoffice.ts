@@ -537,17 +537,16 @@ export async function reconciliation() {
   // Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, in GmbH und UG
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
   const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) }));
-  const businessRows = classified.filter((v) => !v.neutral);
+  // BuchhaltungsButler-Belege nur als Archiv (Suche, PDF): Einnahme, Ausgabe oder neutral ließe sich aus den Konten nur
+  // schätzen. Summen und Steuer kommen für diese Jahre aus dem DATEV-Buchungsstapel desselben Exports.
+  const figures = classified.filter((v) => v.source !== "buchhaltungsbutler");
+  const businessRows = figures.filter((v) => !v.neutral);
   // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
   // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
   const vatIssueOf = (year: number) => {
     if (versteuerung !== "ist") return null;
     if (businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))) {
       return "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt.";
-    }
-    // Der BuchhaltungsButler-Export enthält keine Zahlungen je Rechnung; ohne sie bliebe die Umsatzsteuer still 0
-    if (businessRows.some((v) => v.source === "buchhaltungsbutler" && v.direction === "einnahme" && v.date.startsWith(`${year}-`))) {
-      return "BuchhaltungsButler-Export ohne Zahlungen je Rechnung: Die Umsatzsteuer nach vereinnahmten Entgelten lässt sich je Monat nicht nachrechnen.";
     }
     return null;
   };
@@ -644,7 +643,7 @@ export async function reconciliation() {
       const checks: ReconciliationCheck[] = [
         ...(vatIssue ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: vatIssue }] : []),
         {
-          ok: vouchers.length > 0,
+          ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
           label: "Belege und Rechnungen per API abgerufen",
           detail: [
             `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
@@ -693,7 +692,9 @@ export async function reconciliation() {
         einnahmen: sum("einnahme"),
         ausgaben: sum("ausgabe"),
         /** Weder Einnahme noch Ausgabe, je Art: zum Vergleich sichtbar statt still weggelassen */
-        neutral: legacyNeutralSums(yearRows.flatMap((v) => (v.neutral ? [{ kind: v.neutral, direction: v.direction, gross: v.gross }] : []))),
+        neutral: legacyNeutralSums(
+          figures.flatMap((v) => (v.neutral && v.date.startsWith(`${year}-`) ? [{ kind: v.neutral, direction: v.direction, gross: v.gross }] : [])),
+        ),
         /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel */
         sumsFrom: fromDatev ? ("datev" as const) : ("belege" as const),
         withoutFile,
@@ -804,6 +805,8 @@ export async function legacyVouchersForPeriod(filter: {
               )})))`
           : sql``
       })
+      -- BuchhaltungsButler-Belege gehen nicht in die Umsatzsteuer ein, wie im Abgleich (Summen aus dem DATEV-Stapel)
+      and v.source <> 'buchhaltungsbutler'
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
     order by v.date, v.number`);

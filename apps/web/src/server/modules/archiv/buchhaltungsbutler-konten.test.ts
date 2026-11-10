@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
+import { datevYearSums } from "@haben/import";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // Abgleich je Jahr (Einnahmen, Umsatzsteuer je Monat) nach einem BuchhaltungsButler-Import
@@ -90,7 +91,7 @@ function parts(rows: Row[], skr = "03") {
   ];
 }
 
-describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Anlagen, Kreditoren und sonstige Konten (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Summen aus dem DATEV-Stapel (Postgres)", () => {
   let bb: typeof import("./buchhaltungsbutler.ts");
   let lex: typeof import("./lexoffice.ts");
   let sql: postgres.Sql;
@@ -121,135 +122,98 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Anlagen
     return years.find((y) => y.year === 2023)!;
   }
 
-  it.each([
-    ["SKR03", "0420", "1200", "03"],
-    ["SKR04", "0650", "1800", "04"],
-  ] as const)("%s: Anlage über das Kreditorenkonto behält ihre Vorsteuer (Kz 66)", async (skr, asset, bank, code) => {
-    await company(skr, "soll", "gmbh");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts(
-        [
-          { id: "1", debit: asset, credit: "70000", bu: "9", rate: "19", receipt: true, amount: "1.190,00" },
-          { id: "2", debit: "70000", credit: bank, bu: "", rate: "", receipt: false, amount: "1.190,00" },
-        ],
-        code,
-      ),
-    );
-    const y = await year2023();
-    expect(y.vat[0]).toMatchObject({ month: "2023-01", kz66: 19000 });
+  type Case = [name: string, skr: "SKR03" | "SKR04", rechtsform: string, rows: Row[]];
+  const R = (id: string, debit: string, credit: string, bu: string, amount: string, receipt = true): Row => ({
+    id,
+    debit,
+    credit,
+    bu,
+    rate: bu === "3" || bu === "9" ? "19" : "0",
+    receipt,
+    amount,
   });
+  // Buchungen aus den Review-Runden zu #571: jede, deren Einordnung aus den Konten geschätzt werden müsste
+  const CASES: Case[] = [
+    ["Anlagekauf über den Kreditor", "SKR03", "gmbh", [R("1", "0420", "70000", "9", "1.190,00"), R("2", "70000", "1200", "", "1.190,00", false)]],
+    ["Anlagenverkauf bei Buchverlust (8801)", "SKR03", "gmbh", [R("1", "1200", "8801", "3", "1.190,00")]],
+    ["Wareneinkauf auf Bestand Waren (3980)", "SKR03", "gmbh", [R("1", "3980", "70000", "9", "119,00")]],
+    ["Kfz-Steuer (7685)", "SKR04", "einzelunternehmen", [R("1", "7685", "1800", "", "180,00")]],
+    ["Zinsaufwand (2110)", "SKR03", "einzelunternehmen", [R("1", "2110", "1200", "", "50,00")]],
+    ["Erstattung der Kfz-Steuer (1800 an 7685)", "SKR04", "einzelunternehmen", [R("1", "1800", "7685", "", "50,00")]],
+    [
+      "Umsatzsteuer-Zahlung und Darlehen",
+      "SKR04",
+      "einzelunternehmen",
+      [R("1", "3820", "1800", "", "300,00", false), R("2", "1800", "3150", "", "5.000,00", false)],
+    ],
+    ["Darlehensauszahlung (0630)", "SKR03", "einzelunternehmen", [R("1", "1200", "0630", "", "10.000,00")]],
+    ["Privatentnahme (2100)", "SKR04", "einzelunternehmen", [R("1", "2100", "1800", "", "500,00")]],
+    ["Körperschaftsteuer (2200)", "SKR03", "gmbh", [R("1", "2200", "1200", "", "5.000,00")]],
+    ["Körperschaftsteuer (7600)", "SKR04", "gmbh", [R("1", "7600", "1800", "", "5.000,00")]],
+    ["Gesellschafter (3510)", "SKR04", "gmbh", [R("1", "3510", "1800", "", "500,00")]],
+  ];
 
-  it("SKR04: Kfz-Steuer (7685) mit Beleg ist eine Ausgabe, kein Privat oder Geldtransit", async () => {
-    await company("SKR04", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "7685", credit: "1800", bu: "", rate: "0", receipt: true, amount: "180,00" }], "04"),
+  async function importCase(skr: "SKR03" | "SKR04", rechtsform: string, rows: Row[]) {
+    await company(skr, "soll", rechtsform);
+    await bb.startBuchhaltungsbutlerImport("test-user", parts(rows, skr === "SKR03" ? "03" : "04"));
+    return year2023();
+  }
+
+  it.each(CASES)("%s (%s, %s): Summen aus dem DATEV-Stapel, keine Einordnung aus den BB-Belegen", async (_name, skr, rechtsform, rows) => {
+    const y = await importCase(skr, rechtsform, rows);
+    const stack = await sql<{ amount: number; side: "S" | "H"; account: string; contra_account: string; bu_key: string }[]>`
+      select amount, side, account, contra_account, bu_key from datev_bookings`;
+    const expected = datevYearSums(
+      stack.map((b) => ({ amount: Number(b.amount), side: b.side, account: b.account, contraAccount: b.contra_account, buKey: b.bu_key })),
+      skr,
     );
-    const y = await year2023();
-    expect(y.ausgaben.gross).toBe(18000);
+    expect(y.sumsFrom).toBe("datev");
+    expect({ einnahmen: [y.einnahmen.net, y.einnahmen.tax], ausgaben: [y.ausgaben.net, y.ausgaben.tax] }).toEqual({
+      einnahmen: [expected.einnahmen.net, expected.einnahmen.tax],
+      ausgaben: [expected.ausgaben.net, expected.ausgaben.tax],
+    });
+    // Je Monat und für Neutrales fehlt die Grundlage: kein Ersatz aus geschätzten Belegen
+    expect(y.vat).toEqual([]);
     expect(y.neutral).toEqual([]);
+    expect(y.vatIssue).toBeNull();
+    // Die Belege liegen trotzdem im Archiv und zählen als abgerufen, sofern der Export welche enthält
+    expect(y.checks.find((c) => c.label === "Belege und Rechnungen per API abgerufen")?.ok).toBe(rows.some((r) => r.receipt));
   });
 
-  it("SKR03: Zinsaufwand (2110) mit Beleg ist eine Ausgabe", async () => {
-    await company("SKR03", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "2110", credit: "1200", bu: "", rate: "0", receipt: true, amount: "50,00" }], "03"),
-    );
-    const y = await year2023();
-    expect(y.ausgaben.gross).toBe(5000);
-    expect(y.neutral).toEqual([]);
+  it("zählt Anlagenverkauf bei Buchverlust als Einnahme mit Umsatzsteuer", async () => {
+    const y = await importCase("SKR03", "gmbh", [R("1", "1200", "8801", "3", "1.190,00")]);
+    expect(y.einnahmen).toMatchObject({ net: 100000, tax: 19000 });
   });
 
-  it("SKR04: Zahlung der Umsatzsteuer (3820) und Darlehen (3150) ohne Beleg zählen nicht als Ausgabe oder Einnahme", async () => {
-    await company("SKR04", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts(
-        [
-          { id: "1", debit: "3820", credit: "1800", bu: "", rate: "", receipt: false, amount: "300,00" },
-          { id: "2", debit: "1800", credit: "3150", bu: "", rate: "", receipt: false, amount: "5.000,00" },
-          { id: "3", debit: "7685", credit: "1800", bu: "", rate: "", receipt: false, amount: "180,00" },
-        ],
-        "04",
-      ),
-    );
-    const y = await year2023();
-    expect(y.ausgaben.gross).toBe(18000);
-    expect(y.einnahmen.gross).toBe(0);
-  });
-
-  it("SKR04: Privatentnahme (2100) mit Beleg bleibt neutral", async () => {
-    await company("SKR04", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "2100", credit: "1800", bu: "", rate: "0", receipt: true, amount: "500,00" }], "04"),
-    );
-    const y = await year2023();
-    expect(y.ausgaben.gross).toBe(0);
-    expect(y.neutral).toMatchObject([{ count: 1 }]);
+  it("zählt Wareneinkauf auf Bestand Waren als Ausgabe mit Vorsteuer", async () => {
+    const y = await importCase("SKR03", "gmbh", [R("1", "3980", "70000", "9", "119,00")]);
+    expect(y.ausgaben).toMatchObject({ net: 10000, tax: 1900 });
   });
 
   it.each([
-    ["SKR03", "2200", "1200", "03"],
-    ["SKR04", "7600", "1800", "04"],
-  ] as const)("GmbH %s: Körperschaftsteuer (%s) mit Bescheid ist keine Ausgabe", async (skr, account, bank, code) => {
-    await company(skr, "soll", "gmbh");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: account, credit: bank, bu: "", rate: "0", receipt: true, amount: "5.000,00" }], code),
-    );
-    const y = await year2023();
-    expect(y.ausgaben.gross).toBe(0);
-    expect(y.neutral).toMatchObject([{ kind: "ertragsteuern", count: 1 }]);
+    [
+      "Umsatzsteuer-Zahlung und Darlehen",
+      "SKR04",
+      "einzelunternehmen",
+      [R("1", "3820", "1800", "", "300,00", false), R("2", "1800", "3150", "", "5.000,00", false)],
+    ],
+    ["Darlehensauszahlung (0630)", "SKR03", "einzelunternehmen", [R("1", "1200", "0630", "", "10.000,00")]],
+    ["Privatentnahme (2100)", "SKR04", "einzelunternehmen", [R("1", "2100", "1800", "", "500,00")]],
+    ["Körperschaftsteuer (2200)", "SKR03", "gmbh", [R("1", "2200", "1200", "", "5.000,00")]],
+    ["Körperschaftsteuer (7600)", "SKR04", "gmbh", [R("1", "7600", "1800", "", "5.000,00")]],
+  ] as Case[])("%s (%s, %s) ist weder Einnahme noch Ausgabe", async (_name, skr, rechtsform, rows) => {
+    const y = await importCase(skr, rechtsform, rows);
+    expect([y.einnahmen.gross, y.ausgaben.gross]).toEqual([0, 0]);
   });
 
-  it("GmbH SKR04: Kfz-Steuer (7685) bleibt eine Ausgabe", async () => {
-    await company("SKR04", "soll", "gmbh");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "7685", credit: "1800", bu: "", rate: "0", receipt: true, amount: "180,00" }], "04"),
-    );
-    const y = await year2023();
-    expect(y.ausgaben.gross).toBe(18000);
-    expect(y.neutral).toEqual([]);
-  });
-
-  it("SKR04: Erstattung der Kfz-Steuer (1800 an 7685) mindert die Ausgaben wie in SKR03 (1200 an 4510)", async () => {
-    await company("SKR03", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "1200", credit: "4510", bu: "", rate: "0", receipt: true, amount: "50,00" }], "03"),
-    );
-    const skr03 = await year2023();
-    await company("SKR04", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "1800", credit: "7685", bu: "", rate: "0", receipt: true, amount: "50,00" }], "04"),
-    );
-    const skr04 = await year2023();
-    expect(skr03.ausgaben.gross).toBe(-5000);
-    expect({ einnahmen: skr04.einnahmen.gross, ausgaben: skr04.ausgaben.gross }).toEqual({ einnahmen: skr03.einnahmen.gross, ausgaben: skr03.ausgaben.gross });
-  });
-
-  it("SKR03: Darlehensauszahlung (1200 an 0630) mit Darlehensvertrag ist keine Einnahme, wie SKR04 (1800 an 3150)", async () => {
-    await company("SKR03", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "1200", credit: "0630", bu: "", rate: "0", receipt: true, amount: "10.000,00" }], "03"),
-    );
-    const y = await year2023();
-    expect(y.einnahmen.gross).toBe(0);
-  });
-
-  it("SKR03: Erlös auf dem Automatikkonto 8400 ohne BU-Schlüssel und ohne Beleg trägt 19 % Umsatzsteuer (Kz 81)", async () => {
-    await company("SKR03", "soll", "einzelunternehmen");
-    await bb.startBuchhaltungsbutlerImport(
-      "test-user",
-      parts([{ id: "1", debit: "1200", credit: "8400", bu: "", rate: "", receipt: false, amount: "119,00" }], "03"),
-    );
-    const y = await year2023();
+  it("SKR03: Erlös auf dem Automatikkonto 8400 ohne BU-Schlüssel und ohne Beleg trägt 19 % Umsatzsteuer", async () => {
+    const y = await importCase("SKR03", "einzelunternehmen", [{ id: "1", debit: "1200", credit: "8400", bu: "", rate: "", receipt: false, amount: "119,00" }]);
     expect(y.einnahmen).toMatchObject({ net: 10000, tax: 1900, gross: 11900 });
+  });
+
+  it("liefert BB-Belege nicht in der Zeitraumabfrage für die Umsatzsteuer", async () => {
+    await importCase("SKR03", "einzelunternehmen", [R("1", "1200", "8400", "3", "119,00")]);
+    const result = await lex.legacyVouchersForPeriod({ period: "2023", direction: "alle", search: "", withPayments: false, limit: 100 });
+    expect(result).toMatchObject({ total: 0, vouchers: [], neutral: [] });
   });
 });

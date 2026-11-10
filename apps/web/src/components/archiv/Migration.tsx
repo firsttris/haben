@@ -489,7 +489,7 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
       </div>
       <div className="small muted">
         {year.sumsFrom === "datev"
-          ? `Keine Belege per API: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
+          ? `${product === BB_CONFIG.product ? "Die Belege liegen nur zum Nachschlagen im Archiv" : "Keine Belege per API"}: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
           : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
         {year.bookings && year.bookings.unmatched > 0 && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "buchungen", jahr: year.year, ohneBeleg: true }}>
