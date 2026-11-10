@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { readdir, rm } from "node:fs/promises";
+import { readdir, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DEFAULT_LAYOUT, type LayoutDocumentType, type LayoutRef } from "@haben/core";
-import { LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfRequest } from "@haben/einvoice";
+import { createRenderClient, LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfRequest } from "@haben/einvoice";
 import { asc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
@@ -18,7 +18,7 @@ import {
   universeFetcher,
   writePackages,
 } from "./paket-download.ts";
-import { customLayoutJob, dataForVersion } from "./layout-renderer.ts";
+import { customLayoutJob, dataForVersion, layoutRenderer } from "./layout-renderer.ts";
 import { loadDesign } from "./letterhead.ts";
 
 /*
@@ -130,18 +130,31 @@ async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: stri
   }
 }
 
-/** Schreibt die geladenen Pakete in einen frischen Cache und prüft das Layout damit; bei einem Fehler bleibt kein Cache */
+/**
+ * Schreibt die geladenen Pakete in einen Ordner neben dem Cache und prüft das Layout damit. Erst wenn die Prüfung passt,
+ * ersetzt er den Cache; scheitert sie, bleibt der bisherige Cache, und das gespeicherte Layout setzt weiter.
+ */
 async function prepare(id: string, source: string, art: LayoutArt, packages: readonly ResolvedPackage[]) {
-  await clearPackages(id);
-  await dropRenderer(id);
+  const cache = await packageCache(id);
+  const staging = `${cache}-neu`;
+  await rm(staging, { recursive: true, force: true });
   try {
-    if (packages.length > 0) await writePackages(await packageCache(id), packages);
-    await checkLayout({ id, source, art }, await rendererFor({ id, packages }));
+    if (packages.length > 0) {
+      await writePackages(staging, packages);
+      const renderer = createRenderClient({ cacheDir: staging });
+      try {
+        await checkLayout({ id, source, art }, renderer);
+      } finally {
+        renderer.close();
+      }
+    } else await checkLayout({ id, source, art }, layoutRenderer);
   } catch (error) {
-    await clearPackages(id);
-    await dropRenderer(id);
+    await rm(staging, { recursive: true, force: true });
     throw error;
   }
+  await dropRenderer(id);
+  await clearPackages(id);
+  if (packages.length > 0) await rename(staging, cache);
 }
 
 const plain = (packages: readonly ResolvedPackage[]): LayoutPackage[] => packages.map(({ name, version }) => ({ name, version }));
