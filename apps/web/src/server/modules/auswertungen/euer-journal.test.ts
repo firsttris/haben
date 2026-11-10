@@ -313,13 +313,26 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
     ["SKR03", "SKR04"],
     ["SKR04", "SKR03"],
   ] as const) {
-    it(`EÜR aus dem Journal: Bareinnahme im Vorjahr in ${vorher}, nach dem Wechsel zu ${nachher} storniert`, async () => {
+    // Eine Gegenbuchung übernimmt die Zeilen der aufgehobenen Buchung; deren Kontonummern bedeuten im neuen Kontenrahmen
+    // etwas anderes. Haben lehnt das Storno deshalb ab, wie beim Storno eines Belegs (cancellation.ts).
+    it(`Bareinnahme im Vorjahr in ${vorher}: Storno nach dem Wechsel zu ${nachher} abgelehnt, Abgleich ohne Abweichung`, async () => {
       await reset("soll", vorher);
       const a = await invoice("2025-12-01", [{ net: 10_000, rate: 1900 }]);
       const bar = await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2025-12-20", amount: 11_900 }, "2025-12-20");
       await sql`update company set kontenrahmen = ${nachher} where id = 1`;
-      await cash.reverseCashEntry(actor, bar.id, "2026-01-15");
+      await expect(cash.reverseCashEntry(actor, bar.id, "2026-01-15")).rejects.toThrow(`im Kontenrahmen ${vorher} gebucht, eingestellt ist jetzt ${nachher}`);
+      expect(await sql`select id from journal_entries where reverses_id is not null`).toEqual([]);
       await pruefe(2025, 2026);
+    }, 60_000);
+
+    it(`Ausbuchung im Vorjahr in ${vorher}: Aufheben nach dem Wechsel zu ${nachher} abgelehnt`, async () => {
+      await reset("soll", vorher);
+      const a = await invoice("2025-11-01", [{ net: 10_000, rate: 1900 }]);
+      await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: a.id, date: "2025-12-15" });
+      const [row] = await sql`select id from write_offs`;
+      await sql`update company set kontenrahmen = ${nachher} where id = 1`;
+      await expect(bank.reverseWriteOff(actor, row!.id, "2026-02-01")).rejects.toThrow(`im Kontenrahmen ${vorher} gebucht, eingestellt ist jetzt ${nachher}`);
+      expect(await sql`select id from write_offs where reverses_id is not null`).toEqual([]);
     }, 60_000);
   }
 
