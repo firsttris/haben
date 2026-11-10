@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 import { accountHolder, collectedByDirectDebit, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
@@ -351,6 +352,16 @@ export function templateInputs(data: object, { logo, background, accent = DEFAUL
 /** Kundennummer auf dem Blatt; das XML nennt sie unabhängig davon als Käuferkennung */
 export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: string } }): boolean =>
   Boolean(doc.buyer.kundennummer) && doc.options?.customerNumber !== false;
+
+/** Auftrag für den Render-Prozess: gleiche Vorlage und Daten wie beim PDF, Logo und Briefpapier als Dateien neben der Vorlage */
+export function renderJob(template: "rechnung.typ", data: object, letterhead: Letterhead): RenderJob {
+  const workspace = join(PACKAGE_DIR, "templates");
+  const files = [
+    ...(letterhead.logo ? [{ name: `logo.${letterhead.logo.format}`, base64: Buffer.from(letterhead.logo.data).toString("base64") }] : []),
+    ...(letterhead.background ? [{ name: `briefpapier.${letterhead.background.format}`, base64: Buffer.from(letterhead.background.data).toString("base64") }] : []),
+  ];
+  return { workspace, main: join(workspace, template), data: templateInputs(data, letterhead), files };
+}
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
   const typst = getCompiler();

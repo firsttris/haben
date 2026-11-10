@@ -1,4 +1,5 @@
 import {
+  type LetterheadDesign,
   type PaymentMethod,
   computeInvoice,
   ITEM_NUMBER_MAX,
@@ -64,7 +65,7 @@ import { CustomerCombobox } from "./CustomerCombobox.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
-import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
+import { RenderedSheet } from "./RenderedSheet.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
@@ -244,7 +245,8 @@ export function InvoiceEditor({
   /** Beim Angebot zusätzlich Gültigkeit und Zahlungsplan; Zahlungsziel und Format spielen dort keine Rolle */
   initial: EditorInitial;
   contacts: ContactOption[];
-  seller: PreviewSeller;
+  /** Gestaltung aus dem Profil und das Logo; die Firmendaten fürs Blatt liest der Server */
+  seller: { logo?: string | null; design?: LetterheadDesign };
   sellerIssues: string[];
   /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
   letterIssues?: string[];
@@ -768,33 +770,51 @@ export function InvoiceEditor({
         caption={
           <>
             {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
-            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
           </>
         }
         sheet={
-          <InvoicePreview
-            needsVatId={needsSellerVatId(taxTreatment)}
-            kind={kind}
-            number={nextNumber}
-            issueDate={issueDate || initial.issueDate}
-            dueDate={dueDate}
-            validUntil={quote ? validUntil || null : null}
-            serviceFrom={serviceFrom || null}
-            serviceTo={serviceTo || null}
-            seller={{ ...seller, logo, accent: designDraft.design.accent, design: designDraft.design }}
-            buyer={contact}
-            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
-            discount={discountIssue ? null : discount}
-            plan={planIssue ? [] : planPreview}
-            intro={intro}
-            note={note}
-            priceMode={grossPrices ? "brutto" : "netto"}
-            taxNote={treatmentNote(taxTreatment, exemptionReason)}
-            corrects={corrects}
-            title={title}
-            skonto={skonto.stufen}
-            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
-            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
+          <RenderedSheet
+            revision={logo}
+            input={{
+              kind,
+              number: nextNumber,
+              issueDate: issueDate || initial.issueDate,
+              dueDate,
+              validUntil: quote ? validUntil || null : null,
+              serviceFrom: serviceFrom || null,
+              serviceTo: serviceTo || null,
+              paymentTermDays: term,
+              contactId: contactId || null,
+              ...references,
+              lines: [...parsed, ...deductionPreview]
+                .filter((l) => l.valid)
+                .map((l) => ({
+                  description: l.description,
+                  detail: "detail" in l ? (l.detail ?? "") : "",
+                  itemNumber: "itemNumber" in l ? (l.itemNumber ?? "") : "",
+                  quantity: l.quantity,
+                  unit: l.unit,
+                  unitPrice: l.unitPrice,
+                  taxRate: l.taxRate,
+                  discount: "discount" in l ? (l.discount ?? null) : null,
+                  kind: quote && "kind" in l ? (l.kind ?? null) : null,
+                })),
+              discount: discountIssue ? null : discount,
+              plan: planIssue ? [] : plan.rows,
+              intro,
+              note,
+              taxTreatment,
+              exemptionReason: special ? exemptionReason : "",
+              priceMode: grossPrices ? "brutto" : "netto",
+              language,
+              variant: kind === "rechnung" ? variant : null,
+              corrects: corrects ?? null,
+              // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+              currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
+              skonto: skonto.stufen,
+              sepaMandateId: lastschrift ? mandateId || null : null,
+              design: designDraft.changes,
+            }}
           />
         }
       >

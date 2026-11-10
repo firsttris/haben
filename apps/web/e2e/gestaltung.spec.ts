@@ -38,7 +38,18 @@ const seitenansicht = (p: Page) => p.getByRole("region", { name: "Vorschau", exa
 const dialog = (p: Page) => p.getByRole("dialog", { name: "Vorschau" });
 const panel = (p: Page) => dialog(p).getByRole("complementary", { name: "Gestaltung" });
 const blatt = (p: Page) => dialog(p).getByLabel("Vorschau der Rechnung");
-const brand = (p: Page) => blatt(p).evaluate((el) => getComputedStyle(el).getPropertyValue("--brand").trim());
+/** Das gesetzte SVG des Blatts; was nur als Bild existiert, lässt sich daran prüfen */
+const svg = (p: Page) => blatt(p).locator(".sheet-page img").first().evaluate(async (img: HTMLImageElement) => (await fetch(img.src)).text());
+/** Akzentfarbe des Blatts: die kräftigste Farbe darin, die Grautöne sind aus ihr abgeleitet und blasser */
+const brand = async (p: Page) => {
+  const farben = [...new Set((await svg(p)).match(/#[0-9a-fA-F]{6}\b/g) ?? [])];
+  const kraft = (hex: string) => {
+    const teile = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return Math.max(...teile) - Math.min(...teile);
+  };
+  return farben.sort((a, b) => kraft(b) - kraft(a))[0]!.toUpperCase();
+};
+const fuss = (p: Page) => blatt(p).locator('[data-teil="fuss"]');
 
 async function gestaltungOeffnen(p: Page): Promise<void> {
   await vorschauKnopf(p).click();
@@ -100,9 +111,9 @@ test("Das Logo lässt sich im Panel hochladen und entfernen, das Formular bleibt
   await gestaltungOeffnen(page);
   await panel(page).getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(panel(page).getByRole("status")).toContainText("Logo gespeichert");
-  await expect(blatt(page).getByRole("img", { name: "Logo" })).toBeVisible();
+  await expect.poll(() => svg(page)).toContain("<image");
   await panel(page).getByRole("button", { name: "Entfernen" }).click();
-  await expect(blatt(page).getByRole("img", { name: "Logo" })).toHaveCount(0);
+  await expect.poll(() => svg(page)).not.toContain("<image");
   await dialog(page).getByRole("button", { name: "Schließen" }).click();
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Eingabe bleibt");
   await page.context().close();
@@ -111,9 +122,10 @@ test("Das Logo lässt sich im Panel hochladen und entfernen, das Formular bleibt
 test("Schalter wirken auf das Blatt", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await gestaltungOeffnen(page);
-  await expect(blatt(page).locator(".sheet-fold").first()).toBeAttached();
+  await expect(blatt(page).locator(".sheet-page img").first()).toBeVisible();
+  const mitMarken = await svg(page);
   await panel(page).getByLabel("Falz- und Lochmarken").uncheck();
-  await expect(blatt(page).locator(".sheet-fold")).toHaveCount(0);
+  await expect.poll(() => svg(page)).not.toBe(mitMarken);
   await page.context().close();
 });
 
@@ -128,9 +140,9 @@ test("Die Spalte USt entfällt nur bei einem einzigen Steuersatz, sonst sagt das
   await page.getByLabel(/Einzelpreis Position 2/).fill("39,00");
   await page.getByLabel("Steuersatz Position 2").selectOption("700");
   await gestaltungOeffnen(page);
-  const spalte = blatt(page).locator("th", { hasText: "USt" });
+  const positionen = blatt(page).locator('[data-teil="positionen"]');
   await panel(page).getByLabel("Spalte USt je Position").uncheck();
-  await expect(spalte).toHaveCount(1);
+  await expect(positionen).toContainText("7 %");
   await expect(panel(page).getByRole("status")).toContainText("mehrere Steuersätze");
   await page.context().close();
 });
@@ -409,7 +421,7 @@ test("Eigene Fußzeile: Platzhalter, Prüfung und Übernahme aufs Blatt", async 
   await page.goto("/rechnungen/neu");
   await page.waitForLoadState("networkidle");
   await vorschauKnopf(page).click();
-  await expect(blatt(page).locator(".sheet-foot")).toContainText("Sprechzeiten Mo bis Fr");
+  await expect(fuss(page)).toContainText("Sprechzeiten Mo bis Fr");
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
@@ -445,13 +457,13 @@ test("Eine Fußzeile über 400 Zeichen meldet das verständlich auf Deutsch", as
 test("Die Schrift wirkt sofort aufs Blatt", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await gestaltungOeffnen(page);
-  const schrift = () => blatt(page).evaluate((el) => getComputedStyle(el).fontFamily);
-  expect(await schrift()).toContain("IBM Plex Sans");
+  await expect(blatt(page).locator(".sheet-page img").first()).toBeVisible();
+  const ohneWechsel = await svg(page);
 
   await panel(page).getByLabel("Schrift").selectOption({ label: "IBM Plex Serif" });
-  await expect.poll(schrift).toContain("IBM Plex Serif");
+  await expect.poll(() => svg(page)).not.toBe(ohneWechsel);
   await panel(page).getByRole("button", { name: "Verwerfen" }).click();
-  await expect.poll(schrift).toContain("IBM Plex Sans");
+  await expect.poll(() => svg(page)).toBe(ohneWechsel);
   await page.context().close();
 });
 
@@ -470,13 +482,7 @@ test("Briefpapier: hochladen, auf dem Blatt sehen, entfernen", async ({ browser 
   await page.goto("/rechnungen/neu");
   await page.waitForLoadState("networkidle");
   await vorschauKnopf(page).click();
-  await expect
-    .poll(() =>
-      blatt(page)
-        .locator(".sheet-background")
-        .evaluate((el) => getComputedStyle(el).backgroundImage),
-    )
-    .toContain("/api/briefpapier");
+  await expect.poll(() => svg(page)).toContain("<image");
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
@@ -535,7 +541,7 @@ test("Briefpapier mit eigenem Fuß: Fußzeile weglassen nur nach Rückfrage und 
   await page.goto("/rechnungen/neu");
   await page.waitForLoadState("networkidle");
   await vorschauKnopf(page).click();
-  await expect(blatt(page).locator(".sheet-foot")).toHaveCount(0);
+  await expect(fuss(page)).toHaveCount(0);
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
@@ -582,9 +588,9 @@ test("Vorschau: Ein hoher Fuß deckt den Hinweis auf einem vollen Blatt nicht zu
     await page.waitForLoadState("networkidle");
     await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
     await vorschauKnopf(page).click();
-    const foot = (await blatt(page).locator(".sheet-foot").boundingBox())!;
-    const hinweis = (await blatt(page).getByText("Hinweiszeile 90").boundingBox())!;
-    expect(hinweis.y + hinweis.height).toBeLessThanOrEqual(foot.y);
+    // Typst bricht um; dass nichts in den Fuß läuft, prüft fusszeile-platz.test.ts am PDF
+    await expect(blatt(page)).toContainText("Hinweiszeile 90");
+    await expect(blatt(page).getByRole("img", { name: /^Seite 2 von/ })).toBeVisible();
   } finally {
     await page.goto("/einstellungen?bereich=gestaltung");
     await page.waitForLoadState("networkidle");
@@ -644,13 +650,7 @@ test("Vorschau: Das Briefpapier bleibt auf einem langen Blatt so groß wie im PD
     await page.waitForLoadState("networkidle");
     await page.getByLabel("Hinweis auf der Rechnung (optional)").fill(Array.from({ length: 90 }, (_, i) => `Hinweiszeile ${i + 1}`).join("\n"));
     await vorschauKnopf(page).click();
-    await expect
-      .poll(() =>
-        blatt(page)
-          .locator(".sheet-background")
-          .evaluate((el) => getComputedStyle(el).backgroundImage),
-      )
-      .toContain("/api/briefpapier");
+    await expect.poll(() => svg(page)).toContain("<image");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(600);
     const { width, height } = (await blatt(page).boundingBox())!;
@@ -732,8 +732,8 @@ test("Eigene Fußzeile: Auszeichnungen stehen fett auf dem Blatt, die Zeichen ni
     await page.goto("/rechnungen/neu");
     await page.waitForLoadState("networkidle");
     await vorschauKnopf(page).click();
-    await expect(blatt(page).locator(".sheet-foot strong")).toHaveText("Fettzeile");
-    await expect(blatt(page).locator(".sheet-foot")).not.toContainText("*Fettzeile*");
+    await expect(fuss(page)).toContainText("Fettzeile");
+    await expect(fuss(page)).not.toContainText("*Fettzeile*");
   } finally {
     await page.goto("/einstellungen?bereich=gestaltung");
     await page.waitForLoadState("networkidle");
@@ -777,11 +777,8 @@ test("Vorschau: Die Steuerzeile bricht auch in einer breiten Schrift nicht um", 
   await page.getByLabel("Steuersatz Position 2").selectOption({ index: 1 });
   await gestaltungOeffnen(page);
   await panel(page).getByLabel("Schrift").selectOption({ label: "Inter" });
-  const zeile = blatt(page).locator(".sheet-totals dt", { hasText: "19 %" });
-  const normal = blatt(page).locator(".sheet-totals dt").first();
-  await expect(zeile).toBeVisible();
-  const hoch = (await zeile.boundingBox())!.height;
-  expect(hoch).toBeLessThan((await normal.boundingBox())!.height * 1.5);
+  // Dass die Zeile nicht umbricht, prüft das PDF (gestaltung.test.ts); hier nur, dass sie im gesetzten Blatt ankommt
+  await expect(blatt(page).locator('[data-teil="summen"]')).toContainText("19 %");
   await page.context().close();
 });
 

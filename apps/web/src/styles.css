@@ -1,6 +1,5 @@
 /* Schriften selbst ausgeliefert (fontsource) statt von Google Fonts: Latein und Latein-Erweitert als woff2,
    der Browser lädt je Schnitt nur die Teilmenge, deren Zeichen auf der Seite vorkommen. */
-@import "./styles/belegschriften.css";
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
@@ -586,44 +585,16 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 
 /* Papiervorschau */
 /* Rechnungsvorschau als A4-Blatt; Maße in mm wie templates/rechnung.typ, 1pt = 0,3528 mm */
-.sheet-frame { container-type: inline-size; }
-.sheet { isolation: isolate; --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); display: flex; flex-direction: column; padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(14 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+/* Das Blatt setzt Typst; je Seite ein Ausschnitt aus dem gemeinsamen SVG. Papier bleibt in jedem Theme weiß */
+.sheet { display: flex; flex-direction: column; gap: 12px; }
+.sheet-page { position: relative; width: 100%; overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.18); }
+.sheet-page img { position: absolute; left: 0; width: 100%; max-width: none; }
+.sheet-page-empty { aspect-ratio: 210 / 297; display: flex; align-items: center; justify-content: center; color: #5b6b63; font-size: 14px; }
+.sheet-outdated { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* Genau eine A4-Seite wie im PDF, auch wenn das Blatt in der Vorschau länger ist */
-.sheet-background { position: absolute; inset: 0 0 auto; z-index: -1; height: calc(297 * var(--mm)); background-position: center; background-repeat: no-repeat; background-size: cover; }
-.sheet-fold { position: absolute; left: calc(4 * var(--mm)); width: calc(4 * var(--mm)); border-top: 1px solid var(--rule); }
-.sheet-fold.long { width: calc(6 * var(--mm)); }
-.sheet-logo { position: absolute; top: calc(20 * var(--mm)); right: calc(20 * var(--mm)); object-fit: contain; }
-.sheet-logo[data-seite="links"] { right: auto; left: calc(25 * var(--mm)); }
-.sheet-address { position: absolute; left: calc(20 * var(--mm)); top: calc(45 * var(--mm)); width: calc(85 * var(--mm)); height: calc(45 * var(--mm)); line-height: 1.35; }
-.sheet-sender { height: calc(17.7 * var(--mm)); display: flex; align-items: flex-end; padding-bottom: calc(2 * var(--mm)); font-size: calc(7 * 0.3528 * var(--mm)); color: var(--ink-muted); line-height: 1.2; }
-.sheet-meta { position: absolute; left: calc(125 * var(--mm)); top: calc(50 * var(--mm)); width: calc(75 * var(--mm)); margin: 0; display: grid; grid-template-columns: auto 1fr; gap: calc(2.2 * var(--mm)) calc(4 * var(--mm)); font-size: calc(8.5 * 0.3528 * var(--mm)); line-height: 1.2; }
-.sheet-meta dt { color: var(--ink-muted); }
-.sheet-meta dd { margin: 0; text-align: right; white-space: nowrap; }
-.sheet-muted { color: var(--ink-muted); }
-.sheet-strong { font-weight: 600; }
-.sheet-body { display: flex; flex-direction: column; margin-bottom: calc(8 * var(--mm)); }
-.sheet-body p { margin: 0 0 calc(2 * var(--mm)); }
-.sheet-title { font-size: calc(16 * 0.3528 * var(--mm)); font-weight: 600; line-height: 1.2; letter-spacing: -0.005em; }
-.sheet-table { width: 100%; border-collapse: collapse; margin-top: calc(5 * var(--mm)); }
-.sheet-table th { text-align: left; font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); color: var(--brand); border-bottom: 0.6pt solid var(--brand); padding: calc(2.2 * var(--mm)) calc(1.6 * var(--mm)); white-space: nowrap; }
-.sheet-table td { padding: calc(2.2 * var(--mm)) calc(1.6 * var(--mm)); border-bottom: 0.4pt solid var(--rule); vertical-align: top; }
-.sheet-table .num { text-align: right; white-space: nowrap; font-family: inherit; }
-.sheet-table td.num { font-size: inherit; }
-.sheet-table .desc { width: 100%; overflow-wrap: anywhere; }
-.sheet-tag { color: var(--brand); font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); }
-.sheet-plan caption { text-align: left; font-weight: 600; caption-side: top; }
-.sheet-plan td.num { white-space: normal; }
 /* Wie die Vorlage: mindestens 80 mm, sonst so breit wie die längste Zeile */
-.sheet-totals { align-self: flex-end; width: max-content; min-width: calc(80 * var(--mm)); max-width: 100%; margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
-.sheet-totals dt, .sheet-totals dd { margin: 0; padding: 0 calc(1.6 * var(--mm)); }
-.sheet-totals dt { color: var(--ink-muted); white-space: nowrap; }
-.sheet-totals dd { text-align: right; white-space: nowrap; }
-.sheet-totals .gross { color: var(--ink); font-weight: 600; border-top: 0.6pt solid var(--brand); padding-top: calc(2.2 * var(--mm)); margin-top: 0; }
 /* Bruttopreise: Netto und Umsatzsteuer, die im Gesamtbetrag enthalten sind */
-.sheet-totals .sheet-included { color: var(--ink-muted); font-size: 0.9em; }
 /* Im Fluss statt fest unten: Ein hoher eigener Fuß schiebt das Blatt länger, statt den Text zu verdecken */
-.sheet-foot { margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
-.sheet-foot-legal { grid-column: 1 / -1; }
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }
 .paper-totals dd { margin: 0; text-align: right; font-family: var(--mono); }
@@ -935,9 +906,6 @@ summary { cursor: pointer; min-height: 24px; }
 .layouts-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .layouts-table th { text-align: left; font-size: 13px; font-weight: 500; color: var(--muted); }
 .layouts-table th, .layouts-table td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); }
-.sheet-payment { display: flex; align-items: flex-start; justify-content: space-between; gap: calc(8 * var(--mm)); }
-.sheet-payment > p { flex: 1 1 auto; margin-top: 0; }
-.sheet-giro { flex: 0 0 calc(24 * var(--mm)); height: calc(24 * var(--mm)); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--ink-muted); color: var(--ink-muted); font-size: calc(2.4 * var(--mm)); }
 @media (max-width: 720px) {
   .preview-dialog[data-design] { width: 100vw; }
   .preview-dialog-head { flex-wrap: wrap; }
