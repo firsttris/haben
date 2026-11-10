@@ -222,9 +222,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     return invoices.finalizeInvoice(actor, draft.id);
   }
 
-  it("Reverse Charge im Rechnungsmonat (auch bei Ist), Drittland und steuerfrei nach Zahlung", async () => {
+  it("Reverse Charge und Drittland im Rechnungsmonat (auch bei Ist), steuerfrei nach Zahlung", async () => {
     const rc = await specialInvoice("reverse_charge", "AT", "ATU12345678", "2026-10-15");
-    const ch = await specialInvoice("drittland", "CH", "", "2026-09-15");
+    const ch = await specialInvoice("drittland", "CH", "", "2026-10-01");
     await specialInvoice("steuerfrei", "DE", "", "2026-10-01");
     const [line] = await sql`select l.account, l.tax_code from journal_lines l join journal_entries e on e.id = l.entry_id
       where e.source_id = ${rc.id} and l.credit > 0`;
@@ -252,6 +252,23 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     expect(xml).toContain("<Kz21>5000</Kz21>");
     expect(xml).toContain("<Kz45>5000</Kz45>");
   }, 30_000);
+
+  // DATEV weist nicht steuerbare Umsätze ins Drittland auch bei Ist-Versteuerung mit der Rechnung aus, nicht mit der
+  // Zahlung (DATEV-Dok. 1080673, „Besondere Regeln und Vereinfachungen für die Buchung der Ist-Versteuerung“), #542
+  it.each(["SKR03", "SKR04"])(
+    "Ist: Leistung ins Drittland (Kz 45) im Monat der Rechnung, nicht der Zahlung (%s)",
+    async (kontenrahmen) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}`;
+      const ch = await specialInvoice("drittland", "CH", "", "2026-09-15");
+      await bank.importStatement(actor, { bytes: dkbCsv([row("02.10.26", "Matterhorn", `RE ${ch.number}`, "5.000,00")]), filename: "a.csv" }, null);
+      const [tx] = await sql`select id from bank_transactions`;
+      await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: ch.id, amount: 500_000 });
+
+      expect(await figures.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ versteuerung: "ist", kz45: 500_000 });
+      expect(await figures.computeVatFigures(october)).toMatchObject({ kz45: 0 });
+    },
+    30_000,
+  );
 
   it("Reverse Charge ohne USt-IdNr. des Kunden lässt sich nicht festschreiben", async () => {
     await expect(specialInvoice("reverse_charge", "AT", "", "2026-10-15")).rejects.toThrow("USt-IdNr. des Kunden");
