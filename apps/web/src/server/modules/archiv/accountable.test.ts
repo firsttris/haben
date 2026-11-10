@@ -185,4 +185,15 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
     const open = await accountable.accountableOpenItems(id);
     expect(open).toEqual([]);
   });
+  it("bereits bezahlte Accountable-Belege warten nicht im Bankabgleich (Review #579)", async () => {
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03') on conflict (id) do nothing`;
+    const bank = await import("../bank/bank.ts");
+    accountable.analyseAccountableUpload(export_(), "Accountable_Max_Mustermann_skr03_2025-01-01_test.zip");
+    await accountable.startAccountableImport(actor, { wait: true });
+    // Accountable bucht zahlungsbasiert: Der Beleg ist dort bezahlt. Als offener Posten in Haben zöge er die nächste
+    // Abbuchung über 92,81 € auf sich und buchte gegen eine Verbindlichkeit, die es nie gab.
+    expect((await bank.openItems()).filter((i) => i.type === "document")).toEqual([]);
+  });
 });
