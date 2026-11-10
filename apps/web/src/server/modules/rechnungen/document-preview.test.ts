@@ -1,3 +1,4 @@
+import { computeInvoice } from "@haben/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
@@ -95,6 +96,24 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
       }),
     );
     expect(text(result.text)).toContain("2026-000");
+  });
+
+  it("Schlussrechnung: Gesamtrabatt ohne die Abzüge der Abschlagsrechnungen, wie im Editor und beim Speichern", async () => {
+    const abschlag = "00000000-0000-4000-8000-000000000001";
+    const lines = [
+      { description: "Hauptleistung", quantity: 1000, unit: "Psch.", unitPrice: 100000, taxRate: 1900 },
+      { description: "Abzüglich Abschlagsrechnung 2026-001", quantity: 1000, unit: "Psch.", unitPrice: -30000, taxRate: 1900, deductionOf: abschlag },
+    ] as const;
+    const discount = { kind: "prozent", value: 1000 } as const;
+    expect(computeInvoice([...lines], "netto", discount).totals.gross).toBe(71400);
+    const result = await preview.documentPreview(input({ variant: "schluss", discount, lines: lines.map((line) => ({ ...line })) }));
+    expect(text(result.text)).toContain("714,00");
+  });
+
+  it("nimmt ein unfertiges Zahlungsziel an, wie es der Editor schickt (Number des Feldtexts)", () => {
+    for (const feld of ["14 Tage", "1,5", "-"]) {
+      expect(() => input({ paymentTermDays: Number(feld) }), `Zahlungsziel „${feld}“`).not.toThrow();
+    }
   });
 
   it("nimmt unfertige Datumsfelder an", async () => {
