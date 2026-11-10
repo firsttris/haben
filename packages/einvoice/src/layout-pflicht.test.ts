@@ -73,4 +73,31 @@ describe("Prüfung der Pflichtangaben", () => {
     expect(fehlendeAngaben(rechnung, [nurFuss]).join()).toContain("Anschrift des Absenders");
     expect(layoutAnleitung()).not.toMatch(/Anschrift darf auch nur im `footer` stehen/);
   });
+
+  it("nimmt die Pflichtangaben der GmbH auch je Angabe in eigener Zeile an (§ 35a GmbHG)", () => {
+    const d = rechnung.data as { legal: string };
+    const zeilen = voll.replaceAll(d.legal, d.legal.split(" · ").join("\n"));
+    expect(fehlendeAngaben(rechnung, [zeilen])).toEqual([]);
+  });
+
+  it("verlangt bei der Stornorechnung den Bezug auf die ursprüngliche Rechnung (§ 31 Abs. 5 UStDV)", () => {
+    const storno = layoutBeispiele().find((b) => b.name === "Stornorechnung")!;
+    const d = storno.data as { reference: string };
+    const ohne = JSON.stringify(storno.data).replaceAll(d.reference, "");
+    expect(fehlendeAngaben(storno, [ohne]).join()).toContain("Bezug");
+  });
+
+  it("verlangt die Bezeichnung des Belegs: eine Stornorechnung mit fester Überschrift „Rechnung“ besteht nicht", () => {
+    const storno = layoutBeispiele().find((b) => b.name === "Stornorechnung")!;
+    const alsRechnung = JSON.stringify(storno.data).replaceAll("Stornorechnung", "Rechnung");
+    expect(fehlendeAngaben(storno, [alsRechnung]).join()).toContain("Bezeichnung des Belegs");
+  });
+
+  it("verlangt bei Skonto den Hinweis darauf (§ 14 Abs. 4 Nr. 7 UStG), und ein Beispiel hat Skonto", () => {
+    const mitSkonto = layoutBeispiele().find((b) => /Skonto/.test((b.data as { payment?: string | null }).payment ?? ""));
+    expect(mitSkonto, "kein Beispiel mit Skonto").toBeDefined();
+    const d = mitSkonto!.data as { payment: string };
+    const ohne = JSON.stringify(mitSkonto!.data).replaceAll(d.payment, "");
+    expect(fehlendeAngaben(mitSkonto!, [ohne]).join()).toContain("Skonto");
+  });
 });
