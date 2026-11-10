@@ -32,7 +32,6 @@ interface Daten {
 
 /** Was auf dem Blatt stehen muss, mit dem Grund für die Meldung */
 function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: string }[] {
-  const steuer = d.footer.flat().filter((zeile) => /Steuernummer|USt-IdNr|VAT/.test(zeile));
   const gemeinsam = [
     { was: "Name des Absenders", text: d.author },
     // Vollständige Anschrift des Ausstellers (§ 14 Abs. 4 Nr. 1 UStG): Straße sowie PLZ und Ort aus der Absenderzeile
@@ -42,7 +41,6 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
       .filter((text) => text.trim())
       .map((text) => ({ was: "Anschrift des Absenders", text })),
     ...d.recipient.filter(Boolean).map((text) => ({ was: "Anschrift des Empfängers", text })),
-    ...steuer.map((text) => ({ was: "Steuernummer oder USt-IdNr.", text })),
     // Je Angabe (§ 35a Abs. 1 GmbHG), denn ein Layout darf sie auf eigene Zeilen verteilen
     ...(d.legal ?? "")
       .split(" · ")
@@ -90,6 +88,10 @@ export function fehlendeAngaben(beispiel: LayoutBeispiel, seiten: readonly strin
   const fehlt = pflicht(beispiel.art, d)
     .filter(({ text }) => text.trim() && !alles.includes(kompakt(text)))
     .map(({ was, text }) => `${was} („${text.length > 60 ? `${text.slice(0, 57)}…` : text}“)`);
+  // Nur auf Rechnungen, und eine der beiden genügt (§ 14 Abs. 4 Nr. 2 UStG); Angebot, Lieferschein und Mahnung brauchen keine
+  if (beispiel.steuer && beispiel.steuer.length > 0 && !beispiel.steuer.some((text) => alles.includes(kompakt(text)))) {
+    fehlt.push(`Steuernummer oder USt-IdNr. („${beispiel.steuer.join("“ oder „")}“)`);
+  }
   if (d.draft) {
     const ohne = seiten.map((seite, i) => (kompakt(seite).includes(kompakt(d.draft!)) ? 0 : i + 1)).filter(Boolean);
     if (ohne.length > 0) fehlt.push(`Vermerk „${d.draft}“ auf Seite ${ohne.join(", ")}`);

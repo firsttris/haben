@@ -16,6 +16,8 @@ export interface LayoutBeispiel {
   name: string;
   art: "beleg" | "mahnung";
   data: object;
+  /** Nur Rechnungen: Steuernummer und USt-IdNr. des Ausstellers, eine davon muss auf dem Blatt stehen (§ 14 Abs. 4 Nr. 2 UStG) */
+  steuer?: string[];
 }
 
 /** Ein weißes Pixel als PNG: steht für Logo und Briefpapier, wenn die Beispiele gesetzt werden */
@@ -91,13 +93,15 @@ export function layoutBeispiele(): LayoutBeispiel[] {
     ...briefkopf(),
   };
   const beleg = (name: string, data: object, lh: Letterhead = {}): LayoutBeispiel => ({ name, art: "beleg", data: templateInputs(data, lh) });
+  const steuer = { steuer: [sampleSeller.steuernummer, sampleSeller.ustId].filter((x): x is string => Boolean(x)) };
+  const rechnungBeleg = (name: string, data: object, lh: Letterhead = {}): LayoutBeispiel => ({ ...beleg(name, data, lh), ...steuer });
   return [
-    beleg("Rechnung", pdfData(rechnung), kopf),
-    beleg("Rechnung als Entwurf", asDraft(pdfData(rechnung), TEXTS.de), kopf),
-    beleg("Rechnung mit Bruttopreisen, Rabatt und 40 Positionen", pdfData(brutto), briefkopf()),
-    beleg("Rechnung in Fremdwährung", pdfData(fremd)),
-    beleg("Rechnung als Kleinunternehmer", pdfData(klein)),
-    beleg("Stornorechnung", pdfData(storno)),
+    rechnungBeleg("Rechnung", pdfData(rechnung), kopf),
+    rechnungBeleg("Rechnung als Entwurf", asDraft(pdfData(rechnung), TEXTS.de), kopf),
+    rechnungBeleg("Rechnung mit Bruttopreisen, Rabatt und 40 Positionen", pdfData(brutto), briefkopf()),
+    rechnungBeleg("Rechnung in Fremdwährung", pdfData(fremd)),
+    rechnungBeleg("Rechnung als Kleinunternehmer", pdfData(klein)),
+    rechnungBeleg("Stornorechnung", pdfData(storno)),
     beleg("Angebot", quotePdfData(angebot), kopf),
     beleg("Auftragsbestätigung", confirmationPdfData(angebot, "2026-10-05"), kopf),
     beleg("Lieferschein", deliveryNotePdfData(lieferschein), briefkopf()),
