@@ -211,9 +211,12 @@ cmd_neu() {
   [[ "$name" =~ ^[a-z0-9]([a-z0-9-]{0,29}[a-z0-9])?$ ]] \
     || fehler "Name nur aus a–z, 0–9 und -, am Anfang und Ende Buchstabe oder Ziffer, höchstens 31 Zeichen: $name"
   # Container heißen <projekt>-<dienst>-<nummer> und sind im Netz des Proxys unter diesem Namen erreichbar; der Alias
-  # haben-<name> darf keinem davon gleichen (etwa firma1-app-1 und der App von firma1)
-  [[ ! "$name" =~ -(app|db|backup|restore|caddy)-[0-9]+$ ]] || fehler "Der Name darf nicht auf -app-1, -db-1 o. Ä. enden: $name"
+  # haben-<name> darf keinem davon gleichen (etwa firma1-app-1 und der App von firma1, app-1 und der App des
+  # Standardprojekts haben)
+  [[ ! "$name" =~ (^|-)(app|db|backup|restore|caddy)-[0-9]+$ ]] || fehler "Der Name darf nicht auf app-1, db-1 o. Ä. enden: $name"
   [ "$name" != proxy ] || fehler "Der Name proxy ist für den gemeinsamen Caddy reserviert."
+  # haben-app ist der Alias einer einzelnen Instanz nach deploy/compose.override.example.yml
+  [ "$name" != app ] || fehler "Der Name app ist reserviert (Alias haben-app einer einzelnen Instanz)."
   [[ "$domain" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] || fehler "Domain ohne https:// und ohne Pfad, klein geschrieben, z. B. firma1.example.de: $domain"
   [ -z "$hersteller" ] || [[ "$hersteller" =~ ^[0-9]{1,10}$ ]] || fehler "Die Hersteller-ID besteht nur aus Ziffern."
   [ -z "$eric_home" ] || [[ "$eric_home" =~ ^/[A-Za-z0-9._/-]+$ ]] || fehler "--eric-home braucht einen absoluten Pfad ohne Leerzeichen."
@@ -238,14 +241,13 @@ cmd_neu() {
     [ "$(env_lesen "$andere/.env" COMPOSE_PROJECT_NAME)" != "haben-$name" ] \
       || fehler "Das Compose-Projekt haben-$name gehört schon zur Instanz $andere; bitte einen anderen Namen wählen."
   done 3< <(instanzen)
-  # Auch ein Projekt dieses Namens außerhalb der Basis, solange docker es kennt: mit Containern oder, nach
-  # docker compose down, nur noch mit seinen Volumes (Datenbank und Belege einer anderen Firma)
-  if projekte="$(docker compose ls -a -q 2> /dev/null)"; then
-    ! grep -qx "haben-$name" <<< "$projekte" || fehler "Docker kennt schon ein Compose-Projekt haben-$name; bitte einen anderen Namen wählen."
-  fi
-  if projekte="$(docker volume ls -q --filter "label=com.docker.compose.project=haben-$name" 2> /dev/null)"; then
-    [ -z "$projekte" ] || fehler "Es gibt schon Volumes des Compose-Projekts haben-$name ($(echo $projekte)); bitte einen anderen Namen wählen."
-  fi
+  # Auch ein Projekt dieses Namens außerhalb der Basis: mit Containern oder, nach docker compose down, nur noch mit
+  # seinen Volumes (Datenbank und Belege einer anderen Firma). Kann docker das nicht sagen, lieber nichts anlegen
+  projekte="$(docker compose ls -a -q 2> /dev/null)" || fehler "docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt."
+  ! grep -qx "haben-$name" <<< "$projekte" || fehler "Docker kennt schon ein Compose-Projekt haben-$name; bitte einen anderen Namen wählen."
+  projekte="$(docker volume ls -q --filter "label=com.docker.compose.project=haben-$name" 2> /dev/null)" \
+    || fehler "docker antwortet nicht (läuft der Daemon, darfst du ihn nutzen?); nichts angelegt."
+  [ -z "$projekte" ] || fehler "Es gibt schon Volumes des Compose-Projekts haben-$name ($(echo $projekte)); bitte einen anderen Namen wählen."
   command -v openssl > /dev/null || fehler "openssl fehlt."
 
   mkdir -p "$basis"

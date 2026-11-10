@@ -22,6 +22,7 @@ s="$FAKE_STATE"
 d="$(basename "$PWD")"
 echo "$d $*" >>"$s/aufrufe"
 case "$1" in
+  volume) [ ! -f "$s/volumen" ] || cat "$s/volumen"; exit 0 ;;
   network)
     case "$2" in
       inspect) [ -f "$s/netz" ] ;;
