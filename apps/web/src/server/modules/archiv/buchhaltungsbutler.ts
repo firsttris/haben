@@ -13,7 +13,7 @@ import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { UserError } from "../../errors.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
 import { loadCompany } from "../stammdaten/index.ts";
-import { addArchiveFile, MAX_ARCHIVE_SIZE } from "./archive.ts";
+import { addArchiveFile, BB_ORIGINAL_NOTE, MAX_ARCHIVE_SIZE } from "./archive.ts";
 import { finish, progressMessage, STALE_MS } from "./lexoffice.ts";
 
 export const MAX_BB_EXPORT_SIZE = 500 * 1024 * 1024;
@@ -116,7 +116,7 @@ async function archiveOriginals(actor: string, parts: ExportPart[], year: number
         filename: part.name,
         kind: isDatev ? "datev" : "sonstiges",
         year,
-        note: "BuchhaltungsButler-Originalexport",
+        note: BB_ORIGINAL_NOTE,
       },
       isDatev ? MAX_ARCHIVE_SIZE : MAX_BB_EXPORT_SIZE,
     );

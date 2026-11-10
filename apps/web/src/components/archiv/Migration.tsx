@@ -491,7 +491,9 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
       <div className="small muted">
         {year.sumsFrom === "datev"
           ? `${product === BB_CONFIG.product ? "Die Belege liegen nur zum Nachschlagen im Archiv" : "Keine Belege per API"}: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
-          : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
+          : year.sumsFrom === "gemischt"
+            ? `Summen nach Belegdatum, dazu der Teil aus BuchhaltungsButler aus dessen DATEV-Buchungsstapel (geschätzt nach Kontenklassen). Vergleiche sie mit den Auswertungen in ${product} und BuchhaltungsButler.`
+            : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
         {year.bookings && year.bookings.unmatched > 0 && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "buchungen", jahr: year.year, ohneBeleg: true }}>
             Buchungen ohne passenden Beleg ansehen

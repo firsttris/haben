@@ -1,4 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
+import { BB_ORIGINAL_NOTE } from "./archive.ts";
 import { datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
@@ -568,6 +569,7 @@ export async function reconciliation() {
       contraAccount: schema.datevBookings.contraAccount,
       buKey: schema.datevBookings.buKey,
       accountLength: sql<number | null>`(${schema.archiveFiles.meta} -> 'header' ->> 'accountLength')::int`,
+      note: schema.archiveFiles.note,
     })
     .from(schema.datevBookings)
     .leftJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId));
@@ -584,19 +586,24 @@ export async function reconciliation() {
       // Alle Belege des Jahres, auch neutrale: Auch ein Körperschaftsteuerbescheid braucht seine Datei
       const yearRows = classified.filter((v) => v.date.startsWith(`${year}-`));
       const withoutReceipt = voucherRows.filter((v) => v.ohneBeleg && v.date.startsWith(`${year}-`)).length;
-      const yearBookings = vouchers.length === 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
-      const fromDatev = yearBookings.length > 0 ? datevYearSums(yearBookings, company.kontenrahmen) : null;
+      const yearDatev = datevRows.filter((b) => b.date.startsWith(`${year}-`));
+      const fromDatev = vouchers.length === 0 && yearDatev.length > 0 ? datevYearSums(yearDatev, company.kontenrahmen) : null;
+      // Mischjahr (Wechsel unter dem Jahr): Belege aus Lexoffice oder sevDesk, dazu der BuchhaltungsButler-Teil aus dessen Stapel
+      const bbDatev = yearDatev.filter((b) => b.note === BB_ORIGINAL_NOTE);
+      const bbPart = vouchers.length > 0 && bbDatev.length > 0 ? datevYearSums(bbDatev, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
+        const pick = (sums: NonNullable<typeof fromDatev>) => (direction === "einnahme" ? sums.einnahmen : sums.ausgaben);
         if (fromDatev) {
-          const { net, tax } = direction === "einnahme" ? fromDatev.einnahmen : fromDatev.ausgaben;
+          const { net, tax } = pick(fromDatev);
           return { count: 0, net, tax, gross: net + tax };
         }
         const rows = vouchers.filter((v) => v.direction === direction);
+        const bb = bbPart ? pick(bbPart) : { net: 0, tax: 0 };
         return {
           count: rows.length,
-          net: rows.reduce((s, r) => s + r.net, 0),
-          tax: rows.reduce((s, r) => s + r.tax, 0),
-          gross: rows.reduce((s, r) => s + r.gross, 0),
+          net: rows.reduce((s, r) => s + r.net, 0) + bb.net,
+          tax: rows.reduce((s, r) => s + r.tax, 0) + bb.tax,
+          gross: rows.reduce((s, r) => s + r.gross, 0) + bb.net + bb.tax,
         };
       };
       const withoutFile = yearRows.filter((v) => !v.ohneBeleg && Number(v.files) === 0).length;
@@ -630,7 +637,8 @@ export async function reconciliation() {
         const key = [v.taxType ?? "net", v.taxSubType].filter(Boolean).join("/");
         taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
       }
-      const invoices = vouchers
+      // Auch die Rechnungen aus BuchhaltungsButler: Der Nummernkreis läuft in Haben weiter (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)
+      const invoices = [...vouchers, ...yearRows.filter((v) => v.source === "buchhaltungsbutler")]
         // Stornorechnung und Abschlagsrechnung von sevDesk belegen denselben Nummernkreis wie die Rechnungen (#472)
         .filter(
           (v) =>
@@ -695,8 +703,8 @@ export async function reconciliation() {
         neutral: legacyNeutralSums(
           figures.flatMap((v) => (v.neutral && v.date.startsWith(`${year}-`) ? [{ kind: v.neutral, direction: v.direction, gross: v.gross }] : [])),
         ),
-        /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel */
-        sumsFrom: fromDatev ? ("datev" as const) : ("belege" as const),
+        /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel; "gemischt": Belege und BB-Stapel */
+        sumsFrom: fromDatev ? ("datev" as const) : bbPart ? ("gemischt" as const) : ("belege" as const),
         withoutFile,
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,

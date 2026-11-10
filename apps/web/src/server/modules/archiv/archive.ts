@@ -41,6 +41,9 @@ function mimeTypeOf(bytes: Uint8Array, filename: string): string {
  * Legt eine Originaldatei unverändert ins Archiv. Ein DATEV-Buchungsstapel wird zusätzlich zeilenweise
  * übernommen; Zeiträume dürfen sich nicht mit schon übernommenen Stapeln überschneiden.
  */
+/** Notiz an den Originaldateien des BuchhaltungsButler-Imports; der Abgleich erkennt daran dessen DATEV-Stapel */
+export const BB_ORIGINAL_NOTE = "BuchhaltungsButler-Originalexport";
+
 export async function addArchiveFile(
   actor: string,
   file: { bytes: Uint8Array; filename: string; kind: ArchiveKind; year: number | null; note?: string },
