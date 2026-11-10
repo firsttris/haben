@@ -20,3 +20,23 @@ test("Datei wählen öffnet den Dateidialog auch ohne umschließendes label", as
 
   await expect(page.getByText("zertifikat.pem")).toBeVisible();
 });
+
+test("Datei wählen in einem umschließenden label öffnet genau einen Dialog", async ({ page }) => {
+  await page.goto("/csv-import?art=kontakte");
+  let dialoge = 0;
+  page.on("filechooser", () => {
+    dialoge += 1;
+  });
+
+  await page.getByText("Datei wählen", { exact: true }).first().click();
+  await page.waitForTimeout(1500);
+
+  expect(dialoge).toBe(1);
+});
+
+test("Die Tastatur öffnet den Dateidialog am Eingabefeld", async ({ page }) => {
+  await page.goto("/csv-import?art=kontakte");
+  await page.locator(".file-picker input[type=file]").first().focus();
+
+  await Promise.all([page.waitForEvent("filechooser", { timeout: 5000 }), page.keyboard.press("Enter")]);
+});
