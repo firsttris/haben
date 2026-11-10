@@ -52,6 +52,17 @@ test.beforeAll(async ({ browser }) => {
         },
         {
           kind: "journal",
+          externalId: "kasse-1",
+          date: "2026-01-05",
+          description: "Übernommene Kassenbewegung",
+          lines: [
+            { account: "1000", debit: 40000, credit: 0 },
+            { account: "1400", debit: 0, credit: 40000 },
+          ],
+          cashFlows: [],
+        },
+        {
+          kind: "journal",
           externalId: "j-1",
           date: "2026-01-05",
           description: "Originalbuchung aus Beispiel-App",
@@ -90,12 +101,17 @@ test("Originalbelege stehen in normalen Listen; bezahlt ist kein offener Posten"
   const csv = await page.request.get("/api/auswertungen/2026");
   expect(csv.ok()).toBe(true);
   expect(await csv.text()).toContain("400,00");
+  await page.goto("/kasse?jahr=2026");
+  await expect(page.getByText("Übernommene Kassenbewegung").first()).toBeVisible();
+  await expect(page.getByText("400,00 €", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Nr\. \d+ stornieren/ })).toHaveCount(0);
 });
 
 test("Import bleibt im Journal und in der EÜR sichtbar, auch auf dem Handy", async () => {
   for (const [name, path] of [
     ["euer", "/auswertungen?jahr=2026"],
     ["journal", "/buchungen?jahr=2026&monat=1"],
+    ["kasse", "/kasse?jahr=2026"],
   ] as const) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
