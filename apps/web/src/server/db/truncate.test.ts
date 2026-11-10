@@ -108,4 +108,37 @@ describe.skipIf(!testDatabaseUrl)("TRUNCATE auf festgeschriebenen und nur anhän
     const [problems] = await sql`select count(*)::int as n from haben_integrity_problems()`;
     expect(problems!.n).toBe(0);
   });
+
+  /** Tabellen, deren DELETE der Audit-Trigger aufzeichnet; TRUNCATE feuert ihn nicht (docs/architektur.md: „Lückenlos“) */
+  async function protokollierteTabellen(): Promise<string[]> {
+    const rows = await sql<{ name: string }[]>`select distinct c.relname as name from pg_trigger t join pg_class c on c.oid = t.tgrelid
+      join pg_proc p on p.oid = t.tgfoid
+      where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and p.proname = 'haben_audit' and t.tgtype & 8 = 8`;
+    return rows.map((r) => r.name).sort();
+  }
+
+  it("jede Tabelle, deren Löschen das Audit-Log aufzeichnet, hat einen Trigger vor TRUNCATE", async () => {
+    const tabellen = await protokollierteTabellen();
+    expect(tabellen).toEqual(expect.arrayContaining(["company", "vat_frequencies", "user"]));
+    const geschuetzt = await mitTruncateSchutz();
+    expect(tabellen.filter((t) => !geschuetzt.has(t))).toEqual([]);
+  });
+
+  it("TRUNCATE company wird abgelehnt, statt die Firmendaten ohne Eintrag im Audit-Log zu entfernen", async () => {
+    await sql`insert into company (id, name, kontenrahmen) values (1, 'Testbetrieb', 'SKR04') on conflict (id) do nothing`;
+    const [vorher] = await sql`select count(*)::int as n from audit_log`;
+
+    const ergebnis = await sql`truncate company`.then(
+      () => "geleert",
+      (e: Error) => e.message,
+    );
+
+    const [firma] = await sql`select count(*)::int as n from company`;
+    const [nachher] = await sql`select count(*)::int as n from audit_log`;
+    expect({ ergebnis, firma: firma!.n, audit: nachher!.n }).toEqual({
+      ergebnis: expect.stringMatching(/company darf nicht geleert werden/),
+      firma: 1,
+      audit: vorher!.n,
+    });
+  });
 });
