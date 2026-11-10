@@ -47,8 +47,8 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
       ...overrides,
     });
 
-  /** Ohne Glyphen: Der warme Render-Prozess führt sie über die Läufe mit, gesetzt ist dasselbe */
-  const gesetzt = (svg: string) => svg.replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "");
+  /** Ohne Glyphen und data-tid: Der warme Render-Prozess führt Glyphen mit, die Kennungen vergibt Typst nicht stabil */
+  const gesetzt = (svg: string) => svg.replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "").replace(/ data-tid="[^"]*"/g, "");
   const text = (parts: { lines: string[] }[]) => parts.flatMap((part) => part.lines).join("\n");
 
   it("setzt ein ungespeichertes Formular als Blatt, ohne Kunden mit Hinweis", async () => {

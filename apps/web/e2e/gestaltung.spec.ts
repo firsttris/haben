@@ -53,8 +53,8 @@ const brand = async (p: Page) => {
   };
   return farben.sort((a, b) => kraft(b) - kraft(a))[0]!.toUpperCase();
 };
-/** Ohne die Glyphen: Der warme Render-Prozess führt sie über die Läufe mit, gesetzt ist dasselbe */
-const gesetzt = async (p: Page) => (await svg(p)).replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "");
+/** Ohne Glyphen und data-tid: Der warme Render-Prozess führt Glyphen mit, die Kennungen vergibt Typst nicht stabil */
+const gesetzt = async (p: Page) => (await svg(p)).replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "").replace(/ data-tid="[^"]*"/g, "");
 /** Nach dem ersten Bild kann das Formular noch nachziehen; verglichen wird erst, wenn das Blatt zur Ruhe gekommen ist */
 async function ruhigesBlatt(p: Page): Promise<string> {
   await expect(blatt(p).locator(".sheet-page img").first()).toBeVisible();
