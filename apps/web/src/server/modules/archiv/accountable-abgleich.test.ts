@@ -85,4 +85,13 @@ describe.skipIf(!testDatabaseUrl)("Abgleich der DATEV-Buchungen nach Kontenrahme
     expect(list.rows.map((r) => r.voucherField1)).toEqual(["B-404"]);
     expect(list.total).toBe(offen);
   });
+  it("auch die Buchungen ohne Beleg je Zeitraum (MCP) zählen wie der Abgleich (Review #579, Runde 3)", async () => {
+    const offen = await unmatched("03", [
+      `271,40;"H";"EUR";;;;1200;1801;"";1903;"19032023_27140";"";;"Privatentnahme"`,
+      `119,00;"H";"EUR";;;;1200;4930;"9";1503;"B-404";"";;"Bürobedarf"`,
+    ]);
+    const period = await archive.datevBookingsForPeriod({ year: 2023, account: "", unmatched: true, limit: 50 });
+    expect(period.rows.map((r) => r.voucherField1)).toEqual(["B-404"]);
+    expect(period.total).toBe(offen);
+  });
 });
