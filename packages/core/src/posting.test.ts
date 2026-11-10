@@ -107,9 +107,10 @@ describe("documentPosting", () => {
       ["3837", "RC13bDrittland"],
       ["2180", null],
     ]);
-    // Kleinunternehmer: Steuer schulden, nicht abziehen; sie ist Aufwand
+    // Kleinunternehmer: Steuer schulden, nicht abziehen; sie ist Aufwand, als eigene Zeile neben dem Netto (#542)
     expect(documentPosting(totals, "software", "SKR03", "einzelunternehmen", "bank", false, undefined, 0, "eu")).toEqual([
-      { account: "4964", debit: 11_900, credit: 0, taxCode: "RC13bEU" },
+      { account: "4964", debit: 10_000, credit: 0, taxCode: "RC13bEU" },
+      { account: "4964", debit: 1_900, credit: 0, taxCode: "keineVSt" },
       { account: "1787", debit: 0, credit: 1_900, taxCode: "RC13bEU" },
       { account: "1600", debit: 0, credit: 10_000, taxCode: null },
     ]);
@@ -117,6 +118,11 @@ describe("documentPosting", () => {
     const shared = documentPosting(totals, "telefon", "SKR03", "einzelunternehmen", "bank", true, undefined, 20, "eu");
     expect(shared.find((l) => l.account === "1577")!.debit).toBe(1_520);
     expect(shared.find((l) => l.account === "1787")!.credit).toBe(1_900);
+    // Der private Teil der Bemessungsgrundlage steht mit dem Steuerschlüssel auf den Entnahmen, die private Steuer ohne (#542)
+    expect(shared.filter((l) => l.account === "1800")).toEqual([
+      { account: "1800", debit: 2_000, credit: 0, taxCode: "RC13bEU" },
+      { account: "1800", debit: 380, credit: 0, taxCode: null },
+    ]);
     expect(balanced(shared)).toBe(true);
   });
 

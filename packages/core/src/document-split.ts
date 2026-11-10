@@ -109,7 +109,8 @@ export function splitIssues(lines: AllocatedSplitLine[], amounts: DocumentRateAm
  * § 13b (#508) wie in documentPosting: Der Aufwand jeder Zeile trägt RC13bEU bzw. RC13bDrittland, die selbst geschuldete
  * Steuer steht je Satz einmal als Umsatzsteuer und, mit Vorsteuerabzug, im selben Betrag als Vorsteuer (VSt13b); gezahlt
  * wird nur netto (totals.gross = Netto). Ohne Vorsteuerabzug ist die Steuer Aufwand: je Zeile ihr Anteil aus
- * allocateSplitTax, so ergibt die Summe centgenau die Steuer des Belegs.
+ * allocateSplitTax, so ergibt die Summe centgenau die Steuer des Belegs; er steht als eigene Zeile mit keineVSt neben dem
+ * Netto, damit die Bemessungsgrundlage (Kz 46/84) im Journal stimmt.
  */
 export function documentSplitPosting(
   totals: InvoiceTotals,
@@ -125,14 +126,21 @@ export function documentSplitPosting(
   const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
   if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
   const expenses = new Map<string, { account: string; amount: Cents; code: TaxCode }>();
-  for (const line of lines) {
-    const account = EXPENSE_CATEGORIES[line.category][kontenrahmen];
-    const code = rcCode ?? (vorsteuerAbzug ? inputTaxCode(line.taxRate) : "keineVSt");
+  const add = (account: string, code: TaxCode, amount: Cents) => {
     const key = `${account}|${code}`;
-    const amount = vorsteuerAbzug ? line.net : line.net + line.tax;
     const seen = expenses.get(key);
     if (seen) seen.amount += amount;
     else expenses.set(key, { account, amount, code });
+  };
+  for (const line of lines) {
+    const account = EXPENSE_CATEGORIES[line.category][kontenrahmen];
+    if (vorsteuerAbzug) add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
+    else if (rcCode) {
+      // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die
+      // Bemessungsgrundlage trägt (#542)
+      add(account, rcCode, line.net);
+      add(account, "keineVSt", line.tax);
+    } else add(account, "keineVSt", line.net + line.tax);
   }
   const result: PostingLine[] = [...expenses.values()].map((e) => side(e.account, e.amount, true, e.code));
   for (const { rate, tax } of totals.taxes) {

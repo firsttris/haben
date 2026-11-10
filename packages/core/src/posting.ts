@@ -428,7 +428,13 @@ export function documentPosting(
   for (const row of totals.taxes) {
     const baseSplit = splitPrivateShare(row.base, privateShare);
     const taxSplit = splitPrivateShare(row.tax, privateShare);
-    privatePart += baseSplit.private + taxSplit.private;
+    if (reverseCharge && row.rate !== 0) {
+      // § 13b und Erwerb: Die Bemessungsgrundlage zählt in Kz 46/84 bzw. 89/93 voll, auch der private Teil. Er steht
+      // deshalb mit dem Steuerschlüssel auf den Entnahmen, damit das Journal die ganze Bemessungsgrundlage trägt (#542).
+      const code = reverseCharge === "ig_erwerb" ? IG_ERWERB.code[vatRate(row.rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
+      if (baseSplit.private !== 0) lines.push(side(accounts.privatentnahmen, baseSplit.private, true, code));
+      privatePart += taxSplit.private;
+    } else privatePart += baseSplit.private + taxSplit.private;
     const { rate } = row;
     const base = baseSplit.business;
     const tax = taxSplit.business;
@@ -437,7 +443,9 @@ export function documentPosting(
       if (rate === 0) throw new RangeError(`${ige ? "Innergemeinschaftlicher Erwerb" : "§ 13b"}: Steuersatz muss 19 % oder 7 % sein`);
       const code = ige ? IG_ERWERB.code[vatRate(rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
       if (!vorsteuerAbzug) {
-        if (base + tax !== 0) lines.push(side(expense, base + tax, true, code));
+        // Ohne Vorsteuerabzug ist die Steuer Aufwand; als eigene Zeile, damit die Bemessungsgrundlage im Journal stimmt (#542)
+        if (base !== 0) lines.push(side(expense, base, true, code));
+        if (tax !== 0) lines.push(side(expense, tax, true, "keineVSt"));
       } else {
         if (base !== 0) lines.push(side(expense, base, true, code));
         if (tax !== 0) lines.push(ige ? side(accounts.vorsteuerIge[vatRate(rate)], tax, true, "VStIGE") : side(accounts.vorsteuerRc, tax, true, "VSt13b"));
