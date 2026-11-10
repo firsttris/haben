@@ -527,3 +527,16 @@ describe("Privateinlage im Accountable-Stapel (Review #579, Runde 2)", () => {
     expect(mapping.privateRows).toBe(1);
   });
 });
+
+describe("Privatkonten im SKR03 (Review #579, Runde 2)", () => {
+  it("zählt Privatsteuern (1810) und Sonderausgaben (1830) als Privatzeilen und legt keinen Ausgabebeleg an", () => {
+    // SKR03 1800–1899 ist Privat (packages/core/src/posting.ts); die Einkommensteuer vom Geschäftskonto ist keine Betriebsausgabe
+    const rows = [
+      zeile("1200,00", "H", "1810", "", "1003", "10032025_120000", "10032025", "Einkommensteuer Vorauszahlung"),
+      zeile("80,00", "H", "1830", "", "1503", "15032025_8000", "15032025", "Spende"),
+    ];
+    const mapping = mapAccountableExport(readAccountableExport(export_(XML, undefined, rows)));
+    expect(mapping.vouchers).toEqual([]);
+    expect(mapping.privateRows).toBe(2);
+  });
+});
