@@ -11,8 +11,10 @@ import type { AccountableExpenseRow } from "./types.ts";
  * Lieferanten und Datum gelten als eine Rechnung mit Aufteilung.
  *
  * Das bleibt eine Annahme. Zwei getrennte Käufe beim selben Händler am selben Tag sehen
- * genauso aus. Die Aufteilung ändert aber weder Aufwand noch Vorsteuer, nur die Zahl der
- * Belege, deshalb ist der Fehler im Zweifel unschädlich.
+ * genauso aus. Für den gebuchten Aufwand ist der Unterschied trotzdem nicht gleichgültig:
+ * einzeln übernommen bekommt nur die Zeile mit Belegdatei eine Buchung, die übrigen bleiben
+ * ohne Beleg und fehlen in der EÜR. Die Gruppierung sorgt dafür, dass die ganze Rechnung
+ * gebucht wird; die Summe der Zeilen ist in beiden Fällen dieselbe.
  */
 export interface AccountableSplitPosition {
   /** M, etwa „0490“ */
@@ -54,7 +56,7 @@ function gruppierbar(e: AccountableExpenseRow): boolean {
     e.net !== null &&
     e.tax !== null &&
     e.taxRate !== null &&
-    e.currency === "EUR" &&
+    (e.currency === "" || e.currency === "EUR") &&
     e.taxStatus !== "Importieren" &&
     e.documentPresent !== false
   );

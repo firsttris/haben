@@ -44,6 +44,15 @@ describe("Sammelrechnungen aus dem Ausgabenblatt", () => {
     expect(rechnung?.positions.map((p) => p.category)).toEqual(["hardware", "buero"]);
   });
 
+  it("fasst Zeilen ohne Währungsangabe zusammen, leer heißt Euro", () => {
+    const ergebnis = sammelrechnungen([
+      zeile({ row: 2, gross: 1770, net: 1487, tax: 283, currency: "" }),
+      zeile({ row: 3, gross: 229, net: 192, tax: 37, currency: "", code: "4280" }),
+    ]);
+    expect(ergebnis).toHaveLength(1);
+    expect(ergebnis[0]?.gross).toBe(1999);
+  });
+
   it("lässt eine einzelne Zeile liegen", () => {
     expect(sammelrechnungen([zeile({ row: 2 })])).toEqual([]);
   });

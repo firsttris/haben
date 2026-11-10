@@ -135,17 +135,21 @@ Accountable kann eine Rechnung auf mehrere Konten verteilen. Im Ausgabenblatt st
 Konto eine Zeile, alle mit demselben Lieferanten und Datum, aber ohne Belegnummer, die sie
 zusammenbindet. Beim Export fehlt damit die Angabe, welche Zeilen eine Rechnung sind.
 
-Wer die Zeilen einzeln übernimmt, bekommt einen Beleg über den Teilbetrag der ersten Zeile
-und für die übrigen Belege ohne Datei. Aufwand und Vorsteuer stimmen dann nicht.
+Wer die Zeilen einzeln übernimmt, bekommt einen Beleg über den Teilbetrag der ersten Zeile.
+Die übrigen Zeilen haben keine eigene Datei, werden deshalb nicht gebucht und fehlen im
+Aufwand und in der Vorsteuer.
 
 `sammelrechnungen()` fasst Zeilen mit gleichem Lieferanten und Datum zu einer Rechnung
 zusammen und liefert die Positionen einzeln, damit Haben sie als Aufteilung bucht.
-`zeilenInSammelrechnungen()` nennt die Zeilennummern, die dabei aufgehen; die überspringt
-der Import.
+`zeilenInSammelrechnungen()` nennt die Zeilennummern, die dabei aufgehen, damit ein
+Aufrufer sie überspringt.
+
+Beides liest nur. In `apps/web` ruft die Funktionen noch niemand auf; der Umzug nutzt sie
+über ein Skript außerhalb dieses Repos.
 
 Die Zuordnung bleibt eine Annahme, weil zwei getrennte Käufe beim selben Händler am selben
-Tag genauso aussehen. Für Aufwand und Vorsteuer ist der Unterschied unerheblich, die Summe
-bleibt gleich; es ändert sich nur die Zahl der Belege.
+Tag genauso aussehen. Die Summe der Zeilen ist in beiden Fällen dieselbe; unterschiedlich
+ist, ob sie gebucht wird.
 
 ## Vor der Kündigung
 
