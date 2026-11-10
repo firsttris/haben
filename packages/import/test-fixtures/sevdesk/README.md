@@ -25,6 +25,7 @@ Nur `buchhaltung-1.0/`:
 - `platzhalter-auftrag.json`: Angebot mit Platzhalter in `footText`.
 - `mahnung-mit-rechnung.json`: zwei Mahnungen (`invoiceType` MA, `status` 500, `dunningLevel` 1 und 2), von sevDesk nach dem Speichern als versendet geführt, dazu unter `gemahnteRechnung` die Rechnung, auf die `origin` zeigt; `GET /Invoice` liefert Mahnungen nur mit dem Filter `invoiceType=MA`.
 - `gutschrift.json`: fünf Gutschriften (`creditNote` und `positions`), je eine für jeden Wert von `bookingCategory`, alle fertiggestellt (`status` 200, `sendDate` gesetzt, `sendType` `VPDF`).
+- `belege-zu-buchungen.json`: Rechnung und Belege, deren Nummer genau dem `Belegfeld 1` im Stapel entspricht, Beträge maskiert. Der Beleg zur Zahlungsbuchung ist erfunden.
 - `extf-buchungsstapel.csv`, `extf-gp-stamm.csv`, `document-rechnungseingang.xml`, `document-rechnungsausgang.xml`: Auszug aus einem DATEV-Jahresexport, 7 Buchungen und 2 Personenkonten. Die Beleglink-GUIDs der CSV passen zu den XML-Dateien. Die beiden CSV-Dateien sind Windows-1252 mit CRLF und müssen es bleiben.
 - `beleg-wiederkehrend-rv.json`: drei Vorlagen wiederkehrender Belege (`voucherType` RV): `status` 50 ohne nächsten Termin, 100 mit nächstem Termin, 1000 mit Enddatum.
 - `beleg-ohne-datei.json`: Belege ohne `document`, in diesem Konto mehr als ein Viertel aller Belege.
@@ -94,4 +95,6 @@ Aufbau, Feldnamen und Datentypen bleiben, denn auf sie kommt es an (`paidAmount`
 - Datumsangaben sind verschoben, in den GET-Antworten aus 2.0 um ganze Jahre, damit der Jahreswechsel erhalten bleibt. Der Versatz zu UTC ist dabei geblieben und kann in der Woche der Zeitumstellung abweichen; das Datum liest Haben aus den ersten zehn Zeichen (`lexDate`).
 - `zahlungen.json` stammt aus einem eigenen Anonymisierungslauf: Gleiche Kennungen dort und in `belege-credit-debit.json` meinen nicht dasselbe Objekt.
 - In `buchhaltung-2.0/extf-buchungsstapel.csv` sind Konten und UUIDs gültige Platzhalter statt `x`, damit sie sich wie echte Werte lesen lassen.
-- Im DATEV-Auszug aus `buchhaltung-1.0/` sind Beträge 100,00, Daten der 15.01.2024, in Belegnummern und Dateinamen Ziffern `1` und Buchstaben `X`, GUIDs und Dateikennungen Platzhalter; Kontonummern des Kontenrahmens und das Muster der Nummern bleiben.
+- Im DATEV-Auszug aus `buchhaltung-1.0/` sind Beträge 100,00, Daten der 15.01.2024, Belegnummern pro Buchung einheitlich ersetzt, GUIDs und Dateikennungen Platzhalter; Kontonummern des Kontenrahmens und das Muster der Nummern bleiben. Bezüge per Nummer, GUID und `origin.id` stimmen.
+
+`packages/import/src/sevdesk/anonymisierung.test.ts` prüft alle Dateien hier auf E-Mail, IBAN und USt-IdNr. und sensible Felder auf Platzhalter. Wer neue Daten ablegt, trägt erfundene Namen oder Nummern dort ausdrücklich ein.

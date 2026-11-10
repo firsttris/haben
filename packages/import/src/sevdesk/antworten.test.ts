@@ -323,11 +323,18 @@ describe("DATEV-Export aus Buchhaltungsversion 1.0", () => {
     expect([...beleglinks].sort()).toEqual([...xml].sort());
   });
 
-  // Belegfelder sind auf 1 und X maskiert, eine UUID hätte hier dieselbe Form.
-  const maskierteUuid = /[1X]{8}-[1X]{4}-[1X]{4}-[1X]{4}-[1X]{12}/;
+  // Belegfelder sind aus Ziffern und X maskiert, eine UUID hätte hier dieselbe Form.
+  const maskierteUuid = /[1-9X]{8}-[1-9X]{4}-[1-9X]{4}-[1-9X]{4}-[1-9X]{12}/;
 
   it("erkennt eine maskierte UUID", () => {
     expect("1XX1X11X-1X1X-1X1X-1X11-1X1XX1X11X1X").toMatch(maskierteUuid);
+  });
+
+  it("nennt im Dateinamen die Belegnummer der Buchung mit dieser GUID", () => {
+    const zuDatei = [...text("document-rechnungseingang.xml").matchAll(/guid="([0-9a-f-]{36})"[^>]*><extension name="[^_]+_[^_]+_(.+?)_[0-9a-f]{32}\.pdf"/g)];
+    zuDatei.push(...text("document-rechnungsausgang.xml").matchAll(/guid="([0-9a-f-]{36})"[^>]*><extension name="[^_]+_[^_]+_(.+?)_[0-9a-f]{32}\.pdf"/g));
+    expect(zuDatei).toHaveLength(4);
+    for (const [, guid, nummer] of zuDatei) expect(buchungen.find((b) => b.documentLink.includes(guid!))?.voucherField1).toBe(nummer);
   });
 
   it("führt keine maskierte UUID im Belegfeld", () => {

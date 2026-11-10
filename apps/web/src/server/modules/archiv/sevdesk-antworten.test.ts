@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import belege from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/belege-credit-debit.json";
+import belegeZuBuchungen from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/belege-zu-buchungen.json";
 import stornoV1 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/storno-paar.json";
 import belegeV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/belege-credit-debit.json";
 import gutschriftV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/gutschrift.json";
@@ -23,6 +24,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /* Abgleich und offene Posten mit anonymisierten echten Antworten je Buchhaltungsversion (#472). */
 
+const extfV1 = new URL("../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-1.0/extf-buchungsstapel.csv", import.meta.url);
 const extfV2 = new URL("../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-buchungsstapel.csv", import.meta.url);
 
 describe.skipIf(!testDatabaseUrl)("sevDesk-Antworten je Buchhaltungsversion (Postgres)", () => {
@@ -159,6 +161,19 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Antworten je Buchhaltungsversion (Pos
     const counts: Record<string, number> = {};
     for (const { taxTypes } of years) for (const { taxType, count } of taxTypes) counts[taxType] = (counts[taxType] ?? 0) + count;
     expect(counts).toEqual({ net: 3, vatfree: 2, "sevdesk:noteu": 1 });
+  });
+
+  it("findet zu jeder Buchung mit Belegnummer aus Version 1.0 ihren Beleg", async () => {
+    for (const invoice of belegeZuBuchungen.rechnungen) await insertInvoice({ invoice, positions: [] });
+    for (const voucher of belegeZuBuchungen.belege) await insertVoucher({ voucher, positions: [] });
+    await archive.addArchiveFile("test-user", {
+      bytes: new Uint8Array(readFileSync(extfV1)),
+      filename: "EXTF_Buchungsstapel_2024.csv",
+      kind: "datev",
+      year: 2024,
+    });
+    const year = (await lexoffice.reconciliation()).years.find((y) => y.bookings);
+    expect(year!.bookings).toEqual({ total: 7, unmatched: 0, withoutNumber: 2 });
   });
 
   it("findet den Beleg zum gekürzten Belegfeld aus dem Export von Version 2.0 und zählt die UUID nicht", async () => {
