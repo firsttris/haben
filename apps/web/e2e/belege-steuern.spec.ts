@@ -1,9 +1,11 @@
+import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
-import { databaseUrlFuer } from "./durchlaeufe.ts";
+import { databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
   faktenZeigen,
@@ -40,6 +42,25 @@ test.afterAll(async () => {
 });
 
 const go = (path: string) => gehe(page, path);
+
+/**
+ * Nachgebaute Enable-Banking-API mit drei Banken; der Server des Durchlaufs fragt sie über ENABLE_BANKING_API_URL
+ * (playwright.config.ts). N26 bietet Privat- und Geschäftskonto an, damit die Kontoart erscheint.
+ */
+async function enableBankingAttrappe(): Promise<Server> {
+  const aspsps = [
+    { name: "N26", country: "DE", psu_types: ["personal", "business"], maximum_consent_validity: 180 * 86_400 },
+    { name: "Fyrst", country: "DE", psu_types: ["business"], maximum_consent_validity: 90 * 86_400 },
+    { name: "DKB", country: "DE", psu_types: ["personal"], maximum_consent_validity: 180 * 86_400 },
+  ];
+  const server = createServer((request, response) => {
+    const found = new URL(request.url ?? "/", "http://localhost").pathname === "/aspsps";
+    response.writeHead(found ? 200 : 404, { "content-type": "application/json" });
+    response.end(JSON.stringify(found ? { aspsps } : { message: "nicht nachgebaut" }));
+  });
+  await new Promise<void>((resolve) => server.listen(ENABLE_BANKING_PORT, "127.0.0.1", resolve));
+  return server;
+}
 
 test("Einrichtung", async () => {
   await einrichten(page);
@@ -212,6 +233,64 @@ test("Kontoabruf: Enable Banking in den Einstellungen, ein falscher Schlüssel w
   await expect(card.getByLabel("Application ID")).toHaveValue("0b7c3f1e-1234-4abc-9def-0123456789ab");
   await card.getByRole("button", { name: "Prüfen und speichern" }).click();
   await expect(card.getByRole("alert")).toContainText("keine gültige .pem-Datei");
+});
+
+test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer der Suche (#555)", async () => {
+  const api = await enableBankingAttrappe();
+  try {
+    await go("/einstellungen?bereich=bank");
+    const card = page.getByRole("form", { name: "Automatischer Kontoabruf" });
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    await card.getByLabel("Privater Schlüssel (.pem)").setInputFiles({
+      name: "0b7c3f1e-1234-4abc-9def-0123456789ab.pem",
+      mimeType: "application/x-pem-file",
+      buffer: Buffer.from(privateKey.export({ type: "pkcs8", format: "pem" })),
+    });
+    await card.getByRole("button", { name: "Prüfen und speichern" }).click();
+    await expect(card.getByText("Zugang geprüft und verschlüsselt gespeichert")).toBeVisible();
+
+    await go("/bank");
+    await page.getByRole("button", { name: "Bank verbinden" }).click();
+    const banken = page.getByRole("listbox");
+    const weiter = page.getByRole("button", { name: "Weiter zur Bank" });
+    // Markiert und gewählt ist dasselbe: zu Beginn die erste Bank der Liste
+    await expect(banken.getByRole("option")).toHaveText(["DKB", "Fyrst", "N26"]);
+    await expect(banken).toHaveValue("DKB");
+    await expect(page.getByText("Du wirst zu DKB weitergeleitet")).toBeVisible();
+    await expect(weiter).toBeEnabled();
+
+    // Bleibt nach der Suche nur eine Bank, ist sie markiert und auch gewählt; vorher blieb der Knopf grau (#555)
+    await page.getByLabel("Bank suchen").fill("N26");
+    await expect(banken.getByRole("option")).toHaveText(["N26"]);
+    await banken.getByRole("option", { name: "N26" }).click();
+    await expect(weiter).toBeEnabled();
+    await expect(page.getByText("Du wirst zu N26 weitergeleitet")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Kontoart" })).toBeVisible();
+
+    // Ohne Klick: der einzige Treffer ist gewählt und bleibt es, wenn die Suche wieder alle zeigt
+    await page.getByLabel("Bank suchen").fill("fyrst");
+    await expect(banken.getByRole("option")).toHaveText(["Fyrst"]);
+    await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
+    await expect(weiter).toBeEnabled();
+    await page.getByLabel("Bank suchen").fill("");
+    await expect(banken.getByRole("option")).toHaveCount(3);
+    await expect(banken).toHaveValue("Fyrst");
+    await expect(page.getByText("Du wirst zu Fyrst weitergeleitet")).toBeVisible();
+
+    // Kein Treffer: nichts gewählt
+    await page.getByLabel("Bank suchen").fill("Sparkasse");
+    await expect(banken.getByRole("option")).toHaveCount(0);
+    await expect(weiter).toBeDisabled();
+    await page.getByRole("button", { name: "Abbrechen" }).click();
+
+    // Zugang wieder entfernen, damit die folgenden Tests die Bankseite wie zuvor sehen
+    await go("/einstellungen?bereich=bank");
+    await card.getByRole("button", { name: "Entfernen" }).click();
+    await bestaetigen(page, "Entfernen");
+    await expect(card.getByLabel("Privater Schlüssel (.pem)")).toBeVisible();
+  } finally {
+    await new Promise((resolve) => api.close(resolve));
+  }
 });
 
 test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {

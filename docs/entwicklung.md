@@ -235,7 +235,7 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen Auftrag im Archiv, eine eigene Seite, einen Mitarbeiter und einen Dauerbeleg. Alles andere spielen zwei weitere Durchläufe mit eigenem Server und eigener Datenbank daneben durch, damit diese Kette kurz bleibt:
 
 - `rechnungen.spec.ts`: Rechnungen, Angebote, Versand per E-Mail, Kasse, REST-API und CSV-Import.
-- `belege-steuern.spec.ts`: Belege, Bankabgleich, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen.
+- `belege-steuern.spec.ts`: Belege, Bankabgleich, Bank verbinden für den automatischen Abruf, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen. Den Abruf beantwortet eine nachgebaute Enable-Banking-API im Test auf Port `E2E_PORT` + 9; `playwright.config.ts` richtet `ENABLE_BANKING_API_URL` aller Server darauf.
 
 Beide richten sich mit `e2e/einrichtung.ts` dasselbe Unternehmen ein und prüfen am Ende die Seiten mit ihren Daten wie `barrierefreiheit.spec.ts` und `seiten.spec.ts`: axe am Desktop und am Handy, kein waagrechtes Scrollen auf dem Handy. Ports und Datenbanken der Durchläufe stehen in `e2e/durchlaeufe.ts`. Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht.
 

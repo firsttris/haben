@@ -1107,8 +1107,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
     sourceType: "invoice",
     sourceId: id,
-    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern
-    lines: corrects?.lexofficeVoucherId
+    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
+    // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
+    lines: (await correctsLegacyInvoice(tx, corrects))
       ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
       : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
   });
@@ -1116,6 +1117,17 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   await syncQuoteBilling(tx, quoteIds);
 
   return finalized!;
+}
+
+/** Korrigiert die Rechnung (über Korrekturen hinweg) eine aus Lexoffice übernommene? Dann gehören ihre Erlöse zu den alten Büchern */
+async function correctsLegacyInvoice(q: Db | Tx, corrects: Invoice | undefined): Promise<boolean> {
+  let current = corrects;
+  for (let depth = 0; current && depth < 20; depth++) {
+    if (current.lexofficeVoucherId) return true;
+    if (!current.correctsId) return false;
+    [current] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, current.correctsId));
+  }
+  return false;
 }
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */

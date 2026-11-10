@@ -12,6 +12,9 @@ const databaseUrl = process.env.E2E_DATABASE_URL ?? "";
 export const DURCHLAEUFE = { gmbh: 1, rechnungen: 2, "belege-steuern": 3, rueckfragen: 4, belegimport: 5 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
 
+/** Die nachgebaute Enable-Banking-API in belege-steuern.spec.ts; + 7 und + 8 belegen langsame-anfrage und beenden */
+export const ENABLE_BANKING_PORT = PORT + 9;
+
 export const portFuer = (durchlauf?: Durchlauf) => PORT + (durchlauf ? DURCHLAEUFE[durchlauf] : 0);
 
 /** Neben der E2E-Datenbank, Name endet wie verlangt auf „e2e“: haben_e2e → haben_gmbh_e2e */
