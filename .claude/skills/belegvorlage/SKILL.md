@@ -47,7 +47,7 @@ Nur diese Schriften sind eingebettet; andere fehlen auf dem Server, und PDF/A ve
 Ein Layout muss auf dem Blatt zeigen:
 
 - Absender (`senderLine` oder `footer`) und Empfänger (`recipient`), Angaben aus `meta` (Nummer, Datum, Leistungsdatum).
-- Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer je Satz (`totals`), der Hinweis ohne Steuerausweis (`taxNote`), Steuernummer oder USt-IdNr. aus der Fußzeile (`footer`) und bei GmbH oder UG die Pflichtangaben aus `legal` (§ 14 Abs. 4 UStG, § 35a GmbHG).
+- Jede Position mit Menge und Bezeichnung (`lines`), die Summen mit Umsatzsteuer je Satz (`totals.rows`, bei Bruttopreisen in `totals.included`, bei Fremdwährung zusätzlich in Euro in `totals.euroTax`), der Hinweis ohne Steuerausweis (`taxNote`), Steuernummer oder USt-IdNr. aus der Fußzeile (`footer`) und bei GmbH oder UG die Pflichtangaben aus `legal` (§ 14 Abs. 4 UStG, § 35a GmbHG).
 - Bei einem Entwurf der Vermerk aus `draft` auf jeder Seite.
 - Mehrseitige Belege müssen gehen, etwa mit 40 Positionen.
 
@@ -70,7 +70,14 @@ Ein Layout muss auf dem Blatt zeigen:
 #for m in d.meta [ #m.label: #m.value \ ]
 = #d.title
 #table(columns: 4, [Pos.], [Bezeichnung], [Menge], [Betrag], ..d.lines.map(l => (l.pos, l.description, l.quantity, l.net)).flatten())
-#if d.totals != none { for r in d.totals.rows [ #r.label: #r.value \ ]; strong[#d.totals.gross.label: #d.totals.gross.value] }
+#if d.totals != none {
+  for r in d.totals.rows [ #r.label: #r.value \ ]
+  strong[#d.totals.gross.label: #d.totals.gross.value]
+  // Bruttopreise: Umsatzsteuer je Satz steht nur hier; Fremdwährung: Umsatzsteuer in Euro
+  for block in (d.totals.at("included", default: none), d.totals.at("euroTax", default: none)) {
+    if block != none [ \ #block.label \ #for r in block.rows [ #r.label: #r.value \ ] ]
+  }
+}
 #if d.taxNote != none { par(d.taxNote) }
 #if d.payment != none { par(d.payment) }
 #if d.legal != none { text(7pt, d.legal) }
