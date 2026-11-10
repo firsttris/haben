@@ -3,7 +3,7 @@ import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { categoryForCode, mapAccountableExport, taxFromGross } from "./map.ts";
 import { readAccountableExport, type AccountableExport } from "./source.ts";
-import { accountableStatement } from "./statement.ts";
+import { accountableStatements } from "./statement.ts";
 import { readXlsxSheet } from "./xlsx.ts";
 
 /**
@@ -267,7 +267,7 @@ describe("Kontobewegungen als Kontoauszug", () => {
   });
 
   it("macht aus den Kontobewegungen einen Auszug, Ausgaben negativ", () => {
-    const stmt = accountableStatement({
+    const [stmt] = accountableStatements({
       bankMovements: [bewegung("2026-10-29", -4499, true, 2), bewegung("2026-07-06", 14875, true, 3)],
     } as unknown as AccountableExport);
     expect(stmt?.format).toBe("accountable-xlsx");
@@ -282,15 +282,27 @@ describe("Kontobewegungen als Kontoauszug", () => {
   });
 
   it("meldet Bewegungen ohne Beleg und lässt Bewegungen ohne Datum weg", () => {
-    const stmt = accountableStatement({
+    const [stmt] = accountableStatements({
       bankMovements: [bewegung("2026-08-28", -4499, false, 2), { ...bewegung("2026-08-29", -100, true, 3), date: null }],
     } as unknown as AccountableExport);
     expect(stmt?.transactions).toHaveLength(1);
     expect(stmt?.warnings).toEqual(["1 Kontobewegungen hat Accountable keinem Beleg zugeordnet."]);
   });
 
-  it("gibt null zurück, wenn der Export keine Bewegungen mitbringt", () => {
-    expect(accountableStatement({ bankMovements: [] } as unknown as AccountableExport)).toBeNull();
+  it("gibt eine leere Liste zurück, wenn der Export keine Bewegungen mitbringt", () => {
+    expect(accountableStatements({ bankMovements: [] } as unknown as AccountableExport)).toEqual([]);
+  });
+
+  it("macht je eigenem Konto einen eigenen Auszug", () => {
+    const auszuege = accountableStatements({
+      bankMovements: [bewegung("2026-10-29", -4499, true, 2), { ...bewegung("2026-10-30", -100, true, 3), account: "DE02120300000000202051" }],
+    } as unknown as AccountableExport);
+    expect(auszuege).toHaveLength(2);
+    const jeKonto = Object.fromEntries(auszuege.map((a) => [a.accountIban, a.transactions.map((t) => t.amount)]));
+    expect(jeKonto).toEqual({
+      DE42100140009610447304: [-4499],
+      DE02120300000000202051: [-100],
+    });
   });
 });
 

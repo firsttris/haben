@@ -11,7 +11,7 @@ export {
   type AccountableMapping,
 } from "./map.ts";
 export { readAccountableExport, type AccountableExport } from "./source.ts";
-export { accountableStatement } from "./statement.ts";
+export { accountableStatements } from "./statement.ts";
 export {
   sammelrechnungen,
   zeilenInSammelrechnungen,
