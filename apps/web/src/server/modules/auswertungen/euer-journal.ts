@@ -29,7 +29,7 @@ import { splitsByDocument } from "../belege/index.ts";
 
 type Zeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
 
-interface Buchung {
+export interface Buchung {
   id: string;
   reversesId: string | null;
   kontenrahmen: Kontenrahmen;
@@ -38,7 +38,7 @@ interface Buchung {
   zeilen: Zeile[];
 }
 
-async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]> {
+export async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]> {
   const e = schema.journalEntries;
   const l = schema.journalLines;
   const rows = await q
@@ -78,7 +78,7 @@ async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]>
   return [...byId.values()];
 }
 
-const offenerPosten = (kr: Kontenrahmen, z: Zeile) => z.account === ACCOUNTS[kr].forderungen || z.account === ACCOUNTS[kr].verbindlichkeiten;
+export const offenerPosten = (kr: Kontenrahmen, z: Zeile) => z.account === ACCOUNTS[kr].forderungen || z.account === ACCOUNTS[kr].verbindlichkeiten;
 const offen = (b: Buchung) => b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
 const ausbuchungOhneZahlung = (b: Buchung) => {
   const a = ACCOUNTS[b.kontenrahmen];
@@ -145,7 +145,7 @@ async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchu
 }
 
 /** Aufteilung eines Belegs aus dem Nebenbuch, für Teilzahlungen, deren Rundung die Buchung allein nicht hergibt */
-interface BelegNebenbuch {
+export interface BelegNebenbuch {
   totals: ReturnType<typeof totalsFromTaxes>;
   category: ExpenseCategory;
   vorsteuerAbzug: boolean;
@@ -153,7 +153,7 @@ interface BelegNebenbuch {
   splits?: AllocatedSplitLine[];
 }
 
-async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
+export async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
   const d = schema.documents;
   const [doc] = await q
     .select({ category: d.category, vorsteuerAbzug: d.vorsteuerAbzug, privateShare: d.privateShare, reverseCharge: d.reverseCharge })
@@ -171,11 +171,12 @@ async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | 
 }
 
 /** Wirkung einer Teilzahlung auf einen Beleg, gerechnet wie computeEuer */
-function belegTeilzahlung(year: number, beleg: BelegNebenbuch, paid: number, summe: EuerAusJournal) {
+export function belegTeilzahlung(year: number, beleg: BelegNebenbuch, paid: number, summe: EuerAusJournal = leereEuerAusJournal()): EuerAusJournal {
   const payment: EuerPayment = { kind: "document", date: `${year}-06-30`, paid, ...beleg };
   const result = computeEuer(year, [payment]);
   for (const l of [...result.einnahmen, ...result.ausgaben]) if (l.amount !== 0) summe.zeilen[l.key] = (summe.zeilen[l.key] ?? 0) + l.amount;
   summe.bewirtungNichtAbziehbar += result.bewirtungNichtAbziehbar;
+  return summe;
 }
 
 export interface EuerJournal {

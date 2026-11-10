@@ -179,14 +179,17 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(october).toMatchObject({ kz81: 400_000, tax81: 76_000 });
     const september = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(september.kz81).toBe(0);
-    // EÜR aus dem Journal (#542): Die übernommene Rechnung hat keine Erlöszeile, die Zahlung lässt sich nicht verteilen;
-    // der Abgleich nennt das, statt eine Abweichung zu melden
+    // EÜR aus dem Journal (#542): Die übernommene Rechnung hat keine Erlöszeile, die Zahlung lässt sich nicht auf Zeilen
+    // verteilen; der Abgleich nennt das, statt eine Abweichung zu melden
     const abgleich = await import("../auswertungen/abgleich.ts");
     const euer = await abgleich.euerAbgleich(2026);
     expect(euer.hinweise).toContain(
       "Eine Zahlung 2026 auf aus Lexoffice übernommene Rechnungen bzw. Belege: Einnahmen und Ausgaben werden für 2026 nicht je Zeile abgeglichen.",
     );
-    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:"))).toEqual([]);
+    // Die Formel braucht keine Verteilung: Der Saldenvortrag steht für den Erlös, der mit der Zahlung zufließt
+    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:"))).toEqual([
+      { bereich: "euer", zeitraum: "2026", posten: "EÜR: Gewinn nach der DATEV-Formel", journal: 476_000, quelle: 476_000 },
+    ]);
     expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
   });
 
