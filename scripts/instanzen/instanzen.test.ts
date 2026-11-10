@@ -589,3 +589,20 @@ fi`);
     expect(existsSync(join(basis, "firma1"))).toBe(false);
   });
 });
+
+describe("Review Runde 3: Firmen wechseln", () => {
+  const vonHand = (name: string, domain: string) => {
+    const d = join(basis, `haben-${name}`);
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, "compose.yml"), readFileSync(resolve(SKRIPT, "../../compose.yml"), "utf8"));
+    writeFileSync(join(d, ".env"), `COMPOSE_PROJECT_NAME=haben-${name}\nDOMAIN=${domain}\n`);
+  };
+
+  it("legt die 51. Firma nicht halb an, wenn die Liste zum Wechseln voll ist", () => {
+    for (let i = 1; i <= 50; i++) vonHand(`f${i}`, `f${i}.example.de`);
+    const r = lauf("neu", "firma51", "firma51.example.de");
+    expect(r.status).not.toBe(0);
+    // Bisher bricht firmen_abgleichen erst nach mv ab: Verzeichnis da, kein Proxy-Eintrag, nicht gestartet
+    expect(existsSync(join(basis, "firma51")), r.stderr).toBe(false);
+  });
+});
