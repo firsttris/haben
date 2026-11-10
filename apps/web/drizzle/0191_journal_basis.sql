@@ -1,0 +1,1 @@
+ALTER TABLE "journal_lines" ADD COLUMN "basis" integer;

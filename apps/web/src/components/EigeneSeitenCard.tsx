@@ -5,6 +5,7 @@ import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { deleteCustomPageFn, saveCustomPage, type getCustomPages } from "../server/functions/eigene-seiten.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 type Page = Awaited<ReturnType<typeof getCustomPages>>[number];
 
@@ -107,14 +108,22 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
 
       {/* key: beim Wechsel der bearbeiteten Seite stehen ihre Werte im Formular */}
       <form key={editing?.id ?? "neu"} className="form-grid" onSubmit={onSubmit} aria-label={editing ? `${editing.name} bearbeiten` : "Neue eigene Seite"}>
-        <label className="field">
-          Name im Menü
-          <input name="name" required maxLength={40} defaultValue={editing?.name} placeholder="Bestellungen" />
-        </label>
-        <label className="field">
-          Adresse
-          <input name="url" type="url" required maxLength={2000} defaultValue={editing?.url} placeholder="https://n8n.example.de/webhook/bestellungen" />
-        </label>
+        <Field label="Name im Menü">
+          {(control) => <input {...control} name="name" required maxLength={40} defaultValue={editing?.name} placeholder="Bestellungen" />}
+        </Field>
+        <Field label="Adresse">
+          {(control) => (
+            <input
+              {...control}
+              name="url"
+              type="url"
+              required
+              maxLength={2000}
+              defaultValue={editing?.url}
+              placeholder="https://n8n.example.de/webhook/bestellungen"
+            />
+          )}
+        </Field>
         <div className="actions" style={{ gridColumn: "1 / -1" }}>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {editing ? "Speichern" : "Seite hinzufügen"}

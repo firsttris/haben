@@ -1,5 +1,5 @@
-import { useId } from "react";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
+import { Field } from "./Field.tsx";
 
 /** Textbaustein zum Einfügen: Kopftext (Einleitung) oder Fußtext (Hinweis) */
 export interface TextBlockOption {
@@ -49,7 +49,6 @@ export function TextBlockField({
 }) {
   const { customer, general, other } = blocksFor(blocks, kind, contactId);
   const any = customer.length + general.length + other.length > 0;
-  const id = useId();
   const options = (list: TextBlockOption[]) =>
     list.map((b) => (
       <option key={b.id} value={b.id}>
@@ -58,10 +57,9 @@ export function TextBlockField({
     ));
   return (
     <div className="field-group">
-      <div className="field">
-        <label htmlFor={id}>{label}</label>
-        <FormattedTextarea id={id} value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />
-      </div>
+      <Field label={label}>
+        {(control) => <FormattedTextarea {...control} value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />}
+      </Field>
       {any && (
         <select
           aria-label={`${kind === "kopf" ? "Kopftext" : "Fußtext"} aus den Textbausteinen einfügen`}

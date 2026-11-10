@@ -8,6 +8,7 @@ import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { createLoanFn, getLoans } from "../../server/functions/darlehen.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/darlehen")({
   loader: () => getLoans(),
@@ -122,57 +123,58 @@ function NeuesDarlehen({ data }: { data: Data }) {
         Darlehen anlegen
       </h2>
       <form className="stack" style={{ gap: 12 }} onSubmit={submit} aria-labelledby="neu-heading">
-        <label className="field">
-          Name
-          <input name="name" required maxLength={100} placeholder="z. B. Hausbank Investitionskredit" />
-        </label>
+        <Field label="Name">{(control) => <input {...control} name="name" required maxLength={100} placeholder="z. B. Hausbank Investitionskredit" />}</Field>
         <div className="form-row cols-3">
-          <label className="field">
-            Darlehensgeber
-            <select name="lender" defaultValue="bank">
-              {data.lenders.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Restlaufzeit
-            <select name="term" defaultValue="ohne">
-              {data.terms.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Verwendung
-            <select name="purpose" defaultValue="betrieb">
-              {data.purposes.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Darlehensgeber">
+            {(control) => (
+              <select {...control} name="lender" defaultValue="bank">
+                {data.lenders.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Restlaufzeit">
+            {(control) => (
+              <select {...control} name="term" defaultValue="ohne">
+                {data.terms.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Verwendung">
+            {(control) => (
+              <select {...control} name="purpose" defaultValue="betrieb">
+                {data.purposes.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         </div>
         <div className="form-row cols-2">
-          <label className="field">
-            Restschuld bei Übernahme (€, leer bei einem neuen Darlehen)
-            <input
-              className="mono"
-              inputMode="decimal"
-              value={restschuld}
-              onChange={(e) => setRestschuld(e.target.value)}
-              aria-invalid={restschuld.trim() !== "" && parseEuro(restschuld) === null}
-            />
-          </label>
-          <label className="field">
-            Stichtag der Restschuld
-            <input name="openingDate" type="date" disabled={restschuld.trim() === ""} />
-          </label>
+          <Field label="Restschuld bei Übernahme (€, leer bei einem neuen Darlehen)">
+            {(control) => (
+              <input
+                {...control}
+                className="mono"
+                inputMode="decimal"
+                value={restschuld}
+                onChange={(e) => setRestschuld(e.target.value)}
+                aria-invalid={restschuld.trim() !== "" && parseEuro(restschuld) === null}
+              />
+            )}
+          </Field>
+          <Field label="Stichtag der Restschuld">
+            {(control) => <input {...control} name="openingDate" type="date" disabled={restschuld.trim() === ""} />}
+          </Field>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
           Geber und Restlaufzeit bestimmen das Konto (Verbindlichkeiten gegenüber Kreditinstituten bzw. Darlehen), die Verwendung das Zinskonto und die Zeile

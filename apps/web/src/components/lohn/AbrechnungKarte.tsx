@@ -1,12 +1,13 @@
 import { formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { entwurfLoeschenFn, entwurfNeuBerechnenFn, festschreibenFn, nachbuchenFn, stornierenFn, type getLohn } from "../../server/functions/lohn.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
+import { Field } from "../Field.tsx";
 
 /*
  * Eine Abrechnung im Monat: Beträge, Hinweise und je nach Stand die Aktionen. Ein Entwurf lässt sich neu rechnen (auf
@@ -71,7 +72,6 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
   const [entgelt, setEntgelt] = useState("");
   const [geprueft, setGeprueft] = useState(false);
   const [bestaetigen, setBestaetigen] = useState(false);
-  const entgeltId = useId();
   const sperre = p.fehlend.length > 0 || p.veraltet || (p.gegenpruefen && !geprueft);
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -93,10 +93,11 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
           }, "Entwurf neu berechnet.");
         }}
       >
-        <label className="field" htmlFor={entgeltId}>
-          Entgelt dieses Monats (leer: Monatsgehalt)
-          <input id={entgeltId} inputMode="decimal" value={entgelt} onChange={(e) => setEntgelt(e.target.value)} placeholder={formatEuro(p.brutto)} />
-        </label>
+        <Field label="Entgelt dieses Monats (leer: Monatsgehalt)">
+          {(control) => (
+            <input {...control} inputMode="decimal" value={entgelt} onChange={(e) => setEntgelt(e.target.value)} placeholder={formatEuro(p.brutto)} />
+          )}
+        </Field>
         <button type="submit" className="btn btn-sm" disabled={busy}>
           Neu berechnen
         </button>
@@ -177,7 +178,6 @@ function Storno({ p, name, aktion }: { p: Abrechnung; name: string; aktion: Akti
   const { busy, run } = aktion;
   const [offen, setOffen] = useState(false);
   const [grund, setGrund] = useState("");
-  const grundId = useId();
   return (
     <div className="actions">
       <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setOffen(true)}>
@@ -202,10 +202,7 @@ function Storno({ p, name, aktion }: { p: Abrechnung; name: string; aktion: Akti
           Haben hält das Storno mit Tag und Grund fest, lässt die Abrechnung unverändert, bucht gegen und legt gleich einen neuen Entwurf für denselben Monat
           an.
         </p>
-        <label className="field" htmlFor={grundId}>
-          Grund des Stornos
-          <input id={grundId} value={grund} onChange={(e) => setGrund(e.target.value)} maxLength={500} />
-        </label>
+        <Field label="Grund des Stornos">{(control) => <input {...control} value={grund} onChange={(e) => setGrund(e.target.value)} maxLength={500} />}</Field>
       </ConfirmDialog>
     </div>
   );

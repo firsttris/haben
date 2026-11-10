@@ -235,7 +235,7 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen Auftrag im Archiv, eine eigene Seite, einen Mitarbeiter und einen Dauerbeleg. Alles andere spielen zwei weitere Durchläufe mit eigenem Server und eigener Datenbank daneben durch, damit diese Kette kurz bleibt:
 
 - `rechnungen.spec.ts`: Rechnungen, Angebote, Versand per E-Mail, Kasse, REST-API und CSV-Import.
-- `belege-steuern.spec.ts`: Belege, Bankabgleich, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen.
+- `belege-steuern.spec.ts`: Belege, Bankabgleich, Bank verbinden für den automatischen Abruf, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen. Den Abruf beantwortet eine nachgebaute Enable-Banking-API im Test auf Port `E2E_PORT` + 9; `playwright.config.ts` richtet `ENABLE_BANKING_API_URL` aller Server darauf.
 
 Beide richten sich mit `e2e/einrichtung.ts` dasselbe Unternehmen ein und prüfen am Ende die Seiten mit ihren Daten wie `barrierefreiheit.spec.ts` und `seiten.spec.ts`: axe am Desktop und am Handy, kein waagrechtes Scrollen auf dem Handy. Ports und Datenbanken der Durchläufe stehen in `e2e/durchlaeufe.ts`. Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht.
 
@@ -412,7 +412,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, BuchhaltungsButler-Exporte (`buchhaltungsbutler/`), Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
@@ -516,11 +516,14 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Formularfelder über `Field`, kein umschließendes `<label className="field">` | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
+
+Die Feldregel ist ein GritQL-Muster für Biome (`scripts/felder/kein-label-field.grit`, in `biome.jsonc` unter `plugins`). Sie meldet ein `<label>` mit `field` als Wort in einem festen `className` (`"field"`, `"field weitere"`, `{"field"}`), nicht `field-label` und nicht `div.field`. Eine berechnete Klasse sieht ein Muster nicht; dafür prüft der Playwright-Test auf allen Seiten der Routenliste, dass es kein `label.field` gibt und jeder Feldname per `for` auf sein Feld zeigt. Was nur hinter Dialogen oder Zuständen erscheint, erreicht er nicht.
 
 Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`, nicht aber auf eine feste Nachbarseite wie `/rechnungen/neu`, denn die wählt der Router vor dem Parameter. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen. Die Prüfung vergleicht Text: Sie sieht, ob ein Pfad in der Datei steht, nicht, ob ein Test die Seite lädt. Eine Seite, deren Pfad nur in einem Test steht, der eine 404 erwartet, steht deshalb mit eigenem Grund in den Ausnahmen; solche Ausnahmen meldet die Prüfung nicht als veraltet.
 

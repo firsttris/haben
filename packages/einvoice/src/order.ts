@@ -66,7 +66,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     recipient: [buyer.name, ...addressLines(buyer, t)],
     meta,
     noPrices: true,
-    ...itemNumberColumn(doc.lines),
+    ...itemNumberColumn(doc.lines, doc.options),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
       itemNumber: line.itemNumber?.trim() ?? "",

@@ -12,6 +12,8 @@ import {
   createCorrection,
   createDraft,
   deleteDraft,
+  documentPreview,
+  documentPreviewSchema,
   draftSchema,
   finalizeInvoice,
   finalizeIssues,
@@ -43,6 +45,12 @@ export const getInvoices = createServerFn({ method: "GET" })
     const visible = context.user.role === "inhaber" ? invoices : invoices.filter((invoice) => invoice.status !== "draft");
     return visible.map((invoice) => ({ ...invoice, mailed: mailed.has(invoice.id) }));
   });
+
+/** Blatt der Vorschau aus dem Stand des Formulars, für Rechnung und Angebot; gespeichert wird nichts */
+export const renderDocumentPreview = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(documentPreviewSchema)
+  .handler(({ data }) => documentPreview(data));
 
 export const getInvoiceSummary = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

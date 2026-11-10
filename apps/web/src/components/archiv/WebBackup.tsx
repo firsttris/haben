@@ -4,6 +4,7 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { errorMessage } from "../../lib/format.ts";
 import { getImportStatus, uploadLexwareBackup } from "../../server/functions/archive.ts";
 import { FilePicker } from "../FilePicker.tsx";
+import { Field } from "../Field.tsx";
 
 const SCRIPT_URL = "/lexware-sicherung.js";
 
@@ -101,10 +102,9 @@ export function WebBackup() {
         </a>
       </div>
       <form className="stack" onSubmit={onSubmit} style={{ gap: 12 }}>
-        <label className="field" htmlFor={`${id}-files`}>
-          Teile der Sicherung (ZIP)
-          <FilePicker id={`${id}-files`} inputRef={fileInput} multiple accept=".zip,application/zip" ariaLabel="Teile der Sicherung" />
-        </label>
+        <Field label="Teile der Sicherung (ZIP)">
+          {(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" ariaLabel="Teile der Sicherung" />}
+        </Field>
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? "Übernehme …" : "Hochladen und übernehmen"}

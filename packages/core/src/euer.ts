@@ -109,6 +109,7 @@ export type EuerLineKey =
   | "einnahmenSteuerpflichtig"
   | "einnahmenSteuerfrei"
   | "privateKfz"
+  | "sachentnahmen"
   | "ustEntnahmen"
   | "vereinnahmteUst"
   | "erstatteteUst"
@@ -158,6 +159,7 @@ export const EUER_LABELS = {
   einnahmenSteuerpflichtig: "Umsatzsteuerpflichtige Betriebseinnahmen (netto)",
   einnahmenSteuerfrei: "Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen",
   privateKfz: "Private Kfz-Nutzung",
+  sachentnahmen: "Sonstige Sach-, Nutzungs- und Leistungsentnahmen",
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
   ustEntnahmen: "Umsatzsteuer auf unentgeltliche Wertabgaben",
   erstatteteUst: "Vom Finanzamt erstattete Umsatzsteuer",
@@ -366,6 +368,33 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     }
   }
 
+  return euerErgebnis(
+    year,
+    sums,
+    { einnahmen: monthlyIn, ausgaben: monthlyOut },
+    bewirtungNichtAbziehbar,
+    gewerbesteuerNichtAbziehbar,
+    depreciation,
+    withdrawals,
+  );
+}
+
+/**
+ * Die EÜR aus den Summen je Zeile: Zeilen mit Bezeichnung in der Reihenfolge der Anlage EÜR, Summen und Gewinn. Gemeinsam
+ * für computeEuer (Nebenbücher) und die EÜR aus dem Journal ab dem Stichjahr (#542). AfA und Privatnutzung kommen dazu, wenn
+ * sie übergeben sind (aus dem Anlagenverzeichnis).
+ */
+export function euerErgebnis(
+  year: number,
+  summen: ReadonlyMap<EuerLineKey, Cents>,
+  monthly: { einnahmen: Cents[]; ausgaben: Cents[] },
+  bewirtungNichtAbziehbar: Cents,
+  gewerbesteuerNichtAbziehbar: Cents,
+  depreciation?: EuerDepreciation,
+  withdrawals?: EuerWithdrawals,
+): EuerResult {
+  const sums = new Map(summen);
+  const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const line = (key: EuerLineKey, label: string, note?: string): EuerLine => ({
     key,
     label,
@@ -377,13 +406,23 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
   const optional = (
-    key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal" | "steuerNebenleistungen" | "schuldzinsenAnlage" | "schuldzinsen",
+    key:
+      | "privateKfz"
+      | "sachentnahmen"
+      | "ustEntnahmen"
+      | "kursgewinne"
+      | "kursverluste"
+      | "personal"
+      | "steuerNebenleistungen"
+      | "schuldzinsenAnlage"
+      | "schuldzinsen",
   ) => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
     line("einnahmenSteuerfrei", EUER_LABELS.einnahmenSteuerfrei),
     ...optional("privateKfz"),
+    ...optional("sachentnahmen"),
     ...optional("kursgewinne"),
     line("vereinnahmteUst", EUER_LABELS.vereinnahmteUst),
     ...optional("ustEntnahmen"),
@@ -428,7 +467,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     gewinn: totalEinnahmen - totalAusgaben,
     bewirtungNichtAbziehbar,
     gewerbesteuerNichtAbziehbar,
-    monthly: { einnahmen: monthlyIn, ausgaben: monthlyOut },
+    monthly,
   };
 }
 

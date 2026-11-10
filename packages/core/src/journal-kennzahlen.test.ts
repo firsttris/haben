@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceTotals } from "./invoice.ts";
-import { JOURNAL_KENNZAHLEN, kennzahlDerZeile, kennzahlenAusJournal, type JournalKennzahlen } from "./journal-kennzahlen.ts";
+import { JOURNAL_KENNZAHLEN, kennzahlenAusJournal, kennzahlenDerZeile, type JournalKennzahlen } from "./journal-kennzahlen.ts";
 import { kategoriePosting } from "./direkt-kategorie.ts";
 import {
   ACCOUNTS,
   documentPosting,
+  exchangeDifferencePosting,
+  invoiceCashPaymentPosting,
   invoicePaymentPosting,
   invoicePosting,
   invoiceWriteOffPosting,
@@ -47,11 +49,62 @@ describe.each(KONTENRAHMEN)("Kennzahlen aus dem Journal (%s)", (kr) => {
     expect(kennzahlen(kr, lines)).toEqual({ kz81: -100_000, tax81: -19_000 });
   });
 
-  it("Ist: Rechnung auf Ziel zählt noch nicht, die Zahlung bucht die Steuer um", () => {
+  it("Ist: Rechnung auf Ziel zählt noch nicht, erst die Zahlung", () => {
     const t = totals({ rate: 1900, base: 100_000 });
     expect(kennzahlen(kr, invoicePosting(t, kr, "ist"), "ist")).toEqual({});
-    // Die Bemessungsgrundlage an der Zahlung fehlt im Journal noch (#542, Schritt 4); die Steuer stimmt schon
-    expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "ist"), "ist")).toEqual({ tax81: 19_000 });
+    expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "ist"), "ist")).toEqual({ kz81: 100_000, tax81: 19_000 });
+  });
+
+  // #542 Schritt 4: Bei Ist trägt die Zahlungsbuchung die Bemessungsgrundlage des bezahlten Anteils, wie bei DATEV der
+  // Steuerschlüssel am Zahlungseingang (DATEV-Dok. 1080673)
+  it("Ist: Zahlung meldet Bemessungsgrundlage und Steuer je Satz, auch als Teilzahlung", () => {
+    const t = totals({ rate: 1900, base: 100_000 }, { rate: 700, base: 50_000 });
+    expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "ist"), "ist")).toEqual({ kz81: 100_000, tax81: 19_000, kz86: 50_000, tax86: 3_500 });
+    const teil = invoicePaymentPosting(t, 50_000, kr, "ist");
+    const k = kennzahlen(kr, teil, "ist");
+    expect((k.kz81 ?? 0) + (k.tax81 ?? 0) + (k.kz86 ?? 0) + (k.tax86 ?? 0)).toBe(50_000);
+  });
+
+  it("Ist: Rücklastschrift (negative Zahlung) mindert Bemessungsgrundlage und Steuer", () => {
+    const t = totals({ rate: 1900, base: 100_000 });
+    expect(kennzahlen(kr, invoicePaymentPosting(t, -t.gross, kr, "ist"), "ist")).toEqual({ kz81: -100_000, tax81: -19_000 });
+  });
+
+  it("Ist: Bareinnahme auf eine Rechnung wie die Zahlung über die Bank", () => {
+    const t = totals({ rate: 700, base: 10_000 });
+    expect(kennzahlen(kr, invoiceCashPaymentPosting(t, t.gross, kr, "ist"), "ist")).toEqual({ kz86: 10_000, tax86: 700 });
+  });
+
+  it("Ist: Zahlung auf eine Rechnung mit 19 % und 0 % meldet auch den Anteil zu 0 %", () => {
+    const t = totals({ rate: 1900, base: 100_000 }, { rate: 0, base: 20_000 });
+    expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "ist"), "ist")).toEqual({ kz81: 100_000, tax81: 19_000, steuerfrei: 20_000 });
+  });
+
+  it.each([
+    ["steuerfrei", "kz48"],
+    ["ausfuhr", "kz43"],
+  ] as const)("Ist: Zahlung auf eine Rechnung %s meldet %s", (treatment, feld) => {
+    const t = totals({ rate: 0, base: 500_000 });
+    expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "ist", undefined, treatment), "ist")).toEqual({ [feld]: 500_000 });
+  });
+
+  it.each(["reverse_charge", "drittland", "ig_lieferung", "kleinunternehmer"] as const)(
+    "Ist: Zahlung auf eine Rechnung %s meldet nichts (zählt mit der Rechnung bzw. gar nicht)",
+    (treatment) => {
+      const t = totals({ rate: 0, base: 500_000 });
+      expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "ist", undefined, treatment), "ist")).toEqual({});
+    },
+  );
+
+  it("Ist: Kursdifferenz einer Ausfuhr in Fremdwährung meldet ihren Anteil an Kz 43", () => {
+    const t = totals({ rate: 0, base: 100_000 });
+    const lines = exchangeDifferencePosting({ kind: "invoice", totals: t, versteuerung: "ist", treatment: "ausfuhr" }, 1_234, kr);
+    expect(kennzahlen(kr, lines, "ist")).toEqual({ kz43: 1_234 });
+  });
+
+  it("Soll: Zahlung meldet nichts, die Rechnung hat schon gemeldet", () => {
+    const t = totals({ rate: 1900, base: 100_000 });
+    expect(kennzahlen(kr, invoicePaymentPosting(t, t.gross, kr, "soll"))).toEqual({});
   });
 
   it("Ist: Skonto auf eine Rechnung zählt nicht, bei Soll mindert es Kz 81 und die Steuer", () => {
@@ -103,6 +156,26 @@ describe.each(KONTENRAHMEN)("Kennzahlen aus dem Journal (%s)", (kr) => {
     expect(kennzahlen(kr, drittland)).toEqual({ kz84: 10_000, kz85: 1_900, kz67: 1_900 });
   });
 
+  // #542 Schritt 4: Das Journal trägt die volle Bemessungsgrundlage auch ohne Vorsteuerabzug und mit Privatanteil,
+  // wie computeVatFigures (Kz 46/84/89/93 voll, nur Kz 67/61 betrieblich)
+  it("§ 13b ohne Vorsteuerabzug (Kleinunternehmer): Kz 46 ist das Netto, die Steuer zählt nur in Kz 47", () => {
+    const t = { ...totals({ rate: 1900, base: 10_000 }), gross: 10_000 };
+    const lines = documentPosting(t, "software", kr, "einzelunternehmen", "bank", false, undefined, 0, "eu");
+    expect(kennzahlen(kr, lines)).toEqual({ kz46: 10_000, kz47: 1_900 });
+  });
+
+  it("§ 13b mit Privatanteil: Kz 46 und 47 voll, nur Kz 67 betrieblich", () => {
+    const t = { ...totals({ rate: 1900, base: 20_000 }), gross: 20_000 };
+    const lines = documentPosting(t, "software", kr, "einzelunternehmen", "bank", true, undefined, 25, "eu");
+    expect(kennzahlen(kr, lines)).toEqual({ kz46: 20_000, kz47: 3_800, kz67: 2_850 });
+  });
+
+  it("Innergemeinschaftlicher Erwerb mit Privatanteil: Kz 89 und Erwerbsteuer voll, nur Kz 61 betrieblich", () => {
+    const t = { ...totals({ rate: 1900, base: 10_000 }), gross: 10_000 };
+    const lines = documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "bank", true, undefined, 30, "ig_erwerb");
+    expect(kennzahlen(kr, lines)).toEqual({ kz89: 10_000, tax89: 1_900, kz61: 1_330 });
+  });
+
   it("Innergemeinschaftlicher Erwerb ergibt Kz 89/93 mit Erwerbsteuer und die Vorsteuer Kz 61", () => {
     const t = { ...totals({ rate: 1900, base: 10_000 }, { rate: 700, base: 5_000 }), gross: 15_000 };
     const lines = documentPosting(t, "wareneinkauf", kr, "einzelunternehmen", "bank", true, undefined, 0, "ig_erwerb");
@@ -122,10 +195,30 @@ describe.each(KONTENRAHMEN)("Kennzahlen aus dem Journal (%s)", (kr) => {
       { account: "4980", debit: 10_000, credit: 0, taxCode: "VSt19" },
       { account: a.ustNichtFaellig[1900], debit: 0, credit: 1_900, taxCode: "USt19" },
     ])
-      expect(kennzahlDerZeile(kr, zeile)).toBeNull();
+      expect(kennzahlenDerZeile(kr, zeile)).toEqual([]);
   });
 });
 
 it("jede Kennzahl hat ein Feld in der leeren Summe", () => {
   expect(Object.keys(kennzahlenAusJournal("SKR03", "soll", []))).toEqual([...JOURNAL_KENNZAHLEN]);
+});
+
+// TDD-Review #552: Ein Anteil mit Bemessungsgrundlage, aber nach Rundung 0,00 € Steuer, trägt seine Bemessungsgrundlage
+// trotzdem ins Journal, wie computeVatFigures sie zählt
+describe("Ist, Anteil mit Bemessungsgrundlage, aber ohne Steuer", () => {
+  const t: InvoiceTotals = { net: 100_000, tax: 19_000, gross: 119_000, taxes: [{ rate: 1900, base: 100_000, tax: 19_000 }] };
+  for (const kr of KONTENRAHMEN) {
+    it(`${kr}: Kursdifferenz von 0,02 € meldet ihre Bemessungsgrundlage (paidTaxShares)`, () => {
+      const lines = exchangeDifferencePosting({ kind: "invoice", totals: t, versteuerung: "ist" }, 2, kr);
+      expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(2);
+    });
+    it(`${kr}: Restzahlung von 0,01 € (Anteil 1 ct ohne Steuer) meldet ihre Bemessungsgrundlage`, () => {
+      const lines = invoicePaymentPosting(t, 1, kr, "ist", [{ rate: 1900, base: 1, tax: 0 }]);
+      expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(1);
+    });
+    it(`${kr}: Rücklastschrift desselben Anteils mindert sie wieder`, () => {
+      const lines = invoicePaymentPosting(t, -1, kr, "ist", [{ rate: 1900, base: -1, tax: 0 }]);
+      expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(-1);
+    });
+  }
 });

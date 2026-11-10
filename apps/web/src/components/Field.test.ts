@@ -78,6 +78,12 @@ describe("Field", () => {
     expect(html).toMatch(/^<div class="field breit" style="grid-column:1 \/ -1;">/);
   });
 
+  it("nimmt den Feldnamen mit hideLabel aus dem Bild, ohne ihn vom Feld zu lösen", () => {
+    const { html, labelFor, controlId } = render({ hideLabel: true });
+    expect(html).toContain('<label class="field-label visually-hidden"');
+    expect(labelFor).toBe(controlId);
+  });
+
   it("meldet einen Fehler nur auf Wunsch als Alert", () => {
     expect(render({ error: "Fehlt" }).html).not.toContain('role="alert"');
     expect(render({ error: "Fehlt", announceError: true }).html).toContain('class="field-error" role="alert"');

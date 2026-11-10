@@ -6,6 +6,7 @@ import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
+import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
@@ -37,9 +38,11 @@ import {
 } from "../../server/functions/bank.ts";
 import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
+import { ExcludeAccountButton, ExcludedAccounts } from "../../components/BankKontoAusschliessen.tsx";
 import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx";
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
+import { Field } from "../../components/Field.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -156,7 +159,15 @@ const FORMAT_LABEL = (format: string) =>
             ? "Shopify"
             : format === "ebay-csv"
               ? "eBay"
-              : "CSV";
+              : format === "etsy-csv"
+                ? "Etsy"
+                : format === "googleplay-earnings"
+                  ? "Google Play"
+                  : format === "appstore-finance"
+                    ? "App Store"
+                    : format === "store-payout"
+                      ? "Auszahlung"
+                      : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -233,7 +244,13 @@ function BankPage() {
           </nav>
           {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
           {selectedAccount && (
-            <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} ledger={data.ledgers[selectedAccount.id]} />
+            <AccountSettings
+              key={selectedAccount.id}
+              account={selectedAccount}
+              purposes={data.purposes}
+              ledger={data.ledgers[selectedAccount.id]}
+              excludeBlockedBy={data.excludeBlockedBy}
+            />
           )}
 
           <div className="grid-main">
@@ -313,6 +330,8 @@ function BankPage() {
           </div>
         </>
       )}
+
+      <ExcludedAccounts accounts={data.excludedAccounts} />
     </>
   );
 }
@@ -326,7 +345,17 @@ const PURPOSE_SHORT = {
 } as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
-function AccountSettings({ account, purposes, ledger }: { account: Data["accounts"][number]; purposes: Data["purposes"]; ledger: string | undefined }) {
+function AccountSettings({
+  account,
+  purposes,
+  ledger,
+  excludeBlockedBy,
+}: {
+  account: Data["accounts"][number];
+  purposes: Data["purposes"];
+  ledger: string | undefined;
+  excludeBlockedBy: string | null;
+}) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const updateFn = useServerFn(updateBankAccount);
@@ -345,6 +374,7 @@ function AccountSettings({ account, purposes, ledger }: { account: Data["account
         <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
           Name und Zweck
         </button>
+        <ExcludeAccountButton account={account} blockedBy={excludeBlockedBy} />
       </div>
     );
   }
@@ -362,21 +392,21 @@ function AccountSettings({ account, purposes, ledger }: { account: Data["account
 
   return (
     <form onSubmit={onSubmit} className="stack" style={{ gap: 8, margin: "8px 0 16px", maxWidth: 480 }} aria-label="Name und Zweck des Kontos">
-      <label className="field">
-        Name des Kontos
-        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />
-      </label>
+      <Field label="Name des Kontos">
+        {(control) => <input {...control} value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />}
+      </Field>
       {account.purpose !== "zahlungsdienstleister" && (
-        <label className="field">
-          Zweck
-          <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
-            {purposes.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Zweck">
+          {(control) => (
+            <select {...control} value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
+              {purposes.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       )}
       <span className="small muted">
         Der Name ist nur Anzeige; Umsätze und Import über die IBAN bleiben, wie sie sind. Der Zweck steuert Vorschläge im Bankabgleich (Geldtransit zwischen
@@ -572,6 +602,15 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
   );
 }
 
+/** Höchstens so viele Banken stehen in der Auswahl; mehr findet die Suche */
+const MAX_BANK_OPTIONS = 300;
+
+/** Die Banken, deren Name den Suchbegriff enthält, in der Reihenfolge der Liste */
+function matchingBanks<T extends { name: string }>(banks: T[], query: string): T[] {
+  const term = query.trim().toLowerCase();
+  return banks.filter((b) => !term || b.name.toLowerCase().includes(term)).slice(0, MAX_BANK_OPTIONS);
+}
+
 function ConnectForm({
   onCancel,
   callbackUrl,
@@ -606,16 +645,24 @@ function ConnectForm({
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  const term = query.trim().toLowerCase();
-  const visible = (banks ?? []).filter((b) => !term || b.name.toLowerCase().includes(term));
-  const bank = banks?.find((b) => b.name === selected);
+  const visible = matchingBanks(banks ?? [], query);
+  // Gewählt ist, was die Liste markiert zeigt: Passt der Zustand zu keiner Zeile, markiert React von sich aus die
+  // erste. Ohne diesen Rückfall sah die einzige Bank nach der Suche gewählt aus, der Knopf blieb aber grau, und ein
+  // Klick auf sie änderte nichts, weil der Browser sie schon für gewählt hielt (#555)
+  const bank = visible.find((b) => b.name === selected) ?? visible[0];
 
-  // Enter im Suchfeld wählt den ersten Treffer, statt das Formular abzuschicken
+  // Fällt die gewählte Bank aus den Treffern, rückt der erste Treffer nach und bleibt, wenn die Suche wieder weiter wird
+  function onQueryChange(value: string) {
+    setQuery(value);
+    const next = matchingBanks(banks ?? [], value);
+    const keep = next.find((b) => b.name === bank?.name) ?? next[0];
+    if (keep) setSelected(keep.name);
+  }
+
+  // Enter im Suchfeld schickt das Formular nicht ab; gewählt ist schon der erste Treffer
   function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
     event.preventDefault();
-    const first = visible[0];
-    if (first && !visible.some((b) => b.name === selected)) setSelected(first.name);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -634,28 +681,31 @@ function ConnectForm({
 
   return (
     <form onSubmit={onSubmit} className="stack" style={{ gap: 12, maxWidth: 560 }}>
-      <label className="field">
-        Bank suchen
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onSearchKeyDown}
-          placeholder="z. B. DKB, Sparkasse, N26"
-          autoFocus
-        />
-      </label>
-      <label className="field">
-        Bank
-        <select size={8} value={selected} onChange={(e) => setSelected(e.target.value)} required aria-busy={banks === null}>
-          {banks === null && !error && <option disabled>Lade Banken …</option>}
-          {visible.slice(0, 300).map((b) => (
-            <option key={b.name} value={b.name}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Field label="Bank suchen">
+        {(control) => (
+          <input
+            {...control}
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            placeholder="z. B. DKB, Sparkasse, N26"
+            autoFocus
+          />
+        )}
+      </Field>
+      <Field label="Bank">
+        {(control) => (
+          <select {...control} size={8} value={bank?.name ?? ""} onChange={(e) => setSelected(e.target.value)} required aria-busy={banks === null}>
+            {banks === null && !error && <option disabled>Lade Banken …</option>}
+            {visible.map((b) => (
+              <option key={b.name} value={b.name}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
       {bank && bank.psuTypes.length > 1 && (
         <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend>Kontoart</legend>
@@ -669,14 +719,17 @@ function ConnectForm({
           </label>
         </fieldset>
       )}
-      <label className="field">
-        Umsätze abrufen ab
-        <input type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} aria-describedby="fetch-from-hint" />
-        <span id="fetch-from-hint" className="small muted">
-          Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind (etwa aus
-          einer Datei). Beginnt die Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trage diesen Tag ein.
-        </span>
-      </label>
+      <Field
+        label="Umsätze abrufen ab"
+        hint={
+          <>
+            Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind (etwa aus
+            einer Datei). Beginnt die Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trage diesen Tag ein.
+          </>
+        }
+      >
+        {(control) => <input {...control} type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} />}
+      </Field>
       {bank && (
         <p className="small muted" style={{ margin: 0 }}>
           Du wirst zu {bank.name} weitergeleitet und gibst dort den Lesezugriff für {bank.maxConsentDays} Tage frei. Danach geht es zurück zu Haben (
@@ -790,17 +843,18 @@ function ImportControls({ data }: { data: Data }) {
     <div className="stack" style={{ gap: 8, alignItems: "flex-end" }}>
       <div className="actions">
         {data.accounts.length > 0 && (
-          <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <span>Konto</span>
-            <select value={targetAccount} onChange={(e) => setTargetAccount(e.target.value)} style={{ minHeight: 44 }}>
-              <option value="">aus der Datei</option>
-              {data.accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Konto" className="field-inline">
+            {(control) => (
+              <select {...control} value={targetAccount} onChange={(e) => setTargetAccount(e.target.value)} style={{ minHeight: 44 }}>
+                <option value="">aus der Datei</option>
+                {data.accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         )}
         <button type="button" className="btn" onClick={() => setShowAccount((v) => !v)} disabled={busy}>
           Konto hinzufügen
@@ -821,34 +875,32 @@ function ImportControls({ data }: { data: Data }) {
       </div>
       {showAccount && (
         <form className="card" onSubmit={onAddAccount} style={{ minWidth: 320 }}>
-          <label className="field">
-            Art
-            <select value={accountType} onChange={(e) => setAccountType(e.target.value as "bank" | "provider")}>
-              <option value="bank">Bankkonto (mit IBAN)</option>
-              <option value="provider">Zahlungsdienstleister (PayPal, Stripe, Shopify …)</option>
-            </select>
-          </label>
-          {accountType === "provider" && (
-            <label className="field">
-              Dienstleister
-              <select name="provider" defaultValue="paypal">
-                {data.providers.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
+          <Field label="Art">
+            {(control) => (
+              <select {...control} value={accountType} onChange={(e) => setAccountType(e.target.value as "bank" | "provider")}>
+                <option value="bank">Bankkonto (mit IBAN)</option>
+                <option value="provider">Zahlungsdienstleister (PayPal, Stripe, Shopify …)</option>
               </select>
-            </label>
+            )}
+          </Field>
+          {accountType === "provider" && (
+            <Field label="Dienstleister">
+              {(control) => (
+                <select {...control} name="provider" defaultValue="paypal">
+                  {data.providers.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
           )}
-          <label className="field">
-            Name
-            <input name="name" required placeholder={accountType === "provider" ? "PayPal Geschäftskonto" : "N26 Business"} />
-          </label>
+          <Field label="Name">
+            {(control) => <input {...control} name="name" required placeholder={accountType === "provider" ? "PayPal Geschäftskonto" : "N26 Business"} />}
+          </Field>
           {accountType === "bank" ? (
-            <label className="field">
-              IBAN
-              <input name="iban" required />
-            </label>
+            <Field label="IBAN">{(control) => <input {...control} name="iban" required />}</Field>
           ) : (
             <span className="small muted">
               Bekommt ein eigenes Verrechnungskonto (SKR03 1361 …, SKR04 1461 …). Importiere den CSV-Export des Dienstleisters und wähle dabei dieses Konto
@@ -1074,6 +1126,10 @@ function AllocationPanel({
         </div>
       )}
 
+      {detail.storePayout && tx.open === tx.amount && (
+        <StorePayoutBox key={tx.id} view={detail.storePayout} amount={tx.amount} transactionId={tx.id} busy={busy} run={(work) => void run(work)} />
+      )}
+
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
 
       <NoticeBanner notice={notice} />
@@ -1155,25 +1211,29 @@ function AllocationPanel({
           )}
 
           {mode === "other" && (
-            <label className="field">
-              Rechnung, Beleg oder Voranmeldung
-              <select
-                value={candidate}
-                onChange={(e) => {
-                  setCandidate(e.target.value);
-                  const c = candidates.find((x) => `${x.type}:${x.id}` === e.target.value);
-                  if (c) setAmount(formatDecimal(Math.min(Math.abs(c.open), Math.abs(tx.open))));
-                }}
-              >
-                <option value="">Bitte wählen</option>
-                {candidates.map((c) => (
-                  <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
-                    {itemLabel(c)} · {c.partyName} · offen {formatEuro(Math.abs(c.open))}
-                  </option>
-                ))}
-              </select>
-              {candidates.length === 0 && <span className="small">Keine offenen Rechnungen, gebuchten Belege oder Voranmeldungen in dieser Richtung.</span>}
-            </label>
+            <Field
+              label="Rechnung, Beleg oder Voranmeldung"
+              hint={candidates.length === 0 && "Keine offenen Rechnungen, gebuchten Belege oder Voranmeldungen in dieser Richtung."}
+            >
+              {(control) => (
+                <select
+                  {...control}
+                  value={candidate}
+                  onChange={(e) => {
+                    setCandidate(e.target.value);
+                    const c = candidates.find((x) => `${x.type}:${x.id}` === e.target.value);
+                    if (c) setAmount(formatDecimal(Math.min(Math.abs(c.open), Math.abs(tx.open))));
+                  }}
+                >
+                  <option value="">Bitte wählen</option>
+                  {candidates.map((c) => (
+                    <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
+                      {itemLabel(c)} · {c.partyName} · offen {formatEuro(Math.abs(c.open))}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
           )}
 
           {mode === "direct" && direct && (
@@ -1219,22 +1279,30 @@ function AllocationPanel({
           )}
 
           {mode === "direct" && (
-            <label className="field">
-              Buchen als
-              <select value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
-                  <option key={k.value} value={k.value}>
-                    {k.label}
-                  </option>
-                ))}
-              </select>
-              <span className="small muted">{DIRECT_HINT}</span>
-              {tx.amount < 0 && directKind !== "kategorie" && (
-                <span className="small">
-                  Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
-                </span>
+            <Field
+              label="Buchen als"
+              hint={
+                <>
+                  {DIRECT_HINT}
+                  {tx.amount < 0 && directKind !== "kategorie" && (
+                    <>
+                      <br />
+                      Für Ausgaben mit Rechnung den Beleg erst unter <Link to="/belege">Belege</Link> hochladen und buchen.
+                    </>
+                  )}
+                </>
+              }
+            >
+              {(control) => (
+                <select {...control} value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
+                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                    <option key={k.value} value={k.value}>
+                      {k.label}
+                    </option>
+                  ))}
+                </select>
               )}
-            </label>
+            </Field>
           )}
 
           {mode === "direct" && directKind === "steuer" && <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} />}
@@ -1243,17 +1311,19 @@ function AllocationPanel({
             <KategorieFelder options={kategorieOptionen} value={kategorie} amount={signedAmount} onChange={setKategorie} />
           )}
 
-          <label className="field">
-            Betrag
-            <input
-              className="mono"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              aria-invalid={parsedAmount === null}
-              style={{ textAlign: "right" }}
-            />
-          </label>
+          <Field label="Betrag">
+            {(control) => (
+              <input
+                {...control}
+                className="mono"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                aria-invalid={parsedAmount === null}
+                style={{ textAlign: "right" }}
+              />
+            )}
+          </Field>
 
           <div className="actions">
             <button
@@ -1476,45 +1546,49 @@ function SplitForm({
       </p>
       {rows.map((row, index) => (
         <div key={row.key} className="split-row">
-          <label className="field">
-            Teil {index + 1}
-            <select
-              value={row.target}
-              onChange={(e) => {
-                const value = e.target.value;
-                const item = splitCandidates.find((c) => `${c.type}:${c.id}` === value);
-                update(row.key, item ? { target: value, amount: signed(item.open) } : { target: value });
-              }}
-            >
-              <option value="">Bitte wählen</option>
-              <optgroup label="Rechnungen, Belege und Voranmeldungen">
-                {splitCandidates.map((c) => (
-                  <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
-                    {itemLabel(c)} · {c.partyName} · offen {signed(c.open)} €
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Direkt buchen">
-                {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
-                  <option key={k.value} value={k.value}>
-                    {k.label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </label>
-          <label className="field">
-            Betrag
-            <input
-              className="mono"
-              inputMode="decimal"
-              value={row.amount}
-              placeholder="-0,00"
-              onChange={(e) => update(row.key, { amount: e.target.value })}
-              aria-invalid={parsed[index] === null}
-              style={{ textAlign: "right" }}
-            />
-          </label>
+          <Field label={<>Teil {index + 1}</>}>
+            {(control) => (
+              <select
+                {...control}
+                value={row.target}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const item = splitCandidates.find((c) => `${c.type}:${c.id}` === value);
+                  update(row.key, item ? { target: value, amount: signed(item.open) } : { target: value });
+                }}
+              >
+                <option value="">Bitte wählen</option>
+                <optgroup label="Rechnungen, Belege und Voranmeldungen">
+                  {splitCandidates.map((c) => (
+                    <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
+                      {itemLabel(c)} · {c.partyName} · offen {signed(c.open)} €
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Direkt buchen">
+                  {[...directKinds, KATEGORIE_OPTION, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
+                    <option key={k.value} value={k.value}>
+                      {k.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            )}
+          </Field>
+          <Field label="Betrag">
+            {(control) => (
+              <input
+                {...control}
+                className="mono"
+                inputMode="decimal"
+                value={row.amount}
+                placeholder="-0,00"
+                onChange={(e) => update(row.key, { amount: e.target.value })}
+                aria-invalid={parsed[index] === null}
+                style={{ textAlign: "right" }}
+              />
+            )}
+          </Field>
           <button
             type="button"
             className="icon-btn"

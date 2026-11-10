@@ -12,7 +12,7 @@ import {
 } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -20,6 +20,7 @@ import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "
 import { formatDate, formatDateTime, formatLongDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getLsta, saveLstaTurnusFn, submitLstaFn } from "../../../server/functions/lsta.ts";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/lohn/anmeldung/$zeitraum")({
   loader: ({ params }) => {
@@ -37,7 +38,6 @@ type Data = Awaited<ReturnType<typeof getLsta>>;
 function LstaPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const selectId = useId();
   const options = data.zeitraeume.some((z) => z.key === data.key) ? data.zeitraeume : [...data.zeitraeume, { ...data.zeitraum, key: data.key }];
 
   return (
@@ -47,16 +47,17 @@ function LstaPage() {
           <div className="eyebrow">Personal › Lohnsteuer-Anmeldung</div>
           <h1>{data.label}</h1>
         </div>
-        <label className="field" htmlFor={selectId}>
-          Zeitraum
-          <select id={selectId} value={data.key} onChange={(event) => navigate({ to: "/lohn/anmeldung/$zeitraum", params: { zeitraum: event.target.value } })}>
-            {options.map((option) => (
-              <option key={option.key} value={option.key}>
-                {lstaLabel(option)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Zeitraum">
+          {(control) => (
+            <select {...control} value={data.key} onChange={(event) => navigate({ to: "/lohn/anmeldung/$zeitraum", params: { zeitraum: event.target.value } })}>
+              {options.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {lstaLabel(option)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
 
       {data.mode === "simuliert" && (
@@ -217,7 +218,6 @@ function Turnus({ data }: { data: Data }) {
   const router = useRouter();
   const save = useServerFn(saveLstaTurnusFn);
   const action = useAction();
-  const selectId = useId();
   const { turnus } = data;
   const [wahl, setWahl] = useState<LstaTurnus | "vorschlag">(turnus.eigen ? turnus.turnus : "vorschlag");
 
@@ -244,15 +244,16 @@ function Turnus({ data }: { data: Data }) {
           });
         }}
       >
-        <label className="field" htmlFor={selectId}>
-          Anmeldungszeitraum {turnus.year}
-          <select id={selectId} value={wahl} onChange={(e) => setWahl(e.target.value as LstaTurnus | "vorschlag")}>
-            <option value="vorschlag">wie vorgeschlagen</option>
-            <option value="monatlich">monatlich</option>
-            <option value="vierteljaehrlich">vierteljährlich</option>
-            <option value="jaehrlich">jährlich</option>
-          </select>
-        </label>
+        <Field label={<>Anmeldungszeitraum {turnus.year}</>}>
+          {(control) => (
+            <select {...control} value={wahl} onChange={(e) => setWahl(e.target.value as LstaTurnus | "vorschlag")}>
+              <option value="vorschlag">wie vorgeschlagen</option>
+              <option value="monatlich">monatlich</option>
+              <option value="vierteljaehrlich">vierteljährlich</option>
+              <option value="jaehrlich">jährlich</option>
+            </select>
+          )}
+        </Field>
         <button type="submit" className="btn" disabled={action.busy}>
           Speichern
         </button>

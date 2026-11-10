@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
+  zeilenImKontenrahmen,
   ACCOUNTS,
   paymentProviderAccount,
   providerPattern,
@@ -84,7 +85,7 @@ export const accountSchema = z.object({
 });
 
 export async function listAccounts() {
-  const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.name));
+  const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
   return Promise.all(
     accounts.map(async (account) => {
       const [last] = await db
@@ -133,6 +134,8 @@ export async function createAccount(actor: string, input: z.input<typeof account
   const data = accountSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, data.iban));
+    if (existing?.excludedAt)
+      throw new BankError(`Das Konto ${existing.name} mit dieser IBAN ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
     if (existing) throw new BankError("Ein Konto mit dieser IBAN gibt es schon.");
     const [created] = await tx.insert(schema.bankAccounts).values(data).returning();
     return created!;
@@ -158,7 +161,7 @@ export async function updateAccount(actor: string, input: z.infer<typeof account
 
 export const providerAccountSchema = z.object({
   name: z.string().trim().min(1, "Name fehlt").max(100),
-  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"]),
+  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "googleplay", "appstore", "sonstige"]),
 });
 
 /**
@@ -238,6 +241,10 @@ export async function storeStatement(
     throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
   } else {
     throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+  }
+  // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
+  if (account.excludedAt) {
+    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
   }
 
   const [previous] = await tx
@@ -776,7 +783,8 @@ export async function ownAccounts(): Promise<OwnAccount[]> {
       purpose: schema.bankAccounts.purpose,
       provider: schema.bankAccounts.provider,
     })
-    .from(schema.bankAccounts);
+    .from(schema.bankAccounts)
+    .where(isNull(schema.bankAccounts.excludedAt));
 }
 
 /**
@@ -846,7 +854,12 @@ export const transferSchema = z.object({
  * Schritt über das Geldtransitkonto buchen. Auf dem Geldtransitkonto heben sich beide Seiten auf.
  */
 export async function allocateTransfer(actor: string, input: z.infer<typeof transferSchema>): Promise<void> {
-  await withActor(actor, async (tx) => {
+  await withActor(actor, (tx) => allocateTransferIn(tx, input));
+}
+
+/** Geldtransit in der Transaktion des Aufrufers (etwa nach dem Anlegen der Auszahlung eines App-Stores) */
+export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferSchema>): Promise<void> {
+  {
     const company = await openBooks(tx);
     // Feste Reihenfolge beim Sperren, damit zwei gleichzeitige Aufrufe sich nicht gegenseitig blockieren
     const ids = [...new Set([input.transactionId, input.counterpartId, ...(input.payoutIds ?? [])])].sort();
@@ -911,7 +924,18 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen, company.rechtsform), company.kontenrahmen, bank.ledgerIndex),
       });
     }
-  });
+  }
+}
+
+/**
+ * Bucht einen ganz offenen Umsatz vollständig als Kursdifferenz (Ertrag bei Eingang, Aufwand bei Ausgang), etwa die
+ * Differenz zwischen den umgerechneten Monatsbeträgen eines App-Stores und seiner Auszahlung in Euro.
+ */
+export async function allocateExchangeDifferenceIn(tx: Tx, transactionId: string): Promise<void> {
+  const company = await openBooks(tx);
+  const bank = await lockTransaction(tx, transactionId);
+  if (bank.open !== bank.amount || bank.amount === 0) throw new BankError("Der Umsatz muss noch ganz offen sein.");
+  await bookPart(tx, company, bank, { kind: "kursdifferenz", amount: bank.amount }, null);
 }
 
 /**
@@ -926,7 +950,24 @@ function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex:
 }
 
 export function reverseLines(lines: PostingLine[]): PostingLine[] {
-  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
+  // Die Bemessungsgrundlage trägt ihr Vorzeichen selbst (#542) und dreht sich mit
+  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
+}
+
+/**
+ * Gegenbuchung zu den Zeilen einer Buchung im Kontenrahmen `von`, gebucht im eingestellten Kontenrahmen `nach`. Nach einem
+ * Wechsel zum Jahreswechsel (Storno einer Bareinnahme, Aufheben einer Ausbuchung aus dem Vorjahr) mit den Konten derselben
+ * Rolle im neuen Rahmen (kontoImKontenrahmen); die alten Kontonummern bedeuteten dort etwas anderes. Lässt sich ein Konto
+ * nicht eindeutig übertragen, geht die Gegenbuchung nicht.
+ */
+export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: PostingLine[]): PostingLine[] {
+  const uebertragen = zeilenImKontenrahmen(von, nach, lines);
+  if (!uebertragen) {
+    throw new BankError(
+      `Die Buchung ist im Kontenrahmen ${von} gebucht, eingestellt ist jetzt ${nach}; nicht jedes Konto hat dort eine eindeutige Entsprechung. Stornieren geht nach dem Wechsel deshalb nicht.`,
+    );
+  }
+  return reverseLines(uebertragen);
 }
 
 const DIRECT_KINDS = [
@@ -1055,7 +1096,7 @@ async function returnBooking(
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
   const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
   return {
-    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares),
+    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment),
     description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
     target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
   };
@@ -1105,7 +1146,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
-    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares);
+    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment);
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
     target = { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id };
     // IBAN des Kunden für künftige Vorschläge merken
@@ -1303,12 +1344,17 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       .from(schema.bankTransactions)
       .where(eq(schema.bankTransactions.id, allocation.transactionId));
     // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
-    await post(tx, await openBooks(tx), {
+    const books = await openBooks(tx);
+    await post(tx, books, {
       date: bank!.bookingDate,
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
       sourceId: reversal!.id,
-      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      lines: reverseLinesIn(
+        entry.kontenrahmen as Kontenrahmen,
+        books.kontenrahmen,
+        lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+      ),
       reversesId: entry.id,
     });
   }
@@ -1395,7 +1441,11 @@ export async function bookWriteOff(
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
       const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-      lines = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares }, amount, company.kontenrahmen);
+      lines = exchangeDifferencePosting(
+        { kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares, treatment: invoice.taxTreatment },
+        amount,
+        company.kontenrahmen,
+      );
       description = `Kursdifferenz · Rechnung ${invoice.number}`;
       target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
     } else {
@@ -1608,12 +1658,17 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
     })
     .returning();
   if (entry) {
-    await post(tx, await openBooks(tx), {
+    const books = await openBooks(tx);
+    await post(tx, books, {
       date,
       description: `Storno: ${entry.description}`,
       sourceType: "ausbuchung",
       sourceId: reversal!.id,
-      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      lines: reverseLinesIn(
+        entry.kontenrahmen as Kontenrahmen,
+        books.kontenrahmen,
+        lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+      ),
       reversesId: entry.id,
     });
   }

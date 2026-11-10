@@ -71,6 +71,8 @@ export interface LetterheadOptions {
   foldMarks: boolean;
   giroCode: boolean;
   customerNumber: boolean;
+  /** Spalte Art.-Nr., sobald eine Position eine Nummer hat; im XML (BT-155) steht sie unabhängig davon */
+  itemNumber: boolean;
   /** Spalte USt je Position; bei mehreren Steuersätzen bleibt sie stehen, siehe showsVatColumn */
   vatColumn: boolean;
   /** Eigene Spalten der Fußzeile mit Platzhaltern; null = automatisch aus den Firmendaten */
@@ -94,6 +96,7 @@ export const DEFAULT_OPTIONS: LetterheadOptions = {
   foldMarks: true,
   giroCode: true,
   customerNumber: true,
+  itemNumber: true,
   vatColumn: true,
   footerColumns: null,
   font: "plex-sans",
@@ -130,6 +133,7 @@ export const letterheadDesignInputSchema = z
     foldMarks: z.boolean(),
     giroCode: z.boolean(),
     customerNumber: z.boolean(),
+    itemNumber: z.boolean(),
     vatColumn: z.boolean(),
     font: z.enum(Object.keys(LETTERHEAD_FONTS) as [LetterheadFont, ...LetterheadFont[]]),
     backgroundPages: z.enum(["erste", "alle"]),

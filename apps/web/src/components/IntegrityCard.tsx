@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { comparePruefwert, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
 import type { IntegrityReport } from "../server/modules/auswertungen/index.ts";
+import { Field } from "./Field.tsx";
 
 type Head = Awaited<ReturnType<typeof getChainHead>>;
 
@@ -142,10 +143,19 @@ export function IntegrityCard({ head }: { head: Head }) {
         </div>
       )}
       <form className="actions" style={{ alignItems: "flex-end", borderTop: "1px solid var(--line)", paddingTop: 16 }} onSubmit={onCompare}>
-        <label className="field" style={{ flex: 1, minWidth: 0 }}>
-          Prüfwert aus Mail oder Jahresarchiv
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nr. 1234 · 3f5a…" autoComplete="off" spellCheck={false} required />
-        </label>
+        <Field label="Prüfwert aus Mail oder Jahresarchiv" style={{ flex: 1, minWidth: 0 }}>
+          {(control) => (
+            <input
+              {...control}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Nr. 1234 · 3f5a…"
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+          )}
+        </Field>
         <button type="submit" className="btn" disabled={busy || !text.trim()}>
           Vergleichen
         </button>

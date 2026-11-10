@@ -15,6 +15,7 @@ import {
   suggestDirectBooking,
 } from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
+import { storePayoutView } from "../modules/stores/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { suggestMatches } from "@haben/core";
@@ -33,6 +34,10 @@ import {
   providerAccountSchema,
   importStatement,
   listAccounts,
+  excludeAccount,
+  excludeBlocker,
+  includeAccount,
+  listExcludedAccounts,
   listLoans,
   learnedDirectSuggestions,
   listTransactions,
@@ -82,6 +87,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const items = rows.some((r) => r.open !== 0) ? await openItems() : [];
     const own = await ownAccounts();
     const current = own.find((a) => a.id === account?.id);
+    // Ob sich das Konto als „gehört nicht zu dieser Firma“ ausschließen lässt (#462); sonst steht hier der Grund
+    const excludeBlockedBy = account ? await excludeBlocker(account.id) : null;
     // Aus früheren Buchungen derselben Gegenpartei, für alle ganz offenen Umsätze in einer Abfrage
     const learned = await learnedDirectSuggestions(rows.filter((r) => r.open !== 0 && r.open === r.amount));
     const transactions = rows.map((row) => {
@@ -107,9 +114,13 @@ export const getBankOverview = createServerFn({ method: "GET" })
     return {
       accounts,
       accountId: account?.id ?? null,
+      excludeBlockedBy,
+      excludedAccounts: (await listExcludedAccounts()).map((a) => ({ ...a, excludedAt: a.excludedAt?.toISOString() ?? null })),
       transactions,
       detail:
-        detail && detail.transaction.bankAccountId === account?.id ? { ...detail, neutralization: await neutralizationView(detail.transaction.id) } : null,
+        detail && detail.transaction.bankAccountId === account?.id
+          ? { ...detail, neutralization: await neutralizationView(detail.transaction.id), storePayout: await storePayoutView(detail.transaction.id) }
+          : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
         return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
@@ -179,6 +190,22 @@ export const addProviderAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const account = await createProviderAccount(context.user.id, data);
     return { id: account.id };
+  });
+
+export const excludeBankAccount = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await excludeAccount(context.user.id, data.id);
+    return { ok: true };
+  });
+
+export const includeBankAccount = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data, context }) => {
+    await includeAccount(context.user.id, data.id);
+    return { ok: true };
   });
 
 export const updateBankAccount = createServerFn({ method: "POST" })

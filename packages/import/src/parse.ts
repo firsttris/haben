@@ -4,12 +4,19 @@ import { decodeText } from "./decode.ts";
 import { isDkbAltHeader, isDkbHeader, parseDkb, parseDkbAlt } from "./dkb.ts";
 import { isEbayHeader, parseEbay } from "./ebay.ts";
 import { StatementParseError } from "./errors.ts";
+import { isEtsyHeader, parseEtsy } from "./etsy.ts";
 import { isN26Header, parseN26 } from "./n26.ts";
 import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShopify, parseStripe } from "./psp.ts";
 import { findHeaderRow } from "./table.ts";
 import type { ParsedStatement, StatementFormat } from "./types.ts";
 
-type Detected = { format: "camt053"; text: string } | { format: Exclude<StatementFormat, "camt053" | "enablebanking">; rows: string[][]; headerRow: number };
+type Detected =
+  | { format: "camt053"; text: string }
+  | {
+      format: Exclude<StatementFormat, "camt053" | "enablebanking" | "googleplay-earnings" | "appstore-finance" | "store-payout">;
+      rows: string[][];
+      headerRow: number;
+    };
 
 function detect(text: string, label: string): Detected {
   const trimmed = text.trimStart();
@@ -43,9 +50,11 @@ function detect(text: string, label: string): Detected {
   if (stripe >= 0) return { format: "stripe-csv", rows: parseCsv(text, ","), headerRow: stripe };
   const shopify = findHeaderRow(comma, isShopifyHeader);
   if (shopify >= 0) return { format: "shopify-payments-csv", rows: parseCsv(text, ","), headerRow: shopify };
+  const etsy = findHeaderRow(comma, isEtsyHeader);
+  if (etsy >= 0) return { format: "etsy-csv", rows: parseCsv(text, ","), headerRow: etsy };
 
   throw new StatementParseError(
-    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments und der Transaktionsbericht von eBay.`,
+    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
   );
 }
 
@@ -77,6 +86,8 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseShopify(detected.rows, detected.headerRow);
     case "ebay-csv":
       return parseEbay(detected.rows, detected.headerRow);
+    case "etsy-csv":
+      return parseEtsy(detected.rows, detected.headerRow);
   }
 }
 

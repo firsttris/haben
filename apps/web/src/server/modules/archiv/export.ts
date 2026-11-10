@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { bankAccountIncludedSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
@@ -22,6 +23,7 @@ import { cashBookCsv } from "../bank/index.ts";
 import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
+import { externalImportArchive } from "./external-import-archive.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -265,7 +267,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     select extract(year from issue_date)::int as y from invoices where status = 'final'
     union select extract(year from coalesce(document_date, (uploaded_at at time zone 'Europe/Berlin')::date))::int from documents
     union select extract(year from date)::int from journal_entries
-    union select extract(year from booking_date)::int from bank_transactions
+    union select extract(year from booking_date)::int from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
     union select year::int from vat_returns
     union select extract(year from date)::int from lexoffice_vouchers
     union select extract(year from date)::int from legacy_order_documents
@@ -281,6 +283,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   const problems: string[] = [];
 
   yield { path: "LIESMICH.txt", content: encoder.encode(readme(year, now, company)), compress: true };
+  yield* externalImportArchive(year);
 
   // Rechnungen ------------------------------------------------------------
   const invoices = await db
@@ -628,6 +631,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       line.debit ? money(line.debit) : "",
       line.credit ? money(line.credit) : "",
       line.taxCode,
+      line.basis === null ? "" : money(line.basis),
       entry.reversesId,
       iso(entry.lockedAt),
       iso(entry.createdAt),
@@ -648,6 +652,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         "Soll",
         "Haben",
         "Steuerschlüssel",
+        "Bemessungsgrundlage",
         "Gegenbuchung zu",
         "Festgeschrieben",
         "Erfasst",
@@ -757,12 +762,19 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 
   // Bank ------------------------------------------------------------------
-  const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.iban));
+  // Ein ausgeschlossenes Konto (#462) gehört nicht zu dieser Firma und fehlt im Archiv
+  const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.iban));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const transactions = await db
     .select()
     .from(schema.bankTransactions)
-    .where(and(gte(schema.bankTransactions.bookingDate, yearStart(year)), lte(schema.bankTransactions.bookingDate, yearEnd(year))))
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, yearStart(year)),
+        lte(schema.bankTransactions.bookingDate, yearEnd(year)),
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    )
     .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.createdAt), asc(schema.bankTransactions.id));
   const transactionById = new Map(transactions.map((t) => [t.id, t]));
   const allocations = transactions.length
@@ -781,9 +793,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     .select()
     .from(schema.bankImports)
     .where(
-      sql`exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
+      and(
+        sql`(exists (select 1 from bank_transactions t where t.import_id = ${schema.bankImports.id}
             and t.booking_date between ${yearStart(year)}::date and ${yearEnd(year)}::date)
-          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date)`,
+          or (${schema.bankImports.periodFrom} <= ${yearEnd(year)}::date and ${schema.bankImports.periodTo} >= ${yearStart(year)}::date))`,
+        bankAccountIncludedSql("bank_account_id"),
+      ),
     )
     .orderBy(asc(schema.bankImports.createdAt));
   const importById = new Map(imports.map((i) => [i.id, i]));
@@ -1211,7 +1226,13 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 }
 
-const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
+const LEGACY_SOURCE_LABELS = {
+  lexoffice: "Lexoffice",
+  sevdesk: "sevDesk",
+  buchhaltungsbutler: "BuchhaltungsButler",
+  accountable: "Accountable",
+  import: "JSON-Import",
+} as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
   invoice: "Rechnung",
@@ -1660,7 +1681,8 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
                          ursprünglichem Dateinamen.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
-                         Steuerschlüssel); Stornos verweisen auf die Ursprungsbuchung.
+                         Steuerschlüssel, Bemessungsgrundlage bei Ist-Versteuerung an
+                         der Zahlung); Stornos verweisen auf die Ursprungsbuchung.
 anlagen/anlagenverzeichnis.csv
                          Anlagenverzeichnis des Jahres: Anschaffung, Buchwert am
                          Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.
@@ -1690,13 +1712,14 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
-                         Lexware Office oder sevDesk (Spalte Quelle; bei sevDesk steht in
-                         Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
+                         Lexware Office, sevDesk oder BuchhaltungsButler (Spalte Quelle;
+                         bei sevDesk steht in Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
                          Originaldateien (belege.csv), Einzelzahlungen aus sevDesk
                          (zahlungen.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
                          Originalexporte des Jahres (originale/: DATEV, IDEA,
-                         ELSTER-Protokolle, Kontoauszüge).
+                         ELSTER-Protokolle, Kontoauszüge, Finanzberichte der
+                         App-Stores).
 protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert, in der
                          Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
 protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am

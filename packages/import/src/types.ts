@@ -9,10 +9,23 @@ export type StatementFormat =
   | "paypal-csv"
   | "stripe-csv"
   | "shopify-payments-csv"
-  | "ebay-csv";
+  | "ebay-csv"
+  | "etsy-csv"
+  | "googleplay-earnings"
+  | "appstore-finance"
+  | "store-payout";
 
 /** Exporte von Zahlungsdienstleistern: nur in ein Konto mit diesem Zweck importierbar */
-export const PSP_FORMATS: StatementFormat[] = ["paypal-csv", "stripe-csv", "shopify-payments-csv", "ebay-csv"];
+export const PSP_FORMATS: StatementFormat[] = [
+  "paypal-csv",
+  "stripe-csv",
+  "shopify-payments-csv",
+  "ebay-csv",
+  "etsy-csv",
+  "googleplay-earnings",
+  "appstore-finance",
+  "store-payout",
+];
 
 /** Ein Umsatz, wie er in der Datei steht. Eingänge positiv, Ausgänge negativ. */
 export interface ParsedTransaction {
