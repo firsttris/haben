@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { freieBuchungIssues, freieBuchungPosting } from "./freie-buchung.ts";
 import { kennzahlenAusJournal } from "./journal-kennzahlen.ts";
-import { euerAusZeilen } from "./journal-euer.ts";
+import { datevFormelKonto, euerAusZeilen, euerZuordnung } from "./journal-euer.ts";
 import { kontoImKontenrahmen } from "./kontenrahmen-wechsel.ts";
 import { manualPostingIssues, reverseManualPosting, type ManualLine } from "./manual.ts";
 
@@ -136,5 +136,19 @@ describe("Sachentnahme (§ 3 Abs. 1b UStG) als freie Buchung", () => {
   it("Kontenrahmenwechsel: die Sachentnahme hat in beiden Rahmen ihr Konto", () => {
     expect(kontoImKontenrahmen("SKR03", "SKR04", "8910")).toBe("4620");
     expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
+  });
+});
+
+describe("Sachentnahme: 4630 ist in SKR03 und SKR04 ein anderes Konto", () => {
+  it("SKR03 4630 bleibt Geschenke, SKR04 4630 ist die Sachentnahme 7 %", () => {
+    expect(kontoImKontenrahmen("SKR03", "SKR04", "4630")).toBe("6610");
+    expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
+    expect(euerZuordnung("SKR03", "4630")).toBe("ausgabe:geschenke");
+    expect(euerZuordnung("SKR04", "4630")).toBe("sachentnahmen");
+    for (const [kr, konto] of [
+      ["SKR03", "8910"],
+      ["SKR04", "4620"],
+    ] as const)
+      expect(datevFormelKonto(kr, konto)).toBe(true);
   });
 });

@@ -48,10 +48,13 @@ export interface DatevBookingRow {
   locked: boolean;
 }
 
-/** Erlöskonten mit Umsatzsteuer-Automatik in den DATEV-Standardkontenrahmen */
+/**
+ * Erlöskonten mit Umsatzsteuer-Automatik (AM) in den DATEV-Standardkontenrahmen, die Haben bebucht: Erlöse 19 % und 7 %
+ * und die Sachentnahme (Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 19 % bzw. 7 % USt)
+ */
 export const DATEV_AUTOMATIC_ACCOUNTS: Record<DatevExportHeader["kontenrahmen"], ReadonlySet<string>> = {
-  SKR03: new Set(["8400", "8300"]),
-  SKR04: new Set(["4400", "4300"]),
+  SKR03: new Set(["8400", "8300", "8910", "8915"]),
+  SKR04: new Set(["4400", "4300", "4620", "4630"]),
 };
 
 /**
