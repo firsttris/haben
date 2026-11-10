@@ -238,14 +238,13 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
-test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speichern, neuen Kunden direkt anlegen", async () => {
+test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speicherbar, neuen Kunden direkt anlegen", async () => {
   await go("/rechnungen/wiederkehrend/neu");
   await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
   const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
   // Pflichtfeld: Ohne gewählten Kunden meldet der Browser das Feld und speichert nichts
   expect(await kunde.evaluate((feld: HTMLInputElement) => feld.validity.valueMissing)).toBe(true);
-  await page.getByRole("button", { name: "Vorlage anlegen" }).click();
-  await expect(page).toHaveURL(/\/wiederkehrend\/neu$/);
+  await expect(page.getByRole("button", { name: "Vorlage anlegen" })).toBeDisabled();
 
   // Suche nach Name; nur Kunden stehen zur Auswahl
   await kunde.fill("Nordwerk");
