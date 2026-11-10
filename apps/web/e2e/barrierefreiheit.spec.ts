@@ -412,3 +412,30 @@ test("Feld aus der gemeinsamen Komponente: Nur der Name klickt, der Hinweis geh�
   const email = page.getByRole("textbox", { name: "E-Mail", exact: true });
   await expect(email).toHaveAccessibleDescription(/Mehrere Adressen/);
 });
+
+/** Felder, die nicht über `Field` gebaut sind: ein umschließendes `label.field`, oder ein Feldname, dessen `for` ins Leere zeigt */
+function fieldsOffComponent(p: Page) {
+  return p.evaluate(() => {
+    const where = (el: Element) => `${el.tagName.toLowerCase()}.${el.className} „${(el.textContent ?? "").trim().slice(0, 40)}“`;
+    const wrapping = [...document.querySelectorAll("label.field")].map((el) => `umschließendes ${where(el)}`);
+    const dangling = [...document.querySelectorAll(".field")].flatMap((field) => {
+      const name = field.querySelector(":scope > .field-label");
+      if (!name) return [];
+      const id = name.getAttribute("for");
+      const target = id ? document.getElementById(id) : null;
+      const labels = target && "labels" in target ? [...((target as HTMLInputElement).labels ?? [])] : [];
+      return labels.includes(name as HTMLLabelElement) ? [] : [`Feldname ohne Feld: ${where(name)} (for=${id})`];
+    });
+    return [...wrapping, ...dangling];
+  });
+}
+
+// Was nur hinter einem Zustand erscheint (Dialoge, aufgeklappte Bereiche, Fehler), sieht dieser Test nicht; dafür gilt das AST-Inventar der Umstellung
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Alle Felder stammen aus der gemeinsamen Komponente: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await fieldsOffComponent(page), path).toEqual([]);
+    }
+  });
+}
