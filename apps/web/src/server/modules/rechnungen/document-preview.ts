@@ -45,7 +45,10 @@ import { quoteCalculation } from "./quotes.ts";
  * als das Speichern; unvollständige Positionen lässt der Editor weg.
  */
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal(""));
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .or(z.literal(""));
 
 export const documentPreviewSchema = z.object({
   kind: z.enum(["rechnung", "storno", "korrektur", "angebot"]),
@@ -203,16 +206,29 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
   const letterhead = withDesign(stored, input.design);
   const dueDate = input.dueDate || input.issueDate;
   const directDebit = await directDebitFor(
-    { kind: input.kind, contactId: input.contactId, currency: input.currency, dueDate, skonto: input.skonto, paymentMethod: input.sepaMandateId ? "lastschrift" : "ueberweisung", sepaMandateId: input.sepaMandateId },
+    {
+      kind: input.kind,
+      contactId: input.contactId,
+      currency: input.currency,
+      dueDate,
+      skonto: input.skonto,
+      paymentMethod: input.sepaMandateId ? "lastschrift" : "ueberweisung",
+      sepaMandateId: input.sepaMandateId,
+    },
     company,
     db,
   );
   const t = texts(input.language, input.currency);
-  const data = input.kind === "angebot" ? quotePdfData(quoteDocument(input, company, buyer, letterhead)) : pdfData(invoiceDocument(input, company, buyer, letterhead, directDebit));
+  const data =
+    input.kind === "angebot"
+      ? quotePdfData(quoteDocument(input, company, buyer, letterhead))
+      : pdfData(invoiceDocument(input, company, buyer, letterhead, directDebit));
   const { draft: _noMark, ...sheet } = asDraft(data, t);
   try {
     return { ...(await renderer.render(renderJob("rechnung.typ", sheet, letterhead))), text: sheetText(sheet as unknown as SheetData) };
   } catch (error) {
-    throw new DocumentPreviewError(`Die Vorschau ließ sich nicht erzeugen. ${error instanceof Error && error.message.includes("Zeitlimit") ? error.message : "Das PDF ist davon nicht betroffen."}`);
+    throw new DocumentPreviewError(
+      `Die Vorschau ließ sich nicht erzeugen. ${error instanceof Error && error.message.includes("Zeitlimit") ? error.message : "Das PDF ist davon nicht betroffen."}`,
+    );
   }
 }

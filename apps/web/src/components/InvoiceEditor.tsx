@@ -30,7 +30,6 @@ import {
   skontoFristen,
   skontoProblem,
   TAX_TREATMENTS,
-  treatmentNote,
   UNITS,
   type Bundesland,
   type InvoiceLineInput,
@@ -39,7 +38,6 @@ import {
   type TaxTreatment,
   type UnitLabel,
   distinctVatRates,
-  needsSellerVatId,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -767,11 +765,7 @@ export function InvoiceEditor({
           onClosed: designDraft.discard,
         }}
         label="Vorschau"
-        caption={
-          <>
-            {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
-          </>
-        }
+        caption={quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
         sheet={
           <RenderedSheet
             revision={logo}

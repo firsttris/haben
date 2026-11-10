@@ -39,7 +39,11 @@ const dialog = (p: Page) => p.getByRole("dialog", { name: "Vorschau" });
 const panel = (p: Page) => dialog(p).getByRole("complementary", { name: "Gestaltung" });
 const blatt = (p: Page) => dialog(p).getByLabel("Vorschau der Rechnung");
 /** Das gesetzte SVG des Blatts; was nur als Bild existiert, lässt sich daran prüfen */
-const svg = (p: Page) => blatt(p).locator(".sheet-page img").first().evaluate(async (img: HTMLImageElement) => (await fetch(img.src)).text());
+const svg = (p: Page) =>
+  blatt(p)
+    .locator(".sheet-page img")
+    .first()
+    .evaluate(async (img: HTMLImageElement) => (await fetch(img.src)).text());
 /** Akzentfarbe des Blatts: die kräftigste Farbe darin, die Grautöne sind aus ihr abgeleitet und blasser */
 const brand = async (p: Page) => {
   const farben = [...new Set((await svg(p)).match(/#[0-9a-fA-F]{6}\b/g) ?? [])];

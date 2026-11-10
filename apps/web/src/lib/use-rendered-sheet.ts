@@ -43,10 +43,12 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
     }
   }, [render]);
 
-  const first = useRef(true);
+  const shown = useRef<string | null>(null);
   useEffect(() => {
-    if (first.current) {
-      first.current = false;
+    if (shown.current === key) return;
+    const first = shown.current === null;
+    shown.current = key;
+    if (first) {
       void load();
       return;
     }
@@ -56,7 +58,6 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
     }
     const timer = setTimeout(() => void load(), renderDelay(lastMs.current));
     return () => clearTimeout(timer);
-    // key fasst Eingabe und Logo zusammen
   }, [key, load]);
 
   useEffect(

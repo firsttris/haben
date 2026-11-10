@@ -87,7 +87,13 @@ describe.skipIf(!testDatabaseUrl)("Vorschau aus dem Formular (Postgres)", () => 
   });
 
   it("zeigt Abzüge und Stornos mit negativen Beträgen", async () => {
-    const result = await preview.documentPreview(input({ kind: "storno", corrects: { number: "2026-000", issueDate: "2026-10-01" }, lines: [{ description: "Storno", quantity: 1000, unit: "Psch.", unitPrice: -5000, taxRate: 1900 }] }));
+    const result = await preview.documentPreview(
+      input({
+        kind: "storno",
+        corrects: { number: "2026-000", issueDate: "2026-10-01" },
+        lines: [{ description: "Storno", quantity: 1000, unit: "Psch.", unitPrice: -5000, taxRate: 1900 }],
+      }),
+    );
     expect(text(result.text)).toContain("2026-000");
   });
 

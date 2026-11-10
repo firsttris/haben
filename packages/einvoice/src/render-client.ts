@@ -48,7 +48,11 @@ export interface RenderClient {
  * Hält einen Render-Prozess warm und gibt ihm die Aufträge nacheinander. Überschreitet einer das Zeitlimit, wird der
  * Prozess hart beendet und für den nächsten neu gestartet; ohne Aufträge endet er nach idleMs von selbst.
  */
-export function createRenderClient({ timeoutMs = RENDER_TIMEOUT_MS, idleMs = RENDER_IDLE_MS, workerPath = WORKER_PATH }: RenderClientOptions = {}): RenderClient {
+export function createRenderClient({
+  timeoutMs = RENDER_TIMEOUT_MS,
+  idleMs = RENDER_IDLE_MS,
+  workerPath = WORKER_PATH,
+}: RenderClientOptions = {}): RenderClient {
   const queue: Pending[] = [];
   let child: ChildProcess | undefined;
   let running: (Pending & { id: number; timer: NodeJS.Timeout }) | undefined;

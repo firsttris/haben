@@ -156,6 +156,10 @@ describe("Schalter „Artikelnummer“ der Gestaltung", () => {
 
   it("nimmt die Nummer auch aus dem Text für Screenreader", () => {
     const data = pdfData({ ...doc(), options: aus }) as unknown as SheetData;
-    expect(sheetText(data).flatMap((part) => part.lines).join("\n")).not.toContain("ET-1042");
+    expect(
+      sheetText(data)
+        .flatMap((part) => part.lines)
+        .join("\n"),
+    ).not.toContain("ET-1042");
   });
 });

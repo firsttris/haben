@@ -42,7 +42,9 @@ describe("Render-Prozess", () => {
 
   it("reicht Dateien nur für diesen Lauf an die Vorlage", async () => {
     const job = vorlage("datei.typ", '#read("notiz.txt")');
-    await expect(client.render({ ...job, files: [{ name: "notiz.txt", base64: Buffer.from("hallo").toString("base64") }] })).resolves.toMatchObject({ pages: 1 });
+    await expect(client.render({ ...job, files: [{ name: "notiz.txt", base64: Buffer.from("hallo").toString("base64") }] })).resolves.toMatchObject({
+      pages: 1,
+    });
     await expect(client.render(job)).rejects.toThrow(/notiz\.txt|not found/i);
   });
 

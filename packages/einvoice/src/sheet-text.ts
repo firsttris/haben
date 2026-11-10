@@ -53,7 +53,15 @@ export function sheetText(data: SheetData): SheetTextPart[] {
     {
       part: "positionen",
       lines: data.lines.flatMap((line) => [
-        filled([line.pos, data.itemNumbers ? line.itemNumber : null, line.description, line.quantity, line.unitPrice, data.hideVatColumn ? null : line.rate, line.net]).join(" "),
+        filled([
+          line.pos,
+          data.itemNumbers ? line.itemNumber : null,
+          line.description,
+          line.quantity,
+          line.unitPrice,
+          data.hideVatColumn ? null : line.rate,
+          line.net,
+        ]).join(" "),
         ...filled([plain(line.detailFormatted), line.discount]),
       ]),
     },

@@ -358,7 +358,9 @@ export function renderJob(template: "rechnung.typ", data: object, letterhead: Le
   const workspace = join(PACKAGE_DIR, "templates");
   const files = [
     ...(letterhead.logo ? [{ name: `logo.${letterhead.logo.format}`, base64: Buffer.from(letterhead.logo.data).toString("base64") }] : []),
-    ...(letterhead.background ? [{ name: `briefpapier.${letterhead.background.format}`, base64: Buffer.from(letterhead.background.data).toString("base64") }] : []),
+    ...(letterhead.background
+      ? [{ name: `briefpapier.${letterhead.background.format}`, base64: Buffer.from(letterhead.background.data).toString("base64") }]
+      : []),
   ];
   return { workspace, main: join(workspace, template), data: templateInputs(data, letterhead), files };
 }
