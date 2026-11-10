@@ -12,7 +12,9 @@ const SKRIPT = resolve(import.meta.dirname, "../../deploy/instanzen/haben-instan
 
 /**
  * docker-Ersatz: schreibt jeden Aufruf mit dem Verzeichnis nach aufrufe. Zustände als Dateien in $FAKE_STATE:
- * kaputt-<instanz> (App startet immer neu), gestoppt-<instanz>, backup-kaputt-<instanz>, caddy-laeuft, netz.
+ * kaputt-<instanz> (App startet immer neu), gestoppt-<instanz>, backup-kaputt-<instanz>, caddy-laeuft, netz,
+ * compose-kaputt-<instanz> (Compose bricht mit einem Fehler ab, etwa wegen einer fehlerhaften .env),
+ * langsam-<instanz> (ps --services schreibt die Dienste in getrennten Schreibvorgängen).
  * exec liest wie das echte docker compose exec die Standardeingabe.
  */
 const FAKE_DOCKER = `#!/bin/sh
@@ -29,11 +31,13 @@ case "$1" in
   compose) shift ;;
   *) exit 2 ;;
 esac
+[ ! -f "$s/compose-kaputt-$d" ] || { echo "required variable RESTIC_PASSWORD is missing a value" >&2; exit 1; }
 case "$1" in
   ps)
     case "$*" in
       *--services*)
         if [ "$d" = proxy ]; then [ -f "$s/caddy-laeuft" ] && echo caddy
+        elif [ -f "$s/langsam-$d" ]; then printf 'app\\n'; sleep 0.3; printf 'backup\\ndb\\n'
         elif [ ! -f "$s/gestoppt-$d" ]; then printf 'db\\napp\\nbackup\\n'; fi ;;
       *) if [ -f "$s/kaputt-$d" ]; then echo "restarting "; else echo "running healthy"; fi ;;
     esac ;;
@@ -273,5 +277,43 @@ describe("status und liste", () => {
       .split("\n")
       .map((z) => z.split(/\s+/)[0]);
     expect(namen).toEqual(["firma1", "haben-alt"]);
+  });
+});
+
+describe("Review", () => {
+  it("lehnt einen Namen ab, dessen Projekt und Alias schon eine von Hand angelegte Instanz trägt", () => {
+    // Von Hand nach der Doku: Verzeichnis haben-firma1, COMPOSE_PROJECT_NAME=haben-firma1, Alias haben-firma1
+    mkdirSync(join(basis, "haben-firma1"), { recursive: true });
+    writeFileSync(join(basis, "haben-firma1", "compose.yml"), "");
+    writeFileSync(join(basis, "haben-firma1", ".env"), "COMPOSE_PROJECT_NAME=haben-firma1\nDOMAIN=alt.example.de\n");
+    const r = lauf("neu", "firma1", "firma1.example.de");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+    expect(aufrufe().some((a) => a.startsWith("firma1 compose up"))).toBe(false);
+  });
+
+  it("hält beim Update an, wenn Compose für eine Instanz einen Fehler meldet, statt sie als gestoppt zu überspringen", () => {
+    for (const n of ["firma1", "firma2", "firma3"]) lauf("neu", n, `${n}.example.de`, "--nicht-starten");
+    writeFileSync(join(dir, "compose-kaputt-firma2"), "");
+    const r = lauf("update");
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain("firma2");
+    expect(aufrufe().some((a) => a.startsWith("firma3 compose pull"))).toBe(false);
+  });
+
+  it("erkennt eine laufende App auch, wenn docker die Dienste einzeln ausgibt (pipefail und grep -q)", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    writeFileSync(join(dir, "langsam-firma1"), "");
+    const r = lauf("status");
+    expect(r.stdout.trim().split("\n")[1]).toMatch(/^firma1\s+firma1\.example\.de\s+9\.9\.9\s/);
+  });
+
+  it("erkennt die Domain einer von Hand angelegten Instanz auch in doppelten Anführungszeichen", () => {
+    mkdirSync(join(basis, "haben-alt"), { recursive: true });
+    writeFileSync(join(basis, "haben-alt", "compose.yml"), "");
+    writeFileSync(join(basis, "haben-alt", ".env"), 'COMPOSE_PROJECT_NAME=haben-alt\nDOMAIN="alt.example.de"\n');
+    const r = lauf("neu", "firma1", "alt.example.de", "--nicht-starten");
+    expect(r.stderr).toContain("gehört schon zur Instanz haben-alt");
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
   });
 });
