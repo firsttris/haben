@@ -31,13 +31,14 @@
   .shot { position: absolute; left: 488px; top: 56px; width: 960px; border: 1px solid var(--line); border-radius: 12px 0 0 0; overflow: hidden; }
   /* Ohne die Navigation der App: die steht links schon */
   .shot img { width: 1080px; margin-left: -174px; display: block; }
-  /* Handy rechts, unten angeschnitten wie aus dem Bild ragend: schmaler Rahmen mit Kante, Seitentasten,
+  /* Handy rechts, unten angeschnitten wie aus dem Bild ragend: Rahmen 3 % und Ecken 17 % der Breite wie ein
+     aktuelles Handy, Kante, Seitentasten,
      Statusleiste in der Farbe der Kopfzeile der App am Handy und Kamera als Pille. Das Bild selbst hat keine Statusleiste */
-  .phone { position: absolute; right: 40px; top: 136px; width: 244px; height: 520px; padding: 7px 7px 0; background: #0b100e; border-radius: 40px 40px 0 0; box-shadow: 0 0 0 1.5px #3a4741, 0 16px 40px rgba(22, 33, 28, 0.25); }
+  .phone { position: absolute; right: 40px; top: 176px; width: 244px; height: 504px; padding: 7px 7px 0; background: #0b100e; border-radius: 41px 41px 0 0; box-shadow: 0 0 0 1.5px #3a4741, 0 16px 40px rgba(22, 33, 28, 0.25); }
   .phone::before, .phone::after { content: ""; position: absolute; width: 3px; border-radius: 2px; background: #3a4741; }
   .phone::before { left: -4px; top: 96px; height: 48px; box-shadow: 0 -64px 0 0 #3a4741; }
   .phone::after { right: -4px; top: 120px; height: 72px; }
-  .phone .screen { position: relative; height: 100%; border-radius: 33px 33px 0 0; overflow: hidden; padding-top: 30px; background: var(--nav); }
+  .phone .screen { position: relative; height: 100%; border-radius: 34px 34px 0 0; overflow: hidden; padding-top: 30px; background: var(--nav); }
   .phone .screen img { width: 100%; display: block; }
   .phone .time { position: absolute; top: 8px; left: 26px; font-size: 13px; font-weight: 600; color: #fff; }
   .phone .bars { position: absolute; top: 11px; right: 22px; display: flex; gap: 2px; align-items: flex-end; }
