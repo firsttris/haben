@@ -23,7 +23,7 @@ export function RenderedSheet({ input, revision }: { input: DocumentPreviewInput
       {sheet ? (
         Array.from({ length: sheet.pages }, (_, page) => (
           <div key={page} className="sheet-page" style={{ aspectRatio: `${sheet.width} / ${sheet.height}` }}>
-            <img src={sheet.url} alt={`Seite ${page + 1} von ${sheet.pages}`} style={{ height: `${sheet.pages * 100}%`, top: `${page * -100}%` }} />
+            <img draggable={false} src={sheet.url} alt={`Seite ${page + 1} von ${sheet.pages}`} style={{ height: `${sheet.pages * 100}%`, top: `${page * -100}%` }} />
           </div>
         ))
       ) : (

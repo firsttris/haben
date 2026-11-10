@@ -14,6 +14,8 @@ interface Row {
 interface SheetLine {
   pos: string;
   itemNumber?: string;
+  /** Angebot: „Optional“ oder „Alternative zu Pos. 1“ */
+  tag?: string | null;
   description: string;
   detailFormatted?: FormattedTextRun[] | null;
   discount?: string | null;
@@ -62,12 +64,12 @@ export function sheetText(data: SheetData): SheetTextPart[] {
           data.hideVatColumn ? null : line.rate,
           line.net,
         ]).join(" "),
-        ...filled([plain(line.detailFormatted), line.discount]),
+        ...filled([line.tag, plain(line.detailFormatted), line.discount]),
       ]),
     },
     {
       part: "summen",
-      lines: data.totals ? [...data.totals.rows.map(row), row(data.totals.gross), ...(data.totals.included?.rows.map(row) ?? [])] : [],
+      lines: data.totals ? [...data.totals.rows.map(row), row(data.totals.gross), ...(data.totals.included ? [data.totals.included.label, ...data.totals.included.rows.map(row)] : [])] : [],
     },
     {
       part: "hinweise",

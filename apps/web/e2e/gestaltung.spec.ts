@@ -46,13 +46,15 @@ const svg = (p: Page) =>
     .evaluate(async (img: HTMLImageElement) => (await fetch(img.src)).text());
 /** Akzentfarbe des Blatts: die kräftigste Farbe darin, die Grautöne sind aus ihr abgeleitet und blasser */
 const brand = async (p: Page) => {
-  const farben = [...new Set((await svg(p)).match(/#[0-9a-fA-F]{6}\b/g) ?? [])];
+  const farben = [...new Set([...(await svg(p)).matchAll(/(?:fill|stroke)="(#[0-9a-fA-F]{6})"/g)].map((m) => m[1]!))];
   const kraft = (hex: string) => {
     const teile = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
     return Math.max(...teile) - Math.min(...teile);
   };
   return farben.sort((a, b) => kraft(b) - kraft(a))[0]!.toUpperCase();
 };
+/** Ohne die Glyphen: Der warme Render-Prozess führt sie über die Läufe mit, gesetzt ist dasselbe */
+const gesetzt = async (p: Page) => (await svg(p)).replace(/<defs class="glyph">[\s\S]*?<\/defs>/, "");
 const fuss = (p: Page) => blatt(p).locator('[data-teil="fuss"]');
 
 async function gestaltungOeffnen(p: Page): Promise<void> {
@@ -192,7 +194,7 @@ test("Speichern gilt nach dem Neuladen und lässt das Formular stehen", async ({
   await page.reload();
   await page.waitForLoadState("networkidle");
   await gestaltungOeffnen(page);
-  expect(await brand(page)).toBe("#6B3FA0");
+  await expect.poll(() => brand(page)).toBe("#6B3FA0");
 
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
@@ -222,7 +224,7 @@ test("Änderungen, die während des Speicherns entstehen, bleiben als ungespeich
   weiter();
   await expect(panel(page).getByRole("status")).toContainText("Gespeichert");
 
-  expect(await brand(page)).toBe("#1D4E89");
+  await expect.poll(() => brand(page)).toBe("#1D4E89");
   await expect(panel(page).getByRole("button", { name: "Für alle Belege speichern" })).toBeEnabled();
 
   await page.goto("/einstellungen?bereich=gestaltung");
@@ -476,12 +478,12 @@ test("Die Schrift wirkt sofort aufs Blatt", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await gestaltungOeffnen(page);
   await expect(blatt(page).locator(".sheet-page img").first()).toBeVisible();
-  const ohneWechsel = await svg(page);
+  const ohneWechsel = await gesetzt(page);
 
   await panel(page).getByLabel("Schrift").selectOption({ label: "IBM Plex Serif" });
-  await expect.poll(() => svg(page)).not.toBe(ohneWechsel);
+  await expect.poll(() => gesetzt(page)).not.toBe(ohneWechsel);
   await panel(page).getByRole("button", { name: "Verwerfen" }).click();
-  await expect.poll(() => svg(page)).toBe(ohneWechsel);
+  await expect.poll(() => gesetzt(page)).toBe(ohneWechsel);
   await page.context().close();
 });
 
