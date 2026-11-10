@@ -122,6 +122,17 @@ describe("ERiC installieren", () => {
     expect((await readdir(dir)).sort()).toEqual(["AKTUELL", "ERiC-43.4.6.0"]);
   });
 
+  // Das Paket liegt jetzt im Volume statt in /tmp: Bricht eine Installation hart ab (Neustart des Containers während des
+  // Downloads), bliebe der Ordner .download-… mit bis zu 520 MB für immer im Volume. Die nächste Installation räumt ihn weg.
+  it("räumt Download-Ordner einer abgebrochenen Installation im Zielverzeichnis weg", async () => {
+    const dir = join(await tempDir(), "eric");
+    await mkdir(join(dir, ".download-abgebrochen"), { recursive: true });
+    await writeFile(join(dir, ".download-abgebrochen", "eric.jar"), big);
+    const { fn } = fakeFetch(goodJar);
+    await installEric({ version: "43.4.6.0", dir, fetch: fn, baseUrl: "http://elster.test/eric", checkPlatform: false });
+    expect((await readdir(dir)).sort()).toEqual(["AKTUELL", "ERiC-43.4.6.0"]);
+  });
+
   it("schaltet erst auf die neue Version um, wenn sie vollständig ist, und räumt danach auf", async () => {
     const dir = join(await tempDir(), "eric");
     // Von Hand entpacktes ERiC direkt im Verzeichnis
