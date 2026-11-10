@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { kennzahlenAusJournal } from "./journal-kennzahlen.ts";
 import { computeInvoiceTotals } from "./invoice.ts";
 import {
   ACCOUNT_NAMES,
@@ -333,11 +334,19 @@ describe("legacyCorrectionPosting", () => {
     expect(["1400", "1766", "9000"].map(saldo)).toEqual([0, 0, 0]);
   });
 
+  it.each(["SKR03", "SKR04"] as const)("Soll (%s): Kennzahlen aus dem Journal wie die Voranmeldung, auch zu 0 % (#542)", (kr) => {
+    // Die Voranmeldung meldet die Korrektur mit Bemessungsgrundlage und Steuer im Monat der Korrektur (§ 17 UStG)
+    expect(kennzahlenAusJournal(kr, "soll", [legacyCorrectionPosting(storno, kr, "soll")])).toMatchObject({ kz81: -100_000, tax81: -19_000 });
+    const null0 = computeInvoiceTotals([{ quantity: 1000, unitPrice: -100_000, taxRate: 0 }]);
+    expect(kennzahlenAusJournal(kr, "soll", [legacyCorrectionPosting(null0, kr, "soll")])).toMatchObject({ steuerfrei: -100_000 });
+  });
+
   it("Soll: mindert die schon angemeldete Umsatzsteuer", () => {
     expect(legacyCorrectionPosting(storno, "SKR04", "soll")).toEqual([
       { account: "1200", debit: 0, credit: 119_000, taxCode: null },
       { account: "3806", debit: 19_000, credit: 0, taxCode: "USt19" },
-      { account: "9000", debit: 100_000, credit: 0, taxCode: null },
+      // Mit Steuerschlüssel: die Bemessungsgrundlage der Korrektur (#542)
+      { account: "9000", debit: 100_000, credit: 0, taxCode: "USt19" },
     ]);
   });
 });
