@@ -14,6 +14,7 @@ interface Zeile {
 
 interface Daten {
   author: string;
+  senderLine?: string;
   recipient: string[];
   meta: Zeile[];
   draft?: string;
@@ -31,6 +32,12 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
   const steuer = d.footer.flat().filter((zeile) => /Steuernummer|USt-IdNr|VAT/.test(zeile));
   const gemeinsam = [
     { was: "Name des Absenders", text: d.author },
+    // Vollständige Anschrift des Ausstellers (§ 14 Abs. 4 Nr. 1 UStG): Straße sowie PLZ und Ort aus der Absenderzeile
+    ...(d.senderLine ?? "")
+      .split(" · ")
+      .slice(1)
+      .filter((text) => text.trim())
+      .map((text) => ({ was: "Anschrift des Absenders", text })),
     ...d.recipient.filter(Boolean).map((text) => ({ was: "Anschrift des Empfängers", text })),
     ...steuer.map((text) => ({ was: "Steuernummer oder USt-IdNr.", text })),
     ...(d.legal ? [{ was: "Pflichtangaben der GmbH (legal)", text: d.legal }] : []),
