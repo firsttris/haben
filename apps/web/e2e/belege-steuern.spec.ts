@@ -16,6 +16,8 @@ import {
   gehe,
   kontrasteInThemes,
   kundeWaehlen,
+  lieferantWaehlen,
+  neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
   receiptJpeg,
   trefferliste,
@@ -678,14 +680,14 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hetzner Online GmbH · DE812871812" });
+  await lieferantWaehlen(page, "Hetzner Online GmbH · DE812871812");
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
 
   // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
   await page.getByLabel("Rechnungsnummer").fill("H-2026-77");
   const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
-  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await neuenLieferantenOeffnen(page);
   await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Hetzner Online GmbH");
   await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
   await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
@@ -693,22 +695,68 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
   await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
 
-  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await neuenLieferantenOeffnen(page);
   await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
   await dialog.getByLabel("USt-IdNr.").fill("");
   await expect(dialog.getByRole("status")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" }).locator("option:checked")).toHaveText("Druckerei Süd GmbH");
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue("Druckerei Süd GmbH");
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await bestaetigen(page, "Beleg löschen");
   await page.waitForURL(/\/belege$/);
   for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
+    await go("/kontakte?rolle=lieferant");
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await page.getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  }
+});
+
+test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu verlieren", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Suchfirma Nord GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("Ort").fill("Kiel");
+  await page.getByLabel("Lieferantennummer").fill("L-4711");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await go("/dauerbelege/neu");
+  await page.getByLabel("Bezeichnung").fill("Wartung Server");
+  const kontakte = page.getByRole("combobox", { name: "Aus den Kontakten" });
+  // Gesucht wird auch nach der Lieferantennummer; die Zeile zeigt Nummer und Ort
+  await kontakte.fill("L-4711");
+  await expect(trefferliste(page).getByRole("option")).toHaveCount(2);
+  await expect(trefferliste(page).getByRole("option").first()).toContainText("Suchfirma Nord GmbH");
+  await expect(trefferliste(page).getByRole("option").first()).toContainText("L-4711 · Kiel");
+  await trefferliste(page).getByRole("option").first().click();
+  await expect(kontakte).toHaveValue("Suchfirma Nord GmbH · Kiel");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Suchfirma Nord GmbH");
+
+  // Der getippte Name geht in den Dialog; nach dem Speichern ist der neue Lieferant gewählt
+  await neuenLieferantenOeffnen(page, "Neufirma Süd");
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Neufirma Süd");
+  await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
+  await dialog.getByLabel("Ort").fill("Köln");
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(kontakte).toHaveValue("Neufirma Süd · Köln");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Neufirma Süd");
+  await expect(page.getByLabel("Bezeichnung")).toHaveValue("Wartung Server");
+  // Der Dialog schickt das Formular nicht ab: Es steht noch auf der Seite „Neuer Dauerbeleg“
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+
+  // Nicht speichern; die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
+  for (const name of ["Suchfirma Nord GmbH", "Neufirma Süd"]) {
     await go("/kontakte?rolle=lieferant");
     await page.getByRole("link", { name: new RegExp(name) }).click();
     await page.getByRole("button", { name: "Archivieren" }).click();
@@ -1575,7 +1623,7 @@ test("Abweichende IBAN der E-Rechnung: Warnung am Beleg, gesperrt unter Überwei
   await page.waitForLoadState("networkidle");
   // Der Abgleich läuft, sobald der Kontakt am Beleg hängt
   await expect(page.getByRole("region", { name: "Bankverbindung prüfen" })).toHaveCount(0);
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Netzwerk Hosting GmbH" });
+  await lieferantWaehlen(page, "Netzwerk Hosting GmbH");
   await page.getByLabel("Kategorie").selectOption("software");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
@@ -1746,7 +1794,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await neuenLieferantenOeffnen(page);
   const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
   await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Netzwerk Hosting GmbH");
   await expect(dialog.getByLabel("Straße und Hausnummer")).not.toHaveValue("");
@@ -1761,7 +1809,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await expect(iban).toBeFocused();
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
 });
 
 test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
@@ -1786,7 +1834,7 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hosting Süd GmbH" });
+  await lieferantWaehlen(page, "Hosting Süd GmbH");
   await page.getByLabel("Kategorie").selectOption("software");
   // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
   await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();

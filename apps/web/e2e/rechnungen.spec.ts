@@ -238,6 +238,43 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
+test("Wiederkehrende Rechnung: Kunde suchen, ohne Kunde nicht speichern, neuen Kunden direkt anlegen", async () => {
+  await go("/rechnungen/wiederkehrend/neu");
+  await page.getByLabel("Bezeichnung").fill("Wartungsvertrag Test");
+  const kunde = page.getByRole("combobox", { name: "Kunde", exact: true });
+  // Pflichtfeld: Ohne gewählten Kunden meldet der Browser das Feld und speichert nichts
+  expect(await kunde.evaluate((feld: HTMLInputElement) => feld.validity.valueMissing)).toBe(true);
+  await page.getByRole("button", { name: "Vorlage anlegen" }).click();
+  await expect(page).toHaveURL(/\/wiederkehrend\/neu$/);
+
+  // Suche nach Name; nur Kunden stehen zur Auswahl
+  await kunde.fill("Nordwerk");
+  await trefferliste(page)
+    .getByRole("option", { name: /Nordwerk Software GmbH/ })
+    .click();
+  await expect(kunde).toHaveValue("Nordwerk Software GmbH · Hamburg");
+  expect(await kunde.evaluate((feld: HTMLInputElement) => feld.validity.valueMissing)).toBe(false);
+
+  // Neuer Kunde mit dem getippten Namen, die Eingaben der Vorlage bleiben
+  await kunde.fill("Vorlagenkunde GmbH");
+  await trefferliste(page).getByRole("option", { name: "„Vorlagenkunde GmbH“ als neuen Kunden anlegen" }).click();
+  const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Vorlagenkunde GmbH");
+  await expect(dialog.getByLabel("Kunde", { exact: true })).toBeChecked();
+  await dialog.getByLabel("Ort").fill("Bremen");
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(kunde).toHaveValue("Vorlagenkunde GmbH · Bremen");
+  await expect(page.getByLabel("Bezeichnung")).toHaveValue("Wartungsvertrag Test");
+  await expect(page).toHaveURL(/\/wiederkehrend\/neu$/);
+
+  // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Vorlagenkunde GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();
@@ -334,7 +371,22 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   const form = page.getByRole("form", { name: "Neuer Textbaustein" });
   await form.getByLabel("Bezeichnung").fill("Bestellnummer Nordwerk");
   await form.getByRole("textbox", { name: "Text", exact: true }).fill("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
-  await form.getByLabel("Kunde (optional)").selectOption({ label: "Nordwerk Software GmbH · Hamburg" });
+  // Leeres Feld heißt „für alle Kunden“; erst die Wahl macht den Baustein zum Baustein dieses Kunden
+  const kundenfeld = form.getByRole("combobox", { name: "Kunde (optional)" });
+  await expect(kundenfeld).toHaveAttribute("placeholder", "Für alle Kunden");
+  await expect(kundenfeld).toHaveValue("");
+  await kundenfeld.fill("Nordwerk");
+  await trefferliste(page)
+    .getByRole("option", { name: /Nordwerk Software GmbH/ })
+    .click();
+  await kundenfeld.fill("");
+  await kundenfeld.blur();
+  await expect(kundenfeld).toHaveValue("");
+  await kundenfeld.fill("Nordwerk");
+  await trefferliste(page)
+    .getByRole("option", { name: /Nordwerk Software GmbH/ })
+    .click();
+  await expect(form.getByRole("combobox", { name: "Kunde (optional)" })).toHaveValue("Nordwerk Software GmbH · Hamburg");
   await form.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByRole("region", { name: "Textbausteine" })).toContainText("Bestellnummer Nordwerk");
 
