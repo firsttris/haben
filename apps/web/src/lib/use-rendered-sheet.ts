@@ -2,7 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { renderDocumentPreview } from "../server/functions/invoices.ts";
 import type { DocumentPreview, DocumentPreviewInput } from "../server/modules/rechnungen/index.ts";
-import { renderDelay, rendersOnDemand } from "./vorschau-render.ts";
+import { outdatedAfterRender, renderDelay, rendersOnDemand } from "./vorschau-render.ts";
 
 export type LoadedSheet = Omit<DocumentPreview, "svg" | "ms"> & { url: string };
 
@@ -21,9 +21,12 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
   const key = JSON.stringify([input, revision]);
   const current = useRef(input);
   current.current = input;
+  const currentKey = useRef(key);
+  currentKey.current = key;
 
   const load = useCallback(async () => {
     const run = ++latest.current;
+    const requested = currentKey.current;
     try {
       const { svg, ms, ...rest } = await render({ data: current.current });
       if (run !== latest.current) return;
@@ -37,7 +40,8 @@ export function useRenderedSheet(input: DocumentPreviewInput, revision: string |
       lastMs.current = ms;
       setSheet({ ...rest, url: next });
       setFailure(null);
-      setOutdated(false);
+      // Wer während eines langsamen Laufs weitertippt, sieht weiter den Knopf
+      setOutdated(outdatedAfterRender(requested, currentKey.current, ms));
     } catch (error) {
       if (run === latest.current) setFailure(error instanceof Error ? error.message : "Die Vorschau ließ sich nicht erzeugen.");
     }

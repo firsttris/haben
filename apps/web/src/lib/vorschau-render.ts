@@ -6,3 +6,7 @@ export const RENDER_MANUAL_ABOVE_MS = 2000;
 export const renderDelay = (lastMs: number): number => Math.max(RENDER_MIN_DELAY_MS, lastMs * 2);
 
 export const rendersOnDemand = (lastMs: number): boolean => lastMs > RENDER_MANUAL_ABOVE_MS;
+
+/** Nach einem Lauf: Hat sich das Formular inzwischen geändert und rendert nur der Knopf neu, bleibt der Hinweis stehen */
+export const outdatedAfterRender = (renderedKey: string, currentKey: string, ms: number): boolean => rendersOnDemand(ms) && renderedKey !== currentKey;
+
