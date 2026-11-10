@@ -86,7 +86,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect((await call(t, "GET", "/kontakte")).status).toBe(401);
       await mcp.setMcpEnabled(actor, true);
 
-      await mcp.revokeMcpToken((await mcp.listMcpTokens())[0]!.id);
+      await mcp.revokeMcpToken(actor, (await mcp.listMcpTokens())[0]!.id);
       expect((await call(t, "GET", "/kontakte")).status).toBe(401);
     });
 
