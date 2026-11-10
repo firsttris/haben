@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ACCENT_PATTERN,
   contrastOnWhite,
@@ -15,6 +15,7 @@ import {
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { saveLetterheadDesign } from "../server/functions/logo.ts";
+import { Field } from "./Field.tsx";
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
@@ -112,20 +113,21 @@ export function DesignOptionFields({
   vatRates?: number;
   logoUpload: ReactNode;
 }) {
-  const fontHeading = useId();
   return (
     <>
       <section>
-        <h3 id={fontHeading}>Schrift</h3>
-        <div className="field">
-          <select aria-labelledby={fontHeading} value={design.font} onChange={(event) => onChange({ font: event.target.value as LetterheadFont })}>
-            {(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[]).map((font) => (
-              <option key={font} value={font}>
-                {LETTERHEAD_FONTS[font].name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <h3>Schrift</h3>
+        <Field label="Schrift" hideLabel>
+          {(control) => (
+            <select {...control} value={design.font} onChange={(event) => onChange({ font: event.target.value as LetterheadFont })}>
+              {(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[]).map((font) => (
+                <option key={font} value={font}>
+                  {LETTERHEAD_FONTS[font].name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </section>
       <section>
         <h3>Logo</h3>

@@ -518,6 +518,7 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
 | Formularfelder über `Field`, kein umschließendes `<label className="field">` | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
+| Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
@@ -529,6 +530,8 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
 
 Die Feldregel ist ein GritQL-Muster für Biome (`scripts/felder/kein-label-field.grit`, in `biome.jsonc` unter `plugins`). Sie meldet ein `<label>` mit `field` als Wort in einem festen `className` (`"field"`, `"field weitere"`, `{"field"}`), nicht `field-label` und nicht `div.field`. Eine berechnete Klasse sieht ein Muster nicht; dafür prüft der Playwright-Test auf allen Seiten der Routenliste, dass es kein `label.field` gibt und jeder Feldname per `for` auf sein Feld zeigt. Was nur hinter Dialogen oder Zuständen erscheint, erreicht er nicht.
+
+Die Auswahlregel (`scripts/felder/keine-nackte-auswahl.grit`) meldet ein `<select>`, das im selben Quelltext nicht in einem `<Field>` steht. Sie sieht nur den Quelltext: Ein `<select>` in einer eigenen Komponente, die ein anderes Bauteil in `Field` einsetzt, meldet sie auch dann, wenn es dort richtig steht. Bewusst allein stehende Listen (Zellen der Positionszeilen und Tabellen, die Farbschema-Auswahl in der Navigation) tragen davor `// biome-ignore lint/plugin: Grund`. `scripts/felder/regel.test.ts` prüft beide Muster an kleinen Beispielen.
 
 Die Seitenabdeckung liest die Seiten aus `routeTree.gen.ts` und sucht ihre Pfade in den beiden Spec-Dateien; ein Parameter wie `$id` passt auf `${YEAR}` oder auf das Muster von `firstLink`, nicht aber auf eine feste Nachbarseite wie `/rechnungen/neu`, denn die wählt der Router vor dem Parameter. Seiten, die bewusst fehlen (etwa reine Weiterleitungen), stehen mit Grund in `scripts/seitenabdeckung/ausnahmen.ts`. Die dort mit „noch offen“ markierten Seiten fehlten schon, als die Prüfung kam; wer eine davon in die Spec aufnimmt, streicht die Ausnahme, sonst meldet die Prüfung sie als veraltet. Eine neue Seite gehört in die Spec, nicht in die Ausnahmen. Die Prüfung vergleicht Text: Sie sieht, ob ein Pfad in der Datei steht, nicht, ob ein Test die Seite lädt. Eine Seite, deren Pfad nur in einem Test steht, der eine 404 erwartet, steht deshalb mit eigenem Grund in den Ausnahmen; solche Ausnahmen meldet die Prüfung nicht als veraltet.
 
