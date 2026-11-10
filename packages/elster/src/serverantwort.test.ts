@@ -62,6 +62,11 @@ describe("serverRueckmeldungen", () => {
     expect(serverRueckmeldungen(xml).map((m) => m.text)).toEqual(["Haupttext", "Genauer"]);
   });
 
+  it("meldet denselben Code nicht doppelt, wenn nur der Stack den Text liefert", () => {
+    const xml = antwort("<Rueckgabe><Code>5</Code><Text></Text></Rueckgabe><Stack><Code>5</Code><Text>Genauer</Text></Stack>");
+    expect(serverRueckmeldungen(xml)).toEqual([{ quelle: "Transferheader", code: 5, text: "Genauer" }]);
+  });
+
   it("meldet nichts bei Erfolg, ohne Antwort und bei etwas, das kein XML ist", () => {
     expect(serverRueckmeldungen(antwort(ok, ok))).toEqual([]);
     expect(serverRueckmeldungen("")).toEqual([]);

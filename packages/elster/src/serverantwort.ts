@@ -36,8 +36,13 @@ function ausHeader(header: Node, quelle: ServerRueckmeldung["quelle"]): ServerRu
     const code = eintrag ? int(eintrag.Code) : 0;
     if (!eintrag || code === 0) continue;
     const meldung = leerraum(text(eintrag.Text));
-    // Der Stack wiederholt oft den Code der Rückgabe, meist ohne Text; neu ist nur ein anderer Code oder Text
-    if (gefunden.some((g) => g.code === code && (meldung === "" || g.text === meldung))) continue;
+    // Der Stack wiederholt oft den Code der Rückgabe, meist ohne Text; neu ist nur ein anderer Code oder Text.
+    // Hatte die Rückgabe den Code ohne Text, bekommt derselbe Eintrag den Text des Stacks
+    const vorhanden = gefunden.find((g) => g.code === code && (meldung === "" || g.text === meldung || g.text === ""));
+    if (vorhanden) {
+      if (vorhanden.text === "") vorhanden.text = meldung;
+      continue;
+    }
     gefunden.push({ quelle, code, text: meldung });
   }
   return gefunden;
