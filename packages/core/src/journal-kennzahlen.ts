@@ -8,7 +8,7 @@ import { ACCOUNTS, type Kontenrahmen, type Versteuerung } from "./posting.ts";
  *
  * Gemessen an allen Postgres-Tests (1364 Voranmeldungen): bei Soll-Versteuerung stimmen 98,5 % in allen Kennzahlen
  * überein. Was das Journal noch nicht trägt, steht in #542 unter „Messung“: die Bemessungsgrundlage an der Zahlung bei
- * Ist-Versteuerung, die Privatnutzung von Fahrzeugen im Monat der Nutzung und § 13b ohne Vorsteuerabzug bzw. mit Privatanteil
+ * Ist-Versteuerung für Zahlungen vor #542 Schritt 4, die Privatnutzung von Fahrzeugen im Monat der Nutzung und § 13b ohne Vorsteuerabzug bzw. mit Privatanteil
  * und den innergemeinschaftlichen Erwerb mit Privatanteil (der private Teil der Bemessungsgrundlage steht ohne Steuerschlüssel
  * auf den Entnahmen; Kz 89/93 enthalten ihn deshalb nicht, die Erwerbsteuer schon).
  */
@@ -48,6 +48,8 @@ export interface JournalZeile {
   debit: Cents;
   credit: Cents;
   taxCode: string | null;
+  /** Bemessungsgrundlage, wenn sie nicht der Betrag der Zeile ist (Ist-Versteuerung an der Zahlung), auf der Seite der Zeile */
+  basis?: Cents | null;
 }
 
 /** Welche Seite eine Kennzahl erhöht: Umsätze und geschuldete Steuer im Haben, Vorsteuer und Bezüge im Soll */
@@ -75,39 +77,61 @@ const BEMESSUNG: Record<string, Ziel> = {
   EUSt: { feld: "kz62", seite: "soll" },
 };
 
-/**
- * Die Kennzahl einer Journalzeile, oder null, wenn die Zeile in keine Kennzahl gehört (Forderungen, Bank, Aufwand mit
- * Vorsteuer, Kleinunternehmer, „Umsatzsteuer nicht fällig“, die erst mit der Umbuchung bei Zahlung zählt). Steuerkonten
- * gehen vor dem Steuerschlüssel: Die Steuer zählt nach dem Konto, auf dem sie steht.
- */
-export function kennzahlDerZeile(kontenrahmen: Kontenrahmen, zeile: JournalZeile): { feld: JournalKennzahl; betrag: Cents } | null {
+/** Steuerkonto → Kennzahl der Steuer und, wenn die Zeile eine Bemessungsgrundlage trägt, deren Kennzahl */
+function steuerkonto(
+  kontenrahmen: Kontenrahmen,
+  zeile: JournalZeile,
+): { steuer: JournalKennzahl; seite: Seite; bemessung?: JournalKennzahl } | null | undefined {
   const a = ACCOUNTS[kontenrahmen];
-  const ziel = (feld: JournalKennzahl, seite: Seite) => ({ feld, betrag: seite === "haben" ? zeile.credit - zeile.debit : zeile.debit - zeile.credit });
   switch (zeile.account) {
     case a.ust[1900]:
-      return ziel("tax81", "haben");
+      return { steuer: "tax81", seite: "haben", bemessung: "kz81" };
     case a.ust[700]:
-      return ziel("tax86", "haben");
+      return { steuer: "tax86", seite: "haben", bemessung: "kz86" };
     case a.ustNichtFaellig[1900]:
     case a.ustNichtFaellig[700]:
       return null;
     case a.vorsteuer[1900]:
     case a.vorsteuer[700]:
-      return ziel("kz66", "soll");
+      return { steuer: "kz66", seite: "soll" };
     case a.vorsteuerRc:
-      return ziel("kz67", "soll");
+      return { steuer: "kz67", seite: "soll" };
     case a.vorsteuerIge[1900]:
     case a.vorsteuerIge[700]:
-      return ziel("kz61", "soll");
+      return { steuer: "kz61", seite: "soll" };
     case a.ustRc:
-      return ziel(zeile.taxCode === "RC13bDrittland" ? "kz85" : "kz47", "haben");
+      return { steuer: zeile.taxCode === "RC13bDrittland" ? "kz85" : "kz47", seite: "haben" };
     case a.ustIge[1900]:
-      return ziel("tax89", "haben");
+      return { steuer: "tax89", seite: "haben" };
     case a.ustIge[700]:
-      return ziel("tax93", "haben");
+      return { steuer: "tax93", seite: "haben" };
+  }
+  return undefined;
+}
+
+/**
+ * Die Kennzahlen einer Journalzeile, leer, wenn die Zeile in keine Kennzahl gehört (Forderungen, Bank, Aufwand mit
+ * Vorsteuer, Kleinunternehmer, „Umsatzsteuer nicht fällig“, die erst mit der Umbuchung bei Zahlung zählt). Steuerkonten
+ * gehen vor dem Steuerschlüssel: Die Steuer zählt nach dem Konto, auf dem sie steht. Trägt die Zeile eine
+ * Bemessungsgrundlage (`basis`), zählt diese statt des Betrags, an der Umsatzsteuer zusätzlich zur Steuer.
+ */
+export function kennzahlenDerZeile(kontenrahmen: Kontenrahmen, zeile: JournalZeile): { feld: JournalKennzahl; betrag: Cents }[] {
+  const betrag = (seite: Seite) => (seite === "haben" ? zeile.credit - zeile.debit : zeile.debit - zeile.credit);
+  // Die Bemessungsgrundlage wirkt auf der Seite der Zeile
+  const basis = (seite: Seite) => {
+    const b = zeile.basis ?? 0;
+    return Math.sign(betrag(seite)) * b;
+  };
+  const konto = steuerkonto(kontenrahmen, zeile);
+  if (konto === null) return [];
+  if (konto) {
+    const treffer = [{ feld: konto.steuer, betrag: betrag(konto.seite) }];
+    if (konto.bemessung && zeile.basis != null) treffer.push({ feld: konto.bemessung, betrag: basis(konto.seite) });
+    return treffer;
   }
   const bemessung = zeile.taxCode === null ? undefined : BEMESSUNG[zeile.taxCode];
-  return bemessung ? ziel(bemessung.feld, bemessung.seite) : null;
+  if (!bemessung) return [];
+  return [{ feld: bemessung.feld, betrag: zeile.basis != null ? basis(bemessung.seite) : betrag(bemessung.seite) }];
 }
 
 export function leereJournalKennzahlen(): JournalKennzahlen {
@@ -124,8 +148,8 @@ const IST_NACH_ZAHLUNG: ReadonlySet<JournalKennzahl> = new Set(["kz81", "kz86", 
 /**
  * Summe der Kennzahlen über die Buchungen eines Zeitraums, je Buchung ihre Zeilen. Bei Ist-Versteuerung zählt wie bei
  * DATEV ein Verkauf auf Ziel (Buchung mit dem Forderungskonto, also Rechnung, Storno, Skonto, Forderungsausfall) mit
- * seiner Bemessungsgrundlage noch nicht; erst die Zahlung meldet sie (das Journal trägt sie dort noch nicht, #542
- * Schritt 4). Verkäufe direkt über Bank oder Kasse zählen sofort.
+ * seiner Bemessungsgrundlage noch nicht; erst die Zahlung meldet sie mit der Bemessungsgrundlage an ihren Zeilen (`basis`,
+ * seit #542 Schritt 4; ältere Zahlungen tragen sie nicht). Verkäufe direkt über Bank oder Kasse zählen sofort.
  */
 export function kennzahlenAusJournal(
   kontenrahmen: Kontenrahmen,
@@ -137,8 +161,9 @@ export function kennzahlenAusJournal(
   for (const zeilen of buchungen) {
     const aufZiel = versteuerung === "ist" && zeilen.some((z) => z.account === forderungen);
     for (const zeile of zeilen) {
-      const treffer = kennzahlDerZeile(kontenrahmen, zeile);
-      if (treffer && !(aufZiel && IST_NACH_ZAHLUNG.has(treffer.feld))) summe[treffer.feld] += treffer.betrag;
+      // Eine ausdrückliche Bemessungsgrundlage (an der Zahlung) zählt immer
+      for (const { feld, betrag } of kennzahlenDerZeile(kontenrahmen, zeile))
+        if (zeile.basis != null || !(aufZiel && IST_NACH_ZAHLUNG.has(feld))) summe[feld] += betrag;
     }
   }
   return summe;

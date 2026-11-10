@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceTotals } from "./invoice.ts";
-import { JOURNAL_KENNZAHLEN, kennzahlDerZeile, kennzahlenAusJournal, type JournalKennzahlen } from "./journal-kennzahlen.ts";
+import { JOURNAL_KENNZAHLEN, kennzahlenAusJournal, kennzahlenDerZeile, type JournalKennzahlen } from "./journal-kennzahlen.ts";
 import { kategoriePosting } from "./direkt-kategorie.ts";
 import {
   ACCOUNTS,
@@ -195,7 +195,7 @@ describe.each(KONTENRAHMEN)("Kennzahlen aus dem Journal (%s)", (kr) => {
       { account: "4980", debit: 10_000, credit: 0, taxCode: "VSt19" },
       { account: a.ustNichtFaellig[1900], debit: 0, credit: 1_900, taxCode: "USt19" },
     ])
-      expect(kennzahlDerZeile(kr, zeile)).toBeNull();
+      expect(kennzahlenDerZeile(kr, zeile)).toEqual([]);
   });
 });
 

@@ -210,7 +210,9 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
     sourceType: "kasse",
     sourceId: reversalId,
     reversesId: original.journalEntryId,
-    lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+    lines: reverseLines(
+      lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+    ),
   });
   const [row] = await tx
     .insert(schema.cashEntries)

@@ -186,15 +186,15 @@ describe("Zahlungen", () => {
     { quantity: 1000, unitPrice: 10_000, taxRate: 700 },
   ]);
 
-  it("Zahlungseingang bei Ist-Versteuerung macht die USt fällig", () => {
+  it("Zahlungseingang bei Ist-Versteuerung macht die USt fällig, mit der Bemessungsgrundlage an der Umsatzsteuer (#542)", () => {
     const lines = invoicePaymentPosting(totals, totals.gross, "SKR03", "ist");
     expect(lines).toEqual([
       { account: "1200", debit: 129_700, credit: 0, taxCode: null },
       { account: "1400", debit: 0, credit: 129_700, taxCode: null },
       { account: "1766", debit: 19_000, credit: 0, taxCode: "USt19" },
-      { account: "1776", debit: 0, credit: 19_000, taxCode: "USt19" },
+      { account: "1776", debit: 0, credit: 19_000, taxCode: "USt19", basis: 100_000 },
       { account: "1761", debit: 700, credit: 0, taxCode: "USt7" },
-      { account: "1771", debit: 0, credit: 700, taxCode: "USt7" },
+      { account: "1771", debit: 0, credit: 700, taxCode: "USt7", basis: 10_000 },
     ]);
     expect(balanced(lines)).toBe(true);
   });
