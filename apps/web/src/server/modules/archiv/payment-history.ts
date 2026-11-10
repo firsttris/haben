@@ -64,6 +64,8 @@ function historyIssue(gross: number, payment: LegacyPayment): string | null {
 export function paymentHistoryIssue(voucher: PaymentSource): string | null {
   if (voucher.source === "import") {
     const payment = voucher.payment;
+    // Ein storniertes Original ist weder offen noch bezahlt; es bleibt im Archiv, wird aber kein offener Posten.
+    if (voucher.status === "voided") return "Original storniert; keine offene Forderung oder Verbindlichkeit, nicht als offener Posten übernehmen.";
     if (voucher.status === "unknown") return "Übernommener Zahlungsstand ungeklärt; Stand am Stichtag und Zahlungszeitpunkte müssen geprüft werden.";
     if (payment?.history === "import") return historyIssue(voucher.gross, payment)?.replaceAll("sevDesk", "Import") ?? null;
     return (payment && Math.abs(payment.openAmount) !== Math.abs(voucher.gross)) || voucher.status === "paid" || voucher.status === "partlyPaid"

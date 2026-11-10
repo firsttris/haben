@@ -11,7 +11,17 @@ Die Betreiber-CLI übernimmt einen vorbereiteten Bestand in die vorhandenen Umzu
 
 Offene Posten werden anschließend über **Umzug → Offene Posten** und dessen bestehenden Stichtags-/Eröffnungsablauf übernommen. Dabei bleiben die global eindeutigen nativen Belegnummern erhalten. Eine kollidierende Rechnungsnummer blockiert die native Übernahme; das Original im Umzugsbestand bleibt verfügbar. Verschiedene Originale werden weder allein wegen gleicher Nummern zusammengeführt noch umnummeriert.
 
-Die ausdrücklich übergebene Steuerart einer Ausfuhrrechnung (`thirdPartyCountryDelivery`) bleibt bei dieser Übernahme als `ausfuhr` erhalten. Spätere Zahlungen nutzen dadurch dieselbe Steuerzuordnung wie native Ausfuhrrechnungen. Ein Widerspruch zwischen Ausfuhrart und ausgewiesener Steuer blockiert die Übernahme; Original-PDF und Herkunft bleiben unverändert.
+Die ausdrücklich übergebene Steuerart bleibt bei dieser Übernahme erhalten und steuert Erlöskonto, Voranmeldung und spätere Zahlungen wie bei einer in Haben geschriebenen Rechnung:
+
+| `taxType` | Behandlung in Haben | Voranmeldung |
+| --- | --- | --- |
+| `net`, `gross`, `vatfree` | regulär | nach Steuersatz |
+| `thirdPartyCountryDelivery` | Ausfuhrlieferung | Kz 43 |
+| `thirdPartyCountryService` | Leistung ins Drittland | Kz 45 |
+| `intraCommunitySupply` | innergemeinschaftliche Lieferung | Kz 41 |
+| `externalService13b` | Reverse Charge, Leistung ins EU-Ausland | Kz 21 |
+
+Für `constructionService13b` (Kz 60), `photovoltaicEquipment` (Kz 87) und OSS-Umsätze hat Haben keine eigene Behandlung; solche offenen Posten werden nicht übernommen und sind von Hand zu erfassen. Eine Leistung ins Drittland wird bei Ist-Versteuerung ebenfalls nicht übernommen: Haben meldet Kz 45 auch bei Ist mit der Rechnung, das Quellprogramm mit der Zahlung, die offene Rechnung stünde sonst in keiner Voranmeldung. Ein Widerspruch zwischen einer steuerfreien Steuerart und ausgewiesener Steuer blockiert die Übernahme, ebenso ein storniertes Original (`status: "voided"`). Original-PDF und Herkunft bleiben in allen Fällen unverändert im Archiv.
 
 Der Eingang unterstützt EUR und den eingestellten Kontenrahmen SKR03 oder SKR04. Er ergänzt die Stammdatenimporte und Anbieteradapter; er erkennt und bewertet keine PDFs selbst. Ein Exportadapter bereitet das normalisierte Paket vor. Die fachliche Prüfung von Herkunft, Stichtag, Kontierung und Zahlungen gehört dazu.
 

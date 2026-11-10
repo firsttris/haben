@@ -27,6 +27,7 @@ import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { effectivePayment, paymentHistoryIssue, settledOn } from "./payment-history.ts";
+import { importedTaxTreatment } from "./legacy-import-tax.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 
 export class TakeoverError extends UserError {}
@@ -268,9 +269,16 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
         ? "Quelljournal bereits übernommen: Forderungen und Verbindlichkeiten vor einer weiteren Eröffnungsbuchung abgleichen."
         : v.source === "import" && !v.dueDate
           ? "Fälligkeit fehlt im Original; vor der nativen Übernahme klären."
-          : null),
+          : !takenOver && SALES.has(v.type)
+            ? taxProblem(v)
+            : null),
   }));
 }
+
+const taxProblem = (v: LegacyVoucher) => {
+  const tax = importedTaxTreatment(v);
+  return "problem" in tax ? tax.problem : null;
+};
 
 /** Kategorie aus Lexoffice grob auf die Ausgabenkategorie von Haben abbilden; sie zählt nur für die EÜR-Aufteilung */
 const CATEGORY_HINTS: [RegExp, ExpenseCategory][] = [
@@ -378,10 +386,9 @@ async function takeOverInvoice(
   const xmlFile = files.find((f) => f.role === "xml");
   const pdf = await loadFile(pdfFile.sha256);
   const xml = xmlFile ? (await loadFile(xmlFile.sha256)).toString("utf8") : null;
-  // Die ausdrückliche Ausfuhrart des JSON-Originals steuert auch spätere Zahlungen (wie native Ausfuhrrechnungen).
-  const taxTreatment = voucher.source === "import" && voucher.raw.taxType === "thirdPartyCountryDelivery" ? "ausfuhr" : "regulaer";
-  if (taxTreatment === "ausfuhr" && voucher.taxes.some((t) => t.rate !== 0 || t.tax !== 0))
-    throw new TakeoverError("Die Ausfuhr-Steuerart und die Steuerbeträge des Originals widersprechen sich.");
+  const tax = importedTaxTreatment(voucher);
+  if ("problem" in tax) throw new TakeoverError(tax.problem);
+  const taxTreatment = tax.treatment;
 
   // Eine Position je Steuersatz. Die Summen müssen exakt zu Lexoffice passen, sonst stimmt die Steuer nicht,
   // auch nicht bei einem späteren Storno: erst netto nachbilden, sonst brutto (in Lexoffice mit Endpreisen gerechnet)
@@ -410,6 +417,12 @@ async function takeOverInvoice(
   return withActor(actor, async (tx) => {
     const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
+    // Kz 45 meldet Haben auch bei Ist mit der Rechnung (NACH_RECHNUNGSDATUM), das Quellprogramm bei Ist mit der Zahlung
+    // (legacy-vat.ts). Eine am Stichtag offene Drittlandsleistung stünde so in keiner Voranmeldung.
+    if (taxTreatment === "drittland" && company.versteuerung === "ist")
+      throw new TakeoverError(
+        "Leistung ins Drittland bei Ist-Versteuerung: Kz 45 meldet das Quellprogramm mit der Zahlung, Haben mit der Rechnung. Den Posten von Hand erfassen.",
+      );
     if (voucher.number) {
       const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, voucher.number));
       if (clash) throw new TakeoverError(`Die Rechnungsnummer ${voucher.number} gibt es in Haben schon.`);
