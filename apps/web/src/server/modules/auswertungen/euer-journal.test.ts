@@ -48,6 +48,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
+  let cash: typeof import("../bank/cash.ts");
+  let cashInvoice: typeof import("../bank/cash-invoice.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -60,19 +62,21 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
+    cash = await import("../bank/cash.ts");
+    cashInvoice = await import("../bank/cash-invoice.ts");
   }, 30_000);
 
   afterAll(async () => {
     await sql?.end();
   });
 
-  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04" = "SKR03") {
+  async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04" = "SKR03", kleinunternehmer = false) {
     await sql`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
-      journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
+      cash_entries, write_offs, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen})`;
+              'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer})`;
     contactId = (
       await contacts.createContact(actor, {
         kundennummer: "",
@@ -107,7 +111,13 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
   async function bookedDocument(
     date: string,
     amounts: { taxRate: 1900 | 700 | 0; net: number; tax: number }[],
-    extra: { payment?: "bank" | "privat"; privateShare?: number; reverseCharge?: "eu" | "drittland" | null; category?: "edv" | "telefon" } = {},
+    extra: {
+      payment?: "bank" | "privat";
+      privateShare?: number;
+      reverseCharge?: "eu" | "drittland" | null;
+      category?: "edv" | "telefon" | "sonstiges";
+      splits?: { category: "software" | "buero"; taxRate: 1900 | 700 | 0; net: number }[];
+    } = {},
   ) {
     docSeq++;
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, docSeq % 256, Math.floor(docSeq / 256), 7]);
@@ -124,6 +134,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       amounts,
       privateShare: extra.privateShare ?? 0,
       reverseCharge: extra.reverseCharge ?? null,
+      ...(extra.splits ? { splits: extra.splits } : {}),
     });
     await documents.bookDocument(actor, id);
     return id;
@@ -254,6 +265,61 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       const euer = await abgleich.euerAbgleich(2026);
       expect(euer.hinweise).toEqual([]);
       expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+    }, 60_000);
+  }
+
+  const pruefe = async (...years: number[]) => {
+    for (const year of years) {
+      const euer = await abgleich.euerAbgleich(year);
+      expect(euer.hinweise, String(year)).toEqual([]);
+      expect(abgleich.abweichungen(euer.zeilen), String(year)).toEqual([]);
+    }
+  };
+
+  // Review #562, Runde 2: aufgeteilte Belege ohne Vorsteuerabzug fassen Netto und Steuer je Kategorie in einer Zeile zusammen
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    it(`EÜR aus dem Journal: Teilzahlung auf einen aufgeteilten Beleg ohne Vorsteuerabzug (Kleinunternehmer, ${kontenrahmen})`, async () => {
+      await reset("ist", kontenrahmen, true);
+      const doc = await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 4_333, tax: 823 }], {
+        category: "sonstiges",
+        splits: [
+          { category: "software", taxRate: 1900, net: 1_000 },
+          { category: "buero", taxRate: 1900, net: 3_333 },
+        ],
+      });
+      const [tx] = await transactions([ausgang("05.03.26", "Lieferant", "-12,34")]);
+      await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: doc, amount: -1_234 });
+      await pruefe(2026);
+    }, 60_000);
+
+    it(`EÜR aus dem Journal: Teilzahlung auf einen aufgeteilten Beleg nach § 13b ohne Vorsteuerabzug (Kleinunternehmer, ${kontenrahmen})`, async () => {
+      await reset("ist", kontenrahmen, true);
+      const doc = await bookedDocument("2026-03-01", [{ taxRate: 1900, net: 4_333, tax: 823 }], {
+        category: "sonstiges",
+        reverseCharge: "eu",
+        splits: [
+          { category: "software", taxRate: 1900, net: 1_000 },
+          { category: "buero", taxRate: 1900, net: 3_333 },
+        ],
+      });
+      const [tx] = await transactions([ausgang("05.03.26", "Lieferant", "-6,19")]);
+      await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: doc, amount: -619 });
+      await pruefe(2026);
+    }, 60_000);
+  }
+
+  // Review #562, Runde 2: Die Gegenbuchung übernimmt die Zeilen der aufgehobenen Buchung, auch nach einem Wechsel des Kontenrahmens
+  for (const [vorher, nachher] of [
+    ["SKR03", "SKR04"],
+    ["SKR04", "SKR03"],
+  ] as const) {
+    it(`EÜR aus dem Journal: Bareinnahme im Vorjahr in ${vorher}, nach dem Wechsel zu ${nachher} storniert`, async () => {
+      await reset("soll", vorher);
+      const a = await invoice("2025-12-01", [{ net: 10_000, rate: 1900 }]);
+      const bar = await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2025-12-20", amount: 11_900 }, "2025-12-20");
+      await sql`update company set kontenrahmen = ${nachher} where id = 1`;
+      await cash.reverseCashEntry(actor, bar.id, "2026-01-15");
+      await pruefe(2025, 2026);
     }, 60_000);
   }
 });
