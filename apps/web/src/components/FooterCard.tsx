@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   customFooterRuns,
   DEFAULT_FOOTER_COLUMNS,
@@ -18,6 +18,7 @@ import { Segmented } from "./DesignPanel.tsx";
 import { FormattedRuns } from "./FormattedText.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Field } from "./Field.tsx";
 
 const COUNT_OPTIONS = Array.from({ length: MAX_FOOTER_COLUMNS - MIN_FOOTER_COLUMNS + 1 }, (_, i) => {
   const count = String(MIN_FOOTER_COLUMNS + i);
@@ -45,7 +46,6 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
     setCount((columns ?? DEFAULT_FOOTER_COLUMNS).length);
   }
   const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
-  const columnId = useId();
   const caret = useRef<number | null>(null);
   // Je Feld, nicht je Spalte: Ein neu eingeblendetes Feld steht mit der Schreibmarke wieder auf 0
   const touched = useRef(new WeakSet<HTMLTextAreaElement>());
@@ -109,24 +109,25 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
           </div>
           <div className="footer-columns" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
             {shown.map((text, index) => (
-              <div key={index} className="field">
-                <label htmlFor={`${columnId}-${index}`}>Spalte {index + 1}</label>
-                <FormattedTextarea
-                  id={`${columnId}-${index}`}
-                  fieldRef={(element) => {
-                    fields.current[index] = element;
-                  }}
-                  className="mono"
-                  rows={5}
-                  maxLength={MAX_FOOTER_TEXT}
-                  value={text}
-                  onFocus={(event) => {
-                    setActive(index);
-                    touched.current.add(event.currentTarget);
-                  }}
-                  onChange={(event) => edit(index, event.target.value)}
-                />
-              </div>
+              <Field key={index} label={`Spalte ${index + 1}`}>
+                {(control) => (
+                  <FormattedTextarea
+                    {...control}
+                    fieldRef={(element) => {
+                      fields.current[index] = element;
+                    }}
+                    className="mono"
+                    rows={5}
+                    maxLength={MAX_FOOTER_TEXT}
+                    value={text}
+                    onFocus={(event) => {
+                      setActive(index);
+                      touched.current.add(event.currentTarget);
+                    }}
+                    onChange={(event) => edit(index, event.target.value)}
+                  />
+                )}
+              </Field>
             ))}
           </div>
           <div className="footer-chips" role="group" aria-label="Platzhalter einfügen">

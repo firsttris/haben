@@ -11,6 +11,7 @@ import {
   type PlanTemplate,
   type PriceMode,
 } from "@haben/core";
+import { Field } from "./Field.tsx";
 
 /** Zeile im Formular: Anteil als Text, damit Zwischenstände wie „30,“ stehen bleiben */
 export interface PlanRowState {
@@ -91,23 +92,25 @@ export function PaymentPlanFields({
   return (
     <div className="stack" style={{ gap: 8 }}>
       {templates.length > 0 && (
-        <label className="field">
-          Vorlage übernehmen
-          <select
-            value=""
-            onChange={(e) => {
-              const template = templates.find((t) => t.name === e.target.value);
-              if (template) onChange(toPlanRows(template.rows));
-            }}
-          >
-            <option value="">Vorlage wählen …</option>
-            {templates.map((t) => (
-              <option key={t.name} value={t.name}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Vorlage übernehmen">
+          {(control) => (
+            <select
+              {...control}
+              value=""
+              onChange={(e) => {
+                const template = templates.find((t) => t.name === e.target.value);
+                if (template) onChange(toPlanRows(template.rows));
+              }}
+            >
+              <option value="">Vorlage wählen …</option>
+              {templates.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       )}
       {rows.length === 0 ? (
         <div className="actions">
@@ -124,38 +127,55 @@ export function PaymentPlanFields({
             return (
               <fieldset key={row.key} className="plan-row">
                 <legend className="visually-hidden">Zahlung {n}</legend>
-                <label className="field">
-                  Bezeichnung
-                  <input value={row.label} maxLength={100} onChange={(e) => update(row.key, { label: e.target.value })} aria-invalid={!row.label.trim()} />
-                </label>
-                <label className="field">
-                  Anteil
-                  {rest ? (
-                    <input value="Rest" readOnly aria-describedby={`${id}-rest`} />
-                  ) : (
-                    <span className="plan-share">
-                      <input
-                        className="mono"
-                        inputMode="decimal"
-                        value={row.value}
-                        aria-label={`Anteil Zahlung ${n} in ${row.kind === "prozent" ? "Prozent" : "Euro"}`}
-                        onChange={(e) => update(row.key, { value: e.target.value })}
-                      />
-                      <select
-                        aria-label={`Art des Anteils Zahlung ${n}`}
-                        value={row.kind}
-                        onChange={(e) => update(row.key, { kind: e.target.value as "prozent" | "betrag" })}
-                      >
-                        <option value="prozent">%</option>
-                        <option value="betrag">€ {priceMode}</option>
-                      </select>
-                    </span>
+                <Field label="Bezeichnung">
+                  {(control) => (
+                    <input
+                      {...control}
+                      value={row.label}
+                      maxLength={100}
+                      onChange={(e) => update(row.key, { label: e.target.value })}
+                      aria-invalid={!row.label.trim()}
+                    />
                   )}
-                </label>
-                <label className="field">
-                  Fällig bei
-                  <input value={row.due} maxLength={100} placeholder="z. B. Lieferung" onChange={(e) => update(row.key, { due: e.target.value })} />
-                </label>
+                </Field>
+                {/* Ein Feldname für den Wert; die Auswahl „%“ oder „€“ daneben hat ihren eigenen aria-label */}
+                <Field label="Anteil" describedBy={rest ? `${id}-rest` : undefined}>
+                  {(control) =>
+                    rest ? (
+                      <input {...control} value="Rest" readOnly />
+                    ) : (
+                      <span className="plan-share">
+                        <input
+                          {...control}
+                          className="mono"
+                          inputMode="decimal"
+                          value={row.value}
+                          aria-label={`Anteil Zahlung ${n} in ${row.kind === "prozent" ? "Prozent" : "Euro"}`}
+                          onChange={(e) => update(row.key, { value: e.target.value })}
+                        />
+                        <select
+                          aria-label={`Art des Anteils Zahlung ${n}`}
+                          value={row.kind}
+                          onChange={(e) => update(row.key, { kind: e.target.value as "prozent" | "betrag" })}
+                        >
+                          <option value="prozent">%</option>
+                          <option value="betrag">€ {priceMode}</option>
+                        </select>
+                      </span>
+                    )
+                  }
+                </Field>
+                <Field label="Fällig bei">
+                  {(control) => (
+                    <input
+                      {...control}
+                      value={row.due}
+                      maxLength={100}
+                      placeholder="z. B. Lieferung"
+                      onChange={(e) => update(row.key, { due: e.target.value })}
+                    />
+                  )}
+                </Field>
                 <div className="plan-amount small">
                   {scheduled ? (taxed ? `${formatEuro(scheduled.net)} netto · ${formatEuro(scheduled.gross)} brutto` : formatEuro(scheduled.gross)) : ""}
                 </div>

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveNumberFormatSettings } from "../server/functions/company.ts";
+import { Field } from "./Field.tsx";
 
 interface Circle {
   format: string;
@@ -22,42 +23,46 @@ function examples(format: string, running: boolean, date: string): [string, stri
 function CircleFields({ label, name, value, onChange, date }: { label: string; name: string; value: Circle; onChange: (value: Circle) => void; date: string }) {
   const format = value.format.trim();
   const problem = numberFormatError(format, { requireYear: !value.running });
-  const hintId = `${name}-hint`;
   const [first, second] = problem ? ["", ""] : examples(format, value.running, date);
   return (
     <fieldset className="field-group" style={{ border: 0, padding: 0, margin: 0 }}>
       <legend className="small">{label}</legend>
-      <label className="field">
-        Format
-        <input
-          name={`${name}-format`}
-          className="mono"
-          value={value.format}
-          onChange={(e) => onChange({ ...value, format: e.target.value })}
-          maxLength={MAX_NUMBER_FORMAT_LENGTH}
-          required
-          aria-invalid={problem ? true : undefined}
-          aria-describedby={hintId}
-        />
-        <span id={hintId} className={problem ? "field-error" : "small muted"}>
-          {problem ?? (
+      <Field
+        label="Format"
+        error={problem}
+        hint={
+          problem ? undefined : (
             <>
               Beispiel: <span className="mono">{first}</span>, <span className="mono">{second}</span>
             </>
-          )}
-        </span>
-      </label>
-      <label className="field">
-        Zähler
-        <select
-          name={`${name}-running`}
-          value={value.running ? "weiter" : "jaehrlich"}
-          onChange={(e) => onChange({ ...value, running: e.target.value === "weiter" })}
-        >
-          <option value="jaehrlich">beginnt jedes Jahr neu</option>
-          <option value="weiter">läuft weiter</option>
-        </select>
-      </label>
+          )
+        }
+      >
+        {(control) => (
+          <input
+            {...control}
+            name={`${name}-format`}
+            className="mono"
+            value={value.format}
+            onChange={(e) => onChange({ ...value, format: e.target.value })}
+            maxLength={MAX_NUMBER_FORMAT_LENGTH}
+            required
+          />
+        )}
+      </Field>
+      <Field label="Zähler">
+        {(control) => (
+          <select
+            {...control}
+            name={`${name}-running`}
+            value={value.running ? "weiter" : "jaehrlich"}
+            onChange={(e) => onChange({ ...value, running: e.target.value === "weiter" })}
+          >
+            <option value="jaehrlich">beginnt jedes Jahr neu</option>
+            <option value="weiter">läuft weiter</option>
+          </select>
+        )}
+      </Field>
     </fieldset>
   );
 }

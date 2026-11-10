@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { createMcpTokenFn, reactivateMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSettings } from "../server/functions/mcp.ts";
+import { Field } from "./Field.tsx";
 
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
@@ -143,16 +144,14 @@ export function McpCard({ data }: { data: Data }) {
           </ConfirmDialog>
           {created && (
             <div className="stack" style={{ gap: 8 }}>
-              <label className="field">
-                Token für „{created.name}“ (wird nur jetzt angezeigt)
-                <input readOnly className="mono" value={created.token} onFocus={(e) => e.currentTarget.select()} />
-              </label>
+              <Field label={<>Token für „{created.name}“ (wird nur jetzt angezeigt)</>}>
+                {(control) => <input {...control} readOnly className="mono" value={created.token} onFocus={(e) => e.currentTarget.select()} />}
+              </Field>
               {created.scopes.includes("haben:lesen") && (
                 <>
-                  <label className="field">
-                    In Claude Code eintragen
-                    <textarea readOnly className="mono" rows={3} value={command} onFocus={(e) => e.currentTarget.select()} />
-                  </label>
+                  <Field label="In Claude Code eintragen">
+                    {(control) => <textarea {...control} readOnly className="mono" rows={3} value={command} onFocus={(e) => e.currentTarget.select()} />}
+                  </Field>
                   <div className="actions">
                     <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(command).then(() => setCopied(true))}>
                       {copied ? "Kopiert" : "Befehl kopieren"}
@@ -220,18 +219,16 @@ export function McpCard({ data }: { data: Data }) {
             ))
           )}
           <form className="form-grid" onSubmit={onCreate} aria-label="Neues Token">
-            <label className="field">
-              Name
-              <input name="name" required maxLength={80} placeholder="Claude Code am Laptop" />
-            </label>
-            <label className="field">
-              Gültig
-              <select name="days" defaultValue="90">
-                <option value="30">30 Tage</option>
-                <option value="90">90 Tage</option>
-                <option value="365">1 Jahr</option>
-              </select>
-            </label>
+            <Field label="Name">{(control) => <input {...control} name="name" required maxLength={80} placeholder="Claude Code am Laptop" />}</Field>
+            <Field label="Gültig">
+              {(control) => (
+                <select {...control} name="days" defaultValue="90">
+                  <option value="30">30 Tage</option>
+                  <option value="90">90 Tage</option>
+                  <option value="365">1 Jahr</option>
+                </select>
+              )}
+            </Field>
             <fieldset style={{ border: 0, padding: 0, margin: 0, gridColumn: "1 / -1" }}>
               <legend className="small" style={{ fontWeight: 500, marginBottom: 4 }}>
                 Rechte

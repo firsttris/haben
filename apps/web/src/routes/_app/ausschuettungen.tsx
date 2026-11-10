@@ -17,6 +17,7 @@ import {
 } from "../../server/functions/ausschuettung.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/ausschuettungen")({
   validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
@@ -39,7 +40,6 @@ function faelligkeit(zufluss: string): string {
 function AusschuettungenPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const selectId = useId();
   const thisYear = currentYear();
   const years = [...new Set([data.year, thisYear, thisYear - 1, thisYear - 2])].sort((a, b) => b - a);
   return (
@@ -49,16 +49,17 @@ function AusschuettungenPage() {
           <div className="eyebrow">Gewinnverwendung</div>
           <h1>Ausschüttungen {data.year}</h1>
         </div>
-        <label className="field" htmlFor={selectId}>
-          Jahr
-          <select id={selectId} value={data.year} onChange={(e) => navigate({ to: "/ausschuettungen", search: { jahr: Number(e.target.value) } })}>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Jahr">
+          {(control) => (
+            <select {...control} value={data.year} onChange={(e) => navigate({ to: "/ausschuettungen", search: { jahr: Number(e.target.value) } })}>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       {isKapitalgesellschaft(data.rechtsform) ? (
         <div className="stack" style={{ gap: 24 }}>
@@ -177,58 +178,66 @@ function NeueAusschuettung() {
       </h2>
       <form onSubmit={berechnen} aria-label="Neue Ausschüttung" className="stack" style={{ gap: 12 }}>
         <div className="form-row cols-2">
-          <label className="field">
-            Datum des Beschlusses
-            <input
-              type="date"
-              value={beschluss}
-              onChange={(e) => {
-                setBeschluss(e.target.value);
-                // Meist beschließt die Gesellschafterversammlung über den Gewinn des Vorjahres
-                if (!jahrSelbstGesetzt && /^\d{4}-/.test(e.target.value)) setGeschaeftsjahr(String(Number(e.target.value.slice(0, 4)) - 1));
-                setVorschlag(null);
-              }}
-              required
-            />
-          </label>
-          <label className="field">
-            Auszahlungstag laut Beschluss (optional)
-            <input
-              type="date"
-              value={auszahlungstag}
-              onChange={(e) => {
-                setAuszahlungstag(e.target.value);
-                setVorschlag(null);
-              }}
-            />
-          </label>
-          <label className="field">
-            Geschäftsjahr, dessen Gewinn ausgeschüttet wird
-            <input
-              inputMode="numeric"
-              value={geschaeftsjahr}
-              onChange={(e) => {
-                setGeschaeftsjahr(e.target.value);
-                setJahrSelbstGesetzt(true);
-                setVorschlag(null);
-              }}
-              placeholder="z. B. 2025"
-              required
-            />
-          </label>
-          <label className="field">
-            Ausschüttung brutto
-            <input
-              inputMode="decimal"
-              value={betrag}
-              onChange={(e) => {
-                setBetrag(e.target.value);
-                setVorschlag(null);
-              }}
-              placeholder="0,00"
-              required
-            />
-          </label>
+          <Field label="Datum des Beschlusses">
+            {(control) => (
+              <input
+                {...control}
+                type="date"
+                value={beschluss}
+                onChange={(e) => {
+                  setBeschluss(e.target.value);
+                  // Meist beschließt die Gesellschafterversammlung über den Gewinn des Vorjahres
+                  if (!jahrSelbstGesetzt && /^\d{4}-/.test(e.target.value)) setGeschaeftsjahr(String(Number(e.target.value.slice(0, 4)) - 1));
+                  setVorschlag(null);
+                }}
+                required
+              />
+            )}
+          </Field>
+          <Field label="Auszahlungstag laut Beschluss (optional)">
+            {(control) => (
+              <input
+                {...control}
+                type="date"
+                value={auszahlungstag}
+                onChange={(e) => {
+                  setAuszahlungstag(e.target.value);
+                  setVorschlag(null);
+                }}
+              />
+            )}
+          </Field>
+          <Field label="Geschäftsjahr, dessen Gewinn ausgeschüttet wird">
+            {(control) => (
+              <input
+                {...control}
+                inputMode="numeric"
+                value={geschaeftsjahr}
+                onChange={(e) => {
+                  setGeschaeftsjahr(e.target.value);
+                  setJahrSelbstGesetzt(true);
+                  setVorschlag(null);
+                }}
+                placeholder="z. B. 2025"
+                required
+              />
+            )}
+          </Field>
+          <Field label="Ausschüttung brutto">
+            {(control) => (
+              <input
+                {...control}
+                inputMode="decimal"
+                value={betrag}
+                onChange={(e) => {
+                  setBetrag(e.target.value);
+                  setVorschlag(null);
+                }}
+                placeholder="0,00"
+                required
+              />
+            )}
+          </Field>
         </div>
         <div className="actions">
           <button type="submit" className="btn" disabled={busy}>

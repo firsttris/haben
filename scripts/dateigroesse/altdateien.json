@@ -2,7 +2,6 @@
   "apps/web/src/components/archiv/Migration.tsx",
   "apps/web/src/components/InvoiceEditor.tsx",
   "apps/web/src/components/KapgErklaerungen.tsx",
-  "apps/web/src/components/MitarbeiterForm.tsx",
   "apps/web/src/components/RecurringForm.tsx",
   "apps/web/src/routes/_app/ausschuettungen.tsx",
   "apps/web/src/routes/_app/auswertungen.tsx",

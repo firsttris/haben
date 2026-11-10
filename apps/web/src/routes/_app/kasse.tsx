@@ -22,6 +22,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import type { Notice } from "../../lib/use-action.ts";
 import { createCashEntryFn, createCashIncomeFn, createCashInvoiceEntryFn, getCashBook, reverseCashEntryFn } from "../../server/functions/cash.ts";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/kasse")({
   validateSearch: z.object({
@@ -195,35 +196,33 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
         </button>
       </div>
       <div className="form-grid">
-        <label className="field">
-          Datum
-          <input type="date" name="date" value={date} onChange={(e) => setDate(e.target.value)} max={data.today} required />
-        </label>
+        <Field label="Datum">
+          {(control) => <input {...control} type="date" name="date" value={date} onChange={(e) => setDate(e.target.value)} max={data.today} required />}
+        </Field>
         {kind === "rechnung" ? (
           <CashInvoiceFields key={round} invoices={data.openInvoices} preselected={rechnung} date={date} kleinunternehmer={kleinunternehmer} />
         ) : (
-          <label className="field">
-            Betrag (€)
-            <input name="amount" inputMode="decimal" placeholder="0,00" required />
-          </label>
+          <Field label="Betrag (€)">{(control) => <input {...control} name="amount" inputMode="decimal" placeholder="0,00" required />}</Field>
         )}
         {kind === "einnahme" && <BareinnahmeFelder kleinunternehmer={kleinunternehmer} value={steuer} onChange={setSteuer} />}
         {/* key: Pflicht oder nicht wechselt mit der Art; ohne Rechnung ist die Notiz der Nachweis */}
-        <label key={kind === "einnahme" ? "notiz" : "text"} className="field" style={{ gridColumn: "1 / -1" }}>
-          {kind === "einnahme" ? "Notiz" : "Text (optional)"}
-          <input
-            name="text"
-            maxLength={300}
-            required={kind === "einnahme"}
-            placeholder={
-              kind === "einnahme"
-                ? "z. B. Weihnachtsmarkt 28.11., Tagessumme"
-                : kind === "rechnung"
-                  ? "Rechnungsnummer und Kunde"
-                  : cashBookingLabel(kind, data.rechtsform)
-            }
-          />
-        </label>
+        <Field label={kind === "einnahme" ? "Notiz" : "Text (optional)"} key={kind === "einnahme" ? "notiz" : "text"} style={{ gridColumn: "1 / -1" }}>
+          {(control) => (
+            <input
+              {...control}
+              name="text"
+              maxLength={300}
+              required={kind === "einnahme"}
+              placeholder={
+                kind === "einnahme"
+                  ? "z. B. Weihnachtsmarkt 28.11., Tagessumme"
+                  : kind === "rechnung"
+                    ? "Rechnungsnummer und Kunde"
+                    : cashBookingLabel(kind, data.rechtsform)
+              }
+            />
+          )}
+        </Field>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         {kind === "einnahme"

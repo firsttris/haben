@@ -5,6 +5,7 @@ import { ACCENT_PATTERN, contrastOnWhite, DEFAULT_ACCENT, MIN_TEXT_CONTRAST } fr
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveAccent } from "../server/functions/logo.ts";
+import { Field } from "./Field.tsx";
 
 /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen, etwa passend zum Logo */
 export function AccentColorCard({ color }: { color: string }) {
@@ -35,28 +36,31 @@ export function AccentColorCard({ color }: { color: string }) {
         Beschriftungen und Fußzeile bekommen dazu passende Grautöne. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
       <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
-        <label className="field">
-          Farbe wählen
-          <input
-            type="color"
-            value={valid ? value.toLowerCase() : DEFAULT_ACCENT.toLowerCase()}
-            onChange={(e) => setValue(e.target.value.toUpperCase())}
-            disabled={busy}
-          />
-        </label>
-        <label className="field">
-          Hex-Wert
-          <input
-            className="mono"
-            value={value}
-            onChange={(e) => setValue(e.target.value.trim())}
-            pattern="#[0-9A-Fa-f]{6}"
-            maxLength={7}
-            required
-            aria-describedby="accent-hint"
-            disabled={busy}
-          />
-        </label>
+        <Field label="Farbe wählen">
+          {(control) => (
+            <input
+              {...control}
+              type="color"
+              value={valid ? value.toLowerCase() : DEFAULT_ACCENT.toLowerCase()}
+              onChange={(e) => setValue(e.target.value.toUpperCase())}
+              disabled={busy}
+            />
+          )}
+        </Field>
+        <Field label="Hex-Wert" describedBy="accent-hint">
+          {(control) => (
+            <input
+              {...control}
+              className="mono"
+              value={value}
+              onChange={(e) => setValue(e.target.value.trim())}
+              pattern="#[0-9A-Fa-f]{6}"
+              maxLength={7}
+              required
+              disabled={busy}
+            />
+          )}
+        </Field>
         <span
           aria-hidden="true"
           style={{ borderBottom: `2px solid ${valid ? value : "transparent"}`, color: valid ? value : undefined, paddingBottom: 2 }}

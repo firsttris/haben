@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveCustomerNumberingSettings } from "../server/functions/company.ts";
+import { Field } from "./Field.tsx";
 
 /** Kundennummern automatisch beim Anlegen eines Kontakts, etwa K-0001; leeres Format = von Hand */
 export function CustomerNumberCard({ format, next, date }: { format: string; next: number; date: string }) {
@@ -38,33 +39,36 @@ export function CustomerNumberCard({ format, next, date }: { format: string; nex
         übersprungen. Leer lassen, um Nummern von Hand einzutragen.
       </p>
       <div className="form-grid">
-        <label className="field">
-          Format
-          <input
-            name="customer-number-format"
-            className="mono"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            maxLength={MAX_NUMBER_FORMAT_LENGTH}
-            placeholder={DEFAULT_CUSTOMER_NUMBER_FORMAT}
-            aria-invalid={problem ? true : undefined}
-            aria-describedby="customer-number-hint"
-          />
-          <span id="customer-number-hint" className={problem ? "field-error" : "small muted"}>
-            {problem ??
-              (trimmed && counterValid ? (
-                <>
-                  Nächste: <span className="mono">{formatDocumentNumber(trimmed, date, counter)}</span>
-                </>
-              ) : (
-                "Aus: Nummern von Hand"
-              ))}
-          </span>
-        </label>
-        <label className="field">
-          Nächste laufende Nummer
-          <input name="customer-number-next" type="number" min={1} value={nextValue} onChange={(e) => setNextValue(e.target.value)} required />
-        </label>
+        <Field
+          label="Format"
+          error={problem}
+          hint={
+            problem ? undefined : trimmed && counterValid ? (
+              <>
+                Nächste: <span className="mono">{formatDocumentNumber(trimmed, date, counter)}</span>
+              </>
+            ) : (
+              "Aus: Nummern von Hand"
+            )
+          }
+        >
+          {(control) => (
+            <input
+              {...control}
+              name="customer-number-format"
+              className="mono"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              maxLength={MAX_NUMBER_FORMAT_LENGTH}
+              placeholder={DEFAULT_CUSTOMER_NUMBER_FORMAT}
+            />
+          )}
+        </Field>
+        <Field label="Nächste laufende Nummer">
+          {(control) => (
+            <input {...control} name="customer-number-next" type="number" min={1} value={nextValue} onChange={(e) => setNextValue(e.target.value)} required />
+          )}
+        </Field>
       </div>
       <div className="actions">
         <button type="submit" className="btn" disabled={busy || Boolean(problem) || !counterValid}>
