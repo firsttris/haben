@@ -21,6 +21,8 @@ Die PDFs werden unverändert übernommen, mit SHA-256 geprüft und beim Import f
 
 Quellakteur, frühere Identitäten und weitere Nachweise gehören in `evidence`. Die Übernahme selbst steht mit dem übergebenen Akteur im Änderungsprotokoll. Importierte Daten und Herkunftszuordnungen sind anschließend unveränderlich. Ein anderer Inhalt mit derselben Kennung wird abgewiesen, statt den ersten Stand zu überschreiben.
 
+Das Jahresarchiv enthält unter `importe/uebernahmen.json` die Herkunft, die Originaldaten, den übernommenen Zahlungsstand und die belegten EÜR-Zahlungen. Maßgeblich ist das Belegjahr; die Nachweise bleiben deshalb auch bei einem späteren Umzug im Archiv des ursprünglichen Jahres erhalten.
+
 ## Zahlungsstand, OPOS und EÜR
 
 `settledAmount` ist der übernommene Zahlungsstand einer Rechnung. Er vermindert den offenen Posten, erzeugt aber keinen erfundenen Bankumsatz und keine weitere Zahlung im Journal. Sind Betrag oder Zahlungszeitpunkt nicht ausreichend belegt, steht `paymentUncertain` auf `true`. Haben zeigt den Stand ausdrücklich als übernommen an und weist in der EÜR auf die ungeklärten Anteile hin. Eine ELSTER-Abgabe bleibt damit gesperrt, bis die Angaben geklärt sind. Eine Bezahlt-Bestätigung wird nicht als Banknachweis ausgegeben.

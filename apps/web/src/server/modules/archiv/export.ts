@@ -22,6 +22,7 @@ import { cashBookCsv } from "../bank/index.ts";
 import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
+import { externalImportArchive } from "./external-import-archive.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -281,6 +282,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   const problems: string[] = [];
 
   yield { path: "LIESMICH.txt", content: encoder.encode(readme(year, now, company)), compress: true };
+  yield* externalImportArchive(year);
 
   // Rechnungen ------------------------------------------------------------
   const invoices = await db
@@ -1661,6 +1663,9 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
                          ursprünglichem Dateinamen.
+importe/uebernahmen.json Herkunft, Originaldaten, übernommene Zahlungsstände und
+                        belegte EÜR-Zahlungen des allgemeinen Belegimports,
+                        zugeordnet nach Belegjahr statt Importzeitpunkt.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
                          Steuerschlüssel, Bemessungsgrundlage bei Ist-Versteuerung an
                          der Zahlung); Stornos verweisen auf die Ursprungsbuchung.
