@@ -4,7 +4,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
-  <img src="docs/hero-hell.png" alt="Haben: Rechnung 2026-033 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung Oktober an ELSTER übermittelt" width="900">
+  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung und Zahlungseingang über 1.725,50 € zugeordnet, Belege nach GoBD festgeschrieben, Voranmeldung für ELSTER vorbereitet" width="900">
 </picture>
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>

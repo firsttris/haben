@@ -22,7 +22,9 @@
   .brand { display: flex; align-items: center; gap: 20px; }
   .logo { width: 72px; height: 72px; border-radius: 16px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 40px; font-weight: 600; }
   .name { font-size: 56px; font-weight: 600; color: #fff; letter-spacing: -0.8px; }
-  .claim { margin-top: 48px; font-size: 32px; line-height: 40px; font-weight: 500; color: #fff; }
+  .claim { margin-top: 40px; font-size: 44px; line-height: 52px; font-weight: 600; color: #fff; letter-spacing: -0.8px; }
+  /* Zweite Zeile in der Markenfarbe, wie im Hero der README */
+  .claim span { color: var(--brand); }
   .sub { margin-top: 16px; font-size: 20px; line-height: 28px; }
   .facts { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; }
   .facts span { font-size: 15px; line-height: 20px; padding: 6px 10px; border-radius: 16px; background: var(--nav-active); }
@@ -49,8 +51,8 @@
 <body>
   <aside class="side">
     <div class="brand"><div class="logo">H</div><div class="name">Haben</div></div>
-    <p class="claim">Buchhaltung, die auf deinem Server bleibt.</p>
-    <p class="sub">Open Source für Freiberufler, Selbstständige und kleine GmbHs.</p>
+    <p class="claim">Deine Bücher.<br><span>Dein Server.</span></p>
+    <p class="sub">Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs.</p>
     <div class="facts"><span>E-Rechnung</span><span>ELSTER</span><span>GoBD</span><span>AGPL</span></div>
   </aside>
   <div class="shot"><img src="../../docs/screenshot-uebersicht.png" alt=""></div>
