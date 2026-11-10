@@ -6,6 +6,7 @@ import { useAction } from "../lib/use-action.ts";
 import { savePlanTemplateSettings } from "../server/functions/company.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { parsePlanRows, PaymentPlanFields, toPlanRows, type PlanRowState } from "./PaymentPlanFields.tsx";
+import { Field } from "./Field.tsx";
 
 interface TemplateState {
   key: number;
@@ -47,10 +48,17 @@ export function PlanTemplatesCard({ templates }: { templates: PlanTemplate[] }) 
         <fieldset key={item.key} className="choice-group">
           <legend className="visually-hidden">Vorlage {index + 1}</legend>
           <div className="actions" style={{ alignItems: "end" }}>
-            <label className="field" style={{ flex: "1 1 12em" }}>
-              Name der Vorlage
-              <input value={item.name} maxLength={60} onChange={(e) => update(item.key, { name: e.target.value })} aria-invalid={!item.name.trim()} />
-            </label>
+            <Field label="Name der Vorlage" style={{ flex: "1 1 12em" }}>
+              {(control) => (
+                <input
+                  {...control}
+                  value={item.name}
+                  maxLength={60}
+                  onChange={(e) => update(item.key, { name: e.target.value })}
+                  aria-invalid={!item.name.trim()}
+                />
+              )}
+            </Field>
             <button type="button" className="btn btn-danger" onClick={() => setItems((prev) => prev.filter((i) => i.key !== item.key))}>
               Vorlage entfernen
             </button>

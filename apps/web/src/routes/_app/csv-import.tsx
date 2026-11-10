@@ -9,6 +9,7 @@ import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { useAction } from "../../lib/use-action.ts";
 import { previewCsvImportFn, runCsvImportFn } from "../../server/functions/csv-import.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Field } from "../../components/Field.tsx";
 
 type Kind = "kontakte" | "artikel" | "anlagen";
 type Preview = Awaited<ReturnType<typeof previewCsvImportFn>>;
@@ -141,34 +142,34 @@ function CsvImport({ kind }: { kind: Kind }) {
       <form className="card stack" onSubmit={onSubmit} aria-labelledby="csv-file-heading">
         <h2 id="csv-file-heading">Datei</h2>
         <div className="form-grid">
-          <label className="field" style={{ gridColumn: "1 / -1" }}>
-            CSV-Datei
-            <FilePicker inputRef={fileRef} name="file" accept=".csv,.txt,text/csv" required />
-            <span className="small">Bis 5 MB und 5.000 Zeilen, erste Zeile mit den Spaltennamen.</span>
-          </label>
-          <label className="field">
-            Trennzeichen
-            <select value={settings.delimiter} onChange={(e) => changeSettings({ delimiter: e.target.value as Settings["delimiter"] })}>
-              <option value="auto">Automatisch erkennen</option>
-              <option value=";">Semikolon</option>
-              <option value=",">Komma</option>
-              <option value={"\t"}>Tabulator</option>
-            </select>
-          </label>
-          <label className="field">
-            Kodierung
-            <select value={settings.encoding} onChange={(e) => changeSettings({ encoding: e.target.value as Settings["encoding"] })}>
-              <option value="auto">Automatisch erkennen</option>
-              <option value="utf-8">UTF-8</option>
-              <option value="windows-1252">Windows-1252 (Excel unter Windows)</option>
-            </select>
-          </label>
+          <Field label="CSV-Datei" hint="Bis 5 MB und 5.000 Zeilen, erste Zeile mit den Spaltennamen." style={{ gridColumn: "1 / -1" }}>
+            {(control) => <FilePicker {...control} inputRef={fileRef} name="file" accept=".csv,.txt,text/csv" required />}
+          </Field>
+          <Field label="Trennzeichen">
+            {(control) => (
+              <select {...control} value={settings.delimiter} onChange={(e) => changeSettings({ delimiter: e.target.value as Settings["delimiter"] })}>
+                <option value="auto">Automatisch erkennen</option>
+                <option value=";">Semikolon</option>
+                <option value=",">Komma</option>
+                <option value={"\t"}>Tabulator</option>
+              </select>
+            )}
+          </Field>
+          <Field label="Kodierung">
+            {(control) => (
+              <select {...control} value={settings.encoding} onChange={(e) => changeSettings({ encoding: e.target.value as Settings["encoding"] })}>
+                <option value="auto">Automatisch erkennen</option>
+                <option value="utf-8">UTF-8</option>
+                <option value="windows-1252">Windows-1252 (Excel unter Windows)</option>
+              </select>
+            )}
+          </Field>
           {kind === "anlagen" && (
-            <label className="field">
-              Übernahmestichtag
-              <input type="date" value={settings.stichtag} required onChange={(e) => changeSettings({ stichtag: e.target.value })} />
-              <span className="small">In der Regel der 01.01. des ersten Jahres in Haben; Restbuchwert zum Vortag.</span>
-            </label>
+            <Field label="Übernahmestichtag" hint="In der Regel der 01.01. des ersten Jahres in Haben; Restbuchwert zum Vortag.">
+              {(control) => (
+                <input {...control} type="date" value={settings.stichtag} required onChange={(e) => changeSettings({ stichtag: e.target.value })} />
+              )}
+            </Field>
           )}
         </div>
         <div className="actions">
@@ -198,22 +199,23 @@ function MappingCard({ preview, busy, onChange }: { preview: Preview; busy: bool
       </p>
       <div className="form-grid">
         {preview.fields.map((field) => (
-          <label key={field.key} className="field">
-            {field.label}
-            <select
-              value={preview.mapping[field.key] ?? ""}
-              disabled={busy}
-              onChange={(e) => onChange({ ...preview.mapping, [field.key]: e.target.value === "" ? null : Number(e.target.value) })}
-            >
-              <option value="">– nicht übernehmen –</option>
-              {preview.header.map((name, index) => (
-                <option key={index} value={index}>
-                  {name || `Spalte ${index + 1}`}
-                </option>
-              ))}
-            </select>
-            {field.hint && <span className="small">{field.hint}</span>}
-          </label>
+          <Field label={field.label} hint={field.hint && field.hint} key={field.key}>
+            {(control) => (
+              <select
+                {...control}
+                value={preview.mapping[field.key] ?? ""}
+                disabled={busy}
+                onChange={(e) => onChange({ ...preview.mapping, [field.key]: e.target.value === "" ? null : Number(e.target.value) })}
+              >
+                <option value="">– nicht übernehmen –</option>
+                {preview.header.map((name, index) => (
+                  <option key={index} value={index}>
+                    {name || `Spalte ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
         ))}
       </div>
     </section>

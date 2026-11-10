@@ -3,6 +3,7 @@ import { useId, useState } from "react";
 import { formatDate } from "../lib/format.ts";
 import type { HinterlegungStand } from "../server/modules/buchhaltung/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Field } from "./Field.tsx";
 
 /** Eine Angabe unter der Bilanz: „Keine“ vorgewählt, sonst Freitext, den Haben unverändert unter die Bilanz setzt */
 function Angabe({ name, legend, hint }: { name: string; legend: string; hint: string }) {
@@ -23,10 +24,9 @@ function Angabe({ name, legend, hint }: { name: string; legend: string; hint: st
         Ja, folgende
       </label>
       {vorhanden && (
-        <label className="field">
-          Angaben, wie sie unter der Bilanz stehen sollen
-          <textarea name={name} required maxLength={2000} rows={3} />
-        </label>
+        <Field label="Angaben, wie sie unter der Bilanz stehen sollen">
+          {(control) => <textarea {...control} name={name} required maxLength={2000} rows={3} />}
+        </Field>
       )}
     </fieldset>
   );
@@ -99,13 +99,12 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
         style={{ gap: 16, maxWidth: 760, marginTop: 4 }}
         aria-label="Bilanz zur Hinterlegung"
       >
-        <label className="field">
-          Tag der Feststellung
-          <input type="date" name="festgestelltAm" required min={`${year + 1}-01-01`} aria-describedby={`${id}-feststellung`} style={{ maxWidth: 260 }} />
-          <span id={`${id}-feststellung`} className="small muted">
-            An dem die Gesellschafter den Abschluss festgestellt haben (§ 46 Nr. 1 GmbHG); er steht unter der Bilanz (§ 328 Abs. 1a HGB).
-          </span>
-        </label>
+        <Field
+          label="Tag der Feststellung"
+          hint="An dem die Gesellschafter den Abschluss festgestellt haben (§ 46 Nr. 1 GmbHG); er steht unter der Bilanz (§ 328 Abs. 1a HGB)."
+        >
+          {(control) => <input {...control} type="date" name="festgestelltAm" required min={`${year + 1}-01-01`} style={{ maxWidth: 260 }} />}
+        </Field>
         <Angabe
           name="haftungsverhaeltnisse"
           legend="Haftungsverhältnisse (§ 268 Abs. 7, § 251 HGB)"

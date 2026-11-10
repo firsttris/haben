@@ -20,6 +20,8 @@ export function FilePicker({
   id,
   inputRef,
   ariaLabel,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
 }: {
   name?: string;
   accept?: string;
@@ -28,6 +30,9 @@ export function FilePicker({
   id?: string;
   inputRef?: Ref<HTMLInputElement>;
   ariaLabel?: string;
+  /** Von `Field`: Hinweis und Fehler gehören ans Eingabefeld, wie bei `Combobox` */
+  "aria-describedby"?: string | undefined;
+  "aria-invalid"?: true | undefined;
 }) {
   const [files, setFiles] = useState<string[]>([]);
   const open = (event: MouseEvent<HTMLSpanElement>) => {
@@ -48,6 +53,8 @@ export function FilePicker({
         multiple={multiple}
         required={required}
         aria-label={ariaLabel}
+        aria-describedby={describedBy}
+        aria-invalid={invalid}
         className="visually-hidden"
         onChange={(e) => setFiles([...(e.target.files ?? [])].map((f) => f.name))}
       />

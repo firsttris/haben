@@ -9,6 +9,7 @@ import { formatDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { abrechnenFn, getLohn } from "../../../server/functions/lohn.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { Field } from "../../../components/Field.tsx";
 
 /*
  * Personal › Lohn: Mitarbeiter und die Abrechnung eines Monats. Haben rechnet Lohnsteuer und Sozialversicherung, hält
@@ -31,33 +32,33 @@ const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "A
 
 function MonatWahl({ data }: { data: Data }) {
   const navigate = useNavigate();
-  const monatId = useId();
-  const jahrId = useId();
   const dieses = currentYear();
   const jahre = [...new Set([data.monat.year, dieses, dieses - 1])].sort((a, b) => b - a);
   const gehe = (jahr: number, monat: number) => navigate({ to: "/lohn", search: { jahr, monat } });
   return (
     <div className="actions">
-      <label className="field" htmlFor={monatId}>
-        Monat
-        <select id={monatId} value={data.monat.month} onChange={(e) => gehe(data.monat.year, Number(e.target.value))}>
-          {MONATE.map((m, i) => (
-            <option key={m} value={i + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field" htmlFor={jahrId}>
-        Jahr
-        <select id={jahrId} value={data.monat.year} onChange={(e) => gehe(Number(e.target.value), data.monat.month)}>
-          {jahre.map((j) => (
-            <option key={j} value={j}>
-              {j}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Field label="Monat">
+        {(control) => (
+          <select {...control} value={data.monat.month} onChange={(e) => gehe(data.monat.year, Number(e.target.value))}>
+            {MONATE.map((m, i) => (
+              <option key={m} value={i + 1}>
+                {m}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Jahr">
+        {(control) => (
+          <select {...control} value={data.monat.year} onChange={(e) => gehe(Number(e.target.value), data.monat.month)}>
+            {jahre.map((j) => (
+              <option key={j} value={j}>
+                {j}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
     </div>
   );
 }
@@ -68,7 +69,6 @@ function Abrechnen({ data }: { data: Data }) {
   const { busy, notice, setNotice, run } = useAction();
   const { year, month } = data.monat;
   const [zahltag, setZahltag] = useState(data.monat.zahltag ?? monatsgrenzen(year, month).letzter);
-  const zahltagId = useId();
   const offen = data.monat.zeilen.filter((z) => !z.payslips.some((p) => !p.storno)).length;
 
   function absenden(event: FormEvent) {
@@ -91,10 +91,7 @@ function Abrechnen({ data }: { data: Data }) {
         {data.monat.name} abrechnen
       </h2>
       <form className="actions" style={{ alignItems: "end" }} onSubmit={absenden} aria-label={`${data.monat.name} abrechnen`}>
-        <label className="field" htmlFor={zahltagId}>
-          Zahltag
-          <input id={zahltagId} type="date" value={zahltag} onChange={(e) => setZahltag(e.target.value)} required />
-        </label>
+        <Field label="Zahltag">{(control) => <input {...control} type="date" value={zahltag} onChange={(e) => setZahltag(e.target.value)} required />}</Field>
         <button type="submit" className="btn btn-primary" disabled={busy || data.employees.length === 0}>
           Monat abrechnen
         </button>

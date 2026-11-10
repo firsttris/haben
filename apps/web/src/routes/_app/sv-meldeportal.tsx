@@ -6,6 +6,7 @@ import { Formular } from "../../components/sv-meldeportal/Formular.tsx";
 import { Vermerk } from "../../components/sv-meldeportal/Vermerk.tsx";
 import { getSvMeldeportal } from "../../server/functions/sv-meldungen.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Field } from "../../components/Field.tsx";
 
 /*
  * Personal › SV-Meldeportal: Ausfüllliste je Monat (docs/lohn-plan.md, PR 6). Beitragsnachweise je Einzugsstelle und
@@ -29,33 +30,33 @@ const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "A
 
 function MonatWahl({ data }: { data: Data }) {
   const navigate = useNavigate();
-  const monatId = useId();
-  const jahrId = useId();
   const dieses = Number(data.heute.slice(0, 4));
   const jahre = [...new Set([data.jahr, dieses + 1, dieses, dieses - 1])].sort((a, b) => b - a);
   const gehe = (jahr: number, monat: number) => navigate({ to: "/sv-meldeportal", search: { jahr, monat } });
   return (
     <div className="actions">
-      <label className="field" htmlFor={monatId}>
-        Monat
-        <select id={monatId} value={data.monat} onChange={(e) => gehe(data.jahr, Number(e.target.value))}>
-          {MONATE.map((m, i) => (
-            <option key={m} value={i + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field" htmlFor={jahrId}>
-        Jahr
-        <select id={jahrId} value={data.jahr} onChange={(e) => gehe(Number(e.target.value), data.monat)}>
-          {jahre.map((j) => (
-            <option key={j} value={j}>
-              {j}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Field label="Monat">
+        {(control) => (
+          <select {...control} value={data.monat} onChange={(e) => gehe(data.jahr, Number(e.target.value))}>
+            {MONATE.map((m, i) => (
+              <option key={m} value={i + 1}>
+                {m}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Jahr">
+        {(control) => (
+          <select {...control} value={data.jahr} onChange={(e) => gehe(Number(e.target.value), data.monat)}>
+            {jahre.map((j) => (
+              <option key={j} value={j}>
+                {j}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { getJournal, reverseManualEntryFn } from "../../../server/functions/jour
 import styles from "../../../styles/auswertungen.css?url";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../../lib/jahre.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/buchungen/")({
   validateSearch: z.object({ jahr: z.optional(z.int()), monat: z.optional(z.int().check(z.minimum(1), z.maximum(12))) }),
@@ -198,14 +199,14 @@ function JournalPage() {
             </button>
           ))}
         </div>
-        <label className="field" style={{ width: 120 }}>
-          Konto
-          <input value={account} onChange={(e) => setAccount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="z. B. 1200" />
-        </label>
-        <label className="field" style={{ flex: "1 1 200px", maxWidth: 320 }}>
-          Suche
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Text, Kunde, Konto" />
-        </label>
+        <Field label="Konto" style={{ width: 120 }}>
+          {(control) => (
+            <input {...control} value={account} onChange={(e) => setAccount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="z. B. 1200" />
+          )}
+        </Field>
+        <Field label="Suche" style={{ flex: "1 1 200px", maxWidth: 320 }}>
+          {(control) => <input {...control} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Text, Kunde, Konto" />}
+        </Field>
       </div>
 
       <section className="card" aria-label="Buchungen">

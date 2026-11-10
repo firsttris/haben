@@ -69,10 +69,10 @@ export function MailGraphFields({
                 : "Der öffentliche Teil, den du auch in Entra ID hochlädst."
             }
           >
-            {(control) => <FilePicker id={control.id} name="certificate" accept=".pem,.crt,.cer" />}
+            {(control) => <FilePicker {...control} name="certificate" accept=".pem,.crt,.cer" />}
           </Field>
           <Field label="Privater Schlüssel (PEM)" hint="Ohne Passwort. Bleibt verschlüsselt auf dem Server.">
-            {(control) => <FilePicker id={control.id} name="privateKey" accept=".pem,.key" />}
+            {(control) => <FilePicker {...control} name="privateKey" accept=".pem,.key" />}
           </Field>
         </div>
       )}
