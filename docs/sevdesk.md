@@ -138,7 +138,7 @@ Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
 
-- sevDesk schreibt von Belegnummern über 36 Zeichen nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
+- sevDesk entfernt aus Belegnummern Zeichen, die im DATEV-Feld nicht erlaubt sind (etwa Punkt und Umlaute), und schreibt von längeren Nummern nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
 - In Zahlungsbuchungen steht im Belegfeld 1 oft eine interne Kennung von sevDesk (UUID). Sie ist keine Belegnummer und zählt im Abgleich unter „ohne Belegnummer“.
 
 - Eine offene Rechnung ohne Nummer bekommt in Haben die Nummer `SD-` plus die ID aus sevDesk.
