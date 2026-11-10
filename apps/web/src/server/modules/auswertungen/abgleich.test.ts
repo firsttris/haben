@@ -284,6 +284,78 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     ]);
   }, 60_000);
 
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`Sonderfälle ohne Steuer, Ausbuchungen, Storno, § 13b und Erwerb ohne Abweichung (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung);
+        await sql`truncate write_offs, cash_entries, document_cancellations cascade`;
+        await sql`update company set kontenrahmen = ${kontenrahmen}`;
+        const cash = await import("../bank/cash-income.ts");
+        async function special(
+          taxTreatment: "reverse_charge" | "drittland" | "steuerfrei" | "ausfuhr" | "ig_lieferung",
+          land: string,
+          ustId: string,
+          issueDate: string,
+        ) {
+          const contact = await contacts.createContact(actor, {
+            kundennummer: "",
+            name: `Kunde ${taxTreatment}`,
+            strasse: "Ring 1",
+            plz: "1010",
+            ort: "Wien",
+            land,
+            email: "a@b.example",
+            ustId,
+            iban: "",
+            leitwegId: "",
+            defaultFormat: null,
+          });
+          const draft = await invoices.createDraft(actor, {
+            contactId: contact.id,
+            issueDate,
+            serviceFrom: null,
+            serviceTo: null,
+            paymentTermDays: 14,
+            format: "zugferd",
+            note: "",
+            taxTreatment,
+            exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
+            lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 500_000, taxRate: 0 }],
+          });
+          return invoices.finalizeInvoice(actor, draft.id);
+        }
+        const rc = await special("reverse_charge", "AT", "ATU12345678", "2026-01-10");
+        const ch = await special("drittland", "CH", "", "2026-01-12");
+        await special("ausfuhr", "US", "", "2026-01-20");
+        const sf = await special("steuerfrei", "DE", "", "2026-01-22");
+        const igl = await special("ig_lieferung", "AT", "ATU12345678", "2026-01-25");
+        await bank.writeOff(actor, { kind: "skonto", invoiceId: rc.id, date: "2026-02-05", amount: 10_000 });
+        await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: rc.id, date: "2026-02-06" });
+        await bank.writeOff(actor, { kind: "skonto", invoiceId: igl.id, date: "2026-02-07", amount: 15_000 });
+        await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: sf.id, date: "2026-02-08", amount: 20_000 });
+        await invoices.cancelInvoice(actor, ch.id, "2026-02-10");
+        await cash.createCashIncome(
+          actor,
+          { date: "2026-02-11", amount: 12_345, text: "Kurs", steuer: { behandlung: "steuerfrei", steuersatz: 0 } },
+          "2026-12-31",
+        );
+        await cash.createCashIncome(
+          actor,
+          { date: "2026-02-12", amount: 11_900, text: "Markt", steuer: { behandlung: "regulaer", steuersatz: 1900 } },
+          "2026-12-31",
+        );
+        await bookedDocument("2026-01-14", [{ taxRate: 1900, net: 20_000, tax: 3_800 }], { reverseCharge: "eu" });
+        await bookedDocument("2026-02-14", [{ taxRate: 1900, net: 30_000, tax: 5_700 }], { reverseCharge: "drittland" });
+        for (const month of [1, 2, 3, 41]) {
+          const result = await abgleich.vatAbgleich({ year: 2026, month });
+          expect(abgleich.abweichungen(result.zeilen), `2026-${month}`).toEqual([]);
+        }
+        const jan = await abgleich.vatAbgleich({ year: 2026, month: 1 });
+        expect(jan.zeilen.find((z) => z.posten.includes("(Kz 21)"))).toMatchObject({ journal: 500_000 });
+      }, 60_000);
+    }
+  }
+
   it("AfA und Privatnutzung: Hinweis, solange das Jahr nicht gebucht ist, danach Abgleich", async () => {
     await reset("soll");
     await assets.createAsset(actor, {
