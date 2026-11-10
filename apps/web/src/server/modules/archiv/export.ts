@@ -1226,7 +1226,13 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 }
 
-const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk", accountable: "Accountable", import: "JSON-Import" } as const;
+const LEGACY_SOURCE_LABELS = {
+  lexoffice: "Lexoffice",
+  sevdesk: "sevDesk",
+  buchhaltungsbutler: "BuchhaltungsButler",
+  accountable: "Accountable",
+  import: "JSON-Import",
+} as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
   invoice: "Rechnung",
@@ -1706,8 +1712,8 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
-                         Lexware Office oder sevDesk (Spalte Quelle; bei sevDesk steht in
-                         Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
+                         Lexware Office, sevDesk oder BuchhaltungsButler (Spalte Quelle;
+                         bei sevDesk steht in Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
                          Originaldateien (belege.csv), Einzelzahlungen aus sevDesk
                          (zahlungen.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten

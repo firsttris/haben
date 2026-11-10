@@ -28,6 +28,7 @@ const PAYMENT_STATUS: Record<string, string> = {
 const SOURCE = {
   lexoffice: { name: "Lexoffice", product: "Lexware Office" },
   sevdesk: { name: "sevDesk", product: "sevDesk" },
+  buchhaltungsbutler: { name: "BuchhaltungsButler", product: "BuchhaltungsButler" },
   accountable: { name: "Accountable", product: "Accountable" },
   import: { name: "JSON-Import", product: "Quellprogramm" },
 } as const;

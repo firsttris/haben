@@ -522,6 +522,7 @@ export async function reconciliation() {
       taxSubType: TAX_SUB_TYPE,
       ohneBeleg: WITHOUT_RECEIPT,
       privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
+      bbNeutral: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'neutral')::boolean, false)`,
       // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
       files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
     })
@@ -529,13 +530,19 @@ export async function reconciliation() {
   // Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, in GmbH und UG
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
   const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) }));
-  const businessRows = classified.filter((v) => !v.neutral);
+  // BuchhaltungsButler-Belege nur als Archiv (Suche, PDF): Einnahme, Ausgabe oder neutral ließe sich aus den Konten nur
+  // schätzen. Summen und Steuer kommen für diese Jahre aus dem DATEV-Buchungsstapel desselben Exports.
+  const figures = classified.filter((v) => v.source !== "buchhaltungsbutler");
+  const businessRows = figures.filter((v) => !v.neutral);
   // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
   // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
-  const vatIssueOf = (year: number) =>
-    versteuerung === "ist" && businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))
-      ? "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt."
-      : null;
+  const vatIssueOf = (year: number) => {
+    if (versteuerung !== "ist") return null;
+    if (businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))) {
+      return "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt.";
+    }
+    return null;
+  };
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
@@ -557,9 +564,17 @@ export async function reconciliation() {
       contraAccount: schema.datevBookings.contraAccount,
       buKey: schema.datevBookings.buKey,
       accountLength: sql<number | null>`(${schema.archiveFiles.meta} -> 'header' ->> 'accountLength')::int`,
+      fileId: schema.datevBookings.fileId,
     })
     .from(schema.datevBookings)
     .leftJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId));
+
+  // DATEV-Stapel der BuchhaltungsButler-Importe, auch wenn die Datei schon vorher im Archiv lag
+  const bbImports = await db
+    .select({ progress: schema.lexofficeImports.progress })
+    .from(schema.lexofficeImports)
+    .where(eq(schema.lexofficeImports.source, "buchhaltungsbutler"));
+  const bbFileIds = new Set(bbImports.flatMap((i) => i.progress.datevFileIds ?? []));
 
   const years = new Set<number>();
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
@@ -573,22 +588,27 @@ export async function reconciliation() {
       // Alle Belege des Jahres, auch neutrale: Auch ein Körperschaftsteuerbescheid braucht seine Datei
       const yearRows = classified.filter((v) => v.date.startsWith(`${year}-`));
       const withoutReceipt = voucherRows.filter((v) => v.ohneBeleg && v.date.startsWith(`${year}-`)).length;
+      const yearDatev = datevRows.filter((b) => b.date.startsWith(`${year}-`));
       // Accountable legt in den Belegen nur Ausgaben ab; die Erlöse stehen ausschließlich im
       // Buchungsstapel. Ohne diese Ausnahme blieben die Einnahmen bei 0, obwohl die Buchung da ist.
       const yearEinnahmeBelege = vouchers.some((v) => v.direction === "einnahme" && v.date.startsWith(`${year}-`));
-      const yearBookings = (vouchers.length === 0 || !yearEinnahmeBelege) && datevRows.length > 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
-      const fromDatev = yearBookings.length > 0 ? datevYearSums(yearBookings, company.kontenrahmen) : null;
+      const fromDatev = (vouchers.length === 0 || !yearEinnahmeBelege) && yearDatev.length > 0 ? datevYearSums(yearDatev, company.kontenrahmen) : null;
+      // Mischjahr (Wechsel unter dem Jahr): Belege aus Lexoffice oder sevDesk, dazu der BuchhaltungsButler-Teil aus dessen Stapel
+      const bbDatev = yearDatev.filter((b) => b.fileId !== null && bbFileIds.has(b.fileId));
+      const bbPart = !fromDatev && bbDatev.length > 0 ? datevYearSums(bbDatev, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
+        const pick = (sums: NonNullable<typeof fromDatev>) => (direction === "einnahme" ? sums.einnahmen : sums.ausgaben);
         if (fromDatev) {
-          const { net, tax } = direction === "einnahme" ? fromDatev.einnahmen : fromDatev.ausgaben;
+          const { net, tax } = pick(fromDatev);
           return { count: 0, net, tax, gross: net + tax };
         }
         const rows = vouchers.filter((v) => v.direction === direction);
+        const bb = bbPart ? pick(bbPart) : { net: 0, tax: 0 };
         return {
           count: rows.length,
-          net: rows.reduce((s, r) => s + r.net, 0),
-          tax: rows.reduce((s, r) => s + r.tax, 0),
-          gross: rows.reduce((s, r) => s + r.gross, 0),
+          net: rows.reduce((s, r) => s + r.net, 0) + bb.net,
+          tax: rows.reduce((s, r) => s + r.tax, 0) + bb.tax,
+          gross: rows.reduce((s, r) => s + r.gross, 0) + bb.net + bb.tax,
         };
       };
       const withoutFile = yearRows.filter((v) => !v.ohneBeleg && Number(v.files) === 0).length;
@@ -622,7 +642,8 @@ export async function reconciliation() {
         const key = [v.taxType ?? "net", v.taxSubType].filter(Boolean).join("/");
         taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
       }
-      const invoices = vouchers
+      // Auch die Rechnungen aus BuchhaltungsButler: Der Nummernkreis läuft in Haben weiter (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)
+      const invoices = [...vouchers, ...yearRows.filter((v) => v.source === "buchhaltungsbutler" && !v.bbNeutral)]
         // Stornorechnung und Abschlagsrechnung von sevDesk belegen denselben Nummernkreis wie die Rechnungen (#472)
         .filter(
           (v) =>
@@ -638,7 +659,7 @@ export async function reconciliation() {
       const checks: ReconciliationCheck[] = [
         ...(vatIssue ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: vatIssue }] : []),
         {
-          ok: vouchers.length > 0,
+          ok: vouchers.length > 0 || yearRows.some((v) => v.source === "buchhaltungsbutler"),
           label: "Belege und Rechnungen per API abgerufen",
           detail: [
             `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
@@ -687,9 +708,11 @@ export async function reconciliation() {
         einnahmen: sum("einnahme"),
         ausgaben: sum("ausgabe"),
         /** Weder Einnahme noch Ausgabe, je Art: zum Vergleich sichtbar statt still weggelassen */
-        neutral: legacyNeutralSums(yearRows.flatMap((v) => (v.neutral ? [{ kind: v.neutral, direction: v.direction, gross: v.gross }] : []))),
-        /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel */
-        sumsFrom: fromDatev ? ("datev" as const) : ("belege" as const),
+        neutral: legacyNeutralSums(
+          figures.flatMap((v) => (v.neutral && v.date.startsWith(`${year}-`) ? [{ kind: v.neutral, direction: v.direction, gross: v.gross }] : [])),
+        ),
+        /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel; "gemischt": Belege und BB-Stapel */
+        sumsFrom: fromDatev ? ("datev" as const) : bbPart ? ("gemischt" as const) : ("belege" as const),
         withoutFile,
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,
@@ -798,6 +821,8 @@ export async function legacyVouchersForPeriod(filter: {
               )})))`
           : sql``
       })
+      -- BuchhaltungsButler-Belege gehen nicht in die Umsatzsteuer ein, wie im Abgleich (Summen aus dem DATEV-Stapel)
+      and v.source <> 'buchhaltungsbutler'
       ${filter.direction === "alle" ? sql`` : sql`and ${effectiveDirection("v")} = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or ${effectiveContactName("v")} ilike ${term} or v.remark ilike ${term})` : sql``}
     order by v.date, v.number`);
