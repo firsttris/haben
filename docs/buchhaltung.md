@@ -63,7 +63,7 @@ Die wöchentliche Mail prüft vorher Kette und Siegel und vergleicht den Prüfwe
 
 ## Abgleich von Journal, Umsatzsteuer und EÜR
 
-Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/modules/auswertungen/abgleich.ts`, die Bemessungsgrundlagen in `abgleich-kennzahlen.ts` daneben.
+Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/modules/auswertungen/abgleich.ts`, die Bemessungsgrundlagen in `abgleich-kennzahlen.ts` und die EÜR aus dem Journal in `euer-journal.ts` daneben.
 
 | Bereich | Verglichen wird | Journal |
 | --- | --- | --- |
@@ -80,10 +80,11 @@ Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pausch
 | | Gewerbesteuer und Nebenleistungen darauf (nachrichtlich) | Gewerbesteuer, Gewerbesteuer Vorjahre und die nicht abziehbaren Zinsen und Zuschläge |
 | | AfA, GWG, Sammelposten, Restbuchwert | AfA-Konten und Restbuchwert, sobald die AfA des Jahres gebucht ist |
 | | Private Kfz-Nutzung und die Umsatzsteuer darauf | Erlöskonten der Privatnutzung und Umsatzsteuer 19 % aus den Buchungen der Anlagen, ebenfalls erst nach der AfA |
+| | Einnahmen (steuerpflichtig, steuerfrei, Kleinunternehmer), vereinnahmte Umsatzsteuer, Vorsteuer, Personal, Ausgaben je Kategorie, nicht abziehbarer Teil der Bewirtung („EÜR: …“) | Buchungen ohne Forderungen und Verbindlichkeiten (Bank, Kasse, privat bezahlt) nach ihren Konten; eine Rechnung bzw. ein Beleg auf Ziel erst mit der Zahlung: Jede Zahlung, Bareinnahme und Kursdifferenz wird anteilig auf die Zeilen der Buchung verteilt, die sie ausgleicht, gerundet wie die Zahlung (bei Teilzahlungen auf eine Rechnung über alle Raten, sodass zusammen genau ihre Steuer herauskommt). Skonto und Forderungsausfall wirken nicht. Die Zuordnung Konto → EÜR-Zeile steht in `packages/core/src/journal-euer.ts` |
 
 Nicht verglichen werden:
 
-- **Einnahmen und Ausgaben der EÜR.** Die EÜR rechnet nach Zahlung, das Journal bucht Rechnungen und Belege zum Rechnungs- bzw. Belegdatum. Zwischen beiden liegen Forderungen und Verbindlichkeiten.
+- **Einnahmen und Ausgaben der EÜR in einem Jahr mit Zahlungen auf aus Lexoffice übernommene Rechnungen bzw. Belege.** Deren Buchung steht gegen den Saldenvortrag, ohne Erlös- und Aufwandszeilen; die Zahlung lässt sich nicht verteilen. Der Abgleich nennt die Zahl dieser Zahlungen als Hinweis.
 - **Privatnutzung von Fahrzeugen in der Voranmeldung.** Sie zählt monatlich, gebucht wird sie erst mit der AfA im Dezember. Abgeglichen wird sie deshalb mit der EÜR, sobald das Jahr gebucht ist.
 - **Bemessungsgrundlagen bei Ist-Versteuerung aus älteren Zahlungen.** Die Voranmeldung meldet Kz 81, 86, 43 und 48 mit der Zahlung; die Zahlungsbuchung trägt die Bemessungsgrundlage erst seit [#542](https://github.com/firsttris/haben/issues/542). Kz 81 und 86 vergleicht der Abgleich deshalb nur in Zeiträumen, in denen jede Umbuchung der Umsatzsteuer eine Bemessungsgrundlage trägt; Kz 43 und 48 bei Ist nicht, weil sich eine ältere Zahlung auf eine steuerfreie Rechnung nicht von einer Zahlung ohne Meldung unterscheiden lässt.
 - **Belege mit § 13b oder innergemeinschaftlichem Erwerb, deren Steuer nicht voll abziehbar ist** (Privatanteil, ohne Vorsteuerabzug), bei den Bemessungsgrundlagen Kz 46, 84, 89 und 93: Ältere Buchungen trennen den privaten Teil bzw. die Steuer nicht mit Steuerschlüssel von der Bemessungsgrundlage. Die Steuerbeträge dieser Belege werden verglichen.

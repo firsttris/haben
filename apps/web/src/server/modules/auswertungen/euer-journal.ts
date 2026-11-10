@@ -101,8 +101,11 @@ async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchu
 
 export interface EuerJournal {
   summe: EuerAusJournal;
-  /** Zahlungen auf eine Rechnung bzw. einen Beleg ohne eigene Buchung, etwa aus Lexoffice übernommen (Eröffnungsbuchung) */
-  ohneBuchung: number;
+  /**
+   * Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege: Deren Buchung steht gegen den Saldenvortrag, ohne Erlös-
+   * bzw. Aufwandszeilen; die EÜR rechnet sie aus dem Nebenbuch
+   */
+  uebernommen: number;
 }
 
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
@@ -126,9 +129,9 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
   );
 
   const summe = leereEuerAusJournal();
-  let ohneBuchung = 0;
+  let uebernommen = 0;
   // Ausgeglichene Buchung (Zeilen ohne offenen Posten, offener Posten, Herkunft) und bei Rechnungen die Ausgleiche in Reihenfolge
-  const ursprung = new Map<string, { gebucht: boolean; zeilen: Zeile[]; gesamt: number; herkunft: EuerHerkunft; ausgleiche?: Buchung[] }>();
+  const ursprung = new Map<string, { uebernommen: boolean; zeilen: Zeile[]; gesamt: number; herkunft: EuerHerkunft; ausgleiche?: Buchung[] }>();
   const ursprungVon = async (kr: Kontenrahmen, typ: "invoice" | "document", id: string) => {
     const key = `${typ}|${id}`;
     if (!ursprung.has(key)) {
@@ -140,7 +143,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
         if (doc?.category === "anlage") herkunft = "anlage";
       }
       ursprung.set(key, {
-        gebucht: gebucht.length > 0,
+        uebernommen: gebucht.length === 0 || zeilen.some((z) => z.account === ACCOUNTS[kr].saldenvortrag),
         zeilen: zeilen.filter((z) => !offenerPosten(kr, z)),
         gesamt: zeilen.filter((z) => offenerPosten(kr, z)).reduce((s, z) => s + z.debit - z.credit, 0),
         herkunft,
@@ -178,8 +181,11 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     const zielId = ziel?.invoiceId ?? ziel?.documentId;
     if (!typ || !zielId) continue;
     const u = await ursprungVon(kr, typ, zielId);
-    // Ohne Buchung (aus Lexoffice übernommen) fehlen Erlös und Aufwand; storniert ist nichts mehr offen
-    if (!u.gebucht) ohneBuchung++;
+    if (u.uebernommen) {
+      uebernommen++;
+      continue;
+    }
+    // Storniert: nichts mehr offen, Zahlung und Gegenbuchung heben sich auf
     if (u.gesamt === 0) continue;
     // Rechnungen kumuliert wie die gespeicherten Anteile (settlementTaxShares), Belege je Zahlung (paidTaxShares)
     let bisher = 0;
@@ -191,5 +197,5 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     }
     euerAusZeilen(kr, zahlungsAnteil(kr, u.zeilen, u.gesamt, -ausgeglichen, bisher), u.herkunft, summe);
   }
-  return { summe, ohneBuchung };
+  return { summe, uebernommen };
 }
