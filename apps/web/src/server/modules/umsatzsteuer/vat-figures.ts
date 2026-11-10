@@ -68,9 +68,11 @@ export interface IgErwerbSource extends InputTaxSource {
 /**
  * Steuerfälle der Ausgangsrechnung, die auch bei Ist-Versteuerung nach Rechnungsdatum gemeldet werden: Reverse Charge
  * (Kz 21) und innergemeinschaftliche Lieferungen (Kz 41) im Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist,
- * spätestens im Folgemonat der Leistung (§ 18b Satz 1 und 2 UStG); Haben nimmt das Rechnungsdatum.
+ * spätestens im Folgemonat der Leistung (§ 18b Satz 1 und 2 UStG); Haben nimmt das Rechnungsdatum. Ebenso nicht steuerbare
+ * Leistungen ins Drittland (Kz 45): DATEV weist bei Ist-Versteuerung nur steuerpflichtige und steuerfreie inländische
+ * Umsätze mit der Zahlung aus, nicht steuerbare Umsätze im Drittland schon mit der Rechnung (DATEV-Dok. 1080673).
  */
-export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung"] as const satisfies readonly TaxTreatment[];
+export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland"] as const satisfies readonly TaxTreatment[];
 
 export interface VatFigures {
   versteuerung: "ist" | "soll";
@@ -144,7 +146,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           eq(schema.allocations.kind, "invoice"),
           gte(schema.bankTransactions.bookingDate, start),
           lt(schema.bankTransactions.bookingDate, end),
-          // Reverse Charge und innergemeinschaftliche Lieferung zählen im Monat der Rechnung, auch bei Ist (siehe unten)
+          // Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen im Monat der Rechnung, auch bei Ist (siehe oben)
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
       );
@@ -207,8 +209,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     }
   }
 
-  // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge und innergemeinschaftliche Lieferungen, die
-  // Meldung in Kz 21 und 41 richtet sich nach der Rechnung, nicht nach der Zahlung (§ 18b UStG).
+  // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge, innergemeinschaftliche Lieferungen und Leistungen
+  // ins Drittland, die Meldung in Kz 21, 41 und 45 richtet sich nach der Rechnung, nicht nach der Zahlung (NACH_RECHNUNGSDATUM).
   {
     const issued = await q
       .select()

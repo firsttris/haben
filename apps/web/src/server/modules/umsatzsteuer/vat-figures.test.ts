@@ -222,9 +222,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     return invoices.finalizeInvoice(actor, draft.id);
   }
 
-  it("Reverse Charge im Rechnungsmonat (auch bei Ist), Drittland und steuerfrei nach Zahlung", async () => {
+  it("Reverse Charge und Drittland im Rechnungsmonat (auch bei Ist), steuerfrei nach Zahlung", async () => {
     const rc = await specialInvoice("reverse_charge", "AT", "ATU12345678", "2026-10-15");
-    const ch = await specialInvoice("drittland", "CH", "", "2026-09-15");
+    const ch = await specialInvoice("drittland", "CH", "", "2026-10-01");
     await specialInvoice("steuerfrei", "DE", "", "2026-10-01");
     const [line] = await sql`select l.account, l.tax_code from journal_lines l join journal_entries e on e.id = l.entry_id
       where e.source_id = ${rc.id} and l.credit > 0`;
