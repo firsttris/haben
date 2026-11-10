@@ -404,7 +404,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | Fachlogik in `packages/core` ohne Ein- und Ausgabe | Buchungssätze, EÜR und Steuerberechnung sind ohne Datenbank testbar |
 | Hauptbuch als einziger Schreiber des Journals | Festschreiben, Kontenrahmen und die Prüfung der Firmendaten stehen an einer Stelle; neue Buchungsarten können nichts davon vergessen |
 | Transaktion ausdrücklich übergeben statt implizit beitreten | Wer eine Funktion aufruft, sieht, in welcher Transaktion sie liest; `underSendLock` arbeitet bewusst auf anderen Verbindungen und bleibt davon unberührt |
-| Umsatzsteuer und EÜR aus den Nebenbüchern, Journal zum Abgleich | Die Formulare brauchen Kennzahlen je Satz, § 13b und Zahlungsdaten, die im Journal nur indirekt stehen; der Abgleich deckt Widersprüche trotzdem auf |
+| Umsatzsteuer und EÜR aus den Nebenbüchern, Journal zum Abgleich | Die Formulare brauchen Kennzahlen je Satz, § 13b und Zahlungsdaten, die im Journal nur indirekt stehen; der Abgleich deckt Widersprüche trotzdem auf. Seit #542 trägt das Journal sie; der Umstieg ab einem Stichjahr steht im [Entwurf „Voranmeldung und EÜR aus dem Journal“](adr/journal-als-quelle.md) |
 | Dateien unter SHA-256 | Keine Dubletten, Integrität bei jedem Lesen prüfbar, Hash im Export als Nachweis |
 | ERiC im Kindprozess | Eine abstürzende native Bibliothek reißt die Anwendung nicht mit |
 | Bun als Laufzeit und Paketmanager | Ein Programm statt Node, npm, pnpm und tsx; TypeScript läuft ohne Build (ERiC-Worker, Migrationen, Skripte). Ausgeliefert wird ohnehin als Container. Die Prüfung aller Nachrichten mit dem echten ERiC (`eric-echt.test.ts`) läuft unter Bun wie zuvor unter Node |
