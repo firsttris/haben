@@ -1,10 +1,16 @@
 import {
   ACCOUNTS,
+  computeEuer,
   euerAusZeilen,
+  EXPENSE_CATEGORIES,
   leereEuerAusJournal,
+  totalsFromTaxes,
   zahlungsAnteil,
+  zahlungsStand,
   type EuerAusJournal,
   type EuerHerkunft,
+  type EuerPayment,
+  type ExpenseCategory,
   type JournalZeile,
   type Kontenrahmen,
 } from "@haben/core";
@@ -23,6 +29,7 @@ type Zeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
 
 interface Buchung {
   id: string;
+  reversesId: string | null;
   kontenrahmen: Kontenrahmen;
   sourceType: string;
   sourceId: string;
@@ -35,6 +42,7 @@ async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]>
   const rows = await q
     .select({
       id: e.id,
+      reversesId: e.reversesId,
       kontenrahmen: e.kontenrahmen,
       sourceType: e.sourceType,
       sourceId: e.sourceId,
@@ -51,7 +59,7 @@ async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buchung[]>
   for (const r of rows) {
     let b = byId.get(r.id);
     if (!b) {
-      b = { id: r.id, kontenrahmen: r.kontenrahmen as Kontenrahmen, sourceType: r.sourceType, sourceId: r.sourceId, zeilen: [] };
+      b = { id: r.id, reversesId: r.reversesId, kontenrahmen: r.kontenrahmen as Kontenrahmen, sourceType: r.sourceType, sourceId: r.sourceId, zeilen: [] };
       byId.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode });
@@ -86,7 +94,11 @@ async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
   return result;
 }
 
-/** Alle Buchungen, die Rechnung bzw. Beleg ausgleichen (auch aus anderen Jahren), in der Reihenfolge des Buchens */
+/**
+ * Alle Buchungen, die eine Rechnung ausgleichen (auch aus anderen Jahren), in der Reihenfolge, in der sie entstanden sind:
+ * nach der Position im Audit-Log, nicht nach Datum. Danach richtet sich der gespeicherte Anteil jeder Zahlung
+ * (settlementTaxShares gegen alles bis dahin Erfasste); Zahlung und Ausbuchung einer Transaktion haben dasselbe created_at.
+ */
 async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchung[]> {
   const ids = (
     await Promise.all([
@@ -96,7 +108,62 @@ async function ausgleichsBuchungen(q: Db | Tx, invoiceId: string): Promise<Buchu
     ])
   ).flatMap((rows) => rows.map((r) => r.id));
   if (ids.length === 0) return [];
-  return (await buchungen(q, inArray(schema.journalEntries.sourceId, ids))).filter((b) => b.sourceType !== "invoice" && b.sourceType !== "document");
+  const gefunden = (await buchungen(q, inArray(schema.journalEntries.sourceId, ids))).filter((b) => b.sourceType !== "invoice" && b.sourceType !== "document");
+  if (gefunden.length < 2) return gefunden;
+  const log = schema.auditLog;
+  const position = new Map(
+    (
+      await q
+        .select({ rowId: log.rowId, id: log.id })
+        .from(log)
+        .where(
+          and(
+            eq(log.tableName, "journal_entries"),
+            eq(log.action, "INSERT"),
+            inArray(
+              log.rowId,
+              gefunden.map((b) => b.id),
+            ),
+          ),
+        )
+    ).map((r) => [r.rowId, r.id]),
+  );
+  // Ohne Eintrag im Audit-Log (nicht vorgesehen) bleibt die Reihenfolge nach Datum
+  const index = new Map(gefunden.map((b, i) => [b.id, i]));
+  return [...gefunden].sort((a, b) => (position.get(a.id) ?? Infinity) - (position.get(b.id) ?? Infinity) || index.get(a.id)! - index.get(b.id)!);
+}
+
+/** Aufteilung eines Belegs aus dem Nebenbuch, für Teilzahlungen, deren Rundung die Buchung allein nicht hergibt */
+interface BelegNebenbuch {
+  totals: ReturnType<typeof totalsFromTaxes>;
+  category: ExpenseCategory;
+  vorsteuerAbzug: boolean;
+  privateShare: number;
+}
+
+async function belegNebenbuch(q: Db | Tx, id: string): Promise<BelegNebenbuch | undefined> {
+  const d = schema.documents;
+  const [doc] = await q
+    .select({ category: d.category, vorsteuerAbzug: d.vorsteuerAbzug, privateShare: d.privateShare, reverseCharge: d.reverseCharge })
+    .from(d)
+    .where(eq(d.id, id));
+  // Nur mit Privatanteil oder ohne Vorsteuerabzug (computeEuer teilt dann erst nach Satz, danach privat bzw. die Steuer zu);
+  // aufgeteilte Belege verteilt die Buchung je Zeile wie computeEuer
+  if (!doc || (doc.privateShare === 0 && doc.vorsteuerAbzug) || !(doc.category && doc.category in EXPENSE_CATEGORIES)) return undefined;
+  const [split] = await q.select({ id: schema.documentSplits.id }).from(schema.documentSplits).where(eq(schema.documentSplits.documentId, id)).limit(1);
+  if (split) return undefined;
+  const amounts = await q.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
+  // § 13b und Erwerb: gezahlt ist nur netto (wie reports.ts)
+  const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: doc.reverseCharge ? 0 : a.tax }));
+  return { totals: totalsFromTaxes(rows), category: doc.category as ExpenseCategory, vorsteuerAbzug: doc.vorsteuerAbzug, privateShare: doc.privateShare };
+}
+
+/** Wirkung einer Teilzahlung auf einen Beleg, gerechnet wie computeEuer */
+function belegTeilzahlung(year: number, beleg: BelegNebenbuch, paid: number, summe: EuerAusJournal) {
+  const payment: EuerPayment = { kind: "document", date: `${year}-06-30`, paid, ...beleg };
+  const result = computeEuer(year, [payment]);
+  for (const l of [...result.einnahmen, ...result.ausgaben]) if (l.amount !== 0) summe.zeilen[l.key] = (summe.zeilen[l.key] ?? 0) + l.amount;
+  summe.bewirtungNichtAbziehbar += result.bewirtungNichtAbziehbar;
 }
 
 export interface EuerJournal {
@@ -107,6 +174,41 @@ export interface EuerJournal {
    */
   uebernommen: number;
 }
+
+interface Ursprung {
+  uebernommen: boolean;
+  /** Kontenrahmen der ausgeglichenen Buchung; er kann zum Jahreswechsel gewechselt haben */
+  kontenrahmen: Kontenrahmen;
+  zeilen: Zeile[];
+  gesamt: number;
+  herkunft: EuerHerkunft;
+  /** Rechnung: Anteil jeder ausgleichenden Buchung an den Zeilen, wie gespeichert (settlementTaxShares) */
+  anteile?: Map<string, number[]>;
+  beleg?: BelegNebenbuch;
+}
+
+/**
+ * Anteile aller Zahlungen, Ausbuchungen und Bareinnahmen einer Rechnung, wie Haben sie beim Zuordnen speichert: jede gegen
+ * das bis dahin Erfasste (settlementTaxShares), eine Gegenbuchung genau umgekehrt wie die aufgehobene
+ */
+function rechnungsAnteile(kr: Kontenrahmen, zeilen: Zeile[], gesamt: number, ausgleiche: Buchung[]): Map<string, number[]> {
+  const anteile = new Map<string, number[]>();
+  let ausgeglichen = 0;
+  let erfasst = zeilen.map(() => 0);
+  for (const a of ausgleiche) {
+    const betrag = -offen(a);
+    const umgekehrt = a.reversesId ? anteile.get(a.reversesId) : undefined;
+    const stand = umgekehrt ? null : zahlungsStand(kr, zeilen, gesamt, ausgeglichen + betrag);
+    const anteil = umgekehrt ? umgekehrt.map((v) => -v) : stand!.map((v, i) => v - erfasst[i]!);
+    erfasst = erfasst.map((v, i) => v + anteil[i]!);
+    ausgeglichen += betrag;
+    anteile.set(a.id, anteil);
+  }
+  return anteile;
+}
+
+const alsZeilen = (zeilen: Zeile[], anteil: number[]): Zeile[] =>
+  zeilen.map((z, i) => ({ ...z, debit: Math.max(anteil[i]!, 0), credit: Math.max(-anteil[i]!, 0) }));
 
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
 export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<EuerJournal> {
@@ -130,27 +232,32 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
 
   const summe = leereEuerAusJournal();
   let uebernommen = 0;
-  // Ausgeglichene Buchung (Zeilen ohne offenen Posten, offener Posten, Herkunft) und bei Rechnungen die Ausgleiche in Reihenfolge
-  const ursprung = new Map<string, { uebernommen: boolean; zeilen: Zeile[]; gesamt: number; herkunft: EuerHerkunft; ausgleiche?: Buchung[] }>();
-  const ursprungVon = async (kr: Kontenrahmen, typ: "invoice" | "document", id: string) => {
+  const ursprung = new Map<string, Ursprung>();
+  const ursprungVon = async (typ: "invoice" | "document", id: string, kr: Kontenrahmen): Promise<Ursprung> => {
     const key = `${typ}|${id}`;
-    if (!ursprung.has(key)) {
-      const gebucht = await buchungen(q, and(eq(e.sourceType, typ), eq(e.sourceId, id)));
-      const zeilen = gebucht.flatMap((b) => b.zeilen);
-      let herkunft: EuerHerkunft = "sonst";
-      if (typ === "document") {
-        const [doc] = await q.select({ category: schema.documents.category }).from(schema.documents).where(eq(schema.documents.id, id));
-        if (doc?.category === "anlage") herkunft = "anlage";
-      }
-      ursprung.set(key, {
-        uebernommen: gebucht.length === 0 || zeilen.some((z) => z.account === ACCOUNTS[kr].saldenvortrag),
-        zeilen: zeilen.filter((z) => !offenerPosten(kr, z)),
-        gesamt: zeilen.filter((z) => offenerPosten(kr, z)).reduce((s, z) => s + z.debit - z.credit, 0),
-        herkunft,
-        ...(typ === "invoice" ? { ausgleiche: await ausgleichsBuchungen(q, id) } : {}),
-      });
+    const vorhanden = ursprung.get(key);
+    if (vorhanden) return vorhanden;
+    const gebucht = await buchungen(q, and(eq(e.sourceType, typ), eq(e.sourceId, id)));
+    const kontenrahmen = gebucht[0]?.kontenrahmen ?? kr;
+    const alle = gebucht.flatMap((b) => b.zeilen);
+    const zeilen = alle.filter((z) => !offenerPosten(kontenrahmen, z));
+    const gesamt = alle.filter((z) => offenerPosten(kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
+    let herkunft: EuerHerkunft = "sonst";
+    if (typ === "document") {
+      const [doc] = await q.select({ category: schema.documents.category }).from(schema.documents).where(eq(schema.documents.id, id));
+      if (doc?.category === "anlage") herkunft = "anlage";
     }
-    return ursprung.get(key)!;
+    const u: Ursprung = {
+      uebernommen: gebucht.length === 0 || alle.some((z) => z.account === ACCOUNTS[kontenrahmen].saldenvortrag),
+      kontenrahmen,
+      zeilen,
+      gesamt,
+      herkunft,
+      ...(typ === "invoice" && gesamt !== 0 ? { anteile: rechnungsAnteile(kontenrahmen, zeilen, gesamt, await ausgleichsBuchungen(q, id)) } : {}),
+      ...(typ === "document" ? { beleg: await belegNebenbuch(q, id) } : {}),
+    };
+    ursprung.set(key, u);
+    return u;
   };
 
   for (const b of jahr) {
@@ -180,22 +287,19 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     const typ = ziel?.invoiceId ? "invoice" : ziel?.documentId ? "document" : null;
     const zielId = ziel?.invoiceId ?? ziel?.documentId;
     if (!typ || !zielId) continue;
-    const u = await ursprungVon(kr, typ, zielId);
+    const u = await ursprungVon(typ, zielId, kr);
     if (u.uebernommen) {
       uebernommen++;
       continue;
     }
     // Storniert: nichts mehr offen, Zahlung und Gegenbuchung heben sich auf
     if (u.gesamt === 0) continue;
-    // Rechnungen kumuliert wie die gespeicherten Anteile (settlementTaxShares), Belege je Zahlung (paidTaxShares)
-    let bisher = 0;
-    if (u.ausgleiche) {
-      for (const a of u.ausgleiche) {
-        if (a.id === b.id) break;
-        bisher -= offen(a);
-      }
-    }
-    euerAusZeilen(kr, zahlungsAnteil(kr, u.zeilen, u.gesamt, -ausgeglichen, bisher), u.herkunft, summe);
+    const anteil = u.anteile?.get(b.id);
+    if (anteil) euerAusZeilen(u.kontenrahmen, alsZeilen(u.zeilen, anteil), u.herkunft, summe);
+    // Teilzahlung auf einen Beleg mit Privatanteil oder ohne Vorsteuerabzug: gerundet wie computeEuer
+    else if (u.beleg && -ausgeglichen !== u.gesamt) belegTeilzahlung(year, u.beleg, ausgeglichen, summe);
+    // Beleg: jede Zahlung für sich (paidTaxShares)
+    else euerAusZeilen(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, -ausgeglichen), u.herkunft, summe);
   }
   return { summe, uebernommen };
 }

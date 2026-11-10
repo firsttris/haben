@@ -162,10 +162,10 @@ export function euerAusZeilen(
   return summe;
 }
 
-type Zeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
+export type EuerJournalZeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;
 
-const sollSaldo = (z: Zeile) => z.debit - z.credit;
-const alsZeile = (z: Zeile, saldo: Cents): Zeile => ({ ...z, debit: saldo > 0 ? saldo : 0, credit: saldo < 0 ? -saldo : 0 });
+const sollSaldo = (z: EuerJournalZeile) => z.debit - z.credit;
+const alsZeile = (z: EuerJournalZeile, saldo: Cents): EuerJournalZeile => ({ ...z, debit: saldo > 0 ? saldo : 0, credit: saldo < 0 ? -saldo : 0 });
 
 /** Rest auf die Zeile mit dem größten Betrag, sodass die Anteile genau `ziel` ergeben (wie paidTaxShares) */
 function mitRest(anteile: Cents[], betraege: Cents[], ziel: Cents): Cents[] {
@@ -175,8 +175,13 @@ function mitRest(anteile: Cents[], betraege: Cents[], ziel: Cents): Cents[] {
   return anteile.map((a, i) => (i === groesste ? a + rest : a));
 }
 
-/** Anteil der Zeilen bei `bezahlt` von `gesamt`, gerundet wie paidTaxShares: erst die Steuer, das Übrige ist Netto */
-function anteilBei(kontenrahmen: Kontenrahmen, zeilen: readonly Zeile[], gesamt: Cents, bezahlt: Cents): Cents[] {
+/**
+ * Anteil (Soll − Haben) jeder Zeile, wenn `bezahlt` von `gesamt` ausgeglichen ist, gerundet wie paidTaxShares: erst die
+ * Steuer, das Übrige ist Netto, der Rest auf die größte Zeile. Für den Anteil einer Zahlung gegen das schon Erfasste
+ * (wie settlementTaxShares) zieht der Aufrufer die bisherigen Anteile ab.
+ */
+export function zahlungsStand(kontenrahmen: Kontenrahmen, zeilen: readonly EuerJournalZeile[], gesamt: Cents, bezahlt: Cents): Cents[] {
+  if (gesamt === 0) return zeilen.map(() => 0);
   const anteil = (v: Cents) => roundHalfAwayFromZero((v * bezahlt) / gesamt);
   const istSteuer = zeilen.map((z) => {
     const zuordnung = euerZuordnung(kontenrahmen, z.account);
@@ -215,9 +220,15 @@ function anteilBei(kontenrahmen: Kontenrahmen, zeilen: readonly Zeile[], gesamt:
  * (paidTaxShares). Mit `bisher` wie settlementTaxShares: der Anteil am dann Ausgeglichenen abzüglich des Anteils davor,
  * sodass alle Zahlungen zusammen genau die Zeilen der Buchung ergeben.
  */
-export function zahlungsAnteil(kontenrahmen: Kontenrahmen, zeilen: readonly Zeile[], gesamt: Cents, betrag: Cents, bisher: Cents = 0): Zeile[] {
+export function zahlungsAnteil(
+  kontenrahmen: Kontenrahmen,
+  zeilen: readonly EuerJournalZeile[],
+  gesamt: Cents,
+  betrag: Cents,
+  bisher: Cents = 0,
+): EuerJournalZeile[] {
   if (gesamt === 0) return [];
-  const danach = anteilBei(kontenrahmen, zeilen, gesamt, bisher + betrag);
-  const davor = bisher === 0 ? zeilen.map(() => 0) : anteilBei(kontenrahmen, zeilen, gesamt, bisher);
+  const danach = zahlungsStand(kontenrahmen, zeilen, gesamt, bisher + betrag);
+  const davor = bisher === 0 ? zeilen.map(() => 0) : zahlungsStand(kontenrahmen, zeilen, gesamt, bisher);
   return zeilen.map((z, i) => alsZeile(z, danach[i]! - davor[i]!));
 }
