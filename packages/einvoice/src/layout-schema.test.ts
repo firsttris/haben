@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { layoutBeispiele } from "./layout-beispiele.ts";
 import { belegDatenSchema, LAYOUT_SCHEMA_VERSION, layoutJsonSchema, mahnungDatenSchema } from "./layout-schema.ts";
 import { contractBreaks, type FrozenField, flattenSchema } from "./layout-schema-paths.ts";
@@ -20,10 +21,11 @@ describe("Feldvertrag der Belegvorlagen", () => {
     expect(ohne).toEqual([]);
   });
 
-  it("die Beispiele nutzen jedes Feld des Vertrags mindestens einmal", () => {
+  it("die Beispiele füllen jedes Feld des Vertrags mindestens einmal mit einem Wert", () => {
     const gesehen = new Set<string>();
     const sammeln = (wert: unknown, pfad: string) => {
-      if (pfad) gesehen.add(pfad);
+      // Nur ein echter Wert zählt: Ein Feld, das immer null ist, prüft weder der Vertrag noch das Setzen
+      if (pfad && wert !== null && wert !== undefined) gesehen.add(pfad);
       if (Array.isArray(wert)) for (const x of wert) sammeln(x, `${pfad}[]`);
       else if (wert && typeof wert === "object") for (const [k, x] of Object.entries(wert)) sammeln(x, pfad ? `${pfad}.${k}` : k);
     };
@@ -67,5 +69,24 @@ describe("Vergleich mit dem eingefrorenen Stand", () => {
 
   it("meldet ein Feld, das nicht mehr immer da ist", () => {
     expect(contractBreaks(alt, [{ path: "title", type: "string", required: false }, alt[1]!])).toEqual(["title ist nicht mehr immer da"]);
+  });
+});
+
+describe("Brüche, die nur in verschachtelten Typen stecken", () => {
+  const felder = (schema: z.ZodType) => flattenSchema(z.toJSONSchema(schema) as never).map(({ path, type, required }) => ({ path, type, required }));
+  const run = z.strictObject({ text: z.string(), bold: z.boolean(), italic: z.boolean(), underline: z.boolean() });
+
+  it("meldet, wenn statt der Liste ihre Einträge null werden", () => {
+    const vorher = felder(z.strictObject({ detailFormatted: z.array(run).nullable() }));
+    const nachher = felder(z.strictObject({ detailFormatted: z.array(run.nullable()) }));
+    expect(contractBreaks(vorher, nachher)).not.toEqual([]);
+  });
+
+  it("meldet den Bruch auch am echten Vertrag (footerFormatted: Spalten statt Liste nullbar)", () => {
+    const geaendert = belegDatenSchema.extend({ footerFormatted: z.array(z.array(z.array(run)).nullable()).describe("x") });
+    const eingefroren = JSON.parse(readFileSync(new URL(`./layout-schema.v${LAYOUT_SCHEMA_VERSION}.json`, import.meta.url), "utf8")) as {
+      beleg: FrozenField[];
+    };
+    expect(contractBreaks(eingefroren.beleg, felder(geaendert))).not.toEqual([]);
   });
 });
