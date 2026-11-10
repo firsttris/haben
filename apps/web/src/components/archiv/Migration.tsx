@@ -1,20 +1,25 @@
 import { currentYear, MONTHS, formatEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { formatDateTime } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 import {
+  cancelAccountableImport,
   cancelLexofficeImport,
   cancelSevdeskImport,
+  getAccountableStatus,
   getImportStatus,
   removeLexofficeKey,
   removeSevdeskToken,
   saveLexofficeKey,
   saveSevdeskToken,
+  startAccountableImport,
   startLexofficeImport,
   startSevdeskImport,
+  uploadAccountableExport,
   type getMigration,
 } from "../../server/functions/archive.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
@@ -27,7 +32,10 @@ import { Field } from "../Field.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
-type Source = "lexoffice" | "sevdesk";
+/** Quellen mit API-Verbindung: Schlüssel speichern, entfernen, Abruf starten */
+type ConnectedSource = "lexoffice" | "sevdesk";
+/** Alle Quellen; Accountable kennt keine API, dort gibt es nur den Datei-Upload */
+type Source = ConnectedSource | "accountable";
 
 /** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
 const SOURCES = {
@@ -58,15 +66,31 @@ const SOURCES = {
     remove: removeSevdeskToken,
     cancel: cancelSevdeskImport,
   },
+  accountable: {
+    product: "Accountable",
+    keyLabel: "API-Zugang",
+    keyHelp: "Accountable bietet keinen API-Zugang an. Kennst du eine Schnittstelle, melde sie bitte als Fehler im Projekt.",
+    removeLabel: "Zugang entfernen",
+    importHelp:
+      "Accountable bietet keinen API-Zugang, deshalb liest Haben den Export. Lade je Geschäftsjahr den DATEV-Export hoch: in Accountable unter Datenexport „DATEV“ wählen, Kontenrahmen wie hier eingestellt (meist SKR03), „Originaldokumente beifügen“ einschalten, ganzes Geschäftsjahr. Er enthält den DATEV-Buchungsstapel, die Belege und die Verknüpfung von Buchung zu Belegdatei. Den IDEA-Export und die Steuererklärungen liefert Accountable nicht mit; lade sie in Schritt 4 getrennt hoch.",
+    exportsHelp:
+      "Die Exportdatei von Accountable bringt Buchungen und Belege schon mit. Zusätzlich brauchst du den IDEA-Export (Betriebsprüfung, GoBD) und je Geschäftsjahr die Steuererklärungen (Einkommensteuer- bzw. Körperschaftsteuer- und Gewerbesteuerbescheid, Umsatzsteuer-Jahresbescheid) sowie die übermittelten Voranmeldungen und die Kontoauszüge der Bank als PDF.",
+    save: null,
+    remove: null,
+    cancel: null,
+  },
 } as const;
 
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
-  const [source, setSource] = useState<Source>(
-    (data.sevdeskConnection || data.sevdeskImport) && !(data.connection || data.lastImport) ? "sevdesk" : "lexoffice",
-  );
+  const [source, setSource] = useState<Source>(() => {
+    if (data.connection || data.lastImport) return "lexoffice";
+    if (data.sevdeskConnection || data.sevdeskImport) return "sevdesk";
+    if (data.accountableImport) return "accountable";
+    return "lexoffice";
+  });
   const config = SOURCES[source];
-  const lastImport = source === "sevdesk" ? data.sevdeskImport : data.lastImport;
+  const lastImport = source === "sevdesk" ? data.sevdeskImport : source === "accountable" ? data.accountableImport : data.lastImport;
   return (
     <div className="stack">
       {data.externalImports.length > 0 && (
@@ -94,27 +118,37 @@ export function Migration({ data }: { data: MigrationData }) {
           </button>
         ))}
       </div>
-      {source === "sevdesk" ? (
-        <Connection key="sevdesk" source="sevdesk" connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null} />
+      {source === "accountable" ? (
+        <ImportCard key={`accountable-${lastImport?.id ?? "neu"}`} source="accountable" connected initial={lastImport} />
       ) : (
-        <Connection
-          key="lexoffice"
-          source="lexoffice"
-          connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
-        />
+        <>
+          {source === "sevdesk" ? (
+            <Connection
+              key="sevdesk"
+              source="sevdesk"
+              connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null}
+            />
+          ) : (
+            <Connection
+              key="lexoffice"
+              source="lexoffice"
+              connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
+            />
+          )}
+          {source === "lexoffice" && !data.connection && <WebBackup />}
+          <ImportCard
+            key={`${source}-${lastImport?.id ?? "neu"}`}
+            source={source}
+            connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
+            initial={lastImport}
+          />
+        </>
       )}
-      {source === "lexoffice" && !data.connection && <WebBackup />}
-      <ImportCard
-        key={`${source}-${lastImport?.id ?? "neu"}`}
-        source={source}
-        connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
-        initial={lastImport}
-      />
       <OpenItems
         items={data.openItems}
         cutoff={data.cutoff}
         cutoffError={data.cutoffError}
-        imported={Boolean(data.lastImport || data.sevdeskImport || data.externalImports.length)}
+        imported={Boolean(data.lastImport || data.sevdeskImport || data.accountableImport || data.externalImports.length)}
       />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
@@ -156,7 +190,7 @@ export function Migration({ data }: { data: MigrationData }) {
   );
 }
 
-function Connection({ source, connected }: { source: Source; connected: { name: string; since: Date } | null }) {
+function Connection({ source, connected }: { source: ConnectedSource; connected: { name: string; since: Date } | null }) {
   const router = useRouter();
   const config = SOURCES[source];
   const save = useServerFn(config.save);
@@ -254,19 +288,27 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
   const config = SOURCES[source];
   const startLexoffice = useServerFn(startLexofficeImport);
   const startSevdesk = useServerFn(startSevdeskImport);
-  const cancel = useServerFn(config.cancel);
-  const poll = useServerFn(getImportStatus);
+  const uploadAccountable = useServerFn(uploadAccountableExport);
+  const startAccountable = useServerFn(startAccountableImport);
+  const cancelAccountable = useServerFn(cancelAccountableImport);
+  const pollStatus = useServerFn(getImportStatus);
+  const pollAccountable = useServerFn(getAccountableStatus);
   const [run, setRun] = useState<ImportRow | null>(initial);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const fileId = useId();
   const action = useAction();
   const running = run?.status === "laeuft";
   // Die Frage gehört zu genau diesem Lauf: Endet er, darf sie beim nächsten nicht von selbst wiederkommen
   const [cancellingRun, setCancellingRun] = useState<string | null>(null);
 
+  /** Der laufende Abruf je Quelle; Accountable hat eine eigene Statusabfrage (jeder Upload ist ein eigener Lauf) */
+  const poll = (id = run?.id) => (source === "accountable" ? pollAccountable({ data: id ? { id } : {} }) : pollStatus({ data: { source } }));
+
   useEffect(() => {
     if (!running) return;
     let stopped = false;
     const timer = setInterval(async () => {
-      const next = await poll({ data: { source } }).catch(() => null);
+      const next = await (source === "accountable" ? pollAccountable({ data: { id: run?.id } }) : pollStatus({ data: { source } })).catch(() => null);
       if (stopped || !next) return;
       setRun(next);
       if (next.status !== "laeuft") void router.invalidate();
@@ -275,28 +317,63 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
       stopped = true;
       clearInterval(timer);
     };
-  }, [running, poll, router, source]);
+  }, [running, pollAccountable, pollStatus, router, source, run?.id]);
 
   const onStart = () =>
     action.run(async () => {
-      if (source === "sevdesk") await startSevdesk();
-      else await startLexoffice();
-      setRun(await poll({ data: { source } }));
+      const started = source === "sevdesk" ? await startSevdesk() : source === "accountable" ? await startAccountable() : await startLexoffice();
+      setRun(await poll(started.id));
     });
+
+  /** Accountable hat keine API: Der Export wird hier hochgeladen, danach läuft der Abruf wie bei den anderen */
+  const onUpload = (event: FormEvent) => {
+    event.preventDefault();
+    const chosen = [...(fileInput.current?.files ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    if (chosen.length === 0) return;
+    void action.run(async () => {
+      for (const [index, file] of chosen.entries()) {
+        if (chosen.length > 1) action.setNotice({ tone: "info", text: `Datei ${index + 1} von ${chosen.length}: ${file.name}` });
+        const form = new FormData();
+        form.append("files", file);
+        await uploadAccountable({ data: form });
+        const { id } = await startAccountable();
+        const next = await poll(id);
+        setRun(next);
+        if (next && next.status !== "laeuft") await router.invalidate();
+      }
+      if (fileInput.current) fileInput.current.value = "";
+    });
+  };
 
   const progress = run?.progress;
   const done = run?.status === "fertig" && (progress?.failed.length ?? 0) === 0;
+  const accountable = source === "accountable";
   return (
     <section className={`card stack${done ? " step-done" : ""}`} aria-labelledby="import-heading">
       <div className="step-head">
         <span className="step-num">{done ? <Icon name="check" /> : "2"}</span>
         <h2 id="import-heading" style={{ margin: 0 }}>
-          Kontakte, Rechnungen und Belege abrufen
+          {accountable ? "Accountable-Export übernehmen" : "Kontakte, Rechnungen und Belege abrufen"}
         </h2>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         {config.importHelp}
       </p>
+      {accountable && !running && (
+        <form className="stack" onSubmit={onUpload} style={{ gap: 12 }}>
+          <div className="field">
+            <label className="field-label" htmlFor={`${fileId}-files`}>
+              Exportdatei (ZIP)
+            </label>
+            <FilePicker id={`${fileId}-files`} inputRef={fileInput} multiple accept=".zip,application/zip" ariaLabel="Accountable-Export (ZIP)" />
+          </div>
+          <div className="actions">
+            <button type="submit" className="btn btn-primary" disabled={action.busy}>
+              {action.busy ? "Übernehme …" : "Hochladen und übernehmen"}
+            </button>
+          </div>
+        </form>
+      )}
       {progress && run && (
         <div className="stack" style={{ gap: 12 }} aria-live="polite">
           <div className="small">
@@ -306,14 +383,18 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
             {run.status === "abgebrochen" ? "Abgebrochen" : null}
           </div>
           <div className="progress-facts">
-            <div>
-              <span className="small muted">Kontakte neu</span>
-              <strong>{progress.contacts}</strong>
-            </div>
-            <div>
-              <span className="small muted">verknüpft</span>
-              <strong>{progress.contactsLinked}</strong>
-            </div>
+            {!accountable && (
+              <>
+                <div>
+                  <span className="small muted">Kontakte neu</span>
+                  <strong>{progress.contacts}</strong>
+                </div>
+                <div>
+                  <span className="small muted">verknüpft</span>
+                  <strong>{progress.contactsLinked}</strong>
+                </div>
+              </>
+            )}
             <div>
               <span className="small muted">{source === "sevdesk" ? "Dokumente gefunden" : "Belege gefunden"}</span>
               <strong>{progress.listed}</strong>
@@ -364,24 +445,35 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
         title="Abruf abbrechen?"
         confirmLabel="Abruf abbrechen"
         danger
-        onConfirm={() => run && void action.run(() => cancel({ data: { id: run.id } }))}
+        onConfirm={() =>
+          run &&
+          void action.run(() =>
+            (source === "sevdesk" ? cancelSevdeskImport : source === "accountable" ? cancelAccountable : cancelLexofficeImport)({ data: { id: run.id } }),
+          )
+        }
         onClose={() => setCancellingRun(null)}
       >
         <p>
-          Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal.
+          {accountable
+            ? "Du kannst den Export jederzeit neu hochladen. Schon Übernommenes bleibt und wird übersprungen."
+            : "Du kannst den Abruf jederzeit neu starten. Schon Übernommenes bleibt und wird übersprungen; Kontakte und Belegliste liest Haben dabei noch einmal."}
         </p>
       </ConfirmDialog>
-      <div className="actions">
-        {running ? (
+      {running ? (
+        <div className="actions">
           <button type="button" className="btn" disabled={action.busy} onClick={() => setCancellingRun(run?.id ?? null)}>
             Abbrechen
           </button>
-        ) : (
-          <button type="button" className="btn btn-primary" onClick={onStart} disabled={!connected || action.busy}>
-            {run ? "Erneut abrufen" : "Alles abrufen"}
-          </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        !accountable && (
+          <div className="actions">
+            <button type="button" className="btn btn-primary" onClick={onStart} disabled={!connected || action.busy}>
+              {run ? "Erneut abrufen" : "Alles abrufen"}
+            </button>
+          </div>
+        )
+      )}
     </section>
   );
 }

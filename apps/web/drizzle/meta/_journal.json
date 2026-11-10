@@ -1370,15 +1370,29 @@
     {
       "idx": 195,
       "version": "7",
-      "when": 1794338496440,
-      "tag": "0195_external_import",
+      "when": 1794338142258,
+      "tag": "0195_bank_konto_ausschliessen",
       "breakpoints": true
     },
     {
       "idx": 196,
       "version": "7",
-      "when": 1794338497793,
-      "tag": "0196_external_import_trigger",
+      "when": 1794338143826,
+      "tag": "0196_bank_konto_ausschliessen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 197,
+      "version": "7",
+      "when": 1794339221959,
+      "tag": "0197_external_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 198,
+      "version": "7",
+      "when": 1794339223322,
+      "tag": "0198_external_import_trigger",
       "breakpoints": true
     }
   ]

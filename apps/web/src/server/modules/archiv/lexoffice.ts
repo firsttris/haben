@@ -1,5 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
@@ -33,7 +33,7 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LegacyCategoryRow, LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
+import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sniff } from "../../storage.ts";
 import { storeLegacyVoucher } from "./legacy-store.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
@@ -372,7 +372,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
-    source: "lexoffice" | "sevdesk" | "import";
+    source: LegacySource;
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -461,7 +461,7 @@ export async function legacyVoucherFile(fileId: string) {
 }
 
 /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
-function legacyPayments(v: { source: "lexoffice" | "sevdesk" | "import"; gross: number; status: string; payment: LegacyPayment | null }) {
+function legacyPayments(v: { source: LegacySource; gross: number; status: string; payment: LegacyPayment | null }) {
   if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
     .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
@@ -539,7 +539,10 @@ export async function reconciliation() {
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
-      count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")} and not ${datevVoucherFound("b.voucher_field1")})::int as unmatched,
+      count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")}
+        and not ${datevVoucherFound("b.voucher_field1")}
+        and not ${datevGuidFound("b.document_link")}
+        and not ${datevWithoutReceipt(company.kontenrahmen, "b.contra_account", "b.file_id")})::int as unmatched,
       count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
     from datev_bookings b group by 1`);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
@@ -570,7 +573,10 @@ export async function reconciliation() {
       // Alle Belege des Jahres, auch neutrale: Auch ein Körperschaftsteuerbescheid braucht seine Datei
       const yearRows = classified.filter((v) => v.date.startsWith(`${year}-`));
       const withoutReceipt = voucherRows.filter((v) => v.ohneBeleg && v.date.startsWith(`${year}-`)).length;
-      const yearBookings = vouchers.length === 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
+      // Accountable legt in den Belegen nur Ausgaben ab; die Erlöse stehen ausschließlich im
+      // Buchungsstapel. Ohne diese Ausnahme blieben die Einnahmen bei 0, obwohl die Buchung da ist.
+      const yearEinnahmeBelege = vouchers.some((v) => v.direction === "einnahme" && v.date.startsWith(`${year}-`));
+      const yearBookings = (vouchers.length === 0 || !yearEinnahmeBelege) && datevRows.length > 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
       const fromDatev = yearBookings.length > 0 ? datevYearSums(yearBookings, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
         if (fromDatev) {
@@ -626,6 +632,9 @@ export async function reconciliation() {
         )
         .sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number, "de", { numeric: true }));
 
+      // Accountable exportiert keinen IDEA-Export. Den trotzdem zu verlangen, macht "vollständig"
+      // strukturell unerreichbar — der Punkt entfällt bei dieser Herkunft.
+      const nurAccountable = voucherRows.length > 0 && voucherRows.every((v) => v.source === "accountable");
       const checks: ReconciliationCheck[] = [
         ...(vatIssue ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: vatIssue }] : []),
         {
@@ -661,7 +670,7 @@ export async function reconciliation() {
                 .join(", ")
             : "–",
         },
-        { ok: kinds("idea") > 0, label: "IDEA-Export archiviert", detail: kinds("idea") > 0 ? "liegt vor" : "fehlt" },
+        ...(nurAccountable ? [] : [{ ok: kinds("idea") > 0, label: "IDEA-Export archiviert", detail: kinds("idea") > 0 ? "liegt vor" : "fehlt" }]),
         {
           ok: kinds("elster") > 0,
           label: "ELSTER-Protokolle archiviert",
@@ -753,7 +762,7 @@ export async function legacyVouchersForPeriod(filter: {
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
-    source: "lexoffice" | "sevdesk" | "import";
+    source: LegacySource;
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;

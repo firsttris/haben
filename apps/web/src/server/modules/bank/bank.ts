@@ -85,7 +85,7 @@ export const accountSchema = z.object({
 });
 
 export async function listAccounts() {
-  const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.name));
+  const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
   return Promise.all(
     accounts.map(async (account) => {
       const [last] = await db
@@ -134,6 +134,8 @@ export async function createAccount(actor: string, input: z.input<typeof account
   const data = accountSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, data.iban));
+    if (existing?.excludedAt)
+      throw new BankError(`Das Konto ${existing.name} mit dieser IBAN ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
     if (existing) throw new BankError("Ein Konto mit dieser IBAN gibt es schon.");
     const [created] = await tx.insert(schema.bankAccounts).values(data).returning();
     return created!;
@@ -239,6 +241,10 @@ export async function storeStatement(
     throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
   } else {
     throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+  }
+  // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
+  if (account.excludedAt) {
+    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
   }
 
   const [previous] = await tx
@@ -777,7 +783,8 @@ export async function ownAccounts(): Promise<OwnAccount[]> {
       purpose: schema.bankAccounts.purpose,
       provider: schema.bankAccounts.provider,
     })
-    .from(schema.bankAccounts);
+    .from(schema.bankAccounts)
+    .where(isNull(schema.bankAccounts.excludedAt));
 }
 
 /**

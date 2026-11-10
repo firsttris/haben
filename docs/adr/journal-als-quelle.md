@@ -168,6 +168,9 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Schritt 2: EÜR aus dem Journal (`euer-quelle.ts`). Abweichend vom Entwurf rechnet sie Zahlungen auf übernommene
   Lexoffice-Posten nicht aus dem Nebenbuch, sondern verteilt sie auf die Zeilen, die Haben für Rechnung bzw. Beleg gebucht
   hätte (`uebernommeneZeilen`); so gilt für sie dieselbe Rundung, und der Abgleich vergleicht sie ohne Ausnahme.
+  Was sie je Rechnung bzw. Beleg braucht (Buchungen, Ausgleiche in der Reihenfolge des Audit-Logs, Aufteilung aus dem
+  Nebenbuch), lädt sie vor der Schleife für alle Posten des Jahres in Blöcken (`euer-journal-buchungen.ts`); mit 300
+  bezahlten Rechnungen braucht sie so rund 50 statt 550 ms.
   Schritt 3: freie Buchungen (`freie-buchung.ts` in core, `manual.ts`): Steuerschlüssel `USt19`, `USt7`, `frei` auf den
   Erlöskonten 19 %, 7 % und 0 %, im Einzelunternehmen auch ohne Schlüssel erst ab dem Stichjahr. Die Gegenprobe im
   Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Abweichend vom Entwurf noch ohne
