@@ -1,8 +1,9 @@
 import type { AccountableExport, AccountableReceipt, AccountableVoucher } from "@haben/import";
-import { count, eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { db, schema, type Tx } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
+import { assertNoDatevOverlap } from "./archive.ts";
 import { progressMessage } from "./lexoffice.ts";
 import { categoryRow, documentBlocker, externalId, mimeTypeOf, paymentOf, receiptFilename } from "./accountable-mapping.ts";
 import { type AccountableAnalysis, AccountableError, cancelled, OPEN_ITEM_LIMIT, type StagedExport } from "./accountable-state.ts";
@@ -167,8 +168,17 @@ async function storeExportArchive(tx: Tx, importId: string, upload: StagedExport
     if (n === 0) await storeDatevBookings(tx, existing.id, upload.export.stack.bookings);
     return { id: existing.id, existing: true };
   }
-  await storeFile(upload.bytes);
   const header = upload.export.stack.header;
+  // Wie beim Ablegen eines Stapels im Archiv: jeder Zeitraum nur einmal. Ein zweiter Export desselben Jahres (andere
+  // Bytes, dieselben Buchungen) legte sonst alle Buchungen doppelt ab, und der Abgleich zählte Einnahmen und Ausgaben doppelt.
+  const dates = upload.export.stack.bookings.map((b) => b.date).sort();
+  const from = header.dateFrom || dates[0];
+  const to = header.dateTo || dates.at(-1);
+  if (from && to) {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('haben.archive.datev'))`);
+    await assertNoDatevOverlap(tx, upload.filename, from, to);
+  }
+  await storeFile(upload.bytes);
   const warnings = [...upload.export.stack.warnings, ...upload.export.warnings];
   const [row] = await tx
     .insert(schema.archiveFiles)

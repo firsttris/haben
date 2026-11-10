@@ -257,7 +257,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
 }
 
 /** Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage */
-async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
+export async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
   const [overlap] = await q
     .select({
       filename: schema.archiveFiles.filename,
