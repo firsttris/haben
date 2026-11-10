@@ -366,6 +366,33 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     }
   }
 
+  return euerErgebnis(
+    year,
+    sums,
+    { einnahmen: monthlyIn, ausgaben: monthlyOut },
+    bewirtungNichtAbziehbar,
+    gewerbesteuerNichtAbziehbar,
+    depreciation,
+    withdrawals,
+  );
+}
+
+/**
+ * Die EÜR aus den Summen je Zeile: Zeilen mit Bezeichnung in der Reihenfolge der Anlage EÜR, Summen und Gewinn. Gemeinsam
+ * für computeEuer (Nebenbücher) und die EÜR aus dem Journal ab dem Stichjahr (#542). AfA und Privatnutzung kommen dazu, wenn
+ * sie übergeben sind (aus dem Anlagenverzeichnis).
+ */
+export function euerErgebnis(
+  year: number,
+  summen: ReadonlyMap<EuerLineKey, Cents>,
+  monthly: { einnahmen: Cents[]; ausgaben: Cents[] },
+  bewirtungNichtAbziehbar: Cents,
+  gewerbesteuerNichtAbziehbar: Cents,
+  depreciation?: EuerDepreciation,
+  withdrawals?: EuerWithdrawals,
+): EuerResult {
+  const sums = new Map(summen);
+  const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const line = (key: EuerLineKey, label: string, note?: string): EuerLine => ({
     key,
     label,
@@ -428,7 +455,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     gewinn: totalEinnahmen - totalAusgaben,
     bewirtungNichtAbziehbar,
     gewerbesteuerNichtAbziehbar,
-    monthly: { einnahmen: monthlyIn, ausgaben: monthlyOut },
+    monthly,
   };
 }
 

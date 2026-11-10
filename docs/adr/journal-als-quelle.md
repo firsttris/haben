@@ -162,3 +162,6 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Haben sie heute aus dem Nebenbuch bucht, wenn sie auf jedem Konto denselben Saldo ergeben (`zeilenWieHeute`); sonst die
   gebuchten. Die Zuordnung im Bankabgleich und Ausbuchungen mit einer Zahlung heben am Tag der Zahlung auf, also im alten
   Jahr.
+  Schritt 2: EÜR aus dem Journal (`euer-quelle.ts`). Abweichend vom Entwurf rechnet sie Zahlungen auf übernommene
+  Lexoffice-Posten nicht aus dem Nebenbuch, sondern verteilt sie auf die Zeilen, die Haben für Rechnung bzw. Beleg gebucht
+  hätte (`uebernommeneZeilen`); so gilt für sie dieselbe Rundung, und der Abgleich vergleicht sie ohne Ausnahme.
