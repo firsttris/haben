@@ -315,26 +315,34 @@ async function journalYears(q: Db | Tx): Promise<number[]> {
 }
 
 /**
- * Alle Jahre mit Buchungen: Umsatzsteuer je Monat (bis zum laufenden) und EÜR je Jahr. Für die Integritätsprüfung.
+ * Ein Jahr: Umsatzsteuer je Monat (bis zum laufenden) und EÜR. Auch Monate ohne Journal: die Nebenbücher dürfen dann
+ * keine Steuer haben.
+ */
+export async function abgleichJahr(year: number, today: string, q: Db | Tx = db): Promise<Abgleich> {
+  const { from, to } = yearRange(year);
+  const sums = await journalSums(from, to, q);
+  const buchungen = await journalBuchungen(from, to, q);
+  const zeilen: AbgleichZeile[] = [];
+  const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
+  for (let month = 1; month <= lastMonth; month++) {
+    zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
+  }
+  const euer = await euerAbgleich(year, q);
+  return { zeilen: [...zeilen, ...euer.zeilen], hinweise: euer.hinweise };
+}
+
+/**
+ * Alle Jahre mit Buchungen (abgleichJahr). Für die Integritätsprüfung.
  * Liest in vielen Abfragen nacheinander; damit eine Buchung nebenher nicht nur auf einer Seite erscheint, läuft das
  * in einer Transaktion mit festem Stand (REPEATABLE READ, siehe checkIntegrity).
  */
 export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgleich> {
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-  const years = await journalYears(q);
-  for (const year of years) {
-    const { from, to } = yearRange(year);
-    const sums = await journalSums(from, to, q);
-    const buchungen = await journalBuchungen(from, to, q);
-    const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
-    for (let month = 1; month <= lastMonth; month++) {
-      // Auch Monate ohne Journal: die Nebenbücher dürfen dann keine Steuer haben
-      zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
-    }
-    const euer = await euerAbgleich(year, q);
-    zeilen.push(...euer.zeilen);
-    hinweise.push(...euer.hinweise);
+  for (const year of await journalYears(q)) {
+    const jahr = await abgleichJahr(year, today, q);
+    zeilen.push(...jahr.zeilen);
+    hinweise.push(...jahr.hinweise);
   }
   return { zeilen, hinweise };
 }
