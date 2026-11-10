@@ -2,10 +2,11 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildEInvoice, startvorlage } from "@haben/einvoice";
+import { dunningAmounts } from "@haben/core";
+import { buildDeliveryNotePdf, buildDunningPdf, buildEInvoice, startvorlage } from "@haben/einvoice";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { sampleDocument } from "../../../../../../packages/einvoice/src/samples.ts";
+import { gmbhSeller, sampleBuyer, sampleDocument, sampleSeller } from "../../../../../../packages/einvoice/src/samples.ts";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { fakeUniverse, paketArchiv, tarEintrag } from "./test-paket.ts";
 
@@ -237,5 +238,52 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const [row] = await sql`select name, source from beleg_layouts where id = ${id}`;
     expect(row!.name).toBe("Neu");
     expect(row!.source).toContain("ZWEITE FASSUNG");
+  }, 60_000);
+  it("zwei gleichzeitige Ersetzungen hinterlassen ein Layout, dessen Pakete zum Quelltext passen", async () => {
+    const fetch = universum();
+    const { id } = await anlegen({ name: "Zweimal", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch });
+    await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
+    const a = mitPaket.replaceAll("demo:0.1.0", "demo:0.2.0").replace("EIGENES LAYOUT", "FASSUNG A");
+    const b = mitPaket.replaceAll("demo:0.1.0", "demo:0.3.0").replace("EIGENES LAYOUT", "FASSUNG B");
+    const ergebnisse = await Promise.allSettled([
+      layouts.replaceLayoutSource(actor, id, a, ["@preview/demo:0.2.0"], { fetch }),
+      layouts.replaceLayoutSource(actor, id, b, ["@preview/demo:0.3.0", "@preview/hilfe:1.0.0"], { fetch }),
+    ]);
+    expect(ergebnisse.map((e) => (e.status === "fulfilled" ? "ok" : String(e.reason).slice(0, 200)))).toContain("ok");
+    expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
+    const { pdf } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
+    expect(pdfText(pdf)).toMatch(/FASSUNG [AB]/);
+  }, 60_000);
+
+  it("setzt Lieferschein und Mahnung mit dem eigenen Layout", async () => {
+    const beleg = await anlegen({ name: "Für Lieferscheine", art: "beleg", source: eigene("beleg", "EIGENER LIEFERSCHEIN") });
+    const mahnung = await anlegen({ name: "Für Mahnungen", art: "mahnung", source: eigene("mahnung", "EIGENE MAHNUNG") });
+    await layouts.assignLayout(actor, "lieferschein", { kind: "eigen", id: beleg.id });
+    await layouts.assignLayout(actor, "mahnung", { kind: "eigen", id: mahnung.id });
+    const lieferschein = await layouts.withCustomLayout("lieferschein", {}, (lh) =>
+      buildDeliveryNotePdf({
+        reference: { kind: "rechnung", number: "2026-034", issueDate: "2026-10-02" },
+        deliveryDate: "2026-10-01",
+        date: "2026-10-01",
+        seller: sampleSeller,
+        buyer: sampleBuyer,
+        lines: [{ position: 1, description: "Gerät", quantity: 2000, unit: "Stk." }],
+        ...lh,
+      }),
+    );
+    expect(pdfText(lieferschein)).toContain("EIGENER LIEFERSCHEIN");
+    const doc = {
+      level: 1 as const,
+      date: "2026-10-16",
+      dueDate: "2026-10-26",
+      seller: gmbhSeller,
+      buyer: sampleBuyer,
+      invoice: { number: "2026-034", issueDate: "2026-09-02", dueDate: "2026-09-16" },
+      intro: "leider ist die Rechnung offen.",
+      closing: "Danke.",
+      amounts: dunningAmounts({ open: 100_000, dueDate: "2026-09-16", date: "2026-10-16", fee: 0, flatFee: false, interestRate: 0 }),
+    };
+    const pdf = await layouts.withCustomLayout("mahnung", {}, (lh) => buildDunningPdf({ ...doc, ...lh } as Parameters<typeof buildDunningPdf>[0]));
+    expect(pdfText(pdf)).toContain("EIGENE MAHNUNG");
   }, 60_000);
 });
