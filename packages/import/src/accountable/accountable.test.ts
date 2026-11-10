@@ -2,7 +2,8 @@ import { EXPENSE_CATEGORIES } from "@haben/core";
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { categoryForCode, mapAccountableExport, taxFromGross } from "./map.ts";
-import { readAccountableExport } from "./source.ts";
+import { readAccountableExport, type AccountableExport } from "./source.ts";
+import { accountableStatement } from "./statement.ts";
 import { readXlsxSheet } from "./xlsx.ts";
 
 /**
@@ -245,9 +246,50 @@ describe("Accountable-Export lesen", () => {
       paid: true,
       paidDate: "2025-01-06",
       documentPresent: true,
+      bankMovement: null,
       row: 2,
     });
     expect(exp.warnings).toEqual([]);
+  });
+});
+
+describe("Kontobewegungen als Kontoauszug", () => {
+  const bewegung = (date: string, amount: number, matched: boolean, row: number) => ({
+    date,
+    account: "DE42100140009610447304",
+    purpose: "Zweck",
+    amount,
+    counterparty: "Vodafone",
+    counterpartyAccount: "DE13380700590045335700",
+    matched,
+    row,
+  });
+
+  it("macht aus den Kontobewegungen einen Auszug, Ausgaben negativ", () => {
+    const stmt = accountableStatement({
+      bankMovements: [bewegung("2026-10-29", -4499, true, 2), bewegung("2026-07-06", 14875, true, 3)],
+    } as unknown as AccountableExport);
+    expect(stmt?.format).toBe("accountable-xlsx");
+    expect(stmt?.accountIban).toBe("DE42100140009610447304");
+    expect(stmt?.transactions.map((t) => [t.bookingDate, t.amount])).toEqual([
+      ["2026-10-29", -4499],
+      ["2026-07-06", 14875],
+    ]);
+    expect(stmt?.periodFrom).toBe("2026-07-06");
+    expect(stmt?.periodTo).toBe("2026-10-29");
+    expect(stmt?.warnings).toEqual([]);
+  });
+
+  it("meldet Bewegungen ohne Beleg und lässt Bewegungen ohne Datum weg", () => {
+    const stmt = accountableStatement({
+      bankMovements: [bewegung("2026-08-28", -4499, false, 2), { ...bewegung("2026-08-29", -100, true, 3), date: null }],
+    } as unknown as AccountableExport);
+    expect(stmt?.transactions).toHaveLength(1);
+    expect(stmt?.warnings).toEqual(["1 Kontobewegungen hat Accountable keinem Beleg zugeordnet."]);
+  });
+
+  it("gibt null zurück, wenn der Export keine Bewegungen mitbringt", () => {
+    expect(accountableStatement({ bankMovements: [] } as unknown as AccountableExport)).toBeNull();
   });
 });
 
