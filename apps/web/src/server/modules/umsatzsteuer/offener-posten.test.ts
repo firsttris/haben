@@ -240,6 +240,32 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als offener Posten (Postgres)", 
     60_000,
   );
 
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("%s, %s: Schonfrist endet am Feiertag im Bundesland des Finanzamts erst am nächsten Werktag", async (kontenrahmen, versteuerung) => {
+    // Firma in Bayern; April 2026 verspätet am Montag, 01.06., abgegeben: fällig mit dem Eingang (AEAO zu § 240 Nr. 1).
+    // Der dritte Tag danach ist Fronleichnam (Donnerstag, 04.06.), in Bayern ein Feiertag: Die Schonfrist endet erst am
+    // Freitag, 05.06. (§ 240 Abs. 3 AO mit § 108 Abs. 3 AO)
+    await firma(kontenrahmen, versteuerung);
+    const april = await vat.saveDraft(actor, { year: 2026, month: 4 }, { mode: "manuell", kz81: 650_000, kz86: 0, kz66: 45, reason: "Werte des Steuerbüros" });
+    await vermerk.vermerkeAbgabe(actor, april.id, abgabe(123_455, { filedOn: "2026-06-01" }), "2026-06-01");
+    expect(await zahlung.ustvaOpenItems()).toEqual([expect.objectContaining({ dueDate: "2026-06-01", schonfristEnde: "2026-06-05" })]);
+
+    // 1.234,55 € rückständig, abgerundet 1.200 €: 12 € je angefangenem Monat
+    await umsatz(
+      [row("05.06.26", "Finanzamt Regensburg", "Finanzkasse Freitag", "-1.246,55"), row("08.06.26", "Finanzamt Regensburg", "Finanzkasse Montag", "-1.246,55")],
+      "schonfrist",
+    );
+    const freitag = (await bank.transactionDetail(await txId("Finanzkasse Freitag")))!.suggestions;
+    expect(freitag.flatMap((v) => v.reasons).filter((r) => r.includes("Säumniszuschlag"))).toEqual([]);
+    const [montag] = (await bank.transactionDetail(await txId("Finanzkasse Montag")))!.suggestions;
+    expect(montag).toMatchObject({
+      amount: -123_455,
+      reasons: expect.arrayContaining([expect.stringMatching(/^Zahllast und 12,00\s€ Säumniszuschlag \(§ 240 AO, 1 Monat\)$/)]),
+    });
+  });
+
   it("Teilzahlung, Überzahlung abgelehnt, Lastschrift mit Säumniszuschlag, offene Posten, Aufheben", async () => {
     await firma("SKR03", "soll");
     const draft = await vat.saveDraft(actor, oktober, {
