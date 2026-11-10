@@ -20,7 +20,8 @@ const AUSGABEN_IM_MONAT = (key: EuerLineKey) =>
 
 export async function euerAusDemJournal(year: number, q: Db | Tx): Promise<EuerResult> {
   const { summe, monate } = await euerAusJournal(year, q);
-  const summen = new Map(Object.entries(summe.zeilen) as [EuerLineKey, Cents][]);
+  // Ohne Zeilen, die sich aufheben (Zahlung und Aufhebung): computeEuer verrechnet sie vorher, die Zeile entsteht dort nicht
+  const summen = new Map((Object.entries(summe.zeilen) as [EuerLineKey, Cents][]).filter(([, betrag]) => betrag !== 0));
   // Noch nicht gebucht: AfA und Privatnutzung aus dem Anlagenverzeichnis, die schon gebuchten Anlagen nicht doppelt
   const offen = (await listAssets(year, q)).some((a) => a.pending);
   if (offen) for (const key of ANLAGE) summen.delete(key);
