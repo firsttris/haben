@@ -119,6 +119,11 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
   // Unterordnern, AKTUELL zeigt auf die aktive; umgeschaltet wird erst nach vollständigem Entpacken.
   const root = normalize(options.dir).replace(/\/+$/, "");
   await mkdir(root, { recursive: true });
+  // Reste einer hart abgebrochenen Installation (Neustart während des Downloads) liegen sonst für immer im Volume.
+  // Gleichzeitig läuft keine zweite: startEricInstall sperrt, install-cli.ts läuft vor dem Server.
+  for (const entry of await readdir(root)) {
+    if (entry.startsWith(".download-")) await rm(join(root, entry), { recursive: true, force: true });
+  }
   // Das Paket (rund 520 MB) kommt ins Ziel, nicht nach /tmp: Das ist im gehärteten Container ein tmpfs im Arbeitsspeicher
   const work = await mkdtemp(join(root, ".download-"));
   try {
