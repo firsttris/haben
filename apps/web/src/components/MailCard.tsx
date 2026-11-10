@@ -10,9 +10,11 @@ import {
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import { Field } from "./Field.tsx";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
 import { errorKind } from "./ErrorBanner.tsx";
+import { MAX_PEM_SIZE, MailGraphFields } from "./MailGraphFields.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeMail, saveMail, sendMailTest, type getMailSettings } from "../server/functions/mail.ts";
 
@@ -20,13 +22,15 @@ type Data = Awaited<ReturnType<typeof getMailSettings>>;
 
 const STUFEN = [14, 7, 3, 1, 0];
 
-/** SMTP-Zugang und Erinnerungen an Fristen per E-Mail */
+/** Zugang für den E-Mail-Versand (SMTP oder Microsoft 365) und Erinnerungen an Fristen per E-Mail */
 export function MailCard({ data }: { data: Data }) {
   const router = useRouter();
   const save = useServerFn(saveMail);
   const test = useServerFn(sendMailTest);
   const remove = useServerFn(removeMail);
   const s = data.settings;
+  const [transport, setTransport] = useState<"smtp" | "graph">(s?.transport ?? "smtp");
+  const [graphAuth, setGraphAuth] = useState<"secret" | "certificate">(s?.graphAuth ?? "certificate");
   const [host, setHost] = useState(s?.host ?? "");
   const [port, setPort] = useState(String(s?.port ?? 465));
   const [secure, setSecure] = useState(s?.secure ?? true);
@@ -53,24 +57,43 @@ export function MailCard({ data }: { data: Data }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "").trim();
+    const common = {
+      fromAddress: text("fromAddress"),
+      fromName: text("fromName"),
+      reminderTo: text("reminderTo"),
+      remindersEnabled: form.get("remindersEnabled") === "on",
+      reminderDays: days,
+      templates,
+      pruefwertMail: form.get("pruefwertMail") === "on",
+    };
     void run(async () => {
-      await save({
-        data: {
-          host,
-          port: Number(port),
-          secure,
-          username: text("username"),
-          password: text("password") || undefined,
-          fromAddress: text("fromAddress"),
-          fromName: text("fromName"),
-          reminderTo: text("reminderTo"),
-          remindersEnabled: form.get("remindersEnabled") === "on",
-          reminderDays: days,
-          templates,
-          pruefwertMail: form.get("pruefwertMail") === "on",
-        },
-      });
-      (event.target as HTMLFormElement).querySelector<HTMLInputElement>("input[name=password]")!.value = "";
+      if (transport === "smtp") {
+        await save({ data: { transport, host, port: Number(port), secure, username: text("username"), password: text("password") || undefined, ...common } });
+        (event.target as HTMLFormElement).querySelector<HTMLInputElement>("input[name=password]")!.value = "";
+      } else {
+        const pem = async (name: string) => {
+          const file = form.get(name);
+          if (!(file instanceof File) || file.size === 0) return undefined;
+          if (file.size > MAX_PEM_SIZE) throw new Error("Die Datei ist zu groß für ein Zertifikat oder einen Schlüssel.");
+          return file.text();
+        };
+        await save({
+          data: {
+            transport,
+            graphTenantId: text("graphTenantId"),
+            graphClientId: text("graphClientId"),
+            graphAuth,
+            graphMailbox: text("graphMailbox"),
+            clientSecret: graphAuth === "secret" ? text("clientSecret") || undefined : undefined,
+            certificatePem: graphAuth === "certificate" ? await pem("certificate") : undefined,
+            privateKeyPem: graphAuth === "certificate" ? await pem("privateKey") : undefined,
+            ...common,
+          },
+        });
+        (event.target as HTMLFormElement)
+          .querySelectorAll<HTMLInputElement>("input[name=clientSecret], input[name=certificate], input[name=privateKey]")
+          .forEach((input) => (input.value = ""));
+      }
       return { tone: "ok", text: "E-Mail-Zugang gespeichert." };
     });
   }
@@ -79,47 +102,60 @@ export function MailCard({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-labelledby="mail-heading">
       <h2 id="mail-heading">E-Mail-Versand</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Haben schickt Rechnungen, Mahnungen und Erinnerungen an Fristen über deinen eigenen E-Mail-Zugang (SMTP). Bei Gmail, GMX und web.de brauchst du dafür
-        ein App-Passwort bzw. musst SMTP im Postfach freischalten. Das Passwort liegt verschlüsselt in der Datenbank.
+        Haben schickt Rechnungen, Mahnungen und Erinnerungen an Fristen über deinen eigenen E-Mail-Zugang: über SMTP oder über Microsoft 365. Bei Gmail, GMX und
+        web.de brauchst du für SMTP ein App-Passwort bzw. musst SMTP im Postfach freischalten. Das Passwort liegt verschlüsselt in der Datenbank.
       </p>
-      <label className="field">
-        Anbieter
-        <select defaultValue="" onChange={(e) => preset(e.target.value)}>
-          <option value="">Eigener Server</option>
-          {Object.entries(data.presets).map(([key, p]) => (
-            <option key={key} value={key}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="form-row cols-server">
-        <label className="field">
-          SMTP-Server
-          <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" required />
-        </label>
-        <label className="field">
-          Port
-          <input name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
-        </label>
-        <label className="field">
-          Verschlüsselung
-          <select value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
-            <option value="tls">TLS (meist Port 465)</option>
-            <option value="starttls">STARTTLS (meist Port 587)</option>
+      <Field label="Versandweg">
+        {(control) => (
+          <select {...control} value={transport} onChange={(e) => setTransport(e.target.value as "smtp" | "graph")}>
+            <option value="smtp">SMTP</option>
+            <option value="graph">Microsoft 365 (Graph)</option>
           </select>
-        </label>
-      </div>
-      <div className="form-row cols-2">
-        <label className="field">
-          Benutzername
-          <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />
-        </label>
-        <label className="field">
-          Passwort
-          <input name="password" type="password" autoComplete="new-password" placeholder={s ? "unverändert lassen" : undefined} />
-        </label>
-      </div>
+        )}
+      </Field>
+      {transport === "graph" && <MailGraphFields stored={s} auth={graphAuth} onAuthChange={setGraphAuth} />}
+      {transport === "smtp" && (
+        <>
+          <label className="field">
+            Anbieter
+            <select defaultValue="" onChange={(e) => preset(e.target.value)}>
+              <option value="">Eigener Server</option>
+              {Object.entries(data.presets).map(([key, p]) => (
+                <option key={key} value={key}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-row cols-server">
+            <label className="field">
+              SMTP-Server
+              <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" required />
+            </label>
+            <label className="field">
+              Port
+              <input name="port" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
+            </label>
+            <label className="field">
+              Verschlüsselung
+              <select value={secure ? "tls" : "starttls"} onChange={(e) => setSecure(e.target.value === "tls")}>
+                <option value="tls">TLS (meist Port 465)</option>
+                <option value="starttls">STARTTLS (meist Port 587)</option>
+              </select>
+            </label>
+          </div>
+          <div className="form-row cols-2">
+            <label className="field">
+              Benutzername
+              <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />
+            </label>
+            <label className="field">
+              Passwort
+              <input name="password" type="password" autoComplete="new-password" placeholder={s?.transport === "smtp" ? "unverändert lassen" : undefined} />
+            </label>
+          </div>
+        </>
+      )}
       <div className="form-row cols-2">
         <label className="field">
           Absender
