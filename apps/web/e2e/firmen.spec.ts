@@ -73,3 +73,21 @@ test("Steuerberatung sieht den Namen der Firma, aber keine anderen Firmen", asyn
   await expect(stb.getByText("Werkstatt Süd")).toHaveCount(0);
   await context.close();
 });
+
+// Review: HABEN_FIRMEN erlaubt Namen bis 60 Zeichen; ein langes zusammengesetztes Wort darf die Navigation nicht sprengen
+test("ein langer Firmenname passt in die Navigation", async () => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gehe(page, "/");
+  await nav()
+    .getByRole("group", { name: "Firma wechseln" })
+    .getByRole("link", { name: "Werkstatt Süd" })
+    .evaluate((a) => {
+      a.lastChild!.textContent = "Gebäudereinigungsgesellschaft Nord";
+    });
+  const ueberlauf = await page.evaluate(() => {
+    const navigation = document.querySelector<HTMLElement>("nav.nav")!;
+    const link = [...navigation.querySelectorAll<HTMLElement>("a.nav-link")].find((a) => a.textContent?.includes("Gebäude"))!;
+    return { nav: navigation.scrollWidth - navigation.clientWidth, link: link.scrollWidth - link.clientWidth };
+  });
+  expect(ueberlauf).toEqual({ nav: 0, link: 0 });
+});

@@ -7,6 +7,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parseFirmen } from "../../apps/web/src/lib/firmen.ts";
 
 const SKRIPT = resolve(import.meta.dirname, "../../deploy/instanzen/haben-instanzen.sh");
 
@@ -298,6 +299,35 @@ describe("Firmen wechseln", () => {
     expect(aufrufe().filter((a) => a.endsWith("compose up -d app"))).toEqual(["firma1 compose up -d app", "firma2 compose up -d app"]);
     expect(lauf("firmen").status).toBe(0);
     expect(aufrufe().filter((a) => a.endsWith("compose up -d app"))).toHaveLength(2);
+  });
+
+  // Review: Eine Liste, die die App ablehnt, ließe nach dem Neustart keine der Instanzen mehr starten (env.ts)
+  const listeGueltig = (name: string) => {
+    const wert = env(name).HABEN_FIRMEN ?? "";
+    return !("fehler" in parseFirmen(wert.replace(/^'(.*)'$/, "$1")));
+  };
+
+  it("schreibt bei einem doppelten Firmennamen keine Liste, die die App ablehnt", () => {
+    lauf("neu", "firma1", "firma1.example.de", "--firmenname", "Studio Nord");
+    lauf("neu", "firma2", "firma2.example.de", "--firmenname", "Studio Nord");
+    expect([listeGueltig("firma1"), existsSync(join(basis, "firma2")) ? listeGueltig("firma2") : true]).toEqual([true, true]);
+  });
+
+  it("schreibt mit firmen nach einem langen Firmennamen von Hand keine Liste, die die App ablehnt", () => {
+    lauf("neu", "firma1", "firma1.example.de");
+    lauf("neu", "firma2", "firma2.example.de");
+    const datei = join(basis, "firma2", ".env");
+    writeFileSync(datei, `${readFileSync(datei, "utf8")}HABEN_FIRMENNAME='Garten- und Landschaftsbau Müller und Söhne GmbH & Co. KG Süd'\n`);
+    lauf("firmen");
+    expect([listeGueltig("firma1"), listeGueltig("firma2")]).toEqual([true, true]);
+  });
+
+  it("startet mit firmen eine laufende Instanz neu, deren .env nach neu --nicht-starten eine neue Liste hat", () => {
+    lauf("neu", "firma1", "firma1.example.de");
+    lauf("neu", "firma2", "firma2.example.de", "--nicht-starten");
+    // firma1 läuft noch mit der alten Liste; firmen soll sie mit der aus ihrer .env neu starten
+    expect(lauf("firmen").status).toBe(0);
+    expect(aufrufe()).toContain("firma1 compose up -d app");
   });
 });
 
