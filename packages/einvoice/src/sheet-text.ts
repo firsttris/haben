@@ -31,6 +31,7 @@ export interface SheetData {
   meta: Row[];
   introFormatted?: FormattedTextRun[] | null;
   lines: SheetLine[];
+  itemNumbers?: boolean;
   /** Die Spalte USt entfällt, wenn nur ein Satz vorkommt und sie abgewählt ist */
   hideVatColumn?: boolean;
   totals?: { rows: Row[]; gross: Row; included?: { label: string; rows: Row[] } | null } | null;
@@ -52,7 +53,7 @@ export function sheetText(data: SheetData): SheetTextPart[] {
     {
       part: "positionen",
       lines: data.lines.flatMap((line) => [
-        filled([line.pos, line.itemNumber, line.description, line.quantity, line.unitPrice, data.hideVatColumn ? null : line.rate, line.net]).join(" "),
+        filled([line.pos, data.itemNumbers ? line.itemNumber : null, line.description, line.quantity, line.unitPrice, data.hideVatColumn ? null : line.rate, line.net]).join(" "),
         ...filled([plain(line.detailFormatted), line.discount]),
       ]),
     },

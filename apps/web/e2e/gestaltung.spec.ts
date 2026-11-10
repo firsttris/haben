@@ -129,6 +129,20 @@ test("Schalter wirken auf das Blatt", async ({ browser }) => {
   await page.context().close();
 });
 
+test("Der Schalter Artikelnummer nimmt die Spalte vom Blatt", async ({ browser }) => {
+  const page = await editor(browser, BREIT);
+  await page.getByLabel("Beschreibung Position 1").fill("Dichtungssatz");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("12,50");
+  await page.getByLabel("Artikelnummer Position 1").fill("ET-1042");
+  await gestaltungOeffnen(page);
+  const positionen = blatt(page).locator('[data-teil="positionen"]');
+  await expect(positionen).toContainText("ET-1042");
+  await panel(page).getByLabel("Artikelnummer").uncheck();
+  await expect(positionen).not.toContainText("ET-1042");
+  await page.context().close();
+});
+
 test("Die Spalte USt entfällt nur bei einem einzigen Steuersatz, sonst sagt das Panel warum", async ({ browser }) => {
   const page = await editor(browser, BREIT);
   await page.getByLabel("Beschreibung Position 1").fill("Beratung");

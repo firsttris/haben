@@ -82,8 +82,8 @@ function documentDiscountRows(doc: Pick<InvoiceDocument, "lines" | "totals" | "d
 }
 
 /** Spalte „Art.-Nr.“ (BT-155) nur, wenn mindestens eine Position eine Artikelnummer hat; sonst bleibt die Tabelle wie bisher */
-export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[]): { itemNumbers: boolean } {
-  return { itemNumbers: lines.some((line) => Boolean(line.itemNumber?.trim())) };
+export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[], options: Letterhead["options"]): { itemNumbers: boolean } {
+  return { itemNumbers: options?.itemNumber !== false && lines.some((line) => Boolean(line.itemNumber?.trim())) };
 }
 
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
@@ -114,7 +114,7 @@ export function documentPdfData(
     labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
     recipient: [buyer.name, ...addressLines(buyer, t)],
-    ...itemNumberColumn(doc.lines),
+    ...itemNumberColumn(doc.lines, doc.options),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
       itemNumber: line.itemNumber?.trim() ?? "",

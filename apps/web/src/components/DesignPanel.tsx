@@ -57,6 +57,7 @@ const SWITCHES = [
   { key: "foldMarks", label: "Falz- und Lochmarken" },
   { key: "giroCode", label: "GiroCode" },
   { key: "customerNumber", label: "Kundennummer" },
+  { key: "itemNumber", label: "Artikelnummer" },
   { key: "vatColumn", label: "Spalte USt je Position" },
 ] as const;
 
