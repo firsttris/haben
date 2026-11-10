@@ -7,7 +7,7 @@ description: >-
 
 # Entwurf: Voranmeldung und EÜR aus dem Journal
 
-**Status:** Entwurf, Umsetzung in Schritten (siehe unten). **Stand:** `main` nach den Pull Requests #543 bis #573.
+**Status:** Entwurf, Umsetzung in Schritten (siehe unten). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
 **Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
 [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),
@@ -67,11 +67,18 @@ Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt 
 - Die **Kennzahlen** (Bemessungsgrundlagen und Steuer, Kz 21 bis 93) kommen aus `kennzahlenAusJournal` über die
   Buchungen des Zeitraums, wie bei DATEV aus Konto und Steuerschlüssel. Bei Ist zählt ein Verkauf auf Ziel mit der
   Zahlung, die die Bemessungsgrundlage trägt (DATEV 1080673).
-- **Privatnutzung von Fahrzeugen:** Das Journal bucht sie je Monat zum Monatsende, aber erst mit der AfA des Jahres.
-  Solange ein Monat nicht gebucht ist, kommt seine Privatnutzung aus dem Anlagenverzeichnis dazu (wie die AfA in der
-  EÜR). Mit dem Buchen steht sie im Journal und der Zusatz entfällt; die Summe bleibt gleich.
+- **Privatnutzung von Fahrzeugen:** Sie kommt in der Voranmeldung immer aus dem Anlagenverzeichnis, je Monat; die
+  Buchungen des Anlagenverzeichnisses zählen in den Kennzahlen aus dem Journal nicht. Grund: Das Journal bucht sie erst mit
+  der AfA des Jahres (frühestens im Dezember), und bei Hybrid- und Elektroautos ist die Bemessungsgrundlage der
+  Umsatzsteuer (§ 3 Abs. 9a UStG, aus der 1-%-Regel mit dem vollen Listenpreis) höher als die Entnahme nach § 6 Abs. 1
+  Nr. 4 EStG mit dem halben bzw. geviertelten Listenpreis; die Erlöszeile trägt dann keinen Steuerschlüssel (`privateUsePosting`). Das Journal bucht
+  dieselben Beträge; der Abgleich der EÜR vergleicht sie, sobald das Jahr gebucht ist. Dass sich die Privatnutzung nach
+  einer gesendeten Voranmeldung noch ändern lässt (bis zum Buchen der AfA), ist bestehendes Verhalten und bleibt; eine
+  Sperre ab dem ersten gemeldeten Monat wäre ein eigener Schritt.
 - Was die Oberfläche und die Vorprüfung zusätzlich zeigen (Erlöse je Rechnung, § 13b je Beleg, Hinweise), kommt weiter aus
-  den Nebenbüchern; es sind Erläuterungen, keine Kennzahlen.
+  den Nebenbüchern; es sind Erläuterungen, keine Kennzahlen. Die Zusammenfassende Meldung (§ 18a UStG) rechnet weiter aus
+  den Rechnungen, sie braucht die USt-IdNr. des Empfängers.
+- Die **Umsatzsteuererklärung** summiert die Monate über dieselbe Rechnung (`annual.ts`) und folgt damit von selbst.
 - Der **Abgleich** bleibt derselbe, die Rollen tauschen: Quelle ist das Journal, Gegenprobe die Nebenbücher. Eine
   Abweichung heißt wie bisher, dass eine Seite falsch ist oder Daten an Haben vorbei geändert wurden; die Vorprüfung warnt
   vor dem Senden.
@@ -79,7 +86,9 @@ Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt 
 ### 3. EÜR ab dem Stichjahr
 
 - Die **Zeilen** kommen aus `euerAusJournal`: Buchungen ohne offenen Posten nach ihren Konten, Rechnungen und Belege auf
-  Ziel mit jeder Zahlung anteilig, gerundet wie der beim Zuordnen gespeicherte Anteil (#562).
+  Ziel mit jeder Zahlung anteilig, gerundet wie der beim Zuordnen gespeicherte Anteil (#562). Welche Buchung eine Zahlung
+  ausgleicht, sagt die Zuordnung im Nebenbuch; bei Teilzahlungen auf Belege mit Privatanteil oder ohne Vorsteuerabzug
+  rundet sie mit den Beträgen des Belegs. Das Nebenbuch liefert dort also die Verbindung, nicht die Beträge.
 - **AfA und Privatnutzung**: aus dem Journal, sobald das Jahr gebucht ist; vorher aus dem Anlagenverzeichnis mit dem
   bestehenden Hinweis „noch nicht gebucht“.
 - **Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege**: Deren Buchung steht gegen den Saldenvortrag ohne Erlös-
@@ -90,17 +99,28 @@ Ab einem **Stichjahr** sind Voranmeldung und EÜR aus dem Journal; davor bleibt 
 
 ### 4. Freie Buchungen (#502)
 
-Mit dem Journal als Quelle wird eine freie Buchung zu einem weiteren Weg in `ledger.post`, wie bei DATEV:
+Mit dem Journal als Quelle bekommen die bestehenden manuellen Buchungen (`manual.ts`, Herkunft „manuell“, heute nur GmbH
+und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter Weg daneben. Wie bei DATEV:
 
-- Eingabe: Datum, Text, Soll-Konto, Haben-Konto, Betrag (brutto) und ein **Steuerschlüssel** aus der festen Liste
-  (`TaxCode`). Haben teilt in Netto und Steuer und bucht die Steuerzeile auf das Konto des Schlüssels, wie die
-  DATEV-Automatik; die Bemessungsgrundlage steht an der Netto-Zeile.
-- **Vor dem Buchen geprüft** (Buchungen sind sofort festgeschrieben): Das Konto mit dem Steuerschlüssel muss ein
-  Erfolgskonto sein, der Schlüssel zur Seite passen (Umsatzsteuer auf Erträge, Vorsteuer auf Aufwand); Konten, die ein
-  Nebenbuch führt (Forderungen, Verbindlichkeiten, Kasse, Bank), Steuerkonten direkt und Anlagekonten sind ausgeschlossen.
-  Unbekannte Kombinationen lehnt Haben ab.
-- Ab dem Stichjahr wirken freie Buchungen in Voranmeldung und EÜR; davor lehnt Haben sie im Einzelunternehmen ab, weil die
-  Nebenbücher sie nicht sähen.
+- Eingabe: Datum, Text, Soll-Konto, Haben-Konto, Betrag (brutto) und ein **Steuerschlüssel**. Haben teilt in Netto und
+  Steuer und bucht die Steuerzeile auf das Konto des Schlüssels, wie die DATEV-Automatik; die Netto-Zeile trägt den
+  Schlüssel.
+- **Erlaubte Schlüssel**, ausdrücklich: `USt19`, `USt7` und `frei` auf ein Erlöskonto; `VSt19`, `VSt7` und `keineVSt` auf
+  ein Aufwandskonto. Nicht erlaubt sind § 13b, innergemeinschaftlicher Erwerb und Einfuhrumsatzsteuer (ohne Brutto, das
+  sich teilen ließe; die Einfuhrumsatzsteuer braucht den Bescheid), Reverse Charge und innergemeinschaftliche Lieferung
+  (sie gehören in die Zusammenfassende Meldung, die aus den Rechnungen rechnet), Ausfuhr und Drittland (ohne
+  Ausfuhrnachweis bzw. Rechnung). Als Kleinunternehmer (Stand am Buchungstag) gibt es keinen Steuerschlüssel
+  (§ 19 Abs. 1 UStG).
+- **Gegenkonto** einer Zeile mit Steuerschlüssel ist ein Erfolgs- oder ein Privatkonto (Sachentnahme, Einlage). Konten,
+  die ein Nebenbuch führt (Forderungen, Verbindlichkeiten, Kasse, Bank), Steuerkonten direkt und Anlagekonten sind
+  ausgeschlossen. Damit gibt es keinen Verkauf auf Ziel ohne Rechnung, dessen Steuer bei Ist erst mit der Zahlung entstünde
+  (§ 13 Abs. 1 Nr. 1 Buchst. b UStG).
+- **Datum:** nicht in einem Zeitraum, dessen Voranmeldung gesendet ist. Das **Storno** einer freien Buchung bucht wie das
+  eines Belegs in den laufenden Zeitraum, wenn der ursprüngliche schon gemeldet ist (`belege/cancellation.ts`,
+  `periodReported`).
+- Unbekannte Kombinationen lehnt Haben vor dem Buchen ab; Buchungen sind sofort festgeschrieben.
+- Freie Buchungen mit Steuerschlüssel gibt es nur ab dem Stichjahr, in jeder Rechtsform; davor sähe die Voranmeldung aus
+  den Nebenbüchern sie nicht. Im Einzelunternehmen wirken sie ab dem Stichjahr auch in der EÜR.
 
 ## Umsetzung
 
@@ -115,6 +135,7 @@ Mit dem Journal als Quelle wird eine freie Buchung zu einem weiteren Weg in `led
 ## Entschieden und offen
 
 - **Entschieden:** Stichjahr statt Umbau; Vorziehen auf das laufende Jahr nur mit sauberem Abgleich und ohne gesendete
-  Voranmeldung; Kennzahlen und EÜR wie DATEV aus dem Journal; Privatnutzung und AfA vor dem Buchen aus dem
-  Anlagenverzeichnis; Lexoffice-Zahlungen aus dem Nebenbuch; freie Buchungen nur ab dem Stichjahr.
+  Voranmeldung; Kennzahlen und EÜR wie DATEV aus dem Journal; Privatnutzung in der Voranmeldung immer aus dem
+  Anlagenverzeichnis, AfA und Privatnutzung in der EÜR vor dem Buchen ebenso; Lexoffice-Zahlungen aus dem Nebenbuch;
+  freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel.
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
