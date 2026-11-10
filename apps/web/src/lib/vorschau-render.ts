@@ -9,4 +9,3 @@ export const rendersOnDemand = (lastMs: number): boolean => lastMs > RENDER_MANU
 
 /** Nach einem Lauf: Hat sich das Formular inzwischen geändert und rendert nur der Knopf neu, bleibt der Hinweis stehen */
 export const outdatedAfterRender = (renderedKey: string, currentKey: string, ms: number): boolean => rendersOnDemand(ms) && renderedKey !== currentKey;
-

@@ -31,4 +31,3 @@ describe("Hinweis auf einen veralteten Stand nach dem Rendern", () => {
     expect(outdatedAfterRender("alt", "neu", 300)).toBe(false);
   });
 });
-

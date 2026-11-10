@@ -69,7 +69,13 @@ export function sheetText(data: SheetData): SheetTextPart[] {
     },
     {
       part: "summen",
-      lines: data.totals ? [...data.totals.rows.map(row), row(data.totals.gross), ...(data.totals.included ? [data.totals.included.label, ...data.totals.included.rows.map(row)] : [])] : [],
+      lines: data.totals
+        ? [
+            ...data.totals.rows.map(row),
+            row(data.totals.gross),
+            ...(data.totals.included ? [data.totals.included.label, ...data.totals.included.rows.map(row)] : []),
+          ]
+        : [],
     },
     {
       part: "hinweise",
