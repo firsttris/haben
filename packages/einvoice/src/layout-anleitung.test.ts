@@ -72,9 +72,10 @@ function geruestText(data: object): string {
 }
 
 describe.skipIf(!hasPoppler)("Grundgerüst mit Pflichtangaben", () => {
-  const beispiel = (name: string) => layoutBeispiele().find((b) => b.name.startsWith(name))!.data as {
-    totals: { included?: { rows: { value: string }[] } | null; euroTax?: { rows: { value: string }[] } | null };
-  };
+  const beispiel = (name: string) =>
+    layoutBeispiele().find((b) => b.name.startsWith(name))!.data as {
+      totals: { included?: { rows: { value: string }[] } | null; euroTax?: { rows: { value: string }[] } | null };
+    };
 
   it("zeigt bei Bruttopreisen die enthaltene Umsatzsteuer je Satz", () => {
     const data = beispiel("Rechnung mit Bruttopreisen");
@@ -88,4 +89,3 @@ describe.skipIf(!hasPoppler)("Grundgerüst mit Pflichtangaben", () => {
     for (const zeile of data.totals.euroTax!.rows) expect(text).toContain(zeile.value.replace(/\s+/g, " "));
   });
 });
-
