@@ -12,6 +12,7 @@ export { type PersonenkontoBezug, personenkontenEinsetzen } from "./datev-person
 export type { DatevHeader, DatevBooking, DatevStack, DatevYearSums } from "./datev.ts";
 export * from "./lexoffice/index.ts";
 export * from "./sevdesk/index.ts";
+export * from "./accountable/index.ts";
 export * from "./enablebanking/index.ts";
 export * from "./stores/index.ts";
 export * from "./csv-import/index.ts";

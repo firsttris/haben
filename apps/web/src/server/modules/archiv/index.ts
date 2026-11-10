@@ -1,5 +1,5 @@
 /*
- * Archiv und Umzug: Jahresarchiv (GoBD-Export), Import aus Lexoffice und sevDesk, übernommene offene Posten und Altbelege.
+ * Archiv und Umzug: Jahresarchiv (GoBD-Export), Import aus Lexoffice, sevDesk und Accountable, übernommene offene Posten und Altbelege.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
@@ -45,5 +45,20 @@ export {
   sevdeskConnectionStatus,
   startSevdeskImport,
 } from "./sevdesk.ts";
+export {
+  accountableImportStatus,
+  accountableOpenItems,
+  AccountableError,
+  analyseAccountableUpload,
+  cancelAccountableImport,
+  discardAccountableUpload,
+  latestAccountableImport,
+  MAX_ACCOUNTABLE_SIZE,
+  stagedAccountableAnalysis,
+  startAccountableImport,
+  type AccountableAnalysis,
+  type AccountableImportRun,
+} from "./accountable.ts";
+
 export { bookDatevEroeffnung, datevEroeffnung, DatevEroeffnungError, datevEroeffnungSchema, type DatevEroeffnung } from "./datev-eroeffnung.ts";
 export { attachOrderPdf, listOrderDocuments, orderArchiveOverview, orderDocumentDetail, orderDocumentFile, ORDER_KINDS, ORDER_STATUSES } from "./orders.ts";

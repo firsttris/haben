@@ -2,7 +2,8 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { datevInternalId, datevVoucherFound } from "./datev-belegnummer.ts";
+import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt } from "./datev-belegnummer.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 
@@ -180,7 +181,7 @@ export async function loadArchiveFile(id: string) {
   return { ...row, bytes: await loadFile(row.sha256) };
 }
 
-const matchedSql = datevVoucherFound("datev_bookings.voucher_field1");
+const matchedSql = sql<boolean>`(${datevVoucherFound("datev_bookings.voucher_field1")} or ${datevGuidFound("datev_bookings.document_link")})`;
 const internalIdSql = datevInternalId("datev_bookings.voucher_field1");
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {
@@ -196,7 +197,10 @@ export async function listDatevBookings(filter: { year: number; search: string; 
       )!,
     );
   }
-  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql}`);
+  // Dieselbe Ausnahme wie im Abgleich (reconciliation): Privat, Geldtransit, Vortrag und Accountable-Erlöse brauchen keinen Beleg
+  const { kontenrahmen } = await loadCompany();
+  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  if (filter.unmatched) conditions.push(sql`not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
   const where = and(...conditions);
   const pageSize = 100;
   const [rows, [total]] = await Promise.all([
@@ -213,7 +217,7 @@ export async function listDatevBookings(filter: { year: number; search: string; 
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
         // Eine interne Kennung ist nichts, wozu ein Beleg fehlt
-        matched: sql<boolean>`${matchedSql} or ${internalIdSql}`,
+        matched: sql<boolean>`${matchedSql} or ${internalIdSql} or ${withoutReceiptSql}`,
         filename: schema.archiveFiles.filename,
       })
       .from(schema.datevBookings)
@@ -260,7 +264,11 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
   const conditions: SQL[] = [gte(schema.datevBookings.date, from), lte(schema.datevBookings.date, to)];
   const account = filter.account.trim();
   if (account) conditions.push(or(eq(schema.datevBookings.account, account), eq(schema.datevBookings.contraAccount, account))!);
-  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql}`);
+  // Dieselbe Ausnahme wie im Abgleich (reconciliation) und in listDatevBookings
+  const { kontenrahmen } = await loadCompany();
+  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  if (filter.unmatched)
+    conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
   const where = and(...conditions);
   const [rows, [total]] = await Promise.all([
     db
@@ -273,7 +281,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        matched: matchedSql,
+        matched: sql<boolean>`${matchedSql} or ${withoutReceiptSql}`,
         internalId: internalIdSql,
       })
       .from(schema.datevBookings)
@@ -286,7 +294,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
 }
 
 /** Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage */
-async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
+export async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
   const [overlap] = await q
     .select({
       filename: schema.archiveFiles.filename,

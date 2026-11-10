@@ -25,7 +25,11 @@ const PAYMENT_STATUS: Record<string, string> = {
   partlyPaid: "teilweise bezahlt",
 };
 
-const SOURCE = { lexoffice: { name: "Lexoffice", product: "Lexware Office" }, sevdesk: { name: "sevDesk", product: "sevDesk" } } as const;
+const SOURCE = {
+  lexoffice: { name: "Lexoffice", product: "Lexware Office" },
+  sevdesk: { name: "sevDesk", product: "sevDesk" },
+  accountable: { name: "Accountable", product: "Accountable" },
+} as const;
 
 function LegacyVoucherPage() {
   const { voucher, files } = Route.useLoaderData();
