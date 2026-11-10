@@ -176,6 +176,28 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     expect(felder.map((f) => journal[f])).toEqual([0, 0, 0, 0]);
   }, 30_000);
 
+  it("Ist: Teilzahlung mit Anteil zu 7 % ohne Steuer, Bemessungsgrundlage im Journal wie in der Voranmeldung (TDD-Review #552)", async () => {
+    // 1.000 € zu 19 % und ein kleiner Posten zu 7 % (0,50 € netto); die erste Rate von 100 € trägt am 7-%-Anteil
+    // 0,04 € Bemessungsgrundlage, aber gerundet 0,00 € Steuer
+    const inv = await invoice([
+      { net: 100_000, rate: 1900 },
+      { net: 50, rate: 700 },
+    ]);
+    await bank.importStatement(actor, { bytes: dkbCsv([row("01.10.26", "Nordwerk", `RE ${inv.number} Rate 1`, "100,00")]), filename: "a.csv" }, null);
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: inv.id, amount: 10_000 });
+    const vatOct = await figures.computeVatFigures(october);
+    expect(vatOct.kz86).toBeGreaterThan(0);
+    const journal = await ausJournal(10);
+    for (const f of ["kz81", "tax81", "kz86", "tax86"] as const) expect(journal[f], f).toBe(vatOct[f]);
+    const abgleich = await import("../auswertungen/abgleich.ts");
+    expect(abgleich.abweichungen((await abgleich.vatAbgleich(october)).zeilen)).toEqual([]);
+    // Aufheben der Zuordnung nimmt auch diese Bemessungsgrundlage wieder heraus
+    const [allocation] = await sql`select id from allocations`;
+    await bank.reverseAllocation(actor, allocation!.id);
+    expect((await ausJournal(10)).kz86).toBe(0);
+  }, 30_000);
+
   it("Soll: Umsatzsteuer nach Rechnungsdatum", async () => {
     await sql`update company set versteuerung = 'soll'`;
     await invoice([{ net: 400_000, rate: 1900 }], "2026-10-02");

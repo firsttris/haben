@@ -202,3 +202,23 @@ describe.each(KONTENRAHMEN)("Kennzahlen aus dem Journal (%s)", (kr) => {
 it("jede Kennzahl hat ein Feld in der leeren Summe", () => {
   expect(Object.keys(kennzahlenAusJournal("SKR03", "soll", []))).toEqual([...JOURNAL_KENNZAHLEN]);
 });
+
+// TDD-Review #552: Ein Anteil mit Bemessungsgrundlage, aber nach Rundung 0,00 € Steuer, trägt seine Bemessungsgrundlage
+// trotzdem ins Journal, wie computeVatFigures sie zählt
+describe("Ist, Anteil mit Bemessungsgrundlage, aber ohne Steuer", () => {
+  const t: InvoiceTotals = { net: 100_000, tax: 19_000, gross: 119_000, taxes: [{ rate: 1900, base: 100_000, tax: 19_000 }] };
+  for (const kr of KONTENRAHMEN) {
+    it(`${kr}: Kursdifferenz von 0,02 € meldet ihre Bemessungsgrundlage (paidTaxShares)`, () => {
+      const lines = exchangeDifferencePosting({ kind: "invoice", totals: t, versteuerung: "ist" }, 2, kr);
+      expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(2);
+    });
+    it(`${kr}: Restzahlung von 0,01 € (Anteil 1 ct ohne Steuer) meldet ihre Bemessungsgrundlage`, () => {
+      const lines = invoicePaymentPosting(t, 1, kr, "ist", [{ rate: 1900, base: 1, tax: 0 }]);
+      expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(1);
+    });
+    it(`${kr}: Rücklastschrift desselben Anteils mindert sie wieder`, () => {
+      const lines = invoicePaymentPosting(t, -1, kr, "ist", [{ rate: 1900, base: -1, tax: 0 }]);
+      expect(kennzahlenAusJournal(kr, "ist", [lines]).kz81).toBe(-1);
+    });
+  }
+});
