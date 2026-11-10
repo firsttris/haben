@@ -110,3 +110,32 @@ describe("Kopfzeile: Erzeugt am", () => {
     expect(kopf!.split(";")[5]).toBe("20261101003015042");
   });
 });
+
+describe("Sachentnahme auf den Automatikkonten (#590)", () => {
+  // DATEV SKR03 8910/8915, SKR04 4620/4630 „Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren)“
+  // sind AM-Konten. Haben bucht die Umsatzsteuer als eigene Zeile; ohne BU 40 rechnete DATEV sie ein zweites Mal heraus.
+  for (const [kr, privat, sach, ust] of [
+    ["SKR03", "1800", "8910", "1776"],
+    ["SKR03", "1800", "8915", "1771"],
+    ["SKR04", "2100", "4620", "3806"],
+    ["SKR04", "2100", "4630", "3801"],
+  ] as const) {
+    it(`${kr} ${sach}: BU-Schlüssel 40`, () => {
+      const rows = splitEntry(
+        {
+          date: "2026-09-10",
+          description: "Sachentnahme",
+          voucher: "",
+          locked: true,
+          lines: [
+            { account: privat, debit: 11_900, credit: 0 },
+            { account: sach, debit: 0, credit: 10_000 },
+            { account: ust, debit: 0, credit: 1_900 },
+          ],
+        },
+        kr,
+      );
+      expect(rows.find((r) => r.contraAccount === sach || r.account === sach)?.buKey).toBe("40");
+    });
+  }
+});

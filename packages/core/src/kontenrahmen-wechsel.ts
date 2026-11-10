@@ -3,6 +3,7 @@ import { DARLEHEN_KONTEN } from "./darlehen.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, type Kontenrahmen } from "./posting.ts";
+import { SACHENTNAHME_KONTEN } from "./manual.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
 import { STEUER_KONTEN } from "./steuerzahlung.ts";
 
@@ -29,7 +30,8 @@ function paare(a: unknown, b: unknown, out: Paar[]) {
 
 function allePaare(): Paar[] {
   const out: Paar[] = [];
-  for (const konten of [ACCOUNTS, ASSET_ACCOUNTS, DARLEHEN_KONTEN, LOHN_KONTEN, STEUER_KONTEN, PRIVATE_USE_ACCOUNTS]) paare(konten.SKR03, konten.SKR04, out);
+  for (const konten of [ACCOUNTS, ASSET_ACCOUNTS, DARLEHEN_KONTEN, LOHN_KONTEN, STEUER_KONTEN, PRIVATE_USE_ACCOUNTS, SACHENTNAHME_KONTEN])
+    paare(konten.SKR03, konten.SKR04, out);
   for (const kategorie of Object.values(EXPENSE_CATEGORIES)) out.push([kategorie.SKR03, kategorie.SKR04]);
   for (const art of Object.values(PAUSCHALE_KONTEN)) out.push([art.SKR03.konto, art.SKR04.konto]);
   return out;

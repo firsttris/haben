@@ -15,6 +15,7 @@ import {
   listOrderDocuments,
   orderArchiveOverview,
   orderDocumentDetail,
+  externalImportOverview,
 } from "../modules/archiv/index.ts";
 import {
   cancelImport,
@@ -60,18 +61,29 @@ export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema.optional() }))
   .handler(async ({ data }) => {
-    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport, accountableImport, orderArchive, bbImport] =
-      await Promise.all([
-        connectionStatus(),
-        reconciliation(),
-        listArchiveFiles(),
-        openItemsOverview(data.stichtag),
-        sevdeskConnectionStatus(),
-        latestSevdeskImport(),
-        latestAccountableImport(),
-        orderArchiveOverview(),
-        latestBuchhaltungsbutlerImport(),
-      ]);
+    const [
+      connection,
+      check,
+      files,
+      { items: openItems, cutoff, cutoffError },
+      sevdeskConnection,
+      sevdeskImport,
+      accountableImport,
+      orderArchive,
+      externalImports,
+      bbImport,
+    ] = await Promise.all([
+      connectionStatus(),
+      reconciliation(),
+      listArchiveFiles(),
+      openItemsOverview(data.stichtag),
+      sevdeskConnectionStatus(),
+      latestSevdeskImport(),
+      latestAccountableImport(),
+      orderArchiveOverview(),
+      externalImportOverview(),
+      latestBuchhaltungsbutlerImport(),
+    ]);
     return {
       connection,
       sevdeskConnection,
@@ -83,6 +95,7 @@ export const getMigration = createServerFn({ method: "GET" })
       cutoffError,
       ...check,
       orderArchive,
+      externalImports,
       files: files.map(({ meta, ...file }) => ({
         ...file,
         bookings: typeof meta?.bookings === "number" ? meta.bookings : null,

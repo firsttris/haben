@@ -862,7 +862,7 @@ export const cashEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Cent; Eingang positiv, Ausgang negativ */
     amount: integer("amount").notNull(),
-    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme"] }).notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme", "import"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
     /** Bareinnahme auf eine Ausgangsrechnung (Kasse an Forderungen), auch bei ihrer Gegenzeile; mehrere Zeilen je Rechnung bei Teilzahlungen */
@@ -1575,7 +1575,7 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn"],
+      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -2497,7 +2497,7 @@ export const sevdeskConnection = pgTable(
 );
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
 
 /**
@@ -2567,7 +2567,7 @@ export type LegacyPayment = {
   paidDate: string | null;
   items: { type: string; date: string; amount: number; account?: string | null }[];
   /** Nur gelesen, nie gespeichert: items aus legacy_voucher_payments (sevdesk) bzw. Rechnung und ihr Storno ohne Zahlung */
-  history?: "sevdesk" | "storno";
+  history?: "sevdesk" | "import" | "storno";
   /** Nur gelesen: Datum der Stornorechnung bei history "storno" */
   cancelledOn?: string;
 };
@@ -2578,6 +2578,7 @@ export const legacyOrderDocuments = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     externalId: text("external_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("sevdesk"),
     importId: uuid("import_id")
       .notNull()
       .references(() => lexofficeImports.id),
@@ -2609,7 +2610,7 @@ export const legacyOrderFiles = pgTable(
     mimeType: text("mime_type").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    origin: text("origin", { enum: ["sevdesk", "manuell"] }).notNull(),
+    origin: text("origin", { enum: ["sevdesk", "manuell", "import"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
@@ -3273,3 +3274,32 @@ export const tokenEvents = pgTable("token_events", {
   previousResponsibleId: text("previous_responsible_id"),
   responsibleId: text("responsible_id"),
 });
+
+/** Idempotenz und Herkunft des Betreiberimports; keine zweite Zahlungs- oder Auswertungsquelle. */
+export const externalImports = pgTable(
+  "external_imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    source: text("source").notNull(),
+    externalId: text("external_id").notNull(),
+    kind: text("kind", { enum: ["invoice", "quote", "journal"] }).notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    voucherId: uuid("voucher_id").references(() => lexofficeVouchers.id),
+    orderDocumentId: uuid("order_document_id").references(() => legacyOrderDocuments.id),
+    entryId: uuid("entry_id").references(() => journalEntries.id),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_imports_identity").on(t.source, t.kind, t.externalId),
+    uniqueIndex("external_imports_voucher").on(t.voucherId),
+    uniqueIndex("external_imports_order").on(t.orderDocumentId),
+    uniqueIndex("external_imports_entry").on(t.entryId),
+    check(
+      "external_imports_target",
+      sql`(${t.kind} = 'invoice' and ${t.voucherId} is not null and ${t.orderDocumentId} is null and ${t.entryId} is null)
+      or (${t.kind} = 'quote' and ${t.orderDocumentId} is not null and ${t.voucherId} is null and ${t.entryId} is null)
+      or (${t.kind} = 'journal' and ${t.entryId} is not null and ${t.voucherId} is null and ${t.orderDocumentId} is null)`,
+    ),
+  ],
+);

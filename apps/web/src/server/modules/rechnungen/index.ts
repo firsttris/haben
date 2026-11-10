@@ -75,6 +75,7 @@ export {
   type InvoiceListStatus,
 } from "./invoices.ts";
 export { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "./order-documents.ts";
+export { DocumentPreviewError, documentPreview, documentPreviewSchema, type DocumentPreview, type DocumentPreviewInput } from "./document-preview.ts";
 export { DraftPdfError, invoiceDraftPdf, quoteDraftPdf } from "./draft-pdf.ts";
 export { QuoteChoiceError } from "./quote-choices.ts";
 export { abschlagFromPlan, PlanError, quotePlanOverview, type PlanRowOverview } from "./quote-plan.ts";

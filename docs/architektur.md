@@ -90,9 +90,11 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `mail` | `mail` (Versand mit Protokoll, Erinnerungen, wöchentliche Integritätsmail), `settings` (Zugang und Vorlagen), `transport` (Versandweg: `transport-smtp` über nodemailer, `transport-graph` über Microsoft Graph, mit `graph/` für Token, Anfrage, Wiederholung und Fehlertexte) |
 | `mcp` | `server` (Endpunkt für KI-Assistenten), `tokens` (API-Tokens mit Rechten für MCP und REST-API, Schalter, Protokoll der Aufrufe), `tools` (Werkzeuge, nur lesen), `ausfuellliste` (Ausfüllliste der Voranmeldung für Mein ELSTER) |
 | `eigene-seiten` | `pages` (eigene Seiten: Name und Adresse für Menüeinträge, die eine Seite außerhalb von Haben im Rahmen zeigen), `url` (Prüfung der Adresse: nur http und https, keine Zugangsdaten, nicht die Herkunft von Haben) |
-| `datenimport` | `csv-import` (Kontakte, Artikel und Anlagen aus CSV: Vorschau und Import in einer Transaktion); liest und prüft mit `packages/import`, legt über `stammdaten` (`csv-import`) und `buchhaltung` (`asset-import`) an; schreibt keine eigenen Tabellen |
+| `datenimport` | `csv-import` (Kontakte, Artikel und Anlagen aus CSV), `external-import` (geprüfte Originalbelege und Journalpakete per Betreiber-CLI mit Vorschau, atomarer Übernahme und Herkunft); nutzt `stammdaten`, `archiv` und `buchhaltung`, ergänzt Kassenbewegungen über `bank`; eigene Herkunftstabelle `external_imports` |
 | `zugang` | `einladungen` (Einladungslink anlegen, auflisten, zurückziehen), `zugaenge` (Konten mit Rolle und letzter Anmeldung, sperren, entfernen), `aenderungen` (was sich seit dem letzten Besuch der Steuerberatung geändert hat); Rolle, Sitzung und das Einlösen der Einladung stehen in der Infrastruktur (`server/rollen.ts`, `server/anmeldung.ts`), weil Better Auth und die Middleware sie brauchen |
 | `api` | REST-API unter `/api/v1`: `routes` (Tabelle der Endpunkte mit Recht und Handler), `router` (Token, Recht, Rate, Body), `http` (Antworten und Fehlerformat), `contacts`, `invoices` und `documents` (dünne Handler über `stammdaten`, `rechnungen` und `belege`), `schemas` (Zod für Eingaben und Antworten), `openapi` (Beschreibung aus beidem); schreibt keine eigenen Tabellen |
+
+Die API-Umzüge und der lokale JSON-Eingang speichern Originalbelege gemeinsam über `archiv/legacy-store`. Die zusätzlichen Herkunftsnachweise des JSON-Eingangs liegen in `external_imports`; Buchungen und Kassenbewegungen bleiben bei ihren bestehenden Modulen.
 
 Die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) läuft mit `bun run lint` in der CI und prüft jeden relativen Import, auch `export … from`, `import()` und Typen wie `import("…").T`. Sie löst den Pfad auf, statt nur den Text des Imports zu vergleichen; das kann Biome nicht, deshalb ist es ein eigenes Skript:
 
@@ -225,13 +227,14 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `datev_bookings` | Zeilen eines DATEV-Buchungsstapels, unverändert | nur anhängen |
 | `lexoffice_connection` | API-Schlüssel für Lexware Office, verschlüsselt; eine Zeile | Audit ohne Chiffrat |
 | `sevdesk_connection` | API-Token für sevDesk, verschlüsselt, mit Buchhaltungsversion; eine Zeile | Audit ohne Chiffrat |
-| `lexoffice_imports` | Abrufe und Dateiimporte aus Lexoffice, sevDesk oder BuchhaltungsButler (`source`) mit fortlaufend geschriebenem Fortschritt; höchstens einer läuft | Audit beim Anlegen |
-| `lexoffice_vouchers` | Rechnungen und Belege aus Lexoffice, sevDesk oder BuchhaltungsButler (`source`) mit vollständigen Quelldaten | nur anhängen |
+| `lexoffice_imports` | Abrufe aus Lexoffice oder sevDesk sowie lokale Paketübernahmen (`source`) mit Fortschritt; höchstens ein Anbieterabruf läuft | Audit beim Anlegen |
+| `lexoffice_vouchers` | Rechnungen und Belege aller Umzugsquellen (`source`) mit vollständiger Quellantwort beziehungsweise Originalpaket | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
-| `legacy_voucher_payments` | Einzelzahlungen zu Belegen aus sevDesk mit Datum, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle; eindeutig je Zuordnung | nur anhängen, Audit |
-| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk mit Positionen und Quellantwort; ohne Buchungswirkung | nur anhängen, Audit |
+| `legacy_voucher_payments` | Belegte Einzelzahlungen aus sevDesk oder lokalen Paketen mit Datum, Betrag, Konto und Herkunft; eindeutig je Zuordnung | nur anhängen, Audit |
+| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
+| `external_imports` | Quellidentität und Inhaltshash eines lokalen Paketvorgangs mit genau einem Verweis auf Originalbeleg, Auftragsdokument oder Journalbuchung; keine eigene Zahlungs-/EÜR-Quelle | nur anhängen, Audit; vorhandene Herkunft nicht per TRUNCATE leerbar |
 
 ### Protokoll und Anmeldung
 
@@ -358,7 +361,7 @@ Die Bestätigung der Datenschutzhinweise prüft der Client selbst vor jedem Aufr
 
 Beim Festschreiben entsteht die Rechnung in zwei Stufen:
 
-1. **Sichtbares PDF:** Typst setzt die Vorlage `rechnung.typ` mit IBM Plex Sans als PDF/A-3b. Der Compiler läuft im Prozess (`@myriaddreamin/typst-ts-node-compiler`).
+1. **Sichtbares PDF:** Typst setzt die Vorlage `rechnung.typ` mit IBM Plex Sans als PDF/A-3b. Der Compiler läuft im Prozess (`@myriaddreamin/typst-ts-node-compiler`). Die Vorschau der Editoren setzt dieselbe Vorlage aus dem Stand des Formulars als SVG, in einem eigenen Prozess (`render-worker.ts`).
 2. **E-Rechnung:** `@e-invoice-eu/core` erzeugt aus denselben Daten
    - bei **ZUGFeRD** (Profil EN 16931) ein PDF/A-3 mit eingebettetem `factur-x.xml`; Haben liest das XML danach wieder aus und speichert es zusätzlich,
    - bei **XRechnung** (CII oder UBL) das XML; das Typst-PDF bleibt als Sichtfassung dabei.
@@ -415,6 +418,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | Jahresexport als Stream | Ein Jahr mit vielen Belegen braucht kaum Arbeitsspeicher; die Prüfsummen entstehen beim Packen |
 | Keine Job-Queue | Ein Prozess, eine Datenbank, einfacher Betrieb. Die einzigen langen Aufgaben sind wiederholbar bzw. fortsetzbar |
 | KI-Auslesung optional, auch selbst betrieben | Ohne Anbieter oder mit eigenem Modell bleiben alle Daten auf dem eigenen Server; E-Rechnungen werden ohnehin direkt gelesen. Über dieselbe OpenAI-kompatible Schnittstelle gehen auch Cloud-Dienste wie OpenRouter, ohne eigenen Anbieter im Code. Genau ein Anbieter, kein Ausweichen auf einen anderen. Eingestellt über Umgebungsvariablen wie die übrigen Dienste; ein Schlüssel für den eigenen Dienst liegt damit nicht in der Datenbank |
+| Vorschau mit Typst statt HTML-Nachbau | Eine Vorlage statt zweier, die auseinanderlaufen können; Umbrüche und Seiten stimmen. Gemessen (Kompilieren plus SVG bei laufender Eingabe, MacBook Pro mit Apple M5 Pro (18 Kerne, 64 GB), im Linux-Container (OrbStack, arm64), mit `docker run --cpus` und `--memory` gedrosselt; ein echter schwacher Rechner ist nicht gemessen): 4 CPUs 4 ms je Seite und 19 ms bei 80 Positionen, 0,25 CPU 13 und 205 ms, 0,1 CPU 198 und 603 ms. Der Render-Prozess bleibt warm, bekommt nichts aus der Umgebung der App, kein Netz und wird nach 5 s hart beendet (`render-client.ts`) |
 | PDF-Seiten mit `pdftoppm` | Ein kleines Systempaket statt einer Rendering-Bibliothek im Serverprozess; läuft als Kindprozess mit Zeitlimit, ein kaputtes PDF trifft die App nicht. Typst kann PDFs nur als Vektor-SVG ausgeben, nicht als Bild |
 | Altbestand aus Lexoffice getrennt | Archivierte Daten bleiben unverändert und beeinflussen weder Voranmeldung noch Auswertungen; nur ausdrücklich übernommene offene Posten werden Teil der Buchhaltung |
 

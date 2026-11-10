@@ -26,7 +26,7 @@ function OrderDocumentPage() {
             <Link to="/archiv" search={{ ansicht: "auftraege", jahr: Number(document.date.slice(0, 4)) }}>
               Archiv
             </Link>{" "}
-            › {ORDER_KINDS[document.kind]} aus sevdesk
+            › {ORDER_KINDS[document.kind]} aus {document.sourceName}
           </div>
           <h1>{document.number || "Auftragsdokument"}</h1>
         </div>
@@ -123,7 +123,8 @@ function OrderFiles({ files, id }: { files: OrderDetail["files"]; id: string }) 
             PDF herunterladen
           </a>
           <p className="small muted archive-fingerprint">
-            {file.origin === "manuell" ? "Manuell nachgereicht" : "Aus sevdesk abgerufen"} am {formatDateTime(file.createdAt)} · SHA-256 {file.sha256}
+            {file.origin === "manuell" ? "Manuell nachgereicht" : file.origin === "import" ? "Geprüftes Original übernommen" : "Aus sevdesk abgerufen"} am{" "}
+            {formatDateTime(file.createdAt)} · SHA-256 {file.sha256}
           </p>
         </>
       ) : (
@@ -147,11 +148,11 @@ function OrderFacts({ document }: { document: OrderDetail["document"] }) {
         <dt>Status bei Archivierung</dt>
         <dd>{ORDER_STATUSES[document.status] ?? document.status}</dd>
         <dt>Quell-ID</dt>
-        <dd>{document.externalId}</dd>
+        <dd>{document.sourceExternalId}</dd>
         <dt>Archiviert am</dt>
         <dd>{formatDateTime(document.createdAt)}</dd>
       </dl>
-      <h2>Positionen aus sevdesk</h2>
+      <h2>Positionen aus {document.sourceName}</h2>
       {positions.length ? (
         <ol>
           {positions.map((position, i) => (
@@ -166,7 +167,7 @@ function OrderFacts({ document }: { document: OrderDetail["document"] }) {
       )}
       {relations !== "[]" && (
         <details>
-          <summary>Verknüpfungen aus sevdesk</summary>
+          <summary>Verknüpfungen aus {document.sourceName}</summary>
           <pre className="archive-proof">{relations}</pre>
         </details>
       )}

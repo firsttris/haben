@@ -110,9 +110,15 @@ export function Migration({ data }: { data: MigrationData }) {
           : data.lastImport;
   return (
     <div className="stack">
+      {data.externalImports.length > 0 && (
+        <p className="banner banner-info" role="status">
+          Geprüfte JSON-Pakete übernommen: {data.externalImports.map((entry) => `${entry.source} (${entry.count} Vorgänge)`).join(", ")}. Originale stehen unter
+          Belege und Auftragsdokumente. Offene Posten werden unten am Stichtag geprüft.
+        </p>
+      )}
       {data.orderArchive.count > 0 && (
         <p className="banner banner-info" role="status">
-          {data.orderArchive.count} Auftragsdokumente aus sevdesk archiviert; {data.orderArchive.withoutPdf} ohne PDF.{" "}
+          {data.orderArchive.count} Auftragsdokumente archiviert; {data.orderArchive.withoutPdf} ohne PDF.{" "}
           <Link to="/archiv" search={{ ansicht: "auftraege" }}>
             Auftragsdokumente ansehen
           </Link>
@@ -161,7 +167,7 @@ export function Migration({ data }: { data: MigrationData }) {
         items={data.openItems}
         cutoff={data.cutoff}
         cutoffError={data.cutoffError}
-        imported={Boolean(data.lastImport || data.sevdeskImport || data.accountableImport || data.bbImport)}
+        imported={Boolean(data.lastImport || data.sevdeskImport || data.accountableImport || data.bbImport || data.externalImports.length)}
       />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { freieBuchungIssues, freieBuchungPosting } from "./freie-buchung.ts";
 import { kennzahlenAusJournal } from "./journal-kennzahlen.ts";
-import { euerAusZeilen } from "./journal-euer.ts";
+import { datevFormelKonto, euerAusZeilen, euerZuordnung } from "./journal-euer.ts";
+import { kontoImKontenrahmen } from "./kontenrahmen-wechsel.ts";
 import { manualPostingIssues, reverseManualPosting, type ManualLine } from "./manual.ts";
 
 /* Freie Buchungen mit Steuerschlüssel (#502; docs/adr/journal-als-quelle.md, Entscheidung 4) */
@@ -61,7 +62,9 @@ for (const kr of ["SKR03", "SKR04"] as const) {
 
     it("lehnt ab: Schlüssel auf einem anderen Konto, ohne Stichjahr, als Kleinunternehmer, Gegenkonto Bank", () => {
       const falsch: ManualLine[] = [entnahme[0]!, { ...entnahme[1]!, account: k.erloese7 }];
-      expect(manualPostingIssues(falsch, kr, "einzelunternehmen")).toContain(`Zeile 2: Mit USt19 bucht die Zeile auf ${k.erloese19}`);
+      expect(manualPostingIssues(falsch, kr, "einzelunternehmen")).toContain(
+        `Zeile 2: Mit USt19 bucht die Zeile auf ${k.erloese19} oder ${kr === "SKR03" ? "8910" : "4620"}`,
+      );
       expect(freieBuchungIssues(entnahme, { ...kontext(kr), ausDemJournal: false })[0]).toMatch(/erst ab dem Stichjahr/);
       expect(freieBuchungIssues(entnahme, { ...kontext(kr), kleinunternehmer: true })).toContain(
         "Als Kleinunternehmer bucht Haben keine Umsatzsteuer (§ 19 Abs. 1 UStG)",
@@ -93,3 +96,59 @@ for (const kr of ["SKR03", "SKR04"] as const) {
     });
   });
 }
+
+describe("Sachentnahme (§ 3 Abs. 1b UStG) als freie Buchung", () => {
+  const SACH = { SKR03: { 1900: "8910", 700: "8915", privat: "1800" }, SKR04: { 1900: "4620", 700: "4630", privat: "2100" } } as const;
+  for (const kr of ["SKR03", "SKR04"] as const) {
+    it(`${kr}: Kz 81 bzw. 86 und eigene Zeile der EÜR, die Steuer als Umsatzsteuer auf unentgeltliche Wertabgaben`, () => {
+      const lines: ManualLine[] = [
+        { account: SACH[kr].privat, debit: 11_900, credit: 0 },
+        { account: SACH[kr][1900], debit: 0, credit: 11_900, taxCode: "USt19" },
+      ];
+      expect(manualPostingIssues(lines, kr, "einzelunternehmen")).toEqual([]);
+      expect(freieBuchungIssues(lines, kontext(kr))).toEqual([]);
+      const zeilen = freieBuchungPosting(lines, kr);
+      const va = kennzahlenAusJournal(kr, "ist", [zeilen]);
+      expect({ kz81: va.kz81, tax81: va.tax81 }).toEqual({ kz81: 10_000, tax81: 1_900 });
+      expect(euerAusZeilen(kr, zeilen).zeilen).toEqual({ sachentnahmen: 10_000, vereinnahmteUst: 1_900 });
+      const sieben: ManualLine[] = [
+        { account: SACH[kr].privat, debit: 1_070, credit: 0 },
+        { account: SACH[kr][700], debit: 0, credit: 1_070, taxCode: "USt7" },
+      ];
+      const va7 = kennzahlenAusJournal(kr, "soll", [freieBuchungPosting(sieben, kr)]);
+      expect({ kz86: va7.kz86, tax86: va7.tax86 }).toEqual({ kz86: 1_000, tax86: 70 });
+    });
+
+    it(`${kr}: ohne Steuerschlüssel oder mit dem anderen Satz nicht buchbar`, () => {
+      const ohne: ManualLine[] = [
+        { account: SACH[kr].privat, debit: 100, credit: 0 },
+        { account: SACH[kr][1900], debit: 0, credit: 100 },
+      ];
+      expect(manualPostingIssues(ohne, kr, "einzelunternehmen").join()).toMatch(/Sachentnahme mit Umsatzsteuer und bucht nur mit Steuerschlüssel/);
+      const falsch: ManualLine[] = [
+        { account: SACH[kr].privat, debit: 100, credit: 0 },
+        { account: SACH[kr][700], debit: 0, credit: 100, taxCode: "USt19" },
+      ];
+      expect(manualPostingIssues(falsch, kr, "einzelunternehmen").join()).toMatch(new RegExp(`Mit USt19 bucht die Zeile auf \\d{4} oder ${SACH[kr][1900]}`));
+    });
+  }
+
+  it("Kontenrahmenwechsel: die Sachentnahme hat in beiden Rahmen ihr Konto", () => {
+    expect(kontoImKontenrahmen("SKR03", "SKR04", "8910")).toBe("4620");
+    expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
+  });
+});
+
+describe("Sachentnahme: 4630 ist in SKR03 und SKR04 ein anderes Konto", () => {
+  it("SKR03 4630 bleibt Geschenke, SKR04 4630 ist die Sachentnahme 7 %", () => {
+    expect(kontoImKontenrahmen("SKR03", "SKR04", "4630")).toBe("6610");
+    expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
+    expect(euerZuordnung("SKR03", "4630")).toBe("ausgabe:geschenke");
+    expect(euerZuordnung("SKR04", "4630")).toBe("sachentnahmen");
+    for (const [kr, konto] of [
+      ["SKR03", "8910"],
+      ["SKR04", "4620"],
+    ] as const)
+      expect(datevFormelKonto(kr, konto)).toBe(true);
+  });
+});

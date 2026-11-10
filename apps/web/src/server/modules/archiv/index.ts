@@ -21,6 +21,7 @@ export { datevAbschluss, type DatevAbschluss, type DatevVortrag } from "./datev-
 export { BACKUP_MAX_AGE_MS, backupOverview, type BackupOverview, type BackupRun } from "./backup-status.ts";
 export { exportFilename, exportYear, exportYears, toReadableStream } from "./export.ts";
 export { legacyTakeoverCutoff, openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
+export { externalImportOverview, storeLegacyVoucher, storeLegacyOrder, type LegacyOriginalFile, type LegacyKnownPayment } from "./legacy-store.ts";
 export {
   cancelImport,
   connectionStatus,

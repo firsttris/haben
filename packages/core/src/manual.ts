@@ -30,10 +30,39 @@ export interface ManualLine {
 export const FREIE_STEUERSCHLUESSEL = { USt19: 1900, USt7: 700, frei: 0 } as const;
 export type FreierSteuerschluessel = keyof typeof FREIE_STEUERSCHLUESSEL;
 
-/** Das Erlöskonto eines Steuerschlüssels; eine Zeile mit Schlüssel bucht genau dieses Konto */
+/** Das Erlöskonto eines Steuerschlüssels; vorgeschlagen, wenn eine Zeile den Schlüssel bekommt */
 export function freieBuchungKonto(kontenrahmen: Kontenrahmen, code: FreierSteuerschluessel): string {
   const satz = FREIE_STEUERSCHLUESSEL[code];
   return ACCOUNTS[kontenrahmen].erloese[satz];
+}
+
+/**
+ * Sachentnahme: Entnahme von Gegenständen des Betriebs für Zwecke außerhalb des Unternehmens (unentgeltliche Wertabgabe,
+ * § 3 Abs. 1b Nr. 1 UStG; in der EÜR mit dem Teilwert bzw. den Selbstkosten, § 6 Abs. 1 Nr. 4 Satz 1 EStG). DATEV-Konten
+ * „Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren)“ 19 % bzw. 7 % USt.
+ */
+export const SACHENTNAHME_KONTEN = {
+  SKR03: { 1900: "8910", 700: "8915" },
+  SKR04: { 1900: "4620", 700: "4630" },
+} as const;
+
+export const SACHENTNAHME_KONTO_NAMEN: Record<Kontenrahmen, Record<string, string>> = {
+  SKR03: {
+    "8910": "Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 19 % USt",
+    "8915": "Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 7 % USt",
+  },
+  SKR04: {
+    "4620": "Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 19 % USt",
+    "4630": "Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 7 % USt",
+  },
+};
+
+export const isSachentnahmeKonto = (kontenrahmen: Kontenrahmen, account: string) => Object.values(SACHENTNAHME_KONTEN[kontenrahmen]).includes(account as never);
+
+/** Die Konten, die eine Zeile mit diesem Steuerschlüssel bebuchen darf: das Erlöskonto des Satzes und die Sachentnahme */
+export function freieBuchungKonten(kontenrahmen: Kontenrahmen, code: FreierSteuerschluessel): string[] {
+  const satz = FREIE_STEUERSCHLUESSEL[code];
+  return satz === 0 ? [ACCOUNTS[kontenrahmen].erloese[0]] : [ACCOUNTS[kontenrahmen].erloese[satz], SACHENTNAHME_KONTEN[kontenrahmen][satz]];
 }
 
 export const MANUAL_MAX_LINES = 20;
@@ -135,10 +164,12 @@ export function manualPostingIssues(
     } else if (kind === "eroeffnung" && !carriesForward(kontenrahmen, line.account)) {
       issues.push(`${row}: Konto ${line.account} ist ein Erfolgskonto; die Eröffnung übernimmt nur Bestände`);
     } else if (line.account.startsWith("9")) issues.push(`${row}: Konto ${line.account} ist ein Vortrags- oder statistisches Konto`);
-    else if (line.taxCode && line.account === freieBuchungKonto(kontenrahmen, line.taxCode)) {
-      // Freie Buchung mit Steuerschlüssel auf das Erlöskonto des Schlüssels (freieBuchungIssues prüft den Rest)
-    } else if (line.taxCode) issues.push(`${row}: Mit ${line.taxCode} bucht die Zeile auf ${freieBuchungKonto(kontenrahmen, line.taxCode)}`);
-    else if (managed.has(line.account)) issues.push(`${row}: Konto ${line.account} führt das Nebenbuch ${managed.get(line.account)}`);
+    else if (line.taxCode && freieBuchungKonten(kontenrahmen, line.taxCode).includes(line.account)) {
+      // Freie Buchung mit Steuerschlüssel auf das Erlöskonto des Schlüssels oder die Sachentnahme (freieBuchungIssues prüft den Rest)
+    } else if (line.taxCode) issues.push(`${row}: Mit ${line.taxCode} bucht die Zeile auf ${freieBuchungKonten(kontenrahmen, line.taxCode).join(" oder ")}`);
+    else if (isSachentnahmeKonto(kontenrahmen, line.account)) {
+      issues.push(`${row}: Konto ${line.account} ist eine Sachentnahme mit Umsatzsteuer und bucht nur mit Steuerschlüssel`);
+    } else if (managed.has(line.account)) issues.push(`${row}: Konto ${line.account} führt das Nebenbuch ${managed.get(line.account)}`);
     else if (isKapitalgesellschaft(rechtsform) && isPrivateAccount(kontenrahmen, line.account)) {
       issues.push(`${row}: Konto ${line.account} ist ein Privatkonto; eine GmbH oder UG bucht auf das Gesellschafter-Verrechnungskonto`);
     }

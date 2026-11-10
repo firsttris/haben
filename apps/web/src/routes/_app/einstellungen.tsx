@@ -542,41 +542,41 @@ function CompanyForm() {
             )}
           </Field>
         </div>
-        <label className="checkbox" style={{ alignItems: "flex-start" }}>
-          {/* Einschalten mitten im Jahr gesperrt; Ausschalten geht immer (Umsatzgrenze überschritten) */}
-          <input
-            type="checkbox"
-            name="kleinunternehmer"
-            defaultChecked={company.kleinunternehmer}
-            disabled={Boolean(locks.kleinunternehmer) && !company.kleinunternehmer}
-            aria-describedby="kleinunternehmer-hint"
-          />
-          <span>
-            Kleinunternehmer nach § 19 UStG
-            <span id="kleinunternehmer-hint" className="field-hint" style={{ display: "block" }}>
-              Rechnungen ohne Umsatzsteuer, keine Voranmeldung, Belege ohne Vorsteuerabzug.{" "}
-              {locks.kleinunternehmer && !company.kleinunternehmer
-                ? locks.kleinunternehmer
-                : company.kleinunternehmer
-                  ? "Ausschalten, sobald die Umsatzgrenze überschritten ist; ab dann gilt die Regelbesteuerung."
-                  : ""}
-            </span>
+        <div className="checkbox-hinted">
+          <label className="checkbox">
+            {/* Einschalten mitten im Jahr gesperrt; Ausschalten geht immer (Umsatzgrenze überschritten) */}
+            <input
+              type="checkbox"
+              name="kleinunternehmer"
+              defaultChecked={company.kleinunternehmer}
+              disabled={Boolean(locks.kleinunternehmer) && !company.kleinunternehmer}
+              aria-describedby="kleinunternehmer-hint"
+            />
+            <span>Kleinunternehmer nach § 19 UStG</span>
+          </label>
+          <span id="kleinunternehmer-hint" className="field-hint">
+            Rechnungen ohne Umsatzsteuer, keine Voranmeldung, Belege ohne Vorsteuerabzug.{" "}
+            {locks.kleinunternehmer && !company.kleinunternehmer
+              ? locks.kleinunternehmer
+              : company.kleinunternehmer
+                ? "Ausschalten, sobald die Umsatzgrenze überschritten ist; ab dann gilt die Regelbesteuerung."
+                : ""}
           </span>
-        </label>
+        </div>
       </section>
 
       <section className="form-section" aria-labelledby="company-currency">
         <h3 id="company-currency">Fremdwährung</h3>
-        <label className="checkbox" style={{ alignItems: "flex-start" }}>
-          <input type="checkbox" name="tageskurs" defaultChecked={company.tageskurs} aria-describedby="tageskurs-hint" />
-          <span>
-            Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)
-            <span id="tageskurs-hint" className="field-hint" style={{ display: "block" }}>
-              Ohne Gestattung rechnet Haben Fremdwährung mit den monatlichen Umsatzsteuer-Umrechnungskursen des BMF um (§ 16 Abs. 6 UStG). Hat das Finanzamt den
-              Tageskurs gestattet, trägst du an Beleg und Rechnung den Kurs mit Kursdatum ein, etwa aus der Bankabrechnung.
-            </span>
+        <div className="checkbox-hinted">
+          <label className="checkbox">
+            <input type="checkbox" name="tageskurs" defaultChecked={company.tageskurs} aria-describedby="tageskurs-hint" />
+            <span>Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)</span>
+          </label>
+          <span id="tageskurs-hint" className="field-hint">
+            Ohne Gestattung rechnet Haben Fremdwährung mit den monatlichen Umsatzsteuer-Umrechnungskursen des BMF um (§ 16 Abs. 6 UStG). Hat das Finanzamt den
+            Tageskurs gestattet, trägst du an Beleg und Rechnung den Kurs mit Kursdatum ein, etwa aus der Bankabrechnung.
           </span>
-        </label>
+        </div>
       </section>
 
       <section className="form-section" aria-labelledby="company-bank">
@@ -696,17 +696,17 @@ function CompanyForm() {
           trägt ihn ein. Leer = keine Verzugszinsen.
         </p>
         <BaseRateLookup onFound={setBaseRate} />
-        <label className="checkbox" style={{ alignItems: "flex-start" }}>
-          <input type="checkbox" name="dunning-autoBaseRate" defaultChecked={company.dunning.autoBaseRate === true} aria-describedby="auto-base-rate-hint" />
-          <span>
-            Basiszinssatz automatisch abrufen
-            <span id="auto-base-rate-hint" className="field-hint" style={{ display: "block" }}>
-              Haben fragt die Bundesbank nur nach dem 1. Januar und 1. Juli, einmal am Tag, bis der neue Satz veröffentlicht ist, und trägt ihn dann ein.
-              Dazwischen ändert sich der Satz nicht und Haben fragt nicht.
-              {company.dunning.baseRateSince ? ` Zuletzt bestätigt für das Halbjahr ab ${formatRateMonth(company.dunning.baseRateSince)}.` : ""}
-            </span>
+        <div className="checkbox-hinted">
+          <label className="checkbox">
+            <input type="checkbox" name="dunning-autoBaseRate" defaultChecked={company.dunning.autoBaseRate === true} aria-describedby="auto-base-rate-hint" />
+            <span>Basiszinssatz automatisch abrufen</span>
+          </label>
+          <span id="auto-base-rate-hint" className="field-hint">
+            Haben fragt die Bundesbank nur nach dem 1. Januar und 1. Juli, einmal am Tag, bis der neue Satz veröffentlicht ist, und trägt ihn dann ein.
+            Dazwischen ändert sich der Satz nicht und Haben fragt nicht.
+            {company.dunning.baseRateSince ? ` Zuletzt bestätigt für das Halbjahr ab ${formatRateMonth(company.dunning.baseRateSince)}.` : ""}
           </span>
-        </label>
+        </div>
         <div className="form-row cols-3">
           <Field label="Gebühr Zahlungserinnerung (€)">
             {(control) => <input {...control} name="dunning-fee-1" inputMode="decimal" defaultValue={fee("1")} placeholder="0,00" />}
