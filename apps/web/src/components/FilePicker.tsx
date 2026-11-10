@@ -7,7 +7,9 @@ import { useState, type MouseEvent, type Ref } from "react";
  * `<label>` hat ihn bisher zum Auslöser gemacht. `Field` umschließt seine Felder aber bewusst nicht mit
  * einem `<label>` (siehe `Field.tsx`), dort trägt nur der Feldname den Klick — der Knopf daneben blieb
  * ohne Wirkung. `preventDefault` nimmt einem umschließenden `<label>` den zweiten Weg, sonst öffneten
- * sich zwei Dialoge. Das Eingabefeld bleibt für Tastatur und Formular erreichbar.
+ * sich zwei Dialoge. Ein Klick, der vom Eingabefeld selbst kommt, bleibt unberührt: Auch das Ereignis aus `click()` und
+ * die Tastatur kommen hier an, und `preventDefault` bräche dann den Dialog ab. Das Eingabefeld bleibt für Tastatur und
+ * Formular erreichbar.
  */
 export function FilePicker({
   name,
@@ -28,8 +30,10 @@ export function FilePicker({
 }) {
   const [files, setFiles] = useState<string[]>([]);
   const open = (event: MouseEvent<HTMLSpanElement>) => {
+    const input = event.currentTarget.querySelector<HTMLInputElement>("input[type=file]");
+    if (event.target === input) return;
     event.preventDefault();
-    event.currentTarget.querySelector<HTMLInputElement>("input[type=file]")?.click();
+    input?.click();
   };
   return (
     <span className="file-picker" onClick={open}>
