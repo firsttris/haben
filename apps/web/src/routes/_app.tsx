@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_app")({
       rechtsform: state.rechtsform ?? "einzelunternehmen",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
+      marke: state.marke,
     };
   },
   component: AppLayout,
@@ -111,7 +112,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, marke } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -161,7 +162,11 @@ function AppLayout() {
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
-          <span className="brand-mark">H</span>Haben
+          {/* Mehrere Firmen (#504): in der Akzentfarbe der Belege, sonst in der Farbe des Themes */}
+          <span className="brand-mark" style={marke ? { background: marke.farbe, color: marke.schrift } : undefined}>
+            H
+          </span>
+          Haben
         </Link>
         <button
           ref={toggle}

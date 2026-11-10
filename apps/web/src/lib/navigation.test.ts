@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type NavBedingung, navLinkSichtbar } from "./navigation.ts";
+import { markeInNavigation, type NavBedingung, navLinkSichtbar } from "./navigation.ts";
 
 /** Lohn ohne Bedingung */
 const lohn: NavBedingung = {};
@@ -21,5 +21,23 @@ describe("navLinkSichtbar", () => {
     expect(navLinkSichtbar(pauschalen, { gesellschaft: true, hatMitarbeiter: false })).toBe(false);
     expect(navLinkSichtbar(ausschuettungen, { gesellschaft: false, hatMitarbeiter: false })).toBe(false);
     expect(navLinkSichtbar(ausschuettungen, { gesellschaft: true, hatMitarbeiter: false })).toBe(true);
+  });
+});
+
+// Mehrere Firmen (#504): Das „H“ nimmt die Akzentfarbe der Belege, damit man jede Firma auf einen Blick erkennt
+describe("markeInNavigation", () => {
+  it("färbt das Zeichen in der gewählten Akzentfarbe, mit lesbarer Schrift", () => {
+    expect(markeInNavigation("#1D4ED8")).toEqual({ farbe: "#1D4ED8", schrift: "#FFFFFF" });
+    expect(markeInNavigation("#f5d90a")).toEqual({ farbe: "#F5D90A", schrift: "#16211C" });
+  });
+
+  it("lässt das Zeichen in der Farbe des Themes, solange die Akzentfarbe ab Werk gilt", () => {
+    expect(markeInNavigation("#1F6F5C")).toBeNull();
+    expect(markeInNavigation("#1f6f5c")).toBeNull();
+  });
+
+  it("nimmt keine Farbe an, die nicht die Form #RRGGBB hat", () => {
+    expect(markeInNavigation("red")).toBeNull();
+    expect(markeInNavigation("#12345")).toBeNull();
   });
 });

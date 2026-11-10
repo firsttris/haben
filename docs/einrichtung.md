@@ -121,6 +121,7 @@ Unter **Einstellungen › Beleggestaltung › Akzentfarbe** stellst du die Farbe
 - Du wählst sie mit dem Farbfeld oder trägst sie als Hex-Wert in der Form `#RRGGBB` ein; **Auf Standard zurücksetzen** stellt das Grün wieder her.
 - Sie gilt für Rechnungen und Angebote, die ab dann festgeschrieben werden, und für die Vorschau im Editor; schon festgeschriebene PDFs bleiben unverändert.
 - Eine Mahnung, Auftragsbestätigung oder ein Lieferschein zu einem älteren Beleg entsteht neu und bekommt deshalb die dann aktuelle Farbe und das aktuelle Logo.
+- Das „H“ oben in der Navigation nimmt dieselbe Farbe an, sobald du eine eigene wählst; das „H“ steht darauf in Weiß oder Dunkel, je nachdem, was sich besser liest. So erkennst du bei [mehreren Instanzen](installation.md#mehrere-instanzen) auf einen Blick, in welcher Firma du bist. Mit dem Grün ab Werk behält das Zeichen die Farbe deines Farbschemas.
 - Ist die Farbe auf weißem Papier schwer zu lesen (Kontrast unter 4,5 : 1 nach WCAG), weist Haben darauf hin. Speichern geht trotzdem; eine dunklere Variante des Logo-Farbtons liest sich besser.
 - Die Änderung steht im Änderungsprotokoll.
 

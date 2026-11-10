@@ -22,6 +22,8 @@ Farben kommen aus den Variablen in `:root` von `styles.css`; die Themes übersch
 | Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
+Einzige Ausnahme: Das „H“ der Navigation (`.brand-mark`) bekommt die Akzentfarbe der Belege als Inline-Style, sobald eine eigene gewählt ist (`markeInNavigation` in `apps/web/src/lib/navigation.ts`). So erkennt man bei mehreren Instanzen die Firma. Die Schrift darauf wählt `inkOnAccent` (`packages/core/src/accent.ts`) nach dem höheren Kontrast; ab Werk bleibt `--brand` des Themes.
+
 Die Themes stehen in `apps/web/src/lib/theme.ts`: Wald (Standard), Ozean, Pflaume, Graphit, Nacht und Tiefsee (beide dunkel), dazu „Automatisch“, das der Systemeinstellung folgt.
 
 ## Schrift und Abstände

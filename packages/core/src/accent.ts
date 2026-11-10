@@ -4,14 +4,32 @@ export const DEFAULT_ACCENT = "#1F6F5C";
 /** Hex-Farbe #RRGGBB, wie sie das Farbfeld des Browsers liefert */
 export const ACCENT_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
-/** Kontrast einer Farbe #RRGGBB zu weißem Papier nach WCAG 2.2 (relative Leuchtdichte), 1 bis 21 */
-export function contrastOnWhite(hex: string): number {
+/** Relative Leuchtdichte einer Farbe #RRGGBB nach WCAG 2.2, 0 (Schwarz) bis 1 (Weiß) */
+function luminance(hex: string): number {
   const channel = (offset: number) => {
     const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  return 1.05 / (luminance + 0.05);
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+/** Kontrast einer Farbe #RRGGBB zu weißem Papier nach WCAG 2.2 (relative Leuchtdichte), 1 bis 21 */
+export function contrastOnWhite(hex: string): number {
+  return 1.05 / (luminance(hex) + 0.05);
+}
+
+/** Dunkle Schrift auf hellen Akzentfarben: der Text der Vorlagen ab Werk */
+const INK_ON_LIGHT = "#16211C";
+
+/**
+ * Schrift auf einer Fläche in der Akzentfarbe, etwa dem „H“ der Navigation (#504): Weiß oder Dunkel, je nachdem,
+ * was nach WCAG 2.2 den höheren Kontrast hat
+ */
+export function inkOnAccent(hex: string): "#FFFFFF" | typeof INK_ON_LIGHT {
+  const accent = luminance(hex);
+  const onWhite = 1.05 / (accent + 0.05);
+  const onDark = (accent + 0.05) / (luminance(INK_ON_LIGHT) + 0.05);
+  return onWhite >= onDark ? "#FFFFFF" : INK_ON_LIGHT;
 }
 
 /** WCAG 2.2, 1.4.3: 4,5 : 1 für kleine Schrift; die Spaltenköpfe stehen in 8 pt */

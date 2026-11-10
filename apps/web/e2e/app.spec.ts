@@ -112,6 +112,10 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await akzent.getByRole("button", { name: "Übernehmen" }).click();
   await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  // Mehrere Firmen (#504): Das „H“ in der Navigation nimmt die Akzentfarbe, mit lesbarer Schrift darauf
+  const zeichen = page.getByRole("navigation", { name: "Hauptnavigation" }).locator(".brand-mark");
+  await expect(zeichen).toHaveCSS("background-color", "rgb(29, 78, 216)");
+  await expect(zeichen).toHaveCSS("color", "rgb(255, 255, 255)");
   // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
@@ -124,6 +128,8 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await go("/einstellungen?bereich=gestaltung");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
+  // Ab Werk wieder in der Farbe des Themes Wald
+  await expect(zeichen).toHaveCSS("background-color", "rgb(63, 162, 132)");
 });
 
 test("Kunden anlegen", async () => {

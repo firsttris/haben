@@ -3,8 +3,9 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { count } from "drizzle-orm";
 import { db, schema } from "../db/index.ts";
 import { listCustomPages } from "../modules/eigene-seiten/index.ts";
+import { markeInNavigation } from "../../lib/navigation.ts";
 import { hasEmployees } from "../modules/lohn/index.ts";
-import { loadCompany } from "../modules/stammdaten/index.ts";
+import { loadCompany, loadDesign } from "../modules/stammdaten/index.ts";
 import { env } from "../env.ts";
 import { oidcPublicConfig } from "../oidc.ts";
 import { ssoInitialized } from "../sso-callback.ts";
@@ -31,5 +32,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name }) => ({ id, name })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
+    // Mehrere Firmen (#504): das „H“ in der Akzentfarbe der Belege, für alle Rollen dieser Instanz
+    marke: user ? markeInNavigation((await loadDesign()).accent) : null,
   };
 });
