@@ -358,7 +358,7 @@ Die Bestätigung der Datenschutzhinweise prüft der Client selbst vor jedem Aufr
 
 Beim Festschreiben entsteht die Rechnung in zwei Stufen:
 
-1. **Sichtbares PDF:** Typst setzt die Vorlage `rechnung.typ` mit IBM Plex Sans als PDF/A-3b. Der Compiler läuft im Prozess (`@myriaddreamin/typst-ts-node-compiler`).
+1. **Sichtbares PDF:** Typst setzt die Vorlage `rechnung.typ` mit IBM Plex Sans als PDF/A-3b. Der Compiler läuft im Prozess (`@myriaddreamin/typst-ts-node-compiler`). Die Vorschau der Editoren setzt dieselbe Vorlage aus dem Stand des Formulars als SVG, in einem eigenen Prozess (`render-worker.ts`).
 2. **E-Rechnung:** `@e-invoice-eu/core` erzeugt aus denselben Daten
    - bei **ZUGFeRD** (Profil EN 16931) ein PDF/A-3 mit eingebettetem `factur-x.xml`; Haben liest das XML danach wieder aus und speichert es zusätzlich,
    - bei **XRechnung** (CII oder UBL) das XML; das Typst-PDF bleibt als Sichtfassung dabei.
@@ -415,6 +415,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | Jahresexport als Stream | Ein Jahr mit vielen Belegen braucht kaum Arbeitsspeicher; die Prüfsummen entstehen beim Packen |
 | Keine Job-Queue | Ein Prozess, eine Datenbank, einfacher Betrieb. Die einzigen langen Aufgaben sind wiederholbar bzw. fortsetzbar |
 | KI-Auslesung optional, auch selbst betrieben | Ohne Anbieter oder mit eigenem Modell bleiben alle Daten auf dem eigenen Server; E-Rechnungen werden ohnehin direkt gelesen. Über dieselbe OpenAI-kompatible Schnittstelle gehen auch Cloud-Dienste wie OpenRouter, ohne eigenen Anbieter im Code. Genau ein Anbieter, kein Ausweichen auf einen anderen. Eingestellt über Umgebungsvariablen wie die übrigen Dienste; ein Schlüssel für den eigenen Dienst liegt damit nicht in der Datenbank |
+| Vorschau mit Typst statt HTML-Nachbau | Eine Vorlage statt zweier, die auseinanderlaufen können; Umbrüche und Seiten stimmen. Gemessen (Kompilieren plus SVG bei laufender Eingabe, MacBook Pro mit Apple M5 Pro (18 Kerne, 64 GB), im Linux-Container (OrbStack, arm64), mit `docker run --cpus` und `--memory` gedrosselt; ein echter schwacher Rechner ist nicht gemessen): 4 CPUs 4 ms je Seite und 19 ms bei 80 Positionen, 0,25 CPU 13 und 205 ms, 0,1 CPU 198 und 603 ms. Der Render-Prozess bleibt warm, bekommt nichts aus der Umgebung der App, kein Netz und wird nach 5 s hart beendet (`render-client.ts`) |
 | PDF-Seiten mit `pdftoppm` | Ein kleines Systempaket statt einer Rendering-Bibliothek im Serverprozess; läuft als Kindprozess mit Zeitlimit, ein kaputtes PDF trifft die App nicht. Typst kann PDFs nur als Vektor-SVG ausgeben, nicht als Bild |
 | Altbestand aus Lexoffice getrennt | Archivierte Daten bleiben unverändert und beeinflussen weder Voranmeldung noch Auswertungen; nur ausdrücklich übernommene offene Posten werden Teil der Buchhaltung |
 
