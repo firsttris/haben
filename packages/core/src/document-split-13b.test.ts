@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { allocateSplitTax, documentSplitPosting, type DocumentSplitLine } from "./document-split.ts";
 import { totalsFromTaxes } from "./invoice.ts";
+import { kennzahlenAusJournal } from "./journal-kennzahlen.ts";
 import { documentPosting, type PostingLine, type ReverseChargeIn, type SelfAssessedTax } from "./posting.ts";
 
 /*
@@ -66,6 +67,12 @@ describe("documentSplitPosting mit § 13b", () => {
           { account: k.ustRc, debit: 0, credit: 4_750, taxCode: code },
           { account: k.privat, debit: 0, credit: 25_000, taxCode: null },
         ]);
+      });
+
+      it(`${kontenrahmen}, ${rc}: ohne Vorsteuerabzug trägt das Journal die Bemessungsgrundlage netto (Kz 46/84), #542`, () => {
+        const posting = documentSplitPosting(totals, allocateSplitTax(lines, amounts), kontenrahmen, "einzelunternehmen", "bank", false, rc);
+        const k = kennzahlenAusJournal(kontenrahmen, "soll", [posting]);
+        expect(rc === "eu" ? [k.kz46, k.kz47] : [k.kz84, k.kz85]).toEqual([25_000, 4_750]);
       });
 
       it(`${kontenrahmen}, ${rc}: dieselben Salden wie ohne Aufteilung, nur das Aufwandskonto unterscheidet sich`, () => {
