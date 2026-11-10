@@ -572,6 +572,29 @@ test("Kontrollkästchen mit Hinweis: Ein Klick auf den Hinweis schaltet nicht um
   await expect(kasten).toBeChecked({ checked: !vorher });
 });
 
+test("Rechnungsart: Der Hinweis erscheint nur bei Abschlags- und Schlussrechnung, nicht bei der normalen Rechnung", async ({ page }) => {
+  await open(page, "/rechnungen/neu");
+  const art = page.getByLabel("Rechnungsart");
+  await expect(art).toHaveValue("");
+  await expect(art).toHaveAccessibleDescription("");
+  await art.selectOption("abschlag");
+  await expect(art).toHaveAccessibleDescription(/^Über einen Teil der Leistung/);
+  await art.selectOption("schluss");
+  await expect(art).toHaveAccessibleDescription(/^Über die gesamte Leistung/);
+  await art.selectOption("");
+  await expect(art).toHaveAccessibleDescription("");
+});
+
+test("Feld in einer Zeile: „Konto“ steht links neben der Auswahl, nicht darüber", async ({ page }) => {
+  await open(page, "/bank");
+  const feld = page.locator(".field-inline", { has: page.getByLabel("Konto", { exact: true }) });
+  const name = await feld.locator(".field-label").boundingBox();
+  const auswahl = await feld.locator("select").boundingBox();
+  if (!name || !auswahl) throw new Error("Feld „Konto“ ohne Fläche");
+  expect(name.x + name.width, "Name links vom Feld").toBeLessThanOrEqual(auswahl.x);
+  expect(Math.abs(name.y + name.height / 2 - (auswahl.y + auswahl.height / 2)), "auf einer Höhe").toBeLessThan(12);
+});
+
 /** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
 const FILE_PICKER_PAGES = [
   "/dauerbelege/neu",
