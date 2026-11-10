@@ -48,6 +48,7 @@ const ART_LABEL = { beleg: "Belege", mahnung: "Mahnungen" } as const;
 const artFor = (type: LayoutDocumentType) => (type === "mahnung" ? "mahnung" : "beleg");
 const refValue = (ref: LayoutRef) => `${ref.kind}:${ref.id}`;
 const DOWNLOAD = "/api/belegvorlagen";
+export const LAYOUTS_DOCS = "https://haben.app/belegvorlagen.html";
 
 /** Datei als Text lesen; Typst-Vorlagen sind UTF-8 */
 const readText = (file: File) => file.text();
@@ -140,7 +141,11 @@ export function LayoutsCard({ design, layouts }: { design: LetterheadDesign; lay
         <h3 id="layout-hilfe-heading">Selbst schreiben</h3>
         <p className="small muted" style={{ margin: "0 0 8px" }}>
           Ein Layout ist eine Typst-Datei. Am einfachsten mit einem KI-Agenten: Gib ihm die Anleitung und ein eingebautes Layout als Grundlage, beschreibe das
-          Aussehen und lade das Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt.
+          Aussehen und lade das Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt. Felder, Prüfung und Pakete erklärt die{" "}
+          <a href={LAYOUTS_DOCS} target="_blank" rel="noreferrer">
+            Dokumentation
+          </a>
+          .
         </p>
         <div className="actions" style={{ flexWrap: "wrap" }}>
           <a className="btn btn-sm" href={`${DOWNLOAD}?datei=anleitung`} download>
