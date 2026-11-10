@@ -67,7 +67,7 @@ Stand 9. November 2026, nach Abgleich mit Lexware Office und sevDesk und den off
 
 **Betrieb**
 
-- Mehrere Instanzen mit einem Werkzeug anlegen, aktualisieren und prüfen, je Firma eine eigene Instanz ([Mehrere Instanzen](installation.md#mit-dem-werkzeug), [#504](https://github.com/firsttris/haben/issues/504))
+- Mehrere Instanzen mit einem Werkzeug anlegen, aktualisieren und prüfen, je Firma eine eigene Instanz ([Mehrere Instanzen](installation.md#mit-dem-werkzeug), [#504](https://github.com/firsttris/haben/issues/504)); in der Navigation der Name der Firma und „Firma wechseln“ zu den übrigen ([Firma wechseln](installation.md#firma-wechseln))
 
 **Oberfläche und Zugänge**
 

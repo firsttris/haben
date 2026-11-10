@@ -398,6 +398,7 @@ Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
 | `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende; meldet Compose für eine Instanz einen Fehler, hält es dort an |
 | `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung aus `backup_status`; eine gestoppte Instanz steht als „gestoppt“ in der Liste |
 | `liste` | Name, Domain und Verzeichnis |
+| `firmen` | gleicht die Liste zum [Wechseln der Firma](#firma-wechseln) in allen Instanzen ab, etwa nach einer Änderung von `HABEN_FIRMENNAME` von Hand, und startet geänderte neu; `neu` tut das von selbst |
 
 `update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 
@@ -405,6 +406,7 @@ Optionen für `neu`:
 
 | Option | Wirkung |
 | --- | --- |
+| `--firmenname NAME` | Name der Firma in der Navigation, bis 60 Zeichen ohne senkrechten Strich, Semikolon und Apostroph; Vorgabe ist `<name>`. Steht als `HABEN_FIRMENNAME` in der `.env` |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID`. Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
 | `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](#eric-einbinden) |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
@@ -414,6 +416,16 @@ Optionen für `neu`:
 `ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
 
 **Mit SSO:** Jede Instanz ist ein eigener Client beim Anmeldedienst und bekommt eigene Gruppen, `haben-<name>-inhaber` und `haben-<name>-steuerberatung`. Teilen sich Instanzen einen Anmeldedienst und dieselben Gruppennamen, wäre jedes Mitglied der Inhaber-Gruppe Inhaber in allen Firmen. Das Werkzeug nennt nach `neu` die Gruppen und die Redirect-URI `https://<domain>/api/auth/callback/oidc`; den Client legst du wie unter [Authelia konfigurieren](#authelia-konfigurieren) an, je Instanz mit eigener `client_id` und eigenem Secret. Wer in mehreren Firmen arbeitet, ist Mitglied in den Gruppen jeder dieser Firmen und meldet sich beim Anmeldedienst nur einmal an.
+
+### Firma wechseln
+
+Mit `HABEN_FIRMEN` kennt jede Instanz die übrigen: In der Navigation steht unter „Haben“ der Name der Firma, in der du gerade arbeitest, und unten unter **Firma wechseln** die anderen als Links. Ein Klick öffnet die Instanz der anderen Firma unter ihrer eigenen Adresse; Daten wandern dabei nicht, jede Instanz hat ihre eigene Anmeldung. Mit [SSO](#single-sign-on-mit-openid-connect) bist du dort meist sofort angemeldet, sonst meldest du dich einmal je Firma an (Passkeys gelten je Domain).
+
+```dotenv
+HABEN_FIRMEN='Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de'
+```
+
+Je Firma `Name|Adresse`, getrennt durch `;`, in jeder Instanz dieselbe Liste samt ihr selbst; die eigene erkennt Haben an `DOMAIN` bzw. `BETTER_AUTH_URL`. Erlaubt sind nur `https://` mit Domain ohne Pfad (`http://` nur für `localhost`), Namen bis 60 Zeichen, jede Adresse und jeder Name einmal; sonst startet die App nicht und nennt den Fehler im Log. Das Werkzeug trägt die Liste bei `neu` und `firmen` selbst ein. Die Liste zum Wechseln sieht nur der Inhaber; der [Zugang für die Steuerberatung](steuerberatung.md) sieht nur den Namen der eigenen Firma, nicht welche anderen es gibt.
 
 ### Von Hand
 
@@ -508,6 +520,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
 | `ENABLE_BANKING_API_URL` | nein | Andere Basis-URL der API, nur zum Testen. Standard `https://api.enablebanking.com` | `http://localhost:4555` |
+| `HABEN_FIRMEN` | nein | Instanzen der eigenen Firmen zum Wechseln in der Navigation: Name und Adresse je Firma, Format unter [Firma wechseln](#firma-wechseln) | siehe dort |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
