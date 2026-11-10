@@ -1,5 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { datevGuidFound, datevInternalId, datevVoucherFound, truncatedNumberMatches } from "./datev-belegnummer.ts";
+import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
@@ -550,9 +550,7 @@ export async function reconciliation() {
       count(*) filter (where b.voucher_field1 <> '' and not ${datevInternalId("b.voucher_field1")}
         and not ${datevVoucherFound("b.voucher_field1")}
         and not ${datevGuidFound("b.document_link")}
-        -- Privatentnahmen (1800-1899), Verrechnungskonten (136x) und Erlöse (8xxx) haben keinen Eingangsbeleg;
-        -- sie als offen zu zählen, macht den Abgleich unerreichbar.
-        and b.contra_account !~ '^(18[0-9]{2}|13[6-9][0-9]|[89][0-9]{3})$')::int as unmatched,
+        and not ${datevWithoutReceipt(company.kontenrahmen, "b.contra_account", "b.file_id")})::int as unmatched,
       count(*) filter (where b.voucher_field1 = '' or ${datevInternalId("b.voucher_field1")})::int as without_number
     from datev_bookings b group by 1`);
   const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);

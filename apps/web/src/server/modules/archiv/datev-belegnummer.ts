@@ -41,6 +41,22 @@ export function datevGuidFound(linkField: string): SQL<boolean> {
 }
 
 /**
+ * Buchungen, die nie einen Eingangsbeleg haben: Privat, Geldtransit und Vortragskonten (Klasse 9), je nach Kontenrahmen
+ * (packages/core/src/posting.ts: SKR03 Privat 1800–1899 und Geldtransit 1360, SKR04 Privat 2100–2199 und Geldtransit
+ * 1460; in SKR04 ist 1800 die Bank). Dazu die Erlöse, aber nur in einem Stapel aus dem Accountable-Umzug: Accountable
+ * exportiert keine Ausgangsrechnungen, aus Lexoffice und sevDesk fehlt eine Rechnung zur Erlösbuchung dagegen wirklich.
+ */
+export function datevWithoutReceipt(kontenrahmen: "SKR03" | "SKR04", contraField: string, fileField: string): SQL<boolean> {
+  const neutral = kontenrahmen === "SKR04" ? "^(21[0-9]{2}|1460|9[0-9]{3})$" : "^(18[0-9]{2}|1360|9[0-9]{3})$";
+  const revenue = kontenrahmen === "SKR04" ? "^4[0-9]{3}$" : "^8[0-9]{3}$";
+  const contra = sql.raw(contraField);
+  const file = sql.raw(fileField);
+  return sql<boolean>`(${contra} ~ ${neutral} or (${contra} ~ ${revenue} and exists (
+    select 1 from lexoffice_imports i
+     where i.source = 'accountable' and i.progress->'accountable'->>'archivedFileId' = ${file}::text)))`;
+}
+
+/**
  * sevDesk schreibt in Zahlungsbuchungen eine interne UUID ins Belegfeld (#472): keine Belegnummer, außer ein Beleg trägt
  * sie wirklich als Nummer.
  */
