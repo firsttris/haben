@@ -235,7 +235,11 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
   const conditions: SQL[] = [gte(schema.datevBookings.date, from), lte(schema.datevBookings.date, to)];
   const account = filter.account.trim();
   if (account) conditions.push(or(eq(schema.datevBookings.account, account), eq(schema.datevBookings.contraAccount, account))!);
-  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql}`);
+  // Dieselbe Ausnahme wie im Abgleich (reconciliation) und in listDatevBookings
+  const { kontenrahmen } = await loadCompany();
+  const withoutReceiptSql = datevWithoutReceipt(kontenrahmen, "datev_bookings.contra_account", "datev_bookings.file_id");
+  if (filter.unmatched)
+    conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql} and not ${internalIdSql} and not ${withoutReceiptSql}`);
   const where = and(...conditions);
   const [rows, [total]] = await Promise.all([
     db
@@ -248,7 +252,7 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
         buKey: schema.datevBookings.buKey,
         voucherField1: schema.datevBookings.voucherField1,
         text: schema.datevBookings.text,
-        matched: matchedSql,
+        matched: sql<boolean>`${matchedSql} or ${withoutReceiptSql}`,
         internalId: internalIdSql,
       })
       .from(schema.datevBookings)
