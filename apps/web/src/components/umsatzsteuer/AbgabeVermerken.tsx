@@ -8,6 +8,7 @@ import { fileVatReturnElsewhere } from "../../server/functions/vat.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { Field } from "../Field.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 
 /**
  * Abgabe außerhalb von Haben vermerken (XML-Import in Mein ELSTER, Erweiterung, KI-Assistent): Tag, Transferticket,
@@ -86,7 +87,7 @@ export function AbgabeVermerken({
         )}
       </Field>
       <Field label="Übermittlungsprotokoll (PDF)">
-        {(control) => <input {...control} type="file" accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />}
+        {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />}
       </Field>
       {blocked && <p className="small muted">Erst den Entwurf speichern; vermerkt wird die gespeicherte Anmeldung.</p>}
       <div className="actions">

@@ -43,6 +43,7 @@ import { ConfirmDialog, isDialogOpen } from "../../components/ConfirmDialog.tsx"
 import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/ZuordnungAufheben.tsx";
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
+import { UploadButton } from "../../components/UploadButton.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -779,7 +780,6 @@ function ImportControls({ data }: { data: Data }) {
   const addAccount = useServerFn(addBankAccount);
   const addProvider = useServerFn(addProviderAccount);
   const [accountType, setAccountType] = useState<"bank" | "provider">("bank");
-  const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [targetAccount, setTargetAccount] = useState("");
@@ -815,7 +815,6 @@ function ImportControls({ data }: { data: Data }) {
       setMessages([{ tone: "danger", text: errorMessage(error) }]);
     } finally {
       setBusy(false);
-      if (fileInput.current) fileInput.current.value = "";
     }
   }
 
@@ -859,19 +858,16 @@ function ImportControls({ data }: { data: Data }) {
         <button type="button" className="btn" onClick={() => setShowAccount((v) => !v)} disabled={busy}>
           Konto hinzufügen
         </button>
-        <button type="button" className="btn btn-primary" onClick={() => fileInput.current?.click()} disabled={busy}>
-          {busy ? "Importiere …" : "CSV / CAMT importieren"}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
+        <UploadButton
+          className="btn btn-primary"
           multiple
           accept=".csv,.xml,.txt,text/csv,application/xml,text/xml"
-          className="visually-hidden"
-          tabIndex={-1}
-          aria-label="Kontoauszugsdateien"
-          onChange={(e) => void onFiles([...(e.target.files ?? [])])}
-        />
+          disabled={busy}
+          inputLabel="Kontoauszugsdateien"
+          onFiles={onFiles}
+        >
+          {busy ? "Importiere …" : "CSV / CAMT importieren"}
+        </UploadButton>
       </div>
       {showAccount && (
         <form className="card" onSubmit={onAddAccount} style={{ minWidth: 320 }}>

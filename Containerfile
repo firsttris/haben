@@ -12,22 +12,41 @@ COPY packages/elster/package.json packages/elster/
 COPY packages/import/package.json packages/import/
 RUN bun install --frozen-lockfile
 COPY . .
-# Danach nur noch die Laufzeitabhängigkeiten; neu installieren statt entfernen, die Pakete liegen im Cache.
+# Danach nur noch die Laufzeitabhängigkeiten; neu installieren statt entfernen, die Pakete liegen im Cache. Ohne
+# Peer-Abhängigkeiten: Über sie kämen Build-Werkzeuge ins Image (vite, vitest, drizzle-kit, tsx, esbuild mit eigener
+# Go-Laufzeit), die zur Laufzeit nicht laufen. Was die App als Peer braucht (react, zod, postgres …), steht in
+# apps/web/package.json als direkte Abhängigkeit; der CI-Job container lädt die externen Module des Bundles.
 # Der Befehl haben (Betriebsstatus) als eine Datei; Pakete aus node_modules bleiben außen vor und kommen zur Laufzeit
 # aus apps/web/node_modules, so bleibt etwa die native Bibliothek von Typst nur einmal im Image
 RUN bun run build \
  && bun build apps/web/src/server/modules/betrieb/cli.ts --target bun --packages external --outfile apps/web/.output/haben-cli.js \
  && rm -rf node_modules apps/web/node_modules packages/*/node_modules \
- && bun install --frozen-lockfile --production
+ && bun install --frozen-lockfile --production --omit=peer
 
-FROM docker.io/oven/bun:1.4.4-slim
+# Laufzeit auf Wolfi statt Debian: glibc wie bisher (ERiC ist eine glibc-Bibliothek, Alpine mit musl ginge nicht),
+# aber aktuelle Upstream-Versionen, vor allem von poppler, das jedes hochgeladene PDF liest. Wolfi ist rollend; der
+# Digest hält den Build reproduzierbar, Renovate hebt ihn an.
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:b7787f1d3f29dcfb48730372d3515391ac3b218723201a765c94949922676099
+# Dasselbe Bun wie in der Build-Stufe (glibc-Build); Renovate verfolgt oven/bun weiter an beiden Stellen
+COPY --from=docker.io/oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
+# poppler-utils: pdftotext und pdftoppm für hochgeladene PDFs (Textebene, Seitenbilder für einen eigenen KI-Dienst),
+# als eigener Prozess. font-liberation: ohne Schriften rendert pdftoppm nicht eingebettete Standardschriften wie
+# Helvetica gar nicht. libgcc: libgcc_s braucht ERiC neben glibc (steckt schon in wolfi-base, hier ausdrücklich).
+# Benutzer bun mit UID 1000 wie im Image von oven/bun, damit bestehende Volumes lesbar bleiben. Die Pakete kommen aus
+# dem freien Wolfi-Repository; wolfi-base nennt in /etc/apk/repositories das von Chainguard, das eine Anmeldung verlangt.
+RUN echo https://packages.wolfi.dev/os > /etc/apk/repositories \
+ && apk add --no-cache poppler-utils font-liberation tzdata libgcc \
+ && addgroup -g 1000 bun \
+ && adduser -D -u 1000 -G bun -h /home/bun -s /bin/sh bun
 ENV NODE_ENV=production \
     PORT=3000 \
     ERIC_WORKER_PATH=/app/packages/elster/src/worker.ts \
     HABEN_EINVOICE_DIR=/app/packages/einvoice \
     DOCUMENTS_DIR=/var/lib/haben/belege \
     ERIC_LOG_DIR=/var/lib/haben/eric-log \
-    ERIC_DIR=/var/lib/haben/eric
+    ERIC_DIR=/var/lib/haben/eric \
+    XDG_CACHE_HOME=/tmp/.cache
+# XDG_CACHE_HOME: Fontconfig (pdftoppm) braucht einen beschreibbaren Cache, auch bei schreibgeschütztem Dateisystem
 WORKDIR /app
 # Der ERiC-Worker läuft aus den Quellen von packages/elster (Bun führt TypeScript direkt aus, nicht unter node_modules).
 COPY --from=build /app/node_modules ./node_modules
@@ -42,10 +61,6 @@ COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
 # haben status [--json]: Version, ERiC und letzte Sicherung, etwa für deploy/instanzen
 COPY deploy/haben.sh /usr/local/bin/haben
-# pdftoppm: PDFs als Seitenbilder für einen selbst betriebenen KI-Dienst (Belegauslesung), als eigener Prozess
-RUN apt-get update \
- && apt-get install -y --no-install-recommends poppler-utils \
- && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R bun:bun /var/lib/haben
 USER bun
 EXPOSE 3000

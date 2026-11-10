@@ -1,7 +1,8 @@
 // Renovate (GitHub-App, https://github.com/apps/renovate): ein Pull Request je neuem Release
 // dessen, worauf Haben aufbaut, dazu das Issue „Dependency Dashboard“ mit allem, was offen ist.
 // Eigene Pull Requests: KoSIT-Validator und XRechnung-Konfiguration (CI-Job kosit), Bun (Images,
-// package.json, Screenshots, README), PostgreSQL (Datenbank, Backup-Image, CI, Doku), Caddy und restic.
+// package.json, Screenshots, README), die Wolfi-Basis des App-Images (wöchentlich), PostgreSQL
+// (Datenbank, Backup-Image, CI, Doku), Caddy und restic.
 // Nicht über Renovate: ERiC (download.elster.de hat keine Liste, die Renovate lesen könnte;
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
 // Testübermittlung) und Habens eigene Images. Neue ERiC-Versionen, Lohnsteuer-PAP, Sozialversicherungswerte,
@@ -100,12 +101,21 @@
       dependencyDashboardApproval: false,
     },
     {
+      // Basis der Laufzeit im Containerfile: Wolfi ist rollend, der gepinnte Digest bringt poppler und die übrigen
+      // Systempakete. Jede Woche statt einmal im Monat, damit Sicherheitsfixes nicht lange warten; der CI-Job container
+      // startet das Image und prüft pdftotext, pdftoppm und die Pakete der Laufzeit, danach merged Renovate selbst.
+      matchPackageNames: ["cgr.dev/chainguard/wolfi-base"],
+      groupName: "Wolfi",
+      schedule: ["* 0-5 * * 1"],
+      automerge: true,
+    },
+    {
       // Bun: Images, package.json, Screenshots und README in einem PR, auch Majors
       matchPackageNames: ["docker.io/oven/bun", "oven/bun", "bun"],
       groupName: "Bun",
       sourceUrl: "https://github.com/oven-sh/bun",
       prBodyNotes: [
-        "Die Images (`Containerfile` beide Stufen, `deploy/dev/Containerfile`), `packageManager` in `package.json` (daraus nimmt die CI ihre Version), der Screenshot-Workflow und das README ziehen zusammen. Bun ist Laufzeit und Paketmanager: Nach dem Update `bun install` ausführen, falls sich `bun.lock` ändert. Der ERiC-Worker läuft unter Bun aus den Quellen und lädt ERiC über `koffi` (Node-API in Bun): Vor dem Mergen `ERIC_DIR=… bun --bun vitest run packages/elster/src/eric-echt.test.ts` mit installiertem ERiC laufen lassen (in der CI wird ERiC nicht geladen); der Container-Job dieses PRs startet das Image.",
+        "Die Images (`Containerfile`: Build-Stufe und das Bun, das die Laufzeit-Stufe auf Wolfi daraus kopiert; `deploy/dev/Containerfile`), `packageManager` in `package.json` (daraus nimmt die CI ihre Version), der Screenshot-Workflow und das README ziehen zusammen. Bun ist Laufzeit und Paketmanager: Nach dem Update `bun install` ausführen, falls sich `bun.lock` ändert. Der ERiC-Worker läuft unter Bun aus den Quellen und lädt ERiC über `koffi` (Node-API in Bun): Vor dem Mergen `ERIC_DIR=… bun --bun vitest run packages/elster/src/eric-echt.test.ts` mit installiertem ERiC laufen lassen (in der CI wird ERiC nicht geladen); der Container-Job dieses PRs startet das Image.",
       ],
       schedule: ["at any time"],
       automerge: false,

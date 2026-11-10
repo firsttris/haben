@@ -97,6 +97,12 @@ Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `F
 
 Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen; beim Tippen bleibt es aus. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
+### Datei-Felder
+
+Eine Datei, die mit einem Formular abgeschickt wird, wählt `FilePicker` (`components/FilePicker.tsx`) in einem `Field`, nie ein sichtbares `<input type="file">`: Dessen Knopf beschriftet der Browser in seiner Sprache („Choose File“). `FilePicker` zeigt „Datei wählen“ und den gewählten Namen, nimmt `{...control}` von `Field` an, öffnet den Dialog per Klick und Tastatur selbst und kennt `disabled` und `onChange`. Leeren lässt er sich samt Anzeige über einen neuen `key`.
+
+Wird eine Datei sofort hochgeladen, ohne Formular (Belege, Kontoauszüge, Anhänge, Logo, Mandat), ist das eine Aktion: `UploadButton` (`components/UploadButton.tsx`), ein echter Knopf mit unsichtbarem Eingabefeld dahinter, das weder per Tab noch für Screenreader erreichbar ist. Kein `label.btn` um ein Eingabefeld.
+
 ### Felder mit Auszeichnungen
 
 Text, der auf dem Beleg fett, kursiv oder unterstrichen stehen kann, wird in `FormattedTextarea` eingegeben, nicht mit einer eigenen Werkzeugleiste. Die Knöpfe F, K und U (`.format-bar`) schweben an der Markierung, auf Touchgeräten rechts über dem Feld, weil das System sein Menü an die Auswahl legt. Dazu gelten Strg+B, I und U, am Mac mit Cmd. In der Leiste wechseln die Pfeiltasten den Knopf. Solange die Leiste zu sehen ist, schließt Esc nur sie; ein umgebender Dialog bleibt offen.
