@@ -113,8 +113,25 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
         ["GET /kontakte/{id}", false],
         ["POST /kontakte", true],
       ]);
-      const [audit] = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT'`;
-      expect(audit!.actor).toBe("api:Shop-Automation");
+      const [audit] = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT' order by seq desc limit 1`;
+      expect(audit!.actor).toBe(`api:${(await mcp.listMcpTokens())[0]!.id}:Shop-Automation`);
+    });
+
+    it("unterscheidet im Audit-Log zwei Tokens mit gleichem Namen und führt den Akteur auf sein Token zurück", async () => {
+      const first = await token(["kontakte:schreiben"]);
+      expect((await call(first, "POST", "/kontakte", kunde)).status).toBe(201);
+      const [old] = await mcp.listMcpTokens();
+      await mcp.revokeMcpToken(actor, old!.id);
+      const second = await token(["kontakte:schreiben"]);
+      expect((await call(second, "POST", "/kontakte", { ...kunde, name: "Etsy-Käufer Ben Beispiel" })).status).toBe(201);
+      const renewed = (await mcp.listMcpTokens()).find((row) => row.id !== old!.id)!;
+      expect(renewed.name).toBe(old!.name);
+
+      const audit = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT' order by seq desc limit 2`;
+      expect(audit.map((row) => row.actor)).toEqual([`api:${renewed.id}:Shop-Automation`, `api:${old!.id}:Shop-Automation`]);
+      // Die ID im Akteur führt im selben Audit-Log zum Anlegen des Tokens und damit zum verantwortlichen Konto
+      const created = await sql`select actor from audit_log where table_name = 'token_events' and new_value->>'token_id' = ${renewed.id}`;
+      expect(created.map((row) => row.actor)).toEqual([actor]);
     });
 
     it("begrenzt die Anfragen je Token", async () => {

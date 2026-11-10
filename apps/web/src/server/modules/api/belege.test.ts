@@ -131,8 +131,8 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/belege (Postgres)", () => {
       expect(created.headers.get("location")).toBe(`/api/v1/belege/${doc.id}`);
       expect((await sql`select count(*)::int as n from journal_entries`)[0]!.n).toBe(0);
 
-      const [audit] = await sql`select actor from audit_log where table_name = 'documents' and action = 'INSERT'`;
-      expect(audit!.actor).toBe("api:Dokumentenarchiv");
+      const [audit] = await sql`select actor from audit_log where table_name = 'documents' and action = 'INSERT' order by seq desc limit 1`;
+      expect(audit!.actor).toBe(`api:${(await mcp.listMcpTokens())[0]!.id}:Dokumentenarchiv`);
       const calls = await mcp.recentMcpCalls();
       expect(calls.map((c) => [c.tool, c.ok])).toEqual([["POST /belege", true]]);
     });
