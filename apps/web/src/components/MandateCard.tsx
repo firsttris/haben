@@ -1,7 +1,7 @@
 import { MANDAT_SCHEMA_LABEL, type MandatStatus } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { revokeMandateFn, saveMandate, uploadMandateFile } from "../server/functions/mandate.ts";
@@ -9,6 +9,7 @@ import type { Mandate } from "../server/modules/stammdaten/index.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { Field } from "./Field.tsx";
+import { UploadButton } from "./UploadButton.tsx";
 
 /** Mandate eines Kunden für SEPA-Lastschriften (#445): anlegen, PDF hinterlegen, widerrufen; nichts wird überschrieben */
 
@@ -77,15 +78,12 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
     }, "Mandat widerrufen.");
   }
 
-  function onFile(mandate: Mandate, input: HTMLInputElement) {
-    const file = input.files?.[0];
-    if (!file) return;
+  function onFile(mandate: Mandate, file: File) {
     const data = new FormData();
     data.set("id", mandate.id);
     data.set("file", file);
     void run(async () => {
       await upload({ data });
-      input.value = "";
       await router.invalidate();
     }, "PDF hinterlegt.");
   }
@@ -117,7 +115,7 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
         <p>Ab heute zieht Haben auf dieses Mandat nichts mehr ein. Der Widerruf lässt sich nicht zurücknehmen; für neue Einzüge braucht es ein neues Mandat.</p>
       </ConfirmDialog>
       {mandates.map((m) => (
-        <MandateRow key={m.id} mandate={m} busy={busy} onFile={(input) => onFile(m, input)} onRevoke={() => setRevoking(m)} />
+        <MandateRow key={m.id} mandate={m} busy={busy} onFile={(file) => onFile(m, file)} onRevoke={() => setRevoking(m)} />
       ))}
       {mandates.length === 0 && !adding && (
         <p className="small muted" style={{ margin: 0 }}>
@@ -175,11 +173,10 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
   );
 }
 
-type RowProps = { mandate: Mandate; busy: boolean; onFile: (input: HTMLInputElement) => void; onRevoke: () => void };
+type RowProps = { mandate: Mandate; busy: boolean; onFile: (file: File) => void; onRevoke: () => void };
 
 /** Ein Mandat: Referenz und Status, Angaben, PDF und Widerruf */
 function MandateRow({ mandate: m, busy, onFile, onRevoke }: RowProps) {
-  const fileInput = useRef<HTMLInputElement>(null);
   const pdfLabel = m.file ? "Anderes PDF hinterlegen" : "PDF hinterlegen";
   return (
     <div className="history-row stack" style={{ alignItems: "stretch", gap: 4 }}>
@@ -200,18 +197,15 @@ function MandateRow({ mandate: m, busy, onFile, onRevoke }: RowProps) {
         ) : (
           <span className="small muted">Noch kein PDF</span>
         )}
-        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => fileInput.current?.click()}>
-          {pdfLabel}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
+        <UploadButton
+          className="btn btn-sm"
           accept="application/pdf,.pdf"
-          className="visually-hidden"
-          aria-label={`${pdfLabel}: ${m.reference}`}
-          tabIndex={-1}
-          onChange={(e) => onFile(e.currentTarget)}
-        />
+          disabled={busy}
+          inputLabel={`${pdfLabel}: ${m.reference}`}
+          onFiles={([file]) => file && onFile(file)}
+        >
+          {pdfLabel}
+        </UploadButton>
         {!m.revocation && (
           <button type="button" className="btn btn-sm" disabled={busy} onClick={onRevoke}>
             Widerrufen

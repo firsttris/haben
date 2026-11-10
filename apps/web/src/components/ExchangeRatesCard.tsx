@@ -8,6 +8,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { deleteExchangeRateFn, importExchangeRatesFn, refreshExchangeRatesFn, saveExchangeRateFn, type getExchangeRates } from "../server/functions/company.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 import { Field } from "./Field.tsx";
+import { FilePicker } from "./FilePicker.tsx";
 
 type Data = Awaited<ReturnType<typeof getExchangeRates>>;
 
@@ -32,6 +33,8 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
   const upload = useServerFn(importExchangeRatesFn);
   const { busy, notice, setNotice, run } = useAction();
   const [year, setYear] = useState(String(currentYear()));
+  // Ein neuer key leert das Dateifeld samt angezeigtem Namen nach dem Hochladen
+  const [uploads, setUploads] = useState(0);
 
   const summary = (r: { added: number; changed: number; applied: number }) =>
     `${plural(r.added, "Kurs", "Kurse")} neu, ${r.changed} geändert. ${r.applied > 0 ? `${plural(r.applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`;
@@ -115,18 +118,17 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
           </Field>
           <Field label="Datei">
             {(control) => (
-              <input
+              <FilePicker
+                key={uploads}
                 {...control}
-                type="file"
                 accept=".csv,text/csv"
                 disabled={busy}
                 onChange={(e) => {
-                  const input = e.currentTarget;
-                  const file = input.files?.[0];
+                  const file = e.currentTarget.files?.[0];
                   if (!file) return;
                   void run(async () => {
                     const result = await upload({ data: { year: Number(year), text: await readText(file) } });
-                    input.value = "";
+                    setUploads((n) => n + 1);
                     await router.invalidate();
                     setNotice({ tone: "ok", text: `${plural(result.fetched, "Kurs", "Kurse")} gelesen: ${summary(result)}` });
                   });
