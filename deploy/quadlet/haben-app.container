@@ -10,6 +10,11 @@ Image=docker.io/tristanteu/haben:latest
 # `podman auto-update` zieht neue Images und startet den Dienst neu
 AutoUpdate=registry
 Network=haben.network
+# Gehärtet: Dateisystem schreibgeschützt bis auf die Volumes unten (/tmp legt Podman bei ReadOnly selbst als tmpfs an),
+# keine Capabilities, keine neuen Rechte
+ReadOnly=true
+DropCapability=ALL
+NoNewPrivileges=true
 # Alternativ ERiC von Hand (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME in haben.env setzen
 # Volume=/opt/eric:/opt/eric:ro
 # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, Zeile einkommentieren, ERIC_WORKER_COMMAND in haben.env

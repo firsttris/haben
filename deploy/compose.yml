@@ -56,6 +56,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Gehärtet: Dateisystem schreibgeschützt bis auf die Volumes unten und /tmp, keine Capabilities, keine neuen Rechte
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     environment:
       DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
       # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation.md)

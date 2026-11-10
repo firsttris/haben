@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -90,6 +90,47 @@ describe("ERiC installieren", () => {
     expect(existsSync(join(home, "dll"))).toBe(false);
     expect(await installedEricVersion(home)).toBe("43.4.6.0");
     expect(progress.at(-1)?.phase).toBe("fertig");
+  });
+
+  // Im Container ist /tmp ein tmpfs (deploy/compose.yml): Das Paket (rund 520 MB) läge dort im Arbeitsspeicher. Es
+  // gehört ins Volume, in das ERiC ohnehin entpackt wird, und ist danach wieder weg.
+  it("lädt das Paket ins Zielverzeichnis statt nach TMPDIR und räumt es danach weg", async () => {
+    const tmp = await tempDir();
+    const dir = join(await tempDir(), "eric");
+    const { fn } = fakeFetch(goodJar);
+    const original = process.env.TMPDIR;
+    process.env.TMPDIR = tmp;
+    const waehrendDesEntpackens: { tmp: string[]; ziel: string[] }[] = [];
+    try {
+      await installEric({
+        version: "43.4.6.0",
+        dir,
+        fetch: fn,
+        baseUrl: "http://elster.test/eric",
+        checkPlatform: false,
+        onProgress: (p) => {
+          if (p.phase !== "entpacken" || waehrendDesEntpackens.length > 0) return;
+          const ziel = readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith("eric.jar"));
+          waehrendDesEntpackens.push({ tmp: readdirSync(tmp), ziel });
+        },
+      });
+    } finally {
+      if (original === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = original;
+    }
+    expect(waehrendDesEntpackens).toEqual([{ tmp: [], ziel: [expect.stringMatching(/eric\.jar$/)] }]);
+    expect((await readdir(dir)).sort()).toEqual(["AKTUELL", "ERiC-43.4.6.0"]);
+  });
+
+  // Das Paket liegt jetzt im Volume statt in /tmp: Bricht eine Installation hart ab (Neustart des Containers während des
+  // Downloads), bliebe der Ordner .download-… mit bis zu 520 MB für immer im Volume. Die nächste Installation räumt ihn weg.
+  it("räumt Download-Ordner einer abgebrochenen Installation im Zielverzeichnis weg", async () => {
+    const dir = join(await tempDir(), "eric");
+    await mkdir(join(dir, ".download-abgebrochen"), { recursive: true });
+    await writeFile(join(dir, ".download-abgebrochen", "eric.jar"), big);
+    const { fn } = fakeFetch(goodJar);
+    await installEric({ version: "43.4.6.0", dir, fetch: fn, baseUrl: "http://elster.test/eric", checkPlatform: false });
+    expect((await readdir(dir)).sort()).toEqual(["AKTUELL", "ERiC-43.4.6.0"]);
   });
 
   it("schaltet erst auf die neue Version um, wenn sie vollständig ist, und räumt danach auf", async () => {
