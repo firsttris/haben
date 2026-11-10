@@ -7,14 +7,11 @@ import {
   assetIssues,
   convertForeignAmounts,
   CURRENCY_CODE,
-  documentPosting,
-  documentSplitPosting,
   einfuhrumsatzsteuerIssues,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
   parseExchangeRate,
   rateMonth,
-  type ExpenseCategory,
   periodRange,
   type VatPeriod,
   isKapitalgesellschaft,
@@ -47,7 +44,8 @@ import { findDocumentByReference, type DocumentReference } from "./external-refe
 import { detectOwnInvoiceFor, ownInvoiceHint, ownInvoiceRecord, partiesOfEInvoice, partiesOfExtraction } from "./own-invoice.ts";
 import { pdfTextLines } from "./pdf-text.ts";
 import { supplierCategory, supplierPayment } from "./vorschlaege.ts";
-import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, splitLines, type DocumentSplit } from "./splits.ts";
+import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, type DocumentSplit } from "./splits.ts";
+import { belegSummen, belegZeilen, totalsOf } from "./belegbuchung.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
 export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
@@ -159,13 +157,6 @@ function resolveRate(
   tageskurs: boolean,
 ) {
   return resolveExchangeRate(q, { ...input, date: input.documentDate }, previous, tageskurs);
-}
-
-/** Bei § 13b zahlst du nur netto; die Steuer geht ans Finanzamt, nicht an den Lieferanten */
-function totalsOf(amounts: { taxRate: number; net: number; tax: number }[], reverseCharge: string | null = null) {
-  const net = amounts.reduce((s, a) => s + a.net, 0);
-  const tax = amounts.reduce((s, a) => s + a.tax, 0);
-  return { net, tax, gross: reverseCharge ? net : net + tax };
 }
 
 function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
@@ -689,43 +680,15 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
-  const totals = {
-    ...totalsOf(amounts, doc.reverseCharge),
-    taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })),
-  };
+  const totals = belegSummen(doc, amounts);
   // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
   const vorsteuerAbzug = !company.kleinunternehmer;
   // Kleinunternehmer erwerben nur oberhalb der Erwerbsschwelle oder mit Option steuerpflichtig (§ 1a Abs. 3 und 4 UStG)
   if (doc.reverseCharge === "ig_erwerb" && company.kleinunternehmer) {
     throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
   }
-  // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
   const asset = doc.category === "anlage" ? doc.asset : null;
-  const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;
-  // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst wie bisher über die Kategorie des Belegs
-  const lines =
-    splits.length > 0
-      ? documentSplitPosting(
-          totals,
-          splitLines(splits),
-          company.kontenrahmen,
-          company.rechtsform,
-          doc.payment,
-          vorsteuerAbzug,
-          // ig_erwerb lehnt splitBookingIssues mit Aufteilung ab; § 13b (#508) bucht je Zeile mit RC13bEU bzw. RC13bDrittland
-          doc.reverseCharge === "eu" || doc.reverseCharge === "drittland" ? doc.reverseCharge : null,
-        )
-      : documentPosting(
-          totals,
-          doc.category as ExpenseCategory,
-          company.kontenrahmen,
-          company.rechtsform,
-          doc.payment,
-          vorsteuerAbzug,
-          assetAccountNo,
-          doc.privateShare,
-          doc.reverseCharge,
-        );
+  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug);
   const now = new Date();
   const entryId = await post(tx, company, {
     date: doc.documentDate!,
@@ -750,7 +713,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       name: asset.name,
       kind: asset.kind,
       method: asset.method,
-      account: assetAccountNo!,
+      account: assetAccount(asset.kind, asset.method, company.kontenrahmen),
       acquisitionDate: doc.documentDate!,
       cost: vorsteuerAbzug ? totals.net : totals.gross,
       ...documentAssetMethod(asset, doc.documentDate!),

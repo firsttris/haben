@@ -156,3 +156,9 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
 - **Umgesetzt:** Schritt 1 ohne Oberfläche (Stichjahr, Migration 0192, Voranmeldung aus dem Journal, Abgleich mit
   getauschten Rollen). Anzeige und Vorziehen des Stichjahrs in den Einstellungen folgen in einem eigenen Pull Request.
+  Ergänzt beim Umsetzen: Ein Storno im Stichjahr kopierte die Zeilen einer Buchung aus der Zeit davor samt ihrer Lücken
+  (ohne Bemessungsgrundlage an der Zahlung, #552; ohne Steuerschlüssel am privaten Teil bei § 13b und Erwerb, #551). Der
+  Storno einer Bareinnahme auf eine Rechnung und eines Belegs aus der Zeit vor dem Stichjahr bucht deshalb die Zeilen, wie
+  Haben sie heute aus dem Nebenbuch bucht, wenn sie auf jedem Konto denselben Saldo ergeben (`zeilenWieHeute`); sonst die
+  gebuchten. Die Zuordnung im Bankabgleich und Ausbuchungen mit einer Zahlung heben am Tag der Zahlung auf, also im alten
+  Jahr.
