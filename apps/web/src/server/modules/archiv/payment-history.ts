@@ -4,7 +4,7 @@ import { sql, type SQL } from "drizzle-orm";
 import type { LegacyPayment } from "../../db/schema.ts";
 
 type PaymentSource = {
-  source: "lexoffice" | "sevdesk";
+  source: "lexoffice" | "sevdesk" | "accountable";
   gross: number;
   status: string;
   payment: LegacyPayment | null;

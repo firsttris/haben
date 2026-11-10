@@ -28,6 +28,19 @@ export function datevVoucherFound(field: string): SQL<boolean> {
 }
 
 /**
+ * Accountable hängt an jede Buchung einen Beleglink `BEDI "<guid>"` und legt den Beleg unter derselben
+ * GUID ab. Eine Rechnung kann mehrere Buchungszeilen haben (Hauptbetrag, Versand, Kleinteile); nur die
+ * erste Zeile trägt dann die Belegnummer. Über die GUID finden auch die übrigen Zeilen ihren Beleg.
+ */
+export function datevGuidFound(linkField: string): SQL<boolean> {
+  const pattern = "'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'";
+  const guid = sql.raw(`substring(${linkField} from ${pattern})`);
+  return sql<boolean>`(${guid} is not null and exists (
+    select 1 from lexoffice_vouchers g
+     where g.source = 'accountable' and lower(g.raw->>'guid') = lower(${guid})))`;
+}
+
+/**
  * sevDesk schreibt in Zahlungsbuchungen eine interne UUID ins Belegfeld (#472): keine Belegnummer, außer ein Beleg trägt
  * sie wirklich als Nummer.
  */

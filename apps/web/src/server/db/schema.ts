@@ -2396,8 +2396,33 @@ export const sevdeskConnection = pgTable(
 );
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "accountable"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
+
+/**
+ * Analyse und offene Posten eines Accountable-Laufs. Steht als JSON am Fortschritt, damit Status und Oberfläche sie ohne
+ * erneutes Entpacken lesen; nur der Accountable-Lauf setzt sie. Felder ohne `unknown`, damit die Server Function den
+ * Fortschritt ausgeben kann (Screen-Ausgabe verlangt serialisierbare Typen).
+ */
+export type AccountableProgress = {
+  filename: string;
+  size: number;
+  year: number | null;
+  bookings: number;
+  vouchers: number;
+  withFile: number;
+  withoutFile: number;
+  privateRows: number;
+  missingReceipts: number;
+  unknownTaxRows: number;
+  invoices: { number: string; documentDate: string; gross: number; text: string; row: number }[];
+  openItems: { number: string; supplier: string; gross: number; date: string; reason: string }[];
+  /** Wie viele Buchungen ohne Belegdatei; openItems ist gekürzt */
+  openItemCount: number;
+  archivedFileId?: string;
+  archivedAlready?: boolean;
+  note?: string;
+};
 
 export type LexofficeImportProgress = {
   phase: "kontakte" | "liste" | "belege" | "fertig";
@@ -2408,6 +2433,8 @@ export type LexofficeImportProgress = {
   skipped: number;
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
+  /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
+  accountable?: AccountableProgress;
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
