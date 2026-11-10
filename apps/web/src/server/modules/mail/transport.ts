@@ -1,5 +1,5 @@
 import type { schema } from "../../db/index.ts";
-import { MailError } from "./errors.ts";
+import { graphTransport } from "./transport-graph.ts";
 import { smtpTransport } from "./transport-smtp.ts";
 
 /**
@@ -31,10 +31,7 @@ export interface MailTransport {
 export type MailTransportKind = MailSettingsRow["transport"];
 
 /** Austauschbar für Tests */
-let transportFactory = (settings: MailSettingsRow): MailTransport => {
-  if (settings.transport === "smtp") return smtpTransport(settings);
-  throw new MailError("Der Versand über Microsoft Graph ist noch nicht verfügbar.");
-};
+let transportFactory = (settings: MailSettingsRow): MailTransport => (settings.transport === "graph" ? graphTransport(settings) : smtpTransport(settings));
 
 export function setMailTransportForTests(factory: typeof transportFactory): void {
   transportFactory = factory;
