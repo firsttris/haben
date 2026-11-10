@@ -1345,6 +1345,13 @@
       "when": 1794305446619,
       "tag": "0191_journal_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794325051228,
+      "tag": "0192_journal_ab",
+      "breakpoints": true
     }
   ]
 }

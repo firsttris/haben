@@ -1,3 +1,4 @@
+import { ACCOUNTS } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -313,12 +314,88 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
     ["SKR03", "SKR04"],
     ["SKR04", "SKR03"],
   ] as const) {
-    it(`EÜR aus dem Journal: Bareinnahme im Vorjahr in ${vorher}, nach dem Wechsel zu ${nachher} storniert`, async () => {
+    // Eine Gegenbuchung dreht die Zeilen der aufgehobenen Buchung um. Nach einem Wechsel des Kontenrahmens bucht sie mit den
+    // Konten derselben Rolle im neuen Rahmen (kontoImKontenrahmen); die alten Kontonummern bedeuteten dort etwas anderes
+    const gegenbuchung = async () =>
+      sql`select e.kontenrahmen, l.account from journal_entries e join journal_lines l on l.entry_id = e.id where e.reverses_id is not null`;
+    const konten = (kr: "SKR03" | "SKR04") => new Set<string>(Object.values(ACCOUNTS[kr]).flatMap((v) => (typeof v === "string" ? [v] : Object.values(v))));
+
+    it(`Bareinnahme im Vorjahr in ${vorher}: Storno nach dem Wechsel zu ${nachher} bucht im neuen Kontenrahmen`, async () => {
       await reset("soll", vorher);
       const a = await invoice("2025-12-01", [{ net: 10_000, rate: 1900 }]);
       const bar = await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2025-12-20", amount: 11_900 }, "2025-12-20");
       await sql`update company set kontenrahmen = ${nachher} where id = 1`;
       await cash.reverseCashEntry(actor, bar.id, "2026-01-15");
+      const zeilen = await gegenbuchung();
+      expect(zeilen.map((z) => z.kontenrahmen)).toEqual(zeilen.map(() => nachher));
+      expect(zeilen.map((z) => z.account).sort()).toEqual([ACCOUNTS[nachher].forderungen, ACCOUNTS[nachher].kasse].sort());
+      expect(zeilen.every((z) => konten(nachher).has(z.account))).toBe(true);
+      await pruefe(2025, 2026);
+    }, 60_000);
+
+    it(`Ausbuchung im Vorjahr in ${vorher}: Aufheben nach dem Wechsel zu ${nachher} bucht im neuen Kontenrahmen, Zahlung danach zuordenbar`, async () => {
+      await reset("soll", vorher);
+      const a = await invoice("2025-11-01", [{ net: 10_000, rate: 1900 }]);
+      await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: a.id, date: "2025-12-15" });
+      const [row] = await sql`select id from write_offs`;
+      await sql`update company set kontenrahmen = ${nachher} where id = 1`;
+      // Zahlt der Kunde doch (§ 17 Abs. 2 Nr. 1 Satz 2 UStG): Ausbuchung aufheben und die Zahlung zuordnen
+      const [tx] = await transactions([eingang("02.03.26", `RE ${a.number}`, "119,00")]);
+      await bank.reverseWriteOff(actor, row!.id, "2026-03-02");
+      await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: a.id, amount: 11_900 });
+      const zeilen = await gegenbuchung();
+      expect(zeilen.map((z) => z.kontenrahmen)).toEqual(zeilen.map(() => nachher));
+      expect(zeilen.map((z) => z.account)).toContain(ACCOUNTS[nachher].forderungen);
+      expect(zeilen.map((z) => z.account)).toContain(ACCOUNTS[nachher].forderungsverluste);
+      await pruefe(2025, 2026);
+    }, 60_000);
+
+    // Vor #570 übernahm die Gegenbuchung die alten Kontonummern unverändert; die EÜR aus dem Journal liest sie weiter richtig
+    it(`Gegenbuchung von vor #570 mit den Konten aus ${vorher} unter ${nachher}: EÜR aus dem Journal ohne Abweichung`, async () => {
+      await reset("soll", vorher);
+      const a = await invoice("2025-12-01", [{ net: 10_000, rate: 1900 }]);
+      const bar = await cashInvoice.createCashInvoiceEntry(actor, { invoiceId: a.id, date: "2025-12-20", amount: 11_900 }, "2025-12-20");
+      await sql`update company set kontenrahmen = ${nachher} where id = 1`;
+      // Wie das Storno bis #570 buchte: Kassenzeile und Gegenbuchung mit den Zeilen der Bareinnahme, nur die Seiten getauscht
+      const { withActor } = await import("../../db/actor.ts");
+      const { openBooks, post } = await import("../buchhaltung/index.ts");
+      const [original] = await sql`select journal_entry_id as id, number from cash_entries where id = ${bar.id}`;
+      const zeilen = await sql`select account, debit, credit, tax_code from journal_lines where entry_id = ${original!.id}`;
+      await withActor(actor, async (tx) => {
+        const id = crypto.randomUUID();
+        const entryId = await post(tx, await openBooks(tx), {
+          date: "2026-01-15",
+          description: "Storno",
+          sourceType: "kasse",
+          sourceId: id,
+          reversesId: original!.id,
+          lines: zeilen.map((z) => ({ account: z.account, debit: z.credit, credit: z.debit, taxCode: z.tax_code })),
+        });
+        const { schema } = await import("../../db/index.ts");
+        await tx.insert(schema.cashEntries).values({
+          id,
+          number: original!.number + 1,
+          date: "2026-01-15",
+          amount: -11_900,
+          kind: "rechnung",
+          text: "Storno",
+          invoiceId: a.id,
+          reversesId: bar.id,
+          journalEntryId: entryId,
+        });
+      });
+      await pruefe(2025, 2026);
+    }, 60_000);
+
+    // Review #570: Einlage, Entnahme, Abhebung und Einzahlung rechnet das Storno ohnehin im neuen Kontenrahmen
+    it(`Einlage im Vorjahr in ${vorher}: Storno nach dem Wechsel zu ${nachher} bucht im neuen Kontenrahmen`, async () => {
+      await reset("ist", vorher);
+      const einlage = await cash.createCashEntry(actor, { kind: "einlage", date: "2025-12-01", amount: 50_000 }, "2025-12-01");
+      await sql`update company set kontenrahmen = ${nachher} where id = 1`;
+      await cash.reverseCashEntry(actor, einlage.id, "2026-01-15");
+      const zeilen = await gegenbuchung();
+      expect(zeilen.map((z) => z.kontenrahmen)).toEqual([nachher, nachher]);
+      expect(zeilen.map((z) => z.account)).toContain(ACCOUNTS[nachher].kasse);
       await pruefe(2025, 2026);
     }, 60_000);
   }

@@ -1,11 +1,13 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { TaxCode } from "@haben/core";
+import { type PostingLine, type TaxCode, zeilenWieHeute } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
+import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import { belegZeilen } from "./belegbuchung.ts";
 import { DocumentError, type Document } from "./documents.ts";
 import { loadSplits } from "./splits.ts";
 
@@ -115,6 +117,23 @@ export async function plannedCancellationDate(id: string, todayDate: string): Pr
 }
 
 /**
+ * Die Zeilen des Belegs, wie Haben ihn heute bucht; null, wenn die heutige Buchungslogik ihn nicht mehr annimmt (etwa eine
+ * später verschärfte Regel). Dann bleibt es beim Storno der gebuchten Zeilen.
+ */
+function heutigeBelegZeilen(
+  doc: Document,
+  amounts: { taxRate: number; net: number; tax: number }[],
+  splits: Awaited<ReturnType<typeof loadSplits>>,
+  books: Awaited<ReturnType<typeof openBooks>>,
+): PostingLine[] | null {
+  try {
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Storniert einen gebuchten Beleg: Gegenbuchung im noch offenen Zeitraum der Belegbuchung, sonst am Tag des Stornos
  * (siehe cancellationDate), bei Barzahlung eine Gegenzeile im Kassenbuch, dazu die Zeile in `document_cancellations`.
  * Ein abgeschlossenes Jahr lehnt das Hauptbuch ab.
@@ -157,6 +176,11 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.journalLines)
       .where(eq(schema.journalLines.entryId, original.id))
       .orderBy(asc(schema.journalLines.id));
+    // Vor dem Stichjahr gebucht: im heutigen Format, wenn es auf jedem Konto dasselbe ergibt (zeilenWieHeute)
+    const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
+    const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
+    const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
+    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books) ?? []) : gebucht;
     const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
     const journalEntryId = await post(tx, books, {
       date,
@@ -165,7 +189,7 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       sourceId: id,
       reversesId: original.id,
       // Soll und Haben getauscht, Steuerschlüssel wie gebucht
-      lines: lines.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode as TaxCode | null })),
+      lines: zeilen.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode })),
     });
     if (doc.payment === "kasse") {
       await reverseDocumentCashEntry(tx, {

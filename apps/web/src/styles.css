@@ -376,9 +376,26 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
 @media (max-width: 640px) {
-  .kz-row { grid-template-columns: 32px minmax(0, 1fr) minmax(96px, auto); }
-  /* Steuer als eigene Zeile über die volle Breite: Beschriftung links, Betrag rechts */
-  .kz-row:not(.head):not(.total) > :nth-child(4) { grid-column: 2 / -1; display: flex; justify-content: space-between; }
+  /* Handy: Bezeichnung über die volle Breite, darunter Bemessung und Steuer nebeneinander mit Beschriftung (#376).
+     Die Beschriftungen sind Pseudo-Elemente der Zeile, weil ein Eingabefeld keine eigenen hat; das Feld selbst
+     bleibt über die Bezeichnung benannt. */
+  .kz-row { grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px; }
+  .kz-row.head { display: none; }
+  .kz-row:not(.head):not(.total) { row-gap: 2px; align-items: center; padding-top: 8px; padding-bottom: 12px; }
+  .kz-row:not(.head):not(.total) > .kz-num { grid-area: 1 / 1; align-self: start; }
+  .kz-row:not(.head):not(.total) > .kz-label { grid-area: 1 / 2 / 2 / 4; }
+  .kz-row:not(.head):not(.total)::before,
+  .kz-row:not(.head):not(.total)::after { padding-top: 6px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
+  .kz-row:not(.head):not(.total)::before { content: "Bemessung"; grid-area: 2 / 2; }
+  .kz-row:not(.head):not(.total)::after { content: "Steuer"; grid-area: 2 / 3; text-align: right; }
+  /* Ohne Steuer keine Beschriftung; bei den Vorsteuerzeilen (leere dritte Spalte) steht der Betrag unter „Steuer“, nicht unter „Bemessung“ */
+  .kz-row:not(:has(> :nth-child(4))):not(.head)::after,
+  .kz-row:has(> div.kz-amount:nth-child(4):empty)::after,
+  .kz-row:has(> div:nth-child(3):empty)::before { display: none; }
+  .kz-row:not(.head):not(.total) > :nth-child(3) { grid-area: 3 / 2; }
+  .kz-row:not(.head):not(.total) > :nth-child(4) { grid-area: 3 / 3; }
+  .kz-row:not(.head):not(.total) > .kz-amount { display: flex; justify-content: flex-end; align-items: center; min-height: 40px; }
+  .kz-row.total { grid-template-columns: 32px minmax(0, 1fr) auto; }
 }
 
 .history-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; min-height: 52px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
@@ -773,9 +790,6 @@ fieldset.card > legend + * { clear: both; }
 }
 
 @media (max-width: 640px) {
-  /* Kennzahlen: Steuer steht in eigener Zeile, deshalb beschriftet; Kopfspalte dafür entfällt */
-  .kz-row.head > :nth-child(4) { display: none; }
-  .kz-row:not(.head):not(.total) > .kz-amount:nth-child(4)::before { content: "Steuer"; color: var(--muted); font-size: 12px; font-family: var(--sans); }
   .kz-row.total > :nth-child(3) { display: none; }
   .kz-row.total > :nth-child(4) { grid-column: 3; grid-row: 1; }
 }

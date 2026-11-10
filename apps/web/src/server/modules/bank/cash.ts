@@ -1,12 +1,26 @@
 import { UserError } from "../../errors.ts";
-import { bareinnahmeText, CASH_BOOKINGS, cashEntryLabel, cashPosting, formatEuro, type CashBooking, type Cents, type PostingLine } from "@haben/core";
+import {
+  bareinnahmeText,
+  CASH_BOOKINGS,
+  cashEntryLabel,
+  cashPosting,
+  formatEuro,
+  invoiceCashPaymentPosting,
+  recordedTaxShares,
+  zeilenWieHeute,
+  type CashBooking,
+  type Cents,
+  type Kontenrahmen,
+  type PostingLine,
+} from "@haben/core";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadCompany } from "../stammdaten/index.ts";
-import { negatedShares, reverseLines, reverseWriteOffRow } from "./bank.ts";
+import { journalAbJahr, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
+import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem
@@ -194,6 +208,23 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
 }
 
 /**
+ * Zeilen einer Bareinnahme auf eine Rechnung aus der Zeit vor dem Stichjahr, wie Haben sie heute bucht (bei Ist mit der
+ * Bemessungsgrundlage, #552), wenn sie auf jedem Konto dasselbe ergeben; sonst wie gebucht (zeilenWieHeute). Der Anteil
+ * je Satz wie in der Voranmeldung aus dem Kassenbuch (recordedTaxShares).
+ */
+async function cashLinesWieHeute(tx: Tx, original: CashEntry, kontenrahmen: Kontenrahmen, gebucht: PostingLine[]): Promise<PostingLine[]> {
+  const year = Number(original.date.slice(0, 4));
+  if (!original.invoiceId || year >= (await journalAbJahr(tx))) return gebucht;
+  const [invoice] = await tx.select({ taxTreatment: schema.invoices.taxTreatment }).from(schema.invoices).where(eq(schema.invoices.id, original.invoiceId));
+  const totals = (await invoiceTotalsById([original.invoiceId], tx)).get(original.invoiceId);
+  if (!invoice || !totals) return gebucht;
+  const stored = original.taxSharesInvoiceId === original.invoiceId ? original.taxShares : null;
+  const shares = recordedTaxShares(totals, original.amount, stored);
+  const versteuerung = await versteuerungForYear(year, tx);
+  return zeilenWieHeute(gebucht, invoiceCashPaymentPosting(totals, original.amount, kontenrahmen, versteuerung, shares, invoice.taxTreatment));
+}
+
+/**
  * Gegenzeile einer Bareinnahme auf eine Rechnung oder ohne Rechnung (GoBD: nichts wird überschrieben): Die Gegenbuchung
  * dreht die Zeilen der ursprünglichen Buchung (Forderungen an Kasse, bei Ist auch die Umsatzsteuer zurück auf „nicht fällig“), der
  * Steueranteil geht genau zurück. Ein mit der Bareinnahme als Skonto ausgebuchter Rest wird am selben Tag mit aufgehoben,
@@ -204,15 +235,21 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
   const reversalId = crypto.randomUUID();
   const text = `Storno Nr. ${original.number}: ${original.text}`;
   const lines = await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, original.journalEntryId));
-  const journalEntryId = await post(tx, await openBooks(tx), {
+  const [entry] = await tx
+    .select({ kontenrahmen: schema.journalEntries.kontenrahmen })
+    .from(schema.journalEntries)
+    .where(eq(schema.journalEntries.id, original.journalEntryId));
+  const books = await openBooks(tx);
+  const kontenrahmen = (entry?.kontenrahmen ?? books.kontenrahmen) as Kontenrahmen;
+  const gebucht = lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis }));
+  const journalEntryId = await post(tx, books, {
     date,
     description: text,
     sourceType: "kasse",
     sourceId: reversalId,
     reversesId: original.journalEntryId,
-    lines: reverseLines(
-      lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
-    ),
+    // Nach einem Wechsel des Kontenrahmens mit den Konten derselben Rolle im neuen Rahmen
+    lines: reverseLinesIn(kontenrahmen, books.kontenrahmen, await cashLinesWieHeute(tx, original, kontenrahmen, gebucht)),
   });
   const [row] = await tx
     .insert(schema.cashEntries)

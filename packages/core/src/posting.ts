@@ -879,6 +879,12 @@ export function legacyCorrectionPosting(totals: InvoiceTotals, kontenrahmen: Kon
     if (versteuerung === "ist") lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, false, null));
     else lines.push(side(accounts.ust[vatRate(rate)], tax, false, revenueTaxCode(rate)));
   }
-  lines.push(side(accounts.saldenvortrag, totals.net, false, null));
+  if (versteuerung === "ist") {
+    lines.push(side(accounts.saldenvortrag, totals.net, false, null));
+  } else {
+    // Soll: Die Voranmeldung meldet die Korrektur im Monat der Korrektur mit ihrer Bemessungsgrundlage (§ 17 UStG); je
+    // Steuersatz eine Zeile mit Steuerschlüssel, damit das Journal sie trägt (#542). Bei Ist zählt die Erstattung.
+    for (const { rate, base } of totals.taxes) lines.push(side(accounts.saldenvortrag, base, false, revenueTaxCode(rate)));
+  }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }

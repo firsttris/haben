@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
+  zeilenImKontenrahmen,
   ACCOUNTS,
   paymentProviderAccount,
   providerPattern,
@@ -930,6 +931,22 @@ export function reverseLines(lines: PostingLine[]): PostingLine[] {
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
 }
 
+/**
+ * Gegenbuchung zu den Zeilen einer Buchung im Kontenrahmen `von`, gebucht im eingestellten Kontenrahmen `nach`. Nach einem
+ * Wechsel zum Jahreswechsel (Storno einer Bareinnahme, Aufheben einer Ausbuchung aus dem Vorjahr) mit den Konten derselben
+ * Rolle im neuen Rahmen (kontoImKontenrahmen); die alten Kontonummern bedeuteten dort etwas anderes. Lässt sich ein Konto
+ * nicht eindeutig übertragen, geht die Gegenbuchung nicht.
+ */
+export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: PostingLine[]): PostingLine[] {
+  const uebertragen = zeilenImKontenrahmen(von, nach, lines);
+  if (!uebertragen) {
+    throw new BankError(
+      `Die Buchung ist im Kontenrahmen ${von} gebucht, eingestellt ist jetzt ${nach}; nicht jedes Konto hat dort eine eindeutige Entsprechung. Stornieren geht nach dem Wechsel deshalb nicht.`,
+    );
+  }
+  return reverseLines(uebertragen);
+}
+
 const DIRECT_KINDS = [
   "privat",
   "geldtransit",
@@ -1304,12 +1321,15 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       .from(schema.bankTransactions)
       .where(eq(schema.bankTransactions.id, allocation.transactionId));
     // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
-    await post(tx, await openBooks(tx), {
+    const books = await openBooks(tx);
+    await post(tx, books, {
       date: bank!.bookingDate,
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
       sourceId: reversal!.id,
-      lines: reverseLines(
+      lines: reverseLinesIn(
+        entry.kontenrahmen as Kontenrahmen,
+        books.kontenrahmen,
         lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
       ),
       reversesId: entry.id,
@@ -1615,12 +1635,15 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
     })
     .returning();
   if (entry) {
-    await post(tx, await openBooks(tx), {
+    const books = await openBooks(tx);
+    await post(tx, books, {
       date,
       description: `Storno: ${entry.description}`,
       sourceType: "ausbuchung",
       sourceId: reversal!.id,
-      lines: reverseLines(
+      lines: reverseLinesIn(
+        entry.kontenrahmen as Kontenrahmen,
+        books.kontenrahmen,
         lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
       ),
       reversesId: entry.id,
