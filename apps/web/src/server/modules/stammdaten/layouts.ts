@@ -130,6 +130,23 @@ async function checkLimits(limits: LayoutLimits, bytes: number, replacing?: stri
   }
 }
 
+const running = new Map<string, Promise<unknown>>();
+
+/**
+ * Prüfen, Tauschen des Caches und Speichern eines Layouts nacheinander: Zwei gleichzeitige Ersetzungen teilten sich sonst
+ * den Ordner pakete-neu, und der Cache passte danach nicht mehr zum gespeicherten Quelltext
+ */
+function oneAtATime<T>(id: string, work: () => Promise<T>): Promise<T> {
+  const before = running.get(id) ?? Promise.resolve();
+  const result = before.then(work, work);
+  const done = result.catch(() => undefined);
+  running.set(id, done);
+  void done.then(() => {
+    if (running.get(id) === done) running.delete(id);
+  });
+  return result;
+}
+
 /**
  * Schreibt die geladenen Pakete in einen Ordner neben dem Cache und prüft das Layout damit. Erst wenn die Prüfung passt,
  * ersetzt er den Cache; scheitert sie, bleibt der bisherige Cache, und das gespeicherte Layout setzt weiter.
@@ -228,20 +245,26 @@ export async function replaceLayoutSource(
   const approval = await approvedPackages(source, approve, fetch);
   if ("needsApproval" in approval) return approval;
   await checkLimits(limits, bytes + packageBytes(approval.packages), id);
-  await prepare(id, source, row.art, approval.packages);
   const packages = plain(approval.packages);
   const sha256 = createHash("sha256").update(source).digest("hex");
-  await withActor(actor, (tx) =>
-    tx
-      .update(schema.belegLayouts)
-      .set({ source, sha256, packages, approvedSha256: packages.length > 0 ? sha256 : null, schemaVersion: LAYOUT_SCHEMA_VERSION, updatedAt: new Date() })
-      .where(eq(schema.belegLayouts.id, id)),
-  );
+  await oneAtATime(id, async () => {
+    await prepare(id, source, row.art, approval.packages);
+    await withActor(actor, (tx) =>
+      tx
+        .update(schema.belegLayouts)
+        .set({ source, sha256, packages, approvedSha256: packages.length > 0 ? sha256 : null, schemaVersion: LAYOUT_SCHEMA_VERSION, updatedAt: new Date() })
+        .where(eq(schema.belegLayouts.id, id)),
+    );
+  });
   return { ok: true };
 }
 
 /** Lädt die schon freigegebenen Pakete neu, etwa nach einem Restore ohne Cache; nur auf Klick, nie von selbst */
-export async function reloadPackages(id: string, { fetch = universeFetcher(env().LAYOUTS_PACKAGES_URL) }: LayoutDeps = {}): Promise<void> {
+export function reloadPackages(id: string, deps: LayoutDeps = {}): Promise<void> {
+  return oneAtATime(id, () => reload(id, deps));
+}
+
+async function reload(id: string, { fetch = universeFetcher(env().LAYOUTS_PACKAGES_URL) }: LayoutDeps): Promise<void> {
   const [row] = await db.select().from(schema.belegLayouts).where(eq(schema.belegLayouts.id, id));
   if (!row) throw new LayoutError("Das Layout gibt es nicht mehr.");
   if (row.packages.length === 0 || row.approvedSha256 !== row.sha256) throw new LayoutError("Dieses Layout hat keine freigegebenen Pakete.");
@@ -273,7 +296,11 @@ export async function renameLayout(actor: string, id: string, input: string): Pr
 }
 
 /** Löscht das Layout; wo es zugeordnet war, gilt wieder das eingebaute */
-export async function deleteLayout(actor: string, id: string): Promise<void> {
+export function deleteLayout(actor: string, id: string): Promise<void> {
+  return oneAtATime(id, () => removeLayout(actor, id));
+}
+
+async function removeLayout(actor: string, id: string): Promise<void> {
   await dropRenderer(id);
   await clearPackages(id);
   await withActor(actor, async (tx) => {
