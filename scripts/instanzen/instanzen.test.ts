@@ -385,3 +385,31 @@ describe("Review, Zusatzrunde", () => {
     expect(existsSync(join(basis, "firma1"))).toBe(false);
   });
 });
+
+describe("Review, dritte Runde", () => {
+  it("vergibt keinen Alias, der dem Containernamen des Standardprojekts haben gleicht (app-1 → haben-app-1)", () => {
+    // compose.yml heißt ohne COMPOSE_PROJECT_NAME haben (name: haben); deren App heißt haben-app-1 und hängt mit der
+    // Override-Datei aus der Doku im Netz des Proxys. Die Regel gegen -app-1 am Ende greift ohne - davor nicht
+    const r = lauf("neu", "app-1", "x.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "app-1"))).toBe(false);
+  });
+
+  it("vergibt nicht den Alias haben-app, den eine einzelne Instanz nach compose.override.example.yml trägt", () => {
+    const r = lauf("neu", "app", "x.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "app"))).toBe(false);
+  });
+
+  it("legt keine Instanz an, wenn docker nicht sagen kann, ob es Volumes des Projekts schon gibt", () => {
+    // Etwa ohne Rechte am Docker-Socket oder bei gestopptem Daemon: beide Prüfungen fallen still weg, das Verzeichnis
+    // entsteht, und ein späteres docker compose up -d übernimmt übrig gebliebene Volumes haben-firma1_db usw.
+    writeFileSync(
+      join(dir, "bin", "docker"),
+      `#!/bin/sh\necho "$(basename "$PWD") $*" >>"$FAKE_STATE/aufrufe"\necho "permission denied while trying to connect to the Docker daemon socket" >&2\nexit 1\n`,
+    );
+    const r = lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    expect(r.status).not.toBe(0);
+    expect(existsSync(join(basis, "firma1"))).toBe(false);
+  });
+});
