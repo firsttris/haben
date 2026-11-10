@@ -119,11 +119,19 @@ export async function createMcpToken(input: z.input<typeof mcpTokenInputSchema>,
   return { id: row.id, token };
 }
 
-export async function revokeMcpToken(id: string, now = new Date()): Promise<void> {
-  await db
-    .update(schema.mcpTokens)
-    .set({ revokedAt: now })
-    .where(and(eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)));
+/**
+ * Widerruft ein Token. mcp_tokens hat kein Audit-Log; wer wann widerrufen hat, steht deshalb wie Anlegen und Übernehmen
+ * in token_events. Ein schon widerrufenes Token ändert sich nicht und bekommt kein zweites Ereignis.
+ */
+export async function revokeMcpToken(actor: string, id: string, now = new Date()): Promise<void> {
+  await withActor(actor, async (tx) => {
+    const [revoked] = await tx
+      .update(schema.mcpTokens)
+      .set({ revokedAt: now })
+      .where(and(eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)))
+      .returning({ responsibleId: schema.mcpTokens.responsibleId });
+    if (revoked) await tokenEvent(tx, actor, "api", id, "widerrufen", revoked.responsibleId);
+  });
 }
 
 /** Alle Zugänge, gültige zuerst; widerrufene und abgelaufene bleiben zur Nachvollziehbarkeit sichtbar */
