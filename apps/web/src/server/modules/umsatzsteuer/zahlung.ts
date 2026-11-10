@@ -3,6 +3,7 @@ import {
   dueDate,
   formatEuro,
   ohneAltbestand,
+  schonfristEnde,
   type Cents,
   type OpenItem,
   type VatPayment,
@@ -94,7 +95,10 @@ export async function ustvaPostenForPeriod(period: { year: number; month: number
 
 /** Offene Posten für den Bankabgleich, mit dem Vorzeichen der Zahlung: Zahllast als Ausgang, Erstattung als Eingang */
 export async function ustvaOpenItems(): Promise<OpenItem[]> {
-  return (await ustvaPosten()).posten
+  const { posten } = await ustvaPosten();
+  // Feiertage für das Ende der Schonfrist (§ 108 Abs. 3 AO) wie für die Fälligkeit: die im Bundesland des Finanzamts
+  const { bundesland } = await loadCompany();
+  return posten
     .filter((p) => p.offen !== 0)
     .map((p) => ({
       type: "ustva" as const,
@@ -106,6 +110,7 @@ export async function ustvaOpenItems(): Promise<OpenItem[]> {
       partyName: "Finanzamt",
       partyIbans: [],
       period: { year: p.year, month: p.month },
+      schonfristEnde: schonfristEnde(p.faellig, bundesland),
     }));
 }
 
