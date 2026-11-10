@@ -20,6 +20,7 @@ import {
 import { and, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
 
@@ -93,8 +94,16 @@ function saldo(sums: Summe[], accounts: (kr: Kontenrahmen) => string[], filter: 
 
 const ust = (rate: 1900 | 700) => (kr: Kontenrahmen) => [ACCOUNTS[kr].ust[rate]];
 
-/** Umsatzsteuer eines Monats oder Quartals: Steuerkonten im Journal gegen die Kennzahlen aus den Nebenbüchern */
-function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<typeof computeVatFigures>>): AbgleichZeile[] {
+/**
+ * Umsatzsteuer eines Monats oder Quartals: Steuerkonten im Journal gegen die Kennzahlen aus den Nebenbüchern, dazu die
+ * Bemessungsgrundlagen aus Konto und Steuerschlüssel (abgleich-kennzahlen.ts), soweit nicht null
+ */
+function vatRows(
+  period: VatPeriod,
+  sums: Summe[],
+  buchungen: readonly JournalBuchung[],
+  figures: Awaited<ReturnType<typeof computeVatFigures>>,
+): AbgleichZeile[] {
   const zeitraum = periodKey(period);
   const months = new Set(monthsOfPeriod(period).map((m) => m.month));
   const monat = sums.filter((s) => months.has(s.month));
@@ -127,6 +136,9 @@ function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<t
       saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuerIge)),
       figures.kz61,
     ),
+    ...bemessungsZeilen(period, buchungen, figures)
+      .filter((z) => z.journal !== 0 || z.quelle !== 0)
+      .map((z) => row(z.posten, z.journal, z.quelle)),
   ];
 }
 
@@ -135,8 +147,8 @@ const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-0
 /** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
   const { from, to } = yearRange(period.year);
-  const sums = await journalSums(from, to);
-  return { zeilen: vatRows(period, sums, await computeVatFigures(period)), hinweise: [] };
+  const [sums, buchungen] = await Promise.all([journalSums(from, to), journalBuchungen(from, to)]);
+  return { zeilen: vatRows(period, sums, buchungen, await computeVatFigures(period)), hinweise: [] };
 }
 
 /** Abgleich für die EÜR eines Jahres */
@@ -264,10 +276,11 @@ export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgle
   for (const year of years) {
     const { from, to } = yearRange(year);
     const sums = await journalSums(from, to, q);
+    const buchungen = await journalBuchungen(from, to, q);
     const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
     for (let month = 1; month <= lastMonth; month++) {
       // Auch Monate ohne Journal: die Nebenbücher dürfen dann keine Steuer haben
-      zeilen.push(...vatRows({ year, month }, sums, await computeVatFigures({ year, month }, q)));
+      zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
     }
     const euer = await euerAbgleich(year, q);
     zeilen.push(...euer.zeilen);

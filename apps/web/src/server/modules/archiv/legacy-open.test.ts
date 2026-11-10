@@ -247,6 +247,27 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(await figures.computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: -400_000, tax81: -76_000 });
   });
 
+  it("Soll: Storno einer übernommenen Rechnung zu 0 % meldet im Abgleich keine Abweichung (Review #547)", async () => {
+    await sql`update company set versteuerung = 'soll'`;
+    // In Lexoffice ohne Umsatzsteuer gestellt (etwa an einen Kunden im EU-Ausland), übernommen als 0 %
+    const id = await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1030",
+      date: "2026-09-20",
+      net: 400_000,
+      tax: 0,
+      rate: 0,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
+    });
+    const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+    await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+    const abgleich = await import("../auswertungen/abgleich.ts");
+    const found = abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 10 })).zeilen);
+    expect(found).toEqual([]);
+  });
+
   it("Soll: die Rechnung zählt nicht noch einmal in der Voranmeldung", async () => {
     await sql`update company set versteuerung = 'soll'`;
     const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF });
