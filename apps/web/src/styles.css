@@ -934,7 +934,7 @@ summary { cursor: pointer; min-height: 24px; }
 /* Feste Spalten: Sonst wäre die Auswahl so breit wie ihr längster Eintrag und schöbe die Seite am Handy über den Rand */
 .layouts-table th:last-child, .layouts-table td:last-child { width: 55%; }
 .layouts-table select { width: 100%; min-width: 0; text-overflow: ellipsis; }
-.layouts-table td { overflow-wrap: anywhere; }
+.layouts-table td { overflow-wrap: anywhere; hyphens: auto; }
 .layouts-table th { text-align: left; font-size: 13px; font-weight: 500; color: var(--muted); }
 .layouts-table th, .layouts-table td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); }
 @media (max-width: 720px) {
