@@ -29,6 +29,7 @@ export * from "./euer.ts";
 export * from "./journal-kennzahlen.ts";
 export * from "./journal-euer.ts";
 export * from "./kontenrahmen-wechsel.ts";
+export * from "./gegenbuchung.ts";
 export * from "./legacy-vat.ts";
 export * from "./legacy-takeover.ts";
 export * from "./legacy-einordnung.ts";

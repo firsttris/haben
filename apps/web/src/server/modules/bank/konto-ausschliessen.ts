@@ -9,7 +9,7 @@ import { BankError } from "./bank.ts";
  * Gegenstück: Das Konto ist ausgeblendet, nimmt keinen Import und keinen Abruf mehr an und fehlt in Abgleich,
  * Vorschlägen und Export. Gelöscht wird nichts, die Umsätze bleiben in der Datenbank; der Schritt steht im
  * Änderungsprotokoll von bank_accounts. Erlaubt nur, solange kein Umsatz des Kontos zugeordnet, verrechnet oder
- * ausgebucht ist; dieselbe Regel prüft ein Trigger (0193), der auch eine gleichzeitige Zuordnung abfängt.
+ * ausgebucht ist; dieselbe Regel prüft ein Trigger (0194), der auch eine gleichzeitige Zuordnung abfängt.
  */
 
 /** Was dagegen spricht, das Konto auszuschließen; leer, wenn es geht */

@@ -26,6 +26,7 @@ import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -609,27 +610,27 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
             im Kassenbuch.
           </p>
           <div className="form-grid">
-            <label className="field">
-              Art
-              <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-                <option value="forderungsausfall">{WRITE_OFF_KINDS.forderungsausfall} (uneinbringlich)</option>
-                <option value="skonto">{WRITE_OFF_KINDS.skonto}</option>
-              </select>
-            </label>
-            <label className="field">
-              Datum
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </label>
-            <label className="field">
-              Betrag
-              <input
-                className="mono"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                aria-invalid={parsed === null || parsed <= 0 || parsed > open}
-              />
-            </label>
+            <Field label="Art">
+              {(control) => (
+                <select {...control} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+                  <option value="forderungsausfall">{WRITE_OFF_KINDS.forderungsausfall} (uneinbringlich)</option>
+                  <option value="skonto">{WRITE_OFF_KINDS.skonto}</option>
+                </select>
+              )}
+            </Field>
+            <Field label="Datum">{(control) => <input {...control} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />}</Field>
+            <Field label="Betrag">
+              {(control) => (
+                <input
+                  {...control}
+                  className="mono"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  aria-invalid={parsed === null || parsed <= 0 || parsed > open}
+                />
+              )}
+            </Field>
           </div>
           <NoticeBanner notice={notice} />
           <div className="actions">

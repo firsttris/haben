@@ -1,4 +1,5 @@
 import { allowsMemoValue, type AssetMethod, formatDegressiveRate, maxDegressiveRate } from "@haben/core";
+import { Field } from "./Field.tsx";
 
 /** Degressiver Satz aus der Eingabe in Prozent („25“, „23,07“) als Basispunkte; leer = Höchstsatz, NaN = ungültig */
 export function parseRatePercent(text: string): number | null {
@@ -47,28 +48,24 @@ export function AssetMethodOptions({
       {method === "degressiv" && (
         <>
           <div className="form-row cols-2">
-            <label className="field">
-              Satz der degressiven AfA in %
-              <input
-                inputMode="decimal"
-                value={rate}
-                placeholder={max ? ratePercentText(max) : ""}
-                onChange={(e) => onRate(e.target.value)}
-                disabled={locked}
-                aria-invalid={rateInvalid}
-                aria-describedby="rate-hint"
-              />
-            </label>
-            <label className="field">
-              Linear ab Jahr (optional)
-              <input
-                inputMode="numeric"
-                value={linearFrom}
-                onChange={(e) => onLinearFrom(e.target.value)}
-                disabled={!switchEditable}
-                aria-describedby="rate-hint"
-              />
-            </label>
+            <Field label="Satz der degressiven AfA in %" describedBy="rate-hint">
+              {(control) => (
+                <input
+                  {...control}
+                  inputMode="decimal"
+                  value={rate}
+                  placeholder={max ? ratePercentText(max) : ""}
+                  onChange={(e) => onRate(e.target.value)}
+                  disabled={locked}
+                  aria-invalid={rateInvalid}
+                />
+              )}
+            </Field>
+            <Field label="Linear ab Jahr (optional)" describedBy="rate-hint">
+              {(control) => (
+                <input {...control} inputMode="numeric" value={linearFrom} onChange={(e) => onLinearFrom(e.target.value)} disabled={!switchEditable} />
+              )}
+            </Field>
           </div>
           <p id="rate-hint" className="field-hint">
             {max === null

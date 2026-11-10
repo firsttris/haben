@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { useAction } from "../../lib/use-action.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { saveVatFrequency, type getVatPeriod } from "../../server/functions/vat.ts";
+import { Field } from "../Field.tsx";
 
 type FrequencyOverviewData = Awaited<ReturnType<typeof getVatPeriod>>["frequency"];
 type StartMonth = (typeof FREQUENCY_START_MONTHS)[number];
@@ -59,26 +60,28 @@ export function VatFrequencyCard({ frequency: overview }: { frequency: Frequency
         ihn festlegt.
       </p>
       <div className="form-grid">
-        <label className="field">
-          Zeitraum
-          <select value={frequency} onChange={(event) => setFrequency(event.target.value as VatFrequency)}>
-            {VAT_FREQUENCIES.map((f) => (
-              <option key={f} value={f}>
-                {VAT_FREQUENCY_LABEL[f]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Gilt ab
-          <select value={fromMonth} onChange={(event) => setFromMonth(Number(event.target.value) as StartMonth)}>
-            {FREQUENCY_START_MONTHS.map((m) => (
-              <option key={m} value={m}>
-                {MONTHS[m - 1]} {year}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Zeitraum">
+          {(control) => (
+            <select {...control} value={frequency} onChange={(event) => setFrequency(event.target.value as VatFrequency)}>
+              {VAT_FREQUENCIES.map((f) => (
+                <option key={f} value={f}>
+                  {VAT_FREQUENCY_LABEL[f]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Gilt ab">
+          {(control) => (
+            <select {...control} value={fromMonth} onChange={(event) => setFromMonth(Number(event.target.value) as StartMonth)}>
+              {FREQUENCY_START_MONTHS.map((m) => (
+                <option key={m} value={m}>
+                  {MONTHS[m - 1]} {year}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       <div className="actions">
         <button type="submit" className="btn" disabled={busy}>

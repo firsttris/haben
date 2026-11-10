@@ -121,7 +121,7 @@ test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unte
       const el = document.activeElement;
       if (!el?.closest(".settings-content")) return "ende";
       const box = el.getBoundingClientRect();
-      return { name: el.getAttribute("aria-label") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? el.tagName, top: box.top };
+      return { name: el.getAttribute("aria-label") ?? (el as HTMLInputElement).labels?.[0]?.textContent?.trim().slice(0, 40) ?? el.tagName, top: box.top };
     });
     if (focus === "ende") break;
     const unterkante = await bereiche.evaluate((nav) => nav.getBoundingClientRect().bottom);
@@ -294,7 +294,7 @@ for (const viewport of [
         if (!el.closest("#invoice-form")) return null;
         const box = el.getBoundingClientRect();
         return {
-          name: el.getAttribute("aria-label") ?? el.closest("label")?.textContent?.trim().slice(0, 30) ?? el.tagName,
+          name: el.getAttribute("aria-label") ?? (el as HTMLInputElement).labels?.[0]?.textContent?.trim().slice(0, 30) ?? el.tagName,
           top: box.top,
           bottom: box.bottom,
           mehrzeilig: el.tagName === "TEXTAREA",

@@ -154,3 +154,14 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel und Konten,
   ohne Vorsteuer (Eigenbeleg), Storno mit Steuerschlüssel.
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
+- **Umgesetzt:** Schritt 1 ohne Oberfläche (Stichjahr, Migration 0192, Voranmeldung aus dem Journal, Abgleich mit
+  getauschten Rollen). Anzeige und Vorziehen des Stichjahrs in den Einstellungen folgen in einem eigenen Pull Request.
+  Ergänzt beim Umsetzen: Ein Storno im Stichjahr kopierte die Zeilen einer Buchung aus der Zeit davor samt ihrer Lücken
+  (ohne Bemessungsgrundlage an der Zahlung, #552; ohne Steuerschlüssel am privaten Teil bei § 13b und Erwerb, #551). Der
+  Storno einer Bareinnahme auf eine Rechnung und eines Belegs aus der Zeit vor dem Stichjahr bucht deshalb die Zeilen, wie
+  Haben sie heute aus dem Nebenbuch bucht, wenn sie auf jedem Konto denselben Saldo ergeben (`zeilenWieHeute`); sonst die
+  gebuchten. Die Zuordnung im Bankabgleich und Ausbuchungen mit einer Zahlung heben am Tag der Zahlung auf, also im alten
+  Jahr.
+  Schritt 2: EÜR aus dem Journal (`euer-quelle.ts`). Abweichend vom Entwurf rechnet sie Zahlungen auf übernommene
+  Lexoffice-Posten nicht aus dem Nebenbuch, sondern verteilt sie auf die Zeilen, die Haben für Rechnung bzw. Beleg gebucht
+  hätte (`uebernommeneZeilen`); so gilt für sie dieselbe Rundung, und der Abgleich vergleicht sie ohne Ausnahme.

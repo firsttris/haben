@@ -18,6 +18,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
 import { AssetMethodOptions, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
+import { Field } from "./Field.tsx";
 
 export interface AssetFormValues {
   name: string;
@@ -155,59 +156,79 @@ export function AssetForm({
     <form className="stack plain-sections" onSubmit={submit}>
       <section className="form-section" aria-labelledby="asset-basics">
         <h3 id="asset-basics">Anlage</h3>
-        <label className="field">
-          Bezeichnung
-          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} placeholder="z. B. VW Passat, Kennzeichen R-AB 123" />
-        </label>
+        <Field label="Bezeichnung">
+          {(control) => (
+            <input
+              {...control}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={200}
+              placeholder="z. B. VW Passat, Kennzeichen R-AB 123"
+            />
+          )}
+        </Field>
         <div className="form-row cols-2">
-          <label className="field">
-            Art
-            <select value={kind} onChange={(e) => chooseKind(e.target.value as AssetKind)} disabled={locked}>
-              {Object.entries(ASSET_KINDS).map(([value, k]) => (
-                <option key={value} value={value}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Anschaffungsdatum
-            <input type="date" value={acquisitionDate} onChange={(e) => setAcquisitionDate(e.target.value)} disabled={locked} required />
-          </label>
+          <Field label="Art">
+            {(control) => (
+              <select {...control} value={kind} onChange={(e) => chooseKind(e.target.value as AssetKind)} disabled={locked}>
+                {Object.entries(ASSET_KINDS).map(([value, k]) => (
+                  <option key={value} value={value}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Anschaffungsdatum">
+            {(control) => (
+              <input {...control} type="date" value={acquisitionDate} onChange={(e) => setAcquisitionDate(e.target.value)} disabled={locked} required />
+            )}
+          </Field>
         </div>
-        <label className="field">
-          Anschaffungskosten netto (€)
-          <input inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} disabled={locked} aria-invalid={parsedCost === null} />
-        </label>
+        <Field label="Anschaffungskosten netto (€)">
+          {(control) => (
+            <input
+              {...control}
+              inputMode="decimal"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              disabled={locked}
+              aria-invalid={parsedCost === null}
+            />
+          )}
+        </Field>
       </section>
 
       <section className="form-section" aria-labelledby="asset-depreciation">
         <h3 id="asset-depreciation">Abschreibung</h3>
         <div className="form-row cols-2">
-          <label className="field">
-            Abschreibung
-            <select value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
-              {Object.entries(ASSET_METHODS)
-                .filter(([value]) => value === method || methodChoices(kind, locked, elektroOffered).includes(value as AssetMethod))
-                .map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-            </select>
-          </label>
+          <Field label="Abschreibung">
+            {(control) => (
+              <select {...control} value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
+                {Object.entries(ASSET_METHODS)
+                  .filter(([value]) => value === method || methodChoices(kind, locked, elektroOffered).includes(value as AssetMethod))
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </Field>
           {usesUsefulLife(method) && (
-            <label className="field">
-              Nutzungsdauer in Jahren
-              <input
-                inputMode="decimal"
-                value={years}
-                onChange={(e) => setYears(e.target.value)}
-                disabled={locked && !lifeEditable}
-                aria-invalid={!lifeValid}
-                aria-describedby="life-hint"
-              />
-            </label>
+            <Field label="Nutzungsdauer in Jahren" describedBy="life-hint">
+              {(control) => (
+                <input
+                  {...control}
+                  inputMode="decimal"
+                  value={years}
+                  onChange={(e) => setYears(e.target.value)}
+                  disabled={locked && !lifeEditable}
+                  aria-invalid={!lifeValid}
+                />
+              )}
+            </Field>
           )}
         </div>
         {usesUsefulLife(method) && (
@@ -231,28 +252,23 @@ export function AssetForm({
         {showOpening && (
           <>
             <div className="form-row cols-2">
-              <label className="field">
-                Übernahmestichtag
-                <input
-                  type="date"
-                  value={openingDate}
-                  onChange={(e) => setOpeningDate(e.target.value)}
-                  disabled={locked}
-                  required
-                  aria-describedby="opening-hint"
-                />
-              </label>
-              <label className="field">
-                Restbuchwert zum Stichtag (€)
-                <input
-                  inputMode="decimal"
-                  value={openingBookValue}
-                  onChange={(e) => setOpeningBookValue(e.target.value)}
-                  disabled={locked}
-                  aria-invalid={parsedOpening === null}
-                  aria-describedby="opening-hint"
-                />
-              </label>
+              <Field label="Übernahmestichtag" describedBy="opening-hint">
+                {(control) => (
+                  <input {...control} type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} disabled={locked} required />
+                )}
+              </Field>
+              <Field label="Restbuchwert zum Stichtag (€)" describedBy="opening-hint">
+                {(control) => (
+                  <input
+                    {...control}
+                    inputMode="decimal"
+                    value={openingBookValue}
+                    onChange={(e) => setOpeningBookValue(e.target.value)}
+                    disabled={locked}
+                    aria-invalid={parsedOpening === null}
+                  />
+                )}
+              </Field>
             </div>
             <p id="opening-hint" className="field-hint">
               Aus dem Anlagenverzeichnis der bisherigen Buchhaltung, z. B. Buchwert zum 31.12. des Vorjahres und Stichtag 01.01. Haben schreibt ab dem Stichtag
@@ -265,10 +281,9 @@ export function AssetForm({
       <section className="form-section" aria-labelledby="asset-disposal">
         <h3 id="asset-disposal">Abgang</h3>
         <div className="form-row cols-2">
-          <label className="field">
-            Abgang (Verkauf, Entnahme, Verschrottung)
-            <input type="date" value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} aria-describedby="disposal-hint" />
-          </label>
+          <Field label="Abgang (Verkauf, Entnahme, Verschrottung)" describedBy="disposal-hint">
+            {(control) => <input {...control} type="date" value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} />}
+          </Field>
         </div>
         <p id="disposal-hint" className="field-hint">
           Bis zum Abgangsmonat wird abgeschrieben, der Rest geht als Restbuchwert in die Ausgaben. Einen Verkauf stellst du als Rechnung.
@@ -284,46 +299,50 @@ export function AssetForm({
             </label>
             {privateUsed && (
               <div className="form-grid">
-                <label className="field">
-                  Bruttolistenpreis (€)
-                  <input
-                    inputMode="decimal"
-                    value={listPrice}
-                    onChange={(e) => setListPrice(e.target.value)}
-                    aria-invalid={parsedListPrice === null}
-                    aria-describedby="list-price-hint"
-                  />
-                  <span id="list-price-hint" className="small">
-                    Inländischer Listenpreis bei Erstzulassung inklusive Sonderausstattung und Umsatzsteuer, nicht der Kaufpreis.
-                  </span>
-                </label>
-                <label className="field">
-                  Antrieb
-                  <select value={drive} onChange={(e) => setDrive(e.target.value as CarDrive)}>
-                    {Object.entries(CAR_DRIVES).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  Satz je Monat
-                  <select
-                    value={effectiveRate}
-                    onChange={(e) => {
-                      setRate(Number(e.target.value) as PrivateUseRate);
-                      setRateTouched(true);
-                    }}
-                  >
-                    {([100, 50, 25] as const).map((r) => (
-                      <option key={r} value={r}>
-                        {RATE_LABELS[r]}
-                        {r === suggestion ? " (Vorschlag)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Field
+                  label="Bruttolistenpreis (€)"
+                  hint="Inländischer Listenpreis bei Erstzulassung inklusive Sonderausstattung und Umsatzsteuer, nicht der Kaufpreis."
+                >
+                  {(control) => (
+                    <input
+                      {...control}
+                      inputMode="decimal"
+                      value={listPrice}
+                      onChange={(e) => setListPrice(e.target.value)}
+                      aria-invalid={parsedListPrice === null}
+                    />
+                  )}
+                </Field>
+                <Field label="Antrieb">
+                  {(control) => (
+                    <select {...control} value={drive} onChange={(e) => setDrive(e.target.value as CarDrive)}>
+                      {Object.entries(CAR_DRIVES).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
+                <Field label="Satz je Monat">
+                  {(control) => (
+                    <select
+                      {...control}
+                      value={effectiveRate}
+                      onChange={(e) => {
+                        setRate(Number(e.target.value) as PrivateUseRate);
+                        setRateTouched(true);
+                      }}
+                    >
+                      {([100, 50, 25] as const).map((r) => (
+                        <option key={r} value={r}>
+                          {RATE_LABELS[r]}
+                          {r === suggestion ? " (Vorschlag)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
                 <label className="checkbox" style={{ alignSelf: "end" }}>
                   <input type="checkbox" checked={vat} onChange={(e) => setVat(e.target.checked)} />
                   Umsatzsteuer auf die Privatnutzung
@@ -344,10 +363,9 @@ export function AssetForm({
 
       <section className="form-section" aria-labelledby="asset-note">
         <h3 id="asset-note">Notiz</h3>
-        <label className="field">
-          <span className="visually-hidden">Notiz</span>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
-        </label>
+        <Field label="Notiz" hideLabel>
+          {(control) => <textarea {...control} value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />}
+        </Field>
       </section>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || !valid}>

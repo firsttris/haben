@@ -1,4 +1,5 @@
 import {
+  isKapitalgesellschaft,
   bareinnahmeTotals,
   computeEuer,
   EXPENSE_CATEGORIES,
@@ -16,6 +17,8 @@ import {
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
+import { journalAbJahr, loadCompany } from "../stammdaten/index.ts";
+import { euerAusDemJournal } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { splitsByDocument } from "../belege/index.ts";
@@ -398,8 +401,19 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
   );
 }
 
-export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
+/** Die EÜR aus den Nebenbüchern (Zahlungen, Belege, Pauschalen, Anlagenverzeichnis); ab dem Stichjahr die Gegenprobe */
+export async function euerAusNebenbuechern(year: number, q: Db | Tx = db): Promise<EuerResult> {
   return computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+}
+
+/**
+ * Die EÜR eines Jahres: ab dem Stichjahr aus dem Journal (#542, euer-quelle.ts), davor aus den Nebenbüchern. Nur im
+ * Einzelunternehmen: GmbH und UG bilanzieren (#567); ihre Übersicht nach Zahlung bleibt aus den Nebenbüchern, sonst
+ * zählten Abschlussbuchungen wie Rückstellungen als Ausgabe ohne Zahlung (Entwurf, Entscheidung 3).
+ */
+export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
+  if (year < (await journalAbJahr(q)) || isKapitalgesellschaft((await loadCompany(q)).rechtsform)) return euerAusNebenbuechern(year, q);
+  return euerAusDemJournal(year, q);
 }
 
 export interface OpenPosition {

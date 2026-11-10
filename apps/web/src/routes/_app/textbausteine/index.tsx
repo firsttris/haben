@@ -7,6 +7,7 @@ import { FormattedText } from "../../../components/FormattedText.tsx";
 import { FormattedTextarea } from "../../../components/FormattedTextarea.tsx";
 import type { Notice } from "../../../lib/use-action.ts";
 import { archiveTextBlock, getTextBlocks, saveTextBlock } from "../../../server/functions/text-blocks.ts";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/textbausteine/")({
   loader: () => getTextBlocks(),
@@ -58,48 +59,53 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
     <form className="card" style={{ maxWidth: 720 }} onSubmit={onSubmit} aria-label={title}>
       <h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>
       <div className="form-grid">
-        <label className="field">
-          Bezeichnung
-          <input name="name" defaultValue={block?.name ?? ""} maxLength={200} required autoFocus placeholder="z. B. Rahmenvertrag Projekt Phoenix" />
-          <span className="small muted">Nur für die Auswahl, erscheint nicht auf dem Beleg.</span>
-        </label>
-        <label className="field">
-          Art
-          <select name="kind" defaultValue={block?.kind ?? "kopf"}>
-            <option value="kopf">Kopftext (Einleitung über den Positionen)</option>
-            <option value="fuss">Fußtext (Hinweis unter den Summen)</option>
-          </select>
-        </label>
-        <div className="field" style={{ gridColumn: "1 / -1" }}>
-          <label htmlFor="baustein-text">Text</label>
-          <FormattedTextarea
-            id="baustein-text"
-            name="text"
-            rows={5}
-            defaultValue={block?.text ?? ""}
-            maxLength={2000}
-            required
-            aria-describedby="baustein-text-hint"
-          />
-          <span id="baustein-text-hint" className="small muted">
-            In wiederkehrenden Rechnungen gelten auch hier Platzhalter wie {"{monat}"} oder {"{zeitraum}"}.
-          </span>
-        </div>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Kunde (optional)
-          <select name="contactId" defaultValue={block?.contactId ?? ""}>
-            <option value="">Für alle Kunden</option>
-            {contacts
-              .filter((c) => c.isCustomer || c.id === block?.contactId)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.ort ? ` · ${c.ort}` : ""}
-                </option>
-              ))}
-          </select>
-          <span className="small muted">Bei Belegen an diesen Kunden steht der Baustein in der Auswahl oben.</span>
-        </label>
+        <Field label="Bezeichnung" hint="Nur für die Auswahl, erscheint nicht auf dem Beleg.">
+          {(control) => (
+            <input
+              {...control}
+              name="name"
+              defaultValue={block?.name ?? ""}
+              maxLength={200}
+              required
+              autoFocus
+              placeholder="z. B. Rahmenvertrag Projekt Phoenix"
+            />
+          )}
+        </Field>
+        <Field label="Art">
+          {(control) => (
+            <select {...control} name="kind" defaultValue={block?.kind ?? "kopf"}>
+              <option value="kopf">Kopftext (Einleitung über den Positionen)</option>
+              <option value="fuss">Fußtext (Hinweis unter den Summen)</option>
+            </select>
+          )}
+        </Field>
+        <Field
+          label="Text"
+          hint={
+            <>
+              In wiederkehrenden Rechnungen gelten auch hier Platzhalter wie {"{monat}"} oder {"{zeitraum}"}.
+            </>
+          }
+          style={{ gridColumn: "1 / -1" }}
+        >
+          {(control) => <FormattedTextarea {...control} name="text" rows={5} defaultValue={block?.text ?? ""} maxLength={2000} required />}
+        </Field>
+        <Field label="Kunde (optional)" hint="Bei Belegen an diesen Kunden steht der Baustein in der Auswahl oben." style={{ gridColumn: "1 / -1" }}>
+          {(control) => (
+            <select {...control} name="contactId" defaultValue={block?.contactId ?? ""}>
+              <option value="">Für alle Kunden</option>
+              {contacts
+                .filter((c) => c.isCustomer || c.id === block?.contactId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.ort ? ` · ${c.ort}` : ""}
+                  </option>
+                ))}
+            </select>
+          )}
+        </Field>
       </div>
       {error && (
         <div className="banner banner-danger" role="alert">

@@ -11,10 +11,13 @@ import {
   type Cents,
   type TaxTreatment,
   type VatPeriod,
+  JOURNAL_KENNZAHLEN,
+  type JournalKennzahlen,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
-import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
+import { journalAbJahr, kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
+import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
@@ -113,6 +116,27 @@ export interface VatFigures {
   igErwerb: IgErwerbSource[];
   /** Belege zur Einfuhrumsatzsteuer: der ganze Betrag als Steuer */
   einfuhr: InputTaxSource[];
+  /**
+   * Woher die Kennzahlen kommen: ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md), davor aus den
+   * Nebenbüchern. Die Listen (revenue, inputTax, …) kommen immer aus den Nebenbüchern; sie erläutern die Kennzahlen.
+   */
+  quelle: "journal" | "nebenbuecher";
+  /** Ab dem Stichjahr: die Kennzahlen aus den Nebenbüchern, die Gegenprobe im Abgleich */
+  nebenbuecher?: JournalKennzahlen;
+}
+
+/**
+ * Ab dem Stichjahr (journalAbJahr) sind die Kennzahlen die aus dem Journal; die Privatnutzung von Fahrzeugen kommt dazu wie
+ * in den Nebenbüchern aus dem Anlagenverzeichnis. Die Kennzahlen der Nebenbücher bleiben als Gegenprobe für den Abgleich.
+ */
+async function journalAlsQuelle(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
+  if (period.year < (await journalAbJahr(q))) return figures;
+  const journal = await kennzahlenAusDemJournal(period, figures.versteuerung, q);
+  const entnahme = figures.revenue.filter((r) => r.type === "entnahme");
+  journal.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
+  journal.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
+  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld]])) as JournalKennzahlen;
+  return { ...figures, ...journal, quelle: "journal", nebenbuecher };
 }
 
 /**
@@ -490,7 +514,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     rows.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const treated = (treatment: TaxTreatment) => revenue.filter((r) => r.treatment === treatment).reduce((s, r) => s + r.base, 0);
 
-  return {
+  const figures: VatFigures = {
     versteuerung,
     // Stand am Ende des Zeitraums der Voranmeldung, nicht der heutige
     kleinunternehmer: await kleinunternehmerForMonth(lastMonthOfPeriod(period).year, lastMonthOfPeriod(period).month, q),
@@ -521,7 +545,9 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     reverseCharge,
     igErwerb,
     einfuhr,
+    quelle: "nebenbuecher",
   };
+  return journalAlsQuelle(period, figures, q);
 }
 
 export interface PreflightIssue {

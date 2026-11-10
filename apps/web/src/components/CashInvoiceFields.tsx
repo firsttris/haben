@@ -2,6 +2,7 @@ import { formatDecimal, formatEuro, formatPercent, parseEuro, skontoGezogen, typ
 import { useState } from "react";
 import { formatDate } from "../lib/format.ts";
 import { BareinnahmeFelder, bareinnahmeWahl } from "./BareinnahmeFelder.tsx";
+import { Field } from "./Field.tsx";
 
 export interface CashInvoiceOption {
   id: string;
@@ -62,29 +63,31 @@ export function CashInvoiceFields({
 
   return (
     <>
-      <label className="field" style={{ gridColumn: "1 / -1" }}>
-        Rechnung
-        <select name="invoiceId" value={invoiceId} onChange={(e) => choose(e.target.value)} required>
-          {invoices.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.number} · {i.customer} · offen {formatEuro(i.open)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        Betrag (€)
-        <input
-          name="amount"
-          inputMode="decimal"
-          placeholder="0,00"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          aria-invalid={parsed === null || parsed <= 0}
-          aria-describedby="cash-invoice-open"
-          required
-        />
-      </label>
+      <Field label="Rechnung" style={{ gridColumn: "1 / -1" }}>
+        {(control) => (
+          <select {...control} name="invoiceId" value={invoiceId} onChange={(e) => choose(e.target.value)} required>
+            {invoices.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.number} · {i.customer} · offen {formatEuro(i.open)}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Betrag (€)" describedBy="cash-invoice-open">
+        {(control) => (
+          <input
+            {...control}
+            name="amount"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            aria-invalid={parsed === null || parsed <= 0}
+            required
+          />
+        )}
+      </Field>
       <p id="cash-invoice-open" className="small muted" style={{ margin: 0, alignSelf: "end" }}>
         Rechnung vom {formatDate(invoice.date)}, offen {formatEuro(invoice.open)}.
         {rest > 0 && parsed !== null && parsed > 0 && ` Danach bleiben ${formatEuro(rest)} offen.`}
@@ -117,10 +120,7 @@ export function CashInvoiceFields({
           </legend>
           <BareinnahmeFelder kleinunternehmer={kleinunternehmer} value={extraSteuer} onChange={setExtraSteuer} />
           <input type="hidden" name="extraSteuer" value={`${extraSteuer.behandlung}:${extraSteuer.steuersatz}`} />
-          <label className="field">
-            Notiz zur weiteren Einnahme
-            <input name="extraText" maxLength={250} placeholder="Trinkgeld" />
-          </label>
+          <Field label="Notiz zur weiteren Einnahme">{(control) => <input {...control} name="extraText" maxLength={250} placeholder="Trinkgeld" />}</Field>
         </fieldset>
       )}
       {rest > 0 && parsed !== null && parsed > 0 && (

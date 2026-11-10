@@ -9,6 +9,7 @@ import type { getAnnualReturns } from "../server/functions/annual.ts";
 import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVastBerechtigung, revokeVastBerechtigung } from "../server/functions/annual.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Beleg = Data["vast"]["belege"][number];
@@ -124,27 +125,30 @@ export function VastBelege({ data }: { data: Data }) {
         {vast.personen.length > 0 && (
           <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Belege abrufen">
             {vast.personen.length > 1 && (
-              <label className="field">
-                Für
-                <select value={person} onChange={(e) => setPerson(e.target.value as "a" | "b")}>
-                  {vast.personen.map((p) => (
-                    <option key={p.key} value={p.key}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Field label="Für">
+                {(control) => (
+                  <select {...control} value={person} onChange={(e) => setPerson(e.target.value as "a" | "b")}>
+                    {vast.personen.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
             )}
-            <label className="field">
-              Zertifikats-PIN
-              <input
-                type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                autoComplete="off"
-                placeholder={canUseSavedPin ? "gespeicherte PIN verwenden" : undefined}
-              />
-            </label>
+            <Field label="Zertifikats-PIN">
+              {(control) => (
+                <input
+                  {...control}
+                  type="password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  autoComplete="off"
+                  placeholder={canUseSavedPin ? "gespeicherte PIN verwenden" : undefined}
+                />
+              )}
+            </Field>
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -262,10 +266,7 @@ function BerechtigungPanel({
             Für die Belege von {name} braucht dein Zertifikat ihre Zustimmung: Haben beantragt das Recht bei ELSTER, {name} bekommt einen Brief mit
             Freischaltcode, den du hier eingibst.
           </p>
-          <label className="field">
-            Gültig bis
-            <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} />
-          </label>
+          <Field label="Gültig bis">{(control) => <input {...control} type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} />}</Field>
           <button
             type="button"
             className="btn btn-primary"
@@ -283,10 +284,9 @@ function BerechtigungPanel({
       )}
       {status === "offen" && (
         <>
-          <label className="field">
-            Freischaltcode aus dem Brief
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX" autoComplete="off" />
-          </label>
+          <Field label="Freischaltcode aus dem Brief">
+            {(control) => <input {...control} value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX" autoComplete="off" />}
+          </Field>
           <button
             type="button"
             className="btn btn-primary"

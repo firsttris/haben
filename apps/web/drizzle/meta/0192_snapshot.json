@@ -1,5 +1,5 @@
 {
-  "id": "64acca3a-daec-4b87-9f9e-2858d187af6c",
+  "id": "9cd146f8-8c94-404d-8378-4a0db5acfd5e",
   "prevId": "4e51060c-a3ad-4ef6-9091-e632fa3da64a",
   "version": "7",
   "dialect": "postgresql",
@@ -1463,12 +1463,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "excluded_at": {
-          "name": "excluded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2678,6 +2672,12 @@
         },
         "datev_personenkonten_ab": {
           "name": "datev_personenkonten_ab",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "journal_ab": {
+          "name": "journal_ab",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
