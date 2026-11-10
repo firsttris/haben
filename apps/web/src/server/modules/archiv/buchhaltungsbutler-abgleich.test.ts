@@ -105,7 +105,7 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import im Jahresabgleich (
     await sql?.end();
   });
 
-  async function company(versteuerung: "ist" | "soll") {
+  async function company(versteuerung: "ist" | "soll", rechtsform = "einzelunternehmen") {
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;
       await tx`delete from datev_bookings`;
@@ -113,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import im Jahresabgleich (
     });
     await sql`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
-      values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', ${versteuerung}, 'einzelunternehmen')`;
+      values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', ${versteuerung}, ${rechtsform})`;
   }
 
   async function year2023() {
@@ -164,5 +164,13 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import im Jahresabgleich (
     );
     const y = await year2023();
     expect(y.einnahmen).toMatchObject({ net: 10000, tax: 1900 });
+  });
+
+  it("ordnet Geldtransit auch bei einer GmbH als neutral ein", async () => {
+    await company("soll", "gmbh");
+    await bb.startBuchhaltungsbutlerImport("test-user", parts([{ id: "1", debit: "1360", credit: "1200", bu: "", rate: "19", receipt: true }]));
+    const y = await year2023();
+    expect(y.einnahmen.gross).toBe(0);
+    expect(y.neutral).toMatchObject([{ kind: "geldtransit", count: 1 }]);
   });
 });

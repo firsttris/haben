@@ -8,6 +8,13 @@ export interface DirectionMapping {
   direction: "einnahme" | "ausgabe";
   positive: boolean;
   categoryAccount: string;
+  /** Konto, an dem die Richtung hängt: Erlös, Aufwand, Personenkonto, Anlage oder nur Geldkonten */
+  basis: Exclude<AccountKind, null>;
+  /**
+   * Weder Einnahme noch Ausgabe: Geld zwischen Geldkonten (Geldtransit, Privat), Zahlung auf ein Personenkonto
+   * ohne Erlös- oder Aufwandskonto. Die Einnahme oder Ausgabe steht in der Buchung auf dem Erlös- bzw. Aufwandskonto.
+   */
+  neutral: boolean;
 }
 
 function accountKind(account: string, skr: Kontenrahmen): AccountKind {
@@ -36,28 +43,55 @@ export function directionOf(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen)
     throw new BuchhaltungsbutlerError(`Buchung ${id}: Erlös- und Aufwandskonto in derselben Buchung; die Richtung ist nicht eindeutig.`);
   }
   if (debit === "erloes" || credit === "erloes") {
-    return { direction: "einnahme", positive: credit === "erloes", categoryAccount: debit === "erloes" ? row.debitAccount : row.creditAccount };
+    return {
+      direction: "einnahme",
+      positive: credit === "erloes",
+      categoryAccount: debit === "erloes" ? row.debitAccount : row.creditAccount,
+      basis: "erloes",
+      neutral: false,
+    };
   }
   if (debit === "aufwand" || credit === "aufwand") {
-    return { direction: "ausgabe", positive: debit === "aufwand", categoryAccount: debit === "aufwand" ? row.debitAccount : row.creditAccount };
+    return {
+      direction: "ausgabe",
+      positive: debit === "aufwand",
+      categoryAccount: debit === "aufwand" ? row.debitAccount : row.creditAccount,
+      basis: "aufwand",
+      neutral: false,
+    };
   }
   if (debit === "debitor" || credit === "debitor") {
-    return { direction: "einnahme", positive: credit === "debitor", categoryAccount: debit === "debitor" ? row.debitAccount : row.creditAccount };
+    return {
+      direction: "einnahme",
+      positive: credit === "debitor",
+      categoryAccount: debit === "debitor" ? row.debitAccount : row.creditAccount,
+      basis: "debitor",
+      neutral: true,
+    };
   }
   if (debit === "kreditor" || credit === "kreditor") {
-    return { direction: "ausgabe", positive: debit === "kreditor", categoryAccount: debit === "kreditor" ? row.debitAccount : row.creditAccount };
+    return {
+      direction: "ausgabe",
+      positive: debit === "kreditor",
+      categoryAccount: debit === "kreditor" ? row.debitAccount : row.creditAccount,
+      basis: "kreditor",
+      neutral: true,
+    };
   }
   if (debit === "anlage" || credit === "anlage") {
     const assetAccount = debit === "anlage" ? row.debitAccount : row.creditAccount;
-    if (debit === "bank") return { direction: "einnahme", positive: true, categoryAccount: assetAccount };
-    if (credit === "bank") return { direction: "ausgabe", positive: true, categoryAccount: assetAccount };
-    return { direction: debit === "anlage" ? "ausgabe" : "einnahme", positive: true, categoryAccount: assetAccount };
+    const asset = { positive: true, categoryAccount: assetAccount, basis: "anlage" as const, neutral: false };
+    if (debit === "bank") return { direction: "einnahme", ...asset };
+    if (credit === "bank") return { direction: "ausgabe", ...asset };
+    return { direction: debit === "anlage" ? "ausgabe" : "einnahme", ...asset };
   }
   if (debit === "bank" || credit === "bank") {
     return {
       direction: debit === "bank" ? "einnahme" : "ausgabe",
       positive: true,
       categoryAccount: debit === "bank" ? row.creditAccount : row.debitAccount,
+      basis: "bank",
+      neutral: true,
     };
   }
   throw new BuchhaltungsbutlerError(

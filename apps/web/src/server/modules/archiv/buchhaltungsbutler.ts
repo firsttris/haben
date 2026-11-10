@@ -95,7 +95,8 @@ export function bbSummary(preview: BuchhaltungsbutlerPreview) {
     dateFrom: preview.dateFrom,
     dateTo: preview.dateTo,
     bookings: preview.bookings,
-    vouchers: preview.vouchers.length,
+    /** Belege mit Datei; Einnahmen und Ausgaben ohne Beleg nennt eine Warnung */
+    vouchers: preview.vouchers.filter((item) => item.files.length > 0).length,
     files: preview.files,
     withoutReceipt: preview.withoutReceipt,
     multipleFiles: preview.multipleFiles,
@@ -155,7 +156,8 @@ async function importVoucher(actor: string, importId: string, item: Buchhaltungs
         tax: v.tax,
         gross: v.gross,
         taxes: v.taxes,
-        categories: v.categories.map((category) => ({ ...category, name: "" })),
+        // Der Name ordnet Geldtransit bei GmbH und UG als neutral ein (legacyNeutralKind); BB liefert sonst keine Namen
+        categories: v.categories.map((category) => ({ ...category, name: item.neutral ? "Geldtransit" : "" })),
         payment: null,
         remark: v.remark,
         raw: item.raw,

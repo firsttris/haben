@@ -3,7 +3,7 @@ import { BU_RATES, parseDatevBuchungsstapel, type Kontenrahmen } from "../datev.
 import { parseDate, parseGermanAmount } from "../text.ts";
 import type { LegacyVoucher } from "../lexoffice/map.ts";
 import { joinRows } from "./datev-info.ts";
-import { directionOf } from "./direction.ts";
+import { directionOf, type DirectionMapping } from "./direction.ts";
 import { readBbRows, readExportFiles, readReceiptFiles, type ExportPart } from "./export-files.ts";
 import type { BuchhaltungsbutlerJoinedRow, BuchhaltungsbutlerPreview, BuchhaltungsbutlerVoucher } from "./types.ts";
 import { BuchhaltungsbutlerError } from "./types.ts";
@@ -22,12 +22,23 @@ export function previewBuchhaltungsbutlerExport(parts: ExportPart[], skr: Konten
     if (!expectedIds.has(id)) throw new BuchhaltungsbutlerError(`Belege.zip: PDF für Buchung ${id} hat keine Beleg-URL im DATEV-Export.`);
   }
   const year = Number((stack.header.dateFrom ?? stack.header.fiscalYearStart).slice(0, 4));
-  const vouchers = withReceipt.map((row) => mapVoucher(row, receiptFiles.get(row.info.bookingId)!, skr, year));
+  const vouchers = rows.flatMap((row) => {
+    if (row.info.url !== "") return [mapVoucher(row, directionOf(row, skr), receiptFiles.get(row.info.bookingId)!, year)];
+    // Ohne Beleg nur Einnahmen und Ausgaben (Erlös- oder Aufwandskonto); Zahlungen, Geldtransit und Umbuchungen stehen
+    // im DATEV-Buchungsstapel, sonst fehlten sie in den Summen des Jahresabgleichs oder zählten doppelt
+    const mapping = withoutReceiptMapping(row, skr);
+    return mapping ? [mapVoucher(row, mapping, [], year)] : [];
+  });
+  const withReceiptVouchers = vouchers.filter((item) => item.files.length > 0);
   const warnings: string[] = [];
-  const withoutNumber = vouchers.filter((item) => !item.voucher.number).length;
+  const withoutNumber = withReceiptVouchers.filter((item) => !item.voucher.number).length;
   if (withoutNumber > 0) warnings.push(`${withoutNumber} Belege haben keine Rechnungsnummer und sind nur über Kontakt und Datum suchbar.`);
-  const withoutContact = vouchers.filter((item) => !item.voucher.contactName).length;
+  const withoutContact = withReceiptVouchers.filter((item) => !item.voucher.contactName).length;
   if (withoutContact > 0) warnings.push(`${withoutContact} Belege haben keine Gegenpartei im Export.`);
+  const withoutReceiptVouchers = vouchers.length - withReceiptVouchers.length;
+  if (withoutReceiptVouchers > 0) {
+    warnings.push(`${withoutReceiptVouchers} Einnahmen und Ausgaben ohne Beleg werden als Buchung ohne Beleg übernommen.`);
+  }
   return {
     year,
     dateFrom: stack.header.dateFrom,
@@ -41,9 +52,24 @@ export function previewBuchhaltungsbutlerExport(parts: ExportPart[], skr: Konten
   };
 }
 
-function mapVoucher(row: BuchhaltungsbutlerJoinedRow, files: BuchhaltungsbutlerVoucher["files"], skr: Kontenrahmen, year: number): BuchhaltungsbutlerVoucher {
-  const mapping = directionOf(row, skr);
-  const rate = taxRate(row);
+function withoutReceiptMapping(row: BuchhaltungsbutlerJoinedRow, skr: Kontenrahmen): DirectionMapping | null {
+  try {
+    const mapping = directionOf(row, skr);
+    return mapping.basis === "erloes" || mapping.basis === "aufwand" ? mapping : null;
+  } catch (error) {
+    if (error instanceof BuchhaltungsbutlerError) return null;
+    throw error;
+  }
+}
+
+function mapVoucher(
+  row: BuchhaltungsbutlerJoinedRow,
+  mapping: DirectionMapping,
+  files: BuchhaltungsbutlerVoucher["files"],
+  year: number,
+): BuchhaltungsbutlerVoucher {
+  // Geldtransit, Privates und Zahlungen tragen keine Umsatzsteuer, auch wenn die Beleginfo einen Satz nennt
+  const rate = mapping.neutral ? 0 : taxRate(row);
   const sign = mapping.positive ? 1 : -1;
   const gross = sign * row.datev.amount;
   const tax = sign * taxIncluded(row.datev.amount, rate);
@@ -59,7 +85,9 @@ function mapVoucher(row: BuchhaltungsbutlerJoinedRow, files: BuchhaltungsbutlerV
     info: row.info.raw,
     taxType,
     taxConditions: { taxType },
-    ohneBeleg: false,
+    ohneBeleg: files.length === 0,
+    // Kennzeichen wie bei der Lexoffice-Sicherung: weder Einnahme noch Ausgabe (Einzelunternehmen)
+    privat: mapping.neutral,
   };
   const voucher: LegacyVoucher = {
     lexofficeId: `booking/${year}/${row.info.bookingId}`,
@@ -82,7 +110,7 @@ function mapVoucher(row: BuchhaltungsbutlerJoinedRow, files: BuchhaltungsbutlerV
     fileIds: [],
     remark: row.bb.Kommentar || row.bb.Buchungstext || "",
   };
-  return { voucher, bookingId: row.info.bookingId, files, raw };
+  return { voucher, bookingId: row.info.bookingId, files, raw, neutral: mapping.neutral };
 }
 
 function taxRate(row: BuchhaltungsbutlerJoinedRow): number {

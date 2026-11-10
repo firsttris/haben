@@ -33,6 +33,8 @@ export interface BuchhaltungsbutlerVoucher {
   bookingId: string;
   files: BuchhaltungsbutlerFile[];
   raw: Record<string, unknown>;
+  /** Weder Einnahme noch Ausgabe (Geldtransit, Privat, Zahlung auf ein Personenkonto) */
+  neutral: boolean;
 }
 
 export interface BuchhaltungsbutlerPreview {

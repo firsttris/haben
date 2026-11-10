@@ -51,7 +51,8 @@ export function readReceiptFiles(bytes: Uint8Array): Map<string, Buchhaltungsbut
     if (path.endsWith("/")) continue;
     const filename = path.split("/").pop()!;
     const match = /^(\d+)(?:_(\d+))?\.(pdf|xml)$/i.exec(filename);
-    if (!match) throw new BuchhaltungsbutlerError(`Belege.zip: Dateiname „${path}“ passt nicht zu <Buchungsnummer>.pdf/.xml oder <Buchungsnummer>_<lfd>.pdf/.xml.`);
+    if (!match)
+      throw new BuchhaltungsbutlerError(`Belege.zip: Dateiname „${path}“ passt nicht zu <Buchungsnummer>.pdf/.xml oder <Buchungsnummer>_<lfd>.pdf/.xml.`);
     const role = match[3]!.toLowerCase() === "xml" ? "xml" : "pdf";
     if (role === "pdf" && (content.subarray(0, 5).length !== 5 || new TextDecoder().decode(content.subarray(0, 5)) !== "%PDF-")) {
       throw new BuchhaltungsbutlerError(`Belege.zip: ${path} ist keine PDF-Datei.`);
