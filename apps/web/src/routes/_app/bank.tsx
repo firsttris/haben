@@ -156,7 +156,9 @@ const FORMAT_LABEL = (format: string) =>
             ? "Shopify"
             : format === "ebay-csv"
               ? "eBay"
-              : "CSV";
+              : format === "etsy-csv"
+                ? "Etsy"
+                : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();

@@ -897,6 +897,38 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await bank.listAccounts()).find((a) => a.id === paypal.id)).toMatchObject({ providerBalance: 0, openCount: 0 });
   }, 30_000);
 
+  it("Etsy: Monatsabrechnung ins eigene Verrechnungskonto, gleiche Gebühren bleiben, Auszahlung als Geldtransit zur Bank (#296)", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    // Verkauf 9,01 €, Einstellgebühr zweimal (gleiche Zeile), Zahlungsabwicklung, Auszahlung 8,00 €: das Guthaben geht auf null auf
+    const csv = [
+      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
+      `"November 2, 2026",Deposit,"€8.00 sent to your bank account",,EUR,--,--,--,--`,
+      `"November 1, 2026",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`,
+      `"November 1, 2026",Fee,"Listing fee","Listing #1",EUR,--,-€0.18,-€0.18,--`,
+      `"November 1, 2026",Fee,"Processing fee","Order #1",EUR,--,-€0.65,-€0.65,--`,
+      `"November 1, 2026",Sale,"Payment for Order #1",,EUR,€9.01,--,€9.01,--`,
+    ].join("\n");
+    const file = { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" };
+    await expect(bank.importStatement(actor, file, null)).rejects.toThrow(/Konto des Dienstleisters wählen/);
+    const dkb = await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("03.11.26", "Etsy Ireland UC", "IE29AIBK93115212345678", "Auszahlung Etsy", "8,00")]), filename: "dkb.csv" },
+      null,
+    );
+    await expect(bank.importStatement(actor, file, dkb.accountId)).rejects.toThrow(/Export eines Zahlungsdienstleisters/);
+    expect(await bank.importStatement(actor, file, etsy.id)).toMatchObject({ added: 5 });
+    // Beide gleichen Gebühren sind angekommen; derselbe Export noch einmal legt nichts doppelt an
+    expect(await sql`select id from bank_transactions where amount = -18`).toHaveLength(2);
+    expect(await bank.importStatement(actor, file, etsy.id)).toMatchObject({ added: 0 });
+    expect((await bank.listAccounts()).find((a) => a.id === etsy.id)).toMatchObject({ providerBalance: 0 });
+
+    // Auszahlung: von beiden Seiten als Geldtransit erkannt, mit der jeweils anderen als Gegenbuchung
+    const [payout] = await sql`select id from bank_transactions where amount = -800`;
+    const [incomingPayout] = await sql`select id from bank_transactions where amount = 800`;
+    expect((await bank.transactionDetail(payout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: incomingPayout!.id } });
+    expect((await bank.transactionDetail(incomingPayout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: payout!.id } });
+  }, 30_000);
+
   it("Shopify: Auszahlung aus Teilen zweier Monatsexporte als ein Geldtransit zur Bank", async () => {
     const shopify = await bank.createProviderAccount(actor, { name: "Shopify", provider: "shopify" });
     const header = `Transaction Date,Type,Order,Card Brand,Card Source,Payout Status,Payout Date,Payout ID,Available On,Amount,Fee,Net,Checkout,Payment Method Name,Presentment Amount,Presentment Currency,Currency`;
@@ -1012,6 +1044,92 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
     expect(open.map((r) => r.amount)).toEqual([-100]);
     await expect(bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
+  }, 30_000);
+
+  // Etsy-Gebührenzeilen haben keinen Betrag, nur „Gebühren & Steuern“; auch sie brauchen „Gebühr“ im Zweck (#296, Review zu #506)
+  it("Etsy: Gebühren eines Monats der Sammelrechnung zuordnen", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    const csv = [
+      `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`,
+      `"October 1, 2026",Fee,"Listing fee","Listing #1",EUR,--,-€1.50,-€1.50,--`,
+      `"October 15, 2026",Fee,"Processing fee","Order #1",EUR,--,-€3.00,-€3.00,--`,
+      `"November 2, 2026",Fee,"Processing fee","Order #2",EUR,--,-€1.00,-€1.00,--`,
+    ].join("\n");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 12]);
+    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-oktober.jpg" });
+    await documents.updateDocument(actor, docId, {
+      supplierName: "Etsy Ireland UC",
+      supplierUstId: "",
+      invoiceNumber: "ETSY-2026-10",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      category: "sonstiges",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 0, net: 450, tax: 0 }],
+    });
+    await documents.bookDocument(actor, docId);
+    const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    // Oktober erledigt, November bleibt offen
+    const open = await sql`select amount from bank_transactions t where amount < 0
+      and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
+    expect(open.map((r) => r.amount)).toEqual([-100]);
+  }, 30_000);
+
+  it("Etsy: Etsy Ads und Offsite Ads gehören zur Sammelrechnung des Monats (#296)", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    // Deutsche Abrechnung: Werbung steht als Art „Marketing“ und steht auf derselben Gebührenrechnung wie die übrigen Gebühren
+    const csv = [
+      `Datum,Art,Titel,Info,Währung,Betrag,"Gebühren & Steuern",Netto,"Steuerliche Angaben"`,
+      `"01. Oktober 2026",Fee,"Einstellgebühr (0,20 USD)","Artikel Nr. XXX-A",EUR,--,-€1.50,-€1.50,--`,
+      `"15. Oktober 2026",Fee,"Processing fee","Order #1",EUR,--,-€3.00,-€3.00,--`,
+      `"16. Oktober 2026",Marketing,"Etsy Ads","Bill for click-throughs to your shop on Oct 15, 2026",EUR,--,-€0.46,-€0.46,--`,
+      `"17. Oktober 2026",Marketing,"Gebühr für Verkauf über Offsite Ads","Bestellnr. XXX-002",EUR,--,-€1.31,-€1.31,--`,
+      `"02. November 2026",Marketing,"Etsy Ads","Bill for click-throughs to your shop on Nov 1, 2026",EUR,--,-€0.50,-€0.50,--`,
+    ].join("\n");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "etsy.csv" }, etsy.id);
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 13]);
+    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "etsy-oktober-werbung.jpg" });
+    await documents.updateDocument(actor, docId, {
+      supplierName: "Etsy Ireland UC",
+      supplierUstId: "",
+      invoiceNumber: "ETSY-2026-10-W",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      category: "sonstiges",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 0, net: 627, tax: 0 }], // 150 + 300 + 46 + 131
+    });
+    await documents.bookDocument(actor, docId);
+    const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(4);
+    // Oktober erledigt, die Werbung vom November bleibt offen
+    const open = await sql`select amount from bank_transactions t where amount < 0
+      and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
+    expect(open.map((r) => r.amount)).toEqual([-50]);
+  }, 30_000);
+
+  // Test aus dem TDD-Review von @firsttris im PR #506 (Runde 2): Derselbe Etsy-Datensatz muss bei jedem Import mit demselben
+  // Betrag ankommen, egal welche Zeilen sonst in der Datei stehen, sonst legt der zweite Import ihn ein weiteres Mal an
+  it("Etsy: laufender Monat, dann ganzer Monat importiert: das Guthaben ist das Netto der Datei (Review #506)", async () => {
+    const etsy = await bank.createProviderAccount(actor, { name: "Etsy", provider: "etsy" });
+    const header = `Date,Type,Title,Info,Currency,Amount,"Fees & Taxes",Net,"Tax Details"`;
+    const early = [
+      `"March 20, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€5.00,--,-€5.00,--`,
+      `"March 20, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€1.30,€1.30,--`,
+    ];
+    const later = [
+      `"March 25, 2025",Refund,"Partial refund to buyer for Order #1",,EUR,-€6.00,--,-€6.00,--`,
+      `"March 25, 2025",Tax,"Refund to buyer for sales tax","Order #1",EUR,--,€0.90,€0.90,--`,
+    ];
+    const file = (rows: string[]) => new TextEncoder().encode([header, ...rows].join("\n"));
+    await bank.importStatement(actor, { bytes: file(early), filename: "etsy-maerz-teil.csv" }, etsy.id);
+    await bank.importStatement(actor, { bytes: file([...later, ...early]), filename: "etsy-maerz.csv" }, etsy.id);
+    const [row] = await sql`select coalesce(sum(amount), 0)::int as total from bank_transactions where bank_account_id = ${etsy.id}`;
+    expect(row!.total).toBe(-500 + 130 - 600 + 90);
   }, 30_000);
 
   it("Belegzahlung und Privatentnahme", async () => {
