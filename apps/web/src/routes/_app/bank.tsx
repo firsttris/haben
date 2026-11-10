@@ -572,6 +572,15 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
   );
 }
 
+/** Höchstens so viele Banken stehen in der Auswahl; mehr findet die Suche */
+const MAX_BANK_OPTIONS = 300;
+
+/** Die Banken, deren Name den Suchbegriff enthält, in der Reihenfolge der Liste */
+function matchingBanks<T extends { name: string }>(banks: T[], query: string): T[] {
+  const term = query.trim().toLowerCase();
+  return banks.filter((b) => !term || b.name.toLowerCase().includes(term)).slice(0, MAX_BANK_OPTIONS);
+}
+
 function ConnectForm({
   onCancel,
   callbackUrl,
@@ -606,16 +615,24 @@ function ConnectForm({
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  const term = query.trim().toLowerCase();
-  const visible = (banks ?? []).filter((b) => !term || b.name.toLowerCase().includes(term));
-  const bank = banks?.find((b) => b.name === selected);
+  const visible = matchingBanks(banks ?? [], query);
+  // Gewählt ist, was die Liste markiert zeigt: Passt der Zustand zu keiner Zeile, markiert React von sich aus die
+  // erste. Ohne diesen Rückfall sah die einzige Bank nach der Suche gewählt aus, der Knopf blieb aber grau, und ein
+  // Klick auf sie änderte nichts, weil der Browser sie schon für gewählt hielt (#555)
+  const bank = visible.find((b) => b.name === selected) ?? visible[0];
 
-  // Enter im Suchfeld wählt den ersten Treffer, statt das Formular abzuschicken
+  // Fällt die gewählte Bank aus den Treffern, rückt der erste Treffer nach und bleibt, wenn die Suche wieder weiter wird
+  function onQueryChange(value: string) {
+    setQuery(value);
+    const next = matchingBanks(banks ?? [], value);
+    const keep = next.find((b) => b.name === bank?.name) ?? next[0];
+    if (keep) setSelected(keep.name);
+  }
+
+  // Enter im Suchfeld schickt das Formular nicht ab; gewählt ist schon der erste Treffer
   function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
     event.preventDefault();
-    const first = visible[0];
-    if (first && !visible.some((b) => b.name === selected)) setSelected(first.name);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -639,7 +656,7 @@ function ConnectForm({
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={onSearchKeyDown}
           placeholder="z. B. DKB, Sparkasse, N26"
           autoFocus
@@ -647,9 +664,9 @@ function ConnectForm({
       </label>
       <label className="field">
         Bank
-        <select size={8} value={selected} onChange={(e) => setSelected(e.target.value)} required aria-busy={banks === null}>
+        <select size={8} value={bank?.name ?? ""} onChange={(e) => setSelected(e.target.value)} required aria-busy={banks === null}>
           {banks === null && !error && <option disabled>Lade Banken …</option>}
-          {visible.slice(0, 300).map((b) => (
+          {visible.map((b) => (
             <option key={b.name} value={b.name}>
               {b.name}
             </option>
