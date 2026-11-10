@@ -2,14 +2,19 @@ import { and, eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { journalAbJahr, setJournalAb } from "../stammdaten/index.ts";
+import { isKapitalgesellschaft, JOURNAL_KENNZAHLEN } from "@haben/core";
+import { journalAbJahr, loadCompany, setJournalAb } from "../stammdaten/index.ts";
+import { kennzahlenBeiderQuellen } from "../umsatzsteuer/index.ts";
 import { abgleichJahr, abweichungen } from "./abgleich.ts";
+import { euerAusDemJournal } from "./euer-quelle.ts";
+import { euerAusNebenbuechern } from "./reports.ts";
 
 /*
  * Stichjahr, ab dem Voranmeldung und EÜR aus dem Journal rechnen (#542, docs/adr/journal-als-quelle.md, Entscheidung 1):
  * anzeigen und auf das laufende Jahr vorziehen. Vorziehen geht nur, solange im laufenden Jahr keine Voranmeldung gesendet
- * ist (gesendet ist gesendet, sie käme aus den Nebenbüchern) und der Abgleich des Jahres keine Abweichung zeigt: Dann
- * melden Journal und Nebenbücher dasselbe, und der Umstieg ändert keine Zahl. Zurück geht es nicht.
+ * ist (gesendet ist gesendet, sie käme aus den Nebenbüchern), der Abgleich des Jahres keine Abweichung zeigt und jede
+ * Voranmeldung des Jahres sowie die EÜR aus beiden Quellen gleich herauskommen: Dann ändert der Umstieg keine Zahl. Zurück
+ * geht es nicht.
  */
 
 export class StichjahrError extends UserError {}
@@ -40,6 +45,24 @@ export async function stichjahrStand(today: string, q: Db | Tx = db): Promise<St
   const anzahl = abweichungen((await abgleichJahr(jahr, today, q)).zeilen).length;
   if (anzahl > 0) {
     gruende.push(`Der Abgleich ${jahr} zeigt ${anzahl === 1 ? "eine Abweichung" : `${anzahl} Abweichungen`} zwischen Journal und Nebenbüchern.`);
+  }
+  // Gleich gerechnet: Der Abgleich lässt ältere Buchungen ohne Bemessungsgrundlage bzw. Steuerschlüssel aus (vor #551,
+  // #552); nach dem Umstieg zählten sie anders. Deshalb jede Voranmeldung des Jahres und die EÜR aus beiden Quellen
+  const monate: number[] = [];
+  for (let month = 1; month <= Number(today.slice(5, 7)); month++) {
+    const { journal, nebenbuecher } = await kennzahlenBeiderQuellen({ year: jahr, month }, q);
+    if (JOURNAL_KENNZAHLEN.some((feld) => journal[feld] !== nebenbuecher[feld])) monate.push(month);
+  }
+  if (monate.length > 0) {
+    gruende.push(
+      `Die Voranmeldung für ${monate.map((m) => `${String(m).padStart(2, "0")}/${jahr}`).join(", ")} käme aus dem Journal anders heraus; dort stehen ältere Buchungen ohne Bemessungsgrundlage oder Steuerschlüssel.`,
+    );
+  }
+  if (!isKapitalgesellschaft((await loadCompany(q)).rechtsform)) {
+    const zeilen = (e: Awaited<ReturnType<typeof euerAusNebenbuechern>>) => JSON.stringify([e.einnahmen, e.ausgaben, e.gewinn]);
+    if (zeilen(await euerAusDemJournal(jahr, q)) !== zeilen(await euerAusNebenbuechern(jahr, q))) {
+      gruende.push(`Die EÜR ${jahr} käme aus dem Journal anders heraus.`);
+    }
   }
   return { stichjahr, jahr, vorziehbar: gruende.length === 0, gruende };
 }

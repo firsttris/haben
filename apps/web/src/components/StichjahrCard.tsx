@@ -41,8 +41,8 @@ export function StichjahrCard({ stand }: { stand: Stand }) {
       {spaeter && (
         <>
           <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-            Vorziehen auf {stand.jahr} geht, solange für {stand.jahr} keine Voranmeldung gesendet ist und der Abgleich des Jahres keine Abweichung zeigt; dann
-            ändert der Umstieg keine Zahl. Zurück geht es nicht.
+            Vorziehen auf {stand.jahr} geht, solange für {stand.jahr} keine Voranmeldung gesendet ist und Voranmeldungen und EÜR des Jahres aus dem Journal
+            genauso herauskommen wie bisher; dann ändert der Umstieg keine Zahl. Zurück geht es nicht.
           </p>
           {stand.gruende.length > 0 && (
             <ul className="small" aria-label="Noch nicht vorziehbar" style={{ margin: 0 }}>
@@ -70,10 +70,7 @@ export function StichjahrCard({ stand }: { stand: Stand }) {
         onConfirm={onConfirm}
         onClose={() => setConfirming(false)}
       >
-        <p>
-          Voranmeldung und EÜR für {stand.jahr} rechnen dann aus dem Journal. Der Abgleich zeigt jetzt keine Abweichung, die Zahlen bleiben dieselben. Zurück
-          geht es nicht.
-        </p>
+        <p>Voranmeldung und EÜR für {stand.jahr} rechnen dann aus dem Journal. Sie kommen dort genauso heraus wie bisher. Zurück geht es nicht.</p>
       </ConfirmDialog>
     </section>
   );
