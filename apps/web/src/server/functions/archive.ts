@@ -15,6 +15,7 @@ import {
   listOrderDocuments,
   orderArchiveOverview,
   orderDocumentDetail,
+  externalImportOverview,
 } from "../modules/archiv/index.ts";
 import {
   cancelImport,
@@ -59,17 +60,27 @@ export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema.optional() }))
   .handler(async ({ data }) => {
-    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport, accountableImport, orderArchive] =
-      await Promise.all([
-        connectionStatus(),
-        reconciliation(),
-        listArchiveFiles(),
-        openItemsOverview(data.stichtag),
-        sevdeskConnectionStatus(),
-        latestSevdeskImport(),
-        latestAccountableImport(),
-        orderArchiveOverview(),
-      ]);
+    const [
+      connection,
+      check,
+      files,
+      { items: openItems, cutoff, cutoffError },
+      sevdeskConnection,
+      sevdeskImport,
+      accountableImport,
+      orderArchive,
+      externalImports,
+    ] = await Promise.all([
+      connectionStatus(),
+      reconciliation(),
+      listArchiveFiles(),
+      openItemsOverview(data.stichtag),
+      sevdeskConnectionStatus(),
+      latestSevdeskImport(),
+      latestAccountableImport(),
+      orderArchiveOverview(),
+      externalImportOverview(),
+    ]);
     return {
       connection,
       sevdeskConnection,
@@ -80,6 +91,7 @@ export const getMigration = createServerFn({ method: "GET" })
       cutoffError,
       ...check,
       orderArchive,
+      externalImports,
       files: files.map(({ meta, ...file }) => ({
         ...file,
         bookings: typeof meta?.bookings === "number" ? meta.bookings : null,

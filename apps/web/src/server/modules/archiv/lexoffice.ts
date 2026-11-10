@@ -33,8 +33,9 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LegacyCategoryRow, LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
-import { sha256Of, sniff, storeFile } from "../../storage.ts";
+import type { LegacyCategoryRow, LegacyPayment, LegacySource, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
+import { sniff } from "../../storage.ts";
+import { storeLegacyVoucher } from "./legacy-store.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 
 export class LexofficeError extends UserError {}
@@ -314,15 +315,13 @@ async function importVoucher(
   }
   const payments = await client.payments(item.id);
 
-  for (const entry of files) await storeFile(entry.file.bytes);
-
   return withActor(actor, async (tx) => {
     const [contact] = voucher.contactLexofficeId
       ? await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.lexofficeId, voucher.contactLexofficeId))
       : [];
-    const [row] = await tx
-      .insert(schema.lexofficeVouchers)
-      .values({
+    const row = await storeLegacyVoucher(
+      tx,
+      {
         lexofficeId: voucher.lexofficeId,
         importId,
         type: voucher.type,
@@ -344,26 +343,17 @@ async function importVoucher(
         payment: payments ? mapPayments(payments) : null,
         remark: voucher.remark,
         raw: raw as Record<string, unknown>,
-      })
-      .onConflictDoNothing({ target: schema.lexofficeVouchers.lexofficeId })
-      .returning({ id: schema.lexofficeVouchers.id });
-    if (!row) return false;
-    const seen = new Set<string>();
-    for (const entry of files) {
-      const sha256 = sha256Of(entry.file.bytes);
-      if (seen.has(sha256)) continue;
-      seen.add(sha256);
-      await tx.insert(schema.lexofficeVoucherFiles).values({
-        voucherId: row.id,
+      },
+      files.map((entry) => ({
         role: entry.role,
-        lexofficeFileId: entry.lexofficeFileId,
-        filename: (entry.file.filename ?? fallbackName(voucher, entry.role, entry.file.bytes)).slice(0, 200),
-        mimeType: entry.file.mimeType.split(";")[0]!.trim() || "application/octet-stream",
-        sha256,
-        size: entry.file.bytes.byteLength,
-      });
-      progress.files += 1;
-    }
+        sourceFileId: entry.lexofficeFileId,
+        filename: entry.file.filename ?? fallbackName(voucher, entry.role, entry.file.bytes),
+        mimeType: entry.file.mimeType,
+        bytes: entry.file.bytes,
+      })),
+    );
+    if (!row) return false;
+    progress.files += row.files;
     return true;
   });
 }
@@ -382,7 +372,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
-    source: "lexoffice" | "sevdesk";
+    source: LegacySource;
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -425,6 +415,8 @@ export async function legacyVoucherDetail(id: string) {
       id: schema.lexofficeVouchers.id,
       lexofficeId: schema.lexofficeVouchers.lexofficeId,
       source: schema.lexofficeVouchers.source,
+      sourceName: sql<string | null>`case when ${schema.lexofficeVouchers.source} = 'import' then ${schema.lexofficeVouchers.raw}->>'sourceName' else null end`,
+      externalId: sql<string>`case when ${schema.lexofficeVouchers.source} = 'import' then ${schema.lexofficeVouchers.raw}->>'externalId' else ${schema.lexofficeVouchers.lexofficeId} end`,
       type: effectiveType("lexoffice_vouchers"),
       direction: effectiveDirection("lexoffice_vouchers"),
       number: schema.lexofficeVouchers.number,
@@ -469,7 +461,7 @@ export async function legacyVoucherFile(fileId: string) {
 }
 
 /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
-function legacyPayments(v: { source: "lexoffice" | "sevdesk" | "accountable"; gross: number; status: string; payment: LegacyPayment | null }) {
+function legacyPayments(v: { source: LegacySource; gross: number; status: string; payment: LegacyPayment | null }) {
   if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
     .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
@@ -770,7 +762,7 @@ export async function legacyVouchersForPeriod(filter: {
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
-    source: "lexoffice" | "sevdesk";
+    source: LegacySource;
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;

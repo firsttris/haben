@@ -23,6 +23,7 @@ import { cashBookCsv } from "../bank/index.ts";
 import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
+import { externalImportArchive } from "./external-import-archive.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -282,6 +283,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   const problems: string[] = [];
 
   yield { path: "LIESMICH.txt", content: encoder.encode(readme(year, now, company)), compress: true };
+  yield* externalImportArchive(year);
 
   // Rechnungen ------------------------------------------------------------
   const invoices = await db
@@ -1224,7 +1226,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 }
 
-const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk", accountable: "Accountable" } as const;
+const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk", accountable: "Accountable", import: "JSON-Import" } as const;
 
 const LEGACY_TYPE_LABELS: Record<string, string> = {
   invoice: "Rechnung",

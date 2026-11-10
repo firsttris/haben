@@ -64,6 +64,8 @@ Verkaufst du bar an Privatkunden, etwa am Marktstand, brauchst du keine Rechnung
 
 ## Regeln
 
+**Übernommene Originalbuchungen:** Der [JSON-Eingang für Umzüge](belegimport.md) ergänzt Kassenbewegungen aus einem Originaljournal mit derselben Journalreferenz. Sie stehen als „Übernommen“ in der Liste; es entsteht keine zweite Buchung oder zusätzliche EÜR-Zahlung. Auch dabei darf der Kassenbestand an keinem Tag negativ werden. Solche Bewegungen lassen sich hier nicht einzeln stornieren: Eine Korrektur muss mit dem übernommenen Originaljournal abgestimmt werden.
+
 - Jede Zeile wird sofort gebucht und festgeschrieben. Ändern oder Löschen geht nicht (GoBD), auch nicht in der Datenbank.
 - Eine falsche Zeile hebst du mit **Stornieren** auf: Haben schreibt eine Gegenzeile mit neuer Nummer und heutigem Datum und bucht gegen. Danach trägst du sie richtig neu ein. Bar bezahlte Belege sind gebucht und lassen sich hier nicht stornieren; das geht am Beleg selbst mit **Beleg stornieren**, dann schreibt Haben die Gegenzeile ins Kassenbuch (siehe [Belege](belege.md#stornieren-und-neu-erfassen)).
 - Der Kassenbestand darf an keinem Tag negativ sein. Würde eine Zeile ihn ins Minus bringen, auch an einem späteren Tag, lehnt Haben sie mit dem Datum ab. Trage dann zuerst die Einlage oder Abhebung ein.

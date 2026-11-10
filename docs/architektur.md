@@ -90,9 +90,11 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `mail` | `mail` (Versand mit Protokoll, Erinnerungen, wöchentliche Integritätsmail), `settings` (Zugang und Vorlagen), `transport` (Versandweg: `transport-smtp` über nodemailer, `transport-graph` über Microsoft Graph, mit `graph/` für Token, Anfrage, Wiederholung und Fehlertexte) |
 | `mcp` | `server` (Endpunkt für KI-Assistenten), `tokens` (API-Tokens mit Rechten für MCP und REST-API, Schalter, Protokoll der Aufrufe), `tools` (Werkzeuge, nur lesen), `ausfuellliste` (Ausfüllliste der Voranmeldung für Mein ELSTER) |
 | `eigene-seiten` | `pages` (eigene Seiten: Name und Adresse für Menüeinträge, die eine Seite außerhalb von Haben im Rahmen zeigen), `url` (Prüfung der Adresse: nur http und https, keine Zugangsdaten, nicht die Herkunft von Haben) |
-| `datenimport` | `csv-import` (Kontakte, Artikel und Anlagen aus CSV: Vorschau und Import in einer Transaktion); liest und prüft mit `packages/import`, legt über `stammdaten` (`csv-import`) und `buchhaltung` (`asset-import`) an; schreibt keine eigenen Tabellen |
+| `datenimport` | `csv-import` (Kontakte, Artikel und Anlagen aus CSV), `external-import` (geprüfte Originalbelege und Journalpakete per Betreiber-CLI mit Vorschau, atomarer Übernahme und Herkunft); nutzt `stammdaten`, `archiv` und `buchhaltung`, ergänzt Kassenbewegungen über `bank`; eigene Herkunftstabelle `external_imports` |
 | `zugang` | `einladungen` (Einladungslink anlegen, auflisten, zurückziehen), `zugaenge` (Konten mit Rolle und letzter Anmeldung, sperren, entfernen), `aenderungen` (was sich seit dem letzten Besuch der Steuerberatung geändert hat); Rolle, Sitzung und das Einlösen der Einladung stehen in der Infrastruktur (`server/rollen.ts`, `server/anmeldung.ts`), weil Better Auth und die Middleware sie brauchen |
 | `api` | REST-API unter `/api/v1`: `routes` (Tabelle der Endpunkte mit Recht und Handler), `router` (Token, Recht, Rate, Body), `http` (Antworten und Fehlerformat), `contacts`, `invoices` und `documents` (dünne Handler über `stammdaten`, `rechnungen` und `belege`), `schemas` (Zod für Eingaben und Antworten), `openapi` (Beschreibung aus beidem); schreibt keine eigenen Tabellen |
+
+Die API-Umzüge und der lokale JSON-Eingang speichern Originalbelege gemeinsam über `archiv/legacy-store`. Die zusätzlichen Herkunftsnachweise des JSON-Eingangs liegen in `external_imports`; Buchungen und Kassenbewegungen bleiben bei ihren bestehenden Modulen.
 
 Die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) läuft mit `bun run lint` in der CI und prüft jeden relativen Import, auch `export … from`, `import()` und Typen wie `import("…").T`. Sie löst den Pfad auf, statt nur den Text des Imports zu vergleichen; das kann Biome nicht, deshalb ist es ein eigenes Skript:
 
@@ -225,13 +227,14 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `datev_bookings` | Zeilen eines DATEV-Buchungsstapels, unverändert | nur anhängen |
 | `lexoffice_connection` | API-Schlüssel für Lexware Office, verschlüsselt; eine Zeile | Audit ohne Chiffrat |
 | `sevdesk_connection` | API-Token für sevDesk, verschlüsselt, mit Buchhaltungsversion; eine Zeile | Audit ohne Chiffrat |
-| `lexoffice_imports` | Abrufe aus Lexoffice oder sevDesk (`source`) mit fortlaufend geschriebenem Fortschritt; höchstens einer läuft | Audit beim Anlegen |
-| `lexoffice_vouchers` | Rechnungen und Belege aus Lexoffice oder sevDesk (`source`) mit vollständiger API-Antwort | nur anhängen |
+| `lexoffice_imports` | Abrufe aus Lexoffice oder sevDesk sowie lokale Paketübernahmen (`source`) mit Fortschritt; höchstens ein Anbieterabruf läuft | Audit beim Anlegen |
+| `lexoffice_vouchers` | Rechnungen und Belege aller Umzugsquellen (`source`) mit vollständiger Quellantwort beziehungsweise Originalpaket | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
-| `legacy_voucher_payments` | Einzelzahlungen zu Belegen aus sevDesk mit Datum, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle; eindeutig je Zuordnung | nur anhängen, Audit |
-| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk mit Positionen und Quellantwort; ohne Buchungswirkung | nur anhängen, Audit |
+| `legacy_voucher_payments` | Belegte Einzelzahlungen aus sevDesk oder lokalen Paketen mit Datum, Betrag, Konto und Herkunft; eindeutig je Zuordnung | nur anhängen, Audit |
+| `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
+| `external_imports` | Quellidentität und Inhaltshash eines lokalen Paketvorgangs mit genau einem Verweis auf Originalbeleg, Auftragsdokument oder Journalbuchung; keine eigene Zahlungs-/EÜR-Quelle | nur anhängen, Audit; vorhandene Herkunft nicht per TRUNCATE leerbar |
 
 ### Protokoll und Anmeldung
 
