@@ -73,4 +73,16 @@ describe.skipIf(!testDatabaseUrl)("Abgleich der DATEV-Buchungen nach Kontenrahme
       ]),
     ).toBe(0);
   });
+
+  it("die Liste „ohne passenden Beleg“ zeigt dieselben Buchungen, die der Abgleich zählt (Review #579, Runde 2)", async () => {
+    // Der Abgleich verlinkt bei unmatched > 0 auf diese Liste; Privatzeilen zählt er nicht, also darf die Liste sie nicht zeigen
+    const offen = await unmatched("03", [
+      `271,40;"H";"EUR";;;;1200;1801;"";1903;"19032023_27140";"";;"Privatentnahme"`,
+      `119,00;"H";"EUR";;;;1200;4930;"9";1503;"B-404";"";;"Bürobedarf"`,
+    ]);
+    expect(offen).toBe(1);
+    const list = await archive.listDatevBookings({ year: 2023, search: "", unmatched: true, page: 0 });
+    expect(list.rows.map((r) => r.voucherField1)).toEqual(["B-404"]);
+    expect(list.total).toBe(offen);
+  });
 });
