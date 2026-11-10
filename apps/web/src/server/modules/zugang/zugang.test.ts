@@ -1,3 +1,4 @@
+import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -142,6 +143,45 @@ describe.skipIf(!testDatabaseUrl)("Zugang der Steuerberatung (Postgres)", () => 
 
     // Ohne Sitzung
     expect(await call(middleware.readMiddleware, "", async () => 1)).toMatchObject({ ok: false, status: 401 });
+  });
+
+  const ROUTEN = {
+    "auswertungen/$jahr": () => import("../../../routes/api/auswertungen/$jahr.ts"),
+    "export/$jahr": () => import("../../../routes/api/export/$jahr.ts"),
+  };
+
+  /** Ruft den GET-Handler einer API-Route auf wie der Server */
+  async function route(path: keyof typeof ROUTEN, cookie: string, params: Record<string, string>) {
+    const { Route } = await ROUTEN[path]();
+    const { GET } = (Route.options.server as unknown as { handlers: { GET: (ctx: { request: Request; params: Record<string, string> }) => Promise<Response> } })
+      .handlers;
+    return GET({ request: new Request(`http://localhost:3000/api/${path}`, { headers: { cookie } }), params });
+  }
+
+  it("die API-Routen zum Lesen laufen für die Steuerberatung im Nur-Lesen-Rahmen, auch das gestreamte Jahresarchiv", async () => {
+    const { token } = await invite();
+    const stb = await signUp("routen@example.de", { "x-haben-einladung": token });
+
+    // Fehlen die Firmendaten, legt loadCompany sie beim Lesen an (withActor "system:setup"). Für die Steuerberatung lehnt
+    // der Rahmen das ab wie bei den Server Functions; der Inhaber legt sie an
+    expect(await sql`select count(*)::int as n from company`).toEqual([{ n: 0 }]);
+    const stbEuer = await route("auswertungen/$jahr", stb.cookie, { jahr: "2026" });
+    expect(stbEuer.status).toBe(403);
+    expect(await sql`select count(*)::int as n from company`).toEqual([{ n: 0 }]);
+    const euer = await route("auswertungen/$jahr", ownerCookie, { jahr: "2026" });
+    expect(euer.status).toBe(200);
+    expect(await sql`select count(*)::int as n from company`).toEqual([{ n: 1 }]);
+    expect(await (await route("auswertungen/$jahr", stb.cookie, { jahr: "2026" })).text()).toBe(await euer.text());
+
+    // Das Jahresarchiv entsteht erst beim Lesen; die Steuerberatung bekommt es vollständig
+    const archiv = await route("export/$jahr", stb.cookie, { jahr: "2026" });
+    expect(archiv.status).toBe(200);
+    expect(archiv.headers.get("Content-Type")).toBe("application/zip");
+    const zip = unzipSync(new Uint8Array(await archiv.arrayBuffer()));
+    expect(Object.keys(zip)).toContain("LIESMICH.txt");
+
+    // Ohne Sitzung wie bisher
+    expect((await route("export/$jahr", "", { jahr: "2026" })).status).toBe(401);
   });
 
   it("Sperren beendet die Sitzungen und verhindert die Anmeldung; den Inhaber kann man weder sperren noch entfernen", async () => {

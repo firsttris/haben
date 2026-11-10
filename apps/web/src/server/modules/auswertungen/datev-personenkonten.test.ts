@@ -260,6 +260,25 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     expect(Buffer.from(vonDerSteuerberatung.bytes).equals(Buffer.from(vomInhaber.bytes))).toBe(true);
   });
 
+  it("Recht „lesen“ im Nur-Lesen-Rahmen der API-Route: dieselbe Ablehnung bzw. derselbe Stapel, nichts geschrieben", async () => {
+    // /api/datev/$jahr läuft für die Steuerberatung in runReadOnly (lese-route.ts). Festschreiben darf nur der Inhaber,
+    // und der läuft ohne Rahmen; für die Steuerberatung schreibt datevExport ohnehin nichts, der Rahmen ändert also nichts
+    const { runReadOnly } = await import("../../db/actor.ts");
+    await reset("SKR04", "soll");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH", { debitorNr: 10001 }));
+    await invoice(kunde.id, 100_00);
+    const fehler = await runReadOnly(() => datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung)).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(datev.DatevExportError);
+    expect((fehler as Error).message).toMatch(/muss vom Inhaber kommen/);
+    expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 0 }]);
+
+    const vomInhaber = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
+    expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 1 }]);
+    const vonDerSteuerberatung = await runReadOnly(() => datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung));
+    expect(Buffer.from(vonDerSteuerberatung.bytes).equals(Buffer.from(vomInhaber.bytes))).toBe(true);
+  });
+
   it("meldet einen vollen Kreditorenbereich beim Export als DatevExportError, damit der Download die Meldung zeigt", async () => {
     await reset("SKR03", "soll");
     await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
