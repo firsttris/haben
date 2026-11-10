@@ -1,5 +1,5 @@
 {
-  "id": "e86e9970-3319-44f0-861c-1d6abd0066a4",
+  "id": "4e51060c-a3ad-4ef6-9091-e632fa3da64a",
   "prevId": "8a9e3fde-6766-475e-996a-8e42e5b7b811",
   "version": "7",
   "dialect": "postgresql",
@@ -6544,10 +6544,6 @@
         "journal_lines_one_side": {
           "name": "journal_lines_one_side",
           "value": "(\"journal_lines\".\"debit\" >= 0 and \"journal_lines\".\"credit\" >= 0) and (\"journal_lines\".\"debit\" = 0 or \"journal_lines\".\"credit\" = 0)"
-        },
-        "journal_lines_basis": {
-          "name": "journal_lines_basis",
-          "value": "\"journal_lines\".\"basis\" is null or \"journal_lines\".\"basis\" >= 0"
         }
       },
       "isRLSEnabled": false

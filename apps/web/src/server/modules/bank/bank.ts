@@ -926,7 +926,8 @@ function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex:
 }
 
 export function reverseLines(lines: PostingLine[]): PostingLine[] {
-  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
+  // Die Bemessungsgrundlage trägt ihr Vorzeichen selbst (#542) und dreht sich mit
+  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
 }
 
 const DIRECT_KINDS = [

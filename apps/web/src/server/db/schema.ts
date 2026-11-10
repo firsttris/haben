@@ -1608,15 +1608,15 @@ export const journalLines = pgTable(
     credit: integer("credit").notNull().default(0),
     taxCode: text("tax_code"),
     /**
-     * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent, auf der Seite der Zeile:
-     * bei Ist-Versteuerung an der Zahlung (Umbuchung der Umsatzsteuer, Anteil zu 0 % an der Forderung), #542. Ältere
-     * Zeilen haben keine; neue Spalten ändern die Siegel nicht.
+     * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent mit Vorzeichen (positiv
+     * erhöht die Kennzahl): bei Ist-Versteuerung an der Zahlung (Umbuchung der Umsatzsteuer, Anteil zu 0 % an der
+     * Forderung, Anteil ohne Steuer an einer Umsatzsteuerzeile ohne Betrag), #542. Ältere Zeilen haben keine; neue Spalten
+     * ändern die Siegel nicht.
      */
     basis: integer("basis"),
   },
   (t) => [
     check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`),
-    check("journal_lines_basis", sql`${t.basis} is null or ${t.basis} >= 0`),
     index("journal_lines_entry").on(t.entryId),
     index("journal_lines_account").on(t.account),
   ],

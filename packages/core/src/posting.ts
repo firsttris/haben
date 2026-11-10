@@ -351,9 +351,10 @@ export interface PostingLine {
   credit: Cents;
   taxCode: TaxCode | null;
   /**
-   * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent und nicht negativ; sie wirkt
-   * auf derselben Seite wie die Zeile. Bei Ist-Versteuerung an der Zahlung: an der Umbuchung der Steuer und, für den Anteil
-   * zu 0 %, an der Forderung (#542; DATEV: Steuerschlüssel am Zahlungseingang, Dok. 1080673)
+   * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent mit Vorzeichen: positiv
+   * erhöht die Kennzahl, negativ (Rücklastschrift, Storno) mindert sie. Bei Ist-Versteuerung an der Zahlung: an der
+   * Umbuchung der Steuer, für den Anteil zu 0 % an der Forderung, für einen Anteil ohne Steuer (gerundet 0,00 €) an einer
+   * Umsatzsteuerzeile ohne Betrag (#542; DATEV: Steuerschlüssel am Zahlungseingang, Dok. 1080673)
    */
   basis?: Cents | null;
 }
@@ -568,6 +569,9 @@ export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: 
   return fits ? stored : computed;
 }
 
+/** Zeilen ohne Betrag fallen weg, außer sie tragen eine Bemessungsgrundlage (Anteil ohne Steuer bei Ist) */
+const mitBetragOderBasis = (line: PostingLine) => line.debit !== 0 || line.credit !== 0 || (line.basis ?? 0) !== 0;
+
 /** Steuerbehandlungen, deren Bemessungsgrundlage bei Ist-Versteuerung mit der Zahlung gemeldet wird (DATEV-Dok. 1080673) */
 const IST_MIT_ZAHLUNG: readonly TaxTreatment[] = ["regulaer", "steuerfrei", "ausfuhr"];
 
@@ -582,13 +586,13 @@ function istZahlungsanteil(lines: PostingLine[], shares: TaxShare[], kontenrahme
   for (const { rate, base, tax } of shares) {
     if (rate === 0) {
       const forderung = lines.find((l) => l.account === accounts.forderungen);
-      if (meldet && forderung && base !== 0) Object.assign(forderung, { taxCode: revenueTaxCode(0, treatment), basis: Math.abs(base) });
+      if (meldet && forderung && base !== 0) Object.assign(forderung, { taxCode: revenueTaxCode(0, treatment), basis: base });
       continue;
     }
-    if (tax === 0) continue;
     const code = revenueTaxCode(rate);
-    lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
-    lines.push({ ...side(accounts.ust[vatRate(rate)], tax, false, code), ...(meldet ? { basis: Math.abs(base) } : {}) });
+    if (tax !== 0) lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
+    // Gerundet ohne Steuer: eine Umsatzsteuerzeile ohne Betrag, nur mit Steuerschlüssel und Bemessungsgrundlage
+    if (tax !== 0 || (meldet && base !== 0)) lines.push({ ...side(accounts.ust[vatRate(rate)], tax, false, code), ...(meldet ? { basis: base } : {}) });
   }
 }
 
@@ -608,7 +612,7 @@ export function invoicePaymentPosting(
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.bank, paid, true, null), side(accounts.forderungen, paid, false, null)];
   if (versteuerung === "ist") istZahlungsanteil(lines, shares, kontenrahmen, treatment);
-  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+  return lines.filter(mitBetragOderBasis);
 }
 
 /**
@@ -715,6 +719,7 @@ export function exchangeDifferencePosting(
     if (target.versteuerung === "ist") {
       istZahlungsanteil(lines, target.shares ?? paidTaxShares(target.totals, amount), kontenrahmen, target.treatment ?? "regulaer");
     }
+    return lines.filter(mitBetragOderBasis);
   } else {
     // Rest einer Verbindlichkeit (Ausgang negativ): weniger gezahlt ist Ertrag, mehr gezahlt Aufwand
     lines.push(side(accounts.verbindlichkeiten, -amount, true, null), side(amount < 0 ? accounts.kursErtrag : accounts.kursAufwand, -amount, false, null));

@@ -47,7 +47,7 @@ export interface JournalZeile {
   debit: Cents;
   credit: Cents;
   taxCode: string | null;
-  /** Bemessungsgrundlage, wenn sie nicht der Betrag der Zeile ist (Ist-Versteuerung an der Zahlung), auf der Seite der Zeile */
+  /** Bemessungsgrundlage, wenn sie nicht der Betrag der Zeile ist (Ist-Versteuerung an der Zahlung), mit Vorzeichen: positiv erhöht die Kennzahl */
   basis?: Cents | null;
 }
 
@@ -116,21 +116,16 @@ function steuerkonto(
  */
 export function kennzahlenDerZeile(kontenrahmen: Kontenrahmen, zeile: JournalZeile): { feld: JournalKennzahl; betrag: Cents }[] {
   const betrag = (seite: Seite) => (seite === "haben" ? zeile.credit - zeile.debit : zeile.debit - zeile.credit);
-  // Die Bemessungsgrundlage wirkt auf der Seite der Zeile
-  const basis = (seite: Seite) => {
-    const b = zeile.basis ?? 0;
-    return Math.sign(betrag(seite)) * b;
-  };
   const konto = steuerkonto(kontenrahmen, zeile);
   if (konto === null) return [];
   if (konto) {
     const treffer = [{ feld: konto.steuer, betrag: betrag(konto.seite) }];
-    if (konto.bemessung && zeile.basis != null) treffer.push({ feld: konto.bemessung, betrag: basis(konto.seite) });
+    if (konto.bemessung && zeile.basis != null) treffer.push({ feld: konto.bemessung, betrag: zeile.basis });
     return treffer;
   }
   const bemessung = zeile.taxCode === null ? undefined : BEMESSUNG[zeile.taxCode];
   if (!bemessung) return [];
-  return [{ feld: bemessung.feld, betrag: zeile.basis != null ? basis(bemessung.seite) : betrag(bemessung.seite) }];
+  return [{ feld: bemessung.feld, betrag: zeile.basis ?? betrag(bemessung.seite) }];
 }
 
 export function leereJournalKennzahlen(): JournalKennzahlen {

@@ -103,7 +103,8 @@ export async function post(tx: Tx, books: Books, posting: Posting): Promise<stri
       `Die Bücher beginnen am ${opening.date.slice(8, 10)}.${opening.date.slice(5, 7)}.${opening.date.slice(0, 4)} mit der Eröffnung; davor lässt sich nichts buchen.`,
     );
   }
-  const lines = posting.lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+  // Zeilen ohne Betrag fallen weg, außer sie tragen eine Bemessungsgrundlage (Anteil ohne Steuer bei Ist, #542)
+  const lines = posting.lines.filter((line) => line.debit !== 0 || line.credit !== 0 || (line.basis ?? 0) !== 0);
   if (lines.length > 0) await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: entry!.id, ...line })));
   await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, entry!.id));
   return entry!.id;

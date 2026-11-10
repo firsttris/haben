@@ -1,2 +1,1 @@
-ALTER TABLE "journal_lines" ADD COLUMN "basis" integer;--> statement-breakpoint
-ALTER TABLE "journal_lines" ADD CONSTRAINT "journal_lines_basis" CHECK ("journal_lines"."basis" is null or "journal_lines"."basis" >= 0);
+ALTER TABLE "journal_lines" ADD COLUMN "basis" integer;
