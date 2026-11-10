@@ -5,6 +5,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const renderer = vi.hoisted(() => ({ pause: null as (() => Promise<void>) | null }));
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 vi.mock("@haben/einvoice", async (original) => ({
   ...(await original<typeof import("@haben/einvoice")>()),
   // Nur das Zeitfenster der PDF-Erzeugung steuern; Buchungen, Nummernvergabe und Sperren bleiben echt.
@@ -105,8 +112,8 @@ describe.skipIf(!testDatabaseUrl)("Belegimport: unabhängiges TDD-Review (Postgr
       },
       { externalSource: "etsy", externalId: "bestellung-42" },
     );
-    const started = Promise.withResolvers<void>();
-    const proceed = Promise.withResolvers<void>();
+    const started = deferred();
+    const proceed = deferred();
     renderer.pause = async () => {
       started.resolve();
       await proceed.promise;
