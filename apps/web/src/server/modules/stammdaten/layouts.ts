@@ -163,7 +163,13 @@ export async function withCustomLayout<T>(type: LayoutDocumentType, letterhead: 
   if (!layout) return build(letterhead);
   let request: PdfRequest | undefined;
   // Ganz durchlaufen lassen: buildEInvoice setzt das PDF erst nach einem await
-  await build({ ...letterhead, pdfFrom: (captured) => ((request = captured), undefined) });
+  await build({
+    ...letterhead,
+    pdfFrom: (captured) => {
+      request = captured;
+      return undefined;
+    },
+  });
   if (!request) return build(letterhead);
   let pdf: Uint8Array;
   try {

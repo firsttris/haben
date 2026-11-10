@@ -69,7 +69,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
   }, 60_000);
 
   it("lehnt Pakete aus dem Netz ab, solange es keine Freigabe gibt", async () => {
-    await expect(layouts.createLayout(actor, { name: "Paket", art: "beleg", source: '#import "@preview/cetz:0.3.4"\n' + eigene("beleg") })).rejects.toThrow(
+    await expect(layouts.createLayout(actor, { name: "Paket", art: "beleg", source: `#import "@preview/cetz:0.3.4"\n${eigene("beleg")}` })).rejects.toThrow(
       /@preview\/cetz:0\.3\.4/,
     );
   });
