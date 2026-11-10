@@ -777,7 +777,7 @@ export function InvoiceEditor({
               validUntil: quote ? validUntil || null : null,
               serviceFrom: serviceFrom || null,
               serviceTo: serviceTo || null,
-              paymentTermDays: term,
+              paymentTermDays: termValid ? term : 0,
               contactId: contactId || null,
               ...references,
               lines: [...parsed, ...deductionPreview]
@@ -792,6 +792,7 @@ export function InvoiceEditor({
                   taxRate: l.taxRate,
                   discount: "discount" in l ? (l.discount ?? null) : null,
                   kind: quote && "kind" in l ? (l.kind ?? null) : null,
+                  ...("deductionOf" in l && l.deductionOf ? { deductionOf: l.deductionOf } : {}),
                 })),
               discount: discountIssue ? null : discount,
               plan: planIssue ? [] : plan.rows,

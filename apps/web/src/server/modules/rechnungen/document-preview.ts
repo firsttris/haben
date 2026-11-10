@@ -58,7 +58,8 @@ export const documentPreviewSchema = z.object({
   validUntil: date.nullable(),
   serviceFrom: date.nullable(),
   serviceTo: date.nullable(),
-  paymentTermDays: z.number().int().min(0).max(1000),
+  // Beim Tippen steht hier auch „14 Tage“ oder „-“; dann zählt das Rechnungsdatum, wie im Editor
+  paymentTermDays: z.number().int().min(0).max(1000).catch(0),
   contactId: z.uuid().nullable(),
   ...referenceFieldsSchema,
   lines: z
@@ -74,6 +75,8 @@ export const documentPreviewSchema = z.object({
         taxRate: z.number().int(),
         discount: z.nullable(discountSchema).default(null),
         kind: z.enum(QUOTE_LINE_KINDS).nullable().default(null),
+        /** Abzug einer Abschlagsrechnung: zählt nicht zur Grundlage des Gesamtrabatts (discountBasis) */
+        deductionOf: z.string().max(100).optional(),
       }),
     )
     .max(500),
@@ -144,6 +147,7 @@ function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhea
       taxRate: line.taxRate,
       net: lineNets[index]!,
       ...(line.discount ? { discount: line.discount } : {}),
+      ...(line.deductionOf ? { deductionOf: line.deductionOf } : {}),
     })),
     totals,
     ...(input.discount ? { discount: input.discount } : {}),
