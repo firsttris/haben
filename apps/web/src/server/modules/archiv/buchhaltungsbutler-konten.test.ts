@@ -162,6 +162,24 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Anlagen
     expect(y.neutral).toEqual([]);
   });
 
+  it("SKR04: Zahlung der Umsatzsteuer (3820) und Darlehen (3150) ohne Beleg zählen nicht als Ausgabe oder Einnahme", async () => {
+    await company("SKR04", "soll", "einzelunternehmen");
+    await bb.startBuchhaltungsbutlerImport(
+      "test-user",
+      parts(
+        [
+          { id: "1", debit: "3820", credit: "1800", bu: "", rate: "", receipt: false, amount: "300,00" },
+          { id: "2", debit: "1800", credit: "3150", bu: "", rate: "", receipt: false, amount: "5.000,00" },
+          { id: "3", debit: "7685", credit: "1800", bu: "", rate: "", receipt: false, amount: "180,00" },
+        ],
+        "04",
+      ),
+    );
+    const y = await year2023();
+    expect(y.ausgaben.gross).toBe(18000);
+    expect(y.einnahmen.gross).toBe(0);
+  });
+
   it("SKR04: Privatentnahme (2100) mit Beleg bleibt neutral", async () => {
     await company("SKR04", "soll", "einzelunternehmen");
     await bb.startBuchhaltungsbutlerImport(
