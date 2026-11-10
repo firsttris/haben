@@ -62,6 +62,6 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Bun, not Node, npm or pnpm: `bun run test` runs Vitest, `bun test` would be Bun's own runner.
 - Server functions in `server/functions/` stay thin: `authMiddleware`, Zod, then a call into
   `server/modules/`; another module only through its `index.ts`.
-- Name the source (EN 16931, ERiC docs, DATEV format) where it settles a detail; clone GitHub sources
+- Name the source (EN 16931, ERiC docs, DATEV format and SKR03/SKR04 charts; law over DATEV) where it settles a detail; clone GitHub sources
   shallowly into the scratchpad.
 - Use other ports for tests (the E2E server uses 3100); an own compose project per worktree (`checks`).
