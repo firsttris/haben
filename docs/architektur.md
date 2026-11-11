@@ -121,6 +121,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt; auf Wunsch die PIN für den automatischen Postfachabruf, ebenfalls verschlüsselt | Audit ohne Chiffrat und PIN |
 | `contacts` | Kunden und Lieferanten, mit Herkunft aus Lexoffice; DATEV-Debitor und -Kreditor (`debitor_nr`, `kreditor_nr`, eindeutig, Bereich per CHECK) | nicht löschbar, versioniert, Audit |
 | `contact_versions` | Stand eines Kontakts je Version | nur anhängen |
+| `contact_persons` | Ansprechpartner eines Kontakts (#424): Name, E-Mail, Telefon, Funktion, `deactivated_at`. Änderbar, nicht löschbar (Trigger vor `DELETE` und `TRUNCATE`), deaktivieren statt löschen. `invoices.contact_person_id` und `quotes.contact_person_id` halten die Auswahl im Entwurf, der festgeschriebene Stand steht als `ansprechpartner` im Käufer des Belegs (`buyer`) | Audit |
 | `sepa_mandates` | SEPA-Lastschriftmandate eines Kunden (#445): Mandatsreferenz (eindeutig ohne Rücksicht auf Groß- und Kleinschreibung), Datum der Unterschrift, CORE oder B2B, Sequenz des ersten Einzugs aus Haben (`FRST` oder `RCUR`), letzter Einzug vor Haben, Kontoinhaber, IBAN, BIC; der Verfall nach 36 Monaten ohne Einzug folgt aus `mandatStatus` in `packages/core` | nur anhängen, Audit |
 | `sepa_mandate_files` | Unterschriebenes Mandat als PDF im Dokumentenspeicher (SHA-256); das jüngste gilt | nur anhängen, Audit |
 | `sepa_mandate_revocations` | Widerruf eines Mandats mit Tag und Grund; je Mandat höchstens einer | nur anhängen, Audit |
