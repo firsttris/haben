@@ -49,11 +49,14 @@ describe("Keine Auswahlliste ohne Field", () => {
   it.each([
     ["<select><option>a</option></select>", "nackt"],
     ['<select className="x" value="a" onChange={() => {}}><option>a</option></select>', "mit Eigenschaften"],
-    ['<div className="field"><select></select></div>', "div.field statt Field"],
     ["<label>Name<select></select></label>", "in einem label"],
     ['<select aria-label="Art" />', "selbstschließend"],
   ])("meldet %s (%s)", (source) => {
     expect(findings(source)).toBe(1);
+  });
+
+  it("meldet ein div.field statt Field doppelt: das Feld selbst und die Auswahlliste darin", () => {
+    expect(findings('<div className="field"><select></select></div>')).toBe(2);
   });
 
   it.each([
