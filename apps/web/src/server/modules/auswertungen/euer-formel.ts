@@ -1,6 +1,7 @@
 import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, istEuerEinnahme, zahlungsStand, type Cents, type EuerLineKey, type Kontenrahmen } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne, or, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { buchungen, offenerPosten, type Buchung } from "./euer-journal-buchungen.ts";
 import { belegNebenbuecher, belegTeilzahlung, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
@@ -102,7 +103,8 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
   const e = schema.journalEntries;
   const ende = `${year}-12-31`;
   const vorjahr = `${year - 1}-12-31`;
-  const jahr = await buchungen(q, ohneEroeffnung(and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`))));
+  // Wie die EÜR: Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
+  const jahr = await imEuerJahr(year, await buchungen(q, ohneEroeffnung(and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`)))), q);
   // Rechnungen und Belege auf Ziel, auch mit späterem Datum: eine Zahlung kann vor dem Belegdatum liegen (Vorkasse)
   const aufZiel = (await buchungen(q, ohneEroeffnung(inArray(e.sourceType, ["invoice", "document"])))).filter((b) =>
     b.zeilen.some((z) => offenerPosten(b.kontenrahmen, z)),
