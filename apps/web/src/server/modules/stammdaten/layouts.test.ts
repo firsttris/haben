@@ -7,7 +7,7 @@ import { buildDeliveryNotePdf, buildDunningPdf, buildEInvoice, LAYOUT_PFLICHTFEL
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { gmbhSeller, sampleBuyer, sampleDocument, sampleSeller } from "../../../../../../packages/einvoice/src/samples.ts";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { fakeUniverse, paketArchiv, tarEintrag } from "./test-paket.ts";
 
 const hasPoppler = spawnSync("pdftotext", ["-v"]).status === 0;
@@ -60,7 +60,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
   });
 
   beforeEach(async () => {
-    await sql`truncate beleg_layouts, letterhead_profiles cascade`;
+    await leeren(sql)`truncate beleg_layouts, letterhead_profiles cascade`;
   });
 
   /** Legt an und verlangt, dass es ohne Rückfrage geht */
@@ -213,7 +213,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     await anlegen({ name: "Platz zwei", art: "mahnung", source: eigene("mahnung") }, { limits });
     await expect(anlegen({ name: "Platz drei", art: "mahnung", source: eigene("mahnung") }, { limits })).rejects.toThrow(/höchstens 1 MB frei/);
     // Pakete zählen mit: Ein großer Download macht das Layout zu groß, und es bleibt nichts liegen
-    await sql`truncate beleg_layouts`;
+    await leeren(sql)`truncate beleg_layouts`;
     const gross = universum({ "@preview/demo:0.1.0": paketArchiv("demo", "0.1.0", demoLib, [tarEintrag("./ballast.bin", Buffer.alloc(quelltext * 3))]) });
     await expect(
       anlegen({ name: "Zu groß", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: gross, limits: { maxBytes: quelltext * 3 } }),

@@ -2,7 +2,7 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
 import { datevYearSums } from "@haben/import";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // Abgleich je Jahr (Einnahmen, Umsatzsteuer je Monat) nach einem BuchhaltungsButler-Import
 
@@ -112,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler im Jahresabgleich: Summen 
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
+    await leeren(sql)`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${kontenrahmen}, ${versteuerung}, ${rechtsform})`;
   }

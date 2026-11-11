@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Befunde aus #472. Die Rohdaten folgen echten Antworten von sevDesk (Buchhaltungsversion 1.0, Beträge erfunden).
@@ -80,7 +80,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Umzug: Befunde aus #472 (Postgres)", 
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports,
+      contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${kontenrahmen}, ${versteuerung}, 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;

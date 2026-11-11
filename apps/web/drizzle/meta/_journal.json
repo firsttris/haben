@@ -1408,6 +1408,13 @@
       "when": 1794347836251,
       "tag": "0200_belegvorlagen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 201,
+      "version": "7",
+      "when": 1794374936950,
+      "tag": "0201_truncate_sperre_trigger",
+      "breakpoints": true
     }
   ]
 }
