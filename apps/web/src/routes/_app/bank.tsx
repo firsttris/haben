@@ -286,7 +286,7 @@ function BankPage() {
                     <Link
                       key={f}
                       to="/bank"
-                      search={{ konto: data.accountId ?? undefined, filter: f, suche: search.suche }}
+                      search={{ konto: data.accountId ?? undefined, filter: f, suche: search.suche, sort: search.sort, dir: search.dir }}
                       className={`chip${filter === f ? " active" : ""}`}
                       aria-current={filter === f ? "page" : undefined}
                     >
