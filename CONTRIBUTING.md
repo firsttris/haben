@@ -2,7 +2,8 @@
 
 Issues und Pull Requests sind willkommen. Haben ist eine selbst gehostete Buchhaltung für Freiberufler und kleine
 Firmen. Wie die Teile zusammenhängen, steht in der [Architektur](https://haben.app/architektur.html),
-wie du es lokal startest, in der [Entwicklung](https://haben.app/entwicklung.html).
+wie du es lokal startest, in der [Entwicklung](https://haben.app/entwicklung.html). Für alle, die mitmachen, gilt
+unser [Verhaltenskodex](CODE_OF_CONDUCT.md).
 
 ## Fehler und Wünsche melden
 
