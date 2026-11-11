@@ -61,6 +61,7 @@ Haben lässt sich auf Handy und Rechner wie eine App installieren (Progressive W
 | --- | --- |
 | Rechner mit Chrome, Edge oder Brave | Haben öffnen, in der Adressleiste auf das Symbol **Installieren** klicken oder im Menü „App installieren“ wählen |
 | Android | Haben in Chrome öffnen, im Menü **App installieren** bzw. „Zum Startbildschirm hinzufügen“ |
+| Mac mit Safari (ab macOS 14) | Haben in Safari öffnen, **Ablage › Zum Dock hinzufügen**; Haben liegt dann als eigenes Programm im Dock |
 | iPhone und iPad | Haben in Safari öffnen, **Teilen › Zum Home-Bildschirm** |
 
 Die installierte App bringt zwei Kurzbefehle mit, **Beleg hochladen** und **Neue Rechnung**: am Handy lange auf das Symbol drücken, am Rechner mit der rechten Maustaste. Unter Android steht Haben außerdem im **Teilen-Menü**: Ein PDF oder Foto aus einer anderen App teilst du direkt als Beleg ([Belege](belege.md)). Safari auf iPhone und iPad bietet das Teilen an Web-Apps nicht an; dort lädst du Belege in Haben hoch oder nimmst sie mit der Kamera auf.
