@@ -103,4 +103,15 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
     expect(r.added).toBe(1);
     expect(r.quelle).toBeNull();
   });
+
+  it("nennt den Bankabruf lesbar und nicht mit seinem technischen Formatnamen", async () => {
+    // Der häufigste Wechsel der Quelle: erst der Abruf über Enable Banking, dann eine Datei für dieselben Tage
+    await importiere("enablebanking", "Abruf Swan 2026-09-30", [umsatz("2026-09-10", -2500, "Hosting")]);
+    const r = await importiere("camt053", "auszug-september.xml", [umsatz("2026-09-11", -2500, "Hosting")], {
+      von: "2026-09-01",
+      bis: "2026-09-30",
+    });
+    expect(r.quelle).toContain("Abruf Swan 2026-09-30");
+    expect(r.quelle).not.toContain("enablebanking");
+  });
 });
