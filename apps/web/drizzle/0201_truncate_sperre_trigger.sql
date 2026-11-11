@@ -248,6 +248,9 @@ CREATE TRIGGER articles_no_truncate BEFORE TRUNCATE ON articles
 CREATE TRIGGER bank_accounts_no_truncate BEFORE TRUNCATE ON bank_accounts
   FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
 --> statement-breakpoint
+CREATE TRIGGER beleg_layouts_no_truncate BEFORE TRUNCATE ON beleg_layouts
+  FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
+--> statement-breakpoint
 CREATE TRIGGER bank_connections_no_truncate BEFORE TRUNCATE ON bank_connections
   FOR EACH STATEMENT EXECUTE FUNCTION haben_reject_truncate();
 --> statement-breakpoint
