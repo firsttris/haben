@@ -1422,6 +1422,13 @@
       "when": 1794377084390,
       "tag": "0202_company_loeschen_sperre",
       "breakpoints": true
+    },
+    {
+      "idx": 203,
+      "version": "7",
+      "when": 1794400327111,
+      "tag": "0203_spende",
+      "breakpoints": true
     }
   ]
 }

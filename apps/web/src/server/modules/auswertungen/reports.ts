@@ -18,6 +18,7 @@ import {
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { journalAbJahr, loadCompany } from "../stammdaten/index.ts";
+import { euerVerschiebung } from "./euer-jahreswechsel.ts";
 import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -72,6 +73,9 @@ async function documentTotalsById(
 export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerPayment[]> {
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
+  // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar: zählt im Vorjahr (euer-jahreswechsel.ts)
+  const { herein, hinaus } = await euerVerschiebung(year, q);
+  const imJahr = and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end));
   const allocations = await q
     .select({
       id: schema.allocations.id,
@@ -102,8 +106,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
     .where(
       and(
-        gte(schema.bankTransactions.bookingDate, start),
-        lt(schema.bankTransactions.bookingDate, end),
+        herein.size > 0 ? or(imJahr, inArray(schema.allocations.id, [...herein])) : imJahr,
         inArray(schema.allocations.kind, [
           "invoice",
           "document",
@@ -237,7 +240,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   };
 
   const payments: EuerPayment[] = [];
-  for (const a of allocations) {
+  for (const zuordnung of allocations) {
+    if (hinaus.has(zuordnung.id)) continue;
+    const a = herein.has(zuordnung.id) ? { ...zuordnung, date: `${year}-12-31` } : zuordnung;
     // Zuordnung und Gegenzeile hängen am selben Umsatz und heben sich so exakt auf
     const group = `${a.transactionId}|${a.invoiceId ?? a.documentId ?? a.kind}`;
     if (a.kind === "invoice" && a.invoiceId) {
@@ -404,7 +409,8 @@ export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db
 /**
  * Umsatzsteuer früherer Jahre (Steuerzahlung) in den zehn Tagen um einen Jahreswechsel. Eine Abschlusszahlung aus der
  * Jahreserklärung zählt im Jahr der Zahlung; ist es aber die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie
- * als regelmäßig wiederkehrende Ausgabe in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) und als Voranmeldung zugeordnet.
+ * als Voranmeldung zugeordnet. Dann zählt die EÜR sie im Vorjahr, wenn sie dort fällig war (§ 11 Abs. 2 Satz 2 EStG,
+ * euer-jahreswechsel.ts).
  */
 export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | Tx = db): Promise<number> {
   return zahlungenUmJahreswechsel(

@@ -80,6 +80,7 @@ const KIND_LABEL = {
   invoice: "Rechnung",
   document: "Beleg",
   privat: "Privat",
+  spende: "Spende",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
   sondervorauszahlung: "Sondervorauszahlung",
