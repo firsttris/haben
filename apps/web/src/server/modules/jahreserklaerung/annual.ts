@@ -286,7 +286,12 @@ async function privateMovements(year: number) {
           ...(["SKR03", "SKR04"] as const).map((kr) =>
             and(
               eq(schema.journalEntries.kontenrahmen, kr),
-              inArray(schema.journalLines.account, [ACCOUNTS[kr].privatentnahmen, STEUER_KONTEN[kr].privatsteuern, ACCOUNTS[kr].privateinlagen]),
+              inArray(schema.journalLines.account, [
+                ACCOUNTS[kr].privatentnahmen,
+                ACCOUNTS[kr].spenden,
+                STEUER_KONTEN[kr].privatsteuern,
+                ACCOUNTS[kr].privateinlagen,
+              ]),
             ),
           ),
         ),
@@ -298,7 +303,8 @@ async function privateMovements(year: number) {
   // Übersteigen die Erstattungen die Zahlungen, ist der Rest eine Einlage: Die Anlage EÜR kennt keine negativen Entnahmen.
   const privatsteuern = saldo((kr) => STEUER_KONTEN[kr].privatsteuern);
   return {
-    entnahmen: saldo((kr) => ACCOUNTS[kr].privatentnahmen) + Math.max(0, privatsteuern),
+    // Private Spenden (Zuwendungen, Spenden) sind Entnahmen wie jede andere
+    entnahmen: saldo((kr) => ACCOUNTS[kr].privatentnahmen) + saldo((kr) => ACCOUNTS[kr].spenden) + Math.max(0, privatsteuern),
     einlagen: -saldo((kr) => ACCOUNTS[kr].privateinlagen) + Math.max(0, -privatsteuern) || 0,
   };
 }

@@ -2133,6 +2133,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "darlehen",
   // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz (Roadmap Platz 1, #324)
   "kategorie",
+  // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
+  "spende",
 ]);
 
 /**

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."allocation_kind" ADD VALUE 'spende';
