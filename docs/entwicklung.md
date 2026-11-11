@@ -120,6 +120,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, Bild oben in der README) |
+| `bun run docs:hell-dunkel` | Setzt `scripts/hell-dunkel/hell-dunkel.html` aus den Bildern der Übersicht zu `docs/screenshot-hell-dunkel.png` zusammen (hell und dunkel schräg geteilt, für die README) |
 | `bun run docs:icons` | Erzeugt die Symbole der README (`docs/icons/*.svg`) aus `apps/web/src/components/Icon.tsx`, als Kachel in Akzentfarbe, hell und dunkel per `prefers-color-scheme` im SVG |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
@@ -282,7 +283,7 @@ Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die
 Theme Wald (`screenshot-<name>.png`) und Nacht (`screenshot-<name>-dunkel.png`). Die README wählt das passende per
 `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark` am Bild. Das Bild oben in der
 README ist kein Screenshot: `scripts/hero/hero.html` mit den Farben und Schriften der App, `bun run docs:hero` rendert
-es nach `docs/hero-hell.png` und `docs/hero-dunkel.png`. Ohne
+es nach `docs/hero-hell.png` und `docs/hero-dunkel.png`. Ein Bild beider Themes nebeneinander setzt `bun run docs:hell-dunkel` aus den beiden Bildern der Übersicht zusammen; auf der Startseite der Doku vergleicht ein Schieberegler sie (`docs/assets/javascripts/vergleich.js`). Ohne
 `DOKU_SCREENSHOTS=1` überspringt es sich selbst; die CI legt diese Daten also nie an und wird dadurch nicht langsamer.
 
 ```sh

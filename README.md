@@ -116,7 +116,8 @@ Kurz je Bereich, gegliedert wie die Navigation der App; die Details stehen auf d
 
 ## <img src="docs/icons/eye.svg" width="24" height="24" align="absmiddle" alt=""> Screenshots
 
-Hell oder dunkel, je nach Einstellung deines Systems.
+<p align="center"><img src="docs/screenshot-hell-dunkel.png" alt="Übersicht in Haben, links im hellen Theme Wald, rechts im dunklen Theme Nacht" width="900"><br>
+<sub><b>Hell oder dunkel</b>: sechs Themes, „Automatisch“ folgt deinem System. Die Bilder hier tun das auch.</sub></p>
 
 <table>
   <tr>
