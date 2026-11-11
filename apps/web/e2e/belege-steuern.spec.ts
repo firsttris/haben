@@ -780,10 +780,10 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
 });
 
 test("Dialog „Neuen Lieferanten anlegen“: Der wählbare Lieferant wird angeboten, auch wenn ein Kunde mit derselben USt-IdNr. davor steht", async () => {
-  for (const [name, kunde, lieferant] of [
-    ["AAA Wahl Kunde GmbH", true, false],
-    ["ZZZ Wahl Lieferant GmbH", false, true],
-  ] as const) {
+  // Sechs Kunden (Niederlassungen) vor dem Lieferanten: Der Server liefert nur fünf Treffer, der Lieferant fehlt also, wenn
+  // die gewünschte Rolle nicht bis dorthin gelangt
+  const KUNDEN = ["AAA", "AAB", "AAC", "AAD", "AAE", "AAF"].map((k) => `${k} Wahl Kunde GmbH`);
+  for (const [name, kunde, lieferant] of [...KUNDEN.map((n) => [n, true, false] as const), ["ZZZ Wahl Lieferant GmbH", false, true] as const]) {
     await go("/kontakte/neu");
     await page.getByLabel("Name oder Firma").fill(name);
     if (!kunde) await page.getByLabel("Kunde", { exact: true }).uncheck();
@@ -802,7 +802,7 @@ test("Dialog „Neuen Lieferanten anlegen“: Der wählbare Lieferant wird angeb
   await expect(dialog.getByRole("button", { name: "„ZZZ Wahl Lieferant GmbH“ wählen" })).toBeVisible();
 
   // Nicht speichern; beide archivieren, damit die folgenden Tests unverändert rechnen
-  for (const name of ["AAA Wahl Kunde GmbH", "ZZZ Wahl Lieferant GmbH"]) {
+  for (const name of [...KUNDEN, "ZZZ Wahl Lieferant GmbH"]) {
     await go("/kontakte");
     await page.getByRole("link", { name: new RegExp(name) }).click();
     await page.getByRole("button", { name: "Archivieren" }).click();
