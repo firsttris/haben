@@ -354,7 +354,7 @@ backend haben-app
 
 ## Mehrere Instanzen
 
-Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy. In welcher Instanz du gerade bist, zeigt die Navigation mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten).
 
 ```
 haben-firma1/
