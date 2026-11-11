@@ -135,6 +135,10 @@ Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verre
 
 Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** (auch verrechnete Umsätze) schränken die Liste ein, das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag. Angezeigt werden höchstens 500 Umsätze.
 
+Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Sortiert wird über alle 500 Umsätze, nicht nur über den sichtbaren Ausschnitt.
+
+Nach Status folgt die Liste der Reihenfolge der Hinweise unten: erst „Beleg fehlt“, dann „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“. Was zu tun ist, steht damit oben.
+
 | Hinweis | Bedeutung |
 | --- | --- |
 | Vorschlag | Es gibt einen passenden offenen Posten. |

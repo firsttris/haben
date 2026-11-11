@@ -43,6 +43,7 @@ import { type AufzuhebendeZuordnung, ZuordnungAufheben } from "../../components/
 import { VerrechnenFormular, VerrechnungAnzeige } from "../../components/Verrechnung.tsx";
 import { Field } from "../../components/Field.tsx";
 import { UploadButton } from "../../components/UploadButton.tsx";
+import { BankSortierKopf } from "../../components/BankSortierKopf.tsx";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -195,14 +196,6 @@ function BankPage() {
   // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#650)
   const sortierung = search.sort ?? "datum";
   const richtung = search.dir ?? "ab";
-  const sortieren = (feld: "datum" | "gegenpartei" | "betrag" | "status") => ({
-    ...search,
-    sort: feld,
-    dir: (sortierung === feld && richtung === "ab" ? "auf" : "ab") as "auf" | "ab",
-  });
-  const pfeil = (feld: "datum" | "gegenpartei" | "betrag" | "status") => (sortierung === feld ? (richtung === "ab" ? " \u2193" : " \u2191") : "");
-  const sortStatus = (feld: "datum" | "gegenpartei" | "betrag" | "status"): "ascending" | "descending" | "none" =>
-    sortierung === feld ? (richtung === "ab" ? "descending" : "ascending") : "none";
   const navigate = useNavigate({ from: "/bank" });
   const filter = search.filter ?? "offen";
   const selectedId = data.detail?.transaction.id;
@@ -303,20 +296,7 @@ function BankPage() {
                 {/* key: beim Kontowechsel leer neu aufsetzen, sonst trägt die Suche ins neue Konto */}
                 <SearchBox key={data.accountId ?? ""} initial={search.suche ?? ""} />
               </div>
-              <div className="table-row head tx-cols" style={{ padding: "0 20px" }}>
-                <Link to="/bank" search={sortieren("datum")} className="sort-head" aria-sort={sortStatus("datum")}>
-                  Datum{pfeil("datum")}
-                </Link>
-                <Link to="/bank" search={sortieren("gegenpartei")} className="sort-head" aria-sort={sortStatus("gegenpartei")}>
-                  Gegenpartei · Verwendungszweck{pfeil("gegenpartei")}
-                </Link>
-                <Link to="/bank" search={sortieren("betrag")} className="sort-head num" aria-sort={sortStatus("betrag")}>
-                  Betrag{pfeil("betrag")}
-                </Link>
-                <Link to="/bank" search={sortieren("status")} className="sort-head" aria-sort={sortStatus("status")}>
-                  Status{pfeil("status")}
-                </Link>
-              </div>
+              <BankSortierKopf sort={sortierung} dir={richtung} />
               {data.transactions.length === 0 && (
                 <p className="muted" style={{ margin: 0, padding: "16px 20px" }}>
                   {filter === "offen" ? "Alles zugeordnet." : "Keine Umsätze."}
