@@ -40,7 +40,13 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
-import { euerForYear, lohnZahlungenUmJahreswechsel, umsatzsteuerVorjahreUmJahreswechsel } from "../auswertungen/index.ts";
+import {
+  euerForYear,
+  lohnZahlungenUmJahreswechsel,
+  umsatzsteuerVorjahreUmJahreswechsel,
+  vorauszahlungVorjahrHinweis,
+  ZEHN_TAGE_REGEL,
+} from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -315,15 +321,18 @@ export interface EuerYear {
   lohnUmJahreswechsel: number;
   /** Umsatzsteuer früherer Jahre um den Jahreswechsel, siehe umsatzsteuerVorjahreUmJahreswechsel */
   ustUmJahreswechsel: number;
+  /** Vorauszahlungen für das Vorjahr, die hier zählen, weil es gesperrt war (vorauszahlungVorjahrHinweis) */
+  vorauszahlungHinweis: string | null;
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel] = await Promise.all([
+  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
     listAssets(year),
     lohnZahlungenUmJahreswechsel(year),
     umsatzsteuerVorjahreUmJahreswechsel(year),
+    vorauszahlungVorjahrHinweis(year),
   ]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
@@ -341,7 +350,8 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel, ustUmJahreswechsel };
+  const pendingAssets = assets.filter((a) => a.pending).length;
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -367,10 +377,11 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
   if (data.ustUmJahreswechsel > 0) {
     issues.push({
       tone: "hinweis",
-      text: `${data.ustUmJahreswechsel === 1 ? "Eine Zahlung" : `${data.ustUmJahreswechsel} Zahlungen`} „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar. Eine Abschlusszahlung zählt im Jahr der Zahlung; ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG). Ordne sie dann der Voranmeldung zu.`,
+      text: `${data.ustUmJahreswechsel === 1 ? "Eine Zahlung" : `${data.ustUmJahreswechsel} Zahlungen`} „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar. Eine Abschlusszahlung zählt im Jahr der Zahlung. Ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, ordne sie der Voranmeldung zu: Ohne Dauerfristverlängerung ist sie am 10. Januar fällig, und Haben zählt sie dann im Vorjahr (§ 11 Abs. 2 Satz 2 EStG).`,
       link: "/bank",
     });
   }
+  if (data.vorauszahlungHinweis) issues.push({ tone: "hinweis", text: data.vorauszahlungHinweis, link: "/bank" });
   return issues;
 }
 
@@ -625,7 +636,8 @@ export async function annualXml(form: AnnualForm, year: number, { company, data 
       gewinn: { einkunftsart: company.einkunftsart!, taetigkeit: company.taetigkeit, betrag: est.gewinn },
       angaben: est.angaben,
     });
-    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen };
+    // Übermittelt mit der Regel für Vorauszahlungen um den Jahreswechsel (#583, euer-jahreswechsel.ts)
+    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen, [ZEHN_TAGE_REGEL]: true };
   } else {
     const euer = data as EuerYear;
     xml = buildEuerXml({
@@ -634,7 +646,7 @@ export async function annualXml(form: AnnualForm, year: number, { company, data 
       figures: euer.figures,
       anlagen: euer.anlagen,
     });
-    figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen };
+    figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen, [ZEHN_TAGE_REGEL]: true };
   }
 
   return { xml, daten: figures };

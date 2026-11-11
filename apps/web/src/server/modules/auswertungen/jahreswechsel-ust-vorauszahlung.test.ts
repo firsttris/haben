@@ -53,6 +53,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
   let quelle: typeof import("./euer-quelle.ts");
   let annual: typeof import("../jahreserklaerung/annual.ts");
   let db: typeof import("../../db/index.ts").db;
+  let ZEHN_TAGE_REGEL: string;
   let sql: postgres.Sql;
   const actor = "test-user";
   let seq = 0;
@@ -72,6 +73,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
     quelle = await import("./euer-quelle.ts");
     annual = await import("../jahreserklaerung/annual.ts");
     db = (await import("../../db/index.ts")).db;
+    ({ ZEHN_TAGE_REGEL } = await import("./euer-jahreswechsel.ts"));
   }, 30_000);
   afterAll(async () => {
     await sql?.end();
@@ -278,14 +280,54 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
         const dez = await gesendet(DEZ, "2027-01-05");
         // Die Anlage EÜR 2026 ist übermittelt, bevor die Zahlung zugeordnet wird (etwa weil der Kontoauszug spät kam)
         await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
-          values ('euer', 2026, 'send', true, 0, 'ok', ${sql.json({ gewinn: 119_000 })}, '<x/>', '<x/>', '<x/>')`;
+          values ('euer', 2026, 'send', true, 0, 'ok', ${JSON.stringify({ gewinn: 119_000 })}::jsonb, '<x/>', '<x/>', '<x/>')`;
         await zahlung(dez.id, "08.01.27", "-190,00");
         expect(await euer(2026)).toEqual(OHNE_DEZEMBER);
         expect(await euer(2027)).toEqual(NUR_ZAHLUNG);
         await beideWegeGleich();
         const hinweise = (await annual.annualOverview(2027, "2028-03-01")).euer.issues.map((i) => i.text);
-        expect(hinweise.some((t) => /Dezember bzw\. das vierte Quartal 2026/.test(t) && /190,00/.test(t) && /übermittelt/.test(t))).toBe(true);
+        expect(hinweise.some((t) => /Vorauszahlung für Dezember 2026/.test(t) && /190,00/.test(t) && /übermittelt/.test(t))).toBe(true);
+      }, 60_000);
+
+      it(`Vorjahr nach dem Zuordnen übermittelt: die Zahlung bleibt im Vorjahr, wie übermittelt (${fall})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        await umsatzImMonat("2026-12-01", "15.12.26");
+        const dez = await gesendet(DEZ, "2027-01-05");
+        await zahlung(dez.id, "08.01.27", "-190,00");
+        // Übermittelt mit dieser Regel (Kennzeichen in den gespeicherten Werten): sie enthält die Zahlung
+        await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+          values ('euer', 2026, 'send', true, 0, 'ok', ${JSON.stringify({ gewinn: 100_000, [ZEHN_TAGE_REGEL]: true })}::jsonb, '<x/>', '<x/>', '<x/>')`;
+        expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+        expect(await euer(2027)).toEqual({ gewinn: 0 });
+        await beideWegeGleich();
+        const hinweise = (await annual.annualOverview(2027, "2028-03-01")).euer.issues.map((i) => i.text);
+        expect(hinweise.some((t) => /übermittelt bzw\. abgeschlossen/.test(t))).toBe(false);
       }, 60_000);
     }
   }
+
+  it.each(["08.01.27", "11.01.27"])(
+    "aufgehobene Zuordnung vom %s: Zahlung und Gegenzeile zählen im selben Jahr und heben sich auf",
+    async (tag) => {
+      await reset("ist", "SKR03");
+      await umsatzImMonat("2026-12-01", "15.12.26");
+      const dez = await gesendet(DEZ, "2027-01-05");
+      await zahlung(dez.id, tag, "-190,00");
+      const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
+      await bank.reverseAllocation(actor, a!.id as string);
+      // Saldo der Zahlungen an das Finanzamt und Gewinn; Zahlung und Gegenzeile zeigt das Journal auch ohne Jahreswechsel
+      // getrennt als gezahlte und erstattete Umsatzsteuer, die Nebenbücher verrechnen sie
+      const saldo = (e: EuerResult) => {
+        const z = zeilen(e) as Record<string, number>;
+        return { einnahmen: z.einnahmenSteuerpflichtig ?? 0, ust: (z.gezahlteUst ?? 0) - (z.erstatteteUst ?? 0), gewinn: z.gewinn };
+      };
+      for (const year of [2026, 2027]) {
+        const erwartet = year === 2026 ? { einnahmen: 100_000, ust: 0, gewinn: 119_000 } : { einnahmen: 0, ust: 0, gewinn: 0 };
+        expect(saldo(await quelle.euerAusDemJournal(year, db))).toEqual(erwartet);
+        expect(saldo(await reports.euerAusNebenbuechern(year))).toEqual(erwartet);
+        expect(abgleich.abweichungen((await abgleich.euerAbgleich(year)).zeilen)).toEqual([]);
+      }
+    },
+    60_000,
+  );
 });

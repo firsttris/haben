@@ -25,6 +25,7 @@ export * from "./koerperschaft.ts";
 export * from "./ausschuettung.ts";
 export * from "./matching.ts";
 export * from "./ustva-posten.ts";
+export * from "./ust-vorauszahlung-euer.ts";
 export * from "./euer.ts";
 export * from "./journal-kennzahlen.ts";
 export * from "./journal-euer.ts";

@@ -10,6 +10,7 @@ import {
 } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
 import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
@@ -105,7 +106,12 @@ function dazu(nach: EuerAusJournal, von: EuerAusJournal) {
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
 export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<EuerJournal> {
   const e = schema.journalEntries;
-  const jahr = await buchungen(q, and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")));
+  // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
+  const jahr = await imEuerJahr(
+    year,
+    await buchungen(q, and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung"))),
+    q,
+  );
   const zielVon = await ziele(
     q,
     jahr.filter((b) => b.sourceType === "allocation" || b.sourceType === "ausbuchung" || b.sourceType === "kasse").map((b) => b.sourceId),
