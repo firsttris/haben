@@ -21,7 +21,7 @@ export function navLinkSichtbar(link: NavBedingung, { gesellschaft, hatMitarbeit
 }
 
 /** Zeichen der Firma in der Navigation (#504): Logo der Belege, „H“ in eigener Farbe oder null für das „H“ des Themes */
-export type NavMark = { logo: string } | { background: string; ink: "#FFFFFF" | "#16211C" } | null;
+export type NavMark = { logo: string } | { background: string; ink: "#FFFFFF" | "#000000" } | null;
 
 /**
  * Was die Navigation zeigt: das Logo, wenn es gewählt ist und es eins gibt (`logoSha256`), sonst die eigene Farbe mit

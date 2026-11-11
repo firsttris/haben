@@ -22,7 +22,7 @@ Farben kommen aus den Variablen in `:root` von `styles.css`; die Themes übersch
 | Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
-Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`) nach dem höheren Kontrast. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände. Ab Werk bleibt `--brand` des Themes.
+Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`): Weiß oder Schwarz, je nachdem, was den höheren Kontrast hat, so hält jede Farbe mindestens 4,5 : 1. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände. Ab Werk bleibt `--brand` des Themes.
 
 Die Themes stehen in `apps/web/src/lib/theme.ts`: Wald (Standard), Ozean, Pflaume, Graphit, Nacht und Tiefsee (beide dunkel), dazu „Automatisch“, das der Systemeinstellung folgt.
 

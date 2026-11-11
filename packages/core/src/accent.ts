@@ -18,14 +18,17 @@ export function contrastOnWhite(hex: string): number {
   return 1.05 / (luminance(hex) + 0.05);
 }
 
-/** Dunkle Schrift auf hellen Akzentfarben: der Text der Vorlagen ab Werk */
-const INK_ON_LIGHT = "#16211C";
+/**
+ * Dunkle Schrift auf hellen Farben. Schwarz, nicht der Text der Vorlagen (#16211C): Nur mit Schwarz hält die bessere
+ * der beiden Schriften für jede Farbe 4,5 : 1 (mindestens 4,58 : 1 um #777777); mit #16211C wären es dort nur 4,08 : 1.
+ */
+const INK_ON_LIGHT = "#000000";
 
 /**
  * Schrift auf einer farbigen Fläche, etwa dem „H“ in der eigenen Farbe der Navigation (#504): Weiß oder Dunkel, je
  * nachdem, was nach WCAG 2.2 den höheren Kontrast hat
  */
-export function inkOnAccent(hex: string): "#FFFFFF" | typeof INK_ON_LIGHT {
+export function inkOnAccent(hex: string): "#FFFFFF" | "#000000" {
   const accent = luminance(hex);
   const onWhite = 1.05 / (accent + 0.05);
   const onDark = (accent + 0.05) / (luminance(INK_ON_LIGHT) + 0.05);

@@ -50,15 +50,16 @@ describe("inkOnAccent", () => {
   it("nimmt Weiß auf dunklen und Dunkel auf hellen Farben", () => {
     expect(inkOnAccent("#1D4ED8")).toBe("#FFFFFF");
     expect(inkOnAccent("#000000")).toBe("#FFFFFF");
-    expect(inkOnAccent("#F5D90A")).toBe("#16211C");
-    expect(inkOnAccent("#ffffff")).toBe("#16211C");
+    expect(inkOnAccent("#F5D90A")).toBe("#000000");
+    expect(inkOnAccent("#ffffff")).toBe("#000000");
   });
 
   it("wählt die Schrift mit dem höheren Kontrast nach WCAG, auch bei mittleren Tönen", () => {
-    // #767676 hat zu Weiß 4,54 : 1, zu #16211C 3,64 : 1
-    expect(inkOnAccent("#767676")).toBe("#FFFFFF");
-    // #8A8A8A hat zu Weiß nur 3,45 : 1, zu #16211C 4,8 : 1
-    expect(inkOnAccent("#8A8A8A")).toBe("#16211C");
+    // #707070 hat zu Weiß 4,95 : 1, zu Schwarz 4,24 : 1; #767676 knapp umgekehrt (4,54 zu 4,62)
+    expect(inkOnAccent("#707070")).toBe("#FFFFFF");
+    expect(inkOnAccent("#767676")).toBe("#000000");
+    // #8A8A8A hat zu Weiß nur 3,45 : 1, zu Schwarz 6,08 : 1
+    expect(inkOnAccent("#8A8A8A")).toBe("#000000");
   });
 
   // Das „H“ der Navigation (16 px, 600) ist kleine Schrift; barrierefreiheit.spec.ts prüft color-contrast auf jeder Seite

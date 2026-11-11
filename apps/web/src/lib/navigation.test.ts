@@ -32,7 +32,7 @@ describe("navMark", () => {
 
   it("eigene Farbe mit der Schrift nach dem höheren Kontrast", () => {
     expect(navMark({ color: "#1D4ED8", logo: false }, null)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF" });
-    expect(navMark({ color: "#f5d90a", logo: false }, null)).toEqual({ background: "#F5D90A", ink: "#16211C" });
+    expect(navMark({ color: "#f5d90a", logo: false }, null)).toEqual({ background: "#F5D90A", ink: "#000000" });
   });
 
   it("das Logo nur, wenn es gewählt ist und es eins gibt; sonst wieder die Farbe", () => {
