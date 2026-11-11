@@ -42,11 +42,14 @@ function reference(value: string | undefined, type: string): string | undefined 
   return optionalReference(trimmed);
 }
 
-/** Erste gültige IBAN im Text vor den Feldern, außer der eigenen; eine Gläubiger-ID scheitert an der Prüfziffer */
+/**
+ * Erste gültige IBAN im Text vor den Feldern, außer der eigenen; eine Gläubiger-ID scheitert an der Prüfziffer. Eine
+ * strukturierte Referenz nach ISO 11649 („RF…“ im Zweck) hat dieselbe Prüfziffer wie eine IBAN, RF ist aber kein Land.
+ */
 function counterpartyIban(head: string, own: string | undefined): string | undefined {
   for (const token of head.split(" ")) {
     const iban = normalizeIban(token.replace(/[^A-Za-z0-9]/g, ""));
-    if (iban && iban !== own && isValidIban(iban)) return iban;
+    if (iban && iban !== own && !iban.startsWith("RF") && isValidIban(iban)) return iban;
   }
   return undefined;
 }
