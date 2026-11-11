@@ -1,5 +1,5 @@
-import { LETTERHEAD_FONTS } from "@haben/core";
-import { LAYOUT_PFLICHTFELDER, LAYOUT_SCHEMA_VERSION, layoutJsonSchema } from "./layout-schema.ts";
+import { LAYOUT_DOCUMENT_LABELS, LETTERHEAD_FONTS } from "@haben/core";
+import { LAYOUT_GESTALTUNG, LAYOUT_PFLICHTFELDER, LAYOUT_SCHEMA_VERSION, layoutJsonSchema } from "./layout-schema.ts";
 import { type FieldInfo, flattenSchema } from "./layout-schema-paths.ts";
 
 /*
@@ -22,6 +22,18 @@ export function feldTabelle(felder: readonly FieldInfo[], pflicht: readonly stri
   return ["| Feld | Typ | Immer da | Pflicht im Layout | Bedeutung |", "| --- | --- | --- | --- | --- |", ...zeilen].join("\n");
 }
 
+/** Welche Einstellung der Beleggestaltung über welches Feld wirkt (LAYOUT_GESTALTUNG) */
+export function gestaltungTabelle(): string {
+  const zeilen = Object.values(LAYOUT_GESTALTUNG).map(
+    ({ label, felder, belege }) =>
+      `| ${label} | ${felder
+        .split("|")
+        .map((f) => `\`${f}\``)
+        .join(" oder ")} | ${belege.length === 5 ? "alle" : belege.map((b) => LAYOUT_DOCUMENT_LABELS[b]).join("; ")} |`,
+  );
+  return ["| Einstellung | Feld | Belegarten |", "| --- | --- | --- |", ...zeilen].join("\n");
+}
+
 /** Beide Tabellen des Vertrags, so wie sie in Skill und Doku stehen */
 export function feldvertragMarkdown(ueberschrift = "###"): string {
   const schema = layoutJsonSchema();
@@ -33,6 +45,12 @@ export function feldvertragMarkdown(ueberschrift = "###"): string {
     `${ueberschrift} Mahnung`,
     "",
     feldTabelle(flattenSchema(schema.mahnung as never), LAYOUT_PFLICHTFELDER.mahnung),
+    "",
+    `${ueberschrift} Einstellungen der Gestaltung`,
+    "",
+    "Diese Einstellungen unter Einstellungen › Beleggestaltung kommen nur über ihr Feld aufs Blatt. Nennt das zugeordnete Layout keines der Felder, deaktiviert Haben die Einstellung, sobald sie auf keinen Beleg mehr wirkt, und sagt im Hinweis daneben, welches Layout welches Feld nicht verwendet. Wirkt sie noch auf andere Belegarten, bleibt sie an, und der Hinweis nennt die Belegarten, auf die sie nicht wirkt. Gesucht wird wie bei den Pflichtfeldern der letzte Teil des Namens im Quelltext (`look.foldMarks` → `foldMarks`); auch ein Kommentar oder eine Variable dieses Namens zählt als verwendet. Kundennummer und Fußzeile stehen in Pflichtfeldern (`meta`, `footer`) und fehlen deshalb hier.",
+    "",
+    gestaltungTabelle(),
   ].join("\n");
 }
 
