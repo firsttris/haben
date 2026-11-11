@@ -24,7 +24,7 @@ import {
   type Discount,
   type LegalInfo,
 } from "@haben/core";
-import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
+import type { Address, Buyer, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
@@ -34,6 +34,11 @@ export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   const lines = [address.strasse, `${address.plz} ${address.ort}`];
   if (address.land.toUpperCase() !== "DE") lines.push(countryName(address.land, t.countryLocale).toUpperCase());
   return lines;
+}
+
+/** Empfängerblock aller Belege: Name und Anschrift des Käufers, eine Zeile je Eintrag */
+export function recipientLines(buyer: Buyer, t: Texts = TEXTS.de): string[] {
+  return [buyer.name, ...addressLines(buyer, t)];
 }
 
 /** Spaltenköpfe und Seitenzahl für das Template; bei Bruttopreisen steht in der letzten Spalte der Bruttobetrag */
@@ -113,7 +118,7 @@ export function documentPdfData(
     author: seller.name,
     labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer, t)],
+    recipient: recipientLines(buyer, t),
     ...itemNumberColumn(doc.lines, doc.options),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
