@@ -728,6 +728,13 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
 
+  // Ein Kunde mit USt-IdNr.: Wer ihn als Lieferanten anlegen will, bekommt einen Hinweis, aber keine Wahl
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Kundenfirma Ost AG");
+  await page.getByLabel("USt-IdNr.").fill("DE123456789");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
   await go("/dauerbelege/neu");
   await page.getByLabel("Bezeichnung").fill("Wartung Server");
   const kontakte = page.getByRole("combobox", { name: "Aus den Kontakten" });
@@ -746,6 +753,14 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Neufirma Süd");
   await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
   await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
+  // Gleiche USt-IdNr. wie bei einem Kunden, auch mit Leerzeichen: Der Server findet ihn unter allen Kontakten. Er ist kein
+  // Lieferant, also nur der Hinweis mit Link; ihn als Lieferanten zu wählen gäbe es nicht
+  await dialog.getByLabel("USt-IdNr.").fill("de 123 456 789");
+  await expect(dialog.getByRole("status")).toContainText("gibt es schon „Kundenfirma Ost AG“ (Kunde)");
+  await expect(dialog.getByRole("link", { name: "„Kundenfirma Ost AG“ öffnen" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "„Kundenfirma Ost AG“ wählen" })).toHaveCount(0);
+  await dialog.getByLabel("USt-IdNr.").fill("");
+  await expect(dialog.getByRole("status")).toHaveCount(0);
   await dialog.getByLabel("Ort").fill("Köln");
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
@@ -756,8 +771,8 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
 
   // Nicht speichern; die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
-  for (const name of ["Suchfirma Nord GmbH", "Neufirma Süd"]) {
-    await go("/kontakte?rolle=lieferant");
+  for (const name of ["Suchfirma Nord GmbH", "Neufirma Süd", "Kundenfirma Ost AG"]) {
+    await go("/kontakte");
     await page.getByRole("link", { name: new RegExp(name) }).click();
     await page.getByRole("button", { name: "Archivieren" }).click();
     await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
