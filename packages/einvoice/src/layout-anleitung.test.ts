@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
 import { GERUEST, layoutAnleitung, TYPST_VERSION } from "./layout-anleitung.ts";
-import { fehlendeAngaben } from "./layout-pflicht.ts";
+import { fehlendeAngaben, ungenutztePflichtfelder } from "./layout-pflicht.ts";
 import { compileWith, createCompiler, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 
 const hinweis = "Feldvertrag geändert? `bun scripts/feldvertrag/schreiben.ts` schreibt Skill und Doku neu.";
@@ -20,6 +20,10 @@ describe("Anleitung für eigene Belegvorlagen", () => {
   it("die Feldtabellen in docs/belegvorlagen.md sind aktuell", () => {
     const doku = readFileSync(DOKU, "utf8");
     expect(doku, hinweis).toBe(mitFeldern(doku));
+  });
+
+  it("das Grundgerüst nennt alle Pflichtfelder, sonst lehnt Haben es schon vor dem Setzen ab", () => {
+    expect(ungenutztePflichtfelder(GERUEST, "beleg")).toEqual([]);
   });
 
   it("nennt die Typst-Version, mit der Haben setzt", () => {
