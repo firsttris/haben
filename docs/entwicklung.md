@@ -604,7 +604,7 @@ Neben dem Typ gibt es diese Labels:
 
 ### Beiträge annehmen
 
-Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemandem im Team, ob von einem Menschen oder einem Agenten geschrieben, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, zwei Fragen: Wollen wir die Änderung in Haben haben? Und ist sie nach den Regeln dieser Seite gemacht? Mit Claude Code gibt es dafür den Skill `beitrag-pruefen` (`.claude/skills/beitrag-pruefen/SKILL.md`). Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
+Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemandem im Team, ob von einem Menschen oder einem Agenten geschrieben, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, vier Fragen: Wollen wir die Änderung in Haben haben? Ist sie nach den Quellen gebaut und fachlich richtig? Ist sie die einfachste Lösung? Ist sie nach den Regeln dieser Seite gemacht? Mit Claude Code gibt es dafür den Skill `beitrag-pruefen` (`.claude/skills/beitrag-pruefen/SKILL.md`). Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
 
 **Wollen wir das?**
 
@@ -613,16 +613,32 @@ Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemand
 - **Nicht doppelt:** Kein anderer offener Pull Request zum selben Thema; auf `main` gibt es das noch nicht, und es wurde nicht schon einmal mit Grund abgelehnt.
 - **Nutzen größer als die Last:** Jede neue Einstellung, Abhängigkeit, Tabelle, externe Verbindung und jeder neue Sonderfall muss dauerhaft gepflegt werden. Eine Migration bleibt für immer; was eine versiegelte Tabelle berührt, lässt sich nicht zurücknehmen. Neue Abhängigkeiten mit einer zur AGPL-3.0 passenden Lizenz, gepflegt und nicht nur für eine Kleinigkeit.
 - **Ein Thema:** Mehrere Themen in einem Pull Request werden geteilt.
+- **Bestehende Installationen:** Beim Update bleiben vorhandene Daten richtig; ändert sich Verhalten, das Nutzer kennen, oder eine Schnittstelle (REST-API, MCP, Exporte, Belegvorlagen), sagt es die Beschreibung.
 - **Ganz gemacht:** Jedes Akzeptanzkriterium des Issues ist erfüllt, oder die Beschreibung sagt, was fehlt, und verweist dafür mit `Refs #…` statt `Umgesetzt #…`.
 
-**Ist es richtig gemacht?**
+**Nach den Quellen gebaut und fachlich richtig?**
 
-- **Quellen geprüft:** Jedes fachliche Detail (Steuer, Buchung, Format, ELSTER) steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen), „Quellen statt Gedächtnis“). Der Maintainer oder sein Agent liest die Quelle selbst nach: Ein Test, der dieselbe falsche Annahme enthält wie der Code, ist trotzdem grün ([Leitplanken für Agenten](#leitplanken-für-agenten)).
+- **Quelle genannt:** Jedes fachliche Detail (Steuer, Buchung, Format, ELSTER) steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen), „Quellen statt Gedächtnis“).
+- **Quelle nachgelesen:** Die prüfende Person oder ihr Agent liest die Quelle selbst und prüft die Aussage daran, für SKR03 und SKR04, Ist und Soll, Einzelunternehmen und GmbH und den richtigen Rechtsstand. Ein Test, der dieselbe falsche Annahme enthält wie der Code, ist trotzdem grün ([Leitplanken für Agenten](#leitplanken-für-agenten)).
+- **Gegengerechnet:** Für den typischen Fall und einen Randfall wird das Ergebnis aus der Quelle hergeleitet und mit den Erwartungen der Tests verglichen. Was die Quelle nicht eindeutig entscheidet, steht als offene Frage im Pull Request, nicht als bestätigt.
+
+Das gilt in voller Tiefe für Änderungen, die beeinflussen können, was gebucht, versteuert, gemeldet oder festgeschrieben wird. Bei Oberfläche, Doku oder Importen ohne Buchungslogik betrifft die Frage meist nichts, außer einem Detail eines Fremdformats.
+
+**Die einfachste Lösung?**
+
+- **Nicht mehr als nötig:** Jeder Teil des Diffs dient einem Akzeptanzkriterium. Keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, nichts „für später“.
+- **Vorhandenes genutzt:** keine zweite Lösung für ein Problem, das Haben schon löst; Fachlogik am richtigen Ort.
+- **Lesbar:** Jemand ohne den Verlauf des Autors versteht den Code in einem Durchgang.
+
+Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt.
+
+**Nach unseren Regeln gemacht?**
+
 - **Regeln eingehalten:** alles unter [Konventionen](#konventionen) und [Mitwirken](#mitwirken), für die Oberfläche [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md). Was ein Skript prüft, meldet die CI und der Kommentar von „PR-Regeln“; der Rest wird von Hand geprüft: Tests für jede Änderung (SKR03 und SKR04, Ist und Soll), kein Test abgeschwächt, gelöscht oder übersprungen, die Doku zum Verhalten, Screenshots bei Änderungen am Aussehen, Migrationen erzeugt und keine bestehende geändert, `withActor` und Audit-Trigger, Geheimnisse in `ciphertext`.
 
-**Umgangston:** Wer beiträgt, schenkt Haben Zeit, ob mit oder ohne Agent. Rückmeldungen beginnen mit Dank, sprechen über den Code und nicht über die Person, begründen jede Bitte mit der Regel oder Quelle und trennen, was vor dem Merge nötig ist, von Vorschlägen. Auch eine Ablehnung ist freundlich und nennt den Grund. Nach dem Merge bedanken wir uns im Pull Request.
+**Umgangston:** nach dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md). Rückmeldungen trennen, was vor dem Merge nötig ist, von Vorschlägen; nach dem Merge bedanken wir uns im Pull Request.
 
-Das Ergebnis ist eine Empfehlung an die prüfende Person: annehmen und ins Review, annehmen nach Änderungen, teilen oder ablehnen. Im Pull Request erscheint sie erst, wenn sie zustimmt, mit Dank, Begründung und konkreten Aufgaben. Fehlen nur Doku oder Tests, darf sie sie auch selbst auf den Branch des Pull Requests ergänzen, wie Fixes im Review (Schritt 4). Ablehnen und Schließen entscheidet der Maintainer. Wird ein Thema dabei grundsätzlich abgelehnt, kommt es mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht), damit niemand es noch einmal baut.
+Ist schon bei der ersten Frage klar, dass die Änderung nicht kommt, oder muss der Maintainer erst entscheiden, endet die Prüfung dort. Ist sie gewollt und der Weg richtig, machen wir sie selbst fertig, statt auf den Beitragenden zu warten: ein Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch des Pull Requests wie Fixes im Review (Schritt 4), das TDD-Review und der Merge bei grüner CI. Ist sie schon gut, geht sie direkt ins Review und wird gemergt. Kann die Änderung beeinflussen, was gebucht, versteuert, gemeldet oder festgeschrieben wird (Steuer, Buchung, ELSTER, Lohn, GoBD, Migrationen auf bestehenden Daten), wird sie ebenso bis grün fertig gemacht, gemergt aber erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung. Angehalten wird nur, wenn ein Mensch entscheiden muss: Ablehnen oder Teilen, eine grundsätzliche Entscheidung oder eine fachliche Frage ohne eindeutige Quelle. Ablehnen und Schließen entscheidet der Maintainer; wird ein Thema grundsätzlich abgelehnt, kommt es mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht), damit niemand es noch einmal baut.
 
 ### Review
 
