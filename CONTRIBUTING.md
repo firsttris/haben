@@ -14,6 +14,18 @@ gutes Issue aufgebaut ist, steht unter
 **Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
+## Etwas übernehmen
+
+Was als Nächstes gebaut wird, steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2), von oben nach unten.
+
+1. Eine Karte aus „Geplant“ aussuchen; für den Einstieg Karten mit Aufwand „S“ oder Issues mit
+   [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg).
+2. Im Issue kommentieren, dass du es übernimmst. Ist es schon jemandem zugewiesen, ist es vergeben.
+3. Ein Maintainer weist es dir zu, die Karte wandert nach „In Arbeit“.
+4. Kommt 14 Tage lang nichts, wird die Zuweisung nach einer Nachfrage wieder gelöst.
+
+Mehr dazu unter [Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen).
+
 ## Pull Requests
 
 - Ein Thema je Pull Request, auf einem eigenen Branch, in `main`. Direkt auf `main` wird nicht gepusht.
