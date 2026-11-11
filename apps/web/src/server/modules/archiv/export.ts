@@ -235,6 +235,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   invoice: "Rechnung",
   document: "Beleg",
   privat: "Privat",
+  spende: "Spende (Zuwendungen, Spenden)",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "USt-Vorauszahlung",
   sondervorauszahlung: "USt-Sondervorauszahlung",

@@ -284,6 +284,28 @@ describe("Zahlungen", () => {
     expect(directBookingsFor("einzelunternehmen")).toContain(kind);
   });
 
+  // DATEV SKR03 1840, SKR04 2250 „Zuwendungen, Spenden“: Privatkonto, Sonderausgabe nach § 10b EStG
+  it.each([
+    ["SKR03", "1200", "1840"],
+    ["SKR04", "1800", "2250"],
+  ] as const)("%s: Spende vom Geschäftskonto auf Zuwendungen, Spenden; Rückzahlung umgekehrt", (kr, bank, konto) => {
+    expect(directPosting("spende", -50_00, kr, "einzelunternehmen")).toEqual([
+      { account: bank, debit: 0, credit: 50_00, taxCode: null },
+      { account: konto, debit: 50_00, credit: 0, taxCode: null },
+    ]);
+    expect(directPosting("spende", 50_00, kr, "einzelunternehmen")[1]).toEqual({ account: konto, debit: 0, credit: 50_00, taxCode: null });
+    expect(ACCOUNTS[kr].spenden).toBe(konto);
+  });
+
+  it("Spende nur im Einzelunternehmen: in GmbH und UG ist sie Aufwand (§ 9 Abs. 1 Nr. 2 KStG)", () => {
+    expect(directBookingsFor("einzelunternehmen")).toContain("spende");
+    for (const rechtsform of ["gmbh", "ug"] as const) {
+      expect(directBookingsFor(rechtsform)).not.toContain("spende");
+      expect(() => directPosting("spende", -100, "SKR03", rechtsform)).toThrow("gibt es nicht in GmbH und UG");
+    }
+    expect(() => directPosting("kapest", -100, "SKR03", "einzelunternehmen")).toThrow("gibt es nur in GmbH und UG");
+  });
+
   it("SKR03: Lohnsteuer nie auf 3730 (dort Erhaltene Skonti)", () => {
     expect(directPosting("lohnsteuer", -100, "SKR03", "gmbh").map((l) => l.account)).not.toContain("3730");
   });
