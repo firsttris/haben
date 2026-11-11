@@ -21,7 +21,6 @@ import {
   type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
-import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
@@ -31,7 +30,7 @@ import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { Icon } from "./Icon.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
-import { ContactDialog } from "./ContactDialog.tsx";
+import { NewContactDialog } from "./NewContactDialog.tsx";
 import { Field } from "./Field.tsx";
 
 type Rate = 1900 | 700 | 0;
@@ -98,7 +97,6 @@ export function RecurringForm({
   const [contactId, setContactId] = useState(initial.contactId);
   /** Getippter Name, wenn der Dialog für einen neuen Kunden offen ist; null = geschlossen */
   const [newContactName, setNewContactName] = useState<string | null>(null);
-  const router = useRouter();
   const [format, setFormat] = useState(initial.format);
   const [paymentTermDays, setPaymentTermDays] = useState(String(initial.paymentTermDays));
   const [intro, setIntro] = useState(initial.intro);
@@ -557,16 +555,10 @@ export function RecurringForm({
           </button>
         </div>
       </form>
-      <ContactDialog
-        open={newContactName !== null}
-        title="Neuen Kunden anlegen"
-        prefill={{ isCustomer: true, isSupplier: false, name: newContactName ?? "" }}
-        existing={contacts}
-        onSaved={(saved) => {
-          setContactId(saved.id);
-          // Die Kundenliste neu laden; die Eingaben der Vorlage bleiben stehen
-          void router.invalidate();
-        }}
+      <NewContactDialog
+        rolle="kunde"
+        name={newContactName}
+        onSaved={(saved) => setContactId(saved.id)}
         onPickExisting={setContactId}
         onClose={() => setNewContactName(null)}
       />

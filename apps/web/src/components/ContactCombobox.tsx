@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { searchOptions } from "../lib/combobox.ts";
 import { Combobox } from "./Combobox.tsx";
+import type { SavedContact } from "./ContactForm.tsx";
 import type { FieldControlProps } from "./Field.tsx";
 
 export interface ContactChoice {
@@ -13,6 +14,17 @@ export interface ContactChoice {
   isSupplier: boolean;
   ustId: string;
 }
+
+/** Ein gerade im Dialog angelegter Kontakt als Eintrag der Auswahl; er steht erst nach dem Neuladen in der Liste */
+export const savedAsChoice = (saved: SavedContact): ContactChoice => ({
+  id: saved.id,
+  name: saved.name,
+  ort: saved.ort ?? "",
+  nummer: null,
+  ustId: saved.ustId ?? "",
+  isCustomer: saved.isCustomer ?? true,
+  isSupplier: saved.isSupplier ?? false,
+});
 
 export type ContactRole = "kunde" | "lieferant" | "alle";
 

@@ -12,8 +12,8 @@ import {
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
 import { Icon } from "./Icon.tsx";
-import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
-import { NewSupplierDialog } from "./NewSupplierDialog.tsx";
+import { ContactCombobox, savedAsChoice, type ContactChoice } from "./ContactCombobox.tsx";
+import { NewContactDialog } from "./NewContactDialog.tsx";
 import { Field } from "./Field.tsx";
 
 type Rate = 1900 | 700 | 0;
@@ -386,11 +386,12 @@ export function DauerbelegForm({
           </button>
         </div>
       </form>
-      <NewSupplierDialog
+      <NewContactDialog
+        rolle="lieferant"
         name={newSupplierName}
         prefill={{ name: supplierName, ...(supplierUstId ? { ustId: supplierUstId } : {}) }}
-        suppliers={suppliers}
-        onPick={pickSupplier}
+        onSaved={(saved) => pickSupplier(savedAsChoice(saved))}
+        onPickExisting={(id) => pickSupplier(suppliers.find((c) => c.id === id) ?? null)}
         onClose={() => setNewSupplierName(null)}
       />
     </>

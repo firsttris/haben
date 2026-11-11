@@ -12,7 +12,7 @@ import {
   splitEmails,
   telefonProblem,
 } from "@haben/core";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
@@ -134,6 +134,42 @@ export async function listContactChoices(role: ContactRole): Promise<ContactChoi
     isCustomer: c.isCustomer,
     isSupplier: c.isSupplier,
   }));
+}
+
+/** Kontakt mit gleicher USt-IdNr., als Hinweis beim Anlegen oder Ändern (ContactForm) */
+export interface UstIdMatch {
+  id: string;
+  name: string;
+  ustId: string;
+  isCustomer: boolean;
+  isSupplier: boolean;
+  archived: boolean;
+}
+
+/** USt-IdNr. ohne Leerzeichen und in Großbuchstaben, wie sie gespeichert wird */
+const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
+
+/**
+ * Kontakte aller Rollen mit derselben USt-IdNr., auch archivierte; excludeId nimmt den Kontakt aus, den das Formular
+ * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen.
+ */
+export async function findContactsByUstId(ustId: string, excludeId?: string): Promise<UstIdMatch[]> {
+  const compact = compactUstId(ustId);
+  if (!compact) return [];
+  const rows = await db
+    .select({
+      id: schema.contacts.id,
+      name: schema.contacts.name,
+      ustId: schema.contacts.ustId,
+      isCustomer: schema.contacts.isCustomer,
+      isSupplier: schema.contacts.isSupplier,
+      archivedAt: schema.contacts.archivedAt,
+    })
+    .from(schema.contacts)
+    .where(and(sql`upper(replace(${schema.contacts.ustId}, ' ', '')) = ${compact}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
+    .orderBy(asc(schema.contacts.name))
+    .limit(5);
+  return rows.map(({ archivedAt, ...rest }) => ({ ...rest, archived: archivedAt !== null }));
 }
 
 export async function getContact(id: string) {

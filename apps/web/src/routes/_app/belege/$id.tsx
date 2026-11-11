@@ -28,8 +28,8 @@ import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "..
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
-import { ContactCombobox, type ContactChoice } from "../../../components/ContactCombobox.tsx";
-import { NewSupplierDialog } from "../../../components/NewSupplierDialog.tsx";
+import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
+import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
@@ -593,7 +593,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               />
             )}
           </Field>
-          <NewSupplierDialog
+          <NewContactDialog
+            rolle="lieferant"
             name={newSupplierName}
             // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
             prefill={{
@@ -602,8 +603,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               ...(supplierUstId ? { ustId: supplierUstId } : {}),
             }}
             ibanSuggestion={data.supplierSuggestion?.iban ?? null}
-            suppliers={data.suppliers}
-            onPick={touch(pickSupplier)}
+            onSaved={(saved) => touch(pickSupplier)(savedAsChoice(saved))}
+            onPickExisting={(id) => touch(pickSupplier)(data.suppliers.find((c) => c.id === id) ?? null)}
             onClose={() => setNewSupplierName(null)}
           />
           <Field label="Rechnungsnummer">

@@ -57,7 +57,7 @@ import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
 import { ArticleCombobox, CatalogCombobox, type ArticleOption } from "./ArticleCombobox.tsx";
 import { ArticleDialog } from "./ArticleDialog.tsx";
 import type { ArticlePrefill } from "./ArticleForm.tsx";
-import { ContactDialog } from "./ContactDialog.tsx";
+import { NewContactDialog } from "./NewContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
@@ -695,16 +695,10 @@ export function InvoiceEditor({
       >
         <p>Der Entwurf{contact ? ` für ${contact.name}` : ""} wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
       </ConfirmDialog>
-      <ContactDialog
-        open={newContactName !== null}
-        title="Neuen Kunden anlegen"
-        prefill={{ isCustomer: true, isSupplier: false, name: newContactName ?? "" }}
-        existing={contacts}
-        onSaved={(saved) => {
-          chooseContact(saved.id, saved);
-          // Die Liste der Kunden neu laden; die Eingaben im Entwurf bleiben, der Editor wird nicht neu aufgebaut
-          void router.invalidate();
-        }}
+      <NewContactDialog
+        rolle="kunde"
+        name={newContactName}
+        onSaved={(saved) => chooseContact(saved.id, saved)}
         onPickExisting={(id) => chooseContact(id)}
         onClose={() => setNewContactName(null)}
       />

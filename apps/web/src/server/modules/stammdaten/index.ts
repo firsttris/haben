@@ -27,6 +27,7 @@ export {
 export {
   contactSchema,
   createContact,
+  findContactsByUstId,
   getContact,
   listContactChoices,
   listContacts,
@@ -37,6 +38,7 @@ export {
   type ContactChoice,
   type ContactInput,
   type ContactRole,
+  type UstIdMatch,
 } from "./contacts.ts";
 export {
   deleteExchangeRate,
