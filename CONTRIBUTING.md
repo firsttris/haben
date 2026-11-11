@@ -7,24 +7,19 @@ wie du es lokal startest, in der [Entwicklung](https://haben.app/entwicklung.htm
 ## Fehler und Wünsche melden
 
 Neues Issue über die Formulare: [Issue anlegen](https://github.com/firsttris/haben/issues/new/choose). Bitte vorher
-in der [Roadmap](https://haben.app/roadmap.html) nachsehen, ob das Thema schon geplant ist. Wie ein
-gutes Issue aufgebaut ist, steht unter
-[Issues schreiben](https://haben.app/entwicklung.html#issues-schreiben).
+im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) nachsehen, ob das Thema schon geplant ist, und
+unter [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), ob es ausgeschlossen ist. Wie ein gutes Issue
+aufgebaut ist, steht unter [Issues schreiben](https://haben.app/entwicklung.html#issues-schreiben).
 
 **Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
 ## Etwas übernehmen
 
-Was als Nächstes gebaut wird, steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2), von oben nach unten.
-
-1. Eine Karte aus „Geplant“ aussuchen; für den Einstieg Karten mit Aufwand „S“ oder Issues mit
-   [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg).
-2. Im Issue kommentieren, dass du es übernimmst. Ist es schon jemandem zugewiesen, ist es vergeben.
-3. Ein Maintainer weist es dir zu, die Karte wandert nach „In Arbeit“.
-4. Kommt 14 Tage lang nichts, wird die Zuweisung nach einer Nachfrage wieder gelöst.
-
-Mehr dazu unter [Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen).
+Such dir eine Karte aus „Geplant“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, für den
+Einstieg gern mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg), und
+schreib im Issue, dass du es übernimmst; ein Maintainer weist es dir zu. Wie das genau abläuft, steht unter
+[Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen).
 
 ## Pull Requests
 
@@ -37,7 +32,10 @@ Mehr dazu unter [Etwas übernehmen](https://haben.app/entwicklung.html#etwas-üb
   hochladen (ins Textfeld ziehen).
 - Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt. Commits gern als
   `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
-  review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE`, überspringt sie die Tests und baut nur die Doku.
+  review“. Was bei einem Pull Request nur mit Doku geprüft wird, steht unter
+  [Branches, Titel und Commits](https://haben.app/entwicklung.html#branches-titel-und-commits).
+- Issues in der Beschreibung mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…`.
+  Nie `Closes` oder `Fixes`: Das Issue schließt das Release, nicht der Merge.
 - Mit KI-Werkzeugen zu arbeiten ist in Ordnung. Der Transparenz halber bitte kennzeichnen: `Co-Authored-By:` im
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
@@ -54,18 +52,9 @@ Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Mo
 
 ## Prüfungen
 
-Vor jedem Push, die CI macht dasselbe:
-
-```sh
-bun run lint
-bun run typecheck
-TEST_DATABASE_URL=postgres://…/haben_test bun run test
-bun run build
-E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e
-```
-
-Beide Datenbanken werden von den Tests geleert; nie auf einen Server mit echten Daten zeigen lassen.
-Ohne Bun auf dem Rechner laufen dieselben Prüfungen im Dev-Container, siehe
+Vor jedem Push dieselben Prüfungen wie in der CI; die Befehle stehen unter
+[Mitwirken](https://haben.app/entwicklung.html#mitwirken). Die Tests leeren ihre Datenbanken; nie auf einen Server mit
+echten Daten zeigen lassen. Ohne Bun auf dem Rechner laufen dieselben Prüfungen im Dev-Container, siehe
 [Prüfungen ohne Bun auf dem Rechner](https://haben.app/entwicklung.html#prüfungen-ohne-bun-auf-dem-rechner).
 
 ## Lizenz
