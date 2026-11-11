@@ -23,7 +23,6 @@ export const Route = createFileRoute("/_app/angebote/$id")({
 });
 
 type Detail = Awaited<ReturnType<typeof getQuoteDetail>>;
-
 function QuotePage() {
   const data = Route.useLoaderData();
   const { quote } = data;

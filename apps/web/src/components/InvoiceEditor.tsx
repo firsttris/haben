@@ -60,6 +60,7 @@ import type { ArticlePrefill } from "./ArticleForm.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
+import { ContactPersonField } from "./ContactPersonField.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -865,25 +866,7 @@ export function InvoiceEditor({
                   />
                 )}
               </Field>
-              {contactPersonChoices.length > 0 && (
-                <Field
-                  label="Ansprechpartner"
-                  hint="Steht im PDF als „z. Hd.“ unter dem Firmennamen und in der E-Rechnung als Ansprechpartner des Käufers. Die Personen pflegst du am Kontakt."
-                  style={{ gridColumn: "1 / -1" }}
-                >
-                  {(control) => (
-                    <select {...control} value={contactPersonId} disabled={!editable} onChange={(e) => touch(setContactPersonId)(e.target.value)}>
-                      <option value="">Keiner</option>
-                      {contactPersonChoices.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                          {p.deactivated ? " (deaktiviert)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Field>
-              )}
+              <ContactPersonField choices={contactPersonChoices} value={contactPersonId} disabled={!editable} onChange={touch(setContactPersonId)} />
               {kind === "rechnung" && (variant || quoteId) && (
                 <Field
                   label="Angebot"
