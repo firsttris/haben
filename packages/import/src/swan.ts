@@ -58,7 +58,7 @@ export function parseSwan(rows: string[][], headerRow: number): ParsedStatement 
 
     list.push({
       bookingDate: requireDate(datum(row), where),
-      amount: ein !== null ? ein : -aus!,
+      amount: aus !== null ? -aus : ein!,
       currency: "EUR",
       counterpartyName: normalizeText(name(row)),
       counterpartyIban: normalizeIban(von(row)) ?? normalizeIban(an(row)),
