@@ -192,7 +192,7 @@ Für Bankumsätze ohne Beleg lernt der Bankabgleich auf dieselbe Weise aus früh
 
 ## Eigene Ausgangsrechnung erkennen
 
-Lädst du eine Rechnung hoch, die du selbst ausgestellt hast, etwa das PDF aus einem Shop oder einem anderen Rechnungsprogramm, ist das keine Ausgabe. Haben erkennt solche Belege und schreibt dann an den Beleg „Das ist eine eigene Ausgangsrechnung, keine Ausgabe“ mit den Gründen dafür. Eine Kategorie wird nicht vorgeschlagen, auch nicht die der bisherigen Belege desselben „Lieferanten“. Gebucht oder gelöscht wird nichts: Der Beleg bleibt „Zu prüfen“. Ist es doch ein Eingangsbeleg, trägst du Kategorie und Beträge von Hand ein. Ausgangsrechnungen aus anderen Systemen als offene Posten zu übernehmen ist ein eigenes Vorhaben (Roadmap S5).
+Lädst du eine Rechnung hoch, die du selbst ausgestellt hast, etwa das PDF aus einem Shop oder einem anderen Rechnungsprogramm, ist das keine Ausgabe. Haben erkennt solche Belege und schreibt dann an den Beleg „Das ist eine eigene Ausgangsrechnung, keine Ausgabe“ mit den Gründen dafür. Eine Kategorie wird nicht vorgeschlagen, auch nicht die der bisherigen Belege desselben „Lieferanten“. Gebucht oder gelöscht wird nichts: Der Beleg bleibt „Zu prüfen“. Ist es doch ein Eingangsbeleg, trägst du Kategorie und Beträge von Hand ein. Offene Ausgangsrechnungen aus einem anderen Programm übernimmst du beim Umzug als offene Posten ([Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen), [sevDesk](sevdesk.md)) oder über den [JSON-Eingang](belegimport.md); die Übernahme aus weiteren Systemen steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2).
 
 Verglichen wird mit den [Firmendaten](einrichtung.md): USt-IdNr., Steuernummer (wie eingetragen und im ELSTER-Format), IBAN, Firmenname und PLZ. Fehlt dort eine Angabe, trägt sie nichts bei.
 
@@ -535,7 +535,7 @@ Nicht stornieren lassen sich:
 | --- | --- |
 | Der Beleg ist schon einer Zahlung zugeordnet (auch Skonto oder Kursdifferenz) | Erst im [Bankabgleich](bank.md) die Zuordnung aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
-| Aus Lexoffice übernommen | Die Vorsteuer ist dort angemeldet; korrigiere den Beleg in Lexoffice. |
+| Beim Umzug als offener Posten übernommen | Die Vorsteuer ist im alten Programm angemeldet; korrigiere den Beleg dort. |
 | Das Jahr des Stornos ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 

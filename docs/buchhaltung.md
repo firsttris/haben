@@ -450,7 +450,7 @@ Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben
 
 Im Einzelunternehmen steht neben einem Erfolgskonto nur ein Privatkonto, etwa eine Ausgabe ohne Beleg, privat bezahlt (Aufwand an Privateinlagen). Jedes Erfolgskonto braucht eine Zeile der Anlage EÜR; Zahlungen gehen über Bank oder Kasse.
 
-**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entscheidung 4](adr/journal-als-quelle.md)):
+**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)):
 
 | Steuerschlüssel | Erlöskonto SKR03 | SKR04 | Voranmeldung |
 | --- | --- | --- | --- |

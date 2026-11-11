@@ -9,7 +9,7 @@ description: >-
 
 Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem Export von Lexware Office, einer anderen Buchhaltung oder einer Excel-Liste. Den Import öffnest du unter **Kontakte**, **Artikel** oder **Anlagen** mit **CSV importieren**; oben auf der Seite wechselst du zwischen den drei Arten.
 
-Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), den [Umzug aus sevDesk](sevdesk.md) und den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
+Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [BuchhaltungsButler](buchhaltungsbutler.md) und aus [Accountable](accountable.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
 
 ## So gehst du vor
 

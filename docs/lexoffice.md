@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 
@@ -38,6 +38,8 @@ Wie die Belege zu Haben kommen, hängt von deinem Tarif ab. Buchungen, Bankumsä
 | Wie verlässlich | dokumentierte Schnittstelle; gegen ein echtes Konto noch nicht gelaufen | nicht dokumentierte Adressen der Web-Oberfläche, Stand November 2026; ändert Lexware sie, kann das Skript scheitern | Standardformat (DATEV EXTF) |
 
 Hast du Tarif XL, nimm die Public API. Sonst ist die Sicherung aus der Web-Oberfläche der Weg, der dieselben Daten bringt. Nur über die Exporte bleibt, wenn das Skript scheitert; dann fehlen Kontakte, Belege als Datensätze und offene Posten.
+
+Wer den Bestand selbst aufbereitet, etwa mit einem eigenen Exportadapter, kann ihn außerdem als geprüftes Paket über den [JSON-Eingang](belegimport.md) übernehmen, mit der Betreiber-CLI auf dem Server.
 
 Bei jedem Weg gilt: Anlagen trägst du mit dem Restbuchwert ein, einzeln oder als CSV-Liste ([Anlagen](anlagen.md#übernahme-aus-lexoffice), [CSV-Import](csv-import.md#anlagen)), Artikel kommen per [CSV-Import](csv-import.md#artikel), Angebote, Aufträge, Lieferscheine und Mahnungen übernimmt Haben nicht.
 
