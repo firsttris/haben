@@ -122,7 +122,22 @@ function AppLayout() {
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
+  const firmaRef = useRef<HTMLSpanElement>(null);
+  const [firmaVoll, setFirmaVoll] = useState<string | null>(null);
   const firstPath = useRef(pathname);
+  // Den vollen Namen nur zeigen, wenn die Marke ihn kürzt (zwei Zeilen am Desktop); am Handy gibt es kein Aufklappen
+  function firmaAufklappen() {
+    const name = firmaRef.current;
+    if (name && window.matchMedia("(min-width: 861px)").matches && name.scrollHeight > name.clientHeight + 1) setFirmaVoll(name.textContent);
+  }
+  const firmaZuklappen = () => setFirmaVoll(null);
+  // Escape schließt den aufgeklappten Namen auch dann, wenn nur der Zeiger darauf steht und der Fokus woanders ist (WCAG 1.4.13)
+  useEffect(() => {
+    if (firmaVoll === null) return;
+    const zu = (event: KeyboardEvent) => event.key === "Escape" && setFirmaVoll(null);
+    document.addEventListener("keydown", zu);
+    return () => document.removeEventListener("keydown", zu);
+  }, [firmaVoll]);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -161,15 +176,28 @@ function AppLayout() {
         Zum Inhalt springen
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
-        <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
+        <Link
+          to={inhaber ? "/" : STEUERBERATUNG_START}
+          className="brand"
+          onPointerEnter={firmaAufklappen}
+          onFocus={firmaAufklappen}
+          onPointerLeave={firmaZuklappen}
+          onBlur={firmaZuklappen}
+        >
           <span className="brand-mark">H</span>
           <span className="brand-text">
             Haben
-            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet; ist er zu
-                lang, wird er gekürzt, der volle Name steht im Tooltip */}
+            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
+                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
+                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
             {firma && (
-              <span className="brand-firma" title={firma}>
+              <span className="brand-firma" ref={firmaRef}>
                 {firma}
+              </span>
+            )}
+            {firmaVoll !== null && (
+              <span className="brand-firma-voll" aria-hidden="true">
+                {firmaVoll}
               </span>
             )}
           </span>
