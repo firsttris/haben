@@ -604,7 +604,7 @@ Neben dem Typ gibt es diese Labels:
 
 ### Beiträge annehmen
 
-Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemandem im Team, ob von einem Menschen oder einem Agenten geschrieben, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, zwei Fragen: Wollen wir die Änderung in Haben haben? Und ist sie nach den Regeln dieser Seite gemacht? Mit Claude Code gibt es dafür den Skill `beitrag-pruefen` (`.claude/skills/beitrag-pruefen/SKILL.md`). Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
+Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemandem im Team, ob von einem Menschen oder einem Agenten geschrieben, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, vier Fragen: Wollen wir die Änderung in Haben haben? Ist sie nach den Quellen gebaut und fachlich richtig? Ist sie die einfachste Lösung? Ist sie nach den Regeln dieser Seite gemacht? Mit Claude Code gibt es dafür den Skill `beitrag-pruefen` (`.claude/skills/beitrag-pruefen/SKILL.md`). Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
 
 **Wollen wir das?**
 
@@ -613,11 +613,25 @@ Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemand
 - **Nicht doppelt:** Kein anderer offener Pull Request zum selben Thema; auf `main` gibt es das noch nicht, und es wurde nicht schon einmal mit Grund abgelehnt.
 - **Nutzen größer als die Last:** Jede neue Einstellung, Abhängigkeit, Tabelle, externe Verbindung und jeder neue Sonderfall muss dauerhaft gepflegt werden. Eine Migration bleibt für immer; was eine versiegelte Tabelle berührt, lässt sich nicht zurücknehmen. Neue Abhängigkeiten mit einer zur AGPL-3.0 passenden Lizenz, gepflegt und nicht nur für eine Kleinigkeit.
 - **Ein Thema:** Mehrere Themen in einem Pull Request werden geteilt.
+- **Bestehende Installationen:** Beim Update bleiben vorhandene Daten richtig; ändert sich Verhalten, das Nutzer kennen, oder eine Schnittstelle (REST-API, MCP, Exporte, Belegvorlagen), sagt es die Beschreibung.
 - **Ganz gemacht:** Jedes Akzeptanzkriterium des Issues ist erfüllt, oder die Beschreibung sagt, was fehlt, und verweist dafür mit `Refs #…` statt `Umgesetzt #…`.
 
-**Ist es richtig gemacht?**
+**Nach den Quellen gebaut und fachlich richtig?**
 
-- **Quellen geprüft:** Jedes fachliche Detail (Steuer, Buchung, Format, ELSTER) steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen), „Quellen statt Gedächtnis“). Der Maintainer oder sein Agent liest die Quelle selbst nach: Ein Test, der dieselbe falsche Annahme enthält wie der Code, ist trotzdem grün ([Leitplanken für Agenten](#leitplanken-für-agenten)).
+- **Quelle genannt:** Jedes fachliche Detail (Steuer, Buchung, Format, ELSTER) steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen), „Quellen statt Gedächtnis“).
+- **Quelle nachgelesen:** Die prüfende Person oder ihr Agent liest die Quelle selbst und prüft die Aussage daran, für SKR03 und SKR04, Ist und Soll, Einzelunternehmen und GmbH und den richtigen Rechtsstand. Ein Test, der dieselbe falsche Annahme enthält wie der Code, ist trotzdem grün ([Leitplanken für Agenten](#leitplanken-für-agenten)).
+- **Gegengerechnet:** Für den typischen Fall und einen Randfall wird das Ergebnis aus der Quelle hergeleitet und mit den Erwartungen der Tests verglichen. Was die Quelle nicht eindeutig entscheidet, steht als offene Frage im Pull Request, nicht als bestätigt.
+
+**Die einfachste Lösung?**
+
+- **Nicht mehr als nötig:** Jeder Teil des Diffs dient einem Akzeptanzkriterium. Keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, nichts „für später“.
+- **Vorhandenes genutzt:** keine zweite Lösung für ein Problem, das Haben schon löst; Fachlogik am richtigen Ort.
+- **Lesbar:** Jemand ohne den Verlauf des Autors versteht den Code in einem Durchgang.
+
+Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt.
+
+**Nach unseren Regeln gemacht?**
+
 - **Regeln eingehalten:** alles unter [Konventionen](#konventionen) und [Mitwirken](#mitwirken), für die Oberfläche [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md). Was ein Skript prüft, meldet die CI und der Kommentar von „PR-Regeln“; der Rest wird von Hand geprüft: Tests für jede Änderung (SKR03 und SKR04, Ist und Soll), kein Test abgeschwächt, gelöscht oder übersprungen, die Doku zum Verhalten, Screenshots bei Änderungen am Aussehen, Migrationen erzeugt und keine bestehende geändert, `withActor` und Audit-Trigger, Geheimnisse in `ciphertext`.
 
 **Umgangston:** nach dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md). Rückmeldungen trennen, was vor dem Merge nötig ist, von Vorschlägen; nach dem Merge bedanken wir uns im Pull Request.
