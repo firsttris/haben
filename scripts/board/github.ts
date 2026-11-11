@@ -196,3 +196,75 @@ export async function offenePrs(token: string, repo: string): Promise<string[]> 
   const liste = await anfrage<{ body: string | null }[]>(token, `/repos/${repo}/pulls?state=open&per_page=100`);
   return liste.map((pr) => pr.body ?? "");
 }
+
+/* Automatische Board-Pflege (scripts/board/plan-*.ts) */
+
+export type Feld = { id: string; optionen: Map<string, string> };
+
+/** Alle Felder des Projects nach Namen, Auswahlfelder mit ihren Optionen */
+export async function felder(token: string): Promise<Map<string, Feld>> {
+  const daten = await graphql<{
+    user: { projectV2: { fields: { nodes: { id: string; name: string; options?: { id: string; name: string }[] }[] } } };
+  }>(
+    token,
+    `query($owner: String!, $number: Int!) { user(login: $owner) { projectV2(number: $number) {
+      fields(first: 50) { nodes {
+        ... on ProjectV2FieldCommon { id name }
+        ... on ProjectV2SingleSelectField { options { id name } } } } } } }`,
+    PROJECT,
+  );
+  return new Map(
+    daten.user.projectV2.fields.nodes.filter((f) => f.id).map((f) => [f.name, { id: f.id, optionen: new Map((f.options ?? []).map((o) => [o.name, o.id])) }]),
+  );
+}
+
+export async function feldSetzen(token: string, projektId: string, itemId: string, feld: Feld, wert: string): Promise<void> {
+  const option = feld.optionen.get(wert);
+  if (feld.optionen.size > 0 && !option) throw new Error(`Option „${wert}“ gibt es nicht.`);
+  const value = option ? { singleSelectOptionId: option } : { text: wert };
+  await graphql(
+    token,
+    `mutation($projekt: ID!, $item: ID!, $feld: ID!, $value: ProjectV2FieldValue!) {
+      updateProjectV2ItemFieldValue(input: { projectId: $projekt, itemId: $item, fieldId: $feld, value: $value }) {
+        projectV2Item { id } } }`,
+    { projekt: projektId, item: itemId, feld: feld.id, value },
+  );
+}
+
+/** Karte unter `darueber` legen, ohne `darueber` ganz nach oben */
+export async function positionSetzen(token: string, projektId: string, itemId: string, darueber: string | null): Promise<void> {
+  await graphql(
+    token,
+    `mutation($projekt: ID!, $item: ID!, $nach: ID) {
+      updateProjectV2ItemPosition(input: { projectId: $projekt, itemId: $item, afterId: $nach }) { clientMutationId } }`,
+    { projekt: projektId, item: itemId, nach: darueber },
+  );
+}
+
+export async function labelSetzen(token: string, repo: string, nummer: number, label: string): Promise<void> {
+  await anfrage(token, `/repos/${repo}/issues/${nummer}/labels`, { method: "POST", body: JSON.stringify({ labels: [label] }) });
+}
+
+/** Offenes Issue mit dem Label, sonst ein neues */
+export async function sammelIssue(token: string, repo: string, label: string, titel: string, text: string): Promise<number> {
+  const offen = await anfrage<{ number: number }[]>(token, `/repos/${repo}/issues?state=open&labels=${encodeURIComponent(label)}&per_page=1`);
+  if (offen[0]) return offen[0].number;
+  const neu = await anfrage<{ number: number }>(token, `/repos/${repo}/issues`, {
+    method: "POST",
+    body: JSON.stringify({ title: titel, body: text, labels: [label] }),
+  });
+  return neu.number;
+}
+
+/** Alle Kommentare eines Issues, älteste zuerst */
+export async function kommentare(token: string, repo: string, nummer: number) {
+  const liste: { id: number; person: string; am: Date; text: string }[] = [];
+  for (let seite = 1; ; seite++) {
+    const teil = await anfrage<{ id: number; user: Person; created_at: string; body: string }[]>(
+      token,
+      `/repos/${repo}/issues/${nummer}/comments?per_page=100&page=${seite}`,
+    );
+    liste.push(...teil.map((k) => ({ id: k.id, person: k.user.login, am: new Date(k.created_at), text: k.body })));
+    if (teil.length < 100) return liste;
+  }
+}
