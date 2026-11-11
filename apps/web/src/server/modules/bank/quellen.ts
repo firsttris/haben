@@ -1,4 +1,5 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
+import type { StatementFormat } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
 
 /*
@@ -10,20 +11,24 @@ import { schema, type Tx } from "../../db/index.ts";
  * eines Quartals acht doppelt, und aufgefallen ist es erst am Kontostand.
  */
 
-/** Formate lesbar machen; unbekannte Formate erscheinen mit ihrem technischen Namen. */
-const FORMAT_NAMEN: Record<string, string> = {
-  "swan-csv": "Swan",
-  "accountable-xlsx": "Accountable",
-  kontoauszug: "Kontoauszug",
-  camt053: "CAMT.053",
+/** Formate lesbar machen; als `Record<StatementFormat, …>` meldet tsc ein neues Format, das hier fehlt. */
+const FORMAT_NAMEN: Record<StatementFormat, string> = {
   "dkb-csv": "DKB",
   "dkb-csv-alt": "DKB",
   "n26-csv": "N26",
+  "swan-csv": "Swan",
+  "commerzbank-csv": "Commerzbank",
+  camt053: "CAMT.053",
+  enablebanking: "Bankabruf",
+  "accountable-xlsx": "Accountable",
   "paypal-csv": "PayPal",
   "stripe-csv": "Stripe",
-  "ebay-csv": "eBay",
   "shopify-payments-csv": "Shopify",
+  "ebay-csv": "eBay",
   "etsy-csv": "Etsy",
+  "googleplay-earnings": "Google Play",
+  "appstore-finance": "App Store",
+  "store-payout": "Store-Auszahlung",
 };
 
 /**
@@ -34,7 +39,7 @@ const FORMAT_NAMEN: Record<string, string> = {
 export async function quellenHinweis(
   tx: Tx,
   bankAccountId: string,
-  format: string,
+  format: StatementFormat,
   added: number,
   periodFrom: string | null | undefined,
   periodTo: string | null | undefined,
@@ -60,7 +65,7 @@ export async function quellenHinweis(
     )
     .groupBy(schema.bankImports.format, schema.bankImports.filename);
   if (fremd.length === 0) return null;
-  const aus = fremd.map((f) => `${FORMAT_NAMEN[f.format] ?? f.format} (${f.filename})`).join(", ");
-  const neu = FORMAT_NAMEN[format] ?? format;
+  const aus = fremd.map((f) => `${FORMAT_NAMEN[f.format as StatementFormat] ?? f.format} (${f.filename})`).join(", ");
+  const neu = FORMAT_NAMEN[format];
   return `Für dieses Konto liegen im Zeitraum ${von} bis ${bis} schon Umsätze aus ${aus}. Der Auszug (${neu}) hat ${added} Umsätze neu angelegt; prüfe, ob sie doppelt sind. Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz.`;
 }
