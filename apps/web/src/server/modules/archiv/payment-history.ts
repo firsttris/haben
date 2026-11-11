@@ -14,8 +14,8 @@ type PaymentSource = {
 
 /**
  * Stornierte sevDesk-Rechnungen und ihre Stornorechnungen, je ID das Datum des Stornos. sevDesk führt beide als „bezahlt“
- * ohne Zahlung; erkennbar ist das Paar nur an invoiceType SR und origin (#472). Nur der volle Betrag und nur ohne Zahlung:
- * Sonst erklärt der Storno den Zahlungsstand nicht. Unverbunden, damit Postgres sie je Abfrage einmal berechnet.
+ * ohne Zahlung; erkennbar ist das Paar nur an invoiceType SR und origin (#472). Nur der volle Betrag, nur ohne Zahlung und
+ * nur bei genau einer Stornorechnung zur Rechnung: Sonst erklärt der Storno den Zahlungsstand nicht. Unverbunden, damit Postgres sie je Abfrage einmal berechnet.
  */
 const unpaid = (alias: string) => `coalesce(${alias}.raw->>'paidAmount', '') ~ '^0*([.,]0*)?$' and coalesce(${alias}.raw->>'payDate', '') = ''`;
 /**
@@ -30,6 +30,8 @@ const STORNO_PAIRS = sql.raw(`(select coalesce(jsonb_object_agg(member.id, storn
   where storno.type = 'creditnote' and storno.source = 'sevdesk' and upper(storno.raw->>'invoiceType') = 'SR'
     and storno.raw->'origin'->>'objectName' = 'Invoice' and storno.gross = -original.gross
     and ${stornoUnpaid("storno")} and ${unpaid("original")}
+    and not exists (select 1 from lexoffice_vouchers other where other.id <> storno.id and other.source = 'sevdesk'
+      and upper(other.raw->>'invoiceType') = 'SR' and other.raw->'origin'->>'id' = storno.raw->'origin'->>'id')
     and not exists (select 1 from legacy_voucher_payments paid where paid.voucher_id in (storno.id, original.id)))`);
 
 /**
