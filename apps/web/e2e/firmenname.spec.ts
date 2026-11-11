@@ -17,7 +17,7 @@ const LANG = "Garten- und Landschaftsbau Müller und Söhne GmbH & Co. KG";
 
 const nav = (page: Page) => page.getByRole("navigation", { name: "Hauptnavigation" });
 
-/** Firmenname in der Seite ersetzen; die Firmendaten bleiben, wie app.spec.ts sie angelegt hat */
+/** Firmenname in der Seite ersetzen; die Firmendaten bleiben, wie app.spec.ts sie angelegt hat. Das Aufklappen liest den Text beim Überfahren aus der Seite */
 async function nameSetzen(page: Page, name: string): Promise<void> {
   await nav(page)
     .locator(".brand-firma")
@@ -30,7 +30,8 @@ test("zeigt den Namen der Firma unter „Haben“", async ({ page }) => {
   await page.goto("/");
   const marke = nav(page).getByRole("link", { name: `Haben ${FIRMA}` });
   await expect(marke).toBeVisible();
-  await expect(marke.locator(".brand-firma")).toHaveAttribute("title", FIRMA);
+  // Den ganzen Namen zeigt das Aufklappen beim Überfahren (unten), kein title: der ist nicht gestaltbar und nicht per Tastatur zu erreichen
+  await expect(marke.locator(".brand-firma")).not.toHaveAttribute("title");
   expect(await axeVerstoesse(page)).toEqual([]);
 });
 
@@ -68,7 +69,8 @@ test("ein langer Firmenname wird nach zwei Zeilen gekürzt und läuft nicht aus 
   expect(ueberlauf).toEqual({ nav: 0, marke: 0 });
 });
 
-// „Haben“ bleibt so groß wie ohne Firmennamen (18px, halbfett); der Name steht kleiner darunter, voll deckend
+// „Haben“ bleibt so groß und weiß wie ohne Firmennamen (18px, halbfett); der Name steht kleiner darunter, voll deckend
+// und im Grau der Navigation (--nav-ink), damit „Haben“ die Hauptzeile bleibt
 test("„Haben“ bleibt, wie es ist, der Name steht kleiner darunter", async ({ page }) => {
   for (const breite of [1280, 375]) {
     await page.setViewportSize({ width: breite, height: 812 });
@@ -88,6 +90,16 @@ test("„Haben“ bleibt, wie es ist, der Name steht kleiner darunter", async ({
           haben: `${stil.fontSize} ${stil.fontWeight}`,
           firma: Number.parseFloat(getComputedStyle(firma).fontSize),
           deckung: getComputedStyle(firma).opacity,
+          farbeHaben: stil.color,
+          farbeFirma: getComputedStyle(firma).color,
+          navInk: (() => {
+            const probe = document.createElement("span");
+            probe.style.color = "var(--nav-ink)";
+            el.append(probe);
+            const farbe = getComputedStyle(probe).color;
+            probe.remove();
+            return farbe;
+          })(),
           darunter: firma.getBoundingClientRect().top >= bereich.getBoundingClientRect().bottom - 1,
         };
       });
@@ -95,6 +107,8 @@ test("„Haben“ bleibt, wie es ist, der Name steht kleiner darunter", async ({
     expect(marke.firma, `${breite}px`).toBeLessThan(18);
     expect(marke.firma, `${breite}px`).toBeGreaterThanOrEqual(12);
     expect(marke.deckung, `${breite}px`).toBe("1");
+    expect(marke.farbeHaben, `${breite}px`).toBe("rgb(255, 255, 255)");
+    expect(marke.farbeFirma, `${breite}px`).toBe(marke.navInk);
     expect(marke.darunter, `${breite}px`).toBe(true);
   }
 });
@@ -145,4 +159,101 @@ test("am Handy steht der Name in einer Zeile, und die Leiste bleibt so hoch wie 
     "375px": { leiste: 60, ueberlauf: 0, zeilen: 1 },
     "320px": { leiste: 60, ueberlauf: 0, zeilen: 1 },
   });
+});
+
+// Ist der Name länger als zwei Zeilen, klappt er beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf, in der
+// Breite der Navigation und über den ersten Menüpunkten. Der Name in der Marke bleibt dabei, wo er ist („Haben“
+// springt nicht); das Aufklappen ist ein zweites, für Hilfstechnik verborgenes Element (WCAG 1.4.13: es verschwindet mit
+// Escape, bleibt beim Hinüberfahren und mit dem Zeiger darauf stehen)
+const voll = (page: Page) => nav(page).locator(".brand-firma-voll");
+const marke = (page: Page) => nav(page).locator(".brand");
+
+test("ein langer Name klappt beim Überfahren nach unten ganz auf, ohne die Marke zu verschieben", async ({ page }) => {
+  await page.goto("/");
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await nameSetzen(page, LANG);
+  const lage = () =>
+    page.evaluate(() => ({
+      mark: document.querySelector(".brand-mark")!.getBoundingClientRect().top,
+      firma: document.querySelector(".brand-firma")!.getBoundingClientRect().top,
+    }));
+  const vorher = await lage();
+  await expect(voll(page)).toHaveCount(0);
+  await marke(page).hover();
+  await expect(voll(page)).toBeVisible();
+  await expect(voll(page)).toHaveText(LANG);
+  await expect(voll(page)).toHaveAttribute("aria-hidden", "true");
+  expect(await lage()).toEqual(vorher);
+  const gemessen = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>(".brand-firma-voll")!;
+    const rahmen = el.getBoundingClientRect();
+    const navigation = document.querySelector<HTMLElement>("nav.nav")!.getBoundingClientRect();
+    const mitte = document.elementFromPoint(rahmen.left + rahmen.width / 2, rahmen.top + rahmen.height - 4);
+    return {
+      ganz: el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth,
+      inDerNavigation: rahmen.left >= navigation.left && rahmen.right <= navigation.right,
+      oben: el.contains(mitte),
+      hintergrund: getComputedStyle(el).backgroundColor,
+      navAktiv: (() => {
+        const probe = document.createElement("span");
+        probe.style.backgroundColor = "var(--nav-active)";
+        document.querySelector(".nav")!.append(probe);
+        const farbe = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return farbe;
+      })(),
+    };
+  });
+  expect(gemessen.ganz).toBe(true);
+  expect(gemessen.inDerNavigation).toBe(true);
+  expect(gemessen.oben).toBe(true);
+  expect(gemessen.hintergrund).toBe(gemessen.navAktiv);
+  await page.mouse.move(900, 500);
+  await expect(voll(page)).toHaveCount(0);
+});
+
+test("der aufgeklappte Name bleibt unter dem Zeiger und mit Fokus, Escape schließt ihn", async ({ page }) => {
+  await page.goto("/");
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await nameSetzen(page, LANG);
+  await marke(page).hover();
+  await expect(voll(page)).toBeVisible();
+  // Mit dem Zeiger auf dem aufgeklappten Namen bleibt er offen
+  await voll(page).hover();
+  await expect(voll(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(voll(page)).toHaveCount(0);
+  // Mit der Tastatur: Fokus auf „Haben“ öffnet, Escape schließt, Verlassen des Links ebenso
+  await page.mouse.move(900, 500);
+  await marke(page).focus();
+  await expect(voll(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(voll(page)).toHaveCount(0);
+  await marke(page).blur();
+  await marke(page).focus();
+  await expect(voll(page)).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(voll(page)).toHaveCount(0);
+});
+
+test("ein Name, der in zwei Zeilen passt, klappt nicht auf", async ({ page }) => {
+  await page.goto("/");
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await marke(page).hover();
+  await expect(voll(page)).toHaveCount(0);
+  await marke(page).focus();
+  await expect(voll(page)).toHaveCount(0);
+});
+
+test("am Handy klappt nichts auf, auch bei einem langen Namen", async ({ page }) => {
+  for (const breite of [375, 320]) {
+    await page.setViewportSize({ width: breite, height: 812 });
+    await page.goto("/");
+    await expect(nav(page).getByText(FIRMA)).toBeVisible();
+    await nameSetzen(page, LANG);
+    await marke(page).hover();
+    await expect(voll(page), `${breite}px`).not.toBeVisible();
+    await marke(page).focus();
+    await expect(voll(page), `${breite}px`).not.toBeVisible();
+  }
 });
