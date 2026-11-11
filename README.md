@@ -23,12 +23,12 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 [![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
 [![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](https://haben.app/installation.html)
 
-[Warum?](#-warum-haben) •
-[Funktionen](#-funktionen) •
-[Schnellstart](#-schnellstart) •
-[FAQ](#-faq) •
+[Warum?](#warum-haben) •
+[Funktionen](#funktionen) •
+[Schnellstart](#schnellstart) •
+[FAQ](#faq) •
 [Dokumentation](https://haben.app/) •
-[Entwicklung](#-entwicklung)
+[Entwicklung](#entwicklung)
 
 <sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
@@ -42,7 +42,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-## 💡 Warum Haben?
+## Warum Haben?
 
 In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
 
@@ -56,7 +56,7 @@ auf deinem eigenen Server betreibst.
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **Nachprüfbar statt „vertrau uns“**: Beim Umzug rechnet Haben deine alten Jahre nach, zum Vergleich mit deinen
   Voranmeldungen und dem Abschluss der Steuerberatung; danach führt jede Kennzahl zu den Rechnungen, Belegen und
-  Zahlungen dahinter, siehe [Woher weiß ich, dass die Zahlen stimmen?](#-faq)
+  Zahlungen dahinter, siehe [Woher weiß ich, dass die Zahlen stimmen?](#faq)
 - **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
@@ -66,7 +66,7 @@ auf deinem eigenen Server betreibst.
   Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
   Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
 
-## ✨ Funktionen
+## Funktionen
 
 Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://haben.app/).
 
@@ -95,7 +95,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 | 🧩 [Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
 | ♿ [Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
 
-## 📸 Screenshots
+## Screenshots
 
 <table>
   <tr>
@@ -108,7 +108,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
   </tr>
 </table>
 
-## 🚀 Schnellstart
+## Schnellstart
 
 Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL, Caddy für HTTPS und ein
 tägliches Backup mit restic.
@@ -144,7 +144,7 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 > sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar,
 > ohne das Passwort lässt sich das Backup nicht öffnen.
 
-## ❓ FAQ
+## FAQ
 
 <details>
 <summary><b>Was kostet Haben?</b></summary>
@@ -275,7 +275,7 @@ Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
 Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/entwicklung.html#leitplanken-für-agenten).
 </details>
 
-## 📚 Dokumentation
+## Dokumentation
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
@@ -285,7 +285,7 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
   [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)
 
-## 🔧 Entwicklung
+## Entwicklung
 
 Voraussetzungen: Bun in der Version aus `packageManager` in `package.json`, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
@@ -317,18 +317,18 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, Commerzbank, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 
-## 🧩 Mehr von uns
+## Mehr von uns
 
 - Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
 - Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
 
-## 🤝 Mitwirken
+## Mitwirken
 
 Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Was vor einem Pull Request laufen muss und was er enthält, steht unter
 [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
 
-## ⭐ Sterne im Verlauf
+## Sterne im Verlauf
 
 <a href="https://www.star-history.com/#firsttris/haben&Date">
   <picture>
