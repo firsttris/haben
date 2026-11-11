@@ -993,6 +993,8 @@ export const contacts = pgTable(
      */
     debitorNr: integer("debitor_nr").unique(),
     kreditorNr: integer("kreditor_nr").unique(),
+    /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner hinterlegt */
+    hourlyRateCents: integer("hourly_rate_cents"),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1001,6 +1003,37 @@ export const contacts = pgTable(
   (t) => [
     check("contacts_debitor_nr_bereich", sql`${t.debitorNr} between 10000 and 69999`),
     check("contacts_kreditor_nr_bereich", sql`${t.kreditorNr} between 70000 and 99999`),
+  ],
+);
+
+/**
+ * Abrechenbare Leistungen (#417): ein Zeiteintrag je Kunde. Die Dauer steht in Minuten, der Stundensatz als Kopie vom
+ * Anlegen (Cent; null = keiner bekannt). Einträge von außen (Kimai, Toggl) tragen Quelle und Kennung, damit ein zweiter
+ * Abruf nichts verdoppelt.
+ */
+export const serviceEntries = pgTable(
+  "service_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    workedOn: date("worked_on", { mode: "string" }).notNull(),
+    minutes: integer("minutes").notNull(),
+    description: text("description").notNull().default(""),
+    hourlyRateCents: integer("hourly_rate_cents"),
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("service_entries_minutes", sql`${t.minutes} between 1 and 1440`),
+    check("service_entries_rate", sql`${t.hourlyRateCents} is null or ${t.hourlyRateCents} >= 0`),
+    check("service_entries_extern", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
+    uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),
+    index("service_entries_contact").on(t.contactId, t.workedOn),
   ],
 );
 
