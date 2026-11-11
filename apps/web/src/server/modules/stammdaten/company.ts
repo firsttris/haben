@@ -16,7 +16,7 @@ import {
   SteuernummerError,
   type Versteuerung,
 } from "@haben/core";
-import { and, desc, eq, gte, lt, lte, min } from "drizzle-orm";
+import { and, desc, eq, gte, lt, lte, min, sql } from "drizzle-orm";
 import { legalLine } from "@haben/einvoice";
 import { z } from "zod";
 import { listArticles } from "./articles.ts";
@@ -131,8 +131,17 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
   const [row] = await q.select().from(schema.company).where(eq(schema.company.id, 1));
   if (row) return row;
   const insert = (w: Db | Tx) => w.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning();
-  const [created] = q === db ? await withActor("system:setup", insert) : await insert(q);
+  const [created] = q === db ? await withActor("system:setup", insert) : await insertDefaultCompany(q as Tx);
   return created ?? (await loadCompany(q));
+}
+
+/** Auch in einer fremden Transaktion ist die leere Vorgabe keine fachliche Einstellung. Danach gilt wieder ihr Akteur. */
+async function insertDefaultCompany(tx: Tx) {
+  const [previous] = await tx.execute<{ actor: string | null }>(sql`select current_setting('haben.actor', true) as actor`);
+  await tx.execute(sql`select set_config('haben.actor', 'system:setup', true)`);
+  const rows = await tx.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning();
+  await tx.execute(sql`select set_config('haben.actor', ${previous?.actor ?? ""}, true)`);
+  return rows;
 }
 
 /**
@@ -181,7 +190,8 @@ export async function setJournalAb(tx: Tx, year: number): Promise<void> {
 /**
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
- * Stand. Einschalten geht nur, solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
+ * fachlich gespeicherte Stand. Unbenutzte technische Vorgaben zählen nicht als Regelbesteuerung. Einschalten geht nur,
+ * solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
  *
  * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
@@ -194,15 +204,50 @@ export async function kleinunternehmerHistory(q: Db | Tx = db): Promise<(date: s
 /** Die Änderungen aus dem Protokoll als Daten, etwa für Formulare, die den Stand an einem gewählten Tag brauchen */
 export async function kleinunternehmerStand(q: Db | Tx = db): Promise<KleinunternehmerStand> {
   const rows = await q
-    .select({ at: schema.auditLog.at, newValue: schema.auditLog.newValue })
+    .select({
+      seq: schema.auditLog.seq,
+      at: schema.auditLog.at,
+      actor: schema.auditLog.actor,
+      action: schema.auditLog.action,
+      newValue: schema.auditLog.newValue,
+    })
     .from(schema.auditLog)
     .where(eq(schema.auditLog.tableName, "company"))
     .orderBy(schema.auditLog.seq);
+  const firstSetting = rows.find(
+    (r) => !defaultCompanyAudit(r) && typeof (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer === "boolean",
+  );
+  // Wer bereits vor der Firmeneinrichtung gebucht oder übermittelt hat, hat die Vorgaben fachlich verwendet.
+  // Nach Kettenposition vergleichen: Mehrere Schritte in einer Transaktion haben denselben Zeitstempel.
+  const [used] =
+    firstSetting && rows.some(defaultCompanyAudit)
+      ? await q
+          .select({ seq: schema.auditLog.seq })
+          .from(schema.auditLog)
+          .where(
+            and(
+              lt(schema.auditLog.seq, firstSetting.seq),
+              sql`(${schema.auditLog.tableName} in ('journal_entries', 'cash_entries')
+        or (${schema.auditLog.tableName} = 'invoices' and ${schema.auditLog.newValue}->>'status' = 'final')
+        or (${schema.auditLog.tableName} = 'documents' and ${schema.auditLog.newValue}->>'status' = 'gebucht')
+        or (${schema.auditLog.tableName} = 'vat_returns' and ${schema.auditLog.newValue}->>'status' = 'sent'))`,
+            ),
+          )
+          .limit(1)
+      : [];
   const aenderungen = rows.flatMap((r) => {
-    const value = (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer;
+    const snapshot = r.newValue as { kleinunternehmer?: unknown; name?: unknown } | null;
+    const value = snapshot?.kleinunternehmer;
+    // Nur die automatisch angelegte leere Vorgabe auslassen, keine bestätigte Einstellung und keinen späteren Wechsel.
+    if (!used && defaultCompanyAudit(r)) return [];
     return typeof value === "boolean" ? [{ date: today(r.at), value }] : [];
   });
   return { aenderungen, aktuell: (await loadCompany(q)).kleinunternehmer };
+}
+
+function defaultCompanyAudit(row: { actor: string | null; action: string; newValue: unknown }): boolean {
+  const snapshot = row.newValue as { kleinunternehmer?: unknown; name?: unknown } | null;
+  return row.action === "INSERT" && row.actor === "system:setup" && snapshot?.kleinunternehmer === false && snapshot?.name === "";
 }
 
 /** Letzter Tag eines Monats, JJJJ-MM-TT */

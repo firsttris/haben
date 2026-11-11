@@ -25,6 +25,8 @@ Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite o
 
 ## So gehst du vor
 
+In der Übersicht erscheinen die reguläre Voranmeldungsaktion, ihre Zahllast/Fälligkeit und der ERiC-Einrichtungshinweis nur, wenn sie für den Zeitraum relevant sind. Bei Kleinunternehmern ohne vorhandene Anmeldungen entfällt auch die leere Karte „Letzte Voranmeldungen“. Vorhandene Anmeldungen, offene Steuerposten und berechnete Steuerbeträge ungleich null bleiben sichtbar, ebenso die Umsatzsteuer-Seite für Sonderfälle. Entscheidend ist der fachlich gespeicherte Status im jeweiligen Zeitraum; eine automatische leere Firmeneinrichtung begründet keine frühere Regelbesteuerung.
+
 1. **Umsatzsteuer** öffnen. Haben springt zum zuletzt abgelaufenen Zeitraum, also dem, der gerade abzugeben ist: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
 2. Die Hinweise oben abarbeiten (siehe [Vorprüfung](#vorprüfung)).
 3. Kennzahlen prüfen, bei Bedarf die Quellen aufklappen.
