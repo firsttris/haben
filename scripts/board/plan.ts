@@ -1,8 +1,8 @@
 /*
  * Plan der automatischen Board-Pflege (.github/workflows/board-pflege.yml), ohne Zugriff auf GitHub. Der Agent
- * schreibt nur einen Plan als JSON; ausgeführt wird er erst nach `/ok` des Maintainers, von plan-anwenden.ts ohne KI.
- * Die Tabelle im Issue „Board-Pflege“ entsteht aus demselben JSON, das später angewendet wird: Was der Maintainer
- * freigibt, ist genau das, was passiert.
+ * schreibt nur einen Plan als JSON; ausgeführt wird er ohne KI. Routine (neue Issues einordnen, Rückfragen) setzt
+ * plan-posten.ts sofort um; alles andere wartet im Issue „Board-Pflege“ auf `/ok` des Maintainers. Was dort steht,
+ * ist genau das, was nach `/ok` passiert.
  */
 
 export const AUFWAND = ["S", "S–M", "M", "M–L", "L"] as const;
@@ -24,7 +24,8 @@ export type Karte = {
   kommentar: string | null;
   grund: string;
 };
-export type Kommentar = { art: "kommentar"; issue: number; text: string; grund: string };
+export const KOMMENTARTYPEN = ["rückfrage", "antwort", "nicht-geplant", "duplikat", "erledigt"] as const;
+export type Kommentar = { art: "kommentar"; typ: (typeof KOMMENTARTYPEN)[number]; issue: number; text: string; grund: string };
 export type Zuweisen = { art: "zuweisen"; issue: number; person: string; kommentar: string; grund: string };
 /** Nur zur Anzeige: Entscheidungen, die der Maintainer selbst treffen muss; wird nie ausgeführt */
 export type Frage = { art: "frage"; issue: number | null; text: string };
@@ -52,6 +53,7 @@ export function pruefen(daten: unknown): { plan: Plan } | { fehler: string[] } {
     }
     if (!istNummer(schritt.issue)) fehler.push(`${wo}: „issue“ ist keine Nummer.`);
     if (schritt.art === "kommentar") {
+      if (!KOMMENTARTYPEN.includes(schritt.typ as never)) fehler.push(`${wo}: „typ“ ist keiner von ${KOMMENTARTYPEN.join(", ")}.`);
       text("text", 4000);
       text("grund", 500);
     } else if (schritt.art === "zuweisen") {
@@ -81,50 +83,71 @@ const zitat = (text: string) =>
     .map((zeile) => `> ${zeile}`)
     .join("\n");
 
-/** Kommentar für das Issue „Board-Pflege“: Tabelle, Wortlaut der Kommentare, Fragen und der Plan als Anhang */
-export function alsKommentar(plan: Plan, lauf: string): string {
+/**
+ * Routine, die ohne Rückfrage läuft: eine neue Karte einordnen (mit Kommentar) und eine Rückfrage stellen. Alles
+ * andere ist eine Entscheidung des Maintainers. Eine Karte, die schon im Board steht, verschiebt plan-posten.ts nie
+ * allein; sie wartet dann ebenfalls auf `/ok`.
+ */
+export function automatisch(schritt: Schritt): boolean {
+  return schritt.art === "karte" || (schritt.art === "kommentar" && schritt.typ === "rückfrage");
+}
+
+const was = (schritt: Schritt): string => {
+  if (schritt.art === "karte") {
+    const felder = [schritt.aufwand, schritt.bereich, schritt.hinweis, schritt.einstieg ? "`einstieg`" : ""].filter(Boolean).join(" · ");
+    return `Karte: ${schritt.status}, ${schritt.nach ? `nach #${schritt.nach}` : "ganz oben"} (${felder})`;
+  }
+  if (schritt.art === "zuweisen") return `zuweisen an @${schritt.person}`;
+  if (schritt.art === "kommentar") return `Kommentar (${schritt.typ})`;
+  return "Frage";
+};
+
+/**
+ * Kommentar für das Issue „Board-Pflege“: was schon erledigt ist (Ergebnis je Nummer), was auf den Maintainer wartet
+ * (mit Wortlaut) und seine Fragen. Im Anhang stehen Plan und die offenen Nummern für plan-anwenden.ts.
+ */
+export function alsKommentar(plan: Plan, lauf: string, erledigt: Map<number, string>, offen: number[]): string {
   const nummeriert = plan.schritte.map((schritt, i) => ({ nr: i + 1, schritt }));
-  const zeilen = nummeriert
-    .filter(({ schritt }) => schritt.art !== "frage")
-    .map(({ nr, schritt }) => {
-      if (schritt.art === "karte") {
-        const wo = `${schritt.status}, ${schritt.nach ? `nach #${schritt.nach}` : "ganz oben"}`;
-        const felder = [schritt.aufwand, schritt.bereich, schritt.hinweis, schritt.einstieg ? "`einstieg`" : ""].filter(Boolean).join(" · ");
-        return `| ${nr} | #${schritt.issue} | Karte: ${wo} | ${zelle(felder)} | ${zelle(schritt.grund)} |`;
-      }
-      if (schritt.art === "zuweisen") return `| ${nr} | #${schritt.issue} | zuweisen an @${schritt.person} | | ${zelle(schritt.grund)} |`;
-      if (schritt.art === "kommentar") return `| ${nr} | #${schritt.issue} | Kommentar | | ${zelle(schritt.grund)} |`;
-      return "";
-    });
-  const texte = nummeriert.flatMap(({ nr, schritt }) => {
+  const fertig = nummeriert
+    .filter(({ nr }) => erledigt.has(nr))
+    .map(({ nr, schritt }) => `| ${nr} | #${schritt.issue} | ${zelle(was(schritt))} | ${zelle(erledigt.get(nr) ?? "")} |`);
+  const wartet = nummeriert.filter(({ nr }) => offen.includes(nr));
+  const zeilen = wartet.map(({ nr, schritt }) => `| ${nr} | #${schritt.issue} | ${zelle(was(schritt))} | ${zelle("grund" in schritt ? schritt.grund : "")} |`);
+  const texte = wartet.flatMap(({ nr, schritt }) => {
     const text = schritt.art === "kommentar" ? schritt.text : schritt.art === "frage" ? null : schritt.kommentar;
     return text ? [`**${nr} · #${schritt.issue}**\n\n${zitat(text)}`] : [];
   });
   const fragen = nummeriert.flatMap(({ schritt }) => (schritt.art === "frage" ? [`- ${schritt.issue ? `#${schritt.issue}: ` : ""}${schritt.text}`] : []));
-  const daten = Buffer.from(JSON.stringify(plan), "utf8").toString("base64");
+  const daten = Buffer.from(JSON.stringify({ plan, offen }), "utf8").toString("base64");
   return [
-    `## Vorschlag zur Board-Pflege`,
+    "## Board-Pflege",
     "",
     plan.zusammenfassung,
-    "",
-    ...(zeilen.length > 0 ? ["| Nr. | Issue | Was | Felder | Grund |", "| --- | --- | --- | --- | --- |", ...zeilen] : ["Nichts umzusetzen."]),
-    ...(texte.length > 0 ? ["", "<details><summary>Kommentare im Wortlaut</summary>", "", ...texte.flatMap((t) => [t, ""]), "</details>"] : []),
+    ...(fertig.length > 0 ? ["", "### Erledigt", "", "| Nr. | Issue | Was | Ergebnis |", "| --- | --- | --- | --- |", ...fertig] : []),
+    ...(zeilen.length > 0 ? ["", "### Wartet auf dich", "", "| Nr. | Issue | Vorschlag | Grund |", "| --- | --- | --- | --- |", ...zeilen] : []),
+    ...(texte.length > 0 ? ["", "<details><summary>Vorgeschlagene Kommentare im Wortlaut</summary>", "", ...texte.flatMap((t) => [t, ""]), "</details>"] : []),
     ...(fragen.length > 0 ? ["", "### Fragen an dich", "", ...fragen] : []),
     "",
     "---",
-    "`/ok` setzt alles um, `/ok ohne 2, 5` alles außer diesen Nummern. `/überarbeiten …` mit deinen Änderungen erstellt einen neuen Vorschlag.",
+    ...(zeilen.length > 0
+      ? [
+          "`/ok` setzt alles unter „Wartet auf dich“ um, `/ok ohne 2, 5` alles außer diesen Nummern. `/überarbeiten …` mit deinen Änderungen erstellt einen neuen Vorschlag. Antwortest du nicht, passiert nichts davon.",
+        ]
+      : []),
     `Lauf: ${lauf}`,
     "",
     `<!-- ${MARKE}${daten} -->`,
   ].join("\n");
 }
 
-/** Plan aus einem Kommentar von alsKommentar(); null, wenn keiner drin ist */
-export function auslesen(text: string): Plan | null {
+/** Plan und offene Nummern aus einem Kommentar von alsKommentar(); null, wenn keiner drin ist */
+export function auslesen(text: string): { plan: Plan; offen: number[] } | null {
   const treffer = new RegExp(`<!-- ${MARKE}([A-Za-z0-9+/=]+) -->`).exec(text);
   if (!treffer) return null;
-  const ergebnis = pruefen(JSON.parse(Buffer.from(treffer[1], "base64").toString("utf8")));
-  return "plan" in ergebnis ? ergebnis.plan : null;
+  const daten = JSON.parse(Buffer.from(treffer[1], "base64").toString("utf8"));
+  const ergebnis = pruefen(daten?.plan);
+  if (!("plan" in ergebnis) || !Array.isArray(daten.offen)) return null;
+  return { plan: ergebnis.plan, offen: daten.offen.filter((n: unknown) => Number.isInteger(n)) };
 }
 
 export type Freigabe = { art: "ok"; ohne: number[] } | { art: "überarbeiten"; wunsch: string } | null;
@@ -137,16 +160,4 @@ export function freigabe(text: string): Freigabe {
   const neu = /^\/(?:überarbeiten|ueberarbeiten)\b\s*([\s\S]*)$/i.exec(kommentar);
   if (neu) return { art: "überarbeiten", wunsch: neu[1].trim() };
   return null;
-}
-
-export type Eintrag = { id: number; person: string; text: string };
-
-/**
- * Unbeantworteter Vorschlag, den ein neuer Lauf ersetzt statt eine zweite Tabelle anzuhängen: der letzte
- * Kommentar im Issue, wenn er ein Vorschlag des Bots ist. Hat jemand danach geschrieben (`/ok`, `/überarbeiten`,
- * eine Frage), bleibt er stehen, und der neue kommt darunter.
- */
-export function offenerVorschlag(liste: Eintrag[], bot: string): number | null {
-  const letzter = liste.at(-1);
-  return letzter && letzter.person === bot && auslesen(letzter.text) ? letzter.id : null;
 }

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { offenerVorschlag } from "./plan.ts";
 import { arbeit, type IssueKurz } from "./vorab.ts";
-import { alsKommentar } from "./plan.ts";
 
 const issue = (number: number, teil: Partial<IssueKurz> = {}): IssueKurz => ({ number, author: "anna", labels: [], kommentarVon: [], ...teil });
 
@@ -38,28 +36,5 @@ describe("arbeit", () => {
 
   it("meldet nichts, wenn alles beantwortet ist", () => {
     expect(arbeit([issue(1, { kommentarVon: ["firsttris"] })], new Set([1]))).toEqual({ ohneKarte: [], gespraeche: [] });
-  });
-});
-
-describe("offenerVorschlag", () => {
-  const BOT = "github-actions[bot]";
-  const vorschlag = alsKommentar({ zusammenfassung: "x", schritte: [] }, "");
-
-  it("ersetzt einen unbeantworteten Vorschlag", () => {
-    expect(offenerVorschlag([{ id: 1, person: BOT, text: vorschlag }], BOT)).toBe(1);
-  });
-
-  it("lässt ihn stehen, sobald jemand geantwortet hat", () => {
-    expect(
-      offenerVorschlag(
-        [
-          { id: 1, person: BOT, text: vorschlag },
-          { id: 2, person: "firsttris", text: "/überarbeiten …" },
-        ],
-        BOT,
-      ),
-    ).toBeNull();
-    expect(offenerVorschlag([{ id: 1, person: BOT, text: "Umgesetzt: …" }], BOT)).toBeNull();
-    expect(offenerVorschlag([], BOT)).toBeNull();
   });
 });

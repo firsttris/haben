@@ -2,8 +2,9 @@
 # - Täglich und auf Knopfdruck: Zuerst zählt vorab-pruefen.ts ohne KI, ob es neue Issues ohne Karte oder offene
 #   Gespräche gibt; ohne beides startet der Agent beim täglichen Lauf nicht. Sonst: Der Agent liest Board und Issues und schreibt einen Plan (plan.json). Er hat nur
 #   Leserechte und kein PROJECT_TOKEN; eine Prompt Injection in einem Issue kann damit nichts ändern.
-#   plan-posten.ts prüft den Plan und stellt ihn als Vorschlag ins Issue „Board-Pflege“ (Label board-pflege).
-# - `/ok` oder `/ok ohne 2, 5` des Maintainers dort: plan-anwenden.ts setzt genau diesen Plan um, ohne KI.
+#   plan-posten.ts prüft den Plan ohne KI, setzt die Routine sofort um (neue Karten einordnen, Rückfragen) und
+#   meldet im Issue „Board-Pflege“ (Label board-pflege), was erledigt ist und was auf den Maintainer wartet.
+# - `/ok` oder `/ok ohne 2, 5` des Maintainers dort: plan-anwenden.ts setzt das Wartende um, ohne KI.
 # - `/überarbeiten …` des Maintainers: neuer Vorschlag mit seinen Änderungen.
 # Secrets: ANTHROPIC_API_KEY (Abrechnung über die API) und PROJECT_TOKEN wie beim Workflow „Board“.
 name: Board-Pflege
@@ -85,10 +86,14 @@ jobs:
             Ergebnis ist genau eine Datei plan.json im Arbeitsverzeichnis, Aufbau wie `Plan` in
             scripts/board/plan.ts (dort stehen auch die erlaubten Werte):
             - "zusammenfassung": zwei bis vier Sätze, was diese Woche anliegt.
-            - "schritte": je Befund ein Schritt, in dieser Reihenfolge: Übernahmen ("zuweisen"), neue Issues
-              ("karte" mit Kommentar oder "kommentar" bei Rückfrage, Duplikat, nicht geplant, erledigt), Antworten
-              in offenen Gesprächen ("kommentar"), dann "frage" für alles, was nur der Maintainer entscheiden kann
-              (Schließen, Registrierungen, Verträge, Reihenfolge, Rechtsfragen, unsichere Steuerfragen).
+            - "schritte": je Befund ein Schritt, in dieser Reihenfolge: neue Issues ("karte" mit Kommentar, oder
+              "kommentar" mit "typ" rückfrage, duplikat, nicht-geplant oder erledigt), Übernahme-Wünsche ohne
+              `/übernehmen` ("zuweisen"), Antworten in offenen Gesprächen ("kommentar" mit "typ" antwort), dann
+              "frage" für alles, was nur der Maintainer entscheiden kann (Schließen, Registrierungen, Verträge,
+              Reihenfolge, Rechtsfragen, unsichere Steuerfragen).
+            - Wichtig: Neue Karten und Rückfragen werden SOFORT und ohne Rückfrage umgesetzt und öffentlich
+              kommentiert. Sei dort sorgfältig; im Zweifel lieber eine Rückfrage oder eine "frage" an den
+              Maintainer. Alles andere wartet auf sein OK.
             - Kommentare auf Deutsch, Du-Form, kurz, ohne Termin und ohne Hinweis auf ein Werkzeug, mit den
               Vorlagen aus Schritt 5 des Skills. Keine Kommentare zu Issues, die schon eine Einordnung haben.
             - Ist nichts zu tun: leere "schritte" und eine Zusammenfassung, die das sagt.
@@ -124,6 +129,7 @@ jobs:
       - run: bun scripts/board/plan-posten.ts plan.json
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
 
   umsetzen:
     if: >-

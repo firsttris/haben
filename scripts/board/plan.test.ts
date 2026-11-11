@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alsKommentar, auslesen, freigabe, type Plan, pruefen } from "./plan.ts";
+import { alsKommentar, auslesen, automatisch, freigabe, type Plan, pruefen } from "./plan.ts";
 
 const plan: Plan = {
   zusammenfassung: "Zwei neue Issues, eine Übernahme.",
@@ -16,8 +16,9 @@ const plan: Plan = {
       kommentar: "Danke! Ist jetzt im Board.",
       grund: "Fehler beim Storno",
     },
-    { art: "kommentar", issue: 644, text: "Danke! Damit wir es einordnen können, fehlt noch: …", grund: "Rückfrage" },
+    { art: "kommentar", typ: "rückfrage", issue: 644, text: "Danke! Damit wir es einordnen können, fehlt noch: …", grund: "Angaben fehlen" },
     { art: "zuweisen", issue: 424, person: "well100", kommentar: "@well100 gehört dir!", grund: "Übernahme mit Skizze" },
+    { art: "kommentar", typ: "nicht-geplant", issue: 497, text: "Danke! Das planen wir nicht: …", grund: "Bewusst nicht" },
     { art: "frage", issue: 654, text: "FinTS-Registrierung beantragen?" },
   ],
 };
@@ -33,7 +34,8 @@ describe("pruefen", () => {
       schritte: [
         { ...plan.schritte[0], status: "In Arbeit", bereich: "Küche" },
         { art: "zuweisen", issue: 1, person: "a b; rm -rf", kommentar: "x", grund: "x" },
-        { art: "löschen", issue: 2 },
+        { art: "kommentar", typ: "schließen", issue: 2, text: "x", grund: "x" },
+        { art: "löschen", issue: 3 },
       ],
     };
     const ergebnis = pruefen(falsch);
@@ -41,7 +43,8 @@ describe("pruefen", () => {
       "Schritt 1: „status“ muss Später oder Geplant sein.",
       "Schritt 1: „bereich“ ist keiner von Bank und Kasse, Belege, Rechnungen, Steuern, Buchhaltung, Lohn, Umzug, Oberfläche, Plattform.",
       "Schritt 2: „person“ ist kein GitHub-Login.",
-      "Schritt 3: unbekannte Art „löschen“.",
+      "Schritt 3: „typ“ ist keiner von rückfrage, antwort, nicht-geplant, duplikat, erledigt.",
+      "Schritt 4: unbekannte Art „löschen“.",
     ]);
   });
 
@@ -51,18 +54,36 @@ describe("pruefen", () => {
   });
 });
 
-describe("alsKommentar und auslesen", () => {
-  const text = alsKommentar(plan, "https://github.com/firsttris/haben/actions/runs/1");
+describe("automatisch", () => {
+  it("macht nur Karten und Rückfragen ohne OK", () => {
+    expect(plan.schritte.map(automatisch)).toEqual([true, true, false, false, false]);
+  });
+});
 
-  it("zeigt Tabelle, Wortlaut und Fragen", () => {
-    expect(text).toContain("| 1 | #653 | Karte: Geplant, nach #634 | S · Belege | Fehler beim Storno |");
-    expect(text).toContain("| 3 | #424 | zuweisen an @well100 |");
+describe("alsKommentar und auslesen", () => {
+  const erledigt = new Map([
+    [1, "✓ Karte: Geplant, nach #634"],
+    [2, "✓ kommentiert"],
+  ]);
+  const text = alsKommentar(plan, "https://github.com/firsttris/haben/actions/runs/1", erledigt, [3, 4]);
+
+  it("trennt Erledigtes und was wartet, mit Wortlaut und Fragen", () => {
+    expect(text).toContain("### Erledigt");
+    expect(text).toContain("| 1 | #653 | Karte: Geplant, nach #634 (S · Belege) | ✓ Karte: Geplant, nach #634 |");
+    expect(text).toContain("### Wartet auf dich");
+    expect(text).toContain("| 3 | #424 | zuweisen an @well100 | Übernahme mit Skizze |");
+    expect(text).toContain("| 4 | #497 | Kommentar (nicht-geplant) | Bewusst nicht |");
     expect(text).toContain("> @well100 gehört dir!");
+    expect(text).not.toContain("> Danke! Ist jetzt im Board.");
     expect(text).toContain("- #654: FinTS-Registrierung beantragen?");
   });
 
-  it("liest genau den Plan zurück, der angezeigt wird", () => {
-    expect(auslesen(text)).toEqual(plan);
+  it("liest genau den Plan und die offenen Nummern zurück, die angezeigt werden", () => {
+    expect(auslesen(text)).toEqual({ plan, offen: [3, 4] });
+  });
+
+  it("zeigt ohne Wartendes keinen Hinweis auf /ok", () => {
+    expect(alsKommentar(plan, "", erledigt, [])).not.toContain("`/ok`");
   });
 
   it("findet ohne Marke keinen Plan", () => {
@@ -70,8 +91,8 @@ describe("alsKommentar und auslesen", () => {
   });
 
   it("maskiert senkrechte Striche in Zellen", () => {
-    const mitStrich: Plan = { zusammenfassung: "", schritte: [{ art: "kommentar", issue: 1, text: "x", grund: "a | b" }] };
-    expect(alsKommentar(mitStrich, "")).toContain("a \\| b");
+    const mitStrich: Plan = { zusammenfassung: "", schritte: [{ art: "kommentar", typ: "antwort", issue: 1, text: "x", grund: "a | b" }] };
+    expect(alsKommentar(mitStrich, "", new Map(), [1])).toContain("a \\| b");
   });
 });
 
