@@ -7,8 +7,6 @@ description: >-
 
 # REST-API
 
-API-Tokens besitzen einen verantwortlichen Inhaber. Wird dessen Inhaberrolle bei einer geprüften SSO-Anmeldung entzogen, deaktiviert Haben die Tokens, erhält aber Geheimnis, Rechte und Ablaufdatum. Ein anderer Inhaber kann sie in den Einstellungen ausdrücklich übernehmen und reaktivieren, der einzige Inhaber auch seine eigenen. Ohne erneuten OIDC-Durchlauf gilt ein Token höchstens 30 Tage nach der letzten Bestätigung des Verantwortlichen. Endgültig widerrufene und abgelaufene Tokens bleiben unbrauchbar. Bei der Einführung werden alte Tokens ohne belegbare Verantwortung bis zur ausdrücklichen Übernahme deaktiviert.
-
 Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe in Haben an, etwa eine Automation, die Bestellungen aus Etsy oder eBay holt. Haben bekommt dafür keine eigene Bestellverwaltung: Die Bestellung bleibt auf der Plattform, Haben schreibt die Rechnung dazu. Ebenso liefern eigene Werkzeuge, Dokumentenarchive und Skripte Eingangsbelege an Haben, die dort unter **Belege** als „Zu prüfen“ landen.
 
 Die Oberfläche einer solchen Automation kannst du als [eigene Seite](eigene-seiten.md) ins Menü von Haben hängen.
@@ -250,5 +248,6 @@ Paperless-ngx schickt neue Dokumente mit einem Workflow ohne eigenen Code an Hab
 - Jedes Token hat nur die Rechte, die du ihm gibst. Keines kann buchen, festschreiben, stornieren, versenden oder etwas an ELSTER schicken, und keines sieht Zertifikat, Passwörter, API-Schlüssel oder Steuer-ID. Ein Token mit `belege:anlegen` kann Belege nur hinzufügen, nicht ändern, löschen oder herunterladen.
 - Die API meldet sich nur mit dem Token an, nie mit dem Sitzungscookie. Eine fremde Webseite, die du im selben Browser öffnest, kann sie deshalb nicht in deinem Namen aufrufen.
 - Ein Token ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten deines Werkzeugs, nicht im Klartext in Skripten oder Workflows, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
+- Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
 
 [Zurück zur Übersicht](ueberblick.md)

@@ -23,7 +23,7 @@ NoNewPrivileges=true
 Volume=haben-belege.volume:/var/lib/haben/belege
 # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
 Volume=haben-eric-log.volume:/var/lib/haben/eric-log
-# ERiC, von Haben heruntergeladen (Einstellungen › ERiC oder ERIC_AUTO_INSTALL=ja in haben.env)
+# ERiC, von Haben heruntergeladen (Einstellungen › ELSTER › ERiC oder ERIC_AUTO_INSTALL=ja in haben.env)
 Volume=haben-eric.volume:/var/lib/haben/eric
 # OIDC_SCOPES in haben.env legt bei Bedarf die angefragten Scopes fest.
 EnvironmentFile=%h/.config/haben/haben.env
