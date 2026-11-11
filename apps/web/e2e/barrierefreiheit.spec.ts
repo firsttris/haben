@@ -483,18 +483,19 @@ function checkboxHintProblems(p: Page) {
         const next = label.nextElementSibling;
         if (!next || !["P", "SPAN"].includes(next.tagName) || next.classList.contains("banner") || !(next.textContent ?? "").trim()) return [];
         const linked = next.id !== "" && ids.includes(next.id);
-        return next.classList.contains("field-hint") && linked
-          ? []
-          : [
-              `${where(input)}: Hinweis „${(next.textContent ?? "").trim().slice(0, 40)}“ neben dem Label ist ${linked ? "kein .field-hint" : "nicht per aria-describedby verknüpft"}`,
-            ];
+        const text = (next.textContent ?? "").trim().slice(0, 40);
+        if (!next.classList.contains("field-hint") || !linked) {
+          return [`${where(input)}: Hinweis „${text}“ neben dem Label ist ${linked ? "kein .field-hint" : "nicht per aria-describedby verknüpft"}`];
+        }
+        // Einzug und Zeilenhöhe kommen aus .checkbox-hinted (styles.css)
+        return label.parentElement?.classList.contains("checkbox-hinted") ? [] : [`${where(input)}: Hinweis „${text}“ steht nicht in .checkbox-hinted`];
       });
     });
   });
 }
 
 for (const group of chunks(PAGES, GROUP)) {
-  test(`Hinweis eines Kontrollkästchens: außerhalb des Labels, als .field-hint, verknüpft: ${group.join(", ")}`, async ({ page }) => {
+  test(`Hinweis eines Kontrollkästchens: außerhalb des Labels, als .field-hint in .checkbox-hinted, verknüpft: ${group.join(", ")}`, async ({ page }) => {
     for (const path of group) {
       await open(page, path);
       expect.soft(await checkboxHintProblems(page), path).toEqual([]);
