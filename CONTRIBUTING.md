@@ -19,7 +19,7 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 
 Such dir eine Karte aus „Geplant“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, für den
 Einstieg gern mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg), und
-schreib im Issue, dass du es übernimmst; ein Maintainer weist es dir zu. Wie das genau abläuft, steht unter
+kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau abläuft, steht unter
 [Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen).
 
 ## Pull Requests
