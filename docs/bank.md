@@ -121,6 +121,10 @@ Jeder Umsatz bekommt einen Hash aus Buchungsdatum, Betrag, IBAN der Gegenseite u
 
 Umsätze, deren Hash es für das Konto schon gibt, überspringt Haben. Du kannst also überlappende Zeiträume oder dieselbe Datei noch einmal importieren, ohne doppelte Umsätze zu bekommen. Während eines Imports ist das Konto gesperrt, damit parallele Importe nichts doppelt anlegen.
 
+Die Prüfung gilt innerhalb einer Quelle. Sie erkennt nicht, dass dieselbe Zahlung aus zwei Exporten stammt: Accountable schreibt das Zahlungsdatum, Swan das Buchungsdatum, und beide liegen oft ein bis drei Tage auseinander. Ein Konto bekommt seine Umsätze deshalb aus einer Quelle. Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz.
+
+Liegen im Zeitraum des neuen Auszugs schon Umsätze aus einem anderen Dateiformat und legt der Import trotzdem Umsätze neu an, meldet Haben das neben der Meldung zur Lücke, mit Zeitraum, Quelle und Anzahl. Importiert wird trotzdem. Unscharf über Betrag und Datum verglichen wird bewusst nicht, sonst blieben echte gleiche Zahlungen an Folgetagen unbemerkt.
+
 ### Saldenprüfung
 
 Haben vergleicht den Anfangssaldo der neuen Datei mit dem Endsaldo des vorigen Imports desselben Kontos. Passen sie nicht zusammen und überschneiden sich die Zeiträume nicht, meldet Haben eine Lücke mit Differenz, etwa: „Lücke: Anfangssaldo … passt nicht zum Endsaldo … des vorigen Imports. … vermutlich fehlen Umsätze dazwischen.“ Importiert wird trotzdem.

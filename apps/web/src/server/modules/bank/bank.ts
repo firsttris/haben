@@ -68,6 +68,7 @@ import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { quellenHinweis } from "./quellen.ts";
 
 export class BankError extends UserError {}
 
@@ -191,6 +192,8 @@ export interface ImportResult {
   skipped: number;
   warnings: string[];
   gap: string | null;
+  /** Meldung, wenn im Zeitraum schon Umsätze aus einem anderen Dateiformat liegen (#632) */
+  quelle: string | null;
 }
 
 /**
@@ -324,6 +327,7 @@ export async function storeStatement(
     skipped: transactions.length - added,
     warnings: statement.warnings,
     gap: continuity.ok ? null : (continuity.message ?? "Lücke zum vorigen Import"),
+    quelle: await quellenHinweis(tx, account.id, statement.format, added, statement.periodFrom, statement.periodTo, transactions),
   };
 }
 
