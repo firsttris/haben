@@ -251,6 +251,9 @@ Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabh�
   `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
 - **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
   Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
+- **Wenige Abhängigkeiten:** gut zwanzig direkte Pakete zur Laufzeit, keine Komponentenbibliothek, schlichtes CSS.
+  Was mit wenigen Zeilen eigenem Code geht, holt Haben nicht als Paket dazu: Jedes Paket weniger ist eine mögliche
+  Lücke und ein Update weniger.
 - **Aktuell gehalten:** Renovate bringt Updates der Abhängigkeiten als Pull Request durch die CI; bekannte Lücken
   (Dependabot-Warnungen und OSV-Datenbank) behebt es außerhalb des Zeitplans, siehe
   [SECURITY.md](SECURITY.md#abhängigkeiten-aktuell-halten).
