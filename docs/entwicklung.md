@@ -541,7 +541,7 @@ Was das nicht leistet: Die Leitplanken fangen Fehler, die ein Test zeigen kann. 
 
 ### Automatische Prüfungen der Regeln
 
-Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verloren. Was sich sicher entscheiden lässt, prüft deshalb ein Skript; was nicht, erscheint als Hinweis.
+Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verloren. Was sich sicher entscheiden lässt, prüft deshalb ein Skript; was nicht, erscheint als Hinweis, bei „PR-Regeln“ auch als Kommentar im Pull Request.
 
 | Regel | Prüfung | Wirkung |
 | --- | --- | --- |
@@ -562,6 +562,8 @@ Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verl
 | Doku baut ohne Warnung | Workflow „Docs“ auch im Pull Request | Fehler |
 | Jede Seite in `docs/` mit `description:` im Front Matter | Workflow „Docs“ (`docs.yml`) | Fehler |
 | Jede versiegelte, nur anhängbare oder gegen Löschen gesperrte Tabelle und jede, deren Löschen das Audit-Log aufzeichnet, hat einen Trigger vor `TRUNCATE` | `apps/web/src/server/db/truncate.test.ts` in `bun run test` (mit Postgres) | Fehler |
+
+Was „PR-Regeln“ meldet, steht nicht nur im Lauf unter „Checks“, sondern auch als Kommentar im Pull Request. Den schreibt der Workflow „PR-Regeln Kommentar“ (`pr-regeln-kommentar.yml`), sobald die Prüfung fertig ist: einen je Pull Request, mit Fehlern und Hinweisen getrennt, bei jedem Push geändert statt neu angelegt. Ohne Fehler und Hinweise kommt kein Kommentar; steht schon einer da, zeigt er dann, dass nichts mehr offen ist. Die Prüfung selbst läuft mit Leserecht und legt ihr Ergebnis als Artefakt ab; erst der zweite Workflow darf kommentieren, auch bei Pull Requests aus Forks. Er liest vom Pull Request nur dieses Artefakt, nimmt es nur in der erwarteten Form an (`scripts/pr-regeln/kommentar.ts`) und kommentiert nur, wenn der Pull Request offen ist und sein letzter Commit der geprüfte ist. Erwähnungen wie `@name` aus dem Titel benachrichtigen dabei niemanden. Weil GitHub `workflow_run` nur aus der Fassung auf `main` startet, wirkt eine Änderung am Kommentar-Workflow erst nach dem Merge.
 
 Die Feldregel ist ein GritQL-Muster für Biome (`scripts/felder/kein-label-field.grit`, in `biome.jsonc` unter `plugins`). Sie meldet ein `<label>` mit `field` als Wort in einem festen `className` (`"field"`, `"field weitere"`, `{"field"}`), nicht `field-label` und nicht `div.field`. Eine berechnete Klasse sieht ein Muster nicht; dafür prüft der Playwright-Test auf allen Seiten der Routenliste, dass es kein `label.field` gibt und jeder Feldname per `for` auf sein Feld zeigt. Was nur hinter Dialogen oder Zuständen erscheint, erreicht er nicht.
 
