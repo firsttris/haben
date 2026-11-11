@@ -636,7 +636,7 @@ Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret bene
 
 **Umgangston:** nach dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md). Rückmeldungen trennen, was vor dem Merge nötig ist, von Vorschlägen; nach dem Merge bedanken wir uns im Pull Request.
 
-Das Ergebnis ist eine Empfehlung an die prüfende Person: annehmen und ins Review, annehmen nach Änderungen, teilen oder ablehnen. Im Pull Request erscheint sie erst, wenn sie zustimmt, mit Dank, Begründung und konkreten Aufgaben. Fehlen nur Doku oder Tests, darf sie sie auch selbst auf den Branch des Pull Requests ergänzen, wie Fixes im Review (Schritt 4). Ablehnen und Schließen entscheidet der Maintainer. Wird ein Thema dabei grundsätzlich abgelehnt, kommt es mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht), damit niemand es noch einmal baut.
+Ist die Änderung gewollt und der Weg richtig, machen wir sie selbst fertig, statt auf den Beitragenden zu warten: ein Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch des Pull Requests wie Fixes im Review (Schritt 4), das TDD-Review und der Merge bei grüner CI. Ist sie schon gut, geht sie direkt ins Review und wird gemergt. Angehalten wird nur, wenn ein Mensch entscheiden muss: Ablehnen oder Teilen, eine grundsätzliche Entscheidung oder eine fachliche Frage ohne eindeutige Quelle. Ablehnen und Schließen entscheidet der Maintainer; wird ein Thema grundsätzlich abgelehnt, kommt es mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht), damit niemand es noch einmal baut.
 
 ### Review
 
