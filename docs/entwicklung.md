@@ -490,6 +490,16 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Texte in der Oberfläche auf Deutsch.
 - Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub; ein Branch nur für Bilder ist eine Notlösung, nur im eigenen Fork und nie im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
 
+### Etwas übernehmen
+
+Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus:
+
+1. **Aussuchen:** eine Karte aus „Geplant“, am liebsten weit oben, denn die Reihenfolge ist die Priorität. Für den Einstieg eignen sich Karten mit Aufwand „S“ und Issues mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg). Ein Entwurf ohne Issue bekommt zuerst ein Issue.
+2. **Melden:** im Issue kommentieren, dass du es übernimmst, gern mit einem kurzen Plan. Ist es schon jemandem zugewiesen, ist es vergeben.
+3. **Zuweisen:** Ein Maintainer weist dir das Issue zu; das geht auch ohne Schreibrecht, sobald du im Issue kommentiert hast. Die Karte wandert dann nach „In Arbeit“ (siehe „Vom Issue zum Release“ unten).
+4. **Freigeben:** Kommt 14 Tage lang weder ein Pull Request noch ein Lebenszeichen, fragt ein Maintainer nach und löst die Zuweisung, wenn keine Antwort kommt. Wer aufhören will, schreibt es kurz ins Issue.
+5. **Bauen:** wie im Folgenden beschrieben, mit `Umgesetzt #…` in der Beschreibung des Pull Requests. Ein früher Entwurf als Pull Request hilft, wenn du unsicher bist, ob der Weg passt.
+
 ### Branches, Titel und Commits
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht. Vor jedem Push prüfen, ob der Pull Request des Branches noch offen ist; ist er gemergt, neu von `origin/main` und ein neuer Pull Request. Force-Push nur mit `--force-with-lease` auf den eigenen Branch nach einem Merge.
@@ -565,6 +575,7 @@ Neben dem Typ gibt es diese Labels:
 | `technik` | Abhängigkeiten, CI, Werkzeuge fürs Projekt |
 | `doku` | Dokumentation (`docs/`, Website) |
 | `sammlung` | Sammel-Issue zum Nachverfolgen |
+| `einstieg` | Klein und abgegrenzt, gut für den Einstieg (siehe [Etwas übernehmen](#etwas-übernehmen)) |
 | `jahreswerte` | Befund des Workflows „Jahreswerte prüfen“ |
 
 ### Review
