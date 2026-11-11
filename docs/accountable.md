@@ -78,7 +78,7 @@ Im Archiv erscheint jede Ausgabe unter diesem Kennzeichen, du kannst danach such
 
 ## Bankumsätze kommen aus den Kontoauszügen
 
-Das Sheet „Kontobewegungen“ in `Daten.xlsx` enthält dieselben Zahlungen wie die Kontoauszüge, nur mit dem Zahlungsdatum statt dem Buchungsdatum. Ein Konto bekommt seine Umsätze deshalb aus einer Quelle. Wer die Auszüge importiert, lässt den Export als Bankquelle weg; wer aus dem Export importiert, importiert für denselben Zeitraum keinen Auszug mehr. Gemischt ergibt das doppelte Umsätze, weil der Dubletten-Hash das Datum enthält; Haben meldet den Fall beim Import (siehe [Bank](bank.md#dubletten)).
+Das Sheet „Kontobewegungen“ in `Daten.xlsx` enthält dieselben Zahlungen wie die Kontoauszüge, nur mit dem Zahlungsdatum statt dem Buchungsdatum. Der Import liest es nicht ein; die Bankumsätze kommen aus den Kontoauszügen der Bank oder aus dem Abruf (siehe [Bank](bank.md)). Ein Konto bekommt seine Umsätze aus einer Quelle: Wer die Quelle wechselt, etwa vom Abruf zu Dateien, importiert ab dem Tag nach dem letzten vorhandenen Umsatz. Gemischt ergibt das doppelte Umsätze, weil der Dubletten-Hash das Datum enthält; Haben meldet den Fall beim Import (siehe [Bank](bank.md#dubletten)).
 
 ## Kategorie und Zahlungsstatus
 
