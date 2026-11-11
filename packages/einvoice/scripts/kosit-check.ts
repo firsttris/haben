@@ -13,6 +13,7 @@ import {
   grossPriceLines,
   mixedRateLines,
   publicBuyer,
+  sampleBuyer,
   sampleDocument,
   sampleSeller,
   thirdCountryBuyer,
@@ -87,6 +88,16 @@ const samples: Record<string, InvoiceDocument> = {
         },
       ],
       [`skonto-leitweg-${format}`, { ...sampleDocument({ format, buyer: publicBuyer }), skonto: [{ days: 7, percent: 250 }] }],
+    ]),
+  ),
+  // Ansprechpartner des Käufers (BT-56) neben der Kontakt-E-Mail (BT-58), in allen drei Formaten (#424)
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => [
+      `ansprechpartner-${format}`,
+      sampleDocument({
+        format,
+        buyer: { ...sampleBuyer, ansprechpartner: { name: "Mara Beispiel", email: "mara@nordwerk.example", telefon: "+49 40 7654321", funktion: "Einkauf" } },
+      }),
     ]),
   ),
   "leitweg-xr-cii": sampleDocument({ format: "xrechnung-cii", buyer: publicBuyer }),

@@ -44,10 +44,22 @@ export interface Seller extends Address {
   legalInfo?: LegalInfo;
 }
 
+/**
+ * Ansprechpartner des Käufers (#424), Stand beim Festschreiben. Im PDF steht nur der Name („z. Hd. …“), in der E-Rechnung
+ * der Name als BT-56; E-Mail, Telefon und Funktion dienen Haben (Kontaktseite, Auswahl), nicht dem Beleg.
+ */
+export interface Ansprechpartner {
+  name: string;
+  email?: string;
+  telefon?: string;
+  funktion?: string;
+}
+
 export interface Buyer extends Address {
   name: string;
   email?: string;
   ustId?: string;
+  ansprechpartner?: Ansprechpartner;
   /** Leitweg-ID öffentlicher Auftraggeber (BT-10) */
   leitwegId?: string;
   kundennummer?: string;

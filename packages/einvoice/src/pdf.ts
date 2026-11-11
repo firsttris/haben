@@ -36,9 +36,12 @@ export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   return lines;
 }
 
-/** Empfängerblock aller Belege: Name und Anschrift des Käufers, eine Zeile je Eintrag */
+/**
+ * Empfängerblock aller Belege, eine Zeile je Eintrag: Name des Käufers, bei einem Ansprechpartner „z. Hd. …“ (#424),
+ * dann die Anschrift. Die Zeile kommt als Eintrag im Feld `recipient` bei jeder Vorlage an, auch bei eigenen.
+ */
 export function recipientLines(buyer: Buyer, t: Texts = TEXTS.de): string[] {
-  return [buyer.name, ...addressLines(buyer, t)];
+  return [buyer.name, ...(buyer.ansprechpartner ? [t.attention(buyer.ansprechpartner.name)] : []), ...addressLines(buyer, t)];
 }
 
 /** Spaltenköpfe und Seitenzahl für das Template; bei Bruttopreisen steht in der letzten Spalte der Bruttobetrag */
