@@ -296,3 +296,43 @@ test("am Handy klappt nichts auf, auch bei einem langen Namen", async ({ page })
     await expect(voll(page), `${breite}px`).not.toBeVisible();
   }
 });
+
+// Escape gehört zuerst dem aufgeklappten Namen: In der Belegansicht führt Escape sonst zurück zur Liste, und wer nur den
+// Namen schließen wollte, verlässt den Beleg. Ist der Name nicht offen, bleibt Escape bei der Seite
+async function ersterBeleg(page: Page): Promise<string> {
+  await page.goto("/belege");
+  const zeile = page.locator('a.table-row[href^="/belege/"]').first();
+  await expect(zeile).toBeVisible();
+  await zeile.click();
+  await expect(page).toHaveURL(/\/belege\/[^/?]+$/);
+  return new URL(page.url()).pathname;
+}
+
+test("Escape schließt in der Belegansicht nur den aufgeklappten Namen und bleibt im Beleg", async ({ page }) => {
+  const pfad = await ersterBeleg(page);
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await nameSetzen(page, LANG);
+  await marke(page).hover();
+  await expect(voll(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(voll(page)).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(new URL(page.url()).pathname).toBe(pfad);
+  // Mit Tastaturfokus auf „Haben“ ebenso
+  await page.mouse.move(900, 500);
+  await marke(page).focus();
+  await expect(voll(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(voll(page)).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(new URL(page.url()).pathname).toBe(pfad);
+});
+
+test("Escape bei geschlossenem Namen führt in der Belegansicht weiter zur Liste", async ({ page }) => {
+  await ersterBeleg(page);
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await expect(voll(page)).toHaveCount(0);
+  await page.mouse.move(900, 500);
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/belege$/);
+});
