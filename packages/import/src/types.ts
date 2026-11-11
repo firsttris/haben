@@ -4,6 +4,8 @@ export type StatementFormat =
   | "dkb-csv"
   | "dkb-csv-alt"
   | "n26-csv"
+  /** Kontoauszug von Swan (CSV mit Kopfblock, Datum TT/MM/JJJJ) */
+  | "swan-csv"
   | "camt053"
   | "enablebanking"
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
