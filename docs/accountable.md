@@ -135,9 +135,12 @@ Accountable kann eine Rechnung auf mehrere Konten verteilen. Im Ausgabenblatt st
 Konto eine Zeile, alle mit demselben Lieferanten und Datum, aber ohne Belegnummer, die sie
 zusammenbindet. Beim Export fehlt damit die Angabe, welche Zeilen eine Rechnung sind.
 
-Wer die Zeilen einzeln übernimmt, bekommt einen Beleg über den Teilbetrag der ersten Zeile.
-Die übrigen Zeilen haben keine eigene Datei, werden deshalb nicht gebucht und fehlen im
-Aufwand und in der Vorsteuer.
+Spalte Y, Dokument vorhanden, gilt für die ganze Rechnung und nicht für die einzelne Zeile:
+sie steht auch an den Zeilen, die keinen eigenen Dateinamen tragen. Im Belege-Ordner liegt die
+Datei einmal, benannt nach Datum und Lieferant.
+
+Wer die Zeilen einzeln übernimmt, bekommt deshalb einen Beleg über den Teilbetrag einer Zeile,
+während die übrigen ohne Buchung bleiben und im Aufwand und in der Vorsteuer fehlen.
 
 `sammelrechnungen()` fasst Zeilen mit gleichem Lieferanten und Datum zu einer Rechnung
 zusammen und liefert die Positionen einzeln, damit Haben sie als Aufteilung bucht.
