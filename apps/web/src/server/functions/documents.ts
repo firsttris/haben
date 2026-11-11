@@ -27,6 +27,7 @@ import {
   uploadDocument,
 } from "../modules/belege/index.ts";
 import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
+import { listSettlements, openAmount, reverseSettlement, settleDocuments, settlementCandidates, settlementSchema } from "../modules/bank/verrechnung.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
 import { documentBankAllocations, documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
@@ -183,3 +184,30 @@ export const reenterDocumentFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => ({ id: await reenterDocument(context.user.id, data) }));
+
+/**
+ * Verrechnung zweier Eingangsbelege ohne Zahlung (#274): Gutschrift und Rechnung gleichen sich aus,
+ * ohne dass ein Bankumsatz entsteht. Gibt die Verrechnung samt Gegenbelegen zurück.
+ */
+export const settleDocumentsFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(settlementSchema)
+  .handler(async ({ data, context }) => settleDocuments(context.user.id, data));
+
+export const reverseSettlementFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    await reverseSettlement(context.user.id, data);
+    return { ok: true };
+  });
+
+/** Verrechnungen eines Belegs und die offenen Belege desselben Lieferanten als Gegenbeleg */
+export const getDocumentSettlements = createServerFn({ method: "GET" })
+  .middleware([readMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data }) => ({
+    settlements: await listSettlements(data),
+    candidates: await settlementCandidates(data),
+    open: await openAmount(data),
+  }));

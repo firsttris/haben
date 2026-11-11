@@ -469,6 +469,7 @@ async function paidSums(ids: string[]) {
     sql`select id, sum(amount) as paid from (
           select document_id as id, amount from allocations where document_id in ${ids}
           union all select document_id as id, amount from write_offs where document_id in ${ids}
+          union all select document_id as id, amount from document_settlements where document_id in ${ids}
         ) settled group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
