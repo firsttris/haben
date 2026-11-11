@@ -68,6 +68,7 @@ import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
 export class BankError extends UserError {}
 
@@ -344,7 +345,8 @@ const openAmountSql = bankOpenAmountSql;
 
 export type TransactionFilter = "offen" | "zugeordnet" | "alle";
 
-export async function listTransactions(accountId: string, filter: TransactionFilter, search: string) {
+/** Höchstens 500 Umsätze, sortiert vor der Grenze (umsatzliste.ts); ohne Sortierung der neueste oben */
+export async function listTransactions(accountId: string, filter: TransactionFilter, search: string, sortierung: UmsatzSortierung = STANDARD_SORTIERUNG) {
   const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
@@ -373,7 +375,7 @@ export async function listTransactions(accountId: string, filter: TransactionFil
     })
     .from(schema.bankTransactions)
     .where(and(...conditions))
-    .orderBy(desc(schema.bankTransactions.bookingDate), desc(schema.bankTransactions.createdAt))
+    .orderBy(...umsatzReihenfolge(sortierung))
     .limit(500);
 }
 
