@@ -88,6 +88,7 @@ export default defineConfig({
         "gestaltung.spec.ts",
         "layouts.spec.ts",
         "handy-felder.spec.ts",
+        "bank-sortierung.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",
