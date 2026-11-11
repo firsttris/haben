@@ -54,6 +54,9 @@ auf deinem eigenen Server betreibst.
 **🇩🇪 Made in Germany**
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
+- **Nachprüfbar statt „vertrau uns“**: Beim Umzug rechnet Haben deine alten Jahre nach, zum Vergleich mit deinen
+  Voranmeldungen und dem Abschluss der Steuerberatung; danach führt jede Kennzahl zu den Rechnungen, Belegen und
+  Zahlungen dahinter, siehe [Woher weiß ich, dass die Zahlen stimmen?](#-faq)
 - **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
@@ -166,6 +169,31 @@ Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben 
 sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen und Organschaft) und
 bucht Gewinnausschüttungen samt Kapitalertragsteuer-Anmeldung und Steuerbescheinigungen für die Gesellschafter. Die Bilanz zur Hinterlegung beim Unternehmensregister
 erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesellschaftern. Den Lohn des Gesellschafter-Geschäftsführers, von Minijobs und (als Entwurf zum Gegenprüfen) von Angestellten rechnet und bucht Haben, meldet die Lohnsteuer über ELSTER an und listet Beitragsnachweis und Meldungen zum Abtippen im SV-Meldeportal, siehe [Lohn](https://haben.app/lohn.html).
+</details>
+
+<details>
+<summary><b>Woher weiß ich, dass die Zahlen stimmen?</b></summary>
+
+Du musst Haben nicht glauben, du kannst nachrechnen:
+
+- **Vor dem Umzug:** Haben rechnet deine alten Jahre aus Lexware Office oder sevDesk nach, mit Einnahmen, Ausgaben und
+  Umsatzsteuer je Monat zum Vergleich mit deinen übermittelten Voranmeldungen. Bei GmbH und UG rechnet es aus dem
+  DATEV-Stapel Bilanz, GuV, Körperschaft- und Gewerbesteuer zum Vergleich mit dem Abschluss der Steuerberatung.
+  So siehst du vor der Kündigung, ob Haben auf dieselben Zahlen kommt, siehe
+  [Abgleich je Jahr](https://haben.app/lexoffice.html#schritt-5-abgleich-je-jahr).
+- **Im laufenden Jahr:** Unter jeder Kennzahl der Voranmeldung stehen die Rechnungen, Belege und Zahlungen dahinter,
+  jede Buchung im Journal führt zu ihrem Vorgang. Voranmeldung und EÜR rechnet Haben zweimal, aus dem Journal und aus
+  Rechnungen und Belegen, und zeigt, wo beides abweicht, siehe
+  [Abgleich von Journal, Umsatzsteuer und EÜR](https://haben.app/buchhaltung.html#abgleich-von-journal-umsatzsteuer-und-eür).
+- **Danach:** Das Änderungsprotokoll ist eine Hashkette, festgeschriebene Daten sind versiegelt, und den Prüfwert
+  bekommst du per E-Mail und im Jahresarchiv mit SHA-256-Prüfsummen, siehe
+  [Hash-Kette und Siegel](https://haben.app/buchhaltung.html#manipulationserkennung-hash-kette-und-siegel).
+- **Offen:** Code und Tests sind öffentlich, mit der Quelle (Gesetz, ERiC-Dokumentation, EN 16931) an den Stellen, wo
+  sie ein Detail entscheidet.
+
+Was das nicht ersetzt: Nachprüfbar heißt nicht geprüft. Ein Testat für die Software gibt es nicht, und ist eine
+Steuerregel falsch verstanden, rechnet Haben sie auch nachvollziehbar falsch. Die fachliche Prüfung bleibt bei dir und
+deiner Steuerberatung.
 </details>
 
 <details>
