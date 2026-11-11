@@ -466,8 +466,12 @@ test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zah
   await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
 });
 
-/** Kontrollkästchen und Optionsfelder, deren Hinweis im umschließenden `<label>` steht und damit zum Namen zählt */
-function hintsInCheckboxLabel(p: Page) {
+/**
+ * Kontrollkästchen und Optionsfelder mit Hinweis: Er steht nie im umschließenden `<label>` (sonst zählt er zum Namen) und
+ * folgt dem Label als `.field-hint`, auf den die Eingabe per `aria-describedby` zeigt (DESIGN.md, Felder). Ein Absatz oder
+ * `span` gleich hinter dem Label ohne diese Verknüpfung gilt als Hinweis, der es nicht ist.
+ */
+function checkboxHintProblems(p: Page) {
   return p.evaluate(() => {
     const where = (el: Element) =>
       `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
@@ -476,16 +480,27 @@ function hintsInCheckboxLabel(p: Page) {
       const ids = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
       const inLabel = ids.filter((id) => labels.some((label) => label.contains(document.getElementById(id))));
       const hint = labels.some((label) => label.querySelector(".field-hint"));
-      return inLabel.length || hint ? [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`] : [];
+      if (inLabel.length || hint) return [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`];
+      return labels.flatMap((label) => {
+        const next = label.nextElementSibling;
+        if (!next || !["P", "SPAN"].includes(next.tagName) || next.classList.contains("banner") || !(next.textContent ?? "").trim()) return [];
+        const linked = next.id !== "" && ids.includes(next.id);
+        const text = (next.textContent ?? "").trim().slice(0, 40);
+        if (!next.classList.contains("field-hint") || !linked) {
+          return [`${where(input)}: Hinweis „${text}“ neben dem Label ist ${linked ? "kein .field-hint" : "nicht per aria-describedby verknüpft"}`];
+        }
+        // Einzug und Zeilenhöhe kommen aus .checkbox-hinted (styles.css)
+        return label.parentElement?.classList.contains("checkbox-hinted") ? [] : [`${where(input)}: Hinweis „${text}“ steht nicht in .checkbox-hinted`];
+      });
     });
   });
 }
 
 for (const group of chunks(PAGES, GROUP)) {
-  test(`Kein Hinweis im Label eines Kontrollkästchens: ${group.join(", ")}`, async ({ page }) => {
+  test(`Hinweis eines Kontrollkästchens: außerhalb des Labels, als .field-hint in .checkbox-hinted, verknüpft: ${group.join(", ")}`, async ({ page }) => {
     for (const path of group) {
       await open(page, path);
-      expect.soft(await hintsInCheckboxLabel(page), path).toEqual([]);
+      expect.soft(await checkboxHintProblems(page), path).toEqual([]);
     }
   });
 }
