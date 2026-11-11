@@ -100,6 +100,7 @@ export {
   ansprechpartnerSnapshot,
   ContactPersonError,
   contactPersonInputSchema,
+  contactPersonOptions,
   contactPersonProblem,
   createContactPerson,
   listContactPersons,

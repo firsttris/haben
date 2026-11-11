@@ -106,6 +106,14 @@ export interface AbschlagOption {
   priceMode: PriceMode;
 }
 
+/** Ansprechpartner eines Kunden zur Auswahl im Entwurf (#424); deaktivierte nur, solange sie gewählt sind */
+export interface ContactPersonOption {
+  id: string;
+  contactId: string;
+  name: string;
+  deactivated: boolean;
+}
+
 /** Festgeschriebenes Angebot, zu dem eine Abschlags- oder Schlussrechnung gehören kann */
 export interface QuoteOption {
   id: string;
@@ -233,6 +241,7 @@ export function InvoiceEditor({
   attachments = null,
   planTemplates = [],
   mandates = [],
+  contactPersons = [],
   keptDeductions = [],
   action: sharedAction,
 }: {
@@ -279,6 +288,8 @@ export function InvoiceEditor({
   planTemplates?: PlanTemplate[];
   /** Gültige Lastschriftmandate aller Kunden (#445), für die Zahlungsart der Rechnung */
   mandates?: MandateOption[];
+  /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
+  contactPersons?: ContactPersonOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
   keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
@@ -296,6 +307,7 @@ export function InvoiceEditor({
   const editable = kind === "rechnung" || quote;
 
   const [contactId, setContactId] = useState(initial.contactId ?? "");
+  const [contactPersonId, setContactPersonId] = useState(initial.contactPersonId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
   const [newContactName, setNewContactName] = useState<string | null>(null);
   /** Offener Dialog „Neuer Artikel“ und die Position, die ihn danach übernimmt */
@@ -341,6 +353,8 @@ export function InvoiceEditor({
   const [logo, setLogo] = useLoadedState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
+  // Aktive Personen des gewählten Kunden; die schon gewählte bleibt in der Liste, auch wenn sie inzwischen deaktiviert ist
+  const contactPersonChoices = contactPersons.filter((p) => p.contactId === contactId && (!p.deactivated || p.id === contactPersonId));
   const contactChoices: ContactChoice[] = useMemo(
     () => contacts.map((c) => ({ id: c.id, name: c.name, ort: c.ort, nummer: c.kundennummer, ustId: c.ustId, isCustomer: c.isCustomer, isSupplier: false })),
     [contacts],
@@ -517,6 +531,8 @@ export function InvoiceEditor({
   /** saved: gerade im Dialog angelegt, steht also noch nicht in contacts */
   function chooseContact(value: string, saved?: SavedContact) {
     touch(setContactId)(value);
+    // Ein Ansprechpartner gehört zu genau einem Kunden
+    if (value !== contactId) setContactPersonId("");
     const chosen = saved ?? contacts.find((c) => c.id === value);
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
@@ -551,6 +567,7 @@ export function InvoiceEditor({
   function draft(): DraftInput {
     return {
       contactId: contactId || null,
+      contactPersonId: contactPersonId || null,
       issueDate,
       serviceFrom: serviceFrom || null,
       serviceTo: serviceTo || null,
@@ -777,6 +794,7 @@ export function InvoiceEditor({
               serviceTo: serviceTo || null,
               paymentTermDays: termValid ? term : 0,
               contactId: contactId || null,
+              contactPersonId: contactPersonId || null,
               ...references,
               lines: [...parsed, ...deductionPreview]
                 .filter((l) => l.valid)
@@ -847,6 +865,25 @@ export function InvoiceEditor({
                   />
                 )}
               </Field>
+              {contactPersonChoices.length > 0 && (
+                <Field
+                  label="Ansprechpartner"
+                  hint="Steht im PDF als „z. Hd.“ unter dem Firmennamen und in der E-Rechnung als Ansprechpartner des Käufers. Die Personen pflegst du am Kontakt."
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  {(control) => (
+                    <select {...control} value={contactPersonId} disabled={!editable} onChange={(e) => touch(setContactPersonId)(e.target.value)}>
+                      <option value="">Keiner</option>
+                      {contactPersonChoices.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                          {p.deactivated ? " (deaktiviert)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
+              )}
               {kind === "rechnung" && (variant || quoteId) && (
                 <Field
                   label="Angebot"

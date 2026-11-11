@@ -128,3 +128,17 @@ export async function ansprechpartnerSnapshot(
     ...(person.funktion ? { funktion: person.funktion } : {}),
   };
 }
+
+/** Alle Personen aller Kontakte für die Auswahl im Editor von Rechnung und Angebot; die Oberfläche filtert nach Kunde und Zustand */
+export async function contactPersonOptions(): Promise<{ id: string; contactId: string; name: string; deactivated: boolean }[]> {
+  const rows = await db
+    .select({
+      id: schema.contactPersons.id,
+      contactId: schema.contactPersons.contactId,
+      name: schema.contactPersons.name,
+      deactivatedAt: schema.contactPersons.deactivatedAt,
+    })
+    .from(schema.contactPersons)
+    .orderBy(asc(schema.contactPersons.name), asc(schema.contactPersons.createdAt));
+  return rows.map(({ deactivatedAt, ...person }) => ({ ...person, deactivated: deactivatedAt !== null }));
+}

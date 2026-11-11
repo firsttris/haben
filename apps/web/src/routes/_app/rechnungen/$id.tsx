@@ -54,6 +54,7 @@ function InvoicePage() {
         kind={invoice.kind}
         initial={{
           contactId: invoice.contactId,
+          contactPersonId: invoice.contactPersonId,
           issueDate: invoice.issueDate,
           serviceFrom: invoice.serviceFrom,
           serviceTo: invoice.serviceTo,
@@ -112,6 +113,7 @@ function InvoicePage() {
         kleinunternehmer={data.kleinunternehmer}
         companySkonto={data.companySkonto}
         mandates={data.mandates}
+        contactPersons={data.contactPersons}
         articles={data.articles}
         textBlocks={data.textBlocks}
         abschlaege={data.abschlaege}
