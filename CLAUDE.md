@@ -44,7 +44,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Tests for what changed: Vitest, Postgres tests next to the module, Playwright for what a user clicks; a bug
   fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax.
 - Docs in `docs/` in the same pull request; the README only when a feature area or its one-line summary changes.
-- Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
+- Reference issues with `Umgesetzt #…` (done) or `Refs #…` (part), never `Closes`/`Fixes`: the release closes them, not the merge (Mitwirken).
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
 - New data for the document templates: describe each field in the field contract (`packages/einvoice/src/layout-schema.ts`), then `bun scripts/feldvertrag/schreiben.ts` rewrites the `belegvorlage` skill and `docs/belegvorlagen.md`. Never remove, rename or retype a field of a released contract version; custom layouts depend on it (`docs/belegvorlagen.md`).

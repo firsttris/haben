@@ -1,3 +1,5 @@
+import { schliessendeStichwoerter } from "../board/regel.ts";
+
 /*
  * Regeln für Pull Requests aus CLAUDE.md und docs/entwicklung.md (Mitwirken), die sich am Pull Request selbst
  * prüfen lassen. Fehler halten den Pull Request auf, Hinweise erscheinen nur als Warnung an der Prüfung.
@@ -33,6 +35,17 @@ export function checkTitle(title: string): Report[] {
   }
   if (trimmed.endsWith(".")) return [{ level: "error", message: `Titel „${trimmed}“ endet ohne Punkt.` }];
   return [];
+}
+
+/**
+ * Issues verweist die Beschreibung mit `Refs #…` (Teil) oder `Umgesetzt #…` (fertig). `Closes` und `Fixes`
+ * schlössen das Issue schon beim Merge; geschlossen wird aber erst beim Release (scripts/board).
+ */
+export function checkBody(body: string | null): Report[] {
+  return schliessendeStichwoerter(body ?? "").map((treffer) => ({
+    level: "error",
+    message: `Beschreibung: „${treffer}“ schlösse das Issue schon beim Merge. Mit „Umgesetzt #…“ (fertig) oder „Refs #…“ (Teil) schließt es das Release.`,
+  }));
 }
 
 const isTest = (file: string) => /\.(test|spec)\.tsx?$/.test(file) || file.includes("/e2e/");

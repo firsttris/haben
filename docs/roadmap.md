@@ -15,8 +15,8 @@ Jede Karte ist ein Issue oder ein Entwurf, mit Aufwand, Bereich und Hinweis:
 | Später | Kommt nach den geplanten Karten |
 | Geplant | Wird gebaut, von oben nach unten |
 | In Arbeit | Jemand baut daran |
-| Rückmeldung | Umgesetzt; das Issue bleibt offen, bis die Meldenden bestätigen, dass nichts fehlt, ohne Antwort schließen wir es nach 14 Tagen |
-| Erledigt | Bestätigt und geschlossen |
+| Im nächsten Release | Umgesetzt und gemergt, kommt mit der nächsten Version |
+| Erledigt | Veröffentlicht; das Issue ist geschlossen. Fehlt danach etwas, gern ein neues Issue mit Verweis auf das alte |
 
 Die Reihenfolge: zuerst Fehler bei Steuer und Buchung, dann kleine Wünsche aus dem Alltag, dann was
 Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt. Wünsche kommen als

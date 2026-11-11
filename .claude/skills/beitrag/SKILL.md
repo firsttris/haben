@@ -24,7 +24,7 @@ Prüfungen nach Skill `checks`, dann Commits wie unter „Branches, Titel und Co
 Als Datei (im Scratchpad), auf Deutsch:
 
 - Titel `Bereich: was sich ändert (#Issue)`; den Rest prüft der Workflow „PR-Regeln“.
-- Was und warum, `Refs #…` (nicht `Closes`, siehe „Branches, Titel und Commits“), wie geprüft, **was übersprungen wurde** (Skill `checks`).
+- Was und warum, `Umgesetzt #…` wenn der Pull Request das Issue fertig macht, sonst `Refs #…` (nie `Closes` oder `Fixes`, siehe „Branches, Titel und Commits“), wie geprüft, **was übersprungen wurde** (Skill `checks`).
 - Bei Änderungen am Aussehen die Bilder nach Skill `pr-screenshots`.
 - Die Beschreibung wird die Nachricht des Squash-Commits auf `main` (`docs/entwicklung.md`, „Branches, Titel und Commits“): Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin.
 - Letzte Zeile „🤖 Generated with <Werkzeug>“.
