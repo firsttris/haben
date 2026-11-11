@@ -42,17 +42,23 @@ Je Punkt ein Ergebnis mit Beleg:
 - **Vollständig:** jedes Akzeptanzkriterium des Issues als Liste mit erfüllt, teilweise oder fehlt, mit Datei oder Test als Beleg. `Umgesetzt #…` nur, wenn alles erfüllt ist, sonst `Refs #…`.
 - **Sicherheit und Datenschutz:** neue Angriffsfläche (Routen ohne `authMiddleware`, Uploads, Fremd-URLs, Webhooks), Zugriff auf fremde Daten, Geheimnisse, Logs mit Belegdaten.
 
+**Klares Nein oder offene Entscheidung: hier anhalten.** Steht das Thema unter „Bewusst nicht“, gibt es es schon, wurde es mit Grund abgelehnt, ist der Ansatz grundsätzlich falsch, muss geteilt werden oder muss der Maintainer erst entscheiden, ob er es will (etwa ohne Issue): die Schritte 2 bis 4 auslassen und gleich nach Schritt 5 „Anhalten“, der Bericht nur mit „Wollen wir das?“.
+
 ## 2. Nach den Quellen gebaut und fachlich richtig?
 
 Der wichtigste Schritt bei Steuer, Buchung und Formaten: Hier sind Code und Test gemeinsam falsch und trotzdem grün. Ein grüner Test zeigt nur, dass der Code tut, was der Autor dachte.
 
-- Jede fachliche Aussage im Diff sammeln (Konto, Kennzahl, Frist, Satz, Rundung, Feld eines Formats, Business Term).
-- Steht die Primärquelle im Kommentar und in der Commit-Nachricht? Fehlt sie, ist das ein Befund.
-- Die Quelle selbst lesen und die Aussage daran prüfen, nicht nur ihr Dasein: Gesetz (gesetze-im-internet.de), BMF-Schreiben, Formularanleitung, ERiC-Dokumentation, EN 16931/XRechnung, DATEV-Formatbeschreibung, SKR03/SKR04 im Stand aus `scripts/jahreswerte/datev.ts`. Das Gesetz geht vor DATEV. Ratgeber und Blogs sind keine Quelle. GitHub-Quellen flach in den Scratchpad klonen.
-- Gilt die Regel für **SKR03 und SKR04**, **Ist und Soll**, **Einzelunternehmen und GmbH**, und für das richtige Jahr (Rechtsstand, Übergangsregeln)?
-- **Gegenrechnen:** für den typischen Fall und einen Randfall (Gutschrift, Jahreswechsel, Kleinunternehmer, Reverse Charge, Teilzahlung, was passt) das Ergebnis selbst aus der Quelle herleiten (Buchungssätze, Beträge in Cent, Kennzahlen, XML-Feld) und mit den Erwartungen in den Tests des Pull Requests vergleichen. Stimmt eine Erwartung nicht mit der Quelle überein, ist das ein Befund; der Test dazu entsteht in `tdd-review`.
-- Fehlt ein fachlicher Fall ganz, den die Quelle regelt und Nutzer von Haben haben, ist das ein Befund für „Vollständig“.
-- Ergebnis je Aussage: bestätigt (Quelle, Fundstelle), widerspricht (Zitat), nicht prüfbar (warum, z. B. braucht Steuerberatung). Nicht Prüfbares nicht als bestätigt melden.
+**Zuerst: fachlich heikel?** Ja, wenn die Änderung beeinflussen kann, was gebucht, versteuert, an ELSTER oder die Sozialversicherung gemeldet, ausgewertet oder festgeschrieben wird: Konten und Buchungssätze, Steuersätze und -beträge, Rundung, Ist und Soll, Fristen, Kennzahlen und XML für ELSTER, EÜR, Bilanz und E-Bilanz, Lohn, AfA, DATEV-Export, Siegel, Sperren und Audit-Kette, Migrationen auf bestehenden Daten. Anhaltspunkte im Diff: `packages/core`, `packages/elster`, die Module `buchhaltung`, `umsatzsteuer`, `elster`, `jahreserklaerung`, `auswertungen`, `lohn`, `sv-meldungen`, `ausschuettung`, `finanzamt`, Buchungslogik in `bank`, `belege`, `rechnungen`, und `apps/web/drizzle`. Im Zweifel: heikel.
+
+- **Nicht heikel** (Oberfläche, Doku, Import ohne Buchungslogik, Werkzeuge): Schritt 2 mit „betrifft nicht“ abschließen. Hängt doch ein Detail an einem Format oder Fremdsystem (CSV einer Bank, API von Enable Banking oder Lexware Office), nur diese Stelle an der Formatbeschreibung prüfen.
+- **Heikel:** die volle Prüfung:
+  - Jede fachliche Aussage im Diff sammeln (Konto, Kennzahl, Frist, Satz, Rundung, Feld eines Formats, Business Term).
+  - Steht die Primärquelle im Kommentar und in der Commit-Nachricht? Fehlt sie, ist das ein Befund.
+  - Die Quelle selbst lesen und die Aussage daran prüfen, nicht nur ihr Dasein: Gesetz (gesetze-im-internet.de), BMF-Schreiben, Formularanleitung, ERiC-Dokumentation, EN 16931/XRechnung, DATEV-Formatbeschreibung, SKR03/SKR04 im Stand aus `scripts/jahreswerte/datev.ts`. Das Gesetz geht vor DATEV. Ratgeber und Blogs sind keine Quelle. GitHub-Quellen flach in den Scratchpad klonen.
+  - Gilt die Regel für **SKR03 und SKR04**, **Ist und Soll**, **Einzelunternehmen und GmbH**, und für das richtige Jahr (Rechtsstand, Übergangsregeln)?
+  - **Gegenrechnen:** für den typischen Fall und einen Randfall (Gutschrift, Jahreswechsel, Kleinunternehmer, Reverse Charge, Teilzahlung, was passt) das Ergebnis selbst aus der Quelle herleiten (Buchungssätze, Beträge in Cent, Kennzahlen, XML-Feld) und mit den Erwartungen in den Tests des Pull Requests vergleichen. Stimmt eine Erwartung nicht mit der Quelle überein, ist das ein Befund; der Test dazu entsteht in `tdd-review`.
+  - Fehlt ein fachlicher Fall ganz, den die Quelle regelt und Nutzer von Haben haben, ist das ein Befund für „Vollständig“.
+  - Ergebnis je Aussage: bestätigt (Quelle, Fundstelle), widerspricht (Zitat), nicht prüfbar (warum, z. B. braucht Steuerberatung). Nicht Prüfbares nicht als bestätigt melden.
 
 ## 3. Die einfachste Lösung?
 
@@ -111,9 +117,8 @@ Aus den Schritten 1 bis 4 eines von drei Ergebnissen:
 ## 7. TDD-Review und Merge
 
 - Skill `tdd-review` bis zum Merge, mit dessen Regeln für Runden und CI. Ohne eigene Commits in dieser Session darf sie das Review selbst machen.
-- **Fachlich heikel?** Ja, wenn die Änderung beeinflussen kann, was gebucht, versteuert, an ELSTER oder die Sozialversicherung gemeldet, ausgewertet oder festgeschrieben wird: Konten und Buchungssätze, Steuersätze und -beträge, Rundung, Ist und Soll, Fristen, Kennzahlen und XML für ELSTER, EÜR, Bilanz und E-Bilanz, Lohn, AfA, DATEV-Export, Siegel, Sperren und Audit-Kette, Migrationen auf bestehenden Daten. Anhaltspunkte im Diff: `packages/core`, `packages/elster`, die Module `buchhaltung`, `umsatzsteuer`, `elster`, `jahreserklaerung`, `auswertungen`, `lohn`, `sv-meldungen`, `ausschuettung`, `finanzamt`, Buchungslogik in `bank`, `belege`, `rechnungen`, und `apps/web/drizzle`. Im Zweifel: heikel.
-- **Nicht heikel:** mergen per Squash, sobald die CI auf dem aktuellen Stand grün ist und Titel und Beschreibung passen. Der Aufruf durch den Maintainer genügt; ein Collaborator holt vorher seine Zustimmung ein.
-- **Heikel:** bis grün fertig machen, dann nicht mergen, sondern dem Maintainer in höchstens fünf Zeilen berichten und auf sein „OK“ warten:
+- **Nicht heikel** (nach Schritt 2): mergen per Squash, sobald die CI auf dem aktuellen Stand grün ist und Titel und Beschreibung passen. Der Aufruf durch den Maintainer genügt; ein Collaborator holt vorher seine Zustimmung ein.
+- **Heikel** (nach Schritt 2): bis grün fertig machen, dann nicht mergen, sondern dem Maintainer in höchstens fünf Zeilen berichten und auf sein „OK“ warten:
 
 ```
 <PR-Link> – fachlich: <was sich an Buchung, Steuer oder Meldung ändert, ein Satz>
