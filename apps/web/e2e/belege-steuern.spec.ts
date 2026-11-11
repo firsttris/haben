@@ -779,6 +779,37 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   }
 });
 
+test("Dialog „Neuen Lieferanten anlegen“: Der wählbare Lieferant wird angeboten, auch wenn ein Kunde mit derselben USt-IdNr. davor steht", async () => {
+  for (const [name, kunde, lieferant] of [
+    ["AAA Wahl Kunde GmbH", true, false],
+    ["ZZZ Wahl Lieferant GmbH", false, true],
+  ] as const) {
+    await go("/kontakte/neu");
+    await page.getByLabel("Name oder Firma").fill(name);
+    if (!kunde) await page.getByLabel("Kunde", { exact: true }).uncheck();
+    if (lieferant) await page.getByLabel("Lieferant", { exact: true }).check();
+    await page.getByLabel("USt-IdNr.").fill("DE100000020");
+    await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+    await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  }
+
+  await go("/dauerbelege/neu");
+  await neuenLieferantenOeffnen(page, "Probe Neu");
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await dialog.getByLabel("USt-IdNr.").fill("DE100000020");
+  // Der Server nennt beide; der Hinweis nimmt den, den man als Lieferanten wählen kann, nicht den Kunden davor
+  await expect(dialog.getByRole("status")).toContainText("gibt es schon „ZZZ Wahl Lieferant GmbH“ (Lieferant)");
+  await expect(dialog.getByRole("button", { name: "„ZZZ Wahl Lieferant GmbH“ wählen" })).toBeVisible();
+
+  // Nicht speichern; beide archivieren, damit die folgenden Tests unverändert rechnen
+  for (const name of ["AAA Wahl Kunde GmbH", "ZZZ Wahl Lieferant GmbH"]) {
+    await go("/kontakte");
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await page.getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  }
+});
+
 test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten Kontakt; der eigene Kontakt meldet sich nicht", async () => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Altbestand USt GmbH");
@@ -787,6 +818,21 @@ test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten K
   await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
   await page.getByRole("button", { name: "Archivieren" }).click();
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  // Ein Kontakt mit beiden Rollen: Im normalen Formular fehlt ihm keine Rolle, der Hinweis sagt das nicht
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Beides USt GmbH");
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("USt-IdNr.").fill("DE777777777");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Dritter USt GmbH");
+  await page.getByLabel("USt-IdNr.").fill("DE777777777");
+  const beides = page.getByRole("status").filter({ hasText: "gibt es schon" });
+  await expect(beides).toContainText("gibt es schon „Beides USt GmbH“ (Kunde, Lieferant)");
+  await expect(beides).not.toContainText("Ergänze dort die Rolle");
+  await expect(beides.getByRole("link", { name: "„Beides USt GmbH“ öffnen" })).toBeVisible();
 
   // Im normalen Formular, nicht nur im Dialog: Der archivierte Kontakt kann man nicht wählen, nur wiederherstellen
   await go("/kontakte/neu");
@@ -810,7 +856,11 @@ test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten K
   await page.getByLabel("USt-IdNr.").fill("DE666666666");
   await expect(hinweis).toHaveCount(0);
 
-  // Nicht speichern; den neuen Kontakt archivieren, damit die folgenden Tests unverändert rechnen
+  // Nicht speichern; den neuen Kontakt und den mit beiden Rollen archivieren, damit die folgenden Tests unverändert rechnen
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Beides USt GmbH/ }).click();
   await page.getByRole("button", { name: "Archivieren" }).click();
   await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
