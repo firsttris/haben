@@ -1,6 +1,6 @@
 ---
 name: "board-pflegen"
-description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/firsttris/projects/2): neue Issues prüfen (wollen wir das, erledigt, Duplikat, genug Angaben) und einordnen, Karten aufräumen, nach einem Release prüfen; das Ergebnis bekommt jedes fremde Issue als kurzen Kommentar. Mit gh und gh api graphql. Vorschläge an den Maintainer, umsetzen und kommentieren erst nach seinem OK. Wenn neue Issues da sind, einmal pro Woche oder nach einem Release."
+description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/firsttris/projects/2): offene Gespräche und Übernahme-Wünsche in Issues finden, neue Issues prüfen (wollen wir das, erledigt, Duplikat, genug Angaben) und einordnen, Karten aufräumen, nach einem Release prüfen; das Ergebnis bekommt jedes fremde Issue als kurzen Kommentar. Mit gh und gh api graphql. Vorschläge an den Maintainer, umsetzen und kommentieren erst nach seinem OK. Wenn neue Issues da sind, einmal pro Woche oder nach einem Release."
 ---
 
 # Board pflegen
@@ -34,11 +34,12 @@ Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/
 
 ```sh
 gh project item-list 2 --owner firsttris --limit 300 --format json > board.json
-gh issue list --repo firsttris/haben --state open --limit 300 --json number,title,author,labels,assignees,createdAt,updatedAt > issues.json
+gh issue list --repo firsttris/haben --state open --limit 300 --json number,title,author,labels,assignees,comments,createdAt,updatedAt > issues.json
 ```
 
 Daraus ermitteln:
 - offene Issues ohne Karte (weiter mit Schritt 2);
+- **offene Gespräche:** offene Issues, deren letzter Kommentar nicht vom Maintainer und nicht von einem Bot stammt (`jq '.[]|select((.comments|length)>0 and (.comments|last|.author.login)!="firsttris")' issues.json`). Jedes lesen und einordnen: **Übernahme** (jemand will die Karte bauen und ist nicht zugewiesen), **Frage an den Maintainer**, **neue Angaben** (Anwendungsfall, Beispieldatei, Rückmeldung zu einem Release) oder **keine Antwort nötig** (Dank, Notiz eines Collaborators, Verweis auf ein anderes Issue);
 - Karten in „In Arbeit“ ohne offenen PR und ohne Kommentar seit 14 Tagen (`gh issue view <n> --json comments,updatedAt`, `gh pr list --search "<n> in:body"`);
 - geschlossene Issues, deren Karte nicht in „Erledigt“ steht;
 - Karten in „Im nächsten Release“, deren PR kein `Umgesetzt #…` hat: die schließt das Release nicht (`scripts/board/regel.ts`);
@@ -60,7 +61,7 @@ Bei `steuer`-Issues und Fehlern bei Buchung oder Steuer die fachliche Aussage an
 
 ### 3. Vorschlagen
 
-Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1. Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
+Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1. Die offenen Gespräche kommen als eigene Tabelle mit Antwortentwurf; **Übernahmen stehen ganz oben**, weil die Person laut „Etwas übernehmen“ auf die Zuweisung wartet. Dazu je Übernahme: bisherige PRs der Person (`gh pr list --state all --author <login>`), wie viele Karten sie schon hat, offene Fragen in ihrer Skizze. Was nur der Maintainer entscheiden kann (Registrierungen, Verträge, Rechtsfragen, Reihenfolge), steht als Frage an ihn in der Tabelle, nicht als Antwortentwurf. Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
 
 ### 4. Umsetzen, nach OK
 
@@ -78,6 +79,7 @@ gh project field-list 2 --owner firsttris --format json             # Feld- und 
 | Auswahlfeld setzen | `gh project item-edit --project-id $PROJECT_ID --id <item> --field-id <feld> --single-select-option-id <option>` |
 | Text setzen | `gh project item-edit --project-id $PROJECT_ID --id <item> --field-id <feld> --text "…"` |
 | Label setzen | `gh issue edit <n> --repo firsttris/haben --add-label einstieg` |
+| Zuweisen (Übernahme) | `gh issue edit <n> --repo firsttris/haben --add-assignee <login>`; der Workflow „Board“ schiebt die Karte nach „In Arbeit“ |
 
 Position (das CLI kann es nicht): GraphQL, `afterId` ist die Karte darüber, ohne `afterId` ganz nach oben.
 
@@ -86,7 +88,7 @@ gh api graphql -f query='mutation($p:ID!,$i:ID!,$a:ID){updateProjectV2ItemPositi
   -f p=$PROJECT_ID -f i=<item> -f a=<item-darüber>
 ```
 
-Der Workflow „Item added to project“ setzt bei neuen Karten selbst einen Status, manchmal kurz nach dem eigenen Aufruf: Status zum Schluss noch einmal auslesen und bei Abweichung neu setzen.
+Der Workflow „Item added to project“ setzt bei neuen Karten selbst einen Status, manchmal kurz nach dem eigenen Aufruf: Status zum Schluss noch einmal auslesen und bei Abweichung neu setzen. Nach Zuweisungen ebenso prüfen, dass die Karte in „In Arbeit“ steht.
 
 ### 5. Kommentieren, nach OK
 
@@ -104,7 +106,9 @@ Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurd
 | Nicht ins Board | Danke! Das planen wir nicht: [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), Zeile „…“. Kurz der Grund … |
 | Erledigt | Danke! Das gibt es seit v… ([Release](https://github.com/firsttris/haben/releases/tag/v…), PR #…). |
 
-Schließen, Labels außer `einstieg` und Antworten auf Rückfragen bleiben beim Maintainer.
+Antworten in offenen Gesprächen (Schritt 1) gehen genauso nach OK, mit dem freigegebenen Entwurf. Bei einer Übernahme: @-Erwähnung, „gehört dir“, Umfang in einem Satz (bei einer Skizze: „Die Skizze passt so“ oder was abweicht), Hinweis auf „In Arbeit“. Hat die Person schon mehrere Karten, dazuschreiben, dass sie nacheinander gern gesehen sind.
+
+Schließen und Labels außer `einstieg` bleiben beim Maintainer.
 
 ### 6. Prüfen
 
@@ -112,7 +116,7 @@ Schließen, Labels außer `einstieg` und Antworten auf Rückfragen bleiben beim 
 
 ## Grenzen
 
-- Kommentare nur die aus Schritt 5 und nur nach OK; Issues schließen oder anlegen nur auf Auftrag; Labels nur nach OK.
+- Kommentare nur die aus Schritt 5 und nur nach OK; zuweisen nur nach OK; Issues schließen oder anlegen nur auf Auftrag; Labels nur nach OK.
 - Die Spalten nicht umbenennen: `scripts/board/regel.ts` und der Workflow „Board“ hängen an den Namen.
 - Keine Karte zurückschieben, die der Workflow nach vorn gesetzt hat, außer der Maintainer will es.
 - Nach einem Release: prüfen, dass der Job `issues-schliessen` lief und die Karten in „Erledigt“ stehen; das Release selbst ist Skill `release`.
