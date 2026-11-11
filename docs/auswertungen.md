@@ -74,6 +74,8 @@ Die Buchung selbst behält ihr Datum; Voranmeldung, Journal und DATEV-Export ble
 
 **Gesperrtes Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon aus Haben übermittelt oder das Jahr abgeschlossen, als du die Zahlung zugeordnet hast, ändert Haben das Vorjahr nicht (GoBD). Die Zahlung zählt dann im Jahr der Zahlung, und die Vorprüfung der [Anlage EÜR](jahreserklaerung.md#anlage-eür) nennt sie mit Zeitraum und Betrag. Erklärungen, die eine ältere Version von Haben übermittelt hat, enthalten die Zahlung nicht; sie sperren das Vorjahr deshalb immer.
 
+**Übermittelt bleibt übermittelt:** Mit jeder Übermittlung speichert Haben, welche Zahlungen die Erklärung in das Vorjahr verschoben bzw. aus dem Folgejahr hereingenommen hat. Danach richten sich beide Jahre, auch wenn du später etwa die Dauerfristverlängerung des Jahres änderst. Hat eine ältere Version von Haben die EÜR des Zahlungsjahres übermittelt, zählt die Zahlung dort weiter am Buchungstag.
+
 ### Was nicht zählt
 
 - Bankumsätze, die du noch nicht zugeordnet hast. Ordne vor dem Jahresabschluss alles im [Bankabgleich](bank.md) zu.
