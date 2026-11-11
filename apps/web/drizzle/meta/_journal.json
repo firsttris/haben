@@ -1345,6 +1345,90 @@
       "when": 1794305446619,
       "tag": "0191_journal_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794325051228,
+      "tag": "0192_journal_ab",
+      "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794335823476,
+      "tag": "0193_store_berichte",
+      "breakpoints": true
+    },
+    {
+      "idx": 194,
+      "version": "7",
+      "when": 1794335824905,
+      "tag": "0194_store_berichte_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794338142258,
+      "tag": "0195_bank_konto_ausschliessen",
+      "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1794338143826,
+      "tag": "0196_bank_konto_ausschliessen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 197,
+      "version": "7",
+      "when": 1794339221959,
+      "tag": "0197_external_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 198,
+      "version": "7",
+      "when": 1794339223322,
+      "tag": "0198_external_import_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 199,
+      "version": "7",
+      "when": 1794347835610,
+      "tag": "0199_belegvorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 200,
+      "version": "7",
+      "when": 1794347836251,
+      "tag": "0200_belegvorlagen_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 201,
+      "version": "7",
+      "when": 1794374936950,
+      "tag": "0201_truncate_sperre_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 202,
+      "version": "7",
+      "when": 1794377084390,
+      "tag": "0202_company_loeschen_sperre",
+      "breakpoints": true
+    },
+    {
+      "idx": 203,
+      "version": "7",
+      "when": 1794400327111,
+      "tag": "0203_spende",
+      "breakpoints": true
     }
   ]
 }

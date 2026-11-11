@@ -6,6 +6,7 @@ import type { ArchiveSearch } from "../../routes/_app/archiv/index.tsx";
 import type { getOrderDocuments } from "../../server/functions/archive.ts";
 import { YearSwitch } from "./YearSwitch.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
+import { Field } from "../Field.tsx";
 
 export const ORDER_KINDS = { AN: "Angebot", AB: "Auftragsbestätigung", LI: "Lieferschein" } as const;
 export const ORDER_STATUSES: Record<string, string> = {
@@ -15,6 +16,12 @@ export const ORDER_STATUSES: Record<string, string> = {
   "500": "Angenommen",
   "750": "Teilweise berechnet",
   "1000": "Vollständig berechnet",
+  draft: "Entwurf",
+  open: "Offen",
+  declined: "Geschlossen / abgelehnt",
+  accepted: "Angenommen",
+  partlyInvoiced: "Teilweise berechnet",
+  invoiced: "Vollständig berechnet",
 };
 type Row = Awaited<ReturnType<typeof getOrderDocuments>>[number];
 
@@ -27,27 +34,30 @@ export function OrderDocuments({ rows, year, years, search }: { rows: Row[]; yea
   }
   return (
     <section className="card stack" aria-label="Auftragsdokumente">
-      <p className="muted">Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk. Archivkopien ohne Buchungswirkung.</p>
+      <p className="muted">Übernommene Angebote, Auftragsbestätigungen und Lieferscheine. Originale ohne zusätzliche Buchungswirkung.</p>
       <YearSwitch year={year} years={years} search={search} />
       <form className="archive-filter" onSubmit={submit} style={{ alignItems: "end" }}>
-        <label className="field">
-          Nummer oder Kontakt
-          <input value={term} onChange={(event) => setTerm(event.target.value)} maxLength={100} />
-        </label>
-        <label className="field">
-          Dokumentart
-          <select
-            value={search.dokumentart ?? ""}
-            onChange={(event) => void navigate({ to: "/archiv", search: { ...search, dokumentart: (event.target.value as "AN" | "AB" | "LI") || undefined } })}
-          >
-            <option value="">Alle Dokumentarten</option>
-            {Object.entries(ORDER_KINDS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Nummer oder Kontakt">
+          {(control) => <input {...control} value={term} onChange={(event) => setTerm(event.target.value)} maxLength={100} />}
+        </Field>
+        <Field label="Dokumentart">
+          {(control) => (
+            <select
+              {...control}
+              value={search.dokumentart ?? ""}
+              onChange={(event) =>
+                void navigate({ to: "/archiv", search: { ...search, dokumentart: (event.target.value as "AN" | "AB" | "LI") || undefined } })
+              }
+            >
+              <option value="">Alle Dokumentarten</option>
+              {Object.entries(ORDER_KINDS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
         <button type="submit" className="btn btn-secondary">
           Suchen
         </button>

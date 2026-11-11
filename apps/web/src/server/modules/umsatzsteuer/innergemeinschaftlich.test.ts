@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Innergemeinschaftlicher Erwerb (§ 1a UStG) am Eingangsbeleg, innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a
@@ -84,7 +84,7 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", kleinunternehmer = false) {
-    await sql`truncate document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
+    await leeren(sql)`truncate document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
       asset_depreciations, assets, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, vat_returns, zm_submissions, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,

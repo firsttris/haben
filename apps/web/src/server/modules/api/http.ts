@@ -20,7 +20,7 @@ export interface Issue {
 
 /** Was ein Handler von der Anfrage sieht; Anmeldung und Recht sind schon geprüft */
 export interface ApiRequest {
-  /** Akteur im Audit-Log: api:<Name des Tokens> */
+  /** Akteur im Audit-Log: api:<Token-ID>:<Name des Tokens>, siehe apiActor in router.ts */
   actor: string;
   /** Pfadparameter, z. B. id */
   params: Record<string, string>;

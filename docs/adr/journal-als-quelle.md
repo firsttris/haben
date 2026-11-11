@@ -1,13 +1,13 @@
 ---
-title: "Entwurf: Voranmeldung und EÜR aus dem Journal"
+title: "Entscheidung: Voranmeldung und EÜR aus dem Journal"
 description: >-
-  Entscheidungsvorlage zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
+  Entscheidung zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
   Nebenbücher werden zur Gegenprobe; Grundlage für freie Buchungen mit Steuerschlüssel (#502).
 ---
 
-# Entwurf: Voranmeldung und EÜR aus dem Journal
+# Entscheidung: Voranmeldung und EÜR aus dem Journal
 
-**Status:** Entwurf, Umsetzung in Schritten (siehe unten). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
+**Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
 **Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
 [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),
@@ -154,3 +154,25 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   freie Buchungen als Erweiterung der manuellen Buchungen, nur ab dem Stichjahr, mit fester Liste der Schlüssel und Konten,
   ohne Vorsteuer (Eigenbeleg), Storno mit Steuerschlüssel.
 - **Offen:** nichts; Abweichungen von diesem Entwurf beim Umsetzen stehen hier nach.
+- **Umgesetzt:** Schritt 1 ohne Oberfläche (Stichjahr, Migration 0192, Voranmeldung aus dem Journal, Abgleich mit
+  getauschten Rollen). Anzeige und Vorziehen des Stichjahrs: Karte in Einstellungen › Firma (`auswertungen/stichjahr.ts`); der
+  Abgleich des laufenden Jahres (`abgleichJahr`) muss ohne Abweichung sein, und jede Voranmeldung des Jahres sowie die EÜR
+  müssen aus beiden Quellen gleich herauskommen (`kennzahlenBeiderQuellen`); der Abgleich allein lässt ältere Buchungen
+  ohne Bemessungsgrundlage aus.
+  Ergänzt beim Umsetzen: Ein Storno im Stichjahr kopierte die Zeilen einer Buchung aus der Zeit davor samt ihrer Lücken
+  (ohne Bemessungsgrundlage an der Zahlung, #552; ohne Steuerschlüssel am privaten Teil bei § 13b und Erwerb, #551). Der
+  Storno einer Bareinnahme auf eine Rechnung und eines Belegs aus der Zeit vor dem Stichjahr bucht deshalb die Zeilen, wie
+  Haben sie heute aus dem Nebenbuch bucht, wenn sie auf jedem Konto denselben Saldo ergeben (`zeilenWieHeute`); sonst die
+  gebuchten. Die Zuordnung im Bankabgleich und Ausbuchungen mit einer Zahlung heben am Tag der Zahlung auf, also im alten
+  Jahr.
+  Schritt 2: EÜR aus dem Journal (`euer-quelle.ts`). Abweichend vom Entwurf rechnet sie Zahlungen auf übernommene
+  Lexoffice-Posten nicht aus dem Nebenbuch, sondern verteilt sie auf die Zeilen, die Haben für Rechnung bzw. Beleg gebucht
+  hätte (`uebernommeneZeilen`); so gilt für sie dieselbe Rundung, und der Abgleich vergleicht sie ohne Ausnahme.
+  Was sie je Rechnung bzw. Beleg braucht (Buchungen, Ausgleiche in der Reihenfolge des Audit-Logs, Aufteilung aus dem
+  Nebenbuch), lädt sie vor der Schleife für alle Posten des Jahres in Blöcken (`euer-journal-buchungen.ts`); mit 300
+  bezahlten Rechnungen braucht sie so rund 50 statt 550 ms.
+  Schritt 3: freie Buchungen (`freie-buchung.ts` in core, `manual.ts`): Steuerschlüssel `USt19`, `USt7`, `frei` auf den
+  Erlöskonten 19 %, 7 % und 0 %, im Einzelunternehmen auch ohne Schlüssel erst ab dem Stichjahr. Die Gegenprobe im
+  Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Die Sachentnahme
+  (SKR03 8910/8915, SKR04 4620/4610 für 19 bzw. 7 %) bucht nur mit Schlüssel; in der EÜR steht sie in der eigenen Zeile
+  `sachentnahmen` („Sonstige Sach-, Nutzungs- und Leistungsentnahmen“), ihre Steuer bei der vereinnahmten Umsatzsteuer.

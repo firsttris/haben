@@ -1,7 +1,7 @@
 import type { ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
 import type { EmployeeInput } from "./employees.ts";
 
@@ -90,7 +90,7 @@ describe.skipIf(!testDatabaseUrl)("Lohnsteuer-Anmeldung (Postgres)", () => {
   });
 
   async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", bundesland = "BY") {
-    await sql`truncate lsta_submissions, lsta_turnus, elster_certificates, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate lsta_submissions, lsta_turnus, elster_certificates, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, year_closings, payslip_cancellations, payslips, payroll_runs, employees, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht Software GmbH', 'Hafenallee 3', '93047', 'Regensburg', 'rechnung@example.com',

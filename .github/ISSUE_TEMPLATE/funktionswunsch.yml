@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Ein Blick in die [Roadmap](https://haben.app/roadmap.html) lohnt sich: Vieles steht dort schon mit Platz und Begründung. Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
+        Ein Blick ins [Project „Roadmap“](https://github.com/users/firsttris/projects/2) lohnt sich: Vieles ist dort schon geplant. Was bewusst nicht kommt, steht mit Begründung in der [Roadmap](https://haben.app/roadmap.html#bewusst-nicht). Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
   - type: textarea
     id: anlass
     attributes:
@@ -50,4 +50,4 @@ body:
     id: bezug
     attributes:
       label: Verwandte Issues und Roadmap
-      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://haben.app/roadmap.html), falls du ihn kennst.
+      description: Nummern verwandter Issues oder die Karte im [Project „Roadmap“](https://github.com/users/firsttris/projects/2), falls du sie kennst.

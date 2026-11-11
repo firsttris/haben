@@ -25,8 +25,10 @@ import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhalt
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
+import { verschobeneBuchungen } from "./euer-jahreswechsel.ts";
+import type { Buchung } from "./euer-journal-buchungen.ts";
 import { euerAusJournal } from "./euer-journal.ts";
-import { euerForYear } from "./reports.ts";
+import { euerAusNebenbuechern } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
 
 /*
@@ -109,8 +111,11 @@ function vatRows(
   period: VatPeriod,
   sums: Summe[],
   buchungen: readonly JournalBuchung[],
-  figures: Awaited<ReturnType<typeof computeVatFigures>>,
+  voranmeldung: Awaited<ReturnType<typeof computeVatFigures>>,
 ): AbgleichZeile[] {
+  // Ab dem Stichjahr sind die Kennzahlen der Voranmeldung die aus dem Journal; verglichen wird dann mit den Nebenbüchern
+  // als Gegenprobe (#542, docs/adr/journal-als-quelle.md)
+  const figures = voranmeldung.nebenbuecher ? { ...voranmeldung, ...voranmeldung.nebenbuecher } : voranmeldung;
   const zeitraum = periodKey(period);
   const months = new Set(monthsOfPeriod(period).map((m) => m.month));
   const monat = sums.filter((s) => months.has(s.month));
@@ -171,8 +176,26 @@ export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
 /** Abgleich für die EÜR eines Jahres */
 export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgleich> {
   const { from, to } = yearRange(year);
-  const sums = await journalSums(from, to, q);
-  const euer = await euerForYear(year, q);
+  // Wie die EÜR: Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
+  const { herein, hinaus } = await verschobeneBuchungen(year, q);
+  const verschoben = (b: Buchung, vorzeichen: 1 | -1): Summe[] =>
+    b.zeilen.map((z) => ({
+      kontenrahmen: b.kontenrahmen,
+      sourceType: "allocation",
+      account: z.account,
+      month: Number(b.date.slice(5, 7)),
+      debit: vorzeichen * z.debit,
+      credit: vorzeichen * z.credit,
+    }));
+  const sums = [...(await journalSums(from, to, q)), ...herein.flatMap((b) => verschoben(b, 1)), ...hinaus.flatMap((b) => verschoben(b, -1))];
+  // Gegenprobe ist immer die Rechnung aus den Nebenbüchern; ab dem Stichjahr ist euerForYear die aus dem Journal (#542)
+  const euer = await euerAusNebenbuechern(year, q);
+  // Gezahlt über die Bank oder, im Einzelunternehmen, privat als freie Buchung (#502); die Gegenprobe zählt freie Buchungen
+  // ebenso (mitFreienBuchungen). Manuelle Buchungen einer GmbH oder UG sind Abschlussbuchungen (etwa Rückstellungen), keine
+  // Zahlung, und die Gegenprobe zählt sie dort nicht
+  const [rechtsform] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
+  const freieZaehlen = !rechtsform || !isKapitalgesellschaft(rechtsform.rechtsform);
+  const zahlung = (s: Summe) => s.sourceType === "allocation" || (freieZaehlen && s.sourceType === "manuell");
   const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
   const zeitraum = String(year);
   const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "euer", zeitraum, posten, journal, quelle });
@@ -197,7 +220,7 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
         sums,
         // Mit der Umsatzsteuer früherer Jahre (Steuerzahlungen, steuerzahlung.ts): gezahlt bzw. erstattet im Jahr der Zahlung
         (kr) => [ACCOUNTS[kr].ustVorauszahlung, ACCOUNTS[kr].sondervorauszahlung, STEUER_KONTEN[kr].ustVorjahr, STEUER_KONTEN[kr].ustFruehereJahre],
-        (s) => s.sourceType === "allocation",
+        zahlung,
       ),
       line("gezahlteUst") - line("erstatteteUst"),
     ),
@@ -206,7 +229,7 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   // Steuerzahlungen: Zinsen und Zuschläge zu betrieblichen Steuern als Ausgabe, Gewerbesteuer samt Nebenleistungen nur
   // nachrichtlich. Im Einzelunternehmen gibt es keine Körperschaftsteuer; die nicht abziehbaren Zinskonten bucht dort nur
   // die Gewerbesteuer, dazu Hinterziehungszinsen (§ 235 AO) zur Umsatzsteuer.
-  const zahlung = (s: Summe) => s.sourceType === "allocation";
+
   const nebenleistungen = saldo(sums, (kr) => abziehbareNebenleistungen(kr), zahlung);
   if (nebenleistungen !== 0 || line("steuerNebenleistungen") !== 0) {
     zeilen.push(row("Zinsen und Zuschläge zu betrieblichen Steuern", nebenleistungen, line("steuerNebenleistungen")));
@@ -240,11 +263,7 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
   const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
   const ausJournal = await euerAusJournal(year, q);
-  if (euerAusDemJournal && ausJournal.uebernommen > 0) {
-    hinweise.push(
-      `${ausJournal.uebernommen === 1 ? "Eine Zahlung" : `${ausJournal.uebernommen} Zahlungen`} ${year} auf aus Lexoffice übernommene Rechnungen bzw. Belege: Einnahmen und Ausgaben werden für ${year} nicht je Zeile abgeglichen.`,
-    );
-  } else if (euerAusDemJournal) {
+  if (euerAusDemJournal) {
     const label = (key: EuerLineKey) =>
       [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??
       (key.startsWith("ausgabe:") ? EXPENSE_CATEGORIES[key.slice(8) as keyof typeof EXPENSE_CATEGORIES].label : EUER_LABELS[key as keyof typeof EUER_LABELS]);
@@ -315,26 +334,34 @@ async function journalYears(q: Db | Tx): Promise<number[]> {
 }
 
 /**
- * Alle Jahre mit Buchungen: Umsatzsteuer je Monat (bis zum laufenden) und EÜR je Jahr. Für die Integritätsprüfung.
+ * Ein Jahr: Umsatzsteuer je Monat (bis zum laufenden) und EÜR. Auch Monate ohne Journal: die Nebenbücher dürfen dann
+ * keine Steuer haben.
+ */
+export async function abgleichJahr(year: number, today: string, q: Db | Tx = db): Promise<Abgleich> {
+  const { from, to } = yearRange(year);
+  const sums = await journalSums(from, to, q);
+  const buchungen = await journalBuchungen(from, to, q);
+  const zeilen: AbgleichZeile[] = [];
+  const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
+  for (let month = 1; month <= lastMonth; month++) {
+    zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
+  }
+  const euer = await euerAbgleich(year, q);
+  return { zeilen: [...zeilen, ...euer.zeilen], hinweise: euer.hinweise };
+}
+
+/**
+ * Alle Jahre mit Buchungen (abgleichJahr). Für die Integritätsprüfung.
  * Liest in vielen Abfragen nacheinander; damit eine Buchung nebenher nicht nur auf einer Seite erscheint, läuft das
  * in einer Transaktion mit festem Stand (REPEATABLE READ, siehe checkIntegrity).
  */
 export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgleich> {
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-  const years = await journalYears(q);
-  for (const year of years) {
-    const { from, to } = yearRange(year);
-    const sums = await journalSums(from, to, q);
-    const buchungen = await journalBuchungen(from, to, q);
-    const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
-    for (let month = 1; month <= lastMonth; month++) {
-      // Auch Monate ohne Journal: die Nebenbücher dürfen dann keine Steuer haben
-      zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
-    }
-    const euer = await euerAbgleich(year, q);
-    zeilen.push(...euer.zeilen);
-    hinweise.push(...euer.hinweise);
+  for (const year of await journalYears(q)) {
+    const jahr = await abgleichJahr(year, today, q);
+    zeilen.push(...jahr.zeilen);
+    hinweise.push(...jahr.hinweise);
   }
   return { zeilen, hinweise };
 }

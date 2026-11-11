@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Gestaltung und festgeschriebene Belege (Postgres)", () => {
   let invoices: typeof import("./invoices.ts");
@@ -22,7 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Gestaltung und festgeschriebene Belege (Postg
   });
 
   beforeEach(async () => {
-    await sql`truncate letterhead_profiles, company_logo, dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
+    await leeren(sql)`truncate letterhead_profiles, company_logo, dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank, dunning)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',

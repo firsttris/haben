@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Rabatte auf der Rechnung: Positionsrabatt (Prozent oder Betrag) und Gesamtrabatt je Steuersatz. Gebucht wird das Netto
@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("Rabatte (Postgres)", () => {
   });
 
   const setup = async (kontenrahmen: "SKR03" | "SKR04", versteuerung: "soll" | "ist") => {
-    await sql`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank', ${versteuerung}, ${kontenrahmen})`;

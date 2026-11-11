@@ -85,7 +85,7 @@ export const accountSchema = z.object({
 });
 
 export async function listAccounts() {
-  const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.name));
+  const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
   return Promise.all(
     accounts.map(async (account) => {
       const [last] = await db
@@ -134,6 +134,8 @@ export async function createAccount(actor: string, input: z.input<typeof account
   const data = accountSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, data.iban));
+    if (existing?.excludedAt)
+      throw new BankError(`Das Konto ${existing.name} mit dieser IBAN ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
     if (existing) throw new BankError("Ein Konto mit dieser IBAN gibt es schon.");
     const [created] = await tx.insert(schema.bankAccounts).values(data).returning();
     return created!;
@@ -159,7 +161,7 @@ export async function updateAccount(actor: string, input: z.infer<typeof account
 
 export const providerAccountSchema = z.object({
   name: z.string().trim().min(1, "Name fehlt").max(100),
-  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"]),
+  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "googleplay", "appstore", "sonstige"]),
 });
 
 /**
@@ -239,6 +241,10 @@ export async function storeStatement(
     throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
   } else {
     throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+  }
+  // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
+  if (account.excludedAt) {
+    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
   }
 
   const [previous] = await tx
@@ -777,7 +783,8 @@ export async function ownAccounts(): Promise<OwnAccount[]> {
       purpose: schema.bankAccounts.purpose,
       provider: schema.bankAccounts.provider,
     })
-    .from(schema.bankAccounts);
+    .from(schema.bankAccounts)
+    .where(isNull(schema.bankAccounts.excludedAt));
 }
 
 /**
@@ -847,7 +854,12 @@ export const transferSchema = z.object({
  * Schritt über das Geldtransitkonto buchen. Auf dem Geldtransitkonto heben sich beide Seiten auf.
  */
 export async function allocateTransfer(actor: string, input: z.infer<typeof transferSchema>): Promise<void> {
-  await withActor(actor, async (tx) => {
+  await withActor(actor, (tx) => allocateTransferIn(tx, input));
+}
+
+/** Geldtransit in der Transaktion des Aufrufers (etwa nach dem Anlegen der Auszahlung eines App-Stores) */
+export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferSchema>): Promise<void> {
+  {
     const company = await openBooks(tx);
     // Feste Reihenfolge beim Sperren, damit zwei gleichzeitige Aufrufe sich nicht gegenseitig blockieren
     const ids = [...new Set([input.transactionId, input.counterpartId, ...(input.payoutIds ?? [])])].sort();
@@ -912,7 +924,18 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen, company.rechtsform), company.kontenrahmen, bank.ledgerIndex),
       });
     }
-  });
+  }
+}
+
+/**
+ * Bucht einen ganz offenen Umsatz vollständig als Kursdifferenz (Ertrag bei Eingang, Aufwand bei Ausgang), etwa die
+ * Differenz zwischen den umgerechneten Monatsbeträgen eines App-Stores und seiner Auszahlung in Euro.
+ */
+export async function allocateExchangeDifferenceIn(tx: Tx, transactionId: string): Promise<void> {
+  const company = await openBooks(tx);
+  const bank = await lockTransaction(tx, transactionId);
+  if (bank.open !== bank.amount || bank.amount === 0) throw new BankError("Der Umsatz muss noch ganz offen sein.");
+  await bookPart(tx, company, bank, { kind: "kursdifferenz", amount: bank.amount }, null);
 }
 
 /**
@@ -949,6 +972,7 @@ export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: Pos
 
 const DIRECT_KINDS = [
   "privat",
+  "spende",
   "geldtransit",
   "ustVorauszahlung",
   "sondervorauszahlung",

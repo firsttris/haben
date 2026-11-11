@@ -44,7 +44,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
-import { loadLetterhead } from "../stammdaten/index.ts";
+import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -1075,7 +1075,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
   );
-  const rendered = await buildEInvoice({ ...doc, ...(await loadLetterhead()) });
+  const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
   await takeNumber(tx, "rechnung", circle, counter);
@@ -1132,6 +1132,14 @@ async function correctsLegacyInvoice(q: Db | Tx, corrects: Invoice | undefined):
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
 async function originalProblem(original: Invoice, q: Db | Tx = db, of?: Invoice): Promise<string | null> {
+  if (original.lexofficeVoucherId) {
+    const [source] = await q
+      .select({ source: schema.lexofficeVouchers.source })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.id, original.lexofficeVoucherId));
+    if (source?.source === "import")
+      return "Diese Rechnung wurde mit fremden Originalbuchungen übernommen. Eine Korrektur muss zuerst mit diesen abgestimmt werden.";
+  }
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", () => {
   let mcp: typeof import("./index.ts");
@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
 
   beforeEach(async () => {
     server.resetRateLimitForTests();
-    await sql`truncate mcp_calls, mcp_tokens, company cascade`;
+    await leeren(sql)`truncate mcp_calls, mcp_tokens, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '77815', 'Bühl', '35/123/45678', 'BW')`;
   });
 
@@ -79,7 +79,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     await mcp.setMcpEnabled(actor, true);
 
     const { id } = (await mcp.listMcpTokens())[0]!;
-    await mcp.revokeMcpToken(id);
+    await mcp.revokeMcpToken(actor, id);
     expect((await rpc(token, "tools/list")).status).toBe(401);
     expect((await mcp.listMcpTokens())[0]!.status).toBe("widerrufen");
 

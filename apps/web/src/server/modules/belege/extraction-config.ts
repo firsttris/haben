@@ -15,6 +15,11 @@ export type ExtractionConfig =
       maxPages: number;
       /** Bei PDFs: Text der Seiten und Bilder, nur Text (reines Textmodell) oder nur Bilder (#329) */
       input: ExtractionInput;
+      /**
+       * Zusätzliche Felder im Request-Body (EXTRACTION_EXTRA_BODY), etwa {"reasoning_effort":"none"} für ein Modell,
+       * das sonst sein Antwortbudget mit Denken verbraucht. Leer = Body wie bisher.
+       */
+      extraBody: Record<string, unknown>;
     };
 
 export type ExtractionInput = "text-und-bild" | "text" | "bild";
@@ -29,6 +34,7 @@ type ExtractionEnv = Pick<
   | "EXTRACTION_TIMEOUT_SECONDS"
   | "EXTRACTION_MAX_PAGES"
   | "EXTRACTION_INPUT"
+  | "EXTRACTION_EXTRA_BODY"
 >;
 
 /**
@@ -50,7 +56,20 @@ export function extractionConfig(env: ExtractionEnv): ExtractionConfig | null {
     timeoutMs: env.EXTRACTION_TIMEOUT_SECONDS * 1000,
     maxPages: env.EXTRACTION_MAX_PAGES,
     input: env.EXTRACTION_INPUT,
+    extraBody: extraBodyJson(env.EXTRACTION_EXTRA_BODY),
   };
+}
+
+/** EXTRACTION_EXTRA_BODY als Objekt; env.ts hat beim Start schon geprüft, dass es ein JSON-Objekt ist */
+export function extraBodyJson(value: string | undefined): Record<string, unknown> {
+  if (!value?.trim()) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return {};
+  }
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
 }
 
 /** „http://ollama:11434/v1“ → „http://ollama:11434/v1/chat/completions“; eine vollständige Adresse bleibt, wie sie ist */

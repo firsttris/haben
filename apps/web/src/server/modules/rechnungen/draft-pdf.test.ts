@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /** Was die Entwurfs-Builder bekommen haben; das PDF selbst prüft packages/einvoice (entwurf.test.ts) */
 const seen = vi.hoisted(() => ({ invoice: [] as unknown[], quote: [] as unknown[], dunning: [] as unknown[] }));
@@ -91,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
     seen.invoice.length = 0;
     seen.quote.length = 0;
     seen.dunning.length = 0;
-    await sql`truncate mail_log, dunnings, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines,
+    await leeren(sql)`truncate mail_log, dunnings, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines,
       invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank, dunning)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const COMPANY_IBAN = "DE89370400440532013000";
 const CUSTOMER_IBAN = "DE02100100100006820101";
@@ -57,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", ()
 
   /** Firma mit 2 % Skonto in 10 Tagen als Vorgabe, Zahlungsziel 14 Tage */
   async function company(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await leeren(sql)`truncate write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
                                    payment_term_days, skonto)

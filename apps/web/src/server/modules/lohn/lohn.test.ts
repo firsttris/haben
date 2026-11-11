@@ -1,7 +1,7 @@
 import { lohnabrechnung } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import type { EmployeeInput } from "./employees.ts";
 
 /*
@@ -67,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate payslip_cancellations, payslips, payroll_runs, employees, company cascade`;
+    await leeren(sql)`truncate payslip_cancellations, payslips, payroll_runs, employees, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht Software GmbH', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR04', 'soll', 'gmbh')`;
   });
@@ -296,7 +296,7 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
 
   it("Einzelunternehmen: keinen Gesellschafter-Geschäftsführer anlegen oder dazu ändern, andere Beschäftigte schon", async () => {
     // Die Rechtsform ist nach der ersten Buchung fest; die Buchungen der Tests davor weg
-    await sql`truncate journal_lines, journal_entries cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries cascade`;
     await sql`update company set rechtsform = 'einzelunternehmen'`;
     await expect(lohn.saveEmployee(actor, null, GGF)).rejects.toThrow(/Gesellschafter-Geschäftsführer gibt es nur in GmbH und UG/);
     const id = await lohn.saveEmployee(actor, null, ANGESTELLT);
@@ -306,7 +306,7 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
 
   it("Einzelunternehmen: einen Gesellschafter-Geschäftsführer aus der Zeit vor der Rechtsform weiter ändern, etwa austreten lassen", async () => {
     // Das Formular lässt die gespeicherte Art wählbar (beschaeftigungsartenFor); speichern muss dann auch gehen
-    await sql`truncate journal_lines, journal_entries cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries cascade`;
     const id = await lohn.saveEmployee(actor, null, GGF);
     await sql`update company set rechtsform = 'einzelunternehmen'`;
     await lohn.saveEmployee(actor, id, { ...GGF, austritt: "2026-12-31" });

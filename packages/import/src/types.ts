@@ -4,16 +4,34 @@ export type StatementFormat =
   | "dkb-csv"
   | "dkb-csv-alt"
   | "n26-csv"
+  /** Kontoauszug von Swan (CSV mit Kopfblock, Datum TT/MM/JJJJ) */
+  | "swan-csv"
+  /** Umsätze aus dem Online-Banking der Commerzbank (Semikolon-CSV ohne Kontostand) */
+  | "commerzbank-csv"
   | "camt053"
   | "enablebanking"
+  /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */
+  | "accountable-xlsx"
   | "paypal-csv"
   | "stripe-csv"
   | "shopify-payments-csv"
   | "ebay-csv"
-  | "etsy-csv";
+  | "etsy-csv"
+  | "googleplay-earnings"
+  | "appstore-finance"
+  | "store-payout";
 
 /** Exporte von Zahlungsdienstleistern: nur in ein Konto mit diesem Zweck importierbar */
-export const PSP_FORMATS: StatementFormat[] = ["paypal-csv", "stripe-csv", "shopify-payments-csv", "ebay-csv", "etsy-csv"];
+export const PSP_FORMATS: StatementFormat[] = [
+  "paypal-csv",
+  "stripe-csv",
+  "shopify-payments-csv",
+  "ebay-csv",
+  "etsy-csv",
+  "googleplay-earnings",
+  "appstore-finance",
+  "store-payout",
+];
 
 /** Ein Umsatz, wie er in der Datei steht. Eingänge positiv, Ausgänge negativ. */
 export interface ParsedTransaction {

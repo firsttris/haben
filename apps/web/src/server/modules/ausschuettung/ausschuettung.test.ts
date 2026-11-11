@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
 
 /*
@@ -29,7 +29,8 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
   });
 
   async function setup(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", k: { bank: string; kapital: string; vortrag: string }) {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, corporate_tax_inputs, elster_certificates, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, corporate_tax_inputs,
+      elster_certificates, company cascade`;
     await sql.begin(async (tx) => {
       for (const table of ["year_closings", "kapest_submissions", "dividends"]) {
         await tx.unsafe(`alter table ${table} disable trigger ${table}_append_only`);

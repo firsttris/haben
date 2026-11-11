@@ -1,5 +1,5 @@
-import { useId } from "react";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
+import { Field } from "./Field.tsx";
 
 /** Textbaustein zum Einfügen: Kopftext (Einleitung) oder Fußtext (Hinweis) */
 export interface TextBlockOption {
@@ -49,7 +49,6 @@ export function TextBlockField({
 }) {
   const { customer, general, other } = blocksFor(blocks, kind, contactId);
   const any = customer.length + general.length + other.length > 0;
-  const id = useId();
   const options = (list: TextBlockOption[]) =>
     list.map((b) => (
       <option key={b.id} value={b.id}>
@@ -58,27 +57,32 @@ export function TextBlockField({
     ));
   return (
     <div className="field-group">
-      <div className="field">
-        <label htmlFor={id}>{label}</label>
-        <FormattedTextarea id={id} value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />
-      </div>
+      <Field label={label}>
+        {(control) => <FormattedTextarea {...control} value={value} onChange={(e) => onChange(e.target.value)} maxLength={2000} placeholder={placeholder} />}
+      </Field>
       {any && (
-        <select
-          aria-label={`${kind === "kopf" ? "Kopftext" : "Fußtext"} aus den Textbausteinen einfügen`}
-          className="catalog-select"
-          style={{ alignSelf: "flex-start" }}
-          value=""
-          onChange={(e) => {
-            const block = blocks.find((b) => b.id === e.target.value);
-            if (block) onChange(insertBlock(value, block.text));
-            e.target.value = "";
-          }}
+        <Field
+          label={`${kind === "kopf" ? "Kopftext" : "Fußtext"} aus den Textbausteinen einfügen`}
+          hideLabel
+          style={{ alignSelf: "flex-start", maxWidth: "100%" }}
         >
-          <option value="">Textbaustein einfügen …</option>
-          {customer.length > 0 && <optgroup label="Für diesen Kunden">{options(customer)}</optgroup>}
-          {general.length > 0 && <optgroup label="Für alle Kunden">{options(general)}</optgroup>}
-          {other.length > 0 && <optgroup label="Andere Kunden">{options(other)}</optgroup>}
-        </select>
+          {(control) => (
+            <select
+              {...control}
+              value=""
+              onChange={(e) => {
+                const block = blocks.find((b) => b.id === e.target.value);
+                if (block) onChange(insertBlock(value, block.text));
+                e.target.value = "";
+              }}
+            >
+              <option value="">Textbaustein einfügen …</option>
+              {customer.length > 0 && <optgroup label="Für diesen Kunden">{options(customer)}</optgroup>}
+              {general.length > 0 && <optgroup label="Für alle Kunden">{options(general)}</optgroup>}
+              {other.length > 0 && <optgroup label="Andere Kunden">{options(other)}</optgroup>}
+            </select>
+          )}
+        </Field>
       )}
     </div>
   );

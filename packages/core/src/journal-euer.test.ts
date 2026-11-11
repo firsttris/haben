@@ -92,14 +92,41 @@ describe.each(KONTENRAHMEN)("EÜR-Zeilen aus dem Journal wie computeEuer (%s)", 
       );
     });
 
-    it.each(["eu", "drittland", "ig_erwerb"] as const)("§ 13b bzw. Erwerb (%s): netto Ausgabe, die selbst geschuldete Steuer wirkt nicht", (rc) => {
+    it.each(["eu", "drittland", "ig_erwerb"] as const)(
+      "§ 13b bzw. Erwerb (%s): netto Ausgabe, von der selbst geschuldeten Steuer zählt nur der private Teil (Zeile 17)",
+      (rc) => {
+        const t = { ...totals({ rate: 1900, base: 20_000 }), gross: 20_000 };
+        const category = rc === "ig_erwerb" ? "wareneinkauf" : "software";
+        // computeEuer bekommt Belege mit selbst geschuldeter Steuer ohne Steuer (reports.ts, documentTotalsById), die Steuer extra
+        const ohneSteuer = { ...t, tax: 0, taxes: t.taxes.map((r) => ({ ...r, tax: 0 })) };
+        const ergebnis = ausJournal(kr, documentPosting(t, category, kr, "einzelunternehmen", "bank", true, undefined, 25, rc));
+        expect(ergebnis).toEqual(
+          erwartet([{ kind: "document", date: DATUM, paid: ohneSteuer.gross, totals: ohneSteuer, category, privateShare: 25, selbstGeschuldet: [3_800] }]),
+        );
+        // 25 % von 38 €
+        expect(ergebnis.zeilen.vereinnahmteUst).toBe(950);
+      },
+    );
+
+    it("§ 13b ohne Vorsteuerabzug mit Privatanteil: der private Teil der Steuer zählt in Zeile 17, der betriebliche nicht", () => {
       const t = { ...totals({ rate: 1900, base: 20_000 }), gross: 20_000 };
-      const category = rc === "ig_erwerb" ? "wareneinkauf" : "software";
-      // computeEuer bekommt Belege mit selbst geschuldeter Steuer ohne Steuer (reports.ts, documentTotalsById)
       const ohneSteuer = { ...t, tax: 0, taxes: t.taxes.map((r) => ({ ...r, tax: 0 })) };
-      expect(ausJournal(kr, documentPosting(t, category, kr, "einzelunternehmen", "bank", true, undefined, 25, rc))).toEqual(
-        erwartet([{ kind: "document", date: DATUM, paid: ohneSteuer.gross, totals: ohneSteuer, category, privateShare: 25 }]),
+      const ergebnis = ausJournal(kr, documentPosting(t, "software", kr, "einzelunternehmen", "bank", false, undefined, 40, "eu"));
+      expect(ergebnis).toEqual(
+        erwartet([
+          {
+            kind: "document",
+            date: DATUM,
+            paid: ohneSteuer.gross,
+            totals: ohneSteuer,
+            category: "software",
+            vorsteuerAbzug: false,
+            privateShare: 40,
+            selbstGeschuldet: [3_800],
+          },
+        ]),
       );
+      expect(ergebnis.zeilen.vereinnahmteUst).toBe(1_520);
     });
 
     // TDD-Review #557: Seit #551 steht die nicht abziehbare Steuer nach § 13b als eigene Zeile (keineVSt) auf dem

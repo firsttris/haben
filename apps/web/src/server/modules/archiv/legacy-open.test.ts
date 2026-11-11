@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 import { addDays } from "@haben/core";
 
@@ -81,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   }
 
   beforeEach(async () => {
-    await sql`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents,
+    await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents,
       invoice_lines, invoices, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -179,17 +179,18 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(october).toMatchObject({ kz81: 400_000, tax81: 76_000 });
     const september = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(september.kz81).toBe(0);
-    // EÜR aus dem Journal (#542): Die übernommene Rechnung hat keine Erlöszeile, die Zahlung lässt sich nicht auf Zeilen
-    // verteilen; der Abgleich nennt das, statt eine Abweichung zu melden
+    // EÜR aus dem Journal (#542): Die übernommene Rechnung steht gegen den Saldenvortrag ohne Erlöszeile; die Zahlung
+    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte, und wird je Zeile abgeglichen
     const abgleich = await import("../auswertungen/abgleich.ts");
     const euer = await abgleich.euerAbgleich(2026);
-    expect(euer.hinweise).toContain(
-      "Eine Zahlung 2026 auf aus Lexoffice übernommene Rechnungen bzw. Belege: Einnahmen und Ausgaben werden für 2026 nicht je Zeile abgeglichen.",
+    expect(euer.hinweise).toEqual([]);
+    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:")).map((z) => [z.posten, z.journal, z.quelle])).toEqual(
+      expect.arrayContaining([
+        ["EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)", 400_000, 400_000],
+        ["EÜR: Vereinnahmte Umsatzsteuer", 76_000, 76_000],
+        ["EÜR: Gewinn nach der DATEV-Formel", 476_000, 476_000],
+      ]),
     );
-    // Die Formel braucht keine Verteilung: Der Saldenvortrag steht für den Erlös, der mit der Zahlung zufließt
-    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:"))).toEqual([
-      { bereich: "euer", zeitraum: "2026", posten: "EÜR: Gewinn nach der DATEV-Formel", journal: 476_000, quelle: 476_000 },
-    ]);
     expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
   });
 

@@ -1,7 +1,9 @@
-import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, zahlungsStand, type Cents, type Kontenrahmen } from "@haben/core";
+import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, istEuerEinnahme, zahlungsStand, type Cents, type EuerLineKey, type Kontenrahmen } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne, or, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { belegNebenbuch, belegTeilzahlung, buchungen, offenerPosten, type BelegNebenbuch, type Buchung } from "./euer-journal.ts";
+import { imEuerJahr } from "./euer-jahreswechsel.ts";
+import { buchungen, offenerPosten, type Buchung } from "./euer-journal-buchungen.ts";
+import { belegNebenbuecher, belegTeilzahlung, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
 /*
  * Gewinn der EÜR nach der DATEV-Formel (#542, Schritt 5c), als Gegenprobe zum Gewinn aus den Zeilen: der negative Saldo
@@ -66,10 +68,13 @@ function offenerAnteil(
     const ausgeglichen = zahlungen.reduce((s, v) => s + v, 0);
     let bezahlt: Cents;
     if (p.beleg) {
-      // Was eine Zahlung nicht als Ausgabe oder Vorsteuer wirkt, ist der private Teil bzw. der nicht wirkende Rest
+      // Was eine Zahlung nicht als Ausgabe oder Vorsteuer wirkt, ist der private Teil bzw. der nicht wirkende Rest; eine
+      // Einnahme (§ 13b: privater Teil der Steuer in Zeile 17) mindert die Wirkung
       bezahlt = zahlungen.reduce((s, betrag) => {
         const wirkung = belegTeilzahlung(Number(stichtag.slice(0, 4)), p.beleg!, -betrag);
-        const ausgabe = Object.values(wirkung.zeilen).reduce((x, v) => x + (v ?? 0), 0) + wirkung.bewirtungNichtAbziehbar;
+        const ausgabe =
+          (Object.entries(wirkung.zeilen) as [EuerLineKey, Cents | undefined][]).reduce((x, [key, v]) => x + (istEuerEinnahme(key) ? -(v ?? 0) : (v ?? 0)), 0) +
+          wirkung.bewirtungNichtAbziehbar;
         return s + (-betrag - ausgabe);
       }, 0);
     } else {
@@ -98,7 +103,8 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
   const e = schema.journalEntries;
   const ende = `${year}-12-31`;
   const vorjahr = `${year - 1}-12-31`;
-  const jahr = await buchungen(q, ohneEroeffnung(and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`))));
+  // Wie die EÜR: Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
+  const jahr = await imEuerJahr(year, await buchungen(q, ohneEroeffnung(and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`)))), q);
   // Rechnungen und Belege auf Ziel, auch mit späterem Datum: eine Zahlung kann vor dem Belegdatum liegen (Vorkasse)
   const aufZiel = (await buchungen(q, ohneEroeffnung(inArray(e.sourceType, ["invoice", "document"])))).filter((b) =>
     b.zeilen.some((z) => offenerPosten(b.kontenrahmen, z)),
@@ -157,7 +163,11 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
       ausgleiche.set(key, [...(ausgleiche.get(key) ?? []), b]);
     }
   }
-  for (const [key, p] of posten) if (key.startsWith("document|")) p.beleg = await belegNebenbuch(q, key.slice(9));
+  const nebenbuch = await belegNebenbuecher(
+    q,
+    [...posten.keys()].flatMap((key) => (key.startsWith("document|") ? [key.slice(9)] : [])),
+  );
+  for (const [key, p] of posten) if (key.startsWith("document|")) p.beleg = nebenbuch.get(key.slice(9));
   const datum = await daten(
     q,
     [...[...posten.values()].flatMap((p) => p.gebucht), ...[...ausgleiche.values()].flat()].map((b) => b.id),

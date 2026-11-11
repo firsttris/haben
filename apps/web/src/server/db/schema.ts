@@ -161,6 +161,11 @@ export const company = pgTable(
      * Änderung, die abgelaufene oder laufende Jahre mit Buchungen trifft, braucht eine ausdrückliche Bestätigung.
      */
     datevPersonenkontenAb: integer("datev_personenkonten_ab"),
+    /**
+     * Voranmeldung und EÜR aus dem Journal ab diesem Jahr (#542, docs/adr/journal-als-quelle.md); null = ab dem Jahr der ersten
+     * Buchung. Davor rechnen sie aus den Nebenbüchern. Bestehende Instanzen beginnen mit dem Jahr nach dem Update (Migration).
+     */
+    journalAb: integer("journal_ab"),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
@@ -857,7 +862,7 @@ export const cashEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Cent; Eingang positiv, Ausgang negativ */
     amount: integer("amount").notNull(),
-    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme"] }).notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung", "einnahme", "import"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
     /** Bareinnahme auf eine Ausgangsrechnung (Kasse an Forderungen), auch bei ihrer Gegenzeile; mehrere Zeilen je Rechnung bei Teilzahlungen */
@@ -1510,6 +1515,31 @@ export const letterheadProfiles = pgTable(
   ],
 );
 
+/**
+ * Eigene Belegvorlagen (#113): Typst-Quelltext mit Namen, für Belege oder Mahnungen. Der Text steht wie alles andere im
+ * Änderungsprotokoll. Pakete, die eine Vorlage braucht, sind nur mit Freigabe nutzbar; die Freigabe gilt für genau
+ * diesen Quelltext (approved_sha256), eine geänderte Vorlage fragt neu.
+ */
+export const belegLayouts = pgTable(
+  "beleg_layouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    art: text("art", { enum: ["beleg", "mahnung"] }).notNull(),
+    source: text("source").notNull(),
+    sha256: text("sha256").notNull(),
+    /** Version des Feldvertrags, für die das Layout geschrieben ist (LAYOUT_SCHEMA_VERSION) */
+    schemaVersion: smallint("schema_version").notNull(),
+    /** Pakete, die der Quelltext importiert, z. B. { name: "@preview/cetz", version: "0.3.4" } */
+    packages: jsonb("packages").$type<{ name: string; version: string }[]>().notNull().default([]),
+    /** SHA-256 des Quelltexts, für den die Pakete freigegeben sind; null = nicht freigegeben */
+    approvedSha256: text("approved_sha256"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("beleg_layouts_name").on(t.name), check("beleg_layouts_name_laenge", sql`char_length(${t.name}) between 1 and 60`)],
+);
+
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
 export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1570,7 +1600,7 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn"],
+      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1854,8 +1884,10 @@ export const bankAccounts = pgTable(
       .notNull()
       .default("geschaeft"),
     /** Nur Zahlungsdienstleister: Anbieter (PAYMENT_PROVIDERS) und Nummer des Verrechnungskontos (1361 … bzw. 1461 …) */
-    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"] }),
+    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "googleplay", "appstore", "sonstige"] }),
     ledgerIndex: smallint("ledger_index").unique(),
+    /** Gehört nicht zu dieser Firma (#462): ausgeblendet, kein Abruf, kein Import; nur solange kein Umsatz zugeordnet oder verrechnet ist */
+    excludedAt: timestamp("excluded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -2101,6 +2133,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "darlehen",
   // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz (Roadmap Platz 1, #324)
   "kategorie",
+  // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
+  "spende",
 ]);
 
 /**
@@ -2304,7 +2338,7 @@ export const archiveFiles = pgTable(
   "archive_files",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    kind: text("kind", { enum: ["datev", "idea", "elster", "kontoauszug", "sonstiges"] }).notNull(),
+    kind: text("kind", { enum: ["datev", "idea", "elster", "kontoauszug", "storebericht", "sonstiges"] }).notNull(),
     /** Geschäftsjahr, auf das sich die Datei bezieht */
     year: smallint("year"),
     filename: text("filename").notNull(),
@@ -2370,6 +2404,100 @@ export const datevBookings = pgTable(
   (t) => [uniqueIndex("datev_bookings_file_row").on(t.fileId, t.row), index("datev_bookings_date").on(t.date)],
 );
 
+/** App-Stores, deren Finanzberichte Haben abruft (Google Play Console, App Store Connect) */
+export const STORES = ["googleplay", "appstore"] as const;
+export type Store = (typeof STORES)[number];
+
+/** Nicht geheime Angaben eines Store-Zugangs; das Geheimnis (Servicekonto-JSON bzw. .p8) steht nur in ciphertext */
+export type StoreConfig = (
+  | { store: "googleplay"; bucket: string; clientEmail: string }
+  | { store: "appstore"; issuerId: string; keyId: string; vendorNumber: string }
+) & {
+  /** Kontakt der Store-Gesellschaft (Google Commerce Ltd, Apple Distribution International Ltd …) für die Rechnungsentwürfe */
+  contactId?: string;
+};
+
+/**
+ * Zugang zu den Finanzberichten eines App-Stores, eine Zeile je Store. Der Abruf legt die Berichte unverändert ins Archiv
+ * (store_reports); fetch_from ist der älteste Berichtsmonat, den der nächste Abruf noch sucht.
+ */
+export const storeConnections = pgTable(
+  "store_connections",
+  {
+    store: text("store", { enum: STORES }).primaryKey(),
+    config: jsonb("config").$type<StoreConfig>().notNull(),
+    /** Servicekonto-JSON (Google) bzw. privater Schlüssel .p8 (Apple), AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Erster Berichtsmonat (Tag 1), den der Abruf noch sucht */
+    fetchFrom: date("fetch_from").notNull(),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("store_connections_store", sql`${t.store} in ('googleplay', 'appstore')`),
+    check("store_connections_config", sql`${t.config}->>'store' = ${t.store}`),
+  ],
+);
+
+/**
+ * Abgerufene Finanzberichte der App-Stores, je Store, Berichtsart, Monat und Teil genau einer; das Original liegt im
+ * Archiv. Nur anhängen: Ein später geänderter Bericht desselben Monats ersetzt den ersten nicht.
+ */
+export const storeReports = pgTable(
+  "store_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    store: text("store", { enum: STORES }).notNull(),
+    /** earnings (Google Play, earnings_YYYYMM.zip) oder finance_detail (App Store Connect, FINANCE_DETAIL/Z1) */
+    reportKind: text("report_kind", { enum: ["earnings", "finance_detail"] }).notNull(),
+    /**
+     * Teil des Monats: bei Google der Objektname im Bucket (ein Monat kann aus mehreren Dateien bestehen), bei Apple die
+     * Berichtsregion (Z1)
+     */
+    part: text("part").notNull(),
+    /** Berichtsmonat YYYY-MM; bei Apple der Fiskalmonat */
+    period: text("period").notNull(),
+    sha256: text("sha256").notNull(),
+    archiveFileId: uuid("archive_file_id")
+      .notNull()
+      .references(() => archiveFiles.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("store_reports_period").on(t.store, t.reportKind, t.period, t.part),
+    check("store_reports_period_format", sql`${t.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check(
+      "store_reports_kind",
+      sql`(${t.store} = 'googleplay' and ${t.reportKind} = 'earnings') or (${t.store} = 'appstore' and ${t.reportKind} = 'finance_detail')`,
+    ),
+  ],
+);
+
+/**
+ * Auszahlungen der App-Stores: Der Bankeingang wird als Geldtransit mit einem Auszahlungsumsatz im Konto des Stores
+ * verbunden, den Haben dafür anlegt; covered nennt die Monatsumsätze (bank_reference), die damit bezahlt sind. Bei
+ * Apple gleicht ein weiterer Umsatz die Kursdifferenz zwischen umgerechneten Monatsbeträgen und Zahlung aus. Nur anhängen.
+ */
+export const storePayouts = pgTable("store_payouts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  store: text("store", { enum: STORES }).notNull(),
+  /** Eingang auf dem Bankkonto */
+  bankTransactionId: uuid("bank_transaction_id")
+    .notNull()
+    .unique()
+    .references(() => bankTransactions.id),
+  /** Angelegte Auszahlung im Konto des Stores */
+  payoutTransactionId: uuid("payout_transaction_id")
+    .notNull()
+    .unique()
+    .references(() => bankTransactions.id),
+  /** Angelegte Kursdifferenz im Konto des Stores; null ohne Differenz */
+  differenceTransactionId: uuid("difference_transaction_id").references(() => bankTransactions.id),
+  covered: text("covered").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** API-Schlüssel für Lexware Office, AES-256-GCM-verschlüsselt; eine Zeile */
 export const lexofficeConnection = pgTable(
   "lexoffice_connection",
@@ -2396,8 +2524,33 @@ export const sevdeskConnection = pgTable(
 );
 
 /** Woher ein Altbestand stammt */
-export const LEGACY_SOURCES = ["lexoffice", "sevdesk"] as const;
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const;
 export type LegacySource = (typeof LEGACY_SOURCES)[number];
+
+/**
+ * Analyse und offene Posten eines Accountable-Laufs. Steht als JSON am Fortschritt, damit Status und Oberfläche sie ohne
+ * erneutes Entpacken lesen; nur der Accountable-Lauf setzt sie. Felder ohne `unknown`, damit die Server Function den
+ * Fortschritt ausgeben kann (Screen-Ausgabe verlangt serialisierbare Typen).
+ */
+export type AccountableProgress = {
+  filename: string;
+  size: number;
+  year: number | null;
+  bookings: number;
+  vouchers: number;
+  withFile: number;
+  withoutFile: number;
+  privateRows: number;
+  missingReceipts: number;
+  unknownTaxRows: number;
+  invoices: { number: string; documentDate: string; gross: number; text: string; row: number }[];
+  openItems: { number: string; supplier: string; gross: number; date: string; reason: string }[];
+  /** Wie viele Buchungen ohne Belegdatei; openItems ist gekürzt */
+  openItemCount: number;
+  archivedFileId?: string;
+  archivedAlready?: boolean;
+  note?: string;
+};
 
 export type LexofficeImportProgress = {
   phase: "kontakte" | "liste" | "belege" | "fertig";
@@ -2408,6 +2561,10 @@ export type LexofficeImportProgress = {
   skipped: number;
   files: number;
   failed: { lexofficeId: string; number: string; message: string }[];
+  /** BuchhaltungsButler: Archivdateien mit dem DATEV-Stapel des Exports, auch wenn sie schon vorher im Archiv lagen */
+  datevFileIds?: string[];
+  /** Accountable: Analyse des Exports und offene Posten; nur beim Accountable-Lauf gesetzt */
+  accountable?: AccountableProgress;
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
@@ -2437,7 +2594,7 @@ export type LegacyPayment = {
   paidDate: string | null;
   items: { type: string; date: string; amount: number; account?: string | null }[];
   /** Nur gelesen, nie gespeichert: items aus legacy_voucher_payments (sevdesk) bzw. Rechnung und ihr Storno ohne Zahlung */
-  history?: "sevdesk" | "storno";
+  history?: "sevdesk" | "import" | "storno";
   /** Nur gelesen: Datum der Stornorechnung bei history "storno" */
   cancelledOn?: string;
 };
@@ -2448,6 +2605,7 @@ export const legacyOrderDocuments = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     externalId: text("external_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("sevdesk"),
     importId: uuid("import_id")
       .notNull()
       .references(() => lexofficeImports.id),
@@ -2479,7 +2637,7 @@ export const legacyOrderFiles = pgTable(
     mimeType: text("mime_type").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    origin: text("origin", { enum: ["sevdesk", "manuell"] }).notNull(),
+    origin: text("origin", { enum: ["sevdesk", "manuell", "import"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_order_files_unique").on(t.orderId, t.sha256)],
@@ -2503,7 +2661,7 @@ export const legacyOrderPdfAttempts = pgTable(
 );
 
 /**
- * Rechnungen, Gutschriften und Belege aus Lexoffice oder sevDesk, so wie die API sie geliefert hat. Nur anhängen.
+ * Rechnungen, Gutschriften und Belege aus Lexoffice, sevDesk oder BuchhaltungsButler mit unveränderten Quelldaten. Nur anhängen.
  * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".
  */
 export const lexofficeVouchers = pgTable(
@@ -3143,3 +3301,32 @@ export const tokenEvents = pgTable("token_events", {
   previousResponsibleId: text("previous_responsible_id"),
   responsibleId: text("responsible_id"),
 });
+
+/** Idempotenz und Herkunft des Betreiberimports; keine zweite Zahlungs- oder Auswertungsquelle. */
+export const externalImports = pgTable(
+  "external_imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    source: text("source").notNull(),
+    externalId: text("external_id").notNull(),
+    kind: text("kind", { enum: ["invoice", "quote", "journal"] }).notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    voucherId: uuid("voucher_id").references(() => lexofficeVouchers.id),
+    orderDocumentId: uuid("order_document_id").references(() => legacyOrderDocuments.id),
+    entryId: uuid("entry_id").references(() => journalEntries.id),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_imports_identity").on(t.source, t.kind, t.externalId),
+    uniqueIndex("external_imports_voucher").on(t.voucherId),
+    uniqueIndex("external_imports_order").on(t.orderDocumentId),
+    uniqueIndex("external_imports_entry").on(t.entryId),
+    check(
+      "external_imports_target",
+      sql`(${t.kind} = 'invoice' and ${t.voucherId} is not null and ${t.orderDocumentId} is null and ${t.entryId} is null)
+      or (${t.kind} = 'quote' and ${t.orderDocumentId} is not null and ${t.voucherId} is null and ${t.entryId} is null)
+      or (${t.kind} = 'journal' and ${t.entryId} is not null and ${t.voucherId} is null and ${t.orderDocumentId} is null)`,
+    ),
+  ],
+);

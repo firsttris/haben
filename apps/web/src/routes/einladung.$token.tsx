@@ -4,6 +4,7 @@ import { authClient } from "../lib/auth-client.ts";
 import { errorMessage, formatDateTime } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
 import { checkInvitation } from "../server/functions/zugang.ts";
+import { Field } from "../components/Field.tsx";
 
 /** Einladung der Steuerberatung einlösen: Konto mit Passwort anlegen, danach Passkey hinzufügen */
 export const Route = createFileRoute("/einladung/$token")({
@@ -99,18 +100,11 @@ function InvitationPage() {
               Einladung „{invitation.label}“, gültig bis {formatDateTime(invitation.expiresAt)}. Der Zugang kann alles ansehen und herunterladen, aber nichts
               ändern.
             </p>
-            <label className="field">
-              Name
-              <input name="name" required autoComplete="name" />
-            </label>
-            <label className="field">
-              E-Mail
-              <input name="email" type="email" required autoComplete="email" />
-            </label>
-            <label className="field">
-              Passwort (mindestens 12 Zeichen)
-              <input name="password" type="password" required minLength={12} autoComplete="new-password" />
-            </label>
+            <Field label="Name">{(control) => <input {...control} name="name" required autoComplete="name" />}</Field>
+            <Field label="E-Mail">{(control) => <input {...control} name="email" type="email" required autoComplete="email" />}</Field>
+            <Field label="Passwort (mindestens 12 Zeichen)">
+              {(control) => <input {...control} name="password" type="password" required minLength={12} autoComplete="new-password" />}
+            </Field>
             <button type="submit" className="btn btn-primary" disabled={busy}>
               Zugang anlegen
             </button>

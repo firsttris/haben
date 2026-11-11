@@ -74,6 +74,28 @@ jobs:
       contents: write
       packages: write
 
+  # Nur eine fertige Version (kein Release Candidate, kein :edge): Issues mit `Umgesetzt #…` seit der vorigen
+  # fertigen Version bekommen einen Kommentar und werden geschlossen (scripts/board/release.ts); das Board
+  # schiebt ihre Karten dann selbst nach „Erledigt“
+  issues-schliessen:
+    needs: docker
+    if: ${{ !cancelled() && needs.docker.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Tags und Historie für den Bereich seit der vorigen fertigen Version
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun scripts/board/release.ts "$GITHUB_REF_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   docker-backup:
     needs: [tested, checks]
     if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}

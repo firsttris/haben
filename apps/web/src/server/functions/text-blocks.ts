@@ -1,14 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createTextBlock, listContacts, listTextBlocks, setTextBlockArchived, textBlockInputSchema, updateTextBlock } from "../modules/stammdaten/index.ts";
+import {
+  createTextBlock,
+  listContactChoices,
+  listTextBlocks,
+  setTextBlockArchived,
+  textBlockInputSchema,
+  updateTextBlock,
+} from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Alle Bausteine samt archivierten, mit den Kunden für die Zuordnung */
 export const getTextBlocks = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
-    const [blocks, contacts] = await Promise.all([listTextBlocks({ archived: true }), listContacts()]);
-    return { blocks, contacts: contacts.map(({ id, name, ort, isCustomer }) => ({ id, name, ort, isCustomer })) };
+    const [blocks, contacts] = await Promise.all([listTextBlocks({ archived: true }), listContactChoices("kunde")]);
+    return { blocks, contacts };
   });
 
 export const saveTextBlock = createServerFn({ method: "POST" })

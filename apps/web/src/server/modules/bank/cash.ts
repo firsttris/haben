@@ -5,6 +5,9 @@ import {
   cashEntryLabel,
   cashPosting,
   formatEuro,
+  invoiceCashPaymentPosting,
+  recordedTaxShares,
+  zeilenWieHeute,
   type CashBooking,
   type Cents,
   type Kontenrahmen,
@@ -15,7 +18,8 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadCompany } from "../stammdaten/index.ts";
+import { journalAbJahr, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
+import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
 
 /**
@@ -64,7 +68,7 @@ async function cashByDay(q: Db | Tx): Promise<Map<string, Cents>> {
 
 /** Prüft, ob der Bestand mit der neuen Bewegung an jedem Tag ab ihrem Datum nicht negativ wird */
 async function assertNeverNegative(tx: Tx, date: string, amount: Cents) {
-  if (amount >= 0) return;
+  if (amount > 0) return;
   const days = await cashByDay(tx);
   days.set(date, (days.get(date) ?? 0) + amount);
   // Bestand am Ende jedes Tages, aufsteigend
@@ -91,6 +95,26 @@ export async function checkCashReversal(tx: Tx, date: string, amount: Cents): Pr
 export async function nextNumber(tx: Tx): Promise<number> {
   const [row] = await tx.select({ max: sql<number | null>`max(${schema.cashEntries.number})` }).from(schema.cashEntries);
   return Number(row?.max ?? 0) + 1;
+}
+
+export interface ImportedCashEntry {
+  date: string;
+  amount: Cents;
+  text: string;
+  journalEntryId: string;
+}
+
+/** Originalbewegungen nur im Nebenbuch ergänzen; keine zweite Journalbuchung oder zusätzliche Zahlungsprojektion. */
+export async function addImportedCashEntries(tx: Tx, entries: ImportedCashEntry[]): Promise<void> {
+  // Der Aufrufer sperrt die Kasse vor seinem ersten Audit-Eintrag; die Sperre ist mehrfach aufrufbar.
+  await lockCash(tx);
+  // Exportreihenfolge ist beliebig. Wie bei nativen Buchungen zählt der Tagesendbestand, also Eingänge vor Ausgängen.
+  const ordered = [...entries].sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
+  for (const entry of ordered) {
+    await tx.insert(schema.cashEntries).values({ ...entry, number: await nextNumber(tx), kind: "import" });
+  }
+  // Das ganze Paket zählt: Ein späterer Eingang kann einen schon vorhandenen späteren Ausgang decken.
+  if (ordered.length > 0) await assertNeverNegative(tx, ordered[0]!.date, 0);
 }
 
 /** Zeile für einen bar bezahlten Beleg; die Buchung „an Kasse“ macht der Beleg selbst */
@@ -170,6 +194,8 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
     await tx.execute(lock);
     const [original] = await tx.select().from(schema.cashEntries).where(eq(schema.cashEntries.id, id));
     if (!original || original.reversesId) throw new CashError("Kassenbuchung nicht gefunden.");
+    if (original.kind === "import")
+      throw new CashError("Diese Kassenbewegung wurde mit fremden Originalbuchungen übernommen. Eine Korrektur muss zuerst mit diesen abgestimmt werden.");
     if (original.kind === "beleg") throw new CashError("Bar bezahlte Belege sind gebucht und lassen sich hier nicht stornieren.");
     const [already] = await tx.select({ id: schema.cashEntries.id }).from(schema.cashEntries).where(eq(schema.cashEntries.reversesId, id));
     if (already) throw new CashError("Die Kassenbuchung ist bereits storniert.");
@@ -204,6 +230,23 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
 }
 
 /**
+ * Zeilen einer Bareinnahme auf eine Rechnung aus der Zeit vor dem Stichjahr, wie Haben sie heute bucht (bei Ist mit der
+ * Bemessungsgrundlage, #552), wenn sie auf jedem Konto dasselbe ergeben; sonst wie gebucht (zeilenWieHeute). Der Anteil
+ * je Satz wie in der Voranmeldung aus dem Kassenbuch (recordedTaxShares).
+ */
+async function cashLinesWieHeute(tx: Tx, original: CashEntry, kontenrahmen: Kontenrahmen, gebucht: PostingLine[]): Promise<PostingLine[]> {
+  const year = Number(original.date.slice(0, 4));
+  if (!original.invoiceId || year >= (await journalAbJahr(tx))) return gebucht;
+  const [invoice] = await tx.select({ taxTreatment: schema.invoices.taxTreatment }).from(schema.invoices).where(eq(schema.invoices.id, original.invoiceId));
+  const totals = (await invoiceTotalsById([original.invoiceId], tx)).get(original.invoiceId);
+  if (!invoice || !totals) return gebucht;
+  const stored = original.taxSharesInvoiceId === original.invoiceId ? original.taxShares : null;
+  const shares = recordedTaxShares(totals, original.amount, stored);
+  const versteuerung = await versteuerungForYear(year, tx);
+  return zeilenWieHeute(gebucht, invoiceCashPaymentPosting(totals, original.amount, kontenrahmen, versteuerung, shares, invoice.taxTreatment));
+}
+
+/**
  * Gegenzeile einer Bareinnahme auf eine Rechnung oder ohne Rechnung (GoBD: nichts wird überschrieben): Die Gegenbuchung
  * dreht die Zeilen der ursprünglichen Buchung (Forderungen an Kasse, bei Ist auch die Umsatzsteuer zurück auf „nicht fällig“), der
  * Steueranteil geht genau zurück. Ein mit der Bareinnahme als Skonto ausgebuchter Rest wird am selben Tag mit aufgehoben,
@@ -219,6 +262,8 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
     .from(schema.journalEntries)
     .where(eq(schema.journalEntries.id, original.journalEntryId));
   const books = await openBooks(tx);
+  const kontenrahmen = (entry?.kontenrahmen ?? books.kontenrahmen) as Kontenrahmen;
+  const gebucht = lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis }));
   const journalEntryId = await post(tx, books, {
     date,
     description: text,
@@ -226,11 +271,7 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
     sourceId: reversalId,
     reversesId: original.journalEntryId,
     // Nach einem Wechsel des Kontenrahmens mit den Konten derselben Rolle im neuen Rahmen
-    lines: reverseLinesIn(
-      (entry?.kontenrahmen ?? books.kontenrahmen) as Kontenrahmen,
-      books.kontenrahmen,
-      lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
-    ),
+    lines: reverseLinesIn(kontenrahmen, books.kontenrahmen, await cashLinesWieHeute(tx, original, kontenrahmen, gebucht)),
   });
   const [row] = await tx
     .insert(schema.cashEntries)

@@ -1,7 +1,7 @@
 import { computeUstva, formatDecimal, formatEuro, parseEuro, parsePeriodKey, periodKey, periodLabel, quarterOfMonth } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
@@ -14,6 +14,7 @@ import { ELSTER_KIND_LABEL, elsterNotice, zahllastFakt, type ElsterKind } from "
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
 import type { Notice } from "../../../lib/use-action.ts";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   loader: ({ params }) => {
@@ -87,7 +88,6 @@ function describe(figures: Record<FieldKey, number>): string {
 function VatPeriodPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const selectId = useId();
   const key = periodKey(data.period);
   // Meldungen überleben das Neuaufsetzen des Formulars nach dem Speichern
   // und gelten nur für den Zeitraum, in dem sie entstanden sind.
@@ -108,16 +108,17 @@ function VatPeriodPage() {
             <StatusPill current={data.current} filing={data.filings.find((f) => f.vatReturnId === data.current?.id)} />
           </div>
         </div>
-        <label className="field" htmlFor={selectId}>
-          Zeitraum
-          <select id={selectId} value={key} onChange={(event) => navigate({ to: "/umsatzsteuer/$zeitraum", params: { zeitraum: event.target.value } })}>
-            {options.map((option) => (
-              <option key={periodKey(option)} value={periodKey(option)}>
-                {periodLabel(option)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Zeitraum">
+          {(control) => (
+            <select {...control} value={key} onChange={(event) => navigate({ to: "/umsatzsteuer/$zeitraum", params: { zeitraum: event.target.value } })}>
+              {options.map((option) => (
+                <option key={periodKey(option)} value={periodKey(option)}>
+                  {periodLabel(option)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
 
       {data.mode === "simuliert" && (
@@ -653,19 +654,20 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
           </div>
         </div>
         {editable && (
-          <label className="field">
-            Begründung der Abweichung (Pflicht)
-            <textarea
-              value={reason}
-              onChange={(event) => {
-                setReason(event.target.value);
-                setDirty(true);
-              }}
-              aria-invalid={reason.trim().length < 10}
-              placeholder="z. B. Zahlung vom 30.09. erst im Oktober zugeordnet"
-            />
-            <span className="small">Berechnet wären {describe(computed)}.</span>
-          </label>
+          <Field label="Begründung der Abweichung (Pflicht)" hint={<>Berechnet wären {describe(computed)}.</>}>
+            {(control) => (
+              <textarea
+                {...control}
+                value={reason}
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  setDirty(true);
+                }}
+                aria-invalid={reason.trim().length < 10}
+                placeholder="z. B. Zahlung vom 30.09. erst im Oktober zugeordnet"
+              />
+            )}
+          </Field>
         )}
         {locked && current?.source === "manuell" && current.overrideReason && (
           <p className="small muted" style={{ margin: 0 }}>
