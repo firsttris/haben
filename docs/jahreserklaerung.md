@@ -117,7 +117,7 @@ Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitale
 | --- | --- |
 | N | Je Person mit Arbeitslohn: die Lohnsteuerbescheinigungen (Steuerklasse, Bruttoarbeitslohn, Lohnsteuer, Soli, Kirchensteuer) und Werbungskosten, siehe [Arbeitslohn](#arbeitslohn-anlage-n) |
 | Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
-| Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland |
+| Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland; vom Geschäftskonto gezahlte Spenden stehen im Kontenblatt 1840 bzw. 2250 „Zuwendungen, Spenden“ ([Bank](bank.md#direkt-buchen)) |
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
 | Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |
 | Kind | Je Kind Vorname, Geburtsdatum, Steuer-ID, Familienkasse und Kinderbetreuungskosten; leibliches Kind beider Ehegatten bzw. der steuerpflichtigen Person, Wohnsitz im Inland im ganzen Jahr bzw. ab Geburt |
