@@ -289,7 +289,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         [konto, 15_000, 0],
       ]);
       const euer = await annual.euerYear(2025);
-      expect(euer.figures).toEqual({ entnahmen: 15_000 });
+      // Keine Ausgabe, keine andere Zeile: nur die Entnahme (Einlagen weist die Anlage stets aus)
+    expect(euer.figures).toEqual({ entnahmen: 15_000, einlagen: 0 });
     },
   );
 
