@@ -41,3 +41,14 @@ test("Spaltenköpfe sortieren die Umsatzliste, das Datum steht mit Jahr", async 
   await expect(page).toHaveURL(/sort=gegenpartei&dir=auf/);
   await expect(ersteZeile).toContainText("Alpenblick Media AG");
 });
+
+test("Filterwechsel behält die Sortierung, wie er die Suche behält", async ({ page }) => {
+  await page.goto("/bank?filter=alle&sort=betrag&dir=ab");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("link", { name: "Betrag aufsteigend sortieren, zurzeit absteigend sortiert" })).toHaveText("Betrag ↓");
+
+  await page.getByRole("group", { name: "Filter" }).getByRole("link", { name: "Zugeordnet" }).click();
+  await expect(page).toHaveURL(/filter=zugeordnet/);
+  await expect(page).toHaveURL(/sort=betrag&dir=ab/);
+  await expect(page.getByRole("link", { name: "Betrag aufsteigend sortieren, zurzeit absteigend sortiert" })).toHaveText("Betrag ↓");
+});
