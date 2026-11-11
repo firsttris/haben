@@ -246,6 +246,35 @@ test("der aufgeklappte Name bleibt unter dem Zeiger und mit Fokus, Escape schlie
   await expect(voll(page)).toHaveCount(0);
 });
 
+// WCAG 1.4.13 („persistent“): Steht der Fokus per Tastatur auf „Haben“, schließt ein Zeiger, der darüberfährt und wieder
+// weggeht, den Namen nicht. Nach einem Mausklick (Fokus ohne Tastaturfokus) schließt das Verlassen ihn dagegen, sonst
+// bliebe er nach jedem Klick offen
+test("mit Tastaturfokus bleibt der Name offen, auch wenn der Zeiger darüberfährt und weggeht", async ({ page }) => {
+  await page.goto("/");
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await nameSetzen(page, LANG);
+  await page.mouse.move(900, 500);
+  for (let i = 0; i < 10 && !(await marke(page).evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+  await expect(marke(page)).toBeFocused();
+  await expect(voll(page)).toBeVisible();
+  await marke(page).hover();
+  await page.mouse.move(900, 500);
+  await expect(voll(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(voll(page)).toHaveCount(0);
+});
+
+test("nach einem Mausklick schließt das Verlassen des Zeigers den Namen", async ({ page }) => {
+  await page.goto("/");
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  await nameSetzen(page, LANG);
+  await marke(page).hover();
+  await expect(voll(page)).toBeVisible();
+  await marke(page).click();
+  await page.mouse.move(900, 500);
+  await expect(voll(page)).toHaveCount(0);
+});
+
 test("ein Name, der in zwei Zeilen passt, klappt nicht auf", async ({ page }) => {
   await page.goto("/");
   await expect(nav(page).getByText(FIRMA)).toBeVisible();
