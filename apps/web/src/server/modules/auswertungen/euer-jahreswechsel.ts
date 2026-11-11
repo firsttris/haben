@@ -32,6 +32,7 @@ export interface ZehnTageKennzeichen {
 export interface VorauszahlungImJanuar {
   allocationId: string;
   reversesId: string | null;
+  transactionId: string;
   amount: Cents;
   zeitraum: VatPeriod;
   /** Gehört nach § 11 Abs. 2 Satz 2 EStG in das Vorjahr */
@@ -93,6 +94,7 @@ export async function vorauszahlungenImJanuar(jahr: number, q: Db | Tx): Promise
     .select({
       id: a.id,
       reversesId: a.reversesId,
+      transactionId: a.transactionId,
       amount: a.amount,
       createdAt: a.createdAt,
       bookingDate: t.bookingDate,
@@ -119,6 +121,7 @@ export async function vorauszahlungenImJanuar(jahr: number, q: Db | Tx): Promise
     return {
       allocationId: r.id,
       reversesId: r.reversesId,
+      transactionId: r.transactionId,
       amount: r.amount,
       zeitraum,
       imVorjahr,
@@ -163,14 +166,25 @@ export async function imEuerJahr(year: number, jahr: Buchung[], q: Db | Tx): Pro
 
 /**
  * Hinweis für die Vorprüfung der EÜR `year`: Vorauszahlungen vom 1. bis 10. Januar, die in das Vorjahr gehörten, dort aber
- * nicht zählen, weil es beim Zuordnen schon übermittelt bzw. abgeschlossen war. Aufgehobene Zuordnungen zählen nicht.
+ * nicht zählen, weil es beim Zuordnen schon übermittelt bzw. abgeschlossen war. Aufgehobene Zuordnungen zählen nicht. Zählt
+ * derselbe Umsatz über eine aufgehobene Zuordnung schon im Vorjahr (die Gegenzeile kam nach der Übermittlung und zählt im
+ * Jahr der Zahlung), fehlt dort nur der Rest.
  */
 export async function vorauszahlungVorjahrHinweis(year: number, q: Db | Tx = db): Promise<string | null> {
   const alle = await vorauszahlungenImJanuar(year, q);
   const aufgehoben = new Set(alle.flatMap((z) => (z.reversesId ? [z.reversesId] : [])));
-  const gesperrt = alle.filter((z) => z.imVorjahr && z.gesperrt && !z.reversesId && !aufgehoben.has(z.allocationId));
+  const aktiv = (z: VorauszahlungImJanuar) => !z.reversesId && !aufgehoben.has(z.allocationId);
+  const fehlt = new Map<string, Cents>();
+  for (const z of alle) {
+    if (aktiv(z) && z.gesperrt) fehlt.set(z.transactionId, (fehlt.get(z.transactionId) ?? 0) + z.amount);
+  }
+  for (const [tx, gesperrtSumme] of fehlt) {
+    const schon = alle.filter((z) => z.transactionId === tx && !aktiv(z) && z.zaehltImVorjahr).reduce((s, z) => s + z.amount, 0);
+    fehlt.set(tx, Math.min(0, Math.max(gesperrtSumme, gesperrtSumme - schon)));
+  }
+  const gesperrt = alle.filter((z) => aktiv(z) && z.gesperrt && (fehlt.get(z.transactionId) ?? 0) < 0);
   if (gesperrt.length === 0) return null;
-  const betrag = formatEuro(-gesperrt.reduce((s, z) => s + z.amount, 0));
+  const betrag = formatEuro(-[...fehlt.values()].reduce((s, b) => s + b, 0));
   const zeitraeume = [...new Set(gesperrt.map((z) => periodLabel(z.zeitraum)))].join(", ");
   const eine = gesperrt.length === 1;
   return `${eine ? "Die Umsatzsteuer-Vorauszahlung" : `${gesperrt.length} Umsatzsteuer-Vorauszahlungen`} für ${zeitraeume} (${betrag}), gezahlt bis 10. Januar, ${eine ? "gehört" : "gehören"} nach § 11 Abs. 2 Satz 2 EStG in die EÜR ${year - 1}. Die war beim Zuordnen schon übermittelt bzw. abgeschlossen; Haben ändert sie nicht und zählt die Zahlung in ${year}. Kläre mit der Steuerberatung, ob die EÜR ${year - 1} zu berichtigen ist.`;
