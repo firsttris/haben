@@ -1,0 +1,35 @@
+# Schiebt Karten im Project „Roadmap“ (https://github.com/users/firsttris/projects/2) weiter, nach
+# scripts/board/regel.ts: Issue zugewiesen oder PR mit `Refs #…`/`Umgesetzt #…` geöffnet → In Arbeit;
+# PR mit `Umgesetzt #…` gemergt → Im nächsten Release. Geschlossen wird beim Release (release.yml), danach
+# schiebt das Board die Karte selbst nach „Erledigt“.
+# pull_request_target, damit das Secret auch bei PRs aus Forks da ist. Sicher, weil nur die Basis ausgecheckt
+# wird und das Skript vom PR nur die Beschreibung liest, nie seinen Code.
+# Secret PROJECT_TOKEN: klassisches Token mit Scope `project`; ohne es endet der Lauf mit einem Hinweis.
+name: Board
+
+on:
+  issues:
+    types: [assigned]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, edited, closed]
+
+permissions:
+  contents: read
+
+# Nacheinander, damit zwei Ereignisse dieselbe Karte nicht gleichzeitig setzen
+concurrency:
+  group: board
+  cancel-in-progress: false
+
+jobs:
+  board:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      # Ohne bun install: das Skript braucht nur fetch und node:-Module
+      - run: bun scripts/board/ereignis.ts
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
