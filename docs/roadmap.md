@@ -20,7 +20,8 @@ Jede Karte ist ein Issue oder ein Entwurf, mit Aufwand, Bereich und Hinweis:
 
 Die Reihenfolge: zuerst Fehler bei Steuer und Buchung, dann kleine Wünsche aus dem Alltag, dann was
 Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt. Wünsche kommen als
-[Issue](https://github.com/firsttris/haben/issues/new/choose); was umgesetzt ist, steht im jeweiligen
+[Issue](https://github.com/firsttris/haben/issues/new/choose); beim Einordnen bekommt jedes Issue einen kurzen
+Kommentar, ob und wo es ins Board kommt, oder eine Rückfrage; was umgesetzt ist, steht im jeweiligen
 Kapitel der Doku und in den [Releases](https://github.com/firsttris/haben/releases).
 
 Diese Seite hält fest, was sich selten ändert: was bewusst nicht kommt, was ohne Zertifizierung nicht

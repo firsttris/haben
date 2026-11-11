@@ -1,11 +1,11 @@
 ---
 name: "board-pflegen"
-description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/firsttris/projects/2): neue Issues einordnen, Karten aufräumen, nach einem Release prüfen. Mit gh und gh api graphql. Vorschläge an den Maintainer, umsetzen erst nach seinem OK. Wenn neue Issues da sind, einmal pro Woche oder nach einem Release."
+description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/firsttris/projects/2): neue Issues prüfen (wollen wir das, erledigt, Duplikat, genug Angaben) und einordnen, Karten aufräumen, nach einem Release prüfen; das Ergebnis bekommt jedes fremde Issue als kurzen Kommentar. Mit gh und gh api graphql. Vorschläge an den Maintainer, umsetzen und kommentieren erst nach seinem OK. Wenn neue Issues da sind, einmal pro Woche oder nach einem Release."
 ---
 
 # Board pflegen
 
-Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2); die Regeln dazu in [`docs/entwicklung.md`](../../../docs/entwicklung.md) unter „Etwas übernehmen“ und „Branches, Titel und Commits“ (Vom Issue zum Release), die Grundsätze in [`docs/roadmap.md`](../../../docs/roadmap.md). Was der Workflow „Board“ (`scripts/board/`) selbst schiebt, macht dieser Skill nicht noch einmal.
+Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2); die Regeln dazu in [`docs/entwicklung.md`](../../../docs/entwicklung.md) unter „Etwas übernehmen“ und „Branches, Titel und Commits“ (Vom Issue zum Release), die Grundsätze und „Bewusst nicht“ in [`docs/roadmap.md`](../../../docs/roadmap.md). Was der Workflow „Board“ (`scripts/board/`) selbst schiebt, macht dieser Skill nicht noch einmal.
 
 ## Voraussetzungen
 
@@ -34,23 +34,35 @@ Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/
 
 ```sh
 gh project item-list 2 --owner firsttris --limit 300 --format json > board.json
-gh issue list --repo firsttris/haben --state open --limit 300 --json number,title,labels,assignees,createdAt,updatedAt > issues.json
+gh issue list --repo firsttris/haben --state open --limit 300 --json number,title,author,labels,assignees,createdAt,updatedAt > issues.json
 ```
 
 Daraus ermitteln:
-- offene Issues ohne Karte;
+- offene Issues ohne Karte (weiter mit Schritt 2);
 - Karten in „In Arbeit“ ohne offenen PR und ohne Kommentar seit 14 Tagen (`gh issue view <n> --json comments,updatedAt`, `gh pr list --search "<n> in:body"`);
 - geschlossene Issues, deren Karte nicht in „Erledigt“ steht;
 - Karten in „Im nächsten Release“, deren PR kein `Umgesetzt #…` hat: die schließt das Release nicht (`scripts/board/regel.ts`);
 - Entwürfe, für die es inzwischen ein Issue gibt.
 
-### 2. Vorschlagen
+### 2. Issues prüfen
 
-Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Vorschlag (Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, `einstieg` ja/nein) oder „nicht ins Board“, mit einem Satz Begründung. Eigene Abschnitte für die Funde aus Schritt 1. Die Rangfolge in „Geplant“ entscheidet der Maintainer.
+Jedes offene Issue ohne Karte lesen, mit Kommentaren (`gh issue view <n> --json body,comments`), und genau ein Ergebnis bestimmen. Wie bei `beitrag-pruefen` braucht jedes Ergebnis einen Beleg: Commit oder PR, Abschnitt in `docs/roadmap.md`, Issue-Nummer, Satz aus der Quelle.
 
-Vorher am Code auf `origin/main` prüfen, ob ein Issue schon erledigt ist (`git log --oneline origin/main | grep "#<n>"`, Doku der Seite). Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
+| Ergebnis | Wann | Beleg |
+| --- | --- | --- |
+| **Erledigt** | Auf `origin/main` schon umgesetzt | `git log --oneline origin/main \| grep "#<n>"`, `gh pr list --state all --search "<n> in:body"`, Doku der Seite; Release, in dem es kam |
+| **Duplikat** | Thema steht schon in einem Issue oder Entwurf | Nummer bzw. Titel des Entwurfs; Neues aus diesem Issue nennen, damit es nicht verloren geht |
+| **Nicht ins Board** | Unter „Bewusst nicht“, Frage, Sammel-Issue, Interna | Zeile in „Bewusst nicht“ oder die Art des Issues |
+| **Rückfrage** | Angaben reichen nicht für Aufwand und Akzeptanzkriterien: kein Beispiel, kein Ablauf, unklar, was „fertig“ ist | Die eine oder zwei Fragen, die fehlen |
+| **Aufnehmen** | Alles andere | Spalte, Position, Aufwand, Bereich, Hinweis, `einstieg` |
 
-### 3. Umsetzen, nach OK
+Bei `steuer`-Issues und Fehlern bei Buchung oder Steuer die fachliche Aussage an der Primärquelle prüfen, die das Issue nennt. Stimmt sie nicht oder ist sie unsicher, ist das eine Rückfrage, keine Karte.
+
+### 3. Vorschlagen
+
+Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1. Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
+
+### 4. Umsetzen, nach OK
 
 IDs einmal holen:
 
@@ -76,13 +88,31 @@ gh api graphql -f query='mutation($p:ID!,$i:ID!,$a:ID){updateProjectV2ItemPositi
 
 Der Workflow „Item added to project“ setzt bei neuen Karten selbst einen Status, manchmal kurz nach dem eigenen Aufruf: Status zum Schluss noch einmal auslesen und bei Abweichung neu setzen.
 
-### 4. Prüfen
+### 5. Kommentieren, nach OK
 
-`gh project item-list` erneut lesen und eine Tabelle je Spalte (Position, Karte, Aufwand, Bereich) gegen den Vorschlag vergleichen; Abweichungen korrigieren und melden.
+Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurde. Das OK des Maintainers zur Tabelle aus Schritt 3 ist der Auftrag dafür.
+
+- Ein Kommentar je geprüftem Issue, wenn es nicht vom Maintainer selbst stammt (`author.login` ≠ `firsttris`) und nicht schon einen Kommentar zur Einordnung hat.
+- Kurz, auf Deutsch, Du-Form; kein Termin und kein Versprechen; die Begründung aus Schritt 2 mit Link. Kein Hinweis auf das Werkzeug: Der Text ist eine Mitteilung des Maintainers.
+- `gh issue comment <n> --repo firsttris/haben --body-file <datei>`
+
+| Ergebnis | Text (Vorlage, anpassen) |
+| --- | --- |
+| Aufnehmen | Danke! Ist jetzt im [Board](https://github.com/users/firsttris/projects/2) unter „Geplant“ (bzw. „Später“), Bereich Belege. Die Reihenfolge in der Spalte ist die Priorität. Wer es übernehmen möchte: [Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen). Bei `einstieg` zusätzlich: Gut für den Einstieg geeignet. |
+| Rückfrage | Danke! Damit wir es einordnen können, fehlt noch: … Sobald das da ist, kommt es ins [Board](https://github.com/users/firsttris/projects/2). |
+| Duplikat | Danke! Das Thema steht schon in #… (bzw. im Entwurf „…“ im [Board](https://github.com/users/firsttris/projects/2)). Was hier neu ist (…), ist dort vermerkt. |
+| Nicht ins Board | Danke! Das planen wir nicht: [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), Zeile „…“. Kurz der Grund … |
+| Erledigt | Danke! Das gibt es seit v… ([Release](https://github.com/firsttris/haben/releases/tag/v…), PR #…). |
+
+Schließen, Labels außer `einstieg` und Antworten auf Rückfragen bleiben beim Maintainer.
+
+### 6. Prüfen
+
+`gh project item-list` erneut lesen und eine Tabelle je Spalte (Position, Karte, Aufwand, Bereich) gegen den Vorschlag vergleichen; Abweichungen korrigieren und melden. Dazu die Liste der geschriebenen Kommentare mit Link.
 
 ## Grenzen
 
-- Keine Issues schließen, kommentieren oder anlegen ohne Auftrag; Labels nur nach OK.
+- Kommentare nur die aus Schritt 5 und nur nach OK; Issues schließen oder anlegen nur auf Auftrag; Labels nur nach OK.
 - Die Spalten nicht umbenennen: `scripts/board/regel.ts` und der Workflow „Board“ hängen an den Namen.
 - Keine Karte zurückschieben, die der Workflow nach vorn gesetzt hat, außer der Maintainer will es.
 - Nach einem Release: prüfen, dass der Job `issues-schliessen` lief und die Karten in „Erledigt“ stehen; das Release selbst ist Skill `release`.
