@@ -25,7 +25,7 @@ export function contrastOnWhite(hex: string): number {
 const INK_ON_LIGHT = "#000000";
 
 /**
- * Schrift auf einer farbigen Fläche, etwa dem „H“ in der eigenen Farbe der Navigation (#504): Weiß oder Dunkel, je
+ * Schrift auf einer farbigen Fläche, etwa dem „H“ in der eigenen Farbe der Navigation (#504): Weiß oder Schwarz, je
  * nachdem, was nach WCAG 2.2 den höheren Kontrast hat
  */
 export function inkOnAccent(hex: string): "#FFFFFF" | "#000000" {
