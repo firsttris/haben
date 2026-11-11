@@ -1,4 +1,6 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { THEMES } from "../src/lib/theme.ts";
 import { SESSION } from "./daten.ts";
 import { axeVerstoesse } from "./einrichtung.ts";
 
@@ -32,10 +34,29 @@ test("zeigt den Namen der Firma unter „Haben“", async ({ page }) => {
   expect(await axeVerstoesse(page)).toEqual([]);
 });
 
-test("ein langer Firmenname wird gekürzt und läuft nicht aus der Navigation", async ({ page }) => {
+/** Zeilen des Namens und ob er abgeschnitten ist */
+async function nameGemessen(page: Page): Promise<{ zeilen: number; gekuerzt: boolean }> {
+  return nav(page)
+    .locator(".brand-firma")
+    .evaluate((el) => ({
+      zeilen: Math.round(el.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(el).lineHeight)),
+      gekuerzt: el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth,
+    }));
+}
+
+// Firmen desselben Inhabers unterscheiden sich oft erst am Ende des Namens; am Desktop darf er deshalb zwei Zeilen
+// nehmen, statt nach rund 20 Zeichen abzubrechen (Rückmeldung in #599)
+test("am Desktop steht der Name ganz da, in höchstens zwei Zeilen", async ({ page }) => {
+  await page.goto("/");
+  await expect(nav(page).getByText(FIRMA)).toBeVisible();
+  expect(await nameGemessen(page)).toEqual({ zeilen: 2, gekuerzt: false });
+});
+
+test("ein langer Firmenname wird nach zwei Zeilen gekürzt und läuft nicht aus der Navigation", async ({ page }) => {
   await page.goto("/");
   await expect(nav(page).getByText(FIRMA)).toBeVisible();
   await nameSetzen(page, LANG);
+  expect(await nameGemessen(page)).toEqual({ zeilen: 2, gekuerzt: true });
   const ueberlauf = await page.evaluate(() => {
     const navigation = document.querySelector<HTMLElement>("nav.nav")!;
     const marke = navigation.querySelector<HTMLElement>(".brand")!;
@@ -44,10 +65,50 @@ test("ein langer Firmenname wird gekürzt und läuft nicht aus der Navigation", 
   expect(ueberlauf).toEqual({ nav: 0, marke: 0 });
 });
 
+// Der Name ist das Wichtige, nicht das Produkt: Er steht größer und voll deckend, „Haben“ kleiner davor
+test("der Name ist die Hauptzeile, „Haben“ steht kleiner davor", async ({ page }) => {
+  for (const breite of [1280, 375]) {
+    await page.setViewportSize({ width: breite, height: 812 });
+    await page.goto("/");
+    await expect(nav(page).getByText(FIRMA)).toBeVisible();
+    const schrift = await nav(page)
+      .locator(".brand")
+      .evaluate((marke) => {
+        const stil = (sel: string) => getComputedStyle(marke.querySelector(sel)!);
+        return {
+          produkt: Number.parseFloat(stil(".brand-produkt").fontSize),
+          firma: Number.parseFloat(stil(".brand-firma").fontSize),
+          deckung: stil(".brand-firma").opacity,
+        };
+      });
+    expect(schrift.firma, `${breite}px`).toBeGreaterThan(schrift.produkt);
+    expect(schrift.deckung, `${breite}px`).toBe("1");
+  }
+});
+
+// axe misst den Kontrast sonst nur im Standard-Theme; die Navigation hat in jedem Theme eigene Farben
+test("Name und „Haben“ sind in jedem Theme kontrastreich genug", async ({ page }) => {
+  const verstoesse: string[] = [];
+  for (const { id } of THEMES.filter((t) => t.id !== "auto")) {
+    for (const breite of [1280, 375]) {
+      await page.setViewportSize({ width: breite, height: 812 });
+      await page.goto("/");
+      await page.evaluate((theme) => localStorage.setItem("haben-theme", theme), id);
+      await page.reload();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", id);
+      await expect(nav(page).getByText(FIRMA)).toBeVisible();
+      const { violations } = await new AxeBuilder({ page }).include("nav .brand").withRules(["color-contrast"]).analyze();
+      verstoesse.push(...violations.flatMap((v) => v.nodes.map((n) => `${id} ${breite}px: ${n.target.join(" ")}`)));
+    }
+  }
+  expect(verstoesse).toEqual([]);
+});
+
 // Der Seitenkopf klebt am Handy bei --nav-height (60px) unter der Navigation; mit dem Firmennamen darf die Leiste
-// nicht höher werden, sonst verdeckt sie beim Scrollen den Kopf. Auch ein langer Name auf 320px
-test("am Handy steht der Name neben „Haben“, und die Leiste bleibt so hoch wie --nav-height", async ({ page }) => {
-  const gemessen: Record<string, { leiste: number; ueberlauf: number }> = {};
+// nicht höher werden, sonst verdeckt sie beim Scrollen den Kopf. Der Name bekommt deshalb nur eine Zeile unter „Haben“,
+// dafür die ganze Breite neben dem Menüknopf. Auch ein langer Name auf 320px
+test("am Handy steht der Name in einer Zeile, und die Leiste bleibt so hoch wie --nav-height", async ({ page }) => {
+  const gemessen: Record<string, { leiste: number; ueberlauf: number; zeilen: number }> = {};
   let variable = 0;
   for (const [breite, name] of [
     [375, FIRMA],
@@ -62,9 +123,13 @@ test("am Handy steht der Name neben „Haben“, und die Leiste bleibt so hoch w
       ueberlauf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       variable: Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")),
     }));
-    gemessen[`${breite}px`] = { leiste: werte.leiste, ueberlauf: werte.ueberlauf };
+    const { zeilen } = await nameGemessen(page);
+    gemessen[`${breite}px`] = { leiste: werte.leiste, ueberlauf: werte.ueberlauf, zeilen };
     variable = werte.variable;
   }
   expect(variable).toBe(60);
-  expect(gemessen).toEqual({ "375px": { leiste: 60, ueberlauf: 0 }, "320px": { leiste: 60, ueberlauf: 0 } });
+  expect(gemessen).toEqual({
+    "375px": { leiste: 60, ueberlauf: 0, zeilen: 1 },
+    "320px": { leiste: 60, ueberlauf: 0, zeilen: 1 },
+  });
 });
