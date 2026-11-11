@@ -53,6 +53,25 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   await rechnungFestschreiben(page, INVOICES[0]!);
 });
 
+test("Kontaktseite: Rechnungen des Kunden mit Summe je Jahr (#587)", async () => {
+  const jahr = INVOICES[0]!.date.slice(0, 4);
+  await go("/kontakte");
+  await go((await page.getByRole("link", { name: "Nordwerk Software GmbH" }).first().getAttribute("href"))!);
+  const rechnungen = page.getByRole("region", { name: "Umsatz und Rechnungen", exact: true });
+  const jahre = rechnungen.getByRole("group", { name: "Umsatz je Jahr", exact: true });
+  // 96 Stunden zu 95,00 € netto
+  await expect(jahre.getByRole("link", { name: new RegExp(`^${jahr}`) })).toContainText("9.120,00 €");
+  await expect(jahre.getByRole("link", { name: new RegExp(`^${jahr}`) })).toContainText(`${INVOICES[0]!.gross} €`);
+  await expect(jahre.getByRole("link", { name: new RegExp(`^${jahr}`) })).toHaveAttribute("aria-current", "page");
+  const liste = rechnungen.getByRole("group", { name: `Rechnungen ${jahr}`, exact: true });
+  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(liste.getByRole("link")).toContainText("Rechnung");
+  // Kunde ohne Lieferantenrolle und ohne Belege: kein Abschnitt dafür
+  await expect(page.getByRole("region", { name: "Ausgaben und Belege", exact: true })).toHaveCount(0);
+  await liste.getByRole("link").click();
+  await page.waitForURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+});
+
 test("DATEV-Personenkonten: Schalter mit Bestätigung, fehlender Debitor wird vergeben, steht im Stapel und ist danach fest (#327)", async () => {
   const jahr = Number(INVOICES[0]!.date.slice(0, 4));
   await go("/einstellungen?bereich=export");

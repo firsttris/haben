@@ -1,0 +1,25 @@
+/* Kontaktseite: Rechnungen und Belege des Kontakts mit Summen je Jahr (#587) */
+.contact-history { margin-top: 16px; }
+.contact-history h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.contact-year-cols { grid-template-columns: 80px 80px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+.contact-entry-cols { grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1.2fr) 120px 120px 128px; }
+.table-row.selected { background: var(--accent-tint); font-weight: 600; }
+.table-row.total { font-weight: 600; }
+@media (max-width: 760px) {
+  /* Jahr, Netto, Brutto; Anzahl und Altbestand stehen in der Liste darunter */
+  .contact-year-cols { grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr); }
+  .contact-year-cols > :nth-child(2), .contact-year-cols > :nth-child(5) { display: none; }
+  /* Datum klein über der Nummer, Brutto und Status rechts */
+  .contact-entry-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
+  .contact-entry-cols > :nth-child(3), .contact-entry-cols > :nth-child(4) { display: none; }
+  .contact-entry-cols > :nth-child(1) { grid-column: 1; grid-row: 1; font-size: 12px; color: var(--muted); }
+  .contact-entry-cols > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .contact-entry-cols > :nth-child(5) { grid-column: 2; grid-row: 1; }
+  .contact-entry-cols > :nth-child(6) { grid-column: 2; grid-row: 2; justify-self: end; }
+  .table-row.head.contact-entry-cols { display: none; }
+}
+/* Säulen je Jahr über der Tabelle; Achsen, Balkenfarben und Tooltip aus styles/auswertungen.css */
+.year-bars .year { cursor: pointer; outline: none; }
+.year-bars .year.selected .hit { fill: var(--accent-tint); }
+.year-bars .year.active .hit { fill: var(--ground); }
+.year-bars .year:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }

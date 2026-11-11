@@ -1,9 +1,11 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { contactHistory } from "../modules/auswertungen/index.ts";
 import { contactSchema, createContact, findContactsByUstId, getContact, listContacts, setContactArchived, updateContact } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
-import { detailId } from "./schemas.ts";
+import { today } from "../today.ts";
+import { detailId, yearSchema } from "./schemas.ts";
 
 export const getContacts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -24,6 +26,12 @@ export const getContactDetail = createServerFn({ method: "GET" })
     if (!result) throw notFound();
     return result;
   });
+
+/** Rechnungen und Belege des Kontakts mit Summen je Jahr, aus Haben und dem Altbestand (#587); nur lesend */
+export const getContactHistory = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator((input: { id: string; year?: number }) => ({ id: detailId(input.id), year: yearSchema.optional().parse(input.year) }))
+  .handler(({ data }) => contactHistory(data.id, today(), data.year));
 
 export const saveContact = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
