@@ -779,6 +779,42 @@ test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu ve
   }
 });
 
+test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten Kontakt; der eigene Kontakt meldet sich nicht", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Altbestand USt GmbH");
+  await page.getByLabel("USt-IdNr.").fill("DE555555555");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  // Im normalen Formular, nicht nur im Dialog: Der archivierte Kontakt kann man nicht wählen, nur wiederherstellen
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Neubestand USt GmbH");
+  await page.getByLabel("USt-IdNr.").fill("DE555555555");
+  const hinweis = page.getByRole("status").filter({ hasText: "gibt es schon" });
+  await expect(hinweis).toContainText("gibt es schon „Altbestand USt GmbH“ (Kunde, archiviert)");
+  await expect(hinweis).toContainText("Stelle ihn unter Kontakte wieder her");
+  await expect(hinweis).not.toContainText("Ergänze dort die Rolle");
+  await expect(hinweis.getByRole("link", { name: "„Altbestand USt GmbH“ öffnen" })).toBeVisible();
+  await page.getByLabel("USt-IdNr.").fill("DE666666666");
+  await expect(hinweis).toHaveCount(0);
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Beim Bearbeiten nennt der Server den eigenen Kontakt nicht (excludeId), wohl aber einen fremden mit derselben USt-IdNr.
+  await page.waitForTimeout(1000);
+  await expect(hinweis).toHaveCount(0);
+  await page.getByLabel("USt-IdNr.").fill("DE555555555");
+  await expect(hinweis).toContainText("gibt es schon „Altbestand USt GmbH“");
+  await page.getByLabel("USt-IdNr.").fill("DE666666666");
+  await expect(hinweis).toHaveCount(0);
+
+  // Nicht speichern; den neuen Kontakt archivieren, damit die folgenden Tests unverändert rechnen
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

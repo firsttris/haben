@@ -57,9 +57,32 @@ describe.skipIf(!testDatabaseUrl)("Kontakte mit gleicher USt-IdNr. finden (Postg
     expect(await contacts.findContactsByUstId("DE123456789")).toMatchObject([{ name: "Alte Firma", archived: true }]);
   });
 
+  it("nennt aktive Kontakte vor archivierten, auch wenn der archivierte alphabetisch zuerst steht", async () => {
+    const alt = await contacts.createContact(actor, input("AAA Altfirma", "DE123456789"));
+    await contacts.setContactArchived(actor, alt.id, true);
+    const neu = await contacts.createContact(actor, input("ZZZ Neufirma", "DE123456789"));
+    const found = await contacts.findContactsByUstId("DE123456789");
+    expect(found.map((c) => [c.name, c.archived])).toEqual([
+      ["ZZZ Neufirma", false],
+      ["AAA Altfirma", true],
+    ]);
+    expect(found[0]!.id).toBe(neu.id);
+  });
+
   it("findet bei leerer USt-IdNr. nichts, auch nicht die Kontakte ohne", async () => {
     await contacts.createContact(actor, input("Ohne USt", ""));
     expect(await contacts.findContactsByUstId("")).toEqual([]);
     expect(await contacts.findContactsByUstId("  ")).toEqual([]);
+  });
+
+  it("liefert für die Auswahl bei Lieferanten nur Lieferanten mit Lieferantennummer, bei Kunden alle mit Kundennummer", async () => {
+    await contacts.createContact(actor, { ...input("Kundenfirma", ""), kundennummer: "K-1" });
+    await contacts.createContact(actor, { ...input("Lieferfirma", "DE999999999", { isCustomer: false, isSupplier: true }), lieferantennummer: "L-9" });
+    expect((await contacts.listContactChoices("lieferant")).map((c) => [c.name, c.nummer])).toEqual([["Lieferfirma", "L-9"]]);
+    // Wie bisher alle Kontakte: ein gewählter Nicht-Kunde bleibt im Feld sichtbar; die Combobox filtert nach der Rolle
+    expect((await contacts.listContactChoices("kunde")).map((c) => [c.name, c.nummer, c.isCustomer])).toEqual([
+      ["Kundenfirma", "K-1", true],
+      ["Lieferfirma", null, false],
+    ]);
   });
 });
