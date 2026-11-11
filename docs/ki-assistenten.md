@@ -80,6 +80,8 @@ Caddy signiert Zertifikate für lokale Namen wie `haben.lan` mit seiner eigenen 
 | `euer` | Einnahmen-Überschuss-Rechnung eines Jahres mit Monatswerten |
 | `jahreserklaerung` | Stand von Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer mit Hinweisen und Steuerprognose |
 | `vorausgefuellte_belege` | abgerufene Belege der vorausgefüllten Steuererklärung (VaSt) ohne persönliche Stammdaten |
+| `archiv_auftragsdokumente` | aus sevDesk archivierte Angebote, Auftragsbestätigungen und Lieferscheine eines Jahres, filterbar nach Art und Nummer oder Kontakt, siehe [Umzug aus sevDesk](sevdesk.md#angebote-auftragsbestätigungen-und-lieferscheine) |
+| `archiv_auftragsdokument` | ein archiviertes Auftragsdokument mit Positionen und Dateien |
 | `lexoffice_abgleich` | Umzug aus Lexware Office: Verbindung, letzter Abruf mit fehlgeschlagenen Belegen, je Jahr die Prüfungen, Summen, Steuerarten und die nachgerechnete Umsatzsteuer je Monat |
 | `lexoffice_belege` | abgerufene Lexoffice-Belege eines Jahres oder Monats mit Beträgen je Steuersatz, Steuerart und Zahlungen |
 | `lexoffice_beleg` | ein Lexoffice-Beleg mit allen Feldern, Dateien und der gespeicherten Antwort der API (ohne Steuernummern) |
@@ -104,6 +106,4 @@ Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt 
 
 Das Ein- und Ausschalten des Zugangs steht im Änderungsprotokoll. Die Tokens selbst sind Zugangsdaten wie die Passkeys und stehen nicht darin.
 
-## Verantwortung für API-Tokens
-
-Tokens besitzen einen verantwortlichen Inhaber. Bei erkanntem SSO-Gruppenentzug oder Herabstufung werden sie deaktiviert, nicht gelöscht. Ein anderer aktuell berechtigter Inhaber kann sie in den Einstellungen ausdrücklich übernehmen und reaktivieren, der einzige Inhaber auch seine eigenen; das Geheimnis bleibt erhalten. Ohne erneuten OIDC-Durchlauf gilt ein Token höchstens 30 Tage nach der letzten Bestätigung des Verantwortlichen. Alte Tokens ohne belegbare Verantwortung werden bei der Einführung bis zur Übernahme deaktiviert. Endgültig widerrufene und abgelaufene Tokens bleiben ungültig.
+Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).

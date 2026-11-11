@@ -1,13 +1,13 @@
 ---
-title: "Entwurf: Voranmeldung und EÜR aus dem Journal"
+title: "Entscheidung: Voranmeldung und EÜR aus dem Journal"
 description: >-
-  Entscheidungsvorlage zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
+  Entscheidung zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
   Nebenbücher werden zur Gegenprobe; Grundlage für freie Buchungen mit Steuerschlüssel (#502).
 ---
 
-# Entwurf: Voranmeldung und EÜR aus dem Journal
+# Entscheidung: Voranmeldung und EÜR aus dem Journal
 
-**Status:** Entwurf, Umsetzung in Schritten (siehe unten). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
+**Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
 **Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
 [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),

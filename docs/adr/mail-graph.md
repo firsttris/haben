@@ -1,11 +1,11 @@
 ---
-title: "Entwurf: E-Mail-Versand über Microsoft Graph"
+title: "Entscheidung: E-Mail-Versand über Microsoft Graph"
 description: >-
-  Entscheidungsvorlage: zweiter Versandweg neben SMTP über Microsoft Graph (Exchange Online, auch aus Shared
+  Entscheidung: zweiter Versandweg neben SMTP über Microsoft Graph (Exchange Online, auch aus Shared
   Mailboxes) mit App-only-Anmeldung, Anhängen, Rechtebegrenzung, Fehlerbehandlung und Tests.
 ---
 
-# Entwurf: E-Mail-Versand über Microsoft Graph
+# Entscheidung: E-Mail-Versand über Microsoft Graph
 
 **Status:** umgesetzt im Pull Request „E-Mail über Microsoft 365“; die Entscheidungen unten gelten, Abweichungen vom ersten
 Entwurf stehen im Abschnitt „Entschieden und offen“. **Stand:** `main` bei `93124e3`, Microsoft-Doku am 10. November 2026

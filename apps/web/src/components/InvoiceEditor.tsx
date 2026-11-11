@@ -41,7 +41,7 @@ import {
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
@@ -57,9 +57,9 @@ import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
 import { ArticleCombobox, CatalogCombobox, type ArticleOption } from "./ArticleCombobox.tsx";
 import { ArticleDialog } from "./ArticleDialog.tsx";
 import type { ArticlePrefill } from "./ArticleForm.tsx";
-import { ContactDialog } from "./ContactDialog.tsx";
+import { NewContactDialog } from "./NewContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
-import { CustomerCombobox } from "./CustomerCombobox.tsx";
+import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -341,6 +341,10 @@ export function InvoiceEditor({
   const [logo, setLogo] = useLoadedState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
+  const contactChoices: ContactChoice[] = useMemo(
+    () => contacts.map((c) => ({ id: c.id, name: c.name, ort: c.ort, nummer: c.kundennummer, ustId: c.ustId, isCustomer: c.isCustomer, isSupplier: false })),
+    [contacts],
+  );
   const parsed = lines.map(parseLine);
   const schluss = kind === "rechnung" && variant === "schluss";
   /** Abschlagsrechnungen des gewählten Kunden; schon gewählte bleiben sichtbar */
@@ -691,16 +695,10 @@ export function InvoiceEditor({
       >
         <p>Der Entwurf{contact ? ` für ${contact.name}` : ""} wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
       </ConfirmDialog>
-      <ContactDialog
-        open={newContactName !== null}
-        title="Neuen Kunden anlegen"
-        prefill={{ isCustomer: true, isSupplier: false, name: newContactName ?? "" }}
-        existing={contacts}
-        onSaved={(saved) => {
-          chooseContact(saved.id, saved);
-          // Die Liste der Kunden neu laden; die Eingaben im Entwurf bleiben, der Editor wird nicht neu aufgebaut
-          void router.invalidate();
-        }}
+      <NewContactDialog
+        rolle="kunde"
+        name={newContactName}
+        onSaved={(saved) => chooseContact(saved.id, saved)}
         onPickExisting={(id) => chooseContact(id)}
         onClose={() => setNewContactName(null)}
       />
@@ -838,9 +836,10 @@ export function InvoiceEditor({
               )}
               <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
                 {(control) => (
-                  <CustomerCombobox
+                  <ContactCombobox
                     {...control}
-                    contacts={contacts}
+                    rolle="kunde"
+                    contacts={contactChoices}
                     contactId={contactId}
                     disabled={!editable}
                     onChoose={chooseContact}

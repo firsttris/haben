@@ -867,7 +867,7 @@ summary { cursor: pointer; min-height: 24px; }
   .plan-amount { grid-column: 1 / -1; }
 }
 
-/* Kontakt im Beleg oder Rechnungsentwurf anlegen (ContactDialog) */
+/* Kontakt im Beleg oder Rechnungsentwurf anlegen (NewContactDialog) */
 /* Rückfrage: wie .form-dialog, schmal und mit Knopfleiste, die stehen bleibt, wenn der Inhalt scrollt */
 .confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; overflow-wrap: anywhere; }
 .confirm-dialog[open] { display: flex; flex-direction: column; }

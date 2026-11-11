@@ -15,8 +15,8 @@ Jede Karte ist ein Issue oder ein Entwurf, mit Aufwand, Bereich und Hinweis:
 | Später | Kommt nach den geplanten Karten |
 | Geplant | Wird gebaut, von oben nach unten |
 | In Arbeit | Jemand baut daran |
-| Rückmeldung | Umgesetzt; das Issue bleibt offen, bis die Meldenden bestätigen, dass nichts fehlt, ohne Antwort schließen wir es nach 14 Tagen |
-| Erledigt | Bestätigt und geschlossen |
+| Im nächsten Release | Umgesetzt und gemergt, kommt mit der nächsten Version |
+| Erledigt | Veröffentlicht; das Issue ist geschlossen. Fehlt danach etwas, gern ein neues Issue mit Verweis auf das alte |
 
 Die Reihenfolge: zuerst Fehler bei Steuer und Buchung, dann kleine Wünsche aus dem Alltag, dann was
 Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt. Wünsche kommen als
@@ -36,7 +36,7 @@ geht, was blockiert ist und welche Quellen geprüft sind.
 | Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
 | Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |
 | CRM mit Aufgaben und Push-Erinnerungen, Mitarbeiterportal | Kein Kern einer Buchhaltung für kleine Betriebe |
-| Mehrere Firmen in einer Installation | Eine Instanz je Firma; so bleiben Daten, Sperren und Audit getrennt, und ein Fehler macht keine fremde Buchhaltung sichtbar ([#66](https://github.com/firsttris/haben/issues/66)) |
+| Mehrere Firmen in einer Installation | Eine Instanz je Firma, Begründung unter [Mehrere Instanzen](installation.md#mehrere-instanzen) ([#66](https://github.com/firsttris/haben/issues/66)) |
 | Vereine und gemeinnützige Körperschaften | Brauchen Sphären (ideeller Bereich, Vermögensverwaltung, Zweckbetrieb, wirtschaftlicher Geschäftsbetrieb), Zuwendungsbestätigungen, Anlage Gem und einen Vereinskontenrahmen wie SKR42 oder SKR49. Das planen wir nicht selbst; ausgeschlossen ist es nicht, wenn jemand mit Erfahrung in Vereinsbuchhaltung es umsetzen und dauerhaft betreuen will, nach einem gemeinsamen Entwurf, wie die Sphären ins Datenmodell passen ([#412](https://github.com/firsttris/haben/issues/412), [#497](https://github.com/firsttris/haben/issues/497)) |
 | Mehrere Geschäftsidentitäten mit eigenen Steuerdaten | Ein Unternehmer hat ein Unternehmen (§ 2 Abs. 1 Satz 2 UStG), auf der Rechnung steht sein vollständiger Name; Marken mit Logo, Kontakt und Bankkonto kommen als Profile ([#245](https://github.com/firsttris/haben/issues/245)) |
 | E-Mails als HTML mit Editor | Hoher Aufwand (Editor, Vorschau, sicheres HTML, Darstellung in vielen Mailprogrammen) bei wenig Nutzen; auch kein schlichter HTML-Rahmen mit Logo und Signatur. Textvorlagen je Art und Sprache mit Platzhaltern gibt es ([#115](https://github.com/firsttris/haben/issues/115)) |

@@ -12,7 +12,7 @@ Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vor
 ## Grundsätze
 
 - **Beträge in Cent.** Alle Geldbeträge sind ganze Cent (`integer`), Steuersätze Basispunkte (1900 = 19 %). Es gibt keine Gleitkommarechnung mit Geld. Rechnungen runden die Steuer je Steuersatz auf die Summe der Positionen, nicht je Position.
-- **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
+- **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Ab dem [Stichjahr](umsatzsteuer.md#wie-die-kennzahlen-entstehen) rechnet Haben die Voranmeldung und, im Einzelunternehmen, die EÜR aus dem Journal; Rechnungen, Zahlungen und Belege (die Nebenbücher) sind dann die Gegenprobe. Davor rechnet es aus den Nebenbüchern, und das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
 - **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Geschrieben wird das Journal nur an einer Stelle, dem Hauptbuch (`ledger.post` in `apps/web/src/server/modules/buchhaltung/ledger.ts`). Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat; eine Buchung, die beim Commit nicht festgeschrieben ist, lehnt die Datenbank ab.
 - **Korrektur nur per Gegenbuchung.** Festgeschriebene Buchungen, Rechnungen, Belege und gesendete Voranmeldungen lassen sich nicht ändern oder löschen. Eine Rechnung wird storniert oder korrigiert, eine Zahlungszuordnung per Gegenzeile und Gegenbuchung aufgehoben, eine Voranmeldung berichtigt.
 - **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist, und das ist immer der aus den Firmendaten (die Datenbank prüft das beim Einfügen). Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt; bei GmbH und UG nur vor der ersten Buchung überhaupt.
@@ -64,7 +64,7 @@ Die wöchentliche Mail prüft vorher Kette und Siegel und vergleicht den Prüfwe
 
 ## Abgleich von Journal, Umsatzsteuer und EÜR
 
-Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Ab dem Stichjahr kommen die Kennzahlen der Voranmeldung und die EÜR aus dem Journal ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen), [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)); der Abgleich vergleicht dann das Journal mit der Rechnung aus Rechnungen, Belegen und Zahlungen als Gegenprobe. Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege verteilt die EÜR aus dem Journal auf die Zeilen, die Haben für sie gebucht hätte; sie werden wie alle anderen verglichen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/modules/auswertungen/abgleich.ts`, die Bemessungsgrundlagen in `abgleich-kennzahlen.ts` und die EÜR aus dem Journal in `euer-journal.ts` daneben.
+Rechnungen, Belege, Zuordnungen, Pauschalen und das Anlagenverzeichnis (die Nebenbücher) ergeben Voranmeldung und EÜR; das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Das **Stichjahr** ist das Jahr, ab dem Haben Voranmeldung und EÜR aus dem Journal rechnet; davor rechnet es aus den Nebenbüchern. Wie es festgelegt ist und wann es sich vorziehen lässt, steht unter [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen). Ab dem Stichjahr kommen die Kennzahlen der Voranmeldung und die EÜR aus dem Journal ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen), [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)); der Abgleich vergleicht dann das Journal mit der Rechnung aus Rechnungen, Belegen und Zahlungen als Gegenprobe. Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege verteilt die EÜR aus dem Journal auf die Zeilen, die Haben für sie gebucht hätte; sie werden wie alle anderen verglichen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Wo der Abgleich im Code steht: [Architektur](architektur.md#module-im-server).
 
 | Bereich | Verglichen wird | Journal |
 | --- | --- | --- |
@@ -418,22 +418,14 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | `VStIGE` | 19 % / 7 % | 61 | Vorsteuer aus innergemeinschaftlichem Erwerb |
 | `EUSt` | – | 62 | Entstandene Einfuhrumsatzsteuer (Bescheid des Zolls) |
 
-Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/modules/umsatzsteuer/vat-figures.ts`):
-
-- **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung; dazu bei Ist und Soll die direkt auf eine Einnahmekategorie gebuchten Bankumsätze des Monats. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
-- **Kz 21, 41, 43, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, innergemeinschaftlicher Lieferung, Ausfuhrlieferung, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 43 und 48 zählen wie Kz 81, Kz 21, 41 und 45 immer nach Rechnungsdatum.
-- **Kz 89, 93 und 61:** Bemessungsgrundlagen der Belege mit innergemeinschaftlichem Erwerb zu 19 % bzw. 7 % und die Vorsteuer daraus, nach Belegdatum, auch bei Ist-Versteuerung.
-- **Kz 46, 47, 84, 85 und 67:** Bemessungsgrundlagen und Steuer der Belege, bei denen du die Steuer als Leistungsempfänger schuldest (§ 13b UStG, aus dem EU-Ausland bzw. Drittland), und die abziehbare Vorsteuer daraus, nach Belegdatum.
-- **Kz 62:** entstandene Einfuhrumsatzsteuer aus Belegen der Kategorie „Einfuhrumsatzsteuer“, nach Belegdatum.
-- **Kz 66:** Vorsteuer aus den gebuchten Belegen des Monats nach Belegdatum, ohne Belege, die ohne Vorsteuerabzug gebucht sind.
-- **Kz 83:** Umsatzsteuer aus Kz 81, 86, 89 und 93 plus Kz 47 und 85, minus Kz 66, 67, 61 und 62 und minus einer angerechneten Sondervorauszahlung (Kz 39).
+Ab dem Stichjahr ergibt diese Zuordnung die Kennzahlen der Voranmeldung. Woher die Werte davor kommen, wie die Gegenprobe rechnet und wie Kz 83 entsteht, steht unter [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen) und [Rundung und Kz 83](umsatzsteuer.md#rundung-und-kz-83).
 
 Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die Vorprüfung weist darauf hin, damit sie an der Rechnung als Reverse Charge, Drittland oder steuerfrei eingestellt werden können, falls das zutrifft.
 
 ## Die Seite „Buchungen“
 
 Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung ist eine Zeile:
-- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Lohn“, in GmbH und UG „Manuell“, „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
+- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Lohn“, „Manuell“ (in GmbH und UG immer, im Einzelunternehmen ab dem Stichjahr), „Import“ (aus dem [Datenimport](belegimport.md)), in GmbH und UG „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
 - Buchungstext.
 - Soll- und Habenkonto, jeweils das größte. Weitere Konten stehen als „+n“ daneben.
 - Betrag und Steuerschlüssel.
@@ -442,7 +434,7 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-und-freie-buchungen), der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; mit [manuellen Buchungen](#manuelle-und-freie-buchungen) in GmbH und UG immer, im Einzelunternehmen ab dem Stichjahr; in einer GmbH oder UG zusätzlich mit der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
 
 ## Manuelle und freie Buchungen
 
@@ -458,7 +450,7 @@ Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben
 
 Im Einzelunternehmen steht neben einem Erfolgskonto nur ein Privatkonto, etwa eine Ausgabe ohne Beleg, privat bezahlt (Aufwand an Privateinlagen). Jedes Erfolgskonto braucht eine Zeile der Anlage EÜR; Zahlungen gehen über Bank oder Kasse.
 
-**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entwurf, Entscheidung 4](adr/journal-als-quelle.md)):
+**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)):
 
 | Steuerschlüssel | Erlöskonto SKR03 | SKR04 | Voranmeldung |
 | --- | --- | --- | --- |
@@ -556,7 +548,7 @@ Hat die Bilanz eine Vorjahresspalte, steht der Vorjahresstichtag darunter; was d
 
 Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.
 
-Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
+Im Einzelunternehmen gehen [manuelle Buchungen](#manuelle-und-freie-buchungen) erst ab dem Stichjahr, wenn die Anlage EÜR aus dem Journal rechnet; davor käme eine Umbuchung im Journal in ihr nicht an.
 
 ## Hinterlegung beim Unternehmensregister (GmbH und UG)
 
@@ -661,7 +653,7 @@ Ein **Storno** ist eine Gegenbuchung und geht nur, solange die Anmeldung nicht e
 
 Eine Kapitalgesellschaft übermittelt Bilanz und GuV elektronisch an das Finanzamt (§ 5b EStG), mit derselben Frist wie die Steuererklärungen. Auf der Seite **Jahresabschluss** steht dafür unten der Abschnitt **E-Bilanz**: Haben baut sie aus den Buchungen des Jahres, lässt sie von ERiC prüfen und sendet sie wie die [Jahreserklärungen](jahreserklaerung.md) mit Zertifikat und PIN.
 
-**Taxonomie:** Für Wirtschaftsjahre bis 2026 sendet Haben in der HGB-Taxonomie 6.9, ab 2027 in der Taxonomie 6.10. Das folgt den BMF-Schreiben vom 10. Juni 2025 und 8. Juni 2026: Eine neue Taxonomie gilt grundsätzlich für Wirtschaftsjahre, die nach dem 31. Dezember des Vorjahres beginnen; für das Jahr davor ist sie nur „nicht beanstandet“. Für 2026 bleibt es deshalb bei 6.9, die jedes ERiC ab 43 prüft. Die Taxonomie 6.10 kann erst ERiC 45 prüfen, als Test; Echtfälle nimmt die Finanzverwaltung voraussichtlich ab dem ERiC-Release im Mai 2027 an. Ist ein älteres ERiC installiert (etwa 44, der Standard), nennt der Abschnitt für 2027 das als offenen Punkt und sendet nicht, bis unter **Einstellungen › ERiC** eine Version ab 45 installiert ist.
+**Taxonomie:** Für Wirtschaftsjahre bis 2026 sendet Haben in der HGB-Taxonomie 6.9, ab 2027 in der Taxonomie 6.10. Das folgt den BMF-Schreiben vom 10. Juni 2025 und 8. Juni 2026: Eine neue Taxonomie gilt grundsätzlich für Wirtschaftsjahre, die nach dem 31. Dezember des Vorjahres beginnen; für das Jahr davor ist sie nur „nicht beanstandet“. Für 2026 bleibt es deshalb bei 6.9, die jedes ERiC ab 43 prüft. Die Taxonomie 6.10 kann erst ERiC 45 prüfen, als Test; Echtfälle nimmt die Finanzverwaltung voraussichtlich ab dem ERiC-Release im Mai 2027 an. Ist ein älteres ERiC installiert (etwa 44, der Standard), nennt der Abschnitt für 2027 das als offenen Punkt und sendet nicht, bis unter **Einstellungen › ELSTER › ERiC** eine Version ab 45 installiert ist.
 
 **Was gesendet wird:** ein Jahresabschluss (Einzelabschluss) nach deutschem Steuerrecht in der HGB-Taxonomie 6.9 oder 6.10, Kerntaxonomie, GuV nach dem Gesamtkostenverfahren, mit
 

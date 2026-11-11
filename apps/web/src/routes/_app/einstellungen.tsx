@@ -218,8 +218,8 @@ function SettingsPage() {
           {bereich === "firma" && (
             <>
               <CompanyForm />
-              <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
               <StichjahrCard stand={stichjahr} />
+              <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}

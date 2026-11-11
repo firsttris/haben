@@ -50,7 +50,7 @@ function returnFocus(trigger: HTMLElement) {
 const SHEET_MEDIA = "(max-width: 640px)";
 
 /**
- * Rückfrage vor einer folgenreichen Aktion (#404). Ein modaler <dialog> am body wie ContactDialog: Er sperrt die
+ * Rückfrage vor einer folgenreichen Aktion (#404). Ein modaler <dialog> am body wie NewContactDialog: Er sperrt die
  * Seite, sodass ein Doppelklick auf den Auslöser nichts ausführen kann. Geschlossen steht er nicht im Dokument.
  */
 export function ConfirmDialog({ open, ...props }: ConfirmDialogProps) {

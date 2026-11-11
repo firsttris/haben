@@ -18,6 +18,7 @@ import {
   kundeWaehlen,
   receiptJpeg,
   rechnungFestschreiben,
+  lieferantWaehlen,
 } from "./einrichtung.ts";
 
 /**
@@ -364,7 +365,7 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Funknetz Mobil GmbH" });
+  await lieferantWaehlen(page, "Funknetz Mobil GmbH");
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Funknetz Mobil GmbH");
   await page.getByLabel("Rechnungsnummer").fill("MF-0815");
   await page.getByLabel("Belegdatum").fill(day(-9));
