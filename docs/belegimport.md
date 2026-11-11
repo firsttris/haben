@@ -9,7 +9,7 @@ description: >-
 
 Die Betreiber-CLI übernimmt einen vorbereiteten Bestand in die vorhandenen Umzugsbausteine. Rechnungen und Eingangsbelege stehen zusammen mit Lexoffice- und sevDesk-Belegen unter **Archiv → Belege**, Angebote und andere kaufmännische Originale unter **Archiv → Auftragsdokumente**. Ihre Herkunft nennt das tatsächliche Quellprogramm. Ursprüngliche Buchungen durchlaufen Habens Buchungskern und erscheinen im Journal; Kassenbewegungen stehen zusätzlich im Kassenbuch.
 
-Offene Posten werden anschließend über **Umzug → Offene Posten** und dessen bestehenden Stichtags-/Eröffnungsablauf übernommen. Dabei bleiben die global eindeutigen nativen Belegnummern erhalten. Eine kollidierende Rechnungsnummer blockiert die native Übernahme; das Original im Umzugsbestand bleibt verfügbar. Verschiedene Originale werden weder allein wegen gleicher Nummern zusammengeführt noch umnummeriert.
+Offene Posten werden anschließend unter **Archiv › Umzug › Offene Posten übernehmen** mit dem bestehenden Ablauf aus Stichtag und Eröffnung übernommen. Dabei bleiben die global eindeutigen nativen Belegnummern erhalten. Eine kollidierende Rechnungsnummer blockiert die native Übernahme; das Original im Umzugsbestand bleibt verfügbar. Verschiedene Originale werden weder allein wegen gleicher Nummern zusammengeführt noch umnummeriert.
 
 Die ausdrücklich übergebene Steuerart bleibt bei dieser Übernahme erhalten und steuert Erlöskonto, Voranmeldung und spätere Zahlungen wie bei einer in Haben geschriebenen Rechnung:
 

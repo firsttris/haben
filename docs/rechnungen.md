@@ -43,7 +43,7 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 
 **Vorschau** im Kopf des Editors zeigt die Rechnung so, wie sie gerade im Formular steht: Sie fährt von rechts über das Formular herein, am Handy von unten. **Schließen**, Esc oder ein Klick daneben bringt dich an dieselbe Stelle im Formular zurück; Eingaben und Scrollposition bleiben.
 
-Das Blatt kommt aus derselben Vorlage wie das PDF, Umbrüche, Seiten und Schrift stimmen also. Kurz nachdem du aufgehört hast zu tippen, setzt Haben es neu. Braucht das auf deinem Server länger als zwei Sekunden, erscheint **Aktualisieren**, und das Blatt wird nur noch auf Klick neu gesetzt. Bewusst anders als im PDF: Statt des GiroCodes steht ein Platzhalter, damit niemand eine Vorschau bezahlt, und bei Fremdwährung fehlt die Umsatzsteuer in Euro, bis der Kurs feststeht.
+Das Blatt kommt aus derselben Vorlage wie das PDF, Umbrüche, Seiten und Schrift stimmen also. Das ist das Layout, das der Belegart zugeordnet ist, eingebaut oder [eigenes](belegvorlagen.md#hochladen-und-zuordnen). Kurz nachdem du aufgehört hast zu tippen, setzt Haben es neu. Braucht das auf deinem Server länger als zwei Sekunden, erscheint **Aktualisieren**, und das Blatt wird nur noch auf Klick neu gesetzt. Bewusst anders als im PDF: Statt des GiroCodes steht ein Platzhalter, damit niemand eine Vorschau bezahlt, und bei Fremdwährung fehlt die Umsatzsteuer in Euro, bis der Kurs feststeht.
 
 Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet der Pfeil neben **Vorschau** ein Menü:
 
@@ -52,7 +52,7 @@ Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet de
 
 Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop fährt sie über das Formular. Am Handy und in schmalen Fenstern fährt sie immer über das Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
-**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer, Artikelnummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein.
+**Gestaltung** (Zahnrad) öffnet neben dem Blatt eine Spalte mit Farbe, Schrift, Logo samt Größe und Seite, Falz- und Lochmarken, GiroCode, Kundennummer, Artikelnummer und der Spalte USt. Am Handy steht sie unter dem Blatt. Das Blatt zeigt jede Änderung sofort, gespeichert wird sie erst mit **Für alle Belege speichern**; nur das Logo wird beim Hochladen sofort gespeichert. Sie gilt dann für alles, was ab jetzt erzeugt wird, auch für offene Entwürfe; festgeschriebene PDFs bleiben unverändert. Schließt du die Vorschau vorher, gehen die Änderungen verloren. Dasselbe stellst du unter [Einstellungen › Beleggestaltung](einrichtung.md#logo-und-blatt) ein. Ein eigenes Layout zeigt nur die Einstellungen, deren Felder es verwendet ([Eigene Belegvorlagen](belegvorlagen.md#einstellungen-der-gestaltung)).
 
 ### Entwurf als PDF
 
@@ -80,11 +80,10 @@ Viele Auftraggeber verlangen ihre Bestellnummer auf jeder Rechnung und weisen Re
 - Im PDF stehen die Nummern im Kopfblock unter der Kundennummer; auf Englisch „Your order“, „Our order“, „Delivery note“. Eine Rechnung ohne Nummern sieht aus wie bisher.
 - Die Leitweg-ID bzw. Kundennummer in der Käuferreferenz (BT-10) bleibt, wie sie ist.
 - UBL verlangt in `cac:OrderReference` immer eine Bestellnummer. Gibt es nur die Auftragsnummer, steht dort `NA`, wie PEPPOL es vorsieht; im CII entfällt die Bestellnummer dann.
-- ZUGFeRD (Profil EN 16931) erlaubt alle drei Felder, ebenso XRechnung in CII und UBL. Die Bibliothek `@e-invoice-eu/core` verliert in Version 3.4.2 die Bestellnummer im ZUGFeRD und die Lieferscheinnummer in jedem CII; Haben setzt beide selbst an die Stelle, die das Schema vorgibt.
+- ZUGFeRD (Profil EN 16931) erlaubt alle drei Felder, ebenso XRechnung in CII und UBL. Die Bibliothek `@e-invoice-eu/core` verliert die Bestellnummer im ZUGFeRD und die Lieferscheinnummer in jedem CII; Haben setzt beide selbst an die Stelle, die das Schema vorgibt.
 - Storno und Rechnungskorrektur übernehmen die Nummern der ursprünglichen Rechnung. Eine Rechnung aus einem Angebot übernimmt Bestell- und Lieferscheinnummer des Angebots; als eigene Auftragsnummer die des Angebots oder, wenn dort keine steht, die Angebotsnummer. Das gilt auch für Abschlags- und Schlussrechnungen zum Angebot.
 - Der [Lieferschein](angebote.md#auftragsbestätigung-und-lieferschein) zur Rechnung zeigt Bestell- und Auftragsnummer.
 - Nach dem Festschreiben sind die Nummern Teil der Rechnung, gesperrt und versiegelt.
-- Die Vorschau im Editor zeigt die Nummern noch nicht; das PDF (auch das [Entwurfs-PDF](#entwurf-als-pdf)) zeigt sie.
 - Eine Vorgabe der Bestellnummer am Kontakt und Felder in wiederkehrenden Rechnungen gibt es noch nicht; ebenso keine Vertrags- (BT-12) und Projektnummer (BT-11).
 
 ### Positionen
@@ -137,7 +136,6 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 - Der letzte Eintrag der Liste legt einen Artikel in einem Dialog an: **Neuen Artikel anlegen**, oder nach dem Tippen **„…“ als neuen Artikel anlegen**, vorgefüllt mit dem getippten Text und den Angaben der Position, ohne den Entwurf zu verlassen. Die Position übernimmt ihn gleich.
 - **CSV importieren** übernimmt Artikel aus einer Datei, etwa aus „Produkte und Services“ von Lexware Office ([CSV-Import](csv-import.md#artikel)).
 - Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Text, Artikelnummer, Einheit, Preis und Steuersatz der Position, bei einer Brutto-Rechnung als Bruttopreis. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
-- Artikel, die vor dem eigenen Feld für den Text mehrzeilig angelegt waren, hat das Update geteilt: Die erste Zeile ist die Bezeichnung, der Rest der Text.
 - Text, Menge und Preis passt du danach in der Position an.
 - Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei) setzt Haben den Steuersatz der Position auf 0 %.
 - Änderungen am Katalog wirken nur auf neue Positionen. Festgeschriebene Rechnungen bleiben, wie sie sind.
@@ -234,7 +232,7 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 - Kleinunternehmer: Bist du in den Einstellungen als Kleinunternehmer eingetragen, lässt sich nur eine Kleinunternehmer-Rechnung festschreiben; bist du es nicht, keine.
 - Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
 - GmbH und UG: Fehlen Pflichtangaben nach § 35a GmbHG (Registergericht, Registernummer, Geschäftsführer), zeigt der Editor einen Hinweis. Festschreiben geht trotzdem, siehe [Pflichtangaben einer GmbH oder UG](#pflichtangaben-einer-gmbh-oder-ug).
-- Formatabhängige Pflichtangaben (aus `validateForFormat` in `packages/einvoice`):
+- Pflichtangaben je Format:
 
 | Angabe | ZUGFeRD | XRechnung |
 | --- | --- | --- |
@@ -253,7 +251,7 @@ Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, 
 
 1. **Nummer ziehen.** Der Zähler je Jahr des Rechnungsdatums wird um eins erhöht. Das Format ist ab Werk `JJJJ-NNN`, also `2026-034`; ändern lässt es sich unter **Einstellungen › Rechnungen › Nummernformat** (siehe [Nummernformat](einrichtung.md#nummernformat)). Ein Datenbank-Trigger verhindert, dass der Zähler zurückgesetzt wird.
 2. **Anschriften einfrieren.** Absender (aus den Firmendaten) und Empfänger (aus dem Kontakt) werden mit der Rechnung gespeichert, dazu die Version des Kontakts. Spätere Änderungen am Kontakt ändern die Rechnung nicht.
-3. **PDF erzeugen.** Die sichtbare Rechnung entsteht mit Typst aus einer Vorlage als PDF/A-3b. Als Erstellungszeit steht das Rechnungsdatum im PDF.
+3. **PDF erzeugen.** Die sichtbare Rechnung entsteht mit Typst als PDF/A-3b, aus dem Layout, das der Rechnung zugeordnet ist ([Eigene Belegvorlagen](belegvorlagen.md)). Als Erstellungszeit steht das Rechnungsdatum im PDF.
 4. **XML erzeugen.** Die Bibliothek `@e-invoice-eu/core` erzeugt je nach Format Factur-X EN 16931 (und bettet es ins PDF ein), XRechnung CII oder XRechnung UBL. Was die Bibliothek im CII auslässt (etwa die Lieferscheinnummer), ergänzt Haben danach.
 5. **Prüfsummen.** Von PDF und XML wird je ein SHA-256 gespeichert. Die ersten Zeichen des PDF-Hashes stehen auf der Detailseite.
 6. **Buchen.** Haben legt den Buchungssatz an (siehe unten) und schreibt ihn fest.
@@ -580,7 +578,7 @@ Bei GmbH und UG hängt Haben beim Senden die [Pflichtangaben](#pflichtangaben-ei
 
 Ausgewählte zusätzliche Anhänge kommen bei Rechnungen nach PDF und XML dazu, mit ihrem Dateinamen.
 
-Jeder Versand steht mit Zeitpunkt, Empfänger und den Dateinamen der tatsächlich versandten Anhänge unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich (`mail_log`).
+Jeder Versand steht mit Zeitpunkt, Empfänger und den Dateinamen der tatsächlich versandten Anhänge unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich.
 
 **Vorlagen:** Betreff und Text stellst du unter Einstellungen › E-Mail › E-Mail-Versand › Vorlagen ein, je Sprache (Deutsch, Englisch) und Art:
 
@@ -639,7 +637,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | Feld | Hinweis |
 | --- | --- |
 | Name oder Firma | Pflicht |
-| Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md). Kontakte von vor dieser Einstellung sind Kunden. |
+| Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md). |
 | Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
 | Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. Mit einem Format unter **Einstellungen › Rechnungen › Kundennummern** vergibt Haben sie beim Anlegen selbst, wenn du das Feld leer lässt (siehe unten). |
 | DATEV-Debitor, DATEV-Kreditor | Personenkonten für die Steuerberatung, getrennt von Kunden- und Lieferantennummer; ein Kontakt mit beiden Rollen kann beide tragen. Fünfstellig wie bei DATEV mit vierstelligen Sachkonten: Debitoren 10000 bis 69999, Kreditoren 70000 bis 99999 ([DATEV-Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) und [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf) 2026, jeweils S. 36). Andere Längen lehnt Haben ab, statt sie zu kürzen. Jede Nummer gehört genau einem Kontakt; ist sie schon vergeben, nennt das Formular den Kontakt. Mit [Personenkonten im DATEV-Export](auswertungen.md#personenkonten) steht sie im Buchungsstapel und ist ab dem ersten Export fest; leer vergibt sie der Export, wenn der Kontakt eine braucht. |
