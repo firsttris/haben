@@ -235,4 +235,23 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)",
     expect(sales.years.map((y) => [y.year, y.count, y.net, y.archiveNet])).toEqual([[2025, 1, 400_000, 0]]);
     expect(sales.rows.map((r) => [r.kind, r.id, r.number])).toEqual([["rechnung", result.id, "RE-25019"]]);
   });
+
+  // Die Übernahme legt den Beleg ohne Lieferant aus den Kontakten an; er gehört über den archivierten Beleg zum Kontakt
+  it("Altbestand: ein als Beleg übernommener offener Posten steht beim Lieferanten einmal da, als Beleg in Haben", async () => {
+    const id = await altbeleg({
+      contactId: lieferant,
+      number: "B-25019",
+      date: "2025-09-20",
+      net: 10_000,
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      open: true,
+    });
+    const result = await legacy.takeOverLegacyItem(actor, id);
+    expect(result.kind).toBe("document");
+
+    const { purchases } = await history.contactHistory(lieferant, TODAY, 2025);
+    expect(purchases.years.map((y) => [y.year, y.count, y.net, y.archiveNet])).toEqual([[2025, 1, 10_000, 0]]);
+    expect(purchases.rows.map((r) => [r.kind, r.id, r.number])).toEqual([["beleg", result.id, "B-25019"]]);
+  });
 });
