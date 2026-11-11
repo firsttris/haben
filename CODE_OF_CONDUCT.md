@@ -1,8 +1,8 @@
-# Vereinbarung über Verhaltenskodex für Mitwirkende
+# Verhaltenskodex
 
 ## Unsere Verpflichtung
 
-Wir als Mitglieder, Teilnehmende und Verantwortliche unserer Gemeinschaft verpflichten uns, allen Teilnehmenden an dem Projekt und unserer Gemeinschaft eine belästigungsfreie Beteiligung, unabhängig von Alter, Körpergröße, Behinderung, ethnischer Zuordnung, Geschlechtermerkmalen, -identität und -ausdruck, Grad der Erfahrung, Bildung, sozialem Status, Nationalität, persönlicher Erscheinung, Rasse, Kaste, Hautfarbe, Religion oder sexueller Identität und Orientierung zu ermöglichen.
+Wir als Mitglieder, Teilnehmende und Verantwortliche unserer Gemeinschaft verpflichten uns, allen Menschen, die an Haben mitwirken, eine belästigungsfreie Beteiligung zu ermöglichen, unabhängig davon, wer sie sind.
 
 Wir verpflichten uns, in einer Weise zu handeln und zu interagieren, die zu einer offenen, einladenden, vielfältigen, inklusiven und gesunden Gemeinschaft beiträgt.
 
@@ -70,7 +70,7 @@ Die Gemeinschaftsleitung wird sich bei der Bestimmung der Konsequenzen für jede
 
 ## Bezug
 
-Dieser Verhaltenskodex basiert auf dem [Contributor Covenant][homepage], Version 2.1, verfügbar unter [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1].
+Dieser Verhaltenskodex ist angelehnt an den [Contributor Covenant][homepage], Version 2.1, verfügbar unter [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1] unter der Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de). Geändert: Titel, und unter „Unsere Verpflichtung“ steht statt der Aufzählung einzelner Merkmale ein allgemeiner Satz.
 
 Community Impact Guidelines wurden von [Mozillas Code of Conduct Enforcement Ladder][mozilla] inspiriert.
 
