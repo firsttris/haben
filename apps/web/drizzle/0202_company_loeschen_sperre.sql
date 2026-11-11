@@ -4,6 +4,10 @@
 -- nicht mehr gelöscht, sobald es eine Buchung gibt, ob im laufenden Jahr oder davor: Die Rechtsform ist ab der ersten
 -- Buchung überhaupt fest. Vorher bleibt Löschen erlaubt, dann ist auch jedes UPDATE frei; loadCompany legt eine fehlende
 -- Zeile mit den Vorgaben wieder an.
+-- Grenze: Wer die Zeile vor der ersten Buchung löscht, dann per SQL an der App vorbei bucht (ohne Firmendaten prüft 0065
+-- den Kontenrahmen nicht) und die Zeile danach mit anderen Werten neu anlegt, kommt weiter an den Sperren vorbei. Die
+-- App legt die Firmendaten vor jeder Buchung an und kommt nicht in diesen Zustand; die Sperre gilt dem Versehen von
+-- Hand, nicht der Absicht.
 -- Wie 0065 nimmt die Prüfung vorher die Sperre der Hash-Kette, damit sie laufende Buchungen sieht.
 -- Die App löscht die Firmendaten nie. Die Tests leeren company mit leeren() (session_replication_role = replica), ein
 -- Restore aus pg_dump legt die Trigger erst nach den Daten an; beide feuern den Trigger nicht.
