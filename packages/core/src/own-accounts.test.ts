@@ -52,6 +52,8 @@ describe.each(KR)("Prüfung beim Anlegen (%s)", (kr) => {
   it("verlangt einen Namen und eine zulässige Elternkategorie", () => {
     expect(ownAccountProblem({ ...ok, name: "  " })).toMatch(/Name/);
     expect(ownAccountProblem({ ...ok, name: "x".repeat(81) })).toMatch(/Name/);
+    // gezählt wie in der Datenbank: Zeichen, nicht UTF-16-Einheiten
+    expect(ownAccountProblem({ ...ok, name: "😀".repeat(41) })).toBeNull();
     expect(ownAccountProblem({ ...ok, parentCategory: "anlage" as never })).toMatch(/Elternkategorie/);
     expect(ownAccountProblem({ ...ok, parentCategory: "gibtsnicht" as never })).toMatch(/Elternkategorie/);
   });

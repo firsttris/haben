@@ -93,7 +93,9 @@ export function ownAccountProblem(input: OwnAccountInput): string | null {
   if (!/^\d{4}$/.test(account)) return "Die Kontonummer hat genau vier Ziffern.";
   if (!account.startsWith(CLASS_PREFIX[kontenrahmen])) return `Im ${kontenrahmen} liegen Aufwandskonten von ${CLASS_RANGE[kontenrahmen]}.`;
   if (reservedAccountNumbers(kontenrahmen).has(account)) return `Das Konto ${account} ist in Haben schon belegt.`;
-  if (name.trim() === "" || name.trim().length > OWN_ACCOUNT_NAME_MAX) return `Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`;
+  // Zeichen wie die Datenbank zählt (length), nicht UTF-16-Einheiten
+  const nameLength = Array.from(name.trim()).length;
+  if (nameLength === 0 || nameLength > OWN_ACCOUNT_NAME_MAX) return `Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`;
   if (!ownAccountParents(kontenrahmen).includes(parentCategory)) return "Diese Elternkategorie kann kein eigenes Konto haben.";
   return null;
 }

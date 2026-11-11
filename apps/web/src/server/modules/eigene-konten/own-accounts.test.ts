@@ -1,5 +1,5 @@
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -80,6 +80,37 @@ describe.skipIf(!testDatabaseUrl)("Eigene Sachkonten (Postgres, #270)", () => {
     expect((await konten.listOwnAccounts())[0]!.archivedAt).toBeNull();
     await expect(konten.renameOwnAccount(actor, id, "  ")).rejects.toThrow(/Name/);
     await expect(konten.renameOwnAccount(actor, "00000000-0000-4000-8000-000000000000", "X")).rejects.toThrow("Konto nicht gefunden.");
+  });
+
+  it("gleichzeitiges Anlegen derselben Nummer ergibt ein Konto und sonst die fachliche Meldung", async () => {
+    const results = await Promise.allSettled([1, 2, 3].map(() => konten.createOwnAccount(actor, konto())));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    for (const r of results) if (r.status === "rejected") expect(r.reason).toBeInstanceOf(konten.OwnAccountError);
+    expect(await konten.listOwnAccounts()).toHaveLength(1);
+  });
+
+  it("löscht kein Konto, auf dem im Journal schon gebucht ist; archivieren geht", async () => {
+    const id = await konten.createOwnAccount(actor, konto());
+    await sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-03-02', 'Buchung', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '4999', 100, 0), (${e!.id}, '1200', 0, 100)`;
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    });
+    await expect(konten.deleteOwnAccount(actor, id)).rejects.toThrow(/gebucht/);
+    expect(await konten.listOwnAccounts()).toHaveLength(1);
+    await konten.setOwnAccountArchived(actor, id, true);
+  });
+
+  it("Namen: nach einem Neustart des Prozesses liefert refresh sie wieder, auch für die Kontenvorschläge", async () => {
+    await konten.createOwnAccount(actor, konto());
+    vi.resetModules();
+    const frisch = await import("./index.ts");
+    const journal = await import("../buchhaltung/journal.ts");
+    expect(journal.accountName("SKR03", "4999")).toBe("");
+    await frisch.refreshOwnAccountNames();
+    expect(journal.accountName("SKR03", "4999")).toBe("Software: Entwicklung");
+    expect(journal.knownAccounts("SKR03")["4999"]).toBe("Software: Entwicklung");
   });
 
   it("Nummer und Elternkategorie lassen sich nicht ändern", async () => {

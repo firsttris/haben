@@ -75,6 +75,17 @@ export async function refreshOwnAccountNames(q: Db | Tx = db): Promise<void> {
   for (const r of rows) names.set(`${r.kontenrahmen}:${r.account}`, r.name);
 }
 
+/** Ob das Journal die Nummer schon kennt */
+async function imJournalGebucht(q: Db | Tx, kontenrahmen: Kontenrahmen, account: string): Promise<boolean> {
+  const [gebucht] = await q
+    .select({ id: schema.journalLines.id })
+    .from(schema.journalLines)
+    .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
+    .where(and(eq(schema.journalLines.account, account), eq(schema.journalEntries.kontenrahmen, kontenrahmen)))
+    .limit(1);
+  return gebucht !== undefined;
+}
+
 export async function createOwnAccount(actor: string, input: OwnAccountInput): Promise<string> {
   const company = await loadCompany();
   const kontenrahmen = company.kontenrahmen;
@@ -82,19 +93,15 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
   const problem = ownAccountProblem({ kontenrahmen, account: input.account, name, parentCategory: input.parentCategory });
   if (problem) throw new OwnAccountError(problem);
   const id = await withActor(actor, async (tx) => {
+    // Gleichzeitiges Anlegen derselben Nummer: der Zweite wartet und sieht das Konto, statt am Unique-Index zu scheitern
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`own_accounts:${kontenrahmen}:${input.account}`}))`);
     const [vorhanden] = await tx
       .select({ id: schema.ownAccounts.id })
       .from(schema.ownAccounts)
       .where(and(eq(schema.ownAccounts.kontenrahmen, kontenrahmen), eq(schema.ownAccounts.account, input.account)));
     if (vorhanden) throw new OwnAccountError(`Das Konto ${input.account} gibt es schon.`);
     // Eine Nummer, die das Journal schon kennt, bedeutete für alte Buchungen plötzlich etwas anderes
-    const [gebucht] = await tx
-      .select({ id: schema.journalLines.id })
-      .from(schema.journalLines)
-      .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
-      .where(and(eq(schema.journalLines.account, input.account), eq(schema.journalEntries.kontenrahmen, kontenrahmen)))
-      .limit(1);
-    if (gebucht) throw new OwnAccountError(`Auf ${input.account} ist im Journal schon gebucht; bitte eine freie Nummer nehmen.`);
+    if (await imJournalGebucht(tx, kontenrahmen, input.account)) throw new OwnAccountError(`Auf ${input.account} ist im Journal schon gebucht; bitte eine freie Nummer nehmen.`);
     const [created] = await tx
       .insert(schema.ownAccounts)
       .values({ kontenrahmen, account: input.account, name, parentCategory: input.parentCategory, createdBy: actor })
@@ -107,7 +114,7 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
 
 export async function renameOwnAccount(actor: string, id: string, name: string): Promise<void> {
   const clean = name.trim();
-  if (clean === "" || clean.length > OWN_ACCOUNT_NAME_MAX) throw new OwnAccountError(`Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`);
+  if (clean === "" || Array.from(clean).length > OWN_ACCOUNT_NAME_MAX) throw new OwnAccountError(`Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`);
   await withActor(actor, async (tx) => {
     const [konto] = await tx.select({ id: schema.ownAccounts.id }).from(schema.ownAccounts).where(eq(schema.ownAccounts.id, id)).for("update");
     if (!konto) throw new OwnAccountError("Konto nicht gefunden.");
@@ -132,8 +139,12 @@ export async function setOwnAccountArchived(actor: string, id: string, archived:
 /** Löscht ein Konto, auf das noch nichts zeigt (nach einem Vertippen) */
 export async function deleteOwnAccount(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {
-    const [konto] = await tx.select({ id: schema.ownAccounts.id }).from(schema.ownAccounts).where(eq(schema.ownAccounts.id, id)).for("update");
+    const [konto] = await tx.select().from(schema.ownAccounts).where(eq(schema.ownAccounts.id, id)).for("update");
     if (!konto) throw new OwnAccountError("Konto nicht gefunden.");
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`own_accounts:${konto.kontenrahmen}:${konto.account}`}))`);
+    if (await imJournalGebucht(tx, konto.kontenrahmen, konto.account)) {
+      throw new OwnAccountError(`Auf ${konto.account} ist im Journal schon gebucht; das Konto lässt sich nur archivieren.`);
+    }
     await tx.delete(schema.ownAccounts).where(eq(schema.ownAccounts.id, id));
   });
   await refreshOwnAccountNames();
