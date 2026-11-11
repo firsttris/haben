@@ -86,6 +86,20 @@ describe("Hinweise in der Beleggestaltung", () => {
     expect(hinweise.vatColumn?.text).toBe("Das Layout „Ohne Spalte“ verwendet hideVatColumn nicht.");
   });
 
+  it("Akzentfarbe und Logo bleiben an, auch wenn alle fünf Belegarten ein eigenes Layout ohne sie haben: Entgeltabrechnung und Steuerbescheinigung verwenden sie", () => {
+    // Beide setzt immer das eingebaute Layout (templates/lohnabrechnung.typ, steuerbescheinigung.typ) mit d.accent und d.logo
+    const ohneMarke = { name: "Ohne Marke", ungenutzt: ["accent", "logo"] as const };
+    const hinweise = gestaltungsHinweise({
+      rechnung: ohneMarke,
+      angebot: ohneMarke,
+      auftragsbestaetigung: ohneMarke,
+      lieferschein: ohneMarke,
+      mahnung: ohneMarke,
+    });
+    expect(hinweise.accent?.aus).toBe(false);
+    expect(hinweise.logo?.aus).toBe(false);
+  });
+
   it("mehrere Felder: weder … noch", () => {
     const hinweise = gestaltungsHinweise({ ...eingebaut, mahnung: { name: "Grau", ungenutzt: ["accent"] } });
     expect(hinweise.accent?.text).toBe("Wirkt nicht auf Mahnungen: Das Layout „Grau“ verwendet weder accent noch palette.");
