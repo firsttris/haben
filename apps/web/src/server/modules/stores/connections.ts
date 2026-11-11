@@ -18,6 +18,7 @@ import type { Store, StoreConfig } from "../../db/schema.ts";
 import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
+import { contactRoleProblem } from "../stammdaten/index.ts";
 
 /*
  * Zugänge zu den Finanzberichten von Google Play und App Store Connect (Einstellungen › Bank). Das Geheimnis
@@ -157,6 +158,9 @@ export async function setStoreContact(actor: string, input: z.input<typeof store
     if (!contact) throw new StoreError("Kontakt nicht gefunden.");
     if (contact.land === "DE")
       throw new StoreError("Die Store-Gesellschaft sitzt im Ausland (Google Commerce Ltd und Apple Distribution International in Irland).");
+    // Nur ein neuer Kontakt wird geprüft: ein bisheriger, der inzwischen kein Kunde mehr ist, bleibt gewählt
+    const problem = data.contactId === row.config.contactId ? null : await contactRoleProblem(db, data.contactId, "kunde");
+    if (problem) throw new StoreError(problem);
   }
   const config = { ...row.config, contactId: data.contactId ?? undefined };
   await withActor(actor, (tx) => tx.update(schema.storeConnections).set({ config }).where(eq(schema.storeConnections.store, data.store)));

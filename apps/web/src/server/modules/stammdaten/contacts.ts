@@ -15,7 +15,7 @@ import {
 import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema, type Tx } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
@@ -136,6 +136,22 @@ export async function listContactChoices(role: ContactRole): Promise<ContactChoi
     isCustomer: c.isCustomer,
     isSupplier: c.isSupplier,
   }));
+}
+
+/**
+ * Meldung, wenn ein Kontakt in der Rolle nicht gewählt werden kann (Kunde bei Rechnung, Angebot, Vorlage und Textbaustein,
+ * Lieferant bei Beleg und Dauerbeleg), sonst null. Das Formular zeigt nur passende Kontakte; geprüft wird hier, weil auch
+ * die API und ein veraltetes Formular Kontakte zuordnen. Fehlt der Kontakt, gilt `missing`.
+ */
+export async function contactRoleProblem(client: Db | Tx, contactId: string, role: ContactRole, missing = "Kontakt nicht gefunden."): Promise<string | null> {
+  const [contact] = await client
+    .select({ name: schema.contacts.name, isCustomer: schema.contacts.isCustomer, isSupplier: schema.contacts.isSupplier })
+    .from(schema.contacts)
+    .where(eq(schema.contacts.id, contactId));
+  if (!contact) return missing;
+  if (role === "kunde" ? contact.isCustomer : contact.isSupplier) return null;
+  const label = role === "kunde" ? "Kunde" : "Lieferant";
+  return `„${contact.name}“ ist kein ${label}. Setze beim Kontakt den Haken „${label}“, dann lässt er sich hier wählen.`;
 }
 
 /** Kontakt mit gleicher USt-IdNr., als Hinweis beim Anlegen oder Ändern (ContactForm) */

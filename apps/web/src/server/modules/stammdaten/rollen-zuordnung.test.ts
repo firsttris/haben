@@ -90,7 +90,16 @@ describe.skipIf(!testDatabaseUrl)("Rollen bei der Zuordnung von Kontakten (Postg
       falsch: "lieferant",
       meldung: /ist kein Kunde/,
       speichern: async (contactId, id) => {
-        const input = { contactId, issueDate: "2026-10-01", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd" as const, note: "", lines: [zeile] };
+        const input = {
+          contactId,
+          issueDate: "2026-10-01",
+          serviceFrom: null,
+          serviceTo: null,
+          paymentTermDays: 14,
+          format: "zugferd" as const,
+          note: "",
+          lines: [zeile],
+        };
         return id ? (await invoices.updateDraft(actor, id, input)).id : (await invoices.createDraft(actor, input)).id;
       },
     },

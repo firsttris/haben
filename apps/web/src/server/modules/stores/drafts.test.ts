@@ -110,6 +110,11 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Rechnungsentwürfe an die Store-G
     await expect(stores.setStoreContact(actor, { store: "googleplay", contactId: de!.id })).rejects.toThrow(/im Ausland/);
   });
 
+  it("lehnt einen Kontakt ohne die Rolle Kunde ab", async () => {
+    const [lieferant] = await sql`insert into contacts (name, land, is_customer, is_supplier) values ('Hosting Irland Ltd', 'IE', false, true) returning id`;
+    await expect(stores.setStoreContact(actor, { store: "googleplay", contactId: lieferant!.id })).rejects.toThrow(/Hosting Irland Ltd“ ist kein Kunde/);
+  });
+
   it("legt beim Übernehmen je Monat einen Reverse-Charge-Entwurf an, nur einmal", async () => {
     await stores.setStoreContact(actor, { store: "googleplay", contactId: googleContact });
     const result = await stores.syncStore(actor, "googleplay", NOW);
