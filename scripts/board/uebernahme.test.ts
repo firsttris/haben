@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { befehl, entscheiden, faellig, GRENZE, type Lage, MARKE_ERINNERUNG, textErinnerung } from "./uebernahme.ts";
+import { befehl, entscheiden, faellig, type Lage, MARKE_ERINNERUNG, textErinnerung } from "./uebernahme.ts";
 
 describe("befehl", () => {
   it.each([
@@ -22,11 +22,9 @@ describe("befehl", () => {
 describe("entscheiden", () => {
   const lage = (teil: Partial<Lage> = {}): Lage => ({
     person: "anna",
-    vertraut: false,
     offen: true,
     status: "Geplant",
     zugewiesen: [],
-    andereZuweisungen: [],
     ...teil,
   });
 
@@ -44,16 +42,6 @@ describe("entscheiden", () => {
     expect(entscheiden("übernehmen", lage({ status: null }))).toMatchObject({ art: "ablehnen", text: expect.stringContaining("noch nicht im") });
     expect(entscheiden("übernehmen", lage({ status: "Im nächsten Release" }))).toMatchObject({ art: "ablehnen" });
     expect(entscheiden("übernehmen", lage({ offen: false }))).toMatchObject({ art: "ablehnen" });
-  });
-
-  it(`hält die Grenze von ${GRENZE} Karten ein und nennt sie`, () => {
-    const voll = lage({ andereZuweisungen: [12, 13] });
-    expect(entscheiden("übernehmen", voll)).toMatchObject({ art: "ablehnen", text: expect.stringContaining("#12, #13") });
-    expect(entscheiden("übernehmen", lage({ andereZuweisungen: [12] }))).toEqual({ art: "zuweisen" });
-  });
-
-  it("lässt Maintainer und Collaborators über die Grenze", () => {
-    expect(entscheiden("übernehmen", lage({ vertraut: true, andereZuweisungen: [1, 2, 3] }))).toEqual({ art: "zuweisen" });
   });
 
   it("meldet, wenn es einem schon gehört", () => {

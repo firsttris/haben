@@ -153,13 +153,6 @@ export async function zuweisungAufheben(token: string, repo: string, nummer: num
   await anfrage(token, `/repos/${repo}/issues/${nummer}/assignees`, { method: "DELETE", body: JSON.stringify({ assignees: personen }) });
 }
 
-/** Offene Issues, die der Person zugewiesen sind */
-export async function zuweisungenVon(token: string, repo: string, person: string): Promise<number[]> {
-  const q = encodeURIComponent(`repo:${repo} is:issue is:open assignee:${person}`);
-  const treffer = await anfrage<{ items: { number: number }[] }>(token, `/search/issues?q=${q}&per_page=100`);
-  return treffer.items.map((item) => item.number);
-}
-
 /** Collaborator des Repositorys (Schreibrecht); im Zweifel nein */
 export async function istCollaborator(token: string, repo: string, person: string): Promise<boolean> {
   const antwort = await fetch(`${API}/repos/${repo}/collaborators/${person}`, {

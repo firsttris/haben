@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { istCollaborator, karte, kommentieren, projekt, statusSetzen, zuweisen, zuweisungAufheben, zuweisungenVon } from "./github.ts";
+import { karte, kommentieren, projekt, statusSetzen, zuweisen, zuweisungAufheben } from "./github.ts";
 import { STATUS } from "./regel.ts";
 import { befehl, entscheiden, textFreigegeben, textZugewiesen } from "./uebernahme.ts";
 
@@ -30,10 +30,7 @@ const nummer: number = issue.number;
 const board = await projekt(projectToken, STATUS);
 const stand = await karte(projectToken, repo, nummer, board.id);
 const zugewiesen: string[] = issue.assignees.map((p: { login: string }) => p.login);
-const vertraut = ["OWNER", "MEMBER", "COLLABORATOR"].includes(comment.author_association) || (await istCollaborator(github, repo, person));
-const andere = was === "übernehmen" && !vertraut ? (await zuweisungenVon(github, repo, person)).filter((n) => n !== nummer) : [];
-
-const ergebnis = entscheiden(was, { person, vertraut, offen: stand.offen, status: stand.status, zugewiesen, andereZuweisungen: andere });
+const ergebnis = entscheiden(was, { person, offen: stand.offen, status: stand.status, zugewiesen });
 console.log(`#${nummer} ${was} von ${person}: ${ergebnis.art}`);
 
 if (ergebnis.art === "ablehnen") {

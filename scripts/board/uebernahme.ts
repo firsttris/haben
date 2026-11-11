@@ -6,8 +6,6 @@ import { ohneCode } from "./regel.ts";
  * nach 14 Tagen ohne Lebenszeichen kommt eine Erinnerung, nach sieben weiteren die Freigabe.
  */
 
-/** Höchstens so viele offene Zuweisungen je Person; Maintainer und Collaborators zählen nicht */
-export const GRENZE = 2;
 export const TAGE_BIS_ERINNERUNG = 14;
 export const TAGE_BIS_FREIGABE = 7;
 /** Unsichtbare Marke im Kommentar der Erinnerung, damit der nächste Lauf sie wiederfindet */
@@ -31,14 +29,10 @@ export function befehl(text: string): Befehl | null {
 
 export type Lage = {
   person: string;
-  /** Maintainer oder Collaborator: keine Grenze */
-  vertraut: boolean;
   offen: boolean;
   /** Spalte der Karte im Board, null ohne Karte */
   status: string | null;
   zugewiesen: string[];
-  /** Andere offene Issues, die der Person schon zugewiesen sind */
-  andereZuweisungen: number[];
 };
 
 export type Entscheidung = { art: "zuweisen" } | { art: "freigeben"; zurueckNachGeplant: boolean } | { art: "ablehnen"; text: string };
@@ -61,12 +55,6 @@ export function entscheiden(was: Befehl, lage: Lage): Entscheidung {
   }
   if (lage.status !== "Geplant" && lage.status !== "Später") {
     return ablehnen(`die Karte steht in „${lage.status}“ und ist damit schon in Arbeit oder umgesetzt.`);
-  }
-  if (!lage.vertraut && lage.andereZuweisungen.length >= GRENZE) {
-    const liste = lage.andereZuweisungen.map((nummer) => `#${nummer}`).join(", ");
-    return ablehnen(
-      `du hast schon ${GRENZE} Karten (${liste}). Bring bitte zuerst eine davon zu Ende oder gib sie mit \`/freigeben\` zurück, dann geht diese.`,
-    );
   }
   return { art: "zuweisen" };
 }
