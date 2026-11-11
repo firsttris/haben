@@ -164,17 +164,13 @@ function AppLayout() {
         <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
           <span className="brand-mark">H</span>
           <span className="brand-text">
-            {/* Mehrere Firmen (#504): Der Name zeigt, in welcher Instanz man gerade arbeitet. Er ist die Hauptzeile,
-                „Haben“ steht klein davor; ist er zu lang, wird er gekürzt, der volle Name steht im Tooltip */}
-            {firma ? (
-              <>
-                <span className="brand-produkt">Haben</span>
-                <span className="brand-firma" title={firma}>
-                  {firma}
-                </span>
-              </>
-            ) : (
-              "Haben"
+            Haben
+            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet; ist er zu
+                lang, wird er gekürzt, der volle Name steht im Tooltip */}
+            {firma && (
+              <span className="brand-firma" title={firma}>
+                {firma}
+              </span>
             )}
           </span>
         </Link>

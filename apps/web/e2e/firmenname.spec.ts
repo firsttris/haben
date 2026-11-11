@@ -50,6 +50,9 @@ test("am Desktop steht der Name ganz da, in höchstens zwei Zeilen", async ({ pa
   await page.goto("/");
   await expect(nav(page).getByText(FIRMA)).toBeVisible();
   expect(await nameGemessen(page)).toEqual({ zeilen: 2, gekuerzt: false });
+  // Auch ein längerer Name (36 Zeichen) passt noch ganz hinein
+  await nameSetzen(page, "Steuerberatungsgesellschaft Nord mbH");
+  expect(await nameGemessen(page)).toEqual({ zeilen: 2, gekuerzt: false });
 });
 
 test("ein langer Firmenname wird nach zwei Zeilen gekürzt und läuft nicht aus der Navigation", async ({ page }) => {
@@ -65,24 +68,34 @@ test("ein langer Firmenname wird nach zwei Zeilen gekürzt und läuft nicht aus 
   expect(ueberlauf).toEqual({ nav: 0, marke: 0 });
 });
 
-// Der Name ist das Wichtige, nicht das Produkt: Er steht größer und voll deckend, „Haben“ kleiner davor
-test("der Name ist die Hauptzeile, „Haben“ steht kleiner davor", async ({ page }) => {
+// „Haben“ bleibt so groß wie ohne Firmennamen (18px, halbfett); der Name steht kleiner darunter, voll deckend
+test("„Haben“ bleibt, wie es ist, der Name steht kleiner darunter", async ({ page }) => {
   for (const breite of [1280, 375]) {
     await page.setViewportSize({ width: breite, height: 812 });
     await page.goto("/");
     await expect(nav(page).getByText(FIRMA)).toBeVisible();
-    const schrift = await nav(page)
+    const marke = await nav(page)
       .locator(".brand")
-      .evaluate((marke) => {
-        const stil = (sel: string) => getComputedStyle(marke.querySelector(sel)!);
+      .evaluate((el) => {
+        const text = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let haben: Text | null = null;
+        while (text.nextNode()) if (text.currentNode.textContent?.trim() === "Haben") haben = text.currentNode as Text;
+        const bereich = document.createRange();
+        bereich.selectNodeContents(haben!);
+        const firma = el.querySelector<HTMLElement>(".brand-firma")!;
+        const stil = getComputedStyle(haben!.parentElement!);
         return {
-          produkt: Number.parseFloat(stil(".brand-produkt").fontSize),
-          firma: Number.parseFloat(stil(".brand-firma").fontSize),
-          deckung: stil(".brand-firma").opacity,
+          haben: `${stil.fontSize} ${stil.fontWeight}`,
+          firma: Number.parseFloat(getComputedStyle(firma).fontSize),
+          deckung: getComputedStyle(firma).opacity,
+          darunter: firma.getBoundingClientRect().top >= bereich.getBoundingClientRect().bottom - 1,
         };
       });
-    expect(schrift.firma, `${breite}px`).toBeGreaterThan(schrift.produkt);
-    expect(schrift.deckung, `${breite}px`).toBe("1");
+    expect(marke.haben, `${breite}px`).toBe("18px 600");
+    expect(marke.firma, `${breite}px`).toBeLessThan(18);
+    expect(marke.firma, `${breite}px`).toBeGreaterThanOrEqual(12);
+    expect(marke.deckung, `${breite}px`).toBe("1");
+    expect(marke.darunter, `${breite}px`).toBe(true);
   }
 });
 
