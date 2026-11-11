@@ -8,7 +8,7 @@ export function RenderedSheet({ input, revision }: { input: DocumentPreviewInput
   return (
     <div className="sheet" aria-label={label}>
       {failure && (
-        <div className="banner banner-error" role="alert">
+        <div className="banner banner-danger" role="alert">
           {failure}
         </div>
       )}

@@ -17,7 +17,6 @@ import {
 import {
   asDraft,
   type Buyer,
-  createRenderClient,
   type InvoiceDocument,
   type Letterhead,
   pdfData,
@@ -28,12 +27,24 @@ import {
   type SheetData,
   sheetText,
   type SheetTextPart,
+  templateInputs,
   texts,
 } from "@haben/einvoice";
 import { z } from "zod";
 import { db } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { type Company, getContact, loadCompany, loadLetterhead } from "../stammdaten/index.ts";
+import {
+  type Company,
+  customLayoutFor,
+  customLayoutJob,
+  dataForVersion,
+  getContact,
+  layoutRenderer,
+  loadCompany,
+  loadLetterhead,
+  rendererFor,
+  typstMeldung,
+} from "../stammdaten/index.ts";
 import { buyerFrom, sellerFrom } from "./invoices.ts";
 import { directDebitFor } from "./lastschrift.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
@@ -108,8 +119,6 @@ export class DocumentPreviewError extends UserError {}
 export interface DocumentPreview extends RenderedSheet {
   text: SheetTextPart[];
 }
-
-const renderer = createRenderClient();
 
 /** Ungespeicherte Gestaltung aus dem Panel über der gespeicherten */
 function withDesign(letterhead: Letterhead, design: Input["design"]): Letterhead {
@@ -232,9 +241,16 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
       ? quotePdfData(quoteDocument(input, company, buyer, letterhead))
       : pdfData(invoiceDocument(input, company, buyer, letterhead, directDebit));
   const { draft: _noMark, ...sheet } = asDraft(data, t);
+  // Mit eigenem Layout dasselbe wie beim Festschreiben: Quelltext aus der Datenbank, Daten wie für die eingebaute Vorlage
+  const layout = await customLayoutFor(input.kind === "angebot" ? "angebot" : "rechnung");
+  const job = layout
+    ? await customLayoutJob(layout, dataForVersion(layout.schemaVersion, templateInputs(sheet, letterhead)), letterhead)
+    : renderJob("rechnung.typ", sheet, letterhead);
   try {
-    return { ...(await renderer.render(renderJob("rechnung.typ", sheet, letterhead))), text: sheetText(sheet as unknown as SheetData) };
+    const renderer = layout ? await rendererFor(layout) : layoutRenderer;
+    return { ...(await renderer.render(job)), text: sheetText(sheet as unknown as SheetData) };
   } catch (error) {
+    if (layout) throw new DocumentPreviewError(`Das Layout „${layout.name}“ ließ sich nicht setzen: ${typstMeldung(error)}`);
     throw new DocumentPreviewError(
       `Die Vorschau ließ sich nicht erzeugen. ${error instanceof Error && error.message.includes("Zeitlimit") ? error.message : "Das PDF ist davon nicht betroffen."}`,
     );

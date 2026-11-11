@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { directDebitFor } from "./lastschrift.ts";
 import { UserError } from "../../errors.ts";
-import { loadCompany, loadLetterhead } from "../stammdaten/index.ts";
+import { loadCompany, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceDocumentTotals, invoiceTotalsById } from "./invoice-taxes.ts";
 import { buyerFrom, deductedRefs, documentFor, getInvoice, sellerFrom } from "./invoices.ts";
 import { getQuote, quoteDocumentFor } from "./quotes.ts";
@@ -43,7 +43,7 @@ export async function invoiceDraftPdf(id: string): Promise<DraftPdf | null> {
     await deductedRefs(lines),
     await directDebitFor(invoice, company, db),
   );
-  return renderInvoiceDraftPdf({ ...doc, ...(await loadLetterhead()) });
+  return withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => renderInvoiceDraftPdf({ ...doc, ...letterhead }));
 }
 
 /** Entwurf eines Angebots; null, wenn es keinen Entwurf mit dieser Id gibt */
@@ -52,5 +52,5 @@ export async function quoteDraftPdf(id: string): Promise<DraftPdf | null> {
   if (data?.quote.status !== "draft") return null;
   if (!data.contact) throw new DraftPdfError(NO_CUSTOMER);
   const { number: _none, ...doc } = quoteDocumentFor(data.quote, data.lines, sellerFrom(await loadCompany()), buyerFrom(data.contact), "");
-  return buildQuoteDraftPdf({ ...doc, ...(await loadLetterhead()) });
+  return withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuoteDraftPdf({ ...doc, ...letterhead }));
 }
