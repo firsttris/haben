@@ -8,7 +8,7 @@ import { ledgerRange, saldenliste, uebernahmen } from "./ledger.ts";
  * was im Jahr gegen 9000 übernommen ist (Umzug, Anlagen). Ohne Salden zum 1. Januar gibt es keine (erstes Geschäftsjahr).
  */
 export async function jahresBilanzen(year: number, kontenrahmen: Kontenrahmen): Promise<{ report: Abschluss; vorjahr: Abschluss | null }> {
-  const rows = (await saldenliste(ledgerRange(year))).filter((r) => r.kontenrahmen === kontenrahmen);
+  const rows = (await saldenliste(ledgerRange(year), { aufgeloest: true })).filter((r) => r.kontenrahmen === kontenrahmen);
   const report = abschluss(
     kontenrahmen,
     rows.map((r) => ({ account: r.account, saldo: r.saldo })),

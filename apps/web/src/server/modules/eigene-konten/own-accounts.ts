@@ -1,7 +1,7 @@
 import { ownAccountProblem, type ExpenseCategory, type Kontenrahmen, OWN_ACCOUNT_NAME_MAX } from "@haben/core";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 
@@ -47,12 +47,32 @@ export async function listOwnAccounts(): Promise<OwnAccount[]> {
 }
 
 /** Nummer → Elternkategorie für den Kontenrahmen, auch archivierte: Buchungen darauf bleiben auswertbar */
-export async function loadOwnAccountParents(kontenrahmen: Kontenrahmen): Promise<Map<string, ExpenseCategory>> {
-  const rows = await db
+export async function loadOwnAccountParents(kontenrahmen: Kontenrahmen, q: Db | Tx = db): Promise<Map<string, ExpenseCategory>> {
+  const rows = await q
     .select({ account: schema.ownAccounts.account, parentCategory: schema.ownAccounts.parentCategory })
     .from(schema.ownAccounts)
     .where(eq(schema.ownAccounts.kontenrahmen, kontenrahmen));
   return new Map(rows.map((r) => [r.account, r.parentCategory as ExpenseCategory]));
+}
+
+/**
+ * Namen der eigenen Konten für die synchronen Kontonamen (accountName): Schlüssel Kontenrahmen und Nummer. Die Auswertungen laden
+ * sie vor dem Rechnen neu (refreshOwnAccountNames), Anlegen und Umbenennen auch.
+ */
+const names = new Map<string, string>();
+
+export const ownAccountName = (kontenrahmen: Kontenrahmen, account: string): string | undefined => names.get(`${kontenrahmen}:${account}`);
+
+/** Alle bekannten eigenen Konten des Kontenrahmens: Nummer → Name */
+export const ownAccountNames = (kontenrahmen: Kontenrahmen): Record<string, string> =>
+  Object.fromEntries([...names].filter(([key]) => key.startsWith(`${kontenrahmen}:`)).map(([key, name]) => [key.slice(6), name]));
+
+export async function refreshOwnAccountNames(q: Db | Tx = db): Promise<void> {
+  const rows = await q
+    .select({ kontenrahmen: schema.ownAccounts.kontenrahmen, account: schema.ownAccounts.account, name: schema.ownAccounts.name })
+    .from(schema.ownAccounts);
+  names.clear();
+  for (const r of rows) names.set(`${r.kontenrahmen}:${r.account}`, r.name);
 }
 
 export async function createOwnAccount(actor: string, input: OwnAccountInput): Promise<string> {
@@ -61,7 +81,7 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
   const name = input.name.trim();
   const problem = ownAccountProblem({ kontenrahmen, account: input.account, name, parentCategory: input.parentCategory });
   if (problem) throw new OwnAccountError(problem);
-  return withActor(actor, async (tx) => {
+  const id = await withActor(actor, async (tx) => {
     const [vorhanden] = await tx
       .select({ id: schema.ownAccounts.id })
       .from(schema.ownAccounts)
@@ -81,6 +101,8 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
       .returning({ id: schema.ownAccounts.id });
     return created!.id;
   });
+  await refreshOwnAccountNames();
+  return id;
 }
 
 export async function renameOwnAccount(actor: string, id: string, name: string): Promise<void> {
@@ -91,6 +113,7 @@ export async function renameOwnAccount(actor: string, id: string, name: string):
     if (!konto) throw new OwnAccountError("Konto nicht gefunden.");
     await tx.update(schema.ownAccounts).set({ name: clean, updatedAt: sql`now()` }).where(eq(schema.ownAccounts.id, id));
   });
+  await refreshOwnAccountNames();
 }
 
 /** Archivieren oder wieder aktivieren; ein archiviertes Konto steht nicht mehr zur Auswahl, bestehende Buchungen behalten es */
@@ -113,4 +136,5 @@ export async function deleteOwnAccount(actor: string, id: string): Promise<void>
     if (!konto) throw new OwnAccountError("Konto nicht gefunden.");
     await tx.delete(schema.ownAccounts).where(eq(schema.ownAccounts.id, id));
   });
+  await refreshOwnAccountNames();
 }
