@@ -79,6 +79,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
+| [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung, ab dem Stichjahr) | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | Einfuhrumsatzsteuer ([Beleg](belege.md#einfuhrumsatzsteuer)), bei Zahlung | Gezahlte Vorsteuerbeträge |
 | [Steuerzahlung](bank.md#steuerzahlungen): Umsatzsteuer früherer Jahre | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung (§ 11 EStG). Zahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis: eine Vorauszahlung für Dezember gehört in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) |
 | Steuerzahlung: Zinsen, Säumnis- und Verspätungszuschläge zur Umsatzsteuer | Übrige unbeschränkt abziehbare Betriebsausgaben; nicht die Schuldzinsen der Zeilen 55 und 56, die für die nicht abziehbaren Schuldzinsen (§ 4 Abs. 4a EStG) gemeint sind |

@@ -104,6 +104,8 @@ Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht
 
 Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
 
+Unter dem Formular steht die Karte **Voranmeldung und EÜR aus dem Journal**. Sie zeigt das Stichjahr, ab dem Haben Voranmeldung und EÜR wie DATEV aus dem Journal rechnet, und ob das laufende Jahr noch aus Rechnungen, Belegen und Zahlungen rechnet. Liegt das Stichjahr nach dem laufenden Jahr, lässt es sich mit **Ab ‹Jahr› aus dem Journal** auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist und sich dadurch keine Zahl ändert; sonst nennt die Karte die Gründe. Zurück geht es nicht. Einzelheiten: [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen).
+
 ### Logo
 
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
