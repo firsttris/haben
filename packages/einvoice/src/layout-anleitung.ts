@@ -63,7 +63,7 @@ export const GERUEST = `\`\`\`typst
 #for m in d.meta [ #m.label: #m.value \\ ]
 = #d.title
 #if d.reference != none { par(d.reference) }
-#table(columns: 4, [Pos.], [Bezeichnung], [Menge], [Betrag], ..d.lines.map(l => (l.pos, l.description, l.quantity, l.net)).flatten())
+#table(columns: 5, [Pos.], [Bezeichnung], [Menge], [USt], [Betrag], ..d.lines.map(l => (l.pos, l.description, l.quantity, l.rate, l.net)).flatten())
 #if d.totals != none {
   for r in d.totals.rows [ #r.label: #r.value \\ ]
   strong[#d.totals.gross.label: #d.totals.gross.value]
