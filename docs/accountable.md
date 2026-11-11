@@ -76,6 +76,10 @@ Im Archiv erscheint jede Ausgabe unter diesem Kennzeichen, du kannst danach such
 | Bankumsätze und übermittelte Voranmeldungen | Voranmeldungen sind nicht im Export; die Bankumsätze stehen nur im Sheet „Kontobewegungen“ von `Daten.xlsx`, das der Import nicht einliest | Kontoauszüge als PDF, Voranmeldungen als Protokolle ablegen |
 | Anlagenverzeichnis | `Abschreibungstabelle.xlsx` wird nur archiviert, nicht eingelesen | [Anlagen übernehmen](anlagen.md) |
 
+## Bankumsätze kommen aus den Kontoauszügen
+
+Das Sheet „Kontobewegungen“ in `Daten.xlsx` enthält dieselben Zahlungen wie die Kontoauszüge, nur mit dem Zahlungsdatum statt dem Buchungsdatum. Der Import liest es nicht ein; die Bankumsätze kommen aus den Kontoauszügen der Bank oder aus dem Abruf (siehe [Bank](bank.md)). Ein Konto bekommt seine Umsätze aus einer Quelle: Wer die Quelle wechselt, etwa vom Abruf zu Dateien, importiert ab dem Tag nach dem letzten vorhandenen Umsatz. Gemischt ergibt das doppelte Umsätze, weil der Dubletten-Hash das Datum enthält; Haben meldet den Fall beim Import (siehe [Bank](bank.md#dubletten)).
+
 ## Kategorie und Zahlungsstatus
 
 Die Kategorie kommt aus dem Buchungscode in `Daten.xlsx` (Sheet „Ausgaben“) und nicht aus dem Gegenkonto, weil der Code feiner ist als der Kontenrahmen. Haben bildet ihn so ab:

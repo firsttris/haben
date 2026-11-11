@@ -96,11 +96,17 @@ export function FooterCard({ columns, seller, hidden }: { columns: string[] | nu
           Ausgeschaltet: Die Fußzeile steht auf dem Briefpapier. Was du hier einstellst, gilt erst wieder, wenn du das unter „Briefpapier“ änderst.
         </div>
       )}
-      <label className="checkbox">
-        <input type="checkbox" checked={own} onChange={(event) => setOwn(event.target.checked)} />
-        Eigene Fußzeile
-      </label>
-      {!own && <p className="small muted">Haben setzt die Fußzeile aus den Firmendaten zusammen: Kontakt, Bank, Steuernummern.</p>}
+      <div className="checkbox-hinted">
+        <label className="checkbox">
+          <input type="checkbox" checked={own} onChange={(event) => setOwn(event.target.checked)} aria-describedby={own ? undefined : "footer-own-hint"} />
+          Eigene Fußzeile
+        </label>
+        {!own && (
+          <span id="footer-own-hint" className="field-hint">
+            Haben setzt die Fußzeile aus den Firmendaten zusammen: Kontakt, Bank, Steuernummern.
+          </span>
+        )}
+      </div>
       {own && (
         <>
           <div>
