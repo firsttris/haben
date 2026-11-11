@@ -26,7 +26,7 @@ Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwisch
 
 ## EÜR nach Zufluss und Abfluss
 
-Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde. Die Berechnung steht in `packages/core/src/euer.ts`, die Daten sammelt `apps/web/src/server/modules/auswertungen/reports.ts`.
+Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde.
 
 **Ab dem Stichjahr aus dem Journal.** Im Einzelunternehmen rechnet Haben die EÜR ab dem Stichjahr ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen)) wie DATEV aus den Buchungen; in GmbH und UG, die bilanzieren, bleibt die Übersicht nach Zahlung aus Rechnungen, Belegen und Zahlungen, sonst zählten Abschlussbuchungen wie Rückstellungen als Ausgabe: Eine Buchung ohne Forderung oder Verbindlichkeit (Bank, Kasse, privat bezahlt, Pauschale) zählt mit ihrem Datum nach ihren Konten; eine Rechnung bzw. ein Beleg auf Ziel zählt mit jeder Zahlung anteilig, gerundet wie die Zahlung. AfA und Privatnutzung kommen aus dem Journal, sobald das Jahr gebucht ist, vorher aus dem Anlagenverzeichnis. Für aus Lexoffice übernommene Rechnungen und Belege verteilt Haben die Zahlung auf die Zeilen, die es für Rechnung bzw. Beleg gebucht hätte. Was unten steht, gilt in beiden Fällen; die Rechnung aus Rechnungen, Belegen und Zahlungen bleibt die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
 
@@ -49,6 +49,8 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
 | Beleg mit Kategorie „Anlagegut“, bezahlt | Buchungstag bzw. Belegdatum | nur die Vorsteuer; der Kaufpreis wirkt über die AfA |
+| [Manuelle oder freie Buchung](buchhaltung.md#manuelle-und-freie-buchungen), im Einzelunternehmen ab dem Stichjahr; ebenso eine Buchung aus dem [Datenimport](belegimport.md#zahlungen-journal-und-eür) | Datum der Buchung | nach ihren Konten: Erlös als Einnahme, Aufwand in der Zeile seines Kontos, Umsatzsteuer als vereinnahmte Umsatzsteuer; Privatkonten zählen nicht |
+| [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung mit Steuerschlüssel) | Datum der Buchung | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (netto) und die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | [Pauschale](pauschalen.md) | Datum der Pauschale | Ausgabe je Pauschale (Homeoffice, Fahrten, Verpflegung) |
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
 
@@ -58,7 +60,7 @@ Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des B
 
 - Bankumsätze, die du noch nicht zugeordnet hast. Ordne vor dem Jahresabschluss alles im [Bankabgleich](bank.md) zu.
 - Belege, die noch nicht gebucht sind, und über die Bank zu zahlende Belege ohne zugeordnete Zahlung (die stehen unter „Offene Verbindlichkeiten“).
-- Privatentnahmen und -einlagen sowie Geldtransit zwischen eigenen Konten. Sie sind nicht betrieblich.
+- Privatentnahmen und -einlagen sowie Geldtransit zwischen eigenen Konten. Sie sind nicht betrieblich. Ausnahmen sind die Sachentnahme und die private Nutzung von Firmenwagen: Sie zählen als Einnahme (§ 6 Abs. 1 Nr. 4 EStG).
 - Rechnungsentwürfe und Rechnungen ohne Zahlungseingang.
 
 ### Bruttomethode
@@ -67,7 +69,7 @@ Wie in der Anlage EÜR ist die vereinnahmte Umsatzsteuer eine Betriebseinnahme. 
 
 Die Tabelle „Einnahmen-Überschuss-Rechnung“ zeigt:
 
-- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung, Erträge aus Kursdifferenzen (nur, wenn es welche gibt), Vereinnahmte Umsatzsteuer, Umsatzsteuer auf unentgeltliche Wertabgaben (beide nur bei privat genutzten Firmenwagen), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
+- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung (nur bei privat genutzten Firmenwagen), Sonstige Sach-, Nutzungs- und Leistungsentnahmen (nur bei Sachentnahmen), Erträge aus Kursdifferenzen (nur, wenn es welche gibt), Vereinnahmte Umsatzsteuer (auch die auf Sachentnahmen), Umsatzsteuer auf unentgeltliche Wertabgaben (nur die auf die private Kfz-Nutzung), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
 - **Betriebsausgaben:** Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung, eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …; bei der Bewirtung nur der abziehbare Teil von 70 %), je Pauschale, die Abschreibungen aus dem Anlagenverzeichnis, Aufwendungen aus Kursdifferenzen, Zinsen und Zuschläge zu betrieblichen Steuern, Schuldzinsen zur Finanzierung von Anlagevermögen, Übrige Schuldzinsen (diese jeweils nur, wenn es welche gibt), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
 - **Gewinn bzw. Verlust**, darunter nachrichtlich die nicht abziehbare Gewerbesteuer samt Nebenleistungen und Hinterziehungszinsen, wenn es welche gibt
 
