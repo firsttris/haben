@@ -25,6 +25,7 @@ export {
   type Company,
 } from "./company.ts";
 export {
+  contactRoleProblem,
   contactSchema,
   createContact,
   findContactsByUstId,
