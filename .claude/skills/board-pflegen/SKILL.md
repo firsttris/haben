@@ -5,7 +5,7 @@ description: "Project „Roadmap“ von Haben pflegen (https://github.com/users/
 
 # Board pflegen
 
-Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2); die Regeln dazu in [`docs/entwicklung.md`](../../../docs/entwicklung.md) unter „Etwas übernehmen“ und „Branches, Titel und Commits“ (Vom Issue zum Release), die Grundsätze und „Bewusst nicht“ in [`docs/roadmap.md`](../../../docs/roadmap.md). Was der Workflow „Board“ (`scripts/board/`) selbst schiebt, macht dieser Skill nicht noch einmal. Montags läuft er automatisch im Workflow „Board-Pflege“: Dort liefert er statt der Tabelle in Schritt 3 eine Datei `plan.json` (Aufbau in `scripts/board/plan.ts`), und Schritt 4 bis 6 übernimmt nach `/ok` des Maintainers `scripts/board/plan-anwenden.ts`.
+Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2); die Regeln dazu in [`docs/entwicklung.md`](../../../docs/entwicklung.md) unter „Etwas übernehmen“ und „Branches, Titel und Commits“ (Vom Issue zum Release), die Grundsätze und „Bewusst nicht“ in [`docs/roadmap.md`](../../../docs/roadmap.md). Was der Workflow „Board“ (`scripts/board/`) selbst schiebt, macht dieser Skill nicht noch einmal. Täglich läuft er automatisch im Workflow „Board-Pflege“, wenn es etwas zu tun gibt: Dort liefert er statt der Tabelle in Schritt 3 eine Datei `plan.json` (Aufbau in `scripts/board/plan.ts`), und Schritt 4 bis 6 übernimmt nach `/ok` des Maintainers `scripts/board/plan-anwenden.ts`.
 
 ## Voraussetzungen
 

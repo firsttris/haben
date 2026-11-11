@@ -138,3 +138,15 @@ export function freigabe(text: string): Freigabe {
   if (neu) return { art: "überarbeiten", wunsch: neu[1].trim() };
   return null;
 }
+
+export type Eintrag = { id: number; person: string; text: string };
+
+/**
+ * Unbeantworteter Vorschlag, den ein neuer Lauf ersetzt statt eine zweite Tabelle anzuhängen: der letzte
+ * Kommentar im Issue, wenn er ein Vorschlag des Bots ist. Hat jemand danach geschrieben (`/ok`, `/überarbeiten`,
+ * eine Frage), bleibt er stehen, und der neue kommt darunter.
+ */
+export function offenerVorschlag(liste: Eintrag[], bot: string): number | null {
+  const letzter = liste.at(-1);
+  return letzter && letzter.person === bot && auslesen(letzter.text) ? letzter.id : null;
+}

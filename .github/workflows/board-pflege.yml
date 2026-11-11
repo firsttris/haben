@@ -1,5 +1,6 @@
 # Automatische Board-Pflege mit Claude (Skill .claude/skills/board-pflegen):
-# - Montags und auf Knopfdruck: Der Agent liest Board und Issues und schreibt einen Plan (plan.json). Er hat nur
+# - Täglich und auf Knopfdruck: Zuerst zählt vorab-pruefen.ts ohne KI, ob es neue Issues ohne Karte oder offene
+#   Gespräche gibt; ohne beides startet der Agent beim täglichen Lauf nicht. Sonst: Der Agent liest Board und Issues und schreibt einen Plan (plan.json). Er hat nur
 #   Leserechte und kein PROJECT_TOKEN; eine Prompt Injection in einem Issue kann damit nichts ändern.
 #   plan-posten.ts prüft den Plan und stellt ihn als Vorschlag ins Issue „Board-Pflege“ (Label board-pflege).
 # - `/ok` oder `/ok ohne 2, 5` des Maintainers dort: plan-anwenden.ts setzt genau diesen Plan um, ohne KI.
@@ -9,7 +10,7 @@ name: Board-Pflege
 
 on:
   schedule:
-    - cron: "23 5 * * 1"
+    - cron: "23 5 * * *"
   workflow_dispatch:
   issue_comment:
     types: [created]
@@ -30,6 +31,8 @@ jobs:
       (startsWith(github.event.comment.body, '/überarbeiten') || startsWith(github.event.comment.body, '/ueberarbeiten')))
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      arbeit: ${{ steps.vorab.outputs.arbeit }}
     permissions:
       contents: read
       issues: read
@@ -48,8 +51,19 @@ jobs:
           GH_TOKEN="$PROJECT_TOKEN" gh project item-list 2 --owner firsttris --limit 300 --format json \
             | jq '[.items[] | {id, issue: .content.number, typ: .content.type, titel: .title, status, aufwand, bereich, hinweis}]' > /tmp/board/board.json
           gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 300 \
-            --json number,title,author,labels,assignees,createdAt,updatedAt > /tmp/board/issues.json
+            --json number,title,author,labels,assignees,createdAt,updatedAt,comments > /tmp/board/issues-voll.json
+          jq '[.[] | del(.comments)]' /tmp/board/issues-voll.json > /tmp/board/issues.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - name: Gibt es etwas zu tun?
+        id: vorab
+        run: |
+          bun scripts/board/vorab-pruefen.ts /tmp/board
+          # Von Hand gestartet oder /überarbeiten: immer laufen
+          if [ "$GITHUB_EVENT_NAME" != "schedule" ]; then echo "arbeit=ja" >> "$GITHUB_OUTPUT"; fi
       - uses: anthropics/claude-code-action@97e0a7f336e732b8c9400f7c7d71d41725923201 # v1
+        if: steps.vorab.outputs.arbeit == 'ja'
         env:
           GH_TOKEN: ${{ github.token }}
           WUNSCH: ${{ github.event.comment.body }}
@@ -86,6 +100,7 @@ jobs:
             --max-turns 120
             --allowedTools "Read,Grep,Glob,Write,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(git log:*),Bash(jq:*),Bash(printenv WUNSCH)"
       - uses: actions/upload-artifact@v4
+        if: steps.vorab.outputs.arbeit == 'ja'
         with:
           name: plan
           path: plan.json
@@ -93,6 +108,7 @@ jobs:
 
   posten:
     needs: vorschlagen
+    if: needs.vorschlagen.outputs.arbeit == 'ja'
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -268,3 +268,7 @@ export async function kommentare(token: string, repo: string, nummer: number) {
     if (teil.length < 100) return liste;
   }
 }
+
+export async function kommentarAendern(token: string, repo: string, id: number, text: string): Promise<void> {
+  await anfrage(token, `/repos/${repo}/issues/comments/${id}`, { method: "PATCH", body: JSON.stringify({ body: text }) });
+}

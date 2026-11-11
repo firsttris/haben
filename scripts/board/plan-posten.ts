@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
-import { kommentieren, sammelIssue } from "./github.ts";
-import { alsKommentar, pruefen } from "./plan.ts";
+import { kommentarAendern, kommentare, kommentieren, sammelIssue } from "./github.ts";
+import { alsKommentar, offenerVorschlag, pruefen } from "./plan.ts";
 
 /*
  * Stellt den Plan des Agenten als Vorschlag ins Issue „Board-Pflege“ (.github/workflows/board-pflege.yml).
- * Ein ungültiger Plan wird nicht gepostet; der Lauf endet rot mit den Fehlern.
+ * Ein ungültiger Plan wird nicht gepostet; der Lauf endet rot mit den Fehlern. Ist der letzte Kommentar ein
+ * unbeantworteter Vorschlag, ersetzt der neue ihn, damit nur ein aktueller Vorschlag im Issue steht.
  *
  *   bun scripts/board/plan-posten.ts plan.json
  */
@@ -33,7 +34,10 @@ const nummer = await sammelIssue(
   repo,
   LABEL,
   "Board-Pflege",
-  "Hier stellt der Workflow „Board-Pflege“ jede Woche seinen Vorschlag für das [Project „Roadmap“](https://github.com/users/firsttris/projects/2) ein. Der Maintainer antwortet mit `/ok`, `/ok ohne …` oder `/überarbeiten …` (docs/entwicklung.md, „Vom Issue zum Release“).",
+  "Hier stellt der Workflow „Board-Pflege“ täglich seinen Vorschlag für das [Project „Roadmap“](https://github.com/users/firsttris/projects/2) ein. Der Maintainer antwortet mit `/ok`, `/ok ohne …` oder `/überarbeiten …` (docs/entwicklung.md, „Vom Issue zum Release“).",
 );
-await kommentieren(github, repo, nummer, alsKommentar(ergebnis.plan, lauf));
-console.log(`Vorschlag mit ${ergebnis.plan.schritte.length} Schritten in #${nummer}`);
+const text = alsKommentar(ergebnis.plan, lauf);
+const alt = offenerVorschlag(await kommentare(github, repo, nummer), "github-actions[bot]");
+if (alt) await kommentarAendern(github, repo, alt, text);
+else await kommentieren(github, repo, nummer, text);
+console.log(`Vorschlag mit ${ergebnis.plan.schritte.length} Schritten in #${nummer}${alt ? " (ersetzt den unbeantworteten)" : ""}`);
