@@ -519,6 +519,20 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
+### Leitplanken für Agenten
+
+Haben entsteht zu einem großen Teil mit Coding-Agenten. Dass dabei kein ungeprüfter Code nach `main` kommt, hängt nicht davon ab, ob ein Agent die Regeln kennt, sondern davon, dass ein Fehler auffällt, bevor er gemergt wird. Die Mechanismen stehen in den Abschnitten dieser Seite; hier der Überblick:
+
+- **Regeln an einer Stelle:** Die Regeln stehen auf dieser Seite und für die Oberfläche in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md). `CLAUDE.md` verweist nur darauf und nennt, was nie passieren darf. Die Abläufe (Prüfungen, Pull Request, Screenshots, Review) stehen als Skills in `.claude/skills/`, damit jeder Agent dieselben Schritte geht.
+- **Ganze Fehlerklassen ausgeschlossen:** Geld in ganzen Cent, Steuersätze in Basispunkten, keine Gleitkommazahlen. Festgeschriebenes sperren Postgres-Trigger, jede Änderung steht in einer Hashkette; auch fehlerhafter Code kann gebuchte Daten nicht ändern ([Konventionen](#konventionen)).
+- **Tests für jede Änderung:** Vitest für Logik, Postgres-Tests neben dem Modul, Playwright für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt; Buchungen und Steuer werden mit SKR03 und SKR04 sowie Ist und Soll getestet. Kein Test wird abgeschwächt oder gelöscht, damit die CI grün wird, und was übersprungen wurde, steht in der Beschreibung des Pull Requests ([Mitwirken](#mitwirken)).
+- **Prüfung gegen fremde Maßstäbe:** E-Rechnungen prüft der [KoSIT-Validator](#kosit-validator) in der CI, SEPA-Dateien die [Schemas der Deutschen Kreditwirtschaft](#schemas-der-sepa-überweisung-und--lastschrift), jede Seite ein Test gegen WCAG 2.2 AA. Fachliche Details richten sich nach der Primärquelle, die im Code steht, nicht nach dem Gedächtnis eines Modells.
+- **Regeln als Skript:** Was sich sicher entscheiden lässt, etwa Modulgrenzen, Dateigröße, Titel und Issue-Verweise, prüft ein Skript in `bun run lint` oder im Workflow „PR-Regeln“ ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
+- **Unabhängiges Review mit Beweis:** Ein neuer Agent ohne den Verlauf des Autors prüft jeden Pull Request. Ein Befund zählt nur, wenn ein Test ihn auf dem Stand des Pull Requests rot zeigt ([Review](#review)).
+- **Ein Mensch entscheidet:** Gemergt wird nur durch einen Maintainer oder mit dessen Zustimmung, per Squash und nach grüner CI.
+
+Was das nicht leistet: Die Leitplanken fangen Fehler, die ein Test zeigen kann. Ist die fachliche Annahme selbst falsch, etwa bei einer Steuerregel, sind Code und Test gemeinsam falsch und trotzdem grün. Dagegen helfen nur die Primärquelle im Code, Rückmeldungen aus echten Abgaben und die Prüfung durch eine Steuerberatung. Ein unabhängiges Audit der Software oder ihrer Fachlogik gibt es bisher nicht.
+
 ### Automatische Prüfungen der Regeln
 
 Regeln, die nur im Text stehen, gehen bei vielen Beiträgen und bei Agenten verloren. Was sich sicher entscheiden lässt, prüft deshalb ein Skript; was nicht, erscheint als Hinweis.
