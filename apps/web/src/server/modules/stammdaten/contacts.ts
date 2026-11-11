@@ -120,11 +120,13 @@ export interface ContactChoice {
 }
 
 /**
- * Alle Kontakte (ohne archivierte) zur Auswahl; welche Rolle zur Wahl steht, entscheidet die Combobox. So bleibt ein schon
- * gewählter Kontakt auch sichtbar, wenn er die Rolle nicht mehr hat. role bestimmt, welche Nummer als Nummer gilt.
+ * Kontakte (ohne archivierte) zur Auswahl in einem Formular. Bei Lieferanten nur die Lieferanten, wie bisher: Das Formular
+ * braucht keine anderen, und der Beleg geht auch an die Steuerberatung. Bei Kunden alle, denn ein gewählter Kontakt, der kein
+ * Kunde mehr ist, soll im Feld sichtbar bleiben; die Combobox filtert nach der Rolle. role bestimmt auch, welche Nummer
+ * als Nummer gilt.
  */
 export async function listContactChoices(role: ContactRole): Promise<ContactChoice[]> {
-  const contacts = await listContacts();
+  const contacts = await listContacts(false, role === "lieferant" ? "lieferant" : undefined);
   return contacts.map((c) => ({
     id: c.id,
     name: c.name,
@@ -167,7 +169,8 @@ export async function findContactsByUstId(ustId: string, excludeId?: string): Pr
     })
     .from(schema.contacts)
     .where(and(sql`upper(replace(${schema.contacts.ustId}, ' ', '')) = ${compact}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
-    .orderBy(asc(schema.contacts.name))
+    // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken
+    .orderBy(sql`${schema.contacts.archivedAt} is not null`, asc(schema.contacts.name))
     .limit(5);
   return rows.map(({ archivedAt, ...rest }) => ({ ...rest, archived: archivedAt !== null }));
 }

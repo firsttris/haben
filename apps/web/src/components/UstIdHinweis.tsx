@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { findContactsByUstIdFn } from "../server/functions/contacts.ts";
 import type { UstIdMatch } from "../server/modules/stammdaten/index.ts";
 
+const ARCHIVED_NOTE = "Stelle ihn unter Kontakte wieder her, statt einen zweiten Kontakt anzulegen.";
+const MISSING_ROLE_NOTE = "Ergänze dort die Rolle, statt einen zweiten Kontakt anzulegen.";
+
 const compact = (value: string) => value.replace(/\s/g, "").toUpperCase();
 
 /** Rollen eines Kontakts, wie sie im Hinweis stehen */
@@ -58,7 +61,7 @@ export function UstIdHinweis({
       <span>
         Mit der USt-IdNr. {match.ustId} gibt es schon „{match.name}“ ({rollen(match)}
         {match.archived ? ", archiviert" : ""}).{" "}
-        {canPick ? "Nimm ihn, statt einen zweiten Kontakt anzulegen." : "Ergänze dort die Rolle, statt einen zweiten Kontakt anzulegen."}
+        {canPick ? "Nimm ihn, statt einen zweiten Kontakt anzulegen." : match.archived ? ARCHIVED_NOTE : MISSING_ROLE_NOTE}
       </span>
       {canPick ? (
         <button type="button" className="btn" onClick={() => onPickExisting?.(match.id)}>
