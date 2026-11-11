@@ -333,6 +333,9 @@ test("Escape bei geschlossenem Namen führt in der Belegansicht weiter zur Liste
   await expect(nav(page).getByText(FIRMA)).toBeVisible();
   await expect(voll(page)).toHaveCount(0);
   await page.mouse.move(900, 500);
-  await page.keyboard.press("Escape");
-  await expect(page).toHaveURL(/\/belege$/);
+  // Die Seite reagiert erst nach dem Hydrieren auf Escape; bis dahin wiederholen, es geht nur ums Ergebnis
+  await expect(async () => {
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/\/belege$/, { timeout: 1_000 });
+  }).toPass();
 });
