@@ -50,7 +50,7 @@ const searchSchema = z.object({
   filter: z.optional(z.enum(["offen", "zugeordnet", "alle"])),
   suche: z.optional(z.string()),
   umsatz: z.optional(z.uuid()),
-  /** Sortierung der Umsatzliste: Spalte und Richtung (#650) */
+  /** Sortierung der Umsatzliste: Spalte und Richtung (#681) */
   sort: z.optional(z.enum(["datum", "gegenpartei", "betrag", "status"])),
   dir: z.optional(z.enum(["auf", "ab"])),
   /** Ergebnis der Rückleitung von der Bank */
@@ -193,7 +193,7 @@ const FORMAT_LABEL = (format: string) =>
 function BankPage() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
-  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#650)
+  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#681)
   const sortierung = search.sort ?? "datum";
   const richtung = search.dir ?? "ab";
   const navigate = useNavigate({ from: "/bank" });
