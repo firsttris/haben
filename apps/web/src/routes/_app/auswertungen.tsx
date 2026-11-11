@@ -41,10 +41,11 @@ function ReportsPage() {
           <h1>Auswertungen {year}</h1>
         </div>
         <div className="actions">
+          {/* Die Pfeile tragen keine Zahl: Vor- und Folgejahr stehen oft schon in der Liste (aria-label nennt das Jahr) */}
           <nav className="year-switch" aria-label="Jahr wählen">
             {year > ERSTES_JAHR && (
-              <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`}>
-                ‹ {year - 1}
+              <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`} title={`Vorjahr ${year - 1}`}>
+                ‹
               </Link>
             )}
             {yearOptions.map((y) => (
@@ -59,8 +60,8 @@ function ReportsPage() {
               </Link>
             ))}
             {year < LETZTES_JAHR && (
-              <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`}>
-                {year + 1} ›
+              <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`} title={`Folgejahr ${year + 1}`}>
+                ›
               </Link>
             )}
           </nav>
