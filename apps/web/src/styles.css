@@ -136,8 +136,8 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 /* Mit Firmenname (#504): „Haben“ bleibt, darunter der Name in bis zu zwei Zeilen, klein genug für lange Namen */
 .brand-text { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .brand-firma { color: var(--nav-ink); font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
-/* Voller Name beim Überfahren (nur Desktop): klappt nach unten über die ersten Menüpunkte auf, in der Breite der Navigation (Marke 28px + Abstand 10px links, Innenabstand 12px rechts); die Marke selbst bleibt, wo sie ist */
-.brand-firma-voll { position: absolute; z-index: 5; left: -38px; right: -12px; top: calc(100% - 35px); padding: 6px 10px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
+/* Voller Name beim Überfahren (nur Desktop): wächst an der Stelle des gekürzten Namens nach unten und über die ersten Menüpunkte, bis zum rechten Rand der Navigation; das „H“ und „Haben“ bleiben frei */
+.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: -12px; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
 .brand-mark { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; }
 .nav-link:hover { color: #fff; }
