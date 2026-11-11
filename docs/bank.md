@@ -329,8 +329,6 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Kontoführung und Bankgebühren | 4970 | 6855 |
 | Mahngebühren und Verzugszinsen (vom Kunden) | 2650 | 7100 |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 |
-
-Eine **Spende** vom Geschäftskonto ist im Einzelunternehmen keine Betriebsausgabe, sondern eine Entnahme; abziehbar ist sie privat als Sonderausgabe (§ 10b EStG). Haben bucht sie deshalb nicht auf „Privat“, sondern auf das eigene Privatkonto „Zuwendungen, Spenden“, wie es der DATEV-Kontenrahmen vorsieht. Gewinn und EÜR ändern sich dadurch nicht; in der Anlage EÜR zählt sie zu den Entnahmen. Die Summe des Jahres steht im Kontenblatt 1840 bzw. 2250, und du trägst sie mit der Zuwendungsbestätigung in der [Einkommensteuer](jahreserklaerung.md) unter Sonderausgaben ein. In GmbH und UG gibt es die Auswahl nicht: Dort ist eine Spende Aufwand mit eigenem Abzug (§ 9 Abs. 1 Nr. 2 KStG).
 | Steuerzahlung oder Erstattung (Finanzamt, Gemeinde), siehe [Steuerzahlungen](#steuerzahlungen) | je nach Steuerart und Teil | je nach Steuerart und Teil |
 | Einnahme oder Ausgabe (Kategorie, Steuersatz), siehe [Auf eine Kategorie buchen](#auf-eine-kategorie-buchen) | Konto der Kategorie | Konto der Kategorie |
 | Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren, siehe [Darlehen](#darlehen) | je nach Darlehen und Teil | je nach Darlehen und Teil |
@@ -338,6 +336,8 @@ Eine **Spende** vom Geschäftskonto ist im Einzelunternehmen keine Betriebsausga
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 |
 | SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 |
+
+Eine **Spende** vom Geschäftskonto ist im Einzelunternehmen keine Betriebsausgabe, sondern eine Entnahme; abziehbar ist sie privat als Sonderausgabe (§ 10b EStG). Haben bucht sie deshalb nicht auf „Privat“, sondern auf das eigene Privatkonto „Zuwendungen, Spenden“, wie es der DATEV-Kontenrahmen vorsieht. Gewinn und EÜR ändern sich dadurch nicht; in der Anlage EÜR zählt sie zu den Entnahmen. Die Summe des Jahres steht im Kontenblatt 1840 bzw. 2250, und du trägst sie mit der Zuwendungsbestätigung in der [Einkommensteuer](jahreserklaerung.md) unter Sonderausgaben ein. In GmbH und UG gibt es die Auswahl nicht: Dort ist eine Spende Aufwand mit eigenem Abzug (§ 9 Abs. 1 Nr. 2 KStG).
 
 Die drei Lohnzahlungen bezahlen, was eine festgeschriebene [Lohnabrechnung](lohn.md#buchung) als Verbindlichkeit gebucht hat, und höchstens so viel, wie auf dem Konto noch offen ist; ohne festgeschriebene Abrechnung lehnt Haben sie ab. Ein Eingang (Rückzahlung, Erstattung) geht nur, soweit das Konto überzahlt ist. Lohnsteuer, Soli und Kirchensteuer überweist du gemeinsam als „Lohnsteuer an das Finanzamt“, im Minijob die Pauschsteuer mit den Beiträgen an die Minijob-Zentrale. Eine Lastschrift des Finanzamts über genau den Gesamtbetrag (Kz 83) einer übermittelten [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) schlägt Haben als „Lohnsteuer an das Finanzamt“ vor. Im Einzelunternehmen zählen sie in der EÜR am Tag der Zahlung als Ausgaben für Personal.
 
