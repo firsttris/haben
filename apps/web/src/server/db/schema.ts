@@ -1018,6 +1018,31 @@ export const contactVersions = pgTable(
 );
 
 /**
+ * Ansprechpartner eines Kontakts (#424): Name, E-Mail, Telefon und Funktion. Änderbar (ein Tippfehler), nicht löschbar:
+ * Wer nicht mehr dabei ist, wird deaktiviert. Im Entwurf von Rechnung und Angebot wählbar; beim Festschreiben steht der
+ * Stand als `ansprechpartner` im Käufer des Belegs, spätere Änderungen an der Person berühren ihn nicht.
+ */
+export const contactPersons = pgTable(
+  "contact_persons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    name: text("name").notNull(),
+    email: text("email").notNull().default(""),
+    telefon: text("telefon").notNull().default(""),
+    /** Funktion oder Abteilung, nur in Haben; EN 16931 kennt dafür keinen Term */
+    funktion: text("funktion").notNull().default(""),
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+    /** Wer angelegt hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("contact_persons_contact").on(t.contactId), check("contact_persons_name", sql`length(btrim(${t.name})) > 0`)],
+);
+
+/**
  * SEPA-Lastschriftmandate eines Kunden (#445): nur anhängen. Was sich am Mandat ändert, ist ein neues Mandat; ein
  * Widerruf steht in sepa_mandate_revocations, das unterschriebene Mandat als PDF in sepa_mandate_files.
  */
@@ -1175,6 +1200,8 @@ export const invoices = pgTable(
     /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
     paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
     sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
+    /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
+    contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
     recurringId: uuid("recurring_id"),
     recurringDate: date("recurring_date", { mode: "string" }),
     /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
@@ -1321,6 +1348,8 @@ export const quotes = pgTable(
     numberCounter: integer("number_counter"),
     contactId: uuid("contact_id").references(() => contacts.id),
     contactVersion: integer("contact_version"),
+    /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
+    contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
     issueDate: date("issue_date", { mode: "string" }).notNull(),
     validUntil: date("valid_until", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),

@@ -1429,6 +1429,20 @@
       "when": 1794400327111,
       "tag": "0203_spende",
       "breakpoints": true
+    },
+    {
+      "idx": 204,
+      "version": "7",
+      "when": 1794427736896,
+      "tag": "0204_ansprechpartner",
+      "breakpoints": true
+    },
+    {
+      "idx": 205,
+      "version": "7",
+      "when": 1794427738218,
+      "tag": "0205_ansprechpartner_trigger",
+      "breakpoints": true
     }
   ]
 }
