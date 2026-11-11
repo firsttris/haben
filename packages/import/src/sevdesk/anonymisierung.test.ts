@@ -84,6 +84,9 @@ const FELDER: Record<string, Set<string>> = {
       "sepaCreditorId",
       "creditNoteNumber",
       "orderNumber",
+      "financeAuthorityTicketNumber",
+      "einvoiceReference",
+      "sepaMandateReference",
     ].map((feld) => [feld, nurAnon]),
   ),
   addressZip: mit("1"),
@@ -102,6 +105,17 @@ const FELDER: Record<string, Set<string>> = {
 /** Bei diesen Objekten ist `name` ein Name aus dem Kontenrahmen von sevDesk und bleibt */
 const NAME_FREI = new Set(["AccountingType", "AccountDatev", "AccountCategory", "AccountDatevCategory", "AccountingChart", "TaxRule", "Category", "Unity"]);
 
+/** reportingValues: Kennzahlen als JSON-Text; nur Platzhalterbeträge 0 und ±100 sind erlaubt */
+function platzhalterKennzahlen(inhalt: unknown): boolean {
+  if (inhalt === ANON) return true;
+  try {
+    const werte = JSON.parse(String(inhalt)) as Record<string, unknown>;
+    return Object.values(werte).every((w) => [0, 100, -100].includes(Number(w)));
+  } catch {
+    return false;
+  }
+}
+
 function pruefeJson(datei: string, wert: unknown): string[] {
   if (Array.isArray(wert)) return wert.flatMap((w) => pruefeJson(datei, w));
   if (!wert || typeof wert !== "object") return [];
@@ -109,6 +123,7 @@ function pruefeJson(datei: string, wert: unknown): string[] {
   return Object.entries(objekt).flatMap(([feld, inhalt]) => {
     if (inhalt && typeof inhalt === "object") return pruefeJson(datei, inhalt);
     if (inhalt === null || inhalt === "") return [];
+    if (feld === "reportingValues") return platzhalterKennzahlen(inhalt) ? [] : [`${datei}: ${feld} = ${String(inhalt)}`];
     const erlaubt = feld === "name" ? (NAME_FREI.has(String(objekt.objectName)) ? null : nurAnon) : FELDER[feld];
     return erlaubt && !(typeof inhalt === "string" && erlaubt.has(inhalt)) ? [`${datei}: ${feld} = ${String(inhalt)}`] : [];
   });
@@ -158,7 +173,7 @@ const BERICHT_2_0 = {
   belegfeld: ["-BG-EUR-xx-xxxxx-xxxxxxx-xxxxx-xxxxx", "00000000-0000-4000-8000-000000000001"],
 };
 const CSV_SPALTE_ANON =
-  /^(Name|Straße|Postleitzahl|Ort|E-Mail|Internet|EU-UStId|Telefon|Kurzbezeichnung|Kontoinhaber|IBAN|Zusatzinformation.*Inhalt)|UStId|USt-Id/i;
+  /^(Name|Straße|Postleitzahl|Ort|E-Mail|Internet|EU-UStId|Telefon|Kurzbezeichnung|Kontoinhaber|IBAN|Zusatzinformation.*Inhalt|SEPA-Mandatsreferenz|Gesellschaftername)|UStId|USt-Id/i;
 /** Beleginfo-Inhalt N trägt das, was Beleginfo-Art N nennt; alles außer diesen Arten gilt als sensibel. */
 const BELEGINFO_OHNE_PERSONENBEZUG = new Set(["Umsatzsteuerprozent", "Nettobetrag", "Steuerbetrag", "Leistungsdatum"]);
 
@@ -294,5 +309,29 @@ describe("Gegenprobe der Anonymisierungsprüfung mit erfundenen Werten", () => {
 
   it("meldet eine unbekannte Dateiart", () => {
     expect(pruefeDatei("x.txt", "")).toEqual([expect.stringContaining("unbekannte Dateiart")]);
+  });
+});
+
+describe("Gegenprobe für Felder aus Version 2.0 mit erfundenen Werten", () => {
+  it.each([
+    ["financeAuthorityTicketNumber", "ET-4711-0815"],
+    ["reportingValues", '{"Kz81":"12345.67"}'],
+    ["einvoiceReference", "04011000-12345-67"],
+    ["sepaMandateReference", "MANDAT-MUSTERMANN-1"],
+  ])("meldet %s, wie der Kopf der Datei verspricht", (feld, wert) => {
+    expect(pruefeJson("buchhaltung-2.0/x.json", { objectName: "VatReport", [feld]: wert })).toHaveLength(1);
+  });
+
+  it("meldet SEPA-Mandatsreferenz und Gesellschaftername im DATEV-Stapel", () => {
+    const zeilen = "EXTF\nSEPA-Mandatsreferenz;Gesellschaftername\nMANDAT-MUSTERMANN-1;Erika Mustermann\n";
+    expect(pruefeCsv("buchhaltung-2.0/x.csv", zeilen)).toHaveLength(2);
+  });
+});
+
+describe("Platzhalterbeträge in reportingValues", () => {
+  it("lässt 0 und ±100 zu, sonst nichts", () => {
+    expect(pruefeJson("x.json", { reportingValues: '{"41":0,"66":"100.00","81":-100}' })).toEqual([]);
+    expect(pruefeJson("x.json", { reportingValues: '{"81":"119.00"}' })).toHaveLength(1);
+    expect(pruefeJson("x.json", { reportingValues: "kein JSON" })).toHaveLength(1);
   });
 });
