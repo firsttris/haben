@@ -25,6 +25,10 @@ describe("verweise", () => {
     expect(verweise("Wie in #12 besprochen, umgesetzt ist es noch nicht")).toEqual({ refs: [], umgesetzt: [] });
   });
 
+  it("zählt ein verneintes „nicht umgesetzt #…“ nicht als umgesetzt", () => {
+    expect(verweise("Noch nicht umgesetzt: #14\nNicht umgesetzt #15, #16\nUmgesetzt #17")).toEqual({ refs: [], umgesetzt: [17] });
+  });
+
   it("nimmt einen Doppelpunkt hin und ignoriert Groß- und Kleinschreibung", () => {
     expect(verweise("umgesetzt: #5\nREFS #6")).toEqual({ refs: [6], umgesetzt: [5] });
   });
