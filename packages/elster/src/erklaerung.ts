@@ -249,6 +249,8 @@ export interface EuerFigures {
   erstatteteUst?: Cents;
   anlagenabgang?: Cents;
   privateKfz?: Cents;
+  /** Sonstige Sach-, Nutzungs- und Leistungsentnahmen (Sachentnahme, freie Buchung) */
+  sachentnahmen?: Cents;
   // Betriebsausgaben
   waren?: Cents;
   fremdleistungen?: Cents;
@@ -298,7 +300,16 @@ export interface EuerFigures {
   einlagen?: Cents;
 }
 
-export const EUER_EINNAHMEN = ["kleinunternehmer", "steuerpflichtig", "steuerfrei", "vereinnahmteUst", "erstatteteUst", "anlagenabgang", "privateKfz"] as const;
+export const EUER_EINNAHMEN = [
+  "kleinunternehmer",
+  "steuerpflichtig",
+  "steuerfrei",
+  "vereinnahmteUst",
+  "erstatteteUst",
+  "anlagenabgang",
+  "privateKfz",
+  "sachentnahmen",
+] as const;
 export const EUER_AUSGABEN = [
   "waren",
   "fremdleistungen",
@@ -349,6 +360,9 @@ export const EUER_FIELDS: Record<
   erstatteteUst: { kz: "E6000701", label: "Vom Finanzamt erstattete und ggf. verrechnete Umsatzsteuer" },
   anlagenabgang: { kz: "E6000801", label: "Veräußerung oder Entnahme von Anlagevermögen" },
   privateKfz: { kz: "E6000901", label: "Private Kfz-Nutzung" },
+  // Schema E77-2023 bis E77-2026 im Dokumentationspaket von ERiC 44.3.6.0 bzw. 45.1.5.0: /EUER/BEin/Entnahme_Sonst/Sum/E6001001
+  // (2023 Zeile 20, ab 2024 Zeile 21); nicht E6301001, das ist dieselbe Zeile der Sonderbetriebseinnahmen
+  sachentnahmen: { kz: "E6001001", label: "Sonstige Sach-, Nutzungs- und Leistungsentnahmen" },
   // Kennung und Element aus den ERiC-Plugins libcheckEUER_2023 bis _2025: /EUER/BAus/Ware_Rohstoff_Hilfsstoff/Sum/E6001601
   waren: { kz: "E6001601", label: "Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten" },
   fremdleistungen: { kz: "E6001701", label: "Bezogene Fremdleistungen" },
@@ -609,6 +623,8 @@ export function buildEuerXml(input: EuerXmlInput): string {
           sumNode("USt_Erstattet_Verrechnet", kz("erstatteteUst"), f.erstatteteUst),
           sumNode("Anlagevermoegen", kz("anlagenabgang"), f.anlagenabgang),
           sumNode("Nutzung_Priv_Kfz", kz("privateKfz"), f.privateKfz),
+          // Im Schema direkt nach der Kfz-Nutzung, vor Weitere_Angabe (2023) bzw. Ruecklagen_Ausgleichsposten (ab 2024)
+          sumNode("Entnahme_Sonst", kz("sachentnahmen"), f.sachentnahmen),
           // Summe der Einnahmen: 2023 unter „Weitere_Angabe“, ab 2024 unter „GesamtSum“
           [input.year >= 2024 ? "GesamtSum" : "Weitere_Angabe", [["E6001201", elsterDecimal(einnahmen)]]],
         ],

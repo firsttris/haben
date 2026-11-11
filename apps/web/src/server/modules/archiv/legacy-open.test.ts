@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 import { addDays } from "@haben/core";
 
@@ -81,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   }
 
   beforeEach(async () => {
-    await sql`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents,
+    await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents,
       invoice_lines, invoices, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -179,6 +179,19 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(october).toMatchObject({ kz81: 400_000, tax81: 76_000 });
     const september = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(september.kz81).toBe(0);
+    // EÜR aus dem Journal (#542): Die übernommene Rechnung steht gegen den Saldenvortrag ohne Erlöszeile; die Zahlung
+    // verteilt sich auf die Zeilen, die Haben für die Rechnung gebucht hätte, und wird je Zeile abgeglichen
+    const abgleich = await import("../auswertungen/abgleich.ts");
+    const euer = await abgleich.euerAbgleich(2026);
+    expect(euer.hinweise).toEqual([]);
+    expect(euer.zeilen.filter((z) => z.posten.startsWith("EÜR:")).map((z) => [z.posten, z.journal, z.quelle])).toEqual(
+      expect.arrayContaining([
+        ["EÜR: Umsatzsteuerpflichtige Betriebseinnahmen (netto)", 400_000, 400_000],
+        ["EÜR: Vereinnahmte Umsatzsteuer", 76_000, 76_000],
+        ["EÜR: Gewinn nach der DATEV-Formel", 476_000, 476_000],
+      ]),
+    );
+    expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
   });
 
   it("Storno einer übernommenen Rechnung hebt die Eröffnungsbuchung auf, ohne Erlöse zu buchen", async () => {
@@ -246,6 +259,79 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     ]);
     expect(await figures.computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: -400_000, tax81: -76_000 });
   });
+
+  it("Soll: Storno einer übernommenen Rechnung zu 0 % meldet im Abgleich keine Abweichung (Review #547)", async () => {
+    await sql`update company set versteuerung = 'soll'`;
+    // In Lexoffice ohne Umsatzsteuer gestellt (etwa an einen Kunden im EU-Ausland), übernommen als 0 %
+    const id = await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1030",
+      date: "2026-09-20",
+      net: 400_000,
+      tax: 0,
+      rate: 0,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
+    });
+    const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+    await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+    const abgleich = await import("../auswertungen/abgleich.ts");
+    const found = abgleich.abweichungen((await abgleich.vatAbgleich({ year: 2026, month: 10 })).zeilen);
+    expect(found).toEqual([]);
+  });
+
+  // Gefunden im TDD-Review von #547: Das Storno einer Korrektur zu einer übernommenen Rechnung bucht gegen die Erlöse
+  // statt gegen den Saldenvortrag; die EÜR zeigt dann Erlöse, die es nicht gibt
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["soll", "ist"] as const) {
+      it(`Storno einer teilkorrigierten übernommenen Rechnung bucht keine Erlöse (${kontenrahmen}, ${versteuerung})`, async () => {
+        await sql`update company set versteuerung = ${versteuerung}, kontenrahmen = ${kontenrahmen}`;
+        const id = await legacyVoucher({
+          type: "invoice",
+          direction: "einnahme",
+          number: `RE2005-${kontenrahmen}-${versteuerung}`,
+          date: "2026-09-20",
+          net: 100_000,
+          tax: 19_000,
+          file: PDF,
+          contact: "Nordwerk Software GmbH",
+        });
+        const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+        // Korrektur um die Hälfte, danach Storno der Rechnung (samt Storno der Korrektur)
+        const draft = await invoices.createCorrection(actor, invoiceId, "2026-10-12");
+        const detail = await invoices.getInvoice(draft.id);
+        if (!detail) throw new Error("Korrektur fehlt");
+        const { invoice, lines } = detail;
+        await invoices.updateDraft(actor, draft.id, {
+          contactId: invoice.contactId,
+          issueDate: invoice.issueDate,
+          serviceFrom: invoice.serviceFrom,
+          serviceTo: invoice.serviceTo,
+          paymentTermDays: 0,
+          format: invoice.format,
+          note: "",
+          taxTreatment: invoice.taxTreatment,
+          exemptionReason: invoice.exemptionReason,
+          priceMode: invoice.priceMode,
+          lines: lines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unit: l.unit,
+            unitPrice: Math.round(l.unitPrice * 0.5),
+            taxRate: l.taxRate,
+          })),
+        } as never);
+        await invoices.finalizeInvoice(actor, draft.id);
+        await invoices.cancelInvoice(actor, invoiceId, "2026-11-03");
+        // Kein Erlöskonto: Korrektur, Storno und Storno der Korrektur gehen gegen den Saldenvortrag
+        const erloese = await sql`select l.account, sum(l.credit) - sum(l.debit) as saldo from journal_lines l
+          join journal_entries e on e.id = l.entry_id where e.source_type = 'invoice' and l.account in ('8400', '4400')
+          group by l.account having sum(l.credit) - sum(l.debit) <> 0`;
+        expect(erloese).toEqual([]);
+      }, 60_000);
+    }
+  }
 
   it("Soll: die Rechnung zählt nicht noch einmal in der Voranmeldung", async () => {
     await sql`update company set versteuerung = 'soll'`;

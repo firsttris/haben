@@ -1,9 +1,10 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { errorMessage, formatSize } from "../lib/format.ts";
 import { removeInvoiceAttachmentFn, uploadInvoiceAttachments, type AttachmentKind } from "../server/functions/invoice-attachments.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { UploadButton } from "./UploadButton.tsx";
 
 export interface AttachmentRow {
   id: string;
@@ -71,7 +72,6 @@ export function InvoiceAttachments({
   const router = useRouter();
   const upload = useServerFn(uploadInvoiceAttachments);
   const remove = useServerFn(removeInvoiceAttachmentFn);
-  const fileInput = useRef<HTMLInputElement>(null);
   const headingId = useId();
   const hintId = useId();
   const [busy, setBusy] = useState(false);
@@ -88,7 +88,6 @@ export function InvoiceAttachments({
       setMessages([{ tone: "danger", text: errorMessage(error) }]);
     } finally {
       setBusy(false);
-      if (fileInput.current) fileInput.current.value = "";
     }
   }
 
@@ -168,21 +167,10 @@ export function InvoiceAttachments({
             {text.examples}: nur PDF, bis 20 MB je Datei.{kind === "standard" ? "" : " Beim Versand per E-Mail wählst du, welche mitgehen."} {text.lockHint}
           </p>
           <div className="actions">
-            <button type="button" className="btn" onClick={() => fileInput.current?.click()} disabled={busy} aria-describedby={hintId}>
+            <UploadButton multiple accept="application/pdf,.pdf" disabled={busy} inputLabel="PDF-Anhänge auswählen" aria-describedby={hintId} onFiles={send}>
               {busy ? "Wird hochgeladen …" : "PDF anhängen"}
-            </button>
+            </UploadButton>
           </div>
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            accept="application/pdf,.pdf"
-            className="visually-hidden"
-            aria-label="PDF-Anhänge auswählen"
-            aria-describedby={hintId}
-            tabIndex={-1}
-            onChange={(event) => send([...(event.target.files ?? [])])}
-          />
         </>
       ) : (
         <p className="small muted" style={{ margin: 0 }}>

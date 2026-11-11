@@ -24,6 +24,7 @@ import { useAction, type Notice } from "../../lib/use-action.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/pauschalen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -233,18 +234,23 @@ function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) 
         beides. Trag die Tage am besten jeden Monat ein.
       </p>
       <div className="form-grid">
-        <label className="field">
-          Monat
-          <input type="month" value={month} min={`${data.year}-01`} max={defaultDate(data).slice(0, 7)} onChange={(e) => setMonth(e.target.value)} required />
-        </label>
-        <label className="field">
-          Tage im Homeoffice
-          <input value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />
-        </label>
-        <label className="field">
-          Notiz (optional)
-          <input name="description" maxLength={300} />
-        </label>
+        <Field label="Monat">
+          {(control) => (
+            <input
+              {...control}
+              type="month"
+              value={month}
+              min={`${data.year}-01`}
+              max={defaultDate(data).slice(0, 7)}
+              onChange={(e) => setMonth(e.target.value)}
+              required
+            />
+          )}
+        </Field>
+        <Field label="Tage im Homeoffice">
+          {(control) => <input {...control} value={tage} onChange={(e) => setTage(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required />}
+        </Field>
+        <Field label="Notiz (optional)">{(control) => <input {...control} name="description" maxLength={300} />}</Field>
       </div>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || n === 0}>
@@ -282,28 +288,26 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
         die Entfernungspauschale, die Haben noch nicht abbildet.
       </p>
       <div className="form-grid">
-        <label className="field">
-          Datum
-          <input name="date" type="date" defaultValue={defaultDate(data)} min={`${data.year}-01-01`} max={data.today} required />
-        </label>
-        <label className="field">
-          Anlass und Ziel
-          <input name="description" placeholder="Workshop bei Kunde, Karlsruhe" maxLength={300} required />
-        </label>
-        <label className="field">
-          Kilometer einfach
-          <input value={km} onChange={(e) => setKm(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" required />
-        </label>
-        <label className="field">
-          Fahrzeug
-          <select value={fahrzeug} onChange={(e) => setFahrzeug(e.target.value as Fahrzeug)}>
-            {(Object.keys(FAHRZEUG_LABEL) as Fahrzeug[]).map((f) => (
-              <option key={f} value={f}>
-                {FAHRZEUG_LABEL[f]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Datum">
+          {(control) => <input {...control} name="date" type="date" defaultValue={defaultDate(data)} min={`${data.year}-01-01`} max={data.today} required />}
+        </Field>
+        <Field label="Anlass und Ziel">
+          {(control) => <input {...control} name="description" placeholder="Workshop bei Kunde, Karlsruhe" maxLength={300} required />}
+        </Field>
+        <Field label="Kilometer einfach">
+          {(control) => <input {...control} value={km} onChange={(e) => setKm(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" required />}
+        </Field>
+        <Field label="Fahrzeug">
+          {(control) => (
+            <select {...control} value={fahrzeug} onChange={(e) => setFahrzeug(e.target.value as Fahrzeug)}>
+              {(Object.keys(FAHRZEUG_LABEL) as Fahrzeug[]).map((f) => (
+                <option key={f} value={f}>
+                  {FAHRZEUG_LABEL[f]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       <label className="checkbox">
         <input type="checkbox" checked={hinUndZurueck} onChange={(e) => setHinUndZurueck(e.target.checked)} />
@@ -344,24 +348,25 @@ function VerpflegungForm({ data, onNotice }: { data: Data; onNotice: (n: Notice)
         Pauschale nur in den ersten drei Monaten. Eine Zeile je Reisetag.
       </p>
       <div className="form-grid">
-        <label className="field">
-          Datum
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={`${data.year}-01-01`} max={data.today} required />
-        </label>
-        <label className="field">
-          Anlass und Ort
-          <input name="description" placeholder="Kundenprojekt, München" maxLength={300} required />
-        </label>
-        <label className="field">
-          Reisetag
-          <select value={tag} onChange={(e) => setTag(e.target.value as Reisetag)}>
-            {(Object.keys(REISETAG_LABEL) as Reisetag[]).map((t) => (
-              <option key={t} value={t}>
-                {REISETAG_LABEL[t]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Datum">
+          {(control) => (
+            <input {...control} type="date" value={date} onChange={(e) => setDate(e.target.value)} min={`${data.year}-01-01`} max={data.today} required />
+          )}
+        </Field>
+        <Field label="Anlass und Ort">
+          {(control) => <input {...control} name="description" placeholder="Kundenprojekt, München" maxLength={300} required />}
+        </Field>
+        <Field label="Reisetag">
+          {(control) => (
+            <select {...control} value={tag} onChange={(e) => setTag(e.target.value as Reisetag)}>
+              {(Object.keys(REISETAG_LABEL) as Reisetag[]).map((t) => (
+                <option key={t} value={t}>
+                  {REISETAG_LABEL[t]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="small" style={{ fontWeight: 500, marginBottom: 4 }}>

@@ -37,6 +37,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "1600",
     privateinlagen: "1890",
     privatentnahmen: "1800",
+    /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
+    spenden: "1840",
     /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR03: Verbindlichkeiten gegenüber Gesellschaftern) */
     gesellschafter: "0730",
     /** GmbH, UG: einbehaltene KapESt, Soli und KiSt auf offene Ausschüttungen (DATEV SKR03 1746) */
@@ -83,6 +85,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "3300",
     privateinlagen: "2180",
     privatentnahmen: "2100",
+    /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
+    spenden: "2250",
     /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR04: Verbindlichkeiten gegenüber Gesellschaftern) */
     gesellschafter: "3510",
     kapestEinbehalt: "3760",
@@ -350,6 +354,13 @@ export interface PostingLine {
   debit: Cents;
   credit: Cents;
   taxCode: TaxCode | null;
+  /**
+   * Bemessungsgrundlage zum Steuerschlüssel, wenn sie nicht der Betrag der Zeile ist, in Cent mit Vorzeichen: positiv
+   * erhöht die Kennzahl, negativ (Rücklastschrift, Storno) mindert sie. Bei Ist-Versteuerung an der Zahlung: an der
+   * Umbuchung der Steuer, für den Anteil zu 0 % an der Forderung, für einen Anteil ohne Steuer (gerundet 0,00 €) an einer
+   * Umsatzsteuerzeile ohne Betrag (#542; DATEV: Steuerschlüssel am Zahlungseingang, Dok. 1080673)
+   */
+  basis?: Cents | null;
 }
 
 /** Buchungszeile: positiv auf die gewünschte Seite, negativ (Gutschrift, Storno) auf die andere */
@@ -428,7 +439,13 @@ export function documentPosting(
   for (const row of totals.taxes) {
     const baseSplit = splitPrivateShare(row.base, privateShare);
     const taxSplit = splitPrivateShare(row.tax, privateShare);
-    privatePart += baseSplit.private + taxSplit.private;
+    if (reverseCharge && row.rate !== 0) {
+      // § 13b und Erwerb: Die Bemessungsgrundlage zählt in Kz 46/84 bzw. 89/93 voll, auch der private Teil. Er steht
+      // deshalb mit dem Steuerschlüssel auf den Entnahmen, damit das Journal die ganze Bemessungsgrundlage trägt (#542).
+      const code = reverseCharge === "ig_erwerb" ? IG_ERWERB.code[vatRate(row.rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
+      if (baseSplit.private !== 0) lines.push(side(accounts.privatentnahmen, baseSplit.private, true, code));
+      privatePart += taxSplit.private;
+    } else privatePart += baseSplit.private + taxSplit.private;
     const { rate } = row;
     const base = baseSplit.business;
     const tax = taxSplit.business;
@@ -437,7 +454,9 @@ export function documentPosting(
       if (rate === 0) throw new RangeError(`${ige ? "Innergemeinschaftlicher Erwerb" : "§ 13b"}: Steuersatz muss 19 % oder 7 % sein`);
       const code = ige ? IG_ERWERB.code[vatRate(rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
       if (!vorsteuerAbzug) {
-        if (base + tax !== 0) lines.push(side(expense, base + tax, true, code));
+        // Ohne Vorsteuerabzug ist die Steuer Aufwand; als eigene Zeile, damit die Bemessungsgrundlage im Journal stimmt (#542)
+        if (base !== 0) lines.push(side(expense, base, true, code));
+        if (tax !== 0) lines.push(side(expense, tax, true, "keineVSt"));
       } else {
         if (base !== 0) lines.push(side(expense, base, true, code));
         if (tax !== 0) lines.push(ige ? side(accounts.vorsteuerIge[vatRate(rate)], tax, true, "VStIGE") : side(accounts.vorsteuerRc, tax, true, "VSt13b"));
@@ -554,9 +573,37 @@ export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: 
   return fits ? stored : computed;
 }
 
+/** Zeilen ohne Betrag fallen weg, außer sie tragen eine Bemessungsgrundlage (Anteil ohne Steuer bei Ist) */
+const mitBetragOderBasis = (line: PostingLine) => line.debit !== 0 || line.credit !== 0 || (line.basis ?? 0) !== 0;
+
+/** Steuerbehandlungen, deren Bemessungsgrundlage bei Ist-Versteuerung mit der Zahlung gemeldet wird (DATEV-Dok. 1080673) */
+const IST_MIT_ZAHLUNG: readonly TaxTreatment[] = ["regulaer", "steuerfrei", "ausfuhr"];
+
+/**
+ * Bei Ist-Versteuerung der Teil einer Zahlung (oder Kursdifferenz) für die Voranmeldung: je Satz die Umbuchung von
+ * „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ mit der Bemessungsgrundlage an der Umsatzsteuerzeile; den Anteil zu 0 %
+ * trägt die Forderungszeile mit Steuerschlüssel und Bemessungsgrundlage (#542).
+ */
+function istZahlungsanteil(lines: PostingLine[], shares: TaxShare[], kontenrahmen: Kontenrahmen, treatment: TaxTreatment): void {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const meldet = IST_MIT_ZAHLUNG.includes(treatment);
+  for (const { rate, base, tax } of shares) {
+    if (rate === 0) {
+      const forderung = lines.find((l) => l.account === accounts.forderungen);
+      if (meldet && forderung && base !== 0) Object.assign(forderung, { taxCode: revenueTaxCode(0, treatment), basis: base });
+      continue;
+    }
+    const code = revenueTaxCode(rate);
+    if (tax !== 0) lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
+    // Gerundet ohne Steuer: eine Umsatzsteuerzeile ohne Betrag, nur mit Steuerschlüssel und Bemessungsgrundlage
+    if (tax !== 0 || (meldet && base !== 0)) lines.push({ ...side(accounts.ust[vatRate(rate)], tax, false, code), ...(meldet ? { basis: base } : {}) });
+  }
+}
+
 /**
  * Zahlungseingang auf eine Rechnung: Bank an Forderungen. Bei Ist-Versteuerung wird der
- * Steueranteil der Zahlung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ umgebucht.
+ * Steueranteil der Zahlung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ umgebucht; die Zahlung trägt dabei die
+ * Bemessungsgrundlage des bezahlten Anteils (istZahlungsanteil).
  */
 export function invoicePaymentPosting(
   totals: InvoiceTotals,
@@ -564,18 +611,12 @@ export function invoicePaymentPosting(
   kontenrahmen: Kontenrahmen,
   versteuerung: Versteuerung,
   shares: TaxShare[] = paidTaxShares(totals, paid),
+  treatment: TaxTreatment = "regulaer",
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.bank, paid, true, null), side(accounts.forderungen, paid, false, null)];
-  if (versteuerung === "ist") {
-    for (const { rate, tax } of shares) {
-      if (tax === 0 || rate === 0) continue;
-      const code = revenueTaxCode(rate);
-      lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
-      lines.push(side(accounts.ust[vatRate(rate)], tax, false, code));
-    }
-  }
-  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+  if (versteuerung === "ist") istZahlungsanteil(lines, shares, kontenrahmen, treatment);
+  return lines.filter(mitBetragOderBasis);
 }
 
 /**
@@ -589,9 +630,10 @@ export function invoiceCashPaymentPosting(
   kontenrahmen: Kontenrahmen,
   versteuerung: Versteuerung,
   shares: TaxShare[] = paidTaxShares(totals, paid),
+  treatment: TaxTreatment = "regulaer",
 ): PostingLine[] {
   const { bank, kasse } = ACCOUNTS[kontenrahmen];
-  return invoicePaymentPosting(totals, paid, kontenrahmen, versteuerung, shares).map((l) => (l.account === bank ? { ...l, account: kasse } : l));
+  return invoicePaymentPosting(totals, paid, kontenrahmen, versteuerung, shares, treatment).map((l) => (l.account === bank ? { ...l, account: kasse } : l));
 }
 
 /**
@@ -669,7 +711,7 @@ export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, ko
  * einer Rechnung trotzdem fällig, sonst bliebe sie auf „nicht fällig“ stehen.
  */
 export function exchangeDifferencePosting(
-  target: { kind: "invoice"; totals: InvoiceTotals; versteuerung: Versteuerung; shares?: TaxShare[] } | { kind: "document" },
+  target: { kind: "invoice"; totals: InvoiceTotals; versteuerung: Versteuerung; shares?: TaxShare[]; treatment?: TaxTreatment } | { kind: "document" },
   amount: Cents,
   kontenrahmen: Kontenrahmen,
 ): PostingLine[] {
@@ -679,12 +721,9 @@ export function exchangeDifferencePosting(
     // Weniger erhalten als die Forderung in Euro: Aufwand; mehr (negativer Rest): Ertrag
     lines.push(side(accounts.forderungen, amount, false, null), side(amount > 0 ? accounts.kursAufwand : accounts.kursErtrag, amount, true, null));
     if (target.versteuerung === "ist") {
-      for (const { rate, tax } of target.shares ?? paidTaxShares(target.totals, amount)) {
-        if (tax === 0 || rate === 0) continue;
-        const code = revenueTaxCode(rate);
-        lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code), side(accounts.ust[vatRate(rate)], tax, false, code));
-      }
+      istZahlungsanteil(lines, target.shares ?? paidTaxShares(target.totals, amount), kontenrahmen, target.treatment ?? "regulaer");
     }
+    return lines.filter(mitBetragOderBasis);
   } else {
     // Rest einer Verbindlichkeit (Ausgang negativ): weniger gezahlt ist Ertrag, mehr gezahlt Aufwand
     lines.push(side(accounts.verbindlichkeiten, -amount, true, null), side(amount < 0 ? accounts.kursErtrag : accounts.kursAufwand, -amount, false, null));
@@ -711,6 +750,8 @@ export function documentPaymentPosting(amount: Cents, kontenrahmen: Kontenrahmen
 /** Bankumsätze ohne Rechnung oder Beleg */
 export const DIRECT_BOOKINGS = {
   privat: "Privat (Entnahme oder Einlage)",
+  // Entnahme auf ein eigenes Privatkonto, damit die Summe für die Sonderausgaben (§ 10b EStG) im Journal steht
+  spende: "Spende (privat, Sonderausgabe)",
   geldtransit: "Geldtransit (eigenes Konto)",
   ustVorauszahlung: "Umsatzsteuer an das Finanzamt",
   sondervorauszahlung: "Sondervorauszahlung (Dauerfristverlängerung)",
@@ -745,31 +786,39 @@ export function directBookingLabel(kind: DirectBooking, rechtsform: Rechtsform):
   return kind === "privat" ? ownerLabels(rechtsform).bank : DIRECT_BOOKINGS[kind];
 }
 
-/** Buchungen ohne Beleg, die es in der Rechtsform gibt: Ausschüttungen und ihre Kapitalertragsteuer nur in GmbH und UG */
+/**
+ * Buchungen ohne Beleg, die es in der Rechtsform gibt: Ausschüttungen und ihre Kapitalertragsteuer nur in GmbH und UG, die
+ * private Spende nur ohne GmbH und UG (deren Spenden sind Aufwand mit Abzug nach § 9 Abs. 1 Nr. 2 KStG)
+ */
 export function directBookingsFor(rechtsform: Rechtsform): DirectBooking[] {
-  return (Object.keys(DIRECT_BOOKINGS) as DirectBooking[]).filter((kind) => kind !== "kapest" || isKapitalgesellschaft(rechtsform));
+  const gmbh = isKapitalgesellschaft(rechtsform);
+  return (Object.keys(DIRECT_BOOKINGS) as DirectBooking[]).filter((kind) => (kind === "kapest" ? gmbh : kind === "spende" ? !gmbh : true));
 }
 
 export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
-  if (!directBookingsFor(rechtsform).includes(kind)) throw new Error(`${DIRECT_BOOKINGS[kind]} gibt es nur in GmbH und UG`);
+  if (!directBookingsFor(rechtsform).includes(kind)) {
+    throw new Error(`${DIRECT_BOOKINGS[kind]} gibt es ${kind === "spende" ? "nicht in GmbH und UG" : "nur in GmbH und UG"}`);
+  }
   const counter = isLohnZahlung(kind)
     ? lohnZahlungKonto(kind, kontenrahmen)
     : kind === "kapest"
       ? accounts.kapestEinbehalt
       : kind === "privat"
         ? ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage")
-        : kind === "geldtransit"
-          ? accounts.geldtransit
-          : kind === "ustVorauszahlung"
-            ? accounts.ustVorauszahlung
-            : kind === "sondervorauszahlung"
-              ? accounts.sondervorauszahlung
-              : kind === "mahnerloes"
-                ? accounts.mahnerloes
-                : kind === "zinsertrag"
-                  ? accounts.zinsertraege
-                  : accounts.nebenkostenGeldverkehr;
+        : kind === "spende"
+          ? accounts.spenden
+          : kind === "geldtransit"
+            ? accounts.geldtransit
+            : kind === "ustVorauszahlung"
+              ? accounts.ustVorauszahlung
+              : kind === "sondervorauszahlung"
+                ? accounts.sondervorauszahlung
+                : kind === "mahnerloes"
+                  ? accounts.mahnerloes
+                  : kind === "zinsertrag"
+                    ? accounts.zinsertraege
+                    : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
@@ -790,7 +839,8 @@ export function cashBookingLabel(kind: CashBooking, rechtsform: Rechtsform): str
 }
 
 /** Art einer Zeile im Kassenbuch: bar bezahlter Beleg, Bareinnahme auf eine oder ohne Rechnung oder eine Kassenbuchung ohne Beleg */
-export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung" | "einnahme", rechtsform: Rechtsform): string {
+export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung" | "einnahme" | "import", rechtsform: Rechtsform): string {
+  if (kind === "import") return "Übernommene Kassenbewegung";
   if (kind === "beleg") return "Beleg";
   if (kind === "rechnung") return "Bareinnahme Rechnung";
   return kind === "einnahme" ? "Bareinnahme" : cashBookingLabel(kind, rechtsform);
@@ -844,6 +894,12 @@ export function legacyCorrectionPosting(totals: InvoiceTotals, kontenrahmen: Kon
     if (versteuerung === "ist") lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, false, null));
     else lines.push(side(accounts.ust[vatRate(rate)], tax, false, revenueTaxCode(rate)));
   }
-  lines.push(side(accounts.saldenvortrag, totals.net, false, null));
+  if (versteuerung === "ist") {
+    lines.push(side(accounts.saldenvortrag, totals.net, false, null));
+  } else {
+    // Soll: Die Voranmeldung meldet die Korrektur im Monat der Korrektur mit ihrer Bemessungsgrundlage (§ 17 UStG); je
+    // Steuersatz eine Zeile mit Steuerschlüssel, damit das Journal sie trägt (#542). Bei Ist zählt die Erstattung.
+    for (const { rate, base } of totals.taxes) lines.push(side(accounts.saldenvortrag, base, false, revenueTaxCode(rate)));
+  }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }

@@ -44,7 +44,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
-import { loadLetterhead } from "../stammdaten/index.ts";
+import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -1075,7 +1075,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
   );
-  const rendered = await buildEInvoice({ ...doc, ...(await loadLetterhead()) });
+  const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
   await takeNumber(tx, "rechnung", circle, counter);
@@ -1107,8 +1107,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
     sourceType: "invoice",
     sourceId: id,
-    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern
-    lines: corrects?.lexofficeVoucherId
+    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
+    // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
+    lines: (await correctsLegacyInvoice(tx, corrects))
       ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
       : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
   });
@@ -1118,8 +1119,27 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   return finalized!;
 }
 
+/** Korrigiert die Rechnung (über Korrekturen hinweg) eine aus Lexoffice übernommene? Dann gehören ihre Erlöse zu den alten Büchern */
+async function correctsLegacyInvoice(q: Db | Tx, corrects: Invoice | undefined): Promise<boolean> {
+  let current = corrects;
+  for (let depth = 0; current && depth < 20; depth++) {
+    if (current.lexofficeVoucherId) return true;
+    if (!current.correctsId) return false;
+    [current] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, current.correctsId));
+  }
+  return false;
+}
+
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
 async function originalProblem(original: Invoice, q: Db | Tx = db, of?: Invoice): Promise<string | null> {
+  if (original.lexofficeVoucherId) {
+    const [source] = await q
+      .select({ source: schema.lexofficeVouchers.source })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.id, original.lexofficeVoucherId));
+    if (source?.source === "import")
+      return "Diese Rechnung wurde mit fremden Originalbuchungen übernommen. Eine Korrektur muss zuerst mit diesen abgestimmt werden.";
+  }
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)

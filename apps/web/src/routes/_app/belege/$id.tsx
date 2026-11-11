@@ -28,13 +28,14 @@ import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "..
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
-import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
-import { ContactDialog } from "../../../components/ContactDialog.tsx";
+import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
+import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 import { ConfirmDialog, isDialogOpen } from "../../../components/ConfirmDialog.tsx";
+import { Field } from "../../../components/Field.tsx";
 
 /** Bezahlung früherer Belege desselben Lieferanten, für den Hinweis unter „Bezahlung“ (#295) */
 function paymentHintText(payment: "bank" | "privat" | "kasse", gesellschaft: boolean): string {
@@ -308,7 +309,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [supplierName, setSupplierName] = useState(doc.supplierName);
   const [supplierUstId, setSupplierUstId] = useState(doc.supplierUstId);
   const [supplierContactId, setSupplierContactId] = useState<string | null>(doc.supplierContactId);
-  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
+  /** Getippter Name, wenn der Dialog für einen neuen Lieferanten offen ist; null = geschlossen */
+  const [newSupplierName, setNewSupplierName] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState(doc.invoiceNumber);
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
@@ -371,8 +373,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     privateShareValid &&
     currencyValid &&
     parsedSplits !== null;
-  // Aufteilen geht im ersten Schritt nur mit deutscher Umsatzsteuer in Euro
-  const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : reverseCharge ? "§ 13b" : foreign ? "Fremdwährung" : null;
+  // Aufteilen geht mit deutscher Umsatzsteuer und mit § 13b (#508), in Euro
+  const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
   // Fremdwährung: dieselbe Umrechnung wie beim Speichern, damit die Vorschau mit dem Gebuchten übereinstimmt
@@ -434,7 +436,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   }
 
   /** Gewählter Kontakt: Name und USt-IdNr. übernehmen; „frei eingetragen“ lässt die Felder stehen */
-  function pickSupplier(supplier: SupplierOption | null) {
+  function pickSupplier(supplier: ContactChoice | null) {
     setSupplierContactId(supplier?.id ?? null);
     if (!supplier) return;
     setSupplierName(supplier.name);
@@ -577,109 +579,102 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend className="visually-hidden">Belegdaten</legend>
         <div className="form-grid">
-          <label className="field">
-            Lieferant
-            <input value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />
-          </label>
-          <SupplierPicker suppliers={data.suppliers} value={supplierContactId} onPick={touch(pickSupplier)} />
-          {!readOnly && (
-            <div>
-              <button type="button" className="btn" onClick={() => setNewSupplierOpen(true)}>
-                Neuen Lieferanten anlegen
-              </button>
-            </div>
-          )}
-          <ContactDialog
-            open={newSupplierOpen}
-            title="Neuen Lieferanten anlegen"
+          <Field label="Lieferant">{(control) => <input {...control} value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />}</Field>
+          <Field label="Aus den Kontakten">
+            {(control) => (
+              <ContactCombobox
+                {...control}
+                rolle="lieferant"
+                contacts={data.suppliers}
+                contactId={supplierContactId ?? ""}
+                disabled={readOnly || running}
+                onChoose={(id) => touch(pickSupplier)(data.suppliers.find((s) => s.id === id) ?? null)}
+                onCreate={readOnly ? undefined : setNewSupplierName}
+              />
+            )}
+          </Field>
+          <NewContactDialog
+            rolle="lieferant"
+            name={newSupplierName}
             // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
             prefill={{
               ...data.supplierSuggestion?.contact,
               ...(supplierName ? { name: supplierName } : {}),
               ...(supplierUstId ? { ustId: supplierUstId } : {}),
-              isCustomer: false,
-              isSupplier: true,
             }}
             ibanSuggestion={data.supplierSuggestion?.iban ?? null}
-            existing={data.suppliers}
-            onSaved={(saved) => {
-              touch(pickSupplier)({ id: saved.id, name: saved.name, ustId: saved.ustId });
-              // Die Lieferantenliste neu laden; die übrigen Eingaben am Beleg bleiben stehen
-              void router.invalidate();
-            }}
-            onPickExisting={(id) => {
-              const supplier = data.suppliers.find((s) => s.id === id);
-              if (supplier) touch(pickSupplier)(supplier);
-            }}
-            onClose={() => setNewSupplierOpen(false)}
+            onSaved={(saved) => touch(pickSupplier)(savedAsChoice(saved))}
+            onPickExisting={(id) => touch(pickSupplier)(data.suppliers.find((c) => c.id === id) ?? null)}
+            onClose={() => setNewSupplierName(null)}
           />
-          <label className="field">
-            Rechnungsnummer
-            <input value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />
-          </label>
-          <label className="field">
-            USt-IdNr. des Lieferanten
-            <input value={supplierUstId} onChange={(e) => touch(setSupplierUstId)(e.target.value)} />
-          </label>
-          <label className="field">
-            Belegdatum
-            <input type="date" value={documentDate} onChange={(e) => touch(setDocumentDate)(e.target.value)} />
-          </label>
-          <label className="field">
-            Fällig am
-            <input type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />
-          </label>
+          <Field label="Rechnungsnummer">
+            {(control) => <input {...control} value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />}
+          </Field>
+          <Field label="USt-IdNr. des Lieferanten">
+            {(control) => <input {...control} value={supplierUstId} onChange={(e) => touch(setSupplierUstId)(e.target.value)} />}
+          </Field>
+          <Field label="Belegdatum">
+            {(control) => <input {...control} type="date" value={documentDate} onChange={(e) => touch(setDocumentDate)(e.target.value)} />}
+          </Field>
+          <Field label="Fällig am">{(control) => <input {...control} type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />}</Field>
           {splitting ? (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
               <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
             </p>
           ) : (
-            <label className="field" style={{ gridColumn: "1 / -1" }}>
-              Kategorie
-              <select
-                value={category}
-                onChange={(e) => {
-                  touch(setCategory)(e.target.value);
-                  // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
-                  const preset = data.privateShares[e.target.value];
-                  setPrivateShare(preset ? String(preset) : "");
-                }}
-              >
-                <option value="">Bitte wählen</option>
-                {categories.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-              {data.categoryHint && (
-                <span className="small">
-                  Bisher{" "}
-                  {data.categoryHint.count === data.categoryHint.total
-                    ? `${data.categoryHint.count}×`
-                    : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
-                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht, zuletzt am{" "}
-                  {formatDate(data.categoryHint.last)}
-                  {category !== data.categoryHint.category && (
-                    <>
-                      {" · "}
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => {
-                          const hint = data.categoryHint!.category;
-                          touch(setCategory)(hint);
-                          const preset = data.privateShares[hint];
-                          setPrivateShare(preset ? String(preset) : "");
-                        }}
-                      >
-                        übernehmen
-                      </button>
-                    </>
-                  )}
-                </span>
+            <Field
+              label="Kategorie"
+              hint={
+                data.categoryHint && (
+                  <>
+                    Bisher{" "}
+                    {data.categoryHint.count === data.categoryHint.total
+                      ? `${data.categoryHint.count}×`
+                      : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
+                    als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht, zuletzt am{" "}
+                    {formatDate(data.categoryHint.last)}
+                    {category !== data.categoryHint.category && (
+                      <>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={() => {
+                            const hint = data.categoryHint!.category;
+                            touch(setCategory)(hint);
+                            const preset = data.privateShares[hint];
+                            setPrivateShare(preset ? String(preset) : "");
+                          }}
+                        >
+                          übernehmen
+                        </button>
+                      </>
+                    )}
+                  </>
+                )
+              }
+              style={{ gridColumn: "1 / -1" }}
+            >
+              {(control) => (
+                <select
+                  {...control}
+                  value={category}
+                  onChange={(e) => {
+                    touch(setCategory)(e.target.value);
+                    // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
+                    const preset = data.privateShares[e.target.value];
+                    setPrivateShare(preset ? String(preset) : "");
+                  }}
+                >
+                  <option value="">Bitte wählen</option>
+                  {categories.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
               )}
-            </label>
+            </Field>
           )}
           {!splitting && !readOnly && (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
@@ -695,48 +690,57 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           )}
           {category === "anlage" && !splitting && (
             <>
-              <label className="field" style={{ gridColumn: "1 / -1" }}>
-                Bezeichnung der Anlage
-                <input value={assetName} onChange={(e) => touch(setAssetName)(e.target.value)} placeholder="z. B. VW Passat, MacBook Pro" maxLength={200} />
-              </label>
-              <label className="field">
-                Art
-                <select
-                  value={assetKind}
-                  onChange={(e) => {
-                    const kind = e.target.value as AssetKind;
-                    touch(setAssetKind)(kind);
-                    setAssetMethod(ASSET_KINDS[kind].method);
-                    const years = ASSET_KINDS[kind].usefulLifeYears;
-                    // Ohne Vorschlag (sonstige Ausstattung, sonstige Transportmittel) bleibt keine Nutzungsdauer der vorigen Art
-                    // stehen, etwa die sechs Jahre für Pkw, wie im Formular der Anlage (#312)
-                    if (ASSET_KINDS[kind].method === "linear") setAssetYears(years ? String(years) : "");
-                  }}
-                >
-                  {Object.entries(ASSET_KINDS).map(([value, k]) => (
-                    <option key={value} value={value}>
-                      {k.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                Abschreibung
-                <select value={assetMethod} onChange={(e) => touch(setAssetMethod)(e.target.value as AssetMethod)}>
-                  {Object.entries(ASSET_METHODS)
-                    .filter(([value]) => value !== "elektro" || (assetKind === "kfz" && elektroAvailable(data.rechtsform)) || value === assetMethod)
-                    .map(([value, label]) => (
+              <Field label="Bezeichnung der Anlage" style={{ gridColumn: "1 / -1" }}>
+                {(control) => (
+                  <input
+                    {...control}
+                    value={assetName}
+                    onChange={(e) => touch(setAssetName)(e.target.value)}
+                    placeholder="z. B. VW Passat, MacBook Pro"
+                    maxLength={200}
+                  />
+                )}
+              </Field>
+              <Field label="Art">
+                {(control) => (
+                  <select
+                    {...control}
+                    value={assetKind}
+                    onChange={(e) => {
+                      const kind = e.target.value as AssetKind;
+                      touch(setAssetKind)(kind);
+                      setAssetMethod(ASSET_KINDS[kind].method);
+                      const years = ASSET_KINDS[kind].usefulLifeYears;
+                      // Ohne Vorschlag (sonstige Ausstattung, sonstige Transportmittel) bleibt keine Nutzungsdauer der vorigen Art
+                      // stehen, etwa die sechs Jahre für Pkw, wie im Formular der Anlage (#312)
+                      if (ASSET_KINDS[kind].method === "linear") setAssetYears(years ? String(years) : "");
+                    }}
+                  >
+                    {Object.entries(ASSET_KINDS).map(([value, k]) => (
                       <option key={value} value={value}>
-                        {label}
+                        {k.label}
                       </option>
                     ))}
-                </select>
-              </label>
+                  </select>
+                )}
+              </Field>
+              <Field label="Abschreibung">
+                {(control) => (
+                  <select {...control} value={assetMethod} onChange={(e) => touch(setAssetMethod)(e.target.value as AssetMethod)}>
+                    {Object.entries(ASSET_METHODS)
+                      .filter(([value]) => value !== "elektro" || (assetKind === "kfz" && elektroAvailable(data.rechtsform)) || value === assetMethod)
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </Field>
               {usesUsefulLife(assetMethod) && (
-                <label className="field">
-                  Nutzungsdauer in Jahren
-                  <input inputMode="decimal" value={assetYears} onChange={(e) => touch(setAssetYears)(e.target.value)} />
-                </label>
+                <Field label="Nutzungsdauer in Jahren">
+                  {(control) => <input {...control} inputMode="decimal" value={assetYears} onChange={(e) => touch(setAssetYears)(e.target.value)} />}
+                </Field>
               )}
               <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
                 Beim Buchen entsteht die Anlage im <Link to="/anlagen">Anlagenverzeichnis</Link>; abgeschrieben wird ab dem Belegdatum. Degressiv mit dem
@@ -749,75 +753,79 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
       <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
-        <label className="field">
-          Umsatzsteuer auf dem Beleg
-          <select
-            value={reverseCharge ?? ""}
-            onChange={(e) => chooseReverseCharge((e.target.value || null) as SelfAssessedTax | null)}
-            aria-describedby="rc-hint"
-          >
-            <option value="">Mit deutscher Umsatzsteuer (Vorsteuer)</option>
-            <option value="eu">§ 13b: Leistung eines Unternehmers aus dem EU-Ausland</option>
-            <option value="drittland">§ 13b: Leistung eines Unternehmers aus dem Drittland</option>
-            <option value="ig_erwerb">Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland</option>
-          </select>
-          {reverseCharge === "ig_erwerb" ? (
-            <span id="rc-hint" className="small">
-              Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
-              schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
-              zieht sie zugleich als Vorsteuer ab (Kz 61). Bezahlt wird nur der Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein
-              gewöhnlicher Beleg.
-            </span>
-          ) : reverseCharge ? (
-            <span id="rc-hint" className="small">
-              Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
-              {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67). Bezahlt wird nur der Nettobetrag.
-            </span>
-          ) : (
-            looksLikeReverseCharge && (
-              <span id="rc-hint" className="small">
-                Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung? Bei einer Dienstleistung, etwa von Google, Microsoft oder AWS, ist es meist §
-                13b, bei Ware ein innergemeinschaftlicher Erwerb.
-              </span>
+        <Field
+          label="Umsatzsteuer auf dem Beleg"
+          hint={
+            reverseCharge === "ig_erwerb" ? (
+              <>
+                Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
+                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
+                zieht sie zugleich als Vorsteuer ab (Kz 61). Bezahlt wird nur der Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein
+                gewöhnlicher Beleg.
+              </>
+            ) : reverseCharge ? (
+              <>
+                Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
+                {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67). Bezahlt wird nur der Nettobetrag.
+              </>
+            ) : (
+              looksLikeReverseCharge && (
+                <>
+                  Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung? Bei einer Dienstleistung, etwa von Google, Microsoft oder AWS, ist es meist §
+                  13b, bei Ware ein innergemeinschaftlicher Erwerb.
+                </>
+              )
             )
+          }
+        >
+          {(control) => (
+            <select {...control} value={reverseCharge ?? ""} onChange={(e) => chooseReverseCharge((e.target.value || null) as SelfAssessedTax | null)}>
+              <option value="">Mit deutscher Umsatzsteuer (Vorsteuer)</option>
+              <option value="eu">§ 13b: Leistung eines Unternehmers aus dem EU-Ausland</option>
+              <option value="drittland">§ 13b: Leistung eines Unternehmers aus dem Drittland</option>
+              <option value="ig_erwerb">Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland</option>
+            </select>
           )}
-        </label>
+        </Field>
         <div className="form-grid">
-          <label className="field">
-            Währung
-            <input
-              value={currency}
-              onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
-              list="currency-codes"
-              maxLength={3}
-              aria-invalid={!CURRENCY_CODE.test(currencyCode)}
-              aria-describedby={foreign ? "currency-hint" : undefined}
-            />
-            <datalist id="currency-codes">
-              {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </label>
+          <Field label="Währung" describedBy={foreign ? "currency-hint" : undefined}>
+            {(control) => (
+              <>
+                <input
+                  {...control}
+                  value={currency}
+                  onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
+                  list="currency-codes"
+                  maxLength={3}
+                  aria-invalid={!CURRENCY_CODE.test(currencyCode)}
+                />
+                <datalist id="currency-codes">
+                  {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </>
+            )}
+          </Field>
           {foreign && (
-            <label className="field">
-              Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}
-              <input
-                className="mono"
-                inputMode="decimal"
-                value={exchangeRate}
-                placeholder="z. B. 1,0812"
-                onChange={(e) => touch(setExchangeRate)(e.target.value)}
-                aria-invalid={exchangeRate.trim() !== "" && rate === null}
-                aria-describedby="currency-hint"
-              />
-            </label>
+            <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="currency-hint">
+              {(control) => (
+                <input
+                  {...control}
+                  className="mono"
+                  inputMode="decimal"
+                  value={exchangeRate}
+                  placeholder="z. B. 1,0812"
+                  onChange={(e) => touch(setExchangeRate)(e.target.value)}
+                  aria-invalid={exchangeRate.trim() !== "" && rate === null}
+                />
+              )}
+            </Field>
           )}
           {foreign && data.tageskurs && (
-            <label className="field">
-              Kursdatum
-              <input type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />
-            </label>
+            <Field label="Kursdatum">
+              {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
+            </Field>
           )}
           {foreign && (
             <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
@@ -835,40 +843,51 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
         {rows.map((row, index) => (
           <div className="amount-row" key={row.key}>
-            <label className="field">
-              Satz
-              <select value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
-                <option value={1900}>19 %</option>
-                <option value={700}>7 %</option>
-                {!reverseCharge && <option value={0}>0 %</option>}
-              </select>
-            </label>
-            <label className="field">
-              {foreign ? `Netto ${currencyCode}` : "Netto"}
-              <input
-                className="mono"
-                inputMode="decimal"
-                value={row.net}
-                placeholder="0,00"
-                onChange={(e) => updateRow(row.key, { net: e.target.value })}
-                aria-invalid={parsed[index]!.net === null}
-              />
-            </label>
-            <label className="field">
-              {reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
-              {foreign ? ` ${currencyCode}` : ""}
-              {reverseCharge ? " (automatisch)" : ""}
-              <input
-                className="mono"
-                inputMode="decimal"
-                value={row.tax}
-                placeholder="0,00"
-                readOnly={Boolean(reverseCharge)}
-                onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
-                aria-invalid={parsed[index]!.tax === null}
-                aria-describedby={reverseCharge ? "self-assessed-tax-hint" : undefined}
-              />
-            </label>
+            <Field label="Satz">
+              {(control) => (
+                <select {...control} value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
+                  <option value={1900}>19 %</option>
+                  <option value={700}>7 %</option>
+                  {!reverseCharge && <option value={0}>0 %</option>}
+                </select>
+              )}
+            </Field>
+            <Field label={foreign ? `Netto ${currencyCode}` : "Netto"}>
+              {(control) => (
+                <input
+                  {...control}
+                  className="mono"
+                  inputMode="decimal"
+                  value={row.net}
+                  placeholder="0,00"
+                  onChange={(e) => updateRow(row.key, { net: e.target.value })}
+                  aria-invalid={parsed[index]!.net === null}
+                />
+              )}
+            </Field>
+            <Field
+              label={
+                <>
+                  {reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+                  {foreign ? ` ${currencyCode}` : ""}
+                  {reverseCharge ? " (automatisch)" : ""}
+                </>
+              }
+              describedBy={reverseCharge ? "self-assessed-tax-hint" : undefined}
+            >
+              {(control) => (
+                <input
+                  {...control}
+                  className="mono"
+                  inputMode="decimal"
+                  value={row.tax}
+                  placeholder="0,00"
+                  readOnly={Boolean(reverseCharge)}
+                  onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
+                  aria-invalid={parsed[index]!.tax === null}
+                />
+              )}
+            </Field>
             <button
               type="button"
               className="icon-btn"
@@ -935,20 +954,18 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </p>
         {/* Privatanteil nur im Einzelunternehmen; in GmbH und UG wäre er Arbeitslohn oder verdeckte Gewinnausschüttung */}
         {category !== "anlage" && !splitting && !isKapitalgesellschaft(data.rechtsform) && (
-          <label className="field" style={{ maxWidth: 220 }}>
-            Privatanteil in %
-            <input
-              inputMode="numeric"
-              value={privateShare}
-              placeholder="0"
-              onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
-              aria-invalid={!privateShareValid}
-              aria-describedby="private-share-hint"
-            />
-            <span id="private-share-hint" className="small">
-              Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer.
-            </span>
-          </label>
+          <Field label="Privatanteil in %" hint="Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer." style={{ maxWidth: 220 }}>
+            {(control) => (
+              <input
+                {...control}
+                inputMode="numeric"
+                value={privateShare}
+                placeholder="0"
+                onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                aria-invalid={!privateShareValid}
+              />
+            )}
+          </Field>
         )}
       </fieldset>
 
@@ -962,6 +979,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             categories={categories}
             disabled={readOnly || running}
             onChange={touch(setSplitRows)}
+            taxLabel={reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
               touch(setCategory)(splitRows[0]?.category ?? "");
@@ -1002,10 +1020,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </span>
         )}
-        <label className="field">
-          Notiz
-          <textarea value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />
-        </label>
+        <Field label="Notiz">{(control) => <textarea {...control} value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />}</Field>
       </fieldset>
 
       {!readOnly && issues.length > 0 && !dirty && (

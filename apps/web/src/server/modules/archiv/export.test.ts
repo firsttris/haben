@@ -220,7 +220,16 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const journal = text(files["buchungen/journal.csv"]);
     expect(journal).toContain(";1400;Forderungen aus Lieferungen und Leistungen;4760,00;;");
     expect(journal).toContain(";4920;Telefon;38,57;;VSt19;");
-    expect(journal).not.toContain("2025-");
+    // Nur Buchungen des Jahres: die erste Spalte ist das Datum. Nicht über den ganzen Text prüfen, zufällige UUIDs
+    // können „2025-“ enthalten (etwa „…-2025-…“), dann schlug der Test ohne Grund fehl
+    const daten = journal
+      .replace(/^\uFEFF/, "")
+      .split("\n")
+      .slice(1)
+      .filter(Boolean)
+      .map((zeile) => zeile.slice(0, 10));
+    expect(daten.length).toBeGreaterThan(0);
+    expect(daten.every((datum) => datum.startsWith("2026-"))).toBe(true);
 
     const umsaetze = text(files["bank/DE12120300001234567890/umsaetze.csv"]);
     expect(umsaetze.trim().split("\r\n")).toHaveLength(3);

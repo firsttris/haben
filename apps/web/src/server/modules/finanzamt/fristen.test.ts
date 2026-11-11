@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import nodemailer from "nodemailer";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-Mail (Postgres)", () => {
   let fristen: typeof import("./fristen.ts");
@@ -43,7 +43,8 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
 
   beforeEach(async () => {
     sent.length = 0;
-    await sql`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, elster_certificates, mail_log, mail_settings, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, elster_certificates, mail_log,
+      mail_settings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '77815', 'Bühl', '35/123/45678', 'BW')`;
     await taxpayer.saveTaxpayer(actor, {
       a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   it("GmbH: Voranmeldungen, Umsatz-, Körperschaft- und Gewerbesteuererklärung und E-Bilanz, keine EÜR, Einkommensteuer oder Vorauszahlungen dafür", async () => {
     // Die Rechtsform ist ab der ersten Buchung fest; deshalb vor der Buchung umstellen
     const [entry] = await sql`select date, description, source_type, source_id from journal_entries`;
-    await sql`truncate journal_lines, journal_entries cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries cascade`;
     await sql`update company set rechtsform = 'gmbh'`;
     await sql.begin(async (tx) => {
       const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)

@@ -1,13 +1,15 @@
 import { MANDAT_SCHEMA_LABEL, type MandatStatus } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { formatDate } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { revokeMandateFn, saveMandate, uploadMandateFile } from "../server/functions/mandate.ts";
 import type { Mandate } from "../server/modules/stammdaten/index.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { Field } from "./Field.tsx";
+import { UploadButton } from "./UploadButton.tsx";
 
 /** Mandate eines Kunden für SEPA-Lastschriften (#445): anlegen, PDF hinterlegen, widerrufen; nichts wird überschrieben */
 
@@ -76,15 +78,12 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
     }, "Mandat widerrufen.");
   }
 
-  function onFile(mandate: Mandate, input: HTMLInputElement) {
-    const file = input.files?.[0];
-    if (!file) return;
+  function onFile(mandate: Mandate, file: File) {
     const data = new FormData();
     data.set("id", mandate.id);
     data.set("file", file);
     void run(async () => {
       await upload({ data });
-      input.value = "";
       await router.invalidate();
     }, "PDF hinterlegt.");
   }
@@ -116,7 +115,7 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
         <p>Ab heute zieht Haben auf dieses Mandat nichts mehr ein. Der Widerruf lässt sich nicht zurücknehmen; für neue Einzüge braucht es ein neues Mandat.</p>
       </ConfirmDialog>
       {mandates.map((m) => (
-        <MandateRow key={m.id} mandate={m} busy={busy} onFile={(input) => onFile(m, input)} onRevoke={() => setRevoking(m)} />
+        <MandateRow key={m.id} mandate={m} busy={busy} onFile={(file) => onFile(m, file)} onRevoke={() => setRevoking(m)} />
       ))}
       {mandates.length === 0 && !adding && (
         <p className="small muted" style={{ margin: 0 }}>
@@ -132,52 +131,33 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
       )}
       {adding && (
         <form className="stack" onSubmit={onSubmit} aria-label="Neues Mandat">
-          <label className="field">
-            Mandatsreferenz
-            <input name="reference" required maxLength={35} className="mono" aria-describedby="reference-hint" />
-            <span id="reference-hint" className="field-hint">
-              Steht auf dem Mandat; bis 35 Zeichen, nur A–Z, a–z, 0–9, Leerzeichen und + ? / - : ( ) . , &apos;
-            </span>
-          </label>
+          <Field label="Mandatsreferenz" hint={<>Steht auf dem Mandat; bis 35 Zeichen, nur A–Z, a–z, 0–9, Leerzeichen und + ? / - : ( ) . , &apos;</>}>
+            {(control) => <input {...control} name="reference" required maxLength={35} className="mono" />}
+          </Field>
           <div className="form-row cols-2">
-            <label className="field">
-              Unterschrieben am
-              <input name="signedOn" type="date" required max={today} defaultValue={today} />
-            </label>
-            <label className="field">
-              Verfahren
-              <select name="scheme" defaultValue="CORE">
-                <option value="CORE">{MANDAT_SCHEMA_LABEL.CORE}</option>
-                <option value="B2B">{MANDAT_SCHEMA_LABEL.B2B}</option>
-              </select>
-            </label>
+            <Field label="Unterschrieben am">{(control) => <input {...control} name="signedOn" type="date" required max={today} defaultValue={today} />}</Field>
+            <Field label="Verfahren">
+              {(control) => (
+                <select {...control} name="scheme" defaultValue="CORE">
+                  <option value="CORE">{MANDAT_SCHEMA_LABEL.CORE}</option>
+                  <option value="B2B">{MANDAT_SCHEMA_LABEL.B2B}</option>
+                </select>
+              )}
+            </Field>
           </div>
-          <label className="field">
-            Kontoinhaber
-            <input name="debtorName" required maxLength={70} defaultValue={contactName} />
-          </label>
+          <Field label="Kontoinhaber">{(control) => <input {...control} name="debtorName" required maxLength={70} defaultValue={contactName} />}</Field>
           <div className="form-row cols-2">
-            <label className="field">
-              IBAN
-              <input name="debtorIban" required defaultValue={contactIban} className="mono" />
-            </label>
-            <label className="field">
-              BIC (optional)
-              <input name="debtorBic" className="mono" />
-            </label>
+            <Field label="IBAN">{(control) => <input {...control} name="debtorIban" required defaultValue={contactIban} className="mono" />}</Field>
+            <Field label="BIC (optional)">{(control) => <input {...control} name="debtorBic" className="mono" />}</Field>
           </div>
           <label className="checkbox">
             <input type="checkbox" checked={migrated} onChange={(e) => setMigrated(e.target.checked)} />
             <span>Auf dieses Mandat wurde schon eingezogen (Folgelastschrift)</span>
           </label>
           {migrated && (
-            <label className="field">
-              Letzter Einzug
-              <input name="lastCollectionBefore" type="date" max={today} aria-describedby="last-collection-hint" />
-              <span id="last-collection-hint" className="field-hint">
-                Ab diesem Tag zählen die 36 Monate bis zum Verfall. Leer, wenn unbekannt; dann zählt die Unterschrift.
-              </span>
-            </label>
+            <Field label="Letzter Einzug" hint="Ab diesem Tag zählen die 36 Monate bis zum Verfall. Leer, wenn unbekannt; dann zählt die Unterschrift.">
+              {(control) => <input {...control} name="lastCollectionBefore" type="date" max={today} />}
+            </Field>
           )}
           <div className="actions">
             <button type="submit" className="btn btn-primary" disabled={busy}>
@@ -193,11 +173,10 @@ export function MandateCard({ contactId, contactName, contactIban, isCustomer, m
   );
 }
 
-type RowProps = { mandate: Mandate; busy: boolean; onFile: (input: HTMLInputElement) => void; onRevoke: () => void };
+type RowProps = { mandate: Mandate; busy: boolean; onFile: (file: File) => void; onRevoke: () => void };
 
 /** Ein Mandat: Referenz und Status, Angaben, PDF und Widerruf */
 function MandateRow({ mandate: m, busy, onFile, onRevoke }: RowProps) {
-  const fileInput = useRef<HTMLInputElement>(null);
   const pdfLabel = m.file ? "Anderes PDF hinterlegen" : "PDF hinterlegen";
   return (
     <div className="history-row stack" style={{ alignItems: "stretch", gap: 4 }}>
@@ -218,18 +197,15 @@ function MandateRow({ mandate: m, busy, onFile, onRevoke }: RowProps) {
         ) : (
           <span className="small muted">Noch kein PDF</span>
         )}
-        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => fileInput.current?.click()}>
-          {pdfLabel}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
+        <UploadButton
+          className="btn btn-sm"
           accept="application/pdf,.pdf"
-          className="visually-hidden"
-          aria-label={`${pdfLabel}: ${m.reference}`}
-          tabIndex={-1}
-          onChange={(e) => onFile(e.currentTarget)}
-        />
+          disabled={busy}
+          inputLabel={`${pdfLabel}: ${m.reference}`}
+          onFiles={([file]) => file && onFile(file)}
+        >
+          {pdfLabel}
+        </UploadButton>
         {!m.revocation && (
           <button type="button" className="btn btn-sm" disabled={busy} onClick={onRevoke}>
             Widerrufen

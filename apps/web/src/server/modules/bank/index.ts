@@ -24,6 +24,8 @@ export {
   allocate,
   allocateIn,
   allocateTransfer,
+  allocateTransferIn,
+  allocateExchangeDifferenceIn,
   allocateSplit,
   allocationSchema,
   BankError,
@@ -31,6 +33,8 @@ export {
   createProviderAccount,
   providerAccountSchema,
   importStatement,
+  storeStatement,
+  type ImportResult,
   invoiceLosses,
   invoiceWrittenOff,
   invoicePayments,
@@ -54,6 +58,7 @@ export {
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
 export {
   createSepaTransfer,
@@ -76,6 +81,7 @@ export {
 } from "./cash-invoice.ts";
 export {
   addDocumentCashEntry,
+  addImportedCashEntries,
   cashBook,
   cashBookCsv,
   cashInputSchema,
@@ -84,6 +90,7 @@ export {
   lockCash,
   reverseCashEntry,
   reverseDocumentCashEntry,
+  type ImportedCashEntry,
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {

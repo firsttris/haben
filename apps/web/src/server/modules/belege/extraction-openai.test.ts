@@ -57,6 +57,7 @@ describe("OpenAI-kompatibler Dienst", () => {
       maxPages: 2,
       // Wie bisher nur Bilder; den Text der PDF-Seiten prüfen die Tests zu #329 unten
       input: "bild",
+      extraBody: {},
     };
   });
 
@@ -158,6 +159,26 @@ describe("OpenAI-kompatibler Dienst", () => {
   it("sendet den Schlüssel nur, wenn einer gesetzt ist, als Bearer", async () => {
     await extract({ apiKey: "geheim-123" });
     expect(service.requests[0]!.headers.authorization).toBe("Bearer geheim-123");
+  });
+
+  it("nimmt zusätzliche Body-Felder aus EXTRACTION_EXTRA_BODY mit, etwa reasoning_effort", async () => {
+    await extract({ extraBody: { reasoning_effort: "none", temperature: 0, max_tokens: 400 } });
+    const body = service.requests[0]!.body as Record<string, unknown>;
+    // Ein Modell, das sonst sein Antwortbudget mit Denken verbraucht, wird damit still gestellt
+    expect(body.reasoning_effort).toBe("none");
+    expect(body.max_tokens).toBe(400);
+    expect(body.temperature).toBe(0);
+    // Auch beim zweiten Versuch ohne response_format gilt dasselbe
+    expect(service.requests[0]!.body).toMatchObject({ model: "qwen2.5vl:7b", stream: false });
+  });
+
+  it("lässt model, messages und stream nicht über EXTRACTION_EXTRA_BODY überschreiben", async () => {
+    await extract({ extraBody: { model: "fremd", stream: true, messages: [], response_format: undefined } });
+    const body = service.requests[0]!.body as { model: string; stream: boolean; messages: { role: string }[] };
+    expect(body.model).toBe("qwen2.5vl:7b");
+    expect(body.stream).toBe(false);
+    expect(body.messages.map((m) => m.role)).toEqual(["system", "user"]);
+    expect((service.requests[0]!.body as { response_format?: unknown }).response_format).toBeDefined();
   });
 
   it("PDF: wandelt in Seitenbilder um und meldet, wenn Seiten fehlen", async () => {
@@ -270,6 +291,7 @@ describe("Umleitungen des Dienstes", () => {
         timeoutMs: 5_000,
         maxPages: 2,
         input: "bild",
+        extraBody: {},
       };
       const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf, pdfToText: noText }).catch((e: unknown) => e);
       expect(received).toEqual([]);
@@ -302,6 +324,7 @@ describe("Meldungen des Dienstes", () => {
       timeoutMs: 5_000,
       maxPages: 2,
       input: "bild",
+      extraBody: {},
     };
     for (const status of [400, 500]) {
       service.reply(() => ({ status, body: { error: { message: "upstream rejected Authorization: Bearer geheim-123" } } }));

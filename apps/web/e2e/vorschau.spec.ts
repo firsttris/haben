@@ -143,7 +143,8 @@ test("Laptop: per Tastatur anheften, steht beim Scrollen fest, bleibt nach Neula
   await body.evaluate((el) => el.scrollTo(0, 6));
   await expect.poll(() => verlauf("--fade-top")).toBeGreaterThan(0);
   expect(await verlauf("--fade-top")).toBeLessThan(1);
-  await body.evaluate((el) => el.scrollTo(0, 12));
+  // Voll, sobald um den Innenabstand gescrollt ist, also die Blattkante am Rand steht
+  await body.evaluate((el) => el.scrollTo(0, parseFloat(getComputedStyle(el).paddingTop)));
   await expect.poll(() => verlauf("--fade-top")).toBe(1);
   await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
   await expect.poll(() => verlauf("--fade-bottom")).toBe(0);

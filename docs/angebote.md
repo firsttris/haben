@@ -65,15 +65,11 @@ Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welche
 
 ### Anhänge
 
-Mit einem Angebot gehen oft weitere Unterlagen mit: AGB, Widerrufsbelehrung, eine Leistungsbeschreibung oder eine auftragsspezifische Vereinbarung. Solche PDF-Dateien hängst du im Entwurf an das Angebot, genau wie [an eine Rechnung](rechnungen.md#zusätzliche-anhänge); beim Versand per E-Mail wählst du, welche mitgehen.
-
-1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
-2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
-3. **Entfernen** nimmt einen Anhang nach einer Rückfrage wieder vom Angebot, solange es ein Entwurf ist.
+Mit einem Angebot gehen oft weitere Unterlagen mit: AGB, Widerrufsbelehrung, eine Leistungsbeschreibung oder eine auftragsspezifische Vereinbarung. Solche PDF-Dateien hängst du im Entwurf an das Angebot; beim Versand per E-Mail wählst du, welche mitgehen. Anhängen und Entfernen gehen genau wie [an einer Rechnung](rechnungen.md#zusätzliche-anhänge).
 
 Was mit fast jedem Angebot mitgeht, etwa AGB oder Widerrufsbelehrung, hinterlegst du einmal als [Standardanhang](einrichtung.md#standardanhänge-für-angebote): Jedes neue Angebot hat diese Dateien dann schon beim ersten Speichern unter **Anhänge**, beim Senden sind sie vorausgewählt, und im Entwurf nimmst du heraus, was für dieses Angebot nicht passt. Sie hängen nur an Angeboten, die du danach neu anlegst: Ein schon bestehender Entwurf bekommt sie nicht; dort hängst du sie bei Bedarf selbst an.
 
-Es gelten dieselben Regeln wie bei Rechnungen: nur PDF-Dateien bis 20 MB, höchstens zehn je Angebot, den Typ erkennt Haben am Inhalt, dieselbe Datei hängt nur einmal am selben Angebot. Die Dateien liegen unter ihrem SHA-256 im Belegverzeichnis; hängt dieselbe Datei an mehreren Angeboten oder Rechnungen, liegt sie nur einmal dort.
+Es gelten dieselben Regeln wie bei Rechnungen, mit höchstens zehn Dateien je Angebot. Hängt dieselbe Datei an mehreren Angeboten oder Rechnungen, liegt sie nur einmal im Belegverzeichnis.
 
 Mit dem Festschreiben sind die Anhänge zusammen mit dem Angebot gesperrt: Die Datenbank lehnt Hinzufügen, Ändern und Entfernen ab. Auf der Seite des festgeschriebenen Angebots stehen sie weiter unter **Anhänge** zum Ansehen und Herunterladen. Das PDF des Angebots bleibt, wie es ist; die Anhänge gehen nur als eigene Dateien in der E-Mail mit. In die Rechnung aus dem Angebot gehen sie nicht über.
 
@@ -141,7 +137,7 @@ Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere 
 - **Auftragsbestätigung:** dieselben Positionen, Preise und Rabatte wie im Angebot, nach der Auswahl des Kunden bei optionalen und alternativen Positionen, datiert auf den Tag der Annahme, mit Bezug auf das Angebot, Bestell-, Auftrags- und Lieferscheinnummer und der Auftragssumme; auf Wunsch mit dem Zahlungsplan, gerechnet auf die Auftragssumme.
 - **Lieferschein:** die gewählten Positionen mit Menge und Text zur Position, ohne Preise, mit Bestell- und Auftragsnummer, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
 
-Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung, nicht zu Storno und Korrektur (Schaltfläche **Lieferschein** auf der Rechnung).
+Beide entstehen bei jedem Abruf neu aus dem festgeschriebenen Angebot und buchen nichts. Positionen und Beträge bleiben gleich, solange die Antwort „angenommen“ bleibt; die Sprache folgt dem Angebot. Gestaltung, Layout und die Pflichtangaben aus den Firmendaten kommen dagegen aus dem aktuellen Stand der Einstellungen, ändern sie sich, sieht auch ein erneut abgerufenes PDF anders aus (siehe [Pflichtangaben einer GmbH oder UG](rechnungen.md#pflichtangaben-einer-gmbh-oder-ug)). Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung, nicht zu Storno und Korrektur (Schaltfläche **Lieferschein** auf der Rechnung).
 
 ## Aufbewahrung
 

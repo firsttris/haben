@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import { FakeElsterClient } from "@haben/elster";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Datenschutzhinweise der Finanzverwaltung vor der Nutzung von ERiC (Postgres)", () => {
   let elster: typeof import("./elster.ts");
@@ -10,7 +10,7 @@ describe.skipIf(!testDatabaseUrl)("Datenschutzhinweise der Finanzverwaltung vor 
   beforeAll(async () => {
     sql = await setupTestDb();
     elster = await import("./elster.ts");
-    await sql`truncate company cascade`;
+    await leeren(sql)`truncate company cascade`;
   }, 30_000);
 
   afterAll(async () => {

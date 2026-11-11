@@ -2,7 +2,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 import type { BelegabrufResult, ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
   let vast: typeof import("./vast.ts");
@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate elster_certificates, company, vast_belege, vast_requests cascade`;
+    await leeren(sql)`truncate elster_certificates, company, vast_belege, vast_requests cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY')`;
     await taxpayer.saveTaxpayer(actor, { a: person("65929970489", "Erika") });
     await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
@@ -136,7 +136,7 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
     await expect(vast.fetchVastBelege(actor, fake, { kind: "test", year: 2025, person: "a" })).rejects.toThrow(/PIN/);
     await expect(vast.fetchVastBelege(actor, fake, { kind: "send", year: 2025, person: "a", pin: "1", herstellerId: "12345" })).rejects.toThrow(/Ohne ERiC/);
     await expect(vast.fetchVastBelege(actor, fake, { kind: "send", year: 2025, person: "a", pin: "1" })).rejects.toThrow(/Hersteller-ID/);
-    await sql`truncate elster_certificates`;
+    await leeren(sql)`truncate elster_certificates`;
     await expect(vast.fetchVastBelege(actor, fake, { kind: "test", year: 2025, person: "a", pin: "1" })).rejects.toThrow(/Zertifikat/);
   });
 

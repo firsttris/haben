@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { ownSeller } from "./own-invoice-fixtures.ts";
 
 // TDD-Review PR #362: Rechnung, die es in Haben gibt, in Fremdwährung
@@ -30,7 +30,8 @@ describe.skipIf(!testDatabaseUrl)("Review: eigene Rechnung in Fremdwährung (Pos
 
   beforeEach(async () => {
     vi.mocked(extraction.extractDocument).mockReset();
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters, exchange_rates, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters, exchange_rates,
+      contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, kontenrahmen, ust_id, steuernummer, bundesland, iban, plz, strasse, ort, email, versteuerung)
       values (1, ${ownSeller.name}, 'SKR03', ${ownSeller.ustId}, ${ownSeller.steuernummer}, 'BW', ${ownSeller.iban}, ${ownSeller.plz},
               ${ownSeller.strasse}, ${ownSeller.ort}, ${ownSeller.email}, 'soll')`;

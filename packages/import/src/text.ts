@@ -77,6 +77,9 @@ export function parseDate(input: string): string | null {
   let day: number;
   const german = /^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/.exec(value);
   const iso = /^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(value);
+  // Swan schreibt TT/MM/JJJJ. Der Schraegstrich ist eindeutig: Punkt und ISO kommen sich
+  // damit nicht in die Quere, und ein Monat ueber 12 schliesst die US-Reihenfolge aus.
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
   if (german) {
     day = Number(german[1]);
     month = Number(german[2]);
@@ -86,6 +89,10 @@ export function parseDate(input: string): string | null {
     year = Number(iso[1]);
     month = Number(iso[2]);
     day = Number(iso[3]);
+  } else if (slash) {
+    day = Number(slash[1]);
+    month = Number(slash[2]);
+    year = Number(slash[3]);
   } else {
     return null;
   }
