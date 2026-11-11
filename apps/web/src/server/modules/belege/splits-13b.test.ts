@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * § 13b mit Aufteilung (#508). Erfundene Sammelrechnung eines Zahlungsdienstleisters, alles zu 19 % nach § 13b:
@@ -62,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", kleinunternehmer = false) {
-    await sql`truncate document_cancellations, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
+    await leeren(sql)`truncate document_cancellations, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
       asset_depreciations, assets, journal_lines, journal_entries, document_splits, document_amounts, documents, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer})`;

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today } from "../../today.ts";
 
 describe.skipIf(!testDatabaseUrl)("TDD: Kfz-Privatnutzung bei Ausstieg aus § 19 im laufenden Jahr (Postgres)", () => {
@@ -18,7 +18,7 @@ describe.skipIf(!testDatabaseUrl)("TDD: Kfz-Privatnutzung bei Ausstieg aus § 19
   });
 
   beforeEach(async () => {
-    await sql`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, company cascade`;
     // Kleinunternehmer seit dem Anlegen, heute (Monat > 1) ausgeschaltet: Jan. bis Vormonat § 19, Rest regulär
     await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland, kleinunternehmer) values (1, 'Testfirma', 'ist', 'SKR03', 'BY', true)`;

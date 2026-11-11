@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { invoiceDocument, ownSeller } from "./own-invoice-fixtures.ts";
 
 // Die KI wird nicht aufgerufen; je Test liefert die Auslesung feste Werte oder ist gar nicht eingerichtet.
@@ -70,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("Eigene Ausgangsrechnung beim Beleg-Upload erk
   beforeEach(async () => {
     vi.mocked(extraction.extractionAvailable).mockReturnValue(true);
     vi.mocked(extraction.extractDocument).mockReset();
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, kontenrahmen, ust_id, steuernummer, bundesland, iban, plz)
       values (1, ${ownSeller.name}, 'SKR03', ${ownSeller.ustId}, ${ownSeller.steuernummer}, 'BW', ${ownSeller.iban}, ${ownSeller.plz})`;
   });

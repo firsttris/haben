@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -39,7 +39,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate datev_personenkonten, document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate datev_personenkonten, document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions,
       contacts, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,

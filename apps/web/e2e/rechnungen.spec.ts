@@ -1932,6 +1932,77 @@ test("Lastschriftdatei: fällige Rechnung wählen, pain.008 herunterladen, danac
   await expect(page.getByRole("region", { name: "Erzeugte Dateien" })).toContainText("297,50 €");
 });
 
+test("Beleggestaltung: Einstellungen, die das zugeordnete eigene Layout nicht verwendet, sind aus und sagen warum (#113)", async () => {
+  // Hier statt in layouts.spec.ts: Ein eigenes Layout für Rechnungen sähen dort die parallelen Tests der Rechnungsvorschau
+  const karte = page.getByRole("region", { name: "Layouts", exact: true });
+  const blatt = page.getByRole("region", { name: "Logo und Blatt" });
+  const giroCode = blatt.getByRole("checkbox", { name: "GiroCode" });
+  const falzmarken = blatt.getByRole("checkbox", { name: "Falz- und Lochmarken" });
+  const zuordnen = async (art: string, layout: string) => {
+    await karte.getByLabel(`Layout für ${art}`).selectOption({ label: layout });
+    await expect(karte.getByRole("status").first()).toContainText("Gespeichert");
+    await go("/einstellungen?bereich=gestaltung");
+  };
+  const hochladen = async (name: string, art: "beleg" | "mahnung") => {
+    // Die eingebaute Vorlage ohne GiroCode und ohne Falz- und Lochmarken
+    const quelltext = (await (await page.request.get(`/api/belegvorlagen?datei=start&art=${art}`)).text())
+      .replace(/(?<![A-Za-z0-9_])qr(?![A-Za-z0-9_])/g, "ohneqr")
+      .replaceAll("look.foldMarks", "false")
+      .replaceAll("foldMarks: true, ", "");
+    const form = karte.getByRole("form", { name: "Layout hochladen" });
+    await form.getByLabel("Name").fill(name);
+    await form.getByLabel("Für").selectOption(art);
+    await form.getByLabel("Typst-Datei").setInputFiles({ name: `${name}.typ`, mimeType: "text/plain", buffer: Buffer.from(quelltext) });
+    await form.getByRole("button", { name: "Prüfen und speichern" }).click();
+    // Die Meldung stünde vom vorigen Hochladen noch da; erst der Eintrag in der Liste zeigt, dass dieses gespeichert ist
+    await expect(karte.getByRole("listitem").filter({ has: page.getByText(name, { exact: true }) })).toBeVisible({ timeout: 60_000 });
+  };
+
+  await go("/einstellungen?bereich=gestaltung");
+  await expect(giroCode).toBeEnabled();
+  await expect(giroCode).toHaveAccessibleDescription("");
+  await hochladen("Schlicht", "beleg");
+  await hochladen("Schlicht Mahnung", "mahnung");
+  // Hochgeladen, aber noch nirgends zugeordnet: ändert nichts
+  await go("/einstellungen?bereich=gestaltung");
+  await expect(giroCode).toHaveAccessibleDescription("");
+
+  try {
+    // Die Mahnung hat noch das eingebaute Layout: GiroCode bleibt an, der Hinweis nennt die Rechnungen
+    await zuordnen("Rechnung, Storno und Korrektur", "Schlicht");
+    await expect(giroCode).toBeEnabled();
+    await expect(giroCode).toHaveAccessibleDescription("Wirkt nicht auf Rechnungen: Das Layout „Schlicht“ verwendet qr nicht.");
+
+    // GiroCode gibt es nur auf Rechnung und Mahnung; ohne qr in beiden Layouts ist er aus
+    await zuordnen("Mahnung", "Schlicht Mahnung");
+    await expect(giroCode).toBeDisabled();
+    await expect(giroCode).toHaveAccessibleDescription("Die Layouts „Schlicht“ und „Schlicht Mahnung“ verwenden qr nicht.");
+    await expect(blatt.getByText("Die Layouts „Schlicht“ und „Schlicht Mahnung“ verwenden qr nicht.")).toBeVisible();
+    // Falzmarken wirken noch auf Angebot, Auftragsbestätigung und Lieferschein mit dem eingebauten Layout
+    await expect(falzmarken).toBeEnabled();
+    await expect(falzmarken).toHaveAccessibleDescription(/^Wirkt nicht auf Rechnungen und Mahnungen: /);
+    await expect(blatt.getByRole("checkbox", { name: "Kundennummer" })).toHaveAccessibleDescription("");
+    expect(await axeVerstoesse(page)).toEqual([]);
+  } finally {
+    // Löschen setzt die Zuordnung auf das eingebaute Layout zurück
+    for (const name of ["Schlicht", "Schlicht Mahnung"]) {
+      await karte
+        .getByRole("listitem")
+        .filter({ has: page.getByText(name, { exact: true }) })
+        .getByRole("button", { name: "Löschen" })
+        .click();
+      await page
+        .getByRole("dialog", { name: `Layout „${name}“ löschen?` })
+        .getByRole("button", { name: "Layout löschen" })
+        .click();
+      await expect(karte.getByText(name, { exact: true })).toHaveCount(0);
+    }
+  }
+  await go("/einstellungen?bereich=gestaltung");
+  await expect(giroCode).toBeEnabled();
+  await expect(giroCode).toHaveAccessibleDescription("");
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",

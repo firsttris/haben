@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Artikelkatalog (Postgres)", () => {
   let articles: typeof import("./articles.ts");
@@ -18,7 +18,7 @@ describe.skipIf(!testDatabaseUrl)("Artikelkatalog (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate articles`;
+    await leeren(sql)`truncate articles`;
   });
 
   it("legt an, ändert, archiviert und protokolliert", async () => {

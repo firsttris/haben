@@ -8,7 +8,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
-import { loadLetterhead } from "../stammdaten/index.ts";
+import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
 
@@ -202,7 +202,8 @@ async function dunningDocument(
  */
 export async function dunningDraftPdf(input: DunningInput, today: string): Promise<DraftPdf> {
   const checked = await checkedInput(input, today);
-  return buildDunningDraftPdf(await dunningDocument(db, input, today, checked, false));
+  const doc = await dunningDocument(db, input, today, checked, false);
+  return withCustomLayout("mahnung", doc, (letterhead) => buildDunningDraftPdf({ ...doc, ...letterhead }));
 }
 
 /** Erstellt die Mahnung mit PDF; Beträge werden zum heutigen Stand berechnet */
@@ -210,7 +211,7 @@ export async function createDunning(actor: string, input: DunningInput, today: s
   const checked = await checkedInput(input, today);
   return withActor(actor, async (tx) => {
     const doc = await dunningDocument(tx, input, today, checked, true);
-    const pdf = buildDunningPdf(doc);
+    const pdf = await withCustomLayout("mahnung", doc, (letterhead) => buildDunningPdf({ ...doc, ...letterhead }));
     const [created] = await tx
       .insert(schema.dunnings)
       .values({

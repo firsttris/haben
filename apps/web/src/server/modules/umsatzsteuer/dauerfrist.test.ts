@@ -2,7 +2,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 import type { ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /** Dauerfristverlängerung und Sondervorauszahlung (§ 46–48 UStDV) */
 describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
   });
 
   async function setCompany(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate vat_extension_submissions, vat_extensions, vat_frequencies, vat_return_submissions, vat_returns, elster_certificates,
+    await leeren(sql)`truncate vat_extension_submissions, vat_extensions, vat_frequencies, vat_return_submissions, vat_returns, elster_certificates,
       allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen})`;

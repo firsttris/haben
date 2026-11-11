@@ -1,7 +1,7 @@
 import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Voranmeldung ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md): Die Kennzahlen kommen aus Konto und
@@ -59,7 +59,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus dem Journal in Sonderfällen
   });
 
   async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: number | null = null) {
-    await sql`truncate asset_depreciations, assets, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions,
+    await leeren(sql)`truncate asset_depreciations, assets, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
