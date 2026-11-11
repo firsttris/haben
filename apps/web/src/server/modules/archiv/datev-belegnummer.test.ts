@@ -1,7 +1,7 @@
 import { mapSevInvoice, type SevInvoice } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * #472: sevDesk entfernt beim DATEV-Export aus der Belegnummer alle Zeichen außerhalb des Zeichensatzes von Belegfeld 1
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Belegnummern aus dem DATEV-Export von sevDesk
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, company cascade`;
+    await leeren(sql)`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', 'soll', 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{}'::jsonb, 'sevdesk')`;
