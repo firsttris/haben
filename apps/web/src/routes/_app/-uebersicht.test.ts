@@ -100,4 +100,14 @@ describe("Übersicht: relevante Voranmeldungshinweise (#691)", () => {
     expect(html).not.toContain("Voranmeldung Oktober 2026 senden");
     expect(html).not.toContain("Voranmeldung fällig");
   });
+
+  it.each([1900, -1900])("berechnete Steuerbeträge bleiben auch ohne reguläre Abgabepflicht sichtbar (%i Cent)", (amount) => {
+    state.data.computedKz83 = amount;
+    const html = render();
+    expect(html).toContain("USt-Zahllast Oktober 2026");
+    expect(html).toContain("19,00");
+    expect(html).toContain("/umsatzsteuer/$zeitraum");
+    expect(html).not.toContain("Voranmeldung Oktober 2026 senden");
+    expect(html).not.toContain("Voranmeldung fällig");
+  });
 });
