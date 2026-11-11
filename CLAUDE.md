@@ -21,6 +21,8 @@ the change before starting.
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
 | Review and merge | Review | `tdd-review` |
 | Issues and labels | Issues schreiben | `issue-schreiben` |
+| Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
+| Releasing a version | Veröffentlichen, Release Candidates | `release` |
 | Rules a script checks | Automatische Prüfungen der Regeln | |
 
 Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user page of the area
