@@ -20,13 +20,16 @@ function findings(source: string): number {
   return Number(/Found (\d+) error/.exec(`${result.stdout}${result.stderr}`)?.[1] ?? 0);
 }
 
-describe("Kein umschließendes label mit Klasse field", () => {
+describe("Kein eigenes Feld mit Klasse field (Field-Komponente)", () => {
   it.each([
     ['<label className="field">Name<input /></label>', "einfach"],
     ['<label className="field weitere">Name<input /></label>', "mit weiterer Klasse"],
     ['<label className="weitere field">Name<input /></label>', "Klasse hinten"],
     ['<label className={"field"}>Name<input /></label>', "als Ausdruck"],
     ['<label className="field" style={{ gridColumn: "1 / -1" }}>Name<input /></label>', "mit style"],
+    ['<div className="field"><label htmlFor="x">Name</label><input id="x" /></div>', "div statt label"],
+    ['<div className="field weitere"><span>Name</span><input /></div>', "div mit weiterer Klasse"],
+    ['<section className="field" />', "selbstschließend"],
   ])("meldet %s (%s)", (source) => {
     expect(findings(source)).toBe(1);
   });
@@ -34,7 +37,8 @@ describe("Kein umschließendes label mit Klasse field", () => {
   it.each([
     ['<label className="checkbox"><input type="checkbox" />Ja</label>', "Kontrollkästchen"],
     ['<label className="field-label" htmlFor="x">Name</label>', "Feldname von Field"],
-    ['<div className="field"><label htmlFor="x">Name</label><input id="x" /></div>', "div statt label"],
+    ['<fieldset className="field"><legend>Kontoart</legend><input type="radio" /></fieldset>', "Gruppe mit legend"],
+    ['<div className="field-row"><input /></div>', "andere Klasse mit field im Namen"],
     ['<label className="search-box"><input /></label>', "Suchfeld"],
   ])("lässt %s zu (%s)", (source) => {
     expect(findings(source)).toBe(0);
