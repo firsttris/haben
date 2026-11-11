@@ -61,11 +61,11 @@ Seine gemessene Höhe steht in `--page-head-height` (`usePageHeadHeight` in `lib
 
 Auf dem Handy steht der Kopf kompakt: die Aktionen in einer Zeile, die seitlich scrollt; im Belegeditor (`.editor-actions`) brechen sie um, damit Speichern und Festschreiben sichtbar bleiben.
 
-Der Kontaktdialog (`ContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
+Der Kontaktdialog (`NewContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
 
 ### Rückfragen
 
-Folgenreiches bestätigt der Dialog `ConfirmDialog` (#404), nie ein zweiter Klick auf denselben Knopf und nie `window.confirm`. Der Titel ist eine Frage mit dem Objekt („Entwurf löschen?“), darunter stehen die Folgen, rechts die Aktion mit ihrem Namen, nie „OK“. Der Kopf hat keine Trennlinie und kein Schließen-X; die Linie unter dem Titel gehört zu Formular-Dialogen wie `ContactDialog`, deren Inhalt scrollt.
+Folgenreiches bestätigt der Dialog `ConfirmDialog` (#404), nie ein zweiter Klick auf denselben Knopf und nie `window.confirm`. Der Titel ist eine Frage mit dem Objekt („Entwurf löschen?“), darunter stehen die Folgen, rechts die Aktion mit ihrem Namen, nie „OK“. Der Kopf hat keine Trennlinie und kein Schließen-X; die Linie unter dem Titel gehört zu Formular-Dialogen wie `NewContactDialog`, deren Inhalt scrollt.
 
 Geht es um Geld oder das Finanzamt, nennt `facts` über den Folgen, was bestätigt wird: beim Festschreiben einer Rechnung Nummer, Kunde und Betrag, bei ELSTER Steuerart, Zeitraum und Zahllast, beim Lohn Person, Brutto und Auszahlung, beim Beleg Lieferant, Datum und Betrag; ein Storno nennt dasselbe wie das, was es zurücknimmt. Ein Häkchen (`acknowledge`) gibt es nur beim Jahresabschluss, Eintippen gar nicht.
 
@@ -77,11 +77,11 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
-Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `ContactDialog`).
+Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
 ### Blätter am Handy
 
-Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `PreviewDialog` und ihrer Gestaltungskarte `.design-sheet` (bis 720px) ein Blatt von unten. Formular-Dialoge wie der `ContactDialog` bleiben schwebende, fast bildschirmbreite Dialoge. Ein neues Blatt nutzt `SheetGrip` und `useSwipeToClose`, statt sie nachzubauen, und hält sich an diese Regeln:
+Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `PreviewDialog` und ihrer Gestaltungskarte `.design-sheet` (bis 720px) ein Blatt von unten. Formular-Dialoge wie der `NewContactDialog` bleiben schwebende, fast bildschirmbreite Dialoge. Ein neues Blatt nutzt `SheetGrip` und `useSwipeToClose`, statt sie nachzubauen, und hält sich an diese Regeln:
 
 - **Form:** volle Breite, unten bündig, nur oben gerundet: `border-radius: var(--sheet-radius) var(--sheet-radius) 0 0`. Der Radius steht einmal in `styles.css`; kein Blatt bekommt einen eigenen Wert, damit alle gleich aussehen.
 - **Griff:** `SheetGrip` ist das erste Element des Blatts. `.sheet-grip` ist ausgeblendet; das Blatt schaltet ihn in seiner Media Query ein.

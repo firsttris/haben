@@ -18,7 +18,7 @@ import {
   setDauerbelegStatus,
   updateDauerbeleg,
 } from "../modules/belege/index.ts";
-import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
+import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
 import { today } from "../today.ts";
 import { detailId } from "./schemas.ts";
 
@@ -29,7 +29,7 @@ const categoryOptions = Object.entries(EXPENSE_CATEGORIES)
 async function formContext() {
   const company = await loadCompany();
   return {
-    suppliers: (await listContacts(false, "lieferant")).map(({ id, name, ustId }) => ({ id, name, ustId })),
+    suppliers: await listContactChoices("lieferant"),
     categories: categoryOptions,
     kleinunternehmer: company.kleinunternehmer,
     today: today(),

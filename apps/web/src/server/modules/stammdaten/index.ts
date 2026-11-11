@@ -27,14 +27,18 @@ export {
 export {
   contactSchema,
   createContact,
+  findContactsByUstId,
   getContact,
+  listContactChoices,
   listContacts,
   setContactArchived,
   setContactIbanIfEmpty,
   updateContact,
   type Contact,
+  type ContactChoice,
   type ContactInput,
   type ContactRole,
+  type UstIdMatch,
 } from "./contacts.ts";
 export {
   deleteExchangeRate,

@@ -40,6 +40,7 @@ export function Combobox<T>({
   commitOnTab = false,
   placeholder,
   disabled = false,
+  required = false,
   "aria-describedby": describedBy,
   "aria-invalid": invalid = false,
   className = "",
@@ -58,6 +59,7 @@ export function Combobox<T>({
   commitOnTab?: boolean;
   placeholder?: string;
   disabled?: boolean;
+  required?: boolean;
   "aria-describedby"?: string | undefined;
   "aria-invalid"?: boolean | undefined;
   className?: string;
@@ -141,6 +143,7 @@ export function Combobox<T>({
         value={value}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
         onChange={(event) => {
           const text = event.target.value;
           onInput(text);
