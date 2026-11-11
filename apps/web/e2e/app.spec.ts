@@ -112,6 +112,9 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await akzent.getByRole("button", { name: "Übernehmen" }).click();
   await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  // Das Zeichen in der Navigation hängt nicht an der Beleggestaltung (#504): das „H“ bleibt in der Farbe des Themes
+  const marke = nav.locator(".brand-mark");
+  await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
   // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
@@ -124,6 +127,32 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await go("/einstellungen?bereich=gestaltung");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
+
+  // Eigenes Zeichen der Firma (#504): „H“ in eigener Farbe, Schrift nach dem höheren Kontrast
+  await go("/einstellungen");
+  const zeichen = page.getByRole("form", { name: "Zeichen in der Navigation" });
+  const zeichenSpeichern = async () => {
+    await zeichen.getByRole("button", { name: "Übernehmen" }).click();
+    await expect(zeichen.getByRole("status")).toContainText("Zeichen gespeichert.");
+  };
+  await zeichen.getByLabel("„H“ in eigener Farbe").check();
+  await zeichen.getByLabel("Hex-Wert").fill("#b5462f");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
+  await expect(marke).toHaveCSS("color", "rgb(255, 255, 255)");
+  // Das Logo der Belege nur auf ausdrückliche Wahl; statt des „H“ steht dann das Bild, auf Weiß
+  await zeichen.getByLabel("Logo aus der Beleggestaltung").check();
+  await zeichenSpeichern();
+  const logoZeichen = nav.locator("img.brand-logo");
+  await expect(logoZeichen).toBeVisible();
+  await expect.poll(() => logoZeichen.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+  await expect(marke).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Haben", exact: true })).toBeVisible();
+  // Zurück zum „H“ des Themes; die eigene Farbe bleibt für später gespeichert, die übrigen Tests rechnen mit dem Standard
+  await zeichen.getByLabel("„H“ in der Farbe des Themes").check();
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
+  await expect(logoZeichen).toHaveCount(0);
 });
 
 test("Kunden anlegen", async () => {

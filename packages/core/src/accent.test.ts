@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCENT_PATTERN, accentPalette, contrastOnWhite, DEFAULT_ACCENT, MIN_TEXT_CONTRAST, oklch } from "./accent.ts";
+import { ACCENT_PATTERN, accentPalette, contrastOnWhite, DEFAULT_ACCENT, inkOnAccent, MIN_TEXT_CONTRAST, oklch } from "./accent.ts";
 
 describe("contrastOnWhite", () => {
   it("rechnet wie WCAG: Schwarz 21 : 1, Weiß 1 : 1", () => {
@@ -42,5 +42,22 @@ describe("accentPalette", () => {
     for (const color of ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#000000", "#FFFFFF"]) {
       for (const grey of Object.values(accentPalette(color))) expect(grey).toMatch(ACCENT_PATTERN);
     }
+  });
+});
+
+// Mehrere Firmen (#504): Das „H“ in der Navigation steht auf der Akzentfarbe und muss darauf lesbar bleiben
+describe("inkOnAccent", () => {
+  it("nimmt Weiß auf dunklen und Dunkel auf hellen Farben", () => {
+    expect(inkOnAccent("#1D4ED8")).toBe("#FFFFFF");
+    expect(inkOnAccent("#000000")).toBe("#FFFFFF");
+    expect(inkOnAccent("#F5D90A")).toBe("#16211C");
+    expect(inkOnAccent("#ffffff")).toBe("#16211C");
+  });
+
+  it("wählt die Schrift mit dem höheren Kontrast nach WCAG, auch bei mittleren Tönen", () => {
+    // #767676 hat zu Weiß 4,54 : 1, zu #16211C 3,64 : 1
+    expect(inkOnAccent("#767676")).toBe("#FFFFFF");
+    // #8A8A8A hat zu Weiß nur 3,45 : 1, zu #16211C 4,8 : 1
+    expect(inkOnAccent("#8A8A8A")).toBe("#16211C");
   });
 });

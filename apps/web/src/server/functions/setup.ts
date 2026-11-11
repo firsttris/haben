@@ -4,7 +4,8 @@ import { count } from "drizzle-orm";
 import { db, schema } from "../db/index.ts";
 import { listCustomPages } from "../modules/eigene-seiten/index.ts";
 import { hasEmployees } from "../modules/lohn/index.ts";
-import { loadCompany } from "../modules/stammdaten/index.ts";
+import { loadCompany, logoInfo } from "../modules/stammdaten/index.ts";
+import { navMark } from "../../lib/navigation.ts";
 import { env } from "../env.ts";
 import { oidcPublicConfig } from "../oidc.ts";
 import { ssoInitialized } from "../sso-callback.ts";
@@ -21,12 +22,15 @@ async function initialized(): Promise<boolean> {
 /** Öffentlich: Betriebsart, ob Haben schon eingerichtet ist und ob jemand angemeldet ist. */
 export const getAuthState = createServerFn({ method: "GET" }).handler(async () => {
   const user = await sessionUser(getRequestHeaders());
+  const company = user ? await loadCompany() : null;
   return {
     oidc: oidcPublicConfig(),
     initialized: await initialized(),
     user: user ? { name: user.name, email: user.email, role: user.role } : null,
     // Für die Navigation: eine GmbH oder UG hat keine Pauschalen; erst nach der Anmeldung
-    rechtsform: user ? (await loadCompany()).rechtsform : null,
+    rechtsform: company?.rechtsform ?? null,
+    // Zeichen der Firma (#504), getrennt von der Beleggestaltung; das Logo nur auf ausdrückliche Wahl
+    zeichen: company ? navMark({ color: company.navColor, logo: company.navLogo }, company.navLogo ? ((await logoInfo())?.sha256 ?? null) : null) : null,
     // Eigene Seiten (#199) als Menüeinträge des Inhabers, ebenfalls erst nach der Anmeldung
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name }) => ({ id, name })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
