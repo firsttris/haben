@@ -65,6 +65,7 @@ export async function createDraftForReference(actor: string, input: DraftInput, 
 export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput {
   return {
     contactId: invoice.contactId,
+    contactPersonId: invoice.contactPersonId,
     issueDate: invoice.issueDate,
     serviceFrom: invoice.serviceFrom,
     serviceTo: invoice.serviceTo,
