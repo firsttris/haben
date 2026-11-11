@@ -135,7 +135,7 @@ export function LayoutsCard({ design, layouts }: { design: LetterheadDesign; lay
       <OwnLayouts layouts={layouts} />
       <LayoutUpload />
       <section aria-labelledby="layout-hilfe-heading">
-        <h3 id="layout-hilfe-heading">Selbst schreiben</h3>
+        <h3 id="layout-hilfe-heading">Eigenes Layout erstellen</h3>
         <p className="small muted" style={{ margin: "0 0 8px" }}>
           Ein Layout ist eine Typst-Datei. Am einfachsten mit einem KI-Agenten: Gib ihm die Anleitung und ein eingebautes Layout als Grundlage, beschreibe das
           Aussehen und lade das Ergebnis hier hoch. Haben prüft es mit Beispieldaten, bevor es gilt.
