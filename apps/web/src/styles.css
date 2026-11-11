@@ -225,7 +225,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 /* Suchfeld mit Trefferliste (Combobox.tsx); die Pfeile und Maße wie bei den Auswahlfeldern */
 .field-label { align-self: flex-start; }
 /* Feldname links neben dem Feld statt darüber, etwa „Konto“ neben der Auswahl */
-.field-inline { flex-direction: row; align-items: center; gap: 8px; }
+.field.field-inline { flex-direction: row; align-items: center; gap: 8px; }
 .field-inline > .field-label { align-self: center; }
 .combobox { position: relative; min-width: 0; }
 .combobox input { width: 100%; min-height: var(--control-h); padding: 0 36px 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
