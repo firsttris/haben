@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import asset from "../../test-fixtures/sevdesk/buchhaltung-2.0/asset.json" with { type: "json" };
 import belegeSteuerregel from "../../test-fixtures/sevdesk/buchhaltung-2.0/belege-steuerregel.json" with { type: "json" };
+import vatReport from "../../test-fixtures/sevdesk/buchhaltung-2.0/vat-report.json" with { type: "json" };
 import dokumente from "../../test-fixtures/sevdesk/buchhaltung-2.0/dokumente-mit-rechnungsbezug.json" with { type: "json" };
 import gutschrift from "../../test-fixtures/sevdesk/buchhaltung-2.0/gutschrift-underachievement.json" with { type: "json" };
 import mahnungMitRechnung from "../../test-fixtures/sevdesk/buchhaltung-2.0/mahnung-mit-rechnung.json" with { type: "json" };
@@ -122,5 +123,53 @@ describe("DATEV-Auszug aus Buchhaltungsversion 2.0", () => {
     expect(zahlung).toMatchObject({ documentLink: "" });
     expect(zahlung.voucherField1).toHaveLength(36);
     expect(zahlung.voucherField1.startsWith("-")).toBe(true);
+  });
+});
+
+describe("README und Daten aus Version 2.0 stimmen überein", () => {
+  const readme = readFileSync(new URL("../../test-fixtures/sevdesk/README.md", import.meta.url), "utf8");
+
+  it("nennt vier übermittelte Voranmeldungen und einen Testfall", () => {
+    expect(readme).toContain("vier übermittelte Voranmeldungen und ein Testfall");
+    expect(vatReport.objects.map((r) => r.testCase).sort()).toEqual(["0", "0", "0", "0", "1"]);
+  });
+
+  it("behauptet nicht mehr, es gebe keinen GET-Endpunkt für Voranmeldungen", () => {
+    expect(readme).not.toContain("kennt der Melder keinen GET-Endpunkt");
+    expect(readme).not.toContain("der Inhalt wurde nicht gelesen");
+  });
+});
+
+describe("Nachgestellte Werte im DATEV-Auszug aus Version 2.0", () => {
+  const { bookings } = parseDatevBuchungsstapel(
+    new Uint8Array(readFileSync(new URL("../../test-fixtures/sevdesk/buchhaltung-2.0/extf-buchungsstapel-auszug.csv", import.meta.url))),
+  );
+  const beleginfo = (raw: Record<string, string>, art: string) => {
+    const n = Object.entries(raw)
+      .find(([k, v]) => /^Beleginfo-Art \d+$/.test(k) && v === art)?.[0]
+      .split(" ")
+      .at(-1);
+    return n ? raw[`Beleginfo-Inhalt ${n}`] : undefined;
+  };
+  const cent = (betrag: string) => Math.round(Number(betrag.replace(",", ".")) * 100);
+
+  it("setzt auch das Leistungsdatum in Beleginfo auf den 15.01.2024", () => {
+    const werte = bookings.map((b) => beleginfo(b.raw, "Leistungsdatum")).filter(Boolean);
+    expect(werte.length).toBeGreaterThan(0);
+    for (const w of werte) expect(w).toBe("15.01.2024");
+  });
+
+  it("trägt einen deutschen Steuersatz in Umsatzsteuerprozent und EU-Steuersatz", () => {
+    for (const b of bookings) {
+      const satz = beleginfo(b.raw, "Umsatzsteuerprozent");
+      if (satz) expect(["0", "7", "19"]).toContain(satz);
+      if (b.euTaxRate !== null) expect([0, 700, 1900]).toContain(b.euTaxRate);
+    }
+  });
+
+  it("ergibt mit Netto und Steuer aus Beleginfo den Umsatz", () => {
+    const mitBetrag = bookings.filter((b) => beleginfo(b.raw, "Nettobetrag"));
+    expect(mitBetrag.length).toBeGreaterThan(0);
+    for (const b of mitBetrag) expect(cent(beleginfo(b.raw, "Nettobetrag")!) + cent(beleginfo(b.raw, "Steuerbetrag")!)).toBe(b.amount);
   });
 });

@@ -39,7 +39,7 @@ Nur `buchhaltung-2.0/`:
 - `gutschrift.json`: Antwort von `GET /CreditNote`, ohne Positionen und ohne `paidAmount`.
 - `zahlungen.json`: `CheckAccountTransactionLog`, gegliedert nach Fall: bezahlte Rechnung, zwei Zahlungen auf eine Rechnung, ein Umsatz auf zwei Rechnungen, Ausgabebelege mit negativem Betrag.
 - `belege-steuerregel.json`: Ausgabebelege mit `taxRule` 12 (zweimal, laut Melder Reverse Charge mit Vorsteuerabzug), 14 und 9 zum Vergleich, mit Positionen und DATEV-Konto.
-- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` (eine Anlage) und `GET /VatReport` (fünf übermittelte Voranmeldungen).
+- `asset.json`, `vat-report.json`: Antworten von `GET /Asset` (eine Anlage) und `GET /VatReport` (vier übermittelte Voranmeldungen und ein Testfall mit `testCase` 1).
 - `mahnung-mit-rechnung.json`: Mahnung (`invoiceType` MA, `status` 1000, `dunningLevel` 1) und unter `gemahnte_rechnung` die Rechnung, auf die `origin` zeigt.
 - `gutschrift-underachievement.json`: Gutschrift mit `bookingCategory` `UNDERACHIEVEMENT` und Positionen; die einzige Art im Konto des Melders.
 - `dokumente-mit-rechnungsbezug.json`: drei Antworten von `GET /Document` mit dem Kontakt unter `object` und der Rechnung unter `baseObject`.
@@ -91,9 +91,8 @@ Platzhalter wie `[%KONTAKTPERSON%]` sollen bisher nur als Text übernommen werde
 
 Nur als Befund festgehalten, ohne Datei:
 
-- `GET /Document/{id}/download` antwortete in 2.0 mit 200 und `application/json`; der Inhalt wurde nicht gelesen.
+- `GET /Document/{id}/download` antwortete in 2.0 mit 200 und `application/json` und denselben Feldnamen wie in 1.0 (`filename`, `mimetype`, `base64Encoded`, `content`); Inhalt und Datentypen hat kein Melder geliefert.
 - `GET /Voucher` mit `voucherType=AV` (Anlagen) lieferte eine leere Liste.
-- Für übermittelte Umsatzsteuer-Voranmeldungen kennt der Melder keinen GET-Endpunkt.
 
 ## Anonymisierung
 
@@ -106,7 +105,7 @@ Aufbau, Feldnamen und Datentypen bleiben, denn auf sie kommt es an (`paidAmount`
 - Datumsangaben sind verschoben, in den GET-Antworten aus 2.0 um ganze Jahre, damit der Jahreswechsel erhalten bleibt. Der Versatz zu UTC ist dabei geblieben und kann in der Woche der Zeitumstellung abweichen; das Datum liest Haben aus den ersten zehn Zeichen (`lexDate`).
 - `zahlungen.json` stammt aus einem eigenen Anonymisierungslauf: Gleiche Kennungen dort und in `belege-credit-debit.json` meinen nicht dasselbe Objekt.
 - Zweite Runde aus 2.0: Belegnummern, Steuernummern, IBAN, Kundennummern, Ticketnummern des Finanzamts und Freitexte sind `<anon>`, auch wo der Melder nur Ziffern und Buchstaben ersetzt hatte. In `belege-steuerregel.json` sind die Kennungen je Beleg neu vergeben, weil sie maskiert alle gleich waren; Kontenrahmen-Objekte behalten Kennung und Datum.
-- Der DATEV-Auszug aus 2.0 kam als UTF-8 mit LF und Kommentarzeilen. Die Kommentarzeilen sind entfernt, Daten auf den 15.01.2024 gesetzt, Belegnummern je Beleg eindeutig gemacht; Beleglink, `document.xml` und Belegfeld passen zusammen.
+- Der DATEV-Auszug aus 2.0 kam als UTF-8 mit LF und Kommentarzeilen. Die Kommentarzeilen sind entfernt, Daten auf den 15.01.2024 gesetzt, Belegnummern je Beleg eindeutig gemacht. Steuersatz (19 %) und die Beträge in Beleginfo sind nachgestellt, Netto und Steuer ergeben den Umsatz; es sind keine Werte des Melders; Beleglink, `document.xml` und Belegfeld passen zusammen.
 - In `buchhaltung-2.0/extf-buchungsstapel.csv` sind Konten und UUIDs gültige Platzhalter statt `x`, damit sie sich wie echte Werte lesen lassen.
 - Im DATEV-Auszug aus `buchhaltung-1.0/` sind Beträge 100,00, Daten der 15.01.2024, Belegnummern pro Buchung einheitlich ersetzt, GUIDs und Dateikennungen Platzhalter; Kontonummern des Kontenrahmens und das Muster der Nummern bleiben. Bezüge per Nummer, GUID und `origin.id` stimmen.
 
