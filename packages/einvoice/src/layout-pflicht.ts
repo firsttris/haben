@@ -106,12 +106,14 @@ const feldname = (pfad: string) =>
     .filter(Boolean)
     .pop() ?? pfad;
 
+/** Nennt der Quelltext eines der Felder („a|b“) als ganzes Wort? Bei Pfaden zählt der letzte Teil (look.foldMarks → foldMarks) */
+export const nennt = (source: string, eintrag: string): boolean =>
+  eintrag.split("|").some((pfad) => new RegExp(`(?<![A-Za-z0-9_])${feldname(pfad)}(?![A-Za-z0-9_])`).test(source));
+
 /**
  * Pflichtfelder aus dem Feldvertrag, deren Namen der Quelltext nirgends nennt; leer = in Ordnung. Nur ein grober Blick:
  * Ein genanntes Feld kann trotzdem fehlen, das zeigt erst das Setzen der Beispiele.
  */
 export function ungenutztePflichtfelder(source: string, art: LayoutBeispiel["art"]): string[] {
-  return LAYOUT_PFLICHTFELDER[art].filter(
-    (eintrag) => !eintrag.split("|").some((pfad) => new RegExp(`(?<![A-Za-z0-9_])${feldname(pfad)}(?![A-Za-z0-9_])`).test(source)),
-  );
+  return LAYOUT_PFLICHTFELDER[art].filter((eintrag) => !nennt(source, eintrag));
 }
