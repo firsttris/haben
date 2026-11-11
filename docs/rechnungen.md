@@ -503,6 +503,8 @@ Jede Mahnung lässt sich auf der Seite der Rechnung **per E-Mail** schicken, mit
 
 Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich und den Bareinnahmen im Kassenbuch abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
 
+Die Reihenfolge richtet sich zuerst nach dem Rechnungsdatum, neueste zuerst. Bei gleichem Datum folgt die Rechnungsnummer absteigend, danach der Erstellungszeitpunkt und die interne ID. Das gilt auch für **Letzte Rechnungen** in der Übersicht: Dort erscheinen die fünf jüngsten festgeschriebenen Rechnungen. Ältere Rechnungen aus anderen Nummernkreisen werden dadurch zeitlich richtig eingeordnet.
+
 | Status | Bedeutung |
 | --- | --- |
 | Entwurf | Noch nicht festgeschrieben, ohne Nummer. |
