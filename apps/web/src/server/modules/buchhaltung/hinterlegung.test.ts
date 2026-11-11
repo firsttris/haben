@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregister (Postgres)", () => {
   let sql: postgres.Sql;
@@ -30,7 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
     versteuerung: "ist" | "soll",
     register = { sitz: "", registergericht: "Amtsgericht Bremen", registernummer: "HRB 12345 HB" },
   ) {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, residual_terms, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, residual_terms, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform,
                                    sitz, registergericht, registernummer)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB',

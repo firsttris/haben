@@ -7,6 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
 import { GERUEST, layoutAnleitung, TYPST_VERSION } from "./layout-anleitung.ts";
+import { fehlendeAngaben, ungenutztePflichtfelder } from "./layout-pflicht.ts";
 import { compileWith, createCompiler, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 
 const hinweis = "Feldvertrag geändert? `bun scripts/feldvertrag/schreiben.ts` schreibt Skill und Doku neu.";
@@ -19,6 +20,10 @@ describe("Anleitung für eigene Belegvorlagen", () => {
   it("die Feldtabellen in docs/belegvorlagen.md sind aktuell", () => {
     const doku = readFileSync(DOKU, "utf8");
     expect(doku, hinweis).toBe(mitFeldern(doku));
+  });
+
+  it("das Grundgerüst nennt alle Pflichtfelder, sonst lehnt Haben es schon vor dem Setzen ab", () => {
+    expect(ungenutztePflichtfelder(GERUEST, "beleg")).toEqual([]);
   });
 
   it("nennt die Typst-Version, mit der Haben setzt", () => {
@@ -71,7 +76,33 @@ function geruestText(data: object): string {
   }
 }
 
+/** Text je Seite wie beim Hochladen: nach Lage und in der Reihenfolge des Inhalts */
+function geruestSeiten(data: object): string[] {
+  const ordner = mkdtempSync(join(tmpdir(), "haben-geruest-seiten-"));
+  try {
+    const vorlage = join(ordner, "vorlage.typ");
+    writeFileSync(vorlage, GERUEST.replace(/^```typst\n/, "").replace(/```$/, ""));
+    for (const datei of ["logo.png", "briefpapier.png"]) writeFileSync(join(ordner, datei), BEISPIEL_PNG);
+    writeFileSync(join(ordner, "beleg.pdf"), compileWith(createCompiler(ordner), vorlage, data, "2026-10-02", "Das Grundgerüst"));
+    const lesen = (...art: string[]) => execFileSync("pdftotext", [...art, join(ordner, "beleg.pdf"), "-"], { encoding: "utf8" }).split("\f");
+    const roh = lesen("-raw");
+    return lesen()
+      .map((seite, i) => `${seite}\n${roh[i] ?? ""}`)
+      .filter((seite) => seite.trim());
+  } finally {
+    rmSync(ordner, { recursive: true, force: true });
+  }
+}
+
 describe.skipIf(!hasPoppler)("Grundgerüst mit Pflichtangaben", () => {
+  it.each(
+    layoutBeispiele()
+      .filter((b) => b.art === "beleg")
+      .map((b) => [b.name, b] as const),
+  )("besteht die Pflichtprüfung mit „%s“", (_name, beispiel) => {
+    expect(fehlendeAngaben(beispiel, geruestSeiten(beispiel.data))).toEqual([]);
+  });
+
   const beispiel = (name: string) =>
     layoutBeispiele().find((b) => b.name.startsWith(name))!.data as {
       totals: { included?: { rows: { value: string }[] } | null; euroTax?: { rows: { value: string }[] } | null };

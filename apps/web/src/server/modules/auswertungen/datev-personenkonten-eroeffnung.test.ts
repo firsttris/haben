@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 
 /*
@@ -72,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten nach einer Er
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate datev_personenkonten, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries, journal_lines, journal_entries,
+    await leeren(sql)`truncate datev_personenkonten, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contact_versions, contacts,
       company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, iban, kontenrahmen, versteuerung, rechtsform,

@@ -40,6 +40,13 @@ describe("Render-Prozess", () => {
     expect(sheet.height).toBeCloseTo(842, 0);
   });
 
+  it("setzt dieselbe Vorlage auch als PDF/A-3b", async () => {
+    const data = templateInputs(pdfData(sampleDocument({})), {});
+    const pdf = await client.renderPdf({ workspace: templates, main: join(templates, "rechnung.typ"), data, files: [] }, "2026-10-02");
+    expect(Buffer.from(pdf.subarray(0, 5)).toString()).toBe("%PDF-");
+    expect(Buffer.from(pdf).toString("latin1")).toContain("pdfaid:part");
+  });
+
   it("reicht Dateien nur für diesen Lauf an die Vorlage", async () => {
     const job = vorlage("datei.typ", '#read("notiz.txt")');
     await expect(client.render({ ...job, files: [{ name: "notiz.txt", base64: Buffer.from("hallo").toString("base64") }] })).resolves.toMatchObject({

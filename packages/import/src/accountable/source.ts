@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { unzipSync } from "fflate";
 import { parseDatevBuchungsstapel, type DatevStack } from "../datev.ts";
-import type { AccountableExpenseRow, AccountableReceipt } from "./types.ts";
+import type { AccountableBankMovement, AccountableExpenseRow, AccountableReceipt, AccountableRevenue } from "./types.ts";
 import { readXlsxSheet } from "./xlsx.ts";
 
 /**
@@ -30,6 +30,10 @@ export interface AccountableExport {
   files: Map<string, Uint8Array>;
   /** Zeilen des Sheets „Ausgaben“ aus `Daten.xlsx`; leer, wenn die Datei fehlt */
   expenses: AccountableExpenseRow[];
+  /** Zeilen des Sheets „Kontobewegungen“: die Umsätze des verknüpften Bankkontos */
+  bankMovements: AccountableBankMovement[];
+  /** Zeilen des Sheets „Rechnungen“: Ausgangsrechnungen und sonstige Einnahmen */
+  revenues: AccountableRevenue[];
   /** Was beim Entpacken aufgefallen ist; der Import zeigt es als Hinweis an */
   warnings: string[];
   /** Kontenrahmen des Stapels: aus dem Kopf, sonst aus dem Ordnernamen (`datev_skr04_…`), sonst SKR03 */
@@ -49,12 +53,14 @@ const COLUMNS = {
   net: "Betrag Ohne USt.", // F
   tax: "USt.-Betrag", // G
   currency: "Währung", // H
+  taxStatus: "USt.-Status", // I
   taxRate: "USt.-Satz", // J
   code: "Buchungscode", // M
   codeName: "Codebeschreibung", // N
   paid: "Bezahlt", // Q
   paidDate: "Zahlungsdatum", // R
   documentPresent: "Dokument Vorhanden", // Y
+  bankMovement: "Kontobewegungen", // P, der zugehörige Bankumsatz im Klartext
 } as const;
 
 /**
@@ -103,6 +109,8 @@ export function readAccountableExport(archive: Uint8Array): AccountableExport {
 
   const expenseFile = Object.keys(outer).find((name) => base(name).toLowerCase() === "daten.xlsx");
   const expenses = expenseFile ? expensesOf(outer[expenseFile]!) : [];
+  const bankMovements = expenseFile ? bankMovementsOf(outer[expenseFile]!) : [];
+  const revenues = expenseFile ? revenuesOf(outer[expenseFile]!) : [];
 
   const receiptByGuid = new Map(receipts.map((receipt) => [receipt.guid, receipt]));
 
@@ -110,7 +118,7 @@ export function readAccountableExport(archive: Uint8Array): AccountableExport {
   const kontenrahmen =
     stack.header.kontenrahmen === "SKR04" || (stack.header.kontenrahmen === "" && /(^|\/)datev_skr04[_/]/i.test(stackName)) ? "SKR04" : "SKR03";
 
-  return { stack, receipts, receiptByGuid, files, expenses, warnings, kontenrahmen };
+  return { stack, receipts, receiptByGuid, files, expenses, bankMovements, revenues, warnings, kontenrahmen };
 }
 
 /** Die Zeilen des Sheets „Ausgaben“ in die Form, mit der `map.ts` arbeitet */
@@ -122,15 +130,90 @@ function expensesOf(xlsx: Uint8Array): AccountableExpenseRow[] {
     net: euros(row[COLUMNS.net]),
     tax: euros(row[COLUMNS.tax]),
     currency: (row[COLUMNS.currency] ?? "").trim().toUpperCase(),
+    taxStatus: (row[COLUMNS.taxStatus] ?? "").trim(),
     taxRate: basisPoints(row[COLUMNS.taxRate]),
     code: normalizeCode(row[COLUMNS.code]),
     codeName: (row[COLUMNS.codeName] ?? "").trim(),
     paid: yesNo(row[COLUMNS.paid]),
     paidDate: isoDate(row[COLUMNS.paidDate]),
     documentPresent: yesNo(row[COLUMNS.documentPresent]),
+    bankMovement: textOrNull(row[COLUMNS.bankMovement]),
     // Die Kopfzeile ist Zeile 1, die erste Datenzeile also Zeile 2
     row: index + 2,
   }));
+}
+
+/** Spaltenköpfe im Sheet „Kontobewegungen“; die Buchstaben stehen am Feld in `types.ts` */
+const MOVEMENT_COLUMNS = {
+  date: "Datum Der Kontobewegung", // A
+  account: "Kontonummer", // B
+  purpose: "Verwendungszweck", // D
+  amount: "Betrag", // E
+  counterparty: "Name Des Senders/Empfängers", // F
+  counterpartyAccount: "Konto Des Senders/Empfängers", // G
+  matched: "Beleg Oder Rechnung Zugeordnet?", // H
+} as const;
+
+/** Die Zeilen des Sheets „Kontobewegungen“: die Umsätze des Bankkontos, mit Vorzeichen */
+function bankMovementsOf(xlsx: Uint8Array): AccountableBankMovement[] {
+  return readXlsxSheet(xlsx, "Kontobewegungen").map((row, index) => ({
+    date: isoDate(row[MOVEMENT_COLUMNS.date]),
+    account: (row[MOVEMENT_COLUMNS.account] ?? "").trim(),
+    purpose: (row[MOVEMENT_COLUMNS.purpose] ?? "").trim(),
+    amount: signedEuros(row[MOVEMENT_COLUMNS.amount]),
+    counterparty: (row[MOVEMENT_COLUMNS.counterparty] ?? "").trim(),
+    counterpartyAccount: (row[MOVEMENT_COLUMNS.counterpartyAccount] ?? "").trim(),
+    matched: yesNo(row[MOVEMENT_COLUMNS.matched]),
+    row: index + 2,
+  }));
+}
+
+/** Spaltenköpfe im Sheet „Rechnungen“; die Buchstaben stehen am Feld in `types.ts` */
+const REVENUE_COLUMNS = {
+  number: "Einkommenszahl", // A
+  kind: "Rechnung Type", // B
+  status: "Status", // C
+  invoiceDate: "Rechnungsdatum", // D
+  paidDate: "Zahlungsdatum", // G
+  customer: "Kundenname", // H
+  net: "Betrag Ohne USt.", // I
+  tax: "USt.-Betrag", // J
+  gross: "Gesamtbetrag", // K
+  currency: "Währung", // L
+  item: "Name Des Artikels", // M
+  taxRate: "USt.-Satz", // P
+} as const;
+
+/** Die Zeilen des Sheets „Rechnungen“: Ausgangsrechnungen und sonstige Einnahmen */
+function revenuesOf(xlsx: Uint8Array): AccountableRevenue[] {
+  return readXlsxSheet(xlsx, "Rechnungen").map((row, index) => ({
+    number: (row[REVENUE_COLUMNS.number] ?? "").trim(),
+    kind: (row[REVENUE_COLUMNS.kind] ?? "").trim(),
+    status: (row[REVENUE_COLUMNS.status] ?? "").trim(),
+    invoiceDate: isoDate(row[REVENUE_COLUMNS.invoiceDate]),
+    paidDate: isoDate(row[REVENUE_COLUMNS.paidDate]),
+    customer: (row[REVENUE_COLUMNS.customer] ?? "").trim(),
+    net: euros(row[REVENUE_COLUMNS.net]),
+    tax: euros(row[REVENUE_COLUMNS.tax]),
+    gross: euros(row[REVENUE_COLUMNS.gross]),
+    currency: (row[REVENUE_COLUMNS.currency] ?? "").trim().toUpperCase(),
+    item: (row[REVENUE_COLUMNS.item] ?? "").trim(),
+    taxRate: basisPoints(row[REVENUE_COLUMNS.taxRate]),
+    row: index + 2,
+  }));
+}
+
+/**
+ * Betrag mit Vorzeichen in Cent: „-44.99“ → −4499. `euros` nimmt nur Beträge ohne Vorzeichen,
+ * hier ist das Minus die Richtung der Zahlung und darf nicht verloren gehen.
+ */
+function signedEuros(value: string | undefined): number | null {
+  const raw = (value ?? "").trim().replace(/\s/g, "");
+  if (raw === "") return null;
+  const negative = raw.startsWith("-");
+  const amount = euros(raw.replace(/^[+-]/, ""));
+  if (amount === null) return null;
+  return negative ? -amount : amount;
 }
 
 function textOrNull(value: string | undefined): string | null {

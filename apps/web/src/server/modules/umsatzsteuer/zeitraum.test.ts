@@ -1,7 +1,7 @@
 import { EricGeprueftClient } from "../../test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -58,8 +58,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldungszeitraum (Postgres)", () => {
   });
 
   async function setCompany(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04") {
-    await sql`truncate vat_frequencies, vat_return_submissions, vat_returns, elster_certificates, allocations, bank_transactions, bank_imports, bank_accounts,
-      journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
+    await leeren(sql)`truncate vat_frequencies, vat_return_submissions, vat_returns, elster_certificates, allocations, bank_transactions, bank_imports,
+      bank_accounts, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',

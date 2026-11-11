@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Anlagenart „Sonstige Transportmittel“ (Roadmap Platz 1, #312) mit Postgres: Zugang über einen Beleg, AfA nach der
@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Sonstige Transportmittel (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate asset_depreciations, assets, document_cancellations, write_offs, allocations, bank_transactions, bank_imports,
+    await leeren(sql)`truncate asset_depreciations, assets, document_cancellations, write_offs, allocations, bank_transactions, bank_imports,
       bank_accounts, journal_lines, journal_entries, document_splits, document_amounts, documents, vat_returns, year_closings, company cascade`;
     await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland) values (1, 'Testfirma', ${versteuerung}, ${kontenrahmen}, 'BY')`;
   }

@@ -2,7 +2,7 @@ import { ebilanzPosition, postenForSaldo } from "@haben/core";
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Darlehen im Bankabgleich mit Postgres (Roadmap Platz 13, Prüffall 2 aus #312): Auszahlung, Rate aufgeteilt in Tilgung,
@@ -48,7 +48,8 @@ describe.skipIf(!testDatabaseUrl)("Darlehen im Bankabgleich (Postgres)", () => {
   });
 
   async function firma(rechtsform: "gmbh" | "einzelunternehmen", kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate allocations, loans, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, year_closings, company cascade`;
+    await leeren(sql)`truncate allocations, loans, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, year_closings,
+      company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform,
                                    datev_berater_nr, datev_mandant_nr)
       values (1, 'Nordlicht Software', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB',

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import type { EmployeeInput } from "../lohn/employees.ts";
 
 /*
@@ -79,7 +79,7 @@ describe.skipIf(!testDatabaseUrl)("SV-Meldeportal (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate sv_portal_filings, payslip_cancellations, payslips, payroll_runs, employees, journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate sv_portal_filings, payslip_cancellations, payslips, payroll_runs, employees, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht Software GmbH', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR04', 'soll', 'gmbh')`;
   });
