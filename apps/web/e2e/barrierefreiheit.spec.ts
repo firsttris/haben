@@ -78,6 +78,8 @@ const PAGES = [
   "/einstellungen?bereich=export",
   "/einstellungen?bereich=seiten",
   "/einstellungen?bereich=sicherheit",
+  "/einstellungen?bereich=persoenlich",
+  "/einstellungen?bereich=waehrung",
   // So sieht die Steuerberatung Haben; ihre eigene Sicht und die Einladung prüft steuerberatung.spec.ts
   "/steuerberatung",
 ];
@@ -617,6 +619,29 @@ test("Dateiwähler: Ein Klick auf „Datei wählen“ öffnet an jeder Stelle de
       expect(await input.evaluate((el: HTMLInputElement) => el.labels?.length ?? 0), `${path} Nr. ${i + 1}: Feldname`).toBeGreaterThan(0);
     }
   }
+});
+
+test("Dateiwähler: Der zugängliche Name enthält den sichtbaren Feldnamen (Label in Name, WCAG 2.5.3)", async ({ page }) => {
+  const pruefen = async (stelle: string) => {
+    const pickers = page.locator(".file-picker");
+    expect(await pickers.count(), `${stelle} hat einen Dateiwähler`).toBeGreaterThan(0);
+    for (let i = 0; i < (await pickers.count()); i++) {
+      const feld = pickers.nth(i).locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' field ')][1]");
+      const sichtbar = ((await feld.locator(".field-label").first().textContent()) ?? "").trim();
+      const maskiert = sichtbar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      await expect(pickers.nth(i).locator("input[type=file]"), `${stelle} Nr. ${i + 1}: „${sichtbar}“`).toHaveAccessibleName(new RegExp(maskiert, "i"));
+    }
+  };
+  for (const path of FILE_PICKER_PAGES) {
+    await open(page, path);
+    await pruefen(path);
+  }
+  // Accountable hat einen eigenen Upload, den die Seite erst nach der Wahl der Quelle zeigt
+  await open(page, "/archiv");
+  await page.getByRole("button", { name: "Umzug aus Accountable" }).click();
+  // Der Upload dieser Quelle muss da sein; der andere Dateiwähler der Seite (Archiv) stünde sonst für ihn
+  await expect(page.getByLabel("Exportdatei (ZIP)")).toBeAttached();
+  await pruefen("/archiv (Accountable)");
 });
 
 test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört zum Eingabefeld", async ({ page }) => {
