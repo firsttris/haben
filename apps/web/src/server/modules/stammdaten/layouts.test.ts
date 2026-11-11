@@ -43,6 +43,7 @@ const mitPaket = `#import "@preview/demo:0.1.0": marke\n${eigene("beleg")}\n#mar
 
 describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres)", () => {
   let layouts: typeof import("./layouts.ts");
+  let liste: typeof import("./layout-liste.ts");
   let letterhead: typeof import("./letterhead.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -50,6 +51,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
   beforeAll(async () => {
     sql = await setupTestDb();
     layouts = await import("./layouts.ts");
+    liste = await import("./layout-liste.ts");
     letterhead = await import("./letterhead.ts");
   }, 30_000);
 
@@ -75,6 +77,41 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const [audit] = await sql`select actor, action from audit_log where table_name = 'beleg_layouts' and row_id = ${id}`;
     expect(audit).toMatchObject({ actor, action: "INSERT" });
   }, 60_000);
+
+  it("liefert je Layout die Einstellungen, die es nicht verwendet, und die Hinweise nach der Zuordnung", async () => {
+    // Ohne GiroCode und ohne Falz- und Lochmarken; der Rest wie das eingebaute
+    const ohne = (art: "beleg" | "mahnung") =>
+      eigene(art)
+        .replace(/(?<![A-Za-z0-9_])qr(?![A-Za-z0-9_])/g, "ohneqr")
+        .replaceAll("look.foldMarks", "false")
+        .replaceAll("foldMarks: true, ", "");
+    const schlicht = await anlegen({ name: "Schlicht", art: "beleg", source: ohne("beleg") });
+    const voll = await anlegen({ name: "Voll", art: "beleg", source: eigene("beleg") });
+    const mahnung = await anlegen({ name: "Schlicht Mahnung", art: "mahnung", source: ohne("mahnung") });
+    const gelistet = await liste.listLayouts();
+    expect(gelistet.find((l) => l.id === schlicht.id)?.ungenutzt).toEqual(["foldMarks", "giroCode"]);
+    expect(gelistet.find((l) => l.id === voll.id)?.ungenutzt).toEqual([]);
+    expect(gelistet.find((l) => l.id === mahnung.id)?.ungenutzt).toEqual(["foldMarks", "giroCode"]);
+    // Den Quelltext schickt die Liste nicht mit
+    expect(gelistet.every((l) => !("source" in l))).toBe(true);
+
+    // Nur zugeordnet zählt: ohne Zuordnung keine Hinweise
+    expect((await liste.layoutOverview()).hints).toEqual({});
+
+    await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id: schlicht.id });
+    await layouts.assignLayout(actor, "angebot", { kind: "eigen", id: voll.id });
+    let { hints } = await liste.layoutOverview();
+    expect(hints.giroCode).toEqual({ aus: false, text: "Wirkt nicht auf Rechnungen: Das Layout „Schlicht“ verwendet qr nicht." });
+    expect(hints.foldMarks?.aus).toBe(false);
+
+    // GiroCode gibt es nur auf Rechnung und Mahnung: Haben beide ein Layout ohne qr, ist die Einstellung aus
+    await layouts.assignLayout(actor, "mahnung", { kind: "eigen", id: mahnung.id });
+    ({ hints } = await liste.layoutOverview());
+    expect(hints.giroCode).toEqual({ aus: true, text: "Die Layouts „Schlicht“ und „Schlicht Mahnung“ verwenden qr nicht." });
+    // Falzmarken wirken noch auf Angebot („Voll“) und die eingebauten Layouts
+    expect(hints.foldMarks?.aus).toBe(false);
+    expect(hints.foldMarks?.text).toMatch(/^Wirkt nicht auf Rechnungen und Mahnungen:/);
+  }, 120_000);
 
   it("lehnt ein Layout ohne Pflichtangaben ab und speichert nichts", async () => {
     await expect(anlegen({ name: "Leer", art: "beleg", source: `#let d = json(bytes(sys.inputs.data))\n= #d.title${FELDER}` })).rejects.toThrow(
@@ -137,9 +174,9 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
   it("meldet einen fehlenden Cache und lädt nur auf Zuruf nach", async () => {
     const { id } = await anlegen({ name: "Restore", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch: universum() });
     rmSync(join(process.env.DOCUMENTS_DIR!, "vorlagen", id, "pakete"), { recursive: true, force: true });
-    expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(true);
+    expect((await liste.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(true);
     await layouts.reloadPackages(id, { fetch: universum() });
-    expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
+    expect((await liste.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
   }, 60_000);
 
   it("ein geänderter Quelltext fragt neu", async () => {
@@ -156,7 +193,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
     const { id } = await anlegen({ name: "Bleibt nutzbar", art: "beleg", source: mitPaket, approve: ["@preview/demo:0.1.0"] }, { fetch });
     await layouts.assignLayout(actor, "rechnung", { kind: "eigen", id });
     await expect(layouts.replaceLayoutSource(actor, id, `#nichtda${FELDER}`, undefined, { fetch })).rejects.toThrow(/Zeile 1/);
-    expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
+    expect((await liste.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
     const { pdf } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
     expect(pdfText(pdf)).toContain("AUS DEM PAKET");
   }, 60_000);
@@ -259,7 +296,7 @@ describe.skipIf(!testDatabaseUrl || !hasPoppler)("Eigene Belegvorlagen (Postgres
       layouts.replaceLayoutSource(actor, id, b, ["@preview/demo:0.3.0", "@preview/hilfe:1.0.0"], { fetch }),
     ]);
     expect(ergebnisse.map((e) => (e.status === "fulfilled" ? "ok" : String(e.reason).slice(0, 200)))).toContain("ok");
-    expect((await layouts.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
+    expect((await liste.listLayouts()).find((l) => l.id === id)?.packagesMissing).toBe(false);
     const { pdf } = await layouts.withCustomLayout("rechnung", {}, (lh) => buildEInvoice({ ...sampleDocument(), ...lh }));
     expect(pdfText(pdf)).toMatch(/FASSUNG [AB]/);
   }, 60_000);

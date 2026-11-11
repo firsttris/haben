@@ -3,12 +3,12 @@ import { readdir, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DEFAULT_LAYOUT, type LayoutDocumentType, type LayoutRef } from "@haben/core";
 import { createRenderClient, LAYOUT_SCHEMA_VERSION, type Letterhead, type PdfRequest } from "@haben/einvoice";
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import { checkLayout, LayoutError, MAX_LAYOUT_BYTES, packagesIn, typstMeldung } from "./layout-pruefung.ts";
-import { clearPackages, directorySize, dropRenderer, packageCache, packagesPresent, rendererFor, samePackages } from "./layout-pakete.ts";
+import { clearPackages, directorySize, dropRenderer, packageCache, rendererFor, samePackages } from "./layout-pakete.ts";
 import {
   type LayoutPackage,
   type PackageFetcher,
@@ -33,38 +33,6 @@ export type LayoutArt = "beleg" | "mahnung";
 
 /** Mahnungen haben eigene Felder; alle anderen Belegarten setzt dieselbe Art Vorlage */
 export const artFor = (type: LayoutDocumentType): LayoutArt => (type === "mahnung" ? "mahnung" : "beleg");
-
-const columns = {
-  id: schema.belegLayouts.id,
-  name: schema.belegLayouts.name,
-  art: schema.belegLayouts.art,
-  schemaVersion: schema.belegLayouts.schemaVersion,
-  packages: schema.belegLayouts.packages,
-  sha256: schema.belegLayouts.sha256,
-  updatedAt: schema.belegLayouts.updatedAt,
-};
-
-export async function listLayouts() {
-  const rows = await db
-    .select({ ...columns, approvedSha256: schema.belegLayouts.approvedSha256 })
-    .from(schema.belegLayouts)
-    .orderBy(asc(schema.belegLayouts.name));
-  return Promise.all(
-    rows.map(async ({ approvedSha256, ...row }) => ({
-      ...row,
-      // Nach einem Restore ohne das Volume: freigegeben, aber nicht mehr da; nachladen nur von Hand
-      packagesMissing: row.packages.length > 0 && approvedSha256 === row.sha256 && !(await packagesPresent(row.id, row.packages)),
-    })),
-  );
-}
-
-export async function layoutSource(id: string): Promise<{ name: string; source: string } | null> {
-  const [row] = await db
-    .select({ name: schema.belegLayouts.name, source: schema.belegLayouts.source })
-    .from(schema.belegLayouts)
-    .where(eq(schema.belegLayouts.id, id));
-  return row ?? null;
-}
 
 function cleanName(name: string): string {
   const trimmed = name.trim();

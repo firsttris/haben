@@ -90,7 +90,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       logo,
       background,
       design,
-      layouts,
+      overview,
       inbox,
       exportYears,
       datev,
@@ -140,7 +140,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       logo,
       background,
       design,
-      layouts,
+      layouts: overview.layouts,
+      layoutHints: overview.hints,
       inbox,
       exportYears,
       datev,
@@ -172,6 +173,7 @@ function SettingsPage() {
     background,
     design,
     layouts,
+    layoutHints,
     mail,
     inbox,
     exportYears,
@@ -237,9 +239,9 @@ function SettingsPage() {
           )}
           {bereich === "gestaltung" && (
             <>
-              <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
-              <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} />
-              <AccentColorCard color={design.accent} />
+              <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} hints={layoutHints} />
+              <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} hints={layoutHints} />
+              <AccentColorCard color={design.accent} hint={layoutHints.accent} />
               <FooterCard columns={design.footerColumns} seller={company} hidden={design.footerHidden && background !== null} />
               <LayoutsCard design={design} layouts={layouts} />
             </>

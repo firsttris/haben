@@ -350,6 +350,9 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .checkbox-hinted > .checkbox { align-items: flex-start; min-height: 0; }
 .checkbox-hinted > .field-hint { display: block; padding-left: 35px; }
 @media (pointer: coarse) { .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; } }
+/* Zwischen Kästchen ohne Hinweis (44px hoch) sonst zu eng: oben und unten so viel Luft, wie deren Zeile hat */
+.design-card .checkbox-hinted { margin-block: 12px; }
+@media (pointer: coarse) { .design-card .checkbox-hinted { margin-block: 0 8px; } }
 
 .pill { display: inline-block; white-space: nowrap; font-size: 12px; font-weight: 500; line-height: 16px; padding: 4px 8px; border-radius: 12px; background: var(--line-soft); color: var(--ink-2); }
 .pill-ok { background: var(--accent-soft); color: var(--accent-ink); }
