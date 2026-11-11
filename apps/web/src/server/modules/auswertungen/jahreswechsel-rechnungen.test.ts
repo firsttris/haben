@@ -178,6 +178,20 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Rechnungen, Zahlunge
           await abgleichSauber();
         }, 60_000);
 
+        it(`Teilzahlung 150,00 € am 31.12. mit Rundungsrest, Rest am 1.1. (${fall})`, async () => {
+          await reset(versteuerung, kontenrahmen, journalAb);
+          const inv = await gemischt("2026-12-10");
+          await zahlung(inv.id, "31.12.26", "150,00");
+          await zahlung(inv.id, "01.01.27", "1.575,00");
+          // Steuer gesamt 225 × 150 / 1725 = 19,57 €; je Satz 16,52 € und 3,04 € (19,56 €): der Cent Rest geht an den
+          // größten Posten (19 %), ebenso beim Netto (86,96 € + 43,48 € = 130,44 € statt 130,43 €), paidTaxShares
+          expect(await va(DEZ)).toEqual(dez(versteuerung === "soll" ? VOLL : { kz81: 8_695, tax81: 1_653, kz86: 4_348, tax86: 304 }));
+          expect(await va(JAN)).toEqual(jan(versteuerung === "ist" ? { kz81: 91_305, tax81: 17_347, kz86: 45_652, tax86: 3_196 } : {}));
+          expect(await euer(2026)).toEqual({ einnahmenSteuerpflichtig: 13_043, vereinnahmteUst: 1_957, gewinn: 15_000 });
+          expect(await euer(2027)).toEqual({ einnahmenSteuerpflichtig: 136_957, vereinnahmteUst: 20_543, gewinn: 157_500 });
+          await abgleichSauber();
+        }, 60_000);
+
         it(`Zahlung im Januar mit 3 % Skonto (${fall})`, async () => {
           await reset(versteuerung, kontenrahmen, journalAb);
           const inv = await gemischt("2026-12-10");
