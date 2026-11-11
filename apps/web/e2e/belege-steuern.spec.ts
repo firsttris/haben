@@ -713,6 +713,9 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
     await go("/kontakte?rolle=lieferant");
     await page.getByRole("link", { name: new RegExp(name) }).click();
+    // Reiner Lieferant ohne gebuchten Beleg (#587): Abschnitt für Belege mit Hinweis, keiner für Rechnungen
+    await expect(page.getByRole("region", { name: "Ausgaben und Belege", exact: true })).toContainText("Noch keine gebuchten Belege von diesem Kontakt.");
+    await expect(page.getByRole("region", { name: "Umsatz und Rechnungen", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Archivieren" }).click();
     await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
   }

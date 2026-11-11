@@ -100,6 +100,7 @@ const KIND_LABEL = {
   invoice: "Rechnung",
   document: "Beleg",
   privat: "Privat",
+  spende: "Spende",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
   sondervorauszahlung: "Sondervorauszahlung",
@@ -823,6 +824,7 @@ function ImportControls({ data }: { data: Data }) {
                     text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
                   },
                   ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
+                  ...(r.quelle ? [{ tone: "danger" as const, text: r.quelle }] : []),
                   ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
                 ]
               : [],

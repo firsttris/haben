@@ -354,7 +354,7 @@ backend haben-app
 
 ## Mehrere Instanzen
 
-Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy. In welcher Instanz du gerade bist, zeigt die Navigation mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten).
 
 ```
 haben-firma1/
@@ -395,10 +395,24 @@ firma2.example.de {
 Weitere Punkte:
 
 - **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](#eric-einbinden).
-- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, bist du für diese Person Softwarehersteller nach der ERiC-Lizenz, siehe [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller). Wer Buchhaltungsdaten für andere hostet, ist zudem Auftragsverarbeiter nach DSGVO.
+- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, kommen Pflichten dazu, siehe [Für andere betreiben](#für-andere-betreiben).
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
 Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.
+
+### Für andere betreiben
+
+Betreibst du Haben nicht nur für dich, sondern für andere, etwa als gehostete Instanz für Kunden, bist du nicht mehr nur Nutzer. Haben ist dafür gebaut, dass jeder seine Buchhaltung selbst betreibt; für andere übernimmst du Pflichten, die bei einer eigenen Instanz nicht anfallen. Diese Liste ist keine Rechtsberatung: Lass Vertrag, AGB und Auftragsverarbeitung von einer Anwältin oder einem Anwalt für IT- und Steuerrecht prüfen, bevor du anbietest.
+
+- **Softwarehersteller nach der ERiC-Lizenz.** Mit deiner Hersteller-ID bist du für deine Kunden Hersteller im Sinne des ERiC-Lizenzvertrags (`lizenz.pdf` im ERiC-Paket): Du leistest den Support (§ 7), hältst die Mindestversion von ERiC ein (§ 5), und jeder Nutzer bestätigt vor der ersten Nutzung die Datenschutzhinweise der Finanzverwaltung (§ 5). Bei Verstößen kann das Landesamt die ID sperren (§ 9); dann sendet keine Instanz mehr, die sie trägt, auch deine eigene nicht. Hast du Haben verändert, brauchst du eine eigene ID (§ 4). Mehr unter [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller).
+- **Auftragsverarbeiter nach DSGVO.** In einer Buchhaltung stehen Namen, Anschriften, Bankverbindungen, Steuernummern und Umsätze von Kunden und Lieferanten. Wer sie für andere hostet, verarbeitet sie in deren Auftrag und braucht mit jedem Kunden einen Vertrag nach Art. 28 DSGVO mit den technischen und organisatorischen Maßnahmen (Art. 32 DSGVO): Verschlüsselung, Backups, Zugriff, Löschung. Dasselbe gilt für Dienste, die du dazuschaltest, etwa die [KI-Auslesung](#ki-auslesung-anthropic) bei einem Cloud-Anbieter; sie sind dann deine Unterauftragsverarbeiter.
+- **Jeder sendet mit seinem eigenen Zertifikat.** Haben übermittelt mit dem ELSTER-Zertifikat, das in der Instanz hinterlegt ist. Bleibt es das Zertifikat des Kunden, sendet er selbst. Sendest du für Kunden mit deinem eigenen Zertifikat, wie es Cloud-Dienste tun, ist das Datenübermittlung im Auftrag nach § 87d AO: Du musst deine Auftraggeber identifizieren und die Übermittlungen aufbewahren (siehe [Warum Lexoffice ohne dein Zertifikat sendet](einrichtung.md#warum-lexoffice-ohne-dein-zertifikat-sendet)). Dafür ist Haben nicht gebaut.
+- **Aufbewahrung und Datenzugriff.** Für die Bücher bleibt der Kunde verantwortlich. Er muss sie 8 bis 10 Jahre aufbewahren und dem Finanzamt bei einer Außenprüfung Zugriff geben (§ 147 Abs. 3 und 6 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Regle deshalb im Vertrag, wie er an seine Daten kommt, wenn er kündigt oder du den Dienst einstellst: mindestens das [Jahresarchiv](auswertungen.md) und das Änderungsprotokoll, rechtzeitig vor dem Löschen.
+- **Du hast vollen Zugriff.** Die GoBD-Trigger schützen vor Versehen, nicht vor Absicht: Wer Server und Datenbank betreibt, kann sie abschalten (siehe [Architektur › Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)). Bei einer eigenen Instanz ist das der Steuerpflichtige selbst, hier bist du es. Sag das deinen Kunden. Den Nachweis, dass nachträglich nichts verändert wurde, tragen der wöchentliche Prüfwert des Änderungsprotokolls an die Adresse des Kunden und seine eigenen Exporte, nicht dein Wort.
+- **Betrieb und Haftung.** Updates, Backups mit Test-Restore, Erneuerung von ERiC und Überwachung liegen bei dir. Fällt deine Instanz vor einer Frist aus, etwa am Tag der Voranmeldung, trifft der Verspätungszuschlag den Kunden. Leg im Vertrag fest, was du zusagst (Verfügbarkeit, Wiederherstellung, Haftung), und sag ihm, wie er im Notfall in Mein ELSTER abgibt (siehe [Abgabe an ELSTER](elster-abgabe.md)).
+- **Nur Software, keine Steuerberatung.** Bucht der Kunde selbst, stellst du nur Software und Server bereit. Buchst du für ihn, erstellst seine Voranmeldung oder berätst ihn, ist das Hilfeleistung in Steuersachen, die das Steuerberatungsgesetz nur bestimmten Personen erlaubt (§§ 2 bis 6 StBerG).
+
+Eine offizielle Aussage der Finanzverwaltung zum Betrieb freier Software für andere gibt es nicht. Wer es genau wissen will, fragt beim Bayerischen Landesamt für Steuern nach (siehe [Open Source und die Hersteller-ID](einrichtung.md#open-source-und-die-hersteller-id)).
 
 ## Umgebungsvariablen
 

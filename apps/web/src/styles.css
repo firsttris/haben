@@ -134,9 +134,14 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
 .nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 4px 12px 28px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
+.brand { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px 12px 28px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
-.brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
+/* Mit Firmenname (#504): „Haben“ bleibt, darunter der Name in bis zu zwei Zeilen, klein genug für lange Namen */
+.brand-text { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.brand-firma { color: var(--nav-ink); font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* Voller Name beim Überfahren (nur Desktop): wächst an der Stelle des gekürzten Namens nach unten und über die ersten Menüpunkte, bis zum rechten Rand der Navigation; das „H“ und „Haben“ bleiben frei */
+.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: -12px; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
+.brand-mark { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; }
 .nav-link:hover { color: #fff; }
 .nav-link[data-status="active"] { background: var(--nav-active); color: #fff; font-weight: 500; }
@@ -167,7 +172,13 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
   .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
-  .brand { padding: 4px 12px; }
+  /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
+     er wird gekürzt */
+  .brand { padding: 0 12px; flex: 1 1 0; min-width: 0; }
+  .brand-text { line-height: 22px; }
+  .brand-firma { display: block; white-space: nowrap; text-overflow: ellipsis; }
+  .brand-firma-voll { display: none; }
+  .nav-toggle { flex-shrink: 0; }
   .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
   .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); overflow-y: auto; }

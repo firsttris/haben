@@ -270,7 +270,17 @@ export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp |
 }
 
 export interface DirectSuggestion {
-  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "lohnsteuer" | "zinsertrag" | "kategorie";
+  kind:
+    | "privat"
+    | "spende"
+    | "geldtransit"
+    | "ustVorauszahlung"
+    | "sondervorauszahlung"
+    | "gebuehren"
+    | "mahnerloes"
+    | "lohnsteuer"
+    | "zinsertrag"
+    | "kategorie";
   reasons: string[];
   /** Nur bei „kategorie“: Kategorie und Steuersatz, wie früher direkt gebucht (#324) */
   kategorie?: KategorieAngabe;
@@ -430,7 +440,7 @@ export interface LearnedBooking {
  * wissen oder was eine Angabe braucht, die sich je Zahlung ändert (Steuerart und Jahr, Teil einer Darlehensrate, die
  * offene Lohnverbindlichkeit).
  */
-const LEARNED_KINDS = new Set(["privat", "gebuehren", "mahnerloes", "zinsertrag", "kategorie"]);
+const LEARNED_KINDS = new Set(["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag", "kategorie"]);
 
 /** „2026-09-30“ → „30.09.2026“; `last` kann ein Zeitstempel sein, gezählt wird der Tag */
 const tagText = (iso: string) => iso.slice(0, 10).split("-").reverse().join(".");

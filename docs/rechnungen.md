@@ -660,6 +660,20 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 
+### Rechnungen und Belege am Kontakt
+
+Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
+
+- **Umsatz und Rechnungen** (Kunde): festgeschriebene Rechnungen aus Haben und die Einnahmen aus dem Archiv des Umzugs. Entwürfe zählen nicht. Stornorechnung, Rechnungskorrektur und Gutschrift mindern mit ihrem negativen Betrag, und zwar im Jahr ihres eigenen Datums: Ein Storno im Januar zu einer Rechnung vom Dezember mindert das neue Jahr.
+- **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md) und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.
+
+Oben stehen die Summen je Jahr, netto und brutto, mit dem Anteil aus dem Altbestand und bei mehreren Jahren einer Zeile **Gesamt**. Ab zwei Jahren zeigt ein Säulendiagramm darüber die Nettosummen, in den Farben der Einnahmen bzw. Ausgaben wie unter [Auswertungen](auswertungen.md#einnahmen-und-ausgaben-je-monat); Zeigen oder Fokus nennt netto, brutto und den Anteil aus dem Altbestand. Ein Klick auf ein Jahr in der Tabelle oder auf seine Säule (per Tastatur mit Enter) zeigt seine Einträge darunter; ohne Wahl ist es das neueste Jahr mit Einträgen. Jede Zeile führt zur Rechnung, zum Beleg oder zum archivierten Beleg.
+
+- **Zugeordnet wird nur über den Kontakt**, nie über den Namen: Ein zweiter Kontakt mit gleichem Namen zählt nicht mit, ebenso wenig eine Rechnung, ein Beleg oder ein archivierter Beleg ohne Kontakt.
+- **Das Jahr ist das Rechnungs- bzw. Belegdatum.** Die Seite ist eine Übersicht, keine EÜR: Zahlungsdatum, Ist- und Soll-Versteuerung spielen keine Rolle.
+- **Der Altbestand rechnet wie unter Archiv › Belege**, Gutschriften negativ. Ein [übernommener offener Posten](lexoffice.md#schritt-3-offene-posten-übernehmen) steht nur einmal da, als Rechnung bzw. Beleg in Haben.
+- Ein Abschnitt erscheint mit der Rolle oder sobald es Einträge gibt: Ein Lieferant, dem du früher auch Rechnungen geschrieben hast, zeigt beide.
+
 ### SEPA-Lastschriftmandate
 
 Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
