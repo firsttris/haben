@@ -972,6 +972,7 @@ export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: Pos
 
 const DIRECT_KINDS = [
   "privat",
+  "spende",
   "geldtransit",
   "ustVorauszahlung",
   "sondervorauszahlung",

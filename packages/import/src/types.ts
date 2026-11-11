@@ -6,6 +6,8 @@ export type StatementFormat =
   | "n26-csv"
   /** Kontoauszug von Swan (CSV mit Kopfblock, Datum TT/MM/JJJJ) */
   | "swan-csv"
+  /** Umsätze aus dem Online-Banking der Commerzbank (Semikolon-CSV ohne Kontostand) */
+  | "commerzbank-csv"
   | "camt053"
   | "enablebanking"
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */

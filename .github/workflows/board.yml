@@ -16,9 +16,12 @@ on:
 permissions:
   contents: read
 
-# Nacheinander, damit zwei Ereignisse dieselbe Karte nicht gleichzeitig setzen
+# Je Issue bzw. PR nacheinander, damit zwei Ereignisse dieselbe Karte nicht gleichzeitig setzen. Keine
+# gemeinsame Gruppe: GitHub hält je Gruppe nur einen wartenden Lauf und bricht den älteren ab, auch mit
+# cancel-in-progress: false. Wer mehrere Issues kurz hintereinander zuweist, verlöre so Kartenbewegungen.
+# Issues und PRs teilen sich die Nummern, eine Nummer ist also immer genau eine Karte.
 concurrency:
-  group: board
+  group: board-${{ github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:

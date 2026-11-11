@@ -41,6 +41,19 @@ describe("withDedupHashes", () => {
     expect(again.map((t) => t.dedupHash)).toEqual(neu.map((t) => t.dedupHash));
   });
 
+  it("erkennt dieselben Commerzbank-Umsätze in überlappenden Exporten", () => {
+    const text = new TextDecoder().decode(fixture("commerzbank.csv"));
+    const [kopf, ...zeilen] = text.trimEnd().split("\n");
+    // Zweiter Export: die drei jüngsten Umsätze fehlen, ein älterer ist dazugekommen
+    const neuer = `30.09.2026;30.09.2026;Überweisung;Rheinpixel GmbH RE-2026-020 End-to-End-Ref.: NOTPROVIDED Kundenreferenz: 2609300001;500;EUR;DE60123456780012345678;;Rheinpixel GmbH;;RE-2026-020`;
+    const zweiter = new TextEncoder().encode([kopf, ...zeilen.slice(3), neuer].join("\n"));
+    const erste = withDedupHashes(parseStatement(fixture("commerzbank.csv")).transactions);
+    const andere = withDedupHashes(parseStatement(zweiter).transactions);
+    const bekannt = new Set(erste.map((t) => t.dedupHash));
+    expect(andere.filter((t) => bekannt.has(t.dedupHash)).map((t) => t.index)).toEqual([0, 1, 2, 3]);
+    expect(bekannt.has(andere[4]!.dedupHash)).toBe(false);
+  });
+
   it("erkennt dieselben Umsätze in CSV und CAMT der gleichen Bank", () => {
     const camt = withDedupHashes(parseStatement(fixture("camt053-001-02.xml")).transactions);
     const altHashes = new Set(alt.map((t) => t.dedupHash));

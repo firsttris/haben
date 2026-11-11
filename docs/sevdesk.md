@@ -106,7 +106,7 @@ Bei **Ist-Versteuerung** sperrt Haben dann den monatlichen Altbestandsabgleich f
 
 #### Stornierte Rechnungen
 
-sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag und wenn zu beiden keine Zahlung besteht; sonst bleibt der Stand unklar. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt. Die Aufteilung nach Steuersatz steht dagegen im Abruf: Hat eine früher abgerufene Stornorechnung mehrere Steuersätze und eine Rabattzeile, heben sich die Beträge nur in der Summe auf, nicht je Satz.
+sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag, nur wenn zu beiden keine Zahlung besteht und nur bei genau einer Stornorechnung zur Rechnung; sonst bleibt der Stand unklar. Einen Zahlungstag (`payDate`) an der Stornorechnung zählt Haben nicht als Zahlung, wenn sie `paidAmount` 0 nennt: sevDesk setzt ihn beim Stornieren teils, ohne dass Geld floss ([#472](https://github.com/firsttris/haben/issues/472)). An der stornierten Rechnung bleibt ein Zahlungstag ein Grund für „unklar“. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt. Die Aufteilung nach Steuersatz steht dagegen im Abruf: Hat eine früher abgerufene Stornorechnung mehrere Steuersätze und eine Rabattzeile, heben sich die Beträge nur in der Summe auf, nicht je Satz.
 
 ### Angebote, Auftragsbestätigungen und Lieferscheine
 
@@ -138,7 +138,7 @@ Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
 
-- sevDesk schreibt von Belegnummern über 36 Zeichen nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
+- sevDesk entfernt aus Belegnummern Zeichen, die im DATEV-Feld nicht erlaubt sind (etwa Punkt und Umlaute), und schreibt von längeren Nummern nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
 - In Zahlungsbuchungen steht im Belegfeld 1 oft eine interne Kennung von sevDesk (UUID). Sie ist keine Belegnummer und zählt im Abgleich unter „ohne Belegnummer“.
 
 - Eine offene Rechnung ohne Nummer bekommt in Haben die Nummer `SD-` plus die ID aus sevDesk.
