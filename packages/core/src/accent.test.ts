@@ -60,4 +60,28 @@ describe("inkOnAccent", () => {
     // #8A8A8A hat zu Weiß nur 3,45 : 1, zu #16211C 4,8 : 1
     expect(inkOnAccent("#8A8A8A")).toBe("#16211C");
   });
+
+  // Das „H“ der Navigation (16 px, 600) ist kleine Schrift; barrierefreiheit.spec.ts prüft color-contrast auf jeder Seite
+  it("hält für jede Farbe 4,5 : 1 nach WCAG 1.4.3, auch für mittlere Töne um #7E7E7E", () => {
+    const lum = (hex: string) => {
+      const c = (o: number) => {
+        const v = parseInt(hex.slice(o, o + 2), 16) / 255;
+        return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * c(1) + 0.7152 * c(3) + 0.0722 * c(5);
+    };
+    const kontrast = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    const zuWenig: string[] = [];
+    for (let g = 0; g < 256; g++) {
+      for (const hex of [
+        `#${g.toString(16).padStart(2, "0").repeat(3)}`,
+        `#${g.toString(16).padStart(2, "0")}8000`,
+        `#00${g.toString(16).padStart(2, "0")}FF`,
+      ]) {
+        const ratio = kontrast(hex, inkOnAccent(hex));
+        if (ratio < MIN_TEXT_CONTRAST) zuWenig.push(`${hex.toUpperCase()} ${ratio.toFixed(2)}`);
+      }
+    }
+    expect(zuWenig).toEqual([]);
+  });
 });
