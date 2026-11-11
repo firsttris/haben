@@ -189,7 +189,14 @@ test("ein langer Name klappt beim Überfahren nach unten ganz auf, ohne die Mark
     const rahmen = el.getBoundingClientRect();
     const navigation = document.querySelector<HTMLElement>("nav.nav")!.getBoundingClientRect();
     const mitte = document.elementFromPoint(rahmen.left + rahmen.width / 2, rahmen.top + rahmen.height - 4);
+    const zeichen = document.querySelector<HTMLElement>(".brand-mark")!.getBoundingClientRect();
+    const haben = document.querySelector<HTMLElement>(".brand-text")!.getBoundingClientRect();
+    const name = document.querySelector<HTMLElement>(".brand-firma")!.getBoundingClientRect();
     return {
+      // Das Zeichen „H“ und die Zeile „Haben“ bleiben frei; der Text steht dort, wo vorher der gekürzte Name stand
+      zeichenFrei: rahmen.left >= zeichen.right || rahmen.top >= zeichen.bottom,
+      habenFrei: rahmen.top >= haben.top + (name.top - haben.top) - 6,
+      textGleich: Math.abs(el.getBoundingClientRect().left - name.left) <= 8 + 1,
       ganz: el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth,
       inDerNavigation: rahmen.left >= navigation.left && rahmen.right <= navigation.right,
       oben: el.contains(mitte),
@@ -204,6 +211,9 @@ test("ein langer Name klappt beim Überfahren nach unten ganz auf, ohne die Mark
       })(),
     };
   });
+  expect(gemessen.zeichenFrei).toBe(true);
+  expect(gemessen.habenFrei).toBe(true);
+  expect(gemessen.textGleich).toBe(true);
   expect(gemessen.ganz).toBe(true);
   expect(gemessen.inDerNavigation).toBe(true);
   expect(gemessen.oben).toBe(true);
