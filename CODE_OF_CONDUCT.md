@@ -18,10 +18,12 @@ Beispiele für Verhaltensweisen, die zu einem positiven Umfeld für unsere Gemei
 
 Beispiele für inakzeptables Verhalten sind:
 
-* Die Verwendung sexualisierter Sprache, Bilder oder Symbolik sowie unerwünschte Versuche sexueller Annäherung
-* Beleidigende oder abwertende Kommentare, persönliche oder politische Angriffe und Trollen
-* Öffentliche oder private Belästigungen
-* Das Veröffentlichen von privaten Informationen Anderer, wie zum Beispiel physische oder elektronische Adressen, ohne deren ausdrückliche Erlaubnis
+* Beleidigende oder abwertende Kommentare, persönliche Angriffe und Trollen, auch gegen Beitragende, deren Code nicht übernommen wird
+* Öffentliche oder private Belästigungen, etwa wiederholtes Anschreiben oder Erwähnen, nachdem jemand um Ruhe gebeten hat
+* Druck auf Maintainer und Beitragende: Fristen fordern, Issues und Pull Requests mit Nachfragen fluten, Ablehnungen in neuen Issues wieder aufrollen, ohne neue Gründe
+* Das Veröffentlichen von privaten Informationen Anderer ohne deren ausdrückliche Erlaubnis, etwa Adressen, Belegdaten, Steuernummern, IBANs oder Zugangsdaten
+* Spam und Werbung in Issues, Pull Requests und Diskussionen
+* Fremden Code oder fremde Inhalte einreichen, die nicht unter einer zur AGPL-3.0 passenden Lizenz stehen, oder deren Herkunft verschweigen
 * Anderes Verhalten, welches in einem professionellen Umfeld begründet als unangemessen betrachtet werden kann
 
 ## Verantwortlichkeiten bei der Durchsetzung
@@ -70,7 +72,7 @@ Die Gemeinschaftsleitung wird sich bei der Bestimmung der Konsequenzen für jede
 
 ## Bezug
 
-Dieser Verhaltenskodex ist angelehnt an den [Contributor Covenant][homepage], Version 2.1, verfügbar unter [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1] unter der Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de). Geändert: Titel, und unter „Unsere Verpflichtung“ steht statt der Aufzählung einzelner Merkmale ein allgemeiner Satz.
+Dieser Verhaltenskodex ist angelehnt an den [Contributor Covenant][homepage], Version 2.1, verfügbar unter [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1] unter der Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de). Geändert: der Titel; unter „Unsere Verpflichtung“ steht statt der Aufzählung einzelner Merkmale ein allgemeiner Satz; die Beispiele für inakzeptables Verhalten sind auf ein Open-Source-Projekt zugeschnitten.
 
 Community Impact Guidelines wurden von [Mozillas Code of Conduct Enforcement Ladder][mozilla] inspiriert.
 
