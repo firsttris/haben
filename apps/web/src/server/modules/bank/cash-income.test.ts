@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Bareinnahme ohne Rechnung im Kassenbuch (#276), etwa die Tagessumme eines Marktstands: Kasse an Erlöse am Tag der
@@ -36,7 +36,7 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme ohne Rechnung (Postgres, #276)", 
   });
 
   async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", kleinunternehmer = false) {
-    await sql`truncate write_offs, allocations, cash_entries, journal_lines, journal_entries, year_closings, company cascade`;
+    await leeren(sql)`truncate write_offs, allocations, cash_entries, journal_lines, journal_entries, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, kleinunternehmer,
                                    datev_berater_nr, datev_mandant_nr)
       values (1, 'Glühwein & Kerzen', 'Marktplatz 1', '93047', 'Regensburg', 'stand@example.com', '198/113/10010', 'BY',

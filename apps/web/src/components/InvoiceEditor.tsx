@@ -820,9 +820,10 @@ export function InvoiceEditor({
                 <Field
                   label="Rechnungsart"
                   hint={
-                    variant && variant === "abschlag"
+                    variant &&
+                    (variant === "abschlag"
                       ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
-                      : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen."
+                      : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen.")
                   }
                   style={{ gridColumn: "1 / -1" }}
                 >

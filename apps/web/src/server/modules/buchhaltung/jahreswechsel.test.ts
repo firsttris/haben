@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Buchungen ins Vorjahr nach einem Wechsel von Kontenrahmen oder Versteuerung zum Jahreswechsel.
@@ -61,7 +61,7 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
   });
 
   beforeEach(async () => {
-    await sql`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',

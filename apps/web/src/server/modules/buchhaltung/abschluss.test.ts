@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Jahresabschluss (Postgres)", () => {
   let sql: postgres.Sql;
@@ -22,7 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresabschluss (Postgres)", () => {
   });
 
   async function setup(rechtsform: "einzelunternehmen" | "gmbh", kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll" = "ist") {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, company cascade`;
     // year_closings ist nur anhängbar; für jeden Fall leer beginnen
     await sql.begin(async (tx) => {
       await tx`alter table year_closings disable trigger year_closings_append_only`;

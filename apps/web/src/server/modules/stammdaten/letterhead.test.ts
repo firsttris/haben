@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { sampleDocument } from "../../../../../../packages/einvoice/src/samples.ts";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const hasPdftoppm = (() => {
   try {
@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)("Briefkopf und Standardprofil (Postgres)", () 
   });
 
   beforeEach(async () => {
-    await sql`truncate letterhead_profiles, letterhead_background, company_logo, company cascade`;
+    await leeren(sql)`truncate letterhead_profiles, letterhead_background, company_logo, company cascade`;
     await sql`insert into company (id, name) values (1, 'Testfirma')`;
   });
 

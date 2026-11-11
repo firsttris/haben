@@ -15,6 +15,9 @@ export type Durchlauf = keyof typeof DURCHLAEUFE;
 /** Die nachgebaute Enable-Banking-API in belege-steuern.spec.ts; + 7 und + 8 belegen langsame-anfrage und beenden */
 export const ENABLE_BANKING_PORT = PORT + 9;
 
+/** Nachgebaute Paketquelle für eigene Layouts in layouts.spec.ts (LAYOUTS_PACKAGES_URL) */
+export const LAYOUT_PAKETE_PORT = PORT + 10;
+
 export const portFuer = (durchlauf?: Durchlauf) => PORT + (durchlauf ? DURCHLAEUFE[durchlauf] : 0);
 
 /** Neben der E2E-Datenbank, Name endet wie verlangt auf „e2e“: haben_e2e → haben_gmbh_e2e */

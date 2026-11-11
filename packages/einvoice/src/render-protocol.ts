@@ -9,6 +9,8 @@ export interface RenderJob {
   data: unknown;
   /** Logo und Briefpapier: liegen nur für diesen Lauf als Dateien neben der Vorlage */
   files: { name: string; base64: string }[];
+  /** Statt des SVG ein PDF/A-3b mit diesem Datum als Erstellungszeit (ISO-Datum) */
+  pdf?: { date: string };
 }
 
 export interface RenderedSheet {
@@ -24,4 +26,7 @@ export interface RenderedSheet {
 
 export type RenderRequest = RenderJob & { id: number };
 
-export type RenderResponse = { id: number; ok: true; sheet: RenderedSheet } | { id: number; ok: false; message: string };
+export type RenderResponse =
+  | { id: number; ok: true; sheet: RenderedSheet }
+  | { id: number; ok: true; pdf: string }
+  | { id: number; ok: false; message: string };

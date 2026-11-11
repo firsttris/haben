@@ -129,6 +129,28 @@ Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzu
 - Die Buchungen aus dem Accountable-Stapel sind dieselben, die du in Schritt 4 noch einmal als DATEV-Buchungsstapel ablegst. Der Abgleich erkennt sie an ihren Belegnummern, synthetisch bei Ausgaben, echt bei Ausgangsrechnungen.
 - Die letzte Rechnungsnummer für Schritt 5 steht nicht im Stapel. Trage sie aus Accountable von Hand in den Einstellungen nach.
 
+## Rechnungen mit mehreren Buchungscodes
+
+Accountable kann eine Rechnung auf mehrere Konten verteilen. Im Ausgabenblatt steht dann je
+Konto eine Zeile, alle mit demselben Lieferanten und Datum, aber ohne Belegnummer, die sie
+zusammenbindet. Beim Export fehlt damit die Angabe, welche Zeilen eine Rechnung sind.
+
+Wer die Zeilen einzeln übernimmt, bekommt einen Beleg über den Teilbetrag der ersten Zeile.
+Die übrigen Zeilen haben keine eigene Datei, werden deshalb nicht gebucht und fehlen im
+Aufwand und in der Vorsteuer.
+
+`sammelrechnungen()` fasst Zeilen mit gleichem Lieferanten und Datum zu einer Rechnung
+zusammen und liefert die Positionen einzeln, damit Haben sie als Aufteilung bucht.
+`zeilenInSammelrechnungen()` nennt die Zeilennummern, die dabei aufgehen, damit ein
+Aufrufer sie überspringt.
+
+Beides liest nur. In `apps/web` ruft die Funktionen noch niemand auf; der Umzug nutzt sie
+über ein Skript außerhalb dieses Repos.
+
+Die Zuordnung bleibt eine Annahme, weil zwei getrennte Käufe beim selben Händler am selben
+Tag genauso aussehen. Die Summe der Zeilen ist in beiden Fällen dieselbe; unterschiedlich
+ist, ob sie gebucht wird.
+
 ## Vor der Kündigung
 
 - [ ] Für jedes Geschäftsjahr ist der DATEV-Export hochgeladen und der Lauf ist fertig

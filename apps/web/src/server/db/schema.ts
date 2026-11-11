@@ -1515,6 +1515,31 @@ export const letterheadProfiles = pgTable(
   ],
 );
 
+/**
+ * Eigene Belegvorlagen (#113): Typst-Quelltext mit Namen, für Belege oder Mahnungen. Der Text steht wie alles andere im
+ * Änderungsprotokoll. Pakete, die eine Vorlage braucht, sind nur mit Freigabe nutzbar; die Freigabe gilt für genau
+ * diesen Quelltext (approved_sha256), eine geänderte Vorlage fragt neu.
+ */
+export const belegLayouts = pgTable(
+  "beleg_layouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    art: text("art", { enum: ["beleg", "mahnung"] }).notNull(),
+    source: text("source").notNull(),
+    sha256: text("sha256").notNull(),
+    /** Version des Feldvertrags, für die das Layout geschrieben ist (LAYOUT_SCHEMA_VERSION) */
+    schemaVersion: smallint("schema_version").notNull(),
+    /** Pakete, die der Quelltext importiert, z. B. { name: "@preview/cetz", version: "0.3.4" } */
+    packages: jsonb("packages").$type<{ name: string; version: string }[]>().notNull().default([]),
+    /** SHA-256 des Quelltexts, für den die Pakete freigegeben sind; null = nicht freigegeben */
+    approvedSha256: text("approved_sha256"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("beleg_layouts_name").on(t.name), check("beleg_layouts_name_laenge", sql`char_length(${t.name}) between 1 and 60`)],
+);
+
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
 export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),

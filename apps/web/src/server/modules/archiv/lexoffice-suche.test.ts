@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Lexoffice-/sevDesk-Altbestand für KI-Assistenten (Postgres)", () => {
   let lexoffice: typeof import("./lexoffice.ts");
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-/sevDesk-Altbestand für KI-Assiste
   });
 
   beforeEach(async () => {
-    await sql`truncate lexoffice_vouchers, lexoffice_imports cascade`;
+    await leeren(sql)`truncate lexoffice_vouchers, lexoffice_imports cascade`;
     const [run] = await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb) returning id`;
     importId = run!.id as string;
   });

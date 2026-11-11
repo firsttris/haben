@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Eigene Seiten (Postgres)", () => {
   let pages: typeof import("./pages.ts");
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Eigene Seiten (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate custom_pages`;
+    await leeren(sql)`truncate custom_pages`;
   });
 
   it("legt Seiten an, sortiert sie nach Name, ändert und löscht sie und protokolliert jede Änderung", async () => {

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorlage (Postgres, #445)", () => {
   let sql: postgres.Sql;
@@ -40,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, recurring_invoices,
+    await leeren(sql)`truncate journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, recurring_invoices,
       invoice_number_counters, sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank, telefon, glaeubiger_id)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',

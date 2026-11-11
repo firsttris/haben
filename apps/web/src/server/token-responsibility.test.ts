@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Token-Verantwortung und geprüfter Gruppenentzug (Postgres)", () => {
   let database: postgres.Sql;
@@ -26,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Token-Verantwortung und geprüfter Gruppenent
       await database`insert into account(id,account_id,provider_id,user_id) values(${id},${JSON.stringify([issuer, id])},'oidc',${id})`;
   }, 60_000);
   beforeEach(async () => {
-    await database`truncate mcp_calls,mcp_tokens,company cascade`;
+    await leeren(database)`truncate mcp_calls,mcp_tokens,company cascade`;
     await database`insert into company(id,name,mcp_enabled) values(1,'Testfirma',true)`;
     for (const id of ["a", "b", "staff"])
       await database`insert into sso_roles(user_id,issuer,role,confirmed_at) values(${id},${issuer},${id === "staff" ? "steuerberatung" : "inhaber"},now()) on conflict(user_id,issuer) do update set role=excluded.role,confirmed_at=excluded.confirmed_at`;
