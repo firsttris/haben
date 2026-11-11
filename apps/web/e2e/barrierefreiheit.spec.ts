@@ -639,6 +639,8 @@ test("Dateiwähler: Der zugängliche Name enthält den sichtbaren Feldnamen (Lab
   // Accountable hat einen eigenen Upload, den die Seite erst nach der Wahl der Quelle zeigt
   await open(page, "/archiv");
   await page.getByRole("button", { name: "Umzug aus Accountable" }).click();
+  // Der Upload dieser Quelle muss da sein; der andere Dateiwähler der Seite (Archiv) stünde sonst für ihn
+  await expect(page.getByLabel("Exportdatei (ZIP)")).toBeAttached();
   await pruefen("/archiv (Accountable)");
 });
 

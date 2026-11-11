@@ -30,6 +30,8 @@ describe("Kein eigenes Feld mit Klasse field (Field-Komponente)", () => {
     ['<div className="field"><label htmlFor="x">Name</label><input id="x" /></div>', "div statt label"],
     ['<div className="field weitere"><span>Name</span><input /></div>', "div mit weiterer Klasse"],
     ['<section className="field" />', "selbstschließend"],
+    ["<div className={`field ${extra}`}><input /></div>", "Template-Literal mit Platzhalter"],
+    ['<div\n      id="a"\n      className="field"\n    >\n      <input />\n    </div>', "Attribute über mehrere Zeilen"],
   ])("meldet %s (%s)", (source) => {
     expect(findings(source)).toBe(1);
   });
@@ -39,6 +41,8 @@ describe("Kein eigenes Feld mit Klasse field (Field-Komponente)", () => {
     ['<label className="field-label" htmlFor="x">Name</label>', "Feldname von Field"],
     ['<fieldset className="field"><legend>Kontoart</legend><input type="radio" /></fieldset>', "Gruppe mit legend"],
     ['<div className="field-row"><input /></div>', "andere Klasse mit field im Namen"],
+    ['<div className="form-field"><input /></div>', "field am Ende eines zusammengesetzten Namens"],
+    ['<div className="subfield"><input /></div>', "field am Ende eines Worts"],
     ['<label className="search-box"><input /></label>', "Suchfeld"],
   ])("lässt %s zu (%s)", (source) => {
     expect(findings(source)).toBe(0);
