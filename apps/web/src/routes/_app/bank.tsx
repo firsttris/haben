@@ -7,7 +7,6 @@ import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.ts
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
-import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
@@ -50,6 +49,9 @@ const searchSchema = z.object({
   filter: z.optional(z.enum(["offen", "zugeordnet", "alle"])),
   suche: z.optional(z.string()),
   umsatz: z.optional(z.uuid()),
+  /** Sortierung der Umsatzliste: Spalte und Richtung (#650) */
+  sort: z.optional(z.enum(["datum", "gegenpartei", "betrag", "status"])),
+  dir: z.optional(z.enum(["auf", "ab"])),
   /** Ergebnis der Rückleitung von der Bank */
   abruf: z.optional(z.enum(["ok", "fehler"])),
   meldung: z.optional(z.string().check(z.maxLength(500))),
@@ -57,8 +59,25 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_app/bank")({
   validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({ konto: search.konto, filter: search.filter, suche: search.suche, umsatz: search.umsatz }),
-  loader: ({ deps }) => getBankOverview({ data: { konto: deps.konto, filter: deps.filter ?? "offen", suche: deps.suche ?? "", umsatz: deps.umsatz } }),
+  loaderDeps: ({ search }) => ({
+    konto: search.konto,
+    filter: search.filter,
+    suche: search.suche,
+    umsatz: search.umsatz,
+    sort: search.sort,
+    dir: search.dir,
+  }),
+  loader: ({ deps }) =>
+    getBankOverview({
+      data: {
+        konto: deps.konto,
+        filter: deps.filter ?? "offen",
+        suche: deps.suche ?? "",
+        umsatz: deps.umsatz,
+        sort: deps.sort ?? "datum",
+        dir: deps.dir ?? "ab",
+      },
+    }),
   head: () => ({ meta: [{ title: "Bank · Haben" }] }),
   component: BankPage,
 });
@@ -173,6 +192,17 @@ const FORMAT_LABEL = (format: string) =>
 function BankPage() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
+  // Spaltenkopf sortiert: erster Klick absteigend, derselbe Kopf nochmal dreht die Richtung (#650)
+  const sortierung = search.sort ?? "datum";
+  const richtung = search.dir ?? "ab";
+  const sortieren = (feld: "datum" | "gegenpartei" | "betrag" | "status") => ({
+    ...search,
+    sort: feld,
+    dir: (sortierung === feld && richtung === "ab" ? "auf" : "ab") as "auf" | "ab",
+  });
+  const pfeil = (feld: "datum" | "gegenpartei" | "betrag" | "status") => (sortierung === feld ? (richtung === "ab" ? " \u2193" : " \u2191") : "");
+  const sortStatus = (feld: "datum" | "gegenpartei" | "betrag" | "status"): "ascending" | "descending" | "none" =>
+    sortierung === feld ? (richtung === "ab" ? "descending" : "ascending") : "none";
   const navigate = useNavigate({ from: "/bank" });
   const filter = search.filter ?? "offen";
   const selectedId = data.detail?.transaction.id;
@@ -274,10 +304,18 @@ function BankPage() {
                 <SearchBox key={data.accountId ?? ""} initial={search.suche ?? ""} />
               </div>
               <div className="table-row head tx-cols" style={{ padding: "0 20px" }}>
-                <div>Datum</div>
-                <div>Gegenpartei · Verwendungszweck</div>
-                <div className="num">Betrag</div>
-                <div>Status</div>
+                <Link to="/bank" search={sortieren("datum")} className="sort-head" aria-sort={sortStatus("datum")}>
+                  Datum{pfeil("datum")}
+                </Link>
+                <Link to="/bank" search={sortieren("gegenpartei")} className="sort-head" aria-sort={sortStatus("gegenpartei")}>
+                  Gegenpartei · Verwendungszweck{pfeil("gegenpartei")}
+                </Link>
+                <Link to="/bank" search={sortieren("betrag")} className="sort-head num" aria-sort={sortStatus("betrag")}>
+                  Betrag{pfeil("betrag")}
+                </Link>
+                <Link to="/bank" search={sortieren("status")} className="sort-head" aria-sort={sortStatus("status")}>
+                  Status{pfeil("status")}
+                </Link>
               </div>
               {data.transactions.length === 0 && (
                 <p className="muted" style={{ margin: 0, padding: "16px 20px" }}>
@@ -294,7 +332,7 @@ function BankPage() {
                   className={`table-row tx-cols tx-row${tx.id === selectedId ? " selected" : ""}`}
                   aria-current={tx.id === selectedId ? "true" : undefined}
                 >
-                  <div className="muted small">{shortDate(tx.bookingDate)}</div>
+                  <div className="muted small">{formatDate(tx.bookingDate)}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                     <span className="ellipsis" style={{ fontWeight: 500 }}>
                       {tx.counterpartyName || "–"}

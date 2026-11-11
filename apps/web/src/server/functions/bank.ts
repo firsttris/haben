@@ -69,6 +69,19 @@ import { UserError } from "../errors.ts";
 /** In der Liste nur sichere Vorschläge; „PayPal“ als Gegenpartei braucht die Gegenbuchung, die erst die Detailansicht sucht */
 const isCertainDirect = (s: ReturnType<typeof suggestDirectBooking>) => s !== null && !s.requiresCounterpart;
 
+/**
+ * Rang der Status-Pillen in der Liste; kleiner heisst weiter oben, wenn nach Status sortiert wird:
+ * erst was zu tun ist, dann das Erledigte.
+ */
+const STATUS_RANG: Record<string, number> = {
+  belegFehlt: 0,
+  vorschlag: 1,
+  offen: 2,
+  teilweise: 3,
+  zugeordnet: 4,
+  verrechnet: 5,
+};
+
 export const getBankOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(
@@ -77,6 +90,8 @@ export const getBankOverview = createServerFn({ method: "GET" })
       filter: z.enum(["offen", "zugeordnet", "alle"]).default("offen"),
       suche: z.string().max(100).default(""),
       umsatz: z.uuid().optional(),
+      sort: z.enum(["datum", "gegenpartei", "betrag", "status"]).default("datum"),
+      dir: z.enum(["auf", "ab"]).default("ab"),
     }),
   )
   .handler(async ({ data }) => {
@@ -108,6 +123,24 @@ export const getBankOverview = createServerFn({ method: "GET" })
               ? ("belegFehlt" as const)
               : ("offen" as const),
       };
+    });
+    // Sortierung der Liste; „ab" ist die Voreinstellung, weil oben der neueste Umsatz stehen soll
+    const richtung = data.dir === "auf" ? 1 : -1;
+    const rang = (t: (typeof transactions)[number]) =>
+      data.sort === "betrag"
+        ? t.amount
+        : data.sort === "status"
+          ? STATUS_RANG[t.hint]
+          : data.sort === "gegenpartei"
+            ? (t.counterpartyName || "").toLocaleLowerCase("de")
+            : t.bookingDate;
+    transactions.sort((a, b) => {
+      const x = rang(a);
+      const y = rang(b);
+      const vergleich = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "de");
+      if (vergleich !== 0) return vergleich * richtung;
+      // Bei gleichem Rang bleibt der neuere Umsatz oben, damit die Reihenfolge stabil wirkt
+      return b.bookingDate.localeCompare(a.bookingDate);
     });
     const selectedId = data.umsatz ?? transactions.find((t) => t.open !== 0)?.id ?? transactions[0]?.id;
     const detail = selectedId ? await transactionDetail(selectedId) : null;
