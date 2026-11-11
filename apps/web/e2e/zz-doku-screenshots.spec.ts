@@ -56,8 +56,23 @@ async function theme(id: "wald" | "nacht") {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
+/**
+ * Ohne ERiC und Hersteller-ID, wie hier, zeigen die Seiten zwei Hinweise zur Einrichtung. Die Bilder zeigen Haben
+ * eingerichtet, deshalb fallen nur diese beiden Hinweise heraus; alle anderen Meldungen bleiben im Bild.
+ */
+const EINRICHTUNGSHINWEISE = ["ERiC ist nicht eingerichtet", "Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab"];
+
+async function einrichtungshinweiseAusblenden() {
+  await page.evaluate((texte) => {
+    for (const banner of document.querySelectorAll<HTMLElement>(".banner")) {
+      if (texte.some((text) => banner.textContent?.includes(text))) banner.style.display = "none";
+    }
+  }, EINRICHTUNGSHINWEISE);
+}
+
 /** Jedes Bild hell (Wald) und dunkel (Nacht); README und Doku zeigen das passende zur Systemeinstellung */
 async function shot(name: string, fullPage = false) {
+  await einrichtungshinweiseAusblenden();
   for (const [id, suffix] of [
     ["wald", ""],
     ["nacht", "-dunkel"],

@@ -278,7 +278,7 @@ Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-beri
 Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
 läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und ergänzt zuerst, was nur die Bilder
 brauchen: Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen, ein ELSTER-Zertifikat (ohne ERiC
-ungeprüft), einen Backup-Lauf und eine testweise gesendete Voranmeldung. Dann fotografiert es Übersicht,
+ungeprüft), einen Backup-Lauf und eine testweise gesendete Voranmeldung. Die beiden Hinweise zur Einrichtung („ERiC ist nicht eingerichtet“, „Ohne eigene Hersteller-ID …“) blendet sie vor jedem Bild aus, weil die Bilder Haben eingerichtet zeigen; alle anderen Meldungen bleiben. Dann fotografiert es Übersicht,
 Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy, jedes Bild im
 Theme Wald (`screenshot-<name>.png`) und Nacht (`screenshot-<name>-dunkel.png`). Die README wählt das passende per
 `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark` am Bild. Das Bild oben in der
