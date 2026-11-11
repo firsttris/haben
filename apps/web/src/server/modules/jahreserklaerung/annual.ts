@@ -46,6 +46,8 @@ import {
   umsatzsteuerVorjahreUmJahreswechsel,
   vorauszahlungVorjahrHinweis,
   ZEHN_TAGE_REGEL,
+  zehnTageKennzeichen,
+  type ZehnTageKennzeichen,
 } from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
@@ -323,16 +325,19 @@ export interface EuerYear {
   ustUmJahreswechsel: number;
   /** Vorauszahlungen für das Vorjahr, die hier zählen, weil es gesperrt war (vorauszahlungVorjahrHinweis) */
   vorauszahlungHinweis: string | null;
+  /** Welche Vorauszahlungen um den Jahreswechsel diese EÜR verschiebt; wird mit der Übermittlung gespeichert (ZEHN_TAGE_REGEL) */
+  zehnTage: ZehnTageKennzeichen;
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis] = await Promise.all([
+  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
     listAssets(year),
     lohnZahlungenUmJahreswechsel(year),
     umsatzsteuerVorjahreUmJahreswechsel(year),
     vorauszahlungVorjahrHinweis(year),
+    zehnTageKennzeichen(year),
   ]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
@@ -351,7 +356,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
   const pendingAssets = assets.filter((a) => a.pending).length;
-  return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis };
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -636,8 +641,8 @@ export async function annualXml(form: AnnualForm, year: number, { company, data 
       gewinn: { einkunftsart: company.einkunftsart!, taetigkeit: company.taetigkeit, betrag: est.gewinn },
       angaben: est.angaben,
     });
-    // Übermittelt mit der Regel für Vorauszahlungen um den Jahreswechsel (#583, euer-jahreswechsel.ts)
-    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen, [ZEHN_TAGE_REGEL]: true };
+    // Welche Vorauszahlungen um den Jahreswechsel der Gewinn verschiebt; danach richten sich beide Jahre (#583, euer-jahreswechsel.ts)
+    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen, [ZEHN_TAGE_REGEL]: euer.zehnTage };
   } else {
     const euer = data as EuerYear;
     xml = buildEuerXml({
@@ -646,7 +651,7 @@ export async function annualXml(form: AnnualForm, year: number, { company, data 
       figures: euer.figures,
       anlagen: euer.anlagen,
     });
-    figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen, [ZEHN_TAGE_REGEL]: true };
+    figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen, [ZEHN_TAGE_REGEL]: euer.zehnTage };
   }
 
   return { xml, daten: figures };

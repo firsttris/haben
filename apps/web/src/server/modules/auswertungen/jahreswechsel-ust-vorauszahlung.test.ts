@@ -54,6 +54,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
   let annual: typeof import("../jahreserklaerung/annual.ts");
   let db: typeof import("../../db/index.ts").db;
   let ZEHN_TAGE_REGEL: string;
+  let loadCompany: typeof import("../stammdaten/index.ts").loadCompany;
   let sql: postgres.Sql;
   const actor = "test-user";
   let seq = 0;
@@ -74,6 +75,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
     annual = await import("../jahreserklaerung/annual.ts");
     db = (await import("../../db/index.ts")).db;
     ({ ZEHN_TAGE_REGEL } = await import("./euer-jahreswechsel.ts"));
+    ({ loadCompany } = await import("../stammdaten/index.ts"));
   }, 30_000);
   afterAll(async () => {
     await sql?.end();
@@ -294,9 +296,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
         await umsatzImMonat("2026-12-01", "15.12.26");
         const dez = await gesendet(DEZ, "2027-01-05");
         await zahlung(dez.id, "08.01.27", "-190,00");
-        // Übermittelt mit dieser Regel (Kennzeichen in den gespeicherten Werten): sie enthält die Zahlung
+        // Übermittelt mit dieser Regel (Kennzeichen in den gespeicherten Werten, wie annualXml sie schreibt): sie enthält die Zahlung
+        const daten = (await annual.annualXml("euer", 2026, { company: await loadCompany(), data: await annual.euerYear(2026) }, true, "00000")).daten;
+        expect(daten[ZEHN_TAGE_REGEL]).toEqual({ herein: [expect.any(String)], hinaus: [] });
         await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
-          values ('euer', 2026, 'send', true, 0, 'ok', ${JSON.stringify({ gewinn: 100_000, [ZEHN_TAGE_REGEL]: true })}::jsonb, '<x/>', '<x/>', '<x/>')`;
+          values ('euer', 2026, 'send', true, 0, 'ok', ${JSON.stringify(daten)}::jsonb, '<x/>', '<x/>', '<x/>')`;
         expect(await euer(2026)).toEqual(MIT_DEZEMBER);
         expect(await euer(2027)).toEqual({ gewinn: 0 });
         await beideWegeGleich();

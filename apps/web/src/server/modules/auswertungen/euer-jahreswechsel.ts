@@ -10,14 +10,24 @@ import { buchungen, type Buchung } from "./euer-journal-buchungen.ts";
  * Zuordnungen: die Nebenbücher (euerPayments in reports.ts) und das Journal (euer-journal.ts, euer-formel.ts); der Abgleich
  * (abgleich.ts) rechnet die Buchungen ebenso um. Die Buchung selbst behält ihr Datum, Voranmeldung und Konten bleiben gleich.
  *
- * GoBD: Eine übermittelte Anlage EÜR bzw. Einkommensteuererklärung oder ein abgeschlossenes Jahr ändert Haben nicht. War das
- * Vorjahr beim Zuordnen der Zahlung schon übermittelt bzw. abgeschlossen, zählt sie im Jahr der Zahlung, und die Vorprüfung
- * des Zahlungsjahres nennt sie (vorauszahlungVorjahrHinweis). Erklärungen, die Haben vor dieser Regel übermittelt hat, tragen
- * das Kennzeichen ZEHN_TAGE_REGEL nicht; sie enthalten die Zahlung nicht und sperren deshalb unabhängig vom Zeitpunkt.
+ * GoBD: Eine übermittelte Anlage EÜR bzw. Einkommensteuererklärung oder ein abgeschlossenes Jahr ändert Haben nicht, auch nicht
+ * über später geänderte Einstellungen wie die Dauerfristverlängerung. Jede Übermittlung hält dafür im Kennzeichen
+ * ZEHN_TAGE_REGEL fest, welche Zuordnungen sie verschoben hat (zehnTageKennzeichen):
+ * - Ist das Vorjahr übermittelt, zählt eine Zahlung dort genau dann, wenn es sie hereingenommen hat. Gehört sie nach dem
+ *   Gesetz hinein, nennt die Vorprüfung des Zahlungsjahres sie (vorauszahlungVorjahrHinweis). Ebenso bei einem Vorjahr, das
+ *   beim Zuordnen schon abgeschlossen war.
+ * - Sonst, wenn das Jahr der Zahlung übermittelt ist: Zuordnungen, die es dabei schon gab, zählen, wie es sie übermittelt hat.
+ * Erklärungen, die Haben vor dieser Regel übermittelt hat, tragen kein Kennzeichen; sie zählten jede Zahlung am Buchungstag.
  */
 
 /** Kennzeichen in den gespeicherten Werten (annual_submissions.figures) einer Anlage EÜR bzw. ESt-Erklärung ab #583 */
 export const ZEHN_TAGE_REGEL = "ustVorauszahlungZehnTage";
+
+/** Inhalt des Kennzeichens: die Zuordnungen, die die Erklärung herein- bzw. hinausverschoben hat (EuerVerschiebung) */
+export interface ZehnTageKennzeichen {
+  herein: string[];
+  hinaus: string[];
+}
 
 export interface VorauszahlungImJanuar {
   allocationId: string;
@@ -26,20 +36,52 @@ export interface VorauszahlungImJanuar {
   zeitraum: VatPeriod;
   /** Gehört nach § 11 Abs. 2 Satz 2 EStG in das Vorjahr */
   imVorjahr: boolean;
-  /** Das Vorjahr war beim Zuordnen schon übermittelt oder abgeschlossen: die Zahlung zählt im Jahr der Zahlung */
+  /** Zählt in der EÜR des Vorjahres: nach dem Gesetz oder, ist eine der beiden Erklärungen übermittelt, wie übermittelt */
+  zaehltImVorjahr: boolean;
+  /** Gehört in das Vorjahr, das war aber beim Zuordnen schon übermittelt oder abgeschlossen: zählt im Jahr der Zahlung */
   gesperrt: boolean;
 }
 
-/** Ab wann ist die EÜR des Jahres gesperrt? Prüft je Zeitpunkt der Zuordnung */
-async function sperre(year: number, q: Db | Tx): Promise<(zugeordnet: Date) => boolean> {
+interface Uebermittlung {
+  createdAt: Date;
+  kennzeichen: ZehnTageKennzeichen | null;
+}
+
+function kennzeichen(figures: Record<string, unknown>): ZehnTageKennzeichen | null {
+  const k = figures[ZEHN_TAGE_REGEL] as Partial<ZehnTageKennzeichen> | null | undefined;
+  return k && Array.isArray(k.herein) && Array.isArray(k.hinaus) ? { herein: k.herein, hinaus: k.hinaus } : null;
+}
+
+async function uebermittlungen(year: number, q: Db | Tx): Promise<Uebermittlung[]> {
   const s = schema.annualSubmissions;
-  const gesendet = await q
+  const rows = await q
     .select({ createdAt: s.createdAt, figures: s.figures })
     .from(s)
     .where(and(eq(s.year, year), inArray(s.form, ["euer", "est"]), eq(s.kind, "send"), eq(s.ok, true)));
-  const [abschluss] = await q.select({ closedAt: schema.yearClosings.closedAt }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
-  return (zugeordnet) =>
-    gesendet.some((g) => g.figures[ZEHN_TAGE_REGEL] !== true || g.createdAt <= zugeordnet) || (abschluss !== undefined && abschluss.closedAt <= zugeordnet);
+  return rows.map((r) => ({ createdAt: r.createdAt, kennzeichen: kennzeichen(r.figures) }));
+}
+
+type Entscheidung = Pick<VorauszahlungImJanuar, "zaehltImVorjahr" | "gesperrt">;
+
+/** Zählt eine Zuordnung aus dem Januar `jahr` im Vorjahr? Übermittelte Erklärungen beider Jahre gehen dem Gesetz vor */
+async function entscheidung(jahr: number, q: Db | Tx): Promise<(z: { id: string; createdAt: Date; imVorjahr: boolean }) => Entscheidung> {
+  const vorjahr = await uebermittlungen(jahr - 1, q);
+  const zahlungsjahr = await uebermittlungen(jahr, q);
+  const [abschluss] = await q
+    .select({ closedAt: schema.yearClosings.closedAt })
+    .from(schema.yearClosings)
+    .where(eq(schema.yearClosings.year, jahr - 1));
+  return ({ id, createdAt, imVorjahr }) => {
+    if (vorjahr.length > 0) {
+      const zaehltImVorjahr = vorjahr.every((u) => u.kennzeichen?.herein.includes(id) === true);
+      return { zaehltImVorjahr, gesperrt: imVorjahr && !zaehltImVorjahr };
+    }
+    if (abschluss && abschluss.closedAt <= createdAt) return { zaehltImVorjahr: false, gesperrt: imVorjahr };
+    // Das Jahr der Zahlung ist übermittelt, das Vorjahr nicht: wie übermittelt; ohne Kennzeichen zählte sie am Buchungstag
+    const danach = zahlungsjahr.filter((u) => u.createdAt >= createdAt);
+    if (danach.length > 0) return { zaehltImVorjahr: danach.every((u) => u.kennzeichen?.hinaus.includes(id) === true), gesperrt: false };
+    return { zaehltImVorjahr: imVorjahr, gesperrt: false };
+  };
 }
 
 /** Zahlungen und Erstattungen mit Bezug auf eine Voranmeldung, gebucht vom 1. bis 10. Januar `jahr`, auch aufgehobene */
@@ -64,22 +106,23 @@ export async function vorauszahlungenImJanuar(jahr: number, q: Db | Tx): Promise
     .where(and(eq(a.kind, "ustVorauszahlung"), gte(t.bookingDate, `${jahr}-01-01`), lte(t.bookingDate, `${jahr}-01-10`)));
   if (rows.length === 0) return [];
   const dauerfrist = await loadDauerfrist(q);
-  const gesperrt = await sperre(jahr - 1, q);
+  const entscheide = await entscheidung(jahr, q);
   return rows.map((r) => {
     const zeitraum = { year: r.year, month: r.month };
+    // Die Gegenzeile beim Aufheben hängt am selben Umsatz und folgt damit der Zahlung
+    const imVorjahr = ustVorauszahlungImVorjahr({
+      buchungstag: r.bookingDate,
+      zeitraum,
+      dauerfrist: dauerfristActive(dauerfrist, r.year),
+      abfluss: r.umsatz < 0,
+    });
     return {
       allocationId: r.id,
       reversesId: r.reversesId,
       amount: r.amount,
       zeitraum,
-      // Die Gegenzeile beim Aufheben hängt am selben Umsatz und folgt damit der Zahlung
-      imVorjahr: ustVorauszahlungImVorjahr({
-        buchungstag: r.bookingDate,
-        zeitraum,
-        dauerfrist: dauerfristActive(dauerfrist, r.year),
-        abfluss: r.umsatz < 0,
-      }),
-      gesperrt: gesperrt(r.createdAt),
+      imVorjahr,
+      ...entscheide({ id: r.id, createdAt: r.createdAt, imVorjahr }),
     };
   });
 }
@@ -91,12 +134,16 @@ export interface EuerVerschiebung {
   hinaus: Set<string>;
 }
 
-const zaehltImVorjahr = (z: VorauszahlungImJanuar) => z.imVorjahr && !z.gesperrt;
-
 /** Welche Zuordnungen die EÜR `year` vom Buchungstag abweichend zählt */
 export async function euerVerschiebung(year: number, q: Db | Tx): Promise<EuerVerschiebung> {
-  const ids = async (jahr: number) => new Set((await vorauszahlungenImJanuar(jahr, q)).filter(zaehltImVorjahr).map((z) => z.allocationId));
+  const ids = async (jahr: number) => new Set((await vorauszahlungenImJanuar(jahr, q)).filter((z) => z.zaehltImVorjahr).map((z) => z.allocationId));
   return { herein: await ids(year + 1), hinaus: await ids(year) };
+}
+
+/** Das Kennzeichen, das eine Übermittlung der EÜR bzw. ESt `year` in ihren Werten speichert (ZEHN_TAGE_REGEL) */
+export async function zehnTageKennzeichen(year: number, q: Db | Tx = db): Promise<ZehnTageKennzeichen> {
+  const { herein, hinaus } = await euerVerschiebung(year, q);
+  return { herein: [...herein].sort(), hinaus: [...hinaus].sort() };
 }
 
 /** Die Buchungen dazu; die hereingenommenen mit Datum 31.12. des Jahres */
