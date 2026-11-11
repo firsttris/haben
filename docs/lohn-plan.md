@@ -23,7 +23,7 @@ Stand: 5. November 2026. PR 1 bis 6 und die Lohnsteuerbescheinigung aus PR 7 sin
 
 ## Vorgehen (Vorschlag)
 
-- **Nur sichere Fälle rechnen.** Was Haben nicht sicher kann, meldet es als „nicht unterstützt“ und rechnet es nicht still falsch; der Lohn kommt dann wie bisher als manuelle Buchung aus einem Lohnprogramm.
+- **Nur sichere Fälle rechnen.** Was Haben nicht sicher kann, meldet es als „nicht unterstützt“ und rechnet es nicht still falsch; der Lohn wird dann außerhalb von Haben abgerechnet, etwa mit einem Lohnprogramm. Eine manuelle Buchung auf die Lohnkonten lehnt Haben ab ([Lohn](lohn.md#buchung)).
 - **Stufen nach Risiko:** A) Gesellschafter-Geschäftsführer ohne SV-Pflicht (nur Lohnsteuer), B) Minijob, C) Angestellte mit Sozialversicherung erst, wenn ein echter Fall gegen ein Lohnprogramm oder die Steuerberatung gegengerechnet ist; bis dahin als Entwurf gekennzeichnet.
 - **Sozialversicherung dauerhaft als Ausfüllliste** für das SV-Meldeportal, keine eigene ITSG-Zertifizierung: Pilotphase, laufende Prüfung und Haftung passen nicht zu einem Open-Source-Projekt ohne Firma dahinter.
 - **Jahreswerte von Tests erzwungen:** Lohnsteuer aus dem PAP-XML erzeugt und gegen die amtlichen Prüffälle getestet; SV-Werte als Tabelle je Jahr mit Quelle. Ohne Werte für ein Jahr sperrt Haben die Abrechnung, statt mit Vorjahreswerten zu rechnen. Ein CI-Test schlägt ab Dezember fehl, wenn die Werte für das nächste Jahr fehlen.
@@ -96,7 +96,7 @@ Stand: 5. November 2026. PR 1 bis 6 und die Lohnsteuerbescheinigung aus PR 7 sin
 | Verbindlichkeiten soziale Sicherheit | 1742 | 3740 |
 
 - **Buchung:** Aufwand brutto und AG-Anteil an 1740/1741/1742. Bank: neue Zuordnungen „Lohn/Gehalt“, „Lohnsteuer an Finanzamt“, „SV-Beiträge an Krankenkasse“. Vorsicht: SKR03 3730 ist in Haben „Erhaltene Skonti“, nicht verwechseln.
-- **Einzelunternehmen:** Dort gibt es keine manuellen Buchungen, und die Anlage EÜR rechnet aus Rechnungen, Belegen und Zahlungen, nicht aus dem Journal (siehe [Buchhaltung](buchhaltung.md)). Eine Lohnbuchung allein käme dort nicht an; der Lohn muss als eigene Quelle in die EÜR einfließen (Zeile Löhne und Gehälter, Zufluss-/Abflussprinzip). Das ist Teil dieses PR.
+- **Einzelunternehmen:** Die Anlage EÜR zählt den Lohn nach dem Zufluss-/Abflussprinzip bei Zahlung, nicht bei der Abrechnung (Zeile Löhne und Gehälter). Vor dem [Stichjahr](umsatzsteuer.md#wie-die-kennzahlen-entstehen) rechnet sie aus Rechnungen, Belegen und Zahlungen, ab dem Stichjahr aus dem Journal; in beiden Fällen zählt die Zahlung der Lohnverbindlichkeiten (siehe [Lohn](lohn.md#buchung)).
 - **Folgen:** Posten in `hgb.ts` (Personalaufwand, sonstige Verbindlichkeiten) und `ebilanz.ts` für 1740–1742/3720–3740.
 - **Tests:** SKR03 und SKR04, Ist und Soll, GmbH und Einzelunternehmen.
 

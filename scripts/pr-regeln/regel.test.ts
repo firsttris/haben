@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkTitle, growthHints, hints, isBot } from "./regel.ts";
+import { checkBody, checkTitle, growthHints, hints, isBot } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -73,5 +73,23 @@ describe("isBot", () => {
     expect(isBot({ login: "renovate[bot]", type: "Bot" })).toBe(true);
     expect(isBot({ login: "renovate[bot]" })).toBe(true);
     expect(isBot({ login: "Dudeplayz", type: "User" })).toBe(false);
+  });
+});
+
+describe("checkBody", () => {
+  it("lässt Refs und Umgesetzt durch", () => {
+    expect(checkBody("Refs #12\n\nUmgesetzt #13")).toEqual([]);
+    expect(checkBody(null)).toEqual([]);
+  });
+
+  it("meldet Closes und Fixes als Fehler, weil sie schon beim Merge schließen", () => {
+    const reports = checkBody("Closes #12\nfixes #13");
+    expect(reports).toHaveLength(2);
+    expect(reports.every(({ level }) => level === "error")).toBe(true);
+    expect(reports[0].message).toContain("Umgesetzt #");
+  });
+
+  it("lässt Beispiele in Code durch", () => {
+    expect(checkBody("Nicht `Closes #12`, sondern Umgesetzt #12")).toEqual([]);
   });
 });

@@ -19,14 +19,12 @@ Halte fest, wann du wo warst, zum Beispiel im Kalender oder in einer Fahrtenlist
 
 ## Homeoffice-Tagespauschale
 
-§ 4 Abs. 5 Satz 1 Nr. 6c EStG:
+| Jahr | je Tag | höchstens | Welche Tage zählen | Quelle |
+|---|---|---|---|---|
+| ab 2023 | 6 € | 210 Tage, 1.260 € | Tage, an denen du überwiegend in der Wohnung gearbeitet und keine erste Tätigkeitsstätte aufgesucht hast | § 4 Abs. 5 Satz 1 Nr. 6c EStG |
+| 2020 bis 2022 | 5 € | 120 Tage, 600 € | Tage, an denen du ausschließlich in der Wohnung gearbeitet und keine Betätigungsstätte außerhalb aufgesucht hast | § 4 Abs. 5 Satz 1 Nr. 6b Satz 4 EStG in der Fassung des JStG 2020, nach § 52 Abs. 6 EStG für 2020 bis 2022 |
 
-| Jahr | je Tag | höchstens |
-|---|---|---|
-| ab 2023 | 6 € | 210 Tage, 1.260 € |
-| 2020 bis 2022 | 5 € | 120 Tage, 600 € |
-
-- Es zählt jeder Tag, an dem du überwiegend zu Hause gearbeitet hast.
+- Ab 2023 zählt ein Tag auch dann, wenn du auswärts oder an der ersten Tätigkeitsstätte gearbeitet hast, sofern dir dauerhaft kein anderer Arbeitsplatz zur Verfügung steht (Nr. 6c Satz 2).
 - Du trägst die Tage je Monat ein. Haben bucht sie zum Monatsletzten.
 - Haben lässt nicht mehr Tage zu, als der Monat hat, und nicht mehr, als im Jahr erlaubt sind.
 - Konto: SKR03 4288, SKR04 6348.

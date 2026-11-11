@@ -30,7 +30,10 @@ const STEUERBERATUNG_LIEST = [
 /** Ohne Anmeldung: Zustand für Anmelde- und Einrichtungsseite, Prüfung eines Einladungslinks. Beide lesen nur. */
 const OEFFENTLICH = ["setup.ts:getAuthState", "zugang.ts:checkInvitation"];
 
-/** API-Routen mit Sitzung, die auch die Steuerberatung abrufen darf (nur GET, Dateien und Exporte) */
+/**
+ * API-Routen mit Sitzung, die auch die Steuerberatung abrufen darf (nur GET, Dateien und Exporte). Ihr Handler steht in
+ * `lesend` (lese-route.ts): Für die Steuerberatung laufen er und sein Body im Nur-Lesen-Rahmen.
+ */
 const STEUERBERATUNG_LAEDT = [
   "auswertungen/$jahr.ts",
   "beleg/$id.ts",
@@ -152,11 +155,24 @@ describe("API-Routen", () => {
     for (const route of routes) expect(route.code, route.id).not.toMatch(/getSession|auth\(\)\.api/);
   });
 
+  it("jede Route für die Steuerberatung läuft über `lesend`, keine prüft „lesen“ selbst oder setzt den Rahmen selbst", () => {
+    for (const route of routes) {
+      // Mit requireUser(…, "lesen") oder darf(…, "lesen") liefe der Handler ohne Nur-Lesen-Rahmen
+      expect(route.code, route.id).not.toMatch(/requireUser\([^)]*"lesen"\)|darf\([^)]*"lesen"\)|pruefeZugriff|runReadOnly/);
+    }
+    for (const id of STEUERBERATUNG_LAEDT) {
+      const code = routes.find((route) => route.id === id)?.code ?? "";
+      expect(code, id).toMatch(/^\s+GET: lesend(?:<[^>]*>)?\(async /m);
+    }
+  });
+
   it("jede Route mit Sitzung sagt, welchen Zugriff sie braucht; die Steuerberatung lädt nur die geprüften", () => {
     const mitSitzung = routes.filter((route) => !OHNE_SITZUNG.includes(route.id));
     const lesen: string[] = [];
     for (const route of mitSitzung) {
-      const zugriffe = [...route.code.matchAll(/requireUser\(request, "(\w+)"\)|darf\(user\.role, "(\w+)"\)/g)].map(([, a, b]) => a ?? b);
+      const zugriffe = [...route.code.matchAll(/requireUser\(request, "(\w+)"\)|darf\(user\.role, "(\w+)"\)|\blesend(?:<[^>]*>)?\(/g)].map(
+        ([, a, b]) => a ?? b ?? "lesen",
+      );
       expect(zugriffe.length, route.id).toBeGreaterThan(0);
       if (zugriffe.every((z) => z === "lesen")) lesen.push(route.id);
       else expect(zugriffe, route.id).toEqual(zugriffe.map(() => "inhaber"));
@@ -168,7 +184,7 @@ describe("API-Routen", () => {
     for (const id of STEUERBERATUNG_LAEDT) {
       const code = routes.find((route) => route.id === id)?.code ?? "";
       expect(
-        [...code.matchAll(/^\s+(\w+): async/gm)].map(([, m]) => m),
+        [...code.matchAll(/^\s+(\w+): (?:lesend(?:<[^>]*>)?\()?async/gm)].map(([, m]) => m),
         id,
       ).toEqual(["GET"]);
     }
@@ -195,7 +211,7 @@ describe("Wo Server-Code steht", () => {
   it("jeder Handler einer Route mit Sitzung prüft den Zugriff selbst", () => {
     for (const route of apiRoutes().filter((r) => !OHNE_SITZUNG.includes(r.id))) {
       const handlers = route.code.match(/^\s+(GET|POST|PUT|PATCH|DELETE): /gm)?.length ?? 0;
-      const checks = route.code.match(/requireUser\(request, "\w+"\)|darf\(user\.role, "\w+"\)/g)?.length ?? 0;
+      const checks = route.code.match(/requireUser\(request, "\w+"\)|darf\(user\.role, "\w+"\)|\blesend(?:<[^>]*>)?\(/g)?.length ?? 0;
       expect(checks, route.id).toBe(handlers);
     }
   });

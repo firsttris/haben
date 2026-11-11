@@ -37,6 +37,11 @@ export interface OpenItem {
   skonto?: SkontoZahlfrist[];
   /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
   period?: VatPeriod;
+  /**
+   * Nur bei Voranmeldungen: letzter Tag der Schonfrist für den Säumniszuschlag (`schonfristEnde`, mit den Feiertagen im
+   * Bundesland des Finanzamts); fehlt er, zählen nur die bundesweiten Feiertage
+   */
+  schonfristEnde?: string;
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -199,7 +204,7 @@ function vatPostenSuggestion(tx: MatchTransaction, item: OpenItem): Suggestion |
     score += 5;
     reasons.push("Teilbetrag des offenen Betrags");
   } else if (tx.amount < 0 && item.dueDate) {
-    const monate = saeumnisMonate(item.dueDate, tx.bookingDate);
+    const monate = saeumnisMonate(item.dueDate, tx.bookingDate, item.schonfristEnde);
     const zuschlag = saeumniszuschlag(-item.open, monate);
     if (zuschlag > 0 && -tx.amount === -item.open + zuschlag) {
       score += 40;

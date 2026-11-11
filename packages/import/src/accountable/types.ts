@@ -75,6 +75,12 @@ export interface AccountableExpenseRow {
   tax: number | null;
   /** H; leer heißt Euro. Beträge in anderer Währung sind nicht die des Stapels */
   currency: string;
+  /**
+   * I „USt.-Status“: „normal“ oder „Importieren“. Importieren heißt, dass der Lieferant im
+   * Drittland sitzt und die Steuer nach § 13b vom Empfänger geschuldet wird. Nicht aus fehlendem
+   * Steuersatz raten: Rechnungen ohne Netto-Spalte sehen genauso aus.
+   */
+  taxStatus: string;
   /** J in Basispunkten: 1900 = 19 % */
   taxRate: number | null;
   /** M; führende Nullen bleiben erhalten („0490“) */
@@ -87,7 +93,75 @@ export interface AccountableExpenseRow {
   paidDate: string | null;
   /** Y */
   documentPresent: boolean | null;
+  /**
+   * P „Kontobewegungen“: der zugehörige Bankumsatz im Klartext, wie Accountable ihn anzeigt, etwa
+   * „29.10.2026 | Vodafone | -44.99“. Leer, wenn die Ausgabe nicht über das Bankkonto lief
+   * (Karte, PayPal, privat). Die Angabe ersetzt das Raten über Betrag und Datum.
+   */
+  bankMovement: string | null;
   /** Zeile im Sheet, 1-basiert wie dort; die Kopfzeile ist Zeile 1 */
+  row: number;
+}
+
+/**
+ * Eine Zeile aus `Daten.xlsx`, Sheet „Kontobewegungen“ — die Umsätze des verknüpften Bankkontos:
+ *
+ * A Datum Der Kontobewegung · B Kontonummer · C Name Des Kontoinhabers · D Verwendungszweck ·
+ * E Betrag · F Name Des Senders/Empfängers · G Konto Des Senders/Empfängers ·
+ * H Beleg Oder Rechnung Zugeordnet?
+ *
+ * Damit kommt der Bankabgleich ohne eigenen Bankimport aus: Der Export bringt die Umsätze mit.
+ */
+export interface AccountableBankMovement {
+  /** A, JJJJ-MM-TT */
+  date: string | null;
+  /** B, IBAN des eigenen Kontos */
+  account: string;
+  /** D */
+  purpose: string;
+  /** E in Cent mit Vorzeichen: negativ ist eine Ausgabe */
+  amount: number | null;
+  /** F */
+  counterparty: string;
+  /** G, IBAN der Gegenseite */
+  counterpartyAccount: string;
+  /** H; „Nein“ heißt: Accountable hat keinen Beleg dazu gefunden */
+  matched: boolean | null;
+  /** Zeile im Sheet, 1-basiert */
+  row: number;
+}
+
+/**
+ * Eine Zeile aus `Daten.xlsx`, Sheet „Rechnungen“: Ausgangsrechnungen und sonstige Einnahmen.
+ * Accountable führt dort auch die Umsatzsteuer-Erstattungen des Finanzamts als Einnahme
+ * („other-revenue“) — die sind keine Betriebseinnahme und dürfen nicht als Rechnung ins Haus.
+ */
+export interface AccountableRevenue {
+  /** A, etwa „2026-001“ */
+  number: string;
+  /** B: Art der Einnahme, etwa „other-revenue“ */
+  kind: string;
+  /** C */
+  status: string;
+  /** D, JJJJ-MM-TT */
+  invoiceDate: string | null;
+  /** G, JJJJ-MM-TT */
+  paidDate: string | null;
+  /** H */
+  customer: string;
+  /** I in Cent */
+  net: number | null;
+  /** J in Cent */
+  tax: number | null;
+  /** K in Cent */
+  gross: number | null;
+  /** L */
+  currency: string;
+  /** M */
+  item: string;
+  /** P in Basispunkten */
+  taxRate: number | null;
+  /** Zeile im Sheet, 1-basiert */
   row: number;
 }
 

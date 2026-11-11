@@ -17,7 +17,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten; gibst du nicht monatlich ab, unter Umsatzsteuer den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) einstellen
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
-5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert ein bis zwei Wochen, siehe [Was du brauchst](#was-du-brauchst)
+5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](#was-du-brauchst)
 6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
@@ -47,7 +47,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -103,6 +103,8 @@ Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsr
 Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht, meldet Haben zum Beispiel „Steuernummer für Bayern muss 11 Ziffern haben“. Für Hessen setzt Haben die führende `0` der Finanzamtsnummer wie von ELSTER verlangt auf `6`.
 
 Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
+
+Unter dem Formular steht die Karte **Voranmeldung und EÜR aus dem Journal**. Sie zeigt das Stichjahr, ab dem Haben Voranmeldung und EÜR wie DATEV aus dem Journal rechnet, und ob das laufende Jahr noch aus Rechnungen, Belegen und Zahlungen rechnet. Liegt das Stichjahr nach dem laufenden Jahr, lässt es sich mit **Ab ‹Jahr› aus dem Journal** auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist und sich dadurch keine Zahl ändert; sonst nennt die Karte die Gründe. Zurück geht es nicht. Einzelheiten: [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen).
 
 ### Logo
 
@@ -167,7 +169,9 @@ Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der a
 
 ### Layouts
 
-Unter **Einstellungen › Beleggestaltung › Layouts** siehst du, welches Layout jede Belegart bekommt. Noch gibt es nur das eingebaute Layout „Klassisch“. Weitere Layouts und eigene Vorlagen sind [geplant](roadmap.md).
+Unter **Einstellungen › Beleggestaltung › Layouts** wählst du je Belegart ein Layout: das eingebaute „Klassisch“ oder ein eigenes, das du hochgeladen hast. Wie man ein Layout schreibt, was Haben beim Hochladen prüft und wie Pakete freigegeben werden, steht unter [Eigene Belegvorlagen](belegvorlagen.md).
+
+Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den GiroCode oder die Falz- und Lochmarken, steht darunter ein Hinweis mit dem Namen des Layouts. Wirkt die Einstellung auf keinen Beleg mehr, ist sie aus; siehe [Einstellungen, die das Layout nicht verwendet](belegvorlagen.md#hochladen-und-zuordnen).
 
 ## Persönliche Angaben
 

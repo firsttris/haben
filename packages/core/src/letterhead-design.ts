@@ -2,14 +2,13 @@ import { z } from "zod";
 import { ACCENT_PATTERN, DEFAULT_ACCENT } from "./accent.ts";
 import { footerIssues, MAX_FOOTER_COLUMNS, MAX_FOOTER_TEXT, MIN_FOOTER_COLUMNS } from "./footer-template.ts";
 
-/**
- * Layout eines Belegs. Heute gibt es nur das eingebaute „klassisch“; eigene Vorlagen (Roadmap Platz 7, #113) bekommen eine
- * eigene Art, damit Auswahl und Momentaufnahme eingebaute und eigene Layouts unterscheiden können.
- */
+/** Layout eines Belegs: eingebaut („klassisch“) oder eigenes, hochgeladenes (#113, id aus beleg_layouts) */
 export interface LayoutRef {
-  kind: "eingebaut";
+  kind: "eingebaut" | "eigen";
   id: string;
 }
+
+export const layoutRefSchema = z.object({ kind: z.enum(["eingebaut", "eigen"]), id: z.string().min(1).max(64) });
 
 export interface LayoutEntry extends LayoutRef {
   name: string;

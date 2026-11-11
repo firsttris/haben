@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /**
  * Degressive AfA (§ 7 Abs. 2 und 3 EStG), Elektrofahrzeuge (§ 7 Abs. 2a EStG) und Erinnerungswert, gebucht in SKR03
@@ -40,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
   );
 
   async function setup([kontenrahmen, versteuerung, rechtsform]: Fall) {
-    await sql`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, company cascade`;
     await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland, rechtsform)
       values (1, 'Testfirma', ${versteuerung}, ${kontenrahmen}, 'BY', ${rechtsform})`;

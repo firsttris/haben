@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const csv = (month: string, value: string) => `TIME_PERIOD;OBS_VALUE\n${month};${value}\n`;
 const fakeFetch = (body: string) => vi.fn(async () => new Response(body)) as unknown as typeof fetch;
@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Basiszinssatz automatisch (Postgres)", () => 
   });
 
   beforeEach(async () => {
-    await sql`truncate company cascade`;
+    await leeren(sql)`truncate company cascade`;
     delete (globalThis as { __habenBasiszinsAbgerufen?: number }).__habenBasiszinsAbgerufen;
   });
 

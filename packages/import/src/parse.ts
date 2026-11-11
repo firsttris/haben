@@ -6,6 +6,7 @@ import { isEbayHeader, parseEbay } from "./ebay.ts";
 import { StatementParseError } from "./errors.ts";
 import { isEtsyHeader, parseEtsy } from "./etsy.ts";
 import { isN26Header, parseN26 } from "./n26.ts";
+import { isSwanHeader, parseSwan } from "./swan.ts";
 import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShopify, parseStripe } from "./psp.ts";
 import { findHeaderRow } from "./table.ts";
 import type { ParsedStatement, StatementFormat } from "./types.ts";
@@ -13,7 +14,8 @@ import type { ParsedStatement, StatementFormat } from "./types.ts";
 type Detected =
   | { format: "camt053"; text: string }
   | {
-      format: Exclude<StatementFormat, "camt053" | "enablebanking" | "googleplay-earnings" | "appstore-finance" | "store-payout">;
+      // accountable-xlsx steht nicht in der Liste: diese Umsaetze kommen mit dem Export, nie als Datei
+      format: Exclude<StatementFormat, "camt053" | "enablebanking" | "googleplay-earnings" | "appstore-finance" | "store-payout" | "accountable-xlsx">;
       rows: string[][];
       headerRow: number;
     };
@@ -39,6 +41,10 @@ function detect(text: string, label: string): Detected {
   if (ebaySemicolon >= 0) return { format: "ebay-csv", rows: parseCsv(text, ";"), headerRow: ebaySemicolon };
 
   const comma = parseCsv(head, ",");
+  // Swan vor N26: dessen Kopfblock traegt Datum/Name/Verwendungszweck, die N26-Erkennung
+  // wuerde an einer solchen Datei nicht greifen, aber die Reihenfolge soll eindeutig sein.
+  const swan = findHeaderRow(comma, isSwanHeader);
+  if (swan >= 0) return { format: "swan-csv", rows: parseCsv(text, ","), headerRow: swan };
   const n26 = findHeaderRow(comma, isN26Header);
   if (n26 >= 0) return { format: "n26-csv", rows: parseCsv(text, ","), headerRow: n26 };
   // Vor PayPal: dessen englische Kopfzeile (gross, fee, net, transactionid) passt dem Präfix nach auch auf eBay
@@ -54,7 +60,7 @@ function detect(text: string, label: string): Detected {
   if (etsy >= 0) return { format: "etsy-csv", rows: parseCsv(text, ","), headerRow: etsy };
 
   throw new StatementParseError(
-    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
+    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB, N26 und Swan, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments, der Transaktionsbericht von eBay und die Monatsabrechnung von Etsy.`,
   );
 }
 
@@ -78,6 +84,8 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseDkbAlt(detected.rows, detected.headerRow);
     case "n26-csv":
       return parseN26(detected.rows, detected.headerRow);
+    case "swan-csv":
+      return parseSwan(detected.rows, detected.headerRow);
     case "paypal-csv":
       return parsePayPal(detected.rows, detected.headerRow);
     case "stripe-csv":

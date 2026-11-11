@@ -70,7 +70,7 @@ Du prüfst, wählst die Kategorie und buchst.
 
 ## Enter, und die Zahlung ist zugeordnet
 
-Die Umsätze kommen per PSD2 von selbst oder als Datei von DKB, N26, PayPal, Stripe und anderen.
+Die Umsätze kommen per PSD2 von selbst oder als Datei von DKB, N26, Swan, PayPal, Stripe und anderen.
 Zu jedem Umsatz schlägt Haben die passende Rechnung oder den Beleg vor und sagt, warum: Betrag,
 Rechnungsnummer, IBAN, Name.
 
@@ -88,7 +88,7 @@ Rechnungsnummer, IBAN, Name.
 ## Die Voranmeldung rechnet sich selbst
 
 Jede Kennzahl kommt aus den Buchungen, nach Ist oder Soll, und du siehst, woher jede Zahl stammt.
-Gesendet wird direkt per ERiC an ELSTER oder über Mein ELSTER, ganz ohne Hersteller-ID.
+Gesendet wird direkt per ERiC an ELSTER oder, ganz ohne Hersteller-ID, über Mein ELSTER.
 
 [Umsatzsteuer-Voranmeldung](umsatzsteuer.md)
 </div>

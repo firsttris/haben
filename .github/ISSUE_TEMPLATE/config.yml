@@ -4,5 +4,5 @@ contact_links:
     url: https://haben.app/
     about: Installation, Einrichtung, ELSTER, Umzug und Roadmap. Viele Fragen sind dort schon beantwortet.
   - name: Roadmap
-    url: https://haben.app/roadmap.html
-    about: Was geplant ist, was blockiert ist und warum. Bitte vor einem Funktionswunsch kurz hineinschauen.
+    url: https://github.com/users/firsttris/projects/2
+    about: Was geplant ist und woran gebaut wird. Bitte vor einem Funktionswunsch kurz hineinschauen.

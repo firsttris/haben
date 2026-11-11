@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ACCENT_PATTERN,
   contrastOnWhite,
@@ -15,6 +15,8 @@ import {
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { saveLetterheadDesign } from "../server/functions/logo.ts";
+import { Field } from "./Field.tsx";
+import { layoutHint, LayoutHintText, layoutHintId, type LayoutHints } from "./LayoutHint.tsx";
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
@@ -75,14 +77,18 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  disabled,
+  describedBy,
 }: {
   label: string;
   options: { value: T; label: string; name: string }[];
   value: T;
   onChange: (value: T) => void;
+  disabled?: boolean | undefined;
+  describedBy?: string | undefined;
 }) {
   return (
-    <div className="segmented" role="group" aria-label={label}>
+    <div className="segmented" role="group" aria-label={label} aria-describedby={describedBy}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -90,6 +96,7 @@ export function Segmented<T extends string>({
           className="btn btn-sm"
           title={option.name}
           aria-pressed={value === option.value}
+          disabled={disabled}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -105,49 +112,90 @@ export function DesignOptionFields({
   onChange,
   vatRates = 0,
   logoUpload,
+  hints,
 }: {
   design: LetterheadDesign;
   onChange: (input: LetterheadDesignInput) => void;
   /** Steuersätze des geöffneten Belegs; in den Einstellungen gibt es keinen */
   vatRates?: number;
+  /** Das Hochladen; deaktiviert es selbst, wenn layoutHint(hints, "logo") aus ist, der Hinweis steht hier */
   logoUpload: ReactNode;
+  /** Nur in den Einstellungen: Einstellungen, die ein zugeordnetes eigenes Layout nicht verwendet */
+  hints?: LayoutHints | undefined;
 }) {
-  const fontHeading = useId();
+  const hint = (option: string) => layoutHint(hints, option);
   return (
     <>
       <section>
-        <h3 id={fontHeading}>Schrift</h3>
-        <div className="field">
-          <select aria-labelledby={fontHeading} value={design.font} onChange={(event) => onChange({ font: event.target.value as LetterheadFont })}>
-            {(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[]).map((font) => (
-              <option key={font} value={font}>
-                {LETTERHEAD_FONTS[font].name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <h3>Schrift</h3>
+        <Field label="Schrift" hideLabel hint={hint("font")?.text}>
+          {(control) => (
+            <select
+              {...control}
+              value={design.font}
+              disabled={hint("font")?.aus}
+              onChange={(event) => onChange({ font: event.target.value as LetterheadFont })}
+            >
+              {(Object.keys(LETTERHEAD_FONTS) as LetterheadFont[]).map((font) => (
+                <option key={font} value={font}>
+                  {LETTERHEAD_FONTS[font].name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </section>
       <section>
         <h3>Logo</h3>
         {logoUpload}
+        <LayoutHintText option="logo" hint={hint("logo")} />
         <div className="design-logo-row">
-          <Segmented label="Größe des Logos" options={LOGO_SIZE_OPTIONS} value={design.logoSize} onChange={(logoSize) => onChange({ logoSize })} />
+          <Segmented
+            label="Größe des Logos"
+            options={LOGO_SIZE_OPTIONS}
+            value={design.logoSize}
+            onChange={(logoSize) => onChange({ logoSize })}
+            disabled={hint("logoSize")?.aus}
+            describedBy={layoutHintId("logoSize", hint("logoSize"))}
+          />
           <Segmented
             label="Seite des Logos"
             options={LOGO_POSITION_OPTIONS}
             value={design.logoPosition}
             onChange={(logoPosition) => onChange({ logoPosition })}
+            disabled={hint("logoPosition")?.aus}
+            describedBy={layoutHintId("logoPosition", hint("logoPosition"))}
           />
         </div>
+        <LayoutHintText option="logoSize" hint={hint("logoSize")} />
+        <LayoutHintText option="logoPosition" hint={hint("logoPosition")} />
       </section>
       <section>
         <h3>Auf dem Blatt</h3>
-        {SWITCHES.map(({ key, label }) => (
-          <label key={key} className="checkbox">
-            <input type="checkbox" checked={design[key]} onChange={(event) => onChange({ [key]: event.target.checked })} />
-            {label}
-          </label>
-        ))}
+        {SWITCHES.map(({ key, label }) => {
+          const entry = hint(key);
+          const box = (
+            <label key={key} className="checkbox">
+              <input
+                type="checkbox"
+                checked={design[key]}
+                disabled={entry?.aus}
+                aria-describedby={layoutHintId(key, entry)}
+                onChange={(event) => onChange({ [key]: event.target.checked })}
+              />
+              {label}
+            </label>
+          );
+          // Hinweis außerhalb des Labels, sonst zählte er zum Namen (DESIGN.md)
+          return entry ? (
+            <div key={key} className="checkbox-hinted">
+              {box}
+              <LayoutHintText option={key} hint={entry} />
+            </div>
+          ) : (
+            box
+          );
+        })}
         {!design.vatColumn && vatRates > 1 && (
           <div className="banner banner-info" role="status">
             Dieser Beleg hat mehrere Steuersätze, deshalb bleibt die Spalte USt stehen.

@@ -9,7 +9,7 @@ description: >-
 
 Die Betreiber-CLI übernimmt einen vorbereiteten Bestand in die vorhandenen Umzugsbausteine. Rechnungen und Eingangsbelege stehen zusammen mit Lexoffice- und sevDesk-Belegen unter **Archiv → Belege**, Angebote und andere kaufmännische Originale unter **Archiv → Auftragsdokumente**. Ihre Herkunft nennt das tatsächliche Quellprogramm. Ursprüngliche Buchungen durchlaufen Habens Buchungskern und erscheinen im Journal; Kassenbewegungen stehen zusätzlich im Kassenbuch.
 
-Offene Posten werden anschließend über **Umzug → Offene Posten** und dessen bestehenden Stichtags-/Eröffnungsablauf übernommen. Dabei bleiben die global eindeutigen nativen Belegnummern erhalten. Eine kollidierende Rechnungsnummer blockiert die native Übernahme; das Original im Umzugsbestand bleibt verfügbar. Verschiedene Originale werden weder allein wegen gleicher Nummern zusammengeführt noch umnummeriert.
+Offene Posten werden anschließend unter **Archiv › Umzug › Offene Posten übernehmen** mit dem bestehenden Ablauf aus Stichtag und Eröffnung übernommen. Dabei bleiben die global eindeutigen nativen Belegnummern erhalten. Eine kollidierende Rechnungsnummer blockiert die native Übernahme; das Original im Umzugsbestand bleibt verfügbar. Verschiedene Originale werden weder allein wegen gleicher Nummern zusammengeführt noch umnummeriert.
 
 Die ausdrücklich übergebene Steuerart bleibt bei dieser Übernahme erhalten und steuert Erlöskonto, Voranmeldung und spätere Zahlungen wie bei einer in Haben geschriebenen Rechnung:
 
@@ -52,7 +52,12 @@ Ein bestätigter Bezahlt-Status und ein Zahlungsnachweis sind unterschiedliche A
 
 Rechnungen werden beim Einlesen nicht erneut ausgestellt und erzeugen keine Erlösbuchung. Vor der späteren Übernahme offener Posten ist zu prüfen, welche Forderungen und Verbindlichkeiten schon durch Originalbuchungen oder eine Eröffnung gedeckt sind. Der vorhandene Umzugsablauf berücksichtigt Eröffnungen; eine beliebige freie Originalbuchung wird nicht stillschweigend als solche interpretiert. Sind freie Originaljournale derselben Quelle vorhanden, bleibt eine zusätzliche native OPOS-Übernahme bis zum Abgleich gesperrt. Umgekehrt wird nach einer nativen OPOS-Übernahme kein freies Originaljournal derselben Quelle ungeprüft nachgebucht. Auch eine fehlende Fälligkeit blockiert die native Weiterübernahme eines generischen Originals.
 
-Die CLI ergänzt keine eigene EÜR-Berechnung. Originaljournal und belegte Zahlungen bleiben für die Projektumstellung [EÜR aus dem Journal (#542)](https://github.com/firsttris/haben/issues/542) erhalten. Die vorhandene Kontenzuordnung und journalbasierte Schattenrechnung dienen dem Abgleich; der spätere verbindliche Umstieg ist ein weiterer Schritt. Deshalb beweist eine sichtbare importierte Journalbuchung allein noch nicht, dass sie in der aktuellen EÜR oder Voranmeldung enthalten ist. Die Auswertungen müssen vor einer steuerlichen Abgabe über die vorhandene Prüfstrecke abgeglichen sein.
+Die CLI ergänzt keine eigene EÜR-Berechnung. Originalbuchungen stehen im Journal mit der Herkunft „Import“. Ob sie in Voranmeldung und EÜR zählen, hängt vom [Stichjahr](umsatzsteuer.md#wie-die-kennzahlen-entstehen) ab:
+
+- **Vor dem Stichjahr** rechnen Voranmeldung und EÜR aus Rechnungen, Belegen und Zahlungen. Eine importierte Buchung zählt dort nicht, auch wenn sie im Journal steht.
+- **Ab dem Stichjahr** rechnen die Voranmeldung und, im Einzelunternehmen, die EÜR aus dem Journal, und eine importierte Buchung zählt wie jede andere nach Konto und Steuerschlüssel ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen), [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)). Die Gegenprobe aus Rechnungen, Belegen und Zahlungen kennt sie nicht; berührt sie Erlös-, Aufwands- oder Steuerkonten, zeigt der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) sie als Abweichung.
+
+Vor einer steuerlichen Abgabe sind die Auswertungen deshalb über den Abgleich zu prüfen.
 
 Kassenbewegungen auf 1000 (SKR03) beziehungsweise 1600 (SKR04) werden im bestehenden Kassenbuch mit derselben Journalreferenz ergänzt. Der gesamte Tagesbestand wird geprüft; negative Bestände werden abgewiesen. Es entsteht keine zweite Journalbuchung oder zusätzliche Rechnungszahlung.
 

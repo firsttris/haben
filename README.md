@@ -6,7 +6,7 @@
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
-direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
+direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 
 ![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
@@ -54,7 +54,7 @@ auf deinem eigenen Server betreibst.
 **🇩🇪 Made in Germany**
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
-- **GoBD-konform von Anfang an**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
+- **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
@@ -69,7 +69,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 
 | Bereich | Was Haben kann |
 |---|---|
-| 🧾 [Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Abschlags- und wiederkehrende Rechnungen, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
+| 🧾 [Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), [eigene Layouts](https://haben.app/belegvorlagen.html) in Typst, Storno, Abschlags- und wiederkehrende Rechnungen, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
 | 📝 [Angebote](https://haben.app/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, mit einem Klick zur Rechnung |
 | 📎 [Belege](https://haben.app/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung |
 | 🏦 [Bankabgleich](https://haben.app/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053, PayPal, Stripe …), Vorschläge mit Begründung, Steuerzahlungen und Darlehen |
@@ -84,7 +84,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 | 🖥️ [Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
 | 📊 [Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
 | 📚 [Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
-| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
+| 📦 [Umzug aus Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen, mit Abgleich je Jahr |
 | 🔐 [Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
 | 📥 [CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
 | 🔌 [REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
@@ -123,8 +123,9 @@ Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zuga
 mkdir haben && cd haben
 curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
 curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+chmod 600 .env
 # in .env eintragen: DOMAIN, DB_PASSWORD (openssl rand -hex 24),
-# AUTH_SECRET und ENCRYPTION_KEY (je openssl rand -base64 32), dann
+# AUTH_SECRET, ENCRYPTION_KEY und RESTIC_PASSWORD (je openssl rand -base64 32), dann
 docker compose up -d
 ```
 
@@ -135,8 +136,10 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 [Betrieb und Installation](https://haben.app/installation.html).
 
 > [!IMPORTANT]
-> Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
-> einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
+> Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) und das
+> Backup-Passwort (`RESTIC_PASSWORD` bzw. `haben-restic-password`) zusätzlich an einem zweiten Ort. Ohne den Schlüssel
+> sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar,
+> ohne das Passwort lässt sich das Backup nicht öffnen.
 
 ## ❓ FAQ
 
@@ -168,8 +171,10 @@ erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesel
 <details>
 <summary><b>Ist Haben GoBD-konform?</b></summary>
 
-Ja. Gebuchtes wird festgeschrieben und lässt sich nur per Storno korrigieren, jede Änderung steht im
-Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
+Haben setzt die technischen Anforderungen der GoBD um: Gebuchtes wird festgeschrieben und lässt sich nur per Storno
+korrigieren, jede Änderung steht im Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Zur Ordnungsmäßigkeit
+gehören außerdem dein Betrieb (Backups, Aufbewahrung) und deine Verfahrensdokumentation; ein Testat für die Software gibt
+es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 </details>
 
 <details>
@@ -177,7 +182,7 @@ Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in H
 
 Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://haben.app/elster-abgabe.html)):
 - **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
-  aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert oft Wochen
+  aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert Tage bis Wochen
   ([Erste Schritte](https://haben.app/einrichtung.html#elster-einrichten)).
 - **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
   die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html)
@@ -195,8 +200,10 @@ Ja, mit einem [eigenen Zugang](https://haben.app/steuerberatung.html), der nur l
 <details>
 <summary><b>Können mehrere Personen Haben nutzen?</b></summary>
 
-Haben ist für dich und deine eigene Firma gedacht: Es gibt genau einen Inhaber mit allen Rechten. Dazu kannst du deine
+Haben ist für dich und deine eigene Firma gedacht: Im Standardmodus gibt es genau einen Inhaber mit allen Rechten. Dazu kannst du deine
 Steuerberatung per Einladungslink mit einem [Zugang, der nur lesen kann](https://haben.app/steuerberatung.html), dazuholen.
+Mit [Single Sign-on](https://haben.app/installation.html#single-sign-on-mit-openid-connect) sind auch mehrere Inhaber
+möglich; die Rolle kommt dann bei jeder Anmeldung aus der Gruppe im Anmeldedienst.
 </details>
 
 <details>
@@ -210,9 +217,9 @@ eigene Werkzeuge und Automationen gibt es die [REST-API](https://haben.app/api.h
 <details>
 <summary><b>Ist das sicher?</b></summary>
 
-Wir haben geprüft, und du kannst es auch: Der Code ist offen.
+Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabhängiges Audit gibt es bisher nicht.
 
-- **Geprüft:** mit Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) und
+- **Automatisiert geprüft:** mit Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) und
   `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
 - **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
   Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
@@ -221,6 +228,19 @@ Wir haben geprüft, und du kannst es auch: Der Code ist offen.
   [SECURITY.md](SECURITY.md#abhängigkeiten-aktuell-halten).
 - **Offen für alle:** Jeder kann den Code lesen und Lücken melden, bitte vertraulich wie in [SECURITY.md](SECURITY.md)
   beschrieben.
+</details>
+
+<details>
+<summary><b>Wird Haben mit KI entwickelt?</b></summary>
+
+Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
+
+- **Fehlerklassen ausgeschlossen:** Beträge nur in ganzen Cent, Festschreibung per Datenbank-Trigger, die auch fehlerhafter Code nicht umgehen kann.
+- **Tests für jede Änderung:** Vitest, Postgres und Playwright; ein Bugfix beginnt mit einem Test, der fehlschlägt. E-Rechnungen prüft der KoSIT-Validator in der CI.
+- **Regeln als Skript:** Modulgrenzen, Dateigröße und die Regeln für Pull Requests prüft die CI, nicht nur der Text.
+- **Review mit Beweis:** Ein zweiter, unabhängiger Agent reviewt jeden Pull Request und darf einen Fehler nur melden, wenn ein Test ihn rot zeigt. Gemergt wird von einem Menschen.
+
+Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/entwicklung.html#leitplanken-für-agenten).
 </details>
 
 ## 📚 Dokumentation
@@ -235,7 +255,7 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
 
 ## 🔧 Entwicklung
 
-Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
+Voraussetzungen: Bun in der Version aus `packageManager` in `package.json`, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
 ```sh
 bun install
@@ -262,7 +282,7 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
 | `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
 | `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
-| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, N26, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
+| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 
 ## 🧩 Mehr von uns
@@ -272,9 +292,9 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 
 ## 🤝 Mitwirken
 
-Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
-kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `bun run lint`, `bun run typecheck` und
-`bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://haben.app/entwicklung.html)).
+Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
+kennt, und Rückmeldungen zur ELSTER-Übermittlung. Was vor einem Pull Request laufen muss und was er enthält, steht unter
+[Mitwirken](https://haben.app/entwicklung.html#mitwirken).
 
 ## ⭐ Sterne im Verlauf
 

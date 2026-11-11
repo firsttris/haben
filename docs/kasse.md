@@ -1,7 +1,7 @@
 ---
 title: "Kassenbuch für Bargeld führen"
 description: >-
-  Ein GoBD-konformes Kassenbuch: jede Bargeldbewegung mit fortlaufender Nummer, Datum, Betrag und
+  Ein Kassenbuch, für die GoBD gebaut: jede Bargeldbewegung mit fortlaufender Nummer, Datum, Betrag und
   Bestand, gebucht nach SKR03 oder SKR04.
 ---
 
@@ -37,7 +37,7 @@ Bezahlt ein Kunde eine Rechnung bar, wählst du unter **Eintragen** die Art **Re
 - **Auf der Rechnung** steht die Zahlung unter **Zahlungen** als „bar“ mit der Nummer im Kassenbuch; die Rechnung ist bezahlt, sobald nichts mehr offen ist.
 - **Storno:** **Stornieren** in der Liste schreibt eine Gegenzeile mit neuer Nummer und heutigem Datum und bucht gegen (Forderungen an Kasse, bei Ist die Umsatzsteuer zurück auf „nicht fällig“). Die Rechnung ist danach wieder offen, ein mit der Bareinnahme ausgebuchtes Skonto wird mit aufgehoben. Auch hier darf der Kassenbestand nicht negativ werden. Ist die Bareinnahme in einem anderen Kontenrahmen gebucht als dem jetzt eingestellten (Wechsel zum Jahreswechsel), bucht das Storno mit den Konten derselben Rolle im neuen Rahmen, etwa Forderungen und Kasse aus SKR04 statt SKR03.
 
-**Warum im Kassenbuch:** Bisher musste bar erhaltenes Geld erst auf das Konto eingezahlt und dort der Rechnung zugeordnet werden. Dann stimmten Kassenbuch und Kassenbestand nicht mit dem Bargeld überein, und bei Ist-Versteuerung fiel die Umsatzsteuer in den Monat der Einzahlung statt in den Monat, in dem das Geld vereinnahmt war. Die Bareinnahme bucht jetzt den Zahlungseingang dort, wo er stattfindet. Ein Kassensystem für den Ladenverkauf wird Haben damit nicht: Haben zeichnet keine einzelnen Verkäufe an einer Registrierkasse auf; Barverkäufe ohne Rechnung trägst du als [Bareinnahme ohne Rechnung](#bareinnahme-ohne-rechnung) ein, etwa als Tagessumme.
+**Warum im Kassenbuch:** Die Bareinnahme bucht den Zahlungseingang dort, wo er stattfindet. So stimmen Kassenbuch und Bargeld überein, und bei Ist-Versteuerung fällt die Umsatzsteuer in den Monat, in dem das Geld vereinnahmt ist. Ein Kassensystem für den Ladenverkauf wird Haben damit nicht: Haben zeichnet keine einzelnen Verkäufe an einer Registrierkasse auf; Barverkäufe ohne Rechnung trägst du als [Bareinnahme ohne Rechnung](#bareinnahme-ohne-rechnung) ein, etwa als Tagessumme.
 
 Eine Bareinnahme gehört zu genau einer Rechnung. Bezahlt ein Kunde mehrere Rechnungen auf einmal bar, trägst du je Rechnung eine Zeile ein; so steht jede Quittung für sich im Kassenbuch.
 
@@ -64,7 +64,7 @@ Verkaufst du bar an Privatkunden, etwa am Marktstand, brauchst du keine Rechnung
 
 ## Regeln
 
-**Übernommene Originalbuchungen:** Der [JSON-Eingang für Umzüge](belegimport.md) ergänzt Kassenbewegungen aus einem Originaljournal mit derselben Journalreferenz. Sie stehen als „Übernommen“ in der Liste; es entsteht keine zweite Buchung oder zusätzliche EÜR-Zahlung. Auch dabei darf der Kassenbestand an keinem Tag negativ werden. Solche Bewegungen lassen sich hier nicht einzeln stornieren: Eine Korrektur muss mit dem übernommenen Originaljournal abgestimmt werden.
+**Übernommene Originalbuchungen:** Der [JSON-Eingang für Umzüge](belegimport.md) ergänzt Kassenbewegungen aus einem Originaljournal mit derselben Journalreferenz. Sie stehen als „Übernommene Kassenbewegung“ in der Liste; es entsteht keine zweite Buchung oder zusätzliche EÜR-Zahlung. Auch dabei darf der Kassenbestand an keinem Tag negativ werden. Solche Bewegungen lassen sich hier nicht einzeln stornieren: Eine Korrektur muss mit dem übernommenen Originaljournal abgestimmt werden.
 
 - Jede Zeile wird sofort gebucht und festgeschrieben. Ändern oder Löschen geht nicht (GoBD), auch nicht in der Datenbank.
 - Eine falsche Zeile hebst du mit **Stornieren** auf: Haben schreibt eine Gegenzeile mit neuer Nummer und heutigem Datum und bucht gegen. Danach trägst du sie richtig neu ein. Bar bezahlte Belege sind gebucht und lassen sich hier nicht stornieren; das geht am Beleg selbst mit **Beleg stornieren**, dann schreibt Haben die Gegenzeile ins Kassenbuch (siehe [Belege](belege.md#stornieren-und-neu-erfassen)).

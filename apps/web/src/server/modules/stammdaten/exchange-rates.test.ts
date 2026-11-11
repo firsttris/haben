@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const CSV_2026 =
   "Monatlich fortgeschriebene Übersicht der Umsatzsteuer-Umrechnungskurse 2026 (Euro-Referenzkurse);;;;;;;;;;;;;\nLand;Währung;Januar[1];Februar [2];März [3];April [4];Mai [5];Juni [6];Juli [7];August [8];September [9];Oktober [10];November [11];Dezember [12]\nUSA;1 Euro;;;;;;;;1,0950 USD;1,0812 USD;;;\n";
@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Umrechnungskurse (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate exchange_rates, document_amounts, documents cascade`;
+    await leeren(sql)`truncate exchange_rates, document_amounts, documents cascade`;
     delete (globalThis as { __habenKurseAbgerufen?: number }).__habenKurseAbgerufen;
   });
 

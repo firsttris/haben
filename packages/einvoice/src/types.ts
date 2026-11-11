@@ -102,6 +102,20 @@ export interface Letterhead {
   accent?: string;
   /** Logo, Marken und Schalter aus dem Profil; fehlt = Vorgaben (DEFAULT_OPTIONS) */
   options?: LetterheadOptions;
+  /**
+   * Eigenes Layout: bekommt die fertigen Daten der Vorlage und liefert das PDF, das statt der eingebauten Vorlage gilt.
+   * undefined = eingebaute Vorlage. Der Server nutzt das zweimal: einmal, um die Daten abzufangen, einmal mit dem PDF
+   * aus dem Render-Prozess (withCustomLayout in apps/web).
+   */
+  pdfFrom?: (request: PdfRequest) => Uint8Array | undefined;
+}
+
+/** Was eine Vorlage zum Setzen bekommt; data ist schon mit dem Briefkopf ergänzt (templateInputs) */
+export interface PdfRequest {
+  /** Eingebaute Vorlage, für die die Daten gedacht sind */
+  template: "rechnung.typ" | "mahnung.typ";
+  data: object;
+  date: string;
 }
 
 /**

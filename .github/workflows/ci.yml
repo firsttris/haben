@@ -147,6 +147,8 @@ jobs:
         run: bun --bun playwright install-deps chromium
       - name: PostgreSQL ohne fsync
         run: docker exec ${{ job.services.postgres.id }} psql -U haben -d haben_e2e -qc "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+      # pdftotext prüft beim Hochladen eines eigenen Layouts die Pflichtangaben (wie im Image)
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils
       - run: bun run build
       # Vier Worker (playwright.config.ts), so viele Kerne hat der Runner
       - name: Ende-zu-Ende-Tests, Teil ${{ matrix.teil }} von 3

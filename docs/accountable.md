@@ -31,7 +31,7 @@ Die Datei heißt danach `Accountable_<Vorname>_<Nachname>_skr03_<Datum>_<Zufall>
 Die anderen Exporte desselben Vorgangs (Excel-Export, Originaldokumente, PDF-Export, Vermögenswerte) brauchst du für den Umzug nicht.
 
 > [!NOTE]
-> Accountable rechnet den Export nach Zahlungsdaten. Das passt zur Ist-Versteuerung und ist der Grund, warum in der Liste der offenen Posten nichts zu übernehmen ist: Was im Export steht, ist bezahlt.
+> Accountable rechnet den Buchungsstapel nach Zahlungsdaten; das passt zur Ist-Versteuerung. Der Stapel allein kennt deshalb keine offenen Posten. Was noch nicht bezahlt war, erkennt Haben an `Daten.xlsx` (siehe [Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)); nur diese Belege stehen in Schritt 3 zur Übernahme.
 
 ## Was in der Datei steckt
 
@@ -39,18 +39,20 @@ Die anderen Exporte desselben Vorgangs (Excel-Export, Originaldokumente, PDF-Exp
 - die Belege in `Belege.zip` samt `document.xml`, das jedem Beleg eine GUID zuordnet
 - die Belegdateien unter `PDF/Einkäufe` (Ausgaben) und `PDF/Umsätze` (Ausgangsrechnungen)
 - je Buchung die Verknüpfung zur Belegdatei im Feld „Beleglink“ (`BEDI "<GUID>"`)
+- `Daten.xlsx`: Der Import liest daraus das Sheet „Ausgaben“ mit Buchungscode, Lieferant und Zahlungsstatus (siehe [Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)); die übrigen Sheets bleiben nur im Archiv
+- `Abschreibungstabelle.xlsx`: wird mit der ZIP archiviert, aber nicht eingelesen
 
 Die ZIP ist die einzige Schnittstelle zwischen den beiden Programmen.
 
 Die Zuordnung Buchung zu Beleg läuft über die GUID und nicht über den Dateinamen. Derselbe Beleg heißt in `Belege.zip` anders als im PDF-Ordner (etwa `…_012` gegen `…_Wdn`). Wenn du vor dem Upload Dateien umbenennst, geht die Verknüpfung kaputt. Lade die ZIP unverändert hoch, Haben speichert sie mit Prüfsumme im Archiv.
 
-Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen. Haben nimmt sie der Reihe nach und übernimmt jede für sich. Wie im Archiv gilt: Jeder Zeitraum wird nur einmal übernommen. Liegt für das Jahr schon ein Buchungsstapel im Archiv, etwa aus einem früheren Export desselben Jahres, bricht der Lauf mit einem Hinweis ab, statt die Buchungen doppelt abzulegen. Dieselbe ZIP noch einmal hochzuladen geht dagegen und übernimmt nur, was fehlt.
+Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen; jede darf höchstens 100 MB groß sein. Haben nimmt sie der Reihe nach und übernimmt jede für sich. Wie im Archiv gilt: Jeder Zeitraum wird nur einmal übernommen. Liegt für das Jahr schon ein Buchungsstapel im Archiv, etwa aus einem früheren Export desselben Jahres, bricht der Lauf mit einem Hinweis ab, statt die Buchungen doppelt abzulegen. Dieselbe ZIP noch einmal hochzuladen geht dagegen und übernimmt nur, was fehlt.
 
 ## Was übernommen wird
 
-1. Aus Buchungen werden Belege. Accountable bucht jede Ausgabe einzeln gegen das Bankkonto 1200, Gegenkonto ist das Aufwandskonto. Daraus entstehen Ausgabebelege mit Datum, Brutto und Steuer.
+1. Aus Buchungen werden Belege. Accountable bucht jede Ausgabe einzeln gegen das Bankkonto 1200, Gegenkonto ist das Aufwandskonto. Daraus entstehen Archivbelege mit Datum, Brutto und Steuer.
 2. Steuer und Netto richten sich nach dem BU-Schlüssel. Steht im Stapel einer (19 oder 7 %), ist der Umsatz brutto und Haben rechnet Steuer und Netto heraus. Ohne BU-Schlüssel gilt der Betrag als steuerfrei gebucht.
-3. Die Belegdatei aus `document.xml` wird über die GUID als Original an den Beleg gehängt. Fehlt eine verlinkte Datei, steht das als Hinweis am Lauf.
+3. Die Belegdatei aus `document.xml` wird über die GUID als Original an den Archivbeleg gehängt. Fehlt eine verlinkte Datei, steht das als Hinweis am Lauf.
 4. Der Lieferant kommt aus dem Buchungstext, ohne Vorsätze wie „ER“, „AR“, „EB“ oder „AB“.
 
 Private Zeilen bleiben Zahlungen ohne Beleg: im SKR03 der ganze Privatbereich `1800` bis `1899`, also Privatentnahmen (`1800`, `1801`), Privatsteuern (`1810`), Sonderausgaben und Privateinlagen (`1890`), und Umbuchungen zwischen Unterkonten des Kontos 1200 (`1360`), im SKR04 Privat (`2100` bis `2199`) und Geldtransit (`1460`). Der Import zählt sie und legt dafür nichts an. Den Kontenrahmen liest Haben aus dem Ordnernamen im Export (`datev_skr03_…` bzw. `datev_skr04_…`).
@@ -71,7 +73,7 @@ Im Archiv erscheint jede Ausgabe unter diesem Kennzeichen, du kannst danach such
 | Steuererklärungen (Einkommensteuer bzw. Körperschaft- und Gewerbesteuer, Umsatzsteuer-Jahreserklärung) | nicht Teil des Exports | Accountable bzw. das Finanzamt, als PDF in Schritt 4 ablegen |
 | Ausgangsrechnungen mit Positionen | Der DATEV-Stapel enthält je Buchung nur Brutto, Steuer und Buchungstext, keine Positionen. Haben verlangt für eine Rechnung Positionen. Der Import zählt die Ausgangsrechnungen und meldet sie, angelegt werden sie nicht | in Haben neu schreiben oder als Bestand über die Eröffnungsbuchung führen |
 | Kontakte als Datensatz | nur als Sheet im Excel-Export | [CSV-Import](csv-import.md#kontakte) oder von Hand |
-| Bankumsätze und übermittelte Voranmeldungen | nicht im Export | Kontoauszüge als PDF, Voranmeldungen als Protokolle ablegen |
+| Bankumsätze und übermittelte Voranmeldungen | Voranmeldungen sind nicht im Export; die Bankumsätze stehen nur im Sheet „Kontobewegungen“ von `Daten.xlsx`, das der Import nicht einliest | Kontoauszüge als PDF, Voranmeldungen als Protokolle ablegen |
 | Anlagenverzeichnis | `Abschreibungstabelle.xlsx` wird nur archiviert, nicht eingelesen | [Anlagen übernehmen](anlagen.md) |
 
 ## Kategorie und Zahlungsstatus
@@ -128,6 +130,28 @@ Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzu
 - Beim Punkt „Jede Buchung mit Belegnummer findet ihren Beleg“ zählen Privat-, Geldtransit- und Vortragszeilen nie mit, bei jeder Herkunft und je nach Kontenrahmen. Erlösbuchungen zählen nur im Stapel aus dem Accountable-Umzug nicht mit, weil Accountable keine Ausgangsrechnungen exportiert. Aus Lexoffice und sevDesk fehlt die Rechnung zu einer Erlösbuchung dagegen wirklich.
 - Die Buchungen aus dem Accountable-Stapel sind dieselben, die du in Schritt 4 noch einmal als DATEV-Buchungsstapel ablegst. Der Abgleich erkennt sie an ihren Belegnummern, synthetisch bei Ausgaben, echt bei Ausgangsrechnungen.
 - Die letzte Rechnungsnummer für Schritt 5 steht nicht im Stapel. Trage sie aus Accountable von Hand in den Einstellungen nach.
+
+## Rechnungen mit mehreren Buchungscodes
+
+Accountable kann eine Rechnung auf mehrere Konten verteilen. Im Ausgabenblatt steht dann je
+Konto eine Zeile, alle mit demselben Lieferanten und Datum, aber ohne Belegnummer, die sie
+zusammenbindet. Beim Export fehlt damit die Angabe, welche Zeilen eine Rechnung sind.
+
+Spalte Y, Dokument vorhanden, gilt für die ganze Rechnung und nicht für die einzelne Zeile:
+sie steht auch an den Zeilen, die keinen eigenen Dateinamen tragen. Im Belege-Ordner liegt die
+Datei einmal, benannt nach Datum und Lieferant.
+
+Wer die Zeilen einzeln übernimmt, bekommt deshalb einen Beleg über den Teilbetrag einer Zeile,
+während die übrigen ohne Buchung bleiben und im Aufwand und in der Vorsteuer fehlen.
+
+Der Umzug auf der Seite „Archiv“ fasst solche Zeilen nicht zusammen. Prüfe sie nach dem
+Import, besonders wenn Datum und Betrag auf mehrere Zeilen passen (siehe
+[Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)). Wer den Bestand mit einem
+eigenen Exportadapter vorbereitet, kann solche Zeilen dort zusammenfassen und das Paket über
+den [Belegimport](belegimport.md) übernehmen.
+
+Ob mehrere Zeilen eine Rechnung sind, bleibt eine Annahme, weil zwei getrennte Käufe beim
+selben Händler am selben Tag genauso aussehen.
 
 ## Vor der Kündigung
 

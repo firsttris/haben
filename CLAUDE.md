@@ -21,6 +21,8 @@ the change before starting.
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
 | Review and merge | Review | `tdd-review` |
 | Issues and labels | Issues schreiben | `issue-schreiben` |
+| Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
+| Releasing a version | Veröffentlichen, Release Candidates | `release` |
 | Rules a script checks | Automatische Prüfungen der Regeln | |
 
 Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user page of the area
@@ -44,7 +46,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Tests for what changed: Vitest, Postgres tests next to the module, Playwright for what a user clicks; a bug
   fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax.
 - Docs in `docs/` in the same pull request; the README only when a feature area or its one-line summary changes.
-- Reference issues with `Refs #…`, never `Closes`/`Fixes`: the issue stays open with `rückmeldung`.
+- Reference issues with `Umgesetzt #…` (done) or `Refs #…` (part), never `Closes`/`Fixes`: the release closes them, not the merge (Mitwirken).
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
 - New data for the document templates: describe each field in the field contract (`packages/einvoice/src/layout-schema.ts`), then `bun scripts/feldvertrag/schreiben.ts` rewrites the `belegvorlage` skill and `docs/belegvorlagen.md`. Never remove, rename or retype a field of a released contract version; custom layouts depend on it (`docs/belegvorlagen.md`).
@@ -65,4 +67,4 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
   `server/modules/`; another module only through its `index.ts`.
 - Name the source (EN 16931, ERiC docs, DATEV format and SKR03/SKR04 charts; law over DATEV) where it settles a detail; clone GitHub sources
   shallowly into the scratchpad.
-- Use other ports for tests (the E2E server uses 3100); an own compose project per worktree (`checks`).
+- Use other ports for tests (E2E takes 3100 to 3110, SSO 3216 and 3218 in `playwright.sso-only.config.ts`); an own compose project per worktree (`checks`).

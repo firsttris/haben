@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
   });
 
   beforeEach(async () => {
-    await sql`truncate vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',

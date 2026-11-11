@@ -222,6 +222,7 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
                 </td>
                 {mitSchluesseln && (
                   <td>
+                    {/* biome-ignore lint/plugin: Zelle der Buchungstabelle: der Spaltenkopf und aria-label benennen sie, eine Hülle `.field` je Zelle sprengte die Zeile */}
                     <select
                       aria-label={`Steuerschlüssel Zeile ${index + 1}`}
                       style={{ minWidth: 136 }}

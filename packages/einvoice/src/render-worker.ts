@@ -20,7 +20,8 @@ function pageSize(svg: string, pages: number): { width: number; height: number }
   return { width: Number(width), height: Number(height) / pages };
 }
 
-function render({ workspace, main, data, files }: RenderRequest): RenderedSheet {
+/** Kompiliert und gibt das SVG oder, mit pdf, das PDF/A-3b als Base64 zurück */
+function render({ workspace, main, data, files, pdf }: RenderRequest): RenderedSheet | string {
   const started = performance.now();
   const typst = compilerFor(workspace);
   const shadows = files.map(({ name, base64 }) => [join(workspace, name), Buffer.from(base64, "base64")] as const);
@@ -31,6 +32,11 @@ function render({ workspace, main, data, files }: RenderRequest): RenderedSheet 
     if (result.hasError() || !document) {
       const error = result.takeError();
       throw new Error(JSON.stringify(error ? typst.fetchDiagnostics(error) : []));
+    }
+    if (pdf) {
+      const bytes = typst.pdf(document, { pdfStandard: "a-3b", creationTimestamp: Math.floor(Date.parse(`${pdf.date}T12:00:00Z`) / 1000) });
+      typst.evictCache(10);
+      return Buffer.from(bytes).toString("base64");
     }
     const svg = typst.svg(document);
     const pages = document.numOfPages;
@@ -44,7 +50,8 @@ function render({ workspace, main, data, files }: RenderRequest): RenderedSheet 
 process.on("message", (request: RenderRequest) => {
   let response: RenderResponse;
   try {
-    response = { id: request.id, ok: true, sheet: render(request) };
+    const result = render(request);
+    response = typeof result === "string" ? { id: request.id, ok: true, pdf: result } : { id: request.id, ok: true, sheet: result };
   } catch (error) {
     response = { id: request.id, ok: false, message: error instanceof Error ? error.message : String(error) };
   }

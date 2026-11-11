@@ -1,7 +1,7 @@
 import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Fremdes Bankkonto ausschließen (#462): Ein Konto, das nicht zu dieser Firma gehört (etwa das Konto einer zweiten Firma
@@ -60,7 +60,8 @@ describe.skipIf(!testDatabaseUrl)("Fremdes Bankkonto ausschließen (Postgres, #4
   });
 
   beforeEach(async () => {
-    await sql`truncate bank_neutralizations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate bank_neutralizations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+      company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
       values (1, 'Nordlicht Software', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', 'ist')`;
   });
@@ -211,7 +212,8 @@ describe.skipIf(!testDatabaseUrl)("Fremdes Bankkonto ausschließen (Postgres, #4
 
   it("Ausschluss und gleichzeitige Zuordnung: höchstens eines von beiden gelingt", async () => {
     for (let i = 0; i < 6; i++) {
-      await sql`truncate bank_neutralizations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries cascade`;
+      await leeren(sql)`truncate bank_neutralizations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines,
+        journal_entries cascade`;
       const fremdes = await konto(FREMDES, [["02.10.26", "Sparkasse", "Gebühr", "-5,00"]]);
       const id = await umsatz(-500, fremdes.accountId);
       const [ausschluss, zuordnung] = await Promise.allSettled([

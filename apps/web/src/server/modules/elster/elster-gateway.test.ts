@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { FakeElsterClient, TEST_HERSTELLER_ID, type ElsterClient, type ElsterResult } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /** Dateien unter server/ ohne Tests, rekursiv */
 function serverSources(dir = fileURLToPath(new URL("../../", import.meta.url))): string[] {
@@ -72,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Gateway (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate elster_certificates, elster_messages, brm_requests, company cascade`;
+    await leeren(sql)`truncate elster_certificates, elster_messages, brm_requests, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland, email) values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY', 'max@example.com')`;
   });
 
