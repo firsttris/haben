@@ -192,6 +192,54 @@ describe.skipIf(!testDatabaseUrl)("Rollen bei der Zuordnung von Kontakten (Postg
     },
   ];
 
+  describe("abgeleitete Zuordnungen und fehlende Zeilen", () => {
+    const rechnung = (contactId: string) => ({
+      contactId,
+      issueDate: "2026-10-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd" as const,
+      note: "",
+      lines: [zeile],
+    });
+
+    it("Storno und Korrektur übernehmen den Kunden, auch wenn er die Rolle verloren hat", async () => {
+      const kunde = await kontakt("beides");
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, rechnung(kunde.id))).id);
+      await rolleEntziehen(kunde.id, "lieferant");
+      await expect(invoices.createCorrection(actor, final.id, "2026-10-05")).resolves.toMatchObject({ kind: "korrektur", contactId: kunde.id });
+      await expect(invoices.cancelInvoice(actor, final.id, "2026-10-06")).resolves.toMatchObject({ kind: "storno", contactId: kunde.id });
+    });
+
+    it("der Lauf einer wiederkehrenden Rechnung legt den Entwurf auch ohne die Rolle Kunde an", async () => {
+      const kunde = await kontakt("beides");
+      const vorlage = await ziele[2]!.speichern(kunde.id);
+      await rolleEntziehen(kunde.id, "lieferant");
+      await expect(recurring.runDueRecurring("2026-12-15")).resolves.toMatchObject({ created: 1, errors: [] });
+      const rows = await sql`select contact_id from invoices where recurring_id = ${vorlage}`;
+      expect(rows.map((r) => r.contact_id)).toEqual([kunde.id]);
+    });
+
+    it("ein Entwurf mit externer Referenz prüft den Kunden, außer der Kontakt kommt aus den Einstellungen", async () => {
+      const lieferant = await kontakt("lieferant");
+      const referenz = await import("../rechnungen/external-reference.ts");
+      await expect(referenz.createDraftForReference(actor, rechnung(lieferant.id), { externalSource: "etsy", externalId: "1" })).rejects.toThrow(
+        /ist kein Kunde/,
+      );
+      await expect(
+        referenz.createDraftForReference(actor, rechnung(lieferant.id), { externalSource: "etsy", externalId: "1" }, { checkContact: false }),
+      ).resolves.toMatchObject({ created: true });
+    });
+
+    it("eine unbekannte Vorlage oder ein unbekannter Textbaustein wird als nicht gefunden gemeldet", async () => {
+      const kunde = await kontakt("kunde");
+      const unbekannt = "00000000-0000-4000-8000-000000000000";
+      await expect(ziele[2]!.speichern(kunde.id, unbekannt)).rejects.toThrow(/Vorlage nicht gefunden/);
+      await expect(ziele[3]!.speichern(kunde.id, unbekannt)).rejects.toThrow(/Textbaustein nicht gefunden/);
+    });
+  });
+
   for (const ziel of ziele) {
     describe(ziel.label, () => {
       it("weist einen Kontakt ohne die Rolle beim Anlegen ab", async () => {

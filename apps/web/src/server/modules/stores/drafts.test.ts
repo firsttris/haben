@@ -148,7 +148,10 @@ describe.skipIf(!testDatabaseUrl).each(CASES)("Rechnungsentwürfe an die Store-G
 
   it("legt für ältere Monate auf Wunsch Entwürfe an, Fremdwährung mit dem Kurs des Umsatzes", async () => {
     await stores.setStoreContact(actor, { store: "appstore", contactId: googleContact });
+    // Der gewählte Kontakt gilt weiter, auch wenn er inzwischen kein Kunde mehr ist: die Entwürfe entstehen trotzdem
+    await sql`update contacts set is_customer = false, is_supplier = true where id = ${googleContact}`;
     expect((await stores.createAllStoreDrafts(actor, "appstore")).created).toBe(2);
+    await sql`update contacts set is_customer = true, is_supplier = false where id = ${googleContact}`;
     const drafts = await sql`select external_id, currency, exchange_rate::text as rate from invoices where external_source = 'appstore' order by external_id`;
     expect(drafts).toEqual([
       { external_id: "appstore-finance-2026-10-EUR", currency: "EUR", rate: null },

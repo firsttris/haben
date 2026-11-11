@@ -347,7 +347,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
     });
 
     it("weist einen Kontakt ohne die Rolle Kunde ab, mit und ohne externe Referenz", async () => {
-      const t = await token(["rechnungen:entwuerfe"]);
+      const t = await token(["rechnungen:entwuerfe", "kontakte:schreiben"]);
       const stammdaten = await import("../stammdaten/index.ts");
       const lieferant = await stammdaten.createContact(actor, {
         ...schemas.CONTACT_DEFAULTS,
@@ -361,6 +361,14 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
         expect(result.json!.error!.message).toMatch(/Großhandel Ton GmbH“ ist kein Kunde/);
       }
       expect(await sql`select id from invoices where contact_id = ${lieferant.id}`).toHaveLength(0);
+      // Ändern: auch PATCH weist den Kontakt ohne die Rolle ab, der Entwurf behält seinen Kunden
+      const kunde = (await call(t, "POST", "/kontakte", { ...schemas.CONTACT_DEFAULTS, name: "Ton Abnehmer GmbH" })).json!;
+      const entwurf = await call(t, "POST", "/rechnungen", draft({ contactId: kunde.id }));
+      expect(entwurf.status).toBe(201);
+      const patch = await call(t, "PATCH", `/rechnungen/${entwurf.json!.id}`, { contactId: lieferant.id });
+      expect(patch.status).toBe(422);
+      expect(patch.json!.error!.message).toMatch(/ist kein Kunde/);
+      expect((await call(t, "GET", `/rechnungen/${entwurf.json!.id}`)).json).toMatchObject({ contactId: kunde.id });
     });
 
     it("filtert nach Referenz, Status und Kontakt", async () => {
