@@ -153,9 +153,15 @@ const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
 
 /**
  * Kontakte aller Rollen mit derselben USt-IdNr., auch archivierte; excludeId nimmt den Kontakt aus, den das Formular
- * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen.
+ * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen. Aus mehr als fünf
+ * Treffern bleiben die ersten fünf; wanted (die Rollen des neuen Kontakts) stellt die Kontakte voran, die alle diese
+ * Rollen haben, denn nur einen solchen kann man statt eines neuen wählen.
  */
-export async function findContactsByUstId(ustId: string, excludeId?: string): Promise<UstIdMatch[]> {
+export async function findContactsByUstId(
+  ustId: string,
+  excludeId?: string,
+  wanted: { isCustomer?: boolean; isSupplier?: boolean } = {},
+): Promise<UstIdMatch[]> {
   const compact = compactUstId(ustId);
   if (!compact) return [];
   const rows = await db
@@ -169,8 +175,13 @@ export async function findContactsByUstId(ustId: string, excludeId?: string): Pr
     })
     .from(schema.contacts)
     .where(and(sql`upper(replace(${schema.contacts.ustId}, ' ', '')) = ${compact}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
-    // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken
-    .orderBy(sql`${schema.contacts.archivedAt} is not null`, asc(schema.contacts.name))
+    // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken; dann die mit den
+    // gewünschten Rollen, damit sie nicht hinter fünf anderen aus der Liste fallen
+    .orderBy(
+      sql`${schema.contacts.archivedAt} is not null`,
+      sql`not (${wanted.isCustomer ? schema.contacts.isCustomer : sql`true`} and ${wanted.isSupplier ? schema.contacts.isSupplier : sql`true`})`,
+      asc(schema.contacts.name),
+    )
     .limit(5);
   return rows.map(({ archivedAt, ...rest }) => ({ ...rest, archived: archivedAt !== null }));
 }
