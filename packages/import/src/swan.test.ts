@@ -42,3 +42,14 @@ describe("Swan-Kontoauszug", () => {
     expect(erste?.purpose).toBe("Rechnung 1001");
   });
 });
+
+describe("Swan-Kontoauszug mit unklaren Zeilen", () => {
+  const kopf = "IBAN,DE00123456789012345678\nVon,01/01/2026\nBis,31/01/2026\n\nDatum,Name,Type,Verwendungszweck,Kredit EUR,Debit EUR,Von (IBAN),An (IBAN)\n";
+
+  it("bucht bei gefülltem Eingang und Ausgang so, wie die Warnung es sagt", () => {
+    const text = `${kopf}07/01/2026,Beispiel GmbH,Überweisung,Test,"10,00 €","270,00 €",,DE11111111111111111111\n`;
+    const auszug = parseStatement(new TextEncoder().encode(text));
+    expect(auszug.warnings.join()).toMatch(/der Ausgang gilt/);
+    expect(auszug.transactions.map((t) => t.amount)).toEqual([-27_000]);
+  });
+});
