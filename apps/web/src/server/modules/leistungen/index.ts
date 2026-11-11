@@ -9,6 +9,7 @@ export {
   createServiceEntry,
   deleteServiceEntry,
   getServiceEntry,
+  isRealDate,
   listServiceEntries,
   serviceEntrySchema,
   ServiceEntryError,

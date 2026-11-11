@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { serviceEntrySchema } from "../leistungen/index.ts";
+import { isRealDate, serviceEntrySchema } from "../leistungen/index.ts";
 import { isoDate, page, pageQuery, requestSchemas, responseSchemas } from "./schemas.ts";
 
 /* Schemas der REST-API für Leistungseinträge (#417). Die Eingabe baut auf serviceEntrySchema des Moduls auf, damit die API wie die Oberfläche prüft. */
@@ -43,7 +43,7 @@ export const serviceEntryListSchema = page(serviceEntrySchemaOut).register(respo
 
 export const serviceEntryQuerySchema = z.object({
   contactId: z.uuid().optional().describe("Nur Einträge dieses Kunden"),
-  from: isoDate.optional().describe("Arbeitstag ab einschließlich"),
-  to: isoDate.optional().describe("Arbeitstag bis einschließlich"),
+  from: isoDate.refine(isRealDate, "Datum ungültig").optional().describe("Arbeitstag ab einschließlich"),
+  to: isoDate.refine(isRealDate, "Datum ungültig").optional().describe("Arbeitstag bis einschließlich"),
   ...pageQuery,
 });

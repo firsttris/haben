@@ -13,9 +13,10 @@ import { UserError } from "../../errors.ts";
 
 export class ServiceEntryError extends UserError {}
 
-const isRealDate = (v: string) => {
+export const isRealDate = (v: string) => {
   const d = new Date(`${v}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  // Jahre vor 1900 sind kein Arbeitstag; Postgres lehnt 0000 ab
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v && d.getUTCFullYear() >= 1900;
 };
 
 export const serviceEntrySchema = z.object({
@@ -31,7 +32,7 @@ export const serviceEntrySchema = z.object({
     .max(24 * 60, "Dauer höchstens 24 Stunden"),
   description: z.string().trim().max(2000).default(""),
   /** Stundensatz in Cent; fehlt = der Satz des Kunden (beim Anlegen) bzw. unverändert (beim Ändern) */
-  hourlyRateCents: z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").optional(),
+  hourlyRateCents: z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00, "Stundensatz zu hoch").optional(),
 });
 
 export type ServiceEntryInput = z.input<typeof serviceEntrySchema>;

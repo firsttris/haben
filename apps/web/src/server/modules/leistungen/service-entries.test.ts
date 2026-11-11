@@ -71,6 +71,9 @@ describe.skipIf(!testDatabaseUrl)("Leistungseinträge (Postgres, #417)", () => {
     await expect(entries.createServiceEntry(actor, eintrag({ workedOn: "02.03.2026" }))).rejects.toThrow();
     await expect(entries.createServiceEntry(actor, eintrag({ workedOn: "2026-02-30" }))).rejects.toThrow();
     await expect(entries.createServiceEntry(actor, eintrag({ hourlyRateCents: -1 }))).rejects.toThrow();
+    // Grenzen der Datenbank gehören in die Eingabeprüfung, nicht als roher Fehler zum Nutzer
+    await expect(entries.createServiceEntry(actor, eintrag({ hourlyRateCents: 3_000_000_000 }))).rejects.toThrow(/Stundensatz/);
+    await expect(entries.createServiceEntry(actor, eintrag({ workedOn: "0000-01-01" }))).rejects.toThrow(/Datum/);
     await expect(entries.createServiceEntry(actor, eintrag({ contactId: "00000000-0000-4000-8000-000000000000" }))).rejects.toThrow("Kunde nicht gefunden.");
     expect(await entries.listServiceEntries({})).toHaveLength(0);
   });
