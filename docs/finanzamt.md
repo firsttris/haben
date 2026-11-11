@@ -33,7 +33,7 @@ Die PIN liegt wie das Zertifikat mit AES-256-GCM verschlüsselt in der Datenbank
 
 Zu jedem Bescheid zeigt Haben, bis wann ein Einspruch möglich ist (§ 355 AO): ein Monat ab Bekanntgabe. Die Bekanntgabe gilt am vierten Tag nach dem Bescheiddatum, für Bescheide bis 2024 am dritten. Fällt die Bekanntgabe oder das Fristende auf ein Wochenende oder einen Feiertag im Bundesland, gilt der nächste Werktag. Solange die Frist läuft, steht der Bescheid in der Übersicht unter den Aufgaben, in der letzten Woche hervorgehoben. Mitteilungen haben keine Frist.
 
-Bei Bescheiden, die nur im Postfach bereitgestellt werden, beginnt die Frist genau genommen mit der Bereitstellung; Haben rechnet mit dem Bescheiddatum, das meist derselbe Tag ist. Im Zweifel gilt das Datum im Bescheid.
+Bei Bescheiden, die nur im Postfach zum Abruf bereitgestellt werden, gilt der Bescheid am vierten Tag nach der Bereitstellung als bekannt gegeben ([§ 122a Abs. 4 Satz 1 AO](https://www.gesetze-im-internet.de/ao_1977/__122a.html)), für Bescheide bis 2024 am dritten Tag nach Absendung der Benachrichtigung über die Bereitstellung. Haben rechnet mit dem Bescheiddatum statt dem Tag der Bereitstellung; meist ist es derselbe Tag. Im Zweifel muss das Finanzamt den Zeitpunkt der Bereitstellung nachweisen (Satz 2).
 
 Der Testabruf läuft wie die Testübermittlung mit Testmerker und deiner Hersteller-ID. Ohne ERiC liefert er einen erfundenen Testbescheid, damit du die Seite ausprobieren kannst.
 
