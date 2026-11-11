@@ -1,83 +1,71 @@
 # Verhaltenskodex
 
+Haben lebt davon, dass Menschen ihre freie Zeit hineinstecken: mit Issues, Pull Requests, Reviews, Übersetzungen
+der Fachsprache in Code und Antworten auf Fragen anderer. Dieser Kodex sagt, wie wir dabei miteinander umgehen.
+
 ## Unsere Verpflichtung
 
-Wir als Mitglieder, Teilnehmende und Verantwortliche unserer Gemeinschaft verpflichten uns, allen Menschen, die an Haben mitwirken, eine belästigungsfreie Beteiligung zu ermöglichen, unabhängig davon, wer sie sind.
+Alle, die an Haben mitwirken, ob als Nutzer, Beitragende, Collaborators oder Maintainer, ob mit oder ohne KI-Werkzeug,
+sollen das ohne Belästigung tun können, unabhängig davon, wer sie sind. Wir verhalten uns so, dass Neue gern
+wiederkommen.
 
-Wir verpflichten uns, in einer Weise zu handeln und zu interagieren, die zu einer offenen, einladenden, vielfältigen, inklusiven und gesunden Gemeinschaft beiträgt.
+## So arbeiten wir zusammen
 
-## Unsere Standards
+* Freundlich und geduldig bleiben, auch bei der dritten Frage zum selben Thema. Nicht jeder kennt Buchhaltung, Steuerrecht
+  oder die Regeln des Projekts.
+* Über die Sache sprechen, nicht über die Person: „Hier fehlt noch ein Test“ statt „du hast vergessen“.
+* Kritik begründen, mit Quelle oder Regel, und Kritik am eigenen Code annehmen, ohne sie persönlich zu nehmen.
+* Danke sagen. Ein Beitrag, der nicht übernommen wird, hat trotzdem Zeit gekostet.
+* Fehler zugeben, korrigieren und daraus lernen.
+* Andere Meinungen ernst nehmen. Am Ende entscheidet der Maintainer, was in Haben kommt, und begründet es.
+* Im Blick behalten, was den Nutzern von Haben hilft, nicht nur, was einem selbst gefällt.
 
-Beispiele für Verhaltensweisen, die zu einem positiven Umfeld für unsere Gemeinschaft beitragen, sind:
+## Was nicht geht
 
-* Einfühlungsvermögen und Freundlichkeit gegenüber anderen Menschen zeigen
-* Unterschiedliche Meinungen, Standpunkte und Erfahrungen respektieren
-* Konstruktives Feedback geben und würdevoll annehmen
-* Verantwortung übernehmen und uns bei denjenigen entschuldigen, die von unseren Fehlern betroffen sind, und aus den Erfahrungen lernen
-* Konzentration auf das, was nicht nur für uns als Individuen, sondern für die gesamte Gemeinschaft das Beste ist
-
-Beispiele für inakzeptables Verhalten sind:
-
-* Beleidigende oder abwertende Kommentare, persönliche Angriffe und Trollen, auch gegen Beitragende, deren Code nicht übernommen wird
-* Öffentliche oder private Belästigungen, etwa wiederholtes Anschreiben oder Erwähnen, nachdem jemand um Ruhe gebeten hat
-* Druck auf Maintainer und Beitragende: Fristen fordern, Issues und Pull Requests mit Nachfragen fluten, Ablehnungen in neuen Issues wieder aufrollen, ohne neue Gründe
-* Das Veröffentlichen von privaten Informationen Anderer ohne deren ausdrückliche Erlaubnis, etwa Adressen, Belegdaten, Steuernummern, IBANs oder Zugangsdaten
+* Beleidigende oder abwertende Kommentare, persönliche Angriffe und Trollen, auch gegen Beitragende, deren Code nicht
+  übernommen wird
+* Belästigung, öffentlich oder privat, etwa wiederholtes Anschreiben oder Erwähnen, nachdem jemand um Ruhe gebeten hat
+* Druck auf Maintainer und Beitragende: Fristen fordern, Issues und Pull Requests mit Nachfragen fluten, Ablehnungen
+  ohne neue Gründe in neuen Issues wieder aufrollen
+* Private Informationen anderer ohne ausdrückliche Erlaubnis veröffentlichen, etwa Adressen, Belegdaten,
+  Steuernummern, IBANs oder Zugangsdaten
 * Spam und Werbung in Issues, Pull Requests und Diskussionen
-* Fremden Code oder fremde Inhalte einreichen, die nicht unter einer zur AGPL-3.0 passenden Lizenz stehen, oder deren Herkunft verschweigen
-* Anderes Verhalten, welches in einem professionellen Umfeld begründet als unangemessen betrachtet werden kann
+* Fremden Code oder fremde Inhalte einreichen, die nicht unter einer zur AGPL-3.0 passenden Lizenz stehen, oder deren
+  Herkunft verschweigen
+* Anderes Verhalten, das in einem professionellen Umfeld begründet als unangemessen gilt
 
-## Verantwortlichkeiten bei der Durchsetzung
+## Wo der Kodex gilt
 
-Die Gemeinschaftsleitung ist verantwortlich dafür, unsere Standards für ein akzeptables Verhalten klarzustellen und wird angemessen und fair korrigierende Maßnahmen ergreifen um auf jegliches Verhalten, das sie für unangemessen, bedrohlich oder beleidigend hält, zu reagieren.
+Überall, wo an Haben gearbeitet oder darüber gesprochen wird: im Repository `firsttris/haben` auf GitHub (Issues, Pull
+Requests, Reviews, Diskussionen, Commits), im Project „Roadmap“ und überall, wo jemand öffentlich für Haben spricht.
 
-Die Gemeinschaftsleitung hat das Recht und die Verantwortung, Kommentare, Commits, Code, Wiki-Bearbeitungen, Support-Tickets und andere Beiträge, die nicht mit diesem Verhaltenskodex vereinbar sind, zu entfernen, zu bearbeiten oder abzulehnen, und wird die Gründe für eine Mäßigung mitteilen, wenn es angebracht ist.
+## Melden
 
-## Geltungsbereich
+Verstöße bitte per E-Mail an **info@teufel-it.de** melden, nicht in einem öffentlichen Issue. Jede Meldung wird
+zeitnah und fair geprüft. Wer meldet, wird geschützt: Name und Inhalt der Meldung bleiben vertraulich.
 
-Dieser Verhaltenskodex gilt für alle Gemeinschaftsbereiche und gilt auch, wenn eine Einzelperson die Gemeinschaft offiziell in öffentlichen Bereichen vertritt. Beispiele für die Repräsentation unserer Gemeinschaft sind die Verwendung einer offiziellen E-Mail-Adresse, das Posten über ein offizielles Social-Media-Konto oder das Auftreten als ernannte Vertretung bei einer Online-oder Offline-Veranstaltung.
+Sicherheitslücken gehören nicht hierher, sondern in eine private Meldung nach [SECURITY.md](SECURITY.md).
 
-## Durchsetzung
+## Was folgt
 
-Fälle von missbräuchlichem, belästigendem oder anderweitig inakzeptablem Verhalten können unter **[E-MAIL-ADRESSE FEHLT NOCH]** der für die Durchsetzung zuständigen Gemeinschaftsleitung gemeldet werden. Alle Beschwerden werden zeitnah und fair geprüft und ermittelt.
+Die Maintainer achten darauf, dass der Kodex eingehalten wird. Sie dürfen Kommentare, Commits, Code, Issues und andere
+Beiträge, die gegen ihn verstoßen, entfernen, bearbeiten oder ablehnen, und nennen den Grund, wo es angebracht ist. Je
+nach Schwere:
 
-Die gesamte Gemeinschaftsleitung ist verpflichtet, die Privatsphäre und die Sicherheit derjenigen, die einen Vorfall gemeldet haben, zu respektieren.
-
-## Durchsetzungsrichtlinien
-
-Die Gemeinschaftsleitung wird sich bei der Bestimmung der Konsequenzen für jede Handlung, die ihrer Ansicht nach gegen diesen Verhaltenskodex verstößt, an diese Richtlinien über die Auswirkungen in der Gemeinschaft halten:
-
-### 1. Berichtigung
-
-**Auswirkungen in der Gemeinschaft**: Verwendung unangemessener Sprache oder anderes Verhalten, das in der Gemeinschaft als unprofessionell oder unwillkommen gilt.
-
-**Folge**: Eine private, schriftliche Verwarnung der Gemeinschaftsleitung, die Klarheit über die Art des Verstoßes und eine Erklärung dafür bietet, warum das Verhalten unangemessen war. Eine öffentliche Entschuldigung kann verlangt werden.
-
-### 2. Verwarnung
-
-**Auswirkungen in der Gemeinschaft**: Eine Verletzung durch einen einzelnen Vorfall oder eine Reihe von Handlungen.
-
-**Folge**: Eine Warnung mit Konsequenzen bei wiederholtem Fehlverhalten. Keine Interaktion mit den beteiligten Personen, einschließlich unaufgeforderter Interaktion mit denjenigen, die den Verhaltenskodex durchsetzen, für einen bestimmten Zeitraum. Dazu gehört die Vermeidung von Interaktionen in Gemeinschaftsräumen sowie in externen Kanälen wie sozialen Medien. Ein Verstoß gegen diese Bedingungen kann zu einem vorübergehenden oder dauerhaften Verbot führen.
-
-### 3. Vorübergehender Ausschluss
-
-**Auswirkungen in der Gemeinschaft**: Eine schwerwiegende Verletzung von Gemeinschaftsstandards, einschließlich anhaltend unangemessenen Verhaltens.
-
-**Folge**: Ein zeitlich begrenztes Verbot jeglicher Art von Interaktion oder öffentlicher Kommunikation mit der Gemeinschaft. Während dieses Zeitraums ist keine öffentliche oder private Interaktion mit den beteiligten Personen erlaubt. Auch keine unaufgeforderte Interaktion mit denjenigen, die den Verhaltenskodex durchsetzen. Ein Verstoß gegen diese Bedingungen kann zu einem dauerhaften Verbot führen.
-
-### 4. Dauerhafter Ausschluss
-
-**Auswirkungen in der Gemeinschaft**: Aufzeigen eines Musters von Verletzungen der Gemeinschaftsstandards, einschließlich anhaltend unangemessenen Verhaltens, Belästigung einer Person oder Aggression gegen oder Herabsetzung von Gruppen von Personen.
-
-**Folge**: Ein dauerhaftes Verbot jeglicher Art von öffentlicher Interaktion innerhalb der Gemeinschaft.
+1. **Hinweis:** Eine unpassende Bemerkung oder ein unfreundlicher Ton. Folge: ein privater, sachlicher Hinweis, was
+   nicht gepasst hat und warum; wo nötig eine Entschuldigung.
+2. **Verwarnung:** Ein deutlicher Verstoß oder mehrere kleine. Folge: eine Verwarnung mit klaren Folgen bei
+   Wiederholung, eine Zeit lang kein Kontakt mit den Betroffenen.
+3. **Vorübergehende Sperre:** Ein schwerer Verstoß oder anhaltend unangemessenes Verhalten. Folge: für eine bestimmte
+   Zeit keine Beiträge und keine Kommentare im Projekt.
+4. **Dauerhafte Sperre:** Ein Muster von Verstößen, Belästigung einer Person oder Herabsetzung von Gruppen. Folge:
+   dauerhaft keine Beteiligung mehr am Projekt.
 
 ## Bezug
 
-Dieser Verhaltenskodex ist angelehnt an den [Contributor Covenant][homepage], Version 2.1, verfügbar unter [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][v2.1] unter der Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de). Geändert: der Titel; unter „Unsere Verpflichtung“ steht statt der Aufzählung einzelner Merkmale ein allgemeiner Satz; die Beispiele für inakzeptables Verhalten sind auf ein Open-Source-Projekt zugeschnitten.
-
-Community Impact Guidelines wurden von [Mozillas Code of Conduct Enforcement Ladder][mozilla] inspiriert.
-
-Antworten auf häufig gestellte Fragen zu diesem Verhaltenskodex finden Sie in den häufig gestellten Fragen unter <https://www.contributor-covenant.org/faq> (in Englisch). Andere Übersetzungen sind verfügbar unter <https://www.contributor-covenant.org/translations>.
-
-[homepage]: https://www.contributor-covenant.org
-[v2.1]: https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
-[mozilla]: https://github.com/mozilla/inclusion
+Dieser Verhaltenskodex ist angelehnt an den [Contributor Covenant](https://www.contributor-covenant.org), Version 2.1,
+in der [deutschen Fassung](https://github.com/EthicalSource/contributor_covenant/blob/5794f441d325aac3f5e263c0154c0fe897f8dbd2/content/version/2/1/code_of_conduct.de.md), unter der Lizenz
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de). Wir haben ihn auf Haben zugeschnitten: Aufbau und
+Stufen der Durchsetzung stammen von dort, die Beispiele, der Geltungsbereich und die Formulierungen sind eigene. Die
+Stufen der Durchsetzung gehen auf [Mozillas Code of Conduct Enforcement Ladder](https://github.com/mozilla/inclusion)
+zurück.
