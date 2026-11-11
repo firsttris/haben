@@ -129,3 +129,14 @@ export {
   directDebitMatch,
   type DirectDebitMatch,
 } from "./lastschrift-abgleich.ts";
+
+export {
+  listSettlements,
+  openAmount,
+  reverseSettlement,
+  SettlementError,
+  settleDocuments,
+  settlementCandidates,
+  settlementSchema,
+  type SettlementInput,
+} from "./verrechnung.ts";

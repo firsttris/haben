@@ -27,7 +27,7 @@ import {
   uploadDocument,
 } from "../modules/belege/index.ts";
 import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
-import { listSettlements, openAmount, reverseSettlement, settleDocuments, settlementCandidates, settlementSchema } from "../modules/bank/verrechnung.ts";
+import { listSettlements, openAmount, reverseSettlement, settleDocuments, settlementCandidates, settlementSchema } from "../modules/bank/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
 import { documentBankAllocations, documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
