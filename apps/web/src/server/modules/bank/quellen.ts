@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, notInArray } from "drizzle-orm";
 import type { StatementFormat } from "@haben/import";
 import { schema, type Tx } from "../../db/index.ts";
 
@@ -51,6 +51,8 @@ export async function quellenHinweis(
   const von = periodFrom ?? tage[0];
   const bis = periodTo ?? tage[tage.length - 1];
   if (!von || !bis) return null;
+  // Formate derselben Quelle (altes und neues DKB-CSV) erkennt der Dubletten-Hash gegenseitig; sie sind kein Wechsel
+  const gleicheQuelle = (Object.keys(FORMAT_NAMEN) as StatementFormat[]).filter((f) => FORMAT_NAMEN[f] === FORMAT_NAMEN[format]);
   const fremd = await tx
     .select({ format: schema.bankImports.format, filename: schema.bankImports.filename })
     .from(schema.bankTransactions)
@@ -58,7 +60,7 @@ export async function quellenHinweis(
     .where(
       and(
         eq(schema.bankTransactions.bankAccountId, bankAccountId),
-        sql`${schema.bankImports.format} <> ${format}`,
+        notInArray(schema.bankImports.format, gleicheQuelle),
         gte(schema.bankTransactions.bookingDate, von),
         lte(schema.bankTransactions.bookingDate, bis),
       ),

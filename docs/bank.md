@@ -125,7 +125,7 @@ Umsätze, deren Hash es für das Konto schon gibt, überspringt Haben. Du kannst
 
 Die Prüfung gilt innerhalb einer Quelle. Sie erkennt nicht, dass dieselbe Zahlung aus zwei Quellen stammt: Der Abruf und die Datei derselben Bank schreiben den Verwendungszweck oft anders, und manche Exporte nennen das Zahlungs- statt des Buchungsdatums, ein bis drei Tage daneben. Ein Konto bekommt seine Umsätze deshalb aus einer Quelle. Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz; der [Abruf](#welche-umsätze-abgerufen-werden) beginnt nach einem Dateiimport von selbst dort.
 
-Liegen im Zeitraum einer neuen Datei schon Umsätze aus einem anderen Format oder aus dem Abruf und legt der Import trotzdem Umsätze neu an, meldet Haben das neben der Meldung zur Lücke, mit Zeitraum, Quelle und Anzahl. Importiert wird trotzdem. Unscharf über Betrag und Datum verglichen wird bewusst nicht, sonst blieben echte gleiche Zahlungen an Folgetagen unbemerkt.
+Liegen im Zeitraum einer neuen Datei schon Umsätze aus einem anderen Format oder aus dem Abruf (altes und neues CSV der DKB zählen als ein Format) und legt der Import trotzdem Umsätze neu an, meldet Haben das neben der Meldung zur Lücke, mit Zeitraum, Quelle und Anzahl. Importiert wird trotzdem. Unscharf über Betrag und Datum verglichen wird bewusst nicht, sonst blieben echte gleiche Zahlungen an Folgetagen unbemerkt.
 
 ### Saldenprüfung
 
