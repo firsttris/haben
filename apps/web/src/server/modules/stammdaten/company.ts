@@ -22,6 +22,7 @@ import { z } from "zod";
 import { listArticles } from "./articles.ts";
 import { listTextBlocks } from "./text-blocks.ts";
 import { listContacts } from "./contacts.ts";
+import { unrelatedCompanyAudit } from "./company-audit.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadDesign } from "./letterhead.ts";
@@ -209,12 +210,15 @@ export async function kleinunternehmerStand(q: Db | Tx = db): Promise<Kleinunter
       at: schema.auditLog.at,
       actor: schema.auditLog.actor,
       action: schema.auditLog.action,
+      oldValue: schema.auditLog.oldValue,
       newValue: schema.auditLog.newValue,
     })
     .from(schema.auditLog)
     .where(eq(schema.auditLog.tableName, "company"))
     .orderBy(schema.auditLog.seq);
-  const firstSetting = rows.find(
+  // Nummernformate, ELSTER-Datenschutzhinweise usw. können schon vor der Firmeneinrichtung gespeichert werden.
+  const settings = rows.filter((r) => !unrelatedCompanyAudit(r));
+  const firstSetting = settings.find(
     (r) => !defaultCompanyAudit(r) && typeof (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer === "boolean",
   );
   // Wer bereits vor der Firmeneinrichtung gebucht oder übermittelt hat, hat die Vorgaben fachlich verwendet.
@@ -235,7 +239,7 @@ export async function kleinunternehmerStand(q: Db | Tx = db): Promise<Kleinunter
           )
           .limit(1)
       : [];
-  const aenderungen = rows.flatMap((r) => {
+  const aenderungen = settings.flatMap((r) => {
     const snapshot = r.newValue as { kleinunternehmer?: unknown; name?: unknown } | null;
     const value = snapshot?.kleinunternehmer;
     // Nur die automatisch angelegte leere Vorgabe auslassen, keine bestätigte Einstellung und keinen späteren Wechsel.
