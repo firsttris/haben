@@ -2,7 +2,7 @@
 title: "E-Rechnung schreiben: ZUGFeRD und XRechnung"
 description: >-
   Ausgangsrechnungen als E-Rechnung schreiben: ZUGFeRD (PDF/A-3, EN 16931) oder XRechnung 3.0 in
-  CII oder UBL, GoBD-konform festgeschrieben, per Mail versendet.
+  CII oder UBL, festgeschrieben und versiegelt, per Mail versendet.
 ---
 
 # Rechnungen und E-Rechnung

@@ -1,7 +1,7 @@
 ---
 title: "Kassenbuch für Bargeld führen"
 description: >-
-  Ein GoBD-konformes Kassenbuch: jede Bargeldbewegung mit fortlaufender Nummer, Datum, Betrag und
+  Ein Kassenbuch, für die GoBD gebaut: jede Bargeldbewegung mit fortlaufender Nummer, Datum, Betrag und
   Bestand, gebucht nach SKR03 oder SKR04.
 ---
 
