@@ -8,6 +8,8 @@ export type StatementFormat =
   | "swan-csv"
   /** Umsätze aus dem Online-Banking der Commerzbank (Semikolon-CSV ohne Kontostand) */
   | "commerzbank-csv"
+  /** Umsätze eines Kontos oder einer Pocket bei C24 (Komma-CSV ohne IBAN und Kontostand) */
+  | "c24-csv"
   | "camt053"
   | "enablebanking"
   /** Kontobewegungen aus dem Accountable-Export (Daten.xlsx, Sheet „Kontobewegungen“) */

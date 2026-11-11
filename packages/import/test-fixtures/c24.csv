@@ -1,0 +1,8 @@
+﻿Transaktionstyp,Buchungsdatum,Karteneinsatz,Betrag,Zahlungsempfänger,IBAN,BIC,Verwendungszweck,Beschreibung,Kontonummer,Kontoname,Kategorie,Unterkategorie,Bargeldabhebung
+Pocket-Umbuchung,30.10.2026,,"-250,00 €",Rücklagen,,,Umsatzsteuer Q3,,1234567890,Geschäft,Umbuchung,Umbuchung
+Online-Kartenzahlung,27.10.2026,26.10.2026 13:09,"-23,80 €",Wolkenwerk,,,,WOLKENWERK* HOSTING 10/26,1234567890,Geschäft,Freizeit & Unterhaltung,Digitale Produkte & Dienste
+Echtzeit-Überweisung,21.10.2026,,"1250,00 €",Alpenblick Media AG,BE68 5390 0754 7034,BBRUBEBB,RE-2026-031,,1234567890,Geschäft,Einkommen,Selbstständige Einkünfte
+Rückerstattung,15.10.2026,14.10.2026 07:58,"3,80 €",Wolkenwerk,,,,WOLKENWERK* HOSTING 09/26,1234567890,Geschäft,Finanzen & Steuern,Steuern und Abgaben
+Überweisung,12.10.2026,,"-119,00 €",Bürohaus Nord GmbH,DE89370400440532013000,COBADEFFXXX,Miete Oktober 2026,,1234567890,Geschäft,Wohnen,Miete
+Zinszahlung,01.10.2026,,"0,01 €",C24 Bank,,,,,1234567890,Geschäft,Einkommen,Kapitalerträge
+Pocket-Umbuchung,01.10.2026,,"400,00 €",Hauptkonto,,,Startkapital,Erika Mustermann,1234567890,Geschäft,Umbuchung,Umbuchung
