@@ -88,7 +88,7 @@ Rechnungsnummer, IBAN, Name.
 ## Die Voranmeldung rechnet sich selbst
 
 Jede Kennzahl kommt aus den Buchungen, nach Ist oder Soll, und du siehst, woher jede Zahl stammt.
-Gesendet wird direkt per ERiC an ELSTER oder über Mein ELSTER, ganz ohne Hersteller-ID.
+Gesendet wird direkt per ERiC an ELSTER oder, ganz ohne Hersteller-ID, über Mein ELSTER.
 
 [Umsatzsteuer-Voranmeldung](umsatzsteuer.md)
 </div>
