@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Körperschaft- und Gewerbesteuer einer GmbH aus den Buchungen: Angaben je Jahr, Fortschreibung aus dem Vorjahr,
@@ -28,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Körperschaft- und Gewerbesteuer (Postgres)",
   });
 
   async function setup(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, corporate_tax_inputs, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, corporate_tax_inputs, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY',
               ${kontenrahmen}, ${versteuerung}, 'gmbh')`;

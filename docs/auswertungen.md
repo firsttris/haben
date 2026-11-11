@@ -15,7 +15,7 @@ Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR
 
 ## Überblick
 
-Oben wählst du das Jahr (Vor- und Folgejahr per Pfeil, dazu alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen oder gebuchten Belegen). Darunter stehen vier Kennzahlen:
+Oben wählst du das Jahr: ‹ und › blättern ins Vor- und Folgejahr, dazwischen stehen das laufende Jahr und alle Jahre mit Bankumsätzen, festgeschriebenen Rechnungen oder gebuchten Belegen, jedes einmal. Darunter stehen vier Kennzahlen:
 
 | Kennzahl | Bedeutung |
 | --- | --- |
@@ -26,7 +26,9 @@ Oben wählst du das Jahr (Vor- und Folgejahr per Pfeil, dazu alle Jahre mit Bank
 
 ## EÜR nach Zufluss und Abfluss
 
-Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde. Die Berechnung steht in `packages/core/src/euer.ts`, die Daten sammelt `apps/web/src/server/modules/auswertungen/reports.ts`.
+Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde.
+
+**Ab dem Stichjahr aus dem Journal.** Im Einzelunternehmen rechnet Haben die EÜR ab dem Stichjahr ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen)) wie DATEV aus den Buchungen; in GmbH und UG, die bilanzieren, bleibt die Übersicht nach Zahlung aus Rechnungen, Belegen und Zahlungen, sonst zählten Abschlussbuchungen wie Rückstellungen als Ausgabe: Eine Buchung ohne Forderung oder Verbindlichkeit (Bank, Kasse, privat bezahlt, Pauschale) zählt mit ihrem Datum nach ihren Konten; eine Rechnung bzw. ein Beleg auf Ziel zählt mit jeder Zahlung anteilig, gerundet wie die Zahlung. AfA und Privatnutzung kommen aus dem Journal, sobald das Jahr gebucht ist, vorher aus dem Anlagenverzeichnis. Für aus Lexoffice übernommene Rechnungen und Belege verteilt Haben die Zahlung auf die Zeilen, die es für Rechnung bzw. Beleg gebucht hätte. Was unten steht, gilt in beiden Fällen; die Rechnung aus Rechnungen, Belegen und Zahlungen bleibt die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
 
 ### Was zählt
 
@@ -36,7 +38,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Zahlung, im Bankabgleich einem Beleg zugeordnet | Buchungstag des Umsatzes | Ausgabe in der Kategorie des Belegs und gezahlte Vorsteuer; ohne Vorsteuerabzug (Kleinunternehmer) der Bruttobetrag als Ausgabe. Ein [aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt anteilig je Zeile in deren Kategorie |
 | Gebuchter Beleg, privat oder bar aus der [Kasse](kasse.md) bezahlt | Belegdatum; ein Storno fließt am Datum der Gegenbuchung zurück | wie oben |
 | Bareinnahme auf eine Rechnung im [Kassenbuch](kasse.md) | Datum der Bareinnahme | wie ein Zahlungseingang |
-| Bankumsatz „Umsatzsteuer an das Finanzamt“, Ausgang | Buchungstag | An das Finanzamt gezahlte Umsatzsteuer |
+| Bankumsatz „Umsatzsteuer an das Finanzamt“, Ausgang | Buchungstag; die Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt bis 10. Januar, im Vorjahr ([Vorauszahlung um den Jahreswechsel](#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)) | An das Finanzamt gezahlte Umsatzsteuer |
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Eingang | Buchungstag | Vom Finanzamt erstattete Umsatzsteuer |
 | Bankumsatz „Sondervorauszahlung (Dauerfristverlängerung)“ | Buchungstag | wie „Umsatzsteuer an das Finanzamt“ |
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
@@ -47,16 +49,38 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
 | Beleg mit Kategorie „Anlagegut“, bezahlt | Buchungstag bzw. Belegdatum | nur die Vorsteuer; der Kaufpreis wirkt über die AfA |
+| [Manuelle oder freie Buchung](buchhaltung.md#manuelle-und-freie-buchungen), im Einzelunternehmen ab dem Stichjahr; ebenso eine Buchung aus dem [Datenimport](belegimport.md#zahlungen-journal-und-eür) | Datum der Buchung | nach ihren Konten: Erlös als Einnahme, Aufwand in der Zeile seines Kontos, Umsatzsteuer als vereinnahmte Umsatzsteuer; Privatkonten zählen nicht |
+| [Sachentnahme](buchhaltung.md#manuelle-und-freie-buchungen) (freie Buchung mit Steuerschlüssel) | Datum der Buchung | Sonstige Sach-, Nutzungs- und Leistungsentnahmen (netto) und die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 | [Pauschale](pauschalen.md) | Datum der Pauschale | Ausgabe je Pauschale (Homeoffice, Fahrten, Verpflegung) |
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
 
 Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf.
 
+### Umsatzsteuer-Vorauszahlung um den Jahreswechsel
+
+Regelmäßig wiederkehrende Ausgaben, die kurze Zeit nach dem Ende des Jahres abfließen, zu dem sie wirtschaftlich gehören, zählen in diesem Jahr ([§ 11 Abs. 2 Satz 2 EStG](https://www.gesetze-im-internet.de/estg/__11.html)). „Kurze Zeit“ sind höchstens zehn Tage (H 11 EStH), also der 22. Dezember bis 10. Januar. Die Umsatzsteuer-Vorauszahlung ist eine solche Ausgabe. Eine Zahlung „Umsatzsteuer an das Finanzamt“, die im [Bankabgleich einer Voranmeldung zugeordnet](bank.md#voranmeldung-zahllast-und-erstattung) ist, zählt Haben deshalb im Vorjahr, wenn
+
+- die Voranmeldung für einen Zeitraum des Vorjahres gilt,
+- ihre Vorauszahlung zwischen 22. Dezember und 10. Januar fällig ist: ohne Dauerfristverlängerung die für Dezember bzw. das vierte Quartal, am 10. Januar ([§ 18 Abs. 1 Satz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), und
+- der Buchungstag zwischen 1. und 10. Januar liegt.
+
+Gezahlt allein reicht nicht, fällig sein muss die Vorauszahlung in den zehn Tagen (BFH, Urteil vom 16.02.2022, X R 2/21, BStBl II 2022, 448). Mit [Dauerfristverlängerung](umsatzsteuer.md#dauerfristverlängerung) ist die Vorauszahlung für Dezember bzw. das vierte Quartal erst am 10. Februar fällig ([§ 46 UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__46.html)); eine Zahlung im Januar zählt dann im Jahr der Zahlung (BFH, Urteil vom 21.06.2022, [VIII R 25/20](https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/STRE202210196/)). Umgekehrt ist mit Dauerfristverlängerung die Vorauszahlung für November am 10. Januar fällig und zählt, bis dahin gezahlt, im Vorjahr. Eine verspätet gezahlte Vorauszahlung für einen früheren Monat, etwa die für November ohne Dauerfristverlängerung am 5. Januar, zählt im Jahr der Zahlung.
+
+Fällt der 10. Januar auf ein Wochenende oder einen Feiertag, rechnet Haben trotzdem mit dem 10.: Die Verschiebung nach § 108 Abs. 3 AO zählt für § 11 EStG nicht (BFH, Urteil vom 27.06.2018, X R 44/16). Zum Jahreswechsel 2026/27 ist der 10. Januar ein Sonntag; die Zahlung am Montag, dem 11. Januar, ist pünktlich, zählt in der EÜR aber im Jahr der Zahlung. Ob die Finanzverwaltung das weiter so anwendet, klärst du am besten mit deiner Steuerberatung.
+
+Eine Erstattung aus der Voranmeldung für Dezember zählt im Jahr, in dem sie eingeht. Ob sie regelmäßig wiederkehrend ist, steht nicht fest; auch das klärst du mit der Steuerberatung. Zahlungen ohne Bezug auf eine Voranmeldung (ältere Zuordnungen) und die Sondervorauszahlung zählen am Buchungstag.
+
+Die Buchung selbst behält ihr Datum; Voranmeldung, Journal und DATEV-Export bleiben, wie sie sind. Die EÜR aus den Buchungen ab dem Stichjahr und die aus Rechnungen, Belegen und Zahlungen verschieben dieselben Zahlungen, und der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) rechnet das Journal ebenso um. Im Diagramm je Monat erscheint die Zahlung nicht, wie alle Umsatzsteuerzahlungen.
+
+**Gesperrtes Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon aus Haben übermittelt oder das Jahr abgeschlossen, als du die Zahlung zugeordnet hast, ändert Haben das Vorjahr nicht (GoBD). Die Zahlung zählt dann im Jahr der Zahlung, und die Vorprüfung der [Anlage EÜR](jahreserklaerung.md#anlage-eür) nennt sie mit Zeitraum und Betrag; hast du die Zuordnung nach der Übermittlung aufgehoben und den Umsatz neu zugeordnet, zählt die Zahlung über die aufgehobene Zuordnung schon im Vorjahr, und die Vorprüfung nennt nur, was dort noch fehlt. Erklärungen, die eine ältere Version von Haben übermittelt hat, enthalten die Zahlung nicht; sie sperren das Vorjahr deshalb immer.
+
+**Übermittelt bleibt übermittelt:** Mit jeder Übermittlung speichert Haben, welche Zahlungen die Erklärung in das Vorjahr verschoben bzw. aus dem Folgejahr hereingenommen hat. Danach richten sich beide Jahre, auch wenn du später etwa die Dauerfristverlängerung des Jahres änderst. Hat eine ältere Version von Haben die EÜR des Zahlungsjahres übermittelt, zählt die Zahlung dort weiter am Buchungstag.
+
 ### Was nicht zählt
 
 - Bankumsätze, die du noch nicht zugeordnet hast. Ordne vor dem Jahresabschluss alles im [Bankabgleich](bank.md) zu.
 - Belege, die noch nicht gebucht sind, und über die Bank zu zahlende Belege ohne zugeordnete Zahlung (die stehen unter „Offene Verbindlichkeiten“).
-- Privatentnahmen und -einlagen sowie Geldtransit zwischen eigenen Konten. Sie sind nicht betrieblich.
+- Privatentnahmen und -einlagen sowie Geldtransit zwischen eigenen Konten. Sie sind nicht betrieblich. Ausnahmen sind die Sachentnahme und die private Nutzung von Firmenwagen: Sie zählen als Einnahme (§ 6 Abs. 1 Nr. 4 EStG).
 - Rechnungsentwürfe und Rechnungen ohne Zahlungseingang.
 
 ### Bruttomethode
@@ -65,7 +89,7 @@ Wie in der Anlage EÜR ist die vereinnahmte Umsatzsteuer eine Betriebseinnahme. 
 
 Die Tabelle „Einnahmen-Überschuss-Rechnung“ zeigt:
 
-- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung, Erträge aus Kursdifferenzen (nur, wenn es welche gibt), Vereinnahmte Umsatzsteuer, Umsatzsteuer auf unentgeltliche Wertabgaben (beide nur bei privat genutzten Firmenwagen), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
+- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung (nur bei privat genutzten Firmenwagen), Sonstige Sach-, Nutzungs- und Leistungsentnahmen (nur bei Sachentnahmen), Erträge aus Kursdifferenzen (nur, wenn es welche gibt), Vereinnahmte Umsatzsteuer (auch die auf Sachentnahmen), Umsatzsteuer auf unentgeltliche Wertabgaben (nur die auf die private Kfz-Nutzung), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
 - **Betriebsausgaben:** Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung, eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …; bei der Bewirtung nur der abziehbare Teil von 70 %), je Pauschale, die Abschreibungen aus dem Anlagenverzeichnis, Aufwendungen aus Kursdifferenzen, Zinsen und Zuschläge zu betrieblichen Steuern, Schuldzinsen zur Finanzierung von Anlagevermögen, Übrige Schuldzinsen (diese jeweils nur, wenn es welche gibt), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
 - **Gewinn bzw. Verlust**, darunter nachrichtlich die nicht abziehbare Gewerbesteuer samt Nebenleistungen und Hinterziehungszinsen, wenn es welche gibt
 
@@ -112,7 +136,7 @@ Unter **Einstellungen › Export › DATEV-Export** lädst du die Buchungen eine
 - **Format:** EXTF, Formatkategorie 21, Version 13, Windows-1252.
 - **Kopfdaten:** Berater- und Mandantennummer (von der Kanzlei), Wirtschaftsjahr ist das Kalenderjahr, Sachkontenlänge 4, Kontenrahmen SKR03 bzw. SKR04 wie in Haben.
 - **Buchungssätze:** Jede Buchung aus dem Journal wird in Buchungssätze „Konto an Gegenkonto“ zerlegt. Die Summe je Konto ist danach genau die aus der [Saldenliste](buchhaltung.md#die-seite-konten); mit Personenkonten steht die Summe von Forderungen bzw. Verbindlichkeiten auf den Debitoren bzw. Kreditoren.
-- **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300) den BU-Schlüssel 40 (Aufhebung der Automatik).
+- **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300, dazu die Sachentnahme SKR03 8910 und 8915, SKR04 4620 und 4610, früher auch 4630, und die private Kfz-Nutzung mit Umsatzsteuer SKR03 8921, SKR04 4645) den BU-Schlüssel 40 (Aufhebung der Automatik). Die Kfz-Nutzung ohne Umsatzsteuer (SKR03 8924, SKR04 4639) ist ein Konto ohne Automatik und bleibt ohne Schlüssel (DATEV-Kontenrahmen SKR03 und SKR04, gültig für 2026).
 - **Belegfeld 1:** die Rechnungsnummer bzw. die Belegnummer des Lieferanten; **Buchungstext:** wie im Journal, auf 60 Zeichen gekürzt.
 - **Festschreibung:** gesetzt, wie in Haben.
 - **Personenkonten:** auf Wunsch statt der Sammelkonten, siehe unten.
@@ -161,7 +185,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `anlagen/anlagenverzeichnis.csv` | Anlagenverzeichnis des Jahres je Anlage: Anschaffung, Abschreibung mit Nutzungsdauer, degressivem Satz, Jahr des Wechsels zur linearen AfA und Erinnerungswert (Verzeichnis nach § 7a Abs. 8 EStG), Buchwert am Jahresanfang, Zugang, AfA, Abgang, Buchwert am Jahresende, ob die AfA gebucht ist |
 | `pauschalen/pauschalen.csv` | Nur wenn vorhanden: Pauschalen ohne Beleg mit ihren Angaben als Eigenbeleg; Stornos als Gegenzeile |
 | `kasse/kassenbuch.csv` | Nur wenn vorhanden: Kassenbuch mit fortlaufender Nummer, Anfangsbestand und Bestand nach jeder Zeile, bei Bareinnahmen die Rechnungsnummer |
-| `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben und Steuerschlüssel; Gegenbuchungen verweisen auf die Ursprungsbuchung |
+| `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben, Steuerschlüssel und, bei Ist-Versteuerung an der Zahlung, der Bemessungsgrundlage; Gegenbuchungen verweisen auf die Ursprungsbuchung |
 | `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit zugeordnetem und offenem Betrag und ob der Umsatz verrechnet ist |
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/verrechnungen.csv` | Nur wenn vorhanden: miteinander verrechnete gegenläufige Umsätze mit Notiz, ohne Buchung ([Bank](bank.md#gegenläufige-umsätze-verrechnen)); aufgehobene als Gegenzeile |
@@ -185,7 +209,7 @@ Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [
 | `lexoffice/belege.csv` | Je Beleg Art, Richtung, Nummer, Kontakt, Beträge, Status, Zahlungsdatum, Steuersätze und Kategorien als JSON, Dateien mit SHA-256 und Lexoffice-ID |
 | `lexoffice/zahlungen.csv` | Einzelzahlungen zu sevDesk-Vorgängen nach Zahlungsdatum: Belegnummer, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle |
 | `lexoffice/datev-buchungen.csv` | Die Zeilen des DATEV-Buchungsstapels mit Datei und Zeilennummer im Original |
-| `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `sonstiges` |
+| `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `storebericht` (Finanzberichte von Google Play und App Store), `sonstiges` |
 
 PDF-, XML- und Bilddateien sind byte-genau die gespeicherten Originale. Fehlt eine Belegdatei im Speicher oder passt ihr Inhalt nicht mehr zum Hash, bricht der Export nicht ab: Die Zeile in `belege.csv` trägt dann „FEHLT“, und `FEHLER.txt` nennt den Beleg.
 

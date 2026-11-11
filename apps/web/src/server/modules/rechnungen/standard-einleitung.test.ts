@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angebote (Postgres)", () => {
   let sql: postgres.Sql;
@@ -21,7 +21,7 @@ describe.skipIf(!testDatabaseUrl)("Standard-Einleitung für Rechnungen und Angeb
   });
 
   beforeEach(async () => {
-    await sql`truncate invoice_lines, invoices, quote_lines, quotes, company cascade`;
+    await leeren(sql)`truncate invoice_lines, invoices, quote_lines, quotes, company cascade`;
   });
 
   const lines = [{ description: "Beratung", quantity: 1000, unit: "Std." as const, unitPrice: 10_000, taxRate: 1900 as const }];

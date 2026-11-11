@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LEGACY_TYPES } from "../../../components/archiv/LegacyVouchers.tsx";
+import { legacySource } from "../../../lib/altbestand.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getLegacyVoucher } from "../../../server/functions/archive.ts";
 import styles from "../../../styles/archiv.css?url";
@@ -25,14 +26,12 @@ const PAYMENT_STATUS: Record<string, string> = {
   partlyPaid: "teilweise bezahlt",
 };
 
-const SOURCE = { lexoffice: { name: "Lexoffice", product: "Lexware Office" }, sevdesk: { name: "sevDesk", product: "sevDesk" } } as const;
-
 function LegacyVoucherPage() {
   const { voucher, files } = Route.useLoaderData();
   const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
-  const source = SOURCE[voucher.source];
+  const source = legacySource(voucher.source, voucher.sourceName);
   return (
     <>
       <div className="page-head">
@@ -153,7 +152,7 @@ function LegacyVoucherPage() {
             </section>
           )}
           <p className="small muted" style={{ margin: 0 }}>
-            Übernommen am {formatDateTime(voucher.createdAt)} · {source.name}-ID {voucher.lexofficeId}
+            Übernommen am {formatDateTime(voucher.createdAt)} · {source.name}-ID {voucher.externalId}
           </p>
         </div>
       </div>

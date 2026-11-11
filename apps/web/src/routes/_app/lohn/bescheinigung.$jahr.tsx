@@ -9,6 +9,7 @@ import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/e
 import { formatDate, formatLongDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getLstb, stornoLstbFn, submitLstbFn, vermerkeLstbFn } from "../../../server/functions/lstb.ts";
+import { Field } from "../../../components/Field.tsx";
 
 /*
  * Personal › Lohnsteuerbescheinigung (§ 41b EStG): je Mitarbeiter und Jahr die Werte aus den festgeschriebenen
@@ -46,7 +47,6 @@ const zahl = (tausendstel: number) => (tausendstel / 1000).toLocaleString("de-DE
 function LstbPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const jahrId = useId();
   const dieses = Number(data.heute.slice(0, 4));
   const jahre = [...new Set([data.year, dieses, dieses - 1])].sort((a, b) => b - a);
   return (
@@ -56,16 +56,17 @@ function LstbPage() {
           <div className="eyebrow">Personal › Lohnsteuerbescheinigung</div>
           <h1>Lohnsteuerbescheinigungen {data.year}</h1>
         </div>
-        <label className="field" htmlFor={jahrId}>
-          Jahr
-          <select id={jahrId} value={data.year} onChange={(e) => navigate({ to: "/lohn/bescheinigung/$jahr", params: { jahr: e.target.value } })}>
-            {jahre.map((j) => (
-              <option key={j} value={j}>
-                {j}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Jahr">
+          {(control) => (
+            <select {...control} value={data.year} onChange={(e) => navigate({ to: "/lohn/bescheinigung/$jahr", params: { jahr: e.target.value } })}>
+              {jahre.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       <div className="stack" style={{ gap: 24 }}>
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
@@ -271,9 +272,6 @@ function Vermerk({ data, m, art }: { data: Data; m: Mitarbeiter; art: "neu" | "k
   const [datum, setDatum] = useState(data.heute);
   const [ticket, setTicket] = useState("");
   const [grund, setGrund] = useState("");
-  const datumId = useId();
-  const ticketId = useId();
-  const grundId = useId();
   const titel = `${ART[art]} im ELSTER-Portal vermerken`;
   function absenden(event: FormEvent) {
     event.preventDefault();
@@ -293,19 +291,14 @@ function Vermerk({ data, m, art }: { data: Data; m: Mitarbeiter; art: "neu" | "k
           : `Nach dem Absenden in Mein ELSTER: Tag und Transferticket aus der Bestätigung. Haben hält die Werte ${art === "korrektur" ? "der Korrektur " : ""}fest, die es gerade rechnet.`}
       </p>
       <div className="actions" style={{ alignItems: "end" }}>
-        <label className="field" htmlFor={datumId}>
-          Übermittelt am
-          <input id={datumId} type="date" value={datum} max={data.heute} onChange={(e) => setDatum(e.target.value)} required />
-        </label>
-        <label className="field" htmlFor={ticketId}>
-          Transferticket
-          <input id={ticketId} value={ticket} onChange={(e) => setTicket(e.target.value)} required maxLength={100} />
-        </label>
+        <Field label="Übermittelt am">
+          {(control) => <input {...control} type="date" value={datum} max={data.heute} onChange={(e) => setDatum(e.target.value)} required />}
+        </Field>
+        <Field label="Transferticket">
+          {(control) => <input {...control} value={ticket} onChange={(e) => setTicket(e.target.value)} required maxLength={100} />}
+        </Field>
         {art === "storno" && (
-          <label className="field" htmlFor={grundId}>
-            Grund
-            <input id={grundId} value={grund} onChange={(e) => setGrund(e.target.value)} maxLength={500} />
-          </label>
+          <Field label="Grund">{(control) => <input {...control} value={grund} onChange={(e) => setGrund(e.target.value)} maxLength={500} />}</Field>
         )}
         <button type="submit" className="btn" disabled={action.busy}>
           {art === "storno" ? "Stornierung vermerken" : "Übermittlung vermerken"}

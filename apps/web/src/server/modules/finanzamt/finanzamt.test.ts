@@ -1,7 +1,7 @@
 import { EricGeprueftClient } from "../../test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () => {
   let finanzamt: typeof import("./finanzamt.ts");
@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
   });
 
   beforeEach(async () => {
-    await sql`truncate elster_certificates, company cascade`;
+    await leeren(sql)`truncate elster_certificates, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland, versteuerung, kontenrahmen, einkunftsart)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY', 'ist', 'SKR03', 'selbstaendig')`;
   });
@@ -76,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
 
   it("schätzt die Steuer mit den Angaben des Vorjahres, wenn es fürs laufende Jahr keine gibt", async () => {
     const incomeTax = await import("../jahreserklaerung/income-tax.ts");
-    await sql`truncate income_tax_inputs`;
+    await leeren(sql)`truncate income_tax_inputs`;
     expect((await finanzamt.prepaymentBasis("2026-07-02")).angabenAus).toBeNull();
     await incomeTax.saveEstAngaben(actor, 2025, { vorsorge: { a: { pkv: 500_000 } } });
     const basis = await finanzamt.prepaymentBasis("2026-07-02");

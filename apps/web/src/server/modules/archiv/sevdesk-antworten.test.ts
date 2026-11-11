@@ -20,7 +20,7 @@ import rechnungenSteuerV2 from "../../../../../../packages/import/test-fixtures/
 import stornoFolgejahrV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar-folgejahr.json";
 import stornoV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/storno-paar.json";
 import zahlungenV2 from "../../../../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/zahlungen.json";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /* Abgleich und offene Posten mit anonymisierten echten Antworten je Buchhaltungsversion (#472). */
 
@@ -50,7 +50,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Antworten je Buchhaltungsversion (Pos
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, company cascade`;
+    await leeren(sql)`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', 'ist', 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{}'::jsonb, 'sevdesk')`;

@@ -3,7 +3,7 @@ import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type OrderRefer
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { loadCompany, loadLetterhead } from "../stammdaten/index.ts";
+import { loadCompany, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { withCurrentLegalInfo } from "./invoices.ts";
 import { quoteChoices } from "./quote-choices.ts";
 import { documentReferences, type ReferenceColumns } from "./order-references.ts";
@@ -38,7 +38,9 @@ export async function confirmationPdf(quoteId: string) {
     choices,
     withPlan: quote.paymentPlanInConfirmation,
   });
-  const pdf = buildConfirmationPdf({ ...doc, ...(await loadLetterhead()) }, today(quote.decidedAt));
+  const pdf = await withCustomLayout("auftragsbestaetigung", await loadLetterhead(), (letterhead) =>
+    buildConfirmationPdf({ ...doc, ...letterhead }, today(quote.decidedAt)),
+  );
   return { pdf, filename: `${quote.language === "en" ? "Order-confirmation" : "Auftragsbestaetigung"}-${quote.number}.pdf` };
 }
 
@@ -98,24 +100,26 @@ function orderReferencesOf(row: ReferenceColumns): OrderReferences {
 /** Lieferschein zu einem angenommenen Angebot oder einer festgeschriebenen Rechnung */
 export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string) {
   const base = await deliverySource(source, id);
-  const letterhead = await loadLetterhead();
-  const pdf = buildDeliveryNotePdf({
-    reference: { kind: source, number: base.number, issueDate: base.issueDate },
-    deliveryDate: base.deliveryDate,
-    date: base.date,
-    seller: withCurrentLegalInfo(base.seller, await loadCompany()),
-    buyer: base.buyer,
-    language: base.language,
-    references: base.references,
-    lines: base.lines.map((l, i) => ({
-      position: i + 1,
-      description: l.description,
-      ...(l.detail ? { detail: l.detail } : {}),
-      ...(l.itemNumber ? { itemNumber: l.itemNumber } : {}),
-      quantity: l.quantity,
-      unit: l.unit as UnitLabel,
-    })),
-    ...letterhead,
-  });
+  const seller = withCurrentLegalInfo(base.seller, await loadCompany());
+  const pdf = await withCustomLayout("lieferschein", await loadLetterhead(), (letterhead) =>
+    buildDeliveryNotePdf({
+      reference: { kind: source, number: base.number, issueDate: base.issueDate },
+      deliveryDate: base.deliveryDate,
+      date: base.date,
+      seller,
+      buyer: base.buyer,
+      language: base.language,
+      references: base.references,
+      lines: base.lines.map((l, i) => ({
+        position: i + 1,
+        description: l.description,
+        ...(l.detail ? { detail: l.detail } : {}),
+        ...(l.itemNumber ? { itemNumber: l.itemNumber } : {}),
+        quantity: l.quantity,
+        unit: l.unit as UnitLabel,
+      })),
+      ...letterhead,
+    }),
+  );
   return { pdf, filename: `${base.language === "en" ? "Delivery-note" : "Lieferschein"}-${base.number}.pdf` };
 }

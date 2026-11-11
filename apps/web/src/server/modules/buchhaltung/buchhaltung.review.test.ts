@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Review: Anlagen und Kleinunternehmer (Postgres)", () => {
   let assets: typeof import("./assets.ts");
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Anlagen und Kleinunternehmer (Postgre
   });
 
   beforeEach(async () => {
-    await sql`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, company cascade`;
     // Kleinunternehmer vom ersten Protokolleintrag an: gilt für alle Monate, unabhängig vom heutigen Datum
     await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland, kleinunternehmer) values (1, 'Testfirma', 'ist', 'SKR03', 'BY', true)`;

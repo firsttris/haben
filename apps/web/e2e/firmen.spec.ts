@@ -6,6 +6,7 @@ import { axeVerstoesse, durchlaufSeite, einrichten, gehe } from "./einrichtung.t
  * Firmen wechseln (#504) in eigener, leerer Datenbank (Projekt „firmen“, e2e/durchlaeufe.ts). Der Server hat
  * HABEN_FIRMEN mit sich selbst als „Studio Nord“ und einer zweiten Instanz „Werkstatt Süd“ (playwright.config.ts).
  * Der Inhaber sieht, in welcher Firma er ist, und wechselt über einen Link; die Steuerberatung sieht nur den Namen.
+ * Der Name unter „Haben“ kommt aus den Firmendaten (firmenname.spec.ts), nicht aus HABEN_FIRMEN.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -24,12 +25,15 @@ test.afterAll(async () => {
   await page.context().close();
 });
 
+const FIRMA = "Mustermann IT · Max Mustermann";
+
 const nav = () => page.getByRole("navigation", { name: "Hauptnavigation" });
 
 test("Inhaber sieht die eigene Firma und wechselt zur anderen", async () => {
   await einrichten(page);
   await gehe(page, "/");
-  await expect(nav().getByRole("link", { name: "Haben Studio Nord" })).toBeVisible();
+  await expect(nav().getByRole("link", { name: `Haben ${FIRMA}` })).toBeVisible();
+  await expect(nav().getByText("Studio Nord")).toHaveCount(0);
   const wechseln = nav().getByRole("group", { name: "Firma wechseln" });
   await expect(wechseln.getByRole("link")).toHaveCount(1);
   await expect(wechseln.getByRole("link", { name: "Werkstatt Süd" })).toHaveAttribute("href", "https://werkstatt.example.de");
@@ -39,7 +43,7 @@ test("Inhaber sieht die eigene Firma und wechselt zur anderen", async () => {
 test("am Handy im Menü", async () => {
   await page.setViewportSize({ width: 375, height: 812 });
   await gehe(page, "/");
-  await expect(nav().getByText("Studio Nord")).toBeVisible();
+  await expect(nav().getByText(FIRMA)).toBeVisible();
   await nav().getByRole("button", { name: "Menü" }).click();
   const link = nav().getByRole("group", { name: "Firma wechseln" }).getByRole("link", { name: "Werkstatt Süd" });
   await link.scrollIntoViewIfNeeded();
@@ -68,7 +72,7 @@ test("Steuerberatung sieht den Namen der Firma, aber keine anderen Firmen", asyn
   await stb.getByRole("button", { name: "Später" }).click();
   await stb.waitForURL(/\/steuerberatung$/);
   const stbNav = stb.getByRole("navigation", { name: "Hauptnavigation" });
-  await expect(stbNav.getByText("Studio Nord")).toBeVisible();
+  await expect(stbNav.getByText(FIRMA)).toBeVisible();
   await expect(stbNav.getByRole("group", { name: "Firma wechseln" })).toHaveCount(0);
   await expect(stb.getByText("Werkstatt Süd")).toHaveCount(0);
   await context.close();
@@ -98,7 +102,7 @@ test("am Handy bleibt die Leiste mit dem Firmennamen so hoch wie --nav-height", 
   const hoehen: Record<string, number> = {};
   let variable = 0;
   for (const [breite, name] of [
-    [375, "Studio Nord"],
+    [375, FIRMA],
     [320, "Garten- und Landschaftsbau Müller und Söhne GmbH & Co. KG"],
   ] as const) {
     await page.setViewportSize({ width: breite, height: 812 });

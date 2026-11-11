@@ -7,6 +7,7 @@ import {
   purposeNamesPeriod,
   saeumnisMonate,
   saeumniszuschlag,
+  schonfristEnde,
   vatPosten,
   vatPostenFaelligkeit,
   vatPostenLabel,
@@ -156,6 +157,29 @@ describe("Säumniszuschlag (§ 240 AO)", () => {
     expect(saeumnisMonate("2026-11-10", "2026-12-11")).toBe(2);
     expect(saeumnisMonate("2027-01-31", "2027-03-05")).toBe(2);
   });
+
+  // § 240 Abs. 3 AO mit § 108 Abs. 1 und 3 AO: Endet die Schonfrist an einem Sonnabend, Sonntag oder Feiertag, endet sie
+  // erst mit Ablauf des nächsten Werktags; Feiertage im Bundesland des Finanzamts
+  it("Schonfrist endet am Wochenende oder Feiertag erst am nächsten Werktag", () => {
+    // Fällig Mittwoch, 10.06.2026; der dritte Tag ist Samstag, 13.06.: Schonfrist bis Montag, 15.06.
+    expect(schonfristEnde("2026-06-10", null)).toBe("2026-06-15");
+    expect(saeumnisMonate("2026-06-10", "2026-06-15", schonfristEnde("2026-06-10", null))).toBe(0);
+    expect(saeumnisMonate("2026-06-10", "2026-06-16", schonfristEnde("2026-06-10", null))).toBe(1);
+    // Tag der Deutschen Einheit, Samstag 03.10.2026: fällig Mittwoch, 30.09., Schonfrist bis Montag, 05.10.
+    expect(schonfristEnde("2026-09-30", null)).toBe("2026-10-05");
+    // Fronleichnam, Donnerstag 04.06.2026: Feiertag in Bayern, nicht in Berlin
+    expect(schonfristEnde("2026-06-01", "BY")).toBe("2026-06-05");
+    expect(schonfristEnde("2026-06-01", "BE")).toBe("2026-06-04");
+    expect(saeumnisMonate("2026-06-01", "2026-06-05", schonfristEnde("2026-06-01", "BY"))).toBe(0);
+    expect(saeumnisMonate("2026-06-01", "2026-06-05", schonfristEnde("2026-06-01", "BE"))).toBe(1);
+  });
+
+  it("nach der Schonfrist zählen die Monate weiter ab der Fälligkeit, nicht ab dem Ende der Schonfrist", () => {
+    // AEAO zu § 240 Nr. 6: nach Ablauf der Schonfrist Säumniszuschläge „vom Ablauf des … Fälligkeitstages an“
+    const ende = schonfristEnde("2026-06-10", null);
+    expect(saeumnisMonate("2026-06-10", "2026-07-10", ende)).toBe(1);
+    expect(saeumnisMonate("2026-06-10", "2026-07-11", ende)).toBe(2);
+  });
 });
 
 describe("Zeitraum im Verwendungszweck", () => {
@@ -235,6 +259,20 @@ describe("Vorschlag im Bankabgleich", () => {
       amount: -1_234_56,
       reasons: [`Zahllast und ${formatEuro(12_00)} Säumniszuschlag (§ 240 AO, 1 Monat)`, "Finanzamt als Gegenpartei"],
     });
+  });
+
+  it("Säumniszuschlag erst nach dem Ende der Schonfrist am nächsten Werktag", () => {
+    // Fällig 10.06.2026, Schonfrist bis Montag, 15.06. (13.06. ist ein Samstag, § 108 Abs. 3 AO)
+    const juni = { ...item(-1_234_56), dueDate: "2026-06-10", schonfristEnde: "2026-06-15" };
+    const amMontag = suggestMatches(lastschrift(-1_246_56, "Finanzkasse", "Finanzamt Regensburg", "2026-06-15"), [juni]);
+    expect(amMontag.flatMap((s) => s.reasons).some((r) => r.includes("Säumniszuschlag"))).toBe(false);
+    const amDienstag = suggestMatches(lastschrift(-1_246_56, "Finanzkasse", "Finanzamt Regensburg", "2026-06-16"), [juni]);
+    expect(amDienstag[0]!.reasons).toContain(`Zahllast und ${formatEuro(12_00)} Säumniszuschlag (§ 240 AO, 1 Monat)`);
+  });
+
+  it("ohne Ende der Schonfrist im Posten zählen die bundesweiten Feiertage", () => {
+    const [best] = suggestMatches(lastschrift(-1_246_56, "Finanzkasse", "Finanzamt Regensburg", "2026-06-15"), [{ ...item(-1_234_56), dueDate: "2026-06-10" }]);
+    expect(best?.reasons.some((r) => r.includes("Säumniszuschlag")) ?? false).toBe(false);
   });
 
   it("nicht bei anderer Steuer, Sondervorauszahlung oder einer Zahlung ohne Bezug zum Finanzamt", () => {

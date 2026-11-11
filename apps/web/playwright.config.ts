@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, portFuer } from "./e2e/durchlaeufe.ts";
+import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -43,6 +43,13 @@ function webServer(durchlauf?: Durchlauf) {
       ANTHROPIC_API_KEY: "",
       EXTRACTION_PROVIDER: "",
       EXTRACTION_BASE_URL: "",
+      // Nachgebaute API in belege-steuern.spec.ts; ohne gespeicherten Zugang fragt kein Server dort an
+      ENABLE_BANKING_API_URL: `http://127.0.0.1:${ENABLE_BANKING_PORT}`,
+      ENABLE_BANKING_APP_ID: "",
+      ENABLE_BANKING_KEY: "",
+      ENABLE_BANKING_KEY_FILE: "",
+      // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
+      LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
       // Firmen wechseln (#504) nur im Durchlauf „firmen“: diese Instanz und eine zweite, die es nicht geben muss
       HABEN_FIRMEN: durchlauf === "firmen" ? `Studio Nord|${serverURL};Werkstatt Süd|https://werkstatt.example.de` : "",
     },
@@ -79,7 +86,10 @@ export default defineConfig({
       testMatch: [
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
+        "dateiauswahl.spec.ts",
+        "firmenname.spec.ts",
         "gestaltung.spec.ts",
+        "layouts.spec.ts",
         "handy-felder.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",

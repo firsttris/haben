@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,21 @@ describe("Migrationsjournal", () => {
     const { entries } = journal(MIGRATIONS);
     const behind = entries.filter((e, i) => i > 0 && e.when <= entries[i - 1]!.when).map((e) => e.tag);
     expect(behind).toEqual([]);
+  });
+
+  // drizzle-kit vergleicht das Schema mit dem letzten Snapshot: Fehlt einer, erzeugt der nächste `db:generate` die
+  // Änderung noch einmal (etwa ein zweites ADD VALUE, das beim Update scheitert). Snapshots schreibt nur drizzle-kit.
+  it("hat zu jeder Migration einen Snapshot von drizzle-kit", () => {
+    const { entries } = journal(MIGRATIONS);
+    const ohne = entries.filter((e) => !existsSync(join(MIGRATIONS, "meta", `${String(e.idx).padStart(4, "0")}_snapshot.json`))).map((e) => e.tag);
+    expect(ohne).toEqual([]);
+  });
+
+  // drizzle-kit setzt „when“ auf die Zeit der Erzeugung. Ein Zeitstempel in der Zukunft (von Hand geschrieben) ließe die
+  // nächste erzeugte Migration älter aussehen; auf Installationen mit der falschen würde sie übersprungen.
+  it("hat keinen Zeitstempel in der Zukunft", () => {
+    const { entries } = journal(MIGRATIONS);
+    expect(entries.filter((e) => e.when > Date.now()).map((e) => e.tag)).toEqual([]);
   });
 });
 

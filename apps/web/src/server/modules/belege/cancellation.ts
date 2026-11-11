@@ -1,11 +1,15 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { TaxCode } from "@haben/core";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { type PostingLine, type TaxCode, zeilenWieHeute } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { journalAbJahr } from "../stammdaten/index.ts";
+import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
+import { belegZeilen } from "./belegbuchung.ts";
+
+export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
 import { loadSplits } from "./splits.ts";
 
@@ -53,39 +57,6 @@ async function documentEntry(tx: Db | Tx, documentId: string) {
   return entry;
 }
 
-/** Monat und Quartal (41–44 wie in vat_returns), in deren Voranmeldung eine Buchung mit diesem Datum zählt */
-export function vatPeriodsOf(date: string): { year: number; months: number[] } {
-  const year = Number(date.slice(0, 4));
-  const month = Number(date.slice(5, 7));
-  return { year, months: [month, 40 + Math.ceil(month / 3)] };
-}
-
-/**
- * Ist der Zeitraum eines Buchungsdatums schon gemeldet? Eine gesendete oder vermerkte Voranmeldung für den Monat oder das
- * Quartal (je nach Einstellung gibt es nur eins von beiden), eine gesendete Jahreserklärung des Jahres oder ein
- * abgeschlossenes Jahr. Jede Jahreserklärung zählt: Bei einer GmbH meldet die E-Bilanz (mit KSt und GewSt) die Zahlen
- * des Jahres, auch ohne Voranmeldung oder Umsatzsteuererklärung (Kleinunternehmer, befreit); ebenso die ESt-Erklärung.
- */
-async function periodReported(q: Db | Tx, date: string): Promise<boolean> {
-  const { year, months } = vatPeriodsOf(date);
-  const r = schema.vatReturns;
-  const [sent] = await q
-    .select({ id: r.id })
-    .from(r)
-    .where(and(eq(r.year, year), inArray(r.month, months), eq(r.status, "sent")))
-    .limit(1);
-  if (sent) return true;
-  const a = schema.annualSubmissions;
-  const [annual] = await q
-    .select({ id: a.id })
-    .from(a)
-    .where(and(eq(a.year, year), eq(a.kind, "send"), eq(a.ok, true)))
-    .limit(1);
-  if (annual) return true;
-  const [closed] = await q.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
-  return Boolean(closed);
-}
-
 /**
  * Buchungsdatum der Gegenbuchung. Ist der Zeitraum der Belegbuchung noch nicht gemeldet, ihr Datum; sonst der Tag des
  * Stornos, nie vor dem Belegdatum (sonst minderte der Storno einen Zeitraum, in dem der Beleg noch gar nicht zählt).
@@ -112,6 +83,23 @@ export async function plannedCancellationDate(id: string, todayDate: string): Pr
   const entry = await documentEntry(db, id).catch(() => null);
   if (!entry) return null;
   return cancellationDate(db, { entryDate: entry.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
+}
+
+/**
+ * Die Zeilen des Belegs, wie Haben ihn heute bucht; null, wenn die heutige Buchungslogik ihn nicht mehr annimmt (etwa eine
+ * später verschärfte Regel). Dann bleibt es beim Storno der gebuchten Zeilen.
+ */
+function heutigeBelegZeilen(
+  doc: Document,
+  amounts: { taxRate: number; net: number; tax: number }[],
+  splits: Awaited<ReturnType<typeof loadSplits>>,
+  books: Awaited<ReturnType<typeof openBooks>>,
+): PostingLine[] | null {
+  try {
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -157,6 +145,11 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.journalLines)
       .where(eq(schema.journalLines.entryId, original.id))
       .orderBy(asc(schema.journalLines.id));
+    // Vor dem Stichjahr gebucht: im heutigen Format, wenn es auf jedem Konto dasselbe ergibt (zeilenWieHeute)
+    const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
+    const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
+    const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
+    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books) ?? []) : gebucht;
     const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
     const journalEntryId = await post(tx, books, {
       date,
@@ -165,7 +158,7 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       sourceId: id,
       reversesId: original.id,
       // Soll und Haben getauscht, Steuerschlüssel wie gebucht
-      lines: lines.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode as TaxCode | null })),
+      lines: zeilen.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode })),
     });
     if (doc.payment === "kasse") {
       await reverseDocumentCashEntry(tx, {

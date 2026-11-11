@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { requireUser } from "../../../server/rollen.ts";
+import { lesend } from "../../../server/lese-route.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 
@@ -9,9 +9,7 @@ import { fileResponse } from "../../../server/file-response.ts";
 export const Route = createFileRoute("/api/rechnung/$id/$datei")({
   server: {
     handlers: {
-      GET: async ({ request, params }) => {
-        const user = await requireUser(request, "lesen");
-        if (user instanceof Response) return user;
+      GET: lesend<"id" | "datei">(async ({ request, params }) => {
         const id = z.uuid().safeParse(params.id);
         if (!id.success || (params.datei !== "pdf" && params.datei !== "xml")) {
           return new Response("Nicht gefunden", { status: 404 });
@@ -31,7 +29,7 @@ export const Route = createFileRoute("/api/rechnung/$id/$datei")({
           return fileResponse(new TextEncoder().encode(row.xml), { mimeType: "application/xml", filename: `Rechnung-${row.number}-${suffix}.xml` }, download);
         }
         return new Response("Nicht gefunden", { status: 404 });
-      },
+      }),
     },
   },
 });

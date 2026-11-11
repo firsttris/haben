@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 type Mail = Parameters<ReturnType<typeof nodemailer.createTransport>["sendMail"]>[0];
 
@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
   beforeEach(async () => {
     box = new Map();
     failConnect = false;
-    await sql`truncate inbox_messages, inbox_settings, document_amounts, documents cascade`;
+    await leeren(sql)`truncate inbox_messages, inbox_settings, document_amounts, documents cascade`;
   });
 
   const settings = { host: "imap.example.com", port: 993, secure: true, username: "belege@mustermann.example", password: "geheim", folder: "Belege" };

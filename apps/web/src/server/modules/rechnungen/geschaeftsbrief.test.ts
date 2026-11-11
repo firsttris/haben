@@ -5,7 +5,7 @@ import { join } from "node:path";
 import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 type Sent = { text: string; html: string };
 
@@ -87,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("Geschäftsbriefe nach § 35a GmbHG (Postgres)
 
   beforeEach(async () => {
     sent.length = 0;
-    await sql`truncate mail_log, mail_settings, dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
+    await leeren(sql)`truncate mail_log, mail_settings, dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
     contactId = (
       await contacts.createContact(actor, {

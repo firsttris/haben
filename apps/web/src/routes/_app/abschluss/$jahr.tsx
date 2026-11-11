@@ -1,7 +1,7 @@
 import { currentYear } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { BilanzGuv } from "../../../components/BilanzGuv.tsx";
 import { Ebilanz } from "../../../components/Ebilanz.tsx";
 import { Hinterlegung } from "../../../components/Hinterlegung.tsx";
@@ -14,6 +14,7 @@ import { useAction } from "../../../lib/use-action.ts";
 import { closeYearFn, getJahresabschluss } from "../../../server/functions/abschluss.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/abschluss/$jahr")({
   loader: ({ params }) => {
@@ -31,7 +32,6 @@ type Kapitalgesellschaft = Extract<Data, { kapitalgesellschaft: true }>;
 function AbschlussPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const selectId = useId();
   const thisYear = currentYear();
   const years = [...new Set([data.year, thisYear, thisYear - 1, thisYear - 2])].sort((a, b) => b - a);
   return (
@@ -41,16 +41,17 @@ function AbschlussPage() {
           <div className="eyebrow">Jahresabschluss</div>
           <h1>Geschäftsjahr {data.year}</h1>
         </div>
-        <label className="field" htmlFor={selectId}>
-          Jahr
-          <select id={selectId} value={data.year} onChange={(e) => navigate({ to: "/abschluss/$jahr", params: { jahr: e.target.value } })}>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Jahr">
+          {(control) => (
+            <select {...control} value={data.year} onChange={(e) => navigate({ to: "/abschluss/$jahr", params: { jahr: e.target.value } })}>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       {data.kapitalgesellschaft ? (
         <Report data={data} />

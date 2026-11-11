@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { kennzahlenAusJournal } from "./journal-kennzahlen.ts";
 import { computeInvoiceTotals } from "./invoice.ts";
 import {
   ACCOUNT_NAMES,
@@ -107,9 +108,10 @@ describe("documentPosting", () => {
       ["3837", "RC13bDrittland"],
       ["2180", null],
     ]);
-    // Kleinunternehmer: Steuer schulden, nicht abziehen; sie ist Aufwand
+    // Kleinunternehmer: Steuer schulden, nicht abziehen; sie ist Aufwand, als eigene Zeile neben dem Netto (#542)
     expect(documentPosting(totals, "software", "SKR03", "einzelunternehmen", "bank", false, undefined, 0, "eu")).toEqual([
-      { account: "4964", debit: 11_900, credit: 0, taxCode: "RC13bEU" },
+      { account: "4964", debit: 10_000, credit: 0, taxCode: "RC13bEU" },
+      { account: "4964", debit: 1_900, credit: 0, taxCode: "keineVSt" },
       { account: "1787", debit: 0, credit: 1_900, taxCode: "RC13bEU" },
       { account: "1600", debit: 0, credit: 10_000, taxCode: null },
     ]);
@@ -117,6 +119,11 @@ describe("documentPosting", () => {
     const shared = documentPosting(totals, "telefon", "SKR03", "einzelunternehmen", "bank", true, undefined, 20, "eu");
     expect(shared.find((l) => l.account === "1577")!.debit).toBe(1_520);
     expect(shared.find((l) => l.account === "1787")!.credit).toBe(1_900);
+    // Der private Teil der Bemessungsgrundlage steht mit dem Steuerschlüssel auf den Entnahmen, die private Steuer ohne (#542)
+    expect(shared.filter((l) => l.account === "1800")).toEqual([
+      { account: "1800", debit: 2_000, credit: 0, taxCode: "RC13bEU" },
+      { account: "1800", debit: 380, credit: 0, taxCode: null },
+    ]);
     expect(balanced(shared)).toBe(true);
   });
 
@@ -180,15 +187,15 @@ describe("Zahlungen", () => {
     { quantity: 1000, unitPrice: 10_000, taxRate: 700 },
   ]);
 
-  it("Zahlungseingang bei Ist-Versteuerung macht die USt fällig", () => {
+  it("Zahlungseingang bei Ist-Versteuerung macht die USt fällig, mit der Bemessungsgrundlage an der Umsatzsteuer (#542)", () => {
     const lines = invoicePaymentPosting(totals, totals.gross, "SKR03", "ist");
     expect(lines).toEqual([
       { account: "1200", debit: 129_700, credit: 0, taxCode: null },
       { account: "1400", debit: 0, credit: 129_700, taxCode: null },
       { account: "1766", debit: 19_000, credit: 0, taxCode: "USt19" },
-      { account: "1776", debit: 0, credit: 19_000, taxCode: "USt19" },
+      { account: "1776", debit: 0, credit: 19_000, taxCode: "USt19", basis: 100_000 },
       { account: "1761", debit: 700, credit: 0, taxCode: "USt7" },
-      { account: "1771", debit: 0, credit: 700, taxCode: "USt7" },
+      { account: "1771", debit: 0, credit: 700, taxCode: "USt7", basis: 10_000 },
     ]);
     expect(balanced(lines)).toBe(true);
   });
@@ -277,6 +284,28 @@ describe("Zahlungen", () => {
     expect(directBookingsFor("einzelunternehmen")).toContain(kind);
   });
 
+  // DATEV SKR03 1840, SKR04 2250 „Zuwendungen, Spenden“: Privatkonto, Sonderausgabe nach § 10b EStG
+  it.each([
+    ["SKR03", "1200", "1840"],
+    ["SKR04", "1800", "2250"],
+  ] as const)("%s: Spende vom Geschäftskonto auf Zuwendungen, Spenden; Rückzahlung umgekehrt", (kr, bank, konto) => {
+    expect(directPosting("spende", -50_00, kr, "einzelunternehmen")).toEqual([
+      { account: bank, debit: 0, credit: 50_00, taxCode: null },
+      { account: konto, debit: 50_00, credit: 0, taxCode: null },
+    ]);
+    expect(directPosting("spende", 50_00, kr, "einzelunternehmen")[1]).toEqual({ account: konto, debit: 0, credit: 50_00, taxCode: null });
+    expect(ACCOUNTS[kr].spenden).toBe(konto);
+  });
+
+  it("Spende nur im Einzelunternehmen: in GmbH und UG ist sie Aufwand (§ 9 Abs. 1 Nr. 2 KStG)", () => {
+    expect(directBookingsFor("einzelunternehmen")).toContain("spende");
+    for (const rechtsform of ["gmbh", "ug"] as const) {
+      expect(directBookingsFor(rechtsform)).not.toContain("spende");
+      expect(() => directPosting("spende", -100, "SKR03", rechtsform)).toThrow("gibt es nicht in GmbH und UG");
+    }
+    expect(() => directPosting("kapest", -100, "SKR03", "einzelunternehmen")).toThrow("gibt es nur in GmbH und UG");
+  });
+
   it("SKR03: Lohnsteuer nie auf 3730 (dort Erhaltene Skonti)", () => {
     expect(directPosting("lohnsteuer", -100, "SKR03", "gmbh").map((l) => l.account)).not.toContain("3730");
   });
@@ -327,11 +356,19 @@ describe("legacyCorrectionPosting", () => {
     expect(["1400", "1766", "9000"].map(saldo)).toEqual([0, 0, 0]);
   });
 
+  it.each(["SKR03", "SKR04"] as const)("Soll (%s): Kennzahlen aus dem Journal wie die Voranmeldung, auch zu 0 % (#542)", (kr) => {
+    // Die Voranmeldung meldet die Korrektur mit Bemessungsgrundlage und Steuer im Monat der Korrektur (§ 17 UStG)
+    expect(kennzahlenAusJournal(kr, "soll", [legacyCorrectionPosting(storno, kr, "soll")])).toMatchObject({ kz81: -100_000, tax81: -19_000 });
+    const null0 = computeInvoiceTotals([{ quantity: 1000, unitPrice: -100_000, taxRate: 0 }]);
+    expect(kennzahlenAusJournal(kr, "soll", [legacyCorrectionPosting(null0, kr, "soll")])).toMatchObject({ steuerfrei: -100_000 });
+  });
+
   it("Soll: mindert die schon angemeldete Umsatzsteuer", () => {
     expect(legacyCorrectionPosting(storno, "SKR04", "soll")).toEqual([
       { account: "1200", debit: 0, credit: 119_000, taxCode: null },
       { account: "3806", debit: 19_000, credit: 0, taxCode: "USt19" },
-      { account: "9000", debit: 100_000, credit: 0, taxCode: null },
+      // Mit Steuerschlüssel: die Bemessungsgrundlage der Korrektur (#542)
+      { account: "9000", debit: 100_000, credit: 0, taxCode: "USt19" },
     ]);
   });
 });

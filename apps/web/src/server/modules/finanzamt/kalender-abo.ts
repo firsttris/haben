@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -32,8 +32,16 @@ export async function createCalendarToken(actor: string): Promise<string> {
   return token;
 }
 
+/** Widerruft den Abo-Link mit Ereignis in token_events; ohne Link ändert sich nichts und es entsteht kein zweites Ereignis. */
 export async function revokeCalendarToken(actor: string): Promise<void> {
-  await withActor(actor, (tx) => tx.update(schema.company).set({ calendarTokenHash: null, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+  await withActor(actor, async (tx) => {
+    const [revoked] = await tx
+      .update(schema.company)
+      .set({ calendarTokenHash: null, updatedAt: new Date() })
+      .where(and(eq(schema.company.id, 1), isNotNull(schema.company.calendarTokenHash)))
+      .returning({ responsibleId: schema.company.calendarTokenResponsibleId });
+    if (revoked) await tokenEvent(tx, actor, "kalender", "1", "widerrufen", revoked.responsibleId);
+  });
 }
 
 const calendarOwnerConfirmed = async (responsibleId: string | null) => !!responsibleId && (await currentTokenOwners(db)).has(responsibleId);

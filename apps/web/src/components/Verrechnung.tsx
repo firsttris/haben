@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 /*
  * Gegenläufige Umsätze verrechnen im Bankabgleich (#457): Anzeige der Verrechnung eines Umsatzes mit Aufheben und das
@@ -94,22 +95,30 @@ export function VerrechnenFormular({
         Für Umsätze, die sich aufheben, etwa Kartenprüfung und Rückbuchung. Beide gelten danach als erledigt; es entsteht keine Buchung, Voranmeldung und EÜR
         bleiben unverändert.
       </p>
-      <label className="field">
-        Gegenumsatz
-        <select value={gegenumsatz} onChange={(e) => setGegenumsatz(e.target.value)}>
-          {candidates.map((c) => (
-            <option key={c.id} value={c.id}>
-              {gegenumsatzText(c)}
-              {c.purpose ? ` · ${c.purpose}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        Notiz
-        <input value={notiz} onChange={(e) => setNotiz(e.target.value)} maxLength={500} required placeholder="PayPal-Autorisierung mit Rückbuchung" />
-        <span className="small muted">Steht mit der Verrechnung im Änderungsprotokoll.</span>
-      </label>
+      <Field label="Gegenumsatz">
+        {(control) => (
+          <select {...control} value={gegenumsatz} onChange={(e) => setGegenumsatz(e.target.value)}>
+            {candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {gegenumsatzText(c)}
+                {c.purpose ? ` · ${c.purpose}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field label="Notiz" hint="Steht mit der Verrechnung im Änderungsprotokoll.">
+        {(control) => (
+          <input
+            {...control}
+            value={notiz}
+            onChange={(e) => setNotiz(e.target.value)}
+            maxLength={500}
+            required
+            placeholder="PayPal-Autorisierung mit Rückbuchung"
+          />
+        )}
+      </Field>
       <div className="actions">
         <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !notiz.trim()}>
           Verrechnen

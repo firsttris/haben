@@ -3,6 +3,7 @@ import { useState } from "react";
 import { z } from "zod/mini";
 import { FORMAT_LABEL } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/kontakte/")({
   validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])) }),
@@ -43,10 +44,17 @@ function ContactsPage() {
         </div>
       </div>
       <div className="filter-row" style={{ marginBottom: 0, alignItems: "center" }}>
-        <label className="field" style={{ flex: "1 1 260px", maxWidth: 420 }}>
-          <span className="visually-hidden">Kontakte durchsuchen</span>
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen: Name, Kundennummer, E-Mail, Telefon, Ort" />
-        </label>
+        <Field label="Kontakte durchsuchen" hideLabel style={{ flex: "1 1 260px", maxWidth: 420 }}>
+          {(control) => (
+            <input
+              {...control}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Suchen: Name, Kundennummer, E-Mail, Telefon, Ort"
+            />
+          )}
+        </Field>
         <nav aria-label="Rolle" className="chip-row">
           {ROLE_FILTERS.map((f) => (
             <Link

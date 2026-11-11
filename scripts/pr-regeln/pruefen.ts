@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { countLines, grownOldFiles } from "../dateigroesse/regel.ts";
-import { checkTitle, growthHints, hints, isBot, type Report } from "./regel.ts";
+import { checkBody, checkTitle, growthHints, hints, isBot, type Report } from "./regel.ts";
 
 /*
  * Prüft einen Pull Request nach regel.ts. Läuft in .github/workflows/pr-regeln.yml mit dem Ereignis aus
@@ -11,7 +11,9 @@ import { checkTitle, growthHints, hints, isBot, type Report } from "./regel.ts";
  */
 
 type PullRequest = {
+  number: number;
   title: string;
+  body: string | null;
   user: { login: string; type?: string };
   base: { sha: string };
   head: { sha: string };
@@ -44,9 +46,16 @@ const linesAt = (sha: string) =>
   );
 const grown = grownOldFiles(linesAt(mergeBase), linesAt(pr.head.sha), oldFiles);
 
-const reports: Report[] = [...(isBot(pr.user) ? [] : checkTitle(pr.title)), ...hints(files, subjects), ...growthHints(grown)];
+const reports: Report[] = [...(isBot(pr.user) ? [] : [...checkTitle(pr.title), ...checkBody(pr.body)]), ...hints(files, subjects), ...growthHints(grown)];
 
 // Annotationen von GitHub Actions: erscheinen an der Prüfung und in der Zusammenfassung des Laufs
 for (const { level, message } of reports) console.log(`::${level} title=PR-Regeln::${message}`);
 if (reports.length === 0) console.log("PR-Regeln: alles in Ordnung");
+
+// Für den Kommentar im Pull Request (kommentar.ts): pr-regeln.yml lädt die Datei als Artefakt hoch
+const ausgabe = process.env.PR_REGELN_ERGEBNIS;
+if (ausgabe) {
+  mkdirSync(ausgabe, { recursive: true });
+  writeFileSync(`${ausgabe}/ergebnis.json`, JSON.stringify({ pr: pr.number, headSha: pr.head.sha, reports: reports.slice(0, 50) }));
+}
 if (reports.some(({ level }) => level === "error")) process.exit(1);

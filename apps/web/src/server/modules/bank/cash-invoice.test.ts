@@ -2,7 +2,7 @@ import { ACCOUNTS } from "@haben/core";
 import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /**
  * Bareinnahme auf eine Ausgangsrechnung im Kassenbuch: gebucht wie die Zuordnung eines Bankumsatzes (Kasse statt Bank),
@@ -37,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
 
   /** Firma, Zahlungsziel 14 Tage, ohne Skonto (skonto: Vorgabe für neue Rechnungen) */
   async function company(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", skonto: { days: number; percent: number }[] = []) {
-    await sql`truncate write_offs, allocations, cash_entries, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await leeren(sql)`truncate write_offs, allocations, cash_entries, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
                                    payment_term_days, skonto)

@@ -208,7 +208,7 @@ function fieldsOffSurface(p: Page) {
       .filter((el) => getComputedStyle(el).backgroundColor !== surface)
       .map(
         (el) =>
-          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
+          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? (el as HTMLInputElement).labels?.[0]?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
       );
   });
 }
@@ -411,4 +411,270 @@ test("Feld aus der gemeinsamen Komponente: Nur der Name klickt, der Hinweis geh�
 
   const email = page.getByRole("textbox", { name: "E-Mail", exact: true });
   await expect(email).toHaveAccessibleDescription(/Mehrere Adressen/);
+});
+
+/** Felder, die nicht über `Field` gebaut sind: ein umschließendes `label.field`, oder ein Feldname, dessen `for` ins Leere zeigt */
+function fieldsOffComponent(p: Page) {
+  return p.evaluate(() => {
+    const where = (el: Element) => `${el.tagName.toLowerCase()}.${el.className} „${(el.textContent ?? "").trim().slice(0, 40)}“`;
+    const wrapping = [...document.querySelectorAll("label.field")].map((el) => `umschließendes ${where(el)}`);
+    const dangling = [...document.querySelectorAll(".field")].flatMap((field) => {
+      const name = field.querySelector(":scope > .field-label");
+      if (!name) return [];
+      const id = name.getAttribute("for");
+      const target = id ? document.getElementById(id) : null;
+      const labels = target && "labels" in target ? [...((target as HTMLInputElement).labels ?? [])] : [];
+      return labels.includes(name as HTMLLabelElement) ? [] : [`Feldname ohne Feld: ${where(name)} (for=${id})`];
+    });
+    return [...wrapping, ...dangling];
+  });
+}
+
+// Was nur hinter einem Zustand erscheint (Dialoge, aufgeklappte Bereiche, Fehler), sieht dieser Test nicht; dafür gilt das AST-Inventar der Umstellung
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Alle Felder stammen aus der gemeinsamen Komponente: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await fieldsOffComponent(page), path).toEqual([]);
+    }
+  });
+}
+
+/** Verweise (`aria-describedby`, `aria-labelledby`, `list`), deren Ziel im Dokument fehlt, als lesbare Liste */
+function danglingReferences(p: Page) {
+  return p.evaluate(() =>
+    ["aria-describedby", "aria-labelledby", "list"].flatMap((name) =>
+      [...document.querySelectorAll(`[${name}]`)].flatMap((el) =>
+        (el.getAttribute(name) ?? "")
+          .split(/\s+/)
+          .filter((id) => id && !document.getElementById(id))
+          .map((id) => `${el.tagName.toLowerCase()} ${name}→${id}`),
+      ),
+    ),
+  );
+}
+
+test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zahlungsart Lastschrift", async ({ page }) => {
+  await open(page, "/rechnungen/wiederkehrend/neu");
+  const zahlungsart = page.getByLabel("Zahlungsart");
+  for (const art of ["ueberweisung", "lastschrift"]) {
+    await zahlungsart.selectOption(art);
+    expect(await danglingReferences(page), art).toEqual([]);
+  }
+  await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
+});
+
+/** Kontrollkästchen und Optionsfelder, deren Hinweis im umschließenden `<label>` steht und damit zum Namen zählt */
+function hintsInCheckboxLabel(p: Page) {
+  return p.evaluate(() => {
+    const where = (el: Element) =>
+      `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
+    return [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]')].flatMap((input) => {
+      const labels = [...(input.labels ?? [])];
+      const ids = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
+      const inLabel = ids.filter((id) => labels.some((label) => label.contains(document.getElementById(id))));
+      const hint = labels.some((label) => label.querySelector(".field-hint"));
+      return inLabel.length || hint ? [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`] : [];
+    });
+  });
+}
+
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Kein Hinweis im Label eines Kontrollkästchens: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await hintsInCheckboxLabel(page), path).toEqual([]);
+    }
+  });
+}
+
+test("Kontrollkästchen mit Hinweis: Der Name ist nur die Beschriftung, der Hinweis die Beschreibung, der Text schaltet um", async ({ page }) => {
+  await open(page, "/einstellungen");
+  const faelle = [
+    { name: "Kleinunternehmer nach § 19 UStG", hinweis: /^Rechnungen ohne Umsatzsteuer, keine Voranmeldung/ },
+    { name: "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)", hinweis: /^Ohne Gestattung rechnet Haben Fremdwährung/ },
+    { name: "Basiszinssatz automatisch abrufen", hinweis: /^Haben fragt die Bundesbank nur nach dem 1\. Januar/ },
+  ];
+  for (const { name, hinweis } of faelle) {
+    const kasten = page.getByRole("checkbox", { name, exact: true });
+    await expect(kasten, name).toHaveCount(1);
+    await expect(kasten, name).toHaveAccessibleDescription(hinweis);
+    // Der Name enthält den Hinweis nicht, die Beschreibung nicht den Namen: Nichts wird doppelt vorgelesen
+    await expect(kasten, name).not.toHaveAccessibleDescription(new RegExp(name.slice(0, 12)));
+  }
+
+  // Der Beschriftungstext schaltet weiter um (Tageskurs ist nie gesperrt); nichts wird gespeichert
+  const tageskurs = page.getByRole("checkbox", { name: faelle[1]!.name, exact: true });
+  const vorher = await tageskurs.isChecked();
+  await page.getByText(faelle[1]!.name, { exact: true }).click();
+  await expect(tageskurs).toBeChecked({ checked: !vorher });
+});
+
+test.describe("Kontrollkästchen mit Hinweis am Handy", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  // Auf Touchgeräten sind Felder und Zeilen mit Kästchen 44px hoch (DESIGN.md); der Hinweis darunter nimmt davon nichts weg
+  test("Die Zeile mit dem Kästchen ist mindestens 44px hoch", async ({ page }) => {
+    await open(page, "/einstellungen");
+    for (const name of [
+      "Kleinunternehmer nach § 19 UStG",
+      "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+      "Basiszinssatz automatisch abrufen",
+    ]) {
+      const zeile = page.locator("label.checkbox", { has: page.getByRole("checkbox", { name, exact: true }) });
+      const box = await zeile.boundingBox();
+      expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
+test("Kontrollkästchen mit Hinweis: Der Hinweis fluchtet mit dem Text der Beschriftung", async ({ page }) => {
+  await open(page, "/einstellungen");
+  for (const name of [
+    "Kleinunternehmer nach § 19 UStG",
+    "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+    "Basiszinssatz automatisch abrufen",
+  ]) {
+    const block = page.locator(".checkbox-hinted", { has: page.getByRole("checkbox", { name, exact: true }) });
+    // Linke Textkante: Beschriftung = Rand des span; Hinweis = Rand der Box plus ihr Innenabstand links
+    const versatz = await block.evaluate((el) => {
+      const text = el.querySelector("label.checkbox > span")!.getBoundingClientRect().left;
+      const hinweis = el.querySelector<HTMLElement>(".field-hint")!;
+      return hinweis.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(hinweis).paddingLeft) - text;
+    });
+    expect(Math.abs(versatz), name).toBeLessThanOrEqual(1);
+  }
+});
+
+test("Kontrollkästchen mit Hinweis am Desktop: Die Zeile ist nur so hoch wie der Text", async ({ page }) => {
+  await open(page, "/einstellungen");
+  for (const name of [
+    "Kleinunternehmer nach § 19 UStG",
+    "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)",
+    "Basiszinssatz automatisch abrufen",
+  ]) {
+    const zeile = page.locator("label.checkbox", { has: page.getByRole("checkbox", { name, exact: true }) });
+    // 44px gelten nur auf Touchgeräten (pointer: coarse); am Desktop bliebe sonst eine Leerzeile zwischen Text und Hinweis
+    expect((await zeile.boundingBox())?.height ?? 99, name).toBeLessThan(44);
+  }
+});
+
+test("Kontrollkästchen mit Hinweis: Ein Klick auf den Hinweis schaltet nicht um", async ({ page }) => {
+  await open(page, "/einstellungen");
+  const name = "Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)";
+  const kasten = page.getByRole("checkbox", { name, exact: true });
+  const vorher = await kasten.isChecked();
+  const block = page.locator(".checkbox-hinted", { has: kasten });
+  await block.locator(".field-hint").click();
+  await expect(kasten).toBeChecked({ checked: vorher });
+  // Gegenprobe: derselbe Klick auf den Beschriftungstext schaltet um
+  await block.locator("label.checkbox > span").click();
+  await expect(kasten).toBeChecked({ checked: !vorher });
+});
+
+test("Rechnungsart: Der Hinweis erscheint nur bei Abschlags- und Schlussrechnung, nicht bei der normalen Rechnung", async ({ page }) => {
+  await open(page, "/rechnungen/neu");
+  const art = page.getByLabel("Rechnungsart");
+  await expect(art).toHaveValue("");
+  await expect(art).toHaveAccessibleDescription("");
+  await art.selectOption("abschlag");
+  await expect(art).toHaveAccessibleDescription(/^Über einen Teil der Leistung/);
+  await art.selectOption("schluss");
+  await expect(art).toHaveAccessibleDescription(/^Über die gesamte Leistung/);
+  await art.selectOption("");
+  await expect(art).toHaveAccessibleDescription("");
+});
+
+test("Feld in einer Zeile: „Konto“ steht links neben der Auswahl, nicht darüber", async ({ page }) => {
+  await open(page, "/bank");
+  const feld = page.locator(".field-inline", { has: page.getByLabel("Konto", { exact: true }) });
+  const name = await feld.locator(".field-label").boundingBox();
+  const auswahl = await feld.locator("select").boundingBox();
+  if (!name || !auswahl) throw new Error("Feld „Konto“ ohne Fläche");
+  expect(name.x + name.width, "Name links vom Feld").toBeLessThanOrEqual(auswahl.x);
+  expect(Math.abs(name.y + name.height / 2 - (auswahl.y + auswahl.height / 2)), "auf einer Höhe").toBeLessThan(12);
+});
+
+/** Seiten mit dem Dateiwähler `FilePicker`; der Knopf daneben ist nur ein `span`, der Klick muss den Dialog selbst öffnen */
+const FILE_PICKER_PAGES = [
+  "/dauerbelege/neu",
+  "/csv-import?art=kontakte",
+  "/einstellungen?bereich=bank",
+  "/einstellungen?bereich=elster",
+  "/archiv",
+  "/archiv/auftrag/723bf34b-f8ab-48f0-b391-656af4b72a96",
+];
+
+test("Dateiwähler: Ein Klick auf „Datei wählen“ öffnet an jeder Stelle den Dialog und der Feldname benennt das Feld", async ({ page }) => {
+  for (const path of FILE_PICKER_PAGES) {
+    await open(page, path);
+    const pickers = page.locator(".file-picker");
+    expect(await pickers.count(), `${path} hat einen Dateiwähler`).toBeGreaterThan(0);
+    for (let i = 0; i < (await pickers.count()); i++) {
+      const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5_000 }), pickers.nth(i).locator(".btn").click()]);
+      expect(chooser, `${path} Nr. ${i + 1}`).toBeTruthy();
+      const input = pickers.nth(i).locator("input[type=file]");
+      expect(await input.evaluate((el: HTMLInputElement) => el.labels?.length ?? 0), `${path} Nr. ${i + 1}: Feldname`).toBeGreaterThan(0);
+    }
+  }
+});
+
+test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört zum Eingabefeld", async ({ page }) => {
+  await open(page, "/einstellungen?bereich=email");
+  await page.getByLabel("Versandweg").selectOption("graph");
+  for (const name of ["Zertifikat", "Privater Schlüssel"]) {
+    const feld = page
+      .locator(".field", { has: page.getByText(name, { exact: false }) })
+      .locator(".file-picker")
+      .first();
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5_000 }), feld.locator(".btn").click()]);
+    expect(chooser, name).toBeTruthy();
+  }
+});
+
+// Kennzahlentabelle der Voranmeldung am Handy (#376): Bezeichnung über die volle Breite, darunter Bemessung und
+// Steuer nebeneinander; nichts läuft unter ein Feld, keine Zeile wird zehnmal so hoch wie am Desktop
+test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, nichts unter einem Feld", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await withTheme(page, "nacht");
+  let gefunden = false;
+  for (const candidate of [`/umsatzsteuer/${YEAR}-Q1`, `/umsatzsteuer/${YEAR}-03`, `/umsatzsteuer/${YEAR - 1}-03`, `/umsatzsteuer/${YEAR + 1}-03`]) {
+    await open(page, candidate);
+    if (await page.getByRole("button", { name: "Manuell überschreiben" }).count()) {
+      gefunden = true;
+      break;
+    }
+  }
+  expect(gefunden, "Voranmeldung zum manuellen Überschreiben").toBe(true);
+  await page.getByRole("button", { name: "Manuell überschreiben" }).click();
+  await expect(page.locator(".kz-row input").first()).toBeVisible();
+
+  const probleme = await page.evaluate(() => {
+    const tabelle = document.querySelector<HTMLElement>(".kz-table");
+    if (!tabelle) return ["keine Kennzahlentabelle"];
+    const breite = tabelle.getBoundingClientRect().width;
+    const meldungen: string[] = [];
+    const zeilen = [...tabelle.querySelectorAll<HTMLElement>(".kz-row:not(.head):not(.total)")];
+    if (zeilen.length < 5) meldungen.push(`nur ${zeilen.length} Zeilen`);
+    for (const zeile of zeilen) {
+      const kz = zeile.querySelector(".kz-num")?.textContent?.trim();
+      const label = zeile.querySelector<HTMLElement>(".kz-label");
+      if (!label) continue;
+      const lr = label.getBoundingClientRect();
+      if (lr.width < breite * 0.7) meldungen.push(`Kz ${kz}: Bezeichnung nur ${Math.round(lr.width)} von ${Math.round(breite)} px breit`);
+      if (label.scrollWidth > label.clientWidth + 1) meldungen.push(`Kz ${kz}: Bezeichnung abgeschnitten`);
+      // Eine Zeile am Desktop ist 64 px hoch; höchstens das Dreifache
+      if (zeile.getBoundingClientRect().height > 192) meldungen.push(`Kz ${kz}: ${Math.round(zeile.getBoundingClientRect().height)} px hoch`);
+      for (const feld of zeile.querySelectorAll<HTMLElement>("input, output, .kz-amount")) {
+        const fr = feld.getBoundingClientRect();
+        if (fr.width === 0) continue;
+        if (fr.top < lr.bottom - 1 && fr.bottom > lr.top + 1) meldungen.push(`Kz ${kz}: Feld überlappt die Bezeichnung`);
+        if (fr.right > breite + tabelle.getBoundingClientRect().left + 1) meldungen.push(`Kz ${kz}: Feld ragt über den Rand`);
+      }
+    }
+    return meldungen;
+  });
+  expect(probleme).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await axe(page), "axe am Handy").toEqual([]);
 });

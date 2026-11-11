@@ -8,9 +8,15 @@
 export const PORT = Number(process.env.E2E_PORT ?? 3100);
 const databaseUrl = process.env.E2E_DATABASE_URL ?? "";
 
-/** Name → Abstand des Ports zu E2E_PORT; der Hauptdurchlauf (app.spec.ts) hat den Port selbst */
-export const DURCHLAEUFE = { gmbh: 1, rechnungen: 2, "belege-steuern": 3, rueckfragen: 4, firmen: 5 } as const;
+/** Name → Abstand des Ports zu E2E_PORT; der Hauptdurchlauf (app.spec.ts) hat den Port selbst, 7 bis 10 sind unten belegt */
+export const DURCHLAEUFE = { gmbh: 1, rechnungen: 2, "belege-steuern": 3, rueckfragen: 4, belegimport: 5, "bb-import": 6, firmen: 11 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;
+
+/** Die nachgebaute Enable-Banking-API in belege-steuern.spec.ts; + 7 und + 8 belegen langsame-anfrage und beenden */
+export const ENABLE_BANKING_PORT = PORT + 9;
+
+/** Nachgebaute Paketquelle für eigene Layouts in layouts.spec.ts (LAYOUTS_PACKAGES_URL) */
+export const LAYOUT_PAKETE_PORT = PORT + 10;
 
 export const portFuer = (durchlauf?: Durchlauf) => PORT + (durchlauf ? DURCHLAEUFE[durchlauf] : 0);
 

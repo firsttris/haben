@@ -9,6 +9,7 @@ import { cancelDocumentFn, reenterDocumentFn } from "../server/functions/documen
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 
@@ -125,10 +126,11 @@ function CancelForm({ doc, issues, date, today }: { doc: Detail["document"]; iss
         onClose={() => setConfirming(false)}
       >
         <p>{cancellationNotice(date, today)}</p>
-        <label className="field">
-          Grund (optional)
-          <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
-        </label>
+        <Field label="Grund (optional)">
+          {(control) => (
+            <input {...control} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
+          )}
+        </Field>
       </ConfirmDialog>
       <NoticeBanner notice={notice} />
       <div className="actions doc-actions">

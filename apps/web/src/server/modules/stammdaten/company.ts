@@ -162,6 +162,23 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
 }
 
 /**
+ * Ab welchem Jahr Voranmeldung und EÜR aus dem Journal rechnen (#542, docs/adr/journal-als-quelle.md): das eingestellte
+ * Stichjahr, sonst das Jahr der ersten Buchung, ohne Buchung das laufende Jahr. Bestehende Instanzen setzt die Migration
+ * 0192 auf das Jahr nach dem Update.
+ */
+export async function journalAbJahr(q: Db | Tx = db): Promise<number> {
+  const company = await loadCompany(q);
+  if (company.journalAb !== null) return company.journalAb;
+  const [first] = await q.select({ date: min(schema.journalEntries.date) }).from(schema.journalEntries);
+  return first?.date ? Number(first.date.slice(0, 4)) : Number(today(new Date()).slice(0, 4));
+}
+
+/** Stichjahr setzen (Vorziehen in den Einstellungen; prüft auswertungen/stichjahr.ts), in der Transaktion des Aufrufers */
+export async function setJournalAb(tx: Tx, year: number): Promise<void> {
+  await tx.update(schema.company).set({ journalAb: year, updatedAt: new Date() }).where(eq(schema.company.id, 1));
+}
+
+/**
  * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
  * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
  * Stand. Einschalten geht nur, solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.

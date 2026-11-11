@@ -15,7 +15,7 @@ Unter **Bank** holst du die Umsätze automatisch über Enable Banking ab oder im
 
 Ist Enable Banking eingerichtet (unter **Einstellungen › Bank**, siehe [Installation](installation.md#kontoabruf-enable-banking)), steht unter **Bank** der Bereich **Automatischer Abruf** mit dem Knopf **Bank verbinden**.
 
-1. **Bank verbinden** klicken, die Bank suchen und auswählen. Bietet die Bank beides an, wählst du Geschäfts- oder Privatkonto; das entscheidet, mit welchem Online-Banking-Zugang du dich gleich anmeldest. Unter **Umsätze abrufen ab** steht der Jahresbeginn; beginnt deine Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trägst du hier diesen Tag ein (siehe [Welche Umsätze abgerufen werden](#welche-umsätze-abgerufen-werden)).
+1. **Bank verbinden** klicken, die Bank suchen und auswählen. Gewählt ist die markierte Bank; bleibt nach der Suche nur eine übrig, ist sie schon gewählt. Unter der Liste steht, zu welcher Bank es weitergeht. Bietet die Bank beides an, wählst du Geschäfts- oder Privatkonto; das entscheidet, mit welchem Online-Banking-Zugang du dich gleich anmeldest. Unter **Umsätze abrufen ab** steht der Jahresbeginn; beginnt deine Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trägst du hier diesen Tag ein (siehe [Welche Umsätze abgerufen werden](#welche-umsätze-abgerufen-werden)).
 2. **Weiter zur Bank** führt zur Anmeldeseite deiner Bank. Dort meldest du dich an, bestätigst mit TAN und wählst die Konten aus.
 3. Die Bank leitet zurück zu Haben. Haben ordnet die freigegebenen Konten über die IBAN zu, legt fehlende an und holt sofort die ersten Umsätze. Neue Konten heißen nach Bank, Kontoname der Bank und den letzten vier Ziffern der IBAN, z. B. „Finom Geschäftskonto …7890“; die Meldung nach der Rückkehr nennt sie. Name und Zweck legst du danach mit **Name und Zweck** fest (siehe [Konto](#konto)).
 
@@ -38,7 +38,7 @@ Die Freigabe gilt nach PSD2 höchstens 180 Tage, bei manchen Banken weniger; das
 - **Konten ohne IBAN**, zum Beispiel Kreditkarten, ruft Haben nicht ab.
 - **Konten in Fremdwährung** ruft Haben nicht ab, weil es nur in Euro bucht. Manche Banken führen ein Unterkonto in US-Dollar unter derselben IBAN wie das Euro-Konto; die Meldung nach dem Verbinden nennt sie.
 
-Der Dateiimport bleibt daneben möglich, etwa für ältere Zeiträume. Importierst du für ein abgerufenes Konto eine Datei mit Umsätzen, die schon abgerufen sind, können Doppelte entstehen, wenn die Bank den Verwendungszweck unterschiedlich liefert.
+Der Dateiimport bleibt daneben möglich, etwa für ältere Zeiträume. Importierst du für ein abgerufenes Konto eine Datei mit Umsätzen, die schon abgerufen sind, können Doppelte entstehen, wenn die Bank den Verwendungszweck unterschiedlich liefert; Haben meldet den Fall beim Import (siehe [Dubletten](#dubletten)).
 
 Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand und Prüfsumme der API-Antwort. Die Bank zählt jeden Zugriff ohne dich; deshalb ruft Haben im Hintergrund höchstens einmal in 20 Stunden ab, auch nach einem Fehler.
 
@@ -49,11 +49,14 @@ Jeder Abruf wird wie eine Datei als Import gespeichert, mit Zeitraum, Kontostand
 | DKB-CSV (aktuelles Format) | Semikolon-CSV mit den Spalten Buchungsdatum, Zahlungspflichtige(r), Zahlungsempfänger(in), Betrag | ja | aus dem Kontostand im Dateikopf |
 | DKB-CSV (Export bis 2023) | Semikolon-CSV mit Buchungstag, Auftraggeber/Begünstigter, Betrag | ja | aus dem Dateikopf |
 | N26-CSV | Komma-CSV mit Booking Date bzw. Date, Amount, Partner Name bzw. Payee | nein | nein |
+| Swan-CSV | Komma-CSV mit Kopfblock (IBAN, Alter und Neuer Kontostand, Von, Bis) und den Spalten Datum, Name, Verwendungszweck, Kredit EUR, Debit EUR | ja | Alter und Neuer Kontostand aus dem Kopfblock |
+| Commerzbank-CSV | Semikolon-CSV aus dem Online-Banking mit den Spalten Buchungstag, Umsatzart, Buchungstext, Betrag, IBAN Kontoinhaber, Sender, Empfänger, Verwendungszweck | ja, in jeder Zeile | nein |
 | CAMT.053 (XML) | Tagesauszug `BkToCstmrStmt` | ja | Anfangs- und Endsaldo des Auszugs |
 | PayPal | Aktivitätenexport (CSV), Spalten deutsch (Brutto, Gebühr, Netto, Transaktionscode) oder englisch (Gross, Fee, Net, Transaction ID) | nein, in das Konto des [Zahlungsdienstleisters](#zahlungsdienstleister) | Guthaben aus den Umsätzen |
 | Stripe | Saldenverlauf („Balance history“), alter Export (id, Type, Amount, Fee, Net, Available On) und neuer (balance_transaction_id, gross, fee, net, reporting_category) | nein, wie oben | wie oben |
 | Shopify Payments | Transaktionsexport mit Payout ID, Payout Date, Amount, Fee, Net | nein, wie oben | wie oben |
 | eBay | Transaktionsbericht (CSV), Spalten deutsch (Datum der Transaktionserstellung, Typ, Nettobetrag, Auszahlung Nr.) oder englisch (Transaction creation date, Type, Net amount, Payout ID) | nein, wie oben | wie oben |
+| Etsy | Monatsabrechnung (CSV), Spalten deutsch (Datum, Art, Titel, Info, Betrag, Gebühren & Steuern, Netto) oder englisch (Date, Type, Title, Info, Amount, Fees & Taxes, Net) | nein, wie oben | wie oben |
 
 Bank und Format erkennt Haben am Inhalt, nicht am Dateinamen. CAMT.052 und CAMT.054 werden mit einer eigenen Meldung abgelehnt; nur der Tagesauszug CAMT.053 wird gelesen.
 
@@ -63,12 +66,13 @@ Beim Lesen gilt außerdem:
 
 - Vorgemerkte Umsätze (DKB, CAMT-Status `PDNG`) werden übersprungen; Haben meldet ihre Anzahl.
 - CAMT-Sammelbuchungen mit eigenen Einzelbeträgen werden in einzelne Umsätze aufgeteilt. Ergeben die Einzelbeträge nicht den Gesamtbetrag, kommt ein Hinweis.
+- Commerzbank-CSV: Den Export holst du im Online-Banking bei den Umsätzen über **PDF / CSV**, Format CSV ([Commerzbank-Hilfe](https://www.commerzbank.de/service/wie-kann-ich-meine-umsaetze-exportieren/)). Name der Gegenseite und Verwendungszweck stehen in eigenen Spalten. Die IBAN der Gegenseite nennt der Export nur im Buchungstext, und nur bei Ausgängen, Daueraufträgen und Lastschriften, die du selbst einziehst; Eingänge haben keine: Für die [Vorschläge](#vorschläge) zählen dort Betrag, Rechnungsnummer im Verwendungszweck und Name, und am Kontakt merkt sich Haben keine IBAN. Haben nimmt nur eine IBAN mit gültiger Prüfziffer, nie die eigene, eine Gläubiger-ID oder eine strukturierte Referenz (RF…) aus dem Verwendungszweck. End-to-End-Referenz, Kundenreferenz, Mandatsreferenz und Gläubiger-ID liest Haben aus demselben Text; über die End-to-End-Referenz findet es auch [Überweisungen aus Haben](#überweisungen-aus-haben) wieder. Eine Datei mit Umsätzen mehrerer Konten lehnt Haben ab; exportiere je Konto eine Datei.
 - Fremdwährungen in der Datei werden gemeldet; Bankkonten führt Haben nur in Euro. Rechnungen und Belege in Fremdwährung gleichst du mit dem Euro-Betrag aus (siehe [Kursdifferenz](#kursdifferenz-bei-fremdwährung)).
 
 ## So gehst du vor
 
 1. Bei deiner Bank die Umsätze als CSV oder CAMT.053 exportieren.
-2. Unter **Bank** auf **CSV / CAMT importieren** klicken und eine oder mehrere Dateien wählen (bis 20 MB je Datei).
+2. Unter **Bank** auf **CSV / CAMT importieren** klicken und eine oder mehrere Dateien wählen (bis 50 Dateien auf einmal, bis 20 MB je Datei).
 3. Haben meldet je Datei „… neue Umsätze für …“ und wie viele schon vorhanden waren, dazu Hinweise und eine eventuelle Lücke.
 4. Links die offenen Umsätze durchgehen, rechts zuordnen.
 
@@ -97,6 +101,20 @@ Wählst du ein Konto aus und die Datei nennt eine andere IBAN, bricht der Import
 
 Über der Liste steht je Konto ein Reiter mit Format und Datum des letzten Imports und dem Endsaldo. Ist der letzte Import älter als sieben Tage, ist die Angabe hervorgehoben.
 
+### Fremdes Konto ausschließen
+
+Manchmal gehört ein Konto nicht zu dieser Firma, etwa wenn der Bankzugang auch das Konto einer zweiten Firma freigibt. Löschen geht nicht: Importierte Umsätze sind gesperrt. Stattdessen schließt du das Konto aus: Wähle es und klicke neben **Name und Zweck** auf **Gehört nicht zu dieser Firma**; nach einer Rückfrage ist es erledigt.
+
+Das geht nur, **solange kein Umsatz des Kontos zugeordnet, verrechnet oder ausgebucht ist**, denn dann gehört das Konto zu dieser Firma. Hat das gewählte Konto schon eine Zuordnung, ist der Knopf gesperrt und nennt den Grund. Ein Zahlungsdienstleister lässt sich nicht ausschließen.
+
+Ein ausgeschlossenes Konto:
+
+- steht nicht mehr unter den Reitern und fehlt in Bankabgleich, Vorschlägen, Übersicht, Überweisungen und Lastschriften, in der Vorprüfung der Voranmeldung, in der Jahresauswahl und im [Jahresarchiv](auswertungen.md#jahresexport);
+- wird beim automatischen Abruf übersprungen; die Verbindung selbst läuft für die anderen Konten weiter;
+- nimmt keinen Import an: Eine Datei mit seiner IBAN oder mit diesem Konto als Ziel lehnt Haben mit einer Meldung ab.
+
+Gelöscht wird nichts. Die Umsätze bleiben in der Datenbank, und der Schritt steht im [Änderungsprotokoll](buchhaltung.md#änderungsprotokoll). Unter **Ausgeschlossene Konten** am Ende der Seite siehst du die ausgeschlossenen Konten mit der Zahl ihrer Umsätze und nimmst ein Konto mit **… wieder aufnehmen** (mit dem Namen des Kontos) zurück; dann ist alles wie vorher da.
+
 ## Was beim Import passiert
 
 ### Dubletten
@@ -105,11 +123,15 @@ Jeder Umsatz bekommt einen Hash aus Buchungsdatum, Betrag, IBAN der Gegenseite u
 
 Umsätze, deren Hash es für das Konto schon gibt, überspringt Haben. Du kannst also überlappende Zeiträume oder dieselbe Datei noch einmal importieren, ohne doppelte Umsätze zu bekommen. Während eines Imports ist das Konto gesperrt, damit parallele Importe nichts doppelt anlegen.
 
+Die Prüfung gilt innerhalb einer Quelle. Sie erkennt nicht, dass dieselbe Zahlung aus zwei Quellen stammt: Der Abruf und die Datei derselben Bank schreiben den Verwendungszweck oft anders, und manche Exporte nennen das Zahlungs- statt des Buchungsdatums, ein bis drei Tage daneben. Ein Konto bekommt seine Umsätze deshalb aus einer Quelle. Wer die Quelle wechselt, importiert ab dem Tag nach dem letzten vorhandenen Umsatz; der [Abruf](#welche-umsätze-abgerufen-werden) beginnt nach einem Dateiimport von selbst dort.
+
+Liegen im Zeitraum einer neuen Datei schon Umsätze aus einem anderen Format oder aus dem Abruf (altes und neues CSV der DKB zählen als ein Format) und legt der Import trotzdem Umsätze neu an, meldet Haben das neben der Meldung zur Lücke, mit Zeitraum, Quelle und Anzahl. Importiert wird trotzdem. Unscharf über Betrag und Datum verglichen wird bewusst nicht, sonst blieben echte gleiche Zahlungen an Folgetagen unbemerkt.
+
 ### Saldenprüfung
 
 Haben vergleicht den Anfangssaldo der neuen Datei mit dem Endsaldo des vorigen Imports desselben Kontos. Passen sie nicht zusammen und überschneiden sich die Zeiträume nicht, meldet Haben eine Lücke mit Differenz, etwa: „Lücke: Anfangssaldo … passt nicht zum Endsaldo … des vorigen Imports. … vermutlich fehlen Umsätze dazwischen.“ Importiert wird trotzdem.
 
-Bei DKB-CSV leitet Haben die Salden aus dem Kontostand im Dateikopf ab, wenn dessen Datum zum Zeitraum der Umsätze passt. N26-CSV hat keine Salden; dort entfällt die Prüfung.
+Bei DKB-CSV leitet Haben die Salden aus dem Kontostand im Dateikopf ab, wenn dessen Datum zum Zeitraum der Umsätze passt. Swan-CSV nennt beide Salden im Kopfblock. N26- und Commerzbank-CSV haben keine Salden; dort entfällt die Prüfung.
 
 ### Unveränderlichkeit
 
@@ -166,7 +188,7 @@ Jede gesendete oder [vermerkte](umsatzsteuer.md#abgabe-außerhalb-von-haben-verm
 | Finanzamt als Gegenpartei | 15 |
 | Teilbetrag des offenen Betrags | 5 |
 
-Wie bei Rechnungen ab 40 Punkten. Zwei Zeiträume mit gleicher Zahllast unterscheidet der Zeitraum im Verwendungszweck. Gebucht wird wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820), mit dem Bezug auf die Voranmeldung; in der Liste der Zuordnungen steht er dahinter, etwa „Umsatzsteuer USt 10/2026“.
+Wie bei Rechnungen ab 40 Punkten. Zwei Zeiträume mit gleicher Zahllast unterscheidet der Zeitraum im Verwendungszweck. Gebucht wird wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820), mit dem Bezug auf die Voranmeldung; in der Liste der Zuordnungen steht er dahinter, etwa „Umsatzsteuer USt 10/2026“. In der EÜR zählt die Zahlung am Buchungstag; die Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt bis 10. Januar, ohne Dauerfristverlängerung im Vorjahr (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)).
 
 ### Dauerbelege: noch zu prüfen
 
@@ -181,7 +203,7 @@ Haben bucht einen Dauerbeleg nie von selbst, auch nicht bei einem eindeutigen Tr
 
 Jede Überweisung einer [SEPA-Datei aus Haben](belege.md#überweisen-sepa-datei) trägt eine eigene Referenz (EndToEndId, `HABEN-` und 16 Hex-Ziffern). Taucht sie in der Abbuchung wieder auf, schlägt Haben den Beleg mit „Überweisung aus Haben (HABEN-…)“ vor, auch wenn der Betrag nach Skonto nicht mehr stimmt oder die Bank den Verwendungszweck kürzt. Gesucht wird die Referenz:
 
-- in der EndToEndId des Umsatzes (CAMT.053: `Refs/EndToEndId`; Haben speichert sie ab dieser Version in `bank_transactions.end_to_end_id`, auch wenn die Bank eine eigene Referenz mitliefert),
+- in der EndToEndId des Umsatzes (CAMT.053: `Refs/EndToEndId`; Haben speichert sie, auch wenn die Bank eine eigene Referenz mitliefert),
 - in der Referenz der Bank (DKB: Spalte „Kundenreferenz“),
 - im Verwendungszweck, unabhängig von Leer- und Trennzeichen (manche Exporte schreiben `EREF: HABEN-…` dort hinein).
 
@@ -292,7 +314,7 @@ Greift keine der Regeln aus [Vorschläge ohne Rechnung](#vorschläge-ohne-rechnu
 
 So gelernt werden:
 
-- Kontoführung und Bankgebühren, Privat, Mahngebühren und Zinserträge;
+- Kontoführung und Bankgebühren, Privat, Spenden, Mahngebühren und Zinserträge;
 - [Einnahmen und Ausgaben auf eine Kategorie](#auf-eine-kategorie-buchen), jede Kategorie und jeder Steuersatz für sich: Hast du die Aufladungen beim Kiosk zweimal als Telefon gebucht, steht beim dritten Mal „Ausgabe: Telefon“ als Vorschlag da, und unter **Direkt buchen** sind Art und Kategorie schon gewählt. Zwei Zahlungen eines Privatkunden mit 7 % und eine mit 19 % ergeben „Einnahme: Erlöse 7 %“. Eine Kategorie, die am Tag des Umsatzes so nicht buchbar wäre, schlägt Haben nicht vor, etwa Erlöse mit 19 %, wenn du inzwischen Kleinunternehmer bist.
 
 Nie gelernt werden Geldtransit (dafür braucht es die Gegenbuchung), alles mit dem Finanzamt, weil über dieselbe IBAN Umsatzsteuer und private Steuern laufen, und Lohn, Sozialversicherung, Steuerzahlungen und Darlehen: Dort ändern sich Abrechnung, Steuerart und Jahr oder der Teil der Rate von Zahlung zu Zahlung, und die Regeln oben kennen sie besser.
@@ -306,6 +328,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Auswahl | Gegenkonto SKR03 | Gegenkonto SKR04 |
 | --- | --- | --- |
 | Privat (Entnahme oder Einlage) | Ausgang: 1800 Privatentnahmen, Eingang: 1890 Privateinlagen | Ausgang: 2100, Eingang: 2180 |
+| Spende (privat, Sonderausgabe), nur im Einzelunternehmen | 1840 Zuwendungen, Spenden | 2250 Zuwendungen, Spenden |
 | Gesellschafter (Verrechnungskonto), statt Privat in GmbH und UG | beide Richtungen: 0730 Verbindlichkeiten gegenüber Gesellschaftern | beide Richtungen: 3510 |
 | Geldtransit (eigenes Konto) | 1360 | 1460 |
 | Umsatzsteuer an das Finanzamt (ohne Bezug; besser die Voranmeldung als offenen Posten zuordnen, siehe oben) | 1780 | 3820 |
@@ -321,6 +344,8 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Direkt buchen** („Bankumsa
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 |
 | SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 |
 
+Eine **Spende** vom Geschäftskonto ist im Einzelunternehmen keine Betriebsausgabe, sondern eine Entnahme; abziehbar ist sie privat als Sonderausgabe (§ 10b EStG). Haben bucht sie deshalb nicht auf „Privat“, sondern auf das eigene Privatkonto „Zuwendungen, Spenden“, wie es der DATEV-Kontenrahmen vorsieht. Gewinn und EÜR ändern sich dadurch nicht; in der Anlage EÜR zählt sie zu den Entnahmen. Die Summe des Jahres steht im Kontenblatt 1840 bzw. 2250, und du trägst sie mit der Zuwendungsbestätigung in der [Einkommensteuer](jahreserklaerung.md) unter Sonderausgaben ein. In GmbH und UG gibt es die Auswahl nicht: Dort ist eine Spende Aufwand mit eigenem Abzug (§ 9 Abs. 1 Nr. 2 KStG).
+
 Die drei Lohnzahlungen bezahlen, was eine festgeschriebene [Lohnabrechnung](lohn.md#buchung) als Verbindlichkeit gebucht hat, und höchstens so viel, wie auf dem Konto noch offen ist; ohne festgeschriebene Abrechnung lehnt Haben sie ab. Ein Eingang (Rückzahlung, Erstattung) geht nur, soweit das Konto überzahlt ist. Lohnsteuer, Soli und Kirchensteuer überweist du gemeinsam als „Lohnsteuer an das Finanzamt“, im Minijob die Pauschsteuer mit den Beiträgen an die Minijob-Zentrale. Eine Lastschrift des Finanzamts über genau den Gesamtbetrag (Kz 83) einer übermittelten [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) schlägt Haben als „Lohnsteuer an das Finanzamt“ vor. Im Einzelunternehmen zählen sie in der EÜR am Tag der Zahlung als Ausgaben für Personal.
 
 Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochladen und buchen, dann hier zuordnen. Direkt gebuchte Ausgaben haben keine Vorsteuer.
@@ -329,7 +354,7 @@ Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochla
 
 Eine Einnahme ohne Rechnung, etwa die Zahlung eines Privatkunden, oder eine kleine Ausgabe ohne Beleg buchst du unter **Direkt buchen** als **Einnahme oder Ausgabe (Kategorie, Steuersatz)**. Du wählst die **Kategorie** und bei Einnahmen den **Steuersatz** (19 % oder 7 %); Haben zeigt Netto und Umsatzsteuer des Betrags an. Das geht auch als Teil einer Aufteilung.
 
-Gebucht wird nur auf eine Kategorie, nicht frei auf ein Konto mit Steuerschlüssel: Voranmeldung, EÜR und E-Bilanz hängen an den Kategorien und ihren Konten (siehe [Roadmap](roadmap.md#bewusst-nicht)).
+Gebucht wird nur auf eine Kategorie, nicht frei auf ein Konto mit Steuerschlüssel: Voranmeldung, EÜR und E-Bilanz hängen an den Kategorien und ihren Konten (siehe [Roadmap](roadmap.md#bewusst-nicht)). Für Vorgänge ohne Bankumsatz, etwa eine Sachentnahme, gibt es ab dem Stichjahr [freie Buchungen mit Steuerschlüssel](buchhaltung.md#manuelle-und-freie-buchungen); Bank- und Steuerkonten lassen sich auch dort nicht bebuchen.
 
 | Kategorie | SKR03 | SKR04 | Voranmeldung | EÜR (Einzelunternehmen) |
 | --- | --- | --- | --- | --- |
@@ -350,7 +375,7 @@ Beispiel: Ein Privatkunde überweist für eine Reparatur 119,00 €, Erlöse 19 
 - **Ausgaben:** brutto als Aufwand, ohne Vorsteuer: Die Vorsteuer darfst du nur mit einer Rechnung abziehen (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 UStG). Hast du eine, buche sie als [Beleg](belege.md). Nicht direkt buchen lassen sich Anlagegüter und geringwertige Wirtschaftsgüter (Anlagenverzeichnis), die Einfuhrumsatzsteuer (Bescheid des Zolls), Bewirtung (Bewirtungsbeleg, § 4 Abs. 5 Satz 1 Nr. 2 Satz 2 EStG) und Geschenke (Empfänger, § 4 Abs. 7 EStG); Bankgebühren haben ihre eigene Art.
 - Eine Zahlung in Gegenrichtung, etwa die Erstattung an einen Privatkunden, bucht die Seiten umgekehrt und mindert Erlöse und Umsatzsteuer im Monat der Erstattung.
 
-Kategorie und Steuersatz stehen an der Zuordnung (`allocations.category`, `tax_rate`), gesperrt und versiegelt; eine Aufhebung übernimmt sie in die Gegenzeile. In den Quellen der [Voranmeldung](umsatzsteuer.md#quellen-aufklappen) erscheint die Buchung als „Direktbuchung“ mit Link auf den Bankumsatz.
+Kategorie und Steuersatz stehen an der Zuordnung, gesperrt und versiegelt; eine Aufhebung übernimmt sie in die Gegenzeile. In den Quellen der [Voranmeldung](umsatzsteuer.md#quellen-aufklappen) erscheint die Buchung als „Direktbuchung“ mit Link auf den Bankumsatz.
 
 **Zinserträge** sind Zinsen auf das Guthaben eines betrieblichen Kontos, ohne Umsatzsteuer (§ 4 Nr. 8 Buchst. a UStG); in der EÜR zählen sie bei den umsatzsteuerfreien Betriebseinnahmen. Hat die Bank Kapitalertragsteuer und Solidaritätszuschlag einbehalten, teilst du die Gutschrift mit **Aufteilen** auf: den Bruttozins als Zinserträge (positiv) und die einbehaltenen Steuern als [Steuerzahlung](#steuerzahlungen) mit der Steuerart „Kapitalertragsteuer (von der Bank einbehalten)“ bzw. „Solidaritätszuschlag zur Kapitalertragsteuer“ (negativ). Beispiel: 100,00 € Zinsen, 25,00 € Kapitalertragsteuer und 1,37 € Soli, gutgeschrieben 73,63 €:
 
@@ -404,7 +429,7 @@ Beispiel: Der Bescheid über die Gewerbesteuer 2024 kommt im Oktober 2026, die S
 
 Die EÜR 2026 bleibt dadurch unverändert; die 543,00 € stehen nachrichtlich als Gewerbesteuer in der [Anlage EÜR](jahreserklaerung.md#anlage-eür). Wären es dieselben Beträge zur Umsatzsteuer 2024, zählten 500,00 € als gezahlte Umsatzsteuer und 43,00 € als Betriebsausgabe.
 
-**Abgrenzung zur Voranmeldung:** Die Zahllast einer abgegebenen Voranmeldung ordnest du weiter der [Voranmeldung](#voranmeldung-zahllast-und-erstattung) zu, auch die für Dezember im Januar. Umsatzsteuer als Steuerzahlung gibt es nur für frühere Jahre, also aus Jahreserklärung oder Bescheid; die Steuer des laufenden Jahres lehnt Haben dort ab. Zinsen und Zuschläge zur Umsatzsteuer, etwa ein Säumniszuschlag zur Voranmeldung, gehen auch für das laufende Jahr. Liegt eine Zahlung „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar, weist die Jahreserklärung darauf hin: Ist es die Vorauszahlung für Dezember oder das vierte Quartal, gehört sie in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) und als Voranmeldung zugeordnet.
+**Abgrenzung zur Voranmeldung:** Die Zahllast einer abgegebenen Voranmeldung ordnest du weiter der [Voranmeldung](#voranmeldung-zahllast-und-erstattung) zu, auch die für Dezember im Januar. Umsatzsteuer als Steuerzahlung gibt es nur für frühere Jahre, also aus Jahreserklärung oder Bescheid; die Steuer des laufenden Jahres lehnt Haben dort ab. Zinsen und Zuschläge zur Umsatzsteuer, etwa ein Säumniszuschlag zur Voranmeldung, gehen auch für das laufende Jahr. Liegt eine Zahlung „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar, weist die Jahreserklärung darauf hin: Ist es die Vorauszahlung für Dezember oder das vierte Quartal, ordne sie der Voranmeldung zu. Dann zählt Haben sie in der EÜR des Vorjahres, wenn sie ohne Dauerfristverlängerung am 10. Januar fällig war (§ 11 Abs. 2 Satz 2 EStG, [Vorauszahlung um den Jahreswechsel](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)); als Steuerzahlung zählt sie im Jahr der Zahlung.
 
 **GmbH und UG:** Eine Nachzahlung von Körperschaftsteuer, Soli oder Gewerbesteuer für ein Vorjahr verbraucht zuerst die Rückstellung, die der [Jahresabschluss](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug) zum 31.12. dieses Jahres gebucht hat, soweit Zahlungen für dasselbe Jahr sie nicht schon verbraucht haben; nur der Rest ist Aufwand für Vorjahre. Bleibt nach dem endgültigen Bescheid ein Rest der Rückstellung stehen, löst ihr ihn mit der Steuerberatung als manuelle Buchung auf. Nicht abziehbare Zinsen und Zuschläge rechnet die Steuerberechnung dem Einkommen wieder hinzu.
 
@@ -452,10 +477,10 @@ Hebst du eine Zuordnung auf, kehrt der Bestand zurück: Eine aufgehobene Tilgung
 
 ## Zahlungsdienstleister
 
-PayPal, Stripe, Shopify Payments, eBay, Etsy oder SumUp führen ein eigenes Guthaben: Kunden zahlen dorthin, der Dienstleister behält Gebühren ein, zieht Erstattungen und Rückbuchungen ab und zahlt den Rest gesammelt auf dein Bankkonto aus. Eine Auszahlung auf der Bank entspricht dann vielen Rechnungen abzüglich vieler Gebühren. Dafür legst du den Dienstleister als eigenes Konto an.
+PayPal, Stripe, Shopify Payments, eBay, Etsy, SumUp, Google Play oder der App Store führen ein eigenes Guthaben: Kunden zahlen dorthin, der Dienstleister behält Gebühren ein, zieht Erstattungen und Rückbuchungen ab und zahlt den Rest gesammelt auf dein Bankkonto aus. Eine Auszahlung auf der Bank entspricht dann vielen Rechnungen abzüglich vieler Gebühren. Dafür legst du den Dienstleister als eigenes Konto an.
 
 1. Auf der Seite **Bank** **Konto hinzufügen**, Art **Zahlungsdienstleister**, den Dienstleister und einen Namen wählen. Das Konto hat keine IBAN, aber ein eigenes Verrechnungskonto: SKR03 1361 bis 1369, SKR04 1461 bis 1469, je Dienstleister eine Nummer.
-2. Beim Dienstleister den Export herunterladen (PayPal: Aktivitäten als CSV; Stripe: Saldenverlauf; Shopify Payments: Transaktionen; eBay: im Verkäufer-Cockpit Pro unter Zahlungen › Berichte den Transaktionsbericht) und unter **CSV / CAMT importieren** einlesen, mit dem Konto des Dienstleisters unter **Konto**. In ein Bankkonto lässt sich so ein Export nicht importieren und umgekehrt.
+2. Beim Dienstleister den Export herunterladen (PayPal: Aktivitäten als CSV; Stripe: Saldenverlauf; Shopify Payments: Transaktionen; eBay: im Verkäufer-Cockpit Pro unter Zahlungen › Berichte den Transaktionsbericht; Etsy: unter Finanzen › Monatliche Abrechnungen die CSV) und unter **CSV / CAMT importieren** einlesen, mit dem Konto des Dienstleisters unter **Konto**. In ein Bankkonto lässt sich so ein Export nicht importieren und umgekehrt.
 3. Jede Zeile des Exports wird zu bis zu zwei Umsätzen: dem Bruttobetrag (Kundenzahlung, Erstattung, Auszahlung) und der einbehaltenen Gebühr. Nur abgeschlossene Zeilen in Euro werden übernommen; die übrigen meldet Haben. Shopify nennt Auszahlungen nicht als eigene Zeile: Haben bildet je ausgezahlter Transaktion einen Auszahlungsteil über ihren Nettobetrag am Auszahlungstag, mit der Auszahlungs-ID im Verwendungszweck. Liegt eine Auszahlung über einer Monatsgrenze oder überschneiden sich zwei Exporte, kommt jeder Teil trotzdem genau einmal an. Im Bankabgleich gehören alle Teile einer Auszahlungs-ID zusammen zum Eingang auf der Bank (siehe unten).
 4. Zahlungen ordnest du wie auf der Bank den Rechnungen zu, mit dem vollen Bruttobetrag. Der Erlös und bei Ist-Versteuerung die Umsatzsteuer zählen damit am Tag der Zahlung beim Dienstleister, nicht erst bei der Auszahlung.
 5. Gebühren buchst du **ohne Rechnung** als Kontoführung und Bankgebühren, oder du ordnest sie der monatlichen Sammelrechnung des Dienstleisters zu (siehe unten).
@@ -463,11 +488,47 @@ PayPal, Stripe, Shopify Payments, eBay, Etsy oder SumUp führen ein eigenes Guth
 
 **eBay-Transaktionsbericht:** Eine Bestellung oder Rückerstattung wird zum Transaktionsbetrag (inkl. Kosten) und zu den einbehaltenen Gebühren (Nettobetrag minus Transaktionsbetrag, also Verkaufsprovision, internationale Gebühr und andere Abzüge der Zeile zusammen; bei einer Rückerstattung schreibt eBay einen Teil der Provision gut). Steuer, die eBay selbst abführt (Spalte „Von eBay eingezogene Steuer“, etwa für Käufer im Vereinigten Königreich), zählt weder zum Erlös noch zu den Gebühren. Sonstige Gebühren, Versandetiketten, Einbehalte, Korrekturen und die Auszahlung kommen mit ihrem Nettobetrag. Zeilen ohne Nettobetrag (die Artikelzeilen eines Multikaufs) und Auszahlungen in anderer Währung übernimmt Haben nicht; hat der Käufer in einer anderen Währung bezahlt, kommt nur der Nettobetrag in Euro, ohne getrennte Gebühr. Ergeben die Zeilen einer Auszahlung nicht deren Betrag, weist Haben darauf hin: Meist steht ein Teil im Bericht des Vormonats. Welche Spalten der Bericht enthält, stellst du bei eBay ein; Haben braucht mindestens Datum, Typ, Nettobetrag und Auszahlung Nr., für die Trennung der Gebühren den Transaktionsbetrag (inkl. Kosten). eBay hält die Daten nur 90 Tage vor: lade den Bericht mindestens jedes Quartal herunter.
 
+**Etsy-Monatsabrechnung:** Kopfzeile und Datum („05. November 2026“ bzw. „March 31, 2025“) richten sich nach der Sprache deines Kontos, die Beträge stehen mit Dezimalpunkt und Währungszeichen („€8.73“), leere Zellen als „--“, die neueste Zeile steht oben. Haben ordnet die Umsätze nach Datum. Ein Verkauf wird zum Bruttobetrag; jede Zeile mit Gebühren (Einstell-, Transaktions- und Zahlungsabwicklungsgebühr) und jede Zeile für Etsy Ads oder Offsite Ads wird ein eigener Umsatz, bei einer Erstattung auch die Gutschrift der Gebühr. Die Gebühren lassen sich wie bei den anderen Dienstleistern der monatlichen Sammelrechnung zuordnen (siehe unten); Etsy Ads und Offsite Ads stehen bei Etsy auf derselben Rechnung und zählen mit. Hat eine Zeile Betrag und Gebühren, entstehen zwei Umsätze. Die Auszahlung („Überweisung“ bzw. „Deposit“) hat keine Betragsspalte; Haben liest ihren Betrag aus dem Titel („€69.75 an dein Bankkonto überwiesen“) und legt einen negativen Umsatz an. Steuer, die Etsy für den Käufer abführt (Zeilen der Art „Tax“, etwa Sales Tax), zählt weder zum Erlös noch zu den Gebühren: Sie steckt im Verkauf und wird mit einer eigenen Zeile wieder abgezogen, bei Erstattungen umgekehrt. Haben verrechnet die Zeile mit dem Verkauf derselben Bestellung am selben Tag (Bestellnummer in der Info der Zeile und im Titel „Payment for Order #…“), bei einer Erstattung mit der Erstattung derselben Bestellung. Der Verkauf kommt dann mit dem Betrag der Rechnung an und lässt sich ihr zuordnen. Der Tag gehört zur Zuordnung, damit dieselbe Zeile bei jedem Import mit demselben Betrag ankommt: Importierst du den laufenden Monat und später den ganzen Monat, legt Haben nichts ein zweites Mal an, auch wenn dazwischen eine weitere Teilerstattung derselben Bestellung hinzugekommen ist. Findet Haben nicht genau einen solchen Verkauf oder eine solche Erstattung in der Datei, etwa weil sie im Vormonat oder an einem anderen Tag steht oder eine Bestellung am selben Tag mehrmals teilerstattet wurde, bleibt die Zeile als eigener Umsatz „Umsatzsteuer“ mit ihrem Nettobetrag stehen und Haben weist darauf hin; geraten wird nicht. Wie die Steuer zu buchen ist, klärst du mit deiner Steuerberatung. Zeilen in anderer Währung als Euro übernimmt Haben nicht und meldet sie. Eine Art, die Haben noch nicht kennt (etwa ein Versandetikett), kommt mit ihrem Nettobetrag und einem Hinweis. Die Abrechnung hat keine Auszahlungsnummer, deshalb prüft Haben nicht, ob die Zeilen einer Auszahlung vollständig sind. Gleiche Zeilen am selben Tag, etwa zwei Einstellgebühren für denselben Artikel, bleiben beide erhalten.
+
 Gebucht wird auf das Verrechnungskonto des Dienstleisters statt auf die Bank. Ist alles zugeordnet, steht es auf null, sobald das Guthaben ausgezahlt ist. Am Reiter des Kontos steht das Guthaben laut den importierten Umsätzen.
 
 **Sammelrechnung der Gebühren:** Stellt der Dienstleister die Gebühren monatlich in Rechnung (mit Umsatzsteuer oder als § 13b), lädst du die Rechnung unter [Belege](belege.md) hoch und buchst sie. Dann wählst du im Konto des Dienstleisters eine Gebühr, unter **Andere Rechnung** diesen Beleg und klickst **Alle offenen Gebühren aus … diesem Beleg zuordnen**. Haben ordnet alle noch offenen Gebühren des Monats dem Beleg zu, bis er erledigt ist; Vorsteuer bzw. § 13b laufen einmal über den Beleg. Stehen auf der Rechnung Gebühren verschiedener Art, etwa Transaktionsgebühren und Werbung, [teilst du den Beleg auf](belege.md#auf-mehrere-kategorien-aufteilen), auch mit § 13b. Fehlt die Rechnung noch, bleiben die Gebühren offen.
 
 In der **Übersicht** erscheinen Umsätze eines Dienstleisters, die seit über zwei Wochen offen sind, und ein Geldtransit ohne Gegenseite: Bleibt auf dem Geldtransitkonto ein Saldo stehen, fehlt zu einem Übertrag oder einer Auszahlung die andere Seite.
+
+### Google Play und App Store
+
+Google und Apple verkaufen deine Apps im eigenen Namen (als Kommissionär, § 3 Abs. 11a UStG) und rechnen monatlich mit dir ab: Dein Entgelt ist, was nach Provision und Steuer übrig bleibt. Haben holt die Finanzberichte dafür selbst ab, legt sie unverändert unter **Archiv** ab (Art „Finanzbericht eines App-Stores“; im [Jahresexport](auswertungen.md#jahresexport) unter `lexoffice/originale/storebericht/`) und übernimmt je Monat diesen Auszahlungsanspruch als Umsatz in das Zahlungsdienstleister-Konto des Stores.
+
+1. Unter **Bank** ein Konto der Art **Zahlungsdienstleister** mit Anbieter **Google Play** bzw. **App Store** anlegen.
+2. Unter **Einstellungen › Bank › Google Play und App Store** den Zugang eintragen. Haben prüft ihn beim Speichern mit einem Abruf; Schlüssel liegen verschlüsselt in der Datenbank.
+   - **Google Play:** Google legt die Berichte in einen eigenen Cloud-Storage-Bucket (`gs://pubsite_prod_rev_…`, in der Play Console unter Berichte herunterladen › Finanzberichte). Lege in der Google Cloud ein Servicekonto mit JSON-Schlüssel an und lade seine E-Mail-Adresse in der Play Console unter Nutzer und Berechtigungen mit „Finanzdaten ansehen“ für alle Apps ein; Rollen am Bucket gibt es nicht.
+   - **App Store:** In App Store Connect unter Benutzer und Zugriff › Integrationen einen **Team-Schlüssel** mit der Rolle Finanzen anlegen (persönliche Schlüssel sehen keine Finanzberichte) und Issuer ID, Key ID, die Datei `AuthKey_….p8` und die Vendor-Nummer (Zahlungen und Finanzberichte) eintragen.
+3. Der Abruf läuft mit den übrigen Hintergrundjobs höchstens einmal am Tag; **Jetzt abrufen** startet ihn sofort. „Berichte ab Monat“ ist der erste Berichtsmonat, den Haben holt.
+
+**Was Haben übernimmt:**
+
+- **Google Play:** den Einnahmenbericht (`earnings/earnings_JJJJMM.zip`), nicht die geschätzten Verkäufe aus `sales/`. Je Monat ein Umsatz am Monatsletzten über die Summe aller Zeilen in der Auszahlungswährung (Spalte „Amount (Merchant Currency)“); im Verwendungszweck stehen Umsätze (Charge, Charge refund), Gebühren (Google fee …), Steuern und Korrekturen. Beträge mit mehr als zwei Nachkommastellen summiert Haben genau und rundet erst die Summe. Haben übernimmt nur Berichte in Euro; eine andere Auszahlungswährung stellst du im Zahlungsprofil von Google um. Legt Google für einen Monat eine Korrekturdatei nach, wird sie ein eigener Umsatz. Quellen: [Berichte herunterladen und exportieren](https://support.google.com/googleplay/android-developer/answer/6135870), [Einnahmenbericht auswerten](https://support.google.com/googleplay/android-developer/answer/2482017).
+- **App Store:** je Fiskalmonat den Bericht „All Countries or Regions (Detailed)“ (`FINANCE_DETAIL`, Region Z1) und daraus je Währung einen Umsatz am Ende des Fiskalmonats über die Summe von „Extended Partner Share“. Apple zahlt alle Währungen gesammelt in Euro aus, zum Kurs am Zahltag, der nicht im Bericht steht; Haben rechnet Fremdwährung deshalb mit dem [Umsatzsteuer-Umrechnungskurs](einrichtung.md#fremdwährung) des Fiskalmonats um (§ 16 Abs. 6 UStG). Fehlt der Kurs noch, kommt die Währung erst ins Konto, wenn er vorliegt. Gibt es für einen Monat noch keinen Bericht, fragt Haben bei den nächsten Abrufen wieder, höchstens drei Monate lang; ein Monat ohne Verkäufe hat keinen. Quellen: [Download Finance Reports](https://developer.apple.com/documentation/appstoreconnectapi/get-v1-financereports), [Financial report fields](https://developer.apple.com/help/app-store-connect/reference/reporting/financial-report-fields/).
+
+Jeder Umsatz trägt eine feste Referenz (`googleplay-earnings-2026-10`, `appstore-finance-2026-10-USD`) und kommt genau einmal ins Konto, auch wenn sich ein Kurs später ändert. Jeder Bericht kommt genau einmal ins Archiv und lässt sich danach weder ändern noch löschen; lässt er sich nicht lesen, bleibt er im Archiv und Haben meldet es beim Abruf.
+
+**Auszahlung:** Keiner der Berichte nennt die Zahlung auf dein Bankkonto. Kommt sie an (Gegenpartei etwa „Google Payment Ireland“ bzw. „Apple Distribution International“), zeigt Haben beim Eingang auf der Bank **Auszahlung von Google Play** bzw. **App Store** mit den Monatsumsätzen, die noch keine Auszahlung abdeckt; vorgewählt sind die ältesten, die zum Betrag passen. **Als Auszahlung buchen** legt im Konto des Stores die Auszahlung über den Betrag des Eingangs an und bucht beide Seiten als Geldtransit.
+
+- **Google** zahlt in Euro genau die Monatsbeträge; ergeben die gewählten Monate nicht den Eingang, bucht Haben nichts.
+- **Apple** zahlt alle Währungen gesammelt zu eigenen Kursen. Die Abweichung zu den mit dem Umsatzsteuer-Umrechnungskurs umgerechneten Monatsumsätzen legt Haben als eigenen Umsatz „Kursdifferenz“ im Konto des Stores an und bucht ihn als Kursertrag (SKR03 2660, SKR04 4840) bzw. Kursaufwand (SKR03 2150, SKR04 6880). Danach steht der Monat im Konto auf null. Eine Abweichung über 10 % nimmt Haben nicht an: Dann fehlt meist ein Monat in der Auswahl oder es ist einer zu viel. Steht eine Währung eines gewählten Fiskalmonats mit einem Erlösanteil (nicht null) noch nicht im Konto, weil ihr Umrechnungskurs fehlt, bucht Haben die Auszahlung nicht: Ihr Erlösanteil wäre sonst Kursdifferenz statt Umsatz an die Store-Gesellschaft. Trage den Kurs unter Einstellungen › Fremdwährung ein und rufe die Berichte erneut ab.
+
+Jeder Monat lässt sich nur einer Auszahlung zuordnen; die Übernahme ist unveränderlich. Hebst du den Geldtransit auf, bleibt die Auszahlung im Konto des Stores stehen und lässt sich wie jeder Geldtransit wieder mit dem Eingang verbinden.
+
+**Rechnung an die Store-Gesellschaft:** Im Kommissionsmodell erbringst du deine Leistung an den Store, nicht an die Käufer ([EuGH C-101/24 Xyrality](https://curia.europa.eu/juris/liste.jsf?num=C-101/24)). Sitzt die Gesellschaft im EU-Ausland, ist die Leistung dort steuerbar (§ 3a Abs. 2 UStG) und die Gesellschaft schuldet die Steuer: Reverse Charge, Kz 21 und [Zusammenfassende Meldung](umsatzsteuer.md#zusammenfassende-meldung). Eine Gutschrift stellen Google und Apple dir dafür nicht aus. Haben legt deshalb je Monat (bei Apple je Monat und Währung) einen Rechnungsentwurf an:
+
+1. Unter **Kontakte** die Gesellschaft mit Anschrift und USt-IdNr. anlegen, wie sie in deinem Vertrag bzw. Zahlungsprofil steht (bei Google in der Regel Google Commerce Ltd, bei Apple für die meisten Länder Apple Distribution International Ltd, beide Irland).
+2. Unter **Einstellungen › Bank › Google Play und App Store** bei **Store-Gesellschaft für die Rechnungsentwürfe** diesen Kontakt wählen. Ab dann legt jeder Abruf für neu übernommene Monate einen Entwurf an; **Rechnungsentwürfe für alle Monate anlegen** holt das für ältere nach.
+3. Den Entwurf unter **Rechnungen** prüfen und festschreiben, dann im Konto des Stores dem Monatsumsatz zuordnen.
+
+Der Entwurf geht über den Auszahlungsanspruch des Monats, zu 0 % mit Reverse Charge bei einer Gesellschaft im EU-Ausland bzw. als nicht steuerbare Leistung ins Drittland (Kz 45) bei einer außerhalb, auf Englisch, mit dem Berichtszeitraum als Leistungszeitraum. Bei Fremdwährung trägt er den Kurs, mit dem Haben den Monatsumsatz umgerechnet hat, damit Rechnung und Umsatz in Euro übereinstimmen. Jeder Entwurf hat die Referenz des Monatsumsatzes als externe Referenz; dieselbe Abrechnung bekommt keinen zweiten, und ein gelöschter Entwurf kommt beim Abruf nicht wieder. Keinen Entwurf gibt es ohne gewählten Kontakt, für einen Monat ohne positiven Betrag und als Kleinunternehmer (das klärst du mit deiner Steuerberatung).
+
+**Grenzen:** Der Aufbau der Berichte stammt aus den Beschreibungen von Google und Apple; mit echten Dateien geprüft ist er noch nicht. Haben erkennt die Spalten an ihren Namen und bricht bei unbekannter Währung, unlesbarem Betrag oder Datum ab, statt zu raten. Auch die Namen, unter denen Google und Apple auf dem Kontoauszug stehen, sind noch nicht an echten Auszügen geprüft. Apple verkauft in manchen Ländern über andere Gesellschaften als Apple Distribution International; Haben legt alle Entwürfe an den einen gewählten Kontakt an, prüfe sie vor dem Festschreiben gegen deinen Vertrag. Kz 21 zählt Haben nach dem Rechnungsdatum, nicht nach dem Monat der Leistung (siehe [Umsätze ohne Steuer](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48)); ein Entwurf vom Abruf Anfang des Folgemonats landet damit einen Monat später. Wie der Monatsumsatz zu buchen ist, klärst du mit deiner Steuerberatung. Zahlungsavis, Rechnungen und Steuerdokumente bieten beide Stores nicht über die Schnittstelle an.
 
 ## Buchungen
 
@@ -549,7 +610,7 @@ Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt,
 ## Grenzen
 
 - Automatischer Abruf nur über Enable Banking (PSD2), nicht über FinTS/HBCI. Ohne Enable Banking kommen die Umsätze per Datei.
-- Dateiimport nur für DKB, N26 und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments und eBay per CSV; Etsy, SumUp und andere lassen sich anlegen, aber noch nicht importieren.
-- Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie.
+- Dateiimport nur für DKB, Commerzbank, N26, Swan und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren. Zahlungsdienstleister: PayPal, Stripe, Shopify Payments, eBay und Etsy per CSV, [Google Play und App Store](#google-play-und-app-store) per Abruf der Finanzberichte; SumUp und andere lassen sich anlegen, aber noch nicht importieren.
+- Zahlungsdienstleister nur in Euro; Zeilen in anderen Währungen (etwa ein USD-Guthaben bei PayPal) übernimmt Haben nicht und meldet sie. Ausnahme ist der App Store: Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs in Euro um (siehe [Google Play und App Store](#google-play-und-app-store)).
 - Kursdifferenzen nur beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung; Bankkonten und Verrechnungskonten von Zahlungsdienstleistern nur in Euro.
 - Zuordnungen und ihre Aufhebung werden mit dem Buchungsdatum des Umsatzes gebucht. Hebst du eine Zuordnung in einem Monat auf, dessen Voranmeldung schon gesendet ist, ändern sich dessen berechnete Werte; die gesendete Anmeldung bleibt, wie sie ist, und die Seite des Monats weist auf die Abweichung hin (siehe [umsatzsteuer.md](umsatzsteuer.md)).

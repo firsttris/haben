@@ -47,6 +47,12 @@ const envSchema = z
       .optional(),
     /** Ablage der Belegdateien; im Container ein Volume */
     DOCUMENTS_DIR: z.string().default("data/belege"),
+    /** Höchstzahl eigener Belegvorlagen (#113); ohne Angabe unbegrenzt */
+    LAYOUTS_MAX_COUNT: z.coerce.number().int().min(1).optional(),
+    /** Speicher für eigene Belegvorlagen in MB, Quelltexte und Pakete zusammen; ohne Angabe unbegrenzt */
+    LAYOUTS_MAX_MB: z.coerce.number().int().min(1).optional(),
+    /** Quelle der Typst-Pakete für eigene Belegvorlagen, etwa ein Spiegel; Standard Typst Universe */
+    LAYOUTS_PACKAGES_URL: z.string().url().optional(),
     /** Ohne Schlüssel keine KI-Auslesung von Belegen; E-Rechnungen werden trotzdem gelesen */
     ANTHROPIC_API_KEY: z.string().optional(),
     /**
@@ -69,6 +75,12 @@ const envSchema = z
      * Seitenbilder, „text“ nur den Text für ein reines Textmodell, „bild“ nur Seitenbilder wie früher
      */
     EXTRACTION_INPUT: z.enum(["text-und-bild", "text", "bild"]).default("text-und-bild"),
+    /**
+     * Zusätzliche Felder im Request-Body an den OpenAI-kompatiblen Dienst, als JSON-Objekt, z. B.
+     * {"reasoning_effort":"none"} für ein Modell, das sonst sein Antwortbudget mit Denken verbraucht. Ohne Angabe
+     * geht der Body unverändert raus. `model`, `messages` und `stream` setzt Haben selbst und überschreibt sie.
+     */
+    EXTRACTION_EXTRA_BODY: z.string().optional(),
     /** Basis-URL der Lexware-Office-API, nur zum Testen oder falls Lexware die Adresse ändert */
     LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
     /** Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert */
@@ -78,6 +90,10 @@ const envSchema = z
     ENABLE_BANKING_KEY: z.string().optional(),
     ENABLE_BANKING_KEY_FILE: z.string().optional(),
     ENABLE_BANKING_API_URL: z.string().url().optional(),
+    /** Nur zum Testen: nachgebaute APIs für den Abruf der Store-Finanzberichte */
+    GOOGLE_PLAY_TOKEN_URL: z.string().url().optional(),
+    GOOGLE_PLAY_STORAGE_URL: z.string().url().optional(),
+    APP_STORE_CONNECT_URL: z.string().url().optional(),
     /** Instanzen der eigenen Firmen zum Wechseln in der Navigation (#504): „Name|https://adresse“, getrennt durch „;“ */
     HABEN_FIRMEN: z.string().optional(),
   })
@@ -128,6 +144,22 @@ const envSchema = z
     }
     if (local && !value.EXTRACTION_MODEL) {
       ctx.addIssue({ code: "custom", path: ["EXTRACTION_MODEL"], message: "fehlt für den OpenAI-kompatiblen Dienst" });
+    }
+    // Ein Tippfehler im JSON soll beim Start auffallen, nicht erst beim ersten Beleg
+    if (value.EXTRACTION_EXTRA_BODY?.trim()) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(value.EXTRACTION_EXTRA_BODY);
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["EXTRACTION_EXTRA_BODY"],
+          message: 'muss ein JSON-Objekt sein, z. B. {"reasoning_effort":"none"}',
+        });
+      }
     }
   });
 

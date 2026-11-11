@@ -53,4 +53,5 @@ export {
   type CashReversalCheck,
   type ManualEntryInput,
 } from "./manual.ts";
+export { periodReported, vatPeriodsOf } from "./gemeldet.ts";
 export { createPauschale, listPauschalen, pauschaleInputSchema, reversePauschale } from "./pauschalen.ts";

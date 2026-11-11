@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Voranmeldung als XML für Mein ELSTER (Postgres)", () => {
   let vat: typeof import("./vat.ts");
@@ -21,7 +21,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als XML für Mein ELSTER (Postgr
   });
 
   beforeEach(async () => {
-    await sql`truncate vat_return_filings, vat_return_submissions, vat_returns, company cascade`;
+    await leeren(sql)`truncate vat_return_filings, vat_return_submissions, vat_returns, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland)
       values (1, 'Testfirma Müller', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY')`;
   });

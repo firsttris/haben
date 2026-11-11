@@ -1,5 +1,7 @@
+import { addDays, naechsterWerktag } from "./holidays.ts";
 import type { Cents } from "./money.ts";
 import { MONTHS, periodRange, type VatPeriod } from "./period.ts";
+import type { Bundesland } from "./steuernummer.ts";
 
 /*
  * Voranmeldung als offener Posten: Jede abgegebene Voranmeldung (über ERiC oder außerhalb von Haben abgegeben und
@@ -192,11 +194,22 @@ const addMonths = (date: string, months: number): string => {
 };
 
 /**
- * Angefangene Monate der Säumnis bei Zahlung am `zahltag` (§ 240 Abs. 1 Satz 1 AO); bis zu drei Tagen nach der
- * Fälligkeit keine (Schonfrist, § 240 Abs. 3 AO).
+ * Letzter Tag der Schonfrist (§ 240 Abs. 3 AO): bei einer Säumnis bis zu drei Tagen kein Säumniszuschlag. Für die Frist
+ * gelten nach § 108 Abs. 1 AO die §§ 187 ff. BGB; fällt ihr Ende auf einen Sonnabend, Sonntag oder gesetzlichen
+ * Feiertag, endet sie nach § 108 Abs. 3 AO erst mit Ablauf des nächsten Werktags. Feiertage zählen am Sitz des
+ * Finanzamts; das Bundesland der Firma ist das ihres Finanzamts (es bestimmt auch die Steuernummer). Ohne Bundesland
+ * nur die bundesweiten Feiertage.
  */
-export function saeumnisMonate(faellig: string, zahltag: string): number {
-  const schonfrist = new Date(Date.parse(`${faellig}T00:00:00Z`) + 3 * 86_400_000).toISOString().slice(0, 10);
+export function schonfristEnde(faellig: string, bundesland: Bundesland | null): string {
+  return naechsterWerktag(addDays(faellig, 3), bundesland);
+}
+
+/**
+ * Angefangene Monate der Säumnis bei Zahlung am `zahltag` (§ 240 Abs. 1 Satz 1 AO); bis zum Ende der Schonfrist
+ * (`schonfristEnde`) keine. Danach zählen die Monate ab der Fälligkeit, nicht ab dem Ende der Schonfrist (AEAO zu
+ * § 240 Nr. 6: Säumniszuschläge „vom Ablauf des … Fälligkeitstages an“).
+ */
+export function saeumnisMonate(faellig: string, zahltag: string, schonfrist = schonfristEnde(faellig, null)): number {
   if (zahltag <= schonfrist) return 0;
   let monate = 1;
   while (zahltag > addMonths(faellig, monate)) monate++;

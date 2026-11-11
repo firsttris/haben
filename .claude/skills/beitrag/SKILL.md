@@ -24,18 +24,23 @@ Prüfungen nach Skill `checks`, dann Commits wie unter „Branches, Titel und Co
 Als Datei (im Scratchpad), auf Deutsch:
 
 - Titel `Bereich: was sich ändert (#Issue)`; den Rest prüft der Workflow „PR-Regeln“.
-- Was und warum, `Refs #…` (nicht `Closes`, siehe „Branches, Titel und Commits“), wie geprüft, **was übersprungen wurde** (Skill `checks`).
+- Was und warum, `Umgesetzt #…` wenn der Pull Request das Issue fertig macht, sonst `Refs #…` (nie `Closes` oder `Fixes`, siehe „Branches, Titel und Commits“), wie geprüft, **was übersprungen wurde** (Skill `checks`).
 - Bei Änderungen am Aussehen die Bilder nach Skill `pr-screenshots`.
 - Die Beschreibung wird die Nachricht des Squash-Commits auf `main` (`docs/entwicklung.md`, „Branches, Titel und Commits“): Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin.
 - Letzte Zeile „🤖 Generated with <Werkzeug>“.
 
-## 4. Pull Request anlegen
+## 4. Vor dem Push
+
+- Gibt es zum Branch schon einen Pull Request, prüfen, ob er noch offen ist (`gh pr view <branch> --json state`, sonst auf GitHub nachsehen oder die Person fragen). Ist er gemergt, neu von `origin/main` beginnen, die eigenen Commits darauf setzen und einen neuen Pull Request anlegen; nie auf einen gemergten Branch weiterpushen.
+- Force-Push nur mit `--force-with-lease` auf den eigenen Branch.
+
+## 5. Pull Request anlegen
 
 - Mit Werkzeug: als **Entwurf** gegen `main` (`gh pr create --draft --base main --title … --body-file …`).
 - Nur git: den Link aus der Ausgabe von `git push` und den Pfad der Beschreibung an die Person geben.
 - „Ready for review“ nur auf Freigabe der Person; erst dann läuft die CI.
 
-## 5. Danach
+## 6. Danach
 
 Review nach Skill `tdd-review`, nie durch die Session, die den Code geschrieben hat. Link, Stand der Prüfungen und Übersprungenes zurückmelden.
 

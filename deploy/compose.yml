@@ -56,6 +56,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Gehärtet: Dateisystem schreibgeschützt bis auf die Volumes unten und /tmp, keine Capabilities, keine neuen Rechte
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     environment:
       DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
       # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation.md)
@@ -86,6 +93,10 @@ services:
       EXTRACTION_TIMEOUT_SECONDS: ${EXTRACTION_TIMEOUT_SECONDS:-}
       EXTRACTION_MAX_PAGES: ${EXTRACTION_MAX_PAGES:-}
       EXTRACTION_INPUT: ${EXTRACTION_INPUT:-}
+      EXTRACTION_EXTRA_BODY: ${EXTRACTION_EXTRA_BODY:-}
+      LAYOUTS_MAX_COUNT: ${LAYOUTS_MAX_COUNT:-}
+      LAYOUTS_MAX_MB: ${LAYOUTS_MAX_MB:-}
+      LAYOUTS_PACKAGES_URL: ${LAYOUTS_PACKAGES_URL:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
       # Mehrere Firmen: die Instanzen zum Wechseln in der Navigation, „Name|https://adresse“ getrennt durch „;“
@@ -95,7 +106,7 @@ services:
       - belege:/var/lib/haben/belege
       # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
       - eric-log:/var/lib/haben/eric-log
-      # ERiC, von Haben heruntergeladen (Einstellungen › ERiC oder ERIC_AUTO_INSTALL=ja)
+      # ERiC, von Haben heruntergeladen (Einstellungen › ELSTER › ERiC oder ERIC_AUTO_INSTALL=ja)
       - eric:/var/lib/haben/eric
       # Alternativ ERiC von Hand: nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro

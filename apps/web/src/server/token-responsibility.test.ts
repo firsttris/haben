@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Token-Verantwortung und geprüfter Gruppenentzug (Postgres)", () => {
   let database: postgres.Sql;
@@ -26,7 +26,7 @@ describe.skipIf(!testDatabaseUrl)("Token-Verantwortung und geprüfter Gruppenent
       await database`insert into account(id,account_id,provider_id,user_id) values(${id},${JSON.stringify([issuer, id])},'oidc',${id})`;
   }, 60_000);
   beforeEach(async () => {
-    await database`truncate mcp_calls,mcp_tokens,company cascade`;
+    await leeren(database)`truncate mcp_calls,mcp_tokens,company cascade`;
     await database`insert into company(id,name,mcp_enabled) values(1,'Testfirma',true)`;
     for (const id of ["a", "b", "staff"])
       await database`insert into sso_roles(user_id,issuer,role,confirmed_at) values(${id},${issuer},${id === "staff" ? "steuerberatung" : "inhaber"},now()) on conflict(user_id,issuer) do update set role=excluded.role,confirmed_at=excluded.confirmed_at`;
@@ -133,13 +133,37 @@ describe.skipIf(!testDatabaseUrl)("Token-Verantwortung und geprüfter Gruppenent
   it("reaktiviert weder widerrufene noch abgelaufene Tokens", async () => {
     const token = await create();
     await revoke(proof("a"));
-    await mcp.revokeMcpToken(token.id);
+    await mcp.revokeMcpToken("b", token.id);
     await expect(mcp.reactivateMcpToken("b", token.id)).rejects.toThrow(/gültiger/);
     const expired = await create("b");
     await revoke(proof("b"));
     await database`update mcp_tokens set expires_at=now()-interval '1 minute' where id=${expired.id}`;
     await database`update sso_roles set role='inhaber',confirmed_at=now() where user_id='a'`;
     await expect(mcp.reactivateMcpToken("a", expired.id)).rejects.toThrow(/gültiger/);
+  });
+  it("hält den Widerruf eines API-Tokens mit Akteur fest, einen zweiten Widerruf nicht noch einmal", async () => {
+    const token = await create();
+    await mcp.revokeMcpToken("b", token.id);
+    await mcp.revokeMcpToken("b", token.id);
+    expect(await mcp.authenticateMcp(bearer(token.token))).toBeNull();
+    const events = await database`select actor,kind,action,responsible_id from token_events where token_id=${token.id} order by id`;
+    expect(events.map((e) => ({ ...e }))).toEqual([
+      { actor: "a", kind: "api", action: "angelegt", responsible_id: "a" },
+      { actor: "b", kind: "api", action: "widerrufen", responsible_id: "a" },
+    ]);
+    const audit = await database`select actor from audit_log where table_name='token_events' and new_value->>'token_id'=${token.id} order by seq`;
+    expect(audit.map((row) => row.actor)).toEqual(["a", "b"]);
+  });
+  it("hält den Widerruf des Kalender-Abos mit Akteur fest, einen zweiten Widerruf nicht noch einmal", async () => {
+    const link = await calendar.createCalendarToken("a");
+    await calendar.revokeCalendarToken("b");
+    await calendar.revokeCalendarToken("b");
+    expect(await calendar.checkCalendarToken(link)).toBe(false);
+    const events = await database`select actor,kind,action,responsible_id from token_events where kind='kalender' and token_id='1' order by id`;
+    expect(events.slice(-2).map((e) => ({ ...e }))).toEqual([
+      { actor: "a", kind: "kalender", action: "angelegt", responsible_id: "a" },
+      { actor: "b", kind: "kalender", action: "widerrufen", responsible_id: "a" },
+    ]);
   });
   it("lässt fremde Verantwortlichkeiten unverändert und protokolliert ohne Tokenhash", async () => {
     const one = await create();

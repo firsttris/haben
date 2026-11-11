@@ -7,6 +7,7 @@ import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { changeAccountFn, createInvitationFn, revokeInvitationFn, type getZugaenge } from "../server/functions/zugang.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 type Data = Extract<Awaited<ReturnType<typeof getZugaenge>>, { mode: "lokal" }>;
 
@@ -115,10 +116,15 @@ export function ZugaengeCard({ data }: { data: Data }) {
       <h3 style={{ margin: "8px 0 0", fontSize: 16 }}>Steuerberatung einladen</h3>
       {created && (
         <div className="stack" style={{ gap: 8 }}>
-          <label className="field">
-            Einladungslink für „{created.label}“ (wird nur jetzt angezeigt, gültig bis {formatDateTime(created.expiresAt)})
-            <input readOnly className="mono" value={created.url} onFocus={(e) => e.currentTarget.select()} />
-          </label>
+          <Field
+            label={
+              <>
+                Einladungslink für „{created.label}“ (wird nur jetzt angezeigt, gültig bis {formatDateTime(created.expiresAt)})
+              </>
+            }
+          >
+            {(control) => <input {...control} readOnly className="mono" value={created.url} onFocus={(e) => e.currentTarget.select()} />}
+          </Field>
           <div className="actions">
             <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(created.url).then(() => setCopied(true))}>
               {copied ? "Kopiert" : "Link kopieren"}
@@ -153,10 +159,7 @@ export function ZugaengeCard({ data }: { data: Data }) {
         </div>
       ))}
       <form className="form-grid" onSubmit={onInvite} aria-label="Neue Einladung">
-        <label className="field">
-          Bezeichnung
-          <input name="label" required maxLength={80} placeholder="Kanzlei Muster" />
-        </label>
+        <Field label="Bezeichnung">{(control) => <input {...control} name="label" required maxLength={80} placeholder="Kanzlei Muster" />}</Field>
         <div className="actions" style={{ alignSelf: "end" }}>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Einladungslink erzeugen

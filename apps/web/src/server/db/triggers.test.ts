@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Sperren und Eindeutigkeit in der Datenbank (Postgres)", () => {
   let sql: postgres.Sql;
@@ -14,7 +14,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren und Eindeutigkeit in der Datenbank (P
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, invoices, invoice_number_counters, "user" cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, invoices, invoice_number_counters, "user" cascade`;
   });
 
   /** Buchung mit zwei Zeilen; ohne Festschreiben nur innerhalb einer Transaktion möglich (0065) */
@@ -42,7 +42,7 @@ describe.skipIf(!testDatabaseUrl)("Sperren und Eindeutigkeit in der Datenbank (P
 
   describe("Hauptbuch (0065)", () => {
     beforeEach(async () => {
-      await sql`truncate company cascade`;
+      await leeren(sql)`truncate company cascade`;
     });
 
     it("eine Buchung, die bis zum Commit nicht festgeschrieben ist, wird abgelehnt", async () => {

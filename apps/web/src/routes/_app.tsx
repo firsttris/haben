@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_app")({
       rechtsform: state.rechtsform ?? "einzelunternehmen",
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
+      firma: state.firma,
       firmen: state.firmen,
     };
   },
@@ -112,7 +113,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firmen } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -122,7 +123,32 @@ function AppLayout() {
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
+  const firmaRef = useRef<HTMLSpanElement>(null);
+  const [firmaVoll, setFirmaVoll] = useState<string | null>(null);
   const firstPath = useRef(pathname);
+  // Den vollen Namen nur zeigen, wenn die Marke ihn kürzt (zwei Zeilen am Desktop); am Handy gibt es kein Aufklappen
+  function firmaAufklappen() {
+    const name = firmaRef.current;
+    if (name && window.matchMedia("(min-width: 861px)").matches && name.scrollHeight > name.clientHeight + 1) setFirmaVoll(name.textContent);
+  }
+  const firmaZuklappen = () => setFirmaVoll(null);
+  // Der Zeiger schließt den Namen nicht, solange „Haben“ per Tastatur fokussiert ist (WCAG 1.4.13, „persistent“); nach einem Mausklick hat der Link Fokus ohne :focus-visible, dann schließt das Verlassen ihn
+  const firmaZeigerWeg = (event: PointerEvent<HTMLAnchorElement>) => {
+    if (!event.currentTarget.matches(":focus-visible")) setFirmaVoll(null);
+  };
+  // Escape schließt den aufgeklappten Namen auch dann, wenn nur der Zeiger darauf steht und der Fokus woanders ist (WCAG 1.4.13)
+  useEffect(() => {
+    if (firmaVoll === null) return;
+    function zu(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      event.stopPropagation();
+      setFirmaVoll(null);
+    }
+    window.addEventListener("keydown", zu, true);
+    return () => window.removeEventListener("keydown", zu, true);
+  }, [firmaVoll]);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
 
@@ -161,12 +187,30 @@ function AppLayout() {
         Zum Inhalt springen
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
-        <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
+        <Link
+          to={inhaber ? "/" : STEUERBERATUNG_START}
+          className="brand"
+          onPointerEnter={firmaAufklappen}
+          onFocus={firmaAufklappen}
+          onPointerLeave={firmaZeigerWeg}
+          onBlur={firmaZuklappen}
+        >
           <span className="brand-mark">H</span>
           <span className="brand-text">
             Haben
-            {/* Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet */}
-            {firmen.aktuell && <span className="brand-firma">{firmen.aktuell}</span>}
+            {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
+                als zwei Zeilen, klappt er beim Überfahren und mit Fokus nach unten ganz auf (nur am Desktop); das
+                Element dafür ist für Hilfstechnik verborgen, der Name steht schon in der Marke */}
+            {firma && (
+              <span className="brand-firma" ref={firmaRef}>
+                {firma}
+              </span>
+            )}
+            {firmaVoll !== null && (
+              <span className="brand-firma-voll" aria-hidden="true">
+                {firmaVoll}
+              </span>
+            )}
           </span>
         </Link>
         <button
@@ -220,10 +264,10 @@ function AppLayout() {
               <div className="nav-group-label" aria-hidden="true">
                 Firma wechseln
               </div>
-              {firmen.andere.map((firma) => (
-                <a key={firma.url} href={firma.url} className="nav-link">
+              {firmen.andere.map((andere) => (
+                <a key={andere.url} href={andere.url} className="nav-link">
                   <Icon name="external" />
-                  {firma.name}
+                  {andere.name}
                 </a>
               ))}
             </div>

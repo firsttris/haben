@@ -17,3 +17,8 @@ export function navLinkSichtbar(link: NavBedingung, { gesellschaft, hatMitarbeit
   if (!gesellschaft && link.nurKapitalgesellschaft) return false;
   return !(link.nurMitMitarbeitern && !hatMitarbeiter);
 }
+
+/** Name der Firma unter „Haben“, damit man sieht, in welcher Instanz man bucht (#504); ohne Namen nichts */
+export function firmaInNavigation(name: string): string | null {
+  return name.trim() || null;
+}

@@ -273,6 +273,78 @@ test("Ausbuchung aufheben fragt mit Art und Betrag nach", async () => {
   await expect(karte.getByText("aufgehoben")).toBeVisible();
 });
 
+test("Bankabgleich: ein fremdes Konto ausschließen fragt nach, blendet es aus und lässt sich wieder aufnehmen (#462)", async () => {
+  const FREMD = "DE12 1203 0000 1234 5678 90";
+  const EIGEN = "DE89 3704 0044 0532 0130 00";
+  const datei = (name: string, zeilen: [string, string, string][]) => ({
+    name,
+    mimeType: "text/csv",
+    buffer: Buffer.from(auszug(zeilen).replace(EIGEN, FREMD)),
+  });
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([datei("zweitfirma.csv", [["Kunde der Zweitfirma", "Rechnung 2026-17", "250,00"]])]);
+  await expect(page.getByText(/zweitfirma.csv: 1 neue/)).toBeVisible({ timeout: 30_000 });
+
+  const konten = page.getByRole("navigation", { name: "Konten" }).getByRole("link");
+  await expect(konten).toHaveCount(2);
+  const waehle = async (iban: string) => {
+    for (let i = 0; i < (await konten.count()); i++) {
+      await konten.nth(i).click();
+      // Die Anschrift des Kontos erscheint erst, wenn die Seite die Daten des gewählten Kontos hat
+      const da = await page
+        .getByText(iban)
+        .first()
+        .waitFor({ timeout: 3_000 })
+        .then(
+          () => true,
+          () => false,
+        );
+      if (da) return;
+    }
+    throw new Error(`Konto ${iban} nicht gefunden`);
+  };
+
+  // Das Konto mit zugeordneten Umsätzen gehört zur Firma: der Knopf ist gesperrt und nennt den Grund
+  await waehle(EIGEN);
+  await expect(page.getByRole("button", { name: "Gehört nicht zu dieser Firma" })).toBeDisabled();
+  await expect(page.getByText(/ist schon zugeordnet|ist schon verrechnet/).first()).toBeVisible();
+
+  // Das fremde Konto: abbrechen ändert nichts, bestätigen blendet es aus
+  await waehle(FREMD);
+  const knopf = page.getByRole("button", { name: "Gehört nicht zu dieser Firma" });
+  await expect(knopf).toBeEnabled();
+  await knopf.click();
+  await expect(page.getByRole("dialog", { name: /^Konto „.+“ ausschließen\?$/ })).toContainText("Gelöscht wird nichts");
+  await page.getByRole("dialog").getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(konten).toHaveCount(2);
+
+  await knopf.click();
+  await bestaetigen(page, "Konto ausschließen");
+  await expect(konten).toHaveCount(1);
+  const liste = page.getByRole("region", { name: "Ausgeschlossene Konten" });
+  await expect(liste).toContainText(FREMD);
+  await expect(liste).toContainText("1 Umsatz");
+  await expect(page.getByText("Rechnung 2026-17")).toHaveCount(0);
+
+  // Ein Import in das ausgeschlossene Konto wird abgelehnt
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([datei("zweitfirma-2.csv", [["Kunde der Zweitfirma", "Rechnung 2026-18", "80,00"]])]);
+  await expect(page.getByText(/ausgeschlossen/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(konten).toHaveCount(1);
+
+  // Wieder aufnehmen: das Konto und sein Umsatz sind da
+  await liste.getByRole("button", { name: /wieder aufnehmen/ }).click();
+  await expect(konten).toHaveCount(2);
+  await expect(page.getByRole("region", { name: "Ausgeschlossene Konten" })).toHaveCount(0);
+  await waehle(FREMD);
+  await page.getByRole("link", { name: "Alle" }).click();
+  await expect(page.getByText("Rechnung 2026-17").first()).toBeVisible();
+});
+
 test("ELSTER-Zertifikat entfernen fragt nach", async () => {
   await go("/einstellungen?bereich=elster");
   const zertifikat = page.getByRole("form", { name: "ELSTER-Zertifikat" });
@@ -332,6 +404,29 @@ test("Passkey entfernen fragt nach", async () => {
   await bestaetigen(page, "Entfernen");
   await expect(page.getByText("Passkey entfernt.")).toBeVisible();
   await expect(karte.getByText("Laptop")).toHaveCount(0);
+});
+
+test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem Journal", async () => {
+  const jahr = new Date().getFullYear();
+  // Wie eine bestehende Instanz nach Migration 0192: Stichjahr im nächsten Jahr
+  await sql`update company set journal_ab = ${jahr + 1}`;
+  await go("/einstellungen?bereich=firma");
+  const karte = page.getByRole("region", { name: "Voranmeldung und EÜR aus dem Journal" });
+  await expect(karte).toContainText(`Stichjahr ${jahr + 1}`);
+  await expect(karte).toContainText(`${jahr} rechnet noch aus den Nebenbüchern`);
+  const vorziehen = karte.getByRole("button", { name: `Ab ${jahr} aus dem Journal` });
+
+  await vorziehen.click();
+  await faktenZeigen(page, "Bisher", "Neu");
+  await abbrechen(`Stichjahr auf ${jahr} vorziehen?`);
+  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr + 1 }]);
+
+  await vorziehen.click();
+  await bestaetigen(page, "Vorziehen");
+  await expect(page.getByText(`Voranmeldung und EÜR rechnen jetzt ab ${jahr} aus dem Journal.`)).toBeVisible();
+  await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
+  await expect(vorziehen).toHaveCount(0);
+  expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
 });
 
 test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", async () => {

@@ -1,7 +1,7 @@
 import { createPrivateKey, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, type Aspsp, type EnableBankingClientOptions } from "@haben/import";
-import { and, desc, eq, gt, inArray, max, ne } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
@@ -421,8 +421,13 @@ export async function syncConnection(actor: string, connectionId: string, today 
   const api = await client();
   const result: SyncResult = { added: 0, accounts: [], error: null };
   const accounts = [...connection.accounts];
+  // Ausgeschlossene Konten (#462) gehören nicht zu dieser Firma: kein Abruf, die Verbindung läuft für die anderen weiter
+  const excluded = new Set(
+    (await db.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(isNotNull(schema.bankAccounts.excludedAt))).map((r) => r.id),
+  );
   try {
     for (const [i, account] of accounts.entries()) {
+      if (excluded.has(account.bankAccountId)) continue;
       const { from, fallback } = await syncStart(account, today);
       let dateFrom = from;
       let transactions;
@@ -507,12 +512,16 @@ export async function listConnections() {
     .from(schema.bankConnections)
     .orderBy(desc(schema.bankConnections.createdAt));
   // Namen wie unter Bank: umbenannte Konten nicht mit dem Namen vom Verbinden zeigen
-  const names = new Map((await db.select({ id: schema.bankAccounts.id, name: schema.bankAccounts.name }).from(schema.bankAccounts)).map((a) => [a.id, a.name]));
+  const known = await db
+    .select({ id: schema.bankAccounts.id, name: schema.bankAccounts.name, excludedAt: schema.bankAccounts.excludedAt })
+    .from(schema.bankAccounts);
+  const names = new Map(known.map((a) => [a.id, a.name]));
+  const excluded = new Set(known.filter((a) => a.excludedAt).map((a) => a.id));
   return rows
     .filter((r) => r.status !== "wartet")
     .map((r) => ({
       ...r,
-      accounts: r.accounts.map((a) => ({ ...a, name: names.get(a.bankAccountId) ?? a.name })),
+      accounts: r.accounts.map((a) => ({ ...a, name: names.get(a.bankAccountId) ?? a.name, excluded: excluded.has(a.bankAccountId) })),
       validUntil: r.validUntil?.toISOString() ?? null,
       lastSyncAt: r.lastSyncAt?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),

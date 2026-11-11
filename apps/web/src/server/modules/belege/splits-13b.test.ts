@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * § 13b mit Aufteilung (#508). Erfundene Sammelrechnung eines Zahlungsdienstleisters, alles zu 19 % nach § 13b:
@@ -62,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", kleinunternehmer = false) {
-    await sql`truncate document_cancellations, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
+    await leeren(sql)`truncate document_cancellations, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
       asset_depreciations, assets, journal_lines, journal_entries, document_splits, document_amounts, documents, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer})`;
@@ -245,7 +245,7 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
     }
 
     for (const rc of ["eu", "drittland"] as const) {
-      it(`${kontenrahmen}, ${rc}: ohne Vorsteuerabzug Netto plus Steueranteil je Zeile, keine Vorsteuer; Summen wie ohne Aufteilung`, async () => {
+      it(`${kontenrahmen}, ${rc}: ohne Vorsteuerabzug Netto und Steueranteil je Zeile, keine Vorsteuer; Summen wie ohne Aufteilung`, async () => {
         const run = async (split: boolean) => {
           await reset(kontenrahmen, "ist", true);
           const id = await draft({ reverseCharge: rc, payment: "privat", splits: split ? GEBUEHREN : [] });
@@ -262,10 +262,15 @@ describe.skipIf(!testDatabaseUrl)("§ 13b mit Aufteilung (Postgres)", () => {
         const split = await run(true);
         expect(await entryLines(split.id)).toEqual(
           byAccount([
-            { account: k.geld, debit: 14_280, credit: 0, tax_code: CODE[rc] },
-            { account: k.fremd, debit: 7_140, credit: 0, tax_code: CODE[rc] },
-            { account: k.sonstiges, debit: 2_380, credit: 0, tax_code: CODE[rc] },
-            { account: k.werbung, debit: 5_950, credit: 0, tax_code: CODE[rc] },
+            // Netto mit dem Steuerschlüssel, der Steueranteil als Aufwand daneben (#542)
+            { account: k.geld, debit: 12_000, credit: 0, tax_code: CODE[rc] },
+            { account: k.geld, debit: 2_280, credit: 0, tax_code: "keineVSt" },
+            { account: k.fremd, debit: 6_000, credit: 0, tax_code: CODE[rc] },
+            { account: k.fremd, debit: 1_140, credit: 0, tax_code: "keineVSt" },
+            { account: k.sonstiges, debit: 2_000, credit: 0, tax_code: CODE[rc] },
+            { account: k.sonstiges, debit: 380, credit: 0, tax_code: "keineVSt" },
+            { account: k.werbung, debit: 5_000, credit: 0, tax_code: CODE[rc] },
+            { account: k.werbung, debit: 950, credit: 0, tax_code: "keineVSt" },
             { account: k.ustRc, debit: 0, credit: 4_750, tax_code: CODE[rc] },
             { account: k.privat, debit: 0, credit: 25_000, tax_code: null },
           ]),

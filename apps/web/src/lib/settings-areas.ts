@@ -6,7 +6,7 @@ export const SETTINGS_AREAS = [
   { id: "gestaltung", label: "Beleggestaltung", hint: "Logo, Farbe, Layouts" },
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
   { id: "email", label: "E-Mail", hint: "Versand und Belege-Postfach" },
-  { id: "bank", label: "Bank", hint: "Automatischer Kontoabruf" },
+  { id: "bank", label: "Bank", hint: "Kontoabruf, Google Play, App Store" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys, Zugänge" },
   { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse des BMF" },
   { id: "ki", label: "KI-Assistenten und API", hint: "MCP, REST-API, Belegauslesung" },

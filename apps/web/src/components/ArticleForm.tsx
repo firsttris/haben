@@ -1,12 +1,13 @@
 import { formatDecimal, ITEM_NUMBER_MAX, LINE_DETAIL_MAX, parseEuro, UNITS, type UnitLabel } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { errorMessage } from "../lib/format.ts";
 import type { Notice } from "../lib/use-action.ts";
 import { saveArticle, type getArticles } from "../server/functions/articles.ts";
 import type { ArticleOption } from "./ArticleCombobox.tsx";
 import { FormattedTextarea } from "./FormattedTextarea.tsx";
+import { Field } from "./Field.tsx";
 
 type Article = Awaited<ReturnType<typeof getArticles>>[number];
 
@@ -32,7 +33,6 @@ export function ArticleForm({
   onDone: (notice: Notice, saved?: ArticleOption) => void;
 }) {
   // Das Formular steht auch im Dialog über dem Rechnungseditor, feste IDs wären dort doppelt
-  const detailId = useId();
   const router = useRouter();
   const save = useServerFn(saveArticle);
   const [busy, setBusy] = useState(false);
@@ -74,71 +74,58 @@ export function ArticleForm({
   const fields = (
     <>
       <div className="form-row cols-2">
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Bezeichnung
-          <input name="description" defaultValue={initial?.description ?? ""} maxLength={500} required autoFocus />
-          <span className="small muted">So steht die Position auf Rechnung und Angebot, in einer Zeile.</span>
-        </label>
-        <div className="field" style={{ gridColumn: "1 / -1" }}>
-          <label htmlFor={detailId}>Text zur Position (optional)</label>
-          <FormattedTextarea
-            id={detailId}
-            name="detail"
-            rows={3}
-            defaultValue={initial?.detail ?? ""}
-            maxLength={LINE_DETAIL_MAX}
-            aria-describedby={`${detailId}-hint`}
-          />
-          <span id={`${detailId}-hint`} className="small muted">
-            Mehrzeilig darunter, etwa Leistungsumfang oder Konditionen.
-          </span>
-        </div>
-        <label className="field">
-          Artikelnummer (optional)
-          <input name="number" defaultValue={initial?.number ?? ""} maxLength={ITEM_NUMBER_MAX} />
-        </label>
-        <label className="field">
-          Einheit
-          <select name="unit" defaultValue={initial?.unit ?? "Std."}>
-            {Object.keys(UNITS).map((u) => (
-              <option key={u}>{u}</option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Preis (€)
-          <input
-            name="unitPrice"
-            inputMode="decimal"
-            defaultValue={initial?.unitPrice === undefined ? "" : formatDecimal(initial.unitPrice)}
-            placeholder="0,00"
-            required
-          />
-        </label>
-        <label className="field">
-          Umsatzsteuer
-          <select name="taxRate" defaultValue={String(initial?.taxRate ?? 1900)}>
-            {RATES.map(([rate, label]) => (
-              <option key={rate} value={rate}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Preis ist
-          <select name="priceMode" defaultValue={initial?.priceIncludesTax ? "brutto" : "netto"} aria-describedby="price-mode-hint">
-            <option value="netto">netto, zuzüglich Umsatzsteuer</option>
-            <option value="brutto">brutto, inklusive Umsatzsteuer</option>
-          </select>
-          <span id="price-mode-hint" className="small muted">
-            Passt das nicht zur Rechnung, rechnet Haben den Preis beim Einfügen um.
-          </span>
-        </label>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Interne Notiz (optional)
-          <input name="note" defaultValue={article?.note ?? ""} maxLength={1000} />
-        </label>
+        <Field label="Bezeichnung" hint="So steht die Position auf Rechnung und Angebot, in einer Zeile." style={{ gridColumn: "1 / -1" }}>
+          {(control) => <input {...control} name="description" defaultValue={initial?.description ?? ""} maxLength={500} required autoFocus />}
+        </Field>
+        <Field label="Text zur Position (optional)" hint="Mehrzeilig darunter, etwa Leistungsumfang oder Konditionen." style={{ gridColumn: "1 / -1" }}>
+          {(control) => <FormattedTextarea {...control} name="detail" rows={3} defaultValue={initial?.detail ?? ""} maxLength={LINE_DETAIL_MAX} />}
+        </Field>
+        <Field label="Artikelnummer (optional)">
+          {(control) => <input {...control} name="number" defaultValue={initial?.number ?? ""} maxLength={ITEM_NUMBER_MAX} />}
+        </Field>
+        <Field label="Einheit">
+          {(control) => (
+            <select {...control} name="unit" defaultValue={initial?.unit ?? "Std."}>
+              {Object.keys(UNITS).map((u) => (
+                <option key={u}>{u}</option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Preis (€)">
+          {(control) => (
+            <input
+              {...control}
+              name="unitPrice"
+              inputMode="decimal"
+              defaultValue={initial?.unitPrice === undefined ? "" : formatDecimal(initial.unitPrice)}
+              placeholder="0,00"
+              required
+            />
+          )}
+        </Field>
+        <Field label="Umsatzsteuer">
+          {(control) => (
+            <select {...control} name="taxRate" defaultValue={String(initial?.taxRate ?? 1900)}>
+              {RATES.map(([rate, label]) => (
+                <option key={rate} value={rate}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Preis ist" hint="Passt das nicht zur Rechnung, rechnet Haben den Preis beim Einfügen um." style={{ gridColumn: "1 / -1" }}>
+          {(control) => (
+            <select {...control} name="priceMode" defaultValue={initial?.priceIncludesTax ? "brutto" : "netto"}>
+              <option value="netto">netto, zuzüglich Umsatzsteuer</option>
+              <option value="brutto">brutto, inklusive Umsatzsteuer</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Interne Notiz (optional)" style={{ gridColumn: "1 / -1" }}>
+          {(control) => <input {...control} name="note" defaultValue={article?.note ?? ""} maxLength={1000} />}
+        </Field>
       </div>
       {error && (
         <div className="banner banner-danger" role="alert">
