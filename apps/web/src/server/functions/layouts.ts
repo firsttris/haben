@@ -6,7 +6,7 @@ import {
   assignLayout,
   createLayout,
   deleteLayout,
-  listLayouts,
+  layoutOverview,
   MAX_LAYOUT_BYTES,
   reloadPackages,
   renameLayout,
@@ -16,9 +16,10 @@ import {
 const source = z.string().max(MAX_LAYOUT_BYTES);
 const name = z.string().max(80);
 
+/** Eigene Layouts und die Hinweise für Einstellungen der Gestaltung, die ein zugeordnetes Layout nicht verwendet */
 export const getLayouts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(() => listLayouts());
+  .handler(() => layoutOverview());
 
 /** Prüft und speichert ein eigenes Layout; die Prüfung setzt es mit Beispieldaten und kann einige Sekunden dauern */
 export const uploadLayout = createServerFn({ method: "POST" })
