@@ -515,6 +515,9 @@ Gibt es vor dem 1. Januar schon Buchungen in Haben, lehnt Haben eine Eröffnung 
 
 ## Jahresabschluss (GmbH und UG)
 
+> [!WARNING]
+> Haben rechnet jedes Geschäftsjahr als Kalenderjahr mit Stichtag 31.12. Für ein abweichendes Wirtschaftsjahr (§ 4a Abs. 1 Satz 2 Nr. 2 EStG, § 7 Abs. 4 KStG) sind Abschluss, Hinterlegung, E-Bilanz und Steuern falsch ([Nur das Kalenderjahr als Wirtschaftsjahr](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)).
+
 Unter **Buchhaltung › Jahresabschluss** zeigt Haben für eine GmbH oder UG Bilanz und Gewinn- und Verlustrechnung eines Jahres in der Form einer Kleinstkapitalgesellschaft (§ 267a HGB):
 
 - **Bilanz** nur mit den Posten, die in § 266 Abs. 2 und 3 HGB Buchstaben tragen (§ 266 Abs. 1 Satz 4): Anlagevermögen, Umlaufvermögen, Rechnungsabgrenzung; Eigenkapital, Rückstellungen, Verbindlichkeiten, Rechnungsabgrenzung. Jeder Posten klappt die Konten auf, die in ihm stehen.
