@@ -49,6 +49,10 @@ Die Knopfarten (#30, `styles.css`):
 
 Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
+### Navigation
+
+Oben in der Navigation steht die Marke: das „H“ und „Haben“. Hat die Firma in den Firmendaten einen Namen, ist er die Hauptzeile (16px, halbfett) und „Haben“ steht klein darüber (12px, `--nav-ink`), denn der Name zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen, den ganzen Namen zeigt der Tooltip.
+
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
