@@ -107,6 +107,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umstellungen zum 1.1
    * der Datenbank (company_settings_lock, drizzle/0065) prüft dasselbe mit der Uhr des Servers; die steht beim Schreiben
    * dieses Tests im November 2026, in dem es Buchungen gibt. Er wird nur für diese eine Änderung ausgesetzt; der
    * Audit-Trigger, aus dem versteuerungForYear liest, bleibt an.
+   * Das Änderungsprotokoll trägt aber den Tag des Testlaufs, nicht den 2.1.2027: Läuft der Test vor 2027, gilt der neue
+   * Kleinunternehmer-Status für die App schon im Dezember 2026 (kleinunternehmerForMonth). Die Fälle unten prüfen deshalb
+   * für Dezember nur, was davon nicht abhängt; versteuerungForYear vergleicht nur die Reihenfolge und ist nicht betroffen.
    */
   async function umstellen(change: Record<string, unknown>) {
     const current = company.companySchema.parse(await company.loadCompany());
