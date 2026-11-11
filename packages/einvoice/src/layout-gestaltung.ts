@@ -10,6 +10,9 @@ import { LAYOUT_GESTALTUNG, type LayoutGestaltung } from "./layout-schema.ts";
 
 const OPTIONEN = Object.keys(LAYOUT_GESTALTUNG) as LayoutGestaltung[];
 
+/** Wirken auch auf Belege, die immer das eingebaute Layout setzt (Entgeltabrechnung, Steuerbescheinigung): nie aus */
+const AUCH_EINGEBAUT: ReadonlySet<LayoutGestaltung> = new Set(["accent", "logo"]);
+
 const zurArt = (art: "beleg" | "mahnung", type: LayoutDocumentType) => (art === "mahnung") === (type === "mahnung");
 
 /** Einstellungen, die auf diese Art wirken, deren Felder der Quelltext aber nirgends nennt */
@@ -58,7 +61,7 @@ export function gestaltungsHinweise(layouts: LayoutJeBeleg): Partial<Record<Layo
     if (ohne.length === 0) continue;
     const namen = [...new Set(ohne.map((type) => layouts[type]!.name))];
     const satz = `${namen.length === 1 ? "Das Layout" : "Die Layouts"} ${aufzaehlung(namen.map((n) => `„${n}“`))} ${verwendet(felder, namen.length > 1)}.`;
-    const aus = ohne.length === belege.length;
+    const aus = ohne.length === belege.length && !AUCH_EINGEBAUT.has(option);
     hinweise[option] = { aus, text: aus ? satz : `Wirkt nicht auf ${aufzaehlung(ohne.map((type) => MEHRZAHL[type]))}: ${satz}` };
   }
   return hinweise;
