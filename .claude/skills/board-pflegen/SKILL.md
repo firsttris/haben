@@ -94,7 +94,7 @@ Der Workflow „Item added to project“ setzt bei neuen Karten selbst einen Sta
 
 Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurde. Das OK des Maintainers zur Tabelle aus Schritt 3 ist der Auftrag dafür.
 
-- Ein Kommentar je geprüftem Issue, wenn es nicht vom Maintainer selbst stammt (`author.login` ≠ `firsttris`) und nicht schon einen Kommentar zur Einordnung hat.
+- Ein Kommentar je geprüftem Issue, das noch keinen Kommentar zur Einordnung hat, auch bei Issues des Maintainers oder seiner Agenten: Wer das Issue später liest, sieht so, wo es steht. Bei eigenen Issues ohne „Danke!“.
 - Kurz, auf Deutsch, Du-Form; kein Termin und kein Versprechen; die Begründung aus Schritt 2 mit Link. Kein Hinweis auf das Werkzeug: Der Text ist eine Mitteilung des Maintainers.
 - `gh issue comment <n> --repo firsttris/haben --body-file <datei>`
 
