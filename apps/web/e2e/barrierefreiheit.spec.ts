@@ -481,7 +481,7 @@ function checkboxHintProblems(p: Page) {
       if (inLabel.length || hint) return [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`];
       return labels.flatMap((label) => {
         const next = label.nextElementSibling;
-        if (!next || !["P", "SPAN"].includes(next.tagName) || !(next.textContent ?? "").trim()) return [];
+        if (!next || !["P", "SPAN"].includes(next.tagName) || next.classList.contains("banner") || !(next.textContent ?? "").trim()) return [];
         const linked = next.id !== "" && ids.includes(next.id);
         return next.classList.contains("field-hint") && linked
           ? []
