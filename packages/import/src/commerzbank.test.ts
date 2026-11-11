@@ -65,6 +65,19 @@ describe("Commerzbank-CSV", () => {
     expect(s.transactions[3]?.counterpartyIban).toBeUndefined();
   });
 
+  it("nimmt eine strukturierte Gläubigerreferenz (RF nach ISO 11649) im Zweck nicht als Gegen-IBAN", () => {
+    // Die RF-Referenz hat dieselbe Prüfziffer (MOD 97-10) wie eine IBAN, ist aber keine
+    const mitReferenz = text
+      .replace("Bürohaus Nord GmbH B-2026-118 DE89370400440532013000", "Bürohaus Nord GmbH RF18539007547034 DE89370400440532013000")
+      .replace(";Bürohaus Nord GmbH;B-2026-118", ";Bürohaus Nord GmbH;RF18539007547034")
+      .replace("Telefon AG Kundennr. 4711 Rechnung 10/2026 End-to-End-Ref.", "Telefon AG RF18539007547034 End-to-End-Ref.")
+      .replace(";Telefon AG;Kundennr. 4711 Rechnung 10/2026", ";Telefon AG;RF18539007547034");
+    const s = parseStatement(new TextEncoder().encode(mitReferenz));
+    expect(s.transactions[3]).toMatchObject({ purpose: "RF18539007547034", counterpartyIban: "DE89370400440532013000" });
+    expect(s.transactions[4]?.purpose).toBe("RF18539007547034");
+    expect(s.transactions[4]?.counterpartyIban).toBeUndefined();
+  });
+
   it("Verwendungszweck aus der eigenen Spalte; ohne ihn der Buchungstext ohne den Namen", () => {
     expect(t.map((x) => x.purpose)).toEqual([
       "Abrechnung 30.10.2026 Kontofuehrung 01.10.2026 bis 31.10.2026 Entgelte 9,9- EUR",
