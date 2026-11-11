@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -131,6 +131,10 @@ function AppLayout() {
     if (name && window.matchMedia("(min-width: 861px)").matches && name.scrollHeight > name.clientHeight + 1) setFirmaVoll(name.textContent);
   }
   const firmaZuklappen = () => setFirmaVoll(null);
+  // Der Zeiger schließt den Namen nicht, solange „Haben“ per Tastatur fokussiert ist (WCAG 1.4.13, „persistent“); nach einem Mausklick hat der Link Fokus ohne :focus-visible, dann schließt das Verlassen ihn
+  const firmaZeigerWeg = (event: PointerEvent<HTMLAnchorElement>) => {
+    if (!event.currentTarget.matches(":focus-visible")) setFirmaVoll(null);
+  };
   // Escape schließt den aufgeklappten Namen auch dann, wenn nur der Zeiger darauf steht und der Fokus woanders ist (WCAG 1.4.13)
   useEffect(() => {
     if (firmaVoll === null) return;
@@ -181,7 +185,7 @@ function AppLayout() {
           className="brand"
           onPointerEnter={firmaAufklappen}
           onFocus={firmaAufklappen}
-          onPointerLeave={firmaZuklappen}
+          onPointerLeave={firmaZeigerWeg}
           onBlur={firmaZuklappen}
         >
           <span className="brand-mark">H</span>
