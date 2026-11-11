@@ -1394,6 +1394,20 @@
       "when": 1794339223322,
       "tag": "0198_external_import_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 199,
+      "version": "7",
+      "when": 1794347835610,
+      "tag": "0199_belegvorlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 200,
+      "version": "7",
+      "when": 1794347836251,
+      "tag": "0200_belegvorlagen_trigger",
+      "breakpoints": true
     }
   ]
 }

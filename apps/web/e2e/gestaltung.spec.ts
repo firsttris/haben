@@ -302,10 +302,12 @@ test("Die Einstellungen nennen je Belegart das eingebaute Layout", async ({ brow
   const page = await editor(browser, BREIT);
   await page.goto("/einstellungen?bereich=gestaltung");
   await page.waitForLoadState("networkidle");
-  const karte = page.getByRole("region", { name: "Layouts" });
+  const karte = page.getByRole("region", { name: "Layouts", exact: true });
   await expect(karte.getByRole("row")).toHaveCount(6);
-  await expect(karte.getByRole("row", { name: /Mahnung/ })).toContainText("Klassisch");
-  await expect(karte.getByRole("row", { name: /Mahnung/ })).toContainText("Eingebaut");
+  // Ohne eigene Zuordnung steht je Belegart das eingebaute Layout in der Auswahl
+  const mahnung = karte.getByLabel("Layout für Mahnung");
+  await expect(mahnung).toHaveValue("eingebaut:klassisch");
+  await expect(mahnung.locator("option:checked")).toHaveText("Klassisch (eingebaut)");
   await page.context().close();
 });
 

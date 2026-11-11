@@ -1,5 +1,5 @@
 import { LETTERHEAD_FONTS } from "@haben/core";
-import { LAYOUT_SCHEMA_VERSION, layoutJsonSchema } from "./layout-schema.ts";
+import { LAYOUT_PFLICHTFELDER, LAYOUT_SCHEMA_VERSION, layoutJsonSchema } from "./layout-schema.ts";
 import { type FieldInfo, flattenSchema } from "./layout-schema-paths.ts";
 
 /*
@@ -14,9 +14,12 @@ export const TYPST_VERSION = "0.14.2";
 const zelle = (text: string) => text.replaceAll("|", "\\|").replaceAll("\n", " ");
 
 /** Felder als Tabelle; Unterfelder von Listen mit [] im Pfad, z. B. lines[].net */
-export function feldTabelle(felder: readonly FieldInfo[]): string {
-  const zeilen = felder.map((f) => `| \`${f.path}\` | \`${zelle(f.type)}\` | ${f.required ? "ja" : "nein"} | ${zelle(f.description)} |`);
-  return ["| Feld | Typ | Immer da | Bedeutung |", "| --- | --- | --- | --- |", ...zeilen].join("\n");
+export function feldTabelle(felder: readonly FieldInfo[], pflicht: readonly string[] = []): string {
+  const pflichtig = new Set(pflicht.flatMap((eintrag) => eintrag.split("|")));
+  const zeilen = felder.map(
+    (f) => `| \`${f.path}\` | \`${zelle(f.type)}\` | ${f.required ? "ja" : "nein"} | ${pflichtig.has(f.path) ? "ja" : ""} | ${zelle(f.description)} |`,
+  );
+  return ["| Feld | Typ | Immer da | Pflicht im Layout | Bedeutung |", "| --- | --- | --- | --- | --- |", ...zeilen].join("\n");
 }
 
 /** Beide Tabellen des Vertrags, so wie sie in Skill und Doku stehen */
@@ -25,11 +28,11 @@ export function feldvertragMarkdown(ueberschrift = "###"): string {
   return [
     `${ueberschrift} Beleg: Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein`,
     "",
-    feldTabelle(flattenSchema(schema.beleg as never)),
+    feldTabelle(flattenSchema(schema.beleg as never), LAYOUT_PFLICHTFELDER.beleg),
     "",
     `${ueberschrift} Mahnung`,
     "",
-    feldTabelle(flattenSchema(schema.mahnung as never)),
+    feldTabelle(flattenSchema(schema.mahnung as never), LAYOUT_PFLICHTFELDER.mahnung),
   ].join("\n");
 }
 
@@ -59,7 +62,8 @@ export const GERUEST = `\`\`\`typst
 
 #for m in d.meta [ #m.label: #m.value \\ ]
 = #d.title
-#table(columns: 4, [Pos.], [Bezeichnung], [Menge], [Betrag], ..d.lines.map(l => (l.pos, l.description, l.quantity, l.net)).flatten())
+#if d.reference != none { par(d.reference) }
+#table(columns: 5, [Pos.], [Bezeichnung], [Menge], [USt], [Betrag], ..d.lines.map(l => (l.pos, l.description, l.quantity, l.rate, l.net)).flatten())
 #if d.totals != none {
   for r in d.totals.rows [ #r.label: #r.value \\ ]
   strong[#d.totals.gross.label: #d.totals.gross.value]
@@ -76,7 +80,7 @@ export const GERUEST = `\`\`\`typst
 export function layoutAnleitung(): string {
   return `---
 name: "belegvorlage"
-description: "Eigenes Layout für Belege von Haben in Typst schreiben oder ändern: Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung. Mit allen Feldern, die Haben der Vorlage übergibt (Feldvertrag v${LAYOUT_SCHEMA_VERSION}), den Schriften und den Pflichtangaben. Braucht kein Repository."
+description: "Eigenes Layout für Belege von Haben in Typst schreiben oder ändern: Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung. Mit allen Feldern, die Haben der Vorlage übergibt (Feldvertrag v${LAYOUT_SCHEMA_VERSION}), den Schriften, den Pflichtangaben und dem, was Haben beim Hochladen prüft. Braucht kein Repository."
 ---
 
 # Eigene Belegvorlage für Haben
@@ -89,7 +93,7 @@ Haben setzt Belege mit [Typst](https://typst.app/docs/) ${TYPST_VERSION} als PDF
 #let d = json(bytes(sys.inputs.data))
 \`\`\`
 
-Es gibt zwei Arten mit eigenen Feldern: **Beleg** (Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein) und **Mahnung**.
+Es gibt zwei Arten mit eigenen Feldern: **Beleg** (Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein) und **Mahnung**. Beim Hochladen wählt man, wofür das Layout ist.
 
 - Ein Feld mit „Immer da: nein“ kann fehlen. Lies es mit \`d.at("feld", default: none)\`, sonst bricht das Layout bei Belegen ohne dieses Feld.
 - \`null\` heißt: auf diesem Beleg gibt es das nicht. Prüfe mit \`!= none\`.
@@ -106,17 +110,21 @@ ${schriften()}
 
 - Logo und Briefpapier liegen beim Setzen neben der Vorlage, ihre Dateinamen stehen in \`d.logo\` und \`d.background\` (fehlen ohne). Lies sie mit \`image(d.logo)\`, nie mit festem Namen.
 - Andere Dateien gibt es nicht, und Typst liest nichts außerhalb des Ordners der Vorlage.
-- Keine Pakete (\`#import "@preview/…"\`): Haben setzt ohne Netz.
+- Pakete (\`#import "@preview/name:1.2.3"\`) nur mit fester Version. Haben fragt beim Hochladen nach, lädt sie nach der Bestätigung einmal und setzt danach ohne Netz. Ohne Paket ist ein Layout einfacher zu prüfen; ein zur Laufzeit zusammengesetzter Paketname scheitert.
 - Ein Lauf darf höchstens 5 Sekunden dauern, sonst bricht Haben ihn ab.
 
 ## Pflichtangaben
 
-Ein Layout muss auf dem Blatt zeigen:
+Vor dem Setzen sucht Haben im Quelltext jedes Feld, das in den Tabellen unten „Pflicht im Layout: ja“ hat, etwa \`taxNote\` für den Hinweis bei Kleinunternehmern oder Reverse Charge, \`reference\` für den Bezug einer Stornorechnung und \`legal\` für die Angaben einer GmbH. Nennt das Layout eines davon nicht, lehnt Haben es ab, auch wenn kein Beispiel das Feld füllt. Zeige jedes dieser Felder, wenn es einen Wert hat.
 
-- Absender (\`senderLine\` oder \`footer\`) und Empfänger (\`recipient\`), Angaben aus \`meta\` (Nummer, Datum, Leistungsdatum).
-- Jede Position mit Menge und Bezeichnung (\`lines\`), die Summen mit Umsatzsteuer je Satz (\`totals.rows\`, bei Bruttopreisen in \`totals.included\`, bei Fremdwährung zusätzlich in Euro in \`totals.euroTax\`), der Hinweis ohne Steuerausweis (\`taxNote\`), Steuernummer oder USt-IdNr. aus der Fußzeile (\`footer\`) und bei GmbH oder UG die Pflichtangaben aus \`legal\` (§ 14 Abs. 4 UStG, § 35a GmbHG).
+Danach setzt Haben das Layout mit Beispieldaten und lehnt es ab, wenn auf dem Blatt etwas davon fehlt:
+
+- Absender mit Name und vollständiger Anschrift, also Straße sowie PLZ und Ort (\`author\` und \`senderLine\`; die Fußzeile genügt dafür nicht, denn was dort steht, legt die Gestaltung fest; § 14 Abs. 4 Nr. 1 UStG) und Empfänger (\`recipient\`), die Bezeichnung des Belegs (\`title\`, keine feste Überschrift wie „Rechnung“), bei Storno und Korrektur der Bezug auf die Rechnung (\`reference\`; § 31 Abs. 5 UStDV), Angaben aus \`meta\` (Nummer, Datum, Leistungsdatum).
+- Jede Position mit Menge und Bezeichnung (\`lines\`), die Summen mit Umsatzsteuer und Steuersatz je Satz, etwa „Umsatzsteuer 19 %“ (\`totals.rows\`, bei Bruttopreisen in \`totals.included\`, bei Fremdwährung zusätzlich in Euro in \`totals.euroTax\`), der Hinweis ohne Steuerausweis (\`taxNote\`), bei Skonto der Zahlungssatz (\`payment\`; § 14 Abs. 4 Nr. 7 UStG), auf Rechnungen die Steuernummer oder die USt-IdNr. des Ausstellers, eine genügt (meist in der Fußzeile, \`footer\`; § 14 Abs. 4 Nr. 2 UStG; Angebot, Auftragsbestätigung, Lieferschein und Mahnung brauchen keine) und bei GmbH oder UG die Pflichtangaben aus \`legal\`, gern je Angabe auf eigener Zeile (Trenner „ · “; § 14 Abs. 4 UStG, § 35a GmbHG).
 - Bei einem Entwurf der Vermerk aus \`draft\` auf jeder Seite.
-- Mehrseitige Belege müssen gehen, etwa mit 40 Positionen.
+- Mehrseitige Belege müssen gehen: Die Beispiele haben bis zu 40 Positionen.
+
+Die Prüfung findet nur Offensichtliches. Für ein eigenes Layout übernimmt Haben keine Gewähr: Wer es hochlädt, ist selbst dafür verantwortlich, dass es alle Angaben richtig zeigt und die Belege den gesetzlichen Anforderungen genügen.
 
 ## Grundgerüst
 
@@ -124,10 +132,11 @@ ${GERUEST}
 
 ## Prüfen
 
-Mit der Typst-CLI und einer JSON-Datei nach den Feldern unten:
+Haben bietet unter Einstellungen › Beleggestaltung › Layouts die eingebauten Layouts als Grundlage und die Beispieldaten zum Herunterladen an. Die Beispieldaten sind eine Liste aus \`name\` und \`data\`; ein Beispiel daraus geht mit der Typst-CLI so (die Schriften oben gibt es frei unter der SIL Open Font License, etwa bei Google Fonts):
 
 \`\`\`sh
-typst compile --input data="$(cat beispiel-rechnung.json)" --font-path schriften/ vorlage.typ
+jq '.[0].data' beispieldaten-beleg.json > beispiel.json
+typst compile --input data="$(cat beispiel.json)" --font-path schriften/ vorlage.typ
 \`\`\`
 
 ## Felder (Feldvertrag v${LAYOUT_SCHEMA_VERSION})

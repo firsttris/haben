@@ -931,7 +931,11 @@ summary { cursor: pointer; min-height: 24px; }
 .color-swatch-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .color-swatch-custom:has(input:focus-visible) { outline: 2px solid var(--accent); }
 .color-swatch-dot { display: block; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; }
-.layouts-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.layouts-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+/* Feste Spalten: Sonst wäre die Auswahl so breit wie ihr längster Eintrag und schöbe die Seite am Handy über den Rand */
+.layouts-table th:last-child, .layouts-table td:last-child { width: 55%; }
+.layouts-table select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.layouts-table td { overflow-wrap: anywhere; hyphens: auto; }
 .layouts-table th { text-align: left; font-size: 13px; font-weight: 500; color: var(--muted); }
 .layouts-table th, .layouts-table td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); }
 @media (max-width: 720px) {
@@ -966,3 +970,10 @@ summary { cursor: pointer; min-height: 24px; }
 .footer-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .footer-chips .btn { font-size: 12px; }
 .footer-preview { font-size: 12px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+/* Eigene Layouts in den Einstellungen; ab sieben Einträgen scrollt die Liste */
+.own-layouts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
+.own-layouts[data-scrolls] { max-height: 420px; overflow-y: auto; }
+.own-layouts > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+.own-layout-name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.own-layout-rename { display: flex; flex-wrap: wrap; gap: 8px; }
+.own-layouts .actions { flex-wrap: wrap; }

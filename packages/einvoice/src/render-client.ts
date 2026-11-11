@@ -14,21 +14,28 @@ const DEAD_PROXY = "http://127.0.0.1:9";
  * Umgebung des Render-Prozesses: Nichts aus der App (Datenbank, Schlüssel) wird vererbt, das Netz ist über einen toten
  * Proxy gesperrt, und HOME zeigt ins Leere, damit Typst keinen Paket-Cache des Rechners findet.
  */
-export function renderWorkerEnv(): Record<string, string> {
-  const empty = join(tmpdir(), "haben-render-ohne-home");
+export function renderWorkerEnv(cacheDir?: string): Record<string, string> {
+  const home = cacheDir ?? join(tmpdir(), "haben-render-ohne-home");
   return {
     PATH: process.env.PATH ?? "",
     HABEN_EINVOICE_DIR: PACKAGE_DIR,
-    HOME: empty,
-    XDG_CACHE_HOME: empty,
-    XDG_DATA_HOME: empty,
+    // Typst sucht Pakete unter dem Cache des Nutzers: unter Linux XDG_CACHE_HOME, unter macOS HOME/Library/Caches
+    HOME: home,
+    XDG_CACHE_HOME: home,
+    XDG_DATA_HOME: home,
     ...Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].map((name) => [name, DEAD_PROXY])),
   };
 }
 
+/** Wo Typst Pakete aus @preview ablegt, wenn HOME und XDG_CACHE_HOME auf cacheDir zeigen */
+export const packageCacheRoot = (cacheDir: string): string =>
+  process.platform === "darwin" ? join(cacheDir, "Library", "Caches", "typst", "packages") : join(cacheDir, "typst", "packages");
+
+type Result = { sheet: RenderedSheet } | { pdf: string };
+
 interface Pending {
   job: RenderJob;
-  resolve: (sheet: RenderedSheet) => void;
+  resolve: (result: Result) => void;
   reject: (error: Error) => void;
 }
 
@@ -37,10 +44,14 @@ export interface RenderClientOptions {
   idleMs?: number;
   /** Austauschbar für Tests */
   workerPath?: string;
+  /** Eigener Paket-Cache, etwa eines Layouts mit freigegebenen Paketen; ohne gibt es keine Pakete */
+  cacheDir?: string;
 }
 
 export interface RenderClient {
   render: (job: RenderJob) => Promise<RenderedSheet>;
+  /** Dasselbe als PDF/A-3b, etwa beim Festschreiben mit einem eigenen Layout */
+  renderPdf: (job: RenderJob, date: string) => Promise<Uint8Array>;
   close: () => void;
 }
 
@@ -52,6 +63,7 @@ export function createRenderClient({
   timeoutMs = RENDER_TIMEOUT_MS,
   idleMs = RENDER_IDLE_MS,
   workerPath = WORKER_PATH,
+  cacheDir,
 }: RenderClientOptions = {}): RenderClient {
   const queue: Pending[] = [];
   let child: ChildProcess | undefined;
@@ -75,7 +87,7 @@ export function createRenderClient({
 
   const onMessage = (response: RenderResponse) => {
     if (response.id !== running?.id) return;
-    finish((pending) => (response.ok ? pending.resolve(response.sheet) : pending.reject(new Error(response.message))));
+    finish((pending) => (response.ok ? pending.resolve(response) : pending.reject(new Error(response.message))));
   };
 
   const start = (): ChildProcess => {
@@ -83,7 +95,7 @@ export function createRenderClient({
     const started = spawn("/bin/sh", ["-c", 'ulimit -c 0 && exec "$@"', "sh", process.execPath, workerPath], {
       stdio: ["ignore", "ignore", "ignore", "ipc"],
       serialization: "json",
-      env: renderWorkerEnv(),
+      env: renderWorkerEnv(cacheDir),
       cwd: tmpdir(),
     });
     started.on("message", (message) => onMessage(message as RenderResponse));
@@ -118,12 +130,18 @@ export function createRenderClient({
     child.send(request);
   }
 
+  const enqueue = (job: RenderJob) =>
+    new Promise<Result>((resolve, reject) => {
+      queue.push({ job, resolve, reject });
+      next();
+    });
+
   return {
-    render: (job) =>
-      new Promise<RenderedSheet>((resolve, reject) => {
-        queue.push({ job, resolve, reject });
-        next();
-      }),
+    render: (job) => enqueue(job).then((result) => ("sheet" in result ? result.sheet : Promise.reject(new Error("Kein SVG")))),
+    renderPdf: (job, date) =>
+      enqueue({ ...job, pdf: { date } }).then((result) =>
+        "pdf" in result ? new Uint8Array(Buffer.from(result.pdf, "base64")) : Promise.reject(new Error("Kein PDF")),
+      ),
     close: () => {
       clearTimeout(idleTimer);
       stop();

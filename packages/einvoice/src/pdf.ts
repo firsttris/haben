@@ -366,6 +366,10 @@ export function renderJob(template: "rechnung.typ", data: object, letterhead: Le
 }
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
+  if (letterhead.pdfFrom && (template === TEMPLATE || template === DUNNING_TEMPLATE)) {
+    const pdf = letterhead.pdfFrom({ template: template === TEMPLATE ? "rechnung.typ" : "mahnung.typ", data: templateInputs(data, letterhead), date });
+    if (pdf) return pdf;
+  }
   const typst = getCompiler();
   // Logo und Briefpapier liegen nur für diesen Lauf als Dateien neben der Vorlage
   const shadows = [
