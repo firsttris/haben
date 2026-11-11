@@ -7,11 +7,12 @@ import { deleteBackground, getBackground, saveLetterheadDesign, uploadBackground
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { DesignOptionFields, Segmented, useDesignDraft } from "./DesignPanel.tsx";
 import { ImageUpload } from "./ImageUpload.tsx";
+import { layoutHint, LayoutHintText, layoutHintId, type LayoutHints } from "./LayoutHint.tsx";
 import { LogoUpload } from "./LogoUpload.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 /** Größe und Seite des Logos und die Schalter, auch ohne einen Beleg geöffnet zu haben */
-export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesign; logo: string | null }) {
+export function LetterheadOptionsCard({ design, logo, hints }: { design: LetterheadDesign; logo: string | null; hints?: LayoutHints | undefined }) {
   const draft = useDesignDraft(design);
   const router = useRouter();
   const save = useServerFn(saveLetterheadDesign);
@@ -31,7 +32,19 @@ export function LetterheadOptionsCard({ design, logo }: { design: LetterheadDesi
       <p className="small muted" style={{ margin: 0 }}>
         Logo als PNG (gern mit transparentem Hintergrund) oder JPEG, bis 1 MB. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
-      <DesignOptionFields design={draft.design} onChange={draft.set} logoUpload={<LogoUpload sha256={logo} onChanged={() => router.invalidate()} />} />
+      <DesignOptionFields
+        design={draft.design}
+        onChange={draft.set}
+        hints={hints}
+        logoUpload={
+          <LogoUpload
+            sha256={logo}
+            onChanged={() => router.invalidate()}
+            disabled={layoutHint(hints, "logo")?.aus}
+            describedBy={layoutHintId("logo", layoutHint(hints, "logo"))}
+          />
+        }
+      />
       <div className="actions">
         <button type="button" className="btn" disabled={busy || !draft.dirty} onClick={() => void onSave()}>
           Speichern
@@ -60,7 +73,17 @@ const BACKGROUND_PAGE_OPTIONS: { value: BackgroundPages; label: string; name: st
 ];
 
 /** Bild hinter dem Beleg, etwa der gedruckte Briefbogen als Scan */
-export function LetterheadBackgroundCard({ design, background }: { design: LetterheadDesign; background: string | null }) {
+export function LetterheadBackgroundCard({
+  design,
+  background,
+  hints,
+}: {
+  design: LetterheadDesign;
+  background: string | null;
+  hints?: LayoutHints | undefined;
+}) {
+  const backgroundHint = layoutHint(hints, "background");
+  const pagesHint = layoutHint(hints, "backgroundPages");
   const draft = useDesignDraft(design);
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
@@ -95,6 +118,8 @@ export function LetterheadBackgroundCard({ design, background }: { design: Lette
         remove={() => remove()}
         load={() => load()}
         accept="image/png,image/jpeg,application/pdf"
+        disabled={backgroundHint?.aus}
+        describedBy={layoutHintId("background", backgroundHint)}
         onChanged={async (sha256) => {
           // Ohne Briefpapier gilt der Fuß wieder; ein neues Bild soll ihn nicht unbemerkt abschalten
           if (sha256 === null) {
@@ -104,12 +129,16 @@ export function LetterheadBackgroundCard({ design, background }: { design: Lette
           await router.invalidate();
         }}
       />
+      <LayoutHintText option="background" hint={backgroundHint} />
       <Segmented
         label="Seiten mit Briefpapier"
         options={BACKGROUND_PAGE_OPTIONS}
         value={draft.design.backgroundPages}
         onChange={(backgroundPages) => draft.set({ backgroundPages })}
+        disabled={pagesHint?.aus}
+        describedBy={layoutHintId("backgroundPages", pagesHint)}
       />
+      <LayoutHintText option="backgroundPages" hint={pagesHint} />
       <label className="checkbox">
         <input
           type="checkbox"
