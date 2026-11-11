@@ -138,9 +138,15 @@ function AppLayout() {
   // Escape schließt den aufgeklappten Namen auch dann, wenn nur der Zeiger darauf steht und der Fokus woanders ist (WCAG 1.4.13)
   useEffect(() => {
     if (firmaVoll === null) return;
-    const zu = (event: KeyboardEvent) => event.key === "Escape" && setFirmaVoll(null);
-    document.addEventListener("keydown", zu);
-    return () => document.removeEventListener("keydown", zu);
+    function zu(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      event.stopPropagation();
+      setFirmaVoll(null);
+    }
+    window.addEventListener("keydown", zu, true);
+    return () => window.removeEventListener("keydown", zu, true);
   }, [firmaVoll]);
   usePageHeadHeight(main);
   const scrolled = useScrolled();
