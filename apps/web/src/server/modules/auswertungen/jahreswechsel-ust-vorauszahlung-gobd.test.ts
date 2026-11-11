@@ -211,4 +211,35 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     expect((await euer(2027)).gewinn).toBe(19_000);
     await beideWegeGleich();
   }, 60_000);
+
+  it("Zuordnung nach der Übermittlung der EÜR 2026 aufgehoben und neu zugeordnet: die Zahlung zählt schon in 2026, kein Hinweis", async () => {
+    const { vorauszahlungVorjahrHinweis } = await import("./euer-jahreswechsel.ts");
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    await zahlung(dez.id, "08.01.27");
+    await uebermittelt(2026, await wieUebermittelt(2026));
+    const [a] = await sql`select id, transaction_id from allocations where kind = 'ustVorauszahlung'`;
+    await bank.reverseAllocation(actor, a!.id as string);
+    await bank.allocate(actor, { kind: "ustva", transactionId: a!.transaction_id as string, vatReturnId: dez.id, amount: -19_000 });
+    expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+    expect((await euer(2027)).gewinn).toBe(0);
+    expect((await reports.euerAusNebenbuechern(2027)).gewinn).toBe(0);
+    expect(abgleich.abweichungen((await abgleich.euerAbgleich(2027)).zeilen)).toEqual([]);
+    // Die Zahlung steckt in der übermittelten EÜR 2026; eine Berichtigung würde sie doppelt zählen
+    expect(await vorauszahlungVorjahrHinweis(2027)).toBeNull();
+  }, 60_000);
+
+  it("Teil einer Zahlung nach der Übermittlung der EÜR 2026 zugeordnet: der Hinweis nennt nur diesen Teil", async () => {
+    const { vorauszahlungVorjahrHinweis } = await import("./euer-jahreswechsel.ts");
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    const tx = await umsatzVom("08.01.27", "-190,00");
+    await bank.allocate(actor, { kind: "ustva", transactionId: tx.id, vatReturnId: dez.id, amount: -10_000 });
+    await uebermittelt(2026, await wieUebermittelt(2026));
+    await bank.allocate(actor, { kind: "ustva", transactionId: tx.id, vatReturnId: dez.id, amount: -9_000 });
+    expect((await euer(2026)).gewinn).toBe(109_000);
+    expect((await euer(2027)).gewinn).toBe(-9_000);
+    const hinweis = await vorauszahlungVorjahrHinweis(2027);
+    expect(hinweis).toContain("für Dezember 2026 (90,00");
+  }, 60_000);
 });
