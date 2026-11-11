@@ -38,7 +38,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Zahlung, im Bankabgleich einem Beleg zugeordnet | Buchungstag des Umsatzes | Ausgabe in der Kategorie des Belegs und gezahlte Vorsteuer; ohne Vorsteuerabzug (Kleinunternehmer) der Bruttobetrag als Ausgabe. Ein [aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt anteilig je Zeile in deren Kategorie |
 | Gebuchter Beleg, privat oder bar aus der [Kasse](kasse.md) bezahlt | Belegdatum; ein Storno fließt am Datum der Gegenbuchung zurück | wie oben |
 | Bareinnahme auf eine Rechnung im [Kassenbuch](kasse.md) | Datum der Bareinnahme | wie ein Zahlungseingang |
-| Bankumsatz „Umsatzsteuer an das Finanzamt“, Ausgang | Buchungstag | An das Finanzamt gezahlte Umsatzsteuer |
+| Bankumsatz „Umsatzsteuer an das Finanzamt“, Ausgang | Buchungstag; die Vorauszahlung für Dezember bzw. das vierte Quartal, gezahlt bis 10. Januar, im Vorjahr ([Vorauszahlung um den Jahreswechsel](#umsatzsteuer-vorauszahlung-um-den-jahreswechsel)) | An das Finanzamt gezahlte Umsatzsteuer |
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Eingang | Buchungstag | Vom Finanzamt erstattete Umsatzsteuer |
 | Bankumsatz „Sondervorauszahlung (Dauerfristverlängerung)“ | Buchungstag | wie „Umsatzsteuer an das Finanzamt“ |
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
@@ -55,6 +55,24 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
 
 Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf.
+
+### Umsatzsteuer-Vorauszahlung um den Jahreswechsel
+
+Regelmäßig wiederkehrende Ausgaben, die kurze Zeit nach dem Ende des Jahres abfließen, zu dem sie wirtschaftlich gehören, zählen in diesem Jahr ([§ 11 Abs. 2 Satz 2 EStG](https://www.gesetze-im-internet.de/estg/__11.html)). „Kurze Zeit“ sind höchstens zehn Tage (H 11 EStH), also der 22. Dezember bis 10. Januar. Die Umsatzsteuer-Vorauszahlung ist eine solche Ausgabe. Eine Zahlung „Umsatzsteuer an das Finanzamt“, die im [Bankabgleich einer Voranmeldung zugeordnet](bank.md#voranmeldung-zahllast-und-erstattung) ist, zählt Haben deshalb im Vorjahr, wenn
+
+- die Voranmeldung für einen Zeitraum des Vorjahres gilt,
+- ihre Vorauszahlung zwischen 22. Dezember und 10. Januar fällig ist: ohne Dauerfristverlängerung die für Dezember bzw. das vierte Quartal, am 10. Januar ([§ 18 Abs. 1 Satz 4 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), und
+- der Buchungstag zwischen 1. und 10. Januar liegt.
+
+Gezahlt allein reicht nicht, fällig sein muss die Vorauszahlung in den zehn Tagen (BFH, Urteil vom 16.02.2022, X R 2/21, BStBl II 2022, 448). Mit [Dauerfristverlängerung](umsatzsteuer.md#dauerfristverlängerung) ist die Vorauszahlung für Dezember bzw. das vierte Quartal erst am 10. Februar fällig ([§ 46 UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__46.html)); eine Zahlung im Januar zählt dann im Jahr der Zahlung (BFH, Urteil vom 21.06.2022, [VIII R 25/20](https://www.bundesfinanzhof.de/de/entscheidung/entscheidungen-online/detail/STRE202210196/)). Umgekehrt ist mit Dauerfristverlängerung die Vorauszahlung für November am 10. Januar fällig und zählt, bis dahin gezahlt, im Vorjahr. Eine verspätet gezahlte Vorauszahlung für einen früheren Monat, etwa die für November ohne Dauerfristverlängerung am 5. Januar, zählt im Jahr der Zahlung.
+
+Fällt der 10. Januar auf ein Wochenende oder einen Feiertag, rechnet Haben trotzdem mit dem 10.: Die Verschiebung nach § 108 Abs. 3 AO zählt für § 11 EStG nicht (BFH, Urteil vom 27.06.2018, X R 44/16). Zum Jahreswechsel 2026/27 ist der 10. Januar ein Sonntag; die Zahlung am Montag, dem 11. Januar, ist pünktlich, zählt in der EÜR aber im Jahr der Zahlung. Ob die Finanzverwaltung das weiter so anwendet, klärst du am besten mit deiner Steuerberatung.
+
+Eine Erstattung aus der Voranmeldung für Dezember zählt im Jahr, in dem sie eingeht. Ob sie regelmäßig wiederkehrend ist, steht nicht fest; auch das klärst du mit der Steuerberatung. Zahlungen ohne Bezug auf eine Voranmeldung (ältere Zuordnungen) und die Sondervorauszahlung zählen am Buchungstag.
+
+Die Buchung selbst behält ihr Datum; Voranmeldung, Journal und DATEV-Export bleiben, wie sie sind. Die EÜR aus den Buchungen ab dem Stichjahr und die aus Rechnungen, Belegen und Zahlungen verschieben dieselben Zahlungen, und der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) rechnet das Journal ebenso um. Im Diagramm je Monat erscheint die Zahlung nicht, wie alle Umsatzsteuerzahlungen.
+
+**Gesperrtes Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon aus Haben übermittelt oder das Jahr abgeschlossen, als du die Zahlung zugeordnet hast, ändert Haben das Vorjahr nicht (GoBD). Die Zahlung zählt dann im Jahr der Zahlung, und die Vorprüfung der [Anlage EÜR](jahreserklaerung.md#anlage-eür) nennt sie mit Zeitraum und Betrag. Erklärungen, die eine ältere Version von Haben übermittelt hat, enthalten die Zahlung nicht; sie sperren das Vorjahr deshalb immer.
 
 ### Was nicht zählt
 
