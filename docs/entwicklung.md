@@ -602,6 +602,28 @@ Neben dem Typ gibt es diese Labels:
 | `einstieg` | Klein und abgegrenzt, gut für den Einstieg (siehe [Etwas übernehmen](#etwas-übernehmen)) |
 | `jahreswerte` | Befund des Workflows „Jahreswerte prüfen“ |
 
+### Beiträge annehmen
+
+Bevor ein Pull Request ins [Review](#review) geht, ob von außen oder von jemandem im Team, ob von einem Menschen oder einem Agenten geschrieben, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, zwei Fragen: Wollen wir die Änderung in Haben haben? Und ist sie nach den Regeln dieser Seite gemacht? Mit Claude Code gibt es dafür den Skill `beitrag-pruefen` (`.claude/skills/beitrag-pruefen/SKILL.md`). Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
+
+**Wollen wir das?**
+
+- **Passt zu Haben:** Buchhaltung für Freiberufler und kleine GmbHs. Nichts aus [Bewusst nicht](roadmap.md#bewusst-nicht), nichts, was ohne Zertifizierung nicht geht oder dort als blockiert steht.
+- **Hat ein Issue:** Am besten eine Karte aus dem [Project „Roadmap“](https://github.com/users/firsttris/projects/2), dem Beitragenden zugewiesen ([Etwas übernehmen](#etwas-übernehmen)). Ohne Issue entscheidet der Maintainer, ob die Änderung gewollt ist, bevor jemand Zeit ins Review steckt.
+- **Nicht doppelt:** Kein anderer offener Pull Request zum selben Thema; auf `main` gibt es das noch nicht, und es wurde nicht schon einmal mit Grund abgelehnt.
+- **Nutzen größer als die Last:** Jede neue Einstellung, Abhängigkeit, Tabelle, externe Verbindung und jeder neue Sonderfall muss dauerhaft gepflegt werden. Eine Migration bleibt für immer; was eine versiegelte Tabelle berührt, lässt sich nicht zurücknehmen. Neue Abhängigkeiten mit einer zur AGPL-3.0 passenden Lizenz, gepflegt und nicht nur für eine Kleinigkeit.
+- **Ein Thema:** Mehrere Themen in einem Pull Request werden geteilt.
+- **Ganz gemacht:** Jedes Akzeptanzkriterium des Issues ist erfüllt, oder die Beschreibung sagt, was fehlt, und verweist dafür mit `Refs #…` statt `Umgesetzt #…`.
+
+**Ist es richtig gemacht?**
+
+- **Quellen geprüft:** Jedes fachliche Detail (Steuer, Buchung, Format, ELSTER) steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen), „Quellen statt Gedächtnis“). Der Maintainer oder sein Agent liest die Quelle selbst nach: Ein Test, der dieselbe falsche Annahme enthält wie der Code, ist trotzdem grün ([Leitplanken für Agenten](#leitplanken-für-agenten)).
+- **Regeln eingehalten:** alles unter [Konventionen](#konventionen) und [Mitwirken](#mitwirken), für die Oberfläche [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md). Was ein Skript prüft, meldet die CI und der Kommentar von „PR-Regeln“; der Rest wird von Hand geprüft: Tests für jede Änderung (SKR03 und SKR04, Ist und Soll), kein Test abgeschwächt, gelöscht oder übersprungen, die Doku zum Verhalten, Screenshots bei Änderungen am Aussehen, Migrationen erzeugt und keine bestehende geändert, `withActor` und Audit-Trigger, Geheimnisse in `ciphertext`.
+
+**Umgangston:** Wer beiträgt, schenkt Haben Zeit, ob mit oder ohne Agent. Rückmeldungen beginnen mit Dank, sprechen über den Code und nicht über die Person, begründen jede Bitte mit der Regel oder Quelle und trennen, was vor dem Merge nötig ist, von Vorschlägen. Auch eine Ablehnung ist freundlich und nennt den Grund. Nach dem Merge bedanken wir uns im Pull Request.
+
+Das Ergebnis ist eine Empfehlung an die prüfende Person: annehmen und ins Review, annehmen nach Änderungen, teilen oder ablehnen. Im Pull Request erscheint sie erst, wenn sie zustimmt, mit Dank, Begründung und konkreten Aufgaben. Fehlen nur Doku oder Tests, darf sie sie auch selbst auf den Branch des Pull Requests ergänzen, wie Fixes im Review (Schritt 4). Ablehnen und Schließen entscheidet der Maintainer. Wird ein Thema dabei grundsätzlich abgelehnt, kommt es mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht), damit niemand es noch einmal baut.
+
 ### Review
 
 Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit Claude Code gibt es dafür den Skill `tdd-review` (`.claude/skills/tdd-review/SKILL.md`); mit anderen Werkzeugen gelten dieselben Schritte:

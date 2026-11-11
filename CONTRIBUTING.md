@@ -40,6 +40,9 @@ schreib im Issue, dass du es übernimmst; ein Maintainer weist es dir zu. Wie da
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
+- Zuerst schaut ein Maintainer oder Collaborator, ob die Änderung zu Haben passt, gegen die Quellen geprüft ist und
+  Tests und Doku mitbringt ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)). Ein Issue
+  vorab spart dir Arbeit an etwas, das wir nicht übernehmen können.
 - Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**: Ein Befund zählt nur mit einem Test, der
   auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
   Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Die Schritte stehen unter

@@ -19,6 +19,7 @@ the change before starting.
 | Schema and migrations | Migrationen | |
 | What a pull request contains, branch, title, commits, agent marker | Mitwirken | `beitrag` |
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
+| Judge a contribution by someone else (do we want it, sources, rules) | Beiträge annehmen | `beitrag-pruefen` |
 | Review and merge | Review | `tdd-review` |
 | Issues and labels | Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
