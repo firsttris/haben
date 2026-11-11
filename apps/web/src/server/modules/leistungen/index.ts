@@ -8,6 +8,7 @@
 export {
   createServiceEntry,
   deleteServiceEntry,
+  getServiceEntry,
   listServiceEntries,
   serviceEntrySchema,
   ServiceEntryError,

@@ -5,6 +5,8 @@ import { createContactHandler, getContactHandler, listContactsHandler, updateCon
 import type { Handler } from "./http.ts";
 import { createDocumentHandler, getDocumentHandler, listDocumentsHandler } from "./documents.ts";
 import { createInvoiceHandler, deleteInvoiceHandler, getInvoiceHandler, listInvoicesHandler, updateInvoiceHandler } from "./invoices.ts";
+import { createServiceEntryHandler, deleteServiceEntryHandler, listServiceEntriesHandler } from "./leistungen.ts";
+import { serviceEntryQuerySchema } from "./leistungen-schemas.ts";
 import { contactQuerySchema, documentQuerySchema, invoiceQuerySchema } from "./schemas.ts";
 
 /*
@@ -21,7 +23,7 @@ export interface ApiRoute {
   scope: TokenScope;
   summary: string;
   description?: string;
-  tag: "Kontakte" | "Rechnungen" | "Belege";
+  tag: "Kontakte" | "Rechnungen" | "Belege" | "Leistungen";
   query?: z.ZodObject;
   /** Name in requestSchemas */
   requestBody?: string;
@@ -179,5 +181,42 @@ export const API_ROUTES: ApiRoute[] = [
     description: "Stand der Prüfung: Status, ob gebucht, was vor dem Buchen noch fehlt, und der Link zur Seite in Haben.",
     responses: { 200: { schema: "Document", description: "Der Beleg" } },
     handler: getDocumentHandler,
+  },
+  {
+    method: "GET",
+    path: "/leistungen",
+    scope: "leistungen:lesen",
+    tag: "Leistungen",
+    summary: "Leistungseinträge auflisten",
+    description: "Die neuesten Arbeitstage zuerst; mit contactId, from und to eingrenzen.",
+    query: serviceEntryQuerySchema,
+    responses: { 200: { schema: "ServiceEntryList", description: "Eine Seite Einträge" } },
+    handler: listServiceEntriesHandler,
+  },
+  {
+    method: "POST",
+    path: "/leistungen",
+    scope: "leistungen:schreiben",
+    tag: "Leistungen",
+    summary: "Leistungseintrag anlegen",
+    description:
+      "Legt einen Zeiteintrag für einen Kunden an. Der Stundensatz kommt vom Kunden, wenn der Aufruf keinen mitbringt, und bleibt als Kopie am Eintrag. " +
+      "Mit source und externalId (z. B. kimai und die Nummer der Zeile) idempotent: Gibt es die Kennung schon, wird der Eintrag aktualisiert und mit 200 zurückgegeben, statt zu verdoppeln.",
+    requestBody: "ServiceEntryCreate",
+    responses: {
+      201: { schema: "ServiceEntry", description: "Angelegt; Location zeigt auf den Eintrag" },
+      200: { schema: "ServiceEntry", description: "Diese Kennung gab es schon; der Eintrag ist aktualisiert" },
+    },
+    errors: { 422: "Der Kunde gibt es nicht" },
+    handler: createServiceEntryHandler,
+  },
+  {
+    method: "DELETE",
+    path: "/leistungen/{id}",
+    scope: "leistungen:schreiben",
+    tag: "Leistungen",
+    summary: "Leistungseintrag löschen",
+    responses: { 204: { schema: null, description: "Gelöscht" } },
+    handler: deleteServiceEntryHandler,
   },
 ];

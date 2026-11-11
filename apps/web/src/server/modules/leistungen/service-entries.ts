@@ -87,6 +87,12 @@ export async function listServiceEntries(filter: ServiceEntryFilter = {}): Promi
     .orderBy(desc(schema.serviceEntries.workedOn), desc(schema.serviceEntries.createdAt));
 }
 
+/** Ein Eintrag; null, wenn es ihn nicht gibt */
+export async function getServiceEntry(id: string): Promise<ServiceEntry | null> {
+  const [row] = await db.select(columns).from(schema.serviceEntries).where(eq(schema.serviceEntries.id, id));
+  return row ?? null;
+}
+
 /** Der Stundensatz des Kunden; wirft, wenn es ihn nicht gibt */
 async function contactRate(tx: Tx, contactId: string): Promise<number | null> {
   const [contact] = await tx.select({ rate: schema.contacts.hourlyRateCents }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
