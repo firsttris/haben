@@ -1,4 +1,5 @@
-import type { ParsedStatement, StatementFormat } from "@haben/import";
+import { readFileSync } from "node:fs";
+import { type ParsedStatement, parseStatement, type StatementFormat } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -113,5 +114,19 @@ describe.skipIf(!testDatabaseUrl)("Warnung bei zweiter Quelle im selben Zeitraum
     });
     expect(r.quelle).toContain("Abruf Swan 2026-09-30");
     expect(r.quelle).not.toContain("enablebanking");
+  });
+
+  it("schweigt beim Wechsel vom alten zum neuen DKB-CSV derselben Bank", async () => {
+    // DKB hat das CSV-Format geändert; der Dubletten-Hash erkennt dieselben Umsätze in beiden Formaten (dedup.test.ts)
+    const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../../../../../../packages/import/test-fixtures/${name}`, import.meta.url)));
+    const speichere = (name: string) => {
+      const statement = parseStatement(fixture(name), name);
+      return db.db.transaction((tx) => bank.storeStatement(tx, statement, { filename: name, sha256: name }, null));
+    };
+    await speichere("dkb-alt.csv");
+    const r = await speichere("dkb-neu.csv");
+    expect(r.skipped).toBeGreaterThan(0);
+    expect(r.added).toBeGreaterThan(0);
+    expect(r.quelle).toBeNull();
   });
 });
