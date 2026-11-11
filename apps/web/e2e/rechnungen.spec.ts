@@ -2154,6 +2154,50 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   ]);
 });
 
+test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde filtern und löschen (#417)", async () => {
+  await go("/leistungen");
+  await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
+  await page.getByRole("button", { name: "Neuer Eintrag" }).click();
+  const neu = page.getByRole("form", { name: "Neuer Eintrag" });
+  await neu.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
+  await neu.getByLabel("Dauer").fill("1:30");
+  await neu.getByLabel(/Stundensatz/).fill("95");
+  await neu.getByLabel(/Tätigkeit/).fill("Konzept Datenmodell");
+  await neu.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
+
+  const liste = page.getByRole("region", { name: "Leistungsliste" });
+  await expect(liste).toContainText("Rheinpixel GmbH");
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await expect(liste).toContainText("1:30 Std.");
+  await expect(liste).toContainText("142,50");
+  // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
+  await ohneAxeVerstoesse(page, ["/leistungen"]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  // Dauer unlesbar: Meldung, nichts gespeichert
+  await liste.getByRole("button", { name: /bearbeiten/ }).click();
+  const aendern = page.getByRole("form", { name: "Eintrag ändern" });
+  await aendern.getByLabel("Dauer").fill("abc");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(aendern.getByRole("alert")).toContainText("Die Dauer ist nicht lesbar");
+  await aendern.getByLabel("Dauer").fill("2");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Eintrag gespeichert.")).toBeVisible();
+  await expect(liste).toContainText("2:00 Std.");
+  await expect(liste).toContainText("190,00");
+
+  // Der Filter nach Kunde blendet fremde Einträge aus
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Nordwerk Software GmbH" });
+  await expect(liste).toContainText("Keine Einträge für diesen Filter.");
+  await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Alle Kunden" });
+  await expect(liste).toContainText("Konzept Datenmodell");
+
+  await liste.getByRole("button", { name: /löschen/ }).click();
+  await expect(page.getByText("Eintrag gelöscht.")).toBeVisible();
+  await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
+});
+
 test("Keine Fehler im Browser", async () => {
   expect(pageErrors).toEqual([]);
 });

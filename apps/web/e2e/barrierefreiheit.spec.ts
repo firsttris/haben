@@ -26,6 +26,7 @@ const PAGES = [
   "/angebote",
   "/angebote/neu",
   "/artikel",
+  "/leistungen",
   "/kontakte",
   "/kontakte/neu",
   "/belege",

@@ -31,7 +31,9 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
     mcpServer.resetRateLimitForTests();
     await leeren(sql)`truncate mcp_calls, mcp_tokens, service_entries, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name) values (1, 'Testfirma')`;
-    [{ id: contactId }] = (await sql`insert into contacts (name, hourly_rate_cents) values ('Nordwerk Software GmbH', 9500) returning id`) as unknown as [{ id: string }];
+    [{ id: contactId }] = (await sql`insert into contacts (name, hourly_rate_cents) values ('Nordwerk Software GmbH', 9500) returning id`) as unknown as [
+      { id: string },
+    ];
   });
 
   type Scope = import("../mcp/index.ts").TokenScope;
@@ -49,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
       }),
     );
     const text = await response.text();
-    return { status: response.status, json: text ? (JSON.parse(text) as Record<string, any>) : null };
+    return { status: response.status, json: text ? (JSON.parse(text) as { id: string; error?: { message: string }; [key: string]: unknown }) : null };
   }
 
   const eintrag = (extra: Record<string, unknown> = {}) => ({ contactId, workedOn: "2026-03-02", minutes: 90, description: "Konzept", ...extra });
@@ -82,7 +84,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
     expect((await call(t, "POST", "/leistungen", eintrag({ minutes: 0 }))).status).toBe(400);
     const missing = await call(t, "POST", "/leistungen", eintrag({ contactId: "00000000-0000-4000-8000-000000000000" }));
     expect(missing.status).toBe(422);
-    expect(missing.json!.error.message).toBe("Kunde nicht gefunden.");
+    expect(missing.json!.error?.message).toBe("Kunde nicht gefunden.");
   });
 
   it("Rechte: lesen genügt für die Liste, nicht zum Schreiben; andere Rechte reichen nicht", async () => {

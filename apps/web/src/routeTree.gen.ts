@@ -23,6 +23,7 @@ import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppKasseRouteImport } from './routes/_app/kasse'
 import { Route as AppLastschriftenRouteImport } from './routes/_app/lastschriften'
+import { Route as AppLeistungenRouteImport } from './routes/_app/leistungen'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as AppSteuerberatungRouteImport } from './routes/_app/steuerberatung'
 import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeportal'
@@ -182,6 +183,11 @@ const AppKasseRoute = AppKasseRouteImport.update({
 const AppLastschriftenRoute = AppLastschriftenRouteImport.update({
   id: '/lastschriften',
   path: '/lastschriften',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeistungenRoute = AppLeistungenRouteImport.update({
+  id: '/leistungen',
+  path: '/leistungen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPauschalenRoute = AppPauschalenRouteImport.update({
@@ -667,6 +673,7 @@ export interface FileRoutesByFullPath {
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
   '/lastschriften': typeof AppLastschriftenRoute
+  '/leistungen': typeof AppLeistungenRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
@@ -772,6 +779,7 @@ export interface FileRoutesByTo {
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
   '/lastschriften': typeof AppLastschriftenRoute
+  '/leistungen': typeof AppLeistungenRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
@@ -880,6 +888,7 @@ export interface FileRoutesById {
   '/_app/fristen': typeof AppFristenRoute
   '/_app/kasse': typeof AppKasseRoute
   '/_app/lastschriften': typeof AppLastschriftenRoute
+  '/_app/leistungen': typeof AppLeistungenRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
   '/_app/steuerberatung': typeof AppSteuerberatungRoute
   '/_app/sv-meldeportal': typeof AppSvMeldeportalRoute
@@ -989,6 +998,7 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/kasse'
     | '/lastschriften'
+    | '/leistungen'
     | '/pauschalen'
     | '/steuerberatung'
     | '/sv-meldeportal'
@@ -1094,6 +1104,7 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/kasse'
     | '/lastschriften'
+    | '/leistungen'
     | '/pauschalen'
     | '/steuerberatung'
     | '/sv-meldeportal'
@@ -1201,6 +1212,7 @@ export interface FileRouteTypes {
     | '/_app/fristen'
     | '/_app/kasse'
     | '/_app/lastschriften'
+    | '/_app/leistungen'
     | '/_app/pauschalen'
     | '/_app/steuerberatung'
     | '/_app/sv-meldeportal'
@@ -1441,6 +1453,13 @@ declare module '@tanstack/react-router' {
       path: '/lastschriften'
       fullPath: '/lastschriften'
       preLoaderRoute: typeof AppLastschriftenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/leistungen': {
+      id: '/_app/leistungen'
+      path: '/leistungen'
+      fullPath: '/leistungen'
+      preLoaderRoute: typeof AppLeistungenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pauschalen': {
@@ -2094,6 +2113,7 @@ interface AppRouteChildren {
   AppFristenRoute: typeof AppFristenRoute
   AppKasseRoute: typeof AppKasseRoute
   AppLastschriftenRoute: typeof AppLastschriftenRoute
+  AppLeistungenRoute: typeof AppLeistungenRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
   AppSteuerberatungRoute: typeof AppSteuerberatungRoute
   AppSvMeldeportalRoute: typeof AppSvMeldeportalRoute
@@ -2157,6 +2177,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFristenRoute: AppFristenRoute,
   AppKasseRoute: AppKasseRoute,
   AppLastschriftenRoute: AppLastschriftenRoute,
+  AppLeistungenRoute: AppLeistungenRoute,
   AppPauschalenRoute: AppPauschalenRoute,
   AppSteuerberatungRoute: AppSteuerberatungRoute,
   AppSvMeldeportalRoute: AppSvMeldeportalRoute,

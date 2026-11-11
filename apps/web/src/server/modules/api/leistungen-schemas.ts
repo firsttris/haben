@@ -14,7 +14,13 @@ export const serviceEntryCreateSchema = z
     description: fields.description.optional().describe("Tätigkeit; steht später auf der Rechnung"),
     hourlyRateCents: fields.hourlyRateCents.describe("Stundensatz in Cent; fehlt: der Satz des Kunden zum Zeitpunkt des Anlegens"),
     source: z.string().trim().min(1).max(40).optional().describe("Quelle der Zeile, z. B. kimai; nur zusammen mit externalId"),
-    externalId: z.string().trim().min(1).max(200).optional().describe("Kennung der Zeile in der Quelle; derselbe Aufruf noch einmal ändert den Eintrag, statt ihn zu verdoppeln"),
+    externalId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe("Kennung der Zeile in der Quelle; derselbe Aufruf noch einmal ändert den Eintrag, statt ihn zu verdoppeln"),
   })
   .strict()
   .refine((v) => (v.source === undefined) === (v.externalId === undefined), { message: "Quelle und Kennung gehören zusammen", path: ["externalId"] })
