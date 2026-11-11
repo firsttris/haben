@@ -79,7 +79,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     await mcp.setMcpEnabled(actor, true);
 
     const { id } = (await mcp.listMcpTokens())[0]!;
-    await mcp.revokeMcpToken(id);
+    await mcp.revokeMcpToken(actor, id);
     expect((await rpc(token, "tools/list")).status).toBe(401);
     expect((await mcp.listMcpTokens())[0]!.status).toBe("widerrufen");
 
