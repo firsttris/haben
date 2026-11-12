@@ -93,7 +93,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await cleanResult(id);
         expect(await sql`select * from documents where id = ${id}`).toEqual(beforeDoc);
         expect(await sql`select * from bank_transactions where id = ${tx}`).toEqual(beforeBank);
-        expect((await bank.transactionDetail(tx))!.open).toBe(-11_900);
+        expect((await bank.transactionDetail(tx))!.transaction.open).toBe(-11_900);
         expect((await sql`select l.account, sum(l.debit-l.credit) as saldo from journal_lines l group by l.account`).every((r) => Number(r.saldo) === 0)).toBe(
           true,
         );
@@ -107,8 +107,8 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         await allocate(id, second, -5_950);
         await cancel(id, [...(await ids(first)), ...(await ids(second))]);
         await cleanResult(id);
-        expect((await bank.transactionDetail(first))!.open).toBe(-5_950);
-        expect((await bank.transactionDetail(second))!.open).toBe(-5_950);
+        expect((await bank.transactionDetail(first))!.transaction.open).toBe(-5_950);
+        expect((await bank.transactionDetail(second))!.transaction.open).toBe(-5_950);
       });
       it(`mit der Zahlung verknüpftes Skonto ebenfalls zurücknehmen (${profile})`, async () => {
         await reset(kr, vat);
@@ -139,7 +139,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         });
         await cancel(id, await ids(tx));
         expect(await ids(tx)).toEqual([]);
-        expect((await bank.transactionDetail(tx))!.open).toBe(-23_900);
+        expect((await bank.transactionDetail(tx))!.transaction.open).toBe(-23_900);
         expect(await sql`select * from allocations where transaction_id = ${separate}`).toEqual(untouched);
         expect((await sql`select id from document_cancellations where document_id = ${other}`).length).toBe(0);
         expect((await reports.euerForYear(2026)).ausgaben.find((l) => l.key === "ausgabe:software")?.amount).toBe(10_000);
@@ -156,6 +156,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
       });
       it(`abgeschlossenes Zahlungsjahr: gesamte Aktion ohne Teilstorno zurückrollen (${profile})`, async () => {
         await reset(kr, vat);
+        await sql`update company set rechtsform = 'gmbh' where id = 1`;
         const id = await receipt();
         const tx = await transaction("-116,62");
         await bank.allocateWithRest("fixture", { transactionId: tx, target: { kind: "document", documentId: id }, rest: "skontoErhalten" });
@@ -178,6 +179,18 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
     const before = await counts();
     await expect(cancel(id, confirmed)).rejects.toThrow(/Bankzuordnungen.*geändert/);
     expect(await counts()).toEqual(before);
+  });
+  it("separate Ausbuchung verhindert den Storno und rollt auch bereits erzeugte Bankgegenzeilen zurück", async () => {
+    await reset();
+    const id = await receipt();
+    const tx = await transaction("-116,62");
+    await allocate(id, tx, -11_662);
+    await bank.writeOff("fixture", { kind: "skontoErhalten", documentId: id, date: "2026-09-20" });
+    const confirmed = await ids(tx);
+    const before = await counts();
+    await expect(cancel(id, confirmed)).rejects.toThrow(/Ausbuchung/);
+    expect(await counts()).toEqual(before);
+    expect(await ids(tx)).toEqual(confirmed);
   });
   it("fremde Zuordnungs-ID kann keine andere Zahlung aufheben oder einen unbezahlten Beleg stornieren", async () => {
     await reset();

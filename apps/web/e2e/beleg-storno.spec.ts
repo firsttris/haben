@@ -86,7 +86,7 @@ test("Bankzuordnung im Stornodialog bestätigen und zusammen mit dem Beleg zurü
   await page.getByRole("button", { name: "Beleg stornieren", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Beleg stornieren?" });
   await expect(dialog).toBeVisible();
-  const explanation = await dialog.innerText();
+  const explanation = await dialog.textContent();
   // Vorher/Nachher mit denselben echten Testdaten und demselben Ablauf, nur auf ausdrücklichen Screenshot-Aufruf.
   const phase = process.env.STORNO_SCREENSHOTS;
   if (phase) {
