@@ -224,7 +224,8 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
       [
         entry("klein", "2026-12-28", invoicePosting(tiny, "SKR04", "ist")),
         entry("z1", "2026-12-30", invoicePaymentPosting(tiny, 3, "SKR04", "ist"), "klein"),
-        entry("z2", "2027-01-02", invoicePaymentPosting(tiny, 3, "SKR04", "ist"), "klein"),
+        // Die erste Zahlung trägt bereits den einen Steuercent; die zweite übernimmt nur die restlichen drei Nettocent.
+        entry("z2", "2027-01-02", invoicePaymentPosting(tiny, 3, "SKR04", "ist", [{ rate: 1900, base: 3, tax: 0 }]), "klein"),
         entry("rueck", "2027-01-02", invoicePaymentPosting(tiny, -6, "SKR04", "ist"), "klein"),
       ],
       "SKR04",
