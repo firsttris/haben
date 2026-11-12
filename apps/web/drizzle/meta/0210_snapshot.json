@@ -1,5 +1,5 @@
 {
-  "id": "ea825d9d-49c0-4f8e-b127-527d85096ab8",
+  "id": "ce9c06bf-259d-4735-bff9-2be5cb46fb44",
   "prevId": "7145f91a-5920-4053-a67f-a3efedb3ca80",
   "version": "7",
   "dialect": "postgresql",
@@ -2863,19 +2863,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "nav_color": {
-          "name": "nav_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nav_logo": {
-          "name": "nav_logo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2897,10 +2884,6 @@
         "company_rechtsform": {
           "name": "company_rechtsform",
           "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
-        },
-        "company_nav_color": {
-          "name": "company_nav_color",
-          "value": "\"company\".\"nav_color\" ~ '^#[0-9A-F]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -9360,6 +9343,108 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.own_accounts": {
+      "name": "own_accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kontenrahmen": {
+          "name": "kontenrahmen",
+          "type": "kontenrahmen",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account": {
+          "name": "account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_category": {
+          "name": "parent_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "own_accounts_nummer_key": {
+          "name": "own_accounts_nummer_key",
+          "columns": [
+            {
+              "expression": "kontenrahmen",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "own_accounts_nummer": {
+          "name": "own_accounts_nummer",
+          "value": "\"own_accounts\".\"account\" ~ '^[0-9]{4}$'"
+        },
+        "own_accounts_name": {
+          "name": "own_accounts_name",
+          "value": "length(btrim(\"own_accounts\".\"name\")) between 1 and 80"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.passkey": {
