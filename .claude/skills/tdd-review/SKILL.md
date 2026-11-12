@@ -1,6 +1,6 @@
 ---
 name: "tdd-review"
-description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request vor dem Merge."
+description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request vor dem Merge, außer er ändert nur Markdown in docs/ oder die README."
 ---
 
 # TDD-Review
@@ -8,6 +8,8 @@ description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler meld
 Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
 
 ## 0. Wer reviewt?
+
+Ändert der Pull Request nur Markdown in `docs/` oder die README, entfällt das Review: nach grüner CI mergen (`docs/entwicklung.md`, Review). Skills, `CLAUDE.md`, `AGENTS.md` und `DESIGN.md` bekommen eins.
 
 Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/entwicklung.md`, Review, Punkt 1).
 

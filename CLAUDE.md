@@ -54,7 +54,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - The pull request description becomes the squash commit message on `main`: update it with every push that changes what the PR does or how it was checked, also after review fixes and rebases.
-- An independent TDD review by a separate subagent before the merge (`tdd-review`).
+- An independent TDD review by a separate subagent before the merge (`tdd-review`); none for a pull request that only changes Markdown in `docs/` or the README (Review).
 
 ## Working style
 

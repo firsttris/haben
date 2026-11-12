@@ -663,7 +663,7 @@ Die Schritte stehen im Skill `beitrag-pruefen`.
 
 ### Review
 
-Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:
+Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Ausgenommen ist ein Pull Request, der nur Markdown in `docs/` oder die README ändert: Ohne Code gibt es keinen roten Test; er wird nach grüner CI gemergt. Skills, `CLAUDE.md`, `AGENTS.md` und `DESIGN.md` fallen nicht darunter. Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:
 
 1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der am Code mitgeschrieben hat, startet für das Review einen neuen Agenten ohne diesen Verlauf. Ein solcher frischer Agent ist unabhängig, auch wenn ihn der Autor gestartet hat. Bringt ein Beitrag so ein Review schon mit (Schritte 2 bis 5 im Pull Request erkennbar), zählt es; wir reviewen nicht noch einmal, außer wir haben selbst Commits ergänzt oder ein fachlicher Zweifel bleibt.
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
