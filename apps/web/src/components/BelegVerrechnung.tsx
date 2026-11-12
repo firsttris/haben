@@ -27,6 +27,10 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const [betrag, setBetrag] = useState("");
   const [grund, setGrund] = useState("");
   const [datum, setDatum] = useState(() => new Date().toLocaleDateString("sv-SE"));
+  // Aufheben wirkt am Tag der Aufhebung, deshalb fragt sie ein eigenes Datum ab (heute vorbelegt)
+  const [aufhebenId, setAufhebenId] = useState<string | null>(null);
+  const [aufhebenDatum, setAufhebenDatum] = useState(() => new Date().toLocaleDateString("sv-SE"));
+  const [aufhebenGrund, setAufhebenGrund] = useState("");
   const [ladefehler, setLadefehler] = useState<string | null>(null);
   const action = useAction();
 
@@ -66,7 +70,10 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const aufhebenAktion = (id: string) =>
     action
       .run(async () => {
-        await aufheben({ data: id });
+        if (!aufhebenDatum) throw new Error("Bitte den Tag der Aufhebung angeben.");
+        await aufheben({ data: { id, date: aufhebenDatum, ...(aufhebenGrund.trim() ? { note: aufhebenGrund.trim() } : {}) } });
+        setAufhebenId(null);
+        setAufhebenGrund("");
       }, "Verrechnung aufgehoben")
       .then((ok) => {
         if (ok) void holen();
@@ -94,10 +101,43 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
               </span>
               <span className="mono">{formatEuro(s.amount)}</span>
               {s.note && <span className="small muted">{s.note}</span>}
-              {!readOnly && (
-                <button type="button" className="link-button" onClick={() => aufhebenAktion(s.id)} disabled={action.busy}>
+              {!readOnly && aufhebenId !== s.id && (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    setAufhebenId(s.id);
+                    setAufhebenDatum(new Date().toLocaleDateString("sv-SE"));
+                    setAufhebenGrund("");
+                  }}
+                  disabled={action.busy}
+                >
                   aufheben
                 </button>
+              )}
+              {!readOnly && aufhebenId === s.id && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void aufhebenAktion(s.id);
+                  }}
+                  style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", flexBasis: "100%" }}
+                >
+                  <Field label="Tag der Aufhebung" hint="die Aufhebung wirkt an diesem Tag, nicht rückwirkend">
+                    {(control) => (
+                      <input {...control} type="date" required min={s.date} value={aufhebenDatum} onChange={(e) => setAufhebenDatum(e.target.value)} />
+                    )}
+                  </Field>
+                  <Field label="Grund (optional)">
+                    {(control) => <input {...control} value={aufhebenGrund} onChange={(e) => setAufhebenGrund(e.target.value)} />}
+                  </Field>
+                  <button type="submit" className="btn btn-primary" disabled={action.busy}>
+                    Aufheben
+                  </button>
+                  <button type="button" className="btn" onClick={() => setAufhebenId(null)} disabled={action.busy}>
+                    Abbrechen
+                  </button>
+                </form>
               )}
             </li>
           ))}

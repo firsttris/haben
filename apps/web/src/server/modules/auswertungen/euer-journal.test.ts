@@ -471,8 +471,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       it(`EÜR aus dem Journal: aufgehobene Verrechnung zählt nicht mehr (${kontenrahmen}, ${versteuerung})`, async () => {
         await reset(versteuerung, kontenrahmen);
         const ids = await beispiel();
-        // Eine Gegenzeile hebt beide Zeilen der Verrechnung auf (verrechnung.ts:reverseSettlement)
-        await verrechnung.reverseSettlement(actor, ids[0]!);
+        // Eine Gegenzeile hebt beide Zeilen der Verrechnung auf (verrechnung.ts:reverseSettlement), am Tag der Aufhebung
+        await verrechnung.reverseSettlement(actor, ids[0]!, "2026-02-20");
         const { summe } = await euerJournal.euerAusJournal(2026);
         // Wie ohne Verrechnung: nur die Bankzahlung von 83,30, die Gutschrift bleibt offen
         expect(summe.zeilen["ausgabe:software"]).toBe(7_000);

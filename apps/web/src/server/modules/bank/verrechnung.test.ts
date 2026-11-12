@@ -10,6 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postgres)", () => {
   let documents: typeof import("../belege/documents.ts");
   let verrechnung: typeof import("./verrechnung.ts");
+  let euerJournal: typeof import("../auswertungen/euer-journal.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]);
@@ -18,6 +19,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     sql = await setupTestDb();
     documents = await import("../belege/documents.ts");
     verrechnung = await import("./verrechnung.ts");
+    euerJournal = await import("../auswertungen/euer-journal.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -33,7 +35,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
   }
 
   /** Gebuchter Beleg über die Bank; net negativ ergibt eine Gutschrift des Lieferanten */
-  async function beleg(datum: string, netto: number, steuer: number) {
+  async function beleg(datum: string, netto: number, steuer: number, kategorie: "software" | "hardware" | "telefon" = "telefon") {
     // Eigene Bytes je Beleg: gleiche Datei erkennt Haben als Dublette und gibt den ersten Beleg zurueck
     const bytes = new Uint8Array([...JPEG, datum.charCodeAt(9), Math.abs(netto) % 251]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `${datum}-${netto}.jpg` });
@@ -43,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
       invoiceNumber: `R-${datum}-${netto}`,
       documentDate: datum,
       dueDate: null,
-      category: "telefon",
+      category: kategorie,
       payment: "bank",
       note: "",
       amounts: [{ taxRate: 1900, net: netto, tax: steuer }],
@@ -87,11 +89,67 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(await verrechnung.openAmount(rechnung)).toBe(2_380);
     expect(await verrechnung.openAmount(gutschrift)).toBe(0);
 
-    await verrechnung.reverseSettlement(actor, ids[0]!);
+    await verrechnung.reverseSettlement(actor, ids[0]!, "2026-03-12");
 
     expect(await verrechnung.openAmount(rechnung)).toBe(5_950);
     expect(await verrechnung.openAmount(gutschrift)).toBe(-3_570);
-    await expect(verrechnung.reverseSettlement(actor, ids[0]!)).rejects.toThrow(/bereits/);
+    await expect(verrechnung.reverseSettlement(actor, ids[0]!, "2026-03-12")).rejects.toThrow(/bereits/);
+  }, 30_000);
+
+  it("hebt an einem späteren Tag auf: die EÜR des Ursprungsjahres bleibt, die Gegenwirkung trifft das Aufhebungsjahr", async () => {
+    await firma();
+    const rechnung = await beleg("2025-11-10", 10_000, 1_900, "software");
+    const gutschrift = await beleg("2025-11-16", -3_000, -570, "hardware");
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 3_570,
+      date: "2025-11-20",
+      note: "Gutschrift",
+    });
+    // Die Verrechnung wirkt 2025 wie eine Zahlung auf beide Belege
+    const ursprung = (await euerJournal.euerAusJournal(2025)).summe.zeilen;
+    expect(ursprung["ausgabe:software"]).toBe(3_000);
+    expect(ursprung["ausgabe:hardware"]).toBe(-3_000);
+    // Beide Steuerbeträge heben sich auf: 570 aus der Rechnung, -570 aus der Gutschrift
+    expect(ursprung.vorsteuer ?? 0).toBe(0);
+
+    // Aufgehoben am 15.01.2026: die Gegenzeilen tragen den Tag der Aufhebung und nennen sie
+    await verrechnung.reverseSettlement(actor, ids[0]!, "2026-01-15", "Jahresabschluss");
+    const zeilen = await verrechnung.listSettlements(rechnung);
+    expect(zeilen).toHaveLength(2);
+    expect(zeilen[1]).toMatchObject({ amount: 3_570, date: "2026-01-15", note: "Aufhebung: Gutschrift (Jahresabschluss)" });
+    expect(zeilen[1]!.reversesId).toBe(ids[0]);
+
+    // Das Ursprungsjahr bleibt, wie es war: keine rückwirkende Änderung einer schon gemeldeten EÜR
+    expect((await euerJournal.euerAusJournal(2025)).summe.zeilen).toEqual(ursprung);
+    // Die Gegenwirkung steht im Jahr der Aufhebung
+    const folgejahr = (await euerJournal.euerAusJournal(2026)).summe.zeilen;
+    expect(folgejahr["ausgabe:software"]).toBe(-3_000);
+    expect(folgejahr["ausgabe:hardware"]).toBe(3_000);
+    expect(folgejahr.vorsteuer ?? 0).toBe(0);
+  }, 60_000);
+
+  it("verlangt für die Aufhebung ein Datum und prüft es", async () => {
+    await firma();
+    const rechnung = await beleg("2026-06-10", 10_000, 1_900);
+    const gutschrift = await beleg("2026-06-12", -3_000, -570);
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 3_570,
+      date: "2026-06-12",
+      note: "Gutschrift",
+    });
+    // ohne Datum lehnt schon das Schema ab
+    await expect(verrechnung.reverseSettlement(actor, ids[0]!, undefined as unknown as string)).rejects.toThrow(/date/i);
+    // vor dem Tag der Verrechnung: eine Aufhebung wirkt nicht rückwirkend
+    await expect(verrechnung.reverseSettlement(actor, ids[0]!, "2026-06-11")).rejects.toThrow(/vor der Verrechnung/);
+    // in der Zukunft
+    await expect(verrechnung.reverseSettlement(actor, ids[0]!, "2099-01-01")).rejects.toThrow(/Zukunft/);
+    // am Tag der Verrechnung geht es
+    await verrechnung.reverseSettlement(actor, ids[0]!, "2026-06-12");
+    expect(await verrechnung.openAmount(rechnung)).toBe(11_900);
   }, 30_000);
 
   it("verweigert Belege, die in dieselbe Richtung zeigen", async () => {

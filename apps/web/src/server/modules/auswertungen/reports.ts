@@ -162,6 +162,24 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       and(inArray(schema.documents.payment, ["privat", "kasse"]), gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)),
     );
 
+  // Verrechnungen zweier Belege (#274): Sie gleichen einen Beleg ohne Bankumsatz aus und wirken in der EÜR wie eine Zahlung
+  // auf den Beleg, am Tag der Zeile und in der gespeicherten Höhe (euer-journal.ts, euer-formel.ts). Eine aufgehobene
+  // Verrechnung ist eine Gegenzeile mit umgekehrtem Betrag. Ohne sie meldete der EÜR-Abgleich die betroffenen Zeilen als
+  // Abweichung: im Journal stehen sie, in den Nebenbüchern fehlte der Ausgleich.
+  const settlements = await q
+    .select({
+      id: schema.documentSettlements.id,
+      documentId: schema.documentSettlements.documentId,
+      date: schema.documentSettlements.date,
+      amount: schema.documentSettlements.amount,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+    })
+    .from(schema.documentSettlements)
+    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentSettlements.documentId))
+    .where(and(gte(schema.documentSettlements.date, start), lt(schema.documentSettlements.date, end)));
+
   // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
   const exchangeDifferences = await q
@@ -222,6 +240,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [
       ...new Set([
         ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
+        ...settlements.map((s) => s.documentId),
         ...privateDocs.map((d) => d.id),
         ...cancelledDocs.map((d) => d.id),
       ]),
@@ -311,6 +330,19 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       // Lohn, Lohnsteuer und Beiträge: Ausgaben für Personal, wenn sie von der Bank abfließen (§ 11 Abs. 2 Satz 1 EStG)
       payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });
     }
+  }
+  // Verrechnung wie eine Zahlung auf den Beleg: ausgeglichen ist `-amount`, gezahlt also `amount` mit umgekehrtem Vorzeichen
+  for (const s of settlements) {
+    payments.push({
+      kind: "document",
+      date: s.date,
+      paid: -s.amount,
+      totals: docTotals.get(s.documentId)!,
+      category: isCategory(s.category) ? s.category : "sonstiges",
+      vorsteuerAbzug: s.vorsteuerAbzug ?? true,
+      privateShare: s.privateShare ?? 0,
+      ...belegAngaben(s.documentId),
+    });
   }
   for (const w of exchangeDifferences) {
     const group = `kurs|${w.transactionId}|${w.invoiceId ?? w.documentId}`;

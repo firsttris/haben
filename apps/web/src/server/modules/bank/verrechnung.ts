@@ -29,6 +29,16 @@ export const settlementSchema = z.object({
 /** Heute in Berlin, damit der Vergleich mit den Belegdaten ohne Zeitzone stimmt */
 const heute = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
 
+/** Aufhebung einer Verrechnung: Pflicht ist der Tag, an dem sie erklärt wird */
+export const reversalSchema = z.object({
+  /** Zeile der Verrechnung, die aufgehoben wird */
+  id: z.uuid(),
+  /** Tag der Aufhebung; sie wirkt an diesem Tag, nicht rückwirkend */
+  date: z.iso.date(),
+  /** Ergänzung zur Aufhebung, etwa der Grund */
+  note: z.string().trim().max(500).optional(),
+});
+
 export type SettlementInput = z.input<typeof settlementSchema>;
 
 export class SettlementError extends UserError {}
@@ -101,17 +111,31 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
   });
 }
 
-/** Hebt eine Verrechnung auf: je Zeile eine Gegenzeile, wie bei den Ausbuchungen */
-export async function reverseSettlement(actor: string, id: string) {
+/**
+ * Hebt eine Verrechnung auf: je Zeile eine Gegenzeile, wie bei den Ausbuchungen. Die Gegenzeilen tragen den Tag der
+ * Aufhebung, nicht den der Verrechnung: Eine Aufhebung wirkt wie jede Storno-Buchung an dem Tag, an dem sie erklärt wird.
+ * Sonst änderte sie die EÜR eines Jahres nachträglich, das schon gemeldet oder festgeschrieben ist.
+ */
+export async function reverseSettlement(actor: string, id: string, date: string, note?: string) {
+  const parsed = reversalSchema.parse({ id, date, note });
   return withActor(actor, async (tx) => {
-    const [row] = await tx.select().from(schema.documentSettlements).where(eq(schema.documentSettlements.id, id)).for("update");
+    const [row] = await tx.select().from(schema.documentSettlements).where(eq(schema.documentSettlements.id, parsed.id)).for("update");
     if (!row) throw new SettlementError("Verrechnung nicht gefunden.");
     if (row.reversesId) throw new SettlementError("Diese Zeile ist bereits eine Gegenzeile.");
     const [already] = await tx
       .select({ id: schema.documentSettlements.id })
       .from(schema.documentSettlements)
-      .where(eq(schema.documentSettlements.reversesId, id));
+      .where(eq(schema.documentSettlements.reversesId, row.id));
     if (already) throw new SettlementError("Die Verrechnung ist bereits aufgehoben.");
+    // Wie beim Verrechnen: keine Rückwirkung, keine Zukunft
+    if (parsed.date < row.date) {
+      throw new SettlementError(
+        `Das Datum liegt vor der Verrechnung (${row.date}). Eine Aufhebung wirkt an dem Tag, an dem sie erklärt wird, nicht rückwirkend.`,
+      );
+    }
+    if (parsed.date > heute()) throw new SettlementError("Das Datum der Aufhebung liegt in der Zukunft.");
+    /** Notiz der Gegenzeile: sie nennt die Aufhebung und, wenn angegeben, den Grund */
+    const aufhebung = (alt: string) => (parsed.note ? `Aufhebung: ${alt} (${parsed.note})` : `Aufhebung: ${alt}`);
     const partner = await tx
       .select()
       .from(schema.documentSettlements)
@@ -126,24 +150,24 @@ export async function reverseSettlement(actor: string, id: string) {
       {
         documentId: row.documentId,
         counterDocumentId: row.counterDocumentId,
-        date: row.date,
+        date: parsed.date,
         amount: -row.amount,
-        note: row.note,
+        note: aufhebung(row.note),
         reversesId: row.id,
         createdBy: actor,
       },
       ...partner.map((p) => ({
         documentId: p.documentId,
         counterDocumentId: p.counterDocumentId,
-        date: p.date,
+        date: parsed.date,
         amount: -p.amount,
-        note: p.note,
+        note: aufhebung(p.note),
         reversesId: p.id,
         createdBy: actor,
       })),
     ];
     await tx.insert(schema.documentSettlements).values(gegenzeilen);
-    return { ok: true as const };
+    return { ok: true as const, date: parsed.date };
   });
 }
 

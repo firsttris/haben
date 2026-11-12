@@ -133,6 +133,7 @@ export {
 export {
   listSettlements,
   openAmount,
+  reversalSchema,
   reverseSettlement,
   SettlementError,
   settleDocuments,
