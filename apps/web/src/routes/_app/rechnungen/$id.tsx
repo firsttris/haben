@@ -254,9 +254,9 @@ function FinalInvoice({ data }: { data: Detail }) {
                 </>
               )}
               <dt>Netto</dt>
-              <dd className="mono">{formatEuro(invoice.net)}</dd>
+              <dd className="amount">{formatEuro(invoice.net)}</dd>
               <dt>Umsatzsteuer</dt>
-              <dd className="mono">{formatEuro(invoice.tax)}</dd>
+              <dd className="amount">{formatEuro(invoice.tax)}</dd>
               <dt>Brutto</dt>
               <dd className="mono" style={{ fontWeight: 600 }}>
                 {formatEuro(invoice.gross)}

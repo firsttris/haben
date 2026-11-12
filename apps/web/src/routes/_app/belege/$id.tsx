@@ -195,14 +195,22 @@ function DocumentPage() {
           <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={data.cancellation !== null} />
           {navigation.position > 0 && (
             <div className="doc-nav" role="group" aria-label="Zwischen Belegen wechseln">
-              <button type="button" className="btn" onClick={() => go(navigation.previousId)} disabled={!navigation.previousId} title="Vorheriger Beleg (K)">
-                ‹ Vorheriger
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => go(navigation.previousId)}
+                disabled={!navigation.previousId}
+                title="Vorheriger Beleg (K)"
+              >
+                <Icon name="chevron-left" size={16} />
+                Vorheriger
               </button>
               <span className="small muted">
                 {navigation.position} von {navigation.total}
               </span>
-              <button type="button" className="btn" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
-                Nächster ›
+              <button type="button" className="btn btn-ghost" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
+                Nächster
+                <Icon name="chevron-right" size={16} />
               </button>
             </div>
           )}

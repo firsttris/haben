@@ -47,7 +47,7 @@ export function QuotePlan({
               · {planShareLabel(row.share, formatPercent, formatEuro, "Rest")}
               {row.due && ` · fällig bei ${row.due}`}
               <span className="small muted" style={{ display: "block" }}>
-                Plan: <span className="mono">{taxed ? `${formatEuro(row.net)} netto · ${formatEuro(row.gross)} brutto` : formatEuro(row.gross)}</span>
+                Plan: <span className="amount">{taxed ? `${formatEuro(row.net)} netto · ${formatEuro(row.gross)} brutto` : formatEuro(row.gross)}</span>
               </span>
               {row.invoice && (
                 <span className="small muted" style={{ display: "block" }}>
@@ -55,7 +55,7 @@ export function QuotePlan({
                   <Link to="/rechnungen/$id" params={{ id: row.invoice.id }}>
                     {rest ? "Schlussrechnung" : "Abschlagsrechnung"} {row.invoice.number ?? "(Entwurf)"}
                   </Link>{" "}
-                  · <span className="mono">{formatEuro(row.invoice.gross)}</span>
+                  · <span className="amount">{formatEuro(row.invoice.gross)}</span>
                 </span>
               )}
               {canBill && row.status === "offen" && !plan.problem && (
@@ -76,8 +76,8 @@ export function QuotePlan({
         );
       })}
       <p className="small" style={{ margin: 0 }} aria-live="polite">
-        Abgerechnet <span className="mono">{formatEuro(progress.billed)}</span> von <span className="mono">{formatEuro(progress.total)}</span> (
-        {formatPercent(progress.percent)}), offen <span className="mono">{formatEuro(progress.open)}</span>
+        Abgerechnet <span className="amount">{formatEuro(progress.billed)}</span> von <span className="amount">{formatEuro(progress.total)}</span> (
+        {formatPercent(progress.percent)}), offen <span className="amount">{formatEuro(progress.open)}</span>
       </p>
       <progress value={Math.max(0, Math.min(progress.billed, progress.total))} max={Math.max(progress.total, 1)} aria-label="Abgerechnet vom Auftrag" />
     </section>

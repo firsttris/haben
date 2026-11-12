@@ -533,9 +533,9 @@ function NeutralSums({ year, rows }: { year: number; rows: MigrationData["years"
           {rows.map((row) => (
             <tr key={row.kind}>
               <td>{row.label}</td>
-              <td className="num mono">{row.count}</td>
-              <td className="num mono">{formatEuro(row.zufluss)}</td>
-              <td className="num mono">{formatEuro(row.abfluss)}</td>
+              <td className="num">{row.count}</td>
+              <td className="num">{formatEuro(row.zufluss)}</td>
+              <td className="num">{formatEuro(row.abfluss)}</td>
             </tr>
           ))}
         </tbody>
@@ -570,13 +570,13 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
         </ul>
         <dl className="facts">
           <dt>Einnahmen netto</dt>
-          <dd className="mono">{formatEuro(year.einnahmen.net)}</dd>
+          <dd className="amount">{formatEuro(year.einnahmen.net)}</dd>
           <dt>Umsatzsteuer</dt>
-          <dd className="mono">{formatEuro(year.einnahmen.tax)}</dd>
+          <dd className="amount">{formatEuro(year.einnahmen.tax)}</dd>
           <dt>Ausgaben netto</dt>
-          <dd className="mono">{formatEuro(year.ausgaben.net)}</dd>
+          <dd className="amount">{formatEuro(year.ausgaben.net)}</dd>
           <dt>Vorsteuer</dt>
-          <dd className="mono">{formatEuro(year.ausgaben.tax)}</dd>
+          <dd className="amount">{formatEuro(year.ausgaben.tax)}</dd>
           <dt>Letzte Rechnungsnummer</dt>
           <dd className="mono">{year.lastInvoiceNumber ?? "–"}</dd>
         </dl>
@@ -627,15 +627,15 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
                 {year.vat.map((m) => (
                   <tr key={m.month}>
                     <td>{MONTHS[Number(m.month.slice(5)) - 1]}</td>
-                    <td className="num mono">{formatEuro(m.kz81)}</td>
-                    <td className="num mono">{formatEuro(m.kz86)}</td>
-                    <td className="num mono">{formatEuro(m.kz66)}</td>
+                    <td className="num">{formatEuro(m.kz81)}</td>
+                    <td className="num">{formatEuro(m.kz86)}</td>
+                    <td className="num">{formatEuro(m.kz66)}</td>
                     {specialColumns(year.vat).map((c) => (
-                      <td key={c.key} className="num mono">
+                      <td key={c.key} className="num">
                         {formatEuro(m[c.key])}
                       </td>
                     ))}
-                    <td className="num mono">{formatEuro(m.otherBase)}</td>
+                    <td className="num">{formatEuro(m.otherBase)}</td>
                   </tr>
                 ))}
               </tbody>

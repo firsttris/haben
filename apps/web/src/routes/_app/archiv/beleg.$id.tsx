@@ -146,7 +146,7 @@ function LegacyVoucherPage() {
                 <div key={i} className="history-row small">
                   <span>{formatDate(item.date)}</span>
                   <span className="muted">{item.account ?? item.type}</span>
-                  <span className="mono">{formatEuro(item.amount)}</span>
+                  <span className="amount">{formatEuro(item.amount)}</span>
                 </div>
               ))}
             </section>
@@ -165,9 +165,9 @@ function TaxRow({ rate, net, tax }: { rate: number; net: number; tax: number }) 
   return (
     <>
       <dt>Netto {percent}</dt>
-      <dd className="mono">{formatEuro(net)}</dd>
+      <dd className="amount">{formatEuro(net)}</dd>
       <dt>USt {percent}</dt>
-      <dd className="mono">{formatEuro(tax)}</dd>
+      <dd className="amount">{formatEuro(tax)}</dd>
     </>
   );
 }
