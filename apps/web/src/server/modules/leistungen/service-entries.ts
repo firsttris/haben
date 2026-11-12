@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
@@ -104,6 +104,25 @@ export async function listServiceEntries(filter: ServiceEntryFilter = {}): Promi
       ),
     )
     .orderBy(desc(schema.serviceEntries.workedOn), desc(schema.serviceEntries.createdAt));
+}
+
+export interface EntryCustomer {
+  id: string;
+  name: string;
+  hourlyRateCents: number | null;
+  /** Archiviert, aber mit Einträgen: steht in der Liste und im Filter, wird für neue Einträge nicht angeboten */
+  archived: boolean;
+}
+
+/** Die Kunden der Seite: alle aktiven und die archivierten, bei denen noch Einträge liegen; nach Name */
+export async function listEntryCustomers(): Promise<EntryCustomer[]> {
+  const c = schema.contacts;
+  const rows = await db
+    .select({ id: c.id, name: c.name, hourlyRateCents: c.hourlyRateCents, archivedAt: c.archivedAt })
+    .from(c)
+    .where(and(eq(c.isCustomer, true), or(isNull(c.archivedAt), sql`${c.id} in (select ${schema.serviceEntries.contactId} from ${schema.serviceEntries})`)))
+    .orderBy(asc(c.name));
+  return rows.map(({ archivedAt, ...rest }) => ({ ...rest, archived: archivedAt !== null }));
 }
 
 /** Ein Eintrag; null, wenn es ihn nicht gibt */

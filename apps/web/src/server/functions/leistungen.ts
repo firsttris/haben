@@ -1,8 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
-import { createServiceEntry, deleteServiceEntry, listServiceEntries, serviceEntrySchema, updateServiceEntry } from "../modules/leistungen/index.ts";
-import { listContacts } from "../modules/stammdaten/index.ts";
+import {
+  createServiceEntry,
+  deleteServiceEntry,
+  listEntryCustomers,
+  listServiceEntries,
+  serviceEntrySchema,
+  updateServiceEntry,
+} from "../modules/leistungen/index.ts";
 
 /** Leistungseinträge (#417): Liste mit Filter, Anlegen, Ändern, Löschen */
 const filterSchema = z.object({
@@ -16,7 +22,7 @@ export const getServiceEntries = createServerFn({ method: "GET" })
   .validator(filterSchema)
   .handler(async ({ data }) => ({
     entries: await listServiceEntries(data),
-    customers: (await listContacts(false, "kunde")).map((c) => ({ id: c.id, name: c.name, hourlyRateCents: c.hourlyRateCents })),
+    customers: await listEntryCustomers(),
   }));
 
 export const saveServiceEntry = createServerFn({ method: "POST" })

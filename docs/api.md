@@ -182,7 +182,9 @@ Ein Zeiterfassungsprogramm wie Kimai oder Toggl schickt seine Zeiteinträge mit 
 Mit `source` und `externalId` ist der Aufruf wiederholbar: Die Kennung der Zeile in der Quelle steht in `externalId`, der Name der Quelle in `source`. Gibt es die Kennung schon, antwortet Haben mit `200` und dem aktualisierten Eintrag, sonst mit `201`. Fehlen Stundensatz, `project`, `billableMinutes` oder `nonBillable` im Aufruf, behält ein vorhandener Eintrag seine Werte; `billableMinutes: null` nimmt eine abrechenbare Dauer zurück. Den Stundensatz des Kunden liefert `GET /kontakte/{id}` als `hourlyRateCents`.
 
 ```sh
-curl -X POST https://haben.example/api/v1/leistungen \n  -H "Authorization: Bearer hb_…" -H "Content-Type: application/json" \n  -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
+curl -X POST "$HABEN/leistungen" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
 ```
 
 Gelöscht wird mit `DELETE /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.

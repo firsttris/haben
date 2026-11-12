@@ -79,11 +79,13 @@ export function ServiceEntryForm({
               <option value="" disabled>
                 Kunde wählen
               </option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {customers
+                .filter((c) => !c.archived || c.id === entry?.contactId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
             </select>
           )}
         </Field>

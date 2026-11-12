@@ -136,6 +136,24 @@ describe.skipIf(!testDatabaseUrl)("Leistungseinträge (Postgres, #417)", () => {
     await entries.createServiceEntry(actor, eintrag({ contactId: beides!.id }));
   });
 
+  it("die Kundenliste der Seite: aktive Kunden und archivierte, bei denen noch Einträge liegen; kein Lieferant", async () => {
+    const [archiviert] = await sql`insert into contacts (name) values ('Altkunde GmbH') returning id`;
+    const [ohneEintrag] = await sql`insert into contacts (name, archived_at) values ('Leer GmbH', now()) returning id`;
+    await sql`insert into contacts (name, is_customer, is_supplier) values ('Papier AG', false, true)`;
+    await entries.createServiceEntry(actor, eintrag({ contactId: archiviert!.id }));
+    await sql`update contacts set archived_at = now() where id = ${archiviert!.id}`;
+    const kunden = await entries.listEntryCustomers();
+    expect(kunden.map((k) => [k.name, k.archived])).toEqual([
+      ["Altkunde GmbH", true],
+      ["Nordwerk Software GmbH", false],
+      ["Rheinpixel GmbH", false],
+    ]);
+    expect(kunden.some((k) => k.id === ohneEintrag!.id)).toBe(false);
+    // ein Eintrag bleibt änderbar, auch wenn sein Kunde archiviert ist
+    const [eintragRow] = await entries.listServiceEntries({ contactId: archiviert!.id });
+    await entries.updateServiceEntry(actor, eintragRow!.id, eintrag({ contactId: archiviert!.id, minutes: 30 }));
+  });
+
   describe("von außen angelegt (Kennung)", () => {
     const extern = (overrides: Record<string, unknown> = {}) =>
       eintrag({ source: "kimai", externalId: "4711", ...overrides }) as unknown as import("./service-entries.ts").ExternalServiceEntryInput;

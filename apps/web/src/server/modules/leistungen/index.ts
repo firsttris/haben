@@ -9,6 +9,8 @@ export {
   createServiceEntry,
   deleteServiceEntry,
   getServiceEntry,
+  listEntryCustomers,
+  type EntryCustomer,
   isRealDate,
   listServiceEntries,
   serviceEntrySchema,
