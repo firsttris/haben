@@ -34,7 +34,7 @@ export type DocumentCancellation = typeof schema.documentCancellations.$inferSel
 /** Was gegen einen Storno spricht; leere Liste = stornierbar. Bank- und Kassenstand prüft cancelDocument selbst. */
 export function cancellationIssues(doc: Pick<Document, "lockedAt" | "lexofficeVoucherId" | "category">): string[] {
   if (!doc.lockedAt) return ["Der Beleg ist noch nicht gebucht; einen Entwurf änderst oder löschst du einfach."];
-  if (doc.lexofficeVoucherId) return ["Aus Lexoffice übernommene Belege sind dort angemeldet und lassen sich hier nicht stornieren."];
+  if (doc.lexofficeVoucherId) return ["Aus einem Umzug übernommene Belege sind im bisherigen Programm angemeldet und lassen sich hier nicht stornieren."];
   // Die Anlage aus dem Beleg bleibt im Verzeichnis und würde weiter abgeschrieben; ihr Abgang gehört ins Anlagenverzeichnis
   if (doc.category === "anlage") return ["Belege zu Anlagegütern lassen sich nicht stornieren. Erfasse stattdessen den Abgang im Anlagenverzeichnis."];
   return [];

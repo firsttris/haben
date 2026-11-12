@@ -533,6 +533,8 @@ Was dabei passiert:
 
 Nicht stornieren lassen sich:
 
+Die Sperre für beim Umzug übernommene offene Posten gilt unabhängig von der Herkunft: Lexware Office, sevDesk, BuchhaltungsButler, Accountable und [JSON-Eingang](belegimport.md). Die Meldung verweist deshalb auf das bisherige Programm, ohne einen bestimmten Anbieter zu unterstellen.
+
 | Fall | Was stattdessen |
 | --- | --- |
 | Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |

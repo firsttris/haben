@@ -681,6 +681,17 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
   if (!invoice) return null;
   const lines = await q.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(asc(schema.invoiceLines.position));
   const [contact] = invoice.contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId)) : [];
+  const [importSource] = invoice.lexofficeVoucherId
+    ? await q
+        .select({
+          source: schema.lexofficeVouchers.source,
+          sourceName: sql<
+            string | null
+          >`case when ${schema.lexofficeVouchers.source} = 'import' then ${schema.lexofficeVouchers.raw}->>'sourceName' else null end`,
+        })
+        .from(schema.lexofficeVouchers)
+        .where(eq(schema.lexofficeVouchers.id, invoice.lexofficeVoucherId))
+    : [];
   const [corrects] = invoice.correctsId
     ? await q
         .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
@@ -692,7 +703,7 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     .from(schema.invoices)
     .where(eq(schema.invoices.correctsId, id))
     .orderBy(asc(schema.invoices.createdAt));
-  return { invoice, lines, contact: contact ?? null, corrects: corrects ?? null, correctedBy };
+  return { invoice, lines, contact: contact ?? null, importSource: importSource ?? null, corrects: corrects ?? null, correctedBy };
 }
 
 export type { InvoiceListStatus };
