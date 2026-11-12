@@ -4,8 +4,9 @@ import { ebilanzPositionen, ebilanzSummen, ebilanzSummenkette, istEbilanzBlatt }
 import { ebilanzKontensalden, ebilanzWerte } from "./xbrl.ts";
 
 /**
- * #750: Vorgegebene Anzahlungsbestände auswerten, ohne einen künftigen Buchungsweg festzulegen.
- * DATEV SKR03/04 2026 ordnet diese Konten den erhaltenen Anzahlungen auf Bestellungen zu.
+ * #750: Erhaltene Anzahlungen auf den bestätigten generischen Konten 1710/3250, Umsatzsteuer separat.
+ * https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+ * DATEV SKR03/04 2026 ordnet diese Konten den erhaltenen Anzahlungen auf Bestellungen zu, ohne AM-Funktion.
  * https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf
  * https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf
  * Amtliche Originale: de-gaap-ci-2025-04-01.xsd / de-gaap-ci-2026-04-01.xsd und Calculation-Linkbases.
@@ -19,11 +20,7 @@ const VAT = "bs.eqLiab.liab.other.theroffTax.vat";
 describe("Erhaltene Anzahlungen im gesonderten E-Bilanz-Posten", () => {
   it.each([
     ["SKR03", "1710"],
-    ["SKR03", "1711"],
-    ["SKR03", "1718"],
     ["SKR04", "3250"],
-    ["SKR04", "3260"],
-    ["SKR04", "3272"],
   ] as const)("%s Konto %s: Habenbestand steht unter erhaltenen Anzahlungen", (frame, account) => {
     expect(ebilanzPosition(frame, account, -30_000)).toBe(ADVANCE);
   });
@@ -38,7 +35,7 @@ describe.each(["6.9", "6.10"] as const)("Anzahlungsbestand in Taxonomie %s", (ve
 
   it.each([
     ["SKR03", "1200", "1710", "1776", 30_000, 5_700],
-    ["SKR04", "1800", "3272", "3806", 10_000, 1_900],
+    ["SKR04", "1800", "3250", "3806", 10_000, 1_900],
   ] as const)("%s: vorgegebene Bank-, Anzahlungs- und Steuersalden wirken ohne Erlös genau einmal", (frame, bank, advance, vat, net, tax) => {
     const gross = net + tax;
     const { zuordnung, fehlend } = ebilanzZuordnung(frame, [
