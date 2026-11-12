@@ -112,6 +112,12 @@ describe("reviewHint", () => {
     expect(report.message).not.toContain("`tdd-review`");
   });
 
+  it("nennt doku-pruefen auch für eine neue Doku-Seite mit Eintrag in mkdocs.yml (Grenze aus tdd-review, Schritt 0)", () => {
+    const [report] = reviewHint(fremd, ["docs/neue-seite.md", "mkdocs.yml"]);
+    expect(report.message).toContain("`doku-pruefen`");
+    expect(report.message).not.toContain("`tdd-review`");
+  });
+
   it.each(["OWNER", "MEMBER", "COLLABORATOR"])("schweigt bei %s", (author_association) => {
     expect(reviewHint({ ...fremd, author_association }, ["docs/bank.md"])).toEqual([]);
   });
