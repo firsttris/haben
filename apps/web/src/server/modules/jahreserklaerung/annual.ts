@@ -590,6 +590,14 @@ export function submitAnnual(actor: string, form: AnnualForm, year: number, clie
 
 /** Unter der Sendesperre: Prüfungen, schon übermittelt?, XML und die gespeicherten Werte */
 async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOptions, test: boolean, herstellerId: string) {
+  // Eine außerhalb von Haben abgegebene Erklärung ersetzt die Echtübermittlung; beides zugleich wäre eine doppelte Abgabe
+  if (options.kind === "send") {
+    const [vermerkt] = await db
+      .select({ id: schema.annualSubmissions.id })
+      .from(schema.annualSubmissions)
+      .where(and(eq(schema.annualSubmissions.form, form), eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")));
+    if (vermerkt) throw new AnnualError("Die Erklärung ist außerhalb von Haben abgegeben; eine Übermittlung aus Haben ist nicht mehr vorgesehen.");
+  }
   const checked = await checkAnnual(form, year, options.today);
   const [already] = await db
     .select({ id: schema.annualSubmissions.id })
