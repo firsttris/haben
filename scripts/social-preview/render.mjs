@@ -14,10 +14,10 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, dev
 await page.goto(`file://${path.join(here, "social-preview.html")}`);
 await page.evaluate(async () => {
   await Promise.all([
-    document.fonts.load('600 80px "IBM Plex Serif"'),
-    document.fonts.load('400 24px "IBM Plex Sans"'),
-    document.fonts.load('500 22px "IBM Plex Sans"'),
-    document.fonts.load('600 34px "IBM Plex Sans"'),
+    document.fonts.load('600 46px "IBM Plex Serif"'),
+    document.fonts.load('400 20px "IBM Plex Sans"'),
+    document.fonts.load('600 17px "IBM Plex Sans"'),
+    document.fonts.load('600 56px "IBM Plex Sans"'),
   ]);
   await document.fonts.ready;
 });
