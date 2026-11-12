@@ -121,8 +121,8 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
-| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (Bild oben in der README) |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
+| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
 
 Seiten der Doku:
 
@@ -362,7 +362,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung und kommen als Anhang, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
+- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung. Wer in [`firsttris/haben-bilder`](https://github.com/firsttris/haben-bilder) schreiben darf (Maintainer, Collaborators), legt sie dort ab, je Pull Request ein Ordner `pr-<n>/`; alle anderen hängen sie als Anhang an, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
 
 ### Etwas übernehmen
 
