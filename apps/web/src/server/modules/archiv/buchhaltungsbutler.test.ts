@@ -156,8 +156,11 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import (Postgres)", () => 
   });
 
   it("überspringt beim erneuten Import Belege und Originalexporte", async () => {
-    await bb.startBuchhaltungsbutlerImport("test-user", parts());
-    await bb.startBuchhaltungsbutlerImport("test-user", parts());
+    // Derselbe Export, bytegleich: Ein neues zipSync würde den aktuellen DOS-Zeitstempel tragen und wäre bei einem
+    // Sekundenwechsel eine andere Originaldatei, die das Archiv zu Recht zusätzlich aufbewahrt.
+    const files = parts();
+    await bb.startBuchhaltungsbutlerImport("test-user", files);
+    await bb.startBuchhaltungsbutlerImport("test-user", files);
     expect(await sql`select count(*)::int as n from lexoffice_vouchers`).toEqual([{ n: 1 }]);
     expect(await sql`select count(*)::int as n from lexoffice_voucher_files`).toEqual([{ n: 1 }]);
     expect(await sql`select count(*)::int as n from archive_files`).toEqual([{ n: 3 }]);
