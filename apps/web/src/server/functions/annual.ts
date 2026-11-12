@@ -118,7 +118,8 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
     const fields = z
       .object({
         form: z.enum(["ust", "euer"]),
-        year: yearSchema,
+        // FormData liefert Text; die Jahresgrenzen prüft yearSchema
+        year: z.coerce.number().pipe(yearSchema),
         filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
         transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64),
         amount: z.coerce.number().int().pipe(centsSchema),
