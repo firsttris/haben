@@ -671,6 +671,28 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await page.getByRole("button", { name: "Abholung entfernen" }).click();
   await bestaetigen(page, "Entfernen");
   await expect(page.getByText("Seite entfernt.")).toBeVisible();
+
+  // #636: Eine Seite, die das Einbetten verbietet, erkennt Haben nach der Eingabe und öffnet sie auf Wunsch in einem neuen
+  // Tab. Haben selbst unter 127.0.0.1 ist eine andere Herkunft und schickt frame-ancestors 'self'
+  const verboten = new URL("/login", page.url());
+  verboten.hostname = "127.0.0.1";
+  await form.getByLabel("Name im Menü").fill("Paperless");
+  await form.getByLabel("Adresse").fill(verboten.href);
+  await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
+  await expect(form.getByRole("status")).toContainText("Diese Seite verbietet das Einbetten (Content-Security-Policy: frame-ancestors)");
+  await form.getByLabel("Öffnen").selectOption({ label: "In neuem Tab" });
+  await expect(form.getByRole("status")).toHaveCount(0);
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  const paperless = menu.getByRole("link", { name: /^Paperless/ });
+  await expect(paperless).toHaveAttribute("href", verboten.href);
+  await expect(paperless).toHaveAttribute("target", "_blank");
+  await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
+  await expect(page.getByText("Öffnet in neuem Tab")).toBeVisible();
+  await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
+  await expect(page.getByRole("form", { name: "Paperless bearbeiten" }).getByLabel("Öffnen")).toHaveValue("tab");
+  await page.getByRole("button", { name: "Paperless entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
+  await expect(page.getByText("Seite entfernt.")).toBeVisible();
   // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
 });
