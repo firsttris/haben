@@ -1,4 +1,4 @@
-import { formatEuro, type Cents } from "@haben/core";
+import { formatEuro, isKapitalgesellschaft, type Cents } from "@haben/core";
 import { ERSTES_ERKLAERUNGSJAHR } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -8,6 +8,7 @@ import { sniff } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { underSendLock } from "../elster/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { AnnualError, annualOverview } from "./annual.ts";
 
 /*
@@ -102,6 +103,9 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
   // Die Erklärung eines Jahres kann frühestens am 1. Januar des Folgejahres abgegeben worden sein
   if (data.filedOn < `${year + 1}-01-01`)
     throw new AnnualError(`Der Tag der Abgabe liegt vor dem Ende des Jahres ${year}; so früh kann die Erklärung nicht abgegeben worden sein.`);
+  // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); eine EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
+  if (form === "euer" && isKapitalgesellschaft((await loadCompany()).rechtsform))
+    throw new AnnualError("Eine Kapitalgesellschaft gibt keine Anlage EÜR ab; vermerken lässt sich nur die Umsatzsteuererklärung.");
   const transferTicket = data.transferTicket.trim();
 
   return underSendLock(`haben.jahreserklaerung.${form}.${year}`, "send", async () => {
