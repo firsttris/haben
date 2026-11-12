@@ -20,7 +20,11 @@ import { VORTRAG_ACCOUNTS } from "./vortrag.ts";
 /** Kategorien, die kein Aufwand eines eigenen Kontos sein können: keine Aufwandsbuchung, eigene Behandlung oder Wareneinsatz */
 const EXCLUDED_PARENTS: readonly ExpenseCategory[] = ["anlage", "hardware", "einfuhrumsatzsteuer", "geldverkehr", "wareneinkauf", "fremdleistung", "kfzSteuer"];
 
-/** Aufwandsklasse des Kontenrahmens: SKR03 4000 bis 4999 (Betriebliche Aufwendungen), SKR04 6000 bis 6999 (sonstige betriebliche Aufwendungen) */
+/**
+ * Aufwandsklasse des Kontenrahmens: SKR03 4000 bis 4999 (betriebliche Aufwendungen), SKR04 6000 bis 6999. Im SKR04 liegen dort neben den sonstigen
+ * betrieblichen Aufwendungen auch Personalaufwand (6000 bis 6171) und Abschreibungen (6200 bis 6291, hgb.ts BEREICHE); welcher Bereich gilt,
+ * entscheidet die Elternkategorie (ownAccountProblem).
+ */
 const CLASS_PREFIX: Record<Kontenrahmen, string> = { SKR03: "4", SKR04: "6" };
 const CLASS_RANGE: Record<Kontenrahmen, string> = { SKR03: "4000 bis 4999", SKR04: "6000 bis 6999" };
 
