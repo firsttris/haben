@@ -143,8 +143,7 @@ ELSTER.
 
 ## Umzug ohne Datenverlust
 
-Rechnungen, Belege, Buchungen und Kontakte kommen aus Lexware Office oder sevDesk mit. Ein Abgleich je Jahr
-zeigt, dass alles da ist, bevor du kündigst.
+Ein Abgleich je Jahr zeigt, dass alles da ist, bevor du Lexware Office oder sevDesk kündigst.
 
 [Umzug aus Lexoffice](lexoffice.md), [Umzug aus sevDesk](sevdesk.md)
 
