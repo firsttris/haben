@@ -110,7 +110,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const { seller, buyer } = doc;
   const credit = isCreditNote(doc);
   const sign = credit ? -1 : 1;
-  // Code laut ISO 4217; geprüft beim Speichern (CURRENCY_CODE), hier nur für die Typen des Formats
+  // Code laut ISO 4217; geprüft beim Speichern (CURRENCY_CODE) und in validateForFormat (codelisten.ts)
   const currency = doc.currency;
   const period = servicePeriod(doc);
   const treatment = doc.taxTreatment ?? "regulaer";
@@ -123,7 +123,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (seller.steuernummer) sellerTax.push({ "cbc:CompanyID": seller.steuernummer, "cac:TaxScheme": { "cbc:ID": "FC" } });
 
   // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29). Bei Lastschrift die Gläubiger-ID als
-  // Bank assigned creditor identifier (BT-90, schemeID SEPA); e-invoice-eu setzt sie im CII als ram:CreditorReferenceID
+  // Bank assigned creditor identifier (BT-90, schemeID SEPA); cii.ts setzt sie im CII als ram:CreditorReferenceID
   const sellerIds = [
     ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
     ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),

@@ -116,6 +116,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
+| `bun run --cwd packages/einvoice zugferd [ausgabeverzeichnis]` | ZUGFeRD-PDFs der Beispielrechnungen erzeugen und mit dem Mustang-Validator prüfen ([ZUGFeRD-PDFs](#zugferd-pdfs)) |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
@@ -161,7 +162,7 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
 | Netz | Schema der Deutschen Kreditwirtschaft für SEPA übersprungen | ja | ja, sonst Fehler |
 | `ERIC_DOKU` (Dokumentation von ERiC mit den Schemas der Lohnsteuerbescheinigung) | Schema-Test in `packages/elster/src/lstb.test.ts` übersprungen | nein | nein |
-| Java, wenn `ERIC_DOKU` gesetzt ist | derselbe Schema-Test schlägt fehl; sonst braucht nur `kosit` Java (eigener Befehl, kein Test) | nein | `kosit` als eigener Job |
+| Java, wenn `ERIC_DOKU` gesetzt ist | derselbe Schema-Test schlägt fehl; sonst brauchen nur `kosit` und `zugferd` Java (eigene Befehle, keine Tests) | nein | `kosit` und `zugferd` als eigene Jobs |
 | Beispielantworten aus erica unter `/var/tmp/erica/tests/worker/samples/` | je ein Test in `vast.test.ts` und `berechtigung.test.ts` übersprungen | nein | nein |
 
 ### Tests mit echtem ERiC

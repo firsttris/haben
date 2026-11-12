@@ -1,5 +1,5 @@
 /*
- * Kleiner XML-Baum für die E-Rechnung (CII, später UBL): Elemente in fester Reihenfolge, eingerückt mit Tabs wie das
+ * Kleiner XML-Baum für die E-Rechnung (CII und UBL): Elemente in fester Reihenfolge, eingerückt mit Tabs wie das
  * XML, das Haben bis #734 mit @e-invoice-eu/core erzeugt hat. Fehlende Teile (null, undefined, false) fallen weg.
  */
 
