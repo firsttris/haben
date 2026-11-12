@@ -100,7 +100,8 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
   if (year >= Number(heute.slice(0, 4))) throw new AnnualError("Die Erklärung lässt sich erst nach Ablauf des Jahres vermerken.");
   if (year < ERSTES_ERKLAERUNGSJAHR) throw new AnnualError(`Jahreserklärungen gibt es ab ${ERSTES_ERKLAERUNGSJAHR}.`);
   // Die Erklärung eines Jahres kann frühestens am 1. Januar des Folgejahres abgegeben worden sein
-  if (data.filedOn < `${year + 1}-01-01`) throw new AnnualError(`Der Tag der Abgabe liegt vor dem Ende des Jahres ${year}; so früh kann die Erklärung nicht abgegeben worden sein.`);
+  if (data.filedOn < `${year + 1}-01-01`)
+    throw new AnnualError(`Der Tag der Abgabe liegt vor dem Ende des Jahres ${year}; so früh kann die Erklärung nicht abgegeben worden sein.`);
   const transferTicket = data.transferTicket.trim();
 
   return underSendLock(`haben.jahreserklaerung.${form}.${year}`, "send", async () => {
