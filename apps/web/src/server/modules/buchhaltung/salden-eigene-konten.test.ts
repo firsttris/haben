@@ -51,6 +51,30 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste mit eigenen Konten (Postgres, #27
     ]);
   });
 
+  it("SKR04: 6999 (software) zeigt sich mit eigener Nummer, aufgelöst zusammen mit 6837", async () => {
+    await leeren(sql)`truncate own_accounts, journal_lines, journal_entries cascade`;
+    await sql`update company set kontenrahmen = 'SKR04'`;
+    await konten.createOwnAccount(actor, { account: "6999", name: "Software: Entwicklung", parentCategory: "software" });
+    for (const [aufwand, betrag] of [
+      ["6837", 5000],
+      ["6999", 10000],
+    ] as const) {
+      await sql.begin(async (tx) => {
+        const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+          values ('2026-03-02', 'Eingangsrechnung', 'manuell', gen_random_uuid(), 'SKR04') returning id`;
+        await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, ${aufwand}, ${betrag}, 0), (${e!.id}, '1600', 0, ${betrag})`;
+        await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+      });
+    }
+    const roh = await ledger.saldenliste(range());
+    expect(roh.filter((r) => r.account.startsWith("6")).map((r) => [r.account, r.saldo])).toEqual([
+      ["6837", 5000],
+      ["6999", 10000],
+    ]);
+    const aufgeloest = await ledger.saldenliste(range(), { aufgeloest: true });
+    expect(aufgeloest.filter((r) => r.account.startsWith("6")).map((r) => [r.account, r.saldo])).toEqual([["6837", 15000]]);
+  });
+
   it("aufgelöst liegt das eigene Konto auf dem Konto der Elternkategorie, summiert mit dessen Buchungen", async () => {
     const rows = await ledger.saldenliste(range(), { aufgeloest: true });
     expect(rows.filter((r) => r.account.startsWith("49")).map((r) => [r.account, r.saldo, r.soll, r.sollJahr])).toEqual([["4964", 15000, 15000, 15000]]);
