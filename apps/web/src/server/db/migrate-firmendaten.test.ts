@@ -9,7 +9,7 @@ import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 
 describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehenden Installation (Postgres)", () => {
-  it("ergänzt die Kennzeichnung ohne alte Firmenwerte, Audit-Einträge und Buchungen umzuschreiben", async () => {
+  it("erhält ein benanntes Altprofil unter system:setup ohne Kennzeichnung samt Audit und Buchungen", async () => {
     const initial = await setupTestDb();
     await initial.end();
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
@@ -37,8 +37,9 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
       const today = date!.today as string;
       const previousYear = Number(today.slice(0, 4)) - 1;
       await sql.begin(async (tx) => {
-        await tx`select set_config('haben.actor', 'altbestand:inhaber', true)`;
+        await tx`select set_config('haben.actor', 'system:setup', true)`;
         await tx`insert into company (id, name, kleinunternehmer) values (1, 'Bestätigter Altbetrieb', false)`;
+        await tx`select set_config('haben.actor', 'altbestand:inhaber', true)`;
         const [entry] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
           values (${`${previousYear}-12-10`}, 'Regelbesteuerter Altumsatz', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
         await tx`insert into journal_lines (entry_id, account, debit, credit, tax_code) values
@@ -52,6 +53,10 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
         entries: await sql`select * from journal_entries order by id`,
         lines: await sql`select * from journal_lines order by id`,
       };
+      const original = before.audit.find((row) => row.table_name === "company" && row.action === "INSERT")!;
+      expect(original.actor).toBe("system:setup");
+      expect(original.new_value.name).toBe("Bestätigter Altbetrieb");
+      expect(Object.hasOwn(original.new_value, "firmendaten_gespeichert_at")).toBe(false);
       await migrate(database, { migrationsFolder: MIGRATIONS });
       expect(await sql`select firmendaten_gespeichert_at from company`).toEqual([{ firmendaten_gespeichert_at: null }]);
       expect(await sql`select to_jsonb(company) - 'firmendaten_gespeichert_at' as value from company`).toEqual(before.company);

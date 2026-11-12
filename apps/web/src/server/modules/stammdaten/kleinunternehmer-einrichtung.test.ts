@@ -57,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 
-  it("technische Anlage in einer Transaktion erhält eigenen Akteur und lässt den fachlichen Akteur bestehen", async () => {
+  it("technische Anlage in einer Transaktion behält deren Akteur und bestätigt keine Regelbesteuerung", async () => {
     const { withActor } = await import("../../db/actor.ts");
     const { schema } = await import("../../db/index.ts");
     await withActor(actor, async (tx) => {
@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     });
     const entries = await sql`select action, actor from audit_log where table_name = 'company' order by seq`;
     expect(entries).toEqual([
-      { action: "INSERT", actor: "system:setup" },
+      { action: "INSERT", actor },
       { action: "UPDATE", actor },
     ]);
     expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
@@ -101,15 +101,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     expect((await company.kleinunternehmerHistory())(today)).toBe(true);
   });
 
-  it("ein benanntes Ausgangsprofil unter system:setup ist keine leere technische Vorgabe", async () => {
-    const { withActor } = await import("../../db/actor.ts");
-    const { schema } = await import("../../db/index.ts");
-    await withActor("system:setup", (tx) => tx.insert(schema.company).values({ id: 1, name: "Bestätigte Musterfirma", kleinunternehmer: false }));
-    await guard.saveCompany(actor, company.companySchema.parse({ ...(await company.loadCompany()), kleinunternehmer: true }), today);
-    expect((await company.kleinunternehmerHistory())(previous)).toBe(false);
-  });
-
-  it("technische Anlage ohne vorherigen Transaktionsakteur hinterlässt keinen system:setup-Akteur", async () => {
+  it("technische Anlage ohne Transaktionsakteur bleibt ohne Akteur und bestätigt keine Regelbesteuerung", async () => {
     const { db, schema } = await import("../../db/index.ts");
     await db.transaction(async (tx) => {
       await company.loadCompany(tx);
@@ -117,7 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     });
     const entries = await sql`select action, actor from audit_log where table_name = 'company' order by seq`;
     expect(entries).toEqual([
-      { action: "INSERT", actor: "system:setup" },
+      { action: "INSERT", actor: null },
       { action: "UPDATE", actor: null },
     ]);
     expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
