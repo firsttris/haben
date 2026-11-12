@@ -40,10 +40,11 @@ export function hinweisHeader(zeilen: string[]): string {
     shown.push(zeile);
   }
   if (shown.length === 0) {
-    // Schon die erste Zeile ist zu lang: gekürzt zeigen statt gar nicht
-    let text = zeilen[0]!;
-    while (text && kodiert([`${text}…`, ...rest(zeilen.length - 1)]).length > HINWEIS_HEADER_MAX_BYTES) text = text.slice(0, -10);
-    shown.push(`${text}…`);
+    // Schon die erste Zeile ist zu lang: gekürzt zeigen statt gar nicht. Nach Codepoints, sonst teilt der Schnitt ein
+    // Surrogatpaar und encodeURIComponent wirft
+    const zeichen = Array.from(zeilen[0]!);
+    while (zeichen.length > 0 && kodiert([`${zeichen.join("")}…`, ...rest(zeilen.length - 1)]).length > HINWEIS_HEADER_MAX_BYTES) zeichen.splice(-10);
+    shown.push(`${zeichen.join("")}…`);
   }
   const weitere = zeilen.length - shown.length;
   return kodiert(weitere > 0 ? [...shown, ...rest(weitere)] : shown);
