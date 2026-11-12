@@ -161,7 +161,7 @@ test("am Handy steht der Name in einer Zeile, und die Leiste bleibt so hoch wie 
   });
 });
 
-// Das Zeichen links von „Haben“ ist fest quadratisch, am Desktop 48 und am Handy 40 Pixel, für das „H“ wie für ein
+// Das Zeichen links von „Haben“ ist fest quadratisch, am Desktop 40 und am Handy 36 Pixel, für das „H“ wie für ein
 // Logo (#504). Ein breites Logo wird in der Kachel verkleinert und nimmt „Haben“ und dem Namen keinen Platz; die
 // Kachel bleibt bündig mit den Symbolen der Menüpunkte, rechts hat die Marke keinen Innenabstand mehr
 const BREITES_LOGO = `data:image/svg+xml,${encodeURIComponent(
@@ -177,7 +177,7 @@ async function zeichenGemessen(page: Page): Promise<{ groesse: [number, number];
   });
 }
 
-test("das Zeichen ist fest quadratisch, am Desktop 48 und am Handy 40 Pixel, auch mit einem breiten Logo", async ({ page }) => {
+test("das Zeichen ist fest quadratisch, am Desktop 40 und am Handy 36 Pixel, auch mit einem breiten Logo", async ({ page }) => {
   const gemessen: Record<string, { h: [number, number]; logo: [number, number]; gleicherPlatz: boolean }> = {};
   let nameDesktop = 0;
   let zeichenLinks = 0;
@@ -201,8 +201,8 @@ test("das Zeichen ist fest quadratisch, am Desktop 48 und am Handy 40 Pixel, auc
         const img = document.createElement("img");
         img.className = "brand-logo";
         img.alt = "";
-        img.width = 48;
-        img.height = 48;
+        img.width = 40;
+        img.height = 40;
         img.src = src;
         el.replaceWith(img);
       }, BREITES_LOGO);
@@ -212,12 +212,12 @@ test("das Zeichen ist fest quadratisch, am Desktop 48 und am Handy 40 Pixel, auc
     gemessen[`${breite}px`] = { h: h.groesse, logo: logo.groesse, gleicherPlatz: h.text.join() === logo.text.join() };
   }
   expect(gemessen).toEqual({
-    "1280px": { h: [48, 48], logo: [48, 48], gleicherPlatz: true },
-    "375px": { h: [40, 40], logo: [40, 40], gleicherPlatz: true },
-    "320px": { h: [40, 40], logo: [40, 40], gleicherPlatz: true },
+    "1280px": { h: [40, 40], logo: [40, 40], gleicherPlatz: true },
+    "375px": { h: [36, 36], logo: [36, 36], gleicherPlatz: true },
+    "320px": { h: [36, 36], logo: [36, 36], gleicherPlatz: true },
   });
-  // Rechts ohne Innenabstand: Der Name behält trotz der größeren Kachel 132 Pixel
-  expect(nameDesktop).toBe(132);
+  // Rechts ohne Innenabstand: Der Name hat mit der größeren Kachel 138 Pixel, so viel wie mit dem alten „H“
+  expect(nameDesktop).toBe(138);
   expect(zeichenLinks).toBe(symbolLinks);
 });
 

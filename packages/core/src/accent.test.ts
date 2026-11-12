@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCENT_PATTERN, accentPalette, contrastOnWhite, DEFAULT_ACCENT, inkOnAccent, MIN_TEXT_CONTRAST, oklch } from "./accent.ts";
+import { ACCENT_PATTERN, accentPalette, contrastOnWhite, DEFAULT_ACCENT, inkOnAccent, MIN_TEXT_CONTRAST, NAV_BACKGROUNDS, needsEdgeOnNav, oklch } from "./accent.ts";
 
 describe("contrastOnWhite", () => {
   it("rechnet wie WCAG: Schwarz 21 : 1, Weiß 1 : 1", () => {
@@ -84,5 +84,31 @@ describe("inkOnAccent", () => {
       }
     }
     expect(zuWenig).toEqual([]);
+  });
+});
+
+// Zeichen in eigener Farbe (#504): Hebt sich die Kachel in einem der Themes nicht mit 3 : 1 von der Navigation ab
+// (WCAG 2.2, 1.4.11), bekommt sie eine helle Innenkante
+describe("needsEdgeOnNav", () => {
+  it("braucht keine Kante bei Farben, die sich in allen Themes abheben", () => {
+    expect(needsEdgeOnNav("#3FA284")).toBe(false);
+    expect(needsEdgeOnNav("#F5D90A")).toBe(false);
+    expect(needsEdgeOnNav("#B5462F")).toBe(false);
+  });
+
+  it("setzt die Kante bei dunklen Farben", () => {
+    expect(needsEdgeOnNav("#1D4ED8")).toBe(true);
+    expect(needsEdgeOnNav("#24323A")).toBe(true);
+    expect(needsEdgeOnNav("#000000")).toBe(true);
+  });
+
+  it("entscheidet an der Grenze von 3 : 1 gegen die hellste Navigation", () => {
+    expect(needsEdgeOnNav("#686868")).toBe(true);
+    expect(needsEdgeOnNav("#696969")).toBe(false);
+  });
+
+  it("kennt die Navigation aller sechs Themes", () => {
+    expect(NAV_BACKGROUNDS).toHaveLength(6);
+    for (const bg of NAV_BACKGROUNDS) expect(bg).toMatch(ACCENT_PATTERN);
   });
 });

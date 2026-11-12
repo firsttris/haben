@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { NAV_BACKGROUNDS } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { firmaInNavigation, type NavBedingung, navLinkSichtbar, navMark } from "./navigation.ts";
 
@@ -31,16 +33,16 @@ describe("navMark", () => {
   });
 
   it("eigene Farbe mit der Schrift nach dem höheren Kontrast", () => {
-    expect(navMark({ color: "#1D4ED8", logo: false }, null)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF" });
-    expect(navMark({ color: "#f5d90a", logo: false }, null)).toEqual({ background: "#F5D90A", ink: "#000000" });
+    expect(navMark({ color: "#1D4ED8", logo: false }, null)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF", kante: true });
+    expect(navMark({ color: "#f5d90a", logo: false }, null)).toEqual({ background: "#F5D90A", ink: "#000000", kante: false });
   });
 
   it("das Logo nur, wenn es gewählt ist und es eins gibt; sonst wieder die Farbe", () => {
     const sha = "0123456789abcdef".repeat(4);
     expect(navMark({ color: "#1D4ED8", logo: true }, sha)).toEqual({ logo: "/api/kennzeichen?v=0123456789abcdef" });
-    expect(navMark({ color: "#1D4ED8", logo: true }, null)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF" });
+    expect(navMark({ color: "#1D4ED8", logo: true }, null)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF", kante: true });
     expect(navMark({ color: null, logo: true }, null)).toBeNull();
-    expect(navMark({ color: "#1D4ED8", logo: false }, sha)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF" });
+    expect(navMark({ color: "#1D4ED8", logo: false }, sha)).toEqual({ background: "#1D4ED8", ink: "#FFFFFF", kante: true });
   });
 
   it("eine ungültige Farbe ergibt das „H“ des Themes statt eines kaputten Stils", () => {
@@ -57,5 +59,15 @@ describe("firmaInNavigation", () => {
   it("zeigt nichts, solange die Firmendaten keinen Namen haben", () => {
     expect(firmaInNavigation("")).toBeNull();
     expect(firmaInNavigation(" \t\n")).toBeNull();
+  });
+});
+
+// Die Kontrastregel für die Innenkante rechnet mit den Hintergründen der Navigation; sie müssen mit --nav der Themes in
+// styles.css übereinstimmen, sonst stimmt die Entscheidung für ein Theme nicht
+describe("NAV_BACKGROUNDS", () => {
+  it("entspricht --nav aller Themes in styles.css", () => {
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    const imCss = [...css.matchAll(/--nav:\s*(#[0-9a-fA-F]{6})/g)].map((m) => m[1]!.toUpperCase());
+    expect([...new Set(imCss)].sort()).toEqual([...NAV_BACKGROUNDS].sort());
   });
 });

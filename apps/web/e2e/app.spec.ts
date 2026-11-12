@@ -116,6 +116,8 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   // Das Zeichen in der Navigation hängt nicht an der Beleggestaltung (#504): das „H“ bleibt in der Farbe des Themes
   const marke = nav.locator(".brand-mark");
   await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
+  // Das „H“ des Themes hebt sich ohnehin ab und hat keine Innenkante
+  await expect(marke).toHaveCSS("box-shadow", "none");
   // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
@@ -141,6 +143,12 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await zeichenSpeichern();
   await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
   await expect(marke).toHaveCSS("color", "rgb(255, 255, 255)");
+  // #B5462F hebt sich in allen Themes mit 3 : 1 ab: keine Kante. Eine dunkle Farbe bekommt eine helle Innenkante
+  await expect(marke).toHaveCSS("box-shadow", "none");
+  await zeichen.getByLabel("Hex-Wert").fill("#24323a");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(36, 50, 58)");
+  await expect(marke).toHaveCSS("box-shadow", /inset/);
   // Das Logo der Belege nur auf ausdrückliche Wahl; statt des „H“ steht dann das Bild, auf Weiß
   await zeichen.getByLabel("Logo aus der Beleggestaltung").check();
   await zeichenSpeichern();
@@ -148,8 +156,8 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(logoZeichen).toBeVisible();
   await expect.poll(() => logoZeichen.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
   await expect(marke).toHaveCount(0);
-  // Fest 48 × 48 wie das „H“, und das Bild kommt aus dem Cache: Die Adresse ändert sich mit dem Logo (?v=…)
-  expect(await logoZeichen.boundingBox()).toMatchObject({ width: 48, height: 48 });
+  // Fest 40 × 40 wie das „H“, und das Bild kommt aus dem Cache: Die Adresse ändert sich mit dem Logo (?v=…)
+  expect(await logoZeichen.boundingBox()).toMatchObject({ width: 40, height: 40 });
   const kennzeichen = await page.request.get((await logoZeichen.getAttribute("src"))!);
   expect(kennzeichen.status()).toBe(200);
   expect(kennzeichen.headers()["cache-control"]).toBe("private, max-age=31536000, immutable");
