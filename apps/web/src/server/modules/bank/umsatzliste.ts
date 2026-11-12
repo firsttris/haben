@@ -16,17 +16,21 @@ export const STANDARD_SORTIERUNG: UmsatzSortierung = { feld: "datum", richtung: 
 
 const t = schema.bankTransactions;
 
-/** ORDER BY für listTransactions; bei gleichem Wert steht der neuere Umsatz oben */
+/**
+ * ORDER BY für listTransactions; bei gleichem Wert steht der neuere Umsatz oben. Kein Ordnen nach der id: Sie ist
+ * zufällig, Umsätze aus demselben Import (gleiches Datum und created_at) stünden sonst in zufälliger Reihenfolge
+ * statt wie bisher in der des Imports.
+ */
 export function umsatzReihenfolge({ feld, richtung }: UmsatzSortierung): SQL[] {
   const r = richtung === "auf" ? asc : desc;
-  const neuesteZuerst = [desc(t.bookingDate), desc(t.createdAt), desc(t.id)];
+  const neuesteZuerst = [desc(t.bookingDate), desc(t.createdAt)];
   if (feld === "betrag") return [r(t.amount), ...neuesteZuerst];
   // Ohne Namen ans Ende, in beiden Richtungen
   if (feld === "gegenpartei")
     return [sql`lower(nullif(trim(${t.counterpartyName}), '')) ${sql.raw(richtung === "auf" ? "asc" : "desc")} nulls last`, ...neuesteZuerst];
   // Status: die neuesten 500 laden, sortiert wird danach
   if (feld === "status") return neuesteZuerst;
-  return [r(t.bookingDate), r(t.createdAt), r(t.id)];
+  return [r(t.bookingDate), r(t.createdAt)];
 }
 
 /**
