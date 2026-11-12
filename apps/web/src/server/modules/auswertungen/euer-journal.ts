@@ -1,4 +1,13 @@
-import { ACCOUNTS, euerAusZeilen, kontoart, leereEuerAusJournal, zahlungsAnteil, type EuerAusJournal, type EuerHerkunft, type Kontenrahmen } from "@haben/core";
+import {
+  ACCOUNTS,
+  euerAusZeilen,
+  isExternalSettlementPayment,
+  leereEuerAusJournal,
+  zahlungsAnteil,
+  type EuerAusJournal,
+  type EuerHerkunft,
+  type Kontenrahmen,
+} from "@haben/core";
 import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { imEuerJahr } from "./euer-jahreswechsel.ts";
@@ -172,7 +181,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     const ausgeglichen = offen(b);
     const hatOffenenPosten = b.zeilen.some((z) => offenerPosten(kr, z));
     const importAnteil = importiert.get(b.id);
-    if (hatOffenenPosten && b.sourceType === "import" && !importAnteil && !b.zeilen.some((z) => kontoart(kr, z.account) !== "bestand")) ungeklaerteImporte++;
+    if (b.sourceType === "import" && !importAnteil && isExternalSettlementPayment(kr, b.zeilen)) ungeklaerteImporte++;
     // Rechnung bzw. Beleg auf Ziel: wirkt erst mit der Zahlung
     if (
       hatOffenenPosten &&
