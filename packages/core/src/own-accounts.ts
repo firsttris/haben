@@ -1,6 +1,7 @@
 import { ASSET_ACCOUNT_NAMES, ASSET_ACCOUNTS } from "./afa.ts";
 import { DARLEHEN_KONTEN } from "./darlehen.ts";
 import { EBILANZ_KONTEN } from "./ebilanz.ts";
+import { bereichPosten } from "./hgb.ts";
 import { GEWST_HINZURECHNUNG_KONTEN, KAPG_STEUER_KONTEN } from "./koerperschaft.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { ledgerManagedAccounts, SACHENTNAHME_FRUEHERE_KONTEN, SACHENTNAHME_KONTEN } from "./manual.ts";
@@ -104,6 +105,13 @@ export function ownAccountProblem(input: OwnAccountInput): string | null {
   const nameLength = Array.from(name.trim()).length;
   if (nameLength === 0 || nameLength > OWN_ACCOUNT_NAME_MAX) return `Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`;
   if (!ownAccountParents(kontenrahmen).includes(parentCategory)) return "Diese Elternkategorie kann kein eigenes Konto haben.";
+  // Die Steuerberatung bekommt im DATEV-Stapel die eigene Nummer und legt sie nach dem Kontenrahmen aus: Liegt sie in einem
+  // anderen Bereich als das Konto der Kategorie, zählt das Konto dort als andere Art Aufwand als in Haben (#270)
+  const eigen = bereichPosten(kontenrahmen, account);
+  const kategorie = bereichPosten(kontenrahmen, EXPENSE_CATEGORIES[parentCategory][kontenrahmen]);
+  if (eigen === null || kategorie === null || eigen[0] !== kategorie[0] || eigen[1] !== kategorie[1]) {
+    return `Die Nummer muss im Bereich von ${EXPENSE_CATEGORIES[parentCategory][kontenrahmen]} (${EXPENSE_CATEGORIES[parentCategory].label}) liegen, sonst legt die Steuerberatung das Konto im DATEV-Export als andere Art Aufwand aus.`;
+  }
   return null;
 }
 

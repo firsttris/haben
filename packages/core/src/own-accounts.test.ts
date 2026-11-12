@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ebilanzPosition } from "./ebilanz.ts";
+import { bereichPosten } from "./hgb.ts";
 import { euerZuordnung } from "./journal-euer.ts";
 import { GEWST_HINZURECHNUNG_KONTEN } from "./koerperschaft.ts";
 import { ledgerManagedAccounts } from "./manual.ts";
@@ -93,6 +94,7 @@ describe("Auflösung", () => {
   });
 });
 
+<<<<<<< HEAD
 describe.each(KR)("Systemkonten, ausdrücklich aufgezählt (%s, #270)", (kr) => {
   it("sperrt die Konten der Gewerbesteuer-Hinzurechnung: ein eigenes Konto dort nähme ihnen die Hinzurechnung", () => {
     const konten = Object.values(GEWST_HINZURECHNUNG_KONTEN[kr]).flat();
@@ -122,5 +124,33 @@ describe.each(KR)("Wirkung der Auflösung auf EÜR und E-Bilanz (%s, #270)", (kr
 
   it("eine unbekannte Elternkategorie (entfernt oder umbenannt) bricht nicht ab, das Konto bleibt, wie es ist", () => {
     expect(resolveOwnAccount(kr, eigenes, new Map([[eigenes, "gibtsnicht" as ExpenseCategory]]))).toBe(eigenes);
+  });
+});
+
+describe.each(KR)("Bereich der Elternkategorie (%s, #270)", (kr) => {
+  const klasse = kr === "SKR03" ? "4" : "6";
+  const frei = (account: string) => !reservedAccountNumbers(kr).has(account);
+  const nummern = Array.from({ length: 1000 }, (_, i) => `${klasse}${String(i).padStart(3, "0")}`).filter(frei);
+  const gleich = (a: [string, string | undefined] | null, b: [string, string | undefined] | null) => a !== null && b !== null && a[0] === b[0] && a[1] === b[1];
+
+  it.each(ownAccountParents(kr))(
+    "%s: eine freie Nummer im selben Bereich geht, eine in der Aufwandsklasse, aber in einem anderen Bereich, wird abgelehnt",
+    (parent) => {
+      const bereich = bereichPosten(kr, EXPENSE_CATEGORIES[parent][kr]);
+      const passend = nummern.find((n) => gleich(bereichPosten(kr, n), bereich));
+      const anders = nummern.find((n) => !gleich(bereichPosten(kr, n), bereich));
+      expect(passend, `freie Nummer im Bereich von ${parent}`).toBeDefined();
+      expect(ownAccountProblem({ kontenrahmen: kr, account: passend!, name: "Test", parentCategory: parent })).toBeNull();
+      expect(anders, `freie Nummer außerhalb des Bereichs von ${parent}`).toBeDefined();
+      expect(ownAccountProblem({ kontenrahmen: kr, account: anders!, name: "Test", parentCategory: parent })).toMatch(/Bereich/);
+    },
+  );
+
+  it("das Beispiel des Maintainers: ein Konto mit Elternkategorie Software im Bereich Personalaufwand wird abgelehnt", () => {
+    const personal = nummern.find((n) => bereichPosten(kr, n)?.[0] === "personalaufwand");
+    expect(personal).toBeDefined();
+    expect(ownAccountProblem({ kontenrahmen: kr, account: personal!, name: "Software", parentCategory: "software" })).toMatch(/Bereich/);
+    // und umgekehrt: Berufsgenossenschaft gehört in den Personalaufwand
+    expect(ownAccountProblem({ kontenrahmen: kr, account: personal!, name: "BG", parentCategory: "berufsgenossenschaft" })).toBeNull();
   });
 });
