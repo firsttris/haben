@@ -1527,6 +1527,13 @@
       "when": 1794518748085,
       "tag": "0217_jahresvermerk",
       "breakpoints": true
+    },
+    {
+      "idx": 218,
+      "version": "7",
+      "when": 1794522571418,
+      "tag": "0218_eigene_konten_belege",
+      "breakpoints": true
     }
   ]
 }
