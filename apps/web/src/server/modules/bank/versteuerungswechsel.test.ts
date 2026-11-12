@@ -246,7 +246,7 @@ describe.skipIf(!testDatabaseUrl)("Rücklastschrift und Wiederzahlung nach Verst
           expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 2 })).zeilen)).toEqual([]);
           const [writeOff] = await bank.listWriteOffs({ invoiceId: invoice.id });
           await bank.reverseWriteOff(actor, writeOff!.id, `${year}-03-08`);
-          expect.soft(await taxInMonth(3, profile)).toBe(-tax);
+          expect.soft(await taxInMonth(3, profile)).toBe(tax === 0 ? 0 : -tax);
           expect.soft(abgleich.abweichungen((await auswertungen.vatAbgleich({ year, month: 3 })).zeilen)).toEqual([]);
           await expectDatevMatchesJournal();
         });
