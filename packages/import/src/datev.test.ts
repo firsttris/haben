@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
+import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, otherDatevExportName, parseDatevBuchungsstapel } from "./index.ts";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 
@@ -128,6 +128,42 @@ describe("DATEV-Buchungsstapel (UTF-8 mit BOM, abweichendes Wirtschaftsjahr)", (
 
   it("liest die EU-Spalten der Version 13 und setzt die Währung aus der Kopfzeile", () => {
     expect(stack.bookings[1]).toMatchObject({ euVatId: "FR12345678901", euTaxRate: 2000, currency: "EUR" });
+  });
+});
+
+describe("otherDatevExportName", () => {
+  // EXTF_GP_Stamm_*.csv aus sevDesk: Buchhaltung 1.0 ohne Anführungszeichen, 2.0 mit
+  const gpStamm = (version: string) => fixture(`sevdesk/buchhaltung-${version}/extf-gp-stamm.csv`);
+
+  it("nennt die Formatkategorie eines anderen DATEV-Exports", () => {
+    expect(otherDatevExportName(gpStamm("1.0"))).toBe("Debitoren/Kreditoren");
+    expect(otherDatevExportName(gpStamm("2.0"))).toBe("Debitoren/Kreditoren");
+    expect(otherDatevExportName(file(HEADER.replace(`700;21;"Buchungsstapel"`, `700;20;"Kontenbeschriftungen"`), "Konto"))).toBe("Kontenbeschriftungen");
+  });
+
+  it("nimmt bei unbekannter Kategorie den Namen aus der Kopfzeile, sonst die Nummer", () => {
+    expect(otherDatevExportName(file(`"EXTF";700;99;"Neues Format";1`, "A"))).toBe("Neues Format");
+    expect(otherDatevExportName(file(`"EXTF";700;99;"";1`, "A"))).toBe("Kategorie 99");
+  });
+
+  it("liest die Kopfzeile auch mit BOM", () => {
+    expect(otherDatevExportName(new Uint8Array([0xef, 0xbb, 0xbf, ...gpStamm("1.0")]))).toBe("Debitoren/Kreditoren");
+  });
+
+  it("gibt beim Buchungsstapel null zurück, auch wenn er beschädigt ist", () => {
+    expect(otherDatevExportName(file(HEADER, COLUMNS))).toBeNull();
+    expect(otherDatevExportName(file(HEADER))).toBeNull();
+  });
+
+  it("gibt bei unlesbarer Kategorie null zurück, damit der Parser die Datei ablehnt", () => {
+    expect(otherDatevExportName(file(`"EXTF";700;;"Buchungsstapel"`, COLUMNS))).toBeNull();
+    expect(otherDatevExportName(file(`"EXTF";700;x1;"Buchungsstapel"`, COLUMNS))).toBeNull();
+    expect(otherDatevExportName(file(`"EXTF"`))).toBeNull();
+  });
+
+  it("gibt bei anderen Dateien null zurück", () => {
+    expect(otherDatevExportName(file("Datum;Betrag", "01.01.2025;1,00"))).toBeNull();
+    expect(otherDatevExportName(new Uint8Array())).toBeNull();
   });
 });
 
