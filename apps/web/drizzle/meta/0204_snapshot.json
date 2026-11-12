@@ -1,5 +1,5 @@
 {
-  "id": "49e04af2-4151-401e-bc77-fb29d26cfed6",
+  "id": "8d3c16b3-de8e-4b5f-811d-69ca1c697bb3",
   "prevId": "df1dda32-1bbb-448c-a9ab-98aa8352e150",
   "version": "7",
   "dialect": "postgresql",
@@ -2857,6 +2857,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "firmendaten_gespeichert_at": {
+          "name": "firmendaten_gespeichert_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2928,113 +2934,6 @@
         "company_logo_single": {
           "name": "company_logo_single",
           "value": "\"company_logo\".\"id\" = 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.contact_persons": {
-      "name": "contact_persons",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "telefon": {
-          "name": "telefon",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "funktion": {
-          "name": "funktion",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "deactivated_at": {
-          "name": "deactivated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "contact_persons_contact": {
-          "name": "contact_persons_contact",
-          "columns": [
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "contact_persons_contact_id_contacts_id_fk": {
-          "name": "contact_persons_contact_id_contacts_id_fk",
-          "tableFrom": "contact_persons",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "contact_persons_name": {
-          "name": "contact_persons_name",
-          "value": "length(btrim(\"contact_persons\".\"name\")) > 0"
         }
       },
       "isRLSEnabled": false
@@ -6425,12 +6324,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_person_id": {
-          "name": "contact_person_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "recurring_id": {
           "name": "recurring_id",
           "type": "uuid",
@@ -6626,19 +6519,6 @@
           "tableTo": "sepa_mandates",
           "columnsFrom": [
             "sepa_mandate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "invoices_contact_person_id_contact_persons_id_fk": {
-          "name": "invoices_contact_person_id_contact_persons_id_fk",
-          "tableFrom": "invoices",
-          "tableTo": "contact_persons",
-          "columnsFrom": [
-            "contact_person_id"
           ],
           "columnsTo": [
             "id"
@@ -10442,12 +10322,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_person_id": {
-          "name": "contact_person_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "issue_date": {
           "name": "issue_date",
           "type": "date",
@@ -10675,19 +10549,6 @@
           "tableTo": "contacts",
           "columnsFrom": [
             "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "quotes_contact_person_id_contact_persons_id_fk": {
-          "name": "quotes_contact_person_id_contact_persons_id_fk",
-          "tableFrom": "quotes",
-          "tableTo": "contact_persons",
-          "columnsFrom": [
-            "contact_person_id"
           ],
           "columnsTo": [
             "id"

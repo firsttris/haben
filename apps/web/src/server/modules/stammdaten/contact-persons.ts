@@ -5,7 +5,7 @@ import { db, schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
 /**
- * Ansprechpartner am Kontakt (#424). Eine Person ist änderbar, aber nicht löschbar (Trigger, drizzle/0205): Sie kann an
+ * Ansprechpartner am Kontakt (#424). Eine Person ist änderbar, aber nicht löschbar (Trigger, drizzle/0207): Sie kann an
  * Entwürfen hängen, und beim Festschreiben steht ihr Stand als `ansprechpartner` im Käufer des Belegs. Wer nicht mehr
  * dabei ist, wird deaktiviert; ein Entwurf behält die gewählte Person trotzdem, neu wählbar sind nur aktive.
  */

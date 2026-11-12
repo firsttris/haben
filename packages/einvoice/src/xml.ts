@@ -1,4 +1,3 @@
-import { InvoiceService, type Invoice, type Logger } from "@e-invoice-eu/core";
 import {
   documentAllowances,
   formatEuro,
@@ -13,7 +12,7 @@ import {
   type Cents,
   type Millis,
 } from "@haben/core";
-import { ciiPostProcessor } from "./cii.ts";
+import { ciiXml } from "./cii.ts";
 import {
   accountHolder,
   collectedByDirectDebit,
@@ -25,22 +24,12 @@ import {
   presentReferences,
   servicePeriod,
 } from "./format.ts";
+import type { Allowance, DocumentAllowance, Invoice, InvoiceLine } from "./modell.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
-import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
+import type { InvoiceDocument } from "./types.ts";
+import { ublXml } from "./ubl.ts";
 import { validateForFormat } from "./validate.ts";
-import { extractFacturXXml } from "./zugferd.ts";
-
-type UblInvoice = Invoice["ubl:Invoice"];
-type InvoiceLine = UblInvoice["cac:InvoiceLine"][number];
-type LineAllowance = NonNullable<InvoiceLine["cac:AllowanceCharge"]>[number];
-type DocumentAllowance = NonNullable<UblInvoice["cac:AllowanceCharge"]>[number];
-type CountryCode = UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PostalAddress"]["cac:Country"]["cbc:IdentificationCode"];
-
-const SERVICE_FORMATS: Record<InvoiceFormat, string> = {
-  zugferd: "Factur-X-EN16931",
-  "xrechnung-cii": "XRECHNUNG-CII",
-  "xrechnung-ubl": "XRECHNUNG-UBL",
-};
+import { embedFacturX } from "./zugferd.ts";
 
 /** 123456 → "1234.56" */
 function amount(cents: Cents): string {
@@ -114,15 +103,15 @@ function sellerLegalEntity(seller: InvoiceDocument["seller"]) {
 }
 
 /**
- * InvoiceDocument → internes Format von e-invoice-eu (UBL-förmiges JSON).
+ * InvoiceDocument → Rechnungsmodell nach EN 16931 (modell.ts), aus dem cii.ts und ubl.ts das XML schreiben.
  * Storno und Korrektur werden als Gutschrift (381) mit umgekehrtem Vorzeichen abgebildet.
  */
 export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const { seller, buyer } = doc;
   const credit = isCreditNote(doc);
   const sign = credit ? -1 : 1;
-  // Code laut ISO 4217; geprüft beim Speichern (CURRENCY_CODE), hier nur für die Typen des Formats
-  const currency = doc.currency as UblInvoice["cbc:DocumentCurrencyCode"];
+  // Code laut ISO 4217; geprüft beim Speichern (CURRENCY_CODE) und in validateForFormat (codelisten.ts)
+  const currency = doc.currency;
   const period = servicePeriod(doc);
   const treatment = doc.taxTreatment ?? "regulaer";
   // BR-O-02: bei nicht steuerbaren Umsätzen keine USt-IdNr. von Verkäufer und Käufer
@@ -134,12 +123,12 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (seller.steuernummer) sellerTax.push({ "cbc:CompanyID": seller.steuernummer, "cac:TaxScheme": { "cbc:ID": "FC" } });
 
   // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29). Bei Lastschrift die Gläubiger-ID als
-  // Bank assigned creditor identifier (BT-90, schemeID SEPA); e-invoice-eu setzt sie im CII als ram:CreditorReferenceID
+  // Bank assigned creditor identifier (BT-90, schemeID SEPA); cii.ts setzt sie im CII als ram:CreditorReferenceID
   const sellerIds = [
     ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId) ? [{ "cbc:ID": seller.steuernummer || seller.ustId! }] : []),
     ...(collectedByDirectDebit(doc) ? [{ "cbc:ID": doc.directDebit.creditorId, "cbc:ID@schemeID": "SEPA" as const }] : []),
   ];
-  const sellerContact: NonNullable<UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:Contact"]> = {
+  const sellerContact: NonNullable<Invoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:Contact"]> = {
     "cbc:Name": seller.name,
     "cbc:ElectronicMail": seller.email,
   };
@@ -191,7 +180,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   if (!firstLine) throw new Error("Rechnung ohne Positionen");
 
   const payable = sign * doc.totals.gross;
-  const invoice: UblInvoice = {
+  const invoice: Invoice = {
     "cbc:ID": doc.number,
     "cbc:IssueDate": doc.issueDate,
     // 326 = Teilrechnung (Abschlag); die Schlussrechnung ist eine normale Rechnung
@@ -208,9 +197,9 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cbc:StreetName": seller.strasse,
           "cbc:CityName": seller.ort,
           "cbc:PostalZone": seller.plz,
-          "cac:Country": { "cbc:IdentificationCode": seller.land.toUpperCase() as CountryCode },
+          "cac:Country": { "cbc:IdentificationCode": seller.land.toUpperCase() },
         },
-        ...(sellerTax.length > 0 ? { "cac:PartyTaxScheme": sellerTax as UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PartyTaxScheme"] } : {}),
+        ...(sellerTax.length > 0 ? { "cac:PartyTaxScheme": sellerTax as Invoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PartyTaxScheme"] } : {}),
         "cac:PartyLegalEntity": sellerLegalEntity(seller),
         "cac:Contact": sellerContact,
       },
@@ -223,7 +212,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cbc:StreetName": buyer.strasse,
           "cbc:CityName": buyer.ort,
           "cbc:PostalZone": buyer.plz,
-          "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() as CountryCode },
+          "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() },
         },
         ...(buyer.ustId && !outOfScope ? { "cac:PartyTaxScheme": { "cbc:CompanyID": buyer.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } } } : {}),
         "cac:PartyLegalEntity": { "cbc:RegistrationName": buyer.name },
@@ -309,7 +298,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
               "cbc:StreetName": buyer.strasse,
               "cbc:CityName": buyer.ort,
               "cbc:PostalZone": buyer.plz,
-              "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() as CountryCode },
+              "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() },
             },
           },
         }
@@ -369,7 +358,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     invoice["cac:PaymentTerms"] = { "cbc:Note": paymentSentence(doc) };
   }
 
-  return withoutInvalidXmlChars({ "ubl:Invoice": invoice });
+  return withoutInvalidXmlChars(invoice);
 }
 
 /**
@@ -377,7 +366,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
  * cac:DespatchDocumentReference. cbc:ID ist in cac:OrderReference Pflicht: ohne Bestellnummer steht dort „NA“
  * (PEPPOL BIS Billing 3.0, cac:OrderReference/cbc:ID). Im CII entfällt das, BT-13 fehlt dann einfach.
  */
-function orderReferences(doc: InvoiceDocument): Pick<UblInvoice, "cac:OrderReference" | "cac:DespatchDocumentReference"> {
+function orderReferences(doc: InvoiceDocument): Pick<Invoice, "cac:OrderReference" | "cac:DespatchDocumentReference"> {
   const { buyerOrder, sellerOrder, despatchAdvice } = presentReferences(doc.references);
   return {
     ...(buyerOrder || sellerOrder
@@ -391,13 +380,7 @@ function orderReferences(doc: InvoiceDocument): Pick<UblInvoice, "cac:OrderRefer
  * Positionsrabatt als Line allowance (BG-27): Grund „Rabatt“ mit Code 95 (UNTDID 5189, BR-42), Betrag netto (BT-136); bei
  * Prozent und Nettopreisen auch Grundlage (BT-137) und Prozent (BT-138), denn nur dort ist der Abzug genau Grundlage × Prozent.
  */
-function lineAllowance(
-  discount: InvoiceDocument["discount"],
-  value: Cents,
-  base: Cents,
-  grossPrices: boolean,
-  currency: UblInvoice["cbc:DocumentCurrencyCode"],
-): LineAllowance | null {
+function lineAllowance(discount: InvoiceDocument["discount"], value: Cents, base: Cents, grossPrices: boolean, currency: string): Allowance | null {
   if (!discount || value === 0) return null;
   const withPercent = discount.kind === "prozent" && !grossPrices;
   return {
@@ -442,19 +425,6 @@ function withoutInvalidXmlChars<T>(value: T): T {
   return value;
 }
 
-const quietLogger: Logger = {
-  log: () => {},
-  warn: () => {},
-  error: (message) => console.error(message),
-};
-
-let service: InvoiceService | undefined;
-
-function invoiceService(): InvoiceService {
-  service ??= new InvoiceService(quietLogger);
-  return service;
-}
-
 /**
  * Erzeugt die E-Rechnung im gewünschten Format.
  * zugferd: pdf ist das PDF/A-3 mit eingebettetem factur-x.xml, xml das CII daraus.
@@ -469,29 +439,9 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
   const visual = renderInvoicePdf(doc);
 
   if (doc.format === "zugferd") {
-    const pdf = await invoiceService().generate(structuredClone(data), {
-      format: SERVICE_FORMATS.zugferd,
-      lang: "de-de",
-      pdf: { buffer: visual, filename: `${doc.number}.pdf`, mimetype: "application/pdf" },
-      noWarnings: true,
-      postProcessor: ciiPostProcessor(withoutInvalidXmlChars(doc.references)),
-    });
-    const xml = typeof pdf === "string" ? null : extractFacturXXml(pdf);
-    if (typeof pdf === "string" || !xml) throw new Error("ZUGFeRD-Erzeugung lieferte kein PDF mit factur-x.xml");
-    return { xml, pdf };
+    const xml = ciiXml(data, "factur-x");
+    return { xml, pdf: await embedFacturX(visual, xml, doc.issueDate) };
   }
-
-  const xml = await generateXml(data, SERVICE_FORMATS[doc.format], doc);
-  return { xml, pdf: visual };
-}
-
-async function generateXml(data: Invoice, format: string, doc: InvoiceDocument): Promise<string> {
-  const result = await invoiceService().generate(structuredClone(data), {
-    format,
-    lang: "de-de",
-    noWarnings: true,
-    postProcessor: ciiPostProcessor(withoutInvalidXmlChars(doc.references)),
-  });
-  if (typeof result !== "string") throw new Error(`${format} lieferte kein XML`);
-  return result;
+  if (doc.format === "xrechnung-cii") return { xml: ciiXml(data, "xrechnung"), pdf: visual };
+  return { xml: ublXml(data), pdf: visual };
 }

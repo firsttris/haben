@@ -48,7 +48,7 @@ Die Herkunftszuordnung ist nur anhängbar und auditiert. Das Jahresarchiv enthä
 
 ## Zahlungen, Journal und EÜR
 
-Ein bestätigter Bezahlt-Status und ein Zahlungsnachweis sind unterschiedliche Angaben. Der Quellstand steht am Originalbeleg; belegte Einzelzahlungen liegen im bereits vorhandenen Zahlungsbestand. Betrag, Datum und Nachweis werden einzeln übergeben. Fehlende Nachweise erscheinen als ungeklärt und blockieren eine unsichere Stichtagsübernahme. Ein geschätztes Datum wird nicht zum Zahlungsbeleg. Die Übernahme erzeugt keine Bankumsätze.
+Ein bestätigter Bezahlt-Status und ein Zahlungsnachweis sind unterschiedliche Angaben. Der Quellstand steht am Originalbeleg; belegte Einzelzahlungen liegen im vorhandenen Zahlungsbestand. Betrag, Datum und Nachweis werden einzeln übergeben. Fehlende Nachweise erscheinen als ungeklärt und blockieren eine unsichere Stichtagsübernahme. Ein geschätztes Datum wird nicht zum Zahlungsbeleg. Die Übernahme erzeugt keine Bankumsätze.
 
 Rechnungen werden beim Einlesen nicht erneut ausgestellt und erzeugen keine Erlösbuchung. Vor der späteren Übernahme offener Posten ist zu prüfen, welche Forderungen und Verbindlichkeiten schon durch Originalbuchungen oder eine Eröffnung gedeckt sind. Der vorhandene Umzugsablauf berücksichtigt Eröffnungen; eine beliebige freie Originalbuchung wird nicht stillschweigend als solche interpretiert. Sind freie Originaljournale derselben Quelle vorhanden, bleibt eine zusätzliche native OPOS-Übernahme bis zum Abgleich gesperrt. Umgekehrt wird nach einer nativen OPOS-Übernahme kein freies Originaljournal derselben Quelle ungeprüft nachgebucht. Auch eine fehlende Fälligkeit blockiert die native Weiterübernahme eines generischen Originals.
 
@@ -63,7 +63,7 @@ Kassenbewegungen auf 1000 (SKR03) beziehungsweise 1600 (SKR04) werden im bestehe
 
 ## Paketformat
 
-Das verbindliche Schema ist `external-schema.ts`. **Version 2** nutzt den gemeinsamen Umzugsbestand. Version 1 des früheren Entwurfs wird ausdrücklich abgewiesen; ein bereits installierter Prototyp benötigt einen gesondert geprüften Datenübergang. Geldbeträge sind ganze Cent, Steuersätze Basispunkte, Datumsangaben ISO-Daten. Eine Quellidentität besteht aus `source`, Art und `externalId`; die Belegnummer ist kein Dublettenschlüssel.
+Das verbindliche Schema ist `external-schema.ts`. **Version 2** nutzt den gemeinsamen Umzugsbestand. Version 1 des früheren Entwurfs wird abgewiesen; ein bereits installierter Prototyp benötigt einen gesondert geprüften Datenübergang. Geldbeträge sind ganze Cent, Steuersätze Basispunkte, Datumsangaben ISO-Daten. Eine Quellidentität besteht aus `source`, Art und `externalId`; die Belegnummer ist kein Dublettenschlüssel.
 
 ```json
 {

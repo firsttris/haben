@@ -26,4 +26,16 @@ describe("validateForFormat", () => {
     expect(validateForFormat(doc)).toEqual(["Steuernummer oder USt-IdNr. fehlt", "IBAN fehlt"]);
     expect(validateForFormat({ ...sampleDocument({ kind: "storno" }), corrects: undefined })).toEqual(["Bezug zur ursprünglichen Rechnung fehlt"]);
   });
+
+  // Codelisten nach EN 16931 (ISO 3166-1 mit 1A für Kosovo und XI für Nordirland, ISO 4217); bis #734 lehnte
+  // @e-invoice-eu/core unbekannte Codes beim Erzeugen ab
+  it("meldet Länder- und Währungscodes, die EN 16931 nicht kennt", () => {
+    const doc = sampleDocument();
+    expect(validateForFormat({ ...doc, buyer: { ...doc.buyer, land: "XX" } })).toEqual(["Ländercode des Kunden „XX“ unbekannt"]);
+    expect(validateForFormat({ ...doc, buyer: { ...doc.buyer, land: "XK" } })).toEqual(["Ländercode des Kunden „XK“ unbekannt"]);
+    expect(validateForFormat({ ...doc, seller: { ...sampleSeller, land: "D" } })).toEqual(["Ländercode des Rechnungsstellers „D“ unbekannt"]);
+    expect(validateForFormat({ ...doc, currency: "ABC" })).toEqual(["Währung „ABC“ unbekannt"]);
+    expect(validateForFormat({ ...doc, buyer: { ...doc.buyer, land: "1A" }, currency: "CHF" })).toEqual([]);
+    expect(validateForFormat({ ...doc, buyer: { ...doc.buyer, land: "XI" } })).toEqual([]);
+  });
 });

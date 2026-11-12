@@ -19,8 +19,8 @@ the change before starting.
 | Schema and migrations | Migrationen | |
 | What a pull request contains, branch, title, commits, agent marker | Mitwirken | `beitrag` |
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
-| Judge a contribution by someone else (do we want it, built from the sources and correct, simplest solution, rules) | Beiträge annehmen | `beitrag-pruefen` |
-| Review and merge | Review | `tdd-review` |
+| Judge a contribution (do we want it, built from the sources and correct, simplest solution, rules): own pull request as self-check, someone else's as maintainer | Beiträge annehmen | `beitrag-pruefen` |
+| Review and merge | Review | `tdd-review`; without code `doku-pruefen` |
 | Issues and labels | Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
 | Releasing a version | Veröffentlichen, Release Candidates | `release` |
@@ -45,8 +45,9 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 ## With every change
 
 - Tests for what changed: Vitest, Postgres tests next to the module, Playwright for what a user clicks; a bug
-  fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax.
-- Docs in `docs/` in the same pull request; the README only when a feature area or its one-line summary changes.
+  fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax, each covered, not every
+  combination against Postgres (Mitwirken).
+- Docs in `docs/` in the same pull request, short and for people: steps for agents go into a skill, internals of a script into its comments, no sentences that only repeat, announce or sum up (Befehle, "Kurz halten"); the README only when a feature area or its one-line summary changes.
 - Reference issues with `Umgesetzt #…` (done) or `Refs #…` (part), never `Closes`/`Fixes`: the release closes them, not the merge (Mitwirken).
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
@@ -54,7 +55,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - The pull request description becomes the squash commit message on `main`: update it with every push that changes what the PR does or how it was checked, also after review fixes and rebases.
-- An independent TDD review by a separate subagent before the merge (`tdd-review`).
+- An independent TDD review by a separate subagent before the merge (`tdd-review`); without code `doku-pruefen` (Review).
 
 ## Working style
 
@@ -68,4 +69,4 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
   `server/modules/`; another module only through its `index.ts`.
 - Name the source (EN 16931, ERiC docs, DATEV format and SKR03/SKR04 charts; law over DATEV) where it settles a detail; clone GitHub sources
   shallowly into the scratchpad.
-- Use other ports for tests (E2E takes 3100 to 3110, SSO 3216 and 3218 in `playwright.sso-only.config.ts`); an own compose project per worktree (`checks`).
+- Use other ports for tests (E2E takes 3100 to 3112, SSO 3216 and 3218 in `playwright.sso-only.config.ts`); an own compose project per worktree (`checks`).

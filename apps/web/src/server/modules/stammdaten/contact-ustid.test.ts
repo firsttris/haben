@@ -69,6 +69,30 @@ describe.skipIf(!testDatabaseUrl)("Kontakte mit gleicher USt-IdNr. finden (Postg
     expect(found[0]!.id).toBe(neu.id);
   });
 
+  it("nennt den Kontakt mit der gewünschten Rolle zuerst, auch wenn mehr als fünf Kontakte die USt-IdNr. tragen", async () => {
+    // Sechs Kunden (Niederlassungen), alphabetisch vor dem Lieferanten, den man im Dialog „Neuer Lieferant“ wählen könnte
+    for (const name of ["A Filiale", "B Filiale", "C Filiale", "D Filiale", "E Filiale", "F Filiale"]) {
+      await contacts.createContact(actor, input(name, "DE123456789"));
+    }
+    const zentrale = await contacts.createContact(actor, input("Z Zentrale", "DE123456789", { isCustomer: true, isSupplier: true }));
+    const found = await contacts.findContactsByUstId("DE123456789", undefined, { isSupplier: true });
+    expect(found).toHaveLength(5);
+    expect(found[0]!.id).toBe(zentrale.id);
+    // Ohne gewünschte Rolle bleibt es bei Name und aktiv vor archiviert
+    expect((await contacts.findContactsByUstId("DE123456789")).map((c) => c.name)).toEqual(["A Filiale", "B Filiale", "C Filiale", "D Filiale", "E Filiale"]);
+  });
+
+  it("nennt den aktiven Kontakt vor dem archivierten, auch wenn nur der archivierte die gewünschte Rolle hat", async () => {
+    const altKunde = await contacts.createContact(actor, input("0 Altkunde", "DE123456789"));
+    await contacts.setContactArchived(actor, altKunde.id, true);
+    const altLieferant = await contacts.createContact(actor, input("Z Altlieferant", "DE123456789", { isCustomer: false, isSupplier: true }));
+    await contacts.setContactArchived(actor, altLieferant.id, true);
+    await contacts.createContact(actor, input("M Kunde", "DE123456789"));
+    const found = await contacts.findContactsByUstId("DE123456789", undefined, { isSupplier: true });
+    // aktiv vor archiviert gilt vor der Rolle; unter den archivierten kommt der mit der Rolle zuerst
+    expect(found.map((c) => c.name)).toEqual(["M Kunde", "Z Altlieferant", "0 Altkunde"]);
+  });
+
   it("findet bei leerer USt-IdNr. nichts, auch nicht die Kontakte ohne", async () => {
     await contacts.createContact(actor, input("Ohne USt", ""));
     expect(await contacts.findContactsByUstId("")).toEqual([]);

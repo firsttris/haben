@@ -249,12 +249,21 @@ function AppLayout() {
               <div className="nav-group-label" aria-hidden="true">
                 Eigene Seiten
               </div>
-              {eigeneSeiten.map((seite) => (
-                <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
-                  <Icon name="external" />
-                  {seite.name}
-                </Link>
-              ))}
+              {eigeneSeiten.map((seite) =>
+                // Seiten, die das Einbetten verbieten, öffnen in einem neuen Tab (#636); noreferrer wie der Rahmen
+                seite.openInNewTab ? (
+                  <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
+                    <Icon name="external" />
+                    {seite.name}
+                    <span className="visually-hidden"> (öffnet in neuem Tab)</span>
+                  </a>
+                ) : (
+                  <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
+                    <Icon name="embed" />
+                    {seite.name}
+                  </Link>
+                ),
+              )}
             </div>
           )}
           <div className="nav-spacer" />

@@ -198,6 +198,8 @@ export const company = pgTable(
     tageskurs: boolean("tageskurs").notNull().default(false),
     /** Datenschutzhinweise der Finanzverwaltung vor der ersten Nutzung von ERiC bestätigt (ERiC-Lizenz § 5) */
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
+    /** Nur bewusstes Speichern der Firmendaten; Verwaltungsupdates bestätigen keinen Steuerstatus. */
+    companySavedAt: timestamp("firmendaten_gespeichert_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
@@ -3008,6 +3010,8 @@ export const customPages = pgTable("custom_pages", {
   name: text("name").notNull(),
   /** http(s)-Adresse auf einem anderen Host als Haben */
   url: text("url").notNull(),
+  /** Menüeintrag öffnet die Seite in einem neuen Tab statt im Rahmen (#636), für Seiten, die das Einbetten verbieten */
+  openInNewTab: boolean("open_in_new_tab").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
