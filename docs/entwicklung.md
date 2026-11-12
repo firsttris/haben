@@ -683,15 +683,15 @@ Haben steht unter der AGPL-3.0.
 
 #### Pull Requests ohne Code
 
-Ändert ein Pull Request nur Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`), gibt es keinen roten Test. Ein Befund braucht dann ein Zitat aus dem Text und den Beleg dagegen: Code, Quelle oder die andere Stelle. Geprüft wird, ebenso unabhängig:
+Ändert ein Pull Request nur Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`), gibt es keinen roten Test. Statt des TDD-Reviews prüft ihn jemand, der den Text nicht geschrieben hat. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Ändert ein Pull Request Code und Markdown, prüft das TDD-Review die Markdown-Dateien in derselben Runde ebenso. Mit Claude Code führt der Skill `doku-pruefen` durch.
 
-- Der Text stimmt mit dem Code und mit der genannten Quelle überein.
-- Er ist kurz ([Befehle](#befehle), „Kurz halten“).
-- Jede Regel steht einmal: für Menschen hier und in `DESIGN.md`, die Schritte für Agenten in den Skills. `CLAUDE.md` und `AGENTS.md` verweisen nur, nichts widerspricht sich.
-- Erzeugtes ist nicht von Hand geändert, etwa `docs/belegvorlagen.md` aus dem Feldvertrag.
-- Skills, `CLAUDE.md` und `AGENTS.md` weichen keine Regel unter „Never“ in `CLAUDE.md` auf.
+- **Stimmt:** mit dem Code und mit der genannten Quelle.
+- **Kurz:** „Kurz halten“ unter [Befehle](#befehle).
+- **Einmal:** jede Regel an einem Ort, die anderen verweisen; was wohin gehört, steht unter „Kurz halten“.
+- **Nichts Erzeugtes von Hand**, etwa `docs/belegvorlagen.md` aus dem Feldvertrag.
+- **Skills, `CLAUDE.md` und `AGENTS.md`** weichen keine Regel unter „Never“ in `CLAUDE.md` auf.
 
-Befunde behebt der Prüfer mit eigenen Commits. Gemergt wird nach grüner CI, nach einer Runde.
+Befunde behebt der Prüfer mit eigenen Commits; gemergt wird nach einer Runde bei grüner CI.
 
 ## SSO entwickeln und prüfen
 

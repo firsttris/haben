@@ -1,6 +1,6 @@
 ---
 name: "tdd-review"
-description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request vor dem Merge; ohne Code als Doku-Prüfung."
+description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request mit Code vor dem Merge; ohne Code doku-pruefen."
 ---
 
 # TDD-Review
@@ -9,7 +9,7 @@ Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, di
 
 ## 0. Wer reviewt?
 
-Zeigt `git diff --name-only origin/main...<branch>` nur `*.md`: statt der Schritte 1–5 „Ohne Code“ unten. Wer prüft, regeln die Punkte hier auch dann.
+Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft derselbe Reviewer in derselben Runde die Markdown-Dateien nach `doku-pruefen`, Schritte 2 bis 6; diese Befunde brauchen keinen roten Test und stehen im selben Kommentar (Schritt 3).
 
 Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/entwicklung.md`, Review, Punkt 1).
 
@@ -63,17 +63,6 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 - Die CI prüft die volle Suite; ohne grüne CI ist das Review nicht fertig. Auf Entwürfen läuft sie nicht: Dann ist der PR vor dem Merge auf „Ready for review“ zu setzen, nur auf Freigabe der Person.
 - Die CI-Checks des PR abwarten. Bei roten Checks die Ursache beheben und erneut pushen; keinen Test überspringen, keinen leeren Commit, um CI neu zu starten.
 - Abschlusskommentar im PR: welche Findings behoben sind, welche Tests neu sind, Stand der Checks.
-
-## Ohne Code
-
-Was geprüft wird: `docs/entwicklung.md`, „Pull Requests ohne Code“. So:
-
-1. Diff holen. Zu jeder geänderten Aussage die Stelle im Code (`git grep` nach Knopf, Feld, Funktion, Pfad) oder die verlinkte Quelle öffnen; Befehle, die nichts verändern, ausführen.
-2. Die Kernbegriffe der Änderung mit `git grep -n -i "<begriff>" -- '*.md'` suchen und die Treffer in `docs/`, `.claude/skills/`, `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` und `DESIGN.md` vergleichen: doppelt oder widersprüchlich?
-3. Jeden neuen Satz streichen probieren: Fehlt danach nichts, ist er ein Befund.
-4. `docs/belegvorlagen.md` oder `.claude/skills/belegvorlage/` von Hand geändert: Befund, beides schreibt `bun scripts/feldvertrag/schreiben.ts`.
-5. Bei Skills, `CLAUDE.md`, `AGENTS.md`: den Diff gegen „Never“ in `CLAUDE.md` lesen. Bei einer neuen oder geänderten `description:` mit den anderen vergleichen (`grep -h '^description:' .claude/skills/*/SKILL.md`): löst sie im richtigen Moment aus, ohne sich zu überschneiden?
-6. Ein Kommentar im PR, auch ohne Befund: je Befund Zitat und Beleg. Fixes als eigene Commits, `zensical build --strict`, wenn `docs/` geändert ist (Skill `checks`). Dann Schritte 5 und 6, eine Runde.
 
 ## Wie viele Runden
 

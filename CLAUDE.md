@@ -20,7 +20,7 @@ the change before starting.
 | What a pull request contains, branch, title, commits, agent marker | Mitwirken | `beitrag` |
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
 | Judge a contribution by someone else (do we want it, built from the sources and correct, simplest solution, rules) | Beiträge annehmen | `beitrag-pruefen` |
-| Review and merge | Review | `tdd-review` |
+| Review and merge | Review | `tdd-review`; without code `doku-pruefen` |
 | Issues and labels | Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
 | Releasing a version | Veröffentlichen, Release Candidates | `release` |
@@ -54,7 +54,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - The pull request description becomes the squash commit message on `main`: update it with every push that changes what the PR does or how it was checked, also after review fixes and rebases.
-- An independent TDD review by a separate subagent before the merge (`tdd-review`); without code, the Doku-Prüfung instead (Review).
+- An independent TDD review by a separate subagent before the merge (`tdd-review`); without code `doku-pruefen` (Review).
 
 ## Working style
 
