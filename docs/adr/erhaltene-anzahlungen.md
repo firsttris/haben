@@ -47,7 +47,8 @@ Für die EÜR eines Einzelunternehmens soll der bestehende Zahlungsbezug erhalte
 | Rückzahlung, Storno oder nachträgliche Zahlungszuordnung | Fortgeschriebene Verbindlichkeit, realisierte Erlöse und Steuer ergeben sich aus den tatsächlichen Vorgängen; Korrekturen ändern keine gesperrten Ursprungszeilen. |
 
 Die Fälle müssen SKR03 und SKR04, Ist- und Soll-Versteuerung sowie GmbH und UG abdecken. Das Beispiel und die Teilzahlung
-sind zusätzlich zu 7 % und für das Kleinunternehmerprofil gegenzurechnen. Bei letzterem entfällt die Umsatzsteuer,
+sind zusätzlich zu 7 % und für das Kleinunternehmerprofil gegenzurechnen. Bei letzterem entfällt im Beispiel die Umsatzsteuer
+([§ 19 UStG](https://www.gesetze-im-internet.de/ustg_1980/__19.html)),
 die bilanzielle Trennung zwischen Anzahlung und Erlös bleibt erforderlich.
 
 ## Vor der Implementierung festlegen
