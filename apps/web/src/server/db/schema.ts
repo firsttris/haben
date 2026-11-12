@@ -3475,3 +3475,23 @@ export const externalImports = pgTable(
     ),
   ],
 );
+
+/** Bestätigte Zahlungsbezüge, auch für bereits übernommene Journalbuchungen. Nur anhängen; Originale bleiben unverändert. */
+export const externalImportSettlements = pgTable(
+  "external_import_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paymentImportId: uuid("payment_import_id")
+      .notNull()
+      .references(() => externalImports.id),
+    originalImportId: uuid("original_import_id")
+      .notNull()
+      .references(() => externalImports.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_import_settlements_payment").on(t.paymentImportId),
+    index("external_import_settlements_original").on(t.originalImportId),
+    check("external_import_settlements_different", sql`${t.paymentImportId} <> ${t.originalImportId}`),
+  ],
+);

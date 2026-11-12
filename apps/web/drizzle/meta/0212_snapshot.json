@@ -1,5 +1,5 @@
 {
-  "id": "bb75bb29-12a9-4360-b084-b60ee45fe9c2",
+  "id": "3f91b799-0feb-4ab0-b1e1-7e82f49f5c60",
   "prevId": "ae7f9750-0912-402d-947f-49858a87e6b3",
   "version": "7",
   "dialect": "postgresql",
@@ -3275,12 +3275,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "hourly_rate_cents": {
-          "name": "hourly_rate_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -5508,6 +5502,108 @@
         "exchange_rates_rate": {
           "name": "exchange_rates_rate",
           "value": "\"exchange_rates\".\"rate\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.external_import_settlements": {
+      "name": "external_import_settlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "payment_import_id": {
+          "name": "payment_import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_import_id": {
+          "name": "original_import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "external_import_settlements_payment": {
+          "name": "external_import_settlements_payment",
+          "columns": [
+            {
+              "expression": "payment_import_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "external_import_settlements_original": {
+          "name": "external_import_settlements_original",
+          "columns": [
+            {
+              "expression": "original_import_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "external_import_settlements_payment_import_id_external_imports_id_fk": {
+          "name": "external_import_settlements_payment_import_id_external_imports_id_fk",
+          "tableFrom": "external_import_settlements",
+          "tableTo": "external_imports",
+          "columnsFrom": [
+            "payment_import_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "external_import_settlements_original_import_id_external_imports_id_fk": {
+          "name": "external_import_settlements_original_import_id_external_imports_id_fk",
+          "tableFrom": "external_import_settlements",
+          "tableTo": "external_imports",
+          "columnsFrom": [
+            "original_import_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "external_import_settlements_different": {
+          "name": "external_import_settlements_different",
+          "value": "\"external_import_settlements\".\"payment_import_id\" <> \"external_import_settlements\".\"original_import_id\""
         }
       },
       "isRLSEnabled": false
@@ -12427,183 +12523,6 @@
       },
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.service_entries": {
-      "name": "service_entries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "worked_on": {
-          "name": "worked_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "minutes": {
-          "name": "minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "hourly_rate_cents": {
-          "name": "hourly_rate_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "non_billable": {
-          "name": "non_billable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "billable_minutes": {
-          "name": "billable_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "project": {
-          "name": "project",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "external_source": {
-          "name": "external_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "service_entries_extern_key": {
-          "name": "service_entries_extern_key",
-          "columns": [
-            {
-              "expression": "external_source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "service_entries_contact": {
-          "name": "service_entries_contact",
-          "columns": [
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "worked_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "service_entries_contact_id_contacts_id_fk": {
-          "name": "service_entries_contact_id_contacts_id_fk",
-          "tableFrom": "service_entries",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "service_entries_minutes": {
-          "name": "service_entries_minutes",
-          "value": "\"service_entries\".\"minutes\" between 1 and 1440"
-        },
-        "service_entries_billable_minutes": {
-          "name": "service_entries_billable_minutes",
-          "value": "\"service_entries\".\"billable_minutes\" is null or \"service_entries\".\"billable_minutes\" between 1 and 1440"
-        },
-        "service_entries_rate": {
-          "name": "service_entries_rate",
-          "value": "\"service_entries\".\"hourly_rate_cents\" is null or \"service_entries\".\"hourly_rate_cents\" >= 0"
-        },
-        "service_entries_extern": {
-          "name": "service_entries_extern",
-          "value": "(\"service_entries\".\"external_source\" is null) = (\"service_entries\".\"external_id\" is null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.session": {
