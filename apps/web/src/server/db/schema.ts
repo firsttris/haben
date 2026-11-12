@@ -2340,6 +2340,53 @@ export const writeOffs = pgTable(
 );
 
 /**
+ * Verrechnung zweier Eingangsbelege ohne Zahlung: eine Gutschrift des Lieferanten gleicht eine
+ * Rechnung aus (#274). Wie bank_neutralizations bewegt sie kein Geld und erfindet keinen Bankumsatz;
+ * festgehalten wird nur, dass sich zwei offene Posten gegenseitig erledigen. Je Verrechnung zwei
+ * Zeilen, damit jede Seite für sich als erledigt zählt: die eine mit negativem Betrag beim Beleg,
+ * die andere mit positivem beim Gegenbeleg. Nur anhängen, aufgehoben wird per Gegenzeile.
+ */
+export const documentSettlements = pgTable(
+  "document_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Beleg, dessen offener Betrag sich mit dieser Zeile ändert */
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id),
+    /** Beleg, gegen den verrechnet wird */
+    counterDocumentId: uuid("counter_document_id")
+      .notNull()
+      .references(() => documents.id),
+    /**
+     * Kennung des Paars: beide Zeilen einer Verrechnung tragen dieselbe. Die Aufhebung findet damit genau dieses Paar,
+     * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde; die Gegenzeilen einer Aufhebung
+     * bilden ein neues Paar.
+     */
+    settlementId: uuid("settlement_id").notNull().defaultRandom(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Vorzeichen wie eine Zahlung: negativ beim Beleg, positiv bei der Gutschrift */
+    amount: integer("amount").notNull(),
+    note: text("note").notNull().default(""),
+    reversesId: uuid("reverses_id"),
+    /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("document_settlements_two", sql`${t.documentId} <> ${t.counterDocumentId}`),
+    check("document_settlements_amount", sql`${t.amount} <> 0`),
+    index("document_settlements_document").on(t.documentId),
+    index("document_settlements_counter").on(t.counterDocumentId),
+    index("document_settlements_settlement").on(t.settlementId),
+    /** Je Paar höchstens eine Zeile pro Beleg: genau zwei Zeilen, eine je Seite */
+    uniqueIndex("document_settlements_settlement_document").on(t.settlementId, t.documentId),
+    uniqueIndex("document_settlements_reverses").on(t.reversesId),
+    foreignKey({ name: "document_settlements_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
  * Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat: 1 EUR = rate. Abgerufen vom BMF oder von Hand
  * eingetragen. Belege und Rechnungen speichern den verwendeten Kurs selbst; ein später geänderter Kurs ändert sie nicht.
  */

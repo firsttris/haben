@@ -1457,6 +1457,20 @@
       "when": 1794478209986,
       "tag": "0207_ansprechpartner_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 208,
+      "version": "7",
+      "when": 1794485637316,
+      "tag": "0208_beleg_verrechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 209,
+      "version": "7",
+      "when": 1794487529169,
+      "tag": "0209_verrechnung_settlement",
+      "breakpoints": true
     }
   ]
 }
