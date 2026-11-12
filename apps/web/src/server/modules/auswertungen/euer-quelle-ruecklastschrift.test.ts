@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const ACCOUNT_IBAN = "DE89370400440532013000";
 
@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal: Rücklastschrift im Sti
       ["soll", "soll"],
     ] as const) {
       it(`${vorher} → ${nachher}: Lastschrift im Vorjahr, Rücklastschrift mit Entgelt und neue Zahlung im Stichjahr (${kontenrahmen})`, async () => {
-        await sql`truncate sepa_direct_debit_items, sepa_direct_debits, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+        await leeren(sql)`truncate sepa_direct_debit_items, sepa_direct_debits, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
           journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters, sepa_mandate_files,
           sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
         await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank, telefon, glaeubiger_id, kontenrahmen, versteuerung, journal_ab)

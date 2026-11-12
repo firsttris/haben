@@ -7,9 +7,9 @@ description: >-
 
 # Umzug aus Accountable
 
-Haben übernimmt deinen Bestand aus Accountable, damit du kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite „Archiv“ unter „Umzug“: Wähle oben „Umzug aus Accountable“. Die Schritte bis zum Abgleich sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md); diese Seite beschreibt, was bei Accountable anders ist.
+Haben übernimmt deinen Bestand aus Accountable, damit du kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite „Archiv“ unter „Umzug“: Wähle oben „Umzug aus Accountable“. Die Schritte bis zum Abgleich sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
 
-Accountable hat keinen API-Zugang. Es gibt deshalb keine Verbindungskarte mit Schlüssel oder Token, und Haben liest nichts direkt aus deinem Accountable-Konto. Du lädst die Exportdatei hoch, Haben liest daraus den DATEV-Buchungsstapel, entpackt die Belege und verknüpft beides.
+Accountable hat keinen API-Zugang. Es gibt deshalb keine Verbindungskarte mit Schlüssel oder Token. Du lädst die Exportdatei hoch, Haben liest daraus den DATEV-Buchungsstapel, entpackt die Belege und verknüpft beides.
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
@@ -31,7 +31,7 @@ Die Datei heißt danach `Accountable_<Vorname>_<Nachname>_skr03_<Datum>_<Zufall>
 Die anderen Exporte desselben Vorgangs (Excel-Export, Originaldokumente, PDF-Export, Vermögenswerte) brauchst du für den Umzug nicht.
 
 > [!NOTE]
-> Accountable rechnet den Export nach Zahlungsdaten. Das passt zur Ist-Versteuerung und ist der Grund, warum in der Liste der offenen Posten nichts zu übernehmen ist: Was im Export steht, ist bezahlt.
+> Accountable rechnet den Buchungsstapel nach Zahlungsdaten; das passt zur Ist-Versteuerung. Der Stapel allein kennt deshalb keine offenen Posten. Was noch nicht bezahlt war, erkennt Haben an `Daten.xlsx` (siehe [Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)); nur diese Belege stehen in Schritt 3 zur Übernahme.
 
 ## Was in der Datei steckt
 
@@ -39,18 +39,18 @@ Die anderen Exporte desselben Vorgangs (Excel-Export, Originaldokumente, PDF-Exp
 - die Belege in `Belege.zip` samt `document.xml`, das jedem Beleg eine GUID zuordnet
 - die Belegdateien unter `PDF/Einkäufe` (Ausgaben) und `PDF/Umsätze` (Ausgangsrechnungen)
 - je Buchung die Verknüpfung zur Belegdatei im Feld „Beleglink“ (`BEDI "<GUID>"`)
-
-Die ZIP ist die einzige Schnittstelle zwischen den beiden Programmen.
+- `Daten.xlsx`: Der Import liest daraus das Sheet „Ausgaben“ mit Buchungscode, Lieferant und Zahlungsstatus (siehe [Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)); die übrigen Sheets bleiben nur im Archiv
+- `Abschreibungstabelle.xlsx`: wird mit der ZIP archiviert, aber nicht eingelesen
 
 Die Zuordnung Buchung zu Beleg läuft über die GUID und nicht über den Dateinamen. Derselbe Beleg heißt in `Belege.zip` anders als im PDF-Ordner (etwa `…_012` gegen `…_Wdn`). Wenn du vor dem Upload Dateien umbenennst, geht die Verknüpfung kaputt. Lade die ZIP unverändert hoch, Haben speichert sie mit Prüfsumme im Archiv.
 
-Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen. Haben nimmt sie der Reihe nach und übernimmt jede für sich. Wie im Archiv gilt: Jeder Zeitraum wird nur einmal übernommen. Liegt für das Jahr schon ein Buchungsstapel im Archiv, etwa aus einem früheren Export desselben Jahres, bricht der Lauf mit einem Hinweis ab, statt die Buchungen doppelt abzulegen. Dieselbe ZIP noch einmal hochzuladen geht dagegen und übernimmt nur, was fehlt.
+Du kannst je Geschäftsjahr eine ZIP wählen oder mehrere auf einmal hochladen; jede darf höchstens 100 MB groß sein. Haben nimmt sie der Reihe nach und übernimmt jede für sich. Wie im Archiv gilt: Jeder Zeitraum wird nur einmal übernommen. Liegt für das Jahr schon ein Buchungsstapel im Archiv, etwa aus einem früheren Export desselben Jahres, bricht der Lauf mit einem Hinweis ab, statt die Buchungen doppelt abzulegen. Dieselbe ZIP noch einmal hochzuladen geht dagegen und übernimmt nur, was fehlt.
 
 ## Was übernommen wird
 
-1. Aus Buchungen werden Belege. Accountable bucht jede Ausgabe einzeln gegen das Bankkonto 1200, Gegenkonto ist das Aufwandskonto. Daraus entstehen Ausgabebelege mit Datum, Brutto und Steuer.
+1. Aus Buchungen werden Belege. Accountable bucht jede Ausgabe einzeln gegen das Bankkonto 1200, Gegenkonto ist das Aufwandskonto. Daraus entstehen Archivbelege mit Datum, Brutto und Steuer.
 2. Steuer und Netto richten sich nach dem BU-Schlüssel. Steht im Stapel einer (19 oder 7 %), ist der Umsatz brutto und Haben rechnet Steuer und Netto heraus. Ohne BU-Schlüssel gilt der Betrag als steuerfrei gebucht.
-3. Die Belegdatei aus `document.xml` wird über die GUID als Original an den Beleg gehängt. Fehlt eine verlinkte Datei, steht das als Hinweis am Lauf.
+3. Die Belegdatei aus `document.xml` wird über die GUID als Original an den Archivbeleg gehängt. Fehlt eine verlinkte Datei, steht das als Hinweis am Lauf.
 4. Der Lieferant kommt aus dem Buchungstext, ohne Vorsätze wie „ER“, „AR“, „EB“ oder „AB“.
 
 Private Zeilen bleiben Zahlungen ohne Beleg: im SKR03 der ganze Privatbereich `1800` bis `1899`, also Privatentnahmen (`1800`, `1801`), Privatsteuern (`1810`), Sonderausgaben und Privateinlagen (`1890`), und Umbuchungen zwischen Unterkonten des Kontos 1200 (`1360`), im SKR04 Privat (`2100` bis `2199`) und Geldtransit (`1460`). Der Import zählt sie und legt dafür nichts an. Den Kontenrahmen liest Haben aus dem Ordnernamen im Export (`datev_skr03_…` bzw. `datev_skr04_…`).
@@ -71,8 +71,12 @@ Im Archiv erscheint jede Ausgabe unter diesem Kennzeichen, du kannst danach such
 | Steuererklärungen (Einkommensteuer bzw. Körperschaft- und Gewerbesteuer, Umsatzsteuer-Jahreserklärung) | nicht Teil des Exports | Accountable bzw. das Finanzamt, als PDF in Schritt 4 ablegen |
 | Ausgangsrechnungen mit Positionen | Der DATEV-Stapel enthält je Buchung nur Brutto, Steuer und Buchungstext, keine Positionen. Haben verlangt für eine Rechnung Positionen. Der Import zählt die Ausgangsrechnungen und meldet sie, angelegt werden sie nicht | in Haben neu schreiben oder als Bestand über die Eröffnungsbuchung führen |
 | Kontakte als Datensatz | nur als Sheet im Excel-Export | [CSV-Import](csv-import.md#kontakte) oder von Hand |
-| Bankumsätze und übermittelte Voranmeldungen | nicht im Export | Kontoauszüge als PDF, Voranmeldungen als Protokolle ablegen |
+| Bankumsätze und übermittelte Voranmeldungen | Voranmeldungen sind nicht im Export; die Bankumsätze stehen nur im Sheet „Kontobewegungen“ von `Daten.xlsx`, das der Import nicht einliest | Kontoauszüge als PDF, Voranmeldungen als Protokolle ablegen |
 | Anlagenverzeichnis | `Abschreibungstabelle.xlsx` wird nur archiviert, nicht eingelesen | [Anlagen übernehmen](anlagen.md) |
+
+## Bankumsätze kommen aus den Kontoauszügen
+
+Das Sheet „Kontobewegungen“ in `Daten.xlsx` enthält dieselben Zahlungen wie die Kontoauszüge, nur mit dem Zahlungsdatum statt dem Buchungsdatum. Der Import liest es nicht ein; die Bankumsätze kommen aus den Kontoauszügen der Bank oder aus dem Abruf (siehe [Bank](bank.md)). Ein Konto bekommt seine Umsätze aus einer Quelle: Wer die Quelle wechselt, etwa vom Abruf zu Dateien, importiert ab dem Tag nach dem letzten vorhandenen Umsatz. Gemischt ergibt das doppelte Umsätze, weil der Dubletten-Hash das Datum enthält; Haben meldet den Fall beim Import (siehe [Bank](bank.md#dubletten)).
 
 ## Kategorie und Zahlungsstatus
 
@@ -96,7 +100,7 @@ Die Kategorie kommt aus dem Buchungscode in `Daten.xlsx` (Sheet „Ausgaben“) 
 
 Einen unbekannten Code rät der Import nicht. Der Beleg landet unter „Sonstiger Aufwand“ (`sonstiges`), der Code steht als Hinweis am Lauf. Die passende Zeile findet Haben über Belegfeld 1 (`TTMMJJJJ_Cent`), sonst über Datum und Betrag. Passen Datum und Betrag auf mehrere Zeilen, bleibt die Buchung ohne die Angaben aus `Daten.xlsx` und der Fall steht als Hinweis am Lauf.
 
-Der Zahlungsstatus kommt aus den Spalten „Bezahlt“ und „Zahlungsdatum“ derselben Zeile. Nicht bezahlt heißt offener Posten über den Bruttobetrag. Fehlt `Daten.xlsx`, gilt der Beleg wie bisher als bezahlt, weil der Stapel zahlungsbasiert über 1200 bucht.
+Der Zahlungsstatus kommt aus den Spalten „Bezahlt“ und „Zahlungsdatum“ derselben Zeile. Nicht bezahlt heißt offener Posten über den Bruttobetrag. Fehlt `Daten.xlsx`, gilt der Beleg als bezahlt, weil der Stapel zahlungsbasiert über 1200 bucht.
 
 Zwei Konten bleiben anders beschrieben, als Accountable sie meint:
 
@@ -135,21 +139,21 @@ Accountable kann eine Rechnung auf mehrere Konten verteilen. Im Ausgabenblatt st
 Konto eine Zeile, alle mit demselben Lieferanten und Datum, aber ohne Belegnummer, die sie
 zusammenbindet. Beim Export fehlt damit die Angabe, welche Zeilen eine Rechnung sind.
 
-Wer die Zeilen einzeln übernimmt, bekommt einen Beleg über den Teilbetrag der ersten Zeile.
-Die übrigen Zeilen haben keine eigene Datei, werden deshalb nicht gebucht und fehlen im
-Aufwand und in der Vorsteuer.
+Spalte Y, Dokument vorhanden, gilt für die ganze Rechnung und nicht für die einzelne Zeile:
+sie steht auch an den Zeilen, die keinen eigenen Dateinamen tragen. Im Belege-Ordner liegt die
+Datei einmal, benannt nach Datum und Lieferant.
 
-`sammelrechnungen()` fasst Zeilen mit gleichem Lieferanten und Datum zu einer Rechnung
-zusammen und liefert die Positionen einzeln, damit Haben sie als Aufteilung bucht.
-`zeilenInSammelrechnungen()` nennt die Zeilennummern, die dabei aufgehen, damit ein
-Aufrufer sie überspringt.
+Wer die Zeilen einzeln übernimmt, bekommt deshalb einen Beleg über den Teilbetrag einer Zeile,
+während die übrigen ohne Buchung bleiben und im Aufwand und in der Vorsteuer fehlen.
 
-Beides liest nur. In `apps/web` ruft die Funktionen noch niemand auf; der Umzug nutzt sie
-über ein Skript außerhalb dieses Repos.
+Der Umzug auf der Seite „Archiv“ fasst solche Zeilen nicht zusammen. Prüfe sie nach dem
+Import, besonders wenn Datum und Betrag auf mehrere Zeilen passen (siehe
+[Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)). Wer den Bestand mit einem
+eigenen Exportadapter vorbereitet, kann solche Zeilen dort zusammenfassen und das Paket über
+den [Belegimport](belegimport.md) übernehmen.
 
-Die Zuordnung bleibt eine Annahme, weil zwei getrennte Käufe beim selben Händler am selben
-Tag genauso aussehen. Die Summe der Zeilen ist in beiden Fällen dieselbe; unterschiedlich
-ist, ob sie gebucht wird.
+Ob mehrere Zeilen eine Rechnung sind, bleibt eine Annahme, weil zwei getrennte Käufe beim
+selben Händler am selben Tag genauso aussehen.
 
 ## Vor der Kündigung
 

@@ -57,7 +57,7 @@ Wechselst du unter dem Jahr, etwa von Lexware Office oder sevDesk zu Buchhaltung
 
 Die Summen aus dem Buchungsstapel sind eine Näherung nach Kontenklassen, wie unter [Lexoffice, Abgleich je Jahr](lexoffice.md#schritt-5-abgleich-je-jahr) beschrieben. Weitere Erträge und Aufwendungen außerhalb dieser Klassen, etwa Zinsen oder Kfz-Steuer (SKR03 Klasse 2, SKR04 Klasse 7), zählen dort nicht mit.
 
-**Kontenrahmen, Rechtsform und Versteuerungsart kommen aus den Firmendaten in Haben.** Sie werden nicht aus den Exporten erraten. Vorhandene Kontakte werden nur verknüpft, wenn der Name genau und ohne Mehrdeutigkeit übereinstimmt; neue Kontaktdatensätze entstehen aus den Belegdaten nicht.
+**Kontenrahmen, Rechtsform und Versteuerungsart kommen aus den Firmendaten in Haben.** Vorhandene Kontakte werden nur verknüpft, wenn der Name genau und ohne Mehrdeutigkeit übereinstimmt; neue Kontaktdatensätze entstehen aus den Belegdaten nicht.
 
 Ein erneuter Import überspringt bereits vorhandene Belege und Originalexporte. Einen sich mit einem anderen DATEV-Stapel überschneidenden Zeitraum kannst du nicht doppelt einlesen.
 

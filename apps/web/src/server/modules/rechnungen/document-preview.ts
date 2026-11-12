@@ -17,7 +17,6 @@ import {
 import {
   asDraft,
   type Buyer,
-  createRenderClient,
   type InvoiceDocument,
   type Letterhead,
   pdfData,
@@ -28,12 +27,26 @@ import {
   type SheetData,
   sheetText,
   type SheetTextPart,
+  templateInputs,
   texts,
 } from "@haben/einvoice";
 import { z } from "zod";
 import { db } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { type Company, getContact, loadCompany, loadLetterhead } from "../stammdaten/index.ts";
+import {
+  type Company,
+  customLayoutFor,
+  customLayoutJob,
+  dataForVersion,
+  ansprechpartnerSnapshot,
+  contactPersonProblem,
+  getContact,
+  layoutRenderer,
+  loadCompany,
+  loadLetterhead,
+  rendererFor,
+  typstMeldung,
+} from "../stammdaten/index.ts";
 import { buyerFrom, sellerFrom } from "./invoices.ts";
 import { directDebitFor } from "./lastschrift.ts";
 import { documentReferences, referenceColumns, referenceFieldsSchema } from "./order-references.ts";
@@ -61,6 +74,8 @@ export const documentPreviewSchema = z.object({
   // Beim Tippen steht hier auch „14 Tage“ oder „-“; dann zählt das Rechnungsdatum, wie im Editor
   paymentTermDays: z.number().int().min(0).max(1000).catch(0),
   contactId: z.uuid().nullable(),
+  /** Ansprechpartner des Kunden (#424), für die Zeile „z. Hd.“ in der Vorschau */
+  contactPersonId: z.uuid().nullable().default(null),
   ...referenceFieldsSchema,
   lines: z
     .array(
@@ -109,17 +124,20 @@ export interface DocumentPreview extends RenderedSheet {
   text: SheetTextPart[];
 }
 
-const renderer = createRenderClient();
-
 /** Ungespeicherte Gestaltung aus dem Panel über der gespeicherten */
 function withDesign(letterhead: Letterhead, design: Input["design"]): Letterhead {
   const { accent, ...options } = design;
   return { ...letterhead, ...(accent ? { accent } : {}), options: { ...DEFAULT_OPTIONS, ...letterhead.options, ...options } };
 }
 
-async function previewBuyer(contactId: string | null): Promise<Buyer> {
+async function previewBuyer(contactId: string | null, contactPersonId: string | null): Promise<Buyer> {
   const found = contactId ? await getContact(contactId) : null;
-  return found ? buyerFrom(found.contact) : { name: "[Kunde wählen]", strasse: "", plz: "", ort: "", land: "DE" };
+  // Die Vorschau zeigt „z. Hd.“ wie das spätere PDF: nur eine Person dieses Kunden, sonst keine Zeile
+  const person =
+    found && (await contactPersonProblem(db, found.contact.id, contactPersonId, contactPersonId)) === null
+      ? await ansprechpartnerSnapshot(db, contactPersonId)
+      : undefined;
+  return found ? buyerFrom(found.contact, person) : { name: "[Kunde wählen]", strasse: "", plz: "", ort: "", land: "DE" };
 }
 
 function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhead: Letterhead, directDebit: InvoiceDocument["directDebit"]): InvoiceDocument {
@@ -210,7 +228,7 @@ function quoteDocument(input: Input, company: Company, buyer: Buyer, letterhead:
 
 /** Das Blatt als SVG samt Text für Screenreader; statt des GiroCodes ein Platzhalter, damit niemand eine Vorschau bezahlt */
 export async function documentPreview(input: Input): Promise<DocumentPreview> {
-  const [company, stored, buyer] = await Promise.all([loadCompany(), loadLetterhead(), previewBuyer(input.contactId)]);
+  const [company, stored, buyer] = await Promise.all([loadCompany(), loadLetterhead(), previewBuyer(input.contactId, input.contactPersonId)]);
   const letterhead = withDesign(stored, input.design);
   const dueDate = input.dueDate || input.issueDate;
   const directDebit = await directDebitFor(
@@ -232,9 +250,16 @@ export async function documentPreview(input: Input): Promise<DocumentPreview> {
       ? quotePdfData(quoteDocument(input, company, buyer, letterhead))
       : pdfData(invoiceDocument(input, company, buyer, letterhead, directDebit));
   const { draft: _noMark, ...sheet } = asDraft(data, t);
+  // Mit eigenem Layout dasselbe wie beim Festschreiben: Quelltext aus der Datenbank, Daten wie für die eingebaute Vorlage
+  const layout = await customLayoutFor(input.kind === "angebot" ? "angebot" : "rechnung");
+  const job = layout
+    ? await customLayoutJob(layout, dataForVersion(layout.schemaVersion, templateInputs(sheet, letterhead)), letterhead)
+    : renderJob("rechnung.typ", sheet, letterhead);
   try {
-    return { ...(await renderer.render(renderJob("rechnung.typ", sheet, letterhead))), text: sheetText(sheet as unknown as SheetData) };
+    const renderer = layout ? await rendererFor(layout) : layoutRenderer;
+    return { ...(await renderer.render(job)), text: sheetText(sheet as unknown as SheetData) };
   } catch (error) {
+    if (layout) throw new DocumentPreviewError(`Das Layout „${layout.name}“ ließ sich nicht setzen: ${typstMeldung(error)}`);
     throw new DocumentPreviewError(
       `Die Vorschau ließ sich nicht erzeugen. ${error instanceof Error && error.message.includes("Zeitlimit") ? error.message : "Das PDF ist davon nicht betroffen."}`,
     );

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * docs/sevdesk.md: Das Stornopaar gilt nur, „wenn zu beiden keine Zahlung besteht; sonst
@@ -30,7 +30,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Stornopaar mit Zahlungstag (Postgres)
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports,
+      contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', 'ist', 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;
@@ -65,9 +66,16 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Stornopaar mit Zahlungstag (Postgres)
     expect(detail!.voucher.paymentHistoryIssue).toMatch(/Zahlungshistorie unvollständig/);
   });
 
-  it("wertet auch einen Zahlungstag an der Stornorechnung als Zahlung", async () => {
+  // Entscheidung in #472: sevDesk setzt beim Stornieren teils ein payDate an der Stornorechnung, ohne dass Geld floss
+  it("wertet einen Zahlungstag an der Stornorechnung mit paidAmount 0 nicht als Zahlung", async () => {
     const id = await insert("11", "invoice", "RE-2025-0001", "2025-04-08", 11_900, { invoiceType: "RE", paidAmount: 0, payDate: null });
     await insert("12", "creditnote", "RE-2025-0002", "2025-04-10", -11_900, { ...stornoRaw, payDate: "2025-04-11T00:00:00+02:00" });
+    expect((await lexoffice.legacyVoucherDetail(id))!.voucher.payment?.status).toBe("cancelled");
+  });
+
+  it("wertet einen Zahlungstag an der Stornorechnung ohne paidAmount weiter als mögliche Zahlung", async () => {
+    const id = await insert("11", "invoice", "RE-2025-0001", "2025-04-08", 11_900, { invoiceType: "RE", paidAmount: 0, payDate: null });
+    await insert("12", "creditnote", "RE-2025-0002", "2025-04-10", -11_900, { ...stornoRaw, paidAmount: null, payDate: "2025-04-11T00:00:00+02:00" });
     expect((await lexoffice.legacyVoucherDetail(id))!.voucher.payment?.status).not.toBe("cancelled");
   });
 

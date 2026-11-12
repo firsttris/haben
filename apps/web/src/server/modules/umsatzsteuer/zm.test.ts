@@ -1,7 +1,7 @@
 import type { ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
 
 /** Zusammenfassende Meldung (§ 18a UStG): Zeilen aus den Rechnungen, Vorprüfung, Übermittlung, Berichtigung, Sperre, Fristen */
@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
   });
 
   async function setCompany(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", ustId = "DE136695976") {
-    await sql`truncate zm_submissions, vat_return_submissions, vat_returns, elster_certificates, write_offs, allocations, bank_transactions,
+    await leeren(sql)`truncate zm_submissions, vat_return_submissions, vat_returns, elster_certificates, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts,
       company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)

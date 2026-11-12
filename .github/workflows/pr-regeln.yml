@@ -1,7 +1,7 @@
 # Prüft Regeln am Pull Request selbst (scripts/pr-regeln): Titel „Bereich: was sich ändert (#Issue)“;
-# Hinweise auf Code ohne Doku und Fix ohne Test. Läuft anders als ci.yml auch für Entwürfe und reine Doku-Änderungen, denn der Titel wird
+# Hinweise auf Code ohne Doku, Fix ohne Test und, bei fremden Pull Requests, auf Selbstprüfung und Review. Läuft anders als ci.yml auch für Entwürfe und reine Doku-Änderungen, denn der Titel wird
 # beim Squash-Merge zum Commit auf main. Mit pull_request, nicht pull_request_target: Code aus Forks läuft nur
-# mit Leserecht.
+# mit Leserecht. Den Kommentar im Pull Request schreibt danach pr-regeln-kommentar.yml aus dem Artefakt.
 name: PR-Regeln
 
 on:
@@ -29,3 +29,13 @@ jobs:
           bun-version-file: package.json
       # Ohne bun install: das Skript braucht nur node:-Module
       - run: bun scripts/pr-regeln/pruefen.ts
+        env:
+          PR_REGELN_ERGEBNIS: pr-regeln-ergebnis
+      # Auch nach einem Fehler, damit der Kommentar ihn nennt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pr-regeln-ergebnis
+          path: pr-regeln-ergebnis/ergebnis.json
+          if-no-files-found: ignore
+          retention-days: 3

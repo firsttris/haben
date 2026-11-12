@@ -27,6 +27,7 @@ try {
       JSON.stringify({
         structureAndOriginalHashesChecked: true,
         entries: input.entries.length,
+        settlements: input.settlements.length + input.entries.filter((e) => e.kind === "journal" && e.settles).length,
         targetNotChanged: true,
         note: "Zielbestand und Buchungsregeln werden beim Anwenden in einer Transaktion geprüft.",
       }),

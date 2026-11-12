@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { AbgabeVermerken } from "../../../components/jahreserklaerung/AbgabeVermerken.tsx";
 import { GewstSection, KapgAngaben, KapgGemeinsameHinweise, KstSection } from "../../../components/KapgErklaerungen.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
@@ -163,8 +164,10 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
   );
 }
 
-function SentPill({ sent }: { sent: Data["ust"]["sent"] }) {
-  return sent ? <span className="pill pill-ok">Übermittelt {formatDate(sent.createdAt)}</span> : <span className="pill">Noch nicht übermittelt</span>;
+function SentPill({ sent, submitted }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"] }) {
+  if (sent) return <span className="pill pill-ok">Übermittelt {formatDate(sent.createdAt)}</span>;
+  if (submitted) return <span className="pill pill-ok">Außerhalb abgegeben{submitted.filedOn ? ` ${formatDate(submitted.filedOn)}` : ""}</span>;
+  return <span className="pill">Noch nicht übermittelt</span>;
 }
 
 function UstSection({ data }: { data: Data }) {
@@ -177,7 +180,7 @@ function UstSection({ data }: { data: Data }) {
           <h2 id="ust-heading" style={{ margin: 0 }}>
             Umsatzsteuererklärung
           </h2>
-          <SentPill sent={ust.sent} />
+          <SentPill sent={ust.sent} submitted={ust.submitted} />
         </div>
         <Issues issues={ust.issues} />
         <table className="report-table stack-table">
@@ -222,7 +225,7 @@ function UstSection({ data }: { data: Data }) {
           {!isKapitalgesellschaft(data.rechtsform) && " Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten."}
         </p>
       </div>
-      <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} />
+      <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} submitted={ust.submitted} />
     </section>
   );
 }
@@ -236,7 +239,7 @@ function EuerSection({ data }: { data: Data }) {
           <h2 id="euer-heading" style={{ margin: 0 }}>
             Anlage EÜR
           </h2>
-          <SentPill sent={euer.sent} />
+          <SentPill sent={euer.sent} submitted={euer.submitted} />
         </div>
         <Issues issues={euer.issues} />
         <ScrollTable className="report-table">
@@ -306,7 +309,7 @@ function EuerSection({ data }: { data: Data }) {
           </div>
         )}
       </div>
-      <SubmitPanel form="euer" data={data} blocked={euer.issues.some((i) => i.tone === "fehler")} sent={Boolean(euer.sent)} />
+      <SubmitPanel form="euer" data={data} blocked={euer.issues.some((i) => i.tone === "fehler")} sent={Boolean(euer.sent)} submitted={euer.submitted} />
     </section>
   );
 }
@@ -450,7 +453,7 @@ function EstSection({ data }: { data: Data }) {
       <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
-          <SentPill sent={est.sent} />
+          <SentPill sent={est.sent} submitted={est.submitted} />
         </div>
         <Issues issues={est.issues} />
         <ScrollTable className="report-table">
@@ -640,16 +643,29 @@ function EstSection({ data }: { data: Data }) {
           Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
         </p>
       </form>
-      <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} />
+      <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} submitted={est.submitted} />
     </section>
   );
 }
 
-function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; blocked: boolean; sent: boolean }) {
+function SubmitPanel({
+  form,
+  data,
+  blocked,
+  sent,
+  submitted,
+}: {
+  form: Form;
+  data: Data;
+  blocked: boolean;
+  sent: boolean;
+  submitted: Data["ust"]["submitted"];
+}) {
   const router = useRouter();
   const submit = useServerFn(submitAnnualReturn);
   const loadWerte = useServerFn(getMeinElsterWerte);
   const { busy, notice, setNotice, run } = useAction();
+  const berechnet = form === "ust" ? data.ust.abschluss : form === "euer" ? data.euer.gewinn : 0;
 
   return (
     <div className="stack sticky-panel">
@@ -657,10 +673,16 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
         setup={data}
         title={`${FORM_LABEL[form]} übermitteln`}
         className="card"
-        ready={!blocked}
+        ready={!blocked && !submitted}
         busy={busy}
         notice={notice}
-        lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
+        lockedHint={
+          submitted
+            ? "Außerhalb von Haben abgegeben. Eine Übermittlung aus Haben ist nicht mehr nötig."
+            : sent
+              ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal."
+              : undefined
+        }
         confirmTitle={`${FORM_LABEL[form]} ${data.year} verbindlich senden?`}
         confirmFacts={[
           { label: form === "euer" ? "Meldung" : "Steuerart", value: FORM_LABEL[form] },
@@ -676,7 +698,8 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
           })
         }
       />
-      {!data.herstellerIdConfigured && !sent && (
+      {(form === "ust" || form === "euer") && <AbgabeVermerken art={form} year={data.year} today={data.today} berechnet={berechnet} vermerkt={submitted} />}
+      {!data.herstellerIdConfigured && !sent && !submitted && (
         <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />
       )}
     </div>

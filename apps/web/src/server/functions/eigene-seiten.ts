@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createCustomPage, customPageInputSchema, deleteCustomPage, getCustomPage, listCustomPages, updateCustomPage } from "../modules/eigene-seiten/index.ts";
+import {
+  checkCustomPageEmbedding,
+  createCustomPage,
+  customPageInputSchema,
+  deleteCustomPage,
+  getCustomPage,
+  listCustomPages,
+  updateCustomPage,
+} from "../modules/eigene-seiten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { detailId } from "./schemas.ts";
 
@@ -25,6 +33,12 @@ export const saveCustomPage = createServerFn({ method: "POST" })
     const row = data.id ? await updateCustomPage(context.user.id, data.id, data.page) : await createCustomPage(context.user.id, data.page);
     return { id: row.id };
   });
+
+/** Hinweis im Formular: verbietet die Seite das Einbetten? Haben ruft die Adresse dafür einmal auf (#636) */
+export const checkCustomPageEmbeddingFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ url: z.string().trim().min(1).max(2000) }))
+  .handler(({ data }) => checkCustomPageEmbedding(data.url));
 
 export const deleteCustomPageFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

@@ -1,5 +1,6 @@
 import { and, eq, gte, lt, or } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import { externalSettlementLinks } from "../datenimport/index.ts";
 import type { ArchiveFile } from "./export.ts";
 
 /** Herkunft im Belegjahr, unabhängig vom Datum des technischen Imports. */
@@ -25,5 +26,15 @@ export async function* externalImportArchive(year: number): AsyncGenerator<Archi
       path: "importe/uebernahmen.json",
       compress: true,
       content: new TextEncoder().encode(JSON.stringify({ version: 2, year, imports: rows.map((r) => r.imported) }, null, 2)),
+    };
+  const settlements = await externalSettlementLinks(
+    db,
+    rows.filter((r) => r.imported.kind === "journal").map((r) => r.imported.id),
+  );
+  if (settlements.length > 0)
+    yield {
+      path: "importe/zahlungszuordnungen.json",
+      compress: true,
+      content: new TextEncoder().encode(JSON.stringify({ year, settlements }, null, 2)),
     };
 }

@@ -5,11 +5,11 @@
  * /error_path/404.html (2027 am 05.11.2026) oder 302 auf eine Fehlerseite mit „notfound“ (2024). Der PAP enthält den
  * Tarif des § 32a EStG (UPTAB), deshalb hängt der Befund zum Einkommensteuertarif an ihm.
  */
-import { type Abruf, abrufen, befund, beschreibe, DOKU, type Ergebnis, type Holen, LEER, sha256, text, warnung, zusammen } from "./abruf.ts";
+import { type Abruf, abrufen, befund, beschreibe, type Ergebnis, type Holen, LEER, SKILL_JAHRESWERTE, sha256, text, warnung, zusammen } from "./abruf.ts";
 
 export const papUrl = (jahr: number) => `https://www.bmf-steuerrechner.de/javax.faces.resource/daten/xmls/Lohnsteuer${jahr}.xml.xhtml`;
 
-const DOKU_PAP = `${DOKU}#${encodeURIComponent("lohnsteuer-pap-jährlich-aktualisieren")}`;
+const DOKU_PAP = `${SKILL_JAHRESWERTE}#lohnsteuer-pap`;
 
 export interface LohnsteuerStand {
   heute: Date;
@@ -60,7 +60,7 @@ const neuerPap = (jahr: number, a: { sha256: string; stand: string | null }) =>
       "",
       `Haben hat für ${jahr} noch keinen PAP (\`PAP_JAHRE\` in \`packages/core/src/lohnsteuer/index.ts\`) und rechnet die Lohnsteuer ${jahr} deshalb nicht.`,
       "",
-      `Zu tun: das XML als \`Lohnsteuer${jahr}.xml\` ablegen, \`pap-${jahr}.ts\` mit Test anlegen, Prüffälle des BMF abrufen – Schritte in [docs/entwicklung.md, „Lohnsteuer: PAP jährlich aktualisieren“](${DOKU_PAP}).`,
+      `Zu tun: das XML als \`Lohnsteuer${jahr}.xml\` ablegen, \`pap-${jahr}.ts\` mit Test anlegen, Prüffälle des BMF abrufen – Schritte in [Skill jahreswerte, „Lohnsteuer: PAP“](${DOKU_PAP}).`,
     ].join("\n"),
   });
 
@@ -73,7 +73,7 @@ const geaenderterPap = (jahr: number, hinterlegt: string, a: { sha256: string; s
       "",
       `${standZeile(a)} In \`packages/core/src/lohnsteuer/pap-${jahr}.ts\` steht SHA-256 \`${hinterlegt}\`.`,
       "",
-      `Zu tun: das neue XML neben das alte legen und vergleichen (\`diff\`), Werte und Ablauf in \`pap-${jahr}.ts\` bzw. \`pap.ts\` nachziehen, Quelle und SHA-256 aktualisieren, Prüffälle neu abrufen – siehe [docs/entwicklung.md](${DOKU_PAP}). Gilt die Änderung erst ab einem Monat, braucht Haben beide Fassungen.`,
+      `Zu tun: das neue XML neben das alte legen und vergleichen (\`diff\`), Werte und Ablauf in \`pap-${jahr}.ts\` bzw. \`pap.ts\` nachziehen, Quelle und SHA-256 aktualisieren, Prüffälle neu abrufen – siehe [Skill jahreswerte](${DOKU_PAP}). Gilt die Änderung erst ab einem Monat, braucht Haben beide Fassungen.`,
     ].join("\n"),
   });
 
@@ -86,6 +86,6 @@ const fehlenderTarif = (jahr: number) =>
       "",
       `In \`TARIFE\` in \`packages/core/src/income-tax.ts\` fehlt ${jahr}; die Steuerprognose rechnet ${jahr} deshalb mit dem Tarif des letzten bekannten Jahres.`,
       "",
-      `Zu tun: Grundfreibetrag, Zonen und Abzugsbeträge aus UPTAB übernehmen, dazu Freigrenze des Solidaritätszuschlags, Kinderfreibetrag und Kindergeld; die Gegenprobe in \`pap.test.ts\` vergleicht den Tarif mit dem PAP – siehe [docs/entwicklung.md](${DOKU_PAP}), Schritt 5.`,
+      `Zu tun: Grundfreibetrag, Zonen und Abzugsbeträge aus UPTAB übernehmen, dazu Freigrenze des Solidaritätszuschlags, Kinderfreibetrag und Kindergeld; die Gegenprobe in \`pap.test.ts\` vergleicht den Tarif mit dem PAP – siehe [Skill jahreswerte](${DOKU_PAP}), Schritt 5.`,
     ].join("\n"),
   });

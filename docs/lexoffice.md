@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du aus einem anderen Programm, lies [Umzug aus sevDesk](sevdesk.md), [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) oder [Umzug aus Accountable](accountable.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 
@@ -39,6 +39,8 @@ Wie die Belege zu Haben kommen, hängt von deinem Tarif ab. Buchungen, Bankumsä
 
 Hast du Tarif XL, nimm die Public API. Sonst ist die Sicherung aus der Web-Oberfläche der Weg, der dieselben Daten bringt. Nur über die Exporte bleibt, wenn das Skript scheitert; dann fehlen Kontakte, Belege als Datensätze und offene Posten.
 
+Wer den Bestand selbst aufbereitet, etwa mit einem eigenen Exportadapter, kann ihn außerdem als geprüftes Paket über den [JSON-Eingang](belegimport.md) übernehmen, mit der Betreiber-CLI auf dem Server.
+
 Bei jedem Weg gilt: Anlagen trägst du mit dem Restbuchwert ein, einzeln oder als CSV-Liste ([Anlagen](anlagen.md#übernahme-aus-lexoffice), [CSV-Import](csv-import.md#anlagen)), Artikel kommen per [CSV-Import](csv-import.md#artikel), Angebote, Aufträge, Lieferscheine und Mahnungen übernimmt Haben nicht.
 
 ## Voraussetzungen
@@ -63,7 +65,7 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Ohne Tarif XL gibt es keinen API-Schlüssel. Dieselben Daten holst du dann über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+Dieselben Daten holst du über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
 
 ### Sicherung aus der Web-Oberfläche
 
@@ -220,7 +222,7 @@ Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben
 | Rechnung, Soll-Versteuerung | Forderung an Saldenvortrag | Schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 | Eingangsbeleg | Saldenvortrag an Verbindlichkeiten | Vorsteuer schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 
-So wird keine Steuer doppelt angemeldet. In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
+In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
 
 Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren Tag ab als dem ersten Tag in Haben, lädst du den Kontoauszug für die Tage davor als Datei hoch (siehe [Bank](bank.md)).
 
@@ -264,7 +266,7 @@ Jede Datei bleibt byte-genau erhalten und liegt unter ihrem SHA-256. Dieselbe Da
 
 ### DATEV-Buchungsstapel
 
-Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, werden mit Namen abgelehnt.
+Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewählt hast. Erwartet wird das DATEV-Format EXTF (oder DTVF), Formatkategorie 21 „Buchungsstapel“, Version 7xx. Andere DATEV-Exporte, etwa Kontenbeschriftungen oder Debitoren/Kreditoren, liest Haben nicht ein: Sie liegen als Originale unter der gewählten Art im Archiv. Hast du **DATEV-Buchungsstapel** gewählt, legt Haben sie als **Sonstiges** ab und sagt es dir; das Geschäftsjahr gibst du dann selbst an. Ein beschädigter Buchungsstapel wird weiter abgelehnt.
 
 - **Kodierung:** UTF-8 (mit oder ohne BOM), UTF-16 mit BOM; alles andere liest Haben als Windows-1252.
 - **Spalten:** Haben sucht die Spalten über ihren Namen, nicht ihre Position. Pflicht sind Umsatz, Soll/Haben-Kennzeichen, Konto, Gegenkonto und Belegdatum. Beim Vergleich der Namen zählen Groß- und Kleinschreibung, Leerzeichen und Bindestriche nicht, und „ae“, „oe“, „ue“, „ss“ gelten wie „ä“, „ö“, „ü“, „ß“. So passen auch die vereinfachten Namen aus Lexware Office wie „Umsatz“, „Gegenkonto“, „BU-Schluessel“ oder „Basisumsatz“. Übernommen werden außerdem Währung, BU-Schlüssel, Belegfeld 1 und 2, Buchungstext und Beleglink; alle anderen nicht leeren Spalten bleiben je Zeile unverändert gespeichert.
@@ -319,7 +321,7 @@ Bringt der letzte Stapel keine Eröffnungsbuchungen mit und gibt es keinen Stape
 | --- | --- |
 | Offene Posten | Schon übernommene Rechnungen und Belege (Forderung bzw. Verbindlichkeit gegen 9000) rechnet der Vorschlag heraus: Er bucht nur den Rest bis zum Saldo der Schlussbilanz und auf 9000 das Gegenteil der Übernahmen. Wer einen Posten nach der Eröffnung übernimmt, dessen Belegdatum davor liegt, bekommt Rechnung bzw. Beleg für den Bankabgleich, aber keine zweite Buchung gegen 9000; der Posten steckt schon im Saldo. Das gilt auch für einen Posten, der erst im Januar bezahlt wurde: Am Stichtag, dem 31.12. des Stapeljahres, war er offen und steht in der Schlussbilanz. |
 | Anlagen | Ebenso: Die Eröffnung einer übernommenen Anlage, die schon gebucht ist, rechnet der Vorschlag heraus; wird die AfA erst danach gebucht, verweist die Anlage auf die Eröffnung aus dem Stapel statt noch einmal gegen 9000 zu buchen. |
-| Umsatzsteuer | Umsatzsteuer, Vorsteuer, nicht fällige Umsatzsteuer und Vorauszahlungen werden mit ihrem Saldo vorgetragen, wie beim Saldenvortrag in Haben. Die Voranmeldung rechnet aus Rechnungen und Belegen, nicht aus diesen Konten; der vorgetragene Saldo gehört zu Voranmeldungen des Vorjahres und zählt nicht noch einmal: Die Vorauszahlung gilt je Voranmeldungszeitraum ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), Besteuerungszeitraum ist das Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__16.html)). Der Abgleich zwischen Journal und Voranmeldung lässt Eröffnungen deshalb außen vor. Zahlst du im Januar die Zahllast für Dezember, ordnest du die Abbuchung im Bankabgleich als **Umsatzsteuer an das Finanzamt** zu; sie läuft auf SKR03 1780 bzw. SKR04 3820 gegen den vorgetragenen Saldo, die Steuerkonten gleichen sich danach zusammen aus. |
+| Umsatzsteuer | Umsatzsteuer, Vorsteuer, nicht fällige Umsatzsteuer und Vorauszahlungen werden mit ihrem Saldo vorgetragen, wie beim Saldenvortrag in Haben. Eröffnungsbuchungen zählen in den Kennzahlen der Voranmeldung nicht, auch nicht ab dem [Stichjahr](umsatzsteuer.md#wie-die-kennzahlen-entstehen), wenn sie aus dem Journal rechnet; der vorgetragene Saldo gehört zu Voranmeldungen des Vorjahres und zählt nicht noch einmal: Die Vorauszahlung gilt je Voranmeldungszeitraum ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), Besteuerungszeitraum ist das Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__16.html)). Der Abgleich zwischen Journal und Voranmeldung lässt Eröffnungen deshalb außen vor. Zahlst du im Januar die Zahllast für Dezember, ordnest du die Abbuchung im Bankabgleich als **Umsatzsteuer an das Finanzamt** zu; sie läuft auf SKR03 1780 bzw. SKR04 3820 gegen den vorgetragenen Saldo, die Steuerkonten gleichen sich danach zusammen aus. |
 | Kasse | Das Kassenbuch zählt den Kassenbestand der Eröffnung zum Anfangsbestand des Jahres, ohne eigene Zeile und ohne zweite Buchung (siehe [Kassenbuch](kasse.md)). |
 
 **Storno.** Die Eröffnung aus dem Stapel stornierst du wie jede manuelle Buchung in den aufgeklappten Buchungszeilen. Haben lehnt den Storno ab, solange etwas ohne eigene Buchung auf ihr aufbaut: offene Posten, die nach der Eröffnung übernommen wurden und nur in ihrem Saldo stehen, und Anlagen, die auf sie verweisen. Ein Storno nähme deren Bestände mit, und eine Eröffnung von Hand brächte sie nicht zurück. Ebenso, wenn das Kassenbuch am Eröffnungsbestand hängt und ohne ihn negativ würde. Passt an der Eröffnung etwas nicht, korrigierst du es dann mit einer Umbuchung. Ohne solche Abhängigkeiten lässt sich die Eröffnung nach dem Storno neu vorschlagen und buchen.
@@ -402,6 +404,8 @@ Im laufenden Jahr erinnert die Karte daran, die nächste Rechnungsnummer in den 
 Abgerufene Belege, ihre Dateien, archivierte Exporte und DATEV-Buchungen kann niemand mehr ändern oder löschen, auch nicht direkt in der Datenbank: Postgres-Trigger lehnen `UPDATE` und `DELETE` ab. Das Ablegen jeder Datei und jeder Abruf stehen im Änderungsprotokoll. Ändern dürfen sich nur der gespeicherte Schlüssel und der Fortschritt eines laufenden Abrufs.
 
 Unter **Belege** findest du den Altbestand je Jahr, filterbar nach Einnahmen und Ausgaben, nach Nummer, Kontakt oder Notiz durchsuchbar und mit dem Filter „ohne Datei“. Jeder Beleg zeigt die Beträge je Steuersatz, die Kategorien, den Zahlungsstatus und seine Dateien. Unter **Originaldateien** liegen die hochgeladenen Exporte zum Herunterladen.
+
+Archivierte Belege mit Kontakt stehen außerdem auf dessen Kontaktseite, zusammen mit den Rechnungen und Belegen aus Haben und mit Summen je Jahr ([Rechnungen und Belege am Kontakt](rechnungen.md#rechnungen-und-belege-am-kontakt)).
 
 Im [Jahresexport](auswertungen.md#jahresexport) steht der Altbestand jedes Jahres unter `lexoffice/`: Belege mit Originaldateien, `belege.csv`, `datev-buchungen.csv` und die Originalexporte unter `originale/`.
 

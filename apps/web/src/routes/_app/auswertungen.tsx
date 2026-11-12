@@ -2,7 +2,7 @@ import { currentYear, MONTHS, formatEuro, isKapitalgesellschaft, type EuerLine }
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
-import { euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
+import { barPath, euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
 import { formatDate } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
@@ -41,10 +41,11 @@ function ReportsPage() {
           <h1>Auswertungen {year}</h1>
         </div>
         <div className="actions">
+          {/* Die Pfeile tragen keine Zahl: Vor- und Folgejahr stehen oft schon in der Liste (aria-label nennt das Jahr) */}
           <nav className="year-switch" aria-label="Jahr wählen">
             {year > ERSTES_JAHR && (
-              <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`}>
-                ‹ {year - 1}
+              <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`} title={`Vorjahr ${year - 1}`}>
+                ‹
               </Link>
             )}
             {yearOptions.map((y) => (
@@ -59,8 +60,8 @@ function ReportsPage() {
               </Link>
             ))}
             {year < LETZTES_JAHR && (
-              <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`}>
-                {year + 1} ›
+              <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`} title={`Folgejahr ${year + 1}`}>
+                ›
               </Link>
             )}
           </nav>
@@ -365,18 +366,6 @@ function DueStatus({ days }: { days: number }) {
 const H = 260;
 const M = { top: 12, right: 8, bottom: 28, left: 72 };
 const GAP = 2;
-
-/** Balken mit 4px runder Datenkante, eckig an der Grundlinie */
-function barPath(x: number, y0: number, y1: number, w: number): string {
-  const h = Math.abs(y1 - y0);
-  if (h < 0.5) return "";
-  const r = Math.min(4, h, w / 2);
-  if (y1 < y0) {
-    // positiv: nach oben
-    return `M${x},${y0}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + w - r}Q${x + w},${y1} ${x + w},${y1 + r}V${y0}Z`;
-  }
-  return `M${x},${y0}V${y1 - r}Q${x},${y1} ${x + r},${y1}H${x + w - r}Q${x + w},${y1} ${x + w},${y1 - r}V${y0}Z`;
-}
 
 function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: number[]; ausgaben: number[] }) {
   const [active, setActive] = useState<number | null>(null);

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("CSV-Import (Postgres)", () => {
   let csv: typeof import("./csv-import.ts");
@@ -21,7 +21,7 @@ describe.skipIf(!testDatabaseUrl)("CSV-Import (Postgres)", () => {
   });
 
   async function company(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll" = "ist") {
-    await sql`truncate asset_depreciations, assets, journal_lines, journal_entries, year_closings, contacts, articles, company cascade`;
+    await leeren(sql)`truncate asset_depreciations, assets, journal_lines, journal_entries, year_closings, contacts, articles, company cascade`;
     await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland, customer_number_format, customer_number_next)
       values (1, 'Testfirma', ${versteuerung}, ${kontenrahmen}, 'BY', 'K-{n}', 1)`;
   }

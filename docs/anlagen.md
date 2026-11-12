@@ -42,7 +42,7 @@ Die Vorschläge folgen der amtlichen AfA-Tabelle. Du kannst Abschreibung und Nut
 
 GWG und Sammelposten prüft Haben gegen die Grenzen. Maßgeblich ist der Nettobetrag, auch bei Kleinunternehmern, deren Anschaffungskosten die Vorsteuer enthalten.
 
-Kleine Anschaffungen bis 800 € netto kannst du weiter einfach mit der Kategorie **Hardware (GWG bis 800 € netto)** als Ausgabe buchen, ohne Eintrag im Anlagenverzeichnis.
+Kleine Anschaffungen bis 800 € netto kannst du weiter mit der Kategorie **Hardware (GWG bis 800 € netto)** als Ausgabe buchen, ohne Eintrag im Anlagenverzeichnis.
 
 ## Degressive AfA
 
@@ -184,7 +184,7 @@ Ist schon gebucht, lässt sich die Privatnutzung nicht mehr ändern.
 
 ## In der EÜR
 
-Die [EÜR](auswertungen.md) bekommt je nach Bedarf die Zeilen **AfA auf bewegliche Wirtschaftsgüter**, **Sofortabschreibung geringwertiger Wirtschaftsgüter**, **Auflösung Sammelposten** und **Restbuchwert ausgeschiedener Anlagegüter**. Die Werte kommen aus dem Abschreibungsplan, ob schon gebucht oder nicht.
+Die [EÜR](auswertungen.md) bekommt je nach Bedarf die Zeilen **AfA auf bewegliche Wirtschaftsgüter**, **Sofortabschreibung geringwertiger Wirtschaftsgüter**, **Auflösung Sammelposten** und **Restbuchwert ausgeschiedener Anlagegüter**. Solange die AfA des Jahres nicht gebucht ist, kommen die Werte aus dem Abschreibungsplan. Danach kommen sie ab dem Stichjahr aus dem Journal, vorher weiter aus dem Abschreibungsplan ([EÜR nach Zufluss und Abfluss](auswertungen.md#eür-nach-zufluss-und-abfluss)); der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass gebuchte AfA und Plan übereinstimmen.
 
 Im Jahresexport liegt `anlagen/anlagenverzeichnis.csv` mit Buchwert am Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende je Anlage.
 

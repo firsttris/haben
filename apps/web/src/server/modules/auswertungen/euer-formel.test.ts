@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -53,6 +53,8 @@ describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Pos
   let invoices: typeof import("../rechnungen/invoices.ts");
   let contacts: typeof import("../stammdaten/contacts.ts");
   let documents: typeof import("../belege/documents.ts");
+  let verrechnung: typeof import("../bank/verrechnung.ts");
+  let datevFormel: typeof import("./euer-formel.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -65,6 +67,8 @@ describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Pos
     invoices = await import("../rechnungen/invoices.ts");
     contacts = await import("../stammdaten/contacts.ts");
     documents = await import("../belege/documents.ts");
+    verrechnung = await import("../bank/verrechnung.ts");
+    datevFormel = await import("./euer-formel.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -77,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Pos
     kleinunternehmer = false,
     rechtsform: "einzelunternehmen" | "gmbh" = "einzelunternehmen",
   ) {
-    await sql`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate document_settlements, asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, year_closings, loans, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer, rechtsform)
@@ -121,7 +125,7 @@ describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Pos
       payment?: "bank" | "privat";
       privateShare?: number;
       reverseCharge?: "eu" | "drittland" | null;
-      category?: "edv" | "telefon" | "sonstiges" | "hardware" | "anlage";
+      category?: "edv" | "telefon" | "sonstiges" | "hardware" | "anlage" | "software";
       splits?: { category: "software" | "buero"; taxRate: 1900 | 700 | 0; net: number }[];
     } = {},
   ) {
@@ -408,6 +412,49 @@ describe.skipIf(!testDatabaseUrl)("Gewinn nach der DATEV-Formel im Abgleich (Pos
         const [tx] = await transactions([ausgang("05.03.26", "Lieferant", bezahlt)]);
         await bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "document", documentId: id }, rest: "kursdifferenz" });
         await pruefe(2026);
+      }, 60_000);
+    }
+  }
+
+  // Review von Dudeplayz, Punkt 2 (#274): Eine Verrechnung zweier Belege wirkt wie eine Zahlung auf beide, ohne Buchung
+  // (Verbindlichkeiten an Verbindlichkeiten). Die DATEV-Formel braucht sie dort, wo ihre Korrektur am offenen Posten hängt:
+  // bei einem Beleg mit Privatanteil. Ohne sie hielte sie den privaten Teil für noch offen (−16,66 statt −5,95).
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`Verrechnung: Beleg mit Privatanteil, Rest per Bank (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        // Beleg 59,50 brutto mit 30 % Privatanteil, Hardware-Gutschrift −35,70; 35,70 verrechnet, 23,80 per Bank
+        const telefon = await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 5_000, tax: 950 }], { privateShare: 30, category: "telefon" });
+        const hardware = await bookedDocument("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }], { category: "hardware" });
+        await verrechnung.settleDocuments(actor, {
+          documentId: telefon,
+          counterDocumentId: hardware,
+          amount: 3_570,
+          date: "2026-02-20",
+          note: "Gutschrift verrechnet",
+        });
+        const [tx] = await transactions([ausgang("01.03.26", "Lieferant", "-23,80")]);
+        await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: telefon, amount: -2_380 });
+        // 3.500 Aufwand und 665 Vorsteuer aus dem Beleg, dagegen 3.000 und 570 aus der Gutschrift
+        expect(await datevFormel.gewinnNachDatevFormel(2026, 0)).toBe(-595);
+      }, 60_000);
+
+      it(`Verrechnung: Software-Rechnung und Hardware-Gutschrift, Rest per Bank (${kontenrahmen}, ${versteuerung})`, async () => {
+        // Der Gewinn nach der DATEV-Formel bleibt hier gleich: Beide Belege stehen auf Verbindlichkeiten, die Aufrechnung
+        // verschiebt nur zwischen ihnen. Die Zeilen der EÜR trägt die Verrechnung (euer-journal.test.ts).
+        await reset(versteuerung, kontenrahmen);
+        const software = await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "software" });
+        const hardware = await bookedDocument("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }], { category: "hardware" });
+        await verrechnung.settleDocuments(actor, {
+          documentId: software,
+          counterDocumentId: hardware,
+          amount: 3_570,
+          date: "2026-02-20",
+          note: "Gutschrift verrechnet",
+        });
+        const [tx] = await transactions([ausgang("01.03.26", "Lieferant", "-83,30")]);
+        await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: software, amount: -8_330 });
+        expect(await datevFormel.gewinnNachDatevFormel(2026, 0)).toBe(-8_330);
       }, 60_000);
     }
   }

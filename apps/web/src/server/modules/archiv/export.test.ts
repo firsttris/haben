@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { TYPISIERTE_SPALTEN } from "./beschreibung.ts";
 
 // Keine KI-Auslesung im Test
 vi.mock("../belege/extraction.ts", async (importOriginal) => ({
@@ -168,6 +169,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(names).toEqual(
       [
         "LIESMICH.txt",
+        "index.xml",
         `rechnungen/${invoice.number}.pdf`,
         `rechnungen/${invoice.number}.xml`,
         "rechnungen/rechnungen.csv",
@@ -256,6 +258,86 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
       `2026-10-02T08:00:00.000Z;Prüfung;ja;0;"Plausibel; ohne Fehler";;2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf;`,
     );
     expect(text(files[`umsatzsteuer/2026-09/2026-10-02_validate_${vatSubmissionPrefix}_anfrage.xml`])).toBe("<Elster>anfrage</Elster>");
+  });
+
+  describe("index.xml (#546)", () => {
+    /** Zeilen einer CSV des Archivs, mit mehrzeiligen Feldern in Anführungszeichen */
+    function zeilen(bytes: Uint8Array): string[][] {
+      const t = text(bytes).replace(/^\uFEFF/, "");
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let feld = "";
+      let an = false;
+      for (let i = 0; i < t.length; i++) {
+        const c = t[i]!;
+        if (an) {
+          if (c === '"' && t[i + 1] === '"') {
+            feld += c;
+            i++;
+          } else if (c === '"') an = false;
+          else feld += c;
+        } else if (c === '"') an = true;
+        else if (c === ";") {
+          row.push(feld);
+          feld = "";
+        } else if (c === "\n") {
+          row.push(feld.replace(/\r$/, ""));
+          rows.push(row);
+          row = [];
+          feld = "";
+        } else feld += c;
+      }
+      return rows;
+    }
+
+    it("beschreibt jede CSV des Archivs mit ihren Spalten in Dateireihenfolge und verweist auf die DTD", () => {
+      const xml = text(files["index.xml"]);
+      expect(xml).toContain('<!DOCTYPE DataSet SYSTEM "gdpdu-01-03-2019.dtd">');
+      const csvs = Object.keys(files)
+        .filter((n) => n.endsWith(".csv"))
+        .sort();
+      expect(csvs.length).toBeGreaterThan(8);
+      const urls = [...xml.matchAll(/<URL>([^<]+)<\/URL>/g)].map((m) => m[1]);
+      expect(urls).toEqual(csvs);
+      for (const pfad of csvs) {
+        const kopf = zeilen(files[pfad]!)[0]!;
+        const teil = xml.slice(xml.indexOf(`<URL>${pfad}</URL>`), xml.indexOf("</Table>", xml.indexOf(`<URL>${pfad}</URL>`)));
+        const namen = [...teil.matchAll(/<VariableColumn>\s*<Name>([^<]*)<\/Name>/g)].map((m) =>
+          m[1]!.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"),
+        );
+        expect(namen, pfad).toEqual(kopf);
+      }
+    });
+
+    it("Betrags- und Datumsspalten passen zu allen Werten der Datei; Kopfzeile und Überschriften stehen in der Datei", () => {
+      let geprueft = 0;
+      for (const t of TYPISIERTE_SPALTEN) {
+        for (const pfad of Object.keys(files).filter((n) => t.pfad.test(n))) {
+          const [kopf, ...daten] = zeilen(files[pfad]!);
+          for (const [spalten, muster] of [
+            [t.zahlen, /^-?\d+,\d{2}$/],
+            [t.daten, /^\d{4}-\d{2}-\d{2}$/],
+          ] as const) {
+            for (const name of spalten) {
+              const i = kopf!.indexOf(name);
+              expect(i, `${pfad}: Spalte „${name}“ fehlt`).toBeGreaterThanOrEqual(0);
+              for (const row of daten) {
+                if (row.length === 1 && row[0] === "") continue;
+                expect(row[i] === "" || muster.test(row[i]!), `${pfad}: ${name} = ${row[i]}`).toBe(true);
+                geprueft++;
+              }
+            }
+          }
+        }
+      }
+      // Rechnungen, Belege, Journal, Umsätze und Zuordnungen haben im Test Zeilen
+      expect(geprueft).toBeGreaterThan(30);
+    });
+
+    it("steht in der LIESMICH und in den Prüfsummen", () => {
+      expect(text(files["LIESMICH.txt"])).toContain("index.xml");
+      expect(text(files["pruefsummen.sha256"])).toMatch(/^[0-9a-f]{64} {2}index\.xml$/m);
+    });
   });
 
   it("Prüfsummen passen zu jeder Datei", () => {

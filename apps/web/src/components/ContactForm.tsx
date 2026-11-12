@@ -1,7 +1,8 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { parsePersonenkonto } from "@haben/core";
+import { formatDecimal, parseEuro, parsePersonenkonto } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
+import { UstIdHinweis } from "./UstIdHinweis.tsx";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
 import { Field } from "./Field.tsx";
@@ -9,9 +10,6 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
 import { useAction } from "../lib/use-action.ts";
-
-/** USt-IdNr. zum Vergleichen: ohne Leerzeichen, groß */
-const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
 
 const EMPTY: ContactInput = {
   kundennummer: "",
@@ -35,18 +33,11 @@ const EMPTY: ContactInput = {
 /** Ein neu angelegter Kontakt, wie ihn ein Formular für seine Auswahl braucht */
 export type SavedContact = ContactInput & { id: string };
 
-/** Kontakt, den Haben statt einer Dublette anbietet (gleiche USt-IdNr.) */
-export interface ExistingContact {
-  id: string;
-  name: string;
-  ustId: string;
-}
-
 /**
  * nextNumber: Kundennummer, die Haben beim Anlegen ohne eigene Nummer vergibt; null = keine automatische Vergabe.
  * Im Dialog eines anderen Formulars (Beleg, Rechnungsentwurf, #330): prefill füllt vor, onSaved bekommt den neuen
- * Kontakt statt der Weiterleitung, onCancel ersetzt den Link zurück; existing bietet bei gleicher USt-IdNr. den
- * vorhandenen Kontakt an (onPickExisting), ohne ihn still zusammenzuführen.
+ * Kontakt statt der Weiterleitung, onCancel ersetzt den Link zurück. Bei gleicher USt-IdNr. weist der Server auf den
+ * vorhandenen Kontakt hin (UstIdHinweis); onPickExisting bietet ihn zum Wählen an, ohne ihn still zusammenzuführen.
  */
 const SAVED_NOTICE = { tone: "ok", text: "Gespeichert. Die vorige Fassung bleibt als Version erhalten." } as const;
 
@@ -56,7 +47,6 @@ export function ContactForm({
   prefill,
   onSaved,
   onCancel,
-  existing = [],
   onPickExisting,
   ibanSuggestion = null,
   saved = false,
@@ -67,7 +57,6 @@ export function ContactForm({
   prefill?: Partial<ContactInput>;
   onSaved?: (saved: SavedContact) => void;
   onCancel?: () => void;
-  existing?: ExistingContact[];
   onPickExisting?: (id: string) => void;
   /** IBAN vom Beleg (#329): nur ein Vorschlag, ins Feld erst auf ausdrücklichen Klick */
   ibanSuggestion?: IbanSuggestion | null;
@@ -89,7 +78,6 @@ export function ContactForm({
     ibanInput.current.focus();
   };
   const [ustId, setUstId] = useState(contact?.ustId ?? prefill?.ustId ?? "");
-  const sameUstId = compactUstId(ustId) ? existing.find((c) => c.id !== contact?.id && compactUstId(c.ustId) === compactUstId(ustId)) : undefined;
   // Skonto: null = Vorgabe aus den Einstellungen; eigene Stufen, leer = ohne Skonto
   const [ownSkonto, setOwnSkonto] = useState(contact?.skonto != null);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(contact?.skonto ?? []));
@@ -113,10 +101,12 @@ export function ContactForm({
     const skonto = parseSkontoRows(skontoRows);
     const debitor = parsePersonenkonto("debitor", text("debitorNr"));
     const kreditor = parsePersonenkonto("kreditor", text("kreditorNr"));
+    const rate = text("hourlyRateCents") === "" ? null : parseEuro(text("hourlyRateCents"));
     void run(async () => {
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
       if (!debitor.ok) throw new Error(debitor.error);
       if (!kreditor.ok) throw new Error(kreditor.error);
+      if (text("hourlyRateCents") !== "" && (rate === null || rate < 0)) throw new Error("Der Stundensatz ist kein gültiger Betrag.");
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const input = {
         kundennummer: text("kundennummer"),
@@ -138,6 +128,7 @@ export function ContactForm({
         lieferantennummer: text("lieferantennummer"),
         debitorNr: debitor.value,
         kreditorNr: kreditor.value,
+        hourlyRateCents: rate,
       } satisfies ContactInput;
       const result = await save({ data: { id: contact?.id ?? null, contact: input } });
       if (onSaved) {
@@ -243,6 +234,19 @@ export function ContactForm({
             Personenkonten für den DATEV-Export an die Steuerberatung, getrennt von Kunden- und Lieferantennummer.
           </p>
         </div>
+        <div className="field-group">
+          <Field label="Stundensatz (€, optional)" hint="Vorgabe für neue Leistungseinträge dieses Kunden; jeder Eintrag behält den Satz vom Anlegen.">
+            {(control) => (
+              <input
+                {...control}
+                name="hourlyRateCents"
+                inputMode="decimal"
+                defaultValue={contact?.hourlyRateCents == null ? "" : formatDecimal(contact.hourlyRateCents)}
+                placeholder="95,00"
+              />
+            )}
+          </Field>
+        </div>
       </section>
 
       <section className="form-section" aria-labelledby="contact-address">
@@ -323,19 +327,12 @@ export function ContactForm({
         )}
       </section>
 
-      {sameUstId && (
-        <div className="banner" role="status" style={{ flexWrap: "wrap", alignItems: "center" }}>
-          <span>
-            Mit der USt-IdNr. {sameUstId.ustId} gibt es schon „{sameUstId.name}“.
-            {onPickExisting ? " Nimm ihn, statt einen zweiten Kontakt anzulegen." : ""}
-          </span>
-          {onPickExisting && (
-            <button type="button" className="btn" onClick={() => onPickExisting(sameUstId.id)}>
-              „{sameUstId.name}“ wählen
-            </button>
-          )}
-        </div>
-      )}
+      <UstIdHinweis
+        ustId={ustId}
+        {...(contact ? { excludeId: contact.id } : {})}
+        wanted={{ isCustomer: prefill?.isCustomer ?? false, isSupplier: prefill?.isSupplier ?? false }}
+        {...(onPickExisting ? { onPickExisting } : {})}
+      />
       <NoticeBanner notice={notice ?? (saved ? SAVED_NOTICE : null)} />
       <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy}>

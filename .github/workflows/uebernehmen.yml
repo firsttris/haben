@@ -1,0 +1,69 @@
+# Karten im Project „Roadmap“ übernehmen und freigeben (docs/entwicklung.md, „Etwas übernehmen“):
+# - `/übernehmen` in einem Issue-Kommentar weist das Issue der Person zu und schiebt die Karte nach „In Arbeit“,
+#   `/freigeben` hebt die Zuweisung auf (scripts/board/befehl.ts, Regeln in scripts/board/uebernahme.ts).
+# - Täglich: Erinnerung nach 14 Tagen ohne Pull Request und ohne Kommentar, Freigabe sieben Tage danach
+#   (scripts/board/erinnerung.ts).
+# Eine Zuweisung mit GITHUB_TOKEN startet den Workflow „Board“ nicht; die Skripte schieben die Karte deshalb selbst.
+# Ausgecheckt wird nur die Basis, vom Kommentar liest das Skript nur den Text.
+# Secret PROJECT_TOKEN wie beim Workflow „Board“; ohne es endet der Lauf mit einem Hinweis.
+name: Übernehmen
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: "Nur anzeigen, was die Erinnerung tun würde"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  befehl:
+    if: >-
+      github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
+      (contains(github.event.comment.body, '/übernehmen') || contains(github.event.comment.body, '/uebernehmen') ||
+      contains(github.event.comment.body, '/freigeben'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # Dieselbe Gruppe wie im Workflow „Board“: Ereignisse zu einer Karte laufen nacheinander
+    concurrency:
+      group: board-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      # Ohne bun install: das Skript braucht nur fetch und node:-Module
+      - run: bun scripts/board/befehl.ts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+
+  erinnerung:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    concurrency:
+      group: erinnerung
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun scripts/board/erinnerung.ts ${{ github.event_name == 'workflow_dispatch' && inputs.probe && '--probe' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}

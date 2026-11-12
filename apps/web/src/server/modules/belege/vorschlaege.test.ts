@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Vorschläge für Belege aus allen früheren Belegen desselben Lieferanten (#295), mit Postgres: Kategorie (auch aus
@@ -54,7 +54,8 @@ describe.skipIf(!testDatabaseUrl)("Vorschläge für Belege aus früheren Belegen
   });
 
   async function firma(kontenrahmen: "SKR03" | "SKR04" = "SKR03", versteuerung: "ist" | "soll" = "ist") {
-    await sql`truncate journal_lines, journal_entries, document_splits, document_amounts, documents, cash_entries, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_splits, document_amounts, documents, cash_entries, contact_versions, contacts,
+      company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kontenrahmen}, ${versteuerung})`;
   }

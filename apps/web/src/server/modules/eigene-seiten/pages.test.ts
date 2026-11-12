@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Eigene Seiten (Postgres)", () => {
   let pages: typeof import("./pages.ts");
@@ -17,7 +17,7 @@ describe.skipIf(!testDatabaseUrl)("Eigene Seiten (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate custom_pages`;
+    await leeren(sql)`truncate custom_pages`;
   });
 
   it("legt Seiten an, sortiert sie nach Name, ändert und löscht sie und protokolliert jede Änderung", async () => {
@@ -29,13 +29,18 @@ describe.skipIf(!testDatabaseUrl)("Eigene Seiten (Postgres)", () => {
       ["Abholung", "http://192.168.1.20:5678/abholung"],
       ["Bestellungen", "https://n8n.example.de/webhook/bestellungen"],
     ]);
-    expect(await pages.getCustomPage(bestellungen.id)).toMatchObject({ name: "Bestellungen" });
+    expect(await pages.getCustomPage(bestellungen.id)).toMatchObject({ name: "Bestellungen", openInNewTab: false });
+
+    // #636: je Seite einstellbar, ob der Menüeintrag einen neuen Tab öffnet
+    const paperless = await pages.updateCustomPage(actor, bestellungen.id, { name: "Bestellungen", url: bestellungen.url, openInNewTab: true });
+    expect(paperless.openInNewTab).toBe(true);
+    expect((await pages.updateCustomPage(actor, bestellungen.id, { name: "Bestellungen", url: bestellungen.url })).openInNewTab).toBe(false);
 
     await pages.deleteCustomPage(actor, bestellungen.id);
     expect(await pages.getCustomPage(bestellungen.id)).toBeNull();
 
     const log = await sql<{ action: string; actor: string }[]>`select action, actor from audit_log where table_name = 'custom_pages' order by seq`;
-    expect(log.map((row) => row.action)).toEqual(["INSERT", "INSERT", "UPDATE", "DELETE"]);
+    expect(log.map((row) => row.action)).toEqual(["INSERT", "INSERT", "UPDATE", "UPDATE", "UPDATE", "DELETE"]);
     expect(log.every((row) => row.actor === actor)).toBe(true);
   });
 

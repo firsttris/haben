@@ -37,6 +37,8 @@ export function ImageUpload({
   remove,
   load,
   onChanged,
+  disabled,
+  describedBy,
 }: {
   sha256: string | null;
   url: string;
@@ -47,6 +49,9 @@ export function ImageUpload({
   remove: () => Promise<unknown>;
   load: () => Promise<{ sha256: string } | null>;
   onChanged?: (sha256: string | null) => unknown;
+  /** Nur das Hochladen; Entfernen geht immer */
+  disabled?: boolean | undefined;
+  describedBy?: string | undefined;
 }) {
   const [current, setCurrent] = useLoadedState(sha256);
   const { busy, notice, run } = useAction();
@@ -71,7 +76,13 @@ export function ImageUpload({
     <div className="logo-upload">
       {current ? <img src={`${url}?v=${current.slice(0, 12)}`} alt={texts.alt} /> : <p className="small">{texts.empty}</p>}
       <div className="actions">
-        <UploadButton accept={accept} disabled={busy} inputLabel={texts.fileLabel} onFiles={([file]) => file && onFile(file)}>
+        <UploadButton
+          accept={accept}
+          disabled={busy || disabled}
+          aria-describedby={describedBy}
+          inputLabel={texts.fileLabel}
+          onFiles={([file]) => file && onFile(file)}
+        >
           {current ? texts.replace : texts.upload}
         </UploadButton>
         {current && (

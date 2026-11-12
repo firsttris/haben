@@ -15,7 +15,17 @@ const TEXTS = {
 };
 
 /** Logo hochladen oder entfernen, in den Einstellungen und im Panel der Vorschau */
-export function LogoUpload({ sha256, onChanged }: { sha256: string | null; onChanged?: (sha256: string | null) => unknown }) {
+export function LogoUpload({
+  sha256,
+  onChanged,
+  disabled,
+  describedBy,
+}: {
+  sha256: string | null;
+  onChanged?: (sha256: string | null) => unknown;
+  disabled?: boolean | undefined;
+  describedBy?: string | undefined;
+}) {
   const upload = useServerFn(uploadLogo);
   const remove = useServerFn(deleteLogo);
   const load = useServerFn(getLogo);
@@ -29,6 +39,8 @@ export function LogoUpload({ sha256, onChanged }: { sha256: string | null; onCha
       remove={() => remove()}
       load={() => load()}
       onChanged={onChanged}
+      disabled={disabled}
+      describedBy={describedBy}
     />
   );
 }

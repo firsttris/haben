@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, portFuer } from "./e2e/durchlaeufe.ts";
+import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -48,6 +48,8 @@ function webServer(durchlauf?: Durchlauf) {
       ENABLE_BANKING_APP_ID: "",
       ENABLE_BANKING_KEY: "",
       ENABLE_BANKING_KEY_FILE: "",
+      // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
+      LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
     },
   };
 }
@@ -88,8 +90,11 @@ export default defineConfig({
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
         "dateiauswahl.spec.ts",
+        "firmenname.spec.ts",
         "gestaltung.spec.ts",
+        "layouts.spec.ts",
         "handy-felder.spec.ts",
+        "bank-sortierung.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",
