@@ -104,6 +104,6 @@ Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Ei
 
 Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt hat und ob es geklappt hat, ohne Eingaben und Ergebnisse. Haben hebt das 90 Tage auf. Je Token sind 120 Anfragen pro Minute erlaubt, zusammen mit Aufrufen der REST-API; schickt ein Client mehrere Nachrichten in einer Anfrage (Batch), zählt jede einzeln.
 
-Das Ein- und Ausschalten des Zugangs steht im Änderungsprotokoll. Die Tokens selbst sind Zugangsdaten wie die Passkeys und stehen nicht darin.
+Im Änderungsprotokoll stehen das Ein- und Ausschalten des Zugangs und wer ein Token angelegt, übernommen, widerrufen oder deaktiviert hat. Das Token selbst und sein Hash sind Zugangsdaten wie die Passkeys und stehen nicht darin.
 
 Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).

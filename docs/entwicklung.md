@@ -497,7 +497,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 
 - Ein Pull Request, ein Thema; er trägt nur seine eigenen Commits.
 - Tests für das, was sich ändert: Vitest für Logik, Postgres-Integrationstests neben dem Modul, Playwright in `apps/web/e2e/` für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.
-- Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request. Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
+- Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Was ein Skript prüft, etwa neue Seiten in den E2E-Tests, steht unter [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
@@ -654,13 +654,11 @@ Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret bene
 **Ergebnis:**
 
 - **Nicht gewollt oder offene Grundsatzfrage:** Die Prüfung endet, der Maintainer entscheidet. Ablehnen und Schließen ist seine Sache; ein grundsätzlich abgelehntes Thema kommt mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht).
-- **Gewollt, aber unvollständig:** Wir machen fertig, was fehlt, statt zu warten (Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch), danach TDD-Review und Merge bei grüner CI.
+- **Gewollt, aber unvollständig:** Kleinigkeiten wie Doku, ein fehlender Test oder die Quellenangabe ergänzen wir sofort. Fehlt mehr, fragen wir zuerst, ob der Beitragende selbst nachbessern will, und nennen eine Frist von zwei Tagen; kommt bis dahin nichts, machen wir es fertig (Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch). Danach TDD-Review und Merge bei grüner CI.
 - **Schon gut:** direkt ins Review und mergen.
 - **Fachlich heikel** (kann beeinflussen, was gebucht, versteuert, gemeldet oder festgeschrieben wird, auch Migrationen auf bestehenden Daten): ebenso bis grün, gemergt aber erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung.
 
 Die Schritte stehen im Skill `beitrag-pruefen`.
-
-**Frist für Beitragende:** Kleinigkeiten wie Doku, ein fehlender Test oder die Quellenangabe ergänzen wir sofort. Fehlt mehr, fragen wir zuerst, ob der Beitragende selbst nachbessern will, und nennen eine Frist von zwei Tagen; kommt bis dahin nichts, machen wir es fertig.
 
 ### Review
 
