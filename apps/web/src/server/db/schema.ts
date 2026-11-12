@@ -200,9 +200,19 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     /** Nur bewusstes Speichern der Firmendaten; Verwaltungsupdates bestätigen keinen Steuerstatus. */
     companySavedAt: timestamp("firmendaten_gespeichert_at", { withTimezone: true }),
+    /**
+     * Zeichen der Firma in der Navigation, getrennt von der Beleggestaltung: eigene Farbe des „H“ (#RRGGBB; null = Farbe
+     * des Themes) oder, mit navLogo, das Logo der Belege. Fehlt das Logo, gilt wieder die Farbe bzw. das Theme.
+     */
+    navColor: text("nav_color"),
+    navLogo: boolean("nav_logo").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
+  (t) => [
+    check("company_single_row", sql`${t.id} = 1`),
+    check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
+    check("company_nav_color", sql`${t.navColor} ~ '^#[0-9A-F]{6}$'`),
+  ],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */

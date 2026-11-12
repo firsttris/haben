@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
-  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € und Zahlungseingang zugeordnet, nach GoBD festgeschrieben, in der Voranmeldung für ELSTER enthalten" width="900">
+  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € festgeschrieben, Zahlungseingang zugeordnet, in der Voranmeldung Oktober mit Kennzahl 81 enthalten und an ELSTER übermittelt" width="900">
 </picture>
 
 Haben ist eine Open-Source-Buchhaltung für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs,

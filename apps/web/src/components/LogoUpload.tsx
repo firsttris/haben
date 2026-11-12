@@ -1,3 +1,4 @@
+import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { deleteLogo, getLogo, uploadLogo } from "../server/functions/logo.ts";
 import { ImageUpload } from "./ImageUpload.tsx";
@@ -29,6 +30,13 @@ export function LogoUpload({
   const upload = useServerFn(uploadLogo);
   const remove = useServerFn(deleteLogo);
   const load = useServerFn(getLogo);
+  const router = useRouter();
+  // Das Logo kann das Zeichen der Navigation sein (#504): /_app neu laden, damit getAuthState die neue Adresse
+  // liefert; die Seite selbst (etwa der Editor mit seinem Formular) bleibt
+  const changed = async (sha256: string | null) => {
+    await onChanged?.(sha256);
+    await router.invalidate({ filter: (match) => match.routeId === "/_app" });
+  };
   return (
     <ImageUpload
       sha256={sha256}
@@ -38,7 +46,7 @@ export function LogoUpload({
       upload={upload}
       remove={() => remove()}
       load={() => load()}
-      onChanged={onChanged}
+      onChanged={changed}
       disabled={disabled}
       describedBy={describedBy}
     />

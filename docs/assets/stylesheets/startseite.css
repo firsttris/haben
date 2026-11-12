@@ -49,6 +49,13 @@
   box-shadow: none;
 }
 
+/* Das Bild des anderen Farbschemas bleibt aus (#only-light, #only-dark): display: block oben ist so spezifisch wie die
+   Regel des Themes und steht nach ihr */
+[data-md-color-scheme="default"] .md-typeset img[src$="#only-dark"],
+[data-md-color-scheme="slate"] .md-typeset img[src$="#only-light"] {
+  display: none;
+}
+
 .md-typeset .showcase-shot--hero img {
   margin: 0 auto;
 }
