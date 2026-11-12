@@ -202,12 +202,14 @@ describe("indexXml", () => {
 });
 
 describe("Befunde des Reviews (#546)", () => {
-  it("beschreibt keine fremden Originale, die zufällig auf .csv enden (DATEV-Stapel, Lexoffice-Belege, Belege), nur Haben-eigene CSVs, auch die anhaenge.csv unter anhaenge/", async () => {
+  it("beschreibt keine fremden Originale, die zufällig auf .csv enden (DATEV-Stapel, Lexoffice-Belege, Belege, sevDesk-Auftragsdokumente), nur Haben-eigene CSVs, auch die anhaenge.csv unter anhaenge/", async () => {
     const fremd = new TextEncoder().encode('"EXTF";700;21;"Buchungsstapel";13;20260101\r\nUmsatz;SH;Konto\r\n');
     const out = await sammle([
       { path: "lexoffice/originale/datev/EXTF_x.csv", content: fremd, compress: true },
       { path: "lexoffice/belege/2026-01-01_x_ab12cd34.csv", content: fremd, compress: true },
       { path: "belege/2026-09-29_Lieferant_ab12cd34.csv", content: fremd, compress: true },
+      { path: "sevdesk/auftraege/2026-03-01_AB-1_ab12cd34/cd34ef56_Auftrag.csv", content: fremd, compress: false },
+      datei("sevdesk/auftraege.csv", ["Datum"]),
       datei("lexoffice/belege.csv", ["Datum", "Art"]),
       datei("belege/belege.csv", ["Datum", "Netto"]),
       datei("belege/verrechnungen.csv", ["Datum"]),
@@ -221,6 +223,7 @@ describe("Befunde des Reviews (#546)", () => {
       "belege/verrechnungen.csv",
       "lexoffice/belege.csv",
       "rechnungen/anhaenge/anhaenge.csv",
+      "sevdesk/auftraege.csv",
     ]);
   });
 
