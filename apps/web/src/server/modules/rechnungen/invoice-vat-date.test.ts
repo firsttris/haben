@@ -108,4 +108,50 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
     expect(await vat.computeVatFigures({ year: 2027, month: 1 })).toMatchObject({ kz81: 30_000, tax81: 5_700 });
     expect((await reports.vatAbgleich({ year: 2027, month: 1 })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
   });
+
+  for (const previous of ["ist", "soll"] as const) {
+    const next = previous === "ist" ? "soll" : "ist";
+    it(`Anzahlung ${previous} → ${next}: Rücknahme der Vorjahreszahlung vor der Schlussleistung folgt dem neuen Leistungsjahr`, async () => {
+      await sql`update company set versteuerung = ${previous}`;
+      const advance = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, {
+        ...input(), advanceType: "anzahlung", issueDate: "2025-12-01", serviceFrom: null,
+      })).id);
+      const payment = await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2025-12-12", amount: 35_700 }, "2025-12-12");
+      // Erst vollständig bezahlt umstellen, wie es die echte Einstellungssperre verlangt. Die spätere Gegenzeile ist
+      // ein normaler Schreibweg; keine manipulierte Firmenhistorie und keine übersprungene Sperre.
+      await contacts.saveCompany(actor, { ...await contacts.loadCompany(), versteuerung: next }, "2026-01-01");
+      await bank.reverseCashEntry(actor, payment.id, "2026-01-12");
+      await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, {
+        ...input(), advanceType: null, variant: "schluss", issueDate: "2026-01-20", serviceFrom: "2026-01-20", deducts: [advance.id],
+        lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+      })).id);
+      expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ kz81: 30_000, tax81: 5_700 });
+      expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject(
+        next === "soll" ? { kz81: 70_000, tax81: 13_300 } : { kz81: -30_000, tax81: -5_700 },
+      );
+      expect((await reports.vatAbgleich({ year: 2026, month: 1 })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
+    });
+
+    it(`Schlussleistung im ${previous}-Vorjahr behält nach Wechsel zu ${next} ihren Steuerzeitpunkt`, async () => {
+      await sql`update company set versteuerung = ${previous}`;
+      const advance = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, {
+        ...input(), advanceType: "anzahlung", issueDate: "2025-12-01", serviceFrom: null,
+      })).id);
+      await bank.createCashInvoiceEntry(actor, { invoiceId: advance.id, date: "2025-12-12", amount: 35_700 }, "2025-12-12");
+      await contacts.saveCompany(actor, { ...await contacts.loadCompany(), versteuerung: next }, "2026-01-01");
+      const final = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, {
+        ...input(), advanceType: null, variant: "schluss", issueDate: "2026-01-20", serviceFrom: "2025-12-20", deducts: [advance.id],
+        lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+      })).id);
+      expect(await vat.computeVatFigures({ year: 2025, month: 12 })).toMatchObject(
+        previous === "soll" ? { kz81: 100_000, tax81: 19_000 } : { kz81: 30_000, tax81: 5_700 },
+      );
+      expect(await vat.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ kz81: 0, tax81: 0 });
+      await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2026-02-12", amount: 83_300 }, "2026-02-12");
+      expect(await vat.computeVatFigures({ year: 2026, month: 2 })).toMatchObject(
+        previous === "ist" ? { kz81: 70_000, tax81: 13_300 } : { kz81: 0, tax81: 0 },
+      );
+      for (const month of [1, 2]) expect((await reports.vatAbgleich({ year: 2026, month })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
+    });
+  }
 });
