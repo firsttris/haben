@@ -200,9 +200,9 @@ export async function zugewieseneIssues(token: string, repo: string): Promise<Is
   }
 }
 
-/** Zeitpunkt der letzten Zuweisung an eine der Personen */
+/** Zeitpunkt der letzten Zuweisung an eine der Personen; GitHub liefert die Ereignisse vom ältesten an, die letzte kann auf einer späteren Seite stehen */
 export async function zugewiesenAm(token: string, repo: string, nummer: number, personen: string[]): Promise<Date | null> {
-  const ereignisse = await anfrage<{ event: string; created_at: string; assignee?: Person }[]>(token, `/repos/${repo}/issues/${nummer}/events?per_page=100`);
+  const ereignisse = await alleSeiten<{ event: string; created_at: string; assignee?: Person }>(token, `/repos/${repo}/issues/${nummer}/events?per_page=100`);
   const daten = ereignisse.filter((e) => e.event === "assigned" && e.assignee && personen.includes(e.assignee.login)).map((e) => new Date(e.created_at));
   return daten.length > 0 ? new Date(Math.max(...daten.map((d) => d.getTime()))) : null;
 }
