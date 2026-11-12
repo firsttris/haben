@@ -180,9 +180,10 @@ const compact = (iso: string) => iso.replace(/-/g, "");
 const amount = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
 /**
  * Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - /, höchstens 36 Zeichen; unzulässig sind „insbesondere
- * Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“ (DATEV-Serviceinformation Dok.-Nr. 1003221, Stand
- * 13.09.2025). Der Punkt aus dem Nummernformat wird zu „-“, damit `RE.2026.001` als `RE-2026-001` erkennbar bleibt;
- * alles andere außerhalb der Liste fällt weg (#675).
+ * Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“ (DATEV „ASCII-Import: Feldbeschreibungen für
+ * Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Abschnitt 3, Feld 11, https://apps.datev.de/help-center/documents/1003221).
+ * Der Punkt aus dem Nummernformat wird zu „-“, damit `RE.2026.001` als `RE-2026-001` erkennbar bleibt; alles andere
+ * außerhalb der Liste fällt weg (#675).
  */
 const voucherField = (value: string) =>
   value

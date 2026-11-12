@@ -5,8 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * #675: Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - / (DATEV-Serviceinformation Dok.-Nr. 1003221, Stand
- * 13.09.2025). Das Nummernformat von Haben erlaubt Punkte; der Export ersetzt sie durch „-“. Belegfeld 1 ist in DATEV der
+ * #675: Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - / (DATEV „ASCII-Import: Feldbeschreibungen für
+ * Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Feld 11). Das Nummernformat von Haben erlaubt Punkte; der Export ersetzt sie durch „-“. Belegfeld 1 ist in DATEV der
  * Schlüssel für den Ausgleich offener Posten, deshalb tragen Rechnung bzw. Beleg und Zahlung dieselbe Nummer.
  */
 

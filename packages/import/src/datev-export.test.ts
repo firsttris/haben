@@ -178,8 +178,8 @@ describe("Private Kfz-Nutzung auf den Automatikkonten", () => {
 });
 
 describe("Belegfeld 1 im Zeichensatz von DATEV (#675)", () => {
-  // DATEV-Serviceinformation Dok.-Nr. 1003221, Stand 13.09.2025: Ziffern, Buchstaben und $ & % * + - /; unzulässig sind
-  // „insbesondere Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“
+  // DATEV „ASCII-Import: Feldbeschreibungen für Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Feld 11: Ziffern,
+  // Buchstaben und $ & % * + - /; unzulässig sind „insbesondere Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“
   const buchung = (voucher: string, description: string, date = "2026-09-01"): DatevExportEntry => ({
     date,
     description,
