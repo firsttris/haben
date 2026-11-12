@@ -134,7 +134,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
 .nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
-/* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 48px große Kachel kostet ihn so kaum (#504) */
+/* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 40px große Kachel kostet ihn so nicht (#504) */
 .brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
 /* Mit Firmenname (#504): „Haben“ bleibt, darunter der Name in bis zu zwei Zeilen, klein genug für lange Namen */
@@ -142,8 +142,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .brand-firma { color: var(--nav-ink); font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 /* Voller Name beim Überfahren (nur Desktop): wächst an der Stelle des gekürzten Namens nach unten und über die ersten Menüpunkte, bis zum rechten Rand der Navigation; das „H“ und „Haben“ bleiben frei */
 .brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: 0; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
-/* Das Zeichen ist fest quadratisch, 48px am Desktop (so hoch wie „Haben“ mit zweizeiligem Namen), 40px am Handy; das
-   „H“ und ein Logo gleich groß (#504) */
+/* Das Zeichen ist fest quadratisch und voll gefüllt, 40px am Desktop, 36px am Handy; das „H“ und ein Logo gleich groß (#504) */
 .brand-mark { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 23px; }
 /* Eigene Farbe, die sich in einem Theme nicht mit 3 : 1 von der Navigation abhebt (WCAG 1.4.11): feine helle Innenkante, die Größe bleibt */
 .brand-mark-kante { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nav-ink) 60%, transparent); }
