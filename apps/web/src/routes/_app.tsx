@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
+import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_app")({
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
       firma: state.firma,
+      zeichen: state.zeichen,
     };
   },
   component: AppLayout,
@@ -113,7 +115,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, zeichen } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -195,7 +197,7 @@ function AppLayout() {
           onPointerLeave={firmaZeigerWeg}
           onBlur={firmaZuklappen}
         >
-          <span className="brand-mark">H</span>
+          <NavMarkSymbol mark={zeichen} />
           <span className="brand-text">
             Haben
             {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
