@@ -8,7 +8,7 @@ export interface Befund {
   /** Feste Kennung, z. B. `pap-2027`; ein offenes Issue mit derselben Kennung bekommt kein zweites */
   schluessel: string;
   titel: string;
-  /** Markdown: Quelle, was zu tun ist, Verweis auf docs/entwicklung.md */
+  /** Markdown: Quelle, was zu tun ist, Verweis auf docs/entwicklung.md oder den Skill jahreswerte */
   text: string;
 }
 
@@ -125,4 +125,6 @@ export async function begrenzt<T, E>(eingaben: readonly T[], parallel: number, a
 
 /** Fußzeile jedes Befunds: wo das Vorgehen beschrieben ist */
 export const DOKU = "https://haben.app/entwicklung.html";
-export const DOKU_JAHRESWERTE = `${DOKU}#jahreswerte-erinnerung-per-workflow`;
+export const DOKU_JAHRESWERTE = `${DOKU}#jahreswerte`;
+/** Die Schritte zum Nachziehen, je Abschnitt mit Anker */
+export const SKILL_JAHRESWERTE = "https://github.com/firsttris/haben/blob/main/.claude/skills/jahreswerte/SKILL.md";
