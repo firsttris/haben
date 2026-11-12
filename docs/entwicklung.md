@@ -222,7 +222,7 @@ bun run --cwd packages/einvoice kosit /tmp/haben-kosit
 
 Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
 
-Neue Releases von Validator, XRechnung-Konfiguration und Mustang ([ZUGFeRD-PDFs](#zugferd-pdfs)) bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+Neue Releases von Validator, XRechnung-Konfiguration und Mustang ([ZUGFeRD-PDFs](#zugferd-pdfs)) bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der Job `kosit` bzw. `zugferd` des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
 
 ### ZUGFeRD-PDFs
 
