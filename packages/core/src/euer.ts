@@ -63,6 +63,8 @@ export type EuerPayment =
       kind: "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "zinsertrag" | "kursdifferenz";
       date: string;
       amount: Cents;
+      /** Richtung der ursprünglichen USt-Zuordnung, auch wenn nur ihre Gegenzeile in dieses Jahr fällt; sonst nach Vorzeichen */
+      ustAbfluss?: boolean;
       group?: string;
     }
   | {
@@ -295,8 +297,9 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
       case "ustVorauszahlung":
       // Die Sondervorauszahlung ist Umsatzsteuer an das Finanzamt wie jede Vorauszahlung, abziehbar, wenn sie gezahlt ist
       case "sondervorauszahlung":
-        // Ausgang: Zahlung an das Finanzamt; Eingang: Erstattung
-        if (p.sum < 0) add("gezahlteUst", -p.sum);
+        // Eine Rücknahme mindert dieselbe Zeile, statt eine echte Erstattung bzw. Zahlung vorzutäuschen (#651).
+        // EÜR-Anleitung 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+        if (p.ustAbfluss ?? p.sum < 0) add("gezahlteUst", -p.sum);
         else add("erstatteteUst", p.sum);
         break;
       case "mahnerloes":

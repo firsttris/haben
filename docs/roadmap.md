@@ -20,18 +20,16 @@ Jede Karte ist ein Issue oder ein Entwurf, mit Aufwand, Bereich und Hinweis:
 
 Die Reihenfolge: zuerst Fehler bei Steuer und Buchung, dann kleine Wünsche aus dem Alltag, dann was
 Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt. Wünsche kommen als
-[Issue](https://github.com/firsttris/haben/issues/new/choose); was umgesetzt ist, steht im jeweiligen
+[Issue](https://github.com/firsttris/haben/issues/new/choose); beim Einordnen bekommt jedes Issue einen kurzen
+Kommentar, ob und wo es ins Board kommt, oder eine Rückfrage; was umgesetzt ist, steht im jeweiligen
 Kapitel der Doku und in den [Releases](https://github.com/firsttris/haben/releases).
-
-Diese Seite hält fest, was sich selten ändert: was bewusst nicht kommt, was ohne Zertifizierung nicht
-geht, was blockiert ist und welche Quellen geprüft sind.
 
 ## Bewusst nicht
 
 | Thema | Grund |
 | --- | --- |
 | Lagerbestand | Kein Kern einer Buchhaltung; gehört in eine Warenwirtschaft (Lexware Office führt keinen, sevDesk nur als Zusatzmodul) |
-| Stoppuhr, Projektverwaltung und Teamplanung | Gehören in eigene Werkzeuge; abrechenbare Leistungen erfasst Haben schlicht selbst oder übernimmt sie über die API („Abrechenbare Leistungen“, [#417](https://github.com/firsttris/haben/issues/417)) |
+| Stoppuhr, Projektverwaltung und Teamplanung | Gehören in eigene Werkzeuge; abrechenbare Leistungen erfasst Haben selbst oder übernimmt sie über die API („Abrechenbare Leistungen“, [#417](https://github.com/firsttris/haben/issues/417)) |
 | Eigene Shop-Anbindungen, Bestellungen und Versand | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an. Bestellungen mit Status, Druck-Buttons, Sendungsnummern und Webhook-Aktionen würden Haben zum Versandtool machen; eigene Seiten bekommen bewusst keine Anmeldung von Haben, weil eine fremde Seite mit der Sitzung festschreiben oder an ELSTER senden könnte ([#199](https://github.com/firsttris/haben/issues/199)) |
 | Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
 | Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |

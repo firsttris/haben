@@ -17,6 +17,7 @@ const routesApi = fileURLToPath(new URL("../routes/api", import.meta.url));
 const STEUERBERATUNG_LIEST = [
   "documents.ts:getDocumentDetail",
   "documents.ts:getDocuments",
+  "documents.ts:getDocumentSettlements",
   "export.ts:getExportYears",
   "invoices.ts:getInvoiceDetail",
   "invoices.ts:getInvoices",

@@ -34,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      einvoice: ${{ steps.filter.outputs.einvoice }}
+      deploy: ${{ steps.filter.outputs.deploy }}
     steps:
       # Der Merge-Commit des Pull Requests und sein erster Elternteil, die Basis
       - uses: actions/checkout@v7
@@ -51,6 +53,13 @@ jobs:
           deleted="$(git diff --no-renames --diff-filter=D --name-only HEAD^1 HEAD)"
           if [ -n "$changed" ] && [ -z "$other" ] && [ -z "$deleted" ]; then code=false; else code=true; fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          # Ob etwas die E-Rechnung (Jobs kosit, zugferd) oder die Images und Migrationen der Nutzer (backup, db-upgrade)
+          # ändern kann; dazu immer die Abhängigkeiten und dieser Workflow (Versionen der Prüfer)
+          always='^(bun\.lock|package\.json|\.github/workflows/ci\.yml)$'
+          if grep -Eq "^packages/(einvoice|core)/|$always" <<< "$changed"; then einvoice=true; else einvoice=false; fi
+          if grep -Eq "^deploy/|^apps/web/drizzle/|$always" <<< "$changed"; then deploy=true; else deploy=false; fi
+          echo "einvoice=$einvoice" >> "$GITHUB_OUTPUT"
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
 
   # Lint und Typecheck brauchen keine Datenbank; gebaut wird in den Jobs e2e-teil
   check:
@@ -67,10 +76,15 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
 
-  test:
+  # Vier Teile parallel (Vitest --shard); jeder migriert seine eigene Vorlage
+  test-teil:
     needs: changes
     if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        teil: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:18
@@ -96,13 +110,22 @@ jobs:
       # pdftoppm wandelt PDFs für einen selbst betriebenen KI-Dienst in Seitenbilder (wie im Image)
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils
       # Jeder Worker von Vitest klont seine Datenbank aus einer Vorlage (apps/web/src/server/test-db.ts)
-      - run: bun run test
+      - name: Tests, Teil ${{ matrix.teil }} von 4
+        run: bun run test --shard=${{ matrix.teil }}/4
         env:
           TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
 
-  # Drei Teile parallel (Playwright --shard). Jeder Teil, der Tests aus „mit-daten“ hat, spielt vorher
-  # app.spec.ts („ablauf“) selbst durch, weil diese Tests auf dessen Daten aufbauen. Gebaut wird in jedem
-  # Teil, das läuft parallel und braucht kein Artefakt dazwischen
+  # Ein Ergebnis für die Regeln auf main (geforderter Check „test“), egal in wie viele Teile die Tests zerfallen
+  test:
+    if: ${{ always() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    needs: [changes, test-teil]
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.test-teil.result }}" = success
+
+  # Fünf Teile parallel (Playwright --shard), dazu SSO als eigener Teil. Jeder Teil, der Tests aus „mit-daten“
+  # hat, spielt vorher app.spec.ts („ablauf“) selbst durch, weil diese Tests auf dessen Daten aufbauen. Gebaut
+  # wird in jedem Teil, das läuft parallel und braucht kein Artefakt dazwischen
   e2e-teil:
     needs: changes
     if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
@@ -110,7 +133,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        teil: [1, 2, 3]
+        teil: [1, 2, 3, 4, 5, sso]
     services:
       postgres:
         image: postgres:18
@@ -151,14 +174,15 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils
       - run: bun run build
       # Vier Worker (playwright.config.ts), so viele Kerne hat der Runner
-      - name: Ende-zu-Ende-Tests, Teil ${{ matrix.teil }} von 3
-        run: bun run e2e --shard=${{ matrix.teil }}/3
+      - name: Ende-zu-Ende-Tests, Teil ${{ matrix.teil }} von 5
+        if: matrix.teil != 'sso'
+        run: bun run e2e --shard=${{ matrix.teil }}/5
         env:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_e2e
           # Der gebaute Server statt des Entwicklungsservers
           E2E_SERVER_COMMAND: bun .output/server/index.mjs
       - name: SSO-Ende-zu-Ende mit Produktionsbuild und TLS
-        if: matrix.teil == 1
+        if: matrix.teil == 'sso'
         run: bun run e2e --config playwright.sso-only.config.ts
         env:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_sso_e2e
@@ -182,7 +206,7 @@ jobs:
 
   kosit:
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.einvoice != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -228,6 +252,40 @@ jobs:
         with:
           name: kosit-reports
           path: ${{ runner.temp }}/kosit/out
+          if-no-files-found: ignore
+
+  # Die ZUGFeRD-PDFs: PDF/A-3 (veraPDF) und factur-x.xml nach Factur-X, mit dem Mustang-Validator
+  zugferd:
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.einvoice != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - run: bun install --frozen-lockfile
+      - name: Mustang-Validator laden
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Renovate hebt die Version (.github/renovate.json5)
+          MUSTANG: core-2.26.0
+        run: |
+          set -euo pipefail
+          gh release download "$MUSTANG" --repo ZUGFeRD/mustangproject --pattern 'Mustang-CLI-*.jar' --dir "$RUNNER_TEMP/mustang"
+          jar="$(find "$RUNNER_TEMP/mustang" -name 'Mustang-CLI-*.jar' | head -n1)"
+          [ -n "$jar" ] || { echo "::error::$MUSTANG: kein Mustang-CLI-*.jar"; exit 1; }
+          echo "MUSTANG_JAR=$jar" >> "$GITHUB_ENV"
+      - run: bun run --cwd packages/einvoice zugferd "$RUNNER_TEMP/zugferd"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zugferd-berichte
+          path: ${{ runner.temp }}/zugferd
           if-no-files-found: ignore
 
   container:
@@ -304,7 +362,7 @@ jobs:
 
   backup:
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.deploy != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -364,7 +422,7 @@ jobs:
   # das automatische Upgrade durch haben-db beim Start, mit der compose.yml der Nutzer
   db-upgrade:
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.deploy != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:

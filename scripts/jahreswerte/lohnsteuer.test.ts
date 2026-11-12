@@ -42,7 +42,7 @@ describe("Lohnsteuer-PAP", () => {
     expect(neu?.text).toContain(papUrl(2027));
     expect(neu?.text).toContain("Stand laut XML: 2026-11-12 10:00");
     expect(neu?.text).toContain(sha(pap(2027, "2026-11-12 10:00")));
-    expect(neu?.text).toContain("lohnsteuer-pap-j%C3%A4hrlich-aktualisieren");
+    expect(neu?.text).toContain("skills/jahreswerte/SKILL.md#lohnsteuer-pap");
     expect(tarif?.text).toContain("packages/core/src/income-tax.ts");
   });
 

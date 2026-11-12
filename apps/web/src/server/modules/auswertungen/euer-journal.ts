@@ -8,8 +8,9 @@ import {
   type EuerHerkunft,
   type Kontenrahmen,
 } from "@haben/core";
-import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
 import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
 
@@ -47,6 +48,35 @@ async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
     for (const r of await q.select({ id: c.id, invoiceId: c.invoiceId, documentId: c.documentId }).from(c).where(inArray(c.id, block))) result.set(r.id, r);
   }
   return result;
+}
+
+/**
+ * Verrechnung zweier Belege (#274): Gutschrift und Rechnung gleichen sich gegenseitig, ohne dass Geld fließt. In der EÜR
+ * wirkt sie wie eine Zahlung auf jeden der beiden Belege, am Tag der Aufrechnung; gebucht wird sie nicht (Verbindlichkeiten
+ * an Verbindlichkeiten), deshalb steht sie nur in `document_settlements`.
+ */
+interface Verrechnung {
+  id: string;
+  dokumentId: string;
+  date: string;
+  /** Betrag wie gespeichert: negativ beim Beleg, positiv bei der Gutschrift; ausgeglichen ist `-betrag` */
+  betrag: number;
+}
+
+/** Verrechnungen des Jahres, älteste zuerst: je Zeile gleicht eine den Beleg aus, eine Gegenzeile hebt sie auf */
+async function verrechnungenImJahr(q: Db | Tx, year: number): Promise<Verrechnung[]> {
+  const s = schema.documentSettlements;
+  return q
+    .select({ id: s.id, dokumentId: s.documentId, date: s.date, betrag: s.amount })
+    .from(s)
+    .where(and(gte(s.date, `${year}-01-01`), lt(s.date, `${year + 1}-01-01`)))
+    .orderBy(asc(s.date), asc(s.createdAt), asc(s.id));
+}
+
+/** Kontenrahmen der Firma: für einen Beleg ganz ohne Buchung die einzige Angabe zum Rahmen (aus Lexoffice übernommen) */
+async function firmenKontenrahmen(q: Db | Tx): Promise<Kontenrahmen> {
+  const [firma] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).limit(1);
+  return firma?.kontenrahmen ?? "SKR03";
 }
 
 export interface EuerJournal {
@@ -95,17 +125,23 @@ function rechnungsAnteile(kr: Kontenrahmen, zeilen: Zeile[], gesamt: number, aus
 const alsZeilen = (zeilen: Zeile[], anteil: number[]): Zeile[] =>
   zeilen.map((z, i) => ({ ...z, debit: Math.max(anteil[i]!, 0), credit: Math.max(-anteil[i]!, 0) }));
 
-/** Summiert die Wirkung `von` in `nach` */
-function dazu(nach: EuerAusJournal, von: EuerAusJournal) {
-  for (const [key, betrag] of Object.entries(von.zeilen) as [keyof EuerAusJournal["zeilen"], number][]) nach.zeilen[key] = (nach.zeilen[key] ?? 0) + betrag;
-  nach.bewirtungNichtAbziehbar += von.bewirtungNichtAbziehbar;
-  nach.gewerbesteuerNichtAbziehbar += von.gewerbesteuerNichtAbziehbar;
+/** Summiert die Wirkung `von` in `nach`, bei einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen */
+function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1) {
+  for (const [key, betrag] of Object.entries(von.zeilen) as [keyof EuerAusJournal["zeilen"], number][])
+    nach.zeilen[key] = (nach.zeilen[key] ?? 0) + vorzeichen * betrag;
+  nach.bewirtungNichtAbziehbar += vorzeichen * von.bewirtungNichtAbziehbar;
+  nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
 }
 
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
 export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<EuerJournal> {
   const e = schema.journalEntries;
-  const jahr = await buchungen(q, and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung")));
+  // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
+  const jahr = await imEuerJahr(
+    year,
+    await buchungen(q, and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung"))),
+    q,
+  );
   const zielVon = await ziele(
     q,
     jahr.filter((b) => b.sourceType === "allocation" || b.sourceType === "ausbuchung" || b.sourceType === "kasse").map((b) => b.sourceId),
@@ -124,7 +160,10 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
 
   // Was die Zahlungen ausgleichen, gesammelt für alle Rechnungen und Belege des Jahres statt je Posten (#542, Schritt 9)
   const rechnungIds = [...new Set([...zielVon.values()].flatMap((z) => (z.invoiceId ? [z.invoiceId] : [])))];
-  const belegIds = [...new Set([...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : [])))];
+  // Verrechnungen des Jahres (#274): Sie wirken wie Zahlungen auf beide Belege, auch wenn in dem Jahr keine Zahlung sie ausgleicht
+  const verrechnet = await verrechnungenImJahr(q, year);
+  const einfacheBelege = [...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : []));
+  const belegIds = [...new Set([...einfacheBelege, ...verrechnet.map((v) => v.dokumentId)])];
   const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: await buchungenJe(q, "document", belegIds) };
   const ausgleicheVon = await ausgleichsBuchungenJe(q, rechnungIds);
   const nebenbuchVon = await belegNebenbuecher(q, belegIds);
@@ -171,7 +210,26 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
+  // Verrechnungen (#274) wie eine Zahlung im Monat der Aufrechnung; der Rahmen dient nur einem Beleg ganz ohne Buchung
+  const belegKontenrahmen = verrechnet.length > 0 ? await firmenKontenrahmen(q) : "SKR03";
+  for (const v of verrechnet) {
+    const beitrag = await wirkungVerrechnung(v);
+    dazu(summe, beitrag);
+    dazu(monate[Number(v.date.slice(5, 7)) - 1]!, beitrag);
+  }
   return { summe, uebernommen, monate };
+
+  /** Was eine Verrechnung zweier Belege bewirkt: wie eine Zahlung von `-betrag` auf den Beleg, ohne eigene Buchung */
+  async function wirkungVerrechnung(v: Verrechnung): Promise<EuerAusJournal> {
+    const summe = leereEuerAusJournal();
+    const u = await ursprungVon("document", v.dokumentId, belegKontenrahmen);
+    if (u.uebernommen) uebernommen++;
+    if (u.gesamt === 0) return summe;
+    // betrag trägt das Vorzeichen des offenen Postens wie eine Buchung, ausgeglichen ist das Umgekehrte
+    if (u.beleg && v.betrag !== u.gesamt) belegTeilzahlung(year, u.beleg, -v.betrag, summe);
+    else euerAusZeilen(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe);
+    return summe;
+  }
 
   /** Was eine Buchung in der EÜR bewirkt */
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {
@@ -192,11 +250,23 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     if (hatOffenenPosten && (b.sourceType === "invoice" || b.sourceType === "document" || b.sourceType === "asset")) return summe;
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
-    euerAusZeilen(
-      kr,
-      b.zeilen.filter((z) => !offenerPosten(kr, z)),
-      herkunft,
+    const eigene = b.zeilen.filter((z) => !offenerPosten(kr, z));
+    const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
+    // Rücknahme in derselben EÜR-Zeile: Eine aufgehobene Zahlung ist keine echte Finanzamtserstattung und umgekehrt.
+    // Amtliche Anleitung EÜR 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+    dazu(
       summe,
+      euerAusZeilen(
+        kr,
+        umkehr
+          ? alsZeilen(
+              eigene,
+              eigene.map((z) => z.credit - z.debit),
+            )
+          : eigene,
+        herkunft,
+      ),
+      umkehr ? -1 : 1,
     );
     if (!hatOffenenPosten || ausgeglichen === 0) return summe;
     const typ = ziel?.invoiceId ? "invoice" : ziel?.documentId ? "document" : null;

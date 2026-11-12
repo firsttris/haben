@@ -196,6 +196,49 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
       expect(zeilen.find((z) => z.account === k.ford)).toMatchObject({ betrag: 400_000, vorschlag: 300_000 });
     });
 
+    it.each(["ist", "soll"] as const)("%s: Verrechnung zweier Belege mindert den Beleg wie eine Zahlung", async (versteuerung) => {
+      await setup(kontenrahmen, versteuerung);
+      await book("2025-02-01", [
+        [k.bank, 2_500_000, 0],
+        [k.kapital, 0, 2_500_000],
+      ]);
+      // Rechnung über 3.000 €, erst im Juni 2027 fällig, und die Gutschrift des Lieferanten über 1.000 €
+      await book("2025-11-01", [
+        [k.aufwand, 300_000, 0],
+        [k.verb, 0, 300_000],
+      ]);
+      await book("2025-11-02", [
+        [k.verb, 100_000, 0],
+        [k.aufwand, 0, 100_000],
+      ]);
+      // Ein kurzfristiger Beleg über 2.000 €, damit der Saldo des Kontos über dem Vorschlag liegt
+      await book("2025-11-03", [
+        [k.aufwand, 200_000, 0],
+        [k.verb, 0, 200_000],
+      ]);
+      const [rechnung] = await sql`insert into documents (filename, sha256, mime_type, size, status, payment, gross, document_date, due_date)
+        values ('rechnung.pdf', 'rlz-verrechnung', 'application/pdf', 1, 'gebucht', 'bank', 300000, '2025-11-01', '2027-06-30') returning id`;
+      const [gutschrift] = await sql`insert into documents (filename, sha256, mime_type, size, status, payment, gross, document_date, due_date)
+        values ('gutschrift.pdf', 'rlz-verrechnung-gutschrift', 'application/pdf', 1, 'gebucht', 'bank', -100000, '2025-11-02', '2027-06-30') returning id`;
+      await sql`insert into documents (filename, sha256, mime_type, size, status, payment, gross, document_date, due_date)
+        values ('kurzfristig.pdf', 'rlz-verrechnung-kurz', 'application/pdf', 1, 'gebucht', 'bank', 200000, '2025-11-03', '2026-06-30')`;
+      // Im Dezember 2025 verrechnet: Je Seite eine Zeile, negativ beim Beleg und positiv bei der Gutschrift
+      await sql`insert into document_settlements (document_id, counter_document_id, date, amount, note, created_by)
+        values (${rechnung!.id}, ${gutschrift!.id}, '2025-12-10', -100000, 'Gutschrift GS-1', ${actor}),
+               (${gutschrift!.id}, ${rechnung!.id}, '2025-12-10', 100000, 'Gutschrift GS-1', ${actor})`;
+      const zeile = async () => (await restlaufzeiten.restlaufzeitenAnsicht(2025))!.jahr.zeilen.find((z) => z.account === k.verb)!;
+      // 3.000 € offen, davon 1.000 € durch die Gutschrift ausgeglichen; der kurzfristige Beleg zählt nicht
+      expect(await zeile()).toMatchObject({ betrag: 400_000, vorschlag: 200_000 });
+      // Eine Aufhebung wirkt an ihrem Tag: zum 31.12.2025 bleibt die Verrechnung, zum 31.12.2026 ist sie weg
+      await sql`insert into document_settlements (document_id, counter_document_id, date, amount, note, reverses_id, created_by)
+        select document_id, counter_document_id, '2026-01-05', -amount, 'Aufhebung: Gutschrift GS-1', id, ${actor}
+          from document_settlements where date = '2025-12-10' and amount < 0`;
+      expect(await zeile()).toMatchObject({ betrag: 400_000, vorschlag: 200_000 });
+      const naechstesJahr = (await restlaufzeiten.restlaufzeitenAnsicht(2026))!.jahr.zeilen.find((z) => z.account === k.verb)!;
+      // Zum 31.12.2026 ist keiner der Belege mehr über ein Jahr hinaus fällig
+      expect(naechstesJahr).toMatchObject({ betrag: 400_000, vorschlag: 0 });
+    });
+
     it.each(["ist", "soll"] as const)("%s: Vorschlag mit einem Beleg, der erst nach dem Stichtag storniert ist", async (versteuerung) => {
       await setup(kontenrahmen, versteuerung);
       await book("2025-02-01", [

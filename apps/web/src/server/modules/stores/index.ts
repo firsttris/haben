@@ -14,6 +14,7 @@ export {
   storeContactSchema,
   STORE_LABELS,
   storeConnectionsSummary,
+  storeContactChoices,
   StoreError,
   storeSettingsSchema,
 } from "./connections.ts";

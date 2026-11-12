@@ -272,6 +272,28 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(euer.figures.uebrige).toBeUndefined();
   });
 
+  it.each([
+    ["SKR03", "ist", "1840"],
+    ["SKR04", "soll", "2250"],
+  ] as const)(
+    "Spende vom Geschäftskonto: Entnahme, keine Betriebsausgabe, Summe auf Zuwendungen, Spenden (%s, %s)",
+    async (kontenrahmen, versteuerung, konto) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+      await bank.importStatement(actor, { bytes: dkbCsv([row("15.12.25", "Ärzte ohne Grenzen e.V.", "Spende", "-150,00")]), filename: "s.csv" }, null);
+      const [tx] = await sql`select id from bank_transactions`;
+      await bank.allocate(actor, { kind: "spende", transactionId: tx!.id, amount: -15_000 });
+
+      const lines = await sql`select account, debit, credit from journal_lines order by debit`;
+      expect(lines.map((l) => [l.account, Number(l.debit), Number(l.credit)])).toEqual([
+        [kontenrahmen === "SKR03" ? "1200" : "1800", 0, 15_000],
+        [konto, 15_000, 0],
+      ]);
+      const euer = await annual.euerYear(2025);
+      // Keine Ausgabe, keine andere Zeile: nur die Entnahme (Einlagen weist die Anlage stets aus)
+      expect(euer.figures).toEqual({ entnahmen: 15_000, einlagen: 0 });
+    },
+  );
+
   it("prüft und übermittelt testweise, speichert Werte und XML, sperrt eine zweite Echtübermittlung", async () => {
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);

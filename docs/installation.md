@@ -7,7 +7,7 @@ description: >-
 
 # Betrieb und Installation
 
-Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: mit Docker Compose (am einfachsten) oder mit Podman Quadlets unter systemd, dazu Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
+Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
 
 ## Überblick
 
@@ -354,7 +354,7 @@ backend haben-app
 
 ## Mehrere Instanzen
 
-Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy. In welcher Instanz du gerade bist, zeigt die Navigation mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten).
 
 Damit du die Instanzen in der Oberfläche auseinanderhältst, gib jeder ein eigenes [Zeichen in der Navigation](einrichtung.md#zeichen-in-der-navigation), etwa eine eigene Farbe.
 
@@ -397,10 +397,24 @@ firma2.example.de {
 Weitere Punkte:
 
 - **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](#eric-einbinden).
-- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, bist du für diese Person Softwarehersteller nach der ERiC-Lizenz, siehe [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller). Wer Buchhaltungsdaten für andere hostet, ist zudem Auftragsverarbeiter nach DSGVO.
+- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, kommen Pflichten dazu, siehe [Für andere betreiben](#für-andere-betreiben).
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
 Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.
+
+### Für andere betreiben
+
+Betreibst du Haben nicht nur für dich, sondern für andere, etwa als gehostete Instanz für Kunden, bist du nicht mehr nur Nutzer. Haben ist dafür gebaut, dass jeder seine Buchhaltung selbst betreibt; für andere übernimmst du Pflichten, die bei einer eigenen Instanz nicht anfallen. Diese Liste ist keine Rechtsberatung: Lass Vertrag, AGB und Auftragsverarbeitung von einer Anwältin oder einem Anwalt für IT- und Steuerrecht prüfen, bevor du anbietest.
+
+- **Softwarehersteller nach der ERiC-Lizenz.** Mit deiner Hersteller-ID bist du für deine Kunden Hersteller im Sinne des ERiC-Lizenzvertrags (`lizenz.pdf` im ERiC-Paket): Du leistest den Support (§ 7), hältst die Mindestversion von ERiC ein (§ 5), und jeder Nutzer bestätigt vor der ersten Nutzung die Datenschutzhinweise der Finanzverwaltung (§ 5). Bei Verstößen kann das Landesamt die ID sperren (§ 9); dann sendet keine Instanz mehr, die sie trägt, auch deine eigene nicht. Hast du Haben verändert, brauchst du eine eigene ID (§ 4). Mehr unter [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller).
+- **Auftragsverarbeiter nach DSGVO.** In einer Buchhaltung stehen Namen, Anschriften, Bankverbindungen, Steuernummern und Umsätze von Kunden und Lieferanten. Wer sie für andere hostet, verarbeitet sie in deren Auftrag und braucht mit jedem Kunden einen Vertrag nach Art. 28 DSGVO mit den technischen und organisatorischen Maßnahmen (Art. 32 DSGVO): Verschlüsselung, Backups, Zugriff, Löschung. Dasselbe gilt für Dienste, die du dazuschaltest, etwa die [KI-Auslesung](#ki-auslesung-anthropic) bei einem Cloud-Anbieter; sie sind dann deine Unterauftragsverarbeiter.
+- **Jeder sendet mit seinem eigenen Zertifikat.** Haben übermittelt mit dem ELSTER-Zertifikat, das in der Instanz hinterlegt ist. Bleibt es das Zertifikat des Kunden, sendet er selbst. Sendest du für Kunden mit deinem eigenen Zertifikat, wie es Cloud-Dienste tun, ist das Datenübermittlung im Auftrag nach § 87d AO: Du musst deine Auftraggeber identifizieren und die Übermittlungen aufbewahren (siehe [Warum Lexoffice ohne dein Zertifikat sendet](einrichtung.md#warum-lexoffice-ohne-dein-zertifikat-sendet)). Dafür ist Haben nicht gebaut.
+- **Aufbewahrung und Datenzugriff.** Für die Bücher bleibt der Kunde verantwortlich. Er muss sie 8 bis 10 Jahre aufbewahren und dem Finanzamt bei einer Außenprüfung Zugriff geben (§ 147 Abs. 3 und 6 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Regle deshalb im Vertrag, wie er an seine Daten kommt, wenn er kündigt oder du den Dienst einstellst: mindestens das [Jahresarchiv](auswertungen.md) und das Änderungsprotokoll, rechtzeitig vor dem Löschen.
+- **Du hast vollen Zugriff.** Die GoBD-Trigger schützen vor Versehen, nicht vor Absicht: Wer Server und Datenbank betreibt, kann sie abschalten (siehe [Architektur › Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)). Bei einer eigenen Instanz ist das der Steuerpflichtige selbst, hier bist du es. Sag das deinen Kunden. Den Nachweis, dass nachträglich nichts verändert wurde, tragen der wöchentliche Prüfwert des Änderungsprotokolls an die Adresse des Kunden und seine eigenen Exporte, nicht dein Wort.
+- **Betrieb und Haftung.** Updates, Backups mit Test-Restore, Erneuerung von ERiC und Überwachung liegen bei dir. Fällt deine Instanz vor einer Frist aus, etwa am Tag der Voranmeldung, trifft der Verspätungszuschlag den Kunden. Leg im Vertrag fest, was du zusagst (Verfügbarkeit, Wiederherstellung, Haftung), und sag ihm, wie er im Notfall in Mein ELSTER abgibt (siehe [Abgabe an ELSTER](elster-abgabe.md)).
+- **Nur Software, keine Steuerberatung.** Bucht der Kunde selbst, stellst du nur Software und Server bereit. Buchst du für ihn, erstellst seine Voranmeldung oder berätst ihn, ist das Hilfeleistung in Steuersachen, die das Steuerberatungsgesetz nur bestimmten Personen erlaubt (§§ 2 bis 6 StBerG).
+
+Eine offizielle Aussage der Finanzverwaltung zum Betrieb freier Software für andere gibt es nicht. Wer es genau wissen will, fragt beim Bayerischen Landesamt für Steuern nach (siehe [Open Source und die Hersteller-ID](einrichtung.md#open-source-und-die-hersteller-id)).
 
 ## Umgebungsvariablen
 
@@ -523,7 +537,7 @@ Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), sch�
 
 ### Test-Restore
 
-Ein Backup, das sich im Ernstfall nicht einspielen lässt, merkt man sonst erst im Ernstfall. Deshalb folgt auf ein erfolgreiches Backup alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
+Auf ein erfolgreiches Backup folgt alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
 
 1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
 2. der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank `haben_restore_check_…` eingespielt (eigener Name je Lauf),
@@ -631,7 +645,7 @@ podman pull docker.io/tristanteu/haben-backup:latest
 
 ### PostgreSQL-Update
 
-Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein ganz normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
+Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
 
 ```text
 haben-db: Aktualisiere die Datenbank von PostgreSQL 16 (/var/lib/postgresql/data) auf 18 (/var/lib/postgresql/data/18/docker) …
@@ -681,7 +695,7 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 
 Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
-ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
+ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann die neue Versionsnummer eintragen und erneut laden.
 
 Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [Erste Schritte](einrichtung.md#elster-einrichten), dort auch, wer bei Haben als Hersteller gilt.
 
@@ -694,8 +708,6 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
 ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne ERiC nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
-
-Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
 ### ELSTER auf arm64
 
@@ -797,7 +809,7 @@ docker compose exec app bun -e 'fetch(process.env.EXTRACTION_BASE_URL + "/models
 
 ### Beispiel: Ollama als eigener Container
 
-Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Das ist nur ein Beispiel; Haben braucht diesen Container nicht.
+Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Haben braucht diesen Container nicht.
 
 ```yaml
 services:

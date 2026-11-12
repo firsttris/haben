@@ -198,6 +198,8 @@ export const company = pgTable(
     tageskurs: boolean("tageskurs").notNull().default(false),
     /** Datenschutzhinweise der Finanzverwaltung vor der ersten Nutzung von ERiC bestätigt (ERiC-Lizenz § 5) */
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
+    /** Nur bewusstes Speichern der Firmendaten; Verwaltungsupdates bestätigen keinen Steuerstatus. */
+    companySavedAt: timestamp("firmendaten_gespeichert_at", { withTimezone: true }),
     /**
      * Zeichen der Firma in der Navigation, getrennt von der Beleggestaltung: eigene Farbe des „H“ (#RRGGBB; null = Farbe
      * des Themes) oder, mit navLogo, das Logo der Belege. Fehlt das Logo, gilt wieder die Farbe bzw. das Theme.
@@ -1028,6 +1030,31 @@ export const contactVersions = pgTable(
 );
 
 /**
+ * Ansprechpartner eines Kontakts (#424): Name, E-Mail, Telefon und Funktion. Änderbar (ein Tippfehler), nicht löschbar:
+ * Wer nicht mehr dabei ist, wird deaktiviert. Im Entwurf von Rechnung und Angebot wählbar; beim Festschreiben steht der
+ * Stand als `ansprechpartner` im Käufer des Belegs, spätere Änderungen an der Person berühren ihn nicht.
+ */
+export const contactPersons = pgTable(
+  "contact_persons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    name: text("name").notNull(),
+    email: text("email").notNull().default(""),
+    telefon: text("telefon").notNull().default(""),
+    /** Funktion oder Abteilung, nur in Haben; EN 16931 kennt dafür keinen Term */
+    funktion: text("funktion").notNull().default(""),
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+    /** Wer angelegt hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("contact_persons_contact").on(t.contactId), check("contact_persons_name", sql`length(btrim(${t.name})) > 0`)],
+);
+
+/**
  * SEPA-Lastschriftmandate eines Kunden (#445): nur anhängen. Was sich am Mandat ändert, ist ein neues Mandat; ein
  * Widerruf steht in sepa_mandate_revocations, das unterschriebene Mandat als PDF in sepa_mandate_files.
  */
@@ -1185,6 +1212,8 @@ export const invoices = pgTable(
     /** Zahlungsart (#445): Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat; eingezogen wird am Fälligkeitstag */
     paymentMethod: text("payment_method", { enum: PAYMENT_METHODS }).notNull().default("ueberweisung"),
     sepaMandateId: uuid("sepa_mandate_id").references(() => sepaMandates.id),
+    /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
+    contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
     recurringId: uuid("recurring_id"),
     recurringDate: date("recurring_date", { mode: "string" }),
     /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
@@ -1331,6 +1360,8 @@ export const quotes = pgTable(
     numberCounter: integer("number_counter"),
     contactId: uuid("contact_id").references(() => contacts.id),
     contactVersion: integer("contact_version"),
+    /** Gewählter Ansprechpartner des Kunden (#424); der festgeschriebene Stand steht im Käufer */
+    contactPersonId: uuid("contact_person_id").references(() => contactPersons.id),
     issueDate: date("issue_date", { mode: "string" }).notNull(),
     validUntil: date("valid_until", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),
@@ -2143,6 +2174,8 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "darlehen",
   // Direkt auf eine Einnahme- oder Ausgabekategorie mit Steuersatz (Roadmap Platz 1, #324)
   "kategorie",
+  // Private Spende vom Geschäftskonto auf das Privatkonto „Zuwendungen, Spenden“ (Einzelunternehmen)
+  "spende",
 ]);
 
 /**
@@ -2313,6 +2346,53 @@ export const writeOffs = pgTable(
     index("write_offs_cash_entry").on(t.cashEntryId),
     check("write_offs_payment", sql`${t.transactionId} is null or ${t.cashEntryId} is null`),
     foreignKey({ name: "write_offs_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
+ * Verrechnung zweier Eingangsbelege ohne Zahlung: eine Gutschrift des Lieferanten gleicht eine
+ * Rechnung aus (#274). Wie bank_neutralizations bewegt sie kein Geld und erfindet keinen Bankumsatz;
+ * festgehalten wird nur, dass sich zwei offene Posten gegenseitig erledigen. Je Verrechnung zwei
+ * Zeilen, damit jede Seite für sich als erledigt zählt: die eine mit negativem Betrag beim Beleg,
+ * die andere mit positivem beim Gegenbeleg. Nur anhängen, aufgehoben wird per Gegenzeile.
+ */
+export const documentSettlements = pgTable(
+  "document_settlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Beleg, dessen offener Betrag sich mit dieser Zeile ändert */
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id),
+    /** Beleg, gegen den verrechnet wird */
+    counterDocumentId: uuid("counter_document_id")
+      .notNull()
+      .references(() => documents.id),
+    /**
+     * Kennung des Paars: beide Zeilen einer Verrechnung tragen dieselbe. Die Aufhebung findet damit genau dieses Paar,
+     * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde; die Gegenzeilen einer Aufhebung
+     * bilden ein neues Paar.
+     */
+    settlementId: uuid("settlement_id").notNull().defaultRandom(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Vorzeichen wie eine Zahlung: negativ beim Beleg, positiv bei der Gutschrift */
+    amount: integer("amount").notNull(),
+    note: text("note").notNull().default(""),
+    reversesId: uuid("reverses_id"),
+    /** Wer verrechnet bzw. aufgehoben hat (Benutzer-ID wie im Audit-Log) */
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("document_settlements_two", sql`${t.documentId} <> ${t.counterDocumentId}`),
+    check("document_settlements_amount", sql`${t.amount} <> 0`),
+    index("document_settlements_document").on(t.documentId),
+    index("document_settlements_counter").on(t.counterDocumentId),
+    index("document_settlements_settlement").on(t.settlementId),
+    /** Je Paar höchstens eine Zeile pro Beleg: genau zwei Zeilen, eine je Seite */
+    uniqueIndex("document_settlements_settlement_document").on(t.settlementId, t.documentId),
+    uniqueIndex("document_settlements_reverses").on(t.reversesId),
+    foreignKey({ name: "document_settlements_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],
 );
 
@@ -2987,6 +3067,8 @@ export const customPages = pgTable("custom_pages", {
   name: text("name").notNull(),
   /** http(s)-Adresse auf einem anderen Host als Haben */
   url: text("url").notNull(),
+  /** Menüeintrag öffnet die Seite in einem neuen Tab statt im Rahmen (#636), für Seiten, die das Einbetten verbieten */
+  openInNewTab: boolean("open_in_new_tab").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

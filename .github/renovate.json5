@@ -7,7 +7,7 @@
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
 // Testübermittlung) und Habens eigene Images. Neue ERiC-Versionen, Lohnsteuer-PAP, Sozialversicherungswerte,
 // DATEV-Kontenrahmen und geänderte Normen meldet stattdessen der Workflow .github/workflows/jahreswerte.yml
-// als Issue mit dem Label „jahreswerte“ (docs/entwicklung.md, „Jahreswerte: Erinnerung per Workflow“).
+// als Issue mit dem Label „jahreswerte“ (docs/entwicklung.md, „Jahreswerte“).
 // Alle übrigen Pakete, die Actions und die Images kommen mit den gemeinsamen Einstellungen aus
 // firsttris/workflows (renovate/default.json5): Minor- und Patch-Updates einmal im Monat in einem
 // Pull Request, der sich bei grüner CI selbst merged; Majors auf Anfrage im Dashboard.
@@ -25,6 +25,15 @@
       depNameTemplate: "itplr-kosit/validator",
       datasourceTemplate: "github-releases",
       versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+    },
+    {
+      // Mustang-Validator für die ZUGFeRD-PDFs (Job zugferd); die Tags heißen core-2.26.0
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/ci\\.yml$/"],
+      matchStrings: ["MUSTANG: (?<currentValue>core-\\d+\\.\\d+\\.\\d+)\\n"],
+      depNameTemplate: "ZUGFeRD/mustangproject",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "regex:^core-(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
     },
     {
       // Die XRechnung-Konfiguration des Validators; die Tags heißen release-2025-07-10, ab 2026

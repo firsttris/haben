@@ -32,3 +32,8 @@ export function navMark(setting: { color: string | null; logo: boolean }, logoSh
   if (setting.color && ACCENT_PATTERN.test(setting.color)) return { background: setting.color.toUpperCase(), ink: inkOnAccent(setting.color) };
   return null;
 }
+
+/** Name der Firma unter „Haben“, damit man sieht, in welcher Instanz man bucht (#504); ohne Namen nichts */
+export function firmaInNavigation(name: string): string | null {
+  return name.trim() || null;
+}

@@ -1,6 +1,6 @@
 import { parseTextFormatting } from "@haben/core";
 import { texts, type Language } from "./i18n.ts";
-import { addressLines, footerData, itemNumberColumn, renderQuotePdfData, showsCustomerNumber, showsGrossPrices, templateLabels } from "./pdf.ts";
+import { footerData, itemNumberColumn, recipientLines, renderQuotePdfData, showsCustomerNumber, showsGrossPrices, templateLabels } from "./pdf.ts";
 import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
 import { referenceMeta } from "./format.ts";
 import type { Buyer, InvoiceDocumentLine, Letterhead, OrderReferences, Seller } from "./types.ts";
@@ -63,7 +63,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     labels: templateLabels(t),
     reference: null,
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer, t)],
+    recipient: recipientLines(buyer, t),
     meta,
     noPrices: true,
     ...itemNumberColumn(doc.lines, doc.options),

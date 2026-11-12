@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type NavBedingung, navLinkSichtbar, navMark } from "./navigation.ts";
+import { firmaInNavigation, type NavBedingung, navLinkSichtbar, navMark } from "./navigation.ts";
 
 /** Lohn ohne Bedingung */
 const lohn: NavBedingung = {};
@@ -45,5 +45,17 @@ describe("navMark", () => {
 
   it("eine ungültige Farbe ergibt das „H“ des Themes statt eines kaputten Stils", () => {
     for (const color of ["red", "#1D4ED", "url(x)", ""]) expect(navMark({ color, logo: false }, null)).toBeNull();
+  });
+});
+
+// Mehrere Firmen (#504): Der Name aus den Firmendaten zeigt, in welcher Instanz man gerade arbeitet
+describe("firmaInNavigation", () => {
+  it("zeigt den Namen der Firma ohne Leerzeichen am Rand", () => {
+    expect(firmaInNavigation("  Mustermann IT · Max Mustermann ")).toBe("Mustermann IT · Max Mustermann");
+  });
+
+  it("zeigt nichts, solange die Firmendaten keinen Namen haben", () => {
+    expect(firmaInNavigation("")).toBeNull();
+    expect(firmaInNavigation(" \t\n")).toBeNull();
   });
 });

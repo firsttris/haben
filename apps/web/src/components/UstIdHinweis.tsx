@@ -34,6 +34,8 @@ export function UstIdHinweis({
   onPickExisting?: (id: string) => void;
 }) {
   const lookup = useServerFn(findContactsByUstIdFn);
+  const wantsCustomer = Boolean(wanted?.isCustomer);
+  const wantsSupplier = Boolean(wanted?.isSupplier);
   const [found, setFound] = useState<UstIdMatch[]>([]);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function UstIdHinweis({
     }
     let current = true;
     const timer = setTimeout(() => {
-      lookup({ data: { ustId: value, ...(excludeId ? { excludeId } : {}) } })
+      lookup({ data: { ustId: value, ...(excludeId ? { excludeId } : {}), isCustomer: wantsCustomer, isSupplier: wantsSupplier } })
         .then((matches) => current && setFound(matches))
         .catch(() => current && setFound([]));
     }, 400);
@@ -53,10 +55,10 @@ export function UstIdHinweis({
       current = false;
       clearTimeout(timer);
     };
-  }, [ustId, excludeId, lookup]);
+  }, [ustId, excludeId, wantsCustomer, wantsSupplier, lookup]);
 
   const covers = (c: UstIdMatch) => (!wanted?.isCustomer || c.isCustomer) && (!wanted?.isSupplier || c.isSupplier);
-  // Den Kontakt nennen, den man wählen kann; sonst den ersten (die Sortierung kennt die Rolle nicht)
+  // Den Kontakt nennen, den man wählen kann; sonst den ersten (der Server stellt die mit den gewünschten Rollen voran)
   const match = found.find((c) => covers(c) && !c.archived) ?? found[0];
   if (!match) return null;
   const canPick = Boolean(onPickExisting) && covers(match) && !match.archived;

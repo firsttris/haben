@@ -38,6 +38,8 @@ import {
   customLayoutFor,
   customLayoutJob,
   dataForVersion,
+  ansprechpartnerSnapshot,
+  contactPersonProblem,
   getContact,
   layoutRenderer,
   loadCompany,
@@ -72,6 +74,8 @@ export const documentPreviewSchema = z.object({
   // Beim Tippen steht hier auch „14 Tage“ oder „-“; dann zählt das Rechnungsdatum, wie im Editor
   paymentTermDays: z.number().int().min(0).max(1000).catch(0),
   contactId: z.uuid().nullable(),
+  /** Ansprechpartner des Kunden (#424), für die Zeile „z. Hd.“ in der Vorschau */
+  contactPersonId: z.uuid().nullable().default(null),
   ...referenceFieldsSchema,
   lines: z
     .array(
@@ -126,9 +130,14 @@ function withDesign(letterhead: Letterhead, design: Input["design"]): Letterhead
   return { ...letterhead, ...(accent ? { accent } : {}), options: { ...DEFAULT_OPTIONS, ...letterhead.options, ...options } };
 }
 
-async function previewBuyer(contactId: string | null): Promise<Buyer> {
+async function previewBuyer(contactId: string | null, contactPersonId: string | null): Promise<Buyer> {
   const found = contactId ? await getContact(contactId) : null;
-  return found ? buyerFrom(found.contact) : { name: "[Kunde wählen]", strasse: "", plz: "", ort: "", land: "DE" };
+  // Die Vorschau zeigt „z. Hd.“ wie das spätere PDF: nur eine Person dieses Kunden, sonst keine Zeile
+  const person =
+    found && (await contactPersonProblem(db, found.contact.id, contactPersonId, contactPersonId)) === null
+      ? await ansprechpartnerSnapshot(db, contactPersonId)
+      : undefined;
+  return found ? buyerFrom(found.contact, person) : { name: "[Kunde wählen]", strasse: "", plz: "", ort: "", land: "DE" };
 }
 
 function invoiceDocument(input: Input, company: Company, buyer: Buyer, letterhead: Letterhead, directDebit: InvoiceDocument["directDebit"]): InvoiceDocument {
@@ -219,7 +228,7 @@ function quoteDocument(input: Input, company: Company, buyer: Buyer, letterhead:
 
 /** Das Blatt als SVG samt Text für Screenreader; statt des GiroCodes ein Platzhalter, damit niemand eine Vorschau bezahlt */
 export async function documentPreview(input: Input): Promise<DocumentPreview> {
-  const [company, stored, buyer] = await Promise.all([loadCompany(), loadLetterhead(), previewBuyer(input.contactId)]);
+  const [company, stored, buyer] = await Promise.all([loadCompany(), loadLetterhead(), previewBuyer(input.contactId, input.contactPersonId)]);
   const letterhead = withDesign(stored, input.design);
   const dueDate = input.dueDate || input.issueDate;
   const directDebit = await directDebitFor(

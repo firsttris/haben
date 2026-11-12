@@ -46,6 +46,7 @@ export {
   updateAccount,
   accountSettingsSchema,
   reverseAllocation,
+  reverseAllocationIn,
   splitSchema,
   transactionDetail,
   transferSchema,
@@ -58,6 +59,14 @@ export {
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { documentBankAllocations } from "./document-allocations.ts";
+export {
+  nachStatusSortieren,
+  SORTIERRICHTUNGEN,
+  UMSATZ_SORTIERFELDER,
+  type UmsatzHinweis,
+  type UmsatzSortierung,
+} from "./umsatzliste.ts";
 export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
 export {
@@ -120,3 +129,15 @@ export {
   directDebitMatch,
   type DirectDebitMatch,
 } from "./lastschrift-abgleich.ts";
+
+export {
+  listSettlements,
+  openAmount,
+  reversalSchema,
+  reverseSettlement,
+  SettlementError,
+  settleDocuments,
+  settlementCandidates,
+  settlementSchema,
+  type SettlementInput,
+} from "./verrechnung.ts";

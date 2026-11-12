@@ -43,8 +43,7 @@ import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
-import type { Contact } from "../stammdaten/index.ts";
-import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -54,6 +53,7 @@ import { documentReferences, referenceColumns, referenceFieldsSchema } from "./o
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+import { invoiceTaxYear } from "./invoice-tax-year.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -122,6 +122,8 @@ export const draftSchema = z
     /** Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat des Kunden (#445); fehlt = Überweisung */
     paymentMethod: z.enum(PAYMENT_METHODS).default("ueberweisung"),
     sepaMandateId: z.uuid().nullable().default(null),
+    /** Ansprechpartner des Kunden (#424); der Stand beim Festschreiben steht im Käufer des Belegs */
+    contactPersonId: z.uuid().nullable().default(null),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
@@ -530,6 +532,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
   const totals = totalsFromTaxes(taxes);
   const values = {
     contactId: input.contactId,
+    contactPersonId: input.contactPersonId ?? null,
     issueDate: input.issueDate,
     serviceFrom: input.serviceFrom,
     serviceTo: input.serviceTo,
@@ -559,8 +562,19 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
 
 type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate" | "externalSource" | "externalId" | "paymentPlanRow">>;
 
+/** Rechnungen gehen an Kunden; ein Lieferant oder ein unbekannter Kontakt passt nicht */
+export async function assertCustomer(tx: Tx, contactId: string | null | undefined) {
+  if (!contactId) return;
+  const problem = await contactRoleProblem(tx, contactId, "kunde");
+  if (problem) throw new InvoiceError(problem);
+}
+
 export async function createDraft(actor: string, input: DraftInput, extra: DraftExtra = {}) {
-  return withActor(actor, (tx) => insertDraft(tx, input, extra));
+  return withActor(actor, async (tx) => {
+    // Storno, Korrektur und der Lauf einer Vorlage übernehmen den Kunden; gewählt wird er nur bei einer neuen Rechnung
+    if (!extra.correctsId && !extra.recurringId) await assertCustomer(tx, input.contactId);
+    return insertDraft(tx, input, extra);
+  });
 }
 
 /** Legt einen Entwurf in einer laufenden Transaktion an, z. B. zusammen mit dem Festschreiben (Storno) */
@@ -572,6 +586,8 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
   const { values, calculation, taxes } = draftValues(input, bundesland, lines, await draftRate(tx, input, extra.correctsId ?? null, null), extra.kind);
   const mandateProblem = await draftMandateProblem(tx, values, values.contactId, values.dueDate);
   if (mandateProblem) throw new InvoiceError(mandateProblem);
+  const personProblem = await contactPersonProblem(tx, values.contactId, values.contactPersonId);
+  if (personProblem) throw new InvoiceError(personProblem);
   const [invoice] = await tx
     .insert(schema.invoices)
     .values({ ...values, ...extra })
@@ -593,6 +609,8 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
   return withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id], [input.quoteId]));
     const draft = await lockDraft(tx, id);
+    // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
+    if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
     if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
@@ -610,6 +628,9 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     );
     const mandateProblem = await draftMandateProblem(tx, values, values.contactId, values.dueDate);
     if (mandateProblem) throw new InvoiceError(mandateProblem);
+    // Die schon gewählte Person bleibt, auch wenn sie inzwischen deaktiviert ist; eine neue muss aktiv sein und zum Kunden gehören
+    const personProblem = await contactPersonProblem(tx, values.contactId, values.contactPersonId, draft.contactPersonId);
+    if (personProblem) throw new InvoiceError(personProblem);
     // Abschlag zu einer Zeile des Zahlungsplans: nur solange es ein Abschlag zu diesem Angebot bleibt
     const keepsPlanRow = values.variant === "abschlag" && values.quoteId === draft.quoteId;
     const [updated] = await tx
@@ -668,6 +689,17 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
   if (!invoice) return null;
   const lines = await q.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(asc(schema.invoiceLines.position));
   const [contact] = invoice.contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId)) : [];
+  const [importSource] = invoice.lexofficeVoucherId
+    ? await q
+        .select({
+          source: schema.lexofficeVouchers.source,
+          sourceName: sql<
+            string | null
+          >`case when ${schema.lexofficeVouchers.source} = 'import' then ${schema.lexofficeVouchers.raw}->>'sourceName' else null end`,
+        })
+        .from(schema.lexofficeVouchers)
+        .where(eq(schema.lexofficeVouchers.id, invoice.lexofficeVoucherId))
+    : [];
   const [corrects] = invoice.correctsId
     ? await q
         .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
@@ -679,7 +711,7 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     .from(schema.invoices)
     .where(eq(schema.invoices.correctsId, id))
     .orderBy(asc(schema.invoices.createdAt));
-  return { invoice, lines, contact: contact ?? null, corrects: corrects ?? null, correctedBy };
+  return { invoice, lines, contact: contact ?? null, importSource: importSource ?? null, corrects: corrects ?? null, correctedBy };
 }
 
 export type { InvoiceListStatus };
@@ -712,7 +744,7 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(id ? eq(schema.invoices.id, id) : undefined)
-    .orderBy(sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt));
+    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt), desc(schema.invoices.id));
 
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
@@ -775,7 +807,8 @@ export function withCurrentLegalInfo(seller: Seller, company: Company): Seller {
   return { ...rest, ...sellerLegalInfo(company) };
 }
 
-export function buyerFrom(contact: Contact): Buyer {
+/** Käufer eines Belegs aus dem Kontakt; mit Ansprechpartner (Stand der Person beim Festschreiben, #424) */
+export function buyerFrom(contact: Contact, ansprechpartner?: Buyer["ansprechpartner"]): Buyer {
   return {
     name: contact.name,
     strasse: contact.strasse,
@@ -787,6 +820,7 @@ export function buyerFrom(contact: Contact): Buyer {
     ...(contact.ustId ? { ustId: contact.ustId } : {}),
     ...(contact.leitwegId ? { leitwegId: contact.leitwegId } : {}),
     ...(contact.kundennummer ? { kundennummer: contact.kundennummer } : {}),
+    ...(ansprechpartner ? { ansprechpartner } : {}),
   };
 }
 
@@ -994,7 +1028,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       await invoiceDocumentTotals(id, q),
       (await invoiceTotalsById([id], q)).get(id)!,
       sellerFrom(company),
-      buyerFrom(contact),
+      buyerFrom(contact, await ansprechpartnerSnapshot(q, invoice.contactPersonId)),
       "VORSCHAU",
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
@@ -1061,7 +1095,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 
   // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
   const seller = sellerFrom(company);
-  const buyer = corrects?.buyer ?? buyerFrom(contact!);
+  const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   const doc = documentFor(
     invoice,
@@ -1102,6 +1136,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     .where(eq(schema.invoices.id, id))
     .returning();
 
+  const versteuerung = invoice.correctsId ? await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx) : company.versteuerung;
   await post(tx, company, {
     date: invoice.issueDate,
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
@@ -1110,8 +1145,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
     // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
     lines: (await correctsLegacyInvoice(tx, corrects))
-      ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
-      : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
+      ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
+      : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
   });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
   await syncQuoteBilling(tx, quoteIds);

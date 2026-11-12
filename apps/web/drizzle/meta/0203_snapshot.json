@@ -1,5 +1,5 @@
 {
-  "id": "96621242-263f-4df9-991c-9072e6bb88b2",
+  "id": "df1dda32-1bbb-448c-a9ab-98aa8352e150",
   "prevId": "487c1f54-30f3-4943-8786-0aeb78f74de8",
   "version": "7",
   "dialect": "postgresql",
@@ -2857,19 +2857,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "nav_color": {
-          "name": "nav_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nav_logo": {
-          "name": "nav_logo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2891,10 +2878,6 @@
         "company_rechtsform": {
           "name": "company_rechtsform",
           "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
-        },
-        "company_nav_color": {
-          "name": "company_nav_color",
-          "value": "\"company\".\"nav_color\" ~ '^#[0-9A-F]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -14492,7 +14475,8 @@
         "steuer",
         "zinsertrag",
         "darlehen",
-        "kategorie"
+        "kategorie",
+        "spende"
       ]
     },
     "public.bundesland": {

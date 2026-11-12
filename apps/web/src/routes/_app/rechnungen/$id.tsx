@@ -24,6 +24,7 @@ import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
+import { legacySource } from "../../../lib/altbestand.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
@@ -54,6 +55,7 @@ function InvoicePage() {
         kind={invoice.kind}
         initial={{
           contactId: invoice.contactId,
+          contactPersonId: invoice.contactPersonId,
           issueDate: invoice.issueDate,
           serviceFrom: invoice.serviceFrom,
           serviceTo: invoice.serviceTo,
@@ -112,6 +114,7 @@ function InvoicePage() {
         kleinunternehmer={data.kleinunternehmer}
         companySkonto={data.companySkonto}
         mandates={data.mandates}
+        contactPersons={data.contactPersons}
         articles={data.articles}
         textBlocks={data.textBlocks}
         abschlaege={data.abschlaege}
@@ -275,7 +278,13 @@ function FinalInvoice({ data }: { data: Detail }) {
                 </>
               )}
               <dt>Format</dt>
-              <dd>{invoice.lexofficeVoucherId ? "Original aus Lexoffice" : FORMAT_LABEL[invoice.format]}</dd>
+              <dd>
+                {data.importSource
+                  ? `Original aus ${legacySource(data.importSource.source, data.importSource.sourceName).name}`
+                  : invoice.lexofficeVoucherId
+                    ? "Übernommenes Original"
+                    : FORMAT_LABEL[invoice.format]}
+              </dd>
               {invoice.taxTreatment !== "regulaer" && (
                 <>
                   <dt>Umsatzsteuer</dt>

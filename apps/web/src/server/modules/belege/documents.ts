@@ -31,7 +31,7 @@ import {
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
+import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -477,9 +477,10 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
   await withActor(actor, async (tx) => {
     const previous = await lockOpen(tx, id);
     const parsed = documentInputSchema.parse(input);
-    if (parsed.supplierContactId) {
-      const [contact] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, parsed.supplierContactId));
-      if (!contact) throw new DocumentError("Lieferant nicht gefunden.");
+    // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Lieferant mehr ist, bleibt am Beleg
+    if (parsed.supplierContactId && parsed.supplierContactId !== previous.supplierContactId) {
+      const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
+      if (problem) throw new DocumentError(problem);
     }
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });

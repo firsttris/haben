@@ -23,12 +23,12 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 [![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
 [![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](https://haben.app/installation.html)
 
-[Warum?](#-warum-haben) •
-[Funktionen](#-funktionen) •
-[Schnellstart](#-schnellstart) •
-[FAQ](#-faq) •
+[Warum?](#warum-haben) •
+[Funktionen](#funktionen) •
+[Schnellstart](#schnellstart) •
+[FAQ](#faq) •
 [Dokumentation](https://haben.app/) •
-[Entwicklung](#-entwicklung)
+[Entwicklung](#entwicklung)
 
 <sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
@@ -42,7 +42,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-## 💡 Warum Haben?
+## Warum Haben?
 
 In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
 
@@ -51,9 +51,12 @@ Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der j
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
 
-**🇩🇪 Made in Germany**
+**🇩🇪 Open Source made in Germany**
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
+- **Nachprüfbar statt „vertrau uns“**: Beim Umzug rechnet Haben deine alten Jahre nach, zum Vergleich mit deinen
+  Voranmeldungen und dem Abschluss der Steuerberatung; danach führt jede Kennzahl zu den Rechnungen, Belegen und
+  Zahlungen dahinter, siehe [Woher weiß ich, dass die Zahlen stimmen?](#faq)
 - **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
@@ -63,7 +66,7 @@ auf deinem eigenen Server betreibst.
   Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
   Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
 
-## ✨ Funktionen
+## Funktionen
 
 Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation](https://haben.app/).
 
@@ -92,7 +95,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
 | 🧩 [Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
 | ♿ [Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
 
-## 📸 Screenshots
+## Screenshots
 
 <table>
   <tr>
@@ -105,7 +108,7 @@ Kurz je Bereich; die Details stehen auf der verlinkten Seite der [Dokumentation]
   </tr>
 </table>
 
-## 🚀 Schnellstart
+## Schnellstart
 
 Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL, Caddy für HTTPS und ein
 tägliches Backup mit restic.
@@ -141,7 +144,7 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 > sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar,
 > ohne das Passwort lässt sich das Backup nicht öffnen.
 
-## ❓ FAQ
+## FAQ
 
 <details>
 <summary><b>Was kostet Haben?</b></summary>
@@ -166,6 +169,31 @@ Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben 
 sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen und Organschaft) und
 bucht Gewinnausschüttungen samt Kapitalertragsteuer-Anmeldung und Steuerbescheinigungen für die Gesellschafter. Die Bilanz zur Hinterlegung beim Unternehmensregister
 erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesellschaftern. Den Lohn des Gesellschafter-Geschäftsführers, von Minijobs und (als Entwurf zum Gegenprüfen) von Angestellten rechnet und bucht Haben, meldet die Lohnsteuer über ELSTER an und listet Beitragsnachweis und Meldungen zum Abtippen im SV-Meldeportal, siehe [Lohn](https://haben.app/lohn.html).
+</details>
+
+<details>
+<summary><b>Woher weiß ich, dass die Zahlen stimmen?</b></summary>
+
+Du musst Haben nicht glauben, du kannst nachrechnen:
+
+- **Vor dem Umzug:** Haben rechnet deine alten Jahre aus Lexware Office oder sevDesk nach, mit Einnahmen, Ausgaben und
+  Umsatzsteuer je Monat zum Vergleich mit deinen übermittelten Voranmeldungen. Bei GmbH und UG rechnet es aus dem
+  DATEV-Stapel Bilanz, GuV, Körperschaft- und Gewerbesteuer zum Vergleich mit dem Abschluss der Steuerberatung.
+  So siehst du vor der Kündigung, ob Haben auf dieselben Zahlen kommt, siehe
+  [Abgleich je Jahr](https://haben.app/lexoffice.html#schritt-5-abgleich-je-jahr).
+- **Im laufenden Jahr:** Unter jeder Kennzahl der Voranmeldung stehen die Rechnungen, Belege und Zahlungen dahinter,
+  jede Buchung im Journal führt zu ihrem Vorgang. Voranmeldung und EÜR rechnet Haben zweimal, aus dem Journal und aus
+  Rechnungen und Belegen, und zeigt, wo beides abweicht, siehe
+  [Abgleich von Journal, Umsatzsteuer und EÜR](https://haben.app/buchhaltung.html#abgleich-von-journal-umsatzsteuer-und-eür).
+- **Danach:** Das Änderungsprotokoll ist eine Hashkette, festgeschriebene Daten sind versiegelt, und den Prüfwert
+  bekommst du per E-Mail und im Jahresarchiv mit SHA-256-Prüfsummen, siehe
+  [Hash-Kette und Siegel](https://haben.app/buchhaltung.html#manipulationserkennung-hash-kette-und-siegel).
+- **Offen:** Code und Tests sind öffentlich, mit der Quelle (Gesetz, ERiC-Dokumentation, EN 16931) an den Stellen, wo
+  sie ein Detail entscheidet.
+
+Was das nicht ersetzt: Nachprüfbar heißt nicht geprüft. Ein Testat für die Software gibt es nicht, und ist eine
+Steuerregel falsch verstanden, rechnet Haben sie auch nachvollziehbar falsch. Die fachliche Prüfung bleibt bei dir und
+deiner Steuerberatung.
 </details>
 
 <details>
@@ -223,6 +251,10 @@ Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabh�
   `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
 - **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
   Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
+- **Wenige Abhängigkeiten:** Rechnungen mit E-Rechnung, Bank, Steuern über ELSTER, Lohn, GmbH, Anmeldung mit Passkey
+  und SSO, E-Mail und KI kommen mit gut zwanzig direkten Paketen zur Laufzeit aus, ohne Komponentenbibliothek, mit
+  schlichtem CSS. Was mit wenigen Zeilen eigenem Code geht, holt Haben nicht als Paket dazu: Jedes Paket weniger ist
+  eine mögliche Lücke und ein Update weniger.
 - **Aktuell gehalten:** Renovate bringt Updates der Abhängigkeiten als Pull Request durch die CI; bekannte Lücken
   (Dependabot-Warnungen und OSV-Datenbank) behebt es außerhalb des Zeitplans, siehe
   [SECURITY.md](SECURITY.md#abhängigkeiten-aktuell-halten).
@@ -243,7 +275,7 @@ Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
 Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/entwicklung.html#leitplanken-für-agenten).
 </details>
 
-## 📚 Dokumentation
+## Dokumentation
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
@@ -253,7 +285,7 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
   [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)
 
-## 🔧 Entwicklung
+## Entwicklung
 
 Voraussetzungen: Bun in der Version aus `packageManager` in `package.json`, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
@@ -272,7 +304,7 @@ Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simul
 und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` (OpenAI-kompatibler Dienst wie Ollama oder OpenRouter) bleibt die KI-Auslesung aus.
 
 **Stack**: TanStack Start (React-API mit TanStack Redact, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys oder OIDC-SSO, Zod, Typst für
-die Rechnungs-PDFs, `@e-invoice-eu/core` für ZUGFeRD und XRechnung, ERiC über `koffi` in einem eigenen Prozess,
+die Rechnungs-PDFs, ZUGFeRD und XRechnung ohne Bibliothek (mit `pdf-lib` für das Hybrid-PDF), ERiC über `koffi` in einem eigenen Prozess,
 Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere
 [Entwicklung](https://haben.app/entwicklung.html).
 
@@ -282,21 +314,22 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
 | `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
 | `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
-| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
+| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, Commerzbank, C24, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
 | `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 
-## 🧩 Mehr von uns
+## Mehr von uns
 
 - Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
 - Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
 
-## 🤝 Mitwirken
+## Mitwirken
 
 Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
-kennt, und Rückmeldungen zur ELSTER-Übermittlung. Was vor einem Pull Request laufen muss und was er enthält, steht unter
-[Mitwirken](https://haben.app/entwicklung.html#mitwirken).
+kennt, und Rückmeldungen zur ELSTER-Übermittlung. Ein Pull Request bringt seine Selbstprüfung (`beitrag-pruefen`) und ein
+unabhängiges Review mit (`tdd-review`, ohne Code `doku-pruefen`). Was vor einem Pull Request laufen muss und was er
+enthält, steht unter [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
 
-## ⭐ Sterne im Verlauf
+## Sterne im Verlauf
 
 <a href="https://www.star-history.com/#firsttris/haben&Date">
   <picture>

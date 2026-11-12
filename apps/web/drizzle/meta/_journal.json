@@ -1426,8 +1426,57 @@
     {
       "idx": 203,
       "version": "7",
-      "when": 1794382347761,
-      "tag": "0203_zeichen_navigation",
+      "when": 1794400327111,
+      "tag": "0203_spende",
+      "breakpoints": true
+    },
+    {
+      "idx": 204,
+      "version": "7",
+      "when": 1794465587819,
+      "tag": "0204_firmendaten_gespeichert",
+      "breakpoints": true
+    },
+    {
+      "idx": 205,
+      "version": "7",
+      "when": 1794473880659,
+      "tag": "0205_eigene_seiten_neuer_tab",
+      "breakpoints": true
+    },
+    {
+      "idx": 206,
+      "version": "7",
+      "when": 1794478207206,
+      "tag": "0206_ansprechpartner",
+      "breakpoints": true
+    },
+    {
+      "idx": 207,
+      "version": "7",
+      "when": 1794478209986,
+      "tag": "0207_ansprechpartner_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 208,
+      "version": "7",
+      "when": 1794485637316,
+      "tag": "0208_beleg_verrechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 209,
+      "version": "7",
+      "when": 1794487529169,
+      "tag": "0209_verrechnung_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 210,
+      "version": "7",
+      "when": 1794514004150,
+      "tag": "0210_zeichen_navigation",
       "breakpoints": true
     }
   ]

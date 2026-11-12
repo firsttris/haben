@@ -15,7 +15,7 @@ Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unte
 
 **Neues Angebot** öffnet den Editor:
 
-- Kunde
+- Kunde und, wenn er Personen hat, ein [Ansprechpartner](rechnungen.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein)
 - Angebotsdatum
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
@@ -76,7 +76,6 @@ Mit dem Festschreiben sind die Anhänge zusammen mit dem Angebot gesperrt: Die D
 **Festschreiben** vergibt die Nummer und erzeugt das PDF:
 
 - Angebote haben einen eigenen Nummernkreis: ab Werk `AN-2026-001`, `AN-2026-002` und so weiter, je Jahr neu oder auf Wunsch durchlaufend. Das Format lässt sich ändern, siehe [Nummernformat](einrichtung.md#nummernformat).
-- Die Rechnungsnummern bleiben davon unberührt.
 - Das PDF hat dasselbe Layout wie die Rechnung, mit Angebotsnummer, Gültigkeit und dem Satz „Dieses Angebot gilt bis zum …“.
 - Ein E-Rechnungs-XML gibt es für Angebote nicht.
 

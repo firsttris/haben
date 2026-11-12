@@ -7,11 +7,11 @@ description: >-
 
 # Umzug aus sevDesk
 
-Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md); diese Seite beschreibt, was bei sevDesk anders ist.
+Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
-Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege** und der Jahresexport behandeln beide Quellen gleich.
+Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege**, die [Kontaktseite](rechnungen.md#rechnungen-und-belege-am-kontakt) und der Jahresexport behandeln beide Quellen gleich.
 
 > [!WARNING]
 > Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
@@ -48,7 +48,7 @@ Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine R
 
 ### Kontaktrollen und Nummern prüfen
 
-Die [sevDesk-OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt die Kontaktkategorien **Lieferant (2)**, **Kunde (3)**, **Partner (4)** und **Interessent (28)**. Haben legt neue Lieferanten ausschließlich als Lieferanten und neue Kunden ausschließlich als Kunden an. Haben kennt keine eigene Partner- oder Interessentenrolle: Diese sowie Kontakte mit fehlender oder unbekannter Kategorie erhalten bei der Neuanlage zunächst nur die Kundenrolle. Der Import zeigt dazu einen Hinweis. Prüfe diese Kontakte unter **Kontakte**; eine unklare Kategorie führt niemals automatisch zu beiden Rollen. Rollen aus einzelnen Rechnungen oder Belegen werden nicht zusätzlich abgeleitet.
+Die [sevDesk-OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt die Kontaktkategorien **Lieferant (2)**, **Kunde (3)**, **Partner (4)** und **Interessent (28)**. Haben legt neue Lieferanten ausschließlich als Lieferanten und neue Kunden ausschließlich als Kunden an. Haben kennt keine eigene Partner- oder Interessentenrolle: Diese sowie Kontakte mit fehlender oder unbekannter Kategorie erhalten bei der Neuanlage zunächst nur die Kundenrolle. Der Import zeigt dazu einen Hinweis. Prüfe diese Kontakte unter **Kontakte**. Rollen aus einzelnen Rechnungen oder Belegen werden nicht zusätzlich abgeleitet.
 
 Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Haben eine eindeutige Kunden- oder Lieferantenrolle auch für schon importierte Kontakte. Bestehende Rollen und Nummern bleiben erhalten; bei unklarer Kategorie bleiben bestehende Rollen unverändert. Ein weiterer Abruf ohne neue Rolle erzeugt keine neue Kontaktversion.
 
@@ -106,7 +106,7 @@ Bei **Ist-Versteuerung** sperrt Haben dann den monatlichen Altbestandsabgleich f
 
 #### Stornierte Rechnungen
 
-sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag und wenn zu beiden keine Zahlung besteht; sonst bleibt der Stand unklar. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt. Die Aufteilung nach Steuersatz steht dagegen im Abruf: Hat eine früher abgerufene Stornorechnung mehrere Steuersätze und eine Rabattzeile, heben sich die Beträge nur in der Summe auf, nicht je Satz.
+sevDesk führt eine stornierte Rechnung und ihre Stornorechnung beide als „bezahlt“, ohne Zahlung. Erkennbar ist das Paar an `invoiceType` `SR` und dem Verweis `origin` auf die Rechnung. Haben wertet beide dann als storniert: nichts offen, keine Sperre wegen fehlender Einzelzahlungen, und im Umsatz heben sie sich auf. Das gilt nur für den vollen Betrag, nur wenn zu beiden keine Zahlung besteht und nur bei genau einer Stornorechnung zur Rechnung; sonst bleibt der Stand unklar. Einen Zahlungstag (`payDate`) an der Stornorechnung zählt Haben nicht als Zahlung, wenn sie `paidAmount` 0 nennt: sevDesk setzt ihn beim Stornieren teils, ohne dass Geld floss ([#472](https://github.com/firsttris/haben/issues/472)). An der stornierten Rechnung bleibt ein Zahlungstag ein Grund für „unklar“. Liegt das Storno nach dem [Stichtag](lexoffice.md#stichtag), war die Rechnung am Stichtag noch offen; sie erscheint dann gesperrt mit dem Grund „Storno nach dem Stichtag“. Auch das wertet Haben zur Laufzeit aus, frühere Abrufe sind damit abgedeckt. Die Aufteilung nach Steuersatz steht dagegen im Abruf: Hat eine früher abgerufene Stornorechnung mehrere Steuersätze und eine Rabattzeile, heben sich die Beträge nur in der Summe auf, nicht je Satz.
 
 ### Angebote, Auftragsbestätigungen und Lieferscheine
 
@@ -138,7 +138,7 @@ Der Jahresexport enthält `sevdesk/auftraege.csv` sowie PDFs, Quelldaten und PDF
 
 Offene Posten, Exporte ablegen und Abgleich je Jahr funktionieren wie beim [Umzug aus Lexoffice](lexoffice.md#schritt-3-offene-posten-übernehmen). Unterschiede:
 
-- sevDesk schreibt von Belegnummern über 36 Zeichen nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
+- sevDesk entfernt aus Belegnummern Zeichen, die im DATEV-Feld nicht erlaubt sind (etwa Punkt und Umlaute), und schreibt von längeren Nummern nur die letzten 36 ins Belegfeld 1 des DATEV-Exports. Der Abgleich „Jede Buchung mit Belegnummer findet ihren Beleg“ erkennt das.
 - In Zahlungsbuchungen steht im Belegfeld 1 oft eine interne Kennung von sevDesk (UUID). Sie ist keine Belegnummer und zählt im Abgleich unter „ohne Belegnummer“.
 
 - Eine offene Rechnung ohne Nummer bekommt in Haben die Nummer `SD-` plus die ID aus sevDesk.

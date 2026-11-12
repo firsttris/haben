@@ -56,9 +56,6 @@ export function hasScope(granted: readonly TokenScope[], needed: TokenScope): bo
   return granted.some((scope) => scope === needed || IMPLIED[scope] === needed);
 }
 
-/** Gültigkeit eines neuen Tokens in Tagen */
-export const MCP_TOKEN_DAYS = [30, 90, 365] as const;
-
 const TOKEN_PREFIX = "hb_";
 /** Protokoll der Aufrufe so lange aufheben */
 const CALL_RETENTION_DAYS = 90;
