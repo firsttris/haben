@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
 /**
@@ -7,7 +7,18 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * Quelle: https://www.gesetze-im-internet.de/ustg_1980/__17.html
  */
 type TaxInvoice = Pick<typeof schema.invoices.$inferSelect, "issueDate" | "correctsId"> &
-  Partial<Pick<typeof schema.invoices.$inferSelect, "advanceType" | "serviceFrom" | "serviceTo">>;
+  Partial<Pick<typeof schema.invoices.$inferSelect, "id" | "variant" | "advanceType" | "serviceFrom" | "serviceTo">>;
+
+/** Nur Schlussrechnungen mit neuen Abschlägen: Bestandsbelege behalten ihren bisherigen Zeitpunkt. */
+export async function hasNewAdvance(invoiceId: string, q: Db | Tx = db): Promise<boolean> {
+  const [advance] = await q
+    .select({ id: schema.invoices.id })
+    .from(schema.invoiceLines)
+    .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.deductionOf))
+    .where(and(eq(schema.invoiceLines.invoiceId, invoiceId), isNotNull(schema.invoices.advanceType)))
+    .limit(1);
+  return Boolean(advance);
+}
 
 export async function invoiceTaxYear(invoice: TaxInvoice, q: Db | Tx = db): Promise<number> {
   let current = invoice;
@@ -16,6 +27,8 @@ export async function invoiceTaxYear(invoice: TaxInvoice, q: Db | Tx = db): Prom
       .select({
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
+        id: schema.invoices.id,
+        variant: schema.invoices.variant,
         advanceType: schema.invoices.advanceType,
         serviceFrom: schema.invoices.serviceFrom,
         serviceTo: schema.invoices.serviceTo,
@@ -28,6 +41,7 @@ export async function invoiceTaxYear(invoice: TaxInvoice, q: Db | Tx = db): Prom
   // Nur ausdrücklich neue Teilleistungen: Das bei der Leistung geltende Verfahren bleibt auch nach einem Wechsel
   // maßgeblich (UStAE 13.6 Abs. 3). Bestandsrechnungen behalten wie bisher ihr Rechnungsjahr.
   // https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-6.html
-  const date = current.advanceType === "teilleistung" ? (current.serviceTo ?? current.serviceFrom ?? current.issueDate) : current.issueDate;
+  const performed = current.advanceType === "teilleistung" || (current.variant === "schluss" && current.id && (await hasNewAdvance(current.id, q)));
+  const date = performed ? (current.serviceTo ?? current.serviceFrom ?? current.issueDate) : current.issueDate;
   return Number(date.slice(0, 4));
 }

@@ -109,7 +109,7 @@ Auch Storno und Rechnungskorrektur behalten das Verfahren der ursprünglichen Re
 
 ### Anzahlungen vor Leistung
 
-Bei einer neuen Soll-Anzahlung bucht Haben die Steuer zunächst auf „Umsatzsteuer nicht fällig“ ([§ 13 Abs. 1 Nr. 1 Buchst. a UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). Steuerzeitpunkt, Leistungsjahr nach einem Verfahrenswechsel und Eingabe stehen unter [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung); dort ist auch der unveränderte Umgang mit Bestandsabschlägen beschrieben.
+Bei einer neuen Anzahlung bucht Haben die Steuer zunächst auf „Umsatzsteuer nicht fällig“ ([§ 13 Abs. 1 Nr. 1 Buchst. a UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). Steuerzeitpunkt, Leistungsjahr nach einem Verfahrenswechsel und Eingabe stehen unter [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung); dort ist auch der unveränderte Umgang mit Bestandsabschlägen beschrieben.
 
 Haben verwendet die vorhandenen Konten für nicht fällige und fällige Umsatzsteuer in SKR03 und SKR04. Die Umbuchungen tragen ihre Bemessungsgrundlage. Wird eine frühere Zahlung erst nach der Schlussrechnung zugeordnet oder eine Zuordnung aufgehoben, entstehen ergänzende Differenzbuchungen zu den betroffenen Tagen; bestehende Buchungen bleiben erhalten. Ein Storno der Schlussrechnung lässt die Steuer auf tatsächlich erhaltene Zahlungen stehen. EÜR und Kassenbuch zählen weiterhin ausschließlich tatsächliche Geldbewegungen. Der DATEV-Export übernimmt die Kontenbewegungen und hebt wie bisher die Steuerautomatik auf, damit die separat gebuchte Steuer nicht nochmals berechnet wird ([DATEV-Export](auswertungen.md#datev-export-für-die-steuerberatung)).
 

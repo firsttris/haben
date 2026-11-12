@@ -1,8 +1,8 @@
 import type { Versteuerung } from "@haben/core";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear } from "./invoice-tax-year.ts";
+import { hasNewAdvance, invoiceTaxYear } from "./invoice-tax-year.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
 type Reference = Pick<Invoice, "issueDate" | "correctsId"> & Partial<Invoice>;
@@ -28,11 +28,16 @@ export async function invoiceVatMode(invoice: Reference, q: Db | Tx = db): Promi
 /** Auslands-Meldezeitpunkte (§ 18b UStG) ändern sich hier nicht. */
 export const advanceAfterPayment = (invoice: Reference) => ["regulaer", "steuerfrei", "ausfuhr"].includes(invoice.taxTreatment ?? "regulaer");
 
-/** Nur die neuen Soll-Anzahlungen benötigen neben Zahlungen auch die Fälligkeit mit der Schlussleistung. */
+/** Neue Anzahlungen folgen den Zahlungen und dem Verfahren ihrer späteren Leistung, auch nach einem Jahreswechsel. */
 export async function managedAdvance(invoice: Reference, q: Db | Tx = db): Promise<Invoice | null> {
   const original = await vatOriginal(invoice, q);
   if (original.advanceType !== "anzahlung" || !advanceAfterPayment(original)) return null;
-  return (await versteuerungForYear(Number(original.issueDate.slice(0, 4)), q)) === "soll" ? (original as Invoice) : null;
+  return original as Invoice;
+}
+
+/** Neue Anzahlungen stellen ihre Steuer getrennt über syncAdvanceVat fällig; ihre Geldbewegung bucht nur Bank/Kasse an Forderungen. */
+export async function invoicePaymentMode(invoice: Reference, q: Db | Tx = db): Promise<Versteuerung> {
+  return (await managedAdvance(invoice, q)) ? "soll" : invoiceVatMode(invoice, q);
 }
 
 /**
@@ -42,15 +47,6 @@ export async function managedAdvance(invoice: Reference, q: Db | Tx = db): Promi
  */
 export async function invoiceVatDate(invoice: Invoice, q: Db | Tx = db): Promise<string> {
   if (invoice.kind !== "rechnung" || !advanceAfterPayment(invoice) || (await invoiceVatMode(invoice, q)) !== "soll") return invoice.issueDate;
-  let performance = invoice.advanceType === "teilleistung";
-  if (invoice.variant === "schluss") {
-    const [advance] = await q
-      .select({ id: schema.invoices.id })
-      .from(schema.invoiceLines)
-      .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.deductionOf))
-      .where(and(eq(schema.invoiceLines.invoiceId, invoice.id), eq(schema.invoices.advanceType, "anzahlung")))
-      .limit(1);
-    performance ||= Boolean(advance);
-  }
+  const performance = invoice.advanceType === "teilleistung" || (invoice.variant === "schluss" && (await hasNewAdvance(invoice.id, q)));
   return performance ? (invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate) : invoice.issueDate;
 }

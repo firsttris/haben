@@ -105,6 +105,10 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
     await tax(2026, 12, 0, 0);
     await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
     await tax(2027, 1, 30_000, 5_700);
+    const euer = await reports.euerForYear(2027);
+    expect(euer.einnahmen.find((r) => r.key === "einnahmenSteuerpflichtig")?.amount).toBe(30_000);
+    expect(euer.einnahmen.find((r) => r.key === "vereinnahmteUst")?.amount).toBe(5_700);
+    expect((await reports.euerAbgleich(2027)).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
   });
 
   async function finalInvoice(advanceId: string) {

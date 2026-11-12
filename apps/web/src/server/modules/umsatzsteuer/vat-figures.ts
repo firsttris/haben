@@ -157,8 +157,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   // Alte Rechnungen behalten auch für spätere Zahlungen und Ausbuchungen ihr Verfahren.
   // Pro Rechnungsjahr nur einmal im Änderungsprotokoll nachsehen.
   const modes = new Map([[period.year, versteuerung]]);
-  async function invoiceMode(invoice: { issueDate: string; correctsId: string | null }) {
-    const year = await invoiceTaxYear(invoice, q);
+  async function invoiceMode(invoice: Parameters<typeof invoiceTaxYear>[0] & { invoiceId?: string }) {
+    const year = await invoiceTaxYear({ ...invoice, id: invoice.id ?? invoice.invoiceId }, q);
     let mode = modes.get(year);
     if (!mode) {
       mode = await versteuerungForYear(year, q);
@@ -195,6 +195,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
         advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
         serviceFrom: schema.invoices.serviceFrom,
         serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
@@ -225,6 +226,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
         advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
         serviceFrom: schema.invoices.serviceFrom,
         serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
@@ -252,6 +254,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
         advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
         serviceFrom: schema.invoices.serviceFrom,
         serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,
@@ -340,6 +343,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         issueDate: schema.invoices.issueDate,
         correctsId: schema.invoices.correctsId,
         advanceType: schema.invoices.advanceType,
+        variant: schema.invoices.variant,
         serviceFrom: schema.invoices.serviceFrom,
         serviceTo: schema.invoices.serviceTo,
         number: schema.invoices.number,

@@ -4,8 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoiceTaxYear, invoiceTotalsById, lockAdvanceVat, syncAdvanceVat } from "../rechnungen/index.ts";
-import { versteuerungForYear } from "../stammdaten/index.ts";
+import { invoicePaymentMode, invoiceTotalsById, lockAdvanceVat, syncAdvanceVat } from "../rechnungen/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
@@ -79,14 +78,7 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
       description: text,
       sourceType: "kasse",
       sourceId: id,
-      lines: invoiceCashPaymentPosting(
-        totals,
-        parsed.amount,
-        books.kontenrahmen,
-        await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
-        taxShares,
-        invoice.taxTreatment,
-      ),
+      lines: invoiceCashPaymentPosting(totals, parsed.amount, books.kontenrahmen, await invoicePaymentMode(invoice, tx), taxShares, invoice.taxTreatment),
     });
     const [row] = await tx
       .insert(schema.cashEntries)

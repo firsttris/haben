@@ -2,7 +2,7 @@ import { advanceVatPlan, recordedTaxShares, type AdvanceVatEvent, type AdvanceVa
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
-import { invoiceVatDate, managedAdvance } from "./invoice-vat.ts";
+import { invoiceVatDate, invoiceVatMode, managedAdvance } from "./invoice-vat.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
 
@@ -56,6 +56,7 @@ async function performanceEvents(original: Invoice, q: Db | Tx): Promise<Advance
     .where(and(eq(schema.invoiceLines.deductionOf, original.id), eq(schema.invoices.kind, "rechnung"), eq(schema.invoices.status, "final")));
   const events: AdvanceVatEvent[] = [];
   for (const { invoice } of finals) {
+    if ((await invoiceVatMode(invoice, q)) !== "soll") continue;
     events.push({ date: await invoiceVatDate(invoice, q), performance: 1 });
     const cancellations = await q
       .select()
@@ -87,7 +88,7 @@ export async function loadAdvanceVatPlan(original: Invoice, q: Db | Tx = db): Pr
   return { original, invoiceIds: new Set(invoices.map((i) => i.id)), changes: advanceVatPlan(totals.get(original.id)!.taxes, events) };
 }
 
-/** Nur neue Soll-Anzahlungen: Ist und Bestandsbelege laufen unverändert durch ihre bisherigen Nebenbücher. */
+/** Nur neue Anzahlungen: Bestandsbelege laufen unverändert durch ihre bisherigen Nebenbücher. */
 export async function advanceVatPlans(q: Db | Tx = db): Promise<ManagedAdvancePlan[]> {
   const originals = await q
     .select()
