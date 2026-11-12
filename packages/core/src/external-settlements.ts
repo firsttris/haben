@@ -21,7 +21,8 @@ export function externalSettlementProblem(kr: Kontenrahmen, journals: readonly E
   for (const payment of [...journals].sort((a, b) => a.date.localeCompare(b.date) || a.externalId.localeCompare(b.externalId))) {
     if (!payment.settles) continue;
     const original = byId.get(payment.settles);
-    if (!original || original.settles || original.externalId === payment.externalId || original.date > payment.date) return invalid(payment.externalId);
+    // Auch ein belegter Zufluss vor dem Rechnungsdatum zählt bei Zahlung (§ 11 EStG).
+    if (!original || original.settles || original.externalId === payment.externalId) return invalid(payment.externalId);
     const accounts = [ACCOUNTS[kr].forderungen, ACCOUNTS[kr].verbindlichkeiten];
     const open = accounts.filter((a) => original.lines.some((l) => l.account === a));
     if (open.length !== 1 || !success(kr, original) || success(kr, payment)) return invalid(payment.externalId);
