@@ -68,6 +68,32 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
     expect((await call(t, "DELETE", `/leistungen/${created.json!.id}`)).status).toBe(404);
   });
 
+  it("nicht abrechenbar, abrechenbare Dauer und Projekt gehen hin und kommen zurück", async () => {
+    const t = await token(["leistungen:schreiben"]);
+    const plain = await call(t, "POST", "/leistungen", eintrag());
+    expect(plain.json).toMatchObject({ nonBillable: false, billableMinutes: null, project: "" });
+    const full = await call(
+      t,
+      "POST",
+      "/leistungen",
+      eintrag({ nonBillable: true, billableMinutes: 60, project: "Relaunch Shop", source: "kimai", externalId: "9" }),
+    );
+    expect(full.json).toMatchObject({ nonBillable: true, billableMinutes: 60, project: "Relaunch Shop" });
+    // derselbe Aufruf ohne die Felder lässt sie stehen
+    const again = await call(t, "POST", "/leistungen", eintrag({ source: "kimai", externalId: "9", minutes: 95 }));
+    expect(again.status).toBe(200);
+    expect(again.json).toMatchObject({ minutes: 95, nonBillable: true, billableMinutes: 60, project: "Relaunch Shop" });
+    expect((await call(t, "POST", "/leistungen", eintrag({ billableMinutes: 0 }))).status).toBe(400);
+  });
+
+  it("nimmt nur Kunden: ein reiner Lieferant ist 422", async () => {
+    const t = await token(["leistungen:schreiben"]);
+    const [lieferant] = await sql`insert into contacts (name, is_customer, is_supplier) values ('Papier AG', false, true) returning id`;
+    const r = await call(t, "POST", "/leistungen", eintrag({ contactId: lieferant!.id }));
+    expect(r.status).toBe(422);
+    expect(r.json!.error?.message).toBe("Der Kontakt ist kein Kunde.");
+  });
+
   it("mit Quelle und Kennung: 201 beim ersten, 200 beim zweiten Aufruf, ein Eintrag", async () => {
     const t = await token(["leistungen:schreiben"]);
     const first = await call(t, "POST", "/leistungen", eintrag({ source: "kimai", externalId: "4711" }));
@@ -109,6 +135,8 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
     const t = await token(["kontakte:schreiben"]);
     const patched = await call(t, "PATCH", `/kontakte/${contactId}`, { hourlyRateCents: 11000 });
     expect(patched.status).toBe(200);
+    // und liest ihn zurück
+    expect((await call(t, "GET", `/kontakte/${contactId}`)).json).toMatchObject({ hourlyRateCents: 11000 });
     const [row] = await sql`select hourly_rate_cents from contacts where id = ${contactId}`;
     expect(row!.hourly_rate_cents).toBe(11000);
   });

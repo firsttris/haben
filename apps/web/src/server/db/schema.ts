@@ -1022,6 +1022,12 @@ export const serviceEntries = pgTable(
     minutes: integer("minutes").notNull(),
     description: text("description").notNull().default(""),
     hourlyRateCents: integer("hourly_rate_cents"),
+    /** Erfasst, kommt aber nie in einen Rechnungsentwurf (z. B. interne Zeit) */
+    nonBillable: boolean("non_billable").notNull().default(false),
+    /** Abrechenbare Dauer in Minuten, wenn sie von der erfassten abweicht; null = die erfasste */
+    billableMinutes: integer("billable_minutes"),
+    /** Projekt als freier Text, nur zum Gruppieren und Filtern; keine Projektverwaltung */
+    project: text("project").notNull().default(""),
     externalSource: text("external_source"),
     externalId: text("external_id"),
     createdBy: text("created_by").notNull(),
@@ -1030,6 +1036,7 @@ export const serviceEntries = pgTable(
   },
   (t) => [
     check("service_entries_minutes", sql`${t.minutes} between 1 and 1440`),
+    check("service_entries_billable_minutes", sql`${t.billableMinutes} is null or ${t.billableMinutes} between 1 and 1440`),
     check("service_entries_rate", sql`${t.hourlyRateCents} is null or ${t.hourlyRateCents} >= 0`),
     check("service_entries_extern", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),

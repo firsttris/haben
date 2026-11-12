@@ -1,8 +1,9 @@
-import { formatDuration, formatEuro, germanDay, serviceAmount } from "@haben/core";
+import { billableAmount, billableMinutes, formatDuration, formatEuro, germanDay } from "@haben/core";
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { z } from "zod";
+import { ConfirmDialog } from "../../components/ConfirmDialog.tsx";
 import { Field } from "../../components/Field.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { ServiceEntryForm, type ServiceEntryRow } from "../../components/ServiceEntryForm.tsx";
@@ -29,11 +30,13 @@ function ServiceEntriesPage() {
   const [editing, setEditing] = useState<ServiceEntryRow | null>(null);
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const [confirm, setConfirm] = useState<ServiceEntryRow | null>(null);
   const names = new Map(customers.map((c) => [c.id, c.name]));
   const formOpen = creating || editing !== null;
   const totalMinutes = entries.reduce((sum, e) => sum + e.minutes, 0);
-  const totalCents = entries.reduce((sum, e) => sum + (e.hourlyRateCents === null ? 0 : serviceAmount(e.minutes, e.hourlyRateCents)), 0);
-  const withoutRate = entries.filter((e) => e.hourlyRateCents === null).length;
+  const totalBillable = entries.reduce((sum, e) => sum + billableMinutes(e), 0);
+  const totalCents = entries.reduce((sum, e) => sum + billableAmount(e), 0);
+  const withoutRate = entries.filter((e) => e.hourlyRateCents === null && !e.nonBillable).length;
 
   async function onDelete(entry: ServiceEntryRow) {
     try {
@@ -89,6 +92,25 @@ function ServiceEntriesPage() {
           />
         )}
         <NoticeBanner notice={notice} />
+        <ConfirmDialog
+          open={confirm !== null}
+          title="Eintrag löschen?"
+          facts={
+            confirm
+              ? [
+                  { label: "Tag", value: formatDate(confirm.workedOn) },
+                  { label: "Kunde", value: names.get(confirm.contactId) ?? "Kunde" },
+                  { label: "Dauer", value: `${formatDuration(confirm.minutes)} Std.`, strong: true },
+                ]
+              : undefined
+          }
+          confirmLabel="Löschen"
+          danger
+          onConfirm={() => confirm && onDelete(confirm)}
+          onClose={() => setConfirm(null)}
+        >
+          <p>Der Eintrag wird gelöscht. Das steht im Änderungsprotokoll.</p>
+        </ConfirmDialog>
         <section className="card" aria-label="Leistungsliste">
           <div className="form-row cols-3" role="group" aria-label="Filter">
             <Field label="Kunde">
@@ -135,11 +157,21 @@ function ServiceEntriesPage() {
                           {e.description}
                         </div>
                       )}
+                      {(e.project || e.nonBillable) && (
+                        <div className="small muted">
+                          {e.project}
+                          {e.project && e.nonBillable ? " · " : ""}
+                          {e.nonBillable && "nicht abrechenbar"}
+                        </div>
+                      )}
                       {e.source && <div className="small muted">aus {e.source}</div>}
                     </div>
-                    <div className="num">{formatDuration(e.minutes)} Std.</div>
+                    <div className="num">
+                      {formatDuration(e.minutes)} Std.
+                      {!e.nonBillable && e.billableMinutes !== null && <div className="small muted">abrechenbar {formatDuration(e.billableMinutes)}</div>}
+                    </div>
                     <div className="num">{e.hourlyRateCents === null ? <span className="muted">fehlt</span> : formatEuro(e.hourlyRateCents)}</div>
-                    <div className="num">{e.hourlyRateCents === null ? "" : formatEuro(serviceAmount(e.minutes, e.hourlyRateCents))}</div>
+                    <div className="num">{e.hourlyRateCents === null || e.nonBillable ? "" : formatEuro(billableAmount(e))}</div>
                     <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                       <button
                         type="button"
@@ -154,9 +186,9 @@ function ServiceEntriesPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn btn-sm"
+                        className="btn btn-sm btn-danger"
                         aria-label={`Eintrag vom ${formatDate(e.workedOn)} löschen`}
-                        onClick={() => void onDelete(e)}
+                        onClick={() => setConfirm(e)}
                       >
                         Löschen
                       </button>
@@ -165,7 +197,8 @@ function ServiceEntriesPage() {
                 ))}
               </div>
               <p className="muted small" style={{ margin: 0 }}>
-                {entries.length} {entries.length === 1 ? "Eintrag" : "Einträge"}, {formatDuration(totalMinutes)} Std., {formatEuro(totalCents)}
+                {entries.length} {entries.length === 1 ? "Eintrag" : "Einträge"}, {formatDuration(totalMinutes)} Std., davon abrechenbar{" "}
+                {formatDuration(totalBillable)} Std. mit {formatEuro(totalCents)}
                 {withoutRate > 0 && ` (${withoutRate} ohne Stundensatz nicht gerechnet)`}.
               </p>
             </>

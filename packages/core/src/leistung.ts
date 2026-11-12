@@ -35,3 +35,21 @@ export function formatDuration(minutes: number): string {
 export function serviceAmount(minutes: number, hourlyRateCents: Cents): Cents {
   return roundHalfAwayFromZero((minutes * hourlyRateCents) / 60);
 }
+
+/** Was ein Eintrag für die Rechnung hergibt: Dauer, abrechenbare Dauer und Kennzeichen (Stundensatz fehlt = Betrag 0, der Satz wird beim Abrechnen verlangt) */
+export interface Abrechenbar {
+  minutes: number;
+  /** Abrechenbare Dauer; null = die erfasste */
+  billableMinutes: number | null;
+  nonBillable: boolean;
+}
+
+/** Abrechenbare Minuten: 0 bei einem nicht abrechenbaren Eintrag, sonst die abrechenbare Dauer oder die erfasste */
+export function billableMinutes(entry: Abrechenbar): number {
+  return entry.nonBillable ? 0 : (entry.billableMinutes ?? entry.minutes);
+}
+
+/** Abrechenbarer Betrag in Cent; ohne Stundensatz 0 */
+export function billableAmount(entry: Abrechenbar & { hourlyRateCents: Cents | null }): Cents {
+  return entry.hourlyRateCents === null ? 0 : serviceAmount(billableMinutes(entry), entry.hourlyRateCents);
+}

@@ -33,6 +33,18 @@ export const serviceEntrySchema = z.object({
   description: z.string().trim().max(2000).default(""),
   /** Stundensatz in Cent; fehlt = der Satz des Kunden (beim Anlegen) bzw. unverändert (beim Ändern) */
   hourlyRateCents: z.number().int("Stundensatz in ganzen Cent").min(0, "Stundensatz nicht negativ").max(100_000_00, "Stundensatz zu hoch").optional(),
+  /** Erfasst, aber nie in einem Rechnungsentwurf; fehlt = nein (beim Anlegen) bzw. unverändert (beim Ändern) */
+  nonBillable: z.boolean().optional(),
+  /** Abrechenbare Dauer in Minuten; null = die erfasste, fehlt = unverändert */
+  billableMinutes: z
+    .number()
+    .int("Abrechenbare Dauer in ganzen Minuten")
+    .min(1, "Abrechenbare Dauer fehlt")
+    .max(24 * 60, "Abrechenbare Dauer höchstens 24 Stunden")
+    .nullable()
+    .optional(),
+  /** Projekt als freier Text; keine Projektverwaltung */
+  project: z.string().trim().max(200, "Projekt höchstens 200 Zeichen").optional(),
 });
 
 export type ServiceEntryInput = z.input<typeof serviceEntrySchema>;
@@ -51,6 +63,9 @@ export interface ServiceEntry {
   minutes: number;
   description: string;
   hourlyRateCents: number | null;
+  nonBillable: boolean;
+  billableMinutes: number | null;
+  project: string;
   source: string | null;
   externalId: string | null;
 }
@@ -62,6 +77,9 @@ const columns = {
   minutes: schema.serviceEntries.minutes,
   description: schema.serviceEntries.description,
   hourlyRateCents: schema.serviceEntries.hourlyRateCents,
+  nonBillable: schema.serviceEntries.nonBillable,
+  billableMinutes: schema.serviceEntries.billableMinutes,
+  project: schema.serviceEntries.project,
   source: schema.serviceEntries.externalSource,
   externalId: schema.serviceEntries.externalId,
 };
@@ -94,12 +112,24 @@ export async function getServiceEntry(id: string): Promise<ServiceEntry | null> 
   return row ?? null;
 }
 
-/** Der Stundensatz des Kunden; wirft, wenn es ihn nicht gibt */
+/** Der Stundensatz des Kunden; wirft, wenn es den Kunden nicht gibt, er keiner (nur Lieferant) oder archiviert ist */
 async function contactRate(tx: Tx, contactId: string): Promise<number | null> {
-  const [contact] = await tx.select({ rate: schema.contacts.hourlyRateCents }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
+  const [contact] = await tx
+    .select({ rate: schema.contacts.hourlyRateCents, isCustomer: schema.contacts.isCustomer, archivedAt: schema.contacts.archivedAt })
+    .from(schema.contacts)
+    .where(eq(schema.contacts.id, contactId));
   if (!contact) throw new ServiceEntryError("Kunde nicht gefunden.");
+  if (!contact.isCustomer) throw new ServiceEntryError("Der Kontakt ist kein Kunde.");
+  if (contact.archivedAt !== null) throw new ServiceEntryError("Der Kunde ist archiviert.");
   return contact.rate;
 }
+
+/** Werte der neuen Felder beim Anlegen: ohne Angabe nicht „nicht abrechenbar“, ohne abrechenbare Dauer, ohne Projekt */
+const vorgaben = (data: { nonBillable?: boolean; billableMinutes?: number | null; project?: string }) => ({
+  nonBillable: data.nonBillable ?? false,
+  billableMinutes: data.billableMinutes ?? null,
+  project: data.project ?? "",
+});
 
 export async function createServiceEntry(actor: string, input: ServiceEntryInput): Promise<string> {
   const data = serviceEntrySchema.parse(input);
@@ -108,7 +138,7 @@ export async function createServiceEntry(actor: string, input: ServiceEntryInput
     const rate = data.hourlyRateCents ?? contactDefault;
     const [created] = await tx
       .insert(schema.serviceEntries)
-      .values({ ...data, hourlyRateCents: rate, createdBy: actor })
+      .values({ ...data, ...vorgaben(data), hourlyRateCents: rate, createdBy: actor })
       .returning({ id: schema.serviceEntries.id });
     return created!.id;
   });
@@ -117,9 +147,14 @@ export async function createServiceEntry(actor: string, input: ServiceEntryInput
 export async function updateServiceEntry(actor: string, id: string, input: ServiceEntryInput): Promise<void> {
   const data = serviceEntrySchema.parse(input);
   await withActor(actor, async (tx) => {
-    const [entry] = await tx.select({ id: schema.serviceEntries.id }).from(schema.serviceEntries).where(eq(schema.serviceEntries.id, id)).for("update");
+    const [entry] = await tx
+      .select({ id: schema.serviceEntries.id, contactId: schema.serviceEntries.contactId })
+      .from(schema.serviceEntries)
+      .where(eq(schema.serviceEntries.id, id))
+      .for("update");
     if (!entry) throw new ServiceEntryError("Eintrag nicht gefunden.");
-    await contactRate(tx, data.contactId);
+    // Ein Eintrag bleibt änderbar, auch wenn der Kunde inzwischen archiviert ist; ein anderer Kunde muss passen
+    if (entry.contactId !== data.contactId) await contactRate(tx, data.contactId);
     await tx
       .update(schema.serviceEntries)
       .set({ ...data, hourlyRateCents: data.hourlyRateCents, updatedAt: sql`now()` })
@@ -146,7 +181,7 @@ export async function upsertExternalServiceEntry(actor: string, input: ExternalS
     const rate = rest.hourlyRateCents ?? contactDefault;
     const [row] = await tx
       .insert(schema.serviceEntries)
-      .values({ ...rest, hourlyRateCents: rate, externalSource: source, externalId, createdBy: actor })
+      .values({ ...rest, ...vorgaben(rest), hourlyRateCents: rate, externalSource: source, externalId, createdBy: actor })
       .onConflictDoUpdate({
         target: [schema.serviceEntries.externalSource, schema.serviceEntries.externalId],
         set: {
@@ -155,6 +190,9 @@ export async function upsertExternalServiceEntry(actor: string, input: ExternalS
           minutes: rest.minutes,
           description: rest.description,
           ...(rest.hourlyRateCents === undefined ? {} : { hourlyRateCents: rest.hourlyRateCents }),
+          ...(rest.nonBillable === undefined ? {} : { nonBillable: rest.nonBillable }),
+          ...(rest.billableMinutes === undefined ? {} : { billableMinutes: rest.billableMinutes }),
+          ...(rest.project === undefined ? {} : { project: rest.project }),
           updatedAt: sql`now()`,
         },
       })

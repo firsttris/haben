@@ -2160,9 +2160,11 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await page.getByRole("button", { name: "Neuer Eintrag" }).click();
   const neu = page.getByRole("form", { name: "Neuer Eintrag" });
   await neu.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH" });
-  await neu.getByLabel("Dauer").fill("1:30");
+  await neu.getByLabel("Dauer", { exact: true }).fill("1:30");
   await neu.getByLabel(/Stundensatz/).fill("95");
   await neu.getByLabel(/Tätigkeit/).fill("Konzept Datenmodell");
+  await neu.getByLabel(/Projekt/).fill("Relaunch Shop");
+  await neu.getByLabel(/Abrechenbare Dauer/).fill("1:00");
   await neu.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByText("Eintrag angelegt.")).toBeVisible();
 
@@ -2170,7 +2172,11 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await expect(liste).toContainText("Rheinpixel GmbH");
   await expect(liste).toContainText("Konzept Datenmodell");
   await expect(liste).toContainText("1:30 Std.");
-  await expect(liste).toContainText("142,50");
+  await expect(liste).toContainText("Relaunch Shop");
+  // Berechnet wird die abrechenbare Stunde, nicht die erfassten 90 Minuten
+  await expect(liste).toContainText("abrechenbar 1:00");
+  await expect(liste).toContainText("95,00");
+  await expect(liste).not.toContainText("142,50");
   // Mit Eintrag: keine axe-Verstöße, am Handy nicht breiter als der Bildschirm
   await ohneAxeVerstoesse(page, ["/leistungen"]);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -2178,10 +2184,11 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   // Dauer unlesbar: Meldung, nichts gespeichert
   await liste.getByRole("button", { name: /bearbeiten/ }).click();
   const aendern = page.getByRole("form", { name: "Eintrag ändern" });
-  await aendern.getByLabel("Dauer").fill("abc");
+  await aendern.getByLabel("Dauer", { exact: true }).fill("abc");
   await aendern.getByRole("button", { name: "Speichern" }).click();
   await expect(aendern.getByRole("alert")).toContainText("Die Dauer ist nicht lesbar");
-  await aendern.getByLabel("Dauer").fill("2");
+  await aendern.getByLabel("Dauer", { exact: true }).fill("2");
+  await aendern.getByLabel(/Abrechenbare Dauer/).fill("");
   await aendern.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Eintrag gespeichert.")).toBeVisible();
   await expect(liste).toContainText("2:00 Std.");
@@ -2193,7 +2200,24 @@ test("Leistungen: Eintrag mit eigenem Stundensatz anlegen, ändern, nach Kunde f
   await page.getByRole("group", { name: "Filter" }).getByLabel("Kunde").selectOption({ label: "Alle Kunden" });
   await expect(liste).toContainText("Konzept Datenmodell");
 
+  // Nicht abrechenbar: erfasst, aber ohne Betrag
+  await liste.getByRole("button", { name: /bearbeiten/ }).click();
+  await page
+    .getByRole("form", { name: "Eintrag ändern" })
+    .getByLabel(/Nicht abrechenbar/)
+    .check();
+  await page.getByRole("form", { name: "Eintrag ändern" }).getByRole("button", { name: "Speichern" }).click();
+  await expect(liste).toContainText("nicht abrechenbar");
+  await expect(liste).toContainText("davon abrechenbar 0:00 Std. mit 0,00");
+
+  // Löschen fragt vorher nach; Abbrechen löscht nichts
   await liste.getByRole("button", { name: /löschen/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Eintrag löschen?" });
+  await expect(dialog).toContainText("Rheinpixel GmbH");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(liste).toContainText("Konzept Datenmodell");
+  await liste.getByRole("button", { name: /löschen/ }).click();
+  await page.getByRole("dialog", { name: "Eintrag löschen?" }).getByRole("button", { name: "Löschen" }).click();
   await expect(page.getByText("Eintrag gelöscht.")).toBeVisible();
   await expect(page.getByText("Noch keine Einträge.")).toBeVisible();
 });

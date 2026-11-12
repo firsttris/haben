@@ -102,6 +102,40 @@ describe.skipIf(!testDatabaseUrl)("Leistungseinträge (Postgres, #417)", () => {
     expect(await entries.listServiceEntries({ from: "2026-03-10", to: "2026-03-20" })).toHaveLength(1);
   });
 
+  it("nicht abrechenbar, abrechenbare Dauer und Projekt: Vorgaben und gespeicherte Werte", async () => {
+    await entries.createServiceEntry(actor, eintrag());
+    await entries.createServiceEntry(actor, eintrag({ nonBillable: true, billableMinutes: 60, project: "Relaunch Shop", workedOn: "2026-03-03" }));
+    const [neu, alt] = await entries.listServiceEntries({});
+    expect(alt).toMatchObject({ nonBillable: false, billableMinutes: null, project: "" });
+    expect(neu).toMatchObject({ nonBillable: true, billableMinutes: 60, project: "Relaunch Shop" });
+  });
+
+  it("prüft die abrechenbare Dauer und das Projekt", async () => {
+    await expect(entries.createServiceEntry(actor, eintrag({ billableMinutes: 0 }))).rejects.toThrow();
+    await expect(entries.createServiceEntry(actor, eintrag({ billableMinutes: 1441 }))).rejects.toThrow();
+    await expect(entries.createServiceEntry(actor, eintrag({ billableMinutes: 1.5 }))).rejects.toThrow();
+    await expect(entries.createServiceEntry(actor, eintrag({ project: "x".repeat(201) }))).rejects.toThrow();
+    expect(await entries.listServiceEntries({})).toHaveLength(0);
+  });
+
+  it("ändert die neuen Felder; ohne Angabe bleiben sie, null nimmt die abrechenbare Dauer zurück", async () => {
+    const id = await entries.createServiceEntry(actor, eintrag({ nonBillable: true, billableMinutes: 60, project: "Relaunch" }));
+    await entries.updateServiceEntry(actor, id, eintrag({ minutes: 100 }));
+    expect((await entries.listServiceEntries({}))[0]).toMatchObject({ minutes: 100, nonBillable: true, billableMinutes: 60, project: "Relaunch" });
+    await entries.updateServiceEntry(actor, id, eintrag({ nonBillable: false, billableMinutes: null, project: "" }));
+    expect((await entries.listServiceEntries({}))[0]).toMatchObject({ nonBillable: false, billableMinutes: null, project: "" });
+  });
+
+  it("nimmt nur Kunden: ein reiner Lieferant und ein archivierter Kontakt werden abgelehnt", async () => {
+    const [lieferant] = await sql`insert into contacts (name, is_customer, is_supplier) values ('Papier AG', false, true) returning id`;
+    const [archiviert] = await sql`insert into contacts (name, archived_at) values ('Altkunde GmbH', now()) returning id`;
+    await expect(entries.createServiceEntry(actor, eintrag({ contactId: lieferant!.id }))).rejects.toThrow("Der Kontakt ist kein Kunde.");
+    await expect(entries.createServiceEntry(actor, eintrag({ contactId: archiviert!.id }))).rejects.toThrow("Der Kunde ist archiviert.");
+    // Wer beides ist, bleibt ein Kunde
+    const [beides] = await sql`insert into contacts (name, is_customer, is_supplier) values ('Beides GmbH', true, true) returning id`;
+    await entries.createServiceEntry(actor, eintrag({ contactId: beides!.id }));
+  });
+
   describe("von außen angelegt (Kennung)", () => {
     const extern = (overrides: Record<string, unknown> = {}) =>
       eintrag({ source: "kimai", externalId: "4711", ...overrides }) as unknown as import("./service-entries.ts").ExternalServiceEntryInput;

@@ -13,6 +13,13 @@ export const serviceEntryCreateSchema = z
     minutes: fields.minutes.describe("Dauer in ganzen Minuten, 1 bis 1440"),
     description: fields.description.optional().describe("Tätigkeit; steht später auf der Rechnung"),
     hourlyRateCents: fields.hourlyRateCents.describe("Stundensatz in Cent; fehlt: der Satz des Kunden zum Zeitpunkt des Anlegens"),
+    nonBillable: fields.nonBillable.describe(
+      "true: erfasst, kommt aber nie in einen Rechnungsentwurf; fehlt: nein (bei einem vorhandenen Eintrag unverändert)",
+    ),
+    billableMinutes: fields.billableMinutes.describe(
+      "Abrechenbare Dauer in Minuten, wenn sie von der erfassten abweicht; null: die erfasste; fehlt: unverändert",
+    ),
+    project: fields.project.describe("Projekt als freier Text; keine Projektverwaltung"),
     source: z.string().trim().min(1).max(40).optional().describe("Quelle der Zeile, z. B. kimai; nur zusammen mit externalId"),
     externalId: z
       .string()
@@ -34,6 +41,9 @@ export const serviceEntrySchemaOut = z
     minutes: z.number().int(),
     description: z.string(),
     hourlyRateCents: z.number().int().nullable().describe("Stundensatz in Cent, null: keiner bekannt (Abrechnen verlangt dann einen)"),
+    nonBillable: z.boolean(),
+    billableMinutes: z.number().int().nullable().describe("Abrechenbare Dauer in Minuten; null: die erfasste"),
+    project: z.string(),
     source: z.string().nullable(),
     externalId: z.string().nullable(),
   })

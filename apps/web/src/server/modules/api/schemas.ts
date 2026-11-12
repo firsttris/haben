@@ -117,6 +117,7 @@ export const contactSchema = z
     ustId: z.string(),
     iban: z.string(),
     leitwegId: z.string(),
+    hourlyRateCents: z.number().int().nullable().describe("Stundensatz für Leistungseinträge in Cent; null: keiner hinterlegt"),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
     language: z.enum(["de", "en"]),
     version: z.number().int().describe("Steigt mit jeder Änderung; alte Stände bleiben in Haben erhalten"),

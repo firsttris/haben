@@ -1,4 +1,4 @@
-import { formatDecimal, formatDuration, parseDuration, parseEuro, serviceAmount } from "@haben/core";
+import { billableAmount, formatDecimal, formatDuration, parseDuration, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -37,13 +37,28 @@ export function ServiceEntryForm({
     const text = (name: string) => String(form.get(name) ?? "").trim();
     const minutes = parseDuration(text("duration"));
     if (minutes === null) return setError("Die Dauer ist nicht lesbar. Schreibe sie als 1:30, 1,5 oder 90 min (höchstens 24 Stunden).");
+    const billableText = text("billable");
+    const billable = billableText === "" ? null : parseDuration(billableText);
+    if (billableText !== "" && billable === null) return setError("Die abrechenbare Dauer ist nicht lesbar. Schreibe sie als 1:30, 1,5 oder 90 min.");
     const rate = text("rate") === "" ? undefined : parseEuro(text("rate"));
     if (rate === null || (rate !== undefined && rate < 0)) return setError("Der Stundensatz ist kein gültiger Betrag.");
     setBusy(true);
     setError(null);
     try {
       await save({
-        data: { id: entry?.id, entry: { contactId, workedOn: text("workedOn"), minutes, description: text("description"), hourlyRateCents: rate } },
+        data: {
+          id: entry?.id,
+          entry: {
+            contactId,
+            workedOn: text("workedOn"),
+            minutes,
+            description: text("description"),
+            hourlyRateCents: rate,
+            nonBillable: form.get("nonBillable") === "on",
+            billableMinutes: billable,
+            project: text("project"),
+          },
+        },
       });
       await router.invalidate();
       onDone({ tone: "ok", text: entry ? "Eintrag gespeichert." : "Eintrag angelegt." });
@@ -96,13 +111,25 @@ export function ServiceEntryForm({
             />
           )}
         </Field>
+        <Field label="Abrechenbare Dauer (optional)" hint="Leer: wie erfasst. Eine andere Dauer, wenn du nur einen Teil berechnest.">
+          {(control) => (
+            <input {...control} name="billable" defaultValue={entry?.billableMinutes == null ? "" : formatDuration(entry.billableMinutes)} placeholder="1:00" />
+          )}
+        </Field>
+        <Field label="Projekt (optional)" hint="Freier Text, zum Gruppieren und Filtern.">
+          {(control) => <input {...control} name="project" defaultValue={entry?.project ?? ""} maxLength={200} />}
+        </Field>
         <Field label="Tätigkeit (optional)" hint="Steht später auf der Rechnung." style={{ gridColumn: "1 / -1" }}>
           {(control) => <input {...control} name="description" defaultValue={entry?.description ?? ""} maxLength={2000} />}
         </Field>
       </div>
+      <label className="checkbox">
+        <input type="checkbox" name="nonBillable" defaultChecked={entry?.nonBillable ?? false} />
+        Nicht abrechenbar (erfasst, kommt aber nie in einen Rechnungsentwurf)
+      </label>
       {entry && entry.hourlyRateCents !== null && (
         <p className="muted small" style={{ margin: 0 }}>
-          Bisher {formatDecimal(serviceAmount(entry.minutes, entry.hourlyRateCents))} €.
+          Bisher abrechenbar: {formatDecimal(billableAmount(entry))} €.
         </p>
       )}
       {error && (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, parseDuration, serviceAmount } from "./leistung.ts";
+import { billableAmount, billableMinutes, formatDuration, parseDuration, serviceAmount } from "./leistung.ts";
 
 describe("Dauer von Leistungseinträgen (#417)", () => {
   it("liest Stunden und Minuten in den üblichen Schreibweisen", () => {
@@ -37,5 +37,23 @@ describe("Betrag eines Leistungseintrags (#417)", () => {
     expect(serviceAmount(1, 50)).toBe(1); // 0,83 → 1
     expect(serviceAmount(3, 50)).toBe(3); // 2,5 → 3
     expect(serviceAmount(30, 0)).toBe(0);
+  });
+});
+
+describe("abrechenbarer Betrag eines Eintrags (#417)", () => {
+  it("nimmt die abrechenbare Dauer, wenn es eine gibt, sonst die erfasste", () => {
+    expect(billableMinutes({ minutes: 90, billableMinutes: null, nonBillable: false })).toBe(90);
+    expect(billableMinutes({ minutes: 90, billableMinutes: 60, nonBillable: false })).toBe(60);
+  });
+
+  it("ein nicht abrechenbarer Eintrag hat keine abrechenbare Zeit und keinen Betrag", () => {
+    expect(billableMinutes({ minutes: 90, billableMinutes: 60, nonBillable: true })).toBe(0);
+    expect(billableAmount({ minutes: 90, billableMinutes: null, nonBillable: true, hourlyRateCents: 9500 })).toBe(0);
+  });
+
+  it("rechnet den Betrag aus der abrechenbaren Dauer, ohne Satz null", () => {
+    expect(billableAmount({ minutes: 90, billableMinutes: 60, nonBillable: false, hourlyRateCents: 9500 })).toBe(9500);
+    expect(billableAmount({ minutes: 90, billableMinutes: null, nonBillable: false, hourlyRateCents: 9500 })).toBe(14250);
+    expect(billableAmount({ minutes: 90, billableMinutes: null, nonBillable: false, hourlyRateCents: null })).toBe(0);
   });
 });
