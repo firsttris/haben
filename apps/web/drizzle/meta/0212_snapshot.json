@@ -1,5 +1,5 @@
 {
-  "id": "351a7998-fa9e-4af4-8862-269109199b1d",
+  "id": "3f91b799-0feb-4ab0-b1e1-7e82f49f5c60",
   "prevId": "ae7f9750-0912-402d-947f-49858a87e6b3",
   "version": "7",
   "dialect": "postgresql",
@@ -5506,6 +5506,108 @@
       },
       "isRLSEnabled": false
     },
+    "public.external_import_settlements": {
+      "name": "external_import_settlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "payment_import_id": {
+          "name": "payment_import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_import_id": {
+          "name": "original_import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "external_import_settlements_payment": {
+          "name": "external_import_settlements_payment",
+          "columns": [
+            {
+              "expression": "payment_import_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "external_import_settlements_original": {
+          "name": "external_import_settlements_original",
+          "columns": [
+            {
+              "expression": "original_import_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "external_import_settlements_payment_import_id_external_imports_id_fk": {
+          "name": "external_import_settlements_payment_import_id_external_imports_id_fk",
+          "tableFrom": "external_import_settlements",
+          "tableTo": "external_imports",
+          "columnsFrom": [
+            "payment_import_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "external_import_settlements_original_import_id_external_imports_id_fk": {
+          "name": "external_import_settlements_original_import_id_external_imports_id_fk",
+          "tableFrom": "external_import_settlements",
+          "tableTo": "external_imports",
+          "columnsFrom": [
+            "original_import_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "external_import_settlements_different": {
+          "name": "external_import_settlements_different",
+          "value": "\"external_import_settlements\".\"payment_import_id\" <> \"external_import_settlements\".\"original_import_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.external_imports": {
       "name": "external_imports",
       "schema": "",
@@ -6552,12 +6654,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "advance_type": {
-          "name": "advance_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -6951,10 +7047,6 @@
         "invoices_variant_kind": {
           "name": "invoices_variant_kind",
           "value": "\"invoices\".\"variant\" is null or \"invoices\".\"kind\" = 'rechnung'"
-        },
-        "invoices_advance_type": {
-          "name": "invoices_advance_type",
-          "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",
