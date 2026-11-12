@@ -207,7 +207,7 @@ export const API_ROUTES: ApiRoute[] = [
       201: { schema: "ServiceEntry", description: "Angelegt; Location zeigt auf den Eintrag" },
       200: { schema: "ServiceEntry", description: "Diese Kennung gab es schon; der Eintrag ist aktualisiert" },
     },
-    errors: { 422: "Der Kunde gibt es nicht" },
+    errors: { 422: "Den Kontakt gibt es nicht, er ist kein Kunde oder er ist archiviert" },
     handler: createServiceEntryHandler,
   },
   {
