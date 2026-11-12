@@ -54,6 +54,7 @@ import { documentReferences, referenceColumns, referenceFieldsSchema } from "./o
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+import { invoiceTaxYear } from "./invoice-tax-year.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -681,6 +682,17 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
   if (!invoice) return null;
   const lines = await q.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(asc(schema.invoiceLines.position));
   const [contact] = invoice.contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId)) : [];
+  const [importSource] = invoice.lexofficeVoucherId
+    ? await q
+        .select({
+          source: schema.lexofficeVouchers.source,
+          sourceName: sql<
+            string | null
+          >`case when ${schema.lexofficeVouchers.source} = 'import' then ${schema.lexofficeVouchers.raw}->>'sourceName' else null end`,
+        })
+        .from(schema.lexofficeVouchers)
+        .where(eq(schema.lexofficeVouchers.id, invoice.lexofficeVoucherId))
+    : [];
   const [corrects] = invoice.correctsId
     ? await q
         .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
@@ -692,7 +704,7 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     .from(schema.invoices)
     .where(eq(schema.invoices.correctsId, id))
     .orderBy(asc(schema.invoices.createdAt));
-  return { invoice, lines, contact: contact ?? null, corrects: corrects ?? null, correctedBy };
+  return { invoice, lines, contact: contact ?? null, importSource: importSource ?? null, corrects: corrects ?? null, correctedBy };
 }
 
 export type { InvoiceListStatus };
@@ -1115,6 +1127,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     .where(eq(schema.invoices.id, id))
     .returning();
 
+  const versteuerung = invoice.correctsId ? await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx) : company.versteuerung;
   await post(tx, company, {
     date: invoice.issueDate,
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
@@ -1123,8 +1136,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
     // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
     lines: (await correctsLegacyInvoice(tx, corrects))
-      ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
-      : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
+      ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
+      : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
   });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
   await syncQuoteBilling(tx, quoteIds);

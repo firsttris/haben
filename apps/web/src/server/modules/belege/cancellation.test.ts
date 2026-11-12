@@ -84,6 +84,12 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     return { id, bytes };
   }
 
+  it("nennt bei übernommenen Belegen keine fälschlich fest vorgegebene Herkunft", () => {
+    expect(cancellation.cancellationIssues({ lockedAt: new Date(), lexofficeVoucherId: crypto.randomUUID(), category: "software" })).toEqual([
+      "Aus einem Umzug übernommene Belege sind im bisherigen Programm angemeldet und lassen sich hier nicht stornieren.",
+    ]);
+  });
+
   it("vatPeriodsOf nennt Monat und Quartal (41–44) des Buchungsdatums", () => {
     expect(cancellation.vatPeriodsOf("2026-03-11")).toEqual({ year: 2026, months: [3, 41] });
     expect(cancellation.vatPeriodsOf("2026-04-01")).toEqual({ year: 2026, months: [4, 42] });

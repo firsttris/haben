@@ -55,20 +55,22 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
     action.run(async () => {
       const result = await submit({ data: { year, kind, pin, sondervorauszahlung: monthly ? parsed : null, berichtigt: monthly && berichtigt } });
       await router.invalidate();
-      action.setNotice(
-        elsterNotice(kind, result, `${monthly ? "Sondervorauszahlung angemeldet" : "Dauerfristverlängerung beantragt"} und für ${year} eingetragen.`),
+      const notice = elsterNotice(
+        kind,
+        result,
+        `${monthly ? "Sondervorauszahlung angemeldet" : "Dauerfristverlängerung beantragt"} und für ${year} eingetragen.`,
       );
+      action.setNotice(result.euerHinweis && notice ? { tone: "info", text: `${notice.text}\n${result.euerHinweis}` } : notice);
     });
 
   function onManual(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void manual.run(
-      async () => {
-        await save({ data: { year, active: manualActive, sondervorauszahlung: manualActive && monthly ? parsed : null } });
-        await router.invalidate();
-      },
-      manualActive ? `Dauerfristverlängerung für ${year} eingetragen.` : `Dauerfristverlängerung ab ${year} beendet.`,
-    );
+    void manual.run(async () => {
+      const result = await save({ data: { year, active: manualActive, sondervorauszahlung: manualActive && monthly ? parsed : null } });
+      await router.invalidate();
+      const success = manualActive ? `Dauerfristverlängerung für ${year} eingetragen.` : `Dauerfristverlängerung ab ${year} beendet.`;
+      manual.setNotice({ tone: result.euerHinweis ? "info" : "ok", text: result.euerHinweis ? `${success}\n${result.euerHinweis}` : success });
+    });
   }
 
   return (
