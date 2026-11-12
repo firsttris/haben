@@ -1,7 +1,9 @@
 import { Field } from "./Field.tsx";
 
-export interface ContactPersonChoice {
+/** Ansprechpartner eines Kunden zur Auswahl im Entwurf (#424) */
+export interface ContactPersonOption {
   id: string;
+  contactId: string;
   name: string;
   deactivated: boolean;
 }
@@ -11,16 +13,20 @@ export interface ContactPersonChoice {
  * Eine schon gewählte, inzwischen deaktivierte Person bleibt in der Liste, neu wählbar sind nur aktive.
  */
 export function ContactPersonField({
-  choices,
+  persons,
+  contactId,
   value,
   disabled,
   onChange,
 }: {
-  choices: ContactPersonChoice[];
+  /** Personen aller Kunden */
+  persons: ContactPersonOption[];
+  contactId: string;
   value: string;
   disabled: boolean;
   onChange: (id: string) => void;
 }) {
+  const choices = persons.filter((p) => p.contactId === contactId && (!p.deactivated || p.id === value));
   if (choices.length === 0) return null;
   return (
     <Field

@@ -8,20 +8,16 @@ import {
   discountedLineAmount,
   discountInput,
   documentDiscountProblem,
-  lineDiscountProblem,
   orderRateAmounts,
   parseDiscount,
   planSchedule,
   quoteLineKindProblem,
-  type Discount,
   type PaymentPlanRow,
   type PlanTemplate,
-  type QuoteLineKind,
   formatDecimal,
   formatEuro,
   counterCircle,
   formatDocumentNumber,
-  formatQuantity,
   invoiceDueDate,
   LINE_DETAIL_MAX,
   parseEuro,
@@ -32,7 +28,6 @@ import {
   TAX_TREATMENTS,
   UNITS,
   type Bundesland,
-  type InvoiceLineInput,
   type PriceMode,
   type SkontoStufe,
   type TaxTreatment,
@@ -47,6 +42,7 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
+import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, sameText, toLineState } from "../lib/editor-lines.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -60,7 +56,7 @@ import type { ArticlePrefill } from "./ArticleForm.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
-import { ContactPersonField } from "./ContactPersonField.tsx";
+import { ContactPersonField, type ContactPersonOption } from "./ContactPersonField.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -107,14 +103,6 @@ export interface AbschlagOption {
   priceMode: PriceMode;
 }
 
-/** Ansprechpartner eines Kunden zur Auswahl im Entwurf (#424); deaktivierte nur, solange sie gewählt sind */
-export interface ContactPersonOption {
-  id: string;
-  contactId: string;
-  name: string;
-  deactivated: boolean;
-}
-
 /** Festgeschriebenes Angebot, zu dem eine Abschlags- oder Schlussrechnung gehören kann */
 export interface QuoteOption {
   id: string;
@@ -123,26 +111,6 @@ export interface QuoteOption {
   issueDate: string;
 }
 
-interface LineState {
-  key: number;
-  description: string;
-  /** Mehrzeilige Beschreibung unter der Bezeichnung */
-  detail: string;
-  /** Artikelnummer (BT-155), aus dem Artikel kopiert und änderbar */
-  itemNumber: string;
-  quantity: string;
-  unit: UnitLabel;
-  unitPrice: string;
-  taxRate: 1900 | 700 | 0;
-  /** Positionsrabatt wie eingegeben, „10 %“ oder „50,00“ */
-  discount: string;
-  /** Nur im Angebot: optional oder Alternative zur Hauptposition davor */
-  kind: QuoteLineKind | null;
-}
-
-/** Position im Entwurf; im Angebot zusätzlich die Art */
-type EditorLine = DraftInput["lines"][number] & { kind?: QuoteLineKind | null };
-
 /** Werte beim Öffnen; beim Angebot zusätzlich Gültigkeit und Zahlungsplan */
 export type EditorInitial = Omit<DraftInput, "lines"> & {
   lines: EditorLine[];
@@ -150,72 +118,6 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlan?: PaymentPlanRow[];
   paymentPlanInConfirmation?: boolean;
 };
-
-let nextKey = 1;
-
-/** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
-const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
-
-function toLineState(line: EditorLine): LineState {
-  return {
-    key: nextKey++,
-    description: line.description,
-    detail: line.detail ?? "",
-    itemNumber: line.itemNumber ?? "",
-    quantity: formatQuantity(line.quantity),
-    unit: line.unit,
-    unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
-    taxRate: line.taxRate,
-    discount: discountInput(line.discount),
-    kind: line.kind ?? null,
-  };
-}
-
-/** Leere Zeile mit Einheit und Satz der letzten */
-const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
-  key: nextKey++,
-  description: "",
-  detail: "",
-  itemNumber: "",
-  quantity: "1",
-  unit,
-  unitPrice: "",
-  taxRate,
-  discount: "",
-  kind: null,
-});
-
-type ParsedLine = InvoiceLineInput & {
-  detail: string;
-  itemNumber: string;
-  discount: Discount | null;
-  kind: QuoteLineKind | null;
-  valid: boolean;
-  discountError: boolean;
-};
-
-function parseLine(line: LineState): ParsedLine {
-  const quantity = parseQuantity(line.quantity);
-  const unitPrice = parseEuro(line.unitPrice);
-  const discount = parseDiscount(line.discount);
-  const parsed = {
-    description: line.description.trim(),
-    detail: line.detail.trim(),
-    itemNumber: line.itemNumber.trim(),
-    quantity: quantity ?? 0,
-    unit: line.unit,
-    unitPrice: unitPrice ?? 0,
-    taxRate: line.taxRate,
-    discount: discount === "ungültig" ? null : discount,
-    kind: line.kind,
-  };
-  const discountError = discount === "ungültig" || lineDiscountProblem(parsed) !== null;
-  return {
-    ...parsed,
-    discountError,
-    valid: quantity !== null && quantity > 0 && unitPrice !== null && line.description.trim() !== "" && !discountError,
-  };
-}
 
 export function InvoiceEditor({
   id,
@@ -354,8 +256,6 @@ export function InvoiceEditor({
   const [logo, setLogo] = useLoadedState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
-  // Aktive Personen des gewählten Kunden; die schon gewählte bleibt in der Liste, auch wenn sie inzwischen deaktiviert ist
-  const contactPersonChoices = contactPersons.filter((p) => p.contactId === contactId && (!p.deactivated || p.id === contactPersonId));
   const contactChoices: ContactChoice[] = useMemo(
     () => contacts.map((c) => ({ id: c.id, name: c.name, ort: c.ort, nummer: c.kundennummer, ustId: c.ustId, isCustomer: c.isCustomer, isSupplier: false })),
     [contacts],
@@ -866,7 +766,13 @@ export function InvoiceEditor({
                   />
                 )}
               </Field>
-              <ContactPersonField choices={contactPersonChoices} value={contactPersonId} disabled={!editable} onChange={touch(setContactPersonId)} />
+              <ContactPersonField
+                persons={contactPersons}
+                contactId={contactId}
+                value={contactPersonId}
+                disabled={!editable}
+                onChange={touch(setContactPersonId)}
+              />
               {kind === "rechnung" && (variant || quoteId) && (
                 <Field
                   label="Angebot"
