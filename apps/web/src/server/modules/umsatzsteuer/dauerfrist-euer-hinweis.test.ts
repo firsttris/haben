@@ -80,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
     "anderes Jahr",
     "nur USt",
     "keine Zahlung",
-    "November",
+    "Oktober",
     "11. Januar",
     "Erstattung",
     "aufgehoben",
@@ -90,7 +90,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
       const allocation =
         scenario === "keine Zahlung"
           ? null
-          : await payment({ month: scenario === "November" ? 11 : 12, day: scenario === "11. Januar" ? "11" : "08", refund: scenario === "Erstattung" });
+          : await payment({ month: scenario === "Oktober" ? 10 : 12, day: scenario === "11. Januar" ? "11" : "08", refund: scenario === "Erstattung" });
       if (scenario === "aufgehoben") await bank.reverseAllocation(actor, allocation!);
       if (scenario !== "keine Abgabe")
         await filed(
@@ -102,6 +102,13 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
       if (scenario === "unverändert") await save(true);
       expect(await save(true)).toEqual({ euerHinweis: null });
     });
+
+  it("November-Vorauszahlung wird mit Dauerfrist am 10. Januar fällig und ist ebenfalls betroffen", async () => {
+    // § 18 Abs. 1 UStG + § 46 UStDV: 10. Dezember wird 10. Januar; dieselbe bestehende Zehn-Tage-Regel wie in der EÜR.
+    await payment({ month: 11 });
+    await filed(2026);
+    expect(await save(true)).toMatchObject({ euerHinweis: expect.stringContaining("EÜR 2026") });
+  });
 
   it("vierteljährliche Dezember-Vorauszahlung nennt beide betroffenen Jahreserklärungen", async () => {
     await payment({ month: 44 });
@@ -126,7 +133,7 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
   });
 
   for (const kind of ["send", "test", "validate", "abgelehnt"] as const)
-    it(`ELSTER: Hinweis nur nach erfolgreichem Eintragen, nicht bei ${kind === "send" ? "fehlendem Fehler" : kind}`, async () => {
+    it(`ELSTER-Ergebnis nennt den EÜR-Hinweis nur nach erfolgreichem Eintragen (${kind})`, async () => {
       await sql`update company set strasse = 'Musterstraße 1', plz = '93047', ort = 'Regensburg',
         bundesland = 'BY', steuernummer = '198/113/10010' where id = 1`;
       const { encrypt } = await import("../../crypto.ts");
