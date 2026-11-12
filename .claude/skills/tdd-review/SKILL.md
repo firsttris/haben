@@ -44,11 +44,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
 - Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/entwicklung.md` unter „Review“, Schritt 4.
-- **PR aus einem Fork, Session in der Cloud (claude.ai/code):** Die Session schreibt nur in die Repositories, die beim Start als Quelle gewählt wurden. Ein Fork heißt meist ebenfalls `haben`; neben `firsttris/haben` lässt er sich nicht nachträglich hinzufügen (gleicher Name, gleiches Verzeichnis), und `git push`, `add_repo` und das GitHub-Werkzeug lehnen ihn ab. Nicht durchprobieren und die Person nicht selbst pushen lassen, sondern sofort so:
-  1. Die Fixes in dieser Session fertig machen und prüfen (Commits auf einer lokalen Kopie des PR-Branches, `git fetch origin pull/<nr>/head:pr-<nr>`).
-  2. Mit `create_session` eine **Session mit dem Fork als einziger Quelle** starten: `source_url` `https://github.com/<owner>/haben`, `source_revision` der Branch des PR. Im Prompt: der Maintainer hat den Push angewiesen, der erwartete HEAD-SHA, die Änderung genau (Datei, alte und neue Zeilen, notfalls als Patch), die Prüfung (z. B. Biome), die Commit-Nachricht wörtlich, `git push origin HEAD:<branch-des-pr>` ohne Force und nicht auf einen anderen Branch, am Ende den SHA melden.
-  3. Den Push prüfen: `git ls-remote origin refs/pull/<nr>/head` zeigt den neuen SHA. Danach weiter mit Schritt 5.
-  - Lokal (Claude Code auf dem Rechner der Person) gibt es die Grenze nicht: Dort pusht git mit ihren Zugangsdaten, wenn „Allow edits by maintainers“ an ist.
+- **PR aus einem fremden Fork:** pushen nach Skill `fork-pushen`.
 - Dann gezielt prüfen, was der PR und die Fixes berühren. Die volle Suite läuft in der CI, lokal nicht noch einmal (Befehle und Umgebung: Skill `checks`):
   - immer `lint` und `typecheck`;
   - Vitest und Postgres-Tests nur für die neuen Tests und die geänderten Module (`bun --bun vitest run <pfade>`, Postgres mit `TEST_DATABASE_URL`);

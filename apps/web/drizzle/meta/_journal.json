@@ -1461,15 +1461,29 @@
     {
       "idx": 208,
       "version": "7",
-      "when": 1794489807562,
-      "tag": "0208_import_zahlungsbezug",
+      "when": 1794485637316,
+      "tag": "0208_beleg_verrechnung",
       "breakpoints": true
     },
     {
       "idx": 209,
       "version": "7",
-      "when": 1794489822413,
-      "tag": "0209_import_zahlungsbezug_trigger",
+      "when": 1794487529169,
+      "tag": "0209_verrechnung_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 210,
+      "version": "7",
+      "when": 1794500800992,
+      "tag": "0210_import_zahlungsbezug",
+      "breakpoints": true
+    },
+    {
+      "idx": 211,
+      "version": "7",
+      "when": 1794500804490,
+      "tag": "0211_import_zahlungsbezug_trigger",
       "breakpoints": true
     }
   ]

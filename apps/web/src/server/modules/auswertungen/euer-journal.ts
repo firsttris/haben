@@ -8,7 +8,7 @@ import {
   type EuerHerkunft,
   type Kontenrahmen,
 } from "@haben/core";
-import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
@@ -49,6 +49,35 @@ async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
     for (const r of await q.select({ id: c.id, invoiceId: c.invoiceId, documentId: c.documentId }).from(c).where(inArray(c.id, block))) result.set(r.id, r);
   }
   return result;
+}
+
+/**
+ * Verrechnung zweier Belege (#274): Gutschrift und Rechnung gleichen sich gegenseitig, ohne dass Geld fließt. In der EÜR
+ * wirkt sie wie eine Zahlung auf jeden der beiden Belege, am Tag der Aufrechnung; gebucht wird sie nicht (Verbindlichkeiten
+ * an Verbindlichkeiten), deshalb steht sie nur in `document_settlements`.
+ */
+interface Verrechnung {
+  id: string;
+  dokumentId: string;
+  date: string;
+  /** Betrag wie gespeichert: negativ beim Beleg, positiv bei der Gutschrift; ausgeglichen ist `-betrag` */
+  betrag: number;
+}
+
+/** Verrechnungen des Jahres, älteste zuerst: je Zeile gleicht eine den Beleg aus, eine Gegenzeile hebt sie auf */
+async function verrechnungenImJahr(q: Db | Tx, year: number): Promise<Verrechnung[]> {
+  const s = schema.documentSettlements;
+  return q
+    .select({ id: s.id, dokumentId: s.documentId, date: s.date, betrag: s.amount })
+    .from(s)
+    .where(and(gte(s.date, `${year}-01-01`), lt(s.date, `${year + 1}-01-01`)))
+    .orderBy(asc(s.date), asc(s.createdAt), asc(s.id));
+}
+
+/** Kontenrahmen der Firma: für einen Beleg ganz ohne Buchung die einzige Angabe zum Rahmen (aus Lexoffice übernommen) */
+async function firmenKontenrahmen(q: Db | Tx): Promise<Kontenrahmen> {
+  const [firma] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).limit(1);
+  return firma?.kontenrahmen ?? "SKR03";
 }
 
 export interface EuerJournal {
@@ -115,7 +144,10 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
 
   // Was die Zahlungen ausgleichen, gesammelt für alle Rechnungen und Belege des Jahres statt je Posten (#542, Schritt 9)
   const rechnungIds = [...new Set([...zielVon.values()].flatMap((z) => (z.invoiceId ? [z.invoiceId] : [])))];
-  const belegIds = [...new Set([...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : [])))];
+  // Verrechnungen des Jahres (#274): Sie wirken wie Zahlungen auf beide Belege, auch wenn in dem Jahr keine Zahlung sie ausgleicht
+  const verrechnet = await verrechnungenImJahr(q, year);
+  const einfacheBelege = [...zielVon.values()].flatMap((z) => (!z.invoiceId && z.documentId ? [z.documentId] : []));
+  const belegIds = [...new Set([...einfacheBelege, ...verrechnet.map((v) => v.dokumentId)])];
   const gebuchtVon = { invoice: await buchungenJe(q, "invoice", rechnungIds), document: await buchungenJe(q, "document", belegIds) };
   const ausgleicheVon = await ausgleichsBuchungenJe(q, rechnungIds);
   const nebenbuchVon = await belegNebenbuecher(q, belegIds);
@@ -163,7 +195,26 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
+  // Verrechnungen (#274) wie eine Zahlung im Monat der Aufrechnung; der Rahmen dient nur einem Beleg ganz ohne Buchung
+  const belegKontenrahmen = verrechnet.length > 0 ? await firmenKontenrahmen(q) : "SKR03";
+  for (const v of verrechnet) {
+    const beitrag = await wirkungVerrechnung(v);
+    dazu(summe, beitrag);
+    dazu(monate[Number(v.date.slice(5, 7)) - 1]!, beitrag);
+  }
   return { summe, uebernommen, ungeklaerteImporte, monate };
+
+  /** Was eine Verrechnung zweier Belege bewirkt: wie eine Zahlung von `-betrag` auf den Beleg, ohne eigene Buchung */
+  async function wirkungVerrechnung(v: Verrechnung): Promise<EuerAusJournal> {
+    const summe = leereEuerAusJournal();
+    const u = await ursprungVon("document", v.dokumentId, belegKontenrahmen);
+    if (u.uebernommen) uebernommen++;
+    if (u.gesamt === 0) return summe;
+    // betrag trägt das Vorzeichen des offenen Postens wie eine Buchung, ausgeglichen ist das Umgekehrte
+    if (u.beleg && v.betrag !== u.gesamt) belegTeilzahlung(year, u.beleg, -v.betrag, summe);
+    else euerAusZeilen(u.kontenrahmen, zahlungsAnteil(u.kontenrahmen, u.zeilen, u.gesamt, v.betrag), u.herkunft, summe);
+    return summe;
+  }
 
   /** Was eine Buchung in der EÜR bewirkt */
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {

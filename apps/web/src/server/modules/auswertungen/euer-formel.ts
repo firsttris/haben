@@ -1,5 +1,5 @@
 import { ACCOUNTS, ASSET_ACCOUNTS, datevFormelKonto, istEuerEinnahme, zahlungsStand, type Cents, type EuerLineKey, type Kontenrahmen } from "@haben/core";
-import { and, eq, gte, inArray, lt, ne, or, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, lte, ne, or, type SQL } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { buchungen, offenerPosten, type Buchung } from "./euer-journal-buchungen.ts";
@@ -39,10 +39,21 @@ interface Posten {
   beleg?: BelegNebenbuch;
 }
 
+/**
+ * Was einen offenen Posten ausgleicht: eine Zahlung, Ausbuchung oder Bareinnahme nach ihrer Buchung oder eine Verrechnung
+ * zweier Belege (#274), die ohne Buchung auskommt. `betrag` trägt das Vorzeichen wie die Buchung bzw. die gespeicherte
+ * Zeile: negativ beim Beleg, positiv bei der Gutschrift. Ausgeglichen ist damit `-betrag`, gerundet wie eine Zahlung.
+ */
+interface Ausgleich {
+  id: string;
+  datum: string;
+  betrag: Cents;
+}
+
 /** Noch offener Anteil der Zeilen außerhalb der Formel, über alle offenen Posten bis zum Stichtag (einschließlich) */
 function offenerAnteil(
   posten: Map<string, Posten>,
-  ausgleiche: Map<string, Buchung[]>,
+  ausgleiche: Map<string, Ausgleich[]>,
   datum: Map<string, string>,
   stichtag: string,
   anlagen: ReadonlySet<string>,
@@ -50,9 +61,7 @@ function offenerAnteil(
   let summe = 0;
   for (const [key, p] of posten) {
     const bis = p.gebucht.filter((b) => datum.get(b.id)! <= stichtag);
-    const zahlungen = (ausgleiche.get(key) ?? [])
-      .filter((b) => datum.get(b.id)! <= stichtag)
-      .map((b) => -b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0));
+    const zahlungen = (ausgleiche.get(key) ?? []).filter((a) => a.datum <= stichtag).map((a) => a.betrag);
     // Im Voraus bezahlt (Zahlung vor dem Belegdatum): verteilt wird auf die spätere Buchung, gebucht ist noch nichts
     if (bis.length === 0 && zahlungen.length === 0) continue;
     const verteilt = bis.length > 0 ? bis : p.gebucht;
@@ -143,7 +152,8 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
     }
   }
   // Zahlungen, Ausbuchungen und Bareinnahmen auf diese Posten
-  const ausgleiche = new Map<string, Buchung[]>();
+  const ausgleiche = new Map<string, Ausgleich[]>();
+  const ausgleich = (key: string, a: Ausgleich) => ausgleiche.set(key, [...(ausgleiche.get(key) ?? []), a]);
   const rechnungen = ursprung.filter((b) => b.sourceType === "invoice").map((b) => b.sourceId);
   const belege = ursprung.filter((b) => b.sourceType === "document").map((b) => b.sourceId);
   const quelle = new Map<string, string>();
@@ -159,9 +169,23 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
   if (quelle.size > 0) {
     for (const b of await buchungen(q, ohneEroeffnung(and(lt(e.date, `${year + 1}-01-01`), inArray(e.sourceId, [...quelle.keys()]))))) {
       if (b.sourceType === "invoice" || b.sourceType === "document") continue;
-      const key = quelle.get(b.sourceId)!;
-      ausgleiche.set(key, [...(ausgleiche.get(key) ?? []), b]);
+      // Wie computeEuer: ausgeglichen ist der Soll-Saldo der Verbindlichkeiten- bzw. Forderungszeilen, negativ
+      ausgleich(quelle.get(b.sourceId)!, {
+        id: b.id,
+        datum: b.date,
+        betrag: -b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0),
+      });
     }
+  }
+  // Verrechnungen zweier Belege (#274): jede Zeile der Tabelle gleicht den einen Beleg aus, ohne Buchung. Das Vorzeichen
+  // bringt sie auf die richtige Seite; eine aufgehobene Verrechnung ist eine Gegenzeile mit umgekehrtem Betrag.
+  if (belege.length > 0) {
+    const s = schema.documentSettlements;
+    for (const r of await q
+      .select({ id: s.id, documentId: s.documentId, date: s.date, amount: s.amount })
+      .from(s)
+      .where(and(inArray(s.documentId, belege), lte(s.date, ende))))
+      ausgleich(`document|${r.documentId}`, { id: r.id, datum: r.date, betrag: r.amount });
   }
   const nebenbuch = await belegNebenbuecher(
     q,
@@ -170,7 +194,7 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
   for (const [key, p] of posten) if (key.startsWith("document|")) p.beleg = nebenbuch.get(key.slice(9));
   const datum = await daten(
     q,
-    [...[...posten.values()].flatMap((p) => p.gebucht), ...[...ausgleiche.values()].flat()].map((b) => b.id),
+    [...posten.values()].flatMap((p) => p.gebucht).map((b) => b.id),
   );
   const korrektur = offenerAnteil(posten, ausgleiche, datum, ende, anlagen) - offenerAnteil(posten, ausgleiche, datum, vorjahr, anlagen);
   return formel - korrektur + nichtAbziehbar;

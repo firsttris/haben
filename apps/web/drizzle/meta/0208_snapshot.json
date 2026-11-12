@@ -1,5 +1,5 @@
 {
-  "id": "8f66c3d5-edd4-497c-9b5c-cbde90d60f85",
+  "id": "4260a1ad-9036-46d3-b8bb-dcfc53c2a4db",
   "prevId": "91e2f371-3bca-4461-ac8a-c0c967b8d079",
   "version": "7",
   "dialect": "postgresql",
@@ -4085,6 +4085,171 @@
       },
       "isRLSEnabled": false
     },
+    "public.document_settlements": {
+      "name": "document_settlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counter_document_id": {
+          "name": "counter_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "reverses_id": {
+          "name": "reverses_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "document_settlements_document": {
+          "name": "document_settlements_document",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_settlements_counter": {
+          "name": "document_settlements_counter",
+          "columns": [
+            {
+              "expression": "counter_document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_settlements_reverses": {
+          "name": "document_settlements_reverses",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "document_settlements_document_id_documents_id_fk": {
+          "name": "document_settlements_document_id_documents_id_fk",
+          "tableFrom": "document_settlements",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "document_settlements_counter_document_id_documents_id_fk": {
+          "name": "document_settlements_counter_document_id_documents_id_fk",
+          "tableFrom": "document_settlements",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "counter_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "document_settlements_reverses_fk": {
+          "name": "document_settlements_reverses_fk",
+          "tableFrom": "document_settlements",
+          "tableTo": "document_settlements",
+          "columnsFrom": [
+            "reverses_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "document_settlements_two": {
+          "name": "document_settlements_two",
+          "value": "\"document_settlements\".\"document_id\" <> \"document_settlements\".\"counter_document_id\""
+        },
+        "document_settlements_amount": {
+          "name": "document_settlements_amount",
+          "value": "\"document_settlements\".\"amount\" <> 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.document_splits": {
       "name": "document_splits",
       "schema": "",
@@ -5294,108 +5459,6 @@
         "exchange_rates_rate": {
           "name": "exchange_rates_rate",
           "value": "\"exchange_rates\".\"rate\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.external_import_settlements": {
-      "name": "external_import_settlements",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "payment_import_id": {
-          "name": "payment_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "original_import_id": {
-          "name": "original_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "external_import_settlements_payment": {
-          "name": "external_import_settlements_payment",
-          "columns": [
-            {
-              "expression": "payment_import_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "external_import_settlements_original": {
-          "name": "external_import_settlements_original",
-          "columns": [
-            {
-              "expression": "original_import_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "external_import_settlements_payment_import_id_external_imports_id_fk": {
-          "name": "external_import_settlements_payment_import_id_external_imports_id_fk",
-          "tableFrom": "external_import_settlements",
-          "tableTo": "external_imports",
-          "columnsFrom": [
-            "payment_import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "external_import_settlements_original_import_id_external_imports_id_fk": {
-          "name": "external_import_settlements_original_import_id_external_imports_id_fk",
-          "tableFrom": "external_import_settlements",
-          "tableTo": "external_imports",
-          "columnsFrom": [
-            "original_import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "external_import_settlements_different": {
-          "name": "external_import_settlements_different",
-          "value": "\"external_import_settlements\".\"payment_import_id\" <> \"external_import_settlements\".\"original_import_id\""
         }
       },
       "isRLSEnabled": false

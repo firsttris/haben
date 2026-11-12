@@ -46,6 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
   let pauschalen: typeof import("../buchhaltung/pauschalen.ts");
   let assets: typeof import("../buchhaltung/assets.ts");
   let integrity: typeof import("./integrity.ts");
+  let verrechnung: typeof import("../bank/verrechnung.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -61,6 +62,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     pauschalen = await import("../buchhaltung/pauschalen.ts");
     assets = await import("../buchhaltung/assets.ts");
     integrity = await import("./integrity.ts");
+    verrechnung = await import("../bank/verrechnung.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -108,7 +110,12 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
   async function bookedDocument(
     date: string,
     amounts: { taxRate: 1900 | 700 | 0; net: number; tax: number }[],
-    extra: { payment?: "bank" | "privat"; privateShare?: number; reverseCharge?: "eu" | "drittland" | null; category?: "edv" | "telefon" } = {},
+    extra: {
+      payment?: "bank" | "privat";
+      privateShare?: number;
+      reverseCharge?: "eu" | "drittland" | null;
+      category?: "edv" | "telefon" | "software" | "hardware";
+    } = {},
   ) {
     docSeq++;
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, docSeq % 256, Math.floor(docSeq / 256), 7]);
@@ -469,6 +476,28 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
       expect(report.abgleich.abweichungen).toEqual([]);
     }
   }, 120_000);
+
+  // #274: Eine Verrechnung zweier Belege steht nur in `document_settlements`; das Journal bucht sie nicht (Verbindlichkeiten
+  // an Verbindlichkeiten). Der EÜR-Abgleich muss sie trotzdem als Ausgleich kennen, sonst meldet er die betroffenen Zeilen
+  // als Abweichung: Software 30,00 laut Journal, 0,00 laut Nebenbüchern und umgekehrt bei der Gutschrift.
+  it("Verrechnung zweier Belege gleicht im EÜR-Abgleich aus, ohne Abweichung", async () => {
+    await reset("ist");
+    const software = await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "software" });
+    const hardware = await bookedDocument("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }], { category: "hardware" });
+    await verrechnung.settleDocuments(actor, {
+      documentId: software,
+      counterDocumentId: hardware,
+      amount: 3_570,
+      date: "2026-02-20",
+      note: "Gutschrift verrechnet",
+    });
+
+    const euer = await abgleich.euerAbgleich(2026);
+    expect(abgleich.abweichungen(euer.zeilen)).toEqual([]);
+    // Beide Seiten kennen die Verrechnung: 30,00 Aufwand Software, 30,00 Ertrag aus der Hardware-Gutschrift
+    expect(euer.zeilen.find((z) => z.posten === "EÜR: Software und Lizenzen")).toMatchObject({ journal: 3_000, quelle: 3_000 });
+    expect(euer.zeilen.find((z) => z.posten.startsWith("EÜR: Hardware"))).toMatchObject({ journal: -3_000, quelle: -3_000 });
+  }, 60_000);
 
   it("Vorprüfung der Voranmeldung meldet Abweichungen mit Beträgen", () => {
     expect(

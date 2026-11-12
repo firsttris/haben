@@ -63,7 +63,7 @@ Nicht streichen: Fakten, Zahlen, Konten, Paragraphen, Links, Befehle, Front Matt
 ## 7. Melden, beheben, mergen
 
 - Ein Kommentar im PR, auch ohne Befund: je Befund das Zitat, der Beleg und was stattdessen gilt.
-- Befunde selbst beheben, je Befund ein Commit (`docs: …`). Commits des Autors nie umschreiben; bei einem Fork wie `tdd-review`, Schritt 4.
+- Befunde selbst beheben, je Befund ein Commit (`docs: …`). Commits des Autors nie umschreiben; bei einem fremden Fork nach Skill `fork-pushen`.
 - `zensical build --strict`, wenn `docs/` oder `mkdocs.yml` geändert ist (Skill `checks`).
 - Die Beschreibung des PR nachziehen, wenn Fixes dazukamen.
 - Eine Runde. Mergen wie `tdd-review`, Schritt 6, sobald die CI grün ist.

@@ -392,10 +392,13 @@ async function paidByTarget(column: "invoice_id" | "document_id", ids: string[],
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
   const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
+  // Verrechnungen gibt es nur zwischen Belegen, Rechnungen kennen keine Gegenrechnung
+  const verrechnet = column === "document_id" ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}` : sql``;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}
           union all select ${col} as id, amount from write_offs where ${col} in ${ids}
+          ${verrechnet}
           ${cash}
         ) settled group by 1`,
   );

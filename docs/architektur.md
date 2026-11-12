@@ -181,6 +181,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `allocations` | Zuordnung eines Umsatzes (ganz oder teilweise); aufgehoben per Gegenzeile; bei „Umsatzsteuer an das Finanzamt“ der Bezug auf die Voranmeldung (`vat_return_id`, offener Posten); bei einer Steuerzahlung Steuerart, Bezugsjahr und Teil (`tax_type`, `tax_year`, `tax_item`, nur zusammen und nur dort); bei einem Darlehen das Darlehen und der Teil (`loan_id`, `loan_part`); bei einer Direktbuchung auf eine Kategorie (#324) Kategorie und Steuersatz (`category`, `tax_rate`, nur zusammen und nur dort); bei einer Rücklastschrift die zurückgegebene Lastschrift (`direct_debit_item_id`, nur an Zuordnungen auf eine Rechnung, ab `0184`) | nur anhängen, Betragsprüfung, Bezug nur zu einer abgegebenen Voranmeldung, Audit |
 | `bank_neutralizations` | Verrechnung zweier gegenläufiger Umsätze desselben Kontos, die zusammen null ergeben (#457), mit Notiz und Person; keine Buchung, der Bankabgleich (`db/bank-open.ts`, Funktion `haben_bank_neutralized`) zählt beide als erledigt; aufgehoben per Gegenzeile (`reverses_id`, höchstens eine) | nur anhängen, Trigger prüft Konto, Summe, keine Zuordnung und höchstens eine gültige Verrechnung je Umsatz; Zuordnung auf einen verrechneten Umsatz lehnt ein Trigger ab; Audit |
 | `write_offs` | Ausbuchung des Rests einer Rechnung oder eines Belegs: gewährtes oder erhaltenes Skonto, Forderungsausfall, Kursdifferenz; zählt wie eine Zahlung, bewegt aber kein Geld; aufgehoben per Gegenzeile | nur anhängen, Audit |
+| `document_settlements` | Verrechnung zweier Eingangsbelege desselben Lieferanten ohne Zahlung (#274): zwei Zeilen je Verrechnung, Betrag mit Vorzeichen, ein Tag der Aufrechnung, Aufhebung per Gegenzeile; zählt in EÜR, Abgleich, Restlaufzeiten und Archiv wie eine Zahlung, bucht aber nichts | nur anhängen, Audit, TRUNCATE gesperrt, Betrag ungleich null, zwei verschiedene Belege, Aufhebung höchstens einmal je Paar |
 | `loans` | Aufgenommene Darlehen: Name, Geber, Restlaufzeit, Verwendung, Restschuld zum Stichtag bei Übernahme; Bestand aus den Zuordnungen | Geber, Restlaufzeit, Verwendung und Restschuld fest nach der ersten Zuordnung (Trigger), Audit |
 | `vat_returns` | Voranmeldungen je Monat oder Quartal mit Kennzahlen (seit `0153` auch Kz 62, Einfuhrumsatzsteuer), berechnet oder überschrieben; `month` hält den Zeitraum-Schlüssel aus ELSTER (1–12 Monate, 41–44 Quartale) | gesperrt nach Echtübermittlung oder Abgabevermerk, Audit |
 | `vat_return_filings` | Abgabevermerk einer außerhalb von Haben abgegebenen Voranmeldung: Tag, Transferticket, Kz 83 laut Protokoll, Protokoll-PDF im Dokumentenspeicher (SHA-256); je Anmeldung höchstens einer | nur anhängen, nur zusammen mit der Festschreibung der Anmeldung in derselben Transaktion, mit deren Transferticket und Kz 83 (beim Commit geprüft), im Siegel der Voranmeldung (Siegel ab `0138`), Audit |
@@ -407,6 +408,9 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 > `HABEN_ENCRYPTION_KEY` muss getrennt vom Datenbank-Backup gesichert werden. Ohne ihn lassen sich Zertifikat und API-Schlüssel nach einer Wiederherstellung nicht mehr entschlüsseln; das Zertifikat müsste neu hochgeladen werden.
 
 ## Entwurfsentscheidungen
+
+Noch offen ist der [Fachentwurf zur Bilanzierung erhaltener Anzahlungen bei GmbH und UG](adr/erhaltene-anzahlungen.md)
+aus [#750](https://github.com/firsttris/haben/issues/750); er beschreibt keine bereits umgestellte Buchungslogik.
 
 | Entscheidung | Warum |
 | --- | --- |
