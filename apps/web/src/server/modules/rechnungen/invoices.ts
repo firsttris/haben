@@ -737,7 +737,7 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(id ? eq(schema.invoices.id, id) : undefined)
-    .orderBy(sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt));
+    .orderBy(desc(schema.invoices.issueDate), sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt), desc(schema.invoices.id));
 
   const paid = await invoicePayments(
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
