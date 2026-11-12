@@ -191,6 +191,16 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).toMatch(/Import.*Zahlungsbezug/);
   });
 
+  it.each([
+    ["SKR03", "1210"],
+    ["SKR04", "1810"],
+  ] as const)("nennt ungeklärte Zahlungen auch auf einem weiteren Bankkonto (%s/%s)", async (kr, bank) => {
+    await reset(kr, "ist");
+    const lines = invoicePaymentPosting(totals, 119000, kr, "ist").map((l) => (l.account === ACCOUNTS[kr].bank ? { ...l, account: bank } : l));
+    await run([entry("zahlung-bank-1", "2026-02-15", lines)], kr);
+    expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).toMatch(/Import.*Zahlungsbezug/);
+  });
+
   it("weist fehlende, zirkuläre, überhöhte und kontenfremde Zahlungsbezüge ohne Teilübernahme ab", async () => {
     for (const [id, lines, target] of [
       ["fehlt", invoicePaymentPosting(totals, 119000, "SKR03", "ist"), "nicht-vorhanden"],
