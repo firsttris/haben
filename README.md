@@ -10,8 +10,8 @@ die du auf deinem eigenen Server betreibst. Sie schreibt E-Rechnungen (ZUGFeRD, 
 erstellt EÜR oder Bilanz und übermittelt die Steuern an ELSTER.
 
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?label=release)](https://github.com/firsttris/haben/releases/latest)
-[![Doku](https://img.shields.io/badge/Doku-haben.app-1f6f5c)](https://haben.app/)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
+[![Doku](https://img.shields.io/badge/Doku-haben.app-1f6f5c)](https://haben.app/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 
