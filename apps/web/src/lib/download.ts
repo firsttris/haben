@@ -22,6 +22,33 @@ export function filenameFrom(disposition: string | null, fallback: string): stri
 /** Hinweis einer API-Route zur gelieferten Datei, URI-kodiert, weil ein Header nur ASCII trägt */
 export const HINWEIS_HEADER = "X-Haben-Hinweis";
 
+/**
+ * Obergrenze für den kodierten Hinweis: nginx legt alle Antwort-Header in einen Puffer von einer Speicherseite
+ * (`proxy_buffer_size`, 4 oder 8 KiB); passen sie nicht hinein, bekommt der Browser statt der Datei einen 502.
+ */
+export const HINWEIS_HEADER_MAX_BYTES = 2000;
+
+const kodiert = (zeilen: string[]) => encodeURIComponent(zeilen.join("\n"));
+
+/** Zeilen des Hinweises als Wert für HINWEIS_HEADER, höchstens HINWEIS_HEADER_MAX_BYTES; was nicht passt, wird gezählt */
+export function hinweisHeader(zeilen: string[]): string {
+  if (kodiert(zeilen).length <= HINWEIS_HEADER_MAX_BYTES) return kodiert(zeilen);
+  const rest = (n: number) => [`Und ${n} weitere.`];
+  const shown: string[] = [];
+  for (const zeile of zeilen) {
+    if (kodiert([...shown, zeile, ...rest(zeilen.length - shown.length - 1)]).length > HINWEIS_HEADER_MAX_BYTES) break;
+    shown.push(zeile);
+  }
+  if (shown.length === 0) {
+    // Schon die erste Zeile ist zu lang: gekürzt zeigen statt gar nicht
+    let text = zeilen[0]!;
+    while (text && kodiert([`${text}…`, ...rest(zeilen.length - 1)]).length > HINWEIS_HEADER_MAX_BYTES) text = text.slice(0, -10);
+    shown.push(`${text}…`);
+  }
+  const weitere = zeilen.length - shown.length;
+  return kodiert(weitere > 0 ? [...shown, ...rest(weitere)] : shown);
+}
+
 /** Datei einer API-Route laden und speichern; bei einem Fehler wirft sie dessen Text. Liefert den Hinweis zur Datei oder "" */
 export async function downloadFrom(url: string, fallback: string): Promise<string> {
   const response = await fetch(url);

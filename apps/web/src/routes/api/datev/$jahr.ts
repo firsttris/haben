@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { HINWEIS_HEADER } from "../../../lib/download.ts";
+import { HINWEIS_HEADER, hinweisHeader } from "../../../lib/download.ts";
 import { lesend } from "../../../server/lese-route.ts";
 import { DatevExportError, datevExport } from "../../../server/modules/auswertungen/index.ts";
 
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/api/datev/$jahr")({
               "Cache-Control": "private, no-store",
               "X-Content-Type-Options": "nosniff",
               // Nummern, die im Belegfeld 1 zusammenfallen (#675); die Seite zeigt sie nach dem Herunterladen
-              ...(warnings.length > 0 ? { [HINWEIS_HEADER]: encodeURIComponent(warnings.join("\n")) } : {}),
+              ...(warnings.length > 0 ? { [HINWEIS_HEADER]: hinweisHeader(warnings) } : {}),
             },
           });
         } catch (error) {

@@ -190,9 +190,6 @@ const voucherField = (value: string) =>
     .replace(/[^A-Za-z0-9$&%*+\-/]/g, "")
     .slice(0, 36);
 
-/** Höchstens so viele Zusammenstöße nennt der Export einzeln */
-const MAX_WARNINGS = 30;
-
 const nummern = (values: string[]) => {
   const quoted = values.map((v) => `„${v}“`);
   return `${quoted.slice(0, -1).join(", ")} und ${quoted.at(-1)}`;
@@ -209,11 +206,9 @@ function voucherWarnings(rows: DatevBookingRow[]): string[] {
     const field = voucherField(voucher);
     byField.set(field, (byField.get(field) ?? new Set()).add(voucher));
   }
-  const warnings = [...byField]
+  return [...byField]
     .filter(([, vouchers]) => vouchers.size > 1)
     .map(([field, vouchers]) => `${nummern([...vouchers].sort())} stehen im Belegfeld 1 als „${field}“; DATEV kann ihre offenen Posten verwechseln.`);
-  if (warnings.length <= MAX_WARNINGS) return warnings;
-  return [...warnings.slice(0, MAX_WARNINGS), `Und ${warnings.length - MAX_WARNINGS} weitere Belegfelder mit mehreren Nummern.`];
 }
 
 const germanTime = new Intl.DateTimeFormat("sv-SE", {
