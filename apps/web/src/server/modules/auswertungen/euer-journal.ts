@@ -52,8 +52,9 @@ async function ziele(q: Db | Tx, ids: string[]): Promise<Map<string, Ziel>> {
 
 /**
  * Verrechnung zweier Belege (#274): Gutschrift und Rechnung gleichen sich gegenseitig, ohne dass Geld fließt. In der EÜR
- * wirkt sie wie eine Zahlung auf jeden der beiden Belege, am Tag der Aufrechnung; gebucht wird sie nicht (Verbindlichkeiten
- * an Verbindlichkeiten), deshalb steht sie nur in `document_settlements`.
+ * wirkt sie wie eine Zahlung auf jeden der beiden Belege, am Tag der Aufrechnung. Seit #778 steht der Ausgleich als Buchung
+ * im Journal, sie läuft dort aber über die Verbindlichkeiten und das Zwischenkonto und trägt keinen Aufwand. Für die EÜR
+ * zählt deshalb weiterhin `document_settlements`.
  */
 interface Verrechnung {
   id: string;
@@ -219,7 +220,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
   }
   return { summe, uebernommen, monate };
 
-  /** Was eine Verrechnung zweier Belege bewirkt: wie eine Zahlung von `-betrag` auf den Beleg, ohne eigene Buchung */
+  /** Was eine Verrechnung zweier Belege bewirkt: wie eine Zahlung von `-betrag` auf den Beleg. Die Journalbuchung trägt keinen Aufwand, deshalb kommt der Betrag aus `document_settlements`. */
   async function wirkungVerrechnung(v: Verrechnung): Promise<EuerAusJournal> {
     const summe = leereEuerAusJournal();
     const u = await ursprungVon("document", v.dokumentId, belegKontenrahmen);

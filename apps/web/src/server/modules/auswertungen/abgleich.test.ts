@@ -477,9 +477,10 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     }
   }, 120_000);
 
-  // #274: Eine Verrechnung zweier Belege steht nur in `document_settlements`; das Journal bucht sie nicht (Verbindlichkeiten
-  // an Verbindlichkeiten). Der EÜR-Abgleich muss sie trotzdem als Ausgleich kennen, sonst meldet er die betroffenen Zeilen
-  // als Abweichung: Software 30,00 laut Journal, 0,00 laut Nebenbüchern und umgekehrt bei der Gutschrift.
+  // #274: Eine Verrechnung zweier Belege steht in `document_settlements`; seit #778 zusätzlich als Journalbuchung, die aber
+  // über die Verbindlichkeiten und das Zwischenkonto läuft und keinen Aufwand trägt. Der EÜR-Abgleich muss sie deshalb
+  // weiter aus den Nebenbüchern kennen, sonst meldet er die betroffenen Zeilen als Abweichung: Software 30,00 laut Journal,
+  // 0,00 laut Nebenbüchern und umgekehrt bei der Gutschrift.
   it("Verrechnung zweier Belege gleicht im EÜR-Abgleich aus, ohne Abweichung", async () => {
     await reset("ist");
     const software = await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "software" });
