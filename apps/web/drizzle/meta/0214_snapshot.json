@@ -1,5 +1,5 @@
 {
-  "id": "8a35af36-2a02-483c-833c-c81a1647278a",
+  "id": "998bc932-3380-449a-b20a-560740619da4",
   "prevId": "849eb208-9f00-4dfe-81dc-46d937920802",
   "version": "7",
   "dialect": "postgresql",
@@ -3271,12 +3271,6 @@
         },
         "kreditor_nr": {
           "name": "kreditor_nr",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "hourly_rate_cents": {
-          "name": "hourly_rate_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -6660,6 +6654,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "advance_type": {
+          "name": "advance_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -7053,6 +7053,10 @@
         "invoices_variant_kind": {
           "name": "invoices_variant_kind",
           "value": "\"invoices\".\"variant\" is null or \"invoices\".\"kind\" = 'rechnung'"
+        },
+        "invoices_advance_type": {
+          "name": "invoices_advance_type",
+          "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",
@@ -12529,183 +12533,6 @@
       },
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.service_entries": {
-      "name": "service_entries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "worked_on": {
-          "name": "worked_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "minutes": {
-          "name": "minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "hourly_rate_cents": {
-          "name": "hourly_rate_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "non_billable": {
-          "name": "non_billable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "billable_minutes": {
-          "name": "billable_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "project": {
-          "name": "project",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "external_source": {
-          "name": "external_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "service_entries_extern_key": {
-          "name": "service_entries_extern_key",
-          "columns": [
-            {
-              "expression": "external_source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "service_entries_contact": {
-          "name": "service_entries_contact",
-          "columns": [
-            {
-              "expression": "contact_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "worked_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "service_entries_contact_id_contacts_id_fk": {
-          "name": "service_entries_contact_id_contacts_id_fk",
-          "tableFrom": "service_entries",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "service_entries_minutes": {
-          "name": "service_entries_minutes",
-          "value": "\"service_entries\".\"minutes\" between 1 and 1440"
-        },
-        "service_entries_billable_minutes": {
-          "name": "service_entries_billable_minutes",
-          "value": "\"service_entries\".\"billable_minutes\" is null or \"service_entries\".\"billable_minutes\" between 1 and 1440"
-        },
-        "service_entries_rate": {
-          "name": "service_entries_rate",
-          "value": "\"service_entries\".\"hourly_rate_cents\" is null or \"service_entries\".\"hourly_rate_cents\" >= 0"
-        },
-        "service_entries_extern": {
-          "name": "service_entries_extern",
-          "value": "(\"service_entries\".\"external_source\" is null) = (\"service_entries\".\"external_id\" is null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.session": {

@@ -53,6 +53,34 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   await rechnungFestschreiben(page, INVOICES[0]!);
 });
 
+test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistungsdatum (#622)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
+  const erbracht = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" });
+  await expect(erbracht).not.toBeChecked();
+  await expect(
+    page.getByText("Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.", { exact: true }),
+  ).toBeVisible();
+  await erbracht.check();
+  await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAttribute("required", "");
+  await expect(page.getByText("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.", { exact: true })).toBeVisible();
+  await erbracht.uncheck();
+  await expect(page.getByLabel("Leistung von", { exact: true })).not.toHaveAttribute("required");
+  for (const treatment of ["reverse_charge", "ig_lieferung", "drittland"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht.",
+    );
+  }
+  for (const treatment of ["ausfuhr", "steuerfrei"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung.",
+    );
+  }
+  await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("regulaer");
+});
+
 test("Kontaktseite: Rechnungen des Kunden mit Summe je Jahr (#587)", async () => {
   const jahr = INVOICES[0]!.date.slice(0, 4);
   await go("/kontakte");
