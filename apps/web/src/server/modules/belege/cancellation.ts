@@ -4,7 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
-import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
+import { documentBankAllocations, lockCash, reverseAllocationIn, reverseDocumentCashEntry } from "../bank/index.ts";
 import { journalAbJahr } from "../stammdaten/index.ts";
 import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
 import { belegZeilen } from "./belegbuchung.ts";
@@ -25,6 +25,7 @@ import { loadSplits } from "./splits.ts";
 
 export const cancellationInputSchema = z.object({
   reason: z.string().trim().max(500).default(""),
+  allocationIds: z.array(z.uuid()).default([]),
 });
 
 export type CancellationInput = z.input<typeof cancellationInputSchema>;
@@ -39,12 +40,31 @@ export function cancellationIssues(doc: Pick<Document, "lockedAt" | "lexofficeVo
   return [];
 }
 
-/** Ein Beleg über die Bank darf noch keiner Zahlung zugeordnet sein (Zuordnungen und Skonto, Gegenzeilen abgezogen) */
+/** Nach der Rücknahme der Bankzuordnungen darf keine separate Ausbuchung am Beleg verbleiben. */
 async function settled(tx: Tx, documentId: string): Promise<number> {
   const [row] = await tx.execute<{ settled: string }>(sql`
     select coalesce((select sum(amount) from allocations where document_id = ${documentId}), 0)
          + coalesce((select sum(amount) from write_offs where document_id = ${documentId}), 0) as settled`);
   return Number(row?.settled ?? 0);
+}
+
+/** Bestätigter Umfang; die Gegenzeilen bleiben in der withActor-Transaktion des Belegstornos. */
+async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "payment">, allocationIds: string[]) {
+  const allocations = doc.payment === "bank" ? await documentBankAllocations(doc.id, tx) : [];
+  if (allocations.length > 0 && allocationIds.length === 0) {
+    throw new DocumentError("Der Beleg ist schon einer Zahlung zugeordnet. Hebe erst im Bankabgleich die Zuordnung auf, dann stornierst du ihn.");
+  }
+  const expected = allocations
+    .map((a) => a.id)
+    .sort()
+    .join();
+  if ([...allocationIds].sort().join() !== expected) {
+    throw new DocumentError("Die Bankzuordnungen haben sich geändert. Lade den Beleg neu und bestätige den aktuellen Umfang.");
+  }
+  const groups = new Map(allocations.map((a) => [a.splitId ?? a.id, a.id]));
+  // Originale bleiben nachvollziehbar (§ 146 Abs. 4 AO); scheitert der Storno, werden auch die Bankgegenzeilen zurückgerollt.
+  // https://www.gesetze-im-internet.de/ao_1977/__146.html
+  for (const allocationId of groups.values()) await reverseAllocationIn(tx, allocationId);
 }
 
 /** Die Buchung des Belegs; ein Storno hat reverses_id und zählt nicht */
@@ -108,7 +128,7 @@ function heutigeBelegZeilen(
  * Ein abgeschlossenes Jahr lehnt das Hauptbuch ab.
  */
 export async function cancelDocument(actor: string, id: string, input: CancellationInput, todayDate: string): Promise<DocumentCancellation> {
-  const { reason } = cancellationInputSchema.parse(input);
+  const { reason, allocationIds } = cancellationInputSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [peek] = await tx.select({ payment: schema.documents.payment }).from(schema.documents).where(eq(schema.documents.id, id));
     if (!peek) throw new DocumentError("Beleg nicht gefunden.");
@@ -123,8 +143,9 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.documentCancellations)
       .where(eq(schema.documentCancellations.documentId, id));
     if (already) throw new DocumentError("Der Beleg ist bereits storniert.");
+    await reverseConfirmedAllocations(tx, doc, allocationIds);
     if (doc.payment === "bank" && (await settled(tx, id)) !== 0) {
-      throw new DocumentError("Der Beleg ist schon einer Zahlung zugeordnet. Hebe erst im Bankabgleich die Zuordnung auf, dann stornierst du ihn.");
+      throw new DocumentError("Dem Beleg ist noch eine separate Ausbuchung zugeordnet. Hebe diese im Bankabgleich auf, dann stornierst du ihn.");
     }
 
     const books = await openBooks(tx);

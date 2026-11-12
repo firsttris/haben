@@ -29,7 +29,7 @@ import {
 import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
-import { documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
+import { documentBankAllocations, documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
@@ -72,7 +72,9 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       sepaTransfers: await documentSepaTransfers(data),
       // IBAN der E-Rechnung gegen die des Kontakts (#410)
       ibanCheck: await documentIbanCheck(data),
-      // Was gegen einen Storno spricht; die Zahlung im Bankabgleich prüft erst der Storno selbst
+      // Bestätigter Umfang einschließlich ganzer Aufteilungen; der Storno prüft ihn erneut in seiner Transaktion.
+      cancellationAllocations: result.document.lockedAt && !cancellation && result.document.payment === "bank" ? await documentBankAllocations(data) : [],
+      // Was gegen einen Storno spricht; Bankzuordnungen werden nach ausdrücklicher Bestätigung mit aufgehoben.
       cancellationIssues: result.document.lockedAt && !cancellation ? cancellationIssues(result.document) : [],
       // Datum, das ein Storno heute bekäme: im noch offenen Zeitraum der Belegbuchung oder heute
       cancellationDate: result.document.lockedAt && !cancellation ? await plannedCancellationDate(data, today()) : null,
