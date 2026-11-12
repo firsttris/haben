@@ -51,6 +51,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
   let documents: typeof import("../belege/documents.ts");
   let cash: typeof import("../bank/cash.ts");
   let cashInvoice: typeof import("../bank/cash-invoice.ts");
+  let verrechnung: typeof import("../bank/verrechnung.ts");
+  let euerJournal: typeof import("./euer-journal.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let contactId: string;
@@ -65,6 +67,8 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
     documents = await import("../belege/documents.ts");
     cash = await import("../bank/cash.ts");
     cashInvoice = await import("../bank/cash-invoice.ts");
+    verrechnung = await import("../bank/verrechnung.ts");
+    euerJournal = await import("./euer-journal.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -72,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
   });
 
   async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04" = "SKR03", kleinunternehmer = false) {
-    await leeren(sql)`truncate asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate document_settlements, asset_depreciations, assets, pauschalen, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, write_offs, journal_lines, journal_entries, document_splits, document_amounts, documents, invoice_lines, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, kleinunternehmer)
@@ -116,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       payment?: "bank" | "privat";
       privateShare?: number;
       reverseCharge?: "eu" | "drittland" | null;
-      category?: "edv" | "telefon" | "sonstiges" | "hardware";
+      category?: "edv" | "telefon" | "sonstiges" | "hardware" | "software";
       splits?: { category: "software" | "buero"; taxRate: 1900 | 700 | 0; net: number }[];
     } = {},
   ) {
@@ -431,5 +435,50 @@ describe.skipIf(!testDatabaseUrl)("EÜR aus dem Journal im Abgleich (Postgres)",
       await pruefe(2026);
       expect(await formel(2026)).toMatchObject({ journal: -59_500, quelle: -59_500 });
     }, 60_000);
+  }
+
+  // Review von Dudeplayz, Punkt 2 (#274): Eine Verrechnung zweier Belege wirkt in der EÜR wie eine Zahlung auf BEIDE Belege,
+  // im Jahr und am Tag der Aufrechnung. Ohne sie zeigt die EÜR nur die Bankzahlung: 70,00 Software statt 100,00 und die
+  // Hardware-Gutschrift gar nicht (0,00 statt −30,00), obwohl die Verrechnung 35,70 beider Belege erledigt hat.
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      /** Software-Rechnung 119,00, Hardware-Gutschrift −35,70; 35,70 verrechnet, 83,30 per Bank */
+      const beispiel = async () => {
+        const software = await bookedDocument("2026-02-10", [{ taxRate: 1900, net: 10_000, tax: 1_900 }], { category: "software" });
+        const hardware = await bookedDocument("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }], { category: "hardware" });
+        const { ids } = await verrechnung.settleDocuments(actor, {
+          documentId: software,
+          counterDocumentId: hardware,
+          amount: 3_570,
+          date: "2026-02-20",
+          note: "Gutschrift verrechnet",
+        });
+        const [tx] = await transactions([ausgang("01.03.26", "Lieferant", "-83,30")]);
+        await bank.allocate(actor, { kind: "document", transactionId: tx!.id, documentId: software, amount: -8_330 });
+        return ids;
+      };
+
+      it(`EÜR aus dem Journal: Verrechnung gleicht Software-Rechnung und Hardware-Gutschrift (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        await beispiel();
+        const { summe } = await euerJournal.euerAusJournal(2026);
+        // Die Verrechnung zählt wie eine Zahlung von 35,70 auf die Rechnung (30,00 netto, 5,70 Steuer), den Rest zahlt die Bank
+        expect(summe.zeilen["ausgabe:software"]).toBe(10_000);
+        expect(summe.zeilen["ausgabe:hardware"]).toBe(-3_000);
+        expect(summe.zeilen.vorsteuer).toBe(1_330);
+      }, 60_000);
+
+      it(`EÜR aus dem Journal: aufgehobene Verrechnung zählt nicht mehr (${kontenrahmen}, ${versteuerung})`, async () => {
+        await reset(versteuerung, kontenrahmen);
+        const ids = await beispiel();
+        // Eine Gegenzeile hebt beide Zeilen der Verrechnung auf (verrechnung.ts:reverseSettlement)
+        await verrechnung.reverseSettlement(actor, ids[0]!);
+        const { summe } = await euerJournal.euerAusJournal(2026);
+        // Wie ohne Verrechnung: nur die Bankzahlung von 83,30, die Gutschrift bleibt offen
+        expect(summe.zeilen["ausgabe:software"]).toBe(7_000);
+        expect(summe.zeilen["ausgabe:hardware"] ?? 0).toBe(0);
+        expect(summe.zeilen.vorsteuer).toBe(1_330);
+      }, 60_000);
+    }
   }
 });
