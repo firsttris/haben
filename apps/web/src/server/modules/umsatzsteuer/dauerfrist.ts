@@ -19,6 +19,7 @@ import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/ind
 import { companyIssues, loadCompany } from "../stammdaten/index.ts";
 import { VatError } from "./vat.ts";
 import { loadFrequencies } from "./zeitraum.ts";
+import { dauerfristEuerHinweis } from "./dauerfrist-euer-hinweis.ts";
 
 /*
  * Dauerfristverlängerung (§ 46–48 UStDV): Antrag bzw. Anmeldung der Sondervorauszahlung über ELSTER (USt 1 H), der Stand
@@ -62,12 +63,12 @@ async function sondervorauszahlungFiled(tx: Tx, year: number): Promise<boolean> 
   return Boolean(row?.filed);
 }
 
-export async function saveDauerfrist(actor: string, input: DauerfristInput): Promise<void> {
+export async function saveDauerfrist(actor: string, input: DauerfristInput): Promise<{ euerHinweis: string | null }> {
   if (input.sondervorauszahlung !== null && (input.sondervorauszahlung < 0 || input.sondervorauszahlung % 100 !== 0)) {
     throw new VatError("Die Sondervorauszahlung ist ein Betrag in vollen Euro, nicht negativ.");
   }
   const values = { active: input.active, sondervorauszahlung: input.active ? input.sondervorauszahlung : null, updatedAt: new Date() };
-  await withActor(actor, async (tx) => {
+  return withActor(actor, async (tx) => {
     // Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4
     // UStDV). Ein Ende im Lauf des Jahres bildet Haben nicht ab; beendet würde sie aus Kz 39 und dem Vorauszahlungssoll fallen.
     const [own] = await tx.select().from(schema.vatExtensions).where(eq(schema.vatExtensions.year, input.year)).for("update");
@@ -76,10 +77,12 @@ export async function saveDauerfrist(actor: string, input: DauerfristInput): Pro
         `Für ${input.year} ist eine Sondervorauszahlung angemeldet; die Verlängerung lässt sich erst ab dem Folgejahr beenden. Endet sie im Lauf des Jahres, rechnet das Finanzamt die Sondervorauszahlung in der letzten Voranmeldung davor an.`,
       );
     }
+    const euerHinweis = await dauerfristEuerHinweis(tx, await loadDauerfrist(tx), { year: input.year, ...values });
     await tx
       .insert(schema.vatExtensions)
       .values({ year: input.year, ...values })
       .onConflictDoUpdate({ target: schema.vatExtensions.year, set: values });
+    return { euerHinweis };
   });
 }
 
@@ -209,8 +212,13 @@ function antragProblem(frequency: VatFrequency, options: DauerfristSubmitOptions
  * Prüft oder übermittelt den Antrag auf Dauerfristverlängerung bzw. die Anmeldung der Sondervorauszahlung. Jeder Versuch
  * landet in vat_extension_submissions; eine erfolgreiche Echtübermittlung trägt die Verlängerung für das Jahr ein.
  */
-export function submitDauerfrist(actor: string, client: ElsterClient, options: DauerfristSubmitOptions): Promise<ElsterResult> {
-  return uebermitteln(client, {
+export async function submitDauerfrist(
+  actor: string,
+  client: ElsterClient,
+  options: DauerfristSubmitOptions,
+): Promise<ElsterResult & { euerHinweis: string | null }> {
+  let euerHinweis: string | null = null;
+  const result = await uebermitteln(client, {
     sperre: `haben.dauerfrist.${options.year}`,
     vorgang: options.kind,
     herstellerId: options.herstellerId,
@@ -256,6 +264,7 @@ export function submitDauerfrist(actor: string, client: ElsterClient, options: D
         });
         if (result.ok && options.kind === "send") {
           const values = { active: true, sondervorauszahlung: options.sondervorauszahlung, updatedAt: new Date() };
+          euerHinweis = await dauerfristEuerHinweis(tx, await loadDauerfrist(tx), { year: options.year, ...values });
           await tx
             .insert(schema.vatExtensions)
             .values({ year: options.year, ...values })
@@ -263,6 +272,7 @@ export function submitDauerfrist(actor: string, client: ElsterClient, options: D
         }
       }),
   });
+  return { ...result, euerHinweis };
 }
 
 export async function loadDauerfristProtocol(id: string) {

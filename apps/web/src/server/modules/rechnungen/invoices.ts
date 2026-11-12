@@ -54,6 +54,7 @@ import { documentReferences, referenceColumns, referenceFieldsSchema } from "./o
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+import { invoiceTaxYear } from "./invoice-tax-year.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -1126,6 +1127,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     .where(eq(schema.invoices.id, id))
     .returning();
 
+  const versteuerung = invoice.correctsId ? await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx) : company.versteuerung;
   await post(tx, company, {
     date: invoice.issueDate,
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
@@ -1134,8 +1136,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
     // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
     lines: (await correctsLegacyInvoice(tx, corrects))
-      ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
-      : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
+      ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
+      : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
   });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
   await syncQuoteBilling(tx, quoteIds);

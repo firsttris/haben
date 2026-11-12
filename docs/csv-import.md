@@ -79,7 +79,7 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 
 Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei einem neuen Kontakt auf „wie in den Einstellungen“, Deutsch und der Vorgabe aus den Firmendaten.
 
-Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …). Weichen die Spaltennamen deiner Datei ab, ordnest du sie in der Vorschau zu.
+Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …).
 
 ## Artikel
 
@@ -123,7 +123,7 @@ Die Übernahme erzeugt keine Buchung. Wie bei einer von Hand übernommenen Anlag
 
 ### Was der Import ablehnt
 
-Haben übernimmt nur, was das Anlagenverzeichnis fachlich richtig abbilden kann. Diese Fälle lehnt der Import ab, weil Haben sonst im Jahr des Stichtags abschriebe, was in frühere Jahre gehört, oder ein schon gebuchtes Jahr änderte:
+Diese Fälle lehnt der Import ab, weil Haben sonst im Jahr des Stichtags abschriebe, was in frühere Jahre gehört, oder ein schon gebuchtes Jahr änderte:
 
 | Fall | Warum |
 | --- | --- |

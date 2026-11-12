@@ -17,6 +17,7 @@ export const DURCHLAEUFE = {
   belegimport: 5,
   "bb-import": 6,
   "beleg-storno": 11,
+  "dauerfrist-euer": 12,
   kleinunternehmer: 13,
 } as const;
 export type Durchlauf = keyof typeof DURCHLAEUFE;

@@ -46,7 +46,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 
 - Tests for what changed: Vitest, Postgres tests next to the module, Playwright for what a user clicks; a bug
   fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax.
-- Docs in `docs/` in the same pull request; the README only when a feature area or its one-line summary changes.
+- Docs in `docs/` in the same pull request, short and for people: steps for agents go into a skill, internals of a script into its comments, no sentences that only repeat, announce or sum up (Befehle, "Kurz halten"); the README only when a feature area or its one-line summary changes.
 - Reference issues with `Umgesetzt #…` (done) or `Refs #…` (part), never `Closes`/`Fixes`: the release closes them, not the merge (Mitwirken).
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).
 - A design rule changes: `DESIGN.md` changes in the same pull request.
@@ -54,7 +54,7 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 - Checks green before every push, skipped tests reported (`checks`); then check CI. In a review, targeted checks are enough; CI runs the full suite (`tdd-review`).
 - Before a push: is the branch's pull request still open? If merged, start again from `origin/main`.
 - The pull request description becomes the squash commit message on `main`: update it with every push that changes what the PR does or how it was checked, also after review fixes and rebases.
-- An independent TDD review by a separate subagent before the merge (`tdd-review`).
+- An independent TDD review by a separate subagent before the merge (`tdd-review`); none for a pull request that only changes Markdown in `docs/` or the README (Review).
 
 ## Working style
 
