@@ -36,9 +36,9 @@ export const ACCOUNTS = {
     vorsteuerIge: { 1900: "1574", 700: "1572" },
     verbindlichkeiten: "1600",
     /**
-     * Zwischenkonto für die Verrechnung zweier Belege ohne Zahlung (#778): DATEV „Durchlaufende Posten“ („Sonstige
-     * Vermögensgegenstände oder sonstige Verbindlichkeiten“). Es dient Klärungen und Interimskonten und soll keinen Saldo
-     * aufweisen; kein Automatikkonto, die Buchung trägt keine Umsatzsteuer.
+     * Zwischenkonto für die Verrechnung zweier Belege ohne Zahlung (#778): DATEV-Kontenrahmen SKR03 2026, Konto 1590
+     * „Durchlaufende Posten“ („Sonstige Vermögensgegenstände oder sonstige Verbindlichkeiten“). Es dient Klärungen und
+     * Interimskonten und soll keinen Saldo aufweisen; kein Automatikkonto, die Buchung trägt keine Umsatzsteuer.
      */
     zwischenkonto: "1590",
     privateinlagen: "1890",
@@ -89,7 +89,7 @@ export const ACCOUNTS = {
     ustIge: { 1900: "3804", 700: "3802" },
     vorsteuerIge: { 1900: "1404", 700: "1402" },
     verbindlichkeiten: "3300",
-    /** Zwischenkonto für Verrechnungen ohne Zahlung (#778): DATEV „Durchlaufende Posten“, wie SKR03 1590 */
+    /** Zwischenkonto für Verrechnungen ohne Zahlung (#778): DATEV-Kontenrahmen SKR04 2026, Konto 1370 „Durchlaufende Posten“, wie SKR03 1590 */
     zwischenkonto: "1370",
     privateinlagen: "2180",
     privatentnahmen: "2100",
@@ -761,8 +761,8 @@ export function documentPaymentPosting(amount: Cents, kontenrahmen: Kontenrahmen
  * Verrechnung zweier Belege ohne Zahlung (#778): Der Ausgleich berührt weder Bank noch Kasse, sondern nur die
  * Verbindlichkeiten beider Belege. Er läuft deshalb über ein Zwischenkonto, das sich im selben Buchungssatz wieder
  * schließt: Verbindlichkeiten an Zwischenkonto für die eine Belegseite, Zwischenkonto an Verbindlichkeiten für die
- * andere. Das Konto ist DATEV „Durchlaufende Posten“ (SKR03 1590, SKR04 1370): Klärungen und Interimskonten, die nach
- * Möglichkeit keinen Saldo aufweisen, kein Automatikkonto.
+ * andere. Das Konto ist DATEV „Durchlaufende Posten“ (Kontenrahmen 2026: SKR03 1590, SKR04 1370): Klärungen und
+ * Interimskonten, die nach Möglichkeit keinen Saldo aufweisen, kein Automatikkonto.
  *
  * Ohne Umsatzsteuerzeile: `documentPosting` bucht die Vorsteuer eines Belegs bereits im Belegmonat; eine Steuerzeile
  * hier zählte sie doppelt. Wann die Vorsteuer bei Ist-Versteuerung tatsächlich fällig wird, ist ein eigener Punkt und

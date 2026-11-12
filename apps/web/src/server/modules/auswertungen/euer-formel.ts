@@ -177,8 +177,9 @@ export async function gewinnNachDatevFormel(year: number, nichtAbziehbar: Cents,
       });
     }
   }
-  // Verrechnungen zweier Belege (#274): jede Zeile der Tabelle gleicht den einen Beleg aus, ohne Buchung. Das Vorzeichen
-  // bringt sie auf die richtige Seite; eine aufgehobene Verrechnung ist eine Gegenzeile mit umgekehrtem Betrag.
+  // Verrechnungen zweier Belege (#274): jede Zeile der Tabelle gleicht den einen Beleg aus; die Buchung im Journal (#778)
+  // trägt keine Erfolgszeile. Das Vorzeichen bringt sie auf die richtige Seite; eine aufgehobene Verrechnung ist eine
+  // Gegenzeile mit umgekehrtem Betrag.
   if (belege.length > 0) {
     const s = schema.documentSettlements;
     for (const r of await q
