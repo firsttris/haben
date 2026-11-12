@@ -309,7 +309,8 @@ describe("documentSplitPosting mit eigenem Konto (#270)", () => {
         "einzelunternehmen",
         "bank",
       );
-      expect(result.filter((l) => l.debit > 0 && [eigenesKonto[kontenrahmen], k.software].includes(l.account)).map((l) => [l.account, l.debit])).toEqual(
+      const gesucht: string[] = [eigenesKonto[kontenrahmen], k.software];
+      expect(result.filter((l) => l.debit > 0 && gesucht.includes(l.account)).map((l) => [l.account, l.debit])).toEqual(
         expect.arrayContaining([
           [eigenesKonto[kontenrahmen], 5_000],
           [k.software, 3_000],
