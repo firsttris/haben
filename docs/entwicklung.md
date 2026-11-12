@@ -640,6 +640,8 @@ Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret bene
 
 Ist schon bei der ersten Frage klar, dass die Änderung nicht kommt, oder muss der Maintainer erst entscheiden, endet die Prüfung dort. Ist sie gewollt und der Weg richtig, machen wir sie selbst fertig, statt auf den Beitragenden zu warten: ein Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch des Pull Requests wie Fixes im Review (Schritt 4), das TDD-Review und der Merge bei grüner CI. Ist sie schon gut, geht sie direkt ins Review und wird gemergt. Kann die Änderung beeinflussen, was gebucht, versteuert, gemeldet oder festgeschrieben wird (Steuer, Buchung, ELSTER, Lohn, GoBD, Migrationen auf bestehenden Daten), wird sie ebenso bis grün fertig gemacht, gemergt aber erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung. Angehalten wird nur, wenn ein Mensch entscheiden muss: Ablehnen oder Teilen, eine grundsätzliche Entscheidung oder eine fachliche Frage ohne eindeutige Quelle. Ablehnen und Schließen entscheidet der Maintainer; wird ein Thema grundsätzlich abgelehnt, kommt es mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht), damit niemand es noch einmal baut.
 
+**Frist für Beitragende:** Kleinigkeiten wie Doku, ein fehlender Test oder die Quellenangabe ergänzen wir sofort. Fehlt mehr, fragen wir zuerst, ob der Beitragende selbst nachbessern will, und nennen eine Frist von zwei Tagen; kommt bis dahin nichts, machen wir es fertig.
+
 ### Review
 
 Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit Claude Code gibt es dafür den Skill `tdd-review` (`.claude/skills/tdd-review/SKILL.md`); mit anderen Werkzeugen gelten dieselben Schritte:
