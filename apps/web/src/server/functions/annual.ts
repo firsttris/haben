@@ -109,7 +109,8 @@ export const submitAnnualReturn = createServerFn({ method: "POST" })
 
 /**
  * Abgabe außerhalb von Haben vermerken (WISO, Accountable, ELSTER-Portal): Tag, Transferticket, Betrag, Begründung und
- * optional das Übermittlungsprotokoll. Der gerechnete Betrag dient nur dem Hinweis, nicht der Ablehnung.
+ * optional das Übermittlungsprotokoll. Weicht der Betrag vom gerechneten Wert ab, geht der Vermerk nur mit dem Haken
+ * "Abweichung bestätigt" durch; der Hinweis in der Antwort bleibt zusätzlich für die Anzeige.
  */
 export const fileAnnualElsewhere = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -124,8 +125,13 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64),
         amount: z.coerce.number().int().pipe(centsSchema),
         note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000),
+        // Der Haken kommt als "1" oder "on"; fehlt er, ist die Abweichung nicht bestätigt
+        abweichungBestaetigt: z
+          .string()
+          .nullish()
+          .transform((wert) => wert === "1" || wert === "on"),
       })
-      .safeParse(Object.fromEntries(["form", "year", "filedOn", "transferTicket", "amount", "note"].map((k) => [k, data.get(k)])));
+      .safeParse(Object.fromEntries(["form", "year", "filedOn", "transferTicket", "amount", "note", "abweichungBestaetigt"].map((k) => [k, data.get(k)])));
     if (!fields.success) throw new UserError(fields.error.issues[0]?.message ?? "Angaben unvollständig.");
     const protokoll = data.get("protokoll");
     if (protokoll instanceof File && protokoll.size > MAX_DOCUMENT_SIZE) throw new UserError("Das Protokoll ist größer als 20 MB.");
@@ -139,6 +145,7 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         transferTicket: data.transferTicket,
         amount: data.amount,
         note: data.note,
+        abweichungBestaetigt: data.abweichungBestaetigt,
         ...(data.file && bytes ? { file: { bytes, filename: data.file.name } } : {}),
       });
       // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert

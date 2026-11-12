@@ -25,6 +25,9 @@ const LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" } as const;
 /**
  * Abgabe außerhalb von Haben vermerken: Tag, Transferticket, Betrag, Begründung und optional das Protokoll. Ist die
  * Erklärung schon vermerkt, zeigt die Karte die Angaben und bietet keinen zweiten Vermerk an.
+ *
+ * Weicht der eingegebene Betrag vom in Haben gerechneten Wert ab, zeigt der Dialog beide Beträge und die Differenz und
+ * verlangt einen Haken. Der Server prüft dasselbe noch einmal; hier ist es nur die Vorabprüfung.
  */
 export function AbgabeVermerken({
   art,
@@ -50,10 +53,14 @@ export function AbgabeVermerken({
   const [betrag, setBetrag] = useState(() => formatDecimal(berechnet));
   const [begruendung, setBegruendung] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  // Pflicht-Haken, sobald der eingegebene Betrag vom gerechneten Wert abweicht
+  const [bestaetigt, setBestaetigt] = useState(false);
   // Hinweis aus dem Vergleich mit dem gerechneten Betrag; der Vermerk gilt auch bei Abweichung
   const [abweichung, setAbweichung] = useState<string | null>(null);
   const cents = parseEuro(betrag);
-  const ready = filedOn !== "" && ticket.trim().length >= 10 && cents !== null && begruendung.trim().length >= 10;
+  const differenz = cents === null ? 0 : cents - berechnet;
+  const weichtAb = cents !== null && differenz !== 0;
+  const ready = filedOn !== "" && ticket.trim().length >= 10 && cents !== null && begruendung.trim().length >= 10 && (!weichtAb || bestaetigt);
 
   async function absenden(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,6 +73,7 @@ export function AbgabeVermerken({
       data.append("transferTicket", ticket.trim());
       data.append("amount", String(cents));
       data.append("note", begruendung.trim());
+      if (bestaetigt) data.append("abweichungBestaetigt", "1");
       if (file) data.append("protokoll", file);
       const result = await vermerken({ data });
       if (!result.ok) throw new Error(result.message);
@@ -158,12 +166,28 @@ export function AbgabeVermerken({
                 inputMode="decimal"
                 className="mono"
                 value={betrag}
-                onChange={(event) => setBetrag(event.target.value)}
+                onChange={(event) => {
+                  setBetrag(event.target.value);
+                  // Ein neuer Betrag ist eine neue Abweichung; der alte Haken darf nicht weiter gelten
+                  setBestaetigt(false);
+                }}
                 aria-invalid={(betrag !== "" && cents === null) || undefined}
                 required
               />
             )}
           </Field>
+          {weichtAb && cents !== null && (
+            <>
+              <p className="banner banner-warn" role="status">
+                Der Betrag weicht um {formatEuro(Math.abs(differenz))} vom in Haben gerechneten Wert ({formatEuro(berechnet)}) ab. Der Betrag laut Protokoll
+                wird gespeichert; die Abweichung bleibt am Vermerk stehen.
+              </p>
+              <label className="checkbox">
+                <input type="checkbox" checked={bestaetigt} onChange={(event) => setBestaetigt(event.target.checked)} required />
+                Abweichung geprüft und bewusst übernommen
+              </label>
+            </>
+          )}
           <Field label="Begründung" hint="Warum außerhalb von Haben, mindestens 10 Zeichen.">
             {(control) => (
               <textarea {...control} value={begruendung} onChange={(event) => setBegruendung(event.target.value)} rows={3} maxLength={2000} required />

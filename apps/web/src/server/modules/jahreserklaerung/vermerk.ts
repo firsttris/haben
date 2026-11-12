@@ -28,6 +28,8 @@ export interface JahresvermerkInput {
   amount: Cents;
   /** Warum außerhalb von Haben abgegeben wurde */
   note: string;
+  /** Abweichung zum gerechneten Wert ausdrücklich bestätigt; ohne sie wird ein abweichender Betrag abgelehnt */
+  abweichungBestaetigt?: boolean;
   /** Übermittlungsprotokoll (PDF), optional */
   file?: { bytes: Uint8Array; filename: string };
 }
@@ -39,6 +41,7 @@ export const vermerkSchema = z.object({
   transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64, "Das Transferticket ist zu lang."),
   amount: centsSchema,
   note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000, "Die Begründung ist zu lang."),
+  abweichungBestaetigt: z.boolean().optional(),
   file: z.object({ bytes: z.instanceof(Uint8Array), filename: z.string().min(1).max(200) }).optional(),
 });
 
@@ -82,6 +85,10 @@ const VERMERK_COLUMNS = {
  * Vermerkt die Abgabe außerhalb von Haben. Unter derselben Sendesperre wie die Übermittlung über ERiC, damit nicht beide
  * zugleich festschreiben. Je Formular und Jahr ist nur ein Vermerk möglich; ein Transferticket gehört zu genau einer
  * Erklärung. Ein abgeschlossenes Jahr bleibt unverändert und nimmt keinen Vermerk mehr auf.
+ *
+ * Der Betrag laut Protokoll bleibt maßgeblich und wird unverändert gespeichert. Weicht er vom in Haben gerechneten Wert ab,
+ * verlangt der Vermerk eine ausdrückliche Bestätigung; die Abweichung bleibt an der Zeile festgehalten. Eine harte Sperre
+ * ohne Ausweg brächte nur, dass eine bereits erfolgte Abgabe nicht in Haben steht.
  */
 export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, year: number, input: JahresvermerkInput, heute = today()): Promise<Jahresvermerk> {
   if (form !== "euer" && form !== "ust") throw new AnnualError("Außerhalb von Haben lässt sich nur die Umsatzsteuererklärung oder die Anlage EÜR vermerken.");
@@ -122,6 +129,11 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
       .where(eq(schema.annualSubmissions.transferTicket, transferTicket));
     if (used) throw new AnnualError(`Das Transferticket ist schon bei der Erklärung ${used.year} hinterlegt.`);
 
+    // Eine erfolgte Abgabe lässt sich nicht zurücknehmen: Der Betrag laut Protokoll gilt, aber eine Abweichung muss
+    // ausdrücklich bestätigt werden, statt sie stillschweigend zu übernehmen.
+    const { berechnet, abweichung } = await vermerkPruefung(form, year, data.amount);
+    if (abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount, berechnet, abweichung));
+
     return withActor(actor, async (tx) => {
       const [row] = await tx
         .insert(schema.annualSubmissions)
@@ -133,7 +145,8 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           code: 0,
           message: "Außerhalb von Haben abgegeben",
           transferTicket,
-          figures: { amount: data.amount },
+          // Ohne Abweichung bleibt die Zeile wie bisher; mit Bestätigung hält sie den Vergleich dauerhaft fest
+          figures: abweichung === 0 ? { amount: data.amount } : { amount: data.amount, berechnet, abweichung, abweichungBestaetigt: true },
           filedOn: data.filedOn,
           note: data.note,
           requestXml: "",
@@ -167,8 +180,9 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
 }
 
 /**
- * Vergleicht den angegebenen Betrag mit dem aus den Buchungen gerechneten Wert der Erklärung. Reine Information: eine
- * Abweichung bricht den Vermerk nicht ab, denn außerhalb von Haben kann eine andere Rechnung maßgeblich sein.
+ * Vergleicht den angegebenen Betrag mit dem aus den Buchungen gerechneten Wert der Erklärung. Der gerechnete Wert ist
+ * nicht maßgeblich (außerhalb von Haben kann eine andere Rechnung gelten), eine Abweichung verlangt aber eine
+ * ausdrückliche Bestätigung.
  */
 export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents) {
   const overview = await annualOverview(year, today());
@@ -179,4 +193,9 @@ export async function vermerkPruefung(form: VermerkForm, year: number, amount: C
 function abweichungHinweis(amount: Cents, berechnet: Cents): string | null {
   if (amount === berechnet) return null;
   return `Der angegebene Betrag (${formatEuro(amount)}) weicht vom gerechneten Wert (${formatEuro(berechnet)}) ab.`;
+}
+
+/** Fehlermeldung, die beide Beträge und die Differenz nennt und die Bestätigung verlangt */
+function abweichungMeldung(amount: Cents, berechnet: Cents, abweichung: Cents): string {
+  return `Der Betrag laut Protokoll (${formatEuro(amount)}) weicht um ${formatEuro(Math.abs(abweichung))} vom in Haben gerechneten Wert (${formatEuro(berechnet)}) ab. Bitte die Abweichung prüfen und ausdrücklich bestätigen.`;
 }

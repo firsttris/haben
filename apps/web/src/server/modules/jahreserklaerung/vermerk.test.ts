@@ -1,3 +1,4 @@
+import { formatEuro } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -41,12 +42,16 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     ...extra,
   });
 
+  /** Der in Haben gerechnete Gewinn der EÜR im leeren Testjahr; die Abweichung hängt davon ab */
+  const gerechnet = async () => (await annual.annualOverview(2025, TODAY)).euer.gewinn;
+
   it("vermerkt eine außerhalb abgegebene Erklärung und findet sie wieder", async () => {
+    const berechnet = await gerechnet();
     const row = await jahresvermerk.vermerkeJahresabgabe(
       actor,
       "euer",
       2025,
-      { ...eingabe("ABC123456789"), file: { bytes: pdf("EUER 2025"), filename: "uebermittlung.pdf" } },
+      { ...eingabe("ABC123456789", { abweichungBestaetigt: true }), file: { bytes: pdf("EUER 2025"), filename: "uebermittlung.pdf" } },
       TODAY,
     );
     expect(row).toMatchObject({ form: "euer", year: 2025, filedOn: "2026-05-20", amount: 12_345, hasPdf: true });
@@ -74,7 +79,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
       code: 0,
       message: "Außerhalb von Haben abgegeben",
       transfer_ticket: "ABC123456789",
-      figures: { amount: 12_345 },
+      figures: { amount: 12_345, berechnet, abweichung: 12_345 - berechnet, abweichungBestaetigt: true },
       request_xml: "",
       response_xml: "",
       server_response_xml: "",
@@ -82,13 +87,13 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   it("lehnt einen zweiten Vermerk für dasselbe Formular und Jahr ab", async () => {
-    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("XYZ987654321"), TODAY)).rejects.toThrow(/schon vermerkt/);
     expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
   });
 
   it("verhindert einen zweiten Vermerk auch ohne Vorprüfung über den partiellen Unique-Index", async () => {
-    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(
       sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
         values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{"amount": 1}'::jsonb, '', '', '')`,
@@ -112,7 +117,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   it("lehnt ein schon verwendetes Transferticket ab", async () => {
-    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/Transferticket/);
     expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
   });
@@ -121,7 +126,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { filedOn: "2027-01-05" }), TODAY)).rejects.toThrow(/Zukunft/);
   });
 
-  it("meldet eine Abweichung zum gerechneten Betrag nur als Hinweis", async () => {
+  it("meldet eine Abweichung zum gerechneten Betrag als Hinweis", async () => {
     const pruefung = await jahresvermerk.vermerkPruefung("ust", 2025, 500);
     expect(pruefung.berechnet).toBe(0);
     expect(pruefung.abweichung).toBe(500);
@@ -153,5 +158,40 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY);
     // Ein Vermerk meldet das Jahr wie eine echte Übermittlung: danach ist keine rückdatierte Buchung mehr möglich
     expect(await periodReported(db, "2025-11-05")).toBe(true);
+  });
+
+  it("lehnt einen abweichenden Betrag ohne Bestätigung ab und nennt beide Beträge", async () => {
+    const berechnet = await gerechnet();
+    const amount = berechnet + 12_345;
+    const fehler = await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { amount }), TODAY).catch((error: unknown) => error);
+    expect(fehler).toBeInstanceOf(annual.AnnualError);
+    const meldung = (fehler as Error).message;
+    expect(meldung).toContain(formatEuro(amount));
+    expect(meldung).toContain(formatEuro(berechnet));
+    expect(meldung).toContain(formatEuro(12_345));
+    expect(meldung).toContain("bestätigen");
+
+    // Der Vermerk entsteht gar nicht erst
+    const [zeile] = await sql`select count(*)::int as anzahl from annual_submissions`;
+    expect(zeile).toMatchObject({ anzahl: 0 });
+  });
+
+  it("vermerkt einen abweichenden Betrag mit Bestätigung und hält die Abweichung fest", async () => {
+    const berechnet = await gerechnet();
+    const amount = berechnet + 12_345;
+    const row = await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { amount, abweichungBestaetigt: true }), TODAY);
+    expect(row).toMatchObject({ form: "euer", year: 2025, amount });
+
+    const [zeile] = await sql`select figures from annual_submissions`;
+    expect(zeile).toMatchObject({ figures: { amount, berechnet, abweichung: 12_345, abweichungBestaetigt: true } });
+  });
+
+  it("vermerkt ohne Abweichung ohne Bestätigung", async () => {
+    const berechnet = await gerechnet();
+    const row = await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { amount: berechnet }), TODAY);
+    expect(row).toMatchObject({ form: "euer", year: 2025, amount: berechnet });
+
+    const [zeile] = await sql`select figures from annual_submissions`;
+    expect(zeile).toMatchObject({ figures: { amount: berechnet } });
   });
 });
