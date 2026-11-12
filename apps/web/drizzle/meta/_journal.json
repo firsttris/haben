@@ -1457,6 +1457,20 @@
       "when": 1794478209986,
       "tag": "0207_ansprechpartner_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 208,
+      "version": "7",
+      "when": 1794489807562,
+      "tag": "0208_import_zahlungsbezug",
+      "breakpoints": true
+    },
+    {
+      "idx": 209,
+      "version": "7",
+      "when": 1794489822413,
+      "tag": "0209_import_zahlungsbezug_trigger",
+      "breakpoints": true
     }
   ]
 }

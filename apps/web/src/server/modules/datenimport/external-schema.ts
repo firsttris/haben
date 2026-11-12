@@ -118,15 +118,18 @@ export const externalJournalSchema = z.strictObject({
 });
 
 /** V2 verwendet den gemeinsamen Umzugsbestand. V1 wird nicht stillschweigend umgedeutet. */
-export const externalImportSchema = z.strictObject({
-  version: z.literal(2),
-  source: key,
-  kontenrahmen: z.enum(["SKR03", "SKR04"]),
-  entries: z
-    .array(z.discriminatedUnion("kind", [externalQuoteSchema, externalInvoiceSchema, externalJournalSchema]))
-    .min(1)
-    .max(10000),
-});
+export const externalImportSchema = z
+  .strictObject({
+    version: z.literal(2),
+    source: key,
+    kontenrahmen: z.enum(["SKR03", "SKR04"]),
+    entries: z.array(z.discriminatedUnion("kind", [externalQuoteSchema, externalInvoiceSchema, externalJournalSchema])).max(10000),
+    settlements: z
+      .array(z.strictObject({ paymentExternalId: key, originalExternalId: key }))
+      .max(10000)
+      .default([]),
+  })
+  .refine((p) => p.entries.length > 0 || p.settlements.length > 0, "Das Paket enthält keine Vorgänge oder Zahlungszuordnungen.");
 export type ExternalQuote = z.output<typeof externalQuoteSchema>;
 export type ExternalInvoice = z.output<typeof externalInvoiceSchema>;
 export type ExternalJournal = z.output<typeof externalJournalSchema>;

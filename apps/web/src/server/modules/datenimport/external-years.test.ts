@@ -3,6 +3,7 @@ import {
   documentPaymentPosting,
   documentPosting,
   invoicePaymentPosting,
+  invoiceCashPaymentPosting,
   invoicePosting,
   totalsFromTaxes,
   type Kontenrahmen,
@@ -10,6 +11,7 @@ import {
   type PostingLine,
 } from "@haben/core";
 import type postgres from "postgres";
+import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import type { ExternalImport } from "./external-schema.ts";
@@ -21,6 +23,7 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
   let reports: typeof import("../auswertungen/index.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
   let annual: typeof import("../jahreserklaerung/index.ts");
+  let archive: typeof import("../archiv/index.ts");
   let database: typeof import("../../db/index.ts");
   const totals = totalsFromTaxes([{ rate: 1900, base: 100000, tax: 19000 }]);
   const actor = "import-pruefung";
@@ -41,6 +44,7 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     reports = await import("../auswertungen/index.ts");
     vat = await import("../umsatzsteuer/index.ts");
     annual = await import("../jahreserklaerung/index.ts");
+    archive = await import("../archiv/index.ts");
     database = await import("../../db/index.ts");
   }, 30000);
   afterAll(async () => {
@@ -223,24 +227,69 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
 
   it("pflegt Zahlungsbezüge alter Importe idempotent nach, ohne Originale oder Kassenbewegungen neu zu buchen", async () => {
     await reset("SKR03", "ist");
-    await run([
-      entry("AR-alt", "2026-01-15", invoicePosting(totals, "SKR03", "ist")),
-      entry("zahlung-alt", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist")),
-    ], "SKR03");
+    await run(
+      [
+        entry("AR-alt", "2026-01-15", invoicePosting(totals, "SKR03", "ist")),
+        entry("zahlung-alt", "2026-02-15", invoiceCashPaymentPosting(totals, 119000, "SKR03", "ist")),
+      ],
+      "SKR03",
+    );
     const before = await sql`select id,payload_hash,payload from external_imports order by id`;
+    const cashBefore = await sql`select id,amount,journal_entry_id from cash_entries`;
     expect(income(await reports.euerForYear(2026))).toBe(0);
-    const patch = { version: 2 as const, source: "pruefung-634", kontenrahmen: "SKR03" as const, entries: [],
-      settlements: [{ paymentExternalId: "zahlung-alt", originalExternalId: "AR-alt" }] };
+    const patch = {
+      version: 2 as const,
+      source: "pruefung-634",
+      kontenrahmen: "SKR03" as const,
+      entries: [],
+      settlements: [{ paymentExternalId: "zahlung-alt", originalExternalId: "AR-alt" }],
+    };
     const apply = () => imports.runExternalImport(actor, patch, async () => new Uint8Array());
-    expect((await apply()).created).toBe(0);
-    expect((await apply()).created).toBe(0);
+    expect(await apply()).toMatchObject({ created: 0, settlements: { created: 1, duplicates: 0 } });
+    expect(await apply()).toMatchObject({ created: 0, settlements: { created: 0, duplicates: 1 } });
     expect(income(await reports.euerForYear(2026))).toBe(100000);
     expect(await sql`select id,payload_hash,payload from external_imports order by id`).toEqual(before);
     expect(await sql`select id from journal_entries`).toHaveLength(2);
+    expect(cashBefore).toHaveLength(1);
+    expect(await sql`select id,amount,journal_entry_id from cash_entries`).toEqual(cashBefore);
     expect(await sql`select id from external_import_settlements`).toHaveLength(1);
-    expect(await sql`select actor from audit_log where table_name='external_import_settlements'`).toEqual([{ actor }]);
+    const [stored] = await sql`select id from external_import_settlements`;
+    expect(await sql`select actor from audit_log where table_name='external_import_settlements' and row_id=${stored!.id}`).toEqual([{ actor }]);
     await expect(sql`update external_import_settlements set original_import_id=payment_import_id`).rejects.toThrow(/nur ergänzt/);
     await expect(sql`delete from external_import_settlements`).rejects.toThrow(/nur ergänzt/);
     await expect(sql`truncate external_import_settlements`).rejects.toThrow(/TRUNCATE/);
+    await expect(
+      imports.runExternalImport(
+        actor,
+        {
+          ...patch,
+          entries: [entry("AR-andere", "2026-01-16", invoicePosting(totals, "SKR03", "ist"))],
+          settlements: [{ paymentExternalId: "zahlung-alt", originalExternalId: "AR-andere" }],
+        },
+        async () => new Uint8Array(),
+      ),
+    ).rejects.toThrow(/bleibt unverändert/);
+    await expect(imports.runExternalImport(actor, { ...patch, source: "andere-Quelle" }, async () => new Uint8Array())).rejects.toThrow(/Quellbuchung fehlt/);
+    expect(await sql`select id from journal_entries`).toHaveLength(2);
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of archive.exportYear(2026)) chunks.push(chunk);
+    const files = unzipSync(Buffer.concat(chunks));
+    const exported = JSON.parse(new TextDecoder().decode(files["importe/zahlungszuordnungen.json"]));
+    expect(exported.settlements).toHaveLength(1);
+    expect(exported.settlements[0]).toMatchObject({
+      record: { id: stored!.id },
+      source: "pruefung-634",
+      externalId: "zahlung-alt",
+      originalExternalId: "AR-alt",
+    });
+  });
+
+  it("folgt beim Wechsel von Ist zu Soll dem Besteuerungsjahr der ursprünglichen importierten Rechnung", async () => {
+    await reset("SKR03", "ist");
+    await run([entry("AR-ist", "2025-12-15", invoicePosting(totals, "SKR03", "ist"))], "SKR03");
+    await sql`update company set versteuerung='soll'`;
+    await run([entry("zahlung-ist", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist"), "AR-ist")], "SKR03");
+    expect((await vat.computeVatFigures({ year: 2026, month: 2 })).kz81).toBe(100000);
+    expect(income(await reports.euerForYear(2026))).toBe(100000);
   });
 });

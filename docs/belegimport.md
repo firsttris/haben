@@ -61,7 +61,7 @@ Bereits im alten Programm abgegebene Voranmeldungen sind mit ihrem Protokoll üb
 
 Zahlungsbuchungen auf einen offenen Posten erhalten `settles`: die `externalId` der ursprünglichen Journalbuchung derselben Quelle, auch aus einer früheren Importdatei. Jede Zahlungsbuchung gleicht genau einen Posten aus; Sammelzahlungen und zusätzliche Aufwands-/Erlösbuchungen sind dafür aufzuteilen. Teilzahlungen und Rückzahlungen werden anteilig nach den ursprünglichen Konten gerechnet. Ein Zahlungseingang im Folgejahr wirkt erst dort, auch wenn die Rechnung vor dem Stichjahr liegt ([§ 11 EStG](https://www.gesetze-im-internet.de/estg/__11.html)).
 
-Ohne diesen Bezug bleiben Buchungen auf Forderungen und Verbindlichkeiten aus der EÜR heraus; reine Zahlungsbuchungen ohne Bezug nennt der Abgleich als ungeklärt. Weder der Bezahlt-Status eines Originals noch seine Zahlungsnotiz ersetzt die Zuordnung zur Journalbuchung. Bestehende Pakete bleiben lesbar und ihre Herkunftshashes unverändert; fehlende Bezüge in bereits übernommenen Zahlungsbuchungen müssen vor einer steuerlichen Abgabe gesondert geklärt werden. Die CLI ergänzt solche Bezüge nicht nachträglich und errät sie nicht aus Belegnummern.
+Ohne diesen Bezug bleiben Buchungen auf Forderungen und Verbindlichkeiten aus der EÜR heraus; reine Zahlungsbuchungen ohne Bezug nennt der Abgleich als ungeklärt. Weder der Bezahlt-Status eines Originals noch seine Zahlungsnotiz ersetzt die Zuordnung zur Journalbuchung. Bestehende Pakete bleiben lesbar und ihre Herkunftshashes unverändert. Fehlende Bezüge lassen sich nach Prüfung über `settlements` nachpflegen; die Zuordnungen werden separat mit Ersteller protokolliert und sind nur anhängbar. Die CLI verändert dabei keine Originalbuchung und errät keine Zuordnung aus Belegnummern. Das Jahresarchiv enthält die Bezüge unter `importe/zahlungszuordnungen.json`.
 
 Kassenbewegungen auf 1000 (SKR03) beziehungsweise 1600 (SKR04) werden im bestehenden Kassenbuch mit derselben Journalreferenz ergänzt. Der gesamte Tagesbestand wird geprüft; negative Bestände werden abgewiesen. Es entsteht keine zweite Journalbuchung oder zusätzliche Rechnungszahlung.
 
@@ -101,5 +101,15 @@ Beispiel einer Zahlung auf eine zuvor übernommene Journalbuchung `buchung-ar-42
     { "account": "1200", "debit": 100000, "credit": 0 },
     { "account": "1400", "debit": 0, "credit": 100000 }
   ]
+}
+```
+
+Für bereits importierte Buchungen bleibt `entries` leer. Zahlung und ursprüngliche OP-Buchung müssen schon unter derselben Quelle vorliegen. Die Anwendung erfolgt mit derselben Betreiber-CLI und `--anwenden`; Wiederholungen erzeugen weder neue Buchungen noch doppelte Zuordnungen. Ein bestätigter Bezug lässt sich nicht durch einen anderen ersetzen.
+
+```json
+{
+  "version": 2, "source": "Beispielprogramm", "kontenrahmen": "SKR03",
+  "entries": [],
+  "settlements": [{ "paymentExternalId": "zahlung-42", "originalExternalId": "buchung-ar-42" }]
 }
 ```

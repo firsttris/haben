@@ -96,7 +96,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `zugang` | `einladungen` (Einladungslink anlegen, auflisten, zurückziehen), `zugaenge` (Konten mit Rolle und letzter Anmeldung, sperren, entfernen), `aenderungen` (was sich seit dem letzten Besuch der Steuerberatung geändert hat); Rolle, Sitzung und das Einlösen der Einladung stehen in der Infrastruktur (`server/rollen.ts`, `server/anmeldung.ts`), weil Better Auth und die Middleware sie brauchen |
 | `api` | REST-API unter `/api/v1`: `routes` (Tabelle der Endpunkte mit Recht und Handler), `router` (Token, Recht, Rate, Body), `http` (Antworten und Fehlerformat), `contacts`, `invoices` und `documents` (dünne Handler über `stammdaten`, `rechnungen` und `belege`), `schemas` (Zod für Eingaben und Antworten), `openapi` (Beschreibung aus beidem); schreibt keine eigenen Tabellen |
 
-Die API-Umzüge und der lokale JSON-Eingang speichern Originalbelege gemeinsam über `archiv/legacy-store`. Die zusätzlichen Herkunftsnachweise des JSON-Eingangs liegen in `external_imports`; Buchungen und Kassenbewegungen bleiben bei ihren bestehenden Modulen. Der optionale Quellverweis `settles` einer Journalbuchung ordnet ihre Zahlung der ursprünglichen OP-Buchung derselben Quelle zu. `auswertungen/euer-import` lädt diese Bezüge; native und importierte Zahlungen verwenden dieselbe anteilige EÜR-Berechnung in `euer-journal-anteile`.
+Die API-Umzüge und der lokale JSON-Eingang speichern Originalbelege gemeinsam über `archiv/legacy-store`. Die zusätzlichen Herkunftsnachweise des JSON-Eingangs liegen in `external_imports`; Buchungen und Kassenbewegungen bleiben bei ihren bestehenden Modulen. Der optionale Quellverweis `settles` einer Journalbuchung und nachgepflegte `settlements` durchlaufen denselben Schreiber in `datenimport/external-settlement-store`. Er speichert geprüfte Bezüge in `external_import_settlements` nur anhängbar mit Audit-Log; vorhandene Originale und Herkunftshashes bleiben unverändert. Native und importierte Zahlungen verwenden dieselbe anteilige EÜR-Berechnung in `euer-journal-anteile`.
 
 Die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) läuft mit `bun run lint` in der CI und prüft jeden relativen Import, auch `export … from`, `import()` und Typen wie `import("…").T`. Sie löst den Pfad auf, statt nur den Text des Imports zu vergleichen; das kann Biome nicht, deshalb ist es ein eigenes Skript:
 
@@ -243,6 +243,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |
 | `external_imports` | Quellidentität und Inhaltshash eines lokalen Paketvorgangs mit genau einem Verweis auf Originalbeleg, Auftragsdokument oder Journalbuchung; keine eigene Zahlungs-/EÜR-Quelle | nur anhängen, Audit; vorhandene Herkunft nicht per TRUNCATE leerbar |
+| `external_import_settlements` | Bestätigter Bezug einer importierten Zahlungsbuchung zur ursprünglichen OP-Buchung derselben Quelle; ohne zusätzliche Journalbuchung | nur anhängen, Audit, TRUNCATE gesperrt |
 
 ### Protokoll und Anmeldung
 
