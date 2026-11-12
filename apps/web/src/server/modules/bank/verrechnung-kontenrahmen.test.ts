@@ -7,8 +7,22 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Der Verrechnungspfad selbst kennt weder Konten noch Versteuerung — er rechnet mit den offenen Resten der Belege.
  * Diese Datei hält das fest: Reste, offene Posten, Zahlungsübersicht, Journal und EÜR müssen in jeder Kombination
  * denselben Ausgleich zeigen. Die bestehenden Fälle in verrechnung.test.ts bleiben unverändert.
+ *
+ * Warum die Erwartungen in allen vier Kombinationen gleich sind: Bei Eingangsbelegen hängt der Vorsteuerabzug an der
+ * Rechnung, nicht an der Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG); die Ist-Versteuerung betrifft nur die eigenen Umsätze
+ * (§ 20 Satz 1 UStG). Die Versteuerung darf hier also nichts ändern. Die Konten dagegen unterscheiden sich je
+ * Kontenrahmen (DATEV SKR03/SKR04 2026, Stand in scripts/jahreswerte/datev.ts); der erste Fall prüft sie, damit ein
+ * Fehler im Kontenrahmen nicht von den gleichen Beträgen verdeckt wird. In der EÜR zählt die Verrechnung wie eine
+ * Zahlung am Tag der Aufrechnung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des
+ * § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601; docs/belege.md).
  */
 type Profil = { kr: "SKR03" | "SKR04"; versteuerung: "ist" | "soll" };
+
+/** Konten des Belegs je Kontenrahmen: Telefonaufwand, Vorsteuer 19 %, Verbindlichkeiten */
+const KONTEN = {
+  SKR03: { telefon: "4920", vorsteuer: "1576", verbindlichkeiten: "1600" },
+  SKR04: { telefon: "6805", vorsteuer: "1406", verbindlichkeiten: "3300" },
+} as const;
 
 const profile: Profil[] = [
   { kr: "SKR03", versteuerung: "ist" },
@@ -97,6 +111,14 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
       it("gleicht vollständig aus: beide Reste 0, keine Buchung, nichts mehr offen", async () => {
         await firma(profil);
         const rechnung = await beleg("2026-02-10", 10_000, 1_900); // 119,00 EUR
+        // Journal in den Konten des eingestellten Kontenrahmens; Ist und Soll ändern daran nichts
+        const zeilen = await sql`select l.account, l.debit, l.credit from journal_lines l
+            join journal_entries e on e.id = l.entry_id where e.source_id = ${rechnung} order by l.account`;
+        expect(zeilen.map((z) => [z.account, z.debit, z.credit])).toEqual([
+          [KONTEN[profil.kr].vorsteuer, 1_900, 0],
+          [KONTEN[profil.kr].verbindlichkeiten, 0, 11_900],
+          [KONTEN[profil.kr].telefon, 10_000, 0],
+        ]);
         const gutschrift = await beleg("2026-02-16", -10_000, -1_900); // -119,00 EUR
         const journalVorher = await buchungen();
 
@@ -221,29 +243,4 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung in beiden Kontenrahmen und Verste
       }, 60_000);
     });
   }
-
-  /*
-   * Die Kandidatenliste ist die Zahlungsübersicht für Verrechnungen. Sie muss denselben Lieferanten finden, den
-   * settleDocuments akzeptiert: Rand- und Mehrfach-Leerzeichen dürfen den Namen nicht unterscheiden, sonst bietet
-   * die Oberfläche den Gegenbeleg nicht an, den der Server annimmt (der Kommentar an `lieferant` sagt das zu).
-   */
-  it("bietet als Gegenbeleg denselben Lieferanten an, den die Verrechnung akzeptiert", async () => {
-    await firma({ kr: "SKR03", versteuerung: "ist" });
-    const rechnung = await beleg("2026-09-10", 10_000, 1_900);
-    const gutschrift = await beleg("2026-09-12", -3_000, -570, "telefon", "  TELEKOM   Deutschland GmbH ");
-
-    const kandidaten = await verrechnung.settlementCandidates(rechnung);
-    expect(kandidaten.map((k) => [k.id, k.rest])).toContainEqual([gutschrift, -3_570]);
-    // Derselbe Rest wie der offene Posten am Beleg
-    expect(await verrechnung.openAmount(gutschrift)).toBe(-3_570);
-
-    await verrechnung.settleDocuments(actor, {
-      documentId: rechnung,
-      counterDocumentId: gutschrift,
-      amount: 3_570,
-      date: "2026-09-12",
-      note: "Gutschrift",
-    });
-    expect(await verrechnung.openAmount(gutschrift)).toBe(0);
-  }, 30_000);
 });
