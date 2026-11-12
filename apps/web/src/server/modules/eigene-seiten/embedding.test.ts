@@ -67,4 +67,16 @@ describe("checkEmbedding", () => {
     }) as unknown as typeof fetch;
     expect(await checkEmbedding("https://paperless.example.de/", HABEN, fake)).toEqual({ status: "unknown", reason: "unreachable" });
   });
+
+  // CSP Level 3, 6.7.2.8 Schritt 4.2: Eine Quelle ohne Schema passt nur, wenn das Schema der Seite zu dem von Haben passt
+  it("eine Quelle ohne Schema auf einer https-Seite passt nicht auf Haben unter http", async () => {
+    const fake = (async () => new Response("", { headers: { "Content-Security-Policy": "frame-ancestors haben.local:3000" } })) as unknown as typeof fetch;
+    expect(await checkEmbedding("https://paperless.example.de/", "http://haben.local:3000", fake)).toEqual({
+      status: "blocked",
+      header: "Content-Security-Policy: frame-ancestors",
+    });
+    // Umgekehrt (http-Seite, Haben unter https) passt sie: http passt auf https
+    const fakeHttp = (async () => new Response("", { headers: { "Content-Security-Policy": "frame-ancestors haben.example.de" } })) as unknown as typeof fetch;
+    expect(await checkEmbedding("http://192.168.1.20:5678/", HABEN, fakeHttp)).toEqual({ status: "allowed" });
+  });
 });
