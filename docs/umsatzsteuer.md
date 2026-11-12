@@ -221,9 +221,9 @@ In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nich
 
 ### Vorsteuer (Kz 66)
 
-Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung. Ob und wann ein Beleg bezahlt wurde, spielt keine Rolle.
+Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung.
 
-Zwei Vorgänge verschieben die Minderung: Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift** (Beleg mit negativen Beträgen) erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Ausbuchung anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 UStG, UStAE 17.1 Abs. 2 Satz 3 und Abs. 7; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum.
+Zwei Vorgänge verschieben die Minderung: Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift** (Beleg mit negativen Beträgen) erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Ausbuchung (erhaltenes Skonto, Kursdifferenz) anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum; bar oder privat bezahlt ist sie mit der Buchung ausgeglichen und zählt im Belegmonat.
 
 ### § 13b als Leistungsempfänger
 
