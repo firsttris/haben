@@ -110,6 +110,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2022, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/ab 2023/);
   });
 
+  it("liest einen Betrag über 21.474.836,47 € ohne Überlauf zurück", async () => {
+    // Die Eingabe erlaubt bis 1 Mrd. €; als int gelesen, ließe so ein Vermerk den Jahresüberblick dauerhaft scheitern
+    const gross = 3_000_000_000;
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { amount: gross, abweichungBestaetigt: true }), TODAY);
+    expect((await annual.annualOverview(2025, TODAY)).euer.submitted).toMatchObject({ amount: gross });
+    expect((await jahresvermerk.jahresvermerke(2025))[0]).toMatchObject({ amount: gross });
+  });
+
   it("lehnt ein abgeschlossenes Jahr ab", async () => {
     await sql`insert into year_closings (year) values (2025)`;
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/abgeschlossen/);
