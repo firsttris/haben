@@ -362,7 +362,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung und kommen als Anhang, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
+- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung. Wer in [`firsttris/haben-bilder`](https://github.com/firsttris/haben-bilder) schreiben darf (Maintainer, Collaborators), legt sie dort ab, je Pull Request ein Ordner `pr-<n>/`; alle anderen hängen sie als Anhang an, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
 
 ### Etwas übernehmen
 
