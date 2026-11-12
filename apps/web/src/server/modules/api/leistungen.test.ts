@@ -68,6 +68,25 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
     expect((await call(t, "DELETE", `/leistungen/${created.json!.id}`)).status).toBe(404);
   });
 
+  it("Location nach dem Anlegen führt zum Eintrag", async () => {
+    const t = await token(["leistungen:schreiben"]);
+    const response = await api.handleApiRequest(
+      new Request("http://localhost:3000/api/v1/leistungen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+        body: JSON.stringify(eintrag()),
+      }),
+    );
+    expect(response.status).toBe(201);
+    const location = response.headers.get("Location")!;
+    const { id } = (await response.json()) as { id: string };
+    const read = await call(t, "GET", location.replace("/api/v1", ""));
+    expect(read.status).toBe(200);
+    expect(read.json).toMatchObject({ id, minutes: 90, hourlyRateCents: 9500 });
+    expect((await call(await token(["leistungen:lesen"]), "GET", location.replace("/api/v1", ""))).status).toBe(200);
+    expect((await call(t, "GET", "/leistungen/00000000-0000-4000-8000-000000000000")).status).toBe(404);
+  });
+
   it("nicht abrechenbar, abrechenbare Dauer und Projekt gehen hin und kommen zurück", async () => {
     const t = await token(["leistungen:schreiben"]);
     const plain = await call(t, "POST", "/leistungen", eintrag());
