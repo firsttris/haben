@@ -201,6 +201,52 @@ describe("indexXml", () => {
   });
 });
 
+describe("Befunde des Reviews (#546)", () => {
+  it("beschreibt keine fremden Originale, die zufällig auf .csv enden (DATEV-Stapel, Lexoffice-Belege, Anhänge, Belege), nur Haben-eigene CSVs", async () => {
+    const fremd = new TextEncoder().encode('"EXTF";700;21;"Buchungsstapel";13;20260101\r\nUmsatz;SH;Konto\r\n');
+    const out = await sammle([
+      { path: "lexoffice/originale/datev/EXTF_x.csv", content: fremd, compress: true },
+      { path: "lexoffice/belege/2026-01-01_x_ab12cd34.csv", content: fremd, compress: true },
+      { path: "rechnungen/anhaenge/Nummer_daten.csv", content: fremd, compress: true },
+      { path: "belege/2026-09-29_Lieferant_ab12cd34.csv", content: fremd, compress: true },
+      datei("lexoffice/belege.csv", ["Datum", "Art"]),
+      datei("belege/belege.csv", ["Datum", "Netto"]),
+      datei("belege/verrechnungen.csv", ["Datum"]),
+      datei("rechnungen/anhaenge.csv", ["Rechnung"]),
+    ]);
+    const urls = [...decode(out.at(-1)!).matchAll(/<URL>([^<]+)<\/URL>/g)].map((m) => m[1]);
+    expect(urls).toEqual(["belege/belege.csv", "belege/verrechnungen.csv", "lexoffice/belege.csv", "rechnungen/anhaenge.csv"]);
+  });
+
+  it("lässt in Firmenname, Ort, Pfaden und Spaltennamen alle Zeichen weg, die XML 1.0 nicht kennt (Steuerzeichen, einzelne Surrogate)", () => {
+    const xml = indexXml({
+      name: "Fir\u0001ma\u000B",
+      ort: "O\u001Frt\uD800",
+      jahr: 2026,
+      version: "1",
+      tabellen: [{ path: "a\u0002.csv", spalten: ["Sp\u0003alte\uDC00"] }],
+    });
+    // nach Codepunkten: ein Paar z\u00E4hlt als eins, ein einzelnes Surrogat bliebe als U+D800 bis U+DFFF stehen
+    const ungueltig = Array.from(xml, (c) => c.codePointAt(0)!).filter(
+      (c) => (c < 0x20 && c !== 9 && c !== 10 && c !== 13) || (c >= 0xd800 && c <= 0xdfff) || c === 0xfffe || c === 0xffff,
+    );
+    expect(ungueltig).toEqual([]);
+    expect(xml).toContain("<Name>Firma</Name>");
+    expect(xml).toContain("<Name>Spalte</Name>");
+    // ein gültiges Paar (Emoji) und Tab, Zeilenumbruch bleiben
+    expect(indexXml({ name: "A\u{1F600}B", ort: "x", jahr: 2026, version: "1", tabellen: [] })).toContain("A\u{1F600}B");
+  });
+
+  it("wartet beim Strom auf den Zeilenumbruch außerhalb von Anführungszeichen: eine Überschrift mit Umbruch in Anführungszeichen, in kleinen Stücken", async () => {
+    const bytes = new TextEncoder().encode('\uFEFF"A\nB";C\r\n1;2\r\n');
+    async function* stuecke() {
+      for (let i = 0; i < bytes.length; i += 4) yield bytes.slice(i, i + 4);
+    }
+    const out = await sammle([{ path: "protokoll/audit.csv", content: stuecke(), compress: true }]);
+    expect([...decode(out[1]!).matchAll(/<VariableColumn>/g)]).toHaveLength(2);
+  });
+});
+
 describe("mitIndexXml", () => {
   it("reicht alle Dateien unverändert durch und hängt index.xml mit allen CSVs hinten an", async () => {
     const files = [

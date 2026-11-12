@@ -73,6 +73,16 @@ export function csvKopfzeile(bytes: Uint8Array): string[] {
   return felder;
 }
 
+/** Ob die Bytes schon einen Zeilenumbruch außerhalb von Anführungszeichen enthalten */
+function endeDerKopfzeile(bytes: Uint8Array): boolean {
+  let inAnfuehrung = false;
+  for (const b of bytes) {
+    if (b === 0x22) inAnfuehrung = !inAnfuehrung;
+    else if (b === 0x0a && !inAnfuehrung) return true;
+  }
+  return false;
+}
+
 /** Reicht einen CSV-Strom unverändert durch und meldet die Überschriften, sobald die erste Zeile vollständig gelesen ist */
 async function* mitKopfzeile(quelle: AsyncIterable<Uint8Array>, gefunden: (spalten: string[]) => void): AsyncGenerator<Uint8Array> {
   let kopf = new Uint8Array(0);
@@ -83,8 +93,8 @@ async function* mitKopfzeile(quelle: AsyncIterable<Uint8Array>, gefunden: (spalt
       neu.set(kopf);
       neu.set(chunk, kopf.length);
       kopf = neu;
-      // Ende der ersten Zeile; in Anführungszeichen stehen in den Überschriften keine Zeilenumbrüche
-      if (kopf.includes(0x0a)) {
+      // Ende der ersten Zeile: ein Zeilenumbruch außerhalb von Anführungszeichen (RFC 4180)
+      if (endeDerKopfzeile(kopf)) {
         gefunden(csvKopfzeile(kopf));
         fertig = true;
       }
@@ -107,7 +117,11 @@ export interface IndexInfo {
   version: string;
 }
 
-const xmlText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+/** Zeichen, die XML 1.0 nicht kennt: Steuerzeichen außer Tab, Zeilenumbruch und Wagenrücklauf, U+FFFE, U+FFFF und einzelne Surrogate */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: gerade die Steuerzeichen sollen weg
+const UNGUELTIG = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+const xmlText = (text: string) => text.replace(UNGUELTIG, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function spalte(path: string, name: string): string {
   const typ = spaltenTyp(path, name);
@@ -166,11 +180,20 @@ export function indexXml(info: IndexInfo & { tabellen: Tabelle[] }): string {
   );
 }
 
+/**
+ * Dateien im Archiv, die Haben nicht selbst als CSV erzeugt, auch wenn ihr Name auf .csv endet: unveränderte Originale (der
+ * DATEV-Stapel und andere Exporte des Altbestands, Belege und Anhänge, die jemand hochgeladen hat). Sie haben ein fremdes
+ * Format, die index.xml beschreibt sie nicht.
+ */
+const ORIGINALE = [/^lexoffice\/(originale|belege)\//, /\/anhaenge\//, /^belege\/(?!belege\.csv$|verrechnungen\.csv$)/];
+
+const istEigeneCsv = (path: string) => path.endsWith(".csv") && !ORIGINALE.some((muster) => muster.test(path));
+
 /** Reicht die Dateien des Archivs unverändert durch und hängt die index.xml aller CSVs hinten an (vor den Prüfsummen) */
 export async function* mitIndexXml(files: AsyncIterable<ArchiveFile>, info: IndexInfo): AsyncGenerator<ArchiveFile> {
   const tabellen: Tabelle[] = [];
   for await (const file of files) {
-    if (!file.path.endsWith(".csv")) {
+    if (!istEigeneCsv(file.path)) {
       yield file;
     } else if (file.content instanceof Uint8Array) {
       tabellen.push({ path: file.path, spalten: csvKopfzeile(file.content) });
