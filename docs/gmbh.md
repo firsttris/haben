@@ -7,7 +7,7 @@ description: >-
 
 # GmbH und UG
 
-Haben führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter Buchführung und Bilanz: vom ersten Beleg bis zur E-Bilanz, Körperschaft- und Gewerbesteuererklärung und Gewinnausschüttung. Diese Seite zeigt den Ablauf eines Jahres; die Details stehen in den verlinkten Kapiteln.
+Haben führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter Buchführung und Bilanz: vom ersten Beleg bis zur E-Bilanz, Körperschaft- und Gewerbesteuererklärung und Gewinnausschüttung.
 
 Gedacht ist das für eine kleine GmbH, etwa die eines Freiberuflers mit einem oder wenigen Gesellschaftern, ohne Beteiligungen an anderen Gesellschaften und ohne Organschaft. Bilanz und GuV sind ein Entwurf; lasst Abschluss und Erklärungen von der Steuerberatung ansehen, bevor ihr echt sendet.
 

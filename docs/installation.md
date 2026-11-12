@@ -7,7 +7,7 @@ description: >-
 
 # Betrieb und Installation
 
-Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: mit Docker Compose (am einfachsten) oder mit Podman Quadlets unter systemd, dazu Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
+Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
 
 ## Überblick
 
@@ -535,7 +535,7 @@ Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), sch�
 
 ### Test-Restore
 
-Ein Backup, das sich im Ernstfall nicht einspielen lässt, merkt man sonst erst im Ernstfall. Deshalb folgt auf ein erfolgreiches Backup alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
+Auf ein erfolgreiches Backup folgt alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
 
 1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
 2. der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank `haben_restore_check_…` eingespielt (eigener Name je Lauf),
@@ -643,7 +643,7 @@ podman pull docker.io/tristanteu/haben-backup:latest
 
 ### PostgreSQL-Update
 
-Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein ganz normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
+Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
 
 ```text
 haben-db: Aktualisiere die Datenbank von PostgreSQL 16 (/var/lib/postgresql/data) auf 18 (/var/lib/postgresql/data/18/docker) …
@@ -693,7 +693,7 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 
 Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
-ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
+ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann die neue Versionsnummer eintragen und erneut laden.
 
 Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [Erste Schritte](einrichtung.md#elster-einrichten), dort auch, wer bei Haben als Hersteller gilt.
 
@@ -706,8 +706,6 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
 ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne ERiC nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
-
-Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
 ### ELSTER auf arm64
 
@@ -809,7 +807,7 @@ docker compose exec app bun -e 'fetch(process.env.EXTRACTION_BASE_URL + "/models
 
 ### Beispiel: Ollama als eigener Container
 
-Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Das ist nur ein Beispiel; Haben braucht diesen Container nicht.
+Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Haben braucht diesen Container nicht.
 
 ```yaml
 services:

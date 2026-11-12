@@ -42,7 +42,7 @@ Die Vorschläge folgen der amtlichen AfA-Tabelle. Du kannst Abschreibung und Nut
 
 GWG und Sammelposten prüft Haben gegen die Grenzen. Maßgeblich ist der Nettobetrag, auch bei Kleinunternehmern, deren Anschaffungskosten die Vorsteuer enthalten.
 
-Kleine Anschaffungen bis 800 € netto kannst du weiter einfach mit der Kategorie **Hardware (GWG bis 800 € netto)** als Ausgabe buchen, ohne Eintrag im Anlagenverzeichnis.
+Kleine Anschaffungen bis 800 € netto kannst du weiter mit der Kategorie **Hardware (GWG bis 800 € netto)** als Ausgabe buchen, ohne Eintrag im Anlagenverzeichnis.
 
 ## Degressive AfA
 

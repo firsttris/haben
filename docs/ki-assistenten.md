@@ -98,7 +98,7 @@ Die `lexoffice_`-Werkzeuge helfen beim [Umzug aus Lexoffice](lexoffice.md). Was 
 
 Den Abruf selbst und das Hochladen der Exporte machst du in Haben. PDFs im Archiv kann der Assistent nicht lesen.
 
-Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Einträge begrenzt (bis 200 auf Wunsch), damit der Assistent nicht mit Tausenden Zeilen arbeiten muss.
+Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Einträge begrenzt (bis 200 auf Wunsch).
 
 ## Protokoll und Grenzen
 

@@ -19,7 +19,7 @@ Ist Enable Banking eingerichtet (unter **Einstellungen › Bank**, siehe [Instal
 2. **Weiter zur Bank** führt zur Anmeldeseite deiner Bank. Dort meldest du dich an, bestätigst mit TAN und wählst die Konten aus.
 3. Die Bank leitet zurück zu Haben. Haben ordnet die freigegebenen Konten über die IBAN zu, legt fehlende an und holt sofort die ersten Umsätze. Neue Konten heißen nach Bank, Kontoname der Bank und den letzten vier Ziffern der IBAN, z. B. „Finom Geschäftskonto …7890“; die Meldung nach der Rückkehr nennt sie. Name und Zweck legst du danach mit **Name und Zweck** fest (siehe [Konto](#konto)).
 
-Danach ruft Haben jede Verbindung einmal täglich ab, im Hintergrund und ohne dass du angemeldet sein musst. **Jetzt abrufen** holt die Umsätze sofort. Die Konten erscheinen wie gewohnt als Reiter, mit „Abruf“ statt „CSV“ und dem Kontostand der Bank.
+Danach ruft Haben jede Verbindung einmal täglich ab, im Hintergrund und ohne dass du angemeldet sein musst. **Jetzt abrufen** holt die Umsätze sofort. Die Konten erscheinen als Reiter, mit „Abruf“ statt „CSV“ und dem Kontostand der Bank.
 
 ### Zustimmung
 
@@ -281,7 +281,7 @@ Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du a
 
 ### Skonto auf eigene Rechnungen
 
-Steht auf deiner Rechnung [Skonto](rechnungen.md#skonto), rechnet Haben für jede Stufe den Zahlbetrag aus. Geht bis zum letzten Tag einer Frist (Buchungsdatum des Umsatzes) genau dieser Betrag ein – endet die Frist an einem Samstag, Sonntag oder Feiertag, auch noch am nächsten Werktag (§ 193 BGB, Feiertage des Bundeslands aus den Firmendaten wie beim Zahlungsziel) –, schlägt Haben die Rechnung vor wie bei einem exakten Betrag, mit der Begründung „Betrag stimmt mit 2 % Skonto (95,20 €), in der Frist“. Der Knopf heißt dann **Zuordnen, Rest 95,20 € als Skonto**: Ein Klick (oder Enter) ordnet die Zahlung zu und bucht den Rest als gewährtes Skonto aus, wie oben beschrieben. Die Rechnung ist danach „Bezahlt“.
+Steht auf deiner Rechnung [Skonto](rechnungen.md#skonto), rechnet Haben für jede Stufe den Zahlbetrag aus. Geht bis zum letzten Tag einer Frist (Buchungsdatum des Umsatzes) genau dieser Betrag ein – endet die Frist an einem Samstag, Sonntag oder Feiertag, auch noch am nächsten Werktag (§ 193 BGB, Feiertage des Bundeslands aus den Firmendaten wie beim Zahlungsziel) –, schlägt Haben die Rechnung vor wie bei einem exakten Betrag, mit der Begründung „Betrag stimmt mit 2 % Skonto (95,20 €), in der Frist“. Der Knopf heißt dann **Zuordnen, Rest 95,20 € als Skonto**: Ein Klick (oder Enter) ordnet die Zahlung zu und bucht den Rest als gewährtes Skonto aus. Die Rechnung ist danach „Bezahlt“.
 
 Das gilt nur, solange die Rechnung noch ganz offen ist, und nur für Rechnungen in Euro. Kommt die Zahlung nach der Frist oder mit einem anderen Betrag, ist sie ein Teilbetrag; willst du das Skonto trotzdem gewähren, nimmst du **Rest … als Skonto** von Hand.
 
@@ -310,7 +310,7 @@ Gibt es keinen passenden offenen Posten, schlägt Haben anhand der Kontozwecke e
 - **Gegenkonto ist ein eigenes Konto** (Gegen-IBAN gehört zu einem deiner Konten): Geldtransit; ist eines der beiden ein Privatkonto, Privat.
 - **Steuerkonto, Gegenpartei ist das Finanzamt** (Finanzamt, Finanzkasse, Landeshauptkasse, Bundeskasse und ähnliche) **und der Verwendungszweck nennt die Umsatzsteuer** („USt“, „Umsatzsteuer“, „Voranmeldung“): Umsatzsteuer an das Finanzamt; nennt er die Sondervorauszahlung („Sondervorauszahlung“, „SVZ“, „1/11“), stattdessen Sondervorauszahlung (Dauerfristverlängerung). Nennt er eine andere Steuer (Einkommensteuer, Kirchensteuer, Gewerbesteuer, Kfz-Steuer …) oder gar keine, gibt es keinen Vorschlag: Auf dem Steuerkonto liegt oft auch die Rücklage für die private Einkommensteuer. Auf anderen Konten schlägt Haben die Umsatzsteuer nie vor.
 
-Bei einem Geldtransit sucht Haben auf dem anderen Konto die Gegenbuchung: gleicher Betrag mit umgekehrtem Vorzeichen, höchstens fünf Tage auseinander, noch ganz offen, und als Gegenkonto das Ausgangskonto (fehlt die Gegen-IBAN, nimmt Haben sie nur, wenn es keine mit passender IBAN gibt). Eine fremde Zahlung über denselben Betrag, etwa eine Erstattung des Finanzamts, ist nie die Gegenbuchung. Gibt es sie, bucht **Beide Seiten als Geldtransit buchen** beide Umsätze in einem Schritt über das Geldtransitkonto (1360 bzw. 1460), wo sie sich aufheben. Das monatliche Zurücklegen der Umsatzsteuer erzeugt so nur noch einen Klick statt zwei Zuordnungen.
+Bei einem Geldtransit sucht Haben auf dem anderen Konto die Gegenbuchung: gleicher Betrag mit umgekehrtem Vorzeichen, höchstens fünf Tage auseinander, noch ganz offen, und als Gegenkonto das Ausgangskonto (fehlt die Gegen-IBAN, nimmt Haben sie nur, wenn es keine mit passender IBAN gibt). Eine fremde Zahlung über denselben Betrag, etwa eine Erstattung des Finanzamts, ist nie die Gegenbuchung. Gibt es sie, bucht **Beide Seiten als Geldtransit buchen** beide Umsätze in einem Schritt über das Geldtransitkonto (1360 bzw. 1460), wo sie sich aufheben.
 
 ### Aus früheren Zuordnungen gelernt
 
@@ -611,7 +611,7 @@ Was dabei passiert:
 - **Die Umsätze bleiben, wie sie sind.** Haben legt eine eigene Zeile mit beiden Umsätzen, der Notiz und der Person an, die nur ergänzt werden kann. Sie steht im [Änderungsprotokoll](buchhaltung.md#änderungsprotokoll) und im [Jahresexport](auswertungen.md#jahresexport) unter `bank/verrechnungen.csv`; in `umsaetze.csv` sind beide als verrechnet und nicht offen markiert.
 - **Nur, was sich genau aufhebt:** zwei verschiedene Umsätze auf demselben Konto, zusammen genau 0,00 €, beide ohne Zuordnung. Ist einer schon (auch teilweise) zugeordnet, hebst du erst die Zuordnung auf. Ein Umsatz steckt höchstens in einer gültigen Verrechnung, und ein verrechneter Umsatz lässt sich nicht zusätzlich zuordnen. Ein Datenbank-Trigger prüft das ein zweites Mal.
 
-**Aufheben:** Neben der Verrechnung steht **Aufheben**. Nach der Rückfrage legt Haben eine Gegenzeile an; gebucht wird auch dabei nichts. Beide Umsätze sind danach wieder offen, die aufgehobene Verrechnung bleibt durchgestrichen sichtbar. Danach kannst du sie neu verrechnen oder zuordnen.
+**Aufheben:** Neben der Verrechnung steht **Aufheben**. Nach der Rückfrage legt Haben eine Gegenzeile an; gebucht wird auch dabei nichts. Beide Umsätze sind danach wieder offen, die aufgehobene Verrechnung bleibt durchgestrichen sichtbar.
 
 Einen einzelnen Umsatz ohne Gegenstück verrechnet Haben nicht: Was Geld bewegt, wird zugeordnet oder [direkt gebucht](#direkt-buchen). Umsätze zwischen zwei eigenen Konten sind [Geldtransit](#vorschläge-ohne-rechnung-und-geldtransit).
 

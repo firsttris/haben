@@ -11,8 +11,6 @@ Deine Steuerberatung kann mit einem eigenen Zugang direkt in Haben nachsehen, st
 
 ## Rollen
 
-Haben kennt zwei Rollen:
-
 | Rolle | Wer | Was |
 | --- | --- | --- |
 | **Inhaber** | Das Konto aus der [Einrichtung](einrichtung.md#konto-anlegen), genau eines; im SSO-Modus jedes Mitglied der Inhaber-Gruppe | Alles |

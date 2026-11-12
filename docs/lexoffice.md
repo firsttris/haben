@@ -65,7 +65,7 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Ohne Tarif XL gibt es keinen API-Schlüssel. Dieselben Daten holst du dann über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+Dieselben Daten holst du über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
 
 ### Sicherung aus der Web-Oberfläche
 
@@ -222,7 +222,7 @@ Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben
 | Rechnung, Soll-Versteuerung | Forderung an Saldenvortrag | Schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 | Eingangsbeleg | Saldenvortrag an Verbindlichkeiten | Vorsteuer schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 
-So wird keine Steuer doppelt angemeldet. In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
+In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
 
 Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren Tag ab als dem ersten Tag in Haben, lädst du den Kontoauszug für die Tage davor als Datei hoch (siehe [Bank](bank.md)).
 
