@@ -195,4 +195,65 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     expect((await figures.computeVatFigures(februar)).kz66).toBe(-7_018);
     expect((await figures.computeVatFigures(maerz)).kz66).toBe(0);
   }, 60_000);
+
+  it("Aus einem Umzug übernommener Beleg: die Steuer ist anderswo angemeldet, Haben mindert nichts", async () => {
+    // Beleg aus dem Vorgängerprogramm: dort schon angemeldet, Haben darf ihn nicht noch einmal mindern.
+    // Die Kennung setzt der Umzug vor dem Buchen; danach sperrt der GoBD-Trigger die Zeile.
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ++lauf, 16, 74, 70]);
+    const { id: umzug } = await documents.uploadDocument(actor, { bytes, filename: `umzug-${lauf}.jpg` });
+    await documents.updateDocument(actor, umzug, {
+      supplierName: "Musterlieferant GmbH",
+      supplierUstId: "",
+      invoiceNumber: `GUT-${lauf}`,
+      documentDate: "2026-02-16",
+      dueDate: null,
+      category: "telefon",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: -36_938, tax: -7_018 }],
+    });
+    // Der Umzug legt Import und Voucher an; documents.lexoffice_voucher_id zeigt per Fremdschlüssel darauf.
+    await sql`insert into lexoffice_imports (id, progress) values (${"22222222-2222-4222-8222-222222222222"}, ${"{}"}::jsonb)
+      on conflict (id) do nothing`;
+    await sql`insert into lexoffice_vouchers (id, lexoffice_id, import_id, type, direction, date, status, net, tax, gross, taxes, categories, raw)
+      values (${"11111111-1111-4111-8111-111111111111"}, ${"umzug-2026-001"}, ${"22222222-2222-4222-8222-222222222222"},
+              ${"invoice"}, ${"expense"}, ${"2026-02-16"}, ${"open"}, ${-36_938}, ${-7_018}, ${-43_956},
+              ${"[]"}::jsonb, ${"[]"}::jsonb, ${"{}"}::jsonb)
+      on conflict (id) do nothing`;
+    await sql`update documents set lexoffice_voucher_id = ${"11111111-1111-4111-8111-111111111111"} where id = ${umzug}`;
+    await documents.bookDocument(actor, umzug);
+    await zahle("15.03.26", "Erstattung Umzug", 43_956, umzug);
+
+    // Ohne die Zeile isNull(lexofficeVoucherId) in gutschrift.ts stünde hier -7_018 für eine Steuer,
+    // die in Haben nie angemeldet wurde.
+    expect((await figures.computeVatFigures(maerz)).kz66).toBe(0);
+  }, 60_000);
+
+  it("Drei Raten auf eine Gutschrift: die Anteile ergeben zusammen genau die Vorsteuer", async () => {
+    // 119,00 € brutto, 19,00 € Vorsteuer, in drei Raten zu 39,67 / 39,67 / 39,66 €.
+    // Einzeln gerundet wären es 6,33 + 6,33 + 6,33 = 18,99 €; die Fortschreibung muss auf 19,00 € kommen.
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -10_000, tax: -1_900 }]);
+    await zahle("15.03.26", "Rate 1", 3_967, gutschrift);
+    await zahle("15.04.26", "Rate 2", 3_967, gutschrift);
+    await zahle("15.05.26", "Rate 3", 3_966, gutschrift);
+
+    const summe =
+      (await figures.computeVatFigures(maerz)).kz66 +
+      (await figures.computeVatFigures({ year: 2026, month: 4 })).kz66 +
+      (await figures.computeVatFigures({ year: 2026, month: 5 })).kz66;
+    expect(summe).toBe(-1_900);
+    // Keine Rate ohne Wirkung, keine doppelt
+    for (const monat of [3, 4, 5]) expect((await figures.computeVatFigures({ year: 2026, month: monat })).kz66).not.toBe(0);
+  }, 60_000);
+
+  it("SKR04 mit Soll-Versteuerung: dieselbe Verteilung wie SKR03 mit Ist", async () => {
+    // Wechsel vor der ersten Buchung des Jahres, sonst sperrt company_settings_lock die Umstellung
+    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'soll'`;
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }]);
+    await zahle("15.03.26", "Erstattung Stadtwerke", 43_956, gutschrift);
+
+    // Die Vorsteuer einer Gutschrift hängt am Ausgleich, nicht an der Versteuerungsart: die betrifft nur eigene Umsätze
+    expect((await figures.computeVatFigures(februar)).kz66).toBe(0);
+    expect((await figures.computeVatFigures(maerz)).kz66).toBe(-7_018);
+  }, 60_000);
 });
