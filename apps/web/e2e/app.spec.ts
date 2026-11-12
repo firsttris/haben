@@ -515,6 +515,20 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const body = new TextDecoder("latin1").decode(await response.body());
   expect(body.startsWith('"EXTF";700;21;"Buchungsstapel";13;')).toBe(true);
   expect(body).toContain(";29098;55003;");
+  // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
+  expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
+
+  // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
+  const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
+  await page.route("**/api/datev/*", async (route) => {
+    const original = await route.fetch();
+    await route.fulfill({ response: original, headers: { ...original.headers(), "x-haben-hinweis": encodeURIComponent(hinweis) } });
+  });
+  const download = page.waitForEvent("download");
+  await link.click();
+  expect((await download).suggestedFilename()).toMatch(/^EXTF_Buchungsstapel_\d{4}\.csv$/);
+  await expect(card.getByRole("status")).toHaveText(hinweis);
+  await page.unroute("**/api/datev/*");
 });
 
 /** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF, eine offene Ausgabe und eine Privateinlage ohne Beleg */

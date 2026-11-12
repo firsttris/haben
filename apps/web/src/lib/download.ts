@@ -19,11 +19,16 @@ export function filenameFrom(disposition: string | null, fallback: string): stri
   return encoded ? decodeURIComponent(encoded) : fallback;
 }
 
-/** Datei einer API-Route laden und speichern; bei einem Fehler wirft sie dessen Text */
-export async function downloadFrom(url: string, fallback: string) {
+/** Hinweis einer API-Route zur gelieferten Datei, URI-kodiert, weil ein Header nur ASCII trägt */
+export const HINWEIS_HEADER = "X-Haben-Hinweis";
+
+/** Datei einer API-Route laden und speichern; bei einem Fehler wirft sie dessen Text. Liefert den Hinweis zur Datei oder "" */
+export async function downloadFrom(url: string, fallback: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) throw new Error((await response.text()) || "Die Datei ließ sich nicht laden.");
   saveBlob(await response.blob(), filenameFrom(response.headers.get("Content-Disposition"), fallback));
+  const hinweis = response.headers.get(HINWEIS_HEADER);
+  return hinweis ? decodeURIComponent(hinweis) : "";
 }
 
 /** Datei, die eine Server Function Base64-kodiert liefert, speichern */

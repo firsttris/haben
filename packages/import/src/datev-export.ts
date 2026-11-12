@@ -178,8 +178,43 @@ export const DATEV_COLUMNS = [
 const text = (value: string) => `"${value.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
 const compact = (iso: string) => iso.replace(/-/g, "");
 const amount = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
-/** Belegfeld 1 erlaubt laut DATEV nur bestimmte Zeichen, höchstens 36 */
-const voucherField = (value: string) => value.replace(/[^A-Za-z0-9$&%*+\-/.]/g, "").slice(0, 36);
+/**
+ * Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - /, höchstens 36 Zeichen; unzulässig sind „insbesondere
+ * Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“ (DATEV-Serviceinformation Dok.-Nr. 1003221, Stand
+ * 13.09.2025). Der Punkt aus dem Nummernformat wird zu „-“, damit `RE.2026.001` als `RE-2026-001` erkennbar bleibt;
+ * alles andere außerhalb der Liste fällt weg (#675).
+ */
+const voucherField = (value: string) =>
+  value
+    .replace(/\./g, "-")
+    .replace(/[^A-Za-z0-9$&%*+\-/]/g, "")
+    .slice(0, 36);
+
+/** Höchstens so viele Zusammenstöße nennt der Export einzeln */
+const MAX_WARNINGS = 30;
+
+const nummern = (values: string[]) => {
+  const quoted = values.map((v) => `„${v}“`);
+  return `${quoted.slice(0, -1).join(", ")} und ${quoted.at(-1)}`;
+};
+
+/**
+ * Belegfeld 1 ist in DATEV der Schlüssel für den Ausgleich offener Posten. Ergeben verschiedene Nummern nach dem Bereinigen
+ * dasselbe Feld, nennt der Export sie (#675).
+ */
+function voucherWarnings(rows: DatevBookingRow[]): string[] {
+  const byField = new Map<string, Set<string>>();
+  for (const { voucher } of rows) {
+    if (!voucher) continue;
+    const field = voucherField(voucher);
+    byField.set(field, (byField.get(field) ?? new Set()).add(voucher));
+  }
+  const warnings = [...byField]
+    .filter(([, vouchers]) => vouchers.size > 1)
+    .map(([field, vouchers]) => `${nummern([...vouchers].sort())} stehen im Belegfeld 1 als „${field}“; DATEV kann ihre offenen Posten verwechseln.`);
+  if (warnings.length <= MAX_WARNINGS) return warnings;
+  return [...warnings.slice(0, MAX_WARNINGS), `Und ${warnings.length - MAX_WARNINGS} weitere Belegfelder mit mehreren Nummern.`];
+}
 
 const germanTime = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Berlin",
@@ -294,10 +329,14 @@ export function encodeCp1252(value: string): Uint8Array {
   return out.subarray(0, i);
 }
 
-export function buildDatevBuchungsstapel(header: DatevExportHeader, entries: DatevExportEntry[]): { bytes: Uint8Array; rows: DatevBookingRow[] } {
+/** `warnings`: Nummern, die nach dem Bereinigen dasselbe Belegfeld 1 ergeben */
+export function buildDatevBuchungsstapel(
+  header: DatevExportHeader,
+  entries: DatevExportEntry[],
+): { bytes: Uint8Array; rows: DatevBookingRow[]; warnings: string[] } {
   if (!/^\d{4,7}$/.test(header.beraterNr)) throw new Error("Die Beraternummer hat 4 bis 7 Ziffern.");
   if (!/^\d{1,5}$/.test(header.mandantNr)) throw new Error("Die Mandantennummer hat 1 bis 5 Ziffern.");
   const rows = entries.flatMap((entry) => splitEntry(entry, header.kontenrahmen));
   const lines = [headerLine(header), DATEV_COLUMNS.map(text).join(";"), ...rows.map(bookingLine)];
-  return { bytes: encodeCp1252(`${lines.join("\r\n")}\r\n`), rows };
+  return { bytes: encodeCp1252(`${lines.join("\r\n")}\r\n`), rows, warnings: voucherWarnings(rows) };
 }
