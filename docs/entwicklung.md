@@ -660,6 +660,8 @@ Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret bene
 
 Die Schritte stehen im Skill `beitrag-pruefen`.
 
+**Frist für Beitragende:** Kleinigkeiten wie Doku, ein fehlender Test oder die Quellenangabe ergänzen wir sofort. Fehlt mehr, fragen wir zuerst, ob der Beitragende selbst nachbessern will, und nennen eine Frist von zwei Tagen; kommt bis dahin nichts, machen wir es fertig.
+
 ### Review
 
 Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:

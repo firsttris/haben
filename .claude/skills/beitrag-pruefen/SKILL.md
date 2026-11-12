@@ -109,7 +109,8 @@ Aus den Schritten 1 bis 4 eines von drei Ergebnissen:
 
 ## 6. Übernehmen und fertig machen
 
-- **Kommentar im Pull Request**, bevor die ersten Commits kommen: nach „Umgangston“ Dank, was gut ist, und was wir noch ergänzen, als Liste mit Grund und Link auf Regel oder Quelle. Keine Duplikate des „PR-Regeln“-Kommentars. Am Ende die Kennzeichnung als von Claude Code erzeugt.
+- **Kleinigkeit oder Lücke?** Kleinigkeiten (Doku, ein fehlender Test, Quellenangabe, Titel oder Beschreibung, Regelverstoß ohne Umbau) machen wir sofort selbst. Fehlt mehr (ein Akzeptanzkriterium, ein fachlicher Fehler, eine Vereinfachung mit Umbau), fragt der Kommentar zuerst, ob der Beitragende selbst nachbessern will, mit Frist von zwei Tagen als Datum: „Willst du das selbst machen? Wenn bis <Datum> nichts kommt, übernehmen wir es.“ Dann hier anhalten und der prüfenden Person melden, ab wann es weitergeht. Antwortet niemand bis dahin oder bittet der Beitragende darum, weiter mit „Ergänzen“; bessert er selbst nach, mit Schritt 1 auf dem neuen Stand.
+- **Kommentar im Pull Request**, bevor die ersten Commits kommen: nach „Umgangston“ Dank, was gut ist, und was wir noch ergänzen (bei einer Lücke mit der Frage und der Frist von oben), als Liste mit Grund und Link auf Regel oder Quelle. Keine Duplikate des „PR-Regeln“-Kommentars. Am Ende die Kennzeichnung als von Claude Code erzeugt.
 - **Ergänzen:** je Punkt eigene Commits auf den Branch des Pull Requests, wie in `tdd-review`, Schritt 4 (Commits des Beitragenden nie umschreiben; Fork aus der Cloud: der dort beschriebene Weg). Ein fachlicher Fehler beginnt mit einem roten Test. Geprüft nach `checks`.
 - **Beschreibung nachziehen:** Sie nennt danach alles, was der Pull Request tut, auch unsere Ergänzungen; sie wird der Squash-Commit.
 - Danach ist diese Session fürs TDD-Review nicht mehr unabhängig: weiter mit Schritt 7 über einen Subagenten nach `tdd-review`, Schritt 0.
