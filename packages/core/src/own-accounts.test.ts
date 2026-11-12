@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { ebilanzPosition } from "./ebilanz.ts";
+import { euerZuordnung } from "./journal-euer.ts";
+import { GEWST_HINZURECHNUNG_KONTEN } from "./koerperschaft.ts";
+import { ledgerManagedAccounts } from "./manual.ts";
 import { ownAccountParents, ownAccountProblem, reservedAccountNumbers, resolveOwnAccount } from "./own-accounts.ts";
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 
@@ -86,5 +90,37 @@ describe("Auflösung", () => {
     expect(resolveOwnAccount("SKR03", "4964", eigene)).toBe("4964");
     expect(resolveOwnAccount("SKR03", "1200", eigene)).toBe("1200");
     expect(resolveOwnAccount("SKR03", "4999", new Map())).toBe("4999");
+  });
+});
+
+describe.each(KR)("Systemkonten, ausdrücklich aufgezählt (%s, #270)", (kr) => {
+  it("sperrt die Konten der Gewerbesteuer-Hinzurechnung: ein eigenes Konto dort nähme ihnen die Hinzurechnung", () => {
+    const konten = Object.values(GEWST_HINZURECHNUNG_KONTEN[kr]).flat();
+    expect(konten.length).toBeGreaterThan(8);
+    for (const nummer of konten) expect(reservedAccountNumbers(kr).has(nummer), nummer).toBe(true);
+  });
+
+  it("sperrt jedes Konto, das das Hauptbuch selbst bebucht (Bank, Kasse, Forderungen, Verbindlichkeiten, Steuer, Anlagen)", () => {
+    for (const nummer of ledgerManagedAccounts(kr).keys()) expect(reservedAccountNumbers(kr).has(nummer), nummer).toBe(true);
+  });
+});
+
+describe.each(KR)("Wirkung der Auflösung auf EÜR und E-Bilanz (%s, #270)", (kr) => {
+  const eigenes = frei[kr];
+  const eigene = new Map<string, ExpenseCategory>([[eigenes, "software"]]);
+  const software = EXPENSE_CATEGORIES.software[kr];
+
+  it("ohne Auflösung fiele ein eigenes Konto aus der EÜR; aufgelöst zählt es wie die Kategorie, in EÜR und E-Bilanz", () => {
+    expect(euerZuordnung(kr, eigenes)).toBeNull();
+    const aufgeloest = resolveOwnAccount(kr, eigenes, eigene);
+    expect(aufgeloest).toBe(software);
+    expect(euerZuordnung(kr, aufgeloest)).toBe("ausgabe:software");
+    expect(euerZuordnung(kr, aufgeloest)).toBe(euerZuordnung(kr, software));
+    expect(ebilanzPosition(kr, aufgeloest, 1)).toBe(ebilanzPosition(kr, software, 1));
+    expect(ebilanzPosition(kr, software, 1)).not.toBeNull();
+  });
+
+  it("eine unbekannte Elternkategorie (entfernt oder umbenannt) bricht nicht ab, das Konto bleibt, wie es ist", () => {
+    expect(resolveOwnAccount(kr, eigenes, new Map([[eigenes, "gibtsnicht" as ExpenseCategory]]))).toBe(eigenes);
   });
 });

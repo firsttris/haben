@@ -149,8 +149,9 @@ async function openingBalances(start: string): Promise<{ kontenrahmen: Kontenrah
   };
 }
 
-/** Saldenliste: jedes im Jahr bebuchte Konto mit Eröffnung ab Jahresbeginn, Soll, Haben und Saldo */
 /**
+ * Saldenliste: jedes im Jahr bebuchte Konto mit Eröffnung ab Jahresbeginn, Soll, Haben und Saldo.
+ *
  * Mit `aufgeloest` liegt ein eigenes Sachkonto (#270) auf dem Konto seiner Elternkategorie, zusammen mit dessen Buchungen: für
  * E-Bilanz, HGB und Körperschaftsteuer, die nach Kontonummer rechnen. Ohne steht es mit eigener Nummer und eigenem Namen darin.
  */

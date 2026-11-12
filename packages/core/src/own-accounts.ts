@@ -1,9 +1,9 @@
 import { ASSET_ACCOUNT_NAMES, ASSET_ACCOUNTS } from "./afa.ts";
 import { DARLEHEN_KONTEN } from "./darlehen.ts";
 import { EBILANZ_KONTEN } from "./ebilanz.ts";
-import { KAPG_STEUER_KONTEN } from "./koerperschaft.ts";
+import { GEWST_HINZURECHNUNG_KONTEN, KAPG_STEUER_KONTEN } from "./koerperschaft.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
-import { SACHENTNAHME_FRUEHERE_KONTEN, SACHENTNAHME_KONTEN } from "./manual.ts";
+import { ledgerManagedAccounts, SACHENTNAHME_FRUEHERE_KONTEN, SACHENTNAHME_KONTEN } from "./manual.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
 import { ACCOUNT_NAMES, ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 import { PRIVATE_USE_ACCOUNT_NAMES, PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
@@ -71,6 +71,7 @@ export function reservedAccountNumbers(kontenrahmen: Kontenrahmen): ReadonlySet<
     STEUER_KONTEN,
     DARLEHEN_KONTEN,
     KAPG_STEUER_KONTEN,
+    GEWST_HINZURECHNUNG_KONTEN,
     SACHENTNAHME_KONTEN,
     SACHENTNAHME_FRUEHERE_KONTEN,
     VORTRAG_ACCOUNTS,
@@ -78,6 +79,8 @@ export function reservedAccountNumbers(kontenrahmen: Kontenrahmen): ReadonlySet<
   ]) {
     collect(quelle, into);
   }
+  // Was das Hauptbuch selbst bebucht (Bank, Kasse, Forderungen, Verbindlichkeiten, Steuer, Anlagen), je Kontenrahmen
+  for (const nummer of ledgerManagedAccounts(kontenrahmen).keys()) if (/^\d{4}$/.test(nummer)) into[kontenrahmen].add(nummer);
   reservedCache[kontenrahmen] = into[kontenrahmen];
   return into[kontenrahmen];
 }
@@ -107,5 +110,6 @@ export function ownAccountProblem(input: OwnAccountInput): string | null {
 /** Das Konto, mit dem Steuer, EÜR und E-Bilanz rechnen: bei einem eigenen Konto das seiner Elternkategorie, sonst unverändert */
 export function resolveOwnAccount(kontenrahmen: Kontenrahmen, account: string, eigene: ReadonlyMap<string, ExpenseCategory>): string {
   const parent = eigene.get(account);
-  return parent ? EXPENSE_CATEGORIES[parent][kontenrahmen] : account;
+  // Eine Elternkategorie, die es nicht mehr gibt, lässt das Konto, wie es ist, statt jede Auswertung abbrechen zu lassen
+  return parent && parent in EXPENSE_CATEGORIES ? EXPENSE_CATEGORIES[parent][kontenrahmen] : account;
 }

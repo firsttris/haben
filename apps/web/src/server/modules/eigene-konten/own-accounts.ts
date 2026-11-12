@@ -8,7 +8,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 /**
  * Eigene Sachkonten (#270, Stufe 1): ein Aufwandskonto mit eigener Nummer und eigenem Namen, das für Steuer, EÜR und
  * E-Bilanz wie seine Elternkategorie zählt. Angelegt wird im Kontenrahmen der Firma. Nummer und Elternkategorie sind danach
- * fest (Trigger, drizzle/0205); archivierte Konten bleiben für bestehende Buchungen auflösbar.
+ * fest (Trigger, drizzle/0211); archivierte Konten bleiben für bestehende Buchungen auflösbar.
  */
 
 export class OwnAccountError extends UserError {}
