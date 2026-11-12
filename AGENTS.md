@@ -5,9 +5,9 @@ agents alike. [`CLAUDE.md`](CLAUDE.md) is the short entry point: where to look a
 apply to every agent, not only Claude.
 
 The steps for recurring tasks are the skills in [`.claude/skills`](.claude/skills); other agents follow the same
-files: `checks` (checks with and without Bun), `beitrag` (branch, commits, draft pull request), `beitrag-pruefen`
-(wanted, sources, simplest solution, rules: contributors check their own pull request first, maintainers and
-collaborators then judge it), `tdd-review`
+files: `checks` (checks with and without Bun), `beitrag` (branch, commits, draft pull request,
+then self-check and independent review), `beitrag-pruefen` (wanted, sources, simplest solution, rules: contributors
+check their own pull request first, maintainers and collaborators then judge it), `tdd-review`
 (independent review, a finding needs a failing test), `doku-pruefen` (review of a pull request without code: matches code
 and sources, short, every rule in one place), `issue-schreiben`, `pr-screenshots`, `belegvorlage` (own
 Typst layouts for documents, with the field contract), `board-pflegen` (the roadmap board on GitHub) and `release`
