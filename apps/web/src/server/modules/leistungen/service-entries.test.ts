@@ -154,6 +154,14 @@ describe.skipIf(!testDatabaseUrl)("Leistungseinträge (Postgres, #417)", () => {
     await entries.updateServiceEntry(actor, eintragRow!.id, eintrag({ contactId: archiviert!.id, minutes: 30 }));
   });
 
+  it("die Kundenliste der Seite nennt auch einen Kontakt mit Einträgen, der inzwischen nur noch Lieferant ist", async () => {
+    await entries.createServiceEntry(actor, eintrag({ contactId: otherContactId }));
+    await sql`update contacts set is_customer = false, is_supplier = true where id = ${otherContactId}`;
+    const kunden = await entries.listEntryCustomers();
+    // Die Zeile in der Liste braucht den Namen; für neue Einträge wird der Kontakt nicht angeboten
+    expect(kunden.find((k) => k.id === otherContactId)).toMatchObject({ name: "Rheinpixel GmbH", archived: true });
+  });
+
   describe("von außen angelegt (Kennung)", () => {
     const extern = (overrides: Record<string, unknown> = {}) =>
       eintrag({ source: "kimai", externalId: "4711", ...overrides }) as unknown as import("./service-entries.ts").ExternalServiceEntryInput;
