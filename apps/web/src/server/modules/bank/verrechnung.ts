@@ -254,10 +254,16 @@ export async function listSettlements(documentId: string, q: Db | Tx = db) {
  */
 export async function settlementCandidates(documentId: string, q: Db | Tx = db) {
   const [doc] = await q
-    .select({ supplier: schema.documents.supplierName, gross: schema.documents.gross })
+    .select({
+      supplier: schema.documents.supplierName,
+      gross: schema.documents.gross,
+      status: schema.documents.status,
+      payment: schema.documents.payment,
+    })
     .from(schema.documents)
     .where(eq(schema.documents.id, documentId));
-  if (!doc) return [];
+  // Dieselben Bedingungen wie in settleDocuments: der geöffnete Beleg muss gebucht sein und über die Bank laufen
+  if (doc?.status !== "gebucht" || doc.payment !== "bank") return [];
   // Ohne Lieferanten gibt es keinen Gegenbeleg: settleDocuments lehnt den Beleg ab, und ein Vergleich mit „“ träfe
   // jeden Beleg ohne Lieferanten (siehe `lieferant`).
   const name = lieferant(doc.supplier);
