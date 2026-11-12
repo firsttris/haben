@@ -57,9 +57,9 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
-import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
@@ -1103,7 +1103,14 @@ async function returnBooking(
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
   const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
   return {
-    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment),
+    lines: invoicePaymentPosting(
+      totals,
+      part.amount,
+      company.kontenrahmen,
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+      taxShares,
+      invoice.taxTreatment,
+    ),
     description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
     target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
   };
@@ -1153,7 +1160,14 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
-    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares, invoice.taxTreatment);
+    lines = invoicePaymentPosting(
+      totals,
+      part.amount,
+      company.kontenrahmen,
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+      taxShares,
+      invoice.taxTreatment,
+    );
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
     target = { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id };
     // IBAN des Kunden für künftige Vorschläge merken
@@ -1452,7 +1466,13 @@ export async function bookWriteOff(
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
       const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
       lines = exchangeDifferencePosting(
-        { kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares, treatment: invoice.taxTreatment },
+        {
+          kind: "invoice",
+          totals,
+          versteuerung: await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+          shares: taxShares,
+          treatment: invoice.taxTreatment,
+        },
         amount,
         company.kontenrahmen,
       );
@@ -1504,7 +1524,15 @@ export async function bookWriteOff(
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment, taxShares);
+    lines = invoiceWriteOffPosting(
+      input.kind,
+      totals,
+      amount,
+      company.kontenrahmen,
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+      invoice.taxTreatment,
+      taxShares,
+    );
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
     target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
   }
