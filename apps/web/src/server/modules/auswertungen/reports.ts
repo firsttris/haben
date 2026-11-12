@@ -282,7 +282,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         kind: a.kind,
         date: a.date,
         amount: a.amount,
-        group,
+        // Verrechnete Zahlung und Erstattung desselben Umsatzes bleiben eigene EÜR-Zeilen (Anleitung EÜR 2025, Z. 18/58).
+        // Nur eine Zuordnung und ihre Gegenzeile verrechnen; ustAbfluss gehört jeweils zu dieser ursprünglichen Zuordnung.
+        group: a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? (a.reversesId ?? a.id) : group,
         // Die Richtung bleibt die der ursprünglichen Zuordnung, auch nach einer jahresübergreifenden Rücknahme.
         ...(a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? { ustAbfluss: (a.reversesId ? -a.amount : a.amount) < 0 } : {}),
       });
