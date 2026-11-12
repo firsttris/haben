@@ -45,7 +45,8 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
 ## With every change
 
 - Tests for what changed: Vitest, Postgres tests next to the module, Playwright for what a user clicks; a bug
-  fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax.
+  fix starts with a failing test; SKR03 and SKR04, Ist and Soll for bookings and tax, each covered, not every
+  combination against Postgres (Mitwirken).
 - Docs in `docs/` in the same pull request, short and for people: steps for agents go into a skill, internals of a script into its comments, no sentences that only repeat, announce or sum up (Befehle, "Kurz halten"); the README only when a feature area or its one-line summary changes.
 - Reference issues with `Umgesetzt #…` (done) or `Refs #…` (part), never `Closes`/`Fixes`: the release closes them, not the merge (Mitwirken).
 - A change to the look: take the "before" screenshots before touching the UI (`pr-screenshots`).

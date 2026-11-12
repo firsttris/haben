@@ -369,6 +369,7 @@ Beim Festschreiben entsteht die Rechnung in zwei Stufen:
    - bei **ZUGFeRD** (Profil EN 16931) ein PDF/A-3 mit eingebettetem `factur-x.xml`; Haben liest das XML danach wieder aus und speichert es zusätzlich,
    - bei **XRechnung** (CII oder UBL) das XML; das Typst-PDF bleibt als Sichtfassung dabei.
    Was die Bibliothek im CII auslässt, ergänzt der Post-Processor in `packages/einvoice/src/cii.ts` an der Stelle laut Schema: das leere `ApplicableHeaderTradeDelivery`, die Bestellnummer (BT-13) im ZUGFeRD und die Lieferscheinnummer (BT-16) in jedem CII (gflohr/e-invoice-eu#685). Die Tests in `referenzen.test.ts` suchen jede gesetzte Referenz im erzeugten XML, weil der KoSIT-Validator ein fehlendes optionales Feld nicht meldet.
+   Aufgerufen wird die Bibliothek über `generate.ts`: dieselben Schritte wie `InvoiceService.generate`, das Schema der Eingabe aber einmal je Format kompiliert statt bei jeder Rechnung (rund 250 ms).
 
 Eingehende E-Rechnungen liest `packages/einvoice` direkt: das eingebettete XML aus ZUGFeRD-PDFs oder reines XML (CII, UBL). Die Felder des Belegs werden daraus vorbefüllt, ohne KI.
 
