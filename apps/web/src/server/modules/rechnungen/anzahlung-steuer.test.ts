@@ -103,4 +103,43 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
     await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
     await tax(2027, 1, 30_000, 5_700);
   });
+
+  async function finalInvoice(advanceId: string) {
+    const draft = await invoices.createDraft(actor, {
+      contactId, issueDate: "2027-01-20", serviceFrom: "2027-01-20", serviceTo: null,
+      paymentTermDays: 14, format: "zugferd", note: "", variant: "schluss", deducts: [advanceId],
+      lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    return invoices.finalizeInvoice(actor, draft.id);
+  }
+
+  it("die Schlussrechnung versteuert auch den unbezahlten Abschlag; seine spätere Zahlung entsteht nicht doppelt", async () => {
+    const invoice = await advance();
+    const final = await finalInvoice(invoice.id);
+    expect(final).toMatchObject({ net: 70_000, tax: 13_300, gross: 83_300 });
+    await tax(2026, 12, 0, 0);
+    await tax(2027, 1, 100_000, 19_000);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-02-12", amount: 35_700 }, "2027-02-12");
+    await tax(2027, 2, 0, 0);
+    await tax(2027, 1, 100_000, 19_000);
+  });
+
+  it("eine erst nach der Schlussrechnung zugeordnete Dezemberzahlung verschiebt ihren Steueranteil korrekt zurück", async () => {
+    const invoice = await advance();
+    await finalInvoice(invoice.id);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-12-12", amount: 11_900 }, "2027-02-12");
+    await tax(2026, 12, 10_000, 1_900);
+    await tax(2027, 1, 90_000, 17_100);
+  });
+
+  it("eine ausdrücklich erbrachte Teilleistung wird bei Soll im Leistungsmonat besteuert", async () => {
+    const input = {
+      contactId, issueDate: "2026-12-01", serviceFrom: "2026-11-05", serviceTo: null,
+      paymentTermDays: 14, format: "zugferd" as const, note: "", variant: "abschlag" as const, advanceType: "teilleistung" as const,
+      lines: [{ description: "Abgenommene Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 }],
+    };
+    await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    await tax(2026, 11, 30_000, 5_700);
+    await tax(2026, 12, 0, 0);
+  });
 });
