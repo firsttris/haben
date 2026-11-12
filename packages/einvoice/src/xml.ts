@@ -13,6 +13,7 @@ import {
   type Millis,
 } from "@haben/core";
 import { ciiXml } from "./cii.ts";
+import { texts } from "./i18n.ts";
 import {
   accountHolder,
   collectedByDirectDebit,
@@ -283,8 +284,10 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     invoice["cac:TaxTotal"].push({ "cbc:TaxAmount": amount(sign * doc.euroTax.tax), "cbc:TaxAmount@currencyID": "EUR" });
   }
 
-  // Einleitung und Hinweis als Freitext zur Rechnung (BT-22), in der Reihenfolge wie auf dem PDF
-  const notes = [doc.intro, doc.note].map((n) => plainFormattedText(n?.trim() ?? "")).filter(Boolean);
+  // Fester Aufbewahrungshinweis (§ 14 Abs. 4 Nr. 9 UStG) zusätzlich zu den Nutzereingaben als BT-22.
+  const notes = [doc.intro, doc.propertyRetention ? texts(doc.language).propertyRetention : null, doc.note]
+    .map((n) => plainFormattedText(n?.trim() ?? ""))
+    .filter(Boolean);
   if (notes.length > 0) invoice["cbc:Note"] = notes;
 
   // BR-IC-12 verlangt bei innergemeinschaftlicher Lieferung das Lieferland (BT-80). Bei Zeiträumen füllt die

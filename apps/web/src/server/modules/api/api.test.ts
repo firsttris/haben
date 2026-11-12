@@ -225,7 +225,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
 
   describe("Rechnungsentwürfe", () => {
     it("liest und setzt den Aufbewahrungshinweis; PATCH ohne Feld erhält die Auswahl und false schaltet sie aus", async () => {
-      const t = await token(["rechnungen:schreiben"]);
+      const t = await token(["rechnungen:entwuerfe"]);
       const created = await call(t, "POST", "/rechnungen", draft({ propertyRetention: true, note: "Freier Fußtext" }));
       expect(created.status).toBe(201);
       expect(created.json).toMatchObject({ propertyRetention: true, note: "Freier Fußtext" });

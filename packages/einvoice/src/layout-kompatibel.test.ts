@@ -46,7 +46,7 @@ describe("Kompatibilität der Belegvorlagen", () => {
         expect(text).toContain("zwei Jahre aufzubewahren (§ 14b Abs. 1 Satz 5 UStG)");
         expect(text).toContain("Schluss des Kalenderjahres der Rechnungsausstellung");
         expect(text).toContain("Freier Hinweis bleibt erhalten.");
-        expect(text.indexOf("steuerpflichtigen Grundstücksleistungen")).toBeGreaterThan(text.indexOf(data.totals.gross.value));
+        expect(text.indexOf("steuerpflichtigen Grundstücksleistungen")).toBeGreaterThan(text.indexOf(pdfData(doc).totals.gross.value));
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });

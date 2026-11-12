@@ -14,7 +14,11 @@ describe("Aufbewahrungshinweis bei Grundstücksleistungen (#718)", () => {
     const data = pdfData(doc);
     expect(data.taxNote).toBe(notice);
     expect(data.note).toBe(doc.note);
-    expect(sheetText(data as unknown as SheetData).flatMap((part) => part.lines).join("\n")).toContain(notice);
+    expect(
+      sheetText(data as unknown as SheetData)
+        .flatMap((part) => part.lines)
+        .join("\n"),
+    ).toContain(notice);
   });
 
   it("erhält den Kleinunternehmerhinweis, wenn der Haken freiwillig gesetzt ist", () => {

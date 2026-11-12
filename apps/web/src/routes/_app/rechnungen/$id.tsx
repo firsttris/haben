@@ -64,6 +64,7 @@ function InvoicePage() {
           format: invoice.format,
           intro: invoice.intro,
           note: invoice.note,
+          propertyRetention: invoice.propertyRetention,
           buyerOrderReference: invoice.buyerOrderReference,
           sellerOrderReference: invoice.sellerOrderReference,
           despatchAdviceReference: invoice.despatchAdviceReference,

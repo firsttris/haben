@@ -115,6 +115,9 @@ export const TEXTS = {
     rate: (rate: number) => formatRate(rate),
     quantity: (quantity: Millis, unit: UnitLabel) => `${formatQuantity(quantity)} ${unit}`,
     note: (treatment: TaxTreatment, reason?: string | null) => treatmentNote(treatment, reason),
+    // § 14b Abs. 1 Satz 5 mit Satz 3 UStG: zwei Jahre ab Schluss des Ausstellungsjahres; § 34a UStDV begründet keine pauschale Pflicht für KU.
+    propertyRetention:
+      "Bei steuerpflichtigen Grundstücksleistungen für den privaten Bereich sind diese Rechnung, ein Zahlungsbeleg oder eine andere beweiskräftige Unterlage zwei Jahre aufzubewahren (§ 14b Abs. 1 Satz 5 UStG). Die Frist beginnt mit dem Schluss des Kalenderjahres der Rechnungsausstellung.",
     countryLocale: "de",
   },
   en: {
@@ -215,6 +218,8 @@ export const TEXTS = {
       return `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 3 }).format(value)} ${value === 1 ? one : many}`;
     },
     note: (treatment: TaxTreatment, reason?: string | null) => (treatment === "regulaer" ? null : reason?.trim() || EN_NOTES[treatment]),
+    propertyRetention:
+      "For taxable property-related services supplied for private use, this invoice, proof of payment or other supporting document must be retained for two years (§ 14b(1), sentence 5 UStG). The period starts at the end of the calendar year in which the invoice was issued.",
     countryLocale: "en",
   },
 } as const;

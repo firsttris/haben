@@ -23,8 +23,8 @@ describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistun
 
   beforeEach(async () => {
     await leeren(sql)`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
-    await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank)
-      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
+    await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456', '198/113/10010', 'DE123456789', 'BY',
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
     contactId = (
       await contacts.createContact(actor, {
@@ -92,18 +92,12 @@ describe.skipIf(!testDatabaseUrl)("Aufbewahrungshinweis für Grundstücksleistun
   });
 
   it("lässt den Hinweis freiwillig auch bei Kleinunternehmern zu und fügt ihn älteren Belegen nicht nachträglich hinzu", async () => {
-    const previous = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    await sql`update company set kleinunternehmer = true where id = 1`;
+    const input = draft({ taxTreatment: "kleinunternehmer", lines: [{ ...draft().lines[0]!, taxRate: 0 }] });
+    const previous = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
     expect(previous).toMatchObject({ propertyRetention: false });
     expect(previous.xml).not.toContain("14b");
-    await sql`update company set kleinunternehmer = true where id = 1`;
-    const selected = await invoices.createDraft(
-      actor,
-      draft({
-        propertyRetention: true,
-        taxTreatment: "kleinunternehmer",
-        lines: [{ ...draft().lines[0]!, taxRate: 0 }],
-      }),
-    );
+    const selected = await invoices.createDraft(actor, { ...input, propertyRetention: true });
     const final = await invoices.finalizeInvoice(actor, selected.id);
     expect(final).toMatchObject({ propertyRetention: true });
     expect(final.xml).toContain("14b");
