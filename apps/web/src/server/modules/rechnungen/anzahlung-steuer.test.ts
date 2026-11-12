@@ -1,5 +1,6 @@
-import { ACCOUNTS } from "@haben/core";
+import { ACCOUNTS, invoicePosting, totalsFromTaxes } from "@haben/core";
 import { datevAccountTotals, parseDatevBuchungsstapel } from "@haben/import";
+import { eq } from "drizzle-orm";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -229,9 +230,34 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
       variant: "abschlag",
       lines: [{ description: "Vorhandener Abschlag", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
-    // Simuliert den vor der Migration gespeicherten Entwurf; niemals eine festgeschriebene Zeile ändern.
-    await sql`update invoices set advance_type = null where id = ${old.id}`;
-    const final = await invoices.finalizeInvoice(actor, old.id);
+    // Bereits vor dem Update festgeschriebener Soll-Abschlag. Die normalen Siegel- und Audit-Trigger bleiben aktiv.
+    const { withActor } = await import("../../db/actor.ts");
+    const { schema } = await import("../../db/index.ts");
+    const { openBooks, post } = await import("../buchhaltung/index.ts");
+    const final = await withActor(actor, async (tx) => {
+      const [locked] = await tx
+        .update(schema.invoices)
+        .set({
+          advanceType: null,
+          status: "final",
+          number: "ALT-2026-001",
+          lockedAt: new Date(),
+          net: 30_000,
+          tax: 5_700,
+          gross: 35_700,
+          pdf: Buffer.from("%PDF Altbestand"),
+        })
+        .where(eq(schema.invoices.id, old.id))
+        .returning();
+      await post(tx, await openBooks(tx), {
+        date: "2026-12-01",
+        description: "Vorhandener Soll-Abschlag",
+        sourceType: "invoice",
+        sourceId: old.id,
+        lines: invoicePosting(totalsFromTaxes([{ rate: 1900, base: 30_000, tax: 5_700 }]), "SKR03", "soll"),
+      });
+      return locked!;
+    });
     const snapshot = await sql`select * from invoices where id = ${final.id}`;
     await tax(2026, 12, 30_000, 5_700);
     await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
@@ -240,6 +266,27 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
     const [seal] = await sql`select columns from seals where table_name = 'invoices' and row_id = ${final.id}`;
     expect(seal!.columns.invoices).toContain("advance_type");
     await expect(sql`update invoices set advance_type = 'anzahlung' where id = ${final.id}`).rejects.toThrow(/festgeschrieben/);
+  });
+
+  it("ein unverändert übernommener Abschlagsentwurf erhält erst beim jetzigen Festschreiben die neue Anzahlungsvorgabe", async () => {
+    const draft = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: "2026-12-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      variant: "abschlag",
+      lines: [{ description: "Alter Entwurf", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
+    });
+    await sql`update invoices set advance_type = null where id = ${draft.id}`;
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    expect(invoice.advanceType).toBe("anzahlung");
+    await tax(2026, 12, 0, 0);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
+    await tax(2027, 1, 30_000, 5_700);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 
   it("eine angeblich erbrachte Teilleistung ohne Datum oder mit künftigem Datum wird nicht festgeschrieben", async () => {
