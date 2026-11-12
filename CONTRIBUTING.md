@@ -41,14 +41,17 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
-- Vor „Ready for review“ prüfst du selbst, ob die Änderung zu Haben passt, gegen die Quellen geprüft ist, die
-  einfachste Lösung ist und Tests und Doku mitbringt, und schreibst das Ergebnis in den Pull Request; ein Maintainer
-  oder Collaborator prüft es nach ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)). Ein
-  Issue vorab spart dir Arbeit an etwas, das wir nicht übernehmen können.
-- Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, ohne Code eine Doku-Prüfung: Ein Befund zählt nur mit einem Test, der
-  auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
-  Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Die Schritte stehen unter
-  [Review](https://haben.app/entwicklung.html#review).
+- Vor „Ready for review“ bringst du zwei Prüfungen mit, mit KI-Agenten über die Skills in `.claude/skills/`:
+  - die **Selbstprüfung** (`beitrag-pruefen`): passt die Änderung zu Haben, ist sie gegen die Quellen geprüft, die
+    einfachste Lösung, mit Tests und Doku? Das Ergebnis kommt als Kommentar in den Pull Request
+    ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen));
+  - ein unabhängiges **TDD-Review** (`tdd-review`), ohne Code eine **Doku-Prüfung** (`doku-pruefen`), durch jemand
+    anderen oder einen frischen Agenten: Ein Befund zählt nur mit einem Test, der auf dem Stand des Pull Requests
+    fehlschlägt; Fixes kommen als eigene Commits obendrauf ([Review](https://haben.app/entwicklung.html#review)).
+
+  Ein Maintainer oder Collaborator prüft beides nur noch nach. Fehlt es, machen wir alles selbst noch einmal, und weil
+  jeder Merge über uns läuft, wartet dein Pull Request dann länger. Gemergt wird von einem Maintainer oder, mit dessen
+  Zustimmung, von einem Collaborator. Ein Issue vorab spart dir Arbeit an etwas, das wir nicht übernehmen können.
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter
 [Konventionen](https://haben.app/entwicklung.html#konventionen) und
