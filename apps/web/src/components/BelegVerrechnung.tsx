@@ -26,6 +26,7 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const [counterId, setCounterId] = useState("");
   const [betrag, setBetrag] = useState("");
   const [grund, setGrund] = useState("");
+  const [datum, setDatum] = useState(() => new Date().toLocaleDateString("sv-SE"));
   const [ladefehler, setLadefehler] = useState<string | null>(null);
   const action = useAction();
 
@@ -50,7 +51,9 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
         const cents = Math.round(Number(betrag.replace(",", ".")) * 100);
         if (!counterId) throw new Error("Bitte den Gegenbeleg wählen.");
         if (!Number.isFinite(cents) || cents <= 0) throw new Error("Bitte einen Betrag größer null eintragen.");
-        await verrechnen({ data: { documentId, counterDocumentId: counterId, amount: cents, note: grund.trim() } });
+        if (!datum) throw new Error("Bitte den Tag der Aufrechnung angeben.");
+        if (!grund.trim()) throw new Error("Bitte den Grund der Verrechnung angeben.");
+        await verrechnen({ data: { documentId, counterDocumentId: counterId, amount: cents, date: datum, note: grund.trim() } });
         setOffen(false);
         setCounterId("");
         setBetrag("");
@@ -138,8 +141,11 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
               <input {...control} className="mono" inputMode="decimal" value={betrag} onChange={(e) => setBetrag(e.target.value)} placeholder="0,00" />
             )}
           </Field>
+          <Field label="Tag der Aufrechnung" hint="verrechnet wird an diesem Tag, nicht rückwirkend">
+            {(control) => <input {...control} type="date" required value={datum} onChange={(e) => setDatum(e.target.value)} />}
+          </Field>
           <Field label="Grund" hint="etwa „Gutschrift Rechnung 12345“">
-            {(control) => <input {...control} value={grund} onChange={(e) => setGrund(e.target.value)} />}
+            {(control) => <input {...control} required value={grund} onChange={(e) => setGrund(e.target.value)} />}
           </Field>
           <NoticeBanner notice={action.notice} />
           <div style={{ display: "flex", gap: 8 }}>

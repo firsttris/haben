@@ -1,7 +1,9 @@
+import { formatEuro } from "@haben/core";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { UserError } from "../../errors.ts";
 import { settledOn } from "./bank.ts";
 
 /*
@@ -18,14 +20,18 @@ export const settlementSchema = z.object({
   counterDocumentId: z.uuid(),
   /** Betrag ohne Vorzeichen; die Richtung ergibt sich aus den offenen Resten */
   amount: z.number().int().positive(),
-  /** Buchungsdatum der Verrechnung; ohne Angabe das spätere der beiden Belegdaten */
-  date: z.iso.date().optional(),
-  note: z.string().trim().max(500).default(""),
+  /** Tag der Aufrechnung; verrechnet wird, wenn aufgerechnet wird, nicht rückwirkend */
+  date: z.iso.date(),
+  /** Grund der Verrechnung, etwa die Nummer der Gutschrift */
+  note: z.string().trim().min(1, "Bitte den Grund der Verrechnung angeben.").max(500),
 });
+
+/** Heute in Berlin, damit der Vergleich mit den Belegdaten ohne Zeitzone stimmt */
+const heute = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
 
 export type SettlementInput = z.input<typeof settlementSchema>;
 
-export class SettlementError extends Error {}
+export class SettlementError extends UserError {}
 
 async function beleg(tx: Tx, id: string) {
   const [row] = await tx
@@ -71,12 +77,19 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     }
     const moeglich = Math.min(Math.abs(restA), Math.abs(restB));
     if (parsed.amount > moeglich) {
-      throw new SettlementError(`Mehr als ${(moeglich / 100).toFixed(2)} EUR lassen sich nicht verrechnen.`);
+      throw new SettlementError(`Mehr als ${formatEuro(moeglich)} lassen sich nicht verrechnen.`);
     }
     const datumA = a.date ?? "";
     const datumB = b.date ?? "";
     // Math.max taugt hier nicht: es rechnet die Datumsstrings in Zahlen um und ergibt NaN
-    const date = parsed.date ?? (datumA.localeCompare(datumB) >= 0 ? datumA : datumB);
+    const juenger = datumA.localeCompare(datumB) >= 0 ? datumA : datumB;
+    if (parsed.date < juenger) {
+      throw new SettlementError(
+        `Das Datum liegt vor dem jüngeren der beiden Belege (${juenger}). Steuerlich zählt die Aufrechnungserklärung, nicht eine Rückwirkung.`,
+      );
+    }
+    if (parsed.date > heute()) throw new SettlementError("Das Datum der Verrechnung liegt in der Zukunft.");
+    const date = parsed.date;
     const rows = await tx
       .insert(schema.documentSettlements)
       .values([

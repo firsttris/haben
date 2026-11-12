@@ -59,7 +59,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(await verrechnung.openAmount(rechnung)).toBe(11_900);
     expect(await verrechnung.openAmount(gutschrift)).toBe(-3_570);
 
-    await verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 2_000 });
+    await verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 2_000, date: "2026-02-16", note: "Gutschrift" });
 
     expect(await verrechnung.openAmount(rechnung)).toBe(9_900);
     expect(await verrechnung.openAmount(gutschrift)).toBe(-1_570);
@@ -68,16 +68,22 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(zeilen[0]).toMatchObject({ amount: -2_000 });
 
     // Mehr als der offene Rest der Gutschrift geht nicht
-    await expect(verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 5_000 })).rejects.toThrow(
-      /nicht verrechnen/,
-    );
+    await expect(
+      verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 5_000, date: "2026-02-16", note: "Gutschrift" }),
+    ).rejects.toThrow(/nicht verrechnen/);
   }, 30_000);
 
   it("hebt eine Verrechnung per Gegenzeile auf", async () => {
     await firma();
     const rechnung = await beleg("2026-03-10", 5_000, 950);
     const gutschrift = await beleg("2026-03-12", -3_000, -570);
-    const { ids } = await verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 3_570 });
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 3_570,
+      date: "2026-03-12",
+      note: "Gutschrift",
+    });
     expect(await verrechnung.openAmount(rechnung)).toBe(2_380);
     expect(await verrechnung.openAmount(gutschrift)).toBe(0);
 
@@ -92,6 +98,26 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     await firma();
     const eine = await beleg("2026-04-10", 1_000, 190);
     const andere = await beleg("2026-04-11", 2_000, 380);
-    await expect(verrechnung.settleDocuments(actor, { documentId: eine, counterDocumentId: andere, amount: 500 })).rejects.toThrow(/dieselbe Richtung/);
+    await expect(
+      verrechnung.settleDocuments(actor, { documentId: eine, counterDocumentId: andere, amount: 500, date: "2026-04-11", note: "Gutschrift" }),
+    ).rejects.toThrow(/dieselbe Richtung/);
+  }, 30_000);
+
+  it("verlangt ein Datum und den Grund und prueft das Datum", async () => {
+    await firma();
+    const rechnung = await beleg("2026-05-10", 10_000, 1_900);
+    const gutschrift = await beleg("2026-05-20", -3_000, -570);
+    const basis = { documentId: rechnung, counterDocumentId: gutschrift, amount: 1_000 };
+
+    // ohne Datum und ohne Grund lehnt schon das Schema ab
+    await expect(verrechnung.settleDocuments(actor, basis as never)).rejects.toThrow(/date|Grund/i);
+    await expect(verrechnung.settleDocuments(actor, { ...basis, date: "2026-05-20", note: "   " })).rejects.toThrow(/Grund/);
+    // vor dem juengeren Beleg: Aufrechnung wirkt nicht rueckwirkend
+    await expect(verrechnung.settleDocuments(actor, { ...basis, date: "2026-05-19", note: "Gutschrift" })).rejects.toThrow(/jüngeren/);
+    // in der Zukunft
+    await expect(verrechnung.settleDocuments(actor, { ...basis, date: "2099-01-01", note: "Gutschrift" })).rejects.toThrow(/Zukunft/);
+    // am Tag des juengeren Belegs geht es
+    await verrechnung.settleDocuments(actor, { ...basis, date: "2026-05-20", note: "Gutschrift" });
+    expect(await verrechnung.openAmount(rechnung)).toBe(10_900);
   }, 30_000);
 });
