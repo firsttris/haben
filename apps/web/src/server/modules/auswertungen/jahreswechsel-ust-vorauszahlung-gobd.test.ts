@@ -208,7 +208,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
     await bank.reverseAllocation(actor, a!.id as string);
     expect(await euer(2026)).toEqual(MIT_DEZEMBER);
-    expect((await euer(2027)).gewinn).toBe(19_000);
+    expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
+    expect(zeilen(await reports.euerAusNebenbuechern(2027))).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
     await beideWegeGleich();
   }, 60_000);
 
