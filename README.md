@@ -326,9 +326,8 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 
 Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Ein Pull Request bringt seine Selbstprüfung (`beitrag-pruefen`) und ein
-unabhängiges Review mit (`tdd-review`, ohne Code `doku-pruefen`); Agenten führen dafür die Skills in `.claude/skills/`
-aus. Sonst prüfen wir alles selbst nach, und der Merge dauert. Was vor einem Pull Request laufen muss und was er enthält,
-steht unter [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
+unabhängiges Review mit (`tdd-review`, ohne Code `doku-pruefen`). Was vor einem Pull Request laufen muss und was er
+enthält, steht unter [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
 
 ## Sterne im Verlauf
 
