@@ -133,7 +133,7 @@ Seiten der Doku:
 
 ## Tests
 
-Die Tests laufen mit Vitest (`vitest.config.ts`), jede Datei in einem eigenen Worker, in der CI in vier Teilen (`bun run test --shard=<n>/4`).
+Die Tests laufen mit Vitest (`vitest.config.ts`), jede Datei in einem eigenen Worker, in der CI in vier Teilen (`bun run test --shard=<n>/4`). Aus `apps/web` heraus gestartet gilt dieselbe Konfiguration (`apps/web/vitest.config.ts`), ohne die Server-Plugins der App.
 
 ```sh
 bun run test
