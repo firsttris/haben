@@ -21,6 +21,7 @@ the change before starting.
 | Screenshots of a change to the look | Mitwirken | `pr-screenshots` |
 | Judge a contribution (do we want it, built from the sources and correct, simplest solution, rules): own pull request as self-check, someone else's as maintainer | Beiträge annehmen | `beitrag-pruefen` |
 | Review and merge | Review | `tdd-review`; without code `doku-pruefen` |
+| Pushing to someone else's fork (fixes, additions), above all from a cloud session | Review | `fork-pushen` |
 | Issues and labels | Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
 | Releasing a version | Veröffentlichen, Release Candidates | `release` |
