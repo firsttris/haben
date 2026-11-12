@@ -561,7 +561,7 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 
 Manche Rechnungen werden nie bezahlt, sondern gegen eine Gutschrift des Lieferanten aufgerechnet. Typisch sind Abschläge und Jahresabrechnungen: Der Versorger schreibt ein Guthaben gut und verrechnet es in den Folgemonaten, abgebucht wird nichts mehr. Bis dahin blieben Rechnung und Gutschrift offen.
 
-Auf der Belegseite eines gebuchten Belegs steht dafür unter **Verrechnung**, wie viel noch offen ist und der Knopf **Mit einem Beleg verrechnen**. Dort wählst du den Gegenbeleg, also die Gutschrift desselben Lieferanten, den Betrag und einen Grund. Vorgeschlagen wird der kleinere der beiden offenen Beträge; bei Teilverrechnung bleibt der Rest offen und lässt sich später mit einer weiteren Rechnung ausgleichen.
+Auf der Belegseite eines gebuchten Belegs steht dafür unter **Verrechnung**, wie viel noch offen ist und der Knopf **Mit einem Beleg verrechnen**. Dort wählst du den Gegenbeleg, also die Gutschrift desselben Lieferanten, den Betrag, den Tag der Aufrechnung und einen Grund. Tag und Grund sind Pflicht, weil die Verrechnung steuerlich an diesem Tag wirkt. Das Datum darf nicht vor dem jüngeren der beiden Belege liegen und nicht in der Zukunft; in der Oberfläche ist heute vorbelegt. Vorgeschlagen wird der kleinere der beiden offenen Beträge; bei Teilverrechnung bleibt der Rest offen und lässt sich später mit einer weiteren Rechnung ausgleichen.
 
 Haben verrechnet nur, was zusammenpasst:
 
@@ -569,9 +569,9 @@ Haben verrechnet nur, was zusammenpasst:
 - Sie gehören demselben Lieferanten und zeigen in verschiedene Richtungen, also eine Rechnung und eine Gutschrift.
 - Der Betrag überschreitet keinen der beiden offenen Reste.
 
-Verrechnungen bewegen kein Geld: Es entsteht kein Bankumsatz, kein Kassenstand ändert sich, und die Buchungen beider Belege bleiben, wie sie sind. Beide Belege zählen danach als erledigt, die Verrechnung steht bei beiden mit Datum, Gegenbeleg und Grund. **Aufheben** setzt sie zurück, wie bei den Ausbuchungen mit einer Gegenzeile, damit die Spur erhalten bleibt.
+Verrechnungen bewegen kein Geld: Es entsteht kein Bankumsatz, kein Kassenstand ändert sich, und die Buchungen beider Belege bleiben, wie sie sind. Beide Belege zählen danach als erledigt, die Verrechnung steht bei beiden mit Datum, Gegenbeleg und Grund. **Aufheben** setzt sie zurück, wie bei den Ausbuchungen mit einer Gegenzeile, damit die Spur erhalten bleibt. Dabei gibst du den Tag der Aufhebung an: Die Gegenzeile wirkt an diesem Tag, nicht rückwirkend auf den Tag der Verrechnung. Ein bereits gemeldetes Jahr bleibt damit unverändert.
 
-Für die Auswertungen zählt die Verrechnung wie eine Zahlung. Der offene Posten verschwindet, der Aufwand und die Vorsteuer bleiben in dem Monat, in dem der Beleg gebucht ist.
+Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. In der EÜR wirkt sie auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums. Bei Ist-Versteuerung wird damit auch die Umsatzsteuer in dem Voranmeldungszeitraum fällig, in dem aufgerechnet wird. Die Vorsteuer hängt weiter am Leistungszeitraum und nicht an der Zahlung.
 
 ## Grenzen
 
