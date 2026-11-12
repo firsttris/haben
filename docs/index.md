@@ -104,7 +104,7 @@ E-Rechnungen liest Haben direkt, andere Belege auf Wunsch per KI. Du prüfst, w�
 </div>
 </div>
 
-<div class="showcase-feature" markdown>
+<div class="showcase-feature showcase-feature--flip" markdown>
 <div markdown>
 
 ## Enter, und die Zahlung ist zugeordnet
@@ -138,7 +138,7 @@ ELSTER.
 </div>
 </div>
 
-<div class="showcase-feature" markdown>
+<div class="showcase-feature showcase-feature--flip" markdown>
 <div markdown>
 
 ## Umzug ohne Datenverlust
@@ -172,7 +172,7 @@ Prüfsummen.
 </div>
 </div>
 
-<div class="showcase-feature" markdown>
+<div class="showcase-feature showcase-feature--flip" markdown>
 <div markdown>
 
 ## Hell, dunkel oder wie dein System

@@ -1,5 +1,5 @@
 /* Startseite (index.md): wenig Text, große Bilder. Kopf mittig mit der Übersicht darunter, dann Kacheln mit je
-   einem Satz und Link, dann je Funktion Text links und Bild rechts, immer in derselben Richtung. */
+   einem Satz und Link, dann die Funktionen mit Bild abwechselnd rechts und links. */
 
 .showcase-hero {
   text-align: center;
@@ -92,13 +92,21 @@
   color: var(--md-default-fg-color--light);
 }
 
-/* Funktionen: Text links, Bild rechts */
+/* Funktionen: Text links, Bild rechts; --flip tauscht die Seiten, damit die Seite nicht in zwei Spalten erstarrt */
 .showcase-feature {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
   gap: 2.4rem;
   align-items: center;
   margin: 4.4rem 0;
+}
+
+.showcase-feature--flip {
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+
+.showcase-feature--flip > :first-child {
+  order: 2;
 }
 
 .md-typeset .showcase-feature h2 {
@@ -136,10 +144,15 @@
 
 /* Handy und Tablet: eine Spalte, der Text über seinem Bild */
 @media screen and (max-width: 59.99em) {
-  .showcase-feature {
+  .showcase-feature,
+  .showcase-feature--flip {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.2rem;
     margin: 3.2rem 0;
+  }
+
+  .showcase-feature--flip > :first-child {
+    order: 0;
   }
 
   .md-typeset .showcase-hero h1 {
