@@ -19,4 +19,4 @@ Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst da
    - der Patch zwischen Markern, anzuwenden mit `git am`;
    - die Kontrolle (`git log`, `git diff --stat`, bei Code die Prüfung wie Biome);
    - `git push origin HEAD:<branch-des-pr>` ohne Force und auf keinen anderen Branch, am Ende den neuen SHA melden.
-4. Den Push prüfen: `git ls-remote origin refs/pull/<nr>/head` zeigt den neuen SHA. Die Hilfssession danach mit `archive_session` beenden.
+4. Auf das Ende der Hilfssession warten (sie meldet sich nicht von selbst): `get_session` bis `status_bucket` nicht mehr `working` ist, ihre Antwort mit `list_events` und `kinds` `["assistant", "result"]`. Dann den Push prüfen: `git ls-remote origin refs/pull/<nr>/head` zeigt den neuen SHA. Die Hilfssession danach mit `archive_session` beenden.
