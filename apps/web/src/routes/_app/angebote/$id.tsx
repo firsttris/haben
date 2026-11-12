@@ -23,7 +23,6 @@ export const Route = createFileRoute("/_app/angebote/$id")({
 });
 
 type Detail = Awaited<ReturnType<typeof getQuoteDetail>>;
-
 function QuotePage() {
   const data = Route.useLoaderData();
   const { quote } = data;
@@ -37,6 +36,7 @@ function QuotePage() {
         kind="angebot"
         initial={{
           contactId: quote.contactId,
+          contactPersonId: quote.contactPersonId,
           issueDate: quote.issueDate,
           validUntil: quote.validUntil,
           serviceFrom: quote.serviceFrom,
@@ -68,6 +68,7 @@ function QuotePage() {
           })),
         }}
         planTemplates={data.planTemplates}
+        contactPersons={data.contactPersons}
         contacts={data.contacts}
         seller={data.company}
         sellerIssues={data.sellerIssues}

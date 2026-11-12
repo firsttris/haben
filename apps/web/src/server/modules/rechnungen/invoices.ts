@@ -43,8 +43,7 @@ import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
-import type { Contact } from "../stammdaten/index.ts";
-import { contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -125,6 +124,8 @@ export const draftSchema = z
     /** Überweisung oder Einzug per SEPA-Lastschrift mit dem Mandat des Kunden (#445); fehlt = Überweisung */
     paymentMethod: z.enum(PAYMENT_METHODS).default("ueberweisung"),
     sepaMandateId: z.uuid().nullable().default(null),
+    /** Ansprechpartner des Kunden (#424); der Stand beim Festschreiben steht im Käufer des Belegs */
+    contactPersonId: z.uuid().nullable().default(null),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
@@ -533,6 +534,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
   const totals = totalsFromTaxes(taxes);
   const values = {
     contactId: input.contactId,
+    contactPersonId: input.contactPersonId ?? null,
     issueDate: input.issueDate,
     serviceFrom: input.serviceFrom,
     serviceTo: input.serviceTo,
@@ -590,6 +592,8 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
   const { values, calculation, taxes } = draftValues(input, bundesland, lines, await draftRate(tx, input, extra.correctsId ?? null, null), extra.kind);
   const mandateProblem = await draftMandateProblem(tx, values, values.contactId, values.dueDate);
   if (mandateProblem) throw new InvoiceError(mandateProblem);
+  const personProblem = await contactPersonProblem(tx, values.contactId, values.contactPersonId);
+  if (personProblem) throw new InvoiceError(personProblem);
   const [invoice] = await tx
     .insert(schema.invoices)
     .values({ ...values, ...extra })
@@ -632,6 +636,9 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     );
     const mandateProblem = await draftMandateProblem(tx, values, values.contactId, values.dueDate);
     if (mandateProblem) throw new InvoiceError(mandateProblem);
+    // Die schon gewählte Person bleibt, auch wenn sie inzwischen deaktiviert ist; eine neue muss aktiv sein und zum Kunden gehören
+    const personProblem = await contactPersonProblem(tx, values.contactId, values.contactPersonId, draft.contactPersonId);
+    if (personProblem) throw new InvoiceError(personProblem);
     // Abschlag zu einer Zeile des Zahlungsplans: nur solange es ein Abschlag zu diesem Angebot bleibt
     const keepsPlanRow = values.variant === "abschlag" && values.quoteId === draft.quoteId;
     const [updated] = await tx
@@ -809,7 +816,8 @@ export function withCurrentLegalInfo(seller: Seller, company: Company): Seller {
   return { ...rest, ...sellerLegalInfo(company) };
 }
 
-export function buyerFrom(contact: Contact): Buyer {
+/** Käufer eines Belegs aus dem Kontakt; mit Ansprechpartner (Stand der Person beim Festschreiben, #424) */
+export function buyerFrom(contact: Contact, ansprechpartner?: Buyer["ansprechpartner"]): Buyer {
   return {
     name: contact.name,
     strasse: contact.strasse,
@@ -821,6 +829,7 @@ export function buyerFrom(contact: Contact): Buyer {
     ...(contact.ustId ? { ustId: contact.ustId } : {}),
     ...(contact.leitwegId ? { leitwegId: contact.leitwegId } : {}),
     ...(contact.kundennummer ? { kundennummer: contact.kundennummer } : {}),
+    ...(ansprechpartner ? { ansprechpartner } : {}),
   };
 }
 
@@ -1035,7 +1044,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       await invoiceDocumentTotals(id, q),
       (await invoiceTotalsById([id], q)).get(id)!,
       sellerFrom(company),
-      buyerFrom(contact),
+      buyerFrom(contact, await ansprechpartnerSnapshot(q, invoice.contactPersonId)),
       "VORSCHAU",
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
       await deductedRefs(lines, q),
@@ -1106,7 +1115,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 
   // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
   const seller = sellerFrom(company);
-  const buyer = corrects?.buyer ?? buyerFrom(contact!);
+  const buyer = corrects?.buyer ?? buyerFrom(contact!, await ansprechpartnerSnapshot(tx, invoice.contactPersonId));
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
   const doc = documentFor(
     invoice,

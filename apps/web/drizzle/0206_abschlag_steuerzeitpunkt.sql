@@ -1,2 +1,0 @@
-ALTER TABLE "invoices" ADD COLUMN "advance_type" text;--> statement-breakpoint
-ALTER TABLE "invoices" ADD CONSTRAINT "invoices_advance_type" CHECK ("invoices"."advance_type" is null or ("invoices"."variant" = 'abschlag' and "invoices"."advance_type" in ('anzahlung', 'teilleistung')));

@@ -1447,8 +1447,22 @@
     {
       "idx": 206,
       "version": "7",
-      "when": 1794478544767,
-      "tag": "0206_abschlag_steuerzeitpunkt",
+      "when": 1794478207206,
+      "tag": "0206_ansprechpartner",
+      "breakpoints": true
+    },
+    {
+      "idx": 207,
+      "version": "7",
+      "when": 1794478209986,
+      "tag": "0207_ansprechpartner_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 208,
+      "version": "7",
+      "when": 1794480392722,
+      "tag": "0208_abschlag_steuerzeitpunkt",
       "breakpoints": true
     }
   ]

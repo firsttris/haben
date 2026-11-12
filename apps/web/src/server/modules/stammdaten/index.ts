@@ -97,6 +97,19 @@ export {
   type Mandate,
   type MandateOption,
 } from "./sepa-mandate.ts";
+export {
+  ansprechpartnerSnapshot,
+  ContactPersonError,
+  contactPersonInputSchema,
+  contactPersonOptions,
+  contactPersonProblem,
+  createContactPerson,
+  listContactPersons,
+  setContactPersonActive,
+  updateContactPerson,
+  type ContactPerson,
+  type ContactPersonInput,
+} from "./contact-persons.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";
 export {
   createTextBlock,

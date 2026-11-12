@@ -1,5 +1,5 @@
 {
-  "id": "d130b544-95a7-4d2f-b49b-69e1c663f86d",
+  "id": "dc9198fe-ac7d-4817-94d6-4d2361e9fb65",
   "prevId": "23eea8bd-f607-49ae-9bab-36e149207f03",
   "version": "7",
   "dialect": "postgresql",
@@ -2934,6 +2934,113 @@
         "company_logo_single": {
           "name": "company_logo_single",
           "value": "\"company_logo\".\"id\" = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.contact_persons": {
+      "name": "contact_persons",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "telefon": {
+          "name": "telefon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "funktion": {
+          "name": "funktion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "deactivated_at": {
+          "name": "deactivated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "contact_persons_contact": {
+          "name": "contact_persons_contact",
+          "columns": [
+            {
+              "expression": "contact_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contact_persons_contact_id_contacts_id_fk": {
+          "name": "contact_persons_contact_id_contacts_id_fk",
+          "tableFrom": "contact_persons",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "contact_persons_name": {
+          "name": "contact_persons_name",
+          "value": "length(btrim(\"contact_persons\".\"name\")) > 0"
         }
       },
       "isRLSEnabled": false
@@ -6237,12 +6344,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "advance_type": {
-          "name": "advance_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -6333,6 +6434,12 @@
         },
         "sepa_mandate_id": {
           "name": "sepa_mandate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_person_id": {
+          "name": "contact_person_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -6539,6 +6646,19 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
+        "invoices_contact_person_id_contact_persons_id_fk": {
+          "name": "invoices_contact_person_id_contact_persons_id_fk",
+          "tableFrom": "invoices",
+          "tableTo": "contact_persons",
+          "columnsFrom": [
+            "contact_person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "invoices_corrects_fk": {
           "name": "invoices_corrects_fk",
           "tableFrom": "invoices",
@@ -6617,10 +6737,6 @@
         "invoices_variant_kind": {
           "name": "invoices_variant_kind",
           "value": "\"invoices\".\"variant\" is null or \"invoices\".\"kind\" = 'rechnung'"
-        },
-        "invoices_advance_type": {
-          "name": "invoices_advance_type",
-          "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",
@@ -10339,6 +10455,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "contact_person_id": {
+          "name": "contact_person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "issue_date": {
           "name": "issue_date",
           "type": "date",
@@ -10566,6 +10688,19 @@
           "tableTo": "contacts",
           "columnsFrom": [
             "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "quotes_contact_person_id_contact_persons_id_fk": {
+          "name": "quotes_contact_person_id_contact_persons_id_fk",
+          "tableFrom": "quotes",
+          "tableTo": "contact_persons",
+          "columnsFrom": [
+            "contact_person_id"
           ],
           "columnsTo": [
             "id"
