@@ -110,6 +110,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
+| `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI. Ohne `--include` meldet es auch unbenutzte Exporte, darunter viele, die Tests per `import()` laden und die es deshalb nicht sieht: vor dem Löschen mit `git grep` nachsehen |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
 | `bun run db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
 | `bun run db:migrate` | Ausstehende Migrationen anwenden |

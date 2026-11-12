@@ -3,8 +3,6 @@ import { parseDate, parseGermanAmount } from "../text.ts";
 import type { BuchhaltungsbutlerInfo, BuchhaltungsbutlerJoinedRow, BuchhaltungsbutlerRow } from "./types.ts";
 import { BuchhaltungsbutlerError } from "./types.ts";
 
-const INFO_NAMES = ["Buchungsnummer", "URL", "Gegenpartei", "Rechnungsnummer", "Betrag", "Umsatzsteuer", "Rechnungsdatum"] as const;
-
 export function datevInfo(row: BuchhaltungsbutlerRow): Record<string, string> {
   const result: Record<string, string> = {};
   for (let i = 1; i <= 8; i++) {
@@ -85,8 +83,4 @@ function compareRows(bb: BuchhaltungsbutlerRow, datev: DatevBooking): void {
   if (bb.Steuerschlüssel !== datev.buKey) problems.push("Steuerschlüssel weicht ab");
   if (parseDate(bb.Datum ?? "") !== datev.date) problems.push("Datum weicht ab");
   if (problems.length > 0) throw new BuchhaltungsbutlerError(`Buchung ${id}: BB- und DATEV-Export weichen ab (${problems.join(", ")}).`);
-}
-
-export function infoNames(): readonly string[] {
-  return INFO_NAMES;
 }
