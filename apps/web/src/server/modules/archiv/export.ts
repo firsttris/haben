@@ -227,11 +227,18 @@ const SOURCE_LABELS: Record<string, string> = {
   pauschale: "Pauschale",
   kasse: "Kasse",
   ausbuchung: "Ausbuchung",
+  verrechnung: "Verrechnung",
   manuell: "Manuell",
   eroeffnung: "Eröffnung",
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
+  import: "Import",
 };
+
+/** Herkunft einer Journalbuchung für die Spalte „Quelle“; eine ältere, unbekannte Herkunft bleibt roh statt leer */
+export function sourceLabel(sourceType: string): string {
+  return SOURCE_LABELS[sourceType] ?? sourceType;
+}
 const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
   document: "Beleg",
@@ -639,7 +646,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       entry.date,
       entry.id,
       entry.description,
-      SOURCE_LABELS[entry.sourceType] ?? entry.sourceType,
+      sourceLabel(entry.sourceType),
       entry.sourceId,
       entry.kontenrahmen,
       line.account,
