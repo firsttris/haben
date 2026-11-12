@@ -247,6 +247,27 @@ jobs:
           echo "KOSIT_JAR=$jar" >> "$GITHUB_ENV"
           echo "KOSIT_CONFIG=$RUNNER_TEMP/kosit/xr/scenarios.xml" >> "$GITHUB_ENV"
       - run: bun run --cwd packages/einvoice kosit "$RUNNER_TEMP/kosit/out"
+      - name: Factur-X 1.08 und 1.09.2 laden
+        env:
+          # Veröffentlichte EN16931-Regeln samt Codelisten, auf einen festen Quellenstand gepinnt
+          FACTURX_108_REF: 57de7ed112a71fbcff77c32cf2c6ccba8c6469b1
+          FACTURX_109_REF: 650cfe34ec524ec39ea106a09df6d0cc259813a4
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/facturx/1.08" "$RUNNER_TEMP/facturx/1.09.2"
+          base="https://raw.githubusercontent.com/akretion/factur-x/$FACTURX_108_REF/src/facturx/xsd/facturx-en16931"
+          for file in Factur-X_1.08_EN16931-compiled.xsl Factur-X_1.08_EN16931_codedb.xml; do
+            curl --fail --silent --show-error --location --retry 3 "$base/$file" --output "$RUNNER_TEMP/facturx/1.08/$file"
+          done
+          base="https://raw.githubusercontent.com/akretion/factur-x/$FACTURX_109_REF/src/facturx/xsd_and_schematron/facturx-en16931"
+          for file in FACTUR-X_EN16931.xslt FACTUR-X_EN16931_codedb.xml; do
+            curl --fail --silent --show-error --location --retry 3 "$base/$file" --output "$RUNNER_TEMP/facturx/1.09.2/$file"
+          done
+      - name: ZUGFeRD zusätzlich gegen Factur-X prüfen
+        run: |
+          bun packages/einvoice/scripts/facturx-check.ts "$RUNNER_TEMP/kosit/out" \
+            "$RUNNER_TEMP/facturx/1.08/Factur-X_1.08_EN16931-compiled.xsl" \
+            "$RUNNER_TEMP/facturx/1.09.2/FACTUR-X_EN16931.xslt"
       - if: always()
         uses: actions/upload-artifact@v7
         with:
