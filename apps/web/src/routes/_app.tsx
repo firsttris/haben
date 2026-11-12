@@ -45,6 +45,7 @@ const NAV_GROUPS = [
       { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
+      { to: "/leistungen", icon: "calendar", label: "Leistungen" },
       { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
     ],
   },

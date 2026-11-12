@@ -1,5 +1,5 @@
 {
-  "id": "72ec70d6-4a8c-43a7-a941-3b229ab30b94",
+  "id": "ddae4cd6-0d58-4434-8ae6-451d6a4296ca",
   "prevId": "998bc932-3380-449a-b20a-560740619da4",
   "version": "7",
   "dialect": "postgresql",
@@ -2863,19 +2863,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "nav_color": {
-          "name": "nav_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nav_logo": {
-          "name": "nav_logo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2897,10 +2884,6 @@
         "company_rechtsform": {
           "name": "company_rechtsform",
           "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
-        },
-        "company_nav_color": {
-          "name": "company_nav_color",
-          "value": "\"company\".\"nav_color\" ~ '^#[0-9A-F]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -3288,6 +3271,12 @@
         },
         "kreditor_nr": {
           "name": "kreditor_nr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hourly_rate_cents": {
+          "name": "hourly_rate_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -12550,6 +12539,183 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.service_entries": {
+      "name": "service_entries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "worked_on": {
+          "name": "worked_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minutes": {
+          "name": "minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "hourly_rate_cents": {
+          "name": "hourly_rate_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "non_billable": {
+          "name": "non_billable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "billable_minutes": {
+          "name": "billable_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "project": {
+          "name": "project",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "external_source": {
+          "name": "external_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "service_entries_extern_key": {
+          "name": "service_entries_extern_key",
+          "columns": [
+            {
+              "expression": "external_source",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "service_entries_contact": {
+          "name": "service_entries_contact",
+          "columns": [
+            {
+              "expression": "contact_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "worked_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "service_entries_contact_id_contacts_id_fk": {
+          "name": "service_entries_contact_id_contacts_id_fk",
+          "tableFrom": "service_entries",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "service_entries_minutes": {
+          "name": "service_entries_minutes",
+          "value": "\"service_entries\".\"minutes\" between 1 and 1440"
+        },
+        "service_entries_billable_minutes": {
+          "name": "service_entries_billable_minutes",
+          "value": "\"service_entries\".\"billable_minutes\" is null or \"service_entries\".\"billable_minutes\" between 1 and 1440"
+        },
+        "service_entries_rate": {
+          "name": "service_entries_rate",
+          "value": "\"service_entries\".\"hourly_rate_cents\" is null or \"service_entries\".\"hourly_rate_cents\" >= 0"
+        },
+        "service_entries_extern": {
+          "name": "service_entries_extern",
+          "value": "(\"service_entries\".\"external_source\" is null) = (\"service_entries\".\"external_id\" is null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.session": {

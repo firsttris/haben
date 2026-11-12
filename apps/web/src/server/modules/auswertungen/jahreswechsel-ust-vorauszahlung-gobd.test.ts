@@ -230,6 +230,55 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: übermittelte EÜR b
     expect(await vorauszahlungVorjahrHinweis(2027)).toBeNull();
   }, 60_000);
 
+  /** Anlage EÜR 2026 außerhalb von Haben abgegeben und vermerkt (#760) */
+  async function vermerkt(year: number) {
+    const { vermerkeJahresabgabe } = await import("../jahreserklaerung/vermerk.ts");
+    seq++;
+    await vermerkeJahresabgabe(
+      actor,
+      "euer",
+      year,
+      { filedOn: `${year + 1}-02-10`, transferTicket: `TTEUER${year}x${seq}`, amount: 0, note: "Mit WISO abgegeben.", abweichungBestaetigt: true },
+      `${year + 1}-02-10`,
+    );
+  }
+
+  it("Dauerfristverlängerung 2026 nach dem Vermerk der EÜR 2026 eingetragen: die EÜR 2026 bleibt wie abgegeben", async () => {
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    await zahlung(dez.id, "08.01.27");
+    expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+    await vermerkt(2026);
+    await dauerfristAendern(true);
+    expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+    expect(await euer(2027)).toEqual({ gewinn: 0 });
+    await beideWegeGleich();
+  }, 60_000);
+
+  it("Zuordnung nach dem Vermerk der EÜR 2026 aufgehoben: die EÜR 2026 bleibt wie abgegeben", async () => {
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    await zahlung(dez.id, "08.01.27");
+    await vermerkt(2026);
+    const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
+    await bank.reverseAllocation(actor, a!.id as string);
+    expect(await euer(2026)).toEqual(MIT_DEZEMBER);
+    expect(await euer(2027)).toEqual({ gezahlteUst: -19_000, gewinn: 19_000 });
+    await beideWegeGleich();
+  }, 60_000);
+
+  it("Zahlung nach dem Vermerk der EÜR 2026 zugeordnet: sie zählt nicht mehr in der abgegebenen EÜR 2026", async () => {
+    await reset();
+    const dez = await dezemberMitVoranmeldung();
+    const tx = await umsatzVom("08.01.27", "-190,00");
+    expect(await euer(2026)).toEqual(OHNE_DEZEMBER);
+    await vermerkt(2026);
+    await bank.allocate(actor, { kind: "ustva", transactionId: tx.id, vatReturnId: dez.id, amount: tx.amount });
+    expect(await euer(2026)).toEqual(OHNE_DEZEMBER);
+    expect(await euer(2027)).toEqual(NUR_ZAHLUNG);
+    await beideWegeGleich();
+  }, 60_000);
+
   it("Teil einer Zahlung nach der Übermittlung der EÜR 2026 zugeordnet: der Hinweis nennt nur diesen Teil", async () => {
     const { vorauszahlungVorjahrHinweis } = await import("./euer-jahreswechsel.ts");
     await reset();

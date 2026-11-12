@@ -239,13 +239,38 @@ export async function listSettlements(documentId: string, q: Db | Tx = db) {
     .orderBy(asc(schema.documentSettlements.date), asc(schema.documentSettlements.createdAt));
 }
 
-/** Offene Belege desselben Lieferanten, die als Gegenbeleg in Frage kommen (anderes Vorzeichen) */
+/**
+ * Offene Belege desselben Lieferanten, die als Gegenbeleg in Frage kommen (anderes Vorzeichen)
+ *
+ * Der Lieferant wird in JavaScript verglichen, nicht per `lower()` in SQL: `settleDocuments` entscheidet ebenfalls
+ * in JavaScript, und nur derselbe Normalisierer (`lieferant`) garantiert, dass die Liste genau die Paare anbietet,
+ * die der Server annimmt. Postgres `lower()` und JavaScript `toLowerCase()` falten Unicode unterschiedlich — bei
+ * İ (U+0130) ergibt `lower()` in UTF-8 „istanbul“, `toLowerCase()` dagegen „i“ plus kombinierenden Punkt (U+0307).
+ * In Datenbanken ohne UTF-8-Locale (lc_ctype = 'C') faltet `lower()` außerdem nur ASCII, also „MÜLLER“ nicht zu
+ * „müller“.
+ *
+ * Das Limit von 50 greift erst nach dem Filtern: Sonst verdrängten fremde Belege mit jüngerem Datum die passenden
+ * Kandidaten aus der Liste.
+ */
 export async function settlementCandidates(documentId: string, q: Db | Tx = db) {
   const [doc] = await q
-    .select({ supplier: schema.documents.supplierName, gross: schema.documents.gross })
+    .select({
+      supplier: schema.documents.supplierName,
+      gross: schema.documents.gross,
+      status: schema.documents.status,
+      payment: schema.documents.payment,
+    })
     .from(schema.documents)
     .where(eq(schema.documents.id, documentId));
-  if (!doc) return [];
+  // Dieselben Bedingungen wie in settleDocuments: der geöffnete Beleg muss gebucht sein und über die Bank laufen
+  if (doc?.status !== "gebucht" || doc.payment !== "bank") return [];
+  // Ohne Lieferanten gibt es keinen Gegenbeleg: settleDocuments lehnt den Beleg ab, und ein Vergleich mit „“ träfe
+  // jeden Beleg ohne Lieferanten (siehe `lieferant`).
+  const name = lieferant(doc.supplier);
+  if (!name) return [];
+  // Ein stornierter Beleg lässt sich nicht verrechnen; die Liste bietet ihn deshalb auch nicht an (docs/belege.md)
+  const storniert = await q.execute<{ id: string }>(sql`select id from document_cancellations where document_id = ${documentId} limit 1`);
+  if (storniert.length > 0) return [];
   const rows = await q.execute<{
     id: string;
     document_date: string;
@@ -261,12 +286,13 @@ export async function settlementCandidates(documentId: string, q: Db | Tx = db) 
      where d.id <> ${documentId}
        and d.status = 'gebucht'
        and d.payment = 'bank'
-       and lower(d.supplier_name) = lower(${doc.supplier ?? ""})
+       and not exists (select 1 from document_cancellations c where c.document_id = d.id)
        and sign(d.gross) <> sign(${doc.gross ?? 0})
-     order by d.document_date desc
-     limit 50`);
+     order by d.document_date desc`);
+  // Erst filtern, dann begrenzen: der Lieferantenvergleich läuft in JavaScript (`lieferant`), nicht im SQL
   return [...rows]
-    .filter((r) => Number(r.rest) !== 0)
+    .filter((r) => Number(r.rest) !== 0 && lieferant(r.supplier_name) === name)
+    .slice(0, 50)
     .map((r) => ({ id: r.id, date: r.document_date, supplier: r.supplier_name, gross: Number(r.gross), rest: Number(r.rest) }));
 }
 
