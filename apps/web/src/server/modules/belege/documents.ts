@@ -250,6 +250,8 @@ async function applyFields(
         currency: fields.currency,
         ...rate,
         category,
+        // Die Kategorie gilt neu: ein eigenes Konto der alten passt nicht mehr
+        ownAccountId: null,
         ...(payment ? { payment } : {}),
         privateShare,
         ...totalsOf(amounts, doc.reverseCharge),
@@ -275,6 +277,7 @@ async function applyOwnInvoiceHint(actor: string, id: string, verdict: OwnInvoic
       .update(schema.documents)
       .set({
         category: null,
+        ownAccountId: null,
         privateShare: 0,
         extractionStatus: "fertig",
         extractionError: hint,
@@ -702,6 +705,11 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, !company.kleinunternehmer, doc.privateShare, doc.reverseCharge));
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
+  // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
+  for (const [kontoId, kategorie] of [[doc.ownAccountId, doc.category] as const, ...splits.map((s) => [s.ownAccountId, s.category] as const)]) {
+    const problem = await ownAccountAssignmentProblem(tx, kontoId, kategorie, kontoId);
+    if (problem) issues.push(problem.replace(/.$/, ""));
+  }
   if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.

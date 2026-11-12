@@ -155,6 +155,38 @@ describe.skipIf(!testDatabaseUrl)("Beleg mit eigenem Konto (Postgres, #270)", ()
         await expect(konten.deleteOwnAccount(actor, own)).rejects.toThrow(/verwendet/);
         await konten.setOwnAccountArchived(actor, own, true);
       });
+
+      it("ein Konto, das nur an einer Zeile der Aufteilung hängt, lässt sich nicht löschen", async () => {
+        const own = await reset(kontenrahmen);
+        await draft(null, { category: null, splits: [{ category: "software", ownAccountId: own, taxRate: 1900, net: 10_000 }] });
+        await expect(konten.deleteOwnAccount(actor, own)).rejects.toThrow(/verwendet/);
+      });
+
+      it("ein nach dem Speichern archiviertes Konto bucht den Beleg trotzdem, den es schon hat", async () => {
+        const own = await reset(kontenrahmen);
+        const id = await draft(own);
+        await konten.setOwnAccountArchived(actor, own, true);
+        await documents.bookDocument(actor, id);
+        expect((await lines(id)).map((l) => l.account)).toContain(k.eigen);
+        // ein neuer Beleg auf das archivierte Konto wird abgelehnt
+        await expect(draft(own)).rejects.toThrow(/archiviert/);
+      });
+
+      it("buchen prüft das Konto noch einmal: ein anderer Kontenrahmen seit dem Speichern verhindert die Buchung", async () => {
+        const own = await reset(kontenrahmen);
+        const id = await draft(own);
+        await sql`update company set kontenrahmen = ${kontenrahmen === "SKR03" ? "SKR04" : "SKR03"} where id = 1`;
+        await expect(documents.bookDocument(actor, id)).rejects.toThrow(/anderen Kontenrahmen/);
+        expect((await lines(id)).length).toBe(0);
+      });
+
+      it("buchen prüft die Kategorie noch einmal: passt das Konto nicht mehr zur Kategorie, wird nicht gebucht", async () => {
+        const own = await reset(kontenrahmen);
+        const id = await draft(own);
+        await sql`update documents set category = 'buero' where id = ${id}`;
+        await expect(documents.bookDocument(actor, id)).rejects.toThrow(/Elternkategorie/);
+        expect((await lines(id)).length).toBe(0);
+      });
     });
   }
 });
