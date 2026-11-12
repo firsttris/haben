@@ -445,6 +445,7 @@ export const vatItemsSince = pgTable(
 /**
  * Prüfungen und Übermittlungen der Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR), nur anhängen.
  * `figures` hält die gesendeten Werte fest, unabhängig davon, wie sich die Buchungen später ändern.
+ * `kind = 'vermerk'` dokumentiert eine außerhalb von Haben abgegebene Erklärung mit Tag, Ticket und Protokoll.
  */
 export const annualSubmissions = pgTable(
   "annual_submissions",
@@ -453,11 +454,14 @@ export const annualSubmissions = pgTable(
     /** GmbH und UG: kst Körperschaftsteuer, gewst Gewerbesteuer, ebilanz E-Bilanz (§ 5b EStG) */
     form: text("form", { enum: ["ust", "euer", "est", "kst", "gewst", "ebilanz"] }).notNull(),
     year: smallint("year").notNull(),
-    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    kind: text("kind", { enum: ["validate", "test", "send", "vermerk"] }).notNull(),
     ok: boolean("ok").notNull(),
     code: integer("code").notNull(),
     message: text("message").notNull(),
     transferTicket: text("transfer_ticket"),
+    /** Abgabe außerhalb von Haben: Tag laut Übermittlungsprotokoll und Begründung */
+    filedOn: date("filed_on", { mode: "string" }),
+    note: text("note"),
     figures: jsonb("figures").$type<Record<string, unknown>>().notNull(),
     requestXml: text("request_xml").notNull(),
     responseXml: text("response_xml").notNull(),
@@ -469,6 +473,8 @@ export const annualSubmissions = pgTable(
     index("annual_submissions_form_year").on(t.form, t.year),
     // Je Erklärung und Jahr höchstens eine erfolgreiche Echtübermittlung
     uniqueIndex("annual_submissions_sent").on(t.form, t.year).where(sql`${t.kind} = 'send' and ${t.ok}`),
+    // Je Erklärung und Jahr höchstens ein Vermerk auf eine Abgabe außerhalb von Haben
+    uniqueIndex("annual_submissions_vermerk").on(t.form, t.year).where(sql`${t.kind} = 'vermerk'`),
   ],
 );
 

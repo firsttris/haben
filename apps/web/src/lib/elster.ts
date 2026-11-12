@@ -3,7 +3,7 @@ import type { ConfirmFact } from "../components/ConfirmDialog.tsx";
 import type { Notice } from "./use-action.ts";
 
 export type ElsterKind = "validate" | "test" | "send";
-export const ELSTER_KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
+export const ELSTER_KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung", vermerk: "Vermerk" } as const;
 
 /** Antwort von ERiC als Meldung; `sentText` sagt, was nach der Echtsendung passiert ist */
 export function elsterNotice(

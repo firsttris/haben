@@ -20,7 +20,7 @@ import {
   type ElsterClient,
   type ElsterResult,
 } from "@haben/elster";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -130,20 +130,30 @@ function xmlFor(year: number, company: Company, daten: EbilanzDaten, test: boole
 }
 
 export async function ebilanzSubmissions(year: number) {
-  return db
-    .select({
-      id: schema.annualSubmissions.id,
-      kind: schema.annualSubmissions.kind,
-      ok: schema.annualSubmissions.ok,
-      code: schema.annualSubmissions.code,
-      message: schema.annualSubmissions.message,
-      transferTicket: schema.annualSubmissions.transferTicket,
-      hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
-      createdAt: schema.annualSubmissions.createdAt,
-    })
-    .from(schema.annualSubmissions)
-    .where(and(eq(schema.annualSubmissions.form, "ebilanz"), eq(schema.annualSubmissions.year, year)))
-    .orderBy(desc(schema.annualSubmissions.createdAt));
+  return (
+    db
+      .select({
+        id: schema.annualSubmissions.id,
+        kind: schema.annualSubmissions.kind,
+        ok: schema.annualSubmissions.ok,
+        code: schema.annualSubmissions.code,
+        message: schema.annualSubmissions.message,
+        transferTicket: schema.annualSubmissions.transferTicket,
+        hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
+        createdAt: schema.annualSubmissions.createdAt,
+      })
+      .from(schema.annualSubmissions)
+      // Ein Vermerk gilt nur für Umsatzsteuererklärung und Anlage EÜR; die E-Bilanz kennt weiter nur Prüfung, Test und Sendung
+      .where(
+        and(
+          eq(schema.annualSubmissions.form, "ebilanz"),
+          eq(schema.annualSubmissions.year, year),
+          inArray(schema.annualSubmissions.kind, ["validate", "test", "send"]),
+        ),
+      )
+      .orderBy(desc(schema.annualSubmissions.createdAt))
+      .then((rows) => rows as (Omit<(typeof rows)[number], "kind"> & { kind: "validate" | "test" | "send" })[])
+  );
 }
 
 /** Stand der E-Bilanz eines Jahres für die Abschluss-Seite; null für Einzelunternehmen */

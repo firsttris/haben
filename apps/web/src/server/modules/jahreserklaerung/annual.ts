@@ -506,6 +506,9 @@ export async function submissions(year: number) {
         code: schema.annualSubmissions.code,
         message: schema.annualSubmissions.message,
         transferTicket: schema.annualSubmissions.transferTicket,
+        filedOn: schema.annualSubmissions.filedOn,
+        note: schema.annualSubmissions.note,
+        amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::int`,
         hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
         createdAt: schema.annualSubmissions.createdAt,
       })
@@ -526,11 +529,23 @@ export async function annualOverview(year: number, today: string) {
     ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" })),
   ];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
+  // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)
+  const submitted = (form: AnnualForm) => {
+    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok);
+    if (!vermerk) return null;
+    return {
+      id: vermerk.id,
+      filedOn: vermerk.filedOn,
+      transferTicket: vermerk.transferTicket,
+      amount: vermerk.amount,
+      hasPdf: vermerk.hasPdf,
+    };
+  };
   return {
     year,
-    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust") },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
-    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
+    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust"), submitted: submitted("ust") },
+    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer"), submitted: submitted("euer") },
+    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est"), submitted: submitted("est") },
     history,
     versteuerung: await versteuerungForYear(year),
     rechtsform: company.rechtsform,

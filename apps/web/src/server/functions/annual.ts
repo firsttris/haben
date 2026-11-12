@@ -2,6 +2,7 @@ import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigures } from "@h
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+  AnnualError,
   annualOverview,
   kapgErklaerungen,
   kapgErklaerungSchema,
@@ -9,6 +10,8 @@ import {
   saveKapgErklaerungAngaben,
   submitAnnual,
   submitKapg,
+  vermerkPruefung,
+  vermerkeJahresabgabe,
 } from "../modules/jahreserklaerung/index.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
@@ -28,6 +31,10 @@ import {
   revokeBerechtigung,
 } from "../modules/finanzamt/index.ts";
 import { yearSchema } from "./schemas.ts";
+import { UserError } from "../errors.ts";
+import { MAX_DOCUMENT_SIZE } from "../modules/belege/index.ts";
+
+const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
 
 /** Zeilen der Anlage EÜR mit Feldkennung und amtlichem Text, nur belegte */
 function euerRows(figures: EuerFigures, keys: readonly (keyof typeof EUER_FIELDS)[]) {
@@ -76,6 +83,7 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
       },
       mode: elsterMode(),
       herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID) && elsterMode() === "eric",
+      today: now,
     };
   });
 
@@ -97,6 +105,48 @@ export const submitAnnualReturn = createServerFn({ method: "POST" })
       today: today(),
     });
     return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+  });
+
+/**
+ * Abgabe außerhalb von Haben vermerken (WISO, Accountable, ELSTER-Portal): Tag, Transferticket, Betrag, Begründung und
+ * optional das Übermittlungsprotokoll. Der gerechnete Betrag dient nur dem Hinweis, nicht der Ablehnung.
+ */
+export const fileAnnualElsewhere = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => {
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
+    const fields = z
+      .object({
+        form: z.enum(["ust", "euer"]),
+        year: yearSchema,
+        filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
+        transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64),
+        amount: z.coerce.number().int().pipe(centsSchema),
+        note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000),
+      })
+      .safeParse(Object.fromEntries(["form", "year", "filedOn", "transferTicket", "amount", "note"].map((k) => [k, data.get(k)])));
+    if (!fields.success) throw new UserError(fields.error.issues[0]?.message ?? "Angaben unvollständig.");
+    const protokoll = data.get("protokoll");
+    if (protokoll instanceof File && protokoll.size > MAX_DOCUMENT_SIZE) throw new UserError("Das Protokoll ist größer als 20 MB.");
+    return { ...fields.data, file: protokoll instanceof File && protokoll.size > 0 ? protokoll : null };
+  })
+  .handler(async ({ data, context }) => {
+    try {
+      const bytes = data.file ? new Uint8Array(await data.file.arrayBuffer()) : undefined;
+      await vermerkeJahresabgabe(context.user.id, data.form, data.year, {
+        filedOn: data.filedOn,
+        transferTicket: data.transferTicket,
+        amount: data.amount,
+        note: data.note,
+        ...(data.file && bytes ? { file: { bytes, filename: data.file.name } } : {}),
+      });
+      // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert
+      const pruefung = await vermerkPruefung(context.user.id, data.form, data.year, data.amount).catch(() => null);
+      return { ok: true as const, hinweis: pruefung?.hinweis ?? null };
+    } catch (error) {
+      if (error instanceof AnnualError) return { ok: false as const, message: error.message };
+      throw error;
+    }
   });
 
 /** Werte einer Jahreserklärung für die Erweiterung, die Mein ELSTER ausfüllt */
