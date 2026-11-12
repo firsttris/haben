@@ -9,8 +9,8 @@ export const PROJECT = { owner: "firsttris", number: 2 };
 
 const API = "https://api.github.com";
 
-async function anfrage<T>(token: string, pfad: string, init: RequestInit = {}): Promise<T> {
-  const antwort = await fetch(`${API}${pfad}`, {
+async function holen(token: string, url: string, init: RequestInit = {}): Promise<Response> {
+  const antwort = await fetch(url, {
     ...init,
     headers: {
       authorization: `Bearer ${token}`,
@@ -19,8 +19,26 @@ async function anfrage<T>(token: string, pfad: string, init: RequestInit = {}): 
       "user-agent": "haben-board",
     },
   });
-  if (!antwort.ok) throw new Error(`GitHub ${init.method ?? "GET"} ${pfad}: ${antwort.status} ${await antwort.text()}`);
-  return (await antwort.json()) as T;
+  if (!antwort.ok) throw new Error(`GitHub ${init.method ?? "GET"} ${url.slice(API.length)}: ${antwort.status} ${await antwort.text()}`);
+  return antwort;
+}
+
+async function anfrage<T>(token: string, pfad: string, init: RequestInit = {}): Promise<T> {
+  return (await (await holen(token, `${API}${pfad}`, init)).json()) as T;
+}
+
+/** Eine Liste über alle Seiten: GitHub nennt die nächste im Header `Link` mit rel="next" */
+async function alleSeiten<T>(token: string, pfad: string): Promise<T[]> {
+  const liste: T[] = [];
+  let url: string | undefined = `${API}${pfad}`;
+  while (url) {
+    const antwort = await holen(token, url);
+    liste.push(...((await antwort.json()) as T[]));
+    url = antwort.headers.get("link")?.match(/<([^>]+)>;\s*rel="next"/)?.[1];
+    // Das Token geht nur an die API, auch wenn der Header etwas anderes nennte
+    if (url && !url.startsWith(`${API}/`)) throw new Error(`GitHub nennt eine nächste Seite außerhalb der API: ${url}`);
+  }
+  return liste;
 }
 
 export async function graphql<T>(token: string, query: string, variables: Record<string, unknown>): Promise<T> {
@@ -189,8 +207,9 @@ export async function zugewiesenAm(token: string, repo: string, nummer: number, 
   return daten.length > 0 ? new Date(Math.max(...daten.map((d) => d.getTime()))) : null;
 }
 
+/** Alle Kommentare seit dem Zeitpunkt; ein Lebenszeichen kann auf einer späteren Seite stehen */
 export async function kommentareSeit(token: string, repo: string, nummer: number, seit: Date) {
-  const liste = await anfrage<{ user: Person; created_at: string; body: string }[]>(
+  const liste = await alleSeiten<{ user: Person; created_at: string; body: string }>(
     token,
     `/repos/${repo}/issues/${nummer}/comments?since=${seit.toISOString()}&per_page=100`,
   );
