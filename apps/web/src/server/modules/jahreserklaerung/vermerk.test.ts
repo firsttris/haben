@@ -127,4 +127,31 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(pruefung.abweichung).toBe(500);
     expect(pruefung.hinweis).toContain("weicht");
   });
+
+  it("lehnt einen Tag der Abgabe vor dem Ende des Erklärungsjahres ab", async () => {
+    // Die Erklärung 2025 kann frühestens am 1. Januar 2026 abgegeben worden sein
+    await expect(
+      jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { filedOn: "2025-06-01" }), TODAY),
+    ).rejects.toThrow(/vor dem Ende/);
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
+  });
+
+  it("lehnt einen Vermerk ab, wenn die Erklärung schon über Haben übermittelt wurde", async () => {
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, figures,
+                request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'send', true, 0, 'Erfolgreich übermittelt', 'SEND123456789', '{}'::jsonb, '', '', '')`;
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY)).rejects.toThrow(
+      /schon über Haben übermittelt/,
+    );
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
+  });
+
+  it("sperrt rückdatierte Buchungen in dem Jahr, dessen Erklärung vermerkt ist", async () => {
+    const { periodReported } = await import("../buchhaltung/index.ts");
+    const { db } = await import("../../db/index.ts");
+    expect(await periodReported(db, "2025-11-05")).toBe(false);
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY);
+    // Ein Vermerk meldet das Jahr wie eine echte Übermittlung: danach ist keine rückdatierte Buchung mehr möglich
+    expect(await periodReported(db, "2025-11-05")).toBe(true);
+  });
 });

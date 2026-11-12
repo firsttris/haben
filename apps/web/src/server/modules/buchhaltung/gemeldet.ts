@@ -33,7 +33,7 @@ export async function periodReported(q: Db | Tx, date: string): Promise<boolean>
   const [annual] = await q
     .select({ id: a.id })
     .from(a)
-    .where(and(eq(a.year, year), eq(a.kind, "send"), eq(a.ok, true)))
+    .where(and(eq(a.year, year), inArray(a.kind, ["send", "vermerk"]), eq(a.ok, true)))
     .limit(1);
   if (annual) return true;
   const [closed] = await q.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
