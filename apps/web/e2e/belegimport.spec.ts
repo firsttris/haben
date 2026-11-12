@@ -86,6 +86,9 @@ test.beforeAll(async ({ browser }) => {
     async () => pdf,
   );
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
+});
+
+async function seedImportedInvoices() {
   const { db, schema } = await import("../src/server/db/index.ts");
   const { withActor } = await import("../src/server/db/actor.ts");
   const { storeLegacyVoucher, takeOverLegacyItem } = await import("../src/server/modules/archiv/index.ts");
@@ -133,13 +136,15 @@ test.beforeAll(async ({ browser }) => {
     const native = await takeOverLegacyItem("e2e-import", voucher.id, "2026-01-31");
     importedInvoices.push({ id: native.id, label });
   }
-});
+}
 test.afterAll(async () => {
   await closeDatabase?.();
   await page?.context().close();
 });
 
-test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", async () => {
+async function checkImportedInvoiceSources() {
+  await seedImportedInvoices();
+  const viewport = page.viewportSize()!;
   for (const invoice of importedInvoices) {
     await page.goto(`/rechnungen/${invoice.id}`);
     await page.waitForLoadState("networkidle");
@@ -153,7 +158,14 @@ test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", async () 
         ] as const) {
           await page.setViewportSize({ width, height });
           await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
-          await page.screenshot({ path: `${dir}/herkunft-${theme}-${device}-${process.env.IMPORT_SCREENSHOTS}.png`, animations: "disabled", caret: "hide" });
+          await page
+            .locator(".card")
+            .filter({ has: page.getByText("Format", { exact: true }) })
+            .screenshot({
+              path: `${dir}/herkunft-${theme}-${device}-${process.env.IMPORT_SCREENSHOTS}.png`,
+              animations: "disabled",
+              caret: "hide",
+            });
         }
     }
     await expect(
@@ -163,7 +175,9 @@ test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", async () 
         .locator("+ dd"),
     ).toHaveText(`Original aus ${invoice.label}`);
   }
-});
+  await page.setViewportSize(viewport);
+  await page.evaluate(() => document.documentElement.removeAttribute("data-theme"));
+}
 
 test("Originale nutzen das gemeinsame Archiv mit tatsächlicher Quelle und unverändertem PDF", async () => {
   await page.goto("/archiv?ansicht=auftraege&jahr=2026");
@@ -237,3 +251,5 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
     expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
   }
 });
+
+test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", checkImportedInvoiceSources);
