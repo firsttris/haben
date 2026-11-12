@@ -312,7 +312,7 @@ test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)"
   await dialog.getByLabel("Ort").fill("Bremen");
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByLabel("Kunde")).toHaveValue("Dialogkunde GmbH · Bremen");
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue("Dialogkunde GmbH · Bremen");
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
 
   // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
@@ -1489,7 +1489,7 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.getByRole("link", { name: "Schlussrechnung erstellen" }).click();
   await page.waitForURL(/rechnungen\/neu\?schluss=/);
   await expect(page.getByRole("heading", { name: /^Schlussrechnung /, level: 1 })).toBeVisible();
-  await expect(page.getByLabel("Kunde")).toHaveValue("Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Kunde", exact: true })).toHaveValue("Rheinpixel GmbH · Köln");
   const abzug = page.getByRole("checkbox", { name: new RegExp(`Abschlagsrechnung ${number}`) });
   await expect(abzug).toBeChecked();
   await page.getByLabel("Beschreibung Position 1").fill("Relaunch Website gesamt");
