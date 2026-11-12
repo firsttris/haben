@@ -53,7 +53,7 @@ cd haben
 docker compose up   # http://localhost:3000
 ```
 
-Compose startet PostgreSQL 18 (dasselbe Image `tristanteu/haben-db` wie im Betrieb), installiert die Abhängigkeiten, wendet die Migrationen an und startet den Dev-Server. Der Projektordner ist in den Container eingehängt; Änderungen am Code lädt der Dev-Server beim Speichern neu. Nach einer Änderung an `bun.lock` reicht ein Neustart (`docker compose restart app`); nach einer Änderung an `deploy/dev/` oder einer neuen Bun-Version baut `docker compose up --build` den Container neu. Volumes aus der Zeit mit pnpm (Haben bis 0.2) leert der Container beim ersten Start selbst. Den Einrichtungscode für das erste Konto zeigt das Log (`docker compose logs app`).
+Compose startet PostgreSQL 18 (dasselbe Image `tristanteu/haben-db` wie im Betrieb), installiert die Abhängigkeiten, wendet die Migrationen an und startet den Dev-Server. Der Projektordner ist in den Container eingehängt; Änderungen am Code lädt der Dev-Server beim Speichern neu. Nach einer Änderung an `bun.lock` reicht ein Neustart (`docker compose restart app`); nach einer Änderung an `deploy/dev/` oder einer neuen Bun-Version baut `docker compose up --build` den Container neu. Den Einrichtungscode für das erste Konto zeigt das Log (`docker compose logs app`).
 
 - **Schlüssel:** `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` erzeugt der Container beim ersten Start zufällig und legt sie im Volume `daten` ab, zusammen mit den Belegen und einem heruntergeladenen ERiC. Feste Schlüssel stehen nicht im Repository.
 - **`apps/web/.env`** ist nicht nötig. Liegt sie vor, gelten ihre übrigen Werte auch im Container (etwa `ANTHROPIC_API_KEY` oder `HABEN_SETUP_CODE`); Datenbank, Adresse, Schlüssel, Belegordner und ERiC setzt `compose.yml`.
@@ -110,6 +110,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
+| `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI, vor dem Löschen mit `git grep` gegenprüfen |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
 | `bun run db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
 | `bun run db:migrate` | Ausstehende Migrationen anwenden |
@@ -127,13 +128,11 @@ Seiten der Doku:
 - **Front Matter:** `title:` (für Suchmaschinen, höchstens etwa 60 Zeichen; die Navigation nimmt den Namen aus `mkdocs.yml`) und `description:` (höchstens etwa 160 Zeichen, Pflicht). Daraus setzt `overrides/main.html` Beschreibung und Open Graph.
 - **Hinweise** im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile); die deutschen Titel setzt `scripts/doku-hinweise`.
 - **Kurz halten:** Die Doku sagt Menschen, was gilt und warum. Schritte für Agenten stehen in den Skills unter `.claude/skills/`, wie ein Skript intern entscheidet, in dessen Kommentaren. Keine Sätze, die nur wiederholen, ankündigen oder zusammenfassen.
-- Änderungsdatum (`scripts/doku-aenderungsdatum`) und Weiterleitungen für Pfade mit Schrägstrich (`scripts/doku-kurzlinks`) entstehen beim Build; Tests mit `python -m unittest discover -s scripts/<ordner>`.
+- Was der Build sonst ergänzt (Änderungsdatum, Weiterleitungen, kanonische Startseite), machen die Skripte `scripts/doku-*`; Tests mit `python -m unittest discover -s scripts/<ordner>`.
 
 ## Tests
 
-Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src`, `packages/*/src` und `scripts/` ein und führt die Dateien parallel aus, eine Datei je Worker.
-
-Komponenten rendern die Tests wie Browser und SSR mit TanStack Redact: `vitest.config.ts` lädt das Plugin `redact()`, das Imports aus `react` und `react-dom/server` umleitet. Dafür steht `@tanstack/redact` zusätzlich in den Dev-Abhängigkeiten der Wurzel, weil Bun isoliert installiert und die Wurzel das Paket aus `apps/web` nicht sieht; beide Einträge tragen dieselbe feste Version (`apps/web/src/components/redact-laufzeit.test.ts` prüft das). Pakete aus `node_modules` lädt Vitest weiter extern, sie sehen also React; eine Komponente, die Hooks eines solchen Pakets nutzt (etwa aus `@tanstack/react-router`), bricht im Test deshalb mit `dispatcher.useContext` ab.
+Die Tests laufen mit Vitest (`vitest.config.ts`), jede Datei in einem eigenen Worker, in der CI in vier Teilen (`bun run test --shard=<n>/4`).
 
 ```sh
 bun run test
@@ -141,14 +140,10 @@ TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 bun --bun vitest run packages/core     # nur ein Bereich
 ```
 
-In der CI laufen die Tests in vier Teilen parallel (Jobs `test-teil`, `bun run test --shard=<n>/4`); der Job `test` fasst sie zu einem Ergebnis zusammen, ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso.
-
-Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohne die Variable werden sie übersprungen. Mit ihr legt `apps/web/src/server/test-db.ts` zu Beginn des Laufs neben der Datenbank (`haben_test`) eine Vorlage `haben_test_vorlage` an und wendet dort einmal alle Migrationen an. Jeder Worker von Vitest hat eine eigene Datenbank (`haben_test_1`, `haben_test_2`, …); jede Testdatei legt sie als Kopie der Vorlage neu an (`CREATE DATABASE … TEMPLATE`, rund 0,1 s statt 0,6 s für die Migrationen). Der Benutzer braucht dafür das Recht, Datenbanken anzulegen (`CREATEDB`); der aus `compose.yml` hat es. Zwischen zwei Testfällen leeren die Tests Tabellen mit ``await leeren(sql)`truncate … cascade` `` aus `test-db.ts`: `TRUNCATE` auf festgeschriebenen und nur anhängbaren Tabellen lehnen Trigger ab, `leeren` schaltet sie nur für diese eine Anweisung per `session_replication_role` ab. Das braucht einen Superuser; der aus `compose.yml` und der CI ist einer.
+Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`, sonst werden sie übersprungen. Jeder Worker bekommt eine eigene Datenbank neben der genannten, geklont aus einer einmal migrierten Vorlage (`apps/web/src/server/test-db.ts`); der Benutzer braucht `CREATEDB` und, damit die Tests gesperrte Tabellen leeren können, Superuser-Rechte. Der aus `compose.yml` hat beides.
 
 > [!IMPORTANT]
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
-
-Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kompilieren eine kleine C-Bibliothek mit `cc`. Gibt es keinen Compiler, werden sie übersprungen.
 
 Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
 
@@ -167,52 +162,27 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 
 ### Tests mit echtem ERiC
 
-ERiC darf nicht im Repository oder in der CI liegen. Ist es lokal da (`ERIC_HOME` oder per `install-cli.ts` nach `ERIC_DIR` geladen), laufen zwei Ebenen von Tests zusätzlich gegen das echte ERiC. Gesendet wird dabei nichts, ERiC prüft nur lokal Schema und Plausibilität (`ERIC_VALIDIERE`):
+ERiC darf nicht im Repository oder in der CI liegen. Ist es lokal da (`ERIC_HOME` oder per `install-cli.ts` nach `ERIC_DIR` geladen), prüft ERiC zusätzlich lokal Schema und Plausibilität; gesendet wird nichts:
 
-- `packages/elster/src/eric-echt.test.ts` baut jede Nachricht in vielen Varianten: Voranmeldung 2025 bis 2027 mit allen Kennzahlen, Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuer für 2023 bis 2026 mit allen Feldern, Sonstige Nachricht, Bankverbindung, Belegabruf, Abrufberechtigung und Postfach. Ohne ERiC wird die Datei übersprungen.
-- Die Integrationstests in `apps/web/src/server` nutzen `EricGeprueftClient` (`test-eric.ts`). Mit ERiC lässt er jedes XML, das aus den Szenarien der Datenbank entsteht, zusätzlich von ERiC prüfen.
-
-Auf einem Rechner ohne Linux x86_64 (arm64) laufen `eric-echt.test.ts`, die übrigen `eric-*.test.ts` und `check-formats-cli.ts` mit `ERIC_WORKER_COMMAND`, wie unter [ELSTER auf arm64](installation.md#elster-auf-arm64) beschrieben; der Worker läuft dann emuliert, ein Aufruf dauert rund 25 Sekunden. Die Zeitlimits setzen sich dann von selbst hoch (`testTimeout` in `vitest.config.ts`, `ericTestTimeout` in `packages/elster/test-fixtures/eric-zeit.ts`); alle Dateien zusammen brauchen so rund 40 Minuten.
+- `packages/elster/src/eric-*.test.ts` bauen jede Nachricht in vielen Varianten; ohne ERiC werden sie übersprungen. Fälle für ein Jahr, dessen Plugin dem geladenen ERiC fehlt, ebenso.
+- Die Integrationstests in `apps/web/src/server` lassen über `EricGeprueftClient` (`test-eric.ts`) jedes XML aus ihren Szenarien von ERiC prüfen.
 
 ```sh
 bun packages/elster/src/install-cli.ts --lizenz-akzeptiert   # einmalig, lädt nach ERIC_DIR (Standard data/eric)
 ERIC_DIR=data/eric bun --bun vitest run packages/elster
 ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
+bun packages/elster/src/check-formats-cli.ts   # Belegabruf, Berechtigung, Postfach; auch als Knopf unter Einstellungen › ELSTER › ERiC
 ```
 
-Die Lohnsteuer-Anmeldung prüft `packages/elster/src/eric-lsta.test.ts` mit ERiC (Monat, Quartal, Kalenderjahr, Berichtigung, Vorjahr, nur Minijob; 2027 erst ab ERiC 45). Körperschaft- und Gewerbesteuererklärung prüft `packages/elster/src/eric-kapg.test.ts` mit ERiC (Gewinn, Verlustvortrag mit Mindestbesteuerung, Verlustjahr, Gründung, Hinzurechnungen). Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz, je mit Kontennachweis in den Taxonomien 6.9 (Wirtschaftsjahre 2025 und 2026) und 6.10 (2027). Die Fälle für 6.10 laufen nur mit einem ERiC, das das Plugin `libcheckBilanz_6_10.so` hat (ab 45); mit ERiC 44 sind sie übersprungen (`hatJahresPlugin`). So auch der Fake-Client der Postgres-Tests (`test-eric.ts`): Er lässt ERiC nur prüfen, was es kennt.
-
-Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
-
-Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ELSTER › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
-
-```sh
-bun packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DIR
-```
-
-| Bereich | Was getestet wird |
-| --- | --- |
-| `packages/core` | Fachlogik ohne Datenbank: Beträge und Rundung, Rechnungssummen, Buchungssätze für SKR03/SKR04 und Ist/Soll, Kennzahlen der UStVA, EÜR, Fristen und Feiertage, Bankabgleich-Vorschläge, SEPA-Überweisung und -Lastschrift gegen die Schemas (siehe unten), Lohnsteuer gegen Prüffälle des BMF, Sozialversicherung, Lohnabrechnung und SV-Meldeportal |
-| `packages/elster` | XML aller Nachrichten an ELSTER, Transfer-Ticket, simulierter Client, Kindprozess, Mock-ERiC, ERiC-Download; mit echtem ERiC alle Nachrichten in vielen Varianten (siehe oben) |
-| `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) mit Storno, Lastschrift, Leitweg-ID und Bruttopreisen, Pflichtangaben je Format, Einlesen fremder E-Rechnungen |
-| `packages/import` | Parser der Banken und CAMT.053, Exporte der Zahlungsdienstleister, DATEV-Buchungsstapel, Übernahme aus Lexoffice, sevDesk, BuchhaltungsButler und Accountable, Google Play und App Store Connect, Enable Banking, CSV-Import |
-| `apps/web` ohne DB | KI-Auslesung (Anbieter, OpenAI-kompatibler Dienst gegen einen Testserver), PDF in Seitenbilder, OpenAPI-Beschreibung der REST-API |
-| `apps/web` mit DB | Abläufe mit Sperren, Siegeln und Audit-Log: Rechnungen, Belege, Dauerbelege, Bankimport und -abgleich, Lastschriften und Mandate, Steuerzahlungen, Darlehen, Voranmeldung, Auswertungen, Jahresexport, Lexoffice-Übernahme, REST-API, Lohn und Lohnsteuer-Anmeldung, je für SKR03/SKR04 und Ist/Soll |
+Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung; die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
 
 ### Schemas der SEPA-Überweisung und -Lastschrift
 
-`packages/core/src/sepa.test.ts` prüft die pain.001-Datei mit `xmllint-wasm` gegen zwei Schemas:
-
-- ISO 20022 `pain.001.001.09.xsd` liegt in `packages/core/test-fixtures/sepa/`. ISO erlaubt, die Schemas frei weiterzugeben; die Datei stammt aus `raphaelm/python-sepaxml`, das sie unverändert von iso20022.org führt.
-- Das Technical Validation Subset der Deutschen Kreditwirtschaft `pain.001.001.09_GBIC_5.xsd` (Anlage 3 des DFÜ-Abkommens, Version 3.9) veröffentlicht die DK auf ebics.de ohne Lizenzangabe. Es liegt deshalb nicht im Repository: Der Test lädt es von einem festen Commit eines Projekts, das es unverändert führt, und prüft den SHA-256. Ohne Netz wird diese Prüfung lokal übersprungen, in der CI (`CI` gesetzt) schlägt sie fehl.
-
-Ebenso prüft `packages/core/src/sepa-lastschrift.test.ts` die Lastschriftdatei (pain.008.001.08, #445) gegen ISO 20022 `pain.008.001.08.xsd` (in `packages/core/test-fixtures/sepa/`, aus demselben Projekt) und `pain.008.001.08_GBIC_5.xsd` der DK, geladen von einem festen Commit und per SHA-256 geprüft; die Prüfsumme gleicht der Datei im ZIP `DK-TVS_SEPA_GBIC_5zzglISO_Originale` auf ebics.de.
-
-Kommt eine neue Version der Anlage 3, gehören neues Schema, URL und Prüfsumme in den Test.
+`sepa.test.ts` (pain.001.001.09) und `sepa-lastschrift.test.ts` (pain.008.001.08) in `packages/core/src` prüfen die Dateien gegen das Schema von ISO 20022 und gegen das Technical Validation Subset der Deutschen Kreditwirtschaft (Anlage 3 des DFÜ-Abkommens). Die ISO-Schemas dürfen frei weitergegeben werden und liegen in `packages/core/test-fixtures/sepa/`. Die der DK stehen auf ebics.de ohne Lizenzangabe; der Test lädt sie deshalb von einem festen Commit und prüft den SHA-256. Ohne Netz wird das lokal übersprungen, in der CI schlägt es fehl. Eine neue Version der Anlage 3 bringt neues Schema, URL und Prüfsumme in den Test.
 
 ### KoSIT-Validator
 
-Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` die Beispielrechnungen aus `src/beispielrechnungen.ts` in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise, Positions- und Gesamtrabatt, SEPA-Lastschrift) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 25 (wie in der CI) sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
+Der CI-Job `kosit` erzeugt die Beispielrechnungen aus `packages/einvoice/src/beispielrechnungen.ts` in allen Formaten und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal mit Java 25 und Validator und Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`, Versionen in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
 
 ```sh
 KOSIT_JAR=/pfad/validator-<version>-standalone.jar \
@@ -220,9 +190,7 @@ KOSIT_CONFIG=/pfad/scenarios.xml \
 bun run --cwd packages/einvoice kosit /tmp/haben-kosit
 ```
 
-Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
-
-Neue Releases von Validator, XRechnung-Konfiguration und Mustang ([ZUGFeRD-PDFs](#zugferd-pdfs)) bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der Job `kosit` bzw. `zugferd` des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`). Neue Versionen von Validator, Konfiguration und Mustang bringt Renovate als Pull Request; dessen Jobs `kosit` und `zugferd` prüfen die Rechnungen damit.
 
 ### ZUGFeRD-PDFs
 
@@ -232,82 +200,34 @@ Der CI-Job `zugferd` erzeugt die ZUGFeRD-PDFs der Beispielrechnungen und prüft 
 MUSTANG_JAR=/pfad/Mustang-CLI-<version>.jar bun run --cwd packages/einvoice zugferd /tmp/haben-zugferd
 ```
 
-### ERiC heben
-
-1. Neue Version suchen: Die Pakete liegen unter `https://download.elster.de/download/eric/eric_<Hauptversion>/ERiC-<Version>-Linux-x86_64.jar`, die Dokumentation daneben als `ERiC-<Version>-Dokumentation.zip`. Ein `.x.1`-Release im Herbst ist BETA (Senden nur mit Testmerker), das Hauptrelease folgt im November.
-2. Installieren, ohne das bisherige ERiC zu überschreiben: `ERIC_DIR=/var/tmp/eric-<Version> bun packages/elster/src/install-cli.ts --lizenz-akzeptiert <Version>`.
-3. In der Dokumentation `ERiC-Releasenotes.pdf` (Änderungen seit der letzten Mindestversion), `Datenartversionmatrix.ods` (welche Datenart-Versionen es gibt) und die Schemas unter `Datenarten/` lesen; die Header unter `include/` mit denen der alten Version vergleichen (`diff -r`). Entfallene Datenart-Versionen und geänderte Signaturen passt du in `packages/elster` an, neue Jahre dort, wo Haben Jahre aufzählt (`KAPESTA_JAHRE`, `LSTA_JAHRE`, `GEWST_JAHRE`, `KST_JAHRE`, `EBILANZ_TAXONOMIEN`, `LSTB_SCHNITTSTELLEN`). Die Nutzdaten von ElsterLohn prüft ERiC nicht; `lstb.test.ts` prüft sie gegen die Schemas, wenn `ERIC_DOKU` auf das Verzeichnis `Dokumentation` des entpackten Dokumentationspakets zeigt (braucht `java`).
-4. Die Tests mit dem neuen ERiC laufen lassen, auch die neuen Jahre in `eric-echt.test.ts`, und mit dem alten ERiC gegenprüfen. Fälle für ein Jahr, dessen Plugin (`lib/plugins/libcheck<Datenart>_<Jahr>.so`) dem geladenen ERiC fehlt, überspringen die Tests (`eric-plugins.ts`).
-5. `DEFAULT_ERIC_VERSION` nur auf eine für Echtfälle freigegebene Version heben, kein BETA, und die Tabelle in [Erste Schritte › Welche ERiC-Version](einrichtung.md#welche-eric-version) nachziehen.
-
 ### Ende-zu-Ende-Tests mit Playwright
-
-`apps/web/e2e/app.spec.ts` spielt den Betrieb in einer leeren Datenbank durch:
-1. Konto und Firmendaten einrichten.
-2. Kunden anlegen.
-3. Rechnungen schreiben und festschreiben.
-4. Einen Beleg hochladen und buchen. Das Belegbild entsteht im Test, mit erfundenen Daten.
-5. Einen Kontoauszug importieren und die Umsätze zuordnen.
-6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
-
-Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen Auftrag im Archiv, eine eigene Seite, einen Mitarbeiter und einen Dauerbeleg. Alles andere spielen sechs weitere Durchläufe mit eigenem Server und eigener Datenbank daneben durch, damit diese Kette kurz bleibt:
-
-- `rechnungen.spec.ts`: Rechnungen, Angebote, Versand per E-Mail, Kasse, REST-API und CSV-Import.
-- `belege-steuern.spec.ts`: Belege, Bankabgleich, Bank verbinden für den automatischen Abruf, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen. Den Abruf beantwortet eine nachgebaute Enable-Banking-API im Test auf Port `E2E_PORT` + 9; `playwright.config.ts` richtet `ENABLE_BANKING_API_URL` aller Server darauf.
-- `gmbh.spec.ts`: dasselbe für eine GmbH (siehe unten).
-- `rueckfragen.spec.ts`: Rückfragen vor Aktionen, die früher mit einem Klick auslösten, in einer GmbH.
-- `belegimport.spec.ts`: Kleinunternehmer-Ersteinrichtung ohne reguläre UStVA-Hinweise und der lokale JSON-Eingang ([Belegimport](belegimport.md)) mit Archiv, offenen Posten, Journal und Kasse.
-- `bb-import.spec.ts`: Umzug aus BuchhaltungsButler mit Testlauf, Import und PDF im Archiv.
-- `dauerfrist-euer.spec.ts`: Änderung der Dauerfristverlängerung nach übermittelter EÜR, Hinweis und unveränderte Erklärungen; eigener Durchlauf, damit die festgeschriebene Erklärung andere Steuerfälle nicht beeinflusst.
-
-`rechnungen.spec.ts` und `belege-steuern.spec.ts` richten sich mit `e2e/einrichtung.ts` dasselbe Unternehmen ein und prüfen am Ende die Seiten mit ihren Daten wie `barrierefreiheit.spec.ts` und `seiten.spec.ts`: axe am Desktop und am Handy, kein waagrechtes Scrollen auf dem Handy. Ports und Datenbanken der Durchläufe stehen in `e2e/durchlaeufe.ts`: der Hauptdurchlauf auf `E2E_PORT` (Vorgabe 3100), die übrigen auf + 1 bis + 6, `langsame-anfrage.spec.ts` und `beenden.spec.ts` auf + 7 und + 8, die nachgebaute Enable-Banking-API auf + 9 und die nachgebaute Paketquelle für eigene Layouts (`layouts.spec.ts`, `LAYOUT_PAKETE_PORT`) auf + 10. Der eigenständige Durchlauf `beleg-storno.spec.ts` prüft Bankzuordnungen und Belegstorno auf + 11. `dauerfrist-euer.spec.ts` verwendet + 12. Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht.
-
-Am Ende speichert `app.spec.ts` die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur, bis auf `steuerberatung.spec.ts`, das einen Zugang für die Steuerberatung anlegt und wieder sperrt. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts`, `langsame-anfrage.spec.ts` und `beenden.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `beenden.spec.ts` startet den gebauten Server ein zweites Mal und prüft, dass er sich auf SIGTERM innerhalb von acht Sekunden beendet, bevor `podman stop` oder `docker stop` nach zehn Sekunden SIGKILL schickt. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
-
-`apps/web/e2e/gmbh.spec.ts` spielt dasselbe für eine GmbH durch (Projekt `gmbh`): Einrichtung mit Rechtsform und SKR04, manuelle Buchung mit Storno, Lohnabrechnung des Gesellschafter-Geschäftsführers mit PDF, Lohnkonto, Lohnsteuer-Anmeldung und Storno, ein Minijob mit Ausfüllliste für das SV-Meldeportal und Vermerk der Abgabe. Weil die Rechtsform ab der ersten Buchung fest ist, läuft es wie die anderen Durchläufe gegen einen eigenen Server mit eigener Datenbank, deren Name aus `E2E_DATABASE_URL` folgt (`haben_e2e` → `haben_gmbh_e2e`, `haben_rechnungen_e2e`, `haben_belege_steuern_e2e`, `haben_rueckfragen_e2e`, `haben_belegimport_e2e`, `haben_bb_import_e2e`). `e2e/reset-db.ts` legt sie beim ersten Lauf an; dafür braucht der Datenbanknutzer das Recht `CREATEDB`.
-
-`apps/web/e2e/seiten.spec.ts` lädt jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
-- Die Seite antwortet ohne Fehler und hat eine Überschrift.
-- Im Browser tritt kein Fehler auf, auch kein Hydration-Fehler.
-- Am Handy ist die Seite nicht breiter als der Bildschirm.
-- Das Handy-Menü lässt sich öffnen und bedienen.
-
-Screenshots macht der Test nicht; die Bilder für README und Doku entstehen getrennt (siehe unten). Dass jede Seite hier und in `barrierefreiheit.spec.ts` vorkommt, prüft die Seitenabdeckung ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
-
-`apps/web/e2e/kopfzeile.spec.ts` prüft am Laptop (1470 px) und am Handy, dass Titel, Status und Aktionen im Rechnungsentwurf, in der Rechnung und die Bereiche der Einstellungen beim Scrollen sichtbar bleiben, und dass weder Tabellenköpfe noch Felder mit Fokus beim Tabben hinter dem Kopf verschwinden. Das Angebot prüft `rechnungen.spec.ts`, weil nur dieser Durchlauf Angebote anlegt; die Prüfungen dazu stehen in `e2e/kopfzeile.ts`.
-
-`apps/web/e2e/bestaetigung.spec.ts` prüft den `ConfirmDialog` am Festschreiben: modal, Fokus auf „Abbrechen“ und zurück auf den Auslöser, Esc und „Abbrechen“ ohne Wirkung, Doppelklick, axe auf Desktop und Handy in einem hellen und einem dunklen Theme. Bestätigt wird in den Durchläufen je Bereich mit `bestaetigen` aus `e2e/einrichtung.ts`.
-
-`apps/web/e2e/vorschau.spec.ts` prüft die Vorschau der Belegeditoren (#357) am Laptop, am großen Bildschirm und am Handy: Überblendung mit Fokus hinein und zurück, ohne Verlust von Eingaben und Scrollposition; Anheften über das Menü per Tastatur, stehen bleiben beim Scrollen, eigenes Scrollen, Neuladen, Vergrößern und Ausblenden; am Handy kein Pfeil und kein waagrechtes Scrollen; dazu axe mit offenem Dialog und Menü. Die Durchläufe heften die Vorschau mit `vorschauAnheften` (`e2e/daten.ts`) an, weil sie beim Tippen auf die Vorschau sehen; am 1440 px breiten Testfenster öffnete sie sonst als Überblendung.
-
-`apps/web/e2e/barrierefreiheit.spec.ts` prüft mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Eine einzelne Datei startest du mit `bun run e2e barrierefreiheit`; Playwright lässt `app.spec.ts` dann davor laufen, weil das Projekt `mit-daten` davon abhängt.
 
 ```sh
 createdb haben_e2e            # einmalig; der Name muss auf „e2e“ enden, die Datenbank wird bei jedem Lauf geleert
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run e2e
+bun run e2e barrierefreiheit  # eine Datei
 ```
 
-Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="bun .output/server/index.mjs"` nach `bun run build`). Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+Playwright startet selbst die Server ab Port 3100 (`E2E_PORT`), leert vorher die Datenbanken und spielt die Migrationen ein; lokal ist das der Entwicklungsserver, in der CI der gebaute (`E2E_SERVER_COMMAND`). Die Datenbanken der eigenen Durchläufe legt `e2e/reset-db.ts` neben der genannten an; dafür braucht der Benutzer `CREATEDB`. Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`, oder ein vorhandenes über `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-In der CI laufen die Tests bei jedem Pull Request in fünf Teilen parallel (Jobs `e2e-teil`, `bun run e2e --shard=<n>/5`), die SSO-Tests (`playwright.sso-only.config.ts`) als sechster Teil `e2e-teil (sso)`. Jeder Teil mit Tests aus `mit-daten` spielt `app.spec.ts` vorher selbst durch. Der Job `e2e` fasst die Teile zu einem Ergebnis zusammen; ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso, etwa `bun run e2e --shard=2/5`.
+Die Tests sind auf Projekte in `apps/web/playwright.config.ts` verteilt; was eine Datei prüft, steht in ihrem Kopf:
 
-Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-bericht-teil-<n>` am Lauf.
+- **`app.spec.ts`** spielt den Betrieb in einer leeren Datenbank durch und legt an, was das Projekt `mit-daten` braucht.
+- **`mit-daten`** liest mit diesen Daten und dieser Sitzung, darunter `seiten.spec.ts` (jede Seite am Desktop und am Handy) und `barrierefreiheit.spec.ts` ([Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird)). Playwright startet `app.spec.ts` mit, auch wenn nur eine dieser Dateien laufen soll.
+- **Eigene Durchläufe** mit eigenem Server und eigener Datenbank für Themen, die eigene Daten brauchen, etwa eine GmbH oder eine festgeschriebene Erklärung; Ports und Datenbanken stehen in `e2e/durchlaeufe.ts`.
+- **`ohne-daten`** für Tests, die keine Daten brauchen.
+
+Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht. In der CI laufen die Tests in fünf Teilen (`bun run e2e --shard=<n>/5`) und SSO als sechster; Bericht und Traces hängen als Artefakt `e2e-bericht-teil-<n>` am Lauf.
 
 ### Bilder für README und Doku
 
-Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
-läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und ergänzt zuerst, was nur die Bilder
-brauchen: Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen. Dann fotografiert es Übersicht,
-Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
-`DOKU_SCREENSHOTS=1` überspringt es sich selbst; die CI legt diese Daten also nie an und wird dadurch nicht langsamer.
+Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; ohne `DOKU_SCREENSHOTS=1` überspringt es sich, die CI wird also nicht langsamer.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
 ```
 
-Nach einer Änderung am Aussehen den Workflow **Update screenshots** (Actions → Run workflow) auf dem
-Branch starten: er nimmt die Bilder im offiziellen Playwright-Image mit einer eigenen Datenbank auf und
-committet, was sich geändert hat. Auf `main` pusht er wie *Bump version* mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, weil das Ruleset dort Pushes mit dem `GITHUB_TOKEN` ablehnt; der Commit startet dann die CI auf `main`.
+Nach einer Änderung am Aussehen startet man auf dem Branch den Workflow **Update screenshots** (Actions → Run workflow): Er nimmt die Bilder im Playwright-Image auf und committet, was sich geändert hat.
 
 ## Migrationen
 
@@ -325,81 +245,21 @@ cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
 
-## HGB-Taxonomie der E-Bilanz
+## Jahreswerte
 
-Die E-Bilanz braucht von der Taxonomie nur je Position Pflichtgrad, Summe mit Gewicht, Soll/Haben und Periodentyp. Das steht als Auszug in `packages/elster/src/ebilanz/taxonomie-6-9.json` und `taxonomie-6-10.json`, erzeugt aus der Taxonomie von [esteuer.de](https://www.esteuer.de):
+Lohnsteuer und Sozialversicherung rechnen mit den amtlichen Werten eines Kalenderjahres: dem Programmablaufplan (PAP) des BMF in `packages/core/src/lohnsteuer/` und den Rechengrößen und Beitragssätzen in `packages/core/src/sozialversicherung/`. Fehlen sie für ein Jahr, rechnet Haben nicht, auch nicht mit denen des Vorjahres, und ab Dezember schlagen die Jahreswechsel-Tests fehl (`packages/core/src/jahressperre.ts`). Ebenso hängen die E-Bilanz an der jährlichen Taxonomie, ELSTER an der ERiC-Version und die Kontenzuordnung an SKR03 und SKR04 von DATEV.
 
-```sh
-bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/src/ebilanz/taxonomie-6-9.json
-bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2026-04-01 packages/elster/src/ebilanz/taxonomie-6-10.json
-```
+Was davon neu erscheint, beobachtet der Workflow **Jahreswerte prüfen** (`.github/workflows/jahreswerte.yml`, montags und auf Knopfdruck). Je Befund öffnet er ein Issue mit dem Label `jahreswerte` und einer Kennung im Titel, etwa `[jahreswerte:pap-2027]`; ein zweites zur selben Kennung gibt es nicht, ein geänderter Befund kommt als Kommentar. Eine Quelle, die nicht antwortet, ist nur eine Warnung. Die Schritte zum Nachziehen stehen im Skill [`jahreswerte`](https://github.com/firsttris/haben/blob/main/.claude/skills/jahreswerte/SKILL.md).
 
-Welche Taxonomie für ein Wirtschaftsjahr gilt, steht in `ebilanzTaxonomie` (`packages/elster/src/ebilanz/taxonomie.ts`), nach dem BMF-Schreiben zur jeweiligen Taxonomie. Für eine neue Taxonomie (jährlich zum 1. April, bekannt gegeben im Juni) den Auszug neu erzeugen, ihn in `taxonomie.ts` eintragen, dort `ebilanzTaxonomie` und in `packages/elster/src/xml.ts` `EBILANZ_TAXONOMIEN` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind. Die Prüfregeln stehen im Technischen Leitfaden und im Änderungsnachweis auf esteuer.de, ihre Umsetzung in den ERiC-Releasenotes (Kapitel „Datenart Bilanz“), Beispiele in der ERiC-Dokumentation unter `Datenarten/ElsterBilanz/Bilanz/Beispiele/Taxonomie_<Version>`.
+| Kennung | Befund |
+| --- | --- |
+| `pap-<Jahr>`, `pap-<Jahr>-geaendert`, `est-tarif-<Jahr>` | Der [BMF-Steuerrechner](https://www.bmf-steuerrechner.de/) hat einen PAP für ein Jahr ohne PAP in Haben, eine geänderte Fassung (anderer SHA-256) oder einen Tarif, der in `TARIFE` fehlt |
+| `sv-<Jahr>` | Die Sozialversicherungsrechengrößen-Verordnung eines Jahres ohne Werte in Haben steht auf gesetze-im-internet.de |
+| `eric`, `eric-<Version>-entfernt` | Auf download.elster.de gibt es eine neuere Version als `DEFAULT_ERIC_VERSION`, die keine BETA ist, oder die eingestellte ist weg; mit ihr kommen auch neue Taxonomien der E-Bilanz |
+| `datev-skr03`, `datev-skr04` | Der Stand im DATEV-Shop ist ein anderer als `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` |
+| `norm-<id>` | Der Text einer Norm aus `scripts/jahreswerte/normen.json` hat einen anderen SHA-256, oder die Seite ist weg (Gesetzeswächter) |
 
-esteuer.de liefert ein falsches Zwischenzertifikat aus. Zum Herunterladen das richtige über die AIA-Adresse des Serverzertifikats holen (`openssl x509 -noout -text` zeigt sie unter „CA Issuers“, zurzeit `http://secure.globalsign.com/cacert/gsgccr46dvtlsca2025.crt`), nach PEM wandeln und zusammen mit den übrigen vertrauenswürdigen Zertifikaten an `curl --cacert` geben; die TLS-Prüfung bleibt an:
-
-```sh
-curl -sS -o r46.crt http://secure.globalsign.com/cacert/gsgccr46dvtlsca2025.crt
-openssl x509 -inform DER -in r46.crt -out r46.pem
-cat /etc/ssl/certs/ca-certificates.crt r46.pem > ca-esteuer.pem
-curl -sS --cacert ca-esteuer.pem -O https://www.esteuer.de/download/taxonomie_20260615/germany-gaap-taxonomy-v6.10-2026-04-01-xbrl.zip
-```
-
-## Lohnsteuer: PAP jährlich aktualisieren
-
-Die Lohnsteuer in `packages/core/src/lohnsteuer/` folgt dem Programmablaufplan (PAP) des BMF für die maschinelle Berechnung der Lohnsteuer. Er gilt für ein Kalenderjahr; für ein Jahr ohne PAP gibt `lohnsteuer()` den Fehler „Lohnsteuer {Jahr} ist noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `lohnsteuer.test.ts` fehl, bis der PAP des nächsten Jahres hinterlegt ist. Der BMF veröffentlicht ihn meist im November, unter Umständen im Lauf des Jahres eine geänderte Fassung. Beides meldet der Workflow [Jahreswerte prüfen](#jahreswerte-erinnerung-per-workflow) als Issue.
-
-1. Das PAP-XML vom [BMF-Steuerrechner](https://www.bmf-steuerrechner.de/) laden (`/javax.faces.resource/daten/xmls/Lohnsteuer<Jahr>.xml.xhtml`) und unverändert als `Lohnsteuer<Jahr>.xml` neben `pap.ts` legen.
-2. Mit dem XML des Vorjahres vergleichen (`diff`). Ändern sich nur Zahlen, reicht eine neue Datei `pap-<Jahr>.ts` nach dem Muster von `pap-2026.ts` mit Version, Stand und SHA-256 der Datei. Ändert sich der Ablauf einer Methode, die `pap.ts` überträgt (MPARA, MRE4JL, MRE4ABZ, MBERECH, MZTABFB, MLSTJAHR, UPEVP, MVSPKVPV, MVSPHB, UPMLST, MST5_6, UP5_6, UPTAB, MSOLZ, UPANTEIL), braucht das neue Jahr eine eigene Übertragung; die alte bleibt für Korrekturen früherer Jahre.
-3. Das Jahr in `PAP_JAHRE` in `index.ts` eintragen und einen Test nach dem Muster von `pap-2026.test.ts` anlegen, der jeden Wert mit dem XML abgleicht.
-4. Prüffälle gegen die externe Schnittstelle des BMF-Steuerrechners (`/interface/<Jahr>Version1.xhtml?code=LSt<Jahr>ext`) abrufen, mindestens Steuerklassen I bis VI in allen Lohnzahlungszeiträumen, mit Kindern, privat versichert und ohne Rentenversicherungspflicht, und als `packages/core/test-fixtures/lohnsteuer/bmf-<Jahr>.json` ablegen.
-5. Den Tarif in `TARIFE` in `packages/core/src/income-tax.ts` ergänzen; die Gegenprobe in `pap.test.ts` vergleicht ihn mit UPTAB des PAP.
-
-Die Rechnung läuft ohne Gleitkommazahlen über `dezimal.ts` (`bigint` mit Nachkommastellen) und rundet genau dort, wo der PAP `setScale` oder `divide` mit Rundung vorschreibt.
-
-## Sozialversicherung: Werte jährlich aktualisieren
-
-Die Beiträge zur Sozialversicherung in `packages/core/src/sozialversicherung/` rechnen mit den Rechengrößen und Beitragssätzen eines Kalenderjahres. Für ein Jahr ohne Werte gibt `sozialversicherung()` den Fehler „Die Sozialversicherungswerte {Jahr} sind noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `sozialversicherung.test.ts` fehl, bis die Werte des nächsten Jahres hinterlegt sind; die Regel dazu steht in `packages/core/src/jahressperre.ts` und gilt für die Lohnsteuer genauso. Sobald die Sozialversicherungsrechengrößen-Verordnung des nächsten Jahres auf gesetze-im-internet.de steht, öffnet der Workflow [Jahreswerte prüfen](#jahreswerte-erinnerung-per-workflow) ein Issue.
-
-1. Die Werte des neuen Jahres sammeln, jeden mit Quelle: Sozialversicherungsrechengrößen-Verordnung (BBG KV/PV und RV/AV, Bundesgesetzblatt, meist im November), Bekanntmachung der Beitragssätze der Rentenversicherung, durchschnittlicher Zusatzbeitrag (BMG, Bundesanzeiger), Geringfügigkeitsgrenze und Faktor F (BMAS, Bundesanzeiger), Pflege- und Arbeitslosenversicherung, Insolvenzgeldumlage sowie Pauschalen und Umlagen der Minijob-Zentrale. Was sich nicht belegen lässt, bleibt offen; das Jahr wird dann nicht freigegeben.
-2. In `werte.ts` ein `SV_<Jahr>` nach dem Muster von `SV_2026` anlegen, mit Quelle je Wert, und in `SV_JAHRE` in `index.ts` eintragen. `werte.test.ts` prüft, dass jeder Wert eine Quelle hat, dass der Faktor F zu 28 % durch den Gesamtsozialversicherungsbeitragssatz passt und dass BBG und Sätze mit dem PAP der Lohnsteuer desselben Jahres übereinstimmen.
-3. Beispielrechnungen des neuen Jahres als Tests aufnehmen (Beratungsblatt der TK zum Übergangsbereich, Häufige Fragen der Minijob-Zentrale), mit Quelle und Link am Erwartungswert.
-4. Ändert sich eine Regel (Formel des Übergangsbereichs, Rundung, Pauschalen), braucht das neue Jahr eine eigene Rechnung; die alte bleibt für Korrekturen früherer Jahre.
-
-Gerechnet wird ohne Gleitkommazahlen: Entgelt in Cent mal Satz in Basispunkten mit `bigint`, kaufmännisch auf Cent gerundet erst am Ende (§ 1 Abs. 2 BVV). Beiträge, die Arbeitgeber und Beschäftigter je zur Hälfte tragen, rechnet Haben mit dem halben Satz und verdoppelt das gerundete Ergebnis (§ 2 Abs. 1 BVV), den Zusatzbeitrag der Kasse getrennt vom allgemeinen Satz wie im Beispiel 7 des TK-Beratungsblatts zum Übergangsbereich; sonst ist der Beitrag die Summe der getrennt gerundeten Anteile. Im Übergangsbereich trägt der Arbeitgeber den Gesamtbeitrag abzüglich des Anteils des Beschäftigten; Kinderlosenzuschlag und Kinderabschläge rechnet § 2 Abs. 2 BVV gesondert. Die Vorschriften stehen mit Link im Code; Gesetzestexte am besten bei gesetze-im-internet.de, Bekanntmachungen im Bundesanzeiger lesen, nicht in Ratgebern.
-
-## Jahreswerte: Erinnerung per Workflow
-
-Renovate meldet neue Versionen der Abhängigkeiten; was Haben an amtlichen Werten braucht, beobachtet der Workflow **Jahreswerte prüfen** (`.github/workflows/jahreswerte.yml`). Er läuft montags früh und auf Knopfdruck (**Actions → Jahreswerte prüfen → Run workflow**), führt `scripts/jahreswerte/pruefen.ts` aus und öffnet je Befund ein Issue mit dem Label `jahreswerte` und einer festen Kennung im Titel, z. B. `[jahreswerte:pap-2027]`. Gibt es schon ein offenes Issue mit der Kennung, entsteht kein zweites; hat sich der Befund geändert (neuere Version, anderer Hash), bekommt es einen Kommentar, und Titel und Text werden nachgezogen. Eine Quelle, die nicht antwortet, ist nur eine Warnung, kein Fehlschlag. Die Jahreswechsel-Tests (`fehlendeLohnsteuerJahre`, `fehlendeSozialversicherungJahre`) bleiben die letzte Sicherung: Sie schlagen ab Dezember fehl, wenn das nächste Jahr fehlt.
-
-| Kennung | Quelle | Befund | Zu tun |
-| --- | --- | --- | --- |
-| `pap-<Jahr>` | [BMF-Steuerrechner](https://www.bmf-steuerrechner.de/), `Lohnsteuer<Jahr>.xml.xhtml` für das laufende und das nächste Jahr | Das XML eines Jahres ohne PAP in Haben ist erschienen | [Lohnsteuer: PAP jährlich aktualisieren](#lohnsteuer-pap-jährlich-aktualisieren) |
-| `pap-<Jahr>-geaendert` | wie oben | Das XML eines hinterlegten Jahres hat einen anderen SHA-256 als in `pap-<Jahr>.ts` | neue Fassung vergleichen, Werte, Quelle und Hash nachziehen |
-| `est-tarif-<Jahr>` | wie oben (der PAP enthält den Tarif, Methode UPTAB) | Es gibt den PAP des Jahres, aber `TARIFE` in `packages/core/src/income-tax.ts` hat das Jahr nicht | Schritt 5 der PAP-Aktualisierung |
-| `sv-<Jahr>` | gesetze-im-internet.de, `/svbezgrv_<Jahr>/` (Titel „SVBezGrV <Jahr>“) | Die Sozialversicherungsrechengrößen-Verordnung eines Jahres ohne Werte in Haben ist erschienen | [Sozialversicherung: Werte jährlich aktualisieren](#sozialversicherung-werte-jährlich-aktualisieren) |
-| `eric` | download.elster.de, `eric_<Haupt>/ERiC-<Version>-Linux-x86_64.jar` | Es gibt eine neuere Version als `DEFAULT_ERIC_VERSION`, die keine BETA ist | installieren, [Tests mit echtem ERiC](#tests-mit-echtem-eric), Testübermittlung, `DEFAULT_ERIC_VERSION` anheben; neue Datenarten des Jahres und Taxonomie der E-Bilanz im Paket ansehen |
-| `eric-<Version>-entfernt` | wie oben | Die eingestellte Version ist nicht mehr herunterladbar | wie oben |
-| `datev-skr03`, `datev-skr04` | DATEV-Shop, Produktseiten Art.-Nr. 11174 und 11175, Merkmal „Stand“ | Der Stand ist ein anderer als `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` | Kontenzuordnung (`hgb.ts`, `posting.ts`, `ebilanz.ts`) mit der neuen Ausgabe abgleichen, Konstante anheben |
-| `norm-<id>` | gesetze-im-internet.de, Einzelnormen aus `scripts/jahreswerte/normen.json` | Der Normtext hat einen anderen SHA-256 als in `normen.json`, oder die Seite antwortet mit 404 (Norm aufgehoben oder unter neuer Adresse) | siehe unten |
-
-**ERiC:** download.elster.de hat kein Verzeichnis; das Skript fragt Versionen oberhalb von `DEFAULT_ERIC_VERSION` einzeln ab. Eine BETA (im Oktober `<Haupt>.1` einer ungeraden Hauptversion, sendet nur mit Testmerker) ist kein Befund, nur eine Warnung; Wartungsreleases, Mai-Releases und ab `<Haupt>.2` sind Befunde. Woran das Skript das erkennt und mit welchen Quellen, steht in `scripts/jahreswerte/eric.ts`.
-
-**Gesetzeswächter:** `scripts/jahreswerte/normen.json` nennt je Norm, auf die Haben sich stützt, die Seite bei gesetze-im-internet.de, wofür Haben sie braucht, die Stellen im Code und den SHA-256 des Normtexts (Überschrift, Absätze und Fußnoten, ohne Tags, Navigation und Fußzeile, Leerraum zusammengefasst; die Seiten sind ISO-8859-1, den Zeichensatz nennt nur das `meta`-Element). Meldet der Workflow eine Norm als geändert: Änderung lesen (Fußnote und „Textnachweis“ nennen das ändernde Gesetz und ab wann es gilt), die genannten Stellen prüfen und anpassen, dann den Hash aktualisieren – auch wenn sich in Haben nichts ändert, sonst bleibt der Befund:
-
-```sh
-bun scripts/jahreswerte/pruefen.ts --trocken --normen-schreiben   # aktuelle Hashes nach normen.json
-```
-
-Eine neue Norm kommt mit leerem `sha256` in die Liste und bekommt ihren Hash mit demselben Befehl. Der Befehl übernimmt die Hashes aller Normen; vorher sollte kein anderer Befund zu einer Norm offen sein.
-
-Lokal ohne Issues, nur mit Ausgabe der Befunde und Warnungen:
-
-```sh
-bun scripts/jahreswerte/pruefen.ts --trocken
-```
-
-Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvollständige Zertifikatskette, die Bun ablehnt; neue Taxonomien kommen mit ERiC, siehe Befund `eric`), die Seiten des BMF (antworten oft mit 503) und der Basiszinssatz (§ 247 BGB, steht in den Einstellungen jeder Installation; nur der Normtext ist im Gesetzeswächter).
+Nicht geprüft werden die Seiten von esteuer.de (unvollständige Zertifikatskette) und des BMF (antworten oft mit 503) und der Basiszinssatz, der in den Einstellungen jeder Installation steht. Wie das Skript sucht, steht in `scripts/jahreswerte/`; lokal ohne Issues: `bun scripts/jahreswerte/pruefen.ts --trocken`.
 
 ## Konventionen
 
@@ -413,7 +273,7 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 - **Technik nach `tech-stack.md`** in [firsttris/workflows](https://github.com/firsttris/workflows). Abweichungen hier: schlichtes CSS mit Variablen in `apps/web/src/styles.css` statt Tailwind, eine eigene `Icon`-Komponente statt lucide, Typst für das PDF der Rechnung.
 - **Wenige Abhängigkeiten:** Jedes Paket ist Angriffsfläche und ein Update, das gepflegt werden muss. Eine neue Abhängigkeit zur Laufzeit kommt nur dazu, wenn wenige Zeilen eigener Code oder ein vorhandenes Paket nicht reichen; der Pull Request nennt den Grund.
 - **Funktional statt objektorientiert:** reine Funktionen, die Daten nehmen und Daten zurückgeben, Seiteneffekte am Rand; Abhängigkeiten werden übergeben. Funktionskomponenten und Hooks, keine Klassen (außer den Unterklassen von `UserError`), Fehler als Werte, wo der Code das schon so macht. Klare Namen, keine Doppelungen und kein toter Code, Kommentare sagen warum.
-- **Eine Datei tut eine Sache:** ab etwa 400 Zeilen teilen, eine Funktion ab etwa 80. Ältere größere Dateien stehen in `scripts/dateigroesse/altdateien.json`; Neues kommt möglichst in eine eigene Datei, geteilt werden sie nur in einem eigenen Pull Request, nicht nebenbei ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Ein Refactor ändert kein Verhalten.
+- **Eine Datei tut eine Sache:** ab etwa 400 Zeilen teilen, eine Funktion ab 80 Zeilen ohne Leerzeilen (Tests ausgenommen). Ältere größere Dateien stehen in `scripts/dateigroesse/altdateien.json`; Neues kommt möglichst in eine eigene Datei, geteilt werden sie nur in einem eigenen Pull Request, nicht nebenbei ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)). Ein Refactor ändert kein Verhalten.
 - **Bun statt Node:** Die Skripte starten Vite, Vitest, Playwright, Biome, tsc und drizzle-kit mit `bun --bun`; ohne den Schalter nähme Bun das `node` aus deren Startzeile, falls eines installiert ist. Install-Skripte führt `bun install` nur für die Pakete in `trustedDependencies` aus (esbuild lädt sein Binary, koffi sein natives Modul für ERiC). `bunfig.toml` legt die Abhängigkeiten wie früher pnpm isoliert ab: Jedes Paket sieht nur, was es selbst einträgt.
 - **Oberfläche auf Deutsch**, auch Fehlermeldungen, die beim Nutzer ankommen.
 - **Oberfläche:** Gestaltung, Knopfarten, Seitenkopf, Rückfragen, Vorschau der Belegeditoren und Barrierefreiheit stehen in [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md).
@@ -460,37 +320,26 @@ Die Kategorien stehen in `EXPENSE_CATEGORIES` in `packages/core/src/posting.ts`,
 
 ## Veröffentlichen
 
-Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Image, Docker-Hub-Beschreibung und GitHub-Release kommen aus dem gemeinsamen [`docker-release.yml`](https://github.com/firsttris/workflows) in `firsttris/workflows`. Ein Tag `vX.Y.Z` veröffentlicht eine Version:
+Ein Tag `vX.Y.Z` veröffentlicht eine Version über `.github/workflows/release.yml`:
 
 1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
-2. Die komplette CI läuft, alle Jobs aus `.github/workflows/ci.yml` (Lint und Typecheck, Tests mit Postgres, Build und Ende-zu-Ende-Tests samt SSO, KoSIT, Container-Test, Entwicklungsumgebung mit Compose, Backup mit Wiederherstellung, Upgrade von PostgreSQL 16), außer die CI auf `main` hat denselben Code schon geprüft: ein Commit von *Bump version* ändert nur die Version, dann zählt der grüne Lauf des Commits davor.
-3. Das Image wird für `linux/amd64` und `linux/arm64` gebaut und als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`) geschoben. Die README landet mit absoluten Links als Beschreibung auf Docker Hub.
-4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen. Daran hängt die Erweiterung „Haben für Mein ELSTER“ als `haben-fuer-mein-elster-chrome-<Version>.zip`: Der Job `erweiterung` baut `apps/elster-helfer` (TypeScript mit Vite), packt `dist/` mit `scripts/elster-helfer/paket.ts` und setzt die Version aus dem Tag ins Manifest (bei einem Release Candidate die Ziffern in `version`, die volle Bezeichnung in `version_name`). Das Artefakt heißt `extension`, wie bei den anderen Erweiterungen; den Chrome Web Store kann später `browser-extension-stores.yml` aus `firsttris/workflows` daraus bedienen. Bei einer fertigen Version schließt der Job `issues-schliessen` danach die umgesetzten Issues (siehe [Branches, Titel und Commits](#branches-titel-und-commits)).
+2. Die komplette CI läuft, außer die CI auf `main` hat denselben Code schon geprüft.
+3. Das Image geht für `linux/amd64` und `linux/arm64` als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`).
+4. Danach entsteht das GitHub-Release mit erzeugten Notizen und der Erweiterung „Haben für Mein ELSTER“ als ZIP. Eine fertige Version schließt die umgesetzten Issues (siehe [Branches, Titel und Commits](#branches-titel-und-commits)).
 
-Den Tag legt einer von zwei Wegen an, nach demselben Schema wie in den anderen Projekten:
+Den Tag legt Actions → *Bump version* (`bump.yml`) mit patch, minor oder major an: Er committet `Release vX.Y.Z` auf `main` und taggt, mit dem Deploy Key aus `BUMP_DEPLOY_KEY`, der auf der Bypass-Liste des Rulesets steht ([firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Wer selbst auf der Bypass-Liste steht, kann lokal `bun run release:patch` (oder `:minor`, `:major`) nehmen. Von Hand gestartet (Actions → Release → Run workflow) veröffentlicht der Workflow nur `:edge`, ohne Release.
 
-- ohne Checkout: Actions → *Bump version* → patch, minor oder major (`bump.yml`). Erhöht die Version in der `package.json`, committet sie als `Release vX.Y.Z` auf `main` und taggt; der Tag startet `release.yml`. Weil das Ruleset auf `main` Pull Request und grüne Checks verlangt, pusht der Workflow mit einem Deploy Key, der auf der Bypass-Liste des Rulesets steht (Secret `BUMP_DEPLOY_KEY`, Einrichtung in der [README von firsttris/workflows](https://github.com/firsttris/workflows#bump-version)). Der Release-Commit startet dabei auch die CI auf `main`.
-- lokal, nur wer auf der Bypass-Liste des Rulesets steht:
-
-```sh
-bun run release:patch   # oder :minor, :major: erhöht die Version, legt Commit und Tag an und pusht beides
-```
-
-Von Hand gestartet (Actions → Release → Run workflow) laufen auf `main` dieselben Prüfungen, danach wird nur `:edge` veröffentlicht, ohne Release.
+Secrets: `DOCKER_PAT` (Docker-Hub-Token mit Schreibrecht für `tristanteu/haben`); für GHCR reicht `GITHUB_TOKEN`, das Paket muss nach dem ersten Push einmal auf öffentlich gestellt werden.
 
 ### Release Candidates
 
 Größere Änderungen, etwa Migrationen oder Änderungen an Festschreibung, Audit-Log oder ELSTER, gehen vorher als Release Candidate raus. Alles bleibt auf `main`, die RCs sind nur Tags:
 
-1. Actions → *Bump version* → `preminor` (oder `prepatch`, `premajor`): aus `0.1.9` wird `v0.2.0-rc.1`. Das Image heißt `:0.2.0-rc.1` und `:next`; `:latest` bleibt auf `0.1.9`, das GitHub-Release ist ein Pre-release.
+1. *Bump version* → `preminor` (oder `prepatch`, `premajor`): aus `0.1.9` wird `v0.2.0-rc.1`. Das Image heißt `:0.2.0-rc.1` und `:next`; `:latest` bleibt auf `0.1.9`, das GitHub-Release ist ein Pre-release.
 2. Fehler gefunden: fixen, dann *Bump version* → `prerelease` → `v0.2.0-rc.2`.
 3. Läuft stabil: *Bump version* → `patch` → `v0.2.0`, jetzt auch `:latest`.
 
-Welche Art passt, was vorher zu prüfen und danach zu kontrollieren ist, steht im Skill [`release`](https://github.com/firsttris/haben/blob/main/.claude/skills/release/SKILL.md); ausgelöst wird nur auf Freigabe des Maintainers.
-
-Zwischen RC und fertiger Version nur Fixes mergen, sonst geht Ungetestetes mit raus. RCs nur mit Backup testen: Eine Migration aus einem RC ist danach schon auf den Testinstanzen angewendet und wird nicht mehr geändert.
-
-Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffstoken mit Schreibrecht für `tristanteu/haben`. Für GHCR reicht das eingebaute `GITHUB_TOKEN`; das Paket ist nach dem ersten Push privat und muss einmal in den Paket-Einstellungen auf öffentlich gestellt werden.
+Zwischen RC und fertiger Version nur Fixes mergen, sonst geht Ungetestetes mit raus. RCs nur mit Backup testen: Eine Migration aus einem RC ist danach schon auf den Testinstanzen angewendet und wird nicht mehr geändert. Ausgelöst wird ein Release nur auf Freigabe des Maintainers; die Schritte stehen im Skill [`release`](https://github.com/firsttris/haben/blob/main/.claude/skills/release/SKILL.md).
 
 ## Mitwirken
 
@@ -510,11 +359,9 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Ein Pull Request, ein Thema; er trägt nur seine eigenen Commits.
 - Tests für das, was sich ändert: Vitest für Logik, Postgres-Integrationstests neben dem Modul, Playwright in `apps/web/e2e/` für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll: Jede der vier Angaben kommt in einem Fall vor, das volle Kreuzprodukt mit weiteren Varianten nur, wo sich der Weg durch den Code dabei unterscheidet. Ein Fall gegen Postgres kostet bei jedem Lauf der CI rund eine Sekunde; was ohne Datenbank geht (Konten, Beträge, Fristen), wird ohne Datenbank getestet.
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
-- Was ein Skript prüft, etwa neue Seiten in den E2E-Tests, steht unter [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
-- Änderungen an der E-Rechnung prüfen in der CI die Jobs `kosit` (XML) und `zugferd` (PDF).
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung; hochgeladen werden sie als Anhang, nie als Branch im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
+- Änderungen am Aussehen mit Screenshots vorher und nachher in der Beschreibung, hell und dunkel, wo es darauf ankommt auch am Handy; die Bilder für „vorher“ entstehen vor der ersten Änderung und kommen als Anhang, nie als Branch im Haupt-Repository (Skill [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md)). Die Bilder in README und Doku erneuert danach [Update screenshots](#bilder-für-readme-und-doku).
 
 ### Etwas übernehmen
 
@@ -528,10 +375,10 @@ Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://gi
 ### Branches, Titel und Commits
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht. Vor jedem Push prüfen, ob der Pull Request des Branches noch offen ist; ist er gemergt, neu von `origin/main` und ein neuer Pull Request. Force-Push nur mit `--force-with-lease` auf den eigenen Branch nach einem Merge.
-- **Entwurf:** Ein Pull Request darf als Entwurf beginnen; die CI startet erst mit „Ready for review“. Ändert er nur Markdown, `docs/` oder `LICENSE` (ohne Dateien zu löschen oder zu verschieben), überspringt die CI alles außer dem Doku-Build (Job `changes` in `ci.yml`). Ebenso laufen `kosit` und `zugferd` nur, wenn sich `packages/einvoice`, `packages/core`, die Abhängigkeiten (`package.json`, `bun.lock`) oder `ci.yml` ändern, `backup` und `db-upgrade` nur bei `deploy/`, den Migrationen in `apps/web/drizzle/`, den Abhängigkeiten oder `ci.yml`. Auf `main` und im Release laufen alle Jobs.
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen; die CI startet erst mit „Ready for review“. Sie lässt Jobs aus, die die Änderung nicht berührt, bei reinem Markdown alles außer dem Doku-Build (Job `changes` in `ci.yml`); auf `main` und im Release laufen alle.
 - **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
 - **Beschreibung:** Beim Squash wird die Beschreibung des Pull Requests die Nachricht des Commits auf `main` (Einstellung des Repositorys: `PR_BODY`) und bleibt so in der Historie. Sie muss deshalb bis zum Merge zum Stand des Pull Requests passen: Ändert ein weiterer Push, was der Pull Request tut oder wie er geprüft wurde, ändert sich die Beschreibung mit, auch nach Fixes aus dem Review und nach einem Rebase. Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin; Zwischenstände und Antworten auf Reviews gehören in Kommentare.
-- **Issues in der Beschreibung:** mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…` (ein Teil, ein Bezug). Mehrere gehen als Liste: `Umgesetzt #12, #13`. Nie `Closes` oder `Fixes`: GitHub schlösse das Issue schon beim Merge, die Nutzer haben es aber erst mit dem Release; „PR-Regeln“ meldet es als Fehler. Beispiele in Code (`` `Umgesetzt #1` ``) und Verneintes („noch nicht umgesetzt #1“) zählen nicht.
+- **Issues in der Beschreibung:** mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…` (ein Teil, ein Bezug). Mehrere gehen als Liste: `Umgesetzt #12, #13`. Nie `Closes` oder `Fixes`: GitHub schlösse das Issue schon beim Merge, die Nutzer haben es aber erst mit dem Release; „PR-Regeln“ meldet es als Fehler.
 - **Vom Issue zum Release:** Das [Project „Roadmap“](https://github.com/users/firsttris/projects/2) zieht die Karte mit (Workflows „Board“ und „Übernehmen“, `scripts/board/`), nie zurück:
     - Issue zugewiesen oder Pull Request mit `Refs` oder `Umgesetzt` geöffnet → „In Arbeit“.
     - Pull Request mit `Umgesetzt` gemergt → „Im nächsten Release“.
@@ -572,6 +419,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Module nur über `index.ts` importieren | `scripts/modulgrenzen/` in `bun run lint` | Fehler |
 | Jede Seite in `e2e/seiten.spec.ts` und `e2e/barrierefreiheit.spec.ts` | `scripts/seitenabdeckung/` in `bun run lint` | Fehler |
 | Höchstens 400 Zeilen je Datei, außer den alten in `altdateien.json` | `scripts/dateigroesse/` in `bun run lint` | Fehler |
+| Höchstens 80 Zeilen je Funktion ohne Leerzeilen, außer in Tests | Biome-Regel `noExcessiveLinesPerFunction` im Editor und in `bun run lint` | Hinweis |
 | Formularfelder über `Field`, kein eigenes Element mit der Klasse `field` (außer `<fieldset className="field">` für eine Gruppe) | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
@@ -594,16 +442,13 @@ Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibu
 
 #### Wenn eine Prüfung anschlägt
 
+Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selbst, was zu tun ist. Sonst:
+
 - **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
-- **Dateigröße:** das Neue in eine eigene Datei. In `scripts/dateigroesse/altdateien.json` kommt keine neue Datei; von Hand ändert sich dort nur der Pfad einer umbenannten alten Datei. Geschrumpfte nimmt `bun scripts/dateigroesse/pruefen.ts --aufraeumen` heraus.
+- **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
-- **Titel:** `Bereich: was sich ändert (#Issue)` ohne Präfix wie `feat:` und ohne Punkt am Ende, etwa „Belege: Splitbuchung mit zwei Steuersätzen (#123)“.
-- **Issue-Verweise:** `Closes`, `Fixes` und `Resolves` in der Beschreibung durch `Umgesetzt #…` (fertig) oder `Refs #…` (Teil) ersetzen.
-- **Alte große Datei wächst:** das Neue in eine eigene Datei; bleibt es, wo es ist, steht der Grund in der Beschreibung.
-- **Code ohne Doku:** die Seite des Bereichs ergänzen, wenn sich Verhalten ändert; ändert sich keins (Refactor), steht das in der Beschreibung.
-- **Fix ohne Test:** einen Test ergänzen, der ohne den Fix fehlschlägt; betrifft der Fix nichts Testbares (etwa die CI), steht das in der Beschreibung.
-- **Selbstprüfung und Review:** nach Skill `beitrag-pruefen`, dann `tdd-review` oder `doku-pruefen`, jeweils in einem frischen Agenten oder durch eine andere Person.
+- **Alte große Datei wächst, Code ohne Doku, Fix ohne Test:** beheben, oder der Grund steht in der Beschreibung (bleibt in der Datei, weil …; Refactor ohne neues Verhalten; Fix an nichts Testbarem wie der CI).
 
 Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in den Kommentaren der Skripte.
 
@@ -621,7 +466,7 @@ Größere Vorhaben und Issues von Agenten folgen dieser Gliederung:
 | Akzeptanzkriterien | Drei bis sechs prüfbare Punkte als `- [ ]`, zu denen ein Test oder ein Blick in die Oberfläche Ja oder Nein sagt. Bei Buchungen und Steuer: SKR03 und SKR04, Ist und Soll. |
 | Bezug | Verwandte Issues und Pull Requests, Karte im [Project „Roadmap“](https://github.com/users/firsttris/projects/2), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
 
-Ein Issue behandelt ein Thema und passt auf ein bis zwei Bildschirme; Quellcode steht als Link. Fachliche Aussagen belegt eine Quelle, kein Ratgeber; was unsicher ist oder die Steuerberatung entscheiden muss, steht ausdrücklich darin. Der Titel nennt das Ergebnis, nicht den Anlass. Agenten legen Issues nur auf Anweisung an und kennzeichnen sie; die Schritte stehen im Skill `issue-schreiben`. Beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`), weitere Labels und den Platz in der Roadmap setzt der Maintainer.
+Ein Issue behandelt ein Thema und passt auf ein bis zwei Bildschirme; Quellcode steht als Link. Fachliche Aussagen belegt eine Quelle, kein Ratgeber; was unsicher ist oder die Steuerberatung entscheiden muss, steht ausdrücklich darin. Der Titel nennt das Ergebnis, nicht den Anlass. Agenten legen Issues nur auf Anweisung an und kennzeichnen sie; die Schritte stehen im Skill `issue-schreiben`. Beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`, `technik`, `doku`); fehlt er, ergänzt ihn `board-pflegen` zusammen mit Themen-Labels und dem Platz in der Roadmap, nach OK des Maintainers.
 
 Neben dem Typ gibt es diese Labels:
 
@@ -638,69 +483,31 @@ Neben dem Typ gibt es diese Labels:
 
 ### Beiträge annehmen
 
-Bevor ein Pull Request ins [Review](#review) geht, egal von wem, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, vier Fragen: Wollen wir die Änderung in Haben haben? Ist sie nach den Quellen gebaut und fachlich richtig? Ist sie die einfachste Lösung? Ist sie nach den Regeln dieser Seite gemacht? Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
+Bevor ein Pull Request ins [Review](#review) geht, egal von wem, beantwortet ein Maintainer oder Collaborator, der ihn nicht geschrieben hat, vier Fragen. Ein Befund braucht hier keinen roten Test, aber einen Beleg: eine Stelle im Diff, einen Satz aus der Quelle oder eine Regel.
 
-**Selbstprüfung:** Erwartet wird, dass Beitragende die vier Fragen vor „Ready for review“ und vor dem TDD-Review selbst beantworten, wie beim Review durch jemanden oder einen frischen Agenten ohne den Verlauf der Entstehung. Was fehlt, bessern sie selbst nach; das Ergebnis steht mit Belegen und offenen Fragen als Kommentar im Pull Request. Die Selbstprüfung läuft einmal; was danach nachgebessert wird, steht als Nachtrag mit den Commits im selben Kommentar, und erst ein geänderter Umfang oder Ansatz braucht eine neue. Dann prüft der Maintainer nur nach: Ob die Änderung gewollt ist, entscheidet er weiter selbst, und bei fachlich heiklen Änderungen liest er mindestens eine Quelle selbst und rechnet einen Fall gegen. Ohne Selbstprüfung prüft er alles. Ebenso erwartet wird, dass ein Beitrag vor dem Merge ein unabhängiges Review mitbringt ([Review](#review), Punkt 1); dann reviewen wir nicht noch einmal. Fehlt beides, wartet der Pull Request länger, weil jeder Merge über die Maintainer läuft.
+1. **Wollen wir das?** Es passt zu Haben (Buchhaltung für Freiberufler und kleine GmbHs, nichts aus [Bewusst nicht](roadmap.md#bewusst-nicht), nichts, was ohne Zertifizierung nicht geht), hat ein Issue, am besten eine zugewiesene Karte ([Etwas übernehmen](#etwas-übernehmen)); ohne Issue entscheidet der Maintainer zuerst, ob er die Änderung will. Es gibt sie noch nicht, und sie wurde nicht mit Grund abgelehnt. Der Nutzen ist größer als die dauerhafte Last: Jede Einstellung, Abhängigkeit, Tabelle, externe Verbindung und jeder Sonderfall muss gepflegt werden, eine Migration bleibt für immer; eine neue Abhängigkeit braucht eine zur AGPL-3.0 passende Lizenz und Pflege. Ein Thema je Pull Request; vorhandene Daten bleiben beim Update richtig, geänderte Schnittstellen nennt die Beschreibung; jedes Akzeptanzkriterium ist erfüllt, sonst `Refs #…`.
+2. **Nach den Quellen gebaut und fachlich richtig?** Jedes fachliche Detail steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen)). Wer prüft, liest die Quelle selbst, für SKR03 und SKR04, Ist und Soll, Einzelunternehmen und GmbH und den richtigen Rechtsstand, und rechnet einen typischen und einen Randfall gegen die Erwartungen der Tests nach: Ein Test mit derselben falschen Annahme wie der Code ist trotzdem grün. Was die Quelle nicht eindeutig entscheidet, bleibt eine offene Frage. In voller Tiefe gilt das, wo sich ändern kann, was gebucht, versteuert, gemeldet oder festgeschrieben wird.
+3. **Die einfachste Lösung?** Jeder Teil des Diffs dient einem Akzeptanzkriterium; keine Abstraktion mit einem Nutzer, keine Einstellung auf Vorrat, keine zweite Lösung für ein gelöstes Problem; wer den Verlauf des Autors nicht kennt, versteht den Code in einem Durchgang. Eine Regel für alle Wege steht an der Stelle, durch die alle laufen. Befund ist das, wenn sich die einfachere Lösung oder die gemeinsame Stelle konkret benennen lässt.
+4. **Nach unseren Regeln?** [Konventionen](#konventionen), [Mitwirken](#mitwirken) und [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md). Was ein Skript prüft, meldet „PR-Regeln“; der Rest von Hand.
 
-**Wollen wir das?**
+**Selbstprüfung:** Beitragende beantworten die vier Fragen vor „Ready for review“ selbst, in einem frischen Agenten oder durch jemand anderen, bessern nach und posten das Ergebnis mit Belegen und offenen Fragen als Kommentar. Sie läuft einmal; was danach nachgebessert wird, kommt als Nachtrag mit den Commits in denselben Kommentar, eine neue braucht erst ein geänderter Umfang oder Ansatz. Dann prüft der Maintainer nur nach; ob die Änderung gewollt ist, entscheidet er weiter selbst, und bei fachlich heiklen Änderungen liest er mindestens eine Quelle selbst und rechnet einen Fall gegen. Bringt ein Beitrag auch ein unabhängiges Review mit ([Review](#review), Punkt 1), reviewen wir nicht noch einmal. Fehlt beides, wartet der Pull Request länger.
 
-- **Passt zu Haben:** Buchhaltung für Freiberufler und kleine GmbHs. Nichts aus [Bewusst nicht](roadmap.md#bewusst-nicht), nichts, was ohne Zertifizierung nicht geht oder dort als blockiert steht.
-- **Hat ein Issue:** Am besten eine Karte aus dem [Project „Roadmap“](https://github.com/users/firsttris/projects/2), dem Beitragenden zugewiesen ([Etwas übernehmen](#etwas-übernehmen)). Ohne Issue entscheidet der Maintainer, ob die Änderung gewollt ist, bevor jemand Zeit ins Review steckt.
-- **Nicht doppelt:** Kein anderer offener Pull Request zum selben Thema; auf `main` gibt es das noch nicht, und es wurde nicht schon einmal mit Grund abgelehnt.
-- **Nutzen größer als die Last:** Jede neue Einstellung, Abhängigkeit, Tabelle, externe Verbindung und jeder neue Sonderfall muss dauerhaft gepflegt werden. Eine Migration bleibt für immer; was eine versiegelte Tabelle berührt, lässt sich nicht zurücknehmen. Neue Abhängigkeiten mit einer zur AGPL-3.0 passenden Lizenz, gepflegt und nicht nur für eine Kleinigkeit.
-- **Ein Thema:** Mehrere Themen in einem Pull Request werden geteilt.
-- **Bestehende Installationen:** Beim Update bleiben vorhandene Daten richtig; ändert sich Verhalten, das Nutzer kennen, oder eine Schnittstelle (REST-API, MCP, Exporte, Belegvorlagen), sagt es die Beschreibung.
-- **Ganz gemacht:** Jedes Akzeptanzkriterium des Issues ist erfüllt, oder die Beschreibung sagt, was fehlt, und verweist dafür mit `Refs #…` statt `Umgesetzt #…`.
+**Ergebnis:** Nicht gewollt oder offene Grundsatzfrage: Der Maintainer entscheidet, ein grundsätzlich abgelehntes Thema kommt nach [Bewusst nicht](roadmap.md#bewusst-nicht). Gewollt, aber unvollständig: Kleinigkeiten ergänzen wir selbst; fehlt mehr, darf der Beitragende zwei Tage lang selbst nachbessern, danach machen wir es fertig. Dann Review und Merge bei grüner CI; fachlich heikle Änderungen (auch Migrationen auf bestehenden Daten) erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung.
 
-**Nach den Quellen gebaut und fachlich richtig?**
-
-- **Quelle genannt:** Jedes fachliche Detail (Steuer, Buchung, Format, ELSTER) steht mit Primärquelle im Kommentar und in der Commit-Nachricht ([Konventionen](#konventionen), „Quellen statt Gedächtnis“).
-- **Quelle nachgelesen:** Die prüfende Person oder ihr Agent liest die Quelle selbst und prüft die Aussage daran, für SKR03 und SKR04, Ist und Soll, Einzelunternehmen und GmbH und den richtigen Rechtsstand. Ein Test, der dieselbe falsche Annahme enthält wie der Code, ist trotzdem grün ([Leitplanken für Agenten](#leitplanken-für-agenten)).
-- **Gegengerechnet:** Für den typischen Fall und einen Randfall wird das Ergebnis aus der Quelle hergeleitet und mit den Erwartungen der Tests verglichen. Was die Quelle nicht eindeutig entscheidet, steht als offene Frage im Pull Request, nicht als bestätigt.
-
-Das gilt in voller Tiefe für Änderungen, die beeinflussen können, was gebucht, versteuert, gemeldet oder festgeschrieben wird. Bei Oberfläche, Doku oder Importen ohne Buchungslogik betrifft die Frage meist nichts, außer einem Detail eines Fremdformats.
-
-**Die einfachste Lösung?**
-
-- **Nicht mehr als nötig:** Jeder Teil des Diffs dient einem Akzeptanzkriterium. Keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, nichts „für später“.
-- **Vorhandenes genutzt:** keine zweite Lösung für ein Problem, das Haben schon löst; Fachlogik am richtigen Ort.
-- **Lesbar:** Jemand ohne den Verlauf des Autors versteht den Code in einem Durchgang.
-- **Eine Stelle:** Eine Regel, die für alle Wege gilt, steht an der Stelle, durch die alle laufen, nicht in jedem Weg. Sonst muss jeder künftige Beitrag sie von Hand mitziehen.
-
-Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt; eine fehlende gemeinsame Stelle, wenn sich die Stelle benennen lässt.
-
-**Nach unseren Regeln gemacht?**
-
-- **Regeln eingehalten:** alles unter [Konventionen](#konventionen) und [Mitwirken](#mitwirken), für die Oberfläche [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md). Was ein Skript prüft, meldet die CI und der Kommentar von „PR-Regeln“; der Rest wird von Hand geprüft: Tests für jede Änderung (SKR03 und SKR04, Ist und Soll), kein Test abgeschwächt, gelöscht oder übersprungen, die Doku zum Verhalten, Screenshots bei Änderungen am Aussehen, Migrationen erzeugt und keine bestehende geändert, `withActor` und Audit-Trigger, Geheimnisse in `ciphertext`.
-
-**Umgangston:** nach dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md). Rückmeldungen trennen, was vor dem Merge nötig ist, von Vorschlägen; nach dem Merge bedanken wir uns im Pull Request.
-
-**Ergebnis:**
-
-- **Nicht gewollt oder offene Grundsatzfrage:** Die Prüfung endet, der Maintainer entscheidet. Ablehnen und Schließen ist seine Sache; ein grundsätzlich abgelehntes Thema kommt mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht).
-- **Gewollt, aber unvollständig:** Kleinigkeiten wie Doku, ein fehlender Test oder die Quellenangabe ergänzen wir sofort. Fehlt mehr, fragen wir zuerst, ob der Beitragende selbst nachbessern will, und nennen eine Frist von zwei Tagen; kommt bis dahin nichts, machen wir es fertig (Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch). Danach TDD-Review und Merge bei grüner CI.
-- **Schon gut:** direkt ins Review und mergen; ein mitgebrachtes unabhängiges Review ([Review](#review), Punkt 1) zählt.
-- **Fachlich heikel** (kann beeinflussen, was gebucht, versteuert, gemeldet oder festgeschrieben wird, auch Migrationen auf bestehenden Daten): ebenso bis grün, gemergt aber erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung.
-
-Die Schritte stehen im Skill `beitrag-pruefen`.
+Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/blob/main/CODE_OF_CONDUCT.md) und trennen, was vor dem Merge nötig ist, von Vorschlägen. Mit Claude Code führt der Skill `beitrag-pruefen` durch.
 
 ### Review
 
-Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Ein Pull Request ohne Code bekommt stattdessen eine [Doku-Prüfung](#pull-requests-ohne-code). Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:
+Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, einer ohne Code eine [Doku-Prüfung](#pull-requests-ohne-code). Mit Claude Code führt der Skill `tdd-review` durch.
 
-1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der am Code mitgeschrieben hat, startet für das Review einen neuen Agenten ohne diesen Verlauf. Ein solcher frischer Agent ist unabhängig, auch wenn ihn der Autor gestartet hat. Bringt ein Beitrag so ein Review schon mit (Schritte 2 bis 5 im Pull Request erkennbar), zählt es; wir reviewen nicht noch einmal, außer wir haben selbst Commits ergänzt oder ein fachlicher Zweifel bleibt.
-2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
-3. **Im Pull Request:** Befunde mit Testname und Ausgabe des roten Tests als Kommentar, auch wenn es keine gibt.
-4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Fork mit „Allow edits by maintainers“, um das wir sonst bitten); ein eigener Pull Request ist der letzte Ausweg. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
-5. **Grün:** Lokal gezielt, was der Pull Request und die Fixes berühren: Lint, Typecheck, die Tests zu den geänderten Stellen, Playwright nur für die betroffenen Dateien, der Doku-Build nur bei Änderungen in `docs/`. Die volle Suite läuft in der CI und muss dort grün sein; auf Entwürfen läuft sie erst nach „Ready for review“. Dann ein Abschlusskommentar mit den behobenen Befunden und dem, was lokal lief.
-6. **Merge:** durch einen Maintainer oder, mit dessen Zustimmung, durch einen Collaborator, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. Vorher prüfen, ob Titel und Beschreibung noch zum Stand passen; sie werden der Commit auf `main`. Bei einem eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Beschreibung, und sein Pull Request wird mit Link auf den Ersatz geschlossen.
+1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der mitgeschrieben hat, startet dafür einen neuen Agenten ohne diesen Verlauf; der ist unabhängig, auch wenn ihn der Autor gestartet hat. Ein mitgebrachtes Review dieser Art (Schritte 2 bis 5 im Pull Request erkennbar) zählt, außer wir haben selbst Commits ergänzt oder ein fachlicher Zweifel bleibt.
+2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework. Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund. Stil und Namen sind keiner.
+3. **Im Pull Request:** Befunde mit Testname und Ausgabe als Kommentar, auch wenn es keine gibt.
+4. **Red → Green:** Test und Fix als eigene Commits obendrauf, direkt auf den Branch des Pull Requests (im Fork mit „Allow edits by maintainers“, um das wir sonst bitten; ein eigener Pull Request ist der letzte Ausweg). Keine Tests abschwächen, keine Sperren lockern, keine Commits von Beitragenden umschreiben. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
+5. **Grün:** Lokal gezielt, was der Pull Request berührt; die volle Suite muss in der CI grün sein. Dann ein Abschlusskommentar mit den behobenen Befunden und dem, was lokal lief.
+6. **Merge:** durch einen Maintainer oder, mit dessen Zustimmung, einen Collaborator, immer per **Squash** des Pull Requests selbst; vorher passen Titel und Beschreibung zum Stand. Bei einem Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Beschreibung, und sein Pull Request wird mit Link auf den Ersatz geschlossen.
 
-**Wie viele Runden:** eine; findet sie keinen belegten Befund, ist das Review fertig. Eine zweite gibt es nur, wenn die erste Fixes am Code gebracht hat; sie prüft diese Fixes, denn das ist Code, den sonst niemand geprüft hat.
-
-- **Eine Runde, ein Stand:** Ein Codex- oder anderes KI-Review zählt zur selben Runde. Alle Reviewer einer Runde prüfen denselben Stand; ihre Befunde werden zusammengeführt und dann gemeinsam behoben.
-- **Weitere Runden nur nach einem schweren Befund:** belegt durch einen roten Test und eines von Sicherheit (Rechteprüfung, Secrets, Zugriff auf fremde Daten), falsche Buchungen oder Steuerbeträge (Journal, EÜR, Umsatzsteuer, ELSTER), GoBD (Siegel, Audit-Kette) oder Datenverlust. Ein kleiner Fehler im normalen Gebrauch wird behoben oder ein eigenes Issue, öffnet aber keine Zusatzrunde. Zusatzrunden prüfen nur den Fix und den betroffenen Bereich, nicht den ganzen Pull Request.
-- **Höchstens vier Runden:** bis zu zwei reguläre und höchstens zwei wegen schwerer Befunde. Ist danach noch ein schwerer Befund offen, wird nicht weiter behoben und nicht gemergt; der Maintainer entscheidet, ob der Pull Request geteilt oder neu angesetzt wird.
-- **Konstruierte Eingaben:** Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen, werden im Pull Request notiert und nicht mehr behoben; lohnen sie sich, werden sie ein eigenes Issue. Das gilt nicht für Sicherheit: Ein Angriff ist immer eine konstruierte Eingabe.
+**Runden:** Eine; eine zweite nur, wenn die erste Fixes am Code gebracht hat, denn die hat sonst niemand geprüft. Ein Codex- oder anderes KI-Review zählt zur selben Runde und prüft denselben Stand. Weitere Runden nur nach einem schweren Befund (Sicherheit, falsche Buchung oder Steuer, GoBD, Datenverlust), und nur für den Fix; höchstens vier Runden. Bleibt danach ein schwerer Befund offen, wird nicht gemergt, und der Maintainer entscheidet, ob der Pull Request geteilt oder neu angesetzt wird. Befunde, die nur mit konstruierten Eingaben auftreten, werden notiert, nicht behoben, außer bei Sicherheit.
 
 Haben steht unter der AGPL-3.0.
 
@@ -734,7 +541,7 @@ Die Postgres-Tests starten mit `sso-test-provider.ts` einen Anbieter auf Loopbac
 E2E_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_sso_e2e bun run --cwd apps/web e2e --config playwright.sso-only.config.ts
 ```
 
-Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein. Der Durchlauf prüft Ersteinrichtung nur durch die Inhaber-Gruppe, automatische Anlage der Steuerberatung, die reine Zugangsübersicht, alte Sicherheits- und Einladungslinks, Gruppenentzug mit Sitzungswiderruf und die erneute Anmeldung nach Fristablauf, jeweils mit axe. `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Better Auth lässt je Adresse drei Anmeldeversuche in zehn Sekunden zu; der Test wartet deshalb zwischen zwei Anmeldungen. Die reguläre CI führt zusätzlich SSO gegen den Produktionsbuild aus. `E2E_SERVER_COMMAND` aktiviert einen lokalen HTTPS-Testanbieter und HTTPS-Reverse-Proxy. Die Test-CA wird dem Haben-Server explizit vertraut; der Browser akzeptiert ausschließlich den erzeugten lokalen Testschlüssel. Der Betriebscode erhält keine HTTP-Ausnahme. `openssl` wird für die Testzertifikate benötigt.
+Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbieter, `e2e/oidc-provider.ts`) und 3218 müssen frei sein, und `openssl` erzeugt die Testzertifikate. Was der Durchlauf prüft, steht im Kopf von `e2e/sso-only.spec.ts`; `SSO_ONLY_SCREENSHOT_DIR` legt Bilder in hell und dunkel, Desktop und Handy ab. Der Betriebscode bekommt keine Ausnahme für HTTP.
 
 ### Mit Authelia
 

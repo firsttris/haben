@@ -16,6 +16,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { formatDate } from "../../../lib/format.ts";
 import { lockCash } from "../bank/index.ts";
+import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { accountName, activeOpenings, firstEntryBefore, lockOpenings, openBooks, openingAfter, post, takeoverBalances } from "../buchhaltung/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { datevAbschluss, type DatevVortrag } from "./datev-abschluss.ts";
@@ -92,6 +93,7 @@ async function journalIssues(q: Db | Tx, year: number, spaeter: string | null): 
 
 /** Vorschlag (oder gebuchte Eröffnung) aus dem letzten archivierten Stapeljahr; null ohne Stapel oder im Einzelunternehmen */
 async function proposal(q: Db | Tx, today: string): Promise<DatevEroeffnung | null> {
+  await refreshOwnAccountNames(q);
   const company = await loadCompany(q);
   if (!isKapitalgesellschaft(company.rechtsform)) return null;
   const schlussjahr = await lastStapelYear(q);

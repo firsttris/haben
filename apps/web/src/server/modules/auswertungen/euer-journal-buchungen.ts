@@ -1,6 +1,7 @@
-import { ACCOUNTS, type JournalZeile, type Kontenrahmen } from "@haben/core";
+import { ACCOUNTS, type JournalZeile, type Kontenrahmen, resolveOwnAccount } from "@haben/core";
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { schema, type Db, type Tx } from "../../db/index.ts";
+import { loadOwnAccountParents } from "../eigene-konten/index.ts";
 
 /*
  * Buchungen aus dem Journal für die EÜR (euer-journal.ts, euer-formel.ts), gesammelt geladen: Was die EÜR je Rechnung
@@ -97,6 +98,13 @@ export async function buchungen(q: Db | Tx, where: SQL | undefined): Promise<Buc
       )
         b.kontenrahmen = o.kontenrahmen;
     }
+  }
+  // Eigene Sachkonten (#270): Die EÜR rechnet nach Kontonummer, ein eigenes Konto zählt dort wie das seiner Elternkategorie
+  const eigene = new Map<Kontenrahmen, Awaited<ReturnType<typeof loadOwnAccountParents>>>();
+  for (const b of byId.values()) {
+    if (!eigene.has(b.kontenrahmen)) eigene.set(b.kontenrahmen, await loadOwnAccountParents(b.kontenrahmen, q));
+    const parents = eigene.get(b.kontenrahmen)!;
+    if (parents.size > 0) b.zeilen = b.zeilen.map((z) => ({ ...z, account: resolveOwnAccount(b.kontenrahmen, z.account, parents) }));
   }
   return [...byId.values()];
 }

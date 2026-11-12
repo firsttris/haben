@@ -25,6 +25,7 @@ the change before starting.
 | Issues and labels | Issues schreiben | `issue-schreiben` |
 | Roadmap board (GitHub Project) | Mitwirken (Etwas übernehmen, Vom Issue zum Release) | `board-pflegen` |
 | Releasing a version | Veröffentlichen, Release Candidates | `release` |
+| Yearly official values (PAP, social insurance, ERiC, taxonomy, laws) | Jahreswerte | `jahreswerte` |
 | Rules a script checks | Automatische Prüfungen der Regeln | |
 
 Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user page of the area
@@ -70,4 +71,4 @@ Modules, tables, the audit hash chain and seals: `docs/architektur.md`; the user
   `server/modules/`; another module only through its `index.ts`.
 - Name the source (EN 16931, ERiC docs, DATEV format and SKR03/SKR04 charts; law over DATEV) where it settles a detail; clone GitHub sources
   shallowly into the scratchpad.
-- Use other ports for tests (E2E takes 3100 to 3112, SSO 3216 and 3218 in `playwright.sso-only.config.ts`); an own compose project per worktree (`checks`).
+- Use other ports for tests (E2E takes 3100 to 3113, see `apps/web/e2e/durchlaeufe.ts`; SSO 3216 and 3218 in `playwright.sso-only.config.ts`); an own compose project per worktree (`checks`).

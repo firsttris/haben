@@ -1007,6 +1007,31 @@ export const contacts = pgTable(
 );
 
 /**
+ * Eigene Sachkonten (#270, Stufe 1): ein Aufwandskonto mit eigener Nummer und eigenem Namen. Für Steuer, EÜR und E-Bilanz
+ * zählt es wie seine Elternkategorie (`parent_category`). Nummer, Kontenrahmen und Elternkategorie ändern sich nie (Trigger,
+ * drizzle/0211); wer sich vertippt, löscht das Konto, solange nichts darauf zeigt, und legt es neu an. Der Name ist änderbar.
+ */
+export const ownAccounts = pgTable(
+  "own_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
+    account: text("account").notNull(),
+    name: text("name").notNull(),
+    parentCategory: text("parent_category").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("own_accounts_nummer", sql`${t.account} ~ '^[0-9]{4}$'`),
+    check("own_accounts_name", sql`length(btrim(${t.name})) between 1 and 80`),
+    uniqueIndex("own_accounts_nummer_key").on(t.kontenrahmen, t.account),
+  ],
+);
+
+/**
  * Abrechenbare Leistungen (#417): ein Zeiteintrag je Kunde. Die Dauer steht in Minuten, der Stundensatz als Kopie vom
  * Anlegen (Cent; null = keiner bekannt). Einträge von außen (Kimai, Toggl) tragen Quelle und Kennung, damit ein zweiter
  * Abruf nichts verdoppelt.

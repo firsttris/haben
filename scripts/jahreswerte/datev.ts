@@ -3,7 +3,7 @@
  * der Merkmalliste „Stand“ die Ausgabe (am 05.11.2026: „Januar 2026“). Haben ordnet die Konten nach der Ausgabe 2026
  * zu (packages/core/src/hgb.ts, posting.ts, ebilanz.ts); erscheint eine neue, ist die Zuordnung zu prüfen.
  */
-import { abrufen, befund, beschreibe, type Ergebnis, type Holen, LEER, text, warnung, zusammen } from "./abruf.ts";
+import { abrufen, befund, beschreibe, type Ergebnis, type Holen, LEER, SKILL_JAHRESWERTE, text, warnung, zusammen } from "./abruf.ts";
 
 export interface Kontenrahmen {
   name: "SKR03" | "SKR04";
@@ -44,7 +44,7 @@ async function pruefeEinen(k: Kontenrahmen, erwartet: string, holen: Holen): Pro
       "",
       `Haben ordnet die Konten nach der Ausgabe „${erwartet}“ zu: Bilanz- und GuV-Posten in \`packages/core/src/hgb.ts\`, Konten der Buchungen in \`packages/core/src/posting.ts\`, E-Bilanz in \`packages/core/src/ebilanz.ts\` und \`bilanzvermerke.ts\`.`,
       "",
-      `Zu tun: die neue Ausgabe (PDF beim DATEV-Shop) mit der bisherigen vergleichen – neue, gestrichene oder anders zugeordnete Konten –, die Zuordnung und die Quellenangaben („DATEV-Kontenrahmen 2026“) nachziehen und \`HABEN_KONTENRAHMEN_STAND\` in \`scripts/jahreswerte/datev.ts\` anheben, auch wenn sich für Haben nichts ändert. Testfälle für SKR03 und SKR04.`,
+      `Zu tun: die neue Ausgabe (PDF beim DATEV-Shop) mit der bisherigen vergleichen – neue, gestrichene oder anders zugeordnete Konten –, die Zuordnung und die Quellenangaben („DATEV-Kontenrahmen 2026“) nachziehen und \`HABEN_KONTENRAHMEN_STAND\` in \`scripts/jahreswerte/datev.ts\` anheben, auch wenn sich für Haben nichts ändert. Testfälle für SKR03 und SKR04. Schritte in [Skill jahreswerte, „Kontenrahmen“](${SKILL_JAHRESWERTE}#kontenrahmen).`,
     ].join("\n"),
   });
 }
