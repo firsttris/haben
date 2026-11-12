@@ -993,6 +993,8 @@ export const contacts = pgTable(
      */
     debitorNr: integer("debitor_nr").unique(),
     kreditorNr: integer("kreditor_nr").unique(),
+    /** Stundensatz in Cent für Leistungseinträge (#417); null = keiner hinterlegt */
+    hourlyRateCents: integer("hourly_rate_cents"),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1026,6 +1028,44 @@ export const ownAccounts = pgTable(
     check("own_accounts_nummer", sql`${t.account} ~ '^[0-9]{4}$'`),
     check("own_accounts_name", sql`length(btrim(${t.name})) between 1 and 80`),
     uniqueIndex("own_accounts_nummer_key").on(t.kontenrahmen, t.account),
+  ],
+);
+
+/**
+ * Abrechenbare Leistungen (#417): ein Zeiteintrag je Kunde. Die Dauer steht in Minuten, der Stundensatz als Kopie vom
+ * Anlegen (Cent; null = keiner bekannt). Einträge von außen (Kimai, Toggl) tragen Quelle und Kennung, damit ein zweiter
+ * Abruf nichts verdoppelt.
+ */
+export const serviceEntries = pgTable(
+  "service_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    workedOn: date("worked_on", { mode: "string" }).notNull(),
+    minutes: integer("minutes").notNull(),
+    description: text("description").notNull().default(""),
+    hourlyRateCents: integer("hourly_rate_cents"),
+    /** Erfasst, kommt aber nie in einen Rechnungsentwurf (z. B. interne Zeit) */
+    nonBillable: boolean("non_billable").notNull().default(false),
+    /** Abrechenbare Dauer in Minuten, wenn sie von der erfassten abweicht; null = die erfasste */
+    billableMinutes: integer("billable_minutes"),
+    /** Projekt als freier Text, nur zum Gruppieren und Filtern; keine Projektverwaltung */
+    project: text("project").notNull().default(""),
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("service_entries_minutes", sql`${t.minutes} between 1 and 1440`),
+    check("service_entries_billable_minutes", sql`${t.billableMinutes} is null or ${t.billableMinutes} between 1 and 1440`),
+    check("service_entries_rate", sql`${t.hourlyRateCents} is null or ${t.hourlyRateCents} >= 0`),
+    check("service_entries_extern", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
+    uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),
+    index("service_entries_contact").on(t.contactId, t.workedOn),
   ],
 );
 
