@@ -301,6 +301,7 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
     quoteId: r.quoteId,
     number: r.number!,
     issueDate: r.issueDate,
+    advanceType: r.advanceType,
     taxTreatment: r.taxTreatment,
     priceMode: r.priceMode,
     net: r.net,

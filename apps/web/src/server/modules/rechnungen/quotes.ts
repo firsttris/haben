@@ -557,12 +557,15 @@ export async function quoteToInvoice(
       unitPrice: 0,
       taxRate: (mainRate ?? 0) as 1900 | 700 | 0,
     };
-    const deducts =
+    const advances =
       variant === "schluss"
         ? (await openAbschlaege(null, tx))
             .filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
-            .map((a) => a.id)
         : [];
+    const deducts = advances.map((a) => a.id);
+    // Angebotsdaten sind geplant, keine bestätigte Schlussleistung. Neue Schlussrechnungen schlagen heute vor;
+    // das tatsächliche Leistungsdatum lässt sich vor der Festschreibung im Entwurf berichtigen.
+    const newFinal = advances.some((a) => a.advanceType !== null);
     // Die Person des Angebots geht in die Rechnung über, solange sie noch aktiv ist; sonst wählt man in der Rechnung neu
     const contactPersonId =
       locked.contactPersonId && (await contactPersonProblem(tx, locked.contactId, locked.contactPersonId)) === null ? locked.contactPersonId : null;
@@ -572,8 +575,8 @@ export async function quoteToInvoice(
         contactId: locked.contactId,
         contactPersonId,
         issueDate: today,
-        serviceFrom: locked.serviceFrom,
-        serviceTo: locked.serviceTo,
+        serviceFrom: newFinal ? today : locked.serviceFrom,
+        serviceTo: newFinal ? null : locked.serviceTo,
         paymentTermDays: company.paymentTermDays,
         skonto: defaultSkonto(company, contact, company.paymentTermDays),
         format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
