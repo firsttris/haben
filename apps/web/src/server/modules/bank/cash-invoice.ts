@@ -4,7 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
@@ -82,7 +82,7 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
         totals,
         parsed.amount,
         books.kontenrahmen,
-        await versteuerungForYear(Number(invoice.issueDate.slice(0, 4)), tx),
+        await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
         taxShares,
         invoice.taxTreatment,
       ),

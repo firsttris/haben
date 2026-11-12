@@ -57,7 +57,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
@@ -1105,7 +1105,7 @@ async function returnBooking(
       totals,
       part.amount,
       company.kontenrahmen,
-      await versteuerungForYear(Number(invoice.issueDate.slice(0, 4)), tx),
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
       taxShares,
       invoice.taxTreatment,
     ),
@@ -1162,7 +1162,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
       totals,
       part.amount,
       company.kontenrahmen,
-      await versteuerungForYear(Number(invoice.issueDate.slice(0, 4)), tx),
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
       taxShares,
       invoice.taxTreatment,
     );
@@ -1467,7 +1467,7 @@ export async function bookWriteOff(
         {
           kind: "invoice",
           totals,
-          versteuerung: await versteuerungForYear(Number(invoice.issueDate.slice(0, 4)), tx),
+          versteuerung: await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
           shares: taxShares,
           treatment: invoice.taxTreatment,
         },
@@ -1527,7 +1527,7 @@ export async function bookWriteOff(
       totals,
       amount,
       company.kontenrahmen,
-      await versteuerungForYear(Number(invoice.issueDate.slice(0, 4)), tx),
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
       invoice.taxTreatment,
       taxShares,
     );

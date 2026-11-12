@@ -105,6 +105,8 @@ Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Zahlungen auf eine Ausga
 
 Voranmeldungen und Umsatzsteuererklärung rechnen ein Jahr nach der Versteuerung, nach der es gebucht ist, nicht nach der aktuellen Einstellung. Maßgeblich ist, was beim Anlegen der ersten Buchung des Jahres eingestellt war; das steht im Änderungsprotokoll der Firmendaten (`versteuerungForYear` in `apps/web/src/server/modules/stammdaten/company.ts`). Ohne Buchung im Jahr gilt die aktuelle Einstellung. Stellst du zum Jahreswechsel um, rechnen die Monate des Vorjahres und die Umsatzsteuererklärung dafür, die du erst im neuen Jahr abgibst, also weiter nach dem alten Verfahren. Spätere Zahlungen und Ausbuchungen auf diese Rechnungen verwenden dasselbe Verfahren; ursprüngliche Buchungen und gespeicherte Erklärungen bleiben erhalten.
 
+Auch Storno und Rechnungskorrektur behalten das Verfahren der ursprünglichen Rechnung ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Nach Soll mindern sie die Umsatzsteuer im Monat der Korrektur; eine spätere Erstattung ändert sie nicht nochmals. Nach Ist zählt die tatsächliche Erstattung. Wurde der Zahlungseingang bereits durch eine Rücklastschrift zurückgenommen, mindert ein anschließendes Storno die Steuer nicht nochmals. Das gilt auch für Zahlungen und Ausbuchungen auf die Korrektur und für das Storno einer Korrektur.
+
 ## Kontenrahmen
 
 Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/posting.ts` (`ACCOUNTS`, `ACCOUNT_NAMES`, `EXPENSE_CATEGORIES`).
