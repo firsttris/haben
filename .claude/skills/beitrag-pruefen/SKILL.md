@@ -117,7 +117,8 @@ Aus den Schritten 1 bis 4 eines von drei Ergebnissen:
 
 ## 7. TDD-Review und Merge
 
-- Skill `tdd-review` bis zum Merge, mit dessen Regeln für Runden und CI. Ohne eigene Commits in dieser Session darf sie das Review selbst machen.
+- **Review schon mitgebracht?** Ein TDD-Review des Beitragenden zählt, wenn es im Pull Request erkennbar nach `docs/entwicklung.md` (Review) lief: in einem frischen Agenten ohne den Verlauf der Entstehung oder durch eine andere Person, jeder Befund mit rotem Test belegt und mit Commits für Test und Fix behoben, ein Abschlusskommentar, CI auf dem aktuellen Stand grün. Dass Autor und Reviewer dasselbe Konto haben, macht es nicht abhängig. Dann kein eigenes Review, weiter mit Merge oder Bericht unten. Nur wenn ein Merkmal fehlt, wir nach Schritt 6 selbst Commits ergänzt haben oder Schritt 2 einen fachlichen Zweifel offen lässt, folgt ein eigenes Review.
+- Sonst Skill `tdd-review` bis zum Merge, mit dessen Regeln für Runden und CI. Ohne eigene Commits in dieser Session darf sie das Review selbst machen.
 - **Nicht heikel** (nach Schritt 2): mergen per Squash, sobald die CI auf dem aktuellen Stand grün ist und Titel und Beschreibung passen. Der Aufruf durch den Maintainer genügt; ein Collaborator holt vorher seine Zustimmung ein.
 - **Heikel** (nach Schritt 2): bis grün fertig machen, dann nicht mergen, sondern dem Maintainer in höchstens fünf Zeilen berichten und auf sein „OK“ warten:
 
