@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { externalSettlementProblem, type ExternalSettlementJournal } from "./external-settlements.ts";
-import { documentPaymentPosting, documentPosting, invoicePaymentPosting, invoicePosting, type Kontenrahmen } from "./posting.ts";
+import { externalSettlementProblem, isExternalSettlementPayment, type ExternalSettlementJournal } from "./external-settlements.ts";
+import {
+  ACCOUNTS,
+  documentPaymentPosting,
+  documentPosting,
+  invoicePaymentPosting,
+  invoicePosting,
+  paymentProviderAccount,
+  type Kontenrahmen,
+} from "./posting.ts";
 import { totalsFromTaxes } from "./invoice.ts";
 
 const totals = totalsFromTaxes([{ rate: 1900, base: 100000, tax: 19000 }]);
@@ -14,6 +22,25 @@ const payment = (kr: Kontenrahmen, amount = 119000, settles = "AR"): ExternalSet
 
 for (const kr of ["SKR03", "SKR04"] as const)
   describe(`Importierte Zahlungsbezüge ohne Datenbank (${kr})`, () => {
+    it.each([ACCOUNTS[kr].kasse, ACCOUNTS[kr].geldtransit, ACCOUNTS[kr].gesellschafter, kr === "SKR03" ? "1890" : "2180"])(
+      "erkennt Rückzahlungen über Geld- und Privatkonto %s",
+      (account) => {
+        const lines = invoicePaymentPosting(totals, -119000, kr, "ist").map((line) => (line.account === ACCOUNTS[kr].bank ? { ...line, account } : line));
+        expect(isExternalSettlementPayment(kr, lines)).toBe(true);
+      },
+    );
+
+    it.each([true, false])("hält eine Anlagenrechnung nicht für eine Zahlung (Vorsteuerabzug: %s)", (vorsteuerAbzug) => {
+      expect(isExternalSettlementPayment(kr, documentPosting(totals, "anlage", kr, "einzelunternehmen", "bank", vorsteuerAbzug))).toBe(false);
+    });
+
+    it.each([1, 9])("erkennt ungeklärte Zahlungen auf dem Zahlungsdienstleister-Verrechnungskonto %s", (index) => {
+      const lines = invoicePaymentPosting(totals, 119000, kr, "ist").map((line) =>
+        line.account === ACCOUNTS[kr].bank ? { ...line, account: paymentProviderAccount(kr, index) } : line,
+      );
+      expect(isExternalSettlementPayment(kr, lines)).toBe(true);
+    });
+
     it.each([true, false])("nimmt die Zahlung auf eine Anlagenrechnung ohne Erfolgskonto an (Vorsteuerabzug: %s)", (vorsteuerAbzug) => {
       expect(
         externalSettlementProblem(kr, [

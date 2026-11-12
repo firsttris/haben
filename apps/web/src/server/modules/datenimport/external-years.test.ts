@@ -5,6 +5,7 @@ import {
   invoicePaymentPosting,
   invoiceCashPaymentPosting,
   invoicePosting,
+  paymentProviderAccount,
   totalsFromTaxes,
   type Kontenrahmen,
   type Versteuerung,
@@ -178,6 +179,31 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     expect(euer.gewinn).toBe(-19000);
   });
 
+  it.each([
+    ["SKR03", "ist", true],
+    ["SKR03", "ist", false],
+    ["SKR04", "soll", true],
+    ["SKR04", "soll", false],
+  ] as const)("%s/%s: Teilzahlung und Rückzahlung einer Anlage erhalten den Vorsteueranteil (%s)", async (kr, mode, vorsteuerAbzug) => {
+    await reset(kr, mode);
+    await run(
+      [
+        entry("anlage-teil", "2026-12-15", documentPosting(totals, "anlage", kr, "einzelunternehmen", "bank", vorsteuerAbzug)),
+        entry("anlage-teil-zahlung", "2026-12-20", documentPaymentPosting(-59500, kr), "anlage-teil"),
+        entry("anlage-teil-rueck", "2027-01-15", documentPaymentPosting(59500, kr), "anlage-teil"),
+      ],
+      kr,
+    );
+    const first = await reports.euerForYear(2026);
+    const next = await reports.euerForYear(2027);
+    expect(first.ausgaben.find((line) => line.key === "vorsteuer")?.amount).toBe(vorsteuerAbzug ? 9500 : 0);
+    expect(first.totalAusgaben).toBe(vorsteuerAbzug ? 9500 : 0);
+    expect(next.totalAusgaben).toBe(vorsteuerAbzug ? -9500 : 0);
+    expect(first.gewinn + next.gewinn).toBe(0);
+    expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).not.toMatch(/Import-Buchungen.*keinen Zahlungsbezug/);
+    expect((await reports.euerAbgleich(2027)).hinweise.join(" ")).not.toMatch(/Import-Buchungen.*keinen Zahlungsbezug/);
+  });
+
   it("verwechselt eine offene Anlagenrechnung im Abgleich nicht mit einer ungeklärten Zahlungsbuchung", async () => {
     await reset("SKR03", "ist");
     await run([entry("offene-anlage", "2026-01-15", documentPosting(totals, "anlage", "SKR03", "einzelunternehmen", "bank"))], "SKR03");
@@ -198,6 +224,19 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     await reset(kr, "ist");
     const lines = invoicePaymentPosting(totals, 119000, kr, "ist").map((l) => (l.account === ACCOUNTS[kr].bank ? { ...l, account: bank } : l));
     await run([entry("zahlung-bank-1", "2026-02-15", lines)], kr);
+    expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).toMatch(/Import.*Zahlungsbezug/);
+  });
+
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("%s/%s: nennt ungeklärte Zahlungen über Zahlungsdienstleister im Abgleich", async (kr, mode) => {
+    await reset(kr, mode);
+    const lines = invoicePaymentPosting(totals, 119000, kr, mode).map((line) =>
+      line.account === ACCOUNTS[kr].bank ? { ...line, account: paymentProviderAccount(kr, 1) } : line,
+    );
+    await run([entry("dienstleister-zahlung", "2026-02-15", lines)], kr);
+    expect(income(await reports.euerForYear(2026))).toBe(0);
     expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).toMatch(/Import.*Zahlungsbezug/);
   });
 
