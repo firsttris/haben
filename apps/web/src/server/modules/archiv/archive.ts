@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
+import { DatevParseError, isDatevFile, otherDatevExportName, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt } from "./datev-belegnummer.ts";
@@ -42,24 +42,37 @@ function mimeTypeOf(bytes: Uint8Array, filename: string): string {
 
 /**
  * Legt eine Originaldatei unverändert ins Archiv. Ein DATEV-Buchungsstapel wird zusätzlich zeilenweise
- * übernommen; Zeiträume dürfen sich nicht mit schon übernommenen Stapeln überschneiden.
+ * übernommen; Zeiträume dürfen sich nicht mit schon übernommenen Stapeln überschneiden. Andere DATEV-Exporte
+ * (Formatkategorie nicht 21) liegen unter der gewählten Art, statt „DATEV-Buchungsstapel“ unter Sonstiges.
  */
+/** Notiz an den Originaldateien des BuchhaltungsButler-Imports */
+export const BB_ORIGINAL_NOTE = "BuchhaltungsButler-Originalexport";
+
 export async function addArchiveFile(
   actor: string,
   file: { bytes: Uint8Array; filename: string; kind: ArchiveKind; year: number | null; note?: string },
+  maxBytes = MAX_ARCHIVE_SIZE,
 ): Promise<{ id: string; bookings: number; warnings: string[] }> {
   if (file.bytes.byteLength === 0) throw new ArchiveError(`${file.filename}: Datei ist leer.`);
-  if (file.bytes.byteLength > MAX_ARCHIVE_SIZE) throw new ArchiveError(`${file.filename}: größer als 100 MB.`);
+  if (file.bytes.byteLength > maxBytes) throw new ArchiveError(`${file.filename}: größer als ${Math.floor(maxBytes / 1024 / 1024)} MB.`);
   const sha256 = sha256Of(file.bytes);
   const [existing] = await db.select({ filename: schema.archiveFiles.filename }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256));
   if (existing) throw new ArchiveError(`${file.filename}: liegt schon im Archiv (als ${existing.filename}).`);
 
   let kind = file.kind;
-  if (kind !== "datev" && isDatevFile(file.bytes)) kind = "datev";
   let year = file.year;
   let meta: Record<string, unknown> | null = null;
   let bookings: ReturnType<typeof parseDatevBuchungsstapel>["bookings"] = [];
   let warnings: string[] = [];
+
+  // Nur der Buchungsstapel wird zeilenweise gelesen; andere DATEV-Exporte bleiben reine Originale
+  const otherExport = otherDatevExportName(file.bytes);
+  if (otherExport && kind === "datev") {
+    kind = "sonstiges";
+    warnings = [`Das ist ein DATEV-Export „${otherExport}“, kein Buchungsstapel. Abgelegt als ${ARCHIVE_KINDS.sonstiges}.`];
+  } else if (!otherExport && isDatevFile(file.bytes)) {
+    kind = "datev";
+  }
 
   if (kind === "datev") {
     let stack;

@@ -56,8 +56,6 @@ for (const pfad of FORMULARE) {
   test(`${pfad}: größere Schrift schiebt nichts über den Rand, auch auf dem schmalsten Handy`, async ({ page }) => {
     await laden(page, pfad);
     expect(await ueberstand(page)).toBeLessThanOrEqual(1);
-    // Die Tabelle der Layouts ragt bei 320 px auch ohne größere Felder 2 px über den Rand: ein eigener Fehler
-    if (pfad === "/einstellungen?bereich=gestaltung") return;
     await page.setViewportSize(SCHMAL);
     expect(await ueberstand(page)).toBeLessThanOrEqual(1);
   });

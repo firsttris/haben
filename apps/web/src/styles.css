@@ -1,6 +1,5 @@
 /* Schriften selbst ausgeliefert (fontsource) statt von Google Fonts: Latein und Latein-Erweitert als woff2,
    der Browser lädt je Schnitt nur die Teilmenge, deren Zeichen auf der Seite vorkommen. */
-@import "./styles/belegschriften.css";
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
@@ -18,6 +17,8 @@
 @font-face { font-family: "IBM Plex Sans"; font-style: italic; font-weight: 600; font-display: swap; src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-italic.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 
 :root {
+  /* Papier liegt wie eine Karte auf dem Grund: Haarlinie, Kante, Körper und ein weiter, weicher Schatten nach unten */
+  --paper-shadow: 0 0 0 1px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.08), 0 12px 24px -6px rgb(0 0 0 / 0.16), 0 32px 64px -16px rgb(0 0 0 / 0.22);
   --ink: #16211c;
   --ink-2: #3f4a44;
   --muted: #56625c;
@@ -88,6 +89,8 @@ html { scroll-padding-top: calc(var(--below-head) + 16px); }
 }
 [data-theme="nacht"], [data-theme="tiefsee"] {
   color-scheme: dark;
+  /* Auf Dunkel trägt der Schatten kaum, die helle Haarlinie hält die Kante des Papiers */
+  --paper-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 32px -8px rgb(0 0 0 / 0.6), 0 32px 64px -16px rgb(0 0 0 / 0.5);
   --link: var(--accent-ink); --link-hover: var(--ink);
   --warn-ink: #f2b880; --warn-soft: #3a2615; --warn-dot: #e08a3c;
   --info-ink: #9cc3f0; --info-soft: #172a42;
@@ -131,9 +134,25 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
 .nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 4px 12px 28px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
+/* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 40px große Kachel kostet ihn so nicht (#504) */
+.brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
-.brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
+/* Mit Firmenname (#504): „Haben“ bleibt, darunter der Name in bis zu zwei Zeilen, klein genug für lange Namen */
+.brand-text { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.brand-firma { color: var(--nav-ink); font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+/* Voller Name beim Überfahren (nur Desktop): wächst an der Stelle des gekürzten Namens nach unten und über die ersten Menüpunkte, bis zum rechten Rand der Navigation; das „H“ und „Haben“ bleiben frei */
+.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: 0; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
+/* Das Zeichen ist fest quadratisch und voll gefüllt, 40px am Desktop, 36px am Handy; das „H“ und ein Logo gleich groß (#504) */
+.brand-mark { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 23px; }
+/* Eigene Farbe, die sich in einem Theme nicht mit 3 : 1 von der Navigation abhebt (WCAG 1.4.11): feine helle Innenkante, die Größe bleibt */
+.brand-mark-kante { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nav-ink) 60%, transparent); }
+/* Logo als Zeichen (#504): auf Weiß wie auf dem Beleg, damit auch ein dunkles Logo auf dunkler Navigation zu sehen ist */
+.brand-logo { display: block; width: 40px; height: 40px; padding: 3px; border-radius: 10px; background: #fff; object-fit: contain; flex-shrink: 0; }
+.nav-mark-choice { display: flex; gap: 24px; align-items: start; flex-wrap: wrap; }
+.nav-mark-choice > fieldset { flex: 1 1 280px; margin: 0; padding: 0; border: 0; }
+/* Alle drei Optionen gleich hoch, auch die mit Hinweis darunter */
+.nav-mark-choice .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; }
+.nav-mark-preview { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 12px; background: var(--nav); color: #fff; font-weight: 600; font-size: 18px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; }
 .nav-link:hover { color: #fff; }
 .nav-link[data-status="active"] { background: var(--nav-active); color: #fff; font-weight: 500; }
@@ -164,7 +183,16 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
   .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
-  .brand { padding: 4px 12px; }
+  /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
+     er wird gekürzt */
+  /* Rechts 8px Abstand zum Menüknopf */
+  .brand { padding: 0 8px 0 12px; flex: 1 1 0; min-width: 0; }
+  .brand-mark, .brand-logo { width: 36px; height: 36px; border-radius: 9px; }
+  .brand-mark { font-size: 21px; }
+  .brand-text { line-height: 22px; }
+  .brand-firma { display: block; white-space: nowrap; text-overflow: ellipsis; }
+  .brand-firma-voll { display: none; }
+  .nav-toggle { flex-shrink: 0; }
   .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
   .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); overflow-y: auto; }
@@ -222,7 +250,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 /* Suchfeld mit Trefferliste (Combobox.tsx); die Pfeile und Maße wie bei den Auswahlfeldern */
 .field-label { align-self: flex-start; }
 /* Feldname links neben dem Feld statt darüber, etwa „Konto“ neben der Auswahl */
-.field-inline { flex-direction: row; align-items: center; gap: 8px; }
+.field.field-inline { flex-direction: row; align-items: center; gap: 8px; }
 .field-inline > .field-label { align-self: center; }
 .combobox { position: relative; min-width: 0; }
 .combobox input { width: 100%; min-height: var(--control-h); padding: 0 36px 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
@@ -242,7 +270,6 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .combobox-meta { font-size: 12px; font-weight: 400; color: var(--muted); }
 .combobox-note { flex: none; margin: 0; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .combobox-popup > .combobox-note:first-child { border-top: 0; }
-.catalog-select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); max-width: 100%; min-width: 0; }
 /* Löschen, Entfernen, Stornieren, Widerrufen */
 .btn-danger { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger-ink) 45%, var(--line-strong)); }
 .btn-danger:hover { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
@@ -254,14 +281,16 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
-.field input, .field select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
+.field input { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
+/* Jede Auswahlliste sieht so aus, auch eine ohne `Field` (Positionszeilen, Tabellen); ein eigenes Aussehen setzt eine spezifischere Regel (`.nav-theme select`) */
+select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
 /* iOS Safari zeichnet Datumsfelder sonst als Menüknopf und überschreibt dabei min-height und box-sizing
    (WebKit, RenderThemeIOS: adjustMenuListButtonStyle, adjustInputElementButtonStyle); den Wert zentriert es (html.css) */
 .field input:is([type="date"], [type="month"]) { appearance: none; }
 .field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
-.field input:focus-visible, .field select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field input:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .field-error { color: var(--danger-ink); font-size: 13px; }
 /* Einstellungen: Bereiche links, Inhalt rechts in einer Spalte */
 .settings-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -340,6 +369,15 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
 .checkbox input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+/* Kontrollkästchen mit Hinweis: Der Hinweis steht außerhalb des Labels (sonst zählte er zum Namen) und gehört per aria-describedby dazu.
+   Er rückt auf die Textkante der Beschriftung ein: Kästchen (18px) plus Abstand (10px) plus Außenabstand des Kästchens (7px).
+   Auf Touchgeräten ist die Zeile mit dem Kästchen wie bei jedem Kontrollkästchen 44px hoch (--control-h in DESIGN.md) */
+.checkbox-hinted > .checkbox { align-items: flex-start; min-height: 0; }
+.checkbox-hinted > .field-hint { display: block; padding-left: 35px; }
+@media (pointer: coarse) { .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; } }
+/* Zwischen Kästchen ohne Hinweis (44px hoch) sonst zu eng: oben und unten so viel Luft, wie deren Zeile hat */
+.design-card .checkbox-hinted { margin-block: 12px; }
+@media (pointer: coarse) { .design-card .checkbox-hinted { margin-block: 0 8px; } }
 
 .pill { display: inline-block; white-space: nowrap; font-size: 12px; font-weight: 500; line-height: 16px; padding: 4px 8px; border-radius: 12px; background: var(--line-soft); color: var(--ink-2); }
 .pill-ok { background: var(--accent-soft); color: var(--accent-ink); }
@@ -413,6 +451,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 120px; }
 .cash-cols { grid-template-columns: 48px 96px minmax(0, 1fr) 120px 120px 150px; padding-top: 8px; padding-bottom: 8px; }
 .article-cols { grid-template-columns: minmax(0, 1fr) 160px 60px auto; }
+.service-cols { grid-template-columns: 90px minmax(0, 1fr) 90px 90px 100px auto; }
 .contact-cols { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 200px; }
 .table-row .row-title { font-weight: 500; color: var(--accent-ink); }
 .plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }
@@ -461,6 +500,10 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .article-cols > :nth-child(3) { display: none; }
   .article-cols > :nth-child(4) { grid-column: 1 / -1; justify-content: flex-start !important; }
   .table-row.head.article-cols { display: none; }
+  .service-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 6px; }
+  .service-cols > :nth-child(1), .service-cols > :nth-child(2), .service-cols > :nth-child(6) { grid-column: 1 / -1; }
+  .service-cols > :nth-child(6) { justify-content: flex-start !important; }
+  .table-row.head.service-cols { display: none; }
   .contact-cols { grid-template-columns: minmax(0, 1fr) auto; padding-top: 8px; padding-bottom: 8px; }
   .contact-cols > :nth-child(2), .contact-cols > :nth-child(4) { display: none; }
   .table-row.head.contact-cols { display: none; }
@@ -493,7 +536,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .preview-pane-actions { display: flex; gap: 8px; margin-left: auto; }
 /* Das Blatt liegt in einer Karte und scrollt in ihr, statt am unteren Rand der Spalte abgeschnitten zu wirken */
 .preview-pane .sheet-frame { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
-.preview-pane-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
+.preview-pane-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px 20px 32px; background: var(--ground); }
 /* Überblendung: dieselbe Seitenansicht, aber über dem Formular und breiter als angeheftet („Vergrößern“); sie fährt von
    rechts herein, am Handy von unten. Ohne Anlaufpause und lange weich auslaufend (Material 3 „standard“), hinaus dieselbe Kurve kürzer; der Übergang
    gilt jeweils für den Zustand, in den es geht. Ohne
@@ -526,14 +569,14 @@ html:has(.preview-dialog) body { padding-right: var(--page-scrollbar, 0px); }
 .sheet-frame::after { bottom: 0; opacity: var(--fade-bottom, 0); background-image: linear-gradient(to top, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.1) 25%, rgb(0 0 0 / 0.045) 50%, rgb(0 0 0 / 0.012) 75%, transparent); }
 .preview-dialog-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
 .preview-dialog-head h2 { margin: 0 0 2px; font-size: 18px; }
-.preview-dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 16px 20px 24px; }
+.preview-dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 28px 32px 44px; background: var(--ground); }
 /* Handy: von unten, oben bleibt ein Streifen der Seite sichtbar */
 @media (max-width: 720px) {
   .preview-dialog { --sheet-hidden: translateY(100%); width: 100vw; height: calc(100dvh - 12px); margin: auto 0 0; border: 0; border-top: 1px solid var(--line); border-radius: var(--sheet-radius) var(--sheet-radius) 0 0; box-shadow: 0 -12px 32px rgb(0 0 0 / 0.2); }
   .preview-dialog .sheet-grip { display: flex; }
   .preview-dialog-title { touch-action: none; }
   .preview-dialog-head { padding: 4px 12px 12px; }
-  .preview-dialog-body { padding: 12px; }
+  .preview-dialog-body { padding: 16px 16px 28px; }
 }
 /* Split-Button: Hauptaktion und Pfeil teilen sich einen Rahmen, das Menü hängt rechtsbündig darunter */
 .split-btn { position: relative; display: inline-flex; }
@@ -606,44 +649,16 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 
 /* Papiervorschau */
 /* Rechnungsvorschau als A4-Blatt; Maße in mm wie templates/rechnung.typ, 1pt = 0,3528 mm */
-.sheet-frame { container-type: inline-size; }
-.sheet { isolation: isolate; --mm: calc(100cqw / 210); --ink: #16211c; --ink-muted: #5b6b63; --rule: #d5ddd8; --brand: #1f6f5c; position: relative; min-height: calc(297 * var(--mm)); display: flex; flex-direction: column; padding: calc(98.46 * var(--mm)) calc(20 * var(--mm)) calc(14 * var(--mm)) calc(25 * var(--mm)); background: #fff; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: calc(9.5 * 0.3528 * var(--mm)); line-height: 1.4; font-variant-numeric: lining-nums tabular-nums; border-radius: 2px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden; }
+/* Das Blatt setzt Typst; je Seite ein Ausschnitt aus dem gemeinsamen SVG. Papier bleibt in jedem Theme weiß */
+.sheet { display: flex; flex-direction: column; gap: 28px; }
+.sheet-page { position: relative; width: 100%; overflow: hidden; border-radius: 4px; background: #fff; box-shadow: var(--paper-shadow); }
+.sheet-page img { position: absolute; left: 0; width: 100%; max-width: none; }
+.sheet-page-empty { aspect-ratio: 210 / 297; display: flex; align-items: center; justify-content: center; color: #5b6b63; font-size: 14px; }
+.sheet-outdated { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* Genau eine A4-Seite wie im PDF, auch wenn das Blatt in der Vorschau länger ist */
-.sheet-background { position: absolute; inset: 0 0 auto; z-index: -1; height: calc(297 * var(--mm)); background-position: center; background-repeat: no-repeat; background-size: cover; }
-.sheet-fold { position: absolute; left: calc(4 * var(--mm)); width: calc(4 * var(--mm)); border-top: 1px solid var(--rule); }
-.sheet-fold.long { width: calc(6 * var(--mm)); }
-.sheet-logo { position: absolute; top: calc(20 * var(--mm)); right: calc(20 * var(--mm)); object-fit: contain; }
-.sheet-logo[data-seite="links"] { right: auto; left: calc(25 * var(--mm)); }
-.sheet-address { position: absolute; left: calc(20 * var(--mm)); top: calc(45 * var(--mm)); width: calc(85 * var(--mm)); height: calc(45 * var(--mm)); line-height: 1.35; }
-.sheet-sender { height: calc(17.7 * var(--mm)); display: flex; align-items: flex-end; padding-bottom: calc(2 * var(--mm)); font-size: calc(7 * 0.3528 * var(--mm)); color: var(--ink-muted); line-height: 1.2; }
-.sheet-meta { position: absolute; left: calc(125 * var(--mm)); top: calc(50 * var(--mm)); width: calc(75 * var(--mm)); margin: 0; display: grid; grid-template-columns: auto 1fr; gap: calc(2.2 * var(--mm)) calc(4 * var(--mm)); font-size: calc(8.5 * 0.3528 * var(--mm)); line-height: 1.2; }
-.sheet-meta dt { color: var(--ink-muted); }
-.sheet-meta dd { margin: 0; text-align: right; white-space: nowrap; }
-.sheet-muted { color: var(--ink-muted); }
-.sheet-strong { font-weight: 600; }
-.sheet-body { display: flex; flex-direction: column; margin-bottom: calc(8 * var(--mm)); }
-.sheet-body p { margin: 0 0 calc(2 * var(--mm)); }
-.sheet-title { font-size: calc(16 * 0.3528 * var(--mm)); font-weight: 600; line-height: 1.2; letter-spacing: -0.005em; }
-.sheet-table { width: 100%; border-collapse: collapse; margin-top: calc(5 * var(--mm)); }
-.sheet-table th { text-align: left; font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); color: var(--brand); border-bottom: 0.6pt solid var(--brand); padding: calc(2.2 * var(--mm)) calc(1.6 * var(--mm)); white-space: nowrap; }
-.sheet-table td { padding: calc(2.2 * var(--mm)) calc(1.6 * var(--mm)); border-bottom: 0.4pt solid var(--rule); vertical-align: top; }
-.sheet-table .num { text-align: right; white-space: nowrap; font-family: inherit; }
-.sheet-table td.num { font-size: inherit; }
-.sheet-table .desc { width: 100%; overflow-wrap: anywhere; }
-.sheet-tag { color: var(--brand); font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); }
-.sheet-plan caption { text-align: left; font-weight: 600; caption-side: top; }
-.sheet-plan td.num { white-space: normal; }
 /* Wie die Vorlage: mindestens 80 mm, sonst so breit wie die längste Zeile */
-.sheet-totals { align-self: flex-end; width: max-content; min-width: calc(80 * var(--mm)); max-width: 100%; margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
-.sheet-totals dt, .sheet-totals dd { margin: 0; padding: 0 calc(1.6 * var(--mm)); }
-.sheet-totals dt { color: var(--ink-muted); white-space: nowrap; }
-.sheet-totals dd { text-align: right; white-space: nowrap; }
-.sheet-totals .gross { color: var(--ink); font-weight: 600; border-top: 0.6pt solid var(--brand); padding-top: calc(2.2 * var(--mm)); margin-top: 0; }
 /* Bruttopreise: Netto und Umsatzsteuer, die im Gesamtbetrag enthalten sind */
-.sheet-totals .sheet-included { color: var(--ink-muted); font-size: 0.9em; }
 /* Im Fluss statt fest unten: Ein hoher eigener Fuß schiebt das Blatt länger, statt den Text zu verdecken */
-.sheet-foot { margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
-.sheet-foot-legal { grid-column: 1 / -1; }
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }
 .paper-totals dd { margin: 0; text-align: right; font-family: var(--mono); }
@@ -720,7 +735,12 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .search-box { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); min-width: 200px; }
 .search-box:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .search-box input { border: 0; outline: none; font: inherit; font-size: 13px; color: var(--ink); background: transparent; width: 100%; }
-.tx-cols { grid-template-columns: 64px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+.tx-cols { grid-template-columns: 84px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+/* Spaltenkopf als Schaltfläche: sortiert die Liste, der zweite Klick dreht die Richtung (#681) */
+.sort-head { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+.sort-head.num { justify-content: flex-end; }
+.sort-head:hover { color: var(--ink); }
+.sort-head.aktiv { color: var(--ink); font-weight: 500; }
 .tx-row.selected { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
 .tx-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .section-label { font-size: 13px; color: var(--muted); }
@@ -825,12 +845,12 @@ fieldset.card > legend + * { clear: both; }
 
 /* Dateiauswahl: der Knopf sieht aus wie .btn, Text daneben senkrecht mittig */
 .file-picker { display: flex; align-items: center; gap: 12px; min-height: var(--control-h); padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.file-picker .btn { flex-shrink: 0; white-space: nowrap; }
 .file-picker:hover .btn { border-color: var(--muted); }
+.file-picker:has(input:disabled) { cursor: default; opacity: 0.6; }
+.file-picker:has(input:disabled) .btn { border-color: var(--line-strong); }
 .file-picker input:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
 .file-picker-name { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.field input[type="file"] { display: flex; align-items: center; padding: 6px; min-height: var(--control-h); font-size: 13px; color: var(--muted); }
-.field input[type="file"]::file-selector-button { min-height: 32px; margin-right: 12px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
-.field input[type="file"]::file-selector-button:hover { border-color: var(--muted); }
 
 @media (max-width: 720px) {
   /* Kennzahlen auf dem Handy kompakt: eine Spalte, kein Platzhalter für zweizeilige Beschriftungen */
@@ -875,7 +895,7 @@ summary { cursor: pointer; min-height: 24px; }
   .plan-amount { grid-column: 1 / -1; }
 }
 
-/* Kontakt im Beleg oder Rechnungsentwurf anlegen (ContactDialog) */
+/* Kontakt im Beleg oder Rechnungsentwurf anlegen (NewContactDialog) */
 /* Rückfrage: wie .form-dialog, schmal und mit Knopfleiste, die stehen bleibt, wenn der Inhalt scrollt */
 .confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; overflow-wrap: anywhere; }
 .confirm-dialog[open] { display: flex; flex-direction: column; }
@@ -949,12 +969,13 @@ summary { cursor: pointer; min-height: 24px; }
 .color-swatch-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .color-swatch-custom:has(input:focus-visible) { outline: 2px solid var(--accent); }
 .color-swatch-dot { display: block; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; }
-.layouts-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.layouts-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+/* Feste Spalten: Sonst wäre die Auswahl so breit wie ihr längster Eintrag und schöbe die Seite am Handy über den Rand */
+.layouts-table th:last-child, .layouts-table td:last-child { width: 55%; }
+.layouts-table select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.layouts-table td { overflow-wrap: anywhere; hyphens: auto; }
 .layouts-table th { text-align: left; font-size: 13px; font-weight: 500; color: var(--muted); }
 .layouts-table th, .layouts-table td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); }
-.sheet-payment { display: flex; align-items: flex-start; justify-content: space-between; gap: calc(8 * var(--mm)); }
-.sheet-payment > p { flex: 1 1 auto; margin-top: 0; }
-.sheet-giro { flex: 0 0 calc(24 * var(--mm)); height: calc(24 * var(--mm)); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--ink-muted); color: var(--ink-muted); font-size: calc(2.4 * var(--mm)); }
 @media (max-width: 720px) {
   .preview-dialog[data-design] { width: 100vw; }
   .preview-dialog-head { flex-wrap: wrap; }
@@ -987,3 +1008,10 @@ summary { cursor: pointer; min-height: 24px; }
 .footer-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .footer-chips .btn { font-size: 12px; }
 .footer-preview { font-size: 12px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+/* Eigene Layouts in den Einstellungen; ab sieben Einträgen scrollt die Liste */
+.own-layouts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
+.own-layouts[data-scrolls] { max-height: 420px; overflow-y: auto; }
+.own-layouts > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+.own-layout-name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.own-layout-rename { display: flex; flex-wrap: wrap; gap: 8px; }
+.own-layouts .actions { flex-wrap: wrap; }

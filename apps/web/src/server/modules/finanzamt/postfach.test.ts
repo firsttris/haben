@@ -2,7 +2,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 import type { ElsterClient, PostfachResult } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
   let postfach: typeof import("./postfach.ts");
@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate elster_certificates, company, postfach_documents, postfach_requests cascade`;
+    await leeren(sql)`truncate elster_certificates, company, postfach_documents, postfach_requests cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY')`;
     await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
   });
@@ -120,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
     const fake = new EricGeprueftClient();
     await expect(postfach.fetchPostfach(actor, fake, { kind: "send", pin: "1234", herstellerId: "12345" })).rejects.toThrow(/Ohne ERiC/);
     await expect(postfach.fetchPostfach(actor, fake, { kind: "send", pin: "1234" })).rejects.toThrow(/Hersteller-ID/);
-    await sql`truncate elster_certificates`;
+    await leeren(sql)`truncate elster_certificates`;
     await expect(postfach.fetchPostfach(actor, fake, { kind: "test", pin: "1234" })).rejects.toThrow(/Zertifikat/);
   });
 
@@ -174,7 +174,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
     expect(docs.find((d) => d.datenart === "EPMitteilung")!.frist).toBeNull();
     expect(await postfach.openAppealDeadlines("2025-07-10")).toEqual([]);
 
-    await sql`truncate postfach_documents, postfach_requests cascade`;
+    await leeren(sql)`truncate postfach_documents, postfach_requests cascade`;
     await postfach.fetchPostfach(actor, scriptedClient().client, { kind: "send", pin: "1234", herstellerId: "12345" });
     docs = await postfach.listPostfachDocuments();
     expect(docs.every((d) => !d.test)).toBe(true);

@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 type Sent = { to: string; bcc?: string; subject: string; text: string; html: string; attachments?: { filename: string; contentType: string }[] };
 
@@ -72,8 +72,8 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   beforeEach(async () => {
     sent.length = 0;
     fail = false;
-    await sql`truncate mail_log, mail_settings, dunnings, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
-      invoice_number_counters, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate mail_log, mail_settings, dunnings, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines,
+      invoices, recurring_invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;

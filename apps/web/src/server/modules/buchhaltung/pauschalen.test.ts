@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Pauschalen (Postgres)", () => {
   let pauschalen: typeof import("./pauschalen.ts");
@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Pauschalen (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate pauschalen, asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate pauschalen, asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, company cascade`;
     await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland) values (1, 'Testfirma', 'ist', 'SKR03', 'BW')`;
   });

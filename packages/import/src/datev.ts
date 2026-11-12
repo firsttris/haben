@@ -58,11 +58,13 @@ export interface DatevStack {
   warnings: string[];
 }
 
+const BUCHUNGSSTAPEL = 21;
+
 /** Formatkategorien laut DATEV-Schnittstellenbeschreibung */
 const CATEGORIES: Record<number, string> = {
   16: "Debitoren/Kreditoren",
   20: "Kontenbeschriftungen",
-  21: "Buchungsstapel",
+  [BUCHUNGSSTAPEL]: "Buchungsstapel",
   46: "Zahlungsbedingungen",
   47: "Diverse Adressen",
   48: "Wiederkehrende Buchungen",
@@ -178,15 +180,29 @@ export function isDatevFile(bytes: Uint8Array): boolean {
   return /^"?(EXTF|DTVF)"?;/.test(head);
 }
 
+const categoryName = (category: number, nameInHeader: string) => CATEGORIES[category] || nameInHeader || `Kategorie ${category}`;
+
+/**
+ * Name des DATEV-Exports, wenn die Kopfzeile eine andere Formatkategorie als den Buchungsstapel nennt, sonst null.
+ * Eine unlesbare Kategorie zählt nicht als anderer Export: So eine Datei lehnt parseDatevBuchungsstapel ab.
+ */
+export function otherDatevExportName(bytes: Uint8Array): string | null {
+  if (!isDatevFile(bytes)) return null;
+  // Formatkategorie und Name stehen in Feld 3 und 4, ganz vorn in der Kopfzeile
+  const fields = splitLines(stripBom(decodeText(bytes.subarray(0, 512))))[0]?.fields ?? [];
+  const category = (fields[2] ?? "").trim();
+  if (!/^\d+$/.test(category) || Number(category) === BUCHUNGSSTAPEL) return null;
+  return categoryName(Number(category), (fields[3] ?? "").trim());
+}
+
 function parseHeader(fields: string[]): DatevHeader {
   const f = (n: number) => (fields[n - 1] ?? "").trim();
   if (f(1) !== "EXTF" && f(1) !== "DTVF") {
     throw new DatevParseError("Keine DATEV-Datei: Kopfzeile beginnt nicht mit EXTF");
   }
   const category = integer(f(3), "Formatkategorie");
-  if (category !== 21) {
-    const name = CATEGORIES[category] || f(4) || `Kategorie ${category}`;
-    throw new DatevParseError(`Das ist ein DATEV-Export „${name}“, kein Buchungsstapel.`);
+  if (category !== BUCHUNGSSTAPEL) {
+    throw new DatevParseError(`Das ist ein DATEV-Export „${categoryName(category, f(4))}“, kein Buchungsstapel.`);
   }
   const fiscalYearStart = compactDate(f(13), "Wirtschaftsjahresbeginn");
   if (!fiscalYearStart) throw new DatevParseError("Kopfzeile: Wirtschaftsjahresbeginn fehlt.");

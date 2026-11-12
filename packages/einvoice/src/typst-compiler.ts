@@ -17,11 +17,13 @@ const FONTS = FONT_FILES.map((file) => join(PACKAGE_DIR, "fonts", file));
 
 let compiler: NodeCompiler | undefined;
 
+/** Compiler mit den Schriften der Belege; Typst liest nur Dateien unter workspace */
+export function createCompiler(workspace: string): NodeCompiler {
+  return NodeCompiler.create({ workspace, fontArgs: [{ fontBlobs: FONTS.map((path) => readFileSync(path)) }] });
+}
+
 export function getCompiler(): NodeCompiler {
-  compiler ??= NodeCompiler.create({
-    workspace: join(PACKAGE_DIR, "templates"),
-    fontArgs: [{ fontBlobs: FONTS.map((path) => readFileSync(path)) }],
-  });
+  compiler ??= createCompiler(join(PACKAGE_DIR, "templates"));
   return compiler;
 }
 

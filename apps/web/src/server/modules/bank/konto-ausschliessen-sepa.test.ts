@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Ein ausgeschlossenes Konto (#462) wird auch nicht mehr Auftraggeber- oder Gläubigerkonto einer SEPA-Datei: Die Oberfläche
@@ -25,7 +25,8 @@ describe.skipIf(!testDatabaseUrl)("Ausgeschlossenes Konto in SEPA-Dateien (Postg
   });
 
   beforeEach(async () => {
-    await sql`truncate sepa_direct_debit_items, sepa_direct_debits, sepa_transfer_items, sepa_transfers, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate sepa_direct_debit_items, sepa_direct_debits, sepa_transfer_items, sepa_transfers, write_offs, allocations, bank_transactions,
+      bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, iban, bic, versteuerung, kontenrahmen, glaeubiger_id)
       values (1, 'Müller & Söhne Design', 'Musterstraße 1', '93047', 'Regensburg', 'a@example.com', '198/113/10010', 'BY',
               ${IBAN}, 'COBADEFFXXX', 'ist', 'SKR03', 'DE98ZZZ09999999999')`;

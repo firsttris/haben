@@ -28,14 +28,15 @@ import { ScrollBox } from "../ScrollTable.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
+import { BuchhaltungsButlerImport } from "./BuchhaltungsButlerImport.tsx";
 import { Field } from "../Field.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
 /** Quellen mit API-Verbindung: Schlüssel speichern, entfernen, Abruf starten */
 type ConnectedSource = "lexoffice" | "sevdesk";
-/** Alle Quellen; Accountable kennt keine API, dort gibt es nur den Datei-Upload */
-type Source = ConnectedSource | "accountable";
+/** Alle Quellen; Accountable und BuchhaltungsButler kennen keine API, dort gibt es nur den Datei-Upload */
+type Source = ConnectedSource | "accountable" | "buchhaltungsbutler";
 
 /** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
 const SOURCES = {
@@ -81,21 +82,43 @@ const SOURCES = {
   },
 } as const;
 
+const BB_CONFIG = {
+  product: "BuchhaltungsButler",
+  importHelp: "Liest Buchungen, Belege und PDFs aus den Exportdateien von BuchhaltungsButler ein.",
+  exportsHelp:
+    "Der BB-Import legt die Originalexporte bereits an. Ergänze je Geschäftsjahr noch den Datenexport für die Betriebsprüfung, ELSTER-Protokolle und Kontoauszüge.",
+} as const;
+const ALL_SOURCES = { ...SOURCES, buchhaltungsbutler: BB_CONFIG } as const;
+
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready) && data.orderArchive.withoutPdf === 0;
   const [source, setSource] = useState<Source>(() => {
     if (data.connection || data.lastImport) return "lexoffice";
     if (data.sevdeskConnection || data.sevdeskImport) return "sevdesk";
     if (data.accountableImport) return "accountable";
+    if (data.bbImport) return "buchhaltungsbutler";
     return "lexoffice";
   });
-  const config = SOURCES[source];
-  const lastImport = source === "sevdesk" ? data.sevdeskImport : source === "accountable" ? data.accountableImport : data.lastImport;
+  const config = ALL_SOURCES[source];
+  const lastImport =
+    source === "buchhaltungsbutler"
+      ? data.bbImport
+      : source === "sevdesk"
+        ? data.sevdeskImport
+        : source === "accountable"
+          ? data.accountableImport
+          : data.lastImport;
   return (
     <div className="stack">
+      {data.externalImports.length > 0 && (
+        <p className="banner banner-info" role="status">
+          Geprüfte JSON-Pakete übernommen: {data.externalImports.map((entry) => `${entry.source} (${entry.count} Vorgänge)`).join(", ")}. Originale stehen unter
+          Belege und Auftragsdokumente. Offene Posten werden unten am Stichtag geprüft.
+        </p>
+      )}
       {data.orderArchive.count > 0 && (
         <p className="banner banner-info" role="status">
-          {data.orderArchive.count} Auftragsdokumente aus sevdesk archiviert; {data.orderArchive.withoutPdf} ohne PDF.{" "}
+          {data.orderArchive.count} Auftragsdokumente archiviert; {data.orderArchive.withoutPdf} ohne PDF.{" "}
           <Link to="/archiv" search={{ ansicht: "auftraege" }}>
             Auftragsdokumente ansehen
           </Link>
@@ -106,13 +129,15 @@ export function Migration({ data }: { data: MigrationData }) {
         der Abgleich unten für jedes Jahr aufgeht. Alles, was hier landet, ist danach unveränderlich.
       </div>
       <div className="chip-row" role="group" aria-label="Bisherige Buchhaltung">
-        {(Object.keys(SOURCES) as Source[]).map((s) => (
+        {(Object.keys(ALL_SOURCES) as Source[]).map((s) => (
           <button key={s} type="button" className={`chip${source === s ? " active" : ""}`} aria-pressed={source === s} onClick={() => setSource(s)}>
-            Umzug aus {SOURCES[s].product}
+            Umzug aus {ALL_SOURCES[s].product}
           </button>
         ))}
       </div>
-      {source === "accountable" ? (
+      {source === "buchhaltungsbutler" ? (
+        <BuchhaltungsButlerImport key="buchhaltungsbutler" initial={data.bbImport} />
+      ) : source === "accountable" ? (
         <ImportCard key={`accountable-${lastImport?.id ?? "neu"}`} source="accountable" connected initial={lastImport} />
       ) : (
         <>
@@ -142,7 +167,7 @@ export function Migration({ data }: { data: MigrationData }) {
         items={data.openItems}
         cutoff={data.cutoff}
         cutoffError={data.cutoffError}
-        imported={Boolean(data.lastImport || data.sevdeskImport || data.accountableImport)}
+        imported={Boolean(data.lastImport || data.sevdeskImport || data.accountableImport || data.bbImport || data.externalImports.length)}
       />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
@@ -277,7 +302,7 @@ function Connection({ source, connected }: { source: ConnectedSource; connected:
 
 const PHASES = { kontakte: "Kontakte", liste: "Belegliste", belege: "Belege und Dateien", fertig: "Fertig" } as const;
 
-function ImportCard({ source, connected, initial }: { source: Source; connected: boolean; initial: ImportRow | null }) {
+function ImportCard({ source, connected, initial }: { source: ConnectedSource | "accountable"; connected: boolean; initial: ImportRow | null }) {
   const router = useRouter();
   const config = SOURCES[source];
   const startLexoffice = useServerFn(startLexofficeImport);
@@ -289,7 +314,6 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
   const pollAccountable = useServerFn(getAccountableStatus);
   const [run, setRun] = useState<ImportRow | null>(initial);
   const fileInput = useRef<HTMLInputElement>(null);
-  const fileId = useId();
   const action = useAction();
   const running = run?.status === "laeuft";
   // Die Frage gehört zu genau diesem Lauf: Endet er, darf sie beim nächsten nicht von selbst wiederkommen
@@ -355,12 +379,7 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
       </p>
       {accountable && !running && (
         <form className="stack" onSubmit={onUpload} style={{ gap: 12 }}>
-          <div className="field">
-            <label className="field-label" htmlFor={`${fileId}-files`}>
-              Exportdatei (ZIP)
-            </label>
-            <FilePicker id={`${fileId}-files`} inputRef={fileInput} multiple accept=".zip,application/zip" ariaLabel="Accountable-Export (ZIP)" />
-          </div>
+          <Field label="Exportdatei (ZIP)">{(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" />}</Field>
           <div className="actions">
             <button type="submit" className="btn btn-primary" disabled={action.busy}>
               {action.busy ? "Übernehme …" : "Hochladen und übernehmen"}
@@ -564,8 +583,10 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
       </div>
       <div className="small muted">
         {year.sumsFrom === "datev"
-          ? `Keine Belege per API: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
-          : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
+          ? `${product === BB_CONFIG.product ? "Die Belege liegen nur zum Nachschlagen im Archiv" : "Keine Belege per API"}: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
+          : year.sumsFrom === "gemischt"
+            ? `Summen nach Belegdatum, dazu der Teil aus BuchhaltungsButler aus dessen DATEV-Buchungsstapel (geschätzt nach Kontenklassen). Vergleiche sie mit den Auswertungen in ${product} und BuchhaltungsButler.`
+            : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
         {year.bookings && year.bookings.unmatched > 0 && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "buchungen", jahr: year.year, ohneBeleg: true }}>
             Buchungen ohne passenden Beleg ansehen

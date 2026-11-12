@@ -46,8 +46,8 @@ export const createMcpTokenFn = createServerFn({ method: "POST" })
 export const revokeMcpTokenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.string().uuid() }))
-  .handler(async ({ data }) => {
-    await revokeMcpToken(data.id);
+  .handler(async ({ data, context }) => {
+    await revokeMcpToken(context.user.id, data.id);
     return { ok: true };
   });
 

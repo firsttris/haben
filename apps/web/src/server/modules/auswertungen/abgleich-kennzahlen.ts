@@ -7,9 +7,11 @@ import {
   type JournalZeile,
   type Kontenrahmen,
   type VatPeriod,
+  type Versteuerung,
 } from "@haben/core";
-import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
+import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { invoiceTaxReader } from "../rechnungen/index.ts";
 import type { computeVatFigures } from "../umsatzsteuer/index.ts";
 
 /*
@@ -35,6 +37,8 @@ export interface JournalBuchung {
   sourceType: (typeof schema.journalEntries.$inferSelect)["sourceType"];
   sourceId: string;
   zeilen: JournalZeile[];
+  /** Rechnungen und ihre Ausbuchungen behalten das Verfahren der ursprünglichen Rechnung. */
+  versteuerung?: Versteuerung;
 }
 
 /** Alle Buchungen eines Jahres mit ihren Zeilen, ohne Eröffnungen (sie gehören zum Vorjahr, siehe abgleich.ts) */
@@ -53,21 +57,47 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       credit: l.credit,
       taxCode: l.taxCode,
       basis: l.basis,
+      invoiceDate: schema.invoices.issueDate,
+      correctsId: schema.invoices.correctsId,
+      advanceType: schema.invoices.advanceType,
+      invoiceId: schema.invoices.id,
+      variant: schema.invoices.variant,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
+      treatment: schema.invoices.taxTreatment,
     })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
+    .leftJoin(schema.writeOffs, and(eq(e.sourceType, "ausbuchung"), eq(e.sourceId, schema.writeOffs.id)))
+    .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, from), lt(e.date, to), ne(e.sourceType, "eroeffnung")));
   const byEntry = new Map<string, JournalBuchung>();
+  const taxes = invoiceTaxReader(q);
   for (const r of rows) {
-    const buchung = byEntry.get(r.id) ?? {
-      month: Number(r.month),
-      kontenrahmen: r.kontenrahmen as Kontenrahmen,
-      sourceType: r.sourceType,
-      sourceId: r.sourceId,
-      zeilen: [],
-    };
+    let buchung = byEntry.get(r.id);
+    if (!buchung) {
+      buchung = {
+        month: Number(r.month),
+        kontenrahmen: r.kontenrahmen as Kontenrahmen,
+        sourceType: r.sourceType,
+        sourceId: r.sourceId,
+        versteuerung: !r.invoiceDate
+          ? undefined
+          : await taxes.postingMode({
+              issueDate: r.invoiceDate!,
+              correctsId: r.correctsId,
+              advanceType: r.advanceType,
+              id: r.invoiceId ?? undefined,
+              variant: r.variant,
+              serviceFrom: r.serviceFrom,
+              serviceTo: r.serviceTo,
+              taxTreatment: r.treatment ?? "regulaer",
+            }),
+        zeilen: [],
+      };
+      byEntry.set(r.id, buchung);
+    }
     buchung.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode, basis: r.basis });
-    byEntry.set(r.id, buchung);
   }
   return [...byEntry.values()];
 }
@@ -116,16 +146,17 @@ export function bemessungsZeilen(
     (b.sourceType === "invoice" && korrekturen.has(b.sourceId));
 
   const journal = new Map<JournalKennzahl, Cents>();
-  for (const kr of ["SKR03", "SKR04"] as const) {
-    const eigene = imZeitraum.filter((b) => b.kontenrahmen === kr && !ausgenommen(b));
-    if (eigene.length === 0) continue;
-    const k = kennzahlenAusJournal(
-      kr,
-      figures.versteuerung,
-      eigene.map((b) => b.zeilen),
-    );
-    for (const { feld } of POSTEN) journal.set(feld, (journal.get(feld) ?? 0) + k[feld]);
-  }
+  for (const kr of ["SKR03", "SKR04"] as const)
+    for (const mode of ["ist", "soll"] as const) {
+      const eigene = imZeitraum.filter((b) => b.kontenrahmen === kr && (b.versteuerung ?? figures.versteuerung) === mode && !ausgenommen(b));
+      if (eigene.length === 0) continue;
+      const k = kennzahlenAusJournal(
+        kr,
+        mode,
+        eigene.map((b) => b.zeilen),
+      );
+      for (const { feld } of POSTEN) journal.set(feld, (journal.get(feld) ?? 0) + k[feld]);
+    }
 
   // Nebenbuch ohne dieselben Ausnahmen
   const quelle = new Map<JournalKennzahl, Cents>(POSTEN.map(({ feld }) => [feld, figures[feld as keyof Figures] as Cents]));

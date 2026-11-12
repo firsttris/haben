@@ -11,5 +11,19 @@ export {
   type AccountableMapping,
 } from "./map.ts";
 export { readAccountableExport, type AccountableExport } from "./source.ts";
-export type { AccountableExpenseRow, AccountableInvoice, AccountableReceipt, AccountableVoucher } from "./types.ts";
+export { accountableStatements } from "./statement.ts";
+export {
+  sammelrechnungen,
+  zeilenInSammelrechnungen,
+  type AccountableSammelrechnung,
+  type AccountableSplitPosition,
+} from "./sammelrechnung.ts";
+export type {
+  AccountableBankMovement,
+  AccountableExpenseRow,
+  AccountableInvoice,
+  AccountableReceipt,
+  AccountableRevenue,
+  AccountableVoucher,
+} from "./types.ts";
 export { readXlsxSheet, type XlsxRow } from "./xlsx.ts";

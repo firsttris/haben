@@ -15,6 +15,7 @@ import {
   listOrderDocuments,
   orderArchiveOverview,
   orderDocumentDetail,
+  externalImportOverview,
 } from "../modules/archiv/index.ts";
 import {
   cancelImport,
@@ -34,7 +35,6 @@ import {
   AccountableError,
   analyseAccountableUpload,
   cancelAccountableImport as cancelAccountable,
-  discardAccountableUpload,
   latestAccountableImport,
   MAX_ACCOUNTABLE_SIZE as MAX_ACCOUNTABLE,
   startAccountableImport as startAccountable,
@@ -47,6 +47,7 @@ import {
   sevdeskConnectionStatus,
   startSevdeskImport as startSevdesk,
 } from "../modules/archiv/index.ts";
+import { bbSummary, latestBuchhaltungsbutlerImport, MAX_BB_EXPORT_SIZE, previewBbExport, startBuchhaltungsbutlerImport } from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 import { detailId, yearSchema } from "./schemas.ts";
@@ -59,27 +60,41 @@ export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ stichtag: stichtagSchema.optional() }))
   .handler(async ({ data }) => {
-    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport, accountableImport, orderArchive] =
-      await Promise.all([
-        connectionStatus(),
-        reconciliation(),
-        listArchiveFiles(),
-        openItemsOverview(data.stichtag),
-        sevdeskConnectionStatus(),
-        latestSevdeskImport(),
-        latestAccountableImport(),
-        orderArchiveOverview(),
-      ]);
+    const [
+      connection,
+      check,
+      files,
+      { items: openItems, cutoff, cutoffError },
+      sevdeskConnection,
+      sevdeskImport,
+      accountableImport,
+      orderArchive,
+      externalImports,
+      bbImport,
+    ] = await Promise.all([
+      connectionStatus(),
+      reconciliation(),
+      listArchiveFiles(),
+      openItemsOverview(data.stichtag),
+      sevdeskConnectionStatus(),
+      latestSevdeskImport(),
+      latestAccountableImport(),
+      orderArchiveOverview(),
+      externalImportOverview(),
+      latestBuchhaltungsbutlerImport(),
+    ]);
     return {
       connection,
       sevdeskConnection,
       sevdeskImport,
+      bbImport,
       accountableImport,
       openItems,
       cutoff,
       cutoffError,
       ...check,
       orderArchive,
+      externalImports,
       files: files.map(({ meta, ...file }) => ({
         ...file,
         bookings: typeof meta?.bookings === "number" ? meta.bookings : null,
@@ -153,6 +168,29 @@ export const cancelSevdeskImport = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => ({ cancelled: cancelSevdesk(data.id) }));
 
+function bbFiles(input: unknown): { files: File[] } {
+  if (!(input instanceof FormData)) throw new UserError("FormData erwartet");
+  const files = input.getAll("files").filter((f): f is File => f instanceof File);
+  if (files.length === 0) throw new UserError("Keine Datei ausgewählt.");
+  if (files.length > 3) throw new UserError("Höchstens datenexport.zip, BB_Buchungsstapel.csv und EXTF_Buchungsstapel.csv auswählen.");
+  if (files.some((f) => f.size > MAX_BB_EXPORT_SIZE)) throw new UserError("Eine Datei ist größer als 500 MB.");
+  return { files };
+}
+
+async function bbParts(files: File[]) {
+  return Promise.all(files.map(async (file) => ({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) })));
+}
+
+export const previewBuchhaltungsbutlerImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(bbFiles)
+  .handler(async ({ data }) => bbSummary(await previewBbExport(await bbParts(data.files))));
+
+export const importBuchhaltungsbutler = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(bbFiles)
+  .handler(async ({ data, context }) => startBuchhaltungsbutlerImport(context.user.id, await bbParts(data.files)));
+
 /*
  * Accountable hat keine API: Der Export (ZIP je Geschäftsjahr) wird hochgeladen, geprüft und erst auf Knopfdruck
  * übernommen. Die Analyse liefert, was der Export enthält, bevor etwas geschrieben wird.
@@ -192,13 +230,6 @@ export const getAccountableStatus = createServerFn({ method: "GET" })
   });
 
 /** Hochgeladenen Export wieder verwerfen (falsche Datei); angestoßene Läufe bleiben davon unberührt. */
-export const discardAccountableExport = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .handler(async () => {
-    discardAccountableUpload();
-    return { ok: true };
-  });
-
 const kindSchema = z.enum(Object.keys(ARCHIVE_KINDS) as [ArchiveKind, ...ArchiveKind[]]);
 
 export const uploadArchiveFiles = createServerFn({ method: "POST" })

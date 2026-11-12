@@ -1,0 +1,1 @@
+ALTER TABLE "company" ADD COLUMN "firmendaten_gespeichert_at" timestamp with time zone;

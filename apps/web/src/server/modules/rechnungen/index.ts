@@ -47,6 +47,9 @@ export {
   type ExternalReference,
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
+export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,
@@ -75,6 +78,7 @@ export {
   type InvoiceListStatus,
 } from "./invoices.ts";
 export { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "./order-documents.ts";
+export { DocumentPreviewError, documentPreview, documentPreviewSchema, type DocumentPreview, type DocumentPreviewInput } from "./document-preview.ts";
 export { DraftPdfError, invoiceDraftPdf, quoteDraftPdf } from "./draft-pdf.ts";
 export { QuoteChoiceError } from "./quote-choices.ts";
 export { abschlagFromPlan, PlanError, quotePlanOverview, type PlanRowOverview } from "./quote-plan.ts";

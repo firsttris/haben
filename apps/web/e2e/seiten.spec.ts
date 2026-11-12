@@ -29,6 +29,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["wiederkehrend", "/rechnungen/wiederkehrend"],
     ["lastschriften", "/lastschriften"],
     ["artikel", "/artikel"],
+    ["leistungen", "/leistungen"],
     ["textbausteine", "/textbausteine"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
@@ -163,6 +164,19 @@ test("Ungültiger Wert in der Adresse: deutsche Fehlerseite statt englischer Mel
     await expect(page.getByRole("heading", { level: 1, name: "Seite konnte nicht geladen werden" }), path).toBeVisible();
     await expect(page.getByText("Something went wrong")).toHaveCount(0);
   }
+});
+
+test("Jahreswechsler der Auswertungen: jedes Jahr höchstens einmal, Vor- und Folgejahr per Pfeil", async ({ page }) => {
+  // Das Vorjahr von heute: Das laufende Jahr steht immer in der Liste und ist zugleich das Folgejahr
+  const jahr = new Date().getFullYear() - 1;
+  await page.goto(`/auswertungen?jahr=${jahr}`);
+  const nav = page.getByRole("navigation", { name: "Jahr wählen" });
+  const texte = await nav.getByRole("link").allInnerTexts();
+  const jahre = texte.flatMap((t) => t.match(/\d{4}/g) ?? []);
+  expect(jahre.length, texte.join(" · ")).toBeGreaterThan(0);
+  expect(new Set(jahre).size, texte.join(" · ")).toBe(jahre.length);
+  await expect(nav.getByRole("link", { name: `Vorjahr ${jahr - 1}` })).toHaveAttribute("href", `/auswertungen?jahr=${jahr - 1}`);
+  await expect(nav.getByRole("link", { name: `Folgejahr ${jahr + 1}` })).toHaveAttribute("href", `/auswertungen?jahr=${jahr + 1}`);
 });
 
 test("Jahres- und Monatswechsel enden an den Grenzen der gültigen Jahre", async ({ page }) => {

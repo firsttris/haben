@@ -1,7 +1,7 @@
-import type { ChangeEvent } from "react";
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { UploadButton } from "./UploadButton.tsx";
 
 /** Datei als Base64 ohne data:-Präfix */
 function readBase64(file: File): Promise<string> {
@@ -37,6 +37,8 @@ export function ImageUpload({
   remove,
   load,
   onChanged,
+  disabled,
+  describedBy,
 }: {
   sha256: string | null;
   url: string;
@@ -47,6 +49,9 @@ export function ImageUpload({
   remove: () => Promise<unknown>;
   load: () => Promise<{ sha256: string } | null>;
   onChanged?: (sha256: string | null) => unknown;
+  /** Nur das Hochladen; Entfernen geht immer */
+  disabled?: boolean | undefined;
+  describedBy?: string | undefined;
 }) {
   const [current, setCurrent] = useLoadedState(sha256);
   const { busy, notice, run } = useAction();
@@ -60,10 +65,7 @@ export function ImageUpload({
       setCurrent(info?.sha256 ?? null);
     }, text);
 
-  function onFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
+  function onFile(file: File) {
     void change(async () => {
       if (file.size > maxBytes) throw new Error(texts.tooBig);
       await upload({ data: { base64: await readBase64(file) } });
@@ -74,10 +76,15 @@ export function ImageUpload({
     <div className="logo-upload">
       {current ? <img src={`${url}?v=${current.slice(0, 12)}`} alt={texts.alt} /> : <p className="small">{texts.empty}</p>}
       <div className="actions">
-        <label className="btn" style={{ cursor: busy ? "default" : "pointer" }}>
+        <UploadButton
+          accept={accept}
+          disabled={busy || disabled}
+          aria-describedby={describedBy}
+          inputLabel={texts.fileLabel}
+          onFiles={([file]) => file && onFile(file)}
+        >
           {current ? texts.replace : texts.upload}
-          <input type="file" accept={accept} onChange={onFile} disabled={busy} className="visually-hidden" aria-label={texts.fileLabel} />
-        </label>
+        </UploadButton>
         {current && (
           <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void change(remove, texts.removed)}>
             Entfernen

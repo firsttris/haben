@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import type { RenderJob } from "./render-protocol.ts";
 import { compileWith, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 import { accountHolder, collectedByDirectDebit, countryName, formatIban, paymentSentence, referenceMeta } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
@@ -23,7 +24,7 @@ import {
   type Discount,
   type LegalInfo,
 } from "@haben/core";
-import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
+import type { Address, Buyer, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
@@ -33,6 +34,14 @@ export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   const lines = [address.strasse, `${address.plz} ${address.ort}`];
   if (address.land.toUpperCase() !== "DE") lines.push(countryName(address.land, t.countryLocale).toUpperCase());
   return lines;
+}
+
+/**
+ * Empfängerblock aller Belege, eine Zeile je Eintrag: Name des Käufers, bei einem Ansprechpartner „z. Hd. …“ (#424),
+ * dann die Anschrift. Die Zeile kommt als Eintrag im Feld `recipient` bei jeder Vorlage an, auch bei eigenen.
+ */
+export function recipientLines(buyer: Buyer, t: Texts = TEXTS.de): string[] {
+  return [buyer.name, ...(buyer.ansprechpartner ? [t.attention(buyer.ansprechpartner.name)] : []), ...addressLines(buyer, t)];
 }
 
 /** Spaltenköpfe und Seitenzahl für das Template; bei Bruttopreisen steht in der letzten Spalte der Bruttobetrag */
@@ -81,8 +90,8 @@ function documentDiscountRows(doc: Pick<InvoiceDocument, "lines" | "totals" | "d
 }
 
 /** Spalte „Art.-Nr.“ (BT-155) nur, wenn mindestens eine Position eine Artikelnummer hat; sonst bleibt die Tabelle wie bisher */
-export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[]): { itemNumbers: boolean } {
-  return { itemNumbers: lines.some((line) => Boolean(line.itemNumber?.trim())) };
+export function itemNumberColumn(lines: Pick<InvoiceDocumentLine, "itemNumber">[], options: Letterhead["options"]): { itemNumbers: boolean } {
+  return { itemNumbers: options?.itemNumber !== false && lines.some((line) => Boolean(line.itemNumber?.trim())) };
 }
 
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
@@ -112,8 +121,8 @@ export function documentPdfData(
     author: seller.name,
     labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer, t)],
-    ...itemNumberColumn(doc.lines),
+    recipient: recipientLines(buyer, t),
+    ...itemNumberColumn(doc.lines, doc.options),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
       itemNumber: line.itemNumber?.trim() ?? "",
@@ -352,7 +361,23 @@ export function templateInputs(data: object, { logo, background, accent = DEFAUL
 export const showsCustomerNumber = (doc: Letterhead & { buyer: { kundennummer?: string } }): boolean =>
   Boolean(doc.buyer.kundennummer) && doc.options?.customerNumber !== false;
 
+/** Auftrag für den Render-Prozess: gleiche Vorlage und Daten wie beim PDF, Logo und Briefpapier als Dateien neben der Vorlage */
+export function renderJob(template: "rechnung.typ", data: object, letterhead: Letterhead): RenderJob {
+  const workspace = join(PACKAGE_DIR, "templates");
+  const files = [
+    ...(letterhead.logo ? [{ name: `logo.${letterhead.logo.format}`, base64: Buffer.from(letterhead.logo.data).toString("base64") }] : []),
+    ...(letterhead.background
+      ? [{ name: `briefpapier.${letterhead.background.format}`, base64: Buffer.from(letterhead.background.data).toString("base64") }]
+      : []),
+  ];
+  return { workspace, main: join(workspace, template), data: templateInputs(data, letterhead), files };
+}
+
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
+  if (letterhead.pdfFrom && (template === TEMPLATE || template === DUNNING_TEMPLATE)) {
+    const pdf = letterhead.pdfFrom({ template: template === TEMPLATE ? "rechnung.typ" : "mahnung.typ", data: templateInputs(data, letterhead), date });
+    if (pdf) return pdf;
+  }
   const typst = getCompiler();
   // Logo und Briefpapier liegen nur für diesen Lauf als Dateien neben der Vorlage
   const shadows = [

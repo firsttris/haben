@@ -287,7 +287,7 @@ export const submitVatDauerfrist = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const result = await submitDauerfrist(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID });
-    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null, euerHinweis: result.euerHinweis };
   });
 
 /** Stand der Dauerfristverlängerung von Hand: außerhalb von Haben beantragt oder beendet */

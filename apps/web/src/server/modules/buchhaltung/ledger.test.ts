@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Saldenliste und Kontenblatt (Postgres)", () => {
   let ledger: typeof import("./ledger.ts");
@@ -28,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste und Kontenblatt (Postgres)", () =
   }
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries cascade`;
     await entry("2025-12-30", "Vorjahr", [
       ["1200", 99_900, 0],
       ["8400", 0, 99_900],

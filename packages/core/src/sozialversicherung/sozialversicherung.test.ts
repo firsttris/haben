@@ -49,7 +49,7 @@ describe("sozialversicherung, Jahressperre", () => {
   });
 
   // Liest das echte Datum: Ab Dezember schlägt er fehl, bis die Werte des nächsten Jahres hinterlegt sind
-  // (docs/entwicklung.md, Abschnitt „Sozialversicherung: Werte jährlich aktualisieren“).
+  // (Skill jahreswerte, „Sozialversicherung“).
   it("Jahreswechsel (echtes Datum): Werte für dieses und ab Dezember das nächste Jahr sind hinterlegt", () => {
     expect(fehlendeSozialversicherungJahre(new Date())).toEqual([]);
   });

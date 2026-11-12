@@ -31,6 +31,8 @@ export interface BelegNebenbuch {
   vorsteuerAbzug: boolean;
   privateShare: number;
   splits?: AllocatedSplitLine[];
+  /** § 13b und Erwerb: selbst geschuldete Steuer je Steuersatz */
+  selbstGeschuldet?: number[];
 }
 
 /** Aufteilung je Beleg aus dem Nebenbuch, für alle `ids` gesammelt geladen; Belege, die keine brauchen, fehlen in der Map */
@@ -62,6 +64,7 @@ export async function belegNebenbuecher(q: Db | Tx, ids: string[]): Promise<Map<
         vorsteuerAbzug: doc.vorsteuerAbzug,
         privateShare: doc.privateShare,
         ...(splits ? { splits } : {}),
+        ...(doc.reverseCharge ? { selbstGeschuldet: (amounts.get(doc.id) ?? []).map((a) => a.tax) } : {}),
       });
     }
   }

@@ -25,6 +25,8 @@ import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhalt
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
+import { verschobeneBuchungen } from "./euer-jahreswechsel.ts";
+import type { Buchung } from "./euer-journal-buchungen.ts";
 import { euerAusJournal } from "./euer-journal.ts";
 import { euerAusNebenbuechern } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
@@ -174,7 +176,18 @@ export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
 /** Abgleich für die EÜR eines Jahres */
 export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgleich> {
   const { from, to } = yearRange(year);
-  const sums = await journalSums(from, to, q);
+  // Wie die EÜR: Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar im Vorjahr (euer-jahreswechsel.ts)
+  const { herein, hinaus } = await verschobeneBuchungen(year, q);
+  const verschoben = (b: Buchung, vorzeichen: 1 | -1): Summe[] =>
+    b.zeilen.map((z) => ({
+      kontenrahmen: b.kontenrahmen,
+      sourceType: "allocation",
+      account: z.account,
+      month: Number(b.date.slice(5, 7)),
+      debit: vorzeichen * z.debit,
+      credit: vorzeichen * z.credit,
+    }));
+  const sums = [...(await journalSums(from, to, q)), ...herein.flatMap((b) => verschoben(b, 1)), ...hinaus.flatMap((b) => verschoben(b, -1))];
   // Gegenprobe ist immer die Rechnung aus den Nebenbüchern; ab dem Stichjahr ist euerForYear die aus dem Journal (#542)
   const euer = await euerAusNebenbuechern(year, q);
   // Gezahlt über die Bank oder, im Einzelunternehmen, privat als freie Buchung (#502); die Gegenprobe zählt freie Buchungen
@@ -250,6 +263,10 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
   const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
   const ausJournal = await euerAusJournal(year, q);
+  if (euerAusDemJournal && ausJournal.ungeklaerteImporte > 0)
+    hinweise.push(
+      `${ausJournal.ungeklaerteImporte} Import-Buchungen auf Forderungen oder Verbindlichkeiten haben keinen Zahlungsbezug. Vor der EÜR die Quellzuordnung prüfen; daraus werden keine Einnahmen oder Ausgaben geschätzt.`,
+    );
   if (euerAusDemJournal) {
     const label = (key: EuerLineKey) =>
       [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??

@@ -125,6 +125,14 @@ async function runHandler(route: ApiRoute, request: ApiRequest): Promise<ApiResu
   }
 }
 
+/**
+ * Akteur im Audit-Log: api:<Token-ID>:<Name>. Der Name ist frei wählbar und nicht eindeutig (etwa nach Widerruf und
+ * Neuanlage); die ID steht vorn und hat feste Länge, so bleibt der Akteur eindeutig, auch wenn der Name einen Doppelpunkt
+ * enthält. Über sie führt das Audit-Log von token_events zu Anlage, Verantwortlichem und Widerruf. Ältere Einträge mit
+ * api:<Name> bleiben, wie sie sind (Hash-Kette).
+ */
+const apiActor = (access: Pick<McpAccess, "tokenId" | "clientName">) => `api:${access.tokenId}:${access.clientName}`;
+
 /** Ab hier ist das Token gültig: Rate, Recht, Body, Handler */
 async function authorized(route: ApiRoute, access: McpAccess, params: Record<string, string>, request: Request, url: URL): Promise<ApiResult> {
   if (!hasScope(access.scopes, route.scope)) {
@@ -133,7 +141,7 @@ async function authorized(route: ApiRoute, access: McpAccess, params: Record<str
   const body = await readBody(route, request);
   if ("failure" in body) return body.failure;
   return runHandler(route, {
-    actor: `api:${access.clientName}`,
+    actor: apiActor(access),
     params,
     query: firstValues(url.searchParams),
     body: body.body,

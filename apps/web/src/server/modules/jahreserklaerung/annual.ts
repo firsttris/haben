@@ -40,7 +40,15 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
-import { euerForYear, lohnZahlungenUmJahreswechsel, umsatzsteuerVorjahreUmJahreswechsel } from "../auswertungen/index.ts";
+import {
+  euerForYear,
+  lohnZahlungenUmJahreswechsel,
+  umsatzsteuerVorjahreUmJahreswechsel,
+  vorauszahlungVorjahrHinweis,
+  ZEHN_TAGE_REGEL,
+  zehnTageKennzeichen,
+  type ZehnTageKennzeichen,
+} from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -286,7 +294,12 @@ async function privateMovements(year: number) {
           ...(["SKR03", "SKR04"] as const).map((kr) =>
             and(
               eq(schema.journalEntries.kontenrahmen, kr),
-              inArray(schema.journalLines.account, [ACCOUNTS[kr].privatentnahmen, STEUER_KONTEN[kr].privatsteuern, ACCOUNTS[kr].privateinlagen]),
+              inArray(schema.journalLines.account, [
+                ACCOUNTS[kr].privatentnahmen,
+                ACCOUNTS[kr].spenden,
+                STEUER_KONTEN[kr].privatsteuern,
+                ACCOUNTS[kr].privateinlagen,
+              ]),
             ),
           ),
         ),
@@ -298,7 +311,8 @@ async function privateMovements(year: number) {
   // Übersteigen die Erstattungen die Zahlungen, ist der Rest eine Einlage: Die Anlage EÜR kennt keine negativen Entnahmen.
   const privatsteuern = saldo((kr) => STEUER_KONTEN[kr].privatsteuern);
   return {
-    entnahmen: saldo((kr) => ACCOUNTS[kr].privatentnahmen) + Math.max(0, privatsteuern),
+    // Private Spenden (Zuwendungen, Spenden) sind Entnahmen wie jede andere
+    entnahmen: saldo((kr) => ACCOUNTS[kr].privatentnahmen) + saldo((kr) => ACCOUNTS[kr].spenden) + Math.max(0, privatsteuern),
     einlagen: -saldo((kr) => ACCOUNTS[kr].privateinlagen) + Math.max(0, -privatsteuern) || 0,
   };
 }
@@ -315,15 +329,21 @@ export interface EuerYear {
   lohnUmJahreswechsel: number;
   /** Umsatzsteuer früherer Jahre um den Jahreswechsel, siehe umsatzsteuerVorjahreUmJahreswechsel */
   ustUmJahreswechsel: number;
+  /** Vorauszahlungen für das Vorjahr, die hier zählen, weil es gesperrt war (vorauszahlungVorjahrHinweis) */
+  vorauszahlungHinweis: string | null;
+  /** Welche Vorauszahlungen um den Jahreswechsel diese EÜR verschiebt; wird mit der Übermittlung gespeichert (ZEHN_TAGE_REGEL) */
+  zehnTage: ZehnTageKennzeichen;
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel] = await Promise.all([
+  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
     listAssets(year),
     lohnZahlungenUmJahreswechsel(year),
     umsatzsteuerVorjahreUmJahreswechsel(year),
+    vorauszahlungVorjahrHinweis(year),
+    zehnTageKennzeichen(year),
   ]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
@@ -341,7 +361,8 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel, ustUmJahreswechsel };
+  const pendingAssets = assets.filter((a) => a.pending).length;
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -367,10 +388,11 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
   if (data.ustUmJahreswechsel > 0) {
     issues.push({
       tone: "hinweis",
-      text: `${data.ustUmJahreswechsel === 1 ? "Eine Zahlung" : `${data.ustUmJahreswechsel} Zahlungen`} „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar. Eine Abschlusszahlung zählt im Jahr der Zahlung; ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG). Ordne sie dann der Voranmeldung zu.`,
+      text: `${data.ustUmJahreswechsel === 1 ? "Eine Zahlung" : `${data.ustUmJahreswechsel} Zahlungen`} „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar. Eine Abschlusszahlung zählt im Jahr der Zahlung. Ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, ordne sie der Voranmeldung zu: Ohne Dauerfristverlängerung ist sie am 10. Januar fällig, und Haben zählt sie dann im Vorjahr (§ 11 Abs. 2 Satz 2 EStG).`,
       link: "/bank",
     });
   }
+  if (data.vorauszahlungHinweis) issues.push({ tone: "hinweis", text: data.vorauszahlungHinweis, link: "/bank" });
   return issues;
 }
 
@@ -484,6 +506,9 @@ export async function submissions(year: number) {
         code: schema.annualSubmissions.code,
         message: schema.annualSubmissions.message,
         transferTicket: schema.annualSubmissions.transferTicket,
+        filedOn: schema.annualSubmissions.filedOn,
+        note: schema.annualSubmissions.note,
+        amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
         hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
         createdAt: schema.annualSubmissions.createdAt,
       })
@@ -504,11 +529,24 @@ export async function annualOverview(year: number, today: string) {
     ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" })),
   ];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
+  // Eine außerhalb von Haben abgegebene Erklärung zählt als erledigt und trägt ihren Betrag (Umsatzsteuer: Abschlusszahlung, EÜR: Gewinn)
+  const submitted = (form: AnnualForm) => {
+    const vermerk = history.find((h) => h.form === form && h.kind === "vermerk" && h.ok);
+    if (!vermerk) return null;
+    return {
+      id: vermerk.id,
+      filedOn: vermerk.filedOn,
+      transferTicket: vermerk.transferTicket,
+      note: vermerk.note,
+      amount: vermerk.amount,
+      hasPdf: vermerk.hasPdf,
+    };
+  };
   return {
     year,
-    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust") },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
-    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
+    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust"), submitted: submitted("ust") },
+    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer"), submitted: submitted("euer") },
+    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est"), submitted: submitted("est") },
     history,
     versteuerung: await versteuerungForYear(year),
     rechtsform: company.rechtsform,
@@ -552,6 +590,14 @@ export function submitAnnual(actor: string, form: AnnualForm, year: number, clie
 
 /** Unter der Sendesperre: Prüfungen, schon übermittelt?, XML und die gespeicherten Werte */
 async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOptions, test: boolean, herstellerId: string) {
+  // Eine außerhalb von Haben abgegebene Erklärung ersetzt die Echtübermittlung; beides zugleich wäre eine doppelte Abgabe
+  if (options.kind === "send") {
+    const [vermerkt] = await db
+      .select({ id: schema.annualSubmissions.id })
+      .from(schema.annualSubmissions)
+      .where(and(eq(schema.annualSubmissions.form, form), eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "vermerk")));
+    if (vermerkt) throw new AnnualError("Die Erklärung ist außerhalb von Haben abgegeben; eine Übermittlung aus Haben ist nicht mehr vorgesehen.");
+  }
   const checked = await checkAnnual(form, year, options.today);
   const [already] = await db
     .select({ id: schema.annualSubmissions.id })
@@ -625,7 +671,8 @@ export async function annualXml(form: AnnualForm, year: number, { company, data 
       gewinn: { einkunftsart: company.einkunftsart!, taetigkeit: company.taetigkeit, betrag: est.gewinn },
       angaben: est.angaben,
     });
-    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen };
+    // Welche Vorauszahlungen um den Jahreswechsel der Gewinn verschiebt; danach richten sich beide Jahre (#583, euer-jahreswechsel.ts)
+    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen, [ZEHN_TAGE_REGEL]: euer.zehnTage };
   } else {
     const euer = data as EuerYear;
     xml = buildEuerXml({
@@ -634,7 +681,7 @@ export async function annualXml(form: AnnualForm, year: number, { company, data 
       figures: euer.figures,
       anlagen: euer.anlagen,
     });
-    figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen };
+    figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen, [ZEHN_TAGE_REGEL]: euer.zehnTage };
   }
 
   return { xml, daten: figures };

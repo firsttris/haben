@@ -1,3 +1,4 @@
+import { filePickerPruefen } from "./dateiauswahl.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
@@ -938,11 +939,14 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
 
   // Abgabe vermerken, mit Protokoll aus dem Portal
   const vermerk = nachweis.getByRole("form", { name: /^Abgabe vermerken/ });
-  await vermerk
-    .getByLabel("Protokoll (PDF oder Bild, optional)")
-    .setInputFiles({ name: "protokoll.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Protokoll\n%%EOF\n") });
+  const protokollFeld = vermerk.locator(".field", { has: page.getByText("Protokoll (PDF oder Bild, optional)", { exact: true }) });
+  const protokollDialog = await filePickerPruefen(page, protokollFeld, "Protokoll zum Beitragsnachweis");
+  await protokollDialog.setFiles({ name: "protokoll.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Protokoll\n%%EOF\n") });
+  await expect(protokollFeld.locator(".file-picker-name")).toHaveText("protokoll.pdf");
   await vermerk.getByRole("button", { name: "Im Portal abgegeben" }).click();
   await expect(nachweis.getByText("Vermerkt: im Portal abgegeben.")).toBeVisible();
+  // Nach dem Vermerk ist das Feld wieder leer, auch in der Anzeige
+  await expect(vermerk.locator(".file-picker-name")).toHaveText("Keine Datei gewählt");
   await expect(nachweis.getByText("abgegeben", { exact: true })).toBeVisible();
   const protokoll = await page.request.get((await nachweis.getByRole("link", { name: "Protokoll protokoll.pdf" }).getAttribute("href"))!);
   expect((await protokoll.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");

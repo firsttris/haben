@@ -2,7 +2,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 import type { ElsterClient, ElsterResult } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () => {
   let brm: typeof import("./berechtigung.ts");
@@ -32,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
   });
 
   beforeEach(async () => {
-    await sql`truncate elster_certificates, company, brm_requests cascade`;
+    await leeren(sql)`truncate elster_certificates, company, brm_requests cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland, email) values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY', 'max@example.com')`;
     await taxpayer.saveTaxpayer(actor, { a: person("65929970489", "Max"), b: person("86095742719", "Erika"), veranlagung: "zusammen" });
     await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;

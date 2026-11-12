@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /** Kleinste Datei, die Haben am Inhalt als PDF erkennt; der Text macht jede Datei eindeutig */
 const pdf = (text: string) => new TextEncoder().encode(`%PDF-1.4\n% ${text}\n%%EOF\n`);
@@ -25,7 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Anhänge an Rechnungen (Postgres)", (
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, invoice_attachments, invoice_lines, invoices, invoice_number_counters, documents,
+    await leeren(sql)`truncate journal_lines, journal_entries, invoice_attachments, invoice_lines, invoices, invoice_number_counters, documents,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
-import { insertDraft, type DraftInput, type Invoice, type InvoiceLine } from "./invoices.ts";
+import { assertCustomer, insertDraft, type DraftInput, type Invoice, type InvoiceLine } from "./invoices.ts";
 
 /*
  * Externe Referenz eines Rechnungsentwurfs (#199): Plattform und Bestellnummer eines Vorgangs außerhalb von Haben, etwa
@@ -44,11 +44,21 @@ export async function findInvoiceByReference(reference: ExternalReference): Prom
  * Legt einen Entwurf mit externer Referenz an, oder liefert die Rechnung, die schon diese Referenz trägt (Entwurf oder
  * festgeschrieben, unverändert). `created` sagt, welcher Fall eingetreten ist.
  */
-export async function createDraftForReference(actor: string, input: DraftInput, reference: ExternalReference): Promise<{ invoice: Invoice; created: boolean }> {
+export async function createDraftForReference(
+  actor: string,
+  input: DraftInput,
+  reference: ExternalReference,
+  /** false = der Kontakt kommt aus den Einstellungen (Store-Gesellschaft), nicht aus einer Eingabe; dort gilt, was gespeichert ist */
+  { checkContact = true }: { checkContact?: boolean } = {},
+): Promise<{ invoice: Invoice; created: boolean }> {
   const existing = await findInvoiceByReference(reference);
   if (existing) return { invoice: existing, created: false };
   try {
-    return { invoice: await withActor(actor, (tx) => insertDraft(tx, input, reference)), created: true };
+    const invoice = await withActor(actor, async (tx) => {
+      if (checkContact) await assertCustomer(tx, input.contactId);
+      return insertDraft(tx, input, reference);
+    });
+    return { invoice, created: true };
   } catch (error) {
     // Gleichzeitig angelegt: die andere Anfrage hat gewonnen, ihr Entwurf gilt
     if (!isUniqueViolation(error, "invoices_external_ref")) throw error;
@@ -65,6 +75,7 @@ export async function createDraftForReference(actor: string, input: DraftInput, 
 export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput {
   return {
     contactId: invoice.contactId,
+    contactPersonId: invoice.contactPersonId,
     issueDate: invoice.issueDate,
     serviceFrom: invoice.serviceFrom,
     serviceTo: invoice.serviceTo,
@@ -81,6 +92,7 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
     priceMode: invoice.priceMode,
     language: invoice.language,
     variant: invoice.variant,
+    advanceType: invoice.advanceType,
     quoteId: invoice.quoteId,
     deducts: [...new Set(lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
     currency: invoice.currency,

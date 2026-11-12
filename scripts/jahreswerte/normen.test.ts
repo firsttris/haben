@@ -65,6 +65,7 @@ describe("Gesetzeswächter", () => {
     expect(b?.text).toContain(URL_247);
     expect(b?.text).toContain("- `packages/core/src/dunning.ts`");
     expect(b?.text).toContain("--normen-schreiben");
+    expect(b?.text).toContain("skills/jahreswerte/SKILL.md#normen");
     expect(stand[0]?.sha256).toBe(hash(normText(seite("(1) Neu"))!));
   });
 

@@ -21,6 +21,9 @@ docs_dir: docs
 use_directory_urls: false
 exclude_docs: |
   banner.svg
+# Hintergrund zu umgesetzten Entscheidungen; erreichbar über die Links in architektur.md und aus Code-Kommentaren
+not_in_nav: |
+  adr/*.md
 
 nav:
   - Start: index.md
@@ -30,9 +33,11 @@ nav:
       - Erste Schritte: einrichtung.md
   - Im Alltag:
       - Rechnungen und E-Rechnung: rechnungen.md
+      - Eigene Belegvorlagen: belegvorlagen.md
       - Angebote: angebote.md
       - Belege: belege.md
       - Pauschalen: pauschalen.md
+      - Leistungen und Zeiteinträge: leistungen.md
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md
@@ -48,8 +53,10 @@ nav:
       - Auswertungen und Jahresexport: auswertungen.md
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
+      - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - Umzug aus Accountable: accountable.md
       - CSV-Import: csv-import.md
+      - Belegimport: belegimport.md
       - KI-Assistenten (MCP): ki-assistenten.md
       - REST-API: api.md
       - Eigene Seiten: eigene-seiten.md
@@ -105,6 +112,10 @@ theme:
 extra_css:
   - assets/stylesheets/extra.css
   - assets/stylesheets/startseite.css
+
+# Schieberegler hell/dunkel auf der Startseite (index.md)
+extra_javascript:
+  - assets/javascripts/vergleich.js
 
 plugins:
   # Zensical setzt viele MkDocs-Plugins selbst um, git-revision-date-localized (Änderungsdatum

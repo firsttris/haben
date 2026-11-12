@@ -18,6 +18,7 @@ import {
   kundeWaehlen,
   receiptJpeg,
   rechnungFestschreiben,
+  lieferantWaehlen,
 } from "./einrichtung.ts";
 
 /**
@@ -112,13 +113,86 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await akzent.getByRole("button", { name: "Übernehmen" }).click();
   await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  // Das Zeichen in der Navigation hängt nicht an der Beleggestaltung (#504): das „H“ bleibt in der Farbe des Themes
+  const marke = nav.locator(".brand-mark");
+  await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
+  // Das „H“ des Themes hebt sich ohnehin ab und hat keine Innenkante
+  await expect(marke).toHaveCSS("box-shadow", "none");
   // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
   await go("/rechnungen/neu");
   const vorschau = page.getByLabel("Vorschau der Rechnung");
-  await expect(vorschau).toHaveCSS("color", "rgb(25, 31, 39)");
+  const blatt = () =>
+    vorschau
+      .locator(".sheet-page img")
+      .first()
+      .evaluate(async (img: HTMLImageElement) => (await fetch(img.src)).text());
+  await expect.poll(blatt).toContain('fill="#191f27"');
   await go("/einstellungen?bereich=gestaltung");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
+
+  // Eigenes Zeichen der Firma (#504): „H“ in eigener Farbe, Schrift nach dem höheren Kontrast
+  await go("/einstellungen");
+  const zeichen = page.getByRole("form", { name: "Zeichen in der Navigation" });
+  const zeichenSpeichern = async () => {
+    await zeichen.getByRole("button", { name: "Übernehmen" }).click();
+    await expect(zeichen.getByRole("status")).toContainText("Zeichen gespeichert.");
+  };
+  await zeichen.getByLabel("„H“ in eigener Farbe").check();
+  await zeichen.getByLabel("Hex-Wert").fill("#b5462f");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
+  await expect(marke).toHaveCSS("color", "rgb(255, 255, 255)");
+  // #B5462F hebt sich in allen Themes mit 3 : 1 ab: keine Kante. Eine dunkle Farbe bekommt eine helle Innenkante
+  await expect(marke).toHaveCSS("box-shadow", "none");
+  await zeichen.getByLabel("Hex-Wert").fill("#24323a");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(36, 50, 58)");
+  await expect(marke).toHaveCSS("box-shadow", /inset/);
+  // Zurück zu #B5462F, das die folgenden Schritte als eigene Farbe erwarten
+  await zeichen.getByLabel("Hex-Wert").fill("#b5462f");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("box-shadow", "none");
+  // Das Logo der Belege nur auf ausdrückliche Wahl; statt des „H“ steht dann das Bild, auf Weiß
+  await zeichen.getByLabel("Logo aus der Beleggestaltung").check();
+  await zeichenSpeichern();
+  const logoZeichen = nav.locator("img.brand-logo");
+  await expect(logoZeichen).toBeVisible();
+  await expect.poll(() => logoZeichen.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+  await expect(marke).toHaveCount(0);
+  // Fest 40 × 40 wie das „H“, und das Bild kommt aus dem Cache: Die Adresse ändert sich mit dem Logo (?v=…)
+  expect(await logoZeichen.boundingBox()).toMatchObject({ width: 40, height: 40 });
+  const kennzeichen = await page.request.get((await logoZeichen.getAttribute("src"))!);
+  expect(kennzeichen.status()).toBe(200);
+  expect(kennzeichen.headers()["cache-control"]).toBe("private, max-age=31536000, immutable");
+  // Das Bild hat kein alt: Der Name des Links bleibt „Haben“ und der Firmenname (#599), ohne Text aus dem Logo
+  await expect(nav.getByRole("link", { name: "Haben Mustermann IT · Max Mustermann", exact: true })).toBeVisible();
+  // Wechselt das Logo im Gestaltungs-Panel des Editors, zieht die Navigation sofort nach, ohne Neuladen und ohne
+  // Seitenwechsel: ein neues Logo hat eine neue Adresse, ohne Logo gilt wieder die eigene Farbe
+  const logoVorher = await logoZeichen.getAttribute("src");
+  await go("/rechnungen/neu");
+  const gestaltungKnopf = page.getByRole("button", { name: "Gestaltung" }).first();
+  if (!(await gestaltungKnopf.isVisible())) await page.locator(".main > .page-head").getByRole("button", { name: "Vorschau", exact: true }).click();
+  await gestaltungKnopf.click();
+  const vorschauDialog = page.getByRole("dialog", { name: "Vorschau" });
+  const gestaltung = vorschauDialog.getByRole("complementary", { name: "Gestaltung" });
+  await gestaltung.getByLabel("Logodatei").setInputFiles("public/icon-512.png");
+  await expect(gestaltung.getByRole("status")).toContainText("Logo gespeichert");
+  await expect(logoZeichen).toHaveAttribute("src", /\/api\/kennzeichen\?v=/);
+  await expect(logoZeichen).not.toHaveAttribute("src", logoVorher!);
+  await gestaltung.getByRole("button", { name: "Entfernen" }).click();
+  await expect(logoZeichen).toHaveCount(0);
+  await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
+  // Das Logo aus der Einrichtung wieder herstellen; die Tests im Projekt „mit-daten“ rechnen damit
+  await gestaltung.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  await expect(logoZeichen).toHaveAttribute("src", logoVorher!);
+  await vorschauDialog.getByRole("button", { name: "Schließen" }).click();
+  await go("/einstellungen");
+  // Zurück zum „H“ des Themes; die eigene Farbe bleibt für später gespeichert, die übrigen Tests rechnen mit dem Standard
+  await zeichen.getByLabel("„H“ in der Farbe des Themes").check();
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("background-color", "rgb(63, 162, 132)");
+  await expect(logoZeichen).toHaveCount(0);
 });
 
 test("Kunden anlegen", async () => {
@@ -330,7 +404,7 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Funknetz Mobil GmbH" });
+  await lieferantWaehlen(page, "Funknetz Mobil GmbH");
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Funknetz Mobil GmbH");
   await page.getByLabel("Rechnungsnummer").fill("MF-0815");
   await page.getByLabel("Belegdatum").fill(day(-9));
@@ -509,6 +583,20 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   const body = new TextDecoder("latin1").decode(await response.body());
   expect(body.startsWith('"EXTF";700;21;"Buchungsstapel";13;')).toBe(true);
   expect(body).toContain(";29098;55003;");
+  // Keine Nummern, die im Belegfeld 1 zusammenfallen: kein Hinweis
+  expect(response.headers()["x-haben-hinweis"]).toBeUndefined();
+
+  // Mit Hinweis (#675; welche Nummern zusammenfallen, prüft datev-belegfeld.test.ts): Die Datei kommt, die Karte nennt die Nummern
+  const hinweis = "„RE.2026.001“ und „RE-2026-001“ stehen im Belegfeld 1 als „RE-2026-001“; DATEV kann ihre offenen Posten verwechseln.";
+  await page.route("**/api/datev/*", async (route) => {
+    const original = await route.fetch();
+    await route.fulfill({ response: original, headers: { ...original.headers(), "x-haben-hinweis": encodeURIComponent(hinweis) } });
+  });
+  const download = page.waitForEvent("download");
+  await link.click();
+  expect((await download).suggestedFilename()).toMatch(/^EXTF_Buchungsstapel_\d{4}\.csv$/);
+  await expect(card.getByRole("status")).toHaveText(hinweis);
+  await page.unroute("**/api/datev/*");
 });
 
 /** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF, eine offene Ausgabe und eine Privateinlage ohne Beleg */
@@ -663,6 +751,34 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(menu.getByRole("link", { name: "Abholung" })).toBeVisible();
   await expect(menu.getByRole("link", { name: "Lager" })).toHaveCount(0);
   await page.getByRole("button", { name: "Abholung entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
+  await expect(page.getByText("Seite entfernt.")).toBeVisible();
+
+  // #636: Eine Seite, die das Einbetten verbietet, erkennt Haben nach der Eingabe und öffnet sie auf Wunsch in einem neuen
+  // Tab. Haben selbst unter 127.0.0.1 ist eine andere Herkunft und schickt frame-ancestors 'self'
+  const verboten = new URL("/login", page.url());
+  verboten.hostname = "127.0.0.1";
+  await form.getByLabel("Name im Menü").fill("Paperless");
+  await form.getByLabel("Adresse").fill(verboten.href);
+  await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
+  await expect(form.getByRole("status")).toContainText("Diese Seite verbietet das Einbetten (Content-Security-Policy: frame-ancestors)");
+  await form.getByLabel("Öffnen").selectOption({ label: "In neuem Tab" });
+  await expect(form.getByRole("status")).toHaveCount(0);
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  const paperless = menu.getByRole("link", { name: /^Paperless/ });
+  await expect(paperless).toHaveAttribute("href", verboten.href);
+  await expect(paperless).toHaveAttribute("target", "_blank");
+  // Das Symbol zeigt, wohin der Eintrag führt: neuer Tab oder im Rahmen neben dem Menü
+  await expect(paperless.locator("svg")).toHaveAttribute("data-icon", "external");
+  await expect(menu.getByRole("link", { name: EIGENE_SEITE.name }).locator("svg")).toHaveAttribute("data-icon", "embed");
+  // Danach ist das Formular wieder leer, mit der Vorgabe „In Haben“
+  await expect(form.getByLabel("Adresse")).toHaveValue("");
+  await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
+  await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
+  await expect(page.getByText("Öffnet in neuem Tab")).toBeVisible();
+  await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
+  await expect(page.getByRole("form", { name: "Paperless bearbeiten" }).getByLabel("Öffnen")).toHaveValue("tab");
+  await page.getByRole("button", { name: "Paperless entfernen" }).click();
   await bestaetigen(page, "Entfernen");
   await expect(page.getByText("Seite entfernt.")).toBeVisible();
   // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts

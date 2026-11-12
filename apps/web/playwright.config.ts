@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, portFuer } from "./e2e/durchlaeufe.ts";
+import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -48,6 +48,8 @@ function webServer(durchlauf?: Durchlauf) {
       ENABLE_BANKING_APP_ID: "",
       ENABLE_BANKING_KEY: "",
       ENABLE_BANKING_KEY_FILE: "",
+      // Nachgebaute Paketquelle in layouts.spec.ts, nie Typst Universe aus dem Test
+      LAYOUTS_PACKAGES_URL: `http://127.0.0.1:${LAYOUT_PAKETE_PORT}`,
     },
   };
 }
@@ -69,7 +71,12 @@ export default defineConfig({
     timezoneId: "Europe/Berlin",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {},
+    launchOptions: {
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
+      // Datumsfelder zeigt Chromium in der Sprache des Browsers, nicht in locale: Ohne --lang stehen in den Bildern
+      // für README und Doku auf macOS „11/11/2026“, unter Linux je nach LANG. Nur für die Bilder, die Tests bleiben unberührt
+      ...(process.env.DOKU_SCREENSHOTS ? { args: ["--lang=de-DE"] } : {}),
+    },
   },
   projects: [
     // Der Betrieb in der leeren Datenbank, Schritt für Schritt (test.describe.configure serial in der Datei); legt
@@ -83,8 +90,11 @@ export default defineConfig({
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
         "dateiauswahl.spec.ts",
+        "firmenname.spec.ts",
         "gestaltung.spec.ts",
+        "layouts.spec.ts",
         "handy-felder.spec.ts",
+        "bank-sortierung.spec.ts",
         "basiszinssatz.spec.ts",
         "bestaetigung.spec.ts",
         "datumsfelder.spec.ts",
@@ -108,7 +118,7 @@ export default defineConfig({
     // Braucht keine Daten aus der App
     {
       name: "ohne-daten",
-      testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts", "beenden.spec.ts"],
+      testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts", "beenden.spec.ts", "doku-startseite.spec.ts"],
       use: chromium,
     },
   ],

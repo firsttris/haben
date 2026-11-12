@@ -13,7 +13,9 @@ import {
   exchangeRateSchema,
   listExchangeRates,
   loadCompany,
+  navMarkSchema,
   refreshExchangeRates,
+  saveNavMark,
   storeExchangeRates,
 } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -33,6 +35,15 @@ export const saveCompany = createServerFn({ method: "POST" })
   .validator(companySchema)
   .handler(async ({ data, context }) => {
     await saveCompanySettings(context.user.id, data, today());
+    return { ok: true };
+  });
+
+/** Zeichen der Firma in der Navigation (#504): „H“ des Themes, eigene Farbe oder Logo der Belege; die Regeln prüft saveNavMark */
+export const saveNavMarkSetting = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(navMarkSchema)
+  .handler(async ({ data, context }) => {
+    await saveNavMark(context.user.id, data);
     return { ok: true };
   });
 

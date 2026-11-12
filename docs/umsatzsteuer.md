@@ -21,7 +21,7 @@ Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal au
 
 Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich. Die [Dauerfristverlängerung](#dauerfristverlängerung) mit Sondervorauszahlung beantragst du auf derselben Seite.
 
-Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Die Übersicht zeigt dann keine Aufgaben zur Voranmeldung, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER.
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Für solche Kleinunternehmerzeiträume blendet die Übersicht reguläre Voranmeldungsaufgaben, Zahllast/Fälligkeit, ELSTER-Einrichtungshinweise und die leere Karte „Letzte Voranmeldungen“ aus. Vorhandene Anmeldungen, offene Steuerposten und tatsächlich berechnete Steuerbeträge bleiben sichtbar.
 
 ## So gehst du vor
 
@@ -109,6 +109,10 @@ Den Antrag schickst du wie die Voranmeldung über ERiC: **Nur prüfen**, **Prüf
 
 Hast du die Verlängerung außerhalb von Haben beantragt, setzt du unter **Außerhalb von Haben** den Haken **Dauerfristverlängerung besteht für &lt;Jahr&gt;** und, bei monatlicher Abgabe, die angemeldete Sondervorauszahlung im Feld darüber. Nimmst du den Antrag zurück oder widerruft ihn das Finanzamt, entfernst du den Haken für das Jahr, ab dem sie nicht mehr gilt. Ein Jahr ohne eigenen Eintrag übernimmt den Stand des Vorjahres. Jede Änderung steht im Änderungsprotokoll.
 
+Ändert der neue Stand die Zuordnung einer Vorauszahlung zum EÜR-Jahr und ist eine betroffene EÜR oder Einkommensteuererklärung schon übermittelt, nennt Haben sie nach **Stand speichern** oder einer erfolgreichen Echtübermittlung in einem Hinweis. Speichern bleibt möglich; die übermittelten Erklärungen bleiben unverändert. Ob eine Berichtigung nötig ist, klärst du mit der Steuerberatung. Das gilt auch für Folgejahre, die den geänderten Stand übernehmen.
+
+Maßgeblich ist dieselbe [Zehn-Tage-Regel wie in der EÜR](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel): etwa Dezember ohne Dauerfrist oder November mit Dauerfrist, wenn die Zahlung vom 1. bis 10. Januar abfließt und in dieser Zeit fällig ist ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html), [§ 46 UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__46.html)). Eine Erstattung, eine aufgehobene Zuordnung oder ein unverändert gespeicherter Stand löst keinen Hinweis aus.
+
 ### Was sich ändert
 
 - **Fälligkeit und Fristen:** einen Monat später, auf der Seite der Voranmeldung, in der Übersicht und unter [Fristen](fristen.md). Bei monatlicher Abgabe steht ab dem zweiten Jahr die **Sondervorauszahlung** als Frist am 10. Februar, bis sie für das Jahr eingetragen ist.
@@ -136,7 +140,7 @@ Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr
 
 | Umsatz | Quartal |
 | --- | --- |
-| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 21 |
+| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung, wie Kz 21 |
 | Rechnung mit **Innergemeinschaftliche Lieferung**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
 | Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ |
 | Skonto und Forderungsausfall dazu | Datum der Ausbuchung |
@@ -175,27 +179,27 @@ Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` fü
 
 - Sonstige Leistungen (§ 3a Abs. 2 UStG, Umsatzart S) und innergemeinschaftliche Lieferungen (Umsatzart L). Keine Dreiecksgeschäfte (Umsatzart D, § 25b UStG): Die Rechnungen von Haben kennen sie nicht.
 - Keine Monatsmeldung: Liegen die Lieferungen im Quartal oder in einem der vier vorangegangenen über 50.000 €, ist monatlich zu melden (§ 18a Abs. 1 Satz 2 UStG). Über 50.000 € im Quartal sperrt Haben das Senden; die vorangegangenen Quartale prüft es nicht.
-- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür das Rechnungsdatum, wie bei Kz 21 und 41.
+- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür bei neuen ausdrücklich erbrachten EU-Teilleistungen das Leistungsdatum, sonst das Rechnungsdatum, wie bei Kz 21 und 41.
 - Die Meldung geht nur für ganze Quartale, nicht monatlich nach § 18a Abs. 3 UStG.
 
 ## Wie die Kennzahlen entstehen
 
 Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 
-**Ab dem Stichjahr aus dem Journal.** Ab einem Stichjahr rechnet Haben die Kennzahlen wie DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen)); bei Ist-Versteuerung zählt ein Verkauf auf Ziel mit der Zahlung, die die Bemessungsgrundlage trägt. Die Privatnutzung von Fahrzeugen kommt weiter je Monat aus dem Anlagenverzeichnis. Die Abschnitte unten beschreiben, was die Rechnungen, Belege und Zahlungen dazu beitragen; sie bleiben die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Das Stichjahr ist das Jahr der ersten Buchung; bei Instanzen, die schon vor diesem Update gebucht haben, das Jahr nach dem Update. Unter **Einstellungen › Firma** steht es in der Karte „Voranmeldung und EÜR aus dem Journal“. Dort lässt es sich auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist, der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) des Jahres keine Abweichung zeigt und jede Voranmeldung des Jahres sowie die EÜR aus dem Journal genauso herauskommen wie aus Rechnungen, Belegen und Zahlungen; dann ändert der Umstieg keine Zahl. Ältere Buchungen ohne Bemessungsgrundlage oder Steuerschlüssel, die der Abgleich bewusst auslässt, verhindern das Vorziehen deshalb. Zurück geht es nicht. Davor rechnet Haben wie bisher aus den Rechnungen, Belegen und Zahlungen; gesendete Voranmeldungen ändern sich nicht. Storniert ihr im Stichjahr eine Bareinnahme oder einen Beleg aus der Zeit davor, bucht Haben die Gegenbuchung mit den Steuerangaben von heute, damit sie in der Voranmeldung voll zählt. Hintergrund: [Entwurf „Voranmeldung und EÜR aus dem Journal“](adr/journal-als-quelle.md).
+**Ab dem Stichjahr aus dem Journal.** Ab einem Stichjahr rechnet Haben die Kennzahlen wie DATEV aus Konto und Steuerschlüssel der Buchungen im Zeitraum ([Steuerschlüssel und Kennzahlen](buchhaltung.md#steuerschlüssel-und-kennzahlen)); bei Ist-Versteuerung zählt ein Verkauf auf Ziel mit der Zahlung, die die Bemessungsgrundlage trägt. Die Privatnutzung von Fahrzeugen kommt weiter je Monat aus dem Anlagenverzeichnis. Die Abschnitte unten beschreiben, was die Rechnungen, Belege und Zahlungen dazu beitragen; sie bleiben die Gegenprobe im [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Das Stichjahr ist das Jahr der ersten Buchung; bei Instanzen, die schon vor diesem Update gebucht haben, das Jahr nach dem Update. Unter **Einstellungen › Firma** steht es in der Karte „Voranmeldung und EÜR aus dem Journal“. Dort lässt es sich auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist, der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) des Jahres keine Abweichung zeigt und jede Voranmeldung des Jahres sowie die EÜR aus dem Journal genauso herauskommen wie aus Rechnungen, Belegen und Zahlungen; dann ändert der Umstieg keine Zahl. Ältere Buchungen ohne Bemessungsgrundlage oder Steuerschlüssel, die der Abgleich bewusst auslässt, verhindern das Vorziehen deshalb. Zurück geht es nicht. Davor rechnet Haben aus den Rechnungen, Belegen und Zahlungen; gesendete Voranmeldungen ändern sich nicht. Storniert ihr im Stichjahr eine Bareinnahme oder einen Beleg aus der Zeit davor, bucht Haben die Gegenbuchung mit den Steuerangaben von heute, damit sie in der Voranmeldung voll zählt. Hintergrund: [Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen).
 
 ### Umsatzsteuer (Kz 81 und 86)
 
 | Versteuerung | Maßgeblich | Quelle |
 | --- | --- | --- |
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen heben sich mit ihrer Gegenzeile auf. |
-| Soll (vereinbarte Entgelte) | Rechnungsdatum | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
+| Soll (vereinbarte Entgelte) | Rechnungsdatum; Ausnahme: [neue Abschläge und erbrachte Teilleistungen](rechnungen.md#abschlags--und-schlussrechnung) | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
 Bankumsätze, die im Bankabgleich [direkt auf eine Einnahmekategorie](bank.md#auf-eine-kategorie-buchen) gebucht sind, zählen ohne Rechnung bei Ist und Soll am Buchungstag des Umsatzes, mit Netto und Steuer aus dem Betrag und dem gewählten Steuersatz. In den Quellen stehen sie als „Direktbuchung“.
 
 Ausbuchungen (§ 17 UStG, gewährtes Skonto und Forderungsausfall, siehe [Bank](bank.md#rest-ausbuchen-skonto-und-forderungsausfall)) mindern bei Soll Kz 81 bzw. 86 und die Steuer im Monat der Ausbuchung, anteilig je Steuersatz. Bei Ist zählt nur, was bezahlt wurde; ausgebuchte Reste kamen nie in die Anmeldung. In den Quellen stehen sie als „Ausbuchung“.
 
-Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen nur regulär besteuerte Rechnungen und, in Kz 81, die private Nutzung von Firmenwagen im Monat der Nutzung ([Anlagen und AfA](anlagen.md#private-nutzung-von-firmenwagen)). Belege mit Privatanteil zählen in Kz 66 nur mit dem betrieblichen Teil. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
+Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen regulär besteuerte Rechnungen, Direktbuchungen, Bareinnahmen ohne Rechnung im [Kassenbuch](kasse.md), ab dem Stichjahr [freie Buchungen mit Steuerschlüssel](buchhaltung.md#manuelle-und-freie-buchungen) einschließlich der Sachentnahme und, in Kz 81, die private Nutzung von Firmenwagen im Monat der Nutzung ([Anlagen und AfA](anlagen.md#private-nutzung-von-firmenwagen)). Belege mit Privatanteil zählen in Kz 66 nur mit dem betrieblichen Teil. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
 
 ### Umsätze ohne Steuer (Kz 21, 41, 43, 45 und 48)
 
@@ -203,13 +207,13 @@ Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf
 
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
 | 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
 | 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 
-Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Bei neuen ausdrücklich erbrachten Teilleistungen nimmt Haben das Leistungsdatum, sonst weiterhin das Rechnungsdatum als Näherung dafür ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
 In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
@@ -272,7 +276,7 @@ Beispiel: Zahlungseingänge zu 19 % mit 2.345,67 € netto ergeben Kz 81 = 2.345
 
 ### Quellen aufklappen
 
-Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege dahinterstehen. Ein Klick klappt die Liste auf: Datum, Rechnungs- oder Belegnummer mit Kunde bzw. Lieferant, Netto und Steuer, jeweils mit Link zur Rechnung oder zum Beleg; direkt gebuchte Bankumsätze (Direktbuchungen) verlinken auf den Umsatz im Bankabgleich. Die Beträge dort sind centgenau, also vor dem Abschneiden.
+Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege dahinterstehen. Ein Klick klappt die Liste auf: Datum, Rechnungs- oder Belegnummer mit Kunde bzw. Lieferant, Netto und Steuer, jeweils mit Link zur Rechnung oder zum Beleg; direkt gebuchte Bankumsätze (Direktbuchungen) verlinken auf den Umsatz im Bankabgleich. Die Beträge dort sind centgenau, also vor dem Abschneiden. [Freie Buchungen](buchhaltung.md#manuelle-und-freie-buchungen) stehen nicht in den Quellen, denn sie haben kein Nebenbuch; sie zählen ab dem Stichjahr trotzdem in den Kennzahlen und stehen im Journal unter der Herkunft „Manuell“.
 
 ## Manuell überschreiben
 
@@ -297,7 +301,7 @@ Solange die Anmeldung nicht gesendet ist, prüft Haben, was im Monat noch fehlt 
 | Regulär besteuerte Umsätze zu 0 % | Warnung | Im Monat gibt es regulär besteuerte Umsätze zu 0 %, die Haben nicht meldet. Ist es Reverse Charge, eine Leistung ins Drittland oder steuerfrei, stellst du das an der Rechnung ein. |
 | Buchungen und Voranmeldung weichen ab | Warnung | Die Steuerkonten im Journal passen nicht zu den Kennzahlen aus Rechnungen, Belegen und Zahlungen, mit beiden Beträgen. Was verglichen wird, steht unter [Abgleich von Journal, Umsatzsteuer und EÜR](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür). Der Link führt zu den Konten. |
 
-Die Hinweise blockieren nichts. Du entscheidest, ob du trotzdem sendest.
+Die Hinweise blockieren nichts.
 
 ## Fälligkeit
 
@@ -378,16 +382,16 @@ Jede abgegebene Voranmeldung, über ERiC gesendet oder vermerkt, ist ein offener
 | Berichtigte Anmeldung | eigener Posten über die Differenz zur berichtigten | wie oben, frühestens am Tag der Berichtigung |
 | Dezember mit Sondervorauszahlung | Kz 83 nach Abzug von Kz 39, oft ein Überschuss | mit Dauerfristverlängerung am 10. Februar |
 
-Die Sondervorauszahlung selbst ist kein Posten der Voranmeldung; sie wird wie bisher als **Sondervorauszahlung (Dauerfristverlängerung)** gebucht (siehe [Buchen](#buchen)).
+Die Sondervorauszahlung selbst ist kein Posten der Voranmeldung; sie wird als **Sondervorauszahlung (Dauerfristverlängerung)** gebucht (siehe [Buchen](#buchen)).
 
 ### Zuordnen im Bankabgleich
 
 Bei einer Lastschrift oder Erstattung des Finanzamts schlägt der [Bankabgleich](bank.md#vorschläge) die passende Voranmeldung vor, etwa „Voranmeldung USt 10/2026“, mit den Gründen Betrag, Zeitraum im Verwendungszweck („USt 10/26“, „10.2026“, „Okt. 2026“, für Quartale „Q3/26“, „3. VJ 2026“, „III/26“) und Finanzamt als Gegenpartei. Unter **Andere Rechnung** steht sie in der Auswahl **Rechnung, Beleg oder Voranmeldung**.
 
-Gebucht wird wie bisher „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
+Gebucht wird „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
 
 - **Teilzahlung:** Ordnest du weniger zu, bleibt der Rest offen, bis die nächste Zahlung kommt.
-- **Säumniszuschlag:** Zieht das Finanzamt nach der Fälligkeit mehr ein, erkennt Haben einen Säumniszuschlag nach § 240 AO (je angefangenem Monat 1 % der auf 50 € abgerundeten Zahllast, drei Tage Schonfrist) und schlägt nur die Zahllast vor. Der Zuschlag ist keine Umsatzsteuer, sondern eine steuerliche Nebenleistung und Betriebsausgabe: Den Rest ordnest du einem Beleg zu, etwa dem Schreiben des Finanzamts.
+- **Säumniszuschlag:** Zieht das Finanzamt nach der Fälligkeit mehr ein, erkennt Haben einen Säumniszuschlag nach § 240 AO (je angefangenem Monat 1 % der auf 50 € abgerundeten Zahllast, gezählt ab der Fälligkeit; keiner bei Zahlung in der Schonfrist von drei Tagen, § 240 Abs. 3 AO, die an einem Samstag, Sonntag oder Feiertag im Bundesland der Firma erst am nächsten Werktag endet, § 108 Abs. 3 AO) und schlägt nur die Zahllast vor. Der Zuschlag ist keine Umsatzsteuer, sondern eine steuerliche Nebenleistung und Betriebsausgabe: Den Rest ordnest du einem Beleg zu, etwa dem Schreiben des Finanzamts.
 - **Berichtigung nach unten:** Ist die erste Zahllast noch nicht bezahlt, verrechnet Haben die Minderung damit; offen bleibt nur der berichtigte Betrag. War sie schon bezahlt, ist die Minderung eine Erstattung.
 - **Zahlung ohne Bezug:** Zuordnungen „Umsatzsteuer an das Finanzamt“ ohne Bezug, etwa aus früheren Versionen, gleichen einen Posten nur aus, wenn sie ihn genau treffen: noch ganz offen, gleicher Betrag, gebucht nach Ende des Zeitraums. Sonst bleibt der Posten offen; hebst du die Zuordnung auf und ordnest sie der Voranmeldung zu, stimmt er wieder.
 - **Aufheben** einer Zuordnung öffnet den Posten wieder.
@@ -416,5 +420,5 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
 - Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 62, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98) und Dreiecksgeschäfte (Kz 42, § 25b UStG). Die Einfuhrumsatzsteuer (Kz 62) kommt aus Belegen der Kategorie „Einfuhrumsatzsteuer“ ([Belege](belege.md#einfuhrumsatzsteuer)).
-- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr Umsätze nach Kz 21, 45 oder 48, § 13b-Steuer, innergemeinschaftliche Lieferungen, Ausfuhren, Erwerbe oder Einfuhrumsatzsteuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
+- Wann Haben die Umsatzsteuer-Jahreserklärung nicht übermittelt, steht unter [Jahreserklärungen › Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung).
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

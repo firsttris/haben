@@ -91,6 +91,22 @@ describe("computeEuer", () => {
     expect(euer.totalEinnahmen).toBe(176_700 + 107_436);
   });
 
+  it("§ 13b mit Privatanteil: der private Teil der selbst geschuldeten Steuer zählt anteilig zur Zahlung in Zeile 17", () => {
+    // Netto 1.000 €, gezahlt wird nur netto; Steuer 190 €, davon 30 % privat
+    const rc = { net: 100_000, tax: 0, gross: 100_000, taxes: [{ rate: 1900, base: 100_000, tax: 0 }] };
+    const beleg = { kind: "document", totals: rc, category: "edv", privateShare: 30, selbstGeschuldet: [19_000] } as const;
+    const teil = computeEuer(2026, [{ ...beleg, date: "2026-03-02", paid: 40_000 }]);
+    expect(amount(teil, "vereinnahmteUst")).toBe(2_280);
+    const ganz = computeEuer(2026, [
+      { ...beleg, date: "2026-03-02", paid: 40_000 },
+      { ...beleg, date: "2026-04-02", paid: 60_000 },
+    ]);
+    expect(amount(ganz, "vereinnahmteUst")).toBe(5_700);
+    expect(amount(ganz, "ausgabe:edv")).toBe(70_000);
+    // Storno (negativ) nimmt den Betrag wieder heraus
+    expect(amount(computeEuer(2026, [{ ...beleg, date: "2026-05-02", paid: -100_000 }]), "vereinnahmteUst")).toBe(-5_700);
+  });
+
   it("Teilzahlungen werden anteilig aufgeteilt und ergeben zusammen die Rechnung", () => {
     const euer = computeEuer(2026, [
       { kind: "invoice", date: "2026-10-01", paid: 200_000, totals: invoice19 },
