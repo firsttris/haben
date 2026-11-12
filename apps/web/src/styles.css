@@ -134,21 +134,24 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
 .nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
-.brand { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px 12px 28px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
+/* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 48px große Kachel kostet ihn so kaum (#504) */
+.brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
 /* Mit Firmenname (#504): „Haben“ bleibt, darunter der Name in bis zu zwei Zeilen, klein genug für lange Namen */
 .brand-text { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .brand-firma { color: var(--nav-ink); font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 /* Voller Name beim Überfahren (nur Desktop): wächst an der Stelle des gekürzten Namens nach unten und über die ersten Menüpunkte, bis zum rechten Rand der Navigation; das „H“ und „Haben“ bleiben frei */
-.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: -12px; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
-.brand-mark { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
+.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: 0; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
+/* Das Zeichen ist fest quadratisch, 48px am Desktop (so hoch wie „Haben“ mit zweizeiligem Namen), 40px am Handy; das
+   „H“ und ein Logo gleich groß (#504) */
+.brand-mark { flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 27px; }
 /* Logo als Zeichen (#504): auf Weiß wie auf dem Beleg, damit auch ein dunkles Logo auf dunkler Navigation zu sehen ist */
-.brand-logo { display: block; height: 28px; width: auto; max-width: 96px; padding: 2px; border-radius: 8px; background: #fff; object-fit: contain; flex-shrink: 0; }
+.brand-logo { display: block; width: 48px; height: 48px; padding: 3px; border-radius: 12px; background: #fff; object-fit: contain; flex-shrink: 0; }
 .nav-mark-choice { display: flex; gap: 24px; align-items: start; flex-wrap: wrap; }
 .nav-mark-choice > fieldset { flex: 1 1 280px; margin: 0; padding: 0; border: 0; }
 /* Alle drei Optionen gleich hoch, auch die mit Hinweis darunter */
 .nav-mark-choice .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; }
-.nav-mark-preview { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px; background: var(--nav); color: #fff; font-weight: 600; font-size: 18px; }
+.nav-mark-preview { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 12px; background: var(--nav); color: #fff; font-weight: 600; font-size: 18px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; }
 .nav-link:hover { color: #fff; }
 .nav-link[data-status="active"] { background: var(--nav-active); color: #fff; font-weight: 500; }
@@ -181,7 +184,10 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
   /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
      er wird gekürzt */
-  .brand { padding: 0 12px; flex: 1 1 0; min-width: 0; }
+  /* Rechts 8px Abstand zum Menüknopf */
+  .brand { padding: 0 8px 0 12px; flex: 1 1 0; min-width: 0; }
+  .brand-mark, .brand-logo { width: 40px; height: 40px; border-radius: 10px; }
+  .brand-mark { font-size: 23px; }
   .brand-text { line-height: 22px; }
   .brand-firma { display: block; white-space: nowrap; text-overflow: ellipsis; }
   .brand-firma-voll { display: none; }

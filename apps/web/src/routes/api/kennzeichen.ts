@@ -13,7 +13,10 @@ export const Route = createFileRoute("/api/kennzeichen")({
       GET: lesend(async () => {
         const logo = (await loadNavMark()).logo ? await loadLogo() : undefined;
         if (!logo) return new Response("Kein Logo als Zeichen gewählt", { status: 404 });
-        return fileResponse(logo.data, { mimeType: logo.format === "png" ? "image/png" : "image/jpeg", filename: `logo.${logo.format}` }, false);
+        const response = fileResponse(logo.data, { mimeType: logo.format === "png" ? "image/png" : "image/jpeg", filename: `logo.${logo.format}` }, false);
+        // Die Navigation lädt das Bild über ?v=<Prüfsumme>; ein neues Logo hat eine neue Adresse, das alte darf im Cache bleiben
+        response.headers.set("Cache-Control", "private, max-age=31536000, immutable");
+        return response;
       }),
     },
   },

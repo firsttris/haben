@@ -102,7 +102,7 @@ export function NavMarkCard({ color, logo, logoSha256 }: { color: string | null;
             {option("logo", "Logo aus der Beleggestaltung", { disabled: !logoSha256, describedBy: "nav-mark-logo-hint" })}
             <span id="nav-mark-logo-hint" className="field-hint">
               {logoSha256
-                ? "Ändert sich mit dem Logo der Belege. Fehlt es später, gilt wieder das „H“."
+                ? "Steht in einem Quadrat: Am besten wirkt ein quadratisches Bildzeichen, breite Schriftzüge werden klein. Ändert sich mit dem Logo der Belege, fehlt es später, gilt wieder das „H“."
                 : "Erst möglich, wenn unter Beleggestaltung ein Logo hochgeladen ist."}
             </span>
           </div>
