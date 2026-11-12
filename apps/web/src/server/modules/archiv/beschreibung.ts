@@ -182,10 +182,10 @@ export function indexXml(info: IndexInfo & { tabellen: Tabelle[] }): string {
 
 /**
  * Dateien im Archiv, die Haben nicht selbst als CSV erzeugt, auch wenn ihr Name auf .csv endet: unveränderte Originale (der
- * DATEV-Stapel und andere Exporte des Altbestands, Belege und Anhänge, die jemand hochgeladen hat). Sie haben ein fremdes
- * Format, die index.xml beschreibt sie nicht.
+ * DATEV-Stapel und andere Exporte des Altbestands, Belege, die jemand hochgeladen hat). Sie haben ein fremdes Format, die
+ * index.xml beschreibt sie nicht. Anhänge unter anhaenge/ sind immer PDF; die anhaenge.csv dort schreibt Haben selbst.
  */
-const ORIGINALE = [/^lexoffice\/(originale|belege)\//, /\/anhaenge\//, /^belege\/(?!belege\.csv$|verrechnungen\.csv$)/];
+const ORIGINALE = [/^lexoffice\/(originale|belege)\//, /^belege\/(?!belege\.csv$|verrechnungen\.csv$)/];
 
 const istEigeneCsv = (path: string) => path.endsWith(".csv") && !ORIGINALE.some((muster) => muster.test(path));
 
