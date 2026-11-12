@@ -1485,6 +1485,20 @@
       "when": 1794500486424,
       "tag": "0211_eigene_konten_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 212,
+      "version": "7",
+      "when": 1794515383003,
+      "tag": "0212_import_zahlungsbezug",
+      "breakpoints": true
+    },
+    {
+      "idx": 213,
+      "version": "7",
+      "when": 1794515385011,
+      "tag": "0213_import_zahlungsbezug_trigger",
+      "breakpoints": true
     }
   ]
 }
