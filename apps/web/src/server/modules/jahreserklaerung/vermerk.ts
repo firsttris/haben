@@ -6,6 +6,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { sniff } from "../../storage.ts";
 import { today } from "../../today.ts";
+import { ZEHN_TAGE_REGEL, zehnTageKennzeichen } from "../auswertungen/index.ts";
 import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { underSendLock } from "../elster/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
@@ -139,6 +140,9 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
     const { berechnet, abweichung } = await vermerkPruefung(form, year, data.amount);
     if (abweichung !== 0 && !data.abweichungBestaetigt) throw new AnnualError(abweichungMeldung(data.amount, berechnet, abweichung));
 
+    // Wie bei der Übermittlung: Welche Januarzahlungen die abgegebene EÜR verschiebt, bleibt fest (ZEHN_TAGE_REGEL, #583)
+    const zehnTage = form === "euer" ? { [ZEHN_TAGE_REGEL]: await zehnTageKennzeichen(year) } : {};
+
     return withActor(actor, async (tx) => {
       const [row] = await tx
         .insert(schema.annualSubmissions)
@@ -151,7 +155,10 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
           message: "Außerhalb von Haben abgegeben",
           transferTicket,
           // Ohne Abweichung bleibt die Zeile wie bisher; mit Bestätigung hält sie den Vergleich dauerhaft fest
-          figures: abweichung === 0 ? { amount: data.amount } : { amount: data.amount, berechnet, abweichung, abweichungBestaetigt: true },
+          figures: {
+            ...(abweichung === 0 ? { amount: data.amount } : { amount: data.amount, berechnet, abweichung, abweichungBestaetigt: true }),
+            ...zehnTage,
+          },
           filedOn: data.filedOn,
           note: data.note,
           requestXml: "",
