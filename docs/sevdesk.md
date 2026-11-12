@@ -7,7 +7,7 @@ description: >-
 
 # Umzug aus sevDesk
 
-Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md); diese Seite beschreibt, was bei sevDesk anders ist.
+Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“: Wähle oben „Umzug aus sevDesk“. Die Schritte sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
@@ -48,7 +48,7 @@ Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine R
 
 ### Kontaktrollen und Nummern prüfen
 
-Die [sevDesk-OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt die Kontaktkategorien **Lieferant (2)**, **Kunde (3)**, **Partner (4)** und **Interessent (28)**. Haben legt neue Lieferanten ausschließlich als Lieferanten und neue Kunden ausschließlich als Kunden an. Haben kennt keine eigene Partner- oder Interessentenrolle: Diese sowie Kontakte mit fehlender oder unbekannter Kategorie erhalten bei der Neuanlage zunächst nur die Kundenrolle. Der Import zeigt dazu einen Hinweis. Prüfe diese Kontakte unter **Kontakte**; eine unklare Kategorie führt niemals automatisch zu beiden Rollen. Rollen aus einzelnen Rechnungen oder Belegen werden nicht zusätzlich abgeleitet.
+Die [sevDesk-OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt die Kontaktkategorien **Lieferant (2)**, **Kunde (3)**, **Partner (4)** und **Interessent (28)**. Haben legt neue Lieferanten ausschließlich als Lieferanten und neue Kunden ausschließlich als Kunden an. Haben kennt keine eigene Partner- oder Interessentenrolle: Diese sowie Kontakte mit fehlender oder unbekannter Kategorie erhalten bei der Neuanlage zunächst nur die Kundenrolle. Der Import zeigt dazu einen Hinweis. Prüfe diese Kontakte unter **Kontakte**. Rollen aus einzelnen Rechnungen oder Belegen werden nicht zusätzlich abgeleitet.
 
 Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Haben eine eindeutige Kunden- oder Lieferantenrolle auch für schon importierte Kontakte. Bestehende Rollen und Nummern bleiben erhalten; bei unklarer Kategorie bleiben bestehende Rollen unverändert. Ein weiterer Abruf ohne neue Rolle erzeugt keine neue Kontaktversion.
 

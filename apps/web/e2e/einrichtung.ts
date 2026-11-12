@@ -62,7 +62,7 @@ export async function gehe(page: Page, path: string): Promise<void> {
 }
 
 /** Konto anlegen und die Firmendaten speichern; danach steht der Durchlauf in den Einstellungen */
-export async function einrichten(page: Page): Promise<void> {
+export async function einrichten(page: Page, kleinunternehmer = false): Promise<void> {
   await gehe(page, "/");
   await expect(page).toHaveURL(/\/setup/);
   await page.getByLabel("Einrichtungscode").fill(SETUP_CODE);
@@ -83,6 +83,7 @@ export async function einrichten(page: Page): Promise<void> {
   await firma.getByLabel("Bundesland").selectOption("BY");
   await firma.getByLabel(/^Steuernummer/).fill("198/113/10010");
   await firma.getByLabel("IBAN").fill("DE89370400440532013000");
+  if (kleinunternehmer) await firma.getByLabel("Kleinunternehmer nach § 19 UStG").check();
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
 }

@@ -319,10 +319,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreswechsel 2026/2027: Umsatzsteuer-Vorausz
       await zahlung(dez.id, tag, "-190,00");
       const [a] = await sql`select id from allocations where kind = 'ustVorauszahlung'`;
       await bank.reverseAllocation(actor, a!.id as string);
-      // Saldo der Zahlungen an das Finanzamt und Gewinn; Zahlung und Gegenzeile zeigt das Journal auch ohne Jahreswechsel
-      // getrennt als gezahlte und erstattete Umsatzsteuer, die Nebenbücher verrechnen sie
+      // Die Rücknahme hebt dieselbe EÜR-Zeile auf, statt eine Finanzamtserstattung auszuweisen (#651).
       const saldo = (e: EuerResult) => {
         const z = zeilen(e) as Record<string, number>;
+        expect(z.gezahlteUst ?? 0).toBe(0);
+        expect(z.erstatteteUst ?? 0).toBe(0);
         return { einnahmen: z.einnahmenSteuerpflichtig ?? 0, ust: (z.gezahlteUst ?? 0) - (z.erstatteteUst ?? 0), gewinn: z.gewinn };
       };
       for (const year of [2026, 2027]) {

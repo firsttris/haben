@@ -1433,8 +1433,15 @@
     {
       "idx": 204,
       "version": "7",
-      "when": 1794440808019,
-      "tag": "0204_eigene_seiten_neuer_tab",
+      "when": 1794465587819,
+      "tag": "0204_firmendaten_gespeichert",
+      "breakpoints": true
+    },
+    {
+      "idx": 205,
+      "version": "7",
+      "when": 1794473880659,
+      "tag": "0205_eigene_seiten_neuer_tab",
       "breakpoints": true
     }
   ]

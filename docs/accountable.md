@@ -7,9 +7,9 @@ description: >-
 
 # Umzug aus Accountable
 
-Haben übernimmt deinen Bestand aus Accountable, damit du kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite „Archiv“ unter „Umzug“: Wähle oben „Umzug aus Accountable“. Die Schritte bis zum Abgleich sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md); diese Seite beschreibt, was bei Accountable anders ist.
+Haben übernimmt deinen Bestand aus Accountable, damit du kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite „Archiv“ unter „Umzug“: Wähle oben „Umzug aus Accountable“. Die Schritte bis zum Abgleich sind dieselben wie beim [Umzug aus Lexoffice](lexoffice.md).
 
-Accountable hat keinen API-Zugang. Es gibt deshalb keine Verbindungskarte mit Schlüssel oder Token, und Haben liest nichts direkt aus deinem Accountable-Konto. Du lädst die Exportdatei hoch, Haben liest daraus den DATEV-Buchungsstapel, entpackt die Belege und verknüpft beides.
+Accountable hat keinen API-Zugang. Es gibt deshalb keine Verbindungskarte mit Schlüssel oder Token. Du lädst die Exportdatei hoch, Haben liest daraus den DATEV-Buchungsstapel, entpackt die Belege und verknüpft beides.
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
@@ -41,8 +41,6 @@ Die anderen Exporte desselben Vorgangs (Excel-Export, Originaldokumente, PDF-Exp
 - je Buchung die Verknüpfung zur Belegdatei im Feld „Beleglink“ (`BEDI "<GUID>"`)
 - `Daten.xlsx`: Der Import liest daraus das Sheet „Ausgaben“ mit Buchungscode, Lieferant und Zahlungsstatus (siehe [Kategorie und Zahlungsstatus](#kategorie-und-zahlungsstatus)); die übrigen Sheets bleiben nur im Archiv
 - `Abschreibungstabelle.xlsx`: wird mit der ZIP archiviert, aber nicht eingelesen
-
-Die ZIP ist die einzige Schnittstelle zwischen den beiden Programmen.
 
 Die Zuordnung Buchung zu Beleg läuft über die GUID und nicht über den Dateinamen. Derselbe Beleg heißt in `Belege.zip` anders als im PDF-Ordner (etwa `…_012` gegen `…_Wdn`). Wenn du vor dem Upload Dateien umbenennst, geht die Verknüpfung kaputt. Lade die ZIP unverändert hoch, Haben speichert sie mit Prüfsumme im Archiv.
 
@@ -102,7 +100,7 @@ Die Kategorie kommt aus dem Buchungscode in `Daten.xlsx` (Sheet „Ausgaben“) 
 
 Einen unbekannten Code rät der Import nicht. Der Beleg landet unter „Sonstiger Aufwand“ (`sonstiges`), der Code steht als Hinweis am Lauf. Die passende Zeile findet Haben über Belegfeld 1 (`TTMMJJJJ_Cent`), sonst über Datum und Betrag. Passen Datum und Betrag auf mehrere Zeilen, bleibt die Buchung ohne die Angaben aus `Daten.xlsx` und der Fall steht als Hinweis am Lauf.
 
-Der Zahlungsstatus kommt aus den Spalten „Bezahlt“ und „Zahlungsdatum“ derselben Zeile. Nicht bezahlt heißt offener Posten über den Bruttobetrag. Fehlt `Daten.xlsx`, gilt der Beleg wie bisher als bezahlt, weil der Stapel zahlungsbasiert über 1200 bucht.
+Der Zahlungsstatus kommt aus den Spalten „Bezahlt“ und „Zahlungsdatum“ derselben Zeile. Nicht bezahlt heißt offener Posten über den Bruttobetrag. Fehlt `Daten.xlsx`, gilt der Beleg als bezahlt, weil der Stapel zahlungsbasiert über 1200 bucht.
 
 Zwei Konten bleiben anders beschrieben, als Accountable sie meint:
 

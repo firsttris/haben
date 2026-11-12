@@ -74,9 +74,9 @@ const PATHS = {
   code: <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" />,
   /** Dokumentation: aufgeschlagenes Buch */
   docs: <path d="M12 6c-2-1.5-5-2-8-2v14c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2zM12 6v14" />,
-  /** Seite außerhalb von Haben: Fenster mit Pfeil nach außen */
-  // Fenster mit Seitenleiste: eine eigene Seite, die Haben neben dem Menü zeigt (#636)
+  /** Eigene Seite, die Haben neben dem Menü zeigt: Fenster mit Seitenleiste (#636) */
   embed: <path d="M3 5h18v14H3zM8 5v14M11 9h7M11 13h5" />,
+  /** Seite außerhalb von Haben: Fenster mit Pfeil nach außen */
   external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />,
   logout: <path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M10 16l-4-4 4-4M6 12h10" />,
   check: <path d="M5 12l5 5L20 7" />,

@@ -47,6 +47,7 @@ export {
   type ExternalReference,
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+export { invoiceTaxYear } from "./invoice-tax-year.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,

@@ -1,5 +1,5 @@
 # Prüft Regeln am Pull Request selbst (scripts/pr-regeln): Titel „Bereich: was sich ändert (#Issue)“;
-# Hinweise auf Code ohne Doku und Fix ohne Test. Läuft anders als ci.yml auch für Entwürfe und reine Doku-Änderungen, denn der Titel wird
+# Hinweise auf Code ohne Doku, Fix ohne Test und, bei fremden Pull Requests, auf Selbstprüfung und Review. Läuft anders als ci.yml auch für Entwürfe und reine Doku-Änderungen, denn der Titel wird
 # beim Squash-Merge zum Commit auf main. Mit pull_request, nicht pull_request_target: Code aus Forks läuft nur
 # mit Leserecht. Den Kommentar im Pull Request schreibt danach pr-regeln-kommentar.yml aus dem Artefakt.
 name: PR-Regeln

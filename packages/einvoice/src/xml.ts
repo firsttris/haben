@@ -1,4 +1,4 @@
-import { InvoiceService, type Invoice, type Logger } from "@e-invoice-eu/core";
+import type { Invoice } from "@e-invoice-eu/core";
 import {
   documentAllowances,
   formatEuro,
@@ -14,6 +14,7 @@ import {
   type Millis,
 } from "@haben/core";
 import { ciiPostProcessor } from "./cii.ts";
+import { generateEInvoice } from "./generate.ts";
 import {
   accountHolder,
   collectedByDirectDebit,
@@ -434,19 +435,6 @@ function withoutInvalidXmlChars<T>(value: T): T {
   return value;
 }
 
-const quietLogger: Logger = {
-  log: () => {},
-  warn: () => {},
-  error: (message) => console.error(message),
-};
-
-let service: InvoiceService | undefined;
-
-function invoiceService(): InvoiceService {
-  service ??= new InvoiceService(quietLogger);
-  return service;
-}
-
 /**
  * Erzeugt die E-Rechnung im gewünschten Format.
  * zugferd: pdf ist das PDF/A-3 mit eingebettetem factur-x.xml, xml das CII daraus.
@@ -461,7 +449,7 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
   const visual = renderInvoicePdf(doc);
 
   if (doc.format === "zugferd") {
-    const pdf = await invoiceService().generate(structuredClone(data), {
+    const pdf = await generateEInvoice(structuredClone(data), {
       format: SERVICE_FORMATS.zugferd,
       lang: "de-de",
       pdf: { buffer: visual, filename: `${doc.number}.pdf`, mimetype: "application/pdf" },
@@ -478,7 +466,7 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
 }
 
 async function generateXml(data: Invoice, format: string, doc: InvoiceDocument): Promise<string> {
-  const result = await invoiceService().generate(structuredClone(data), {
+  const result = await generateEInvoice(structuredClone(data), {
     format,
     lang: "de-de",
     noWarnings: true,

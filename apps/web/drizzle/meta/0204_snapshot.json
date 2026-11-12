@@ -1,5 +1,5 @@
 {
-  "id": "f1b1a22d-36aa-4df0-87c4-884ec0d731a8",
+  "id": "8d3c16b3-de8e-4b5f-811d-69ca1c697bb3",
   "prevId": "df1dda32-1bbb-448c-a9ab-98aa8352e150",
   "version": "7",
   "dialect": "postgresql",
@@ -2857,6 +2857,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "firmendaten_gespeichert_at": {
+          "name": "firmendaten_gespeichert_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -3290,13 +3296,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "open_in_new_tab": {
-          "name": "open_in_new_tab",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
