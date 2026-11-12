@@ -655,7 +655,7 @@ Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret bene
 
 - **Nicht gewollt oder offene Grundsatzfrage:** Die Prüfung endet, der Maintainer entscheidet. Ablehnen und Schließen ist seine Sache; ein grundsätzlich abgelehntes Thema kommt mit Grund nach [Bewusst nicht](roadmap.md#bewusst-nicht).
 - **Gewollt, aber unvollständig:** Kleinigkeiten wie Doku, ein fehlender Test oder die Quellenangabe ergänzen wir sofort. Fehlt mehr, fragen wir zuerst, ob der Beitragende selbst nachbessern will, und nennen eine Frist von zwei Tagen; kommt bis dahin nichts, machen wir es fertig (Kommentar mit Dank und dem, was wir ergänzen, dann eigene Commits auf den Branch). Danach TDD-Review und Merge bei grüner CI.
-- **Schon gut:** direkt ins Review und mergen.
+- **Schon gut:** direkt ins Review und mergen; ein mitgebrachtes unabhängiges Review ([Review](#review), Punkt 1) zählt.
 - **Fachlich heikel** (kann beeinflussen, was gebucht, versteuert, gemeldet oder festgeschrieben wird, auch Migrationen auf bestehenden Daten): ebenso bis grün, gemergt aber erst nach einem „OK“ des Maintainers auf eine kurze Zusammenfassung mit Quelle und Gegenrechnung.
 
 Die Schritte stehen im Skill `beitrag-pruefen`.
@@ -664,7 +664,7 @@ Die Schritte stehen im Skill `beitrag-pruefen`.
 
 Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:
 
-1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der am Code mitgeschrieben hat, startet für das Review einen neuen Agenten ohne diesen Verlauf.
+1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der am Code mitgeschrieben hat, startet für das Review einen neuen Agenten ohne diesen Verlauf. Ein solcher frischer Agent ist unabhängig, auch wenn ihn der Autor gestartet hat. Bringt ein Beitrag so ein Review schon mit (Schritte 2 bis 5 im Pull Request erkennbar), zählt es; wir reviewen nicht noch einmal.
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
 3. **Im Pull Request:** Befunde mit Testname und Ausgabe des roten Tests als Kommentar, auch wenn es keine gibt.
 4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Fork mit „Allow edits by maintainers“, um das wir sonst bitten); ein eigener Pull Request ist der letzte Ausweg. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
