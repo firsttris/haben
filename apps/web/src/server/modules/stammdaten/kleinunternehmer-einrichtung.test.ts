@@ -265,7 +265,7 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     await guard.saveCompany(actor, { ...input, name: "Bestätigte Musterfirma", kleinunternehmer: true }, today);
     expect((await company.kleinunternehmerHistory())(previous)).toBe(false);
     expect((await company.kleinunternehmerHistory())(today)).toBe(true);
-    expect((await sql`select row_hash from audit_log where seq = ${first!.seq}`)[0]!.row_hash).toBe(first!.row_hash);
+    expect((await sql`select row_hash from audit_log where seq = ${first!.seq}`)[0]!.row_hash).toEqual(first!.row_hash);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 });
