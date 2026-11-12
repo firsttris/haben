@@ -24,6 +24,7 @@ import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
+import { VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -600,53 +601,18 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     compress: true,
   };
 
-  // Verrechnungen zweier Eingangsbelege (#274): Eine Gutschrift gleicht eine Rechnung ohne Zahlung aus. Je Verrechnung
-  // stehen zwei Zeilen (negativ beim Beleg, positiv bei der Gutschrift), eine Aufhebung ist eine Gegenzeile mit dem Datum
-  // der Aufhebung. Wie die Verrechnungen von Umsätzen (bank/verrechnungen.csv) haben sie keinen Bankumsatz und keine
-  // Buchung; ohne eigene Datei wäre der Vorgang im Archiv nicht nachvollziehbar.
-  const settlements = await db
-    .select()
-    .from(schema.documentSettlements)
-    .where(and(gte(schema.documentSettlements.date, yearStart(year)), lte(schema.documentSettlements.date, yearEnd(year))))
-    .orderBy(asc(schema.documentSettlements.date), asc(schema.documentSettlements.createdAt), asc(schema.documentSettlements.id));
-  if (settlements.length > 0) {
-    // Der Gegenbeleg kann in einem anderen Jahr liegen; dann fehlt sein Pfad im Archiv und der Name kommt aus dem Beleg
-    const ids = [...new Set(settlements.flatMap((s) => [s.documentId, s.counterDocumentId]))];
-    const missing = ids.filter((id) => !documentPaths.has(id));
-    const outside = missing.length
-      ? await db
-          .select({
-            id: schema.documents.id,
-            day: documentDay,
-            supplierName: schema.documents.supplierName,
-            mimeType: schema.documents.mimeType,
-          })
-          .from(schema.documents)
-          .where(inArray(schema.documents.id, missing))
-      : [];
-    const belegName = new Map<string, string>([
-      ...[...documentPaths].map(([id, path]) => [id, path.replace(/^belege\//, "")] as const),
-      ...outside.map((d) => [d.id, `${d.day}_${safeName(d.supplierName)}_${d.id.slice(0, 8)}.${EXTENSIONS[d.mimeType] ?? "bin"}`] as const),
-    ]);
-    yield {
-      path: "belege/verrechnungen.csv",
-      content: csv(
-        ["Datum", "Beleg", "Gegenbeleg", "Betrag", "Notiz", "Hebt auf", "Angelegt", "Beleg-ID", "Gegenbeleg-ID", "Verrechnungs-ID"],
-        settlements.map((s) => [
-          s.date,
-          belegName.get(s.documentId) ?? "",
-          belegName.get(s.counterDocumentId) ?? "",
-          money(s.amount),
-          s.note,
-          s.reversesId,
-          iso(s.createdAt),
-          s.documentId,
-          s.counterDocumentId,
-          s.id,
-        ]),
-      ),
-      compress: true,
-    };
+  // Verrechnungen zweier Eingangsbelege (#274): eigene Datei, siehe export-verrechnung.ts
+  const verrechnungen = await verrechnungenFuerArchiv(documentPaths, {
+    documentDay,
+    von: yearStart(year),
+    bis: yearEnd(year),
+    safeName,
+    extension: (mimeType) => EXTENSIONS[mimeType] ?? "bin",
+    money,
+    iso,
+  });
+  if (verrechnungen) {
+    yield { path: "belege/verrechnungen.csv", content: csv(VERRECHNUNGEN_HEADER, verrechnungen), compress: true };
   }
 
   // Buchungen -------------------------------------------------------------
