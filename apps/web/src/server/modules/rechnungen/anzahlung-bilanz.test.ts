@@ -5,7 +5,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /**
  * #750: Vor der Leistung kein Erlös (§ 252 Abs. 1 Nr. 4 und 5 HGB), unabhängig vom Umsatzsteuerverfahren.
- * Die Regressionen legen noch keine der im ADR offenen Kontierungsentscheidungen fest.
+ * Kontierung und Fortbestand der Leistung nach Rechnungsstorno: Maintainerentscheid in #750.
  * Quelle: https://www.gesetze-im-internet.de/hgb/__252.html
  */
 describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postgres)", () => {
@@ -13,6 +13,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
   let invoices: typeof import("./index.ts");
   let bank: typeof import("../bank/index.ts");
   let contacts: typeof import("../stammdaten/index.ts");
+  let vat: typeof import("../umsatzsteuer/index.ts");
   let contactId: string;
   const actor = "anzahlung-bilanz-test";
 
@@ -21,6 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
     invoices = await import("./index.ts");
     bank = await import("../bank/index.ts");
     contacts = await import("../stammdaten/index.ts");
+    vat = await import("../umsatzsteuer/index.ts");
   });
   afterAll(async () => {
     await sql?.end();
@@ -47,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
     ).id;
   });
 
-  async function advance() {
+  async function advance(unitPrice = 30_000) {
     const draft = await invoices.createDraft(actor, {
       contactId,
       issueDate: "2026-12-01",
@@ -58,15 +60,15 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
       note: "",
       variant: "abschlag",
       advanceType: "anzahlung",
-      lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
+      lines: [{ description: "Anzahlung vor Leistung", quantity: 1000, unit: "Psch.", unitPrice, taxRate: 1900 }],
     });
     return invoices.finalizeInvoice(actor, draft.id);
   }
 
-  async function finalInvoice(advanceId: string) {
+  async function finalInvoice(advanceId: string, issueDate = "2027-01-20") {
     const draft = await invoices.createDraft(actor, {
       contactId,
-      issueDate: "2027-01-20",
+      issueDate,
       serviceFrom: "2027-01-20",
       serviceTo: null,
       paymentTermDays: 14,
@@ -94,6 +96,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
     it(`${form}, ${frame}, ${vatMode}: eine unbezahlte Anforderung erzeugt keinen Erlös`, async () => {
       await sql`update company set rechtsform = ${form}, kontenrahmen = ${frame}, versteuerung = ${vatMode}`;
       await advance();
+      expect(await sql`select id from journal_entries`).toEqual([]);
       expect(await revenue(2026, ACCOUNTS[frame].erloese[1900])).toBe(0);
       expect((await bank.cashBook(2026)).entries).toHaveLength(0);
     });
@@ -102,6 +105,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
       await sql`update company set rechtsform = ${form}, kontenrahmen = ${frame}, versteuerung = ${vatMode}`;
       const invoice = await advance();
       await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-12-12", amount: 11_900 }, "2026-12-12");
+      expect(await revenue(2026, ACCOUNTS[frame].erhalteneAnzahlungen)).toBe(10_000);
       expect(await revenue(2026, ACCOUNTS[frame].erloese[1900])).toBe(0);
       expect((await bank.cashBook(2026)).entries).toHaveLength(1);
     });
@@ -115,6 +119,45 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
       expect(await revenue(2026, ACCOUNTS[frame].erloese[1900])).toBe(0);
       expect((await bank.cashBook(2026)).entries).toHaveLength(1);
       expect((await bank.cashBook(2027)).entries).toHaveLength(0);
+    });
+
+    it(`${form}, ${frame}, ${vatMode}: vollständige Anzahlung wird auch bei Schlussrest null im Leistungsjahr zum Erlös`, async () => {
+      await sql`update company set rechtsform = ${form}, kontenrahmen = ${frame}, versteuerung = ${vatMode}`;
+      const invoice = await advance(100_000);
+      await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-12-12", amount: 119_000 }, "2026-12-12");
+      const final = await finalInvoice(invoice.id);
+      expect(final.gross).toBe(0);
+      expect(await revenue(2026, ACCOUNTS[frame].erloese[1900])).toBe(0);
+      expect(await revenue(2027, ACCOUNTS[frame].erloese[1900])).toBe(100_000);
+      expect((await bank.cashBook(2026)).entries).toHaveLength(1);
+      expect((await bank.cashBook(2027)).entries).toHaveLength(0);
+      const [balance] = await sql`select coalesce(sum(credit - debit), 0)::int as amount
+        from journal_lines where account = ${ACCOUNTS[frame].erhalteneAnzahlungen}`;
+      expect(balance!.amount).toBe(0);
+    });
+
+    it(`${form}, ${frame}, ${vatMode}: Schluss-Storno im Februar und Ersatz im März verschieben die erbrachte Januarleistung nicht`, async () => {
+      await sql`update company set rechtsform = ${form}, kontenrahmen = ${frame}, versteuerung = ${vatMode}`;
+      const invoice = await advance();
+      await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-12-12", amount: 35_700 }, "2026-12-12");
+      const final = await finalInvoice(invoice.id);
+      await invoices.cancelInvoice(actor, final.id, "2027-02-12");
+      const replacement = await finalInvoice(invoice.id, "2027-03-12");
+      expect(replacement.gross).toBe(83_300);
+      const months = await sql`select to_char(e.date, 'YYYY-MM') as month, sum(l.credit - l.debit)::int as amount
+        from journal_entries e join journal_lines l on l.entry_id = e.id
+        where l.account = ${ACCOUNTS[frame].erloese[1900]} and e.date >= '2027-01-01'
+        group by to_char(e.date, 'YYYY-MM') having sum(l.credit - l.debit) <> 0 order by month`;
+      expect(months).toEqual([{ month: "2027-01", amount: 100_000 }]);
+      const figures = await Promise.all([1, 2, 3].map((month) => vat.computeVatFigures({ year: 2027, month })));
+      expect(figures.map(({ kz81, tax81 }) => ({ base: kz81, tax: tax81 }))).toEqual([
+        { base: vatMode === "soll" ? 70_000 : 0, tax: vatMode === "soll" ? 13_300 : 0 },
+        { base: 0, tax: 0 },
+        { base: 0, tax: 0 },
+      ]);
+      expect((await bank.cashBook(2026)).entries).toHaveLength(1);
+      expect((await bank.cashBook(2027)).entries).toHaveLength(0);
+      expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
     });
   }
 });
