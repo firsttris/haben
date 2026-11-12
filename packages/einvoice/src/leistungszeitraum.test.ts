@@ -75,11 +75,21 @@ describe("Leistungszeitraum in der E-Rechnung", () => {
     }
   });
 
-  it("XRechnung UBL behält Zeitraum und Beträge", async () => {
+  it("XRechnung UBL übernimmt die Lieferanschrift und behält Zeitraum und Beträge", async () => {
     const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-ubl" }));
     const invoice = parser.parse(xml).Invoice;
     expect(invoice.InvoicePeriod).toEqual({ StartDate: "2026-09-01", EndDate: "2026-09-30" });
     expect(invoice.LegalMonetaryTotal).toMatchObject({ TaxExclusiveAmount: "14629.90", TaxInclusiveAmount: "17409.58", PayableAmount: "17409.58" });
+    expect(invoice.Delivery).toEqual({
+      DeliveryLocation: {
+        Address: {
+          StreetName: "Hafenweg 3",
+          CityName: "Hamburg",
+          PostalZone: "20457",
+          Country: { IdentificationCode: "DE" },
+        },
+      },
+    });
     expect(invoice).not.toHaveProperty("Delivery.ActualDeliveryDate");
   });
 });
