@@ -513,7 +513,7 @@ Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung fü
 
 Ein gebuchter Beleg lässt sich nicht mehr ändern oder löschen (GoBD). Hast du dich vertippt, etwa den Bruttobetrag ins Feld **Netto** geschrieben, hebst du ihn mit **Beleg stornieren** auf und erfasst ihn richtig neu, wie bei einer Stornorechnung.
 
-1. Den gebuchten Beleg öffnen und **Beleg stornieren** klicken. Darüber erscheint ein Hinweis und das Feld **Grund** (optional, z. B. „Brutto als Netto erfasst“).
+1. Den gebuchten Beleg öffnen und **Beleg stornieren** klicken. Im Dialog stehen Lieferant, Belegdatum und Betrag, die Folgen des Stornos und das Feld **Grund** (optional, z. B. „Brutto als Netto erfasst“). Gibt es Bankzuordnungen, werden sie mit Datum, Buchungstext und Betrag aufgeführt.
 2. Im Dialog **Stornieren** klicken. Der Beleg zeigt danach „Storniert mit einer Gegenbuchung zum …“ mit einem Link auf die Gegenbuchung im Journal, in der Liste steht er als **Storniert**.
 3. **Neu erfassen** legt einen neuen Entwurf mit derselben Datei und den Feldern des stornierten Belegs an, mit Beträgen und Aufteilung. Du korrigierst ihn und buchst ihn wie jeden anderen. Gibt es den Entwurf schon, führt **Zur Neuerfassung** dorthin.
 
@@ -526,17 +526,18 @@ Was dabei passiert:
 - **Der Beleg bleibt, wie er ist.** Er bleibt gebucht, gesperrt und versiegelt. Den Storno hält eine eigene Zeile fest (Beleg, Gegenbuchung, Datum, Grund), die nur angehängt wird, im Änderungsprotokoll steht und ein eigenes Siegel trägt.
 - **EÜR:** Ein privat oder bar bezahlter Beleg zählt am Belegdatum als Ausgabe und am Datum der Gegenbuchung mit umgekehrtem Vorzeichen. Liegt sie im Folgejahr, mindert sie die Ausgaben dort.
 - **Bar aus der Kasse:** Im [Kassenbuch](kasse.md) entsteht eine Gegenzeile mit neuer Nummer und dem Betrag zurück in die Kasse; die ursprüngliche Zeile ist als storniert markiert. Gegenzeile und Gegenbuchung stehen hier immer am Tag des Stornos, weil das Kassenbuch zeitnah und in der Reihenfolge der Tage geführt wird.
-- **Über das Geschäftskonto:** Der Beleg verschwindet aus den offenen Posten und lässt sich keiner Zahlung mehr zuordnen.
+- **Über das Geschäftskonto:** Bestätigte Bankzuordnungen werden gemeinsam mit dem Beleg zurückgenommen. Ein mit der Zahlung ausgebuchter Rest wie Skonto wird ebenfalls aufgehoben. Gehört eine Zuordnung zu einer Aufteilung, nennt die Rückfrage alle Teile, auch die zu weiteren Vorgängen; eine Aufteilung wird wie im Bankabgleich nur insgesamt aufgehoben. Die betroffenen Umsätze sind danach wieder offen. Andere, unabhängige Zuordnungen bleiben bestehen. Der stornierte Beleg verschwindet aus den offenen Posten und lässt sich keiner Zahlung mehr zuordnen.
+- **Ein gemeinsamer Vorgang:** Bankgegenzeilen und Belegstorno werden nur zusammen gespeichert. Verhindert eine Sperre einen Teil, bleibt der ganze Vorgang unverändert; die Fehlermeldung steht sichtbar in der Aktionsleiste. Haben sich die Bankzuordnungen seit der Rückfrage geändert, lädst du den Beleg neu und bestätigst den aktuellen Umfang.
 - **Dieselbe Datei:** Beim Hochladen nimmt Haben dieselbe Datei sonst nicht ein zweites Mal an. Die Neuerfassung nutzt sie trotzdem; lädst du die Datei danach noch einmal hoch, landest du bei der Neuerfassung. Je storniertem Beleg gibt es eine Neuerfassung; löschst du den Entwurf, lässt er sich wieder neu erfassen.
 
 Nicht stornieren lassen sich:
 
 | Fall | Was stattdessen |
 | --- | --- |
-| Der Beleg ist schon einer Zahlung zugeordnet (auch Skonto oder Kursdifferenz) | Erst im [Bankabgleich](bank.md) die Zuordnung aufheben, dann stornieren. |
+| Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
 | Beim Umzug als offener Posten übernommen | Die Vorsteuer ist im alten Programm angemeldet; korrigiere den Beleg dort. |
-| Das Jahr des Stornos ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr. |
+| Das Jahr des Stornos oder einer zurückzunehmenden Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 
 ## Löschen

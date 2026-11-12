@@ -34,15 +34,7 @@ test.beforeAll(async ({ browser }) => {
   const bank = await import("../src/server/modules/bank/index.ts");
   documentId = await receipt(browser, "Codewerk Lizenzen GmbH", "L-4711");
   unpaidDocumentId = await receipt(browser, "Nordlicht Software GmbH", "B-4712");
-  const date = currentDay();
-  const day = `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(2, 4)}`;
-  const csv =
-    `"Girokonto";"DE89 3704 0044 0532 0130 00"\n\n` +
-    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
-    `"${day}";"${day}";"Gebucht";"Mustermann IT";"Codewerk Lizenzen GmbH";"L-4711";"Ausgang";"DE02100100100006820101";"-119,00";"";"";""\n`;
-  await bank.importStatement("e2e-storno", { bytes: new TextEncoder().encode(csv), filename: "zahlung.csv" }, null);
-  const [transaction] = await sql`select id from bank_transactions where purpose = 'L-4711'`;
-  transactionId = transaction!.id;
+  transactionId = await transaction("-119,00", "L-4711");
   await bank.allocate("e2e-storno", { kind: "document", transactionId, documentId, amount: -11_900 });
   [originalDocument] = await sql`select * from documents where id = ${documentId}`;
   [originalTransaction] = await sql`select * from bank_transactions where id = ${transactionId}`;
@@ -71,6 +63,18 @@ async function receipt(browser: Browser, supplier: string, number: string) {
   });
   await documents.bookDocument("e2e-storno", id);
   return id;
+}
+
+async function transaction(amount: string, purpose: string): Promise<string> {
+  const bank = await import("../src/server/modules/bank/index.ts");
+  const date = currentDay();
+  const day = `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(2, 4)}`;
+  const csv =
+    `"Girokonto";"DE89 3704 0044 0532 0130 00"\n\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `"${day}";"${day}";"Gebucht";"Mustermann IT";"Codewerk Lizenzen GmbH";"${purpose}";"Ausgang";"DE02100100100006820101";"${amount}";"";"";""\n`;
+  await bank.importStatement("e2e-storno", { bytes: new TextEncoder().encode(csv), filename: `${purpose}.csv` }, null);
+  return (await sql`select id from bank_transactions where purpose = ${purpose}`)[0]!.id;
 }
 
 test.afterAll(async () => {
@@ -124,6 +128,34 @@ test("Bankzuordnung im Stornodialog bestätigen und zusammen mit dem Beleg zurü
   expect((await sql`select id from document_cancellations where document_id = ${documentId}`).length).toBe(1);
   await page.getByRole("link", { name: "Gegenbuchung", exact: true }).click();
   await expect(page.getByText(/Storno: Beleg L-4711/)).toBeVisible();
+});
+
+test("ganze Aufteilung einschließlich weiterem Beleg vor dem Storno ausdrücklich anzeigen", async ({ browser }) => {
+  const chosen = await receipt(browser, "Codewerk Lizenzen GmbH", "S-4801");
+  const other = await receipt(browser, "Nordlicht Software GmbH", "S-4802");
+  const tx = await transaction("-239,00", "Aufteilung S-4801 S-4802");
+  const bank = await import("../src/server/modules/bank/index.ts");
+  await bank.allocateSplit("e2e-storno", {
+    transactionId: tx,
+    parts: [
+      { kind: "document", documentId: chosen, amount: -11_900 },
+      { kind: "document", documentId: other, amount: -11_900 },
+      { kind: "gebuehren", amount: -100 },
+    ],
+  });
+  await page.goto(`/belege/${chosen}`);
+  await page.getByRole("button", { name: "Beleg stornieren", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("S-4801");
+  await expect(dialog).toContainText("S-4802");
+  await expect(dialog).toContainText("auch die zu weiteren Vorgängen");
+  await expect(dialog.getByText("Bankzuordnung", { exact: true })).toHaveCount(3);
+  await dialog.getByRole("button", { name: "Stornieren", exact: true }).click();
+  await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
+  expect((await bank.transactionDetail(tx))!.transaction.open).toBe(-23_900);
+  expect((await sql`select id from document_cancellations where document_id = ${other}`).length).toBe(0);
+  await page.goto(`/belege/${other}`);
+  await expect(page.locator(".page-head").getByText("Gebucht", { exact: true })).toBeVisible();
 });
 
 test("Fehlermeldung bei abgeschlossenem Jahr bleibt vor der Aktionsleiste vollständig lesbar", async () => {

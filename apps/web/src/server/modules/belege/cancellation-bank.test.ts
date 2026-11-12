@@ -94,6 +94,9 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         expect(await sql`select * from documents where id = ${id}`).toEqual(beforeDoc);
         expect(await sql`select * from bank_transactions where id = ${tx}`).toEqual(beforeBank);
         expect((await bank.transactionDetail(tx))!.transaction.open).toBe(-11_900);
+        const actors = await sql`select l.actor from allocations a join audit_log l on l.table_name = 'allocations'
+          and l.action = 'INSERT' and l.row_id = a.id::text where a.document_id = ${id} and a.reverses_id is not null`;
+        expect(actors).toEqual([{ actor }]);
         expect((await sql`select l.account, sum(l.debit-l.credit) as saldo from journal_lines l group by l.account`).every((r) => Number(r.saldo) === 0)).toBe(
           true,
         );

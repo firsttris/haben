@@ -23,7 +23,7 @@ export function DocumentCancellation({ data }: { data: Detail }) {
   if (doc.replacesDocumentId && !doc.lockedAt) return <ReentryNotice replacesId={doc.replacesDocumentId} />;
   if (!doc.lockedAt) return null;
   if (cancellation) return <Cancelled documentId={doc.id} cancellation={cancellation} reentryId={reentryId} />;
-  return <CancelForm doc={doc} issues={data.cancellationIssues} date={data.cancellationDate} today={data.today} />;
+  return <CancelForm doc={doc} issues={data.cancellationIssues} date={data.cancellationDate} today={data.today} allocations={data.cancellationAllocations} />;
 }
 
 function ReentryNotice({ replacesId }: { replacesId: string }) {
@@ -71,8 +71,8 @@ function Cancelled({
           zum {formatDate(cancellation.date)}.{cancellation.reason ? ` Grund: ${cancellation.reason}` : ""}
         </span>
       </div>
-      <NoticeBanner notice={notice} />
       <div className="actions doc-actions">
+        <NoticeBanner notice={notice} />
         {reentryId ? (
           <Link to="/belege/$id" params={{ id: reentryId }} className="btn btn-primary">
             Zur Neuerfassung
@@ -95,7 +95,19 @@ function cancellationNotice(date: string | null, today: string): string {
   return `Haben bucht den Beleg zum ${formatDate(date ?? today)} zurück; der Beleg bleibt festgeschrieben. Eine abgegebene Voranmeldung bleibt unberührt, die Korrektur steht im laufenden Zeitraum.`;
 }
 
-function CancelForm({ doc, issues, date, today }: { doc: Detail["document"]; issues: string[]; date: string | null; today: string }) {
+function CancelForm({
+  doc,
+  issues,
+  date,
+  today,
+  allocations,
+}: {
+  doc: Detail["document"];
+  issues: string[];
+  date: string | null;
+  today: string;
+  allocations: Detail["cancellationAllocations"];
+}) {
   const router = useRouter();
   const cancel = useServerFn(cancelDocumentFn);
   const { busy, notice, run } = useAction();
@@ -106,7 +118,7 @@ function CancelForm({ doc, issues, date, today }: { doc: Detail["document"]; iss
   }
   const cancelNow = () => {
     void run(async () => {
-      await cancel({ data: { id: doc.id, cancellation: { reason } } });
+      await cancel({ data: { id: doc.id, cancellation: { reason, allocationIds: allocations.map((a) => a.id) } } });
       await router.invalidate();
     });
   };
@@ -121,10 +133,23 @@ function CancelForm({ doc, issues, date, today }: { doc: Detail["document"]; iss
           ...(doc.supplierName ? [{ label: "Lieferant", value: doc.supplierName }] : []),
           ...(doc.documentDate ? [{ label: "Belegdatum", value: formatDate(doc.documentDate) }] : []),
           { label: "Betrag", value: formatEuro(doc.gross), strong: true },
+          ...allocations.map((a) => ({ label: "Bankzuordnung", value: `${formatDate(a.date)} · ${a.description} · ${formatEuro(a.amount)}` })),
         ]}
         onConfirm={cancelNow}
         onClose={() => setConfirming(false)}
       >
+        {allocations.length > 0 && (
+          <p>
+            Die aufgeführten Bankzuordnungen werden mit Gegenbuchungen aufgehoben. Die Umsätze sind danach wieder offen; ein mit der Zahlung ausgebuchter Rest
+            wie Skonto wird ebenfalls aufgehoben.
+          </p>
+        )}
+        {allocations.some((a) => a.splitId) && (
+          <p>
+            Alle aufgeführten Teile der Aufteilung werden aufgehoben{allocations.some((a) => a.documentId !== doc.id) ? ", auch die zu weiteren Vorgängen" : ""}
+            .
+          </p>
+        )}
         <p>{cancellationNotice(date, today)}</p>
         <Field label="Grund (optional)">
           {(control) => (
@@ -132,8 +157,8 @@ function CancelForm({ doc, issues, date, today }: { doc: Detail["document"]; iss
           )}
         </Field>
       </ConfirmDialog>
-      <NoticeBanner notice={notice} />
       <div className="actions doc-actions">
+        <NoticeBanner notice={notice} />
         <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)} disabled={busy}>
           Beleg stornieren
         </button>
