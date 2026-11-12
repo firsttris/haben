@@ -533,13 +533,11 @@ Was dabei passiert:
 
 Nicht stornieren lassen sich:
 
-Die Sperre für beim Umzug übernommene offene Posten gilt unabhängig von der Herkunft: Lexware Office, sevDesk, BuchhaltungsButler, Accountable und [JSON-Eingang](belegimport.md). Die Meldung verweist deshalb auf das bisherige Programm, ohne einen bestimmten Anbieter zu unterstellen.
-
 | Fall | Was stattdessen |
 | --- | --- |
 | Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
-| Beim Umzug als offener Posten übernommen | Die Vorsteuer ist im alten Programm angemeldet; korrigiere den Beleg dort. |
+| Beim Umzug als offener Posten übernommen (aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md)) | Die Vorsteuer ist im bisherigen Programm angemeldet; korrigiere den Beleg dort. |
 | Das Jahr des Stornos oder einer zurückzunehmenden Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 
