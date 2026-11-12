@@ -571,9 +571,7 @@ Haben verrechnet nur, was zusammenpasst:
 
 Verrechnungen bewegen kein Geld: Es entsteht kein Bankumsatz, kein Kassenstand ändert sich, und die Buchungen beider Belege bleiben, wie sie sind. Beide Belege zählen danach als erledigt, die Verrechnung steht bei beiden mit Datum, Gegenbeleg und Grund. **Aufheben** setzt sie zurück, wie bei den Ausbuchungen mit einer Gegenzeile, damit die Spur erhalten bleibt. Dabei gibst du den Tag der Aufhebung an: Die Gegenzeile wirkt an diesem Tag, nicht rückwirkend auf den Tag der Verrechnung. Ein bereits gemeldetes Jahr bleibt damit unverändert.
 
-Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. Das folgt der Rechtsprechung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des § 11 Abs. 2 EStG (BFH, Urteil vom 19.04.1977, BStBl II S. 601). In der EÜR wirkt sie deshalb auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums.
-
-Die Voranmeldung bleibt davon unberührt. Die Vorsteuer eines Belegs zählt in dem Voranmeldungszeitraum, in dem der Beleg gebucht ist, unabhängig davon, ob und wann er bezahlt oder verrechnet wird.
+Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. Das folgt der Rechtsprechung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601). In der EÜR wirkt sie deshalb auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums. Die Voranmeldung ändert sich durch eine Verrechnung nicht; die Vorsteuerkorrektur bei erstatteter Gutschrift ist #690.
 
 ## Grenzen
 
