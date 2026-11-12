@@ -13,7 +13,7 @@ Der Zugang kann **nur lesen**. Buchen, Festschreiben, Stornieren, Mails versende
 
 ## Datenschutz
 
-Was der Assistent über die Werkzeuge liest, geht an den Anbieter des Modells. Bei Claude sind das die Server von Anthropic, bei einem Agenten wie Hermes Agent oder OpenClaw der Anbieter des Modells, das er nutzt, **auch wenn Haben nur im Heimnetz läuft und der Client auf deinem Rechner**: Lokal heißt nur, dass Haben selbst nicht aus dem Internet erreichbar sein muss. Ganz lokal bleibt es nur mit einem lokalen Modell (etwa LM Studio oder Open WebUI mit Ollama).
+Was der Assistent über die Werkzeuge liest, geht an den Anbieter des Modells. Bei Claude sind das die Server von Anthropic, **auch wenn Haben nur im Heimnetz läuft und der Client auf deinem Rechner**: Lokal heißt nur, dass Haben selbst nicht aus dem Internet erreichbar sein muss. Ganz lokal bleibt es nur mit einem lokalen Modell (etwa LM Studio oder Open WebUI mit Ollama).
 
 - Der Zugang ist standardmäßig aus und wird ausdrücklich eingeschaltet.
 - Kein Werkzeug gibt ELSTER-Zertifikat, PIN, Passwörter, API-Schlüssel oder die Steuer-ID heraus.
@@ -74,7 +74,6 @@ mcp_servers:
     url: https://haben.example.de/api/mcp
     headers:
       Authorization: Bearer hb_…
-    connect_timeout: 30
 ```
 
 **OpenClaw** nimmt Haben unter `mcp.servers` auf, im Control UI unter Einstellungen → MCP oder in der Konfiguration:
@@ -93,9 +92,9 @@ mcp_servers:
 }
 ```
 
-`openclaw mcp doctor haben --probe` prüft danach, ob die Werkzeuge ankommen. Beide Agenten laufen auf deinem Rechner oder im Heimnetz, Haben muss also nicht aus dem Internet erreichbar sein.
+`openclaw mcp doctor haben --probe` prüft danach bei gestopptem Gateway, ob die Werkzeuge ankommen. Beide Agenten laufen auf deinem Rechner oder im Heimnetz, Haben muss also nicht aus dem Internet erreichbar sein.
 
-Anders als ein Chat-Client haben sie Zeitpläne und eigene Kanäle: ein täglicher Blick auf offene Posten und Fristen, ein Bericht zur Voranmeldung vor dem Stichtag, eine Frage im Chat. Schreibend wirkt dabei nichts, der Zugang liest nur.
+Anders als ein Chat-Client haben sie Zeitpläne und eigene Kanäle: ein täglicher Blick auf offene Posten und Fristen, ein Bericht zur Voranmeldung vor dem Stichtag, eine Frage im Chat.
 
 ### Haben im Heimnetz mit eigenem Zertifikat
 
