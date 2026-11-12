@@ -31,7 +31,7 @@ Jeder Text an den Beitragenden folgt dem [Verhaltenskodex](../../../CODE_OF_COND
 - Das Issue lesen, auf das der Pull Request verweist, samt Akzeptanzkriterien und Diskussion.
 - Aus `docs/entwicklung.md` die Abschnitte lesen, die der Diff berührt (immer „Konventionen“, „Mitwirken“, „Beiträge annehmen“), bei der Oberfläche `DESIGN.md`, dazu die Nutzerseite des Bereichs in `docs/` und `docs/architektur.md` für Module und Tabellen.
 - Hier noch keine Tests ausführen; das macht `tdd-review`.
-- **Selbstprüfung vorhanden?** (nur Maintainer-Prüfung) Sie zählt, wenn der Kommentar „Selbstprüfung“ den aktuellen Commit nennt, in einem frischen Agenten oder durch eine andere Person lief und alle vier Fragen mit Beleg beantwortet. Dann die Schritte 1 bis 4 nachprüfen statt neu machen: jede Zeile mit ✗, „teilweise“ oder „nicht prüfbar“ und jede offene Frage ansehen; „Wollen wir das?“ entscheidet die prüfende Person selbst, die Selbstprüfung liefert nur die Belege; ist die Änderung fachlich heikel (Schritt 2), mindestens eine Quelle selbst lesen und einen Fall selbst gegenrechnen; bei den Regeln Stichproben. Stimmt etwas davon nicht, die Schritte 1 bis 4 ganz machen. Fehlt die Selbstprüfung oder ist sie veraltet, wie bisher alle Schritte; das ist kein Befund.
+- **Selbstprüfung vorhanden?** (nur Maintainer-Prüfung) Sie zählt, wenn der Kommentar „Selbstprüfung“ den aktuellen Commit nennt (als Stand oder im Nachtrag zum Nachbessern), in einem frischen Agenten oder durch eine andere Person lief und alle vier Fragen mit Beleg beantwortet. Dann die Schritte 1 bis 4 nachprüfen statt neu machen: jede Zeile mit ✗, „teilweise“ oder „nicht prüfbar“, jede offene Frage und jeden Punkt des Nachtrags am Commit ansehen; „Wollen wir das?“ entscheidet die prüfende Person selbst, die Selbstprüfung liefert nur die Belege; ist die Änderung fachlich heikel (Schritt 2), mindestens eine Quelle selbst lesen und einen Fall selbst gegenrechnen; bei den Regeln Stichproben. Stimmt etwas davon nicht, die Schritte 1 bis 4 ganz machen. Fehlt die Selbstprüfung oder ist sie veraltet, wie bisher alle Schritte; das ist kein Befund.
 
 ## 1. Wollen wir das?
 
@@ -94,8 +94,8 @@ Was ein Skript prüft (Lint, Modulgrenzen, Dateigröße, Seitenabdeckung, Titel,
 
 Nur für den eigenen Pull Request, statt der Schritte 5 bis 7; Urteil, Übernehmen und Merge bleiben beim Maintainer.
 
-- **Selbst nachbessern:** Was nach den Schritten 1 bis 4 fehlt oder falsch ist, behebt der Beitragende mit eigenen Commits: ein fachlicher Fehler zuerst mit rotem Test, geprüft nach `checks`, die Beschreibung nachgezogen. Danach die Schritte 1 bis 4 auf dem neuen Stand wiederholen, wieder in einem frischen Agenten, denn diese Session hat dann Code geschrieben.
-- **Kommentar im Pull Request:** Der Aufruf des Skills ist die Zustimmung dazu. Ein Kommentar je Pull Request; nach weiteren Pushes, die den Code ändern, denselben Kommentar auf den neuen Stand bringen. Was der Beitragende nicht entscheiden kann (ob die Änderung gewollt ist, eine Quelle, die nicht eindeutig ist), steht als offene Frage darin, nicht als erfüllt. Am Ende die Kennzeichnung als von Claude Code erzeugt.
+- **Selbst nachbessern:** Was nach den Schritten 1 bis 4 fehlt oder falsch ist, behebt der Beitragende mit eigenen Commits: ein fachlicher Fehler zuerst mit rotem Test, geprüft nach `checks`, die Beschreibung nachgezogen. Die Selbstprüfung läuft einmal: Danach bekommt der Kommentar einen Nachtrag mit dem neuen Stand und je behobenem Punkt dem Commit, ohne neue Prüfrunde; ob der Code danach stimmt, prüft das TDD-Review. Ganz neu, wieder in einem frischen Agenten, nur wenn das Nachbessern Umfang oder Ansatz ändert (ein Thema mehr oder weniger, ein anderer Lösungsweg).
+- **Kommentar im Pull Request:** Der Aufruf des Skills ist die Zustimmung dazu. Ein Kommentar je Pull Request; der Nachtrag zum Nachbessern kommt in denselben Kommentar. Was der Beitragende nicht entscheiden kann (ob die Änderung gewollt ist, eine Quelle, die nicht eindeutig ist), steht als offene Frage darin, nicht als erfüllt. Am Ende die Kennzeichnung als von Claude Code erzeugt.
 
 ```
 ## Selbstprüfung (beitrag-pruefen)
@@ -107,6 +107,7 @@ Stand: <Commit-SHA>, geprüft in einem frischen Agenten ohne den Verlauf der Ent
 ### Einfachste Lösung?         <was gestrichen wurde oder warum es so bleibt>
 ### Regeln                     | Regel | Ergebnis | Stelle |  (nur ✗ und „betrifft nicht“, „Rest ✓“)
 ### Offene Fragen an den Maintainer
+### Nachtrag: nachgebessert bis <Commit-SHA>   <je Punkt: vorher → jetzt, Commit; nur nach dem Nachbessern>
 ```
 
 - Danach weiter nach Skill `beitrag`, Schritt 6: TDD-Review.
