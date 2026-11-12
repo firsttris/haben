@@ -11,6 +11,9 @@ const API = "https://api.github.com";
 const tag = (n: number) => new Date(Date.UTC(2026, 10, 1 + n, 12));
 
 type Kommentar = { user: { login: string; type: string }; created_at: string; body: string };
+type Ereignis = { event: string; created_at: string; assignee?: { login: string } };
+
+const ZUWEISUNG: Ereignis = { event: "assigned", created_at: tag(0).toISOString(), assignee: { login: "anna" } };
 
 const kommentar = (login: string, am: Date, body = "Gute Idee"): Kommentar => ({
   user: { login, type: login.endsWith("[bot]") ? "Bot" : "User" },
@@ -18,26 +21,30 @@ const kommentar = (login: string, am: Date, body = "Gute Idee"): Kommentar => ({
   body,
 });
 
-function nachgebautesGithub(seiten: Kommentar[][]) {
+function nachgebautesGithub(seiten: Kommentar[][], ereignisSeiten: Ereignis[][] = [[ZUWEISUNG]]) {
   const geaendert: string[] = [];
   const antwort = (daten: unknown, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(daten), { status: 200, headers: { "content-type": "application/json", ...headers } });
+  // Eine Seite der Liste und im Header `Link` die nächste, wie GitHub sie schreibt
+  const seiteMitLink = (url: URL, liste: unknown[][], pfad: string) => {
+    const seite = Number(url.searchParams.get("page") ?? "1");
+    const naechste = new URL(`${API}${pfad}`);
+    naechste.search = url.search;
+    naechste.searchParams.set("page", String(seite + 1));
+    return antwort(liste[seite - 1] ?? [], seite < liste.length ? { link: `<${naechste}>; rel="next"` } : {});
+  };
   const fetch = async (eingabe: string | URL | Request, init: RequestInit = {}) => {
     const url = new URL(String(eingabe));
     const was = `${init.method ?? "GET"} ${url.pathname}`;
     if (was === "GET /repos/o/r/pulls") return antwort([]);
     if (was === "GET /repos/o/r/issues") return antwort(url.searchParams.get("page") === "1" ? [{ number: NUMMER, assignees: [{ login: "anna" }] }] : []);
     if (was === "GET /repos/o/r/collaborators/anna") return new Response(null, { status: 404 });
-    if (was === `GET /repos/o/r/issues/${NUMMER}/events`) {
-      return antwort([{ event: "assigned", created_at: tag(0).toISOString(), assignee: { login: "anna" } }]);
+    if (was === `GET /repos/o/r/issues/${NUMMER}/events` || was === `GET /repositories/1/issues/${NUMMER}/events`) {
+      return seiteMitLink(url, ereignisSeiten, `/repositories/1/issues/${NUMMER}/events`);
     }
     // GitHub schreibt die Links mit der Id des Repositorys statt seines Namens
     if (was === `GET /repos/o/r/issues/${NUMMER}/comments` || was === `GET /repositories/1/issues/${NUMMER}/comments`) {
-      const seite = Number(url.searchParams.get("page") ?? "1");
-      const naechste = new URL(`${API}/repositories/1/issues/${NUMMER}/comments`);
-      naechste.search = url.search;
-      naechste.searchParams.set("page", String(seite + 1));
-      return antwort(seiten[seite - 1] ?? [], seite < seiten.length ? { link: `<${naechste}>; rel="next"` } : {});
+      return seiteMitLink(url, seiten, `/repositories/1/issues/${NUMMER}/comments`);
     }
     if (init.method === "DELETE" || init.method === "POST") {
       geaendert.push(was);
@@ -71,6 +78,23 @@ describe("erinnerung.ts", () => {
     const github = nachgebautesGithub([[...andere, erinnerung], [kommentar("anna", tag(16), "Bin dran!")]]);
     vi.stubGlobal("fetch", github.fetch);
     // Acht Tage nach der Erinnerung: ohne annas Antwort wäre die Freigabe fällig
+    vi.setSystemTime(tag(22));
+
+    vi.resetModules();
+    await import("./erinnerung.ts");
+
+    expect(github.geaendert).toEqual([]);
+  });
+
+  it("rechnet ab der neuen Zuweisung, wenn sie erst auf der zweiten Seite der Ereignisse steht", async () => {
+    // Seite 1: anna war schon einmal zugewiesen (Tag 0) und wurde freigegeben, dann 98 andere Ereignisse;
+    // Seite 2: anna übernimmt das Issue an Tag 20 erneut
+    const frueher: Ereignis[] = [ZUWEISUNG, { event: "unassigned", created_at: tag(1).toISOString(), assignee: { login: "anna" } }];
+    const andere = Array.from({ length: 98 }, (): Ereignis => ({ event: "labeled", created_at: tag(2).toISOString() }));
+    const neu: Ereignis = { event: "assigned", created_at: tag(20).toISOString(), assignee: { login: "anna" } };
+    const github = nachgebautesGithub([[]], [[...frueher, ...andere], [neu]]);
+    vi.stubGlobal("fetch", github.fetch);
+    // Zwei Tage nach der neuen Zuweisung ist weder Erinnerung noch Freigabe fällig
     vi.setSystemTime(tag(22));
 
     vi.resetModules();
