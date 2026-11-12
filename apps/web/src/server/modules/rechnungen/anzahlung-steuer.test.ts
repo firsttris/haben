@@ -1,4 +1,5 @@
 import { ACCOUNTS } from "@haben/core";
+import { datevAccountTotals, parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -106,8 +107,15 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
 
   async function finalInvoice(advanceId: string) {
     const draft = await invoices.createDraft(actor, {
-      contactId, issueDate: "2027-01-20", serviceFrom: "2027-01-20", serviceTo: null,
-      paymentTermDays: 14, format: "zugferd", note: "", variant: "schluss", deducts: [advanceId],
+      contactId,
+      issueDate: "2027-01-20",
+      serviceFrom: "2027-01-20",
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      variant: "schluss",
+      deducts: [advanceId],
       lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
     return invoices.finalizeInvoice(actor, draft.id);
@@ -134,12 +142,142 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
 
   it("eine ausdrücklich erbrachte Teilleistung wird bei Soll im Leistungsmonat besteuert", async () => {
     const input = {
-      contactId, issueDate: "2026-12-01", serviceFrom: "2026-11-05", serviceTo: null,
-      paymentTermDays: 14, format: "zugferd" as const, note: "", variant: "abschlag" as const, advanceType: "teilleistung" as const,
-      lines: [{ description: "Abgenommene Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 }],
+      contactId,
+      issueDate: "2026-12-01",
+      serviceFrom: "2026-11-05",
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd" as const,
+      note: "",
+      variant: "abschlag" as const,
+      advanceType: "teilleistung" as const,
+      lines: [{ description: "Abgenommene Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 as const }],
     };
     await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
     await tax(2026, 11, 30_000, 5_700);
     await tax(2026, 12, 0, 0);
+  });
+
+  it("Zufluss bleibt in der EÜR im Zahlungsjahr, DATEV exportiert dieselben Kontensalden ohne zweite Kassenbewegung", async () => {
+    const invoice = await advance();
+    await finalInvoice(invoice.id);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-02-12", amount: 35_700 }, "2027-02-12");
+    for (const year of [2026, 2027]) {
+      const euer = await reports.euerForYear(year);
+      expect(euer.einnahmen.find((r) => r.key === "einnahmenSteuerpflichtig")?.amount).toBe(year === 2026 ? 0 : 30_000);
+      expect(euer.einnahmen.find((r) => r.key === "vereinnahmteUst")?.amount).toBe(year === 2026 ? 0 : 5_700);
+      expect((await reports.euerAbgleich(year)).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+    }
+    expect((await bank.cashBook(2027)).entries).toHaveLength(1);
+    await reports.saveDatevNumbers(actor, { beraterNr: "12345", mandantNr: "123" });
+    for (const year of [2026, 2027]) {
+      const { bytes } = await reports.datevExport(year);
+      const exported = datevAccountTotals(parseDatevBuchungsstapel(bytes).bookings);
+      const journal = await sql`select l.account, sum(l.debit)::int as debit, sum(l.credit)::int as credit from journal_lines l
+        join journal_entries e on e.id = l.entry_id where e.date >= ${`${year}-01-01`} and e.date < ${`${year + 1}-01-01`} group by l.account`;
+      for (const row of journal) {
+        const actual = exported.find((r) => r.account === row.account);
+        expect((actual?.credit ?? 0) - (actual?.debit ?? 0), `DATEV ${year} ${row.account}`).toBe(row.credit - row.debit);
+      }
+    }
+  });
+
+  it("das Storno der Schlussrechnung lässt die Steuer auf eine vereinnahmte Teilzahlung stehen", async () => {
+    const invoice = await advance();
+    const final = await finalInvoice(invoice.id);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-02-12", amount: 11_900 }, "2027-02-12");
+    await invoices.cancelInvoice(actor, final.id, "2027-03-12");
+    await tax(2027, 1, 100_000, 19_000);
+    await tax(2027, 2, 0, 0);
+    await tax(2027, 3, -90_000, -17_100);
+  });
+
+  it("eine Gegenzeile der Teilzahlung nach der Schlussleistung nimmt deren Steuer nicht zurück", async () => {
+    const invoice = await advance();
+    const payment = await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-12-12", amount: 11_900 }, "2027-02-12");
+    await finalInvoice(invoice.id);
+    await bank.reverseCashEntry(actor, payment.id, "2027-02-12");
+    await tax(2026, 12, 10_000, 1_900);
+    await tax(2027, 1, 90_000, 17_100);
+    await tax(2027, 2, 0, 0);
+  });
+
+  it("GmbH und SKR04: die Forderungsminderung nach Schlussleistung mindert die nun fällige Steuer", async () => {
+    await sql`update company set rechtsform = 'gmbh', name = 'Test GmbH', kontenrahmen = 'SKR04'`;
+    const invoice = await advance();
+    await finalInvoice(invoice.id);
+    await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2027-02-12", amount: 11_900 });
+    await tax(2027, 1, 100_000, 19_000);
+    await tax(2027, 2, -10_000, -1_900);
+  });
+
+  it("bereits festgeschriebene Abschläge ohne neue Angabe bleiben im Rechnungsmonat; neue Angaben sind gesiegelt", async () => {
+    const old = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: "2026-12-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      variant: "abschlag",
+      lines: [{ description: "Vorhandener Abschlag", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
+    });
+    // Simuliert den vor der Migration gespeicherten Entwurf; niemals eine festgeschriebene Zeile ändern.
+    await sql`update invoices set advance_type = null where id = ${old.id}`;
+    const final = await invoices.finalizeInvoice(actor, old.id);
+    const snapshot = await sql`select * from invoices where id = ${final.id}`;
+    await tax(2026, 12, 30_000, 5_700);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: final.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
+    await tax(2027, 1, 0, 0);
+    expect(await sql`select * from invoices where id = ${final.id}`).toEqual(snapshot);
+    const [seal] = await sql`select columns from seals where table_name = 'invoices' and row_id = ${final.id}`;
+    expect(seal!.columns.invoices).toContain("advance_type");
+    await expect(sql`update invoices set advance_type = 'anzahlung' where id = ${final.id}`).rejects.toThrow(/festgeschrieben/);
+  });
+
+  it("eine angeblich erbrachte Teilleistung ohne Datum oder mit künftigem Datum wird nicht festgeschrieben", async () => {
+    const input = {
+      contactId,
+      issueDate: "2026-12-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd" as const,
+      note: "",
+      variant: "abschlag" as const,
+      advanceType: "teilleistung" as const,
+      lines: [{ description: "Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 as const }],
+    };
+    const draft = await invoices.createDraft(actor, input);
+    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/Leistungsdatum/);
+    await invoices.updateDraft(actor, draft.id, { ...input, serviceFrom: "2027-01-05" });
+    await expect(invoices.finalizeInvoice(actor, draft.id)).rejects.toThrow(/noch nicht erbracht/);
+    expect((await invoices.getInvoice(draft.id))!.invoice.number).toBeNull();
+  });
+
+  it("Bankzuordnung und ihre Aufhebung verändern die Steuer genau um den zugeordneten Anteil", async () => {
+    const invoice = await advance();
+    const header = `"Girokonto";"DE89370400440532013000"\n\n`;
+    const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
+    const row = `"12.01.27";"12.01.27";"Gebucht";"Nordwerk";"Testfirma";"${invoice.number}";"Eingang";"DE02120300000000202051";"119,00";"";"";""\n`;
+    await bank.importStatement(actor, { filename: "zahlung.csv", bytes: new TextEncoder().encode(header + columns + row) }, null);
+    const [transaction] = await sql`select id from bank_transactions`;
+    await bank.allocate(actor, { kind: "invoice", invoiceId: invoice.id, transactionId: transaction!.id, amount: 11_900 });
+    await tax(2027, 1, 10_000, 1_900);
+    const [allocation] = await sql`select id from allocations where invoice_id = ${invoice.id}`;
+    await bank.reverseAllocation(actor, allocation!.id);
+    await tax(2027, 1, 0, 0);
+  });
+
+  it("gleichzeitige Zahlung und Schlussrechnung stellen den Steueranteil genau einmal fällig", async () => {
+    const invoice = await advance();
+    await Promise.all([
+      finalInvoice(invoice.id),
+      bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 11_900 }, "2027-01-20"),
+    ]);
+    await tax(2026, 12, 0, 0);
+    await tax(2027, 1, 100_000, 19_000);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 });
