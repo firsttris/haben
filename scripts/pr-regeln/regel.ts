@@ -73,8 +73,11 @@ export function hints(files: string[], commitSubjects: string[]): Report[] {
   return reports;
 }
 
-/** Nur Markdown, docs/ oder LICENSE: dieselbe Grenze wie der Job `changes` in ci.yml, ohne dessen Sonderfall für Gelöschtes */
-const isDocsOnly = (files: string[]) => files.length > 0 && files.every((file) => /\.md$|^docs\/|^LICENSE$/.test(file));
+/**
+ * Nur Markdown, docs/, mkdocs.yml oder LICENSE: die Grenze des Jobs `changes` in ci.yml (ohne dessen Sonderfall für
+ * Gelöschtes) und dazu mkdocs.yml, das nach tdd-review, Schritt 0, ebenfalls zu doku-pruefen gehört
+ */
+const isDocsOnly = (files: string[]) => files.length > 0 && files.every((file) => /\.md$|^docs\/|^mkdocs\.yml$|^LICENSE$/.test(file));
 /** Wer Haben pflegt, prüft und mergt selbst; author_association aus dem Ereignis von GitHub */
 const MAINTAINERS = ["OWNER", "MEMBER", "COLLABORATOR"];
 
