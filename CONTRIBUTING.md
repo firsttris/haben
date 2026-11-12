@@ -44,7 +44,7 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
 - Zuerst schaut ein Maintainer oder Collaborator, ob die Änderung zu Haben passt, gegen die Quellen geprüft ist und
   Tests und Doku mitbringt ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)). Ein Issue
   vorab spart dir Arbeit an etwas, das wir nicht übernehmen können.
-- Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, außer er ändert nur die Doku: Ein Befund zählt nur mit einem Test, der
+- Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, ohne Code eine Doku-Prüfung: Ein Befund zählt nur mit einem Test, der
   auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
   Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Die Schritte stehen unter
   [Review](https://haben.app/entwicklung.html#review).
