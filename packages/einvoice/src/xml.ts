@@ -216,7 +216,15 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
         },
         ...(buyer.ustId && !outOfScope ? { "cac:PartyTaxScheme": { "cbc:CompanyID": buyer.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } } } : {}),
         "cac:PartyLegalEntity": { "cbc:RegistrationName": buyer.name },
-        ...(buyer.email ? { "cac:Contact": { "cbc:ElectronicMail": buyer.email } } : {}),
+        // BT-56 Ansprechpartner des Käufers (#424), BT-58 die E-Mail des Kontakts wie bisher; Reihenfolge laut Schema: Name vor E-Mail
+        ...(buyer.email || buyer.ansprechpartner
+          ? {
+              "cac:Contact": {
+                ...(buyer.ansprechpartner ? { "cbc:Name": buyer.ansprechpartner.name } : {}),
+                ...(buyer.email ? { "cbc:ElectronicMail": buyer.email } : {}),
+              },
+            }
+          : {}),
       },
     },
     "cac:TaxTotal": [

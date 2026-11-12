@@ -1443,6 +1443,20 @@
       "when": 1794473880659,
       "tag": "0205_eigene_seiten_neuer_tab",
       "breakpoints": true
+    },
+    {
+      "idx": 206,
+      "version": "7",
+      "when": 1794478207206,
+      "tag": "0206_ansprechpartner",
+      "breakpoints": true
+    },
+    {
+      "idx": 207,
+      "version": "7",
+      "when": 1794478209986,
+      "tag": "0207_ansprechpartner_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -2073,6 +2073,73 @@ test("Beleggestaltung: Einstellungen, die das zugeordnete eigene Layout nicht ve
   await expect(giroCode).toHaveAccessibleDescription("");
 });
 
+test("Ansprechpartner: am Kontakt anlegen, in der Rechnung wählen und festschreiben; die Rechnung behält den Stand (#424)", async () => {
+  await go("/kontakte");
+  await go(
+    (await page
+      .getByRole("link", { name: /Rheinpixel GmbH/ })
+      .first()
+      .getAttribute("href"))!,
+  );
+  const karte = page.getByRole("region", { name: "Ansprechpartner" });
+  await karte.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
+  const neu = karte.getByRole("form", { name: "Neuer Ansprechpartner" });
+  await neu.getByLabel("Name").fill("Mara Beispiel");
+  await neu.getByLabel("E-Mail").fill("mara@rheinpixel.example");
+  await neu.getByLabel("Telefon").fill("+49 221 7654321");
+  await neu.getByLabel("Funktion").fill("Einkauf");
+  await neu.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Ansprechpartner angelegt.")).toBeVisible();
+  await expect(karte).toContainText("Einkauf · mara@rheinpixel.example · +49 221 7654321");
+
+  // Ein Kunde ohne Ansprechpartner bekommt das Feld nicht
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await kundeWaehlen(page, "Nordwerk Software GmbH · Hamburg");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
+
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  const feld = page.getByRole("combobox", { name: "Ansprechpartner" });
+  await expect(feld).toHaveValue("");
+  await feld.selectOption({ label: "Mara Beispiel" });
+  await page.getByLabel("Beschreibung Position 1").fill("Wartung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("300");
+  await page.getByRole("button", { name: "Entwurf speichern" }).first().click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  // Gespeichert: die Auswahl steht nach dem Neuladen noch da
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" }).locator("option:checked")).toHaveText("Mara Beispiel");
+  await page.getByRole("button", { name: "Festschreiben" }).first().click();
+  await bestaetigen(page, "Festschreiben");
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const id = /rechnungen\/([0-9a-f-]{36})/.exec(page.url())![1];
+  const buyer = (xml: string) => /<ram:BuyerTradeParty>([\s\S]*?)<\/ram:BuyerTradeParty>/.exec(xml)![1]!;
+  const xml = await (await page.request.get(`/api/rechnung/${id}/xml`)).text();
+  expect(buyer(xml)).toContain("<ram:PersonName>Mara Beispiel</ram:PersonName>");
+
+  // Die Person ändert sich und wird deaktiviert; die festgeschriebene Rechnung behält den Stand
+  await go("/kontakte");
+  await go(
+    (await page
+      .getByRole("link", { name: /Rheinpixel GmbH/ })
+      .first()
+      .getAttribute("href"))!,
+  );
+  await karte.getByRole("button", { name: "Mara Beispiel ändern" }).click();
+  const aendern = karte.getByRole("form", { name: "Ansprechpartner ändern" });
+  await aendern.getByLabel("Name").fill("Mara Beispielmann");
+  await aendern.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Ansprechpartner gespeichert.")).toBeVisible();
+  await karte.getByRole("button", { name: "Mara Beispielmann deaktivieren" }).click();
+  await expect(karte.getByText("Deaktiviert")).toBeVisible();
+  expect(buyer(await (await page.request.get(`/api/rechnung/${id}/xml`)).text())).toContain("<ram:PersonName>Mara Beispiel</ram:PersonName>");
+
+  // Eine deaktivierte Person wird im neuen Entwurf nicht mehr angeboten
+  await page.goto("/rechnungen/neu", { waitUntil: "networkidle" });
+  await kundeWaehlen(page, "Rheinpixel GmbH · Köln");
+  await expect(page.getByRole("combobox", { name: "Ansprechpartner" })).toHaveCount(0);
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/rechnungen",

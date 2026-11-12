@@ -27,6 +27,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadDesign } from "./letterhead.ts";
 import { backgroundInfo } from "./background.ts";
 import { logoInfo } from "./logo.ts";
+import { contactPersonOptions } from "./contact-persons.ts";
 import { mandateOptions } from "./sepa-mandate.ts";
 import { today } from "../../today.ts";
 
@@ -274,7 +275,7 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo, background, design, mandates, contactPersons] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
@@ -284,12 +285,15 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     backgroundInfo(),
     loadDesign(),
     kind === "rechnung" ? mandateOptions(today()) : Promise.resolve([]),
+    contactPersonOptions(),
   ]);
   const { name, strasse, plz, ort, email, telefon, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
     contacts,
     /** Gültige Lastschriftmandate je Kunde (#445), für die Zahlungsart der Rechnung */
     mandates,
+    /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
+    contactPersons,
     articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
       id,
       number,
