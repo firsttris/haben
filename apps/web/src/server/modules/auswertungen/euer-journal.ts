@@ -96,11 +96,12 @@ function rechnungsAnteile(kr: Kontenrahmen, zeilen: Zeile[], gesamt: number, aus
 const alsZeilen = (zeilen: Zeile[], anteil: number[]): Zeile[] =>
   zeilen.map((z, i) => ({ ...z, debit: Math.max(anteil[i]!, 0), credit: Math.max(-anteil[i]!, 0) }));
 
-/** Summiert die Wirkung `von` in `nach` */
-function dazu(nach: EuerAusJournal, von: EuerAusJournal) {
-  for (const [key, betrag] of Object.entries(von.zeilen) as [keyof EuerAusJournal["zeilen"], number][]) nach.zeilen[key] = (nach.zeilen[key] ?? 0) + betrag;
-  nach.bewirtungNichtAbziehbar += von.bewirtungNichtAbziehbar;
-  nach.gewerbesteuerNichtAbziehbar += von.gewerbesteuerNichtAbziehbar;
+/** Summiert die Wirkung `von` in `nach`, bei einer aufgehobenen Zuordnung mit umgekehrtem Vorzeichen */
+function dazu(nach: EuerAusJournal, von: EuerAusJournal, vorzeichen: 1 | -1 = 1) {
+  for (const [key, betrag] of Object.entries(von.zeilen) as [keyof EuerAusJournal["zeilen"], number][])
+    nach.zeilen[key] = (nach.zeilen[key] ?? 0) + vorzeichen * betrag;
+  nach.bewirtungNichtAbziehbar += vorzeichen * von.bewirtungNichtAbziehbar;
+  nach.gewerbesteuerNichtAbziehbar += vorzeichen * von.gewerbesteuerNichtAbziehbar;
 }
 
 /** Die EÜR eines Jahres aus dem Journal: Zeilen wie computeEuer, ohne AfA und Privatnutzung, die noch nicht gebucht sind */
@@ -198,11 +199,23 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     if (hatOffenenPosten && (b.sourceType === "invoice" || b.sourceType === "document" || b.sourceType === "asset")) return summe;
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
-    euerAusZeilen(
-      kr,
-      b.zeilen.filter((z) => !offenerPosten(kr, z)),
-      herkunft,
+    const eigene = b.zeilen.filter((z) => !offenerPosten(kr, z));
+    const umkehr = b.sourceType === "allocation" && b.reversesId !== null;
+    // Rücknahme in derselben EÜR-Zeile: Eine aufgehobene Zahlung ist keine echte Finanzamtserstattung und umgekehrt.
+    // Amtliche Anleitung EÜR 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+    dazu(
       summe,
+      euerAusZeilen(
+        kr,
+        umkehr
+          ? alsZeilen(
+              eigene,
+              eigene.map((z) => z.credit - z.debit),
+            )
+          : eigene,
+        herkunft,
+      ),
+      umkehr ? -1 : 1,
     );
     if (!hatOffenenPosten || ausgeglichen === 0) return summe;
     const typ = ziel?.invoiceId ? "invoice" : ziel?.documentId ? "document" : null;

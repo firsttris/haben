@@ -522,7 +522,7 @@ Jeder Monat lässt sich nur einer Auszahlung zuordnen; die Übernahme ist unver�
 
 **Rechnung an die Store-Gesellschaft:** Im Kommissionsmodell erbringst du deine Leistung an den Store, nicht an die Käufer ([EuGH C-101/24 Xyrality](https://curia.europa.eu/juris/liste.jsf?num=C-101/24)). Sitzt die Gesellschaft im EU-Ausland, ist die Leistung dort steuerbar (§ 3a Abs. 2 UStG) und die Gesellschaft schuldet die Steuer: Reverse Charge, Kz 21 und [Zusammenfassende Meldung](umsatzsteuer.md#zusammenfassende-meldung). Eine Gutschrift stellen Google und Apple dir dafür nicht aus. Haben legt deshalb je Monat (bei Apple je Monat und Währung) einen Rechnungsentwurf an:
 
-1. Unter **Kontakte** die Gesellschaft mit Anschrift und USt-IdNr. anlegen, wie sie in deinem Vertrag bzw. Zahlungsprofil steht (bei Google in der Regel Google Commerce Ltd, bei Apple für die meisten Länder Apple Distribution International Ltd, beide Irland).
+1. Unter **Kontakte** die Gesellschaft mit Anschrift und USt-IdNr. anlegen, wie sie in deinem Vertrag bzw. Zahlungsprofil steht (bei Google in der Regel Google Commerce Ltd, bei Apple für die meisten Länder Apple Distribution International Ltd, beide Irland). Der Kontakt braucht die Rolle **Kunde**, denn du stellst ihm Rechnungen; hast du ihn nur als Lieferanten angelegt (etwa für die Gebühr des Developer Program), setze beim Kontakt zusätzlich den Haken **Kunde**. Die Auswahl in Schritt 2 zeigt nur Kunden im Ausland.
 2. Unter **Einstellungen › Bank › Google Play und App Store** bei **Store-Gesellschaft für die Rechnungsentwürfe** diesen Kontakt wählen. Ab dann legt jeder Abruf für neu übernommene Monate einen Entwurf an; **Rechnungsentwürfe für alle Monate anlegen** holt das für ältere nach.
 3. Den Entwurf unter **Rechnungen** prüfen und festschreiben, dann im Konto des Stores dem Monatsumsatz zuordnen.
 
@@ -587,6 +587,10 @@ Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die 
 Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung und Betrag. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), ebenfalls mit dem Buchungsdatum des Umsatzes. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
 
 Eine Zuordnung lässt sich nur einmal aufheben.
+
+Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
+
+Die Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen stehen auch dabei am ursprünglichen Buchungsdatum. Die neu berechneten Steuerwerte eines früheren Zeitraums können sich deshalb ändern; eine gespeicherte, bereits gesendete Voranmeldung bleibt unverändert. Prüfe dann, ob du eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) abgeben musst. Die Gegenbuchung des Belegs erhält unabhängig davon ihr eigenes, im Stornodialog genanntes Datum.
 
 ## Gegenläufige Umsätze verrechnen
 

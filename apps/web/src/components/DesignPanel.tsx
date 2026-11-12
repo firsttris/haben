@@ -172,30 +172,32 @@ export function DesignOptionFields({
       </section>
       <section>
         <h3>Auf dem Blatt</h3>
-        {SWITCHES.map(({ key, label }) => {
-          const entry = hint(key);
-          const box = (
-            <label key={key} className="checkbox">
-              <input
-                type="checkbox"
-                checked={design[key]}
-                disabled={entry?.aus}
-                aria-describedby={layoutHintId(key, entry)}
-                onChange={(event) => onChange({ [key]: event.target.checked })}
-              />
-              {label}
-            </label>
-          );
-          // Hinweis außerhalb des Labels, sonst zählte er zum Namen (DESIGN.md)
-          return entry ? (
-            <div key={key} className="checkbox-hinted">
-              {box}
-              <LayoutHintText option={key} hint={entry} />
-            </div>
-          ) : (
-            box
-          );
-        })}
+        <div>
+          {SWITCHES.map(({ key, label }) => {
+            const entry = hint(key);
+            const box = (
+              <label key={key} className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={design[key]}
+                  disabled={entry?.aus}
+                  aria-describedby={layoutHintId(key, entry)}
+                  onChange={(event) => onChange({ [key]: event.target.checked })}
+                />
+                {label}
+              </label>
+            );
+            // Hinweis außerhalb des Labels, sonst zählte er zum Namen (DESIGN.md)
+            return entry ? (
+              <div key={key} className="checkbox-hinted">
+                {box}
+                <LayoutHintText option={key} hint={entry} />
+              </div>
+            ) : (
+              box
+            );
+          })}
+        </div>
         {!design.vatColumn && vatRates > 1 && (
           <div className="banner banner-info" role="status">
             Dieser Beleg hat mehrere Steuersätze, deshalb bleibt die Spalte USt stehen.
