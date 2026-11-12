@@ -5,9 +5,9 @@ import type { NavMark } from "../lib/navigation.ts";
  * oder das „H“ in `--brand` des Themes. Farbe als Inline-Style ist die Ausnahme aus DESIGN.md (Farben und Themes).
  */
 export function NavMarkSymbol({ mark }: { mark: NavMark }) {
-  if (mark && "logo" in mark) return <img className="brand-logo" src={mark.logo} alt="" width={48} height={48} />;
+  if (mark && "logo" in mark) return <img className="brand-logo" src={mark.logo} alt="" width={40} height={40} />;
   return (
-    <span className="brand-mark" style={mark ? { background: mark.background, color: mark.ink } : undefined}>
+    <span className={mark?.kante ? "brand-mark brand-mark-kante" : "brand-mark"} style={mark ? { background: mark.background, color: mark.ink } : undefined}>
       H
     </span>
   );

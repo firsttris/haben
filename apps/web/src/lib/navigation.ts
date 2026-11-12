@@ -1,4 +1,4 @@
-import { ACCENT_PATTERN, inkOnAccent } from "@haben/core";
+import { ACCENT_PATTERN, inkOnAccent, needsEdgeOnNav } from "@haben/core";
 
 /** Bedingungen, unter denen ein Menüpunkt der Hauptnavigation erscheint */
 export interface NavBedingung {
@@ -21,7 +21,8 @@ export function navLinkSichtbar(link: NavBedingung, { gesellschaft, hatMitarbeit
 }
 
 /** Zeichen der Firma in der Navigation (#504): Logo der Belege, „H“ in eigener Farbe oder null für das „H“ des Themes */
-export type NavMark = { logo: string } | { background: string; ink: "#FFFFFF" | "#000000" } | null;
+/** `kante`: helle Innenkante, wenn sich die Farbe in einem Theme nicht mit 3 : 1 von der Navigation abhebt */
+export type NavMark = { logo: string } | { background: string; ink: "#FFFFFF" | "#000000"; kante: boolean } | null;
 
 /**
  * Was die Navigation zeigt: das Logo, wenn es gewählt ist und es eins gibt (`logoSha256`), sonst die eigene Farbe mit
@@ -29,7 +30,8 @@ export type NavMark = { logo: string } | { background: string; ink: "#FFFFFF" | 
  */
 export function navMark(setting: { color: string | null; logo: boolean }, logoSha256: string | null): NavMark {
   if (setting.logo && logoSha256) return { logo: `/api/kennzeichen?v=${logoSha256.slice(0, 16)}` };
-  if (setting.color && ACCENT_PATTERN.test(setting.color)) return { background: setting.color.toUpperCase(), ink: inkOnAccent(setting.color) };
+  if (setting.color && ACCENT_PATTERN.test(setting.color))
+    return { background: setting.color.toUpperCase(), ink: inkOnAccent(setting.color), kante: needsEdgeOnNav(setting.color) };
   return null;
 }
 

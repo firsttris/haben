@@ -216,8 +216,9 @@ test("das Zeichen ist fest quadratisch, am Desktop 40 und am Handy 36 Pixel, auc
     "375px": { h: [36, 36], logo: [36, 36], gleicherPlatz: true },
     "320px": { h: [36, 36], logo: [36, 36], gleicherPlatz: true },
   });
-  // Rechts ohne Innenabstand: Der Name hat mit der größeren Kachel 138 Pixel, so viel wie mit dem alten „H“
-  expect(nameDesktop).toBe(138);
+  // Rechts ohne Innenabstand und mit 8 Pixel Lücke: Der Name hat mit der größeren Kachel 140 Pixel, mehr als mit dem
+  // alten „H“ von 28 Pixel (138)
+  expect(nameDesktop).toBe(140);
   expect(zeichenLinks).toBe(symbolLinks);
 });
 

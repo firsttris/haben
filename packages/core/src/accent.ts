@@ -35,6 +35,29 @@ export function inkOnAccent(hex: string): "#FFFFFF" | "#000000" {
   return onWhite >= onDark ? "#FFFFFF" : INK_ON_LIGHT;
 }
 
+/** Kontrast zweier Farben #RRGGBB nach WCAG 2.2, 1 bis 21 */
+function contrast(a: string, b: string): number {
+  const [hell, dunkel] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hell + 0.05) / (dunkel + 0.05);
+}
+
+/**
+ * Hintergrund der Navigation in den sechs Themes (Wald, Ozean, Pflaume, Graphit, Nacht, Tiefsee). Muss mit `--nav` in
+ * apps/web/src/styles.css übereinstimmen; navigation.test.ts prüft das.
+ */
+export const NAV_BACKGROUNDS = ["#16211C", "#131C2B", "#1F1624", "#15191D", "#0D1210", "#0B1017"] as const;
+
+/** WCAG 2.2, 1.4.11: 3 : 1 für Grafik, die man erkennen muss */
+const MIN_GRAPHIC_CONTRAST = 3;
+
+/**
+ * Braucht das „H“ in eigener Farbe (#504) eine helle Innenkante? Ja, wenn sich die Kachel in einem der Themes nicht
+ * mit 3 : 1 von der Navigation abhebt. Das Theme wählt der Browser, deshalb gegen alle sechs.
+ */
+export function needsEdgeOnNav(hex: string): boolean {
+  return Math.min(...NAV_BACKGROUNDS.map((nav) => contrast(hex, nav))) < MIN_GRAPHIC_CONTRAST;
+}
+
 /** WCAG 2.2, 1.4.3: 4,5 : 1 für kleine Schrift; die Spaltenköpfe stehen in 8 pt */
 export const MIN_TEXT_CONTRAST = 4.5;
 

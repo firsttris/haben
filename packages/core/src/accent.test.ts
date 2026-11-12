@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { ACCENT_PATTERN, accentPalette, contrastOnWhite, DEFAULT_ACCENT, inkOnAccent, MIN_TEXT_CONTRAST, NAV_BACKGROUNDS, needsEdgeOnNav, oklch } from "./accent.ts";
+import {
+  ACCENT_PATTERN,
+  accentPalette,
+  contrastOnWhite,
+  DEFAULT_ACCENT,
+  inkOnAccent,
+  MIN_TEXT_CONTRAST,
+  NAV_BACKGROUNDS,
+  needsEdgeOnNav,
+  oklch,
+} from "./accent.ts";
 
 describe("contrastOnWhite", () => {
   it("rechnet wie WCAG: Schwarz 21 : 1, Weiß 1 : 1", () => {

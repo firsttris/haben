@@ -144,9 +144,11 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: 0; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
 /* Das Zeichen ist fest quadratisch, 48px am Desktop (so hoch wie „Haben“ mit zweizeiligem Namen), 40px am Handy; das
    „H“ und ein Logo gleich groß (#504) */
-.brand-mark { flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 27px; }
+.brand-mark { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 23px; }
+/* Eigene Farbe, die sich in einem Theme nicht mit 3 : 1 von der Navigation abhebt (WCAG 1.4.11): feine helle Innenkante, die Größe bleibt */
+.brand-mark-kante { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nav-ink) 60%, transparent); }
 /* Logo als Zeichen (#504): auf Weiß wie auf dem Beleg, damit auch ein dunkles Logo auf dunkler Navigation zu sehen ist */
-.brand-logo { display: block; width: 48px; height: 48px; padding: 3px; border-radius: 12px; background: #fff; object-fit: contain; flex-shrink: 0; }
+.brand-logo { display: block; width: 40px; height: 40px; padding: 3px; border-radius: 10px; background: #fff; object-fit: contain; flex-shrink: 0; }
 .nav-mark-choice { display: flex; gap: 24px; align-items: start; flex-wrap: wrap; }
 .nav-mark-choice > fieldset { flex: 1 1 280px; margin: 0; padding: 0; border: 0; }
 /* Alle drei Optionen gleich hoch, auch die mit Hinweis darunter */
@@ -186,8 +188,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
      er wird gekürzt */
   /* Rechts 8px Abstand zum Menüknopf */
   .brand { padding: 0 8px 0 12px; flex: 1 1 0; min-width: 0; }
-  .brand-mark, .brand-logo { width: 40px; height: 40px; border-radius: 10px; }
-  .brand-mark { font-size: 23px; }
+  .brand-mark, .brand-logo { width: 36px; height: 36px; border-radius: 9px; }
+  .brand-mark { font-size: 21px; }
   .brand-text { line-height: 22px; }
   .brand-firma { display: block; white-space: nowrap; text-overflow: ellipsis; }
   .brand-firma-voll { display: none; }
