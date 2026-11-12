@@ -1,31 +1,20 @@
 <div align="center">
 
-<h1>Haben: Open-Source-Buchhaltung, selbst gehostet</h1>
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
-  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung und Zahlungseingang über 1.725,50 € zugeordnet, Belege nach GoBD festgeschrieben, Voranmeldung für ELSTER vorbereitet" width="900">
+  <img src="docs/hero-hell.png" alt="Haben als T-Konto: auf der Soll-Seite E-Rechnung nach § 14 UStG, unveränderbare Belege nach § 146 AO, Umsatzsteuer-Voranmeldung nach § 18 UStG und Einnahmen-Überschuss-Rechnung nach § 4 Abs. 3 EStG; auf der Haben-Seite „Deine Bücher. Dein Server.“" width="900">
 </picture>
 
-**Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
-Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
-direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
+Haben ist eine Open-Source-Buchhaltung für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs,
+die du auf deinem eigenen Server betreibst. Sie schreibt E-Rechnungen (ZUGFeRD, XRechnung), gleicht dein Konto ab,
+erstellt EÜR oder Bilanz und übermittelt die Steuern an ELSTER.
 
-![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
+[![Release](https://img.shields.io/github/v/release/firsttris/haben?label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
-[![Doku](https://img.shields.io/badge/Doku-haben.app-4f46e5?logo=zensical&logoColor=white)](https://haben.app/)
-[![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
+[![Doku](https://img.shields.io/badge/Doku-haben.app-1f6f5c)](https://haben.app/)
 
-[Warum?](#warum-haben) •
-[Funktionen](#funktionen) •
-[Schnellstart](#schnellstart) •
-[FAQ](#faq) •
-[Dokumentation](https://haben.app/) •
-[Entwicklung](#entwicklung)
-
-<sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
+<sub>English: self-hosted open-source bookkeeping for German freelancers and small companies (GmbH, UG), with e-invoicing, bank reconciliation and tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-uebersicht-dunkel.png">
@@ -35,114 +24,56 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 </div>
 
 > [!WARNING]
-> **Beta:** Haben wird noch stark weiterentwickelt. Datenmodell und Abläufe können sich von Version zu Version
-> ändern, und Migrationen lassen sich nicht zurückspielen. Vor jedem Update ein Backup machen
-> (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
-> und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
+> Haben ist in der Beta. Datenmodell und Abläufe ändern sich noch, Migrationen lassen sich nicht zurückspielen.
+> Mach vor jedem Update ein Backup ([Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
+> und prüfe Meldungen ans Finanzamt vor dem Absenden.
 
-## <img src="docs/icons/info.svg" width="24" height="24" align="absmiddle" alt=""> Warum Haben?
+## Warum Haben
 
-In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
+Haben ist eine Alternative zu Lexware Office und sevDesk, die nichts kostet und deine Rechnungen auf deinem Server
+lässt. Gebuchtes wird nach den GoBD festgeschrieben und lässt sich nur per Storno korrigieren. Bestehende Daten
+übernimmst du aus Lexware Office, sevDesk, BuchhaltungsButler oder Accountable. Entwickelt wird Haben in Deutschland
+und nur für das deutsche Steuerrecht.
 
-Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
-Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht. Haben ist die
-Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
-auf deinem eigenen Server betreibst.
+## Funktionen
 
-**Aus Deutschland, für das deutsche Steuerrecht.**
-
-- **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
-- **Für die GoBD gebaut**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
-- **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch, auch mit eigenem Modell auf deinem Server
-- **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen und Kontakte aus Lexware Office, sevDesk, BuchhaltungsButler oder Accountable übernehmen, DATEV-Export archivieren
-- **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
-  Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
-- **Für GmbH und UG**: Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung mit
-  Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
-  Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
-
-## <img src="docs/icons/overview.svg" width="24" height="24" align="absmiddle" alt=""> Funktionen
-
-Kurz je Bereich, gegliedert wie die Navigation der App; die Details stehen auf der verlinkten Seite der
-[Dokumentation](https://haben.app/).
-
-### Verkauf
+Die Details stehen jeweils auf der verlinkten Seite der [Dokumentation](https://haben.app/).
 
 | Bereich | Was Haben kann |
 |---|---|
-| <img src="docs/icons/invoice.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Rechnungen](https://haben.app/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Abschlags- und wiederkehrende Rechnungen, Skonto, GiroCode, [SEPA-Lastschrift](https://haben.app/rechnungen.html#lastschrift) mit Mandaten und Sammeldatei, Mahnwesen mit Basiszinssatz von der Bundesbank, Versand per E-Mail |
-| <img src="docs/icons/quote.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Angebote](https://haben.app/angebote.html) | Optionale und alternative Positionen, Zahlungsplan mit Abschlagsrechnungen, [Auftragsbestätigung und Lieferschein](https://haben.app/angebote.html#auftragsbestätigung-und-lieferschein), mit einem Klick zur Rechnung |
-| <img src="docs/icons/textblock.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Eigene Belegvorlagen](https://haben.app/belegvorlagen.html) | Eigenes Layout in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung, mit Schriften und Briefpapier |
+| [Rechnungen](https://haben.app/rechnungen.html) | ZUGFeRD und XRechnung (KoSIT-geprüft), Live-Vorschau, Abschlags- und wiederkehrende Rechnungen, SEPA-Lastschrift, Mahnwesen, Versand per E-Mail |
+| [Angebote](https://haben.app/angebote.html) | Optionale Positionen, Zahlungsplan, Auftragsbestätigung und Lieferschein |
+| [Belegvorlagen](https://haben.app/belegvorlagen.html) | Eigenes Layout in Typst mit deinen Schriften und deinem Briefpapier |
+| [Belege](https://haben.app/belege.html) | Hochladen per Kamera oder E-Mail; E-Rechnungen liest Haben direkt, andere Belege auf Wunsch per KI, auch mit eigenem Modell |
+| [Bankabgleich](https://haben.app/bank.html) | Abruf per PSD2 oder Import (CAMT.053, PayPal, Stripe und weitere), Zuordnungsvorschläge mit Begründung |
+| [Kasse](https://haben.app/kasse.html) und [Pauschalen](https://haben.app/pauschalen.html) | Kassenbuch, Homeoffice, Kilometer und Verpflegungsmehraufwand |
+| [Anlagen](https://haben.app/anlagen.html) und [Lohn](https://haben.app/lohn.html) | AfA, GWG und Sammelposten; Lohnabrechnung nach dem Programmablaufplan des BMF |
+| [Umsatzsteuer](https://haben.app/umsatzsteuer.html) | Voranmeldung nach Ist oder Soll mit der Herkunft jeder Kennzahl, Zusammenfassende Meldung |
+| [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) | Direkt per ERiC oder ohne Hersteller-ID über Mein ELSTER |
+| [Jahreserklärungen](https://haben.app/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR, Einkommensteuer; für GmbH und UG Körperschaft- und Gewerbesteuer und E-Bilanz |
+| [Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03 oder SKR04, Journal, Kontenblätter, DATEV-Export |
+| [Steuerberatung](https://haben.app/steuerberatung.html) | Eigener Zugang, der nur lesen kann |
+| [REST-API](https://haben.app/api.html) und [MCP](https://haben.app/ki-assistenten.html) | Schnittstelle mit OpenAPI; KI-Assistenten fragen deine Buchhaltung nur lesend ab |
 
-### Ausgaben und Geld
+## Screenshots
 
-| Bereich | Was Haben kann |
-|---|---|
-| <img src="docs/icons/receipt.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Belege](https://haben.app/belege.html) | Hochladen per Drag-and-drop, Kamera oder E-Mail; E-Rechnungen direkt gelesen, sonst optional per KI (Claude, Ollama, OpenRouter …); Dauerbelege, SEPA-Überweisung, § 13b und innergemeinschaftlicher Erwerb |
-| <img src="docs/icons/bank.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Bankabgleich](https://haben.app/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053, PayPal, Stripe, Etsy, Google Play, App Store …), Vorschläge mit Begründung, Rücklastschriften, Steuerzahlungen und Darlehen |
-| <img src="docs/icons/cash.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Kasse](https://haben.app/kasse.html) · [Pauschalen](https://haben.app/pauschalen.html) | Kassenbuch für Barzahlungen und Bareinnahmen ohne Rechnung; Homeoffice, Kilometer, Verpflegungsmehraufwand |
-| <img src="docs/icons/assets.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Anlagen und AfA](https://haben.app/anlagen.html) | Anlagenverzeichnis, lineare und degressive AfA, GWG und Sammelposten |
-| <img src="docs/icons/payroll.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Lohn](https://haben.app/lohn.html) | Abrechnung nach dem Programmablaufplan des BMF, Minijob und Gesellschafter-Geschäftsführer, Lohnsteuer-Anmeldung über ELSTER, Lohnkonto |
-
-### Steuern und Finanzamt
-
-| Bereich | Was Haben kann |
-|---|---|
-| <img src="docs/icons/vat.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Voranmeldung](https://haben.app/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll) mit Herkunft jeder Zahl, Dauerfristverlängerung, Zusammenfassende Meldung |
-| <img src="docs/icons/send.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Abgabe an ELSTER](https://haben.app/elster-abgabe.html) | Direkt per ERiC oder ohne Hersteller-ID über Mein ELSTER: XML-Upload, Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html) oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome |
-| <img src="docs/icons/annual.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Jahreserklärungen](https://haben.app/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR, Einkommensteuer; für GmbH und UG Körperschaft- und Gewerbesteuer |
-| <img src="docs/icons/mail.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Finanzamt](https://haben.app/finanzamt.html) · [Fristen](https://haben.app/fristen.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen; alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
-| <img src="docs/icons/building.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[GmbH und UG](https://haben.app/gmbh.html) | Bilanz und GuV, E-Bilanz per ERiC, Gesellschafter-Verrechnungskonto, Gewinnausschüttung mit Kapitalertragsteuer |
-
-### Buchhaltung und Auswertungen
-
-| Bereich | Was Haben kann |
-|---|---|
-| <img src="docs/icons/journal.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Buchhaltung](https://haben.app/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, freie Buchungen mit Steuerschlüssel, Saldenliste, Kontenblätter, DATEV-Export |
-| <img src="docs/icons/reports.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Auswertungen](https://haben.app/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
-| <img src="docs/icons/archive.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;Umzug aus [Lexoffice](https://haben.app/lexoffice.html) · [sevDesk](https://haben.app/sevdesk.html) · [BuchhaltungsButler](https://haben.app/buchhaltungsbutler.html) · [Accountable](https://haben.app/accountable.html) · [JSON-Paket](https://haben.app/belegimport.html) | Rechnungen, Belege, Buchungen und Kontakte übernehmen oder im Archiv aufbewahren, mit Abgleich je Jahr |
-| <img src="docs/icons/upload.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[CSV-Import](https://haben.app/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, mit Spaltenzuordnung und Vorschau |
-
-### Betrieb und Anbindung
-
-| Bereich | Was Haben kann |
-|---|---|
-| <img src="docs/icons/key.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Anmeldung](https://haben.app/einrichtung.html#konto-anlegen) · [App](https://haben.app/einrichtung.html#als-app-installieren) | Passkey oder ausschließlich OpenID Connect mit Rollen aus Gruppen, Lesezugang für die [Steuerberatung](https://haben.app/steuerberatung.html), installierbar als App auf Handy und Desktop, helles und dunkles Theme |
-| <img src="docs/icons/code.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[REST-API](https://haben.app/api.html) | Versionierte Schnittstelle mit OpenAPI für Kontakte, Rechnungsentwürfe und Belege; Tokens mit Rechten je Bereich |
-| <img src="docs/icons/chat.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html) | Haben im Gespräch mit Claude oder einem lokalen Modell abfragen („Welche Rechnungen sind überfällig?“), nur lesend |
-| <img src="docs/icons/external.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Eigene Seiten](https://haben.app/eigene-seiten.html) | Eigene Werkzeuge, etwa aus n8n, als Menüeintrag in Haben |
-| <img src="docs/icons/access.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Barrierefreiheit](https://haben.app/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, jede Seite in der CI gegen WCAG 2.2 AA geprüft |
-| <img src="docs/icons/server.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;[Installation](https://haben.app/installation.html) | Docker Compose oder Podman Quadlets, Image für amd64 und arm64, tägliches Backup mit restic |
-
-## <img src="docs/icons/eye.svg" width="24" height="24" align="absmiddle" alt=""> Screenshots
-
-<p align="center"><img src="docs/screenshot-hell-dunkel.png" alt="Übersicht in Haben, links im hellen Theme Wald, rechts im dunklen Theme Nacht" width="900"><br>
-<sub><b>Hell oder dunkel</b>: sechs Themes, „Automatisch“ folgt deinem System. Die Bilder hier tun das auch.</sub></p>
+<p align="center"><img src="docs/screenshot-hell-dunkel.png" alt="Übersicht in Haben, links im hellen Theme Wald, rechts im dunklen Theme Nacht" width="900"></p>
 
 <table>
   <tr>
-    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-rechnung-dunkel.png"><img src="docs/screenshot-rechnung.png" alt="Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts"></picture><br><sub><b>Rechnung schreiben</b>: Vorschau des PDFs, während du tippst</sub></td>
-    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-bank-dunkel.png"><img src="docs/screenshot-bank.png" alt="Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer und den Gründen"></picture><br><sub><b>Bankabgleich</b>: Vorschlag mit Begründung, Enter ordnet zu</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-rechnung-dunkel.png"><img src="docs/screenshot-rechnung.png" alt="Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts"></picture><br><sub>Rechnung mit Vorschau des PDFs</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-bank-dunkel.png"><img src="docs/screenshot-bank.png" alt="Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer und den Gründen"></picture><br><sub>Bankabgleich mit Vorschlag</sub></td>
   </tr>
   <tr>
-    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-umsatzsteuer-dunkel.png"><img src="docs/screenshot-umsatzsteuer.png" alt="Voranmeldung mit Kennzahlen 81, 86, 66 und 83, dem Bereich zum Übermitteln an ELSTER und dem Verlauf"></picture><br><sub><b>Voranmeldung</b>: aus den Buchungen berechnet, direkt an ELSTER</sub></td>
-    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-auswertungen-dunkel.png"><img src="docs/screenshot-auswertungen.png" alt="Auswertungen mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm"></picture><br><sub><b>Auswertungen</b>: EÜR nach Zufluss und Abfluss</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-umsatzsteuer-dunkel.png"><img src="docs/screenshot-umsatzsteuer.png" alt="Voranmeldung mit Kennzahlen 81, 86, 66 und 83, dem Bereich zum Übermitteln an ELSTER und dem Verlauf"></picture><br><sub>Umsatzsteuer-Voranmeldung</sub></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-auswertungen-dunkel.png"><img src="docs/screenshot-auswertungen.png" alt="Auswertungen mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm"></picture><br><sub>Auswertungen</sub></td>
   </tr>
 </table>
 
-## <img src="docs/icons/server.svg" width="24" height="24" align="absmiddle" alt=""> Schnellstart
+## Installation
 
-Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL, Caddy für HTTPS und ein
-tägliches Backup mit restic.
-Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
-denn Passkeys funktionieren nur über HTTPS.
-
-### Von einem Agenten aufsetzen lassen
-
-Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem Server und sag:
-„Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://haben.app/installation.html).“
-
-### Von Hand
+Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt. Passkeys verlangen HTTPS,
+deshalb startet Haben mit Caddy, PostgreSQL und einem täglichen Backup mit restic.
 
 ```bash
 mkdir haben && cd haben
@@ -153,116 +84,51 @@ curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compo
 docker compose up -d
 ```
 
-Öffne **https://deine-domain**, leg dein Konto an und richte Firmendaten, Nummernkreis und ELSTER ein, wie in
-[Erste Schritte](https://haben.app/einrichtung.html) beschrieben.
-
-Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Umgebungsvariablen stehen in
-[Betrieb und Installation](https://haben.app/installation.html).
+Danach öffnest du deine Domain und legst dein Konto an. Wie es weitergeht, steht in
+[Erste Schritte](https://haben.app/einrichtung.html); Podman, ERiC, Updates und alle Variablen in
+[Betrieb und Installation](https://haben.app/installation.html). Ein Coding-Agent mit SSH-Zugang kann die Anleitung
+auch für dich abarbeiten.
 
 > [!IMPORTANT]
-> Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
-> einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
+> Bewahre `ENCRYPTION_KEY` zusätzlich an einem zweiten Ort auf. Ohne ihn sind ELSTER-Zertifikat und API-Schlüssel
+> nach einer Wiederherstellung nicht mehr lesbar.
 
-## <img src="docs/icons/help.svg" width="24" height="24" align="absmiddle" alt=""> FAQ
+## Fragen
 
 <details>
 <summary><b>Was kostet Haben?</b></summary>
 
-Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS ab rund 5 € im Monat.
-</details>
-
-<details>
-<summary><b>Ist Haben eine Alternative zu Lexware Office (lexoffice) und sevDesk?</b></summary>
-
-Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API oder, bei
-Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, siehe
-[Umzug aus Lexoffice](https://haben.app/lexoffice.html) und [Umzug aus sevDesk](https://haben.app/sevdesk.html); Bestände aus BuchhaltungsButler und Accountable übernimmt Haben ins Archiv.
-</details>
-
-<details>
-<summary><b>Für wen ist Haben gedacht?</b></summary>
-
-Für Freiberufler, Selbstständige und Kleinunternehmer mit Einnahmen-Überschuss-Rechnung (EÜR), auch mit
-Kleinunternehmerregelung nach § 19 UStG, und für kleine GmbHs und UGs. Eine GmbH oder UG bucht mit
-Gesellschafter-Verrechnungskonto, sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung und schüttet Gewinne mit
-Kapitalertragsteuer-Anmeldung aus, siehe [GmbH und UG](https://haben.app/gmbh.html). Den Lohn von
-Gesellschafter-Geschäftsführer, Minijobs und (als Entwurf) Angestellten rechnet Haben und meldet die Lohnsteuer über ELSTER an,
-siehe [Lohn](https://haben.app/lohn.html).
+Nichts, die Software steht unter der AGPL. Du zahlst nur deinen Server, ein kleiner VPS reicht.
 </details>
 
 <details>
 <summary><b>Ist Haben GoBD-konform?</b></summary>
 
-Haben setzt die technischen Anforderungen der GoBD um: Gebuchtes wird festgeschrieben und lässt sich nur per Storno
-korrigieren, jede Änderung steht im Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Zur Ordnungsmäßigkeit
-gehören außerdem dein Betrieb (Backups, Aufbewahrung) und deine Verfahrensdokumentation; ein Testat für die Software gibt
-es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
+Haben setzt die technischen Anforderungen um: Festschreibung, Audit-Log und ein Jahresarchiv mit SHA-256-Prüfsummen.
+Backups, Aufbewahrung und Verfahrensdokumentation bleiben deine Sache, ein Testat für die Software gibt es nicht.
+Mehr dazu in [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 </details>
 
 <details>
-<summary><b>Wie kommen Voranmeldung und Erklärungen zu ELSTER?</b></summary>
+<summary><b>Brauche ich eine Hersteller-ID für ELSTER?</b></summary>
 
-Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://haben.app/elster-abgabe.html)):
-- **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
-  aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert oft Wochen
-  ([Erste Schritte](https://haben.app/einrichtung.html#elster-einrichten)).
-- **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
-  die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html)
-  ein, oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome.
-  Absenden machst du dort selbst; die Abgabe der Voranmeldung vermerkst du danach in Haben mit Transferticket und Protokoll.
-</details>
-
-<details>
-<summary><b>Kann meine Steuerberatung damit arbeiten?</b></summary>
-
-Ja, mit einem [eigenen Zugang](https://haben.app/steuerberatung.html), der nur lesen kann, oder über den
-[DATEV-Export](https://haben.app/auswertungen.html#datev-export-für-die-steuerberatung) im Kontenrahmen SKR03 oder SKR04.
-</details>
-
-<details>
-<summary><b>Können mehrere Personen Haben nutzen?</b></summary>
-
-Haben ist für dich und deine eigene Firma gedacht: Es gibt genau einen Inhaber mit allen Rechten. Dazu kannst du deine
-Steuerberatung per Einladungslink mit einem [Zugang, der nur lesen kann](https://haben.app/steuerberatung.html), dazuholen.
-</details>
-
-<details>
-<summary><b>Kann ich Claude oder andere Agenten mit meiner Buchhaltung nutzen?</b></summary>
-
-Ja, über MCP, und nur lesend: „Welche Rechnungen sind überfällig?“ Buchen und Senden an ELSTER
-machst du weiter selbst. Siehe [KI-Assistenten (MCP)](https://haben.app/ki-assistenten.html). Für
-eigene Werkzeuge und Automationen gibt es die [REST-API](https://haben.app/api.html).
+Nur für die direkte Übermittlung per ERiC. Ohne sie lädst du die Voranmeldung als XML in Mein ELSTER hoch oder lässt
+die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html) die Formulare füllen.
+Die Wege im Vergleich stehen unter [Abgabe an ELSTER](https://haben.app/elster-abgabe.html).
 </details>
 
 <details>
 <summary><b>Ist das sicher?</b></summary>
 
-Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabhängiges Audit gibt es bisher nicht.
-
-- **Automatisiert geprüft:** mit Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) und
-  `/security-review` von Claude Code. Lass deinen Agenten gern selbst über dieses Repository laufen.
-- **Abgesichert:** Zugangsdaten verschlüsselt in der Datenbank, ERiC getrennt vom App-Prozess, Rollen für Inhaber und
-  Steuerberatung, Festschreibung per Datenbank-Trigger, Änderungsprotokoll als Hashkette.
-- **Aktuell gehalten:** Renovate bringt Updates der Abhängigkeiten als Pull Request durch die CI; bekannte Lücken
-  (Dependabot-Warnungen und OSV-Datenbank) behebt es außerhalb des Zeitplans, siehe
-  [SECURITY.md](SECURITY.md#abhängigkeiten-aktuell-halten).
-- **Offen für alle:** Jeder kann den Code lesen und Lücken melden, bitte vertraulich wie in [SECURITY.md](SECURITY.md)
-  beschrieben.
+Zugangsdaten liegen verschlüsselt in der Datenbank, ERiC läuft getrennt vom App-Prozess, und das Änderungsprotokoll
+ist eine Hashkette. Ein unabhängiges Audit gibt es bisher nicht. Lücken meldest du bitte vertraulich, wie in
+[SECURITY.md](SECURITY.md) beschrieben.
 </details>
 
-## <img src="docs/icons/docs.svg" width="24" height="24" align="absmiddle" alt=""> Dokumentation
+## Entwicklung
 
-Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
-
-- **Einstieg:** [Betrieb und Installation](https://haben.app/installation.html) (Docker Compose, Podman, Backup, Updates),
-  [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
-  [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
-- **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
-  [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)
-
-## <img src="docs/icons/code.svg" width="24" height="24" align="absmiddle" alt=""> Entwicklung
-
-Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
+Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Mit Docker geht es auch ohne beides: `docker compose up` im
+Hauptordner startet Datenbank, Migrationen und Dev-Server.
 
 ```sh
 bun install
@@ -271,57 +137,20 @@ bun run db:migrate
 bun run dev                               # http://localhost:3000
 ```
 
-Oder ohne Bun und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im Hauptordner startet Datenbank,
-Migrationen und Dev-Server mit Neuladen beim Speichern
-([Mit Docker Compose](https://haben.app/entwicklung.html#mit-docker-compose)).
+Ohne ERiC simuliert Haben die Übermittlung an ELSTER und zeigt das an. Aufbau und Pakete beschreibt die
+[Architektur](https://haben.app/architektur.html), Tests und Regeln für Beiträge [Entwicklung](https://haben.app/entwicklung.html).
 
-Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung
-und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` (OpenAI-kompatibler Dienst wie Ollama oder OpenRouter) bleibt die KI-Auslesung aus.
+## Mitwirken
 
-**Stack**: TanStack Start (React-API mit TanStack Redact, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys oder OIDC-SSO, Zod, Typst für
-die Rechnungs-PDFs, `@e-invoice-eu/core` für ZUGFeRD und XRechnung, ERiC über `koffi` in einem eigenen Prozess,
-Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere
-[Entwicklung](https://haben.app/entwicklung.html).
+Fehler und Ideen gern als [Issue](https://github.com/firsttris/haben/issues/new). Besonders hilfreich sind
+anonymisierte Kontoauszüge von Banken, die Haben noch nicht kennt, und Rückmeldungen zur Übermittlung an ELSTER.
 
-| Paket | Inhalt |
-|---|---|
-| `apps/web` | Oberfläche, Server Functions, Datenbank, Anmeldung |
-| `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
-| `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
-| `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
-| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, N26, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
-| `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
-
-## <img src="docs/icons/external.svg" width="24" height="24" align="absmiddle" alt=""> Mehr von uns
-
-- Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
-- Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
-
-## <img src="docs/icons/contacts.svg" width="24" height="24" align="absmiddle" alt=""> Mitwirken
-
-Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
-kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `bun run lint`, `bun run typecheck` und
-`bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://haben.app/entwicklung.html)).
-
-## <img src="docs/icons/star.svg" width="24" height="24" align="absmiddle" alt=""> Sterne im Verlauf
-
-<a href="https://www.star-history.com/#firsttris/haben&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=firsttris/haben&type=Date&theme=dark">
-    <img alt="Verlauf der GitHub-Sterne von Haben" src="https://api.star-history.com/svg?repos=firsttris/haben&type=Date">
-  </picture>
-</a>
+Vom selben Autor: [Kontext](https://github.com/firsttris/kontext) für Mail, Kalender und Chat im Team und
+[Schreibzeug](https://github.com/firsttris/schreibzeug) für Office-Dateien im Browser, beide selbst gehostet.
 
 ---
 
-<div align="center">
-
-<img src="docs/icons/star.svg" width="16" height="16" align="absmiddle" alt=""> Gefällt dir Haben? Ein [Stern auf GitHub](https://github.com/firsttris/haben) hilft anderen, es zu finden.<br>
-<img src="docs/icons/bug.svg" width="16" height="16" align="absmiddle" alt=""> [Fehler melden](https://github.com/firsttris/haben/issues/new) · <img src="docs/icons/info.svg" width="16" height="16" align="absmiddle" alt=""> [Idee vorschlagen](https://github.com/firsttris/haben/issues/new)
-
-<sub>Lizenz: <a href="LICENSE">AGPL-3.0</a> · © Tristan Teufel und Mitwirkende<br>
-Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation. Eine kommerzielle Lizenz ohne diese Pflichten gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.<br>
-Haben ist keine Steuerberatung. Konten, Kategorien und Aufbewahrung vor dem Echtbetrieb mit deiner Steuerberatung abgleichen.<br>
-ELSTER ist eine Marke der Finanzverwaltung. Haben steht in keiner Verbindung zu Lexware, DATEV oder der Finanzverwaltung.</sub>
-
-</div>
+<sub>Lizenz: <a href="LICENSE">AGPL-3.0</a>, © Tristan Teufel und Mitwirkende. Wer Haben für andere betreibt, muss
+ihnen den Quellcode anbieten; eine kommerzielle Lizenz ohne diese Pflicht gibt es über <a href="https://teufel-it.de">teufel-it.de</a>.
+Haben ist keine Steuerberatung. ELSTER ist eine Marke der Finanzverwaltung; Haben steht in keiner Verbindung zu
+Lexware, DATEV oder der Finanzverwaltung.</sub>

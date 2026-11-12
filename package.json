@@ -26,8 +26,7 @@
     "docs:screenshots": "DOKU_SCREENSHOTS=1 LANG=de_DE.UTF-8 LANGUAGE=de bun run e2e && bun run docs:social-preview && bun run docs:hero && bun run docs:hell-dunkel",
     "docs:social-preview": "bun scripts/social-preview/render.mjs",
     "docs:hero": "bun scripts/hero/render.mjs",
-    "docs:hell-dunkel": "bun scripts/hell-dunkel/render.mjs",
-    "docs:icons": "bun scripts/readme-icons/render.ts"
+    "docs:hell-dunkel": "bun scripts/hell-dunkel/render.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

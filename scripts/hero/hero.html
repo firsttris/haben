@@ -1,12 +1,12 @@
 <!doctype html>
-<!-- Bild oben in der README, 1280 × 360 bei doppelter Auflösung. Entwurf von Codex.
+<!-- Bild oben in der README, 1280 × 360 bei doppelter Auflösung. Gesetzt als T-Konto: links Soll, was das Steuerrecht verlangt, rechts Haben.
      Farben und Schriften wie in apps/web/src/styles.css: ohne Hash Wald (hell), mit #nacht das dunkle Theme.
      Rendern: bun run docs:hero → docs/hero-hell.png und docs/hero-dunkel.png -->
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=1280, initial-scale=1">
-  <title>Haben – Deine Bücher. Dein Server.</title>
+  <title>Haben: Deine Bücher. Dein Server.</title>
   <script>document.documentElement.classList.toggle("nacht", location.hash === "#nacht");</script>
   <style>
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
@@ -47,66 +47,46 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 1280px; height: 360px; }
     body { background: var(--ground); color: var(--ink); font: 400 16px/24px var(--sans); }
-    main { position: relative; width: 1280px; height: 360px; padding: 36px 44px; display: grid; grid-template-columns: 548px 596px; gap: 48px; }
-    .intro { display: flex; flex-direction: column; align-items: flex-start; }
-    .brand { display: flex; align-items: center; gap: 12px; font-size: 28px; line-height: 40px; font-weight: 600; }
-    .brand-mark { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--brand); color: #fff; font-size: 28px; }
-    h1 { margin: 16px 0 12px; font-size: 52px; line-height: 60px; font-weight: 600; letter-spacing: -1.2px; }
+    main { position: relative; width: 1280px; height: 360px; padding: 36px 64px 0; }
+    .brand { display: flex; justify-content: center; align-items: center; gap: 12px; height: 40px; font-size: 26px; font-weight: 600; }
+    .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--brand); color: #fff; font-size: 24px; }
+    /* Das T: Querstrich über beide Seiten, Mittelstrich bis fast zum Rand */
+    .konto { position: relative; margin-top: 24px; height: 236px; border-top: 2px solid var(--ink); display: grid; grid-template-columns: 1fr 1fr; }
+    .konto::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); }
+    .seite { position: relative; padding-top: 34px; }
+    .soll { padding-right: 40px; }
+    .haben { padding-left: 48px; }
+    .kopf { position: absolute; top: 8px; font: 500 14px/16px var(--mono); color: var(--muted); }
+    .soll .kopf { left: 0; }
+    .haben .kopf { right: 0; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; height: 44px; padding-top: 9px; border-bottom: 1px solid var(--line); font-size: 19px; color: var(--ink-2); }
+    li:last-child { border-bottom: 0; }
+    li span { font: 400 15px/20px var(--mono); color: var(--muted); white-space: nowrap; }
+    h1 { margin: 0; font-size: 54px; line-height: 62px; font-weight: 600; letter-spacing: -1.3px; }
     h1 span { display: block; color: var(--accent-ink); }
-    .description { margin: 0; color: var(--ink-2); font-size: 16px; line-height: 24px; }
-    .ownership { display: flex; align-items: center; gap: 8px; margin: auto 0 0; color: var(--muted); font: 400 13px/20px var(--mono); }
-    svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .ledger { display: grid; grid-template-rows: 56px 144px 1fr; align-self: start; height: 288px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; }
-    .ledger-head { height: 56px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
-    h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500; }
-    .match { display: flex; gap: 8px; align-items: center; color: var(--accent-ink); font-size: 13px; }
-    .match svg { width: 16px; height: 16px; }
-    .entries { position: relative; padding: 0 24px; }
-    .entries::before { content: ""; position: absolute; left: 40px; top: 36px; bottom: 36px; width: 1px; background: var(--accent); }
-    .entry { position: relative; display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 16px; height: 72px; }
-    .entry + .entry { border-top: 1px solid var(--line-soft); }
-    .entry-icon { width: 32px; height: 32px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-ink); border-radius: 8px; }
-    .entry-title { font-weight: 500; font-size: 14px; line-height: 20px; }
-    .entry-detail { color: var(--muted); font-size: 13px; line-height: 20px; }
-    .amount { font: 500 24px/32px var(--mono); white-space: nowrap; color: var(--accent-ink); }
-    .ledger-foot { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); background: var(--accent-tint); }
-    .result { padding: 16px 24px; }
-    .result + .result { border-left: 1px solid var(--line); }
-    .result-title { display: flex; gap: 8px; align-items: center; color: var(--accent-ink); font-size: 14px; line-height: 24px; font-weight: 500; }
-    .result-title svg { width: 16px; height: 16px; }
-    .result-detail { color: var(--muted); font-size: 13px; line-height: 20px; margin-top: 4px; }
+    .beschreibung { margin: 16px 0 0; color: var(--ink-2); font-size: 18px; line-height: 26px; }
   </style>
 </head>
 <body>
-  <main aria-label="Haben: selbst gehostete Buchhaltung, von der E-Rechnung bis zu ELSTER">
-    <section class="intro">
-      <div class="brand"><span class="brand-mark">H</span>Haben</div>
-      <h1>Deine Bücher. <span>Dein Server.</span></h1>
-      <p class="description">Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs.<br>Von der E-Rechnung bis zur Voranmeldung.</p>
-      <p class="ownership"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M4 12h16M8 7h.01M8 16h.01M12 7h4M12 16h4"/></svg>Selbst gehostet. Deine Daten bleiben bei dir.</p>
-    </section>
-    <section class="ledger" aria-label="Beispiel: Rechnung und Bankzahlung zugeordnet">
-      <header class="ledger-head">
-        <h2>Rechnung trifft Zahlung.</h2>
-        <span class="match"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>Zugeordnet</span>
-      </header>
-      <div class="entries">
-        <div class="entry">
-          <span class="entry-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7zM14 3v5h4M9 12h6M9 16h6"/></svg></span>
-          <div><div class="entry-title">E-Rechnung</div><div class="entry-detail">Studio Linde · Webdesign</div></div>
-          <span class="amount">1.725,50 €</span>
-        </div>
-        <div class="entry">
-          <span class="entry-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5M4 9h16M6 12v6M12 12v6M18 12v6M3 21h18"/></svg></span>
-          <div><div class="entry-title">Bankabgleich</div><div class="entry-detail">Studio Linde · Zahlungseingang</div></div>
-          <span class="amount">1.725,50 €</span>
-        </div>
-      </div>
-      <footer class="ledger-foot">
-        <div class="result"><div class="result-title"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 15v2"/></svg>GoBD</div><div class="result-detail">Belege festgeschrieben</div></div>
-        <div class="result"><div class="result-title"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>ELSTER</div><div class="result-detail">Voranmeldung vorbereitet</div></div>
-      </footer>
-    </section>
+  <main>
+    <div class="brand"><span class="brand-mark">H</span>Haben</div>
+    <div class="konto">
+      <section class="seite soll">
+        <span class="kopf">Soll</span>
+        <ul>
+          <li>E-Rechnungen senden und empfangen<span>§ 14 UStG</span></li>
+          <li>Belege unveränderbar aufbewahren<span>§ 146 AO</span></li>
+          <li>Umsatzsteuer-Voranmeldung<span>§ 18 UStG</span></li>
+          <li>Einnahmen-Überschuss-Rechnung<span>§ 4 Abs. 3 EStG</span></li>
+        </ul>
+      </section>
+      <section class="seite haben">
+        <span class="kopf">Haben</span>
+        <h1>Deine Bücher.<span>Dein Server.</span></h1>
+        <p class="beschreibung">Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs.</p>
+      </section>
+    </div>
   </main>
 </body>
 </html>
