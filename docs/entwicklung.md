@@ -245,10 +245,9 @@ Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen A
 - `belege-steuern.spec.ts`: Belege, Bankabgleich, Bank verbinden für den automatischen Abruf, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen. Den Abruf beantwortet eine nachgebaute Enable-Banking-API im Test auf Port `E2E_PORT` + 9; `playwright.config.ts` richtet `ENABLE_BANKING_API_URL` aller Server darauf.
 - `gmbh.spec.ts`: dasselbe für eine GmbH (siehe unten).
 - `rueckfragen.spec.ts`: Rückfragen vor Aktionen, die früher mit einem Klick auslösten, in einer GmbH.
-- `belegimport.spec.ts`: der lokale JSON-Eingang ([Belegimport](belegimport.md)) mit Archiv, offenen Posten, Journal und Kasse.
+- `belegimport.spec.ts`: Kleinunternehmer-Ersteinrichtung ohne reguläre UStVA-Hinweise und der lokale JSON-Eingang ([Belegimport](belegimport.md)) mit Archiv, offenen Posten, Journal und Kasse.
 - `bb-import.spec.ts`: Umzug aus BuchhaltungsButler mit Testlauf, Import und PDF im Archiv.
 - `dauerfrist-euer.spec.ts`: Änderung der Dauerfristverlängerung nach übermittelter EÜR, Hinweis und unveränderte Erklärungen; eigener Durchlauf, damit die festgeschriebene Erklärung andere Steuerfälle nicht beeinflusst.
-- `kleinunternehmer.spec.ts`: Ersteinrichtung als Kleinunternehmer und Übersicht ohne reguläre UStVA-Hinweise, Hell/Dunkel und Handy; leere Firmenhistorie, Port + 13.
 
 `rechnungen.spec.ts` und `belege-steuern.spec.ts` richten sich mit `e2e/einrichtung.ts` dasselbe Unternehmen ein und prüfen am Ende die Seiten mit ihren Daten wie `barrierefreiheit.spec.ts` und `seiten.spec.ts`: axe am Desktop und am Handy, kein waagrechtes Scrollen auf dem Handy. Ports und Datenbanken der Durchläufe stehen in `e2e/durchlaeufe.ts`: der Hauptdurchlauf auf `E2E_PORT` (Vorgabe 3100), die übrigen auf + 1 bis + 6, `langsame-anfrage.spec.ts` und `beenden.spec.ts` auf + 7 und + 8, die nachgebaute Enable-Banking-API auf + 9 und die nachgebaute Paketquelle für eigene Layouts (`layouts.spec.ts`, `LAYOUT_PAKETE_PORT`) auf + 10. Der eigenständige Durchlauf `beleg-storno.spec.ts` prüft Bankzuordnungen und Belegstorno auf + 11. `dauerfrist-euer.spec.ts` verwendet + 12. Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, wenn `mit-daten` seine Daten braucht.
 

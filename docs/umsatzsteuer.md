@@ -21,11 +21,9 @@ Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal au
 
 Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich. Die [Dauerfristverlängerung](#dauerfristverlängerung) mit Sondervorauszahlung beantragst du auf derselben Seite.
 
-Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Die Übersicht zeigt dann keine Aufgaben zur Voranmeldung, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER.
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Für solche Kleinunternehmerzeiträume blendet die Übersicht reguläre Voranmeldungsaufgaben, Zahllast/Fälligkeit, ELSTER-Einrichtungshinweise und die leere Karte „Letzte Voranmeldungen“ aus. Vorhandene Anmeldungen, offene Steuerposten und tatsächlich berechnete Steuerbeträge bleiben sichtbar.
 
 ## So gehst du vor
-
-In der Übersicht erscheinen die reguläre Voranmeldungsaktion, ihre Zahllast/Fälligkeit und der ERiC-Einrichtungshinweis nur, wenn sie für den Zeitraum relevant sind. Bei Kleinunternehmern ohne vorhandene Anmeldungen entfällt auch die leere Karte „Letzte Voranmeldungen“. Vorhandene Anmeldungen, offene Steuerposten und berechnete Steuerbeträge ungleich null bleiben sichtbar, ebenso die Umsatzsteuer-Seite für Sonderfälle. Entscheidend ist der fachlich gespeicherte Status im jeweiligen Zeitraum; eine automatische leere Firmeneinrichtung begründet keine frühere Regelbesteuerung.
 
 1. **Umsatzsteuer** öffnen. Haben springt zum zuletzt abgelaufenen Zeitraum, also dem, der gerade abzugeben ist: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
 2. Die Hinweise oben abarbeiten (siehe [Vorprüfung](#vorprüfung)).

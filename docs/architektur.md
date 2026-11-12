@@ -110,7 +110,7 @@ Zwischen Modulen gibt es Abhängigkeiten in beide Richtungen, etwa `rechnungen` 
 
 ## Firmendaten und Steuerstatus
 
-`company.firmendaten_gespeichert_at` setzt ausschließlich `saveCompany` bei jeder bewussten Speicherung, mit der Datenbankzeit. Verwaltungsupdates lassen die Kennzeichnung stehen. `kleinunternehmerStand` unterscheidet damit eine ausdrücklich unverändert bestätigte Regelbesteuerung von Verwaltungsupdates, ohne eine Liste fachfremder Spalten. Tatsächliche Statusänderungen und die Ersteinrichtung eines benannten Bestandsprofils bleiben wirksam. Audit-Snapshots vor dieser Kennzeichnung werden konservativ wie bisher berücksichtigt; die Migration ergänzt nur eine nullable Spalte und verändert weder alte Snapshots noch deren Hashes. Bereits vor der Einrichtung verwendete Vorgaben und echte spätere Steuerwechsel bleiben erhalten.
+`company.firmendaten_gespeichert_at` setzt ausschließlich `saveCompany` bei jeder bewussten Speicherung, mit der Datenbankzeit. Verwaltungsupdates lassen die Kennzeichnung stehen. `kleinunternehmerStand` erkennt eine technische Erstanlage am leeren Marker; `loadCompany(tx)` behält den Akteur des Aufrufers. Nur bei alten Snapshots ohne Marker dienen Akteur und leerer Name zum Erkennen der damaligen technischen Vorgabe. Die Migration ergänzt eine nullable Spalte und verändert weder alte Snapshots noch deren Hashes. Bewusst bestätigte Regelbesteuerung, bereits verwendete Vorgaben, benannte Altprofile und echte spätere Steuerwechsel bleiben erhalten.
 
 ## Datenmodell
 

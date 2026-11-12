@@ -131,17 +131,8 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
   const [row] = await q.select().from(schema.company).where(eq(schema.company.id, 1));
   if (row) return row;
   const insert = (w: Db | Tx) => w.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning();
-  const [created] = q === db ? await withActor("system:setup", insert) : await insertDefaultCompany(q as Tx);
+  const [created] = q === db ? await withActor("system:setup", insert) : await insert(q);
   return created ?? (await loadCompany(q));
-}
-
-/** Auch in einer fremden Transaktion ist die leere Vorgabe keine fachliche Einstellung. Danach gilt wieder ihr Akteur. */
-async function insertDefaultCompany(tx: Tx) {
-  const [previous] = await tx.execute<{ actor: string | null }>(sql`select current_setting('haben.actor', true) as actor`);
-  await tx.execute(sql`select set_config('haben.actor', 'system:setup', true)`);
-  const rows = await tx.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning();
-  await tx.execute(sql`select set_config('haben.actor', ${previous?.actor ?? ""}, true)`);
-  return rows;
 }
 
 /**
@@ -252,7 +243,7 @@ export async function kleinunternehmerStand(q: Db | Tx = db): Promise<Kleinunter
   const aenderungen = settings.flatMap((r) => {
     const snapshot = r.newValue as { kleinunternehmer?: unknown; name?: unknown } | null;
     const value = snapshot?.kleinunternehmer;
-    // Nur die automatisch angelegte leere Vorgabe auslassen, keine bestätigte Einstellung und keinen späteren Wechsel.
+    // Nur die unbestätigte Erstanlage auslassen, keine bestätigte Einstellung und keinen späteren Wechsel.
     if (!used && defaultCompanyAudit(r)) return [];
     return typeof value === "boolean" ? [{ date: today(r.at), value }] : [];
   });
@@ -260,8 +251,10 @@ export async function kleinunternehmerStand(q: Db | Tx = db): Promise<Kleinunter
 }
 
 function defaultCompanyAudit(row: { actor: string | null; action: string; newValue: unknown }): boolean {
-  const snapshot = row.newValue as { kleinunternehmer?: unknown; name?: unknown } | null;
-  return row.action === "INSERT" && row.actor === "system:setup" && snapshot?.kleinunternehmer === false && snapshot?.name === "";
+  const snapshot = row.newValue as Record<string, unknown> | null;
+  if (row.action !== "INSERT" || snapshot?.kleinunternehmer !== false) return false;
+  if (Object.hasOwn(snapshot, "firmendaten_gespeichert_at")) return snapshot.firmendaten_gespeichert_at === null;
+  return row.actor === "system:setup" && snapshot.name === "";
 }
 
 /** Letzter Tag eines Monats, JJJJ-MM-TT */
