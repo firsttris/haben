@@ -1,4 +1,14 @@
-import { ACCOUNTS, documentPaymentPosting, documentPosting, invoicePaymentPosting, invoicePosting, totalsFromTaxes, type Kontenrahmen, type Versteuerung } from "@haben/core";
+import {
+  ACCOUNTS,
+  documentPaymentPosting,
+  documentPosting,
+  invoicePaymentPosting,
+  invoicePosting,
+  totalsFromTaxes,
+  type Kontenrahmen,
+  type Versteuerung,
+  type PostingLine,
+} from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -15,8 +25,13 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
   const totals = totalsFromTaxes([{ rate: 1900, base: 100000, tax: 19000 }]);
   const actor = "import-pruefung";
   type Journal = Extract<ExternalImport["entries"][number], { kind: "journal" }> & { settles?: string };
-  const entry = (externalId: string, date: string, lines: Journal["lines"], settles?: string): Journal => ({
-    kind: "journal", externalId, date, description: `Erfundener Prüffall ${externalId}`, lines, ...(settles ? { settles } : {}),
+  const entry = (externalId: string, date: string, lines: PostingLine[], settles?: string): Journal => ({
+    kind: "journal",
+    externalId,
+    date,
+    description: `Erfundener Prüffall ${externalId}`,
+    lines: lines.map(({ basis, ...line }) => ({ ...line, ...(basis == null ? {} : { basis }) })),
+    ...(settles ? { settles } : {}),
   });
   const run = (entries: Journal[], kontenrahmen: Kontenrahmen) =>
     imports.runExternalImport(actor, { version: 2, source: "pruefung-634", kontenrahmen, entries }, async () => new Uint8Array());
@@ -40,71 +55,169 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
   const income = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => euer.einnahmen.find((l) => l.key === "einnahmenSteuerpflichtig")?.amount ?? 0;
   const expense = (euer: Awaited<ReturnType<typeof reports.euerForYear>>) => euer.ausgaben.find((l) => l.key === "ausgabe:edv")?.amount ?? 0;
 
-  for (const kr of ["SKR03", "SKR04"] as const) for (const mode of ["ist", "soll"] as const) {
-    it(`${kr}/${mode}: offene Quellrechnungen sind am Umzugstag keine Einnahmen oder Ausgaben`, async () => {
-      await reset(kr, mode);
-      await run([
-        entry("AR", "2026-12-10", invoicePosting(totals, kr, mode)),
-        entry("ER", "2026-12-11", documentPosting(totals, "edv", kr, "einzelunternehmen", "bank")),
-      ], kr);
-      const euer = await reports.euerForYear(2026);
-      expect(income(euer)).toBe(0);
-      expect(expense(euer)).toBe(0);
-      expect(euer.gewinn).toBe(0);
-      const figures = await vat.computeVatFigures({ year: 2026, month: 12 });
-      expect(figures.kz81).toBe(mode === "soll" ? 100000 : 0);
-      expect(figures.kz66).toBe(19000);
-    });
+  for (const kr of ["SKR03", "SKR04"] as const)
+    for (const mode of ["ist", "soll"] as const) {
+      it(`${kr}/${mode}: offene Quellrechnungen sind am Umzugstag keine Einnahmen oder Ausgaben`, async () => {
+        await reset(kr, mode);
+        await run(
+          [
+            entry("AR", "2026-12-10", invoicePosting(totals, kr, mode)),
+            entry("ER", "2026-12-11", documentPosting(totals, "edv", kr, "einzelunternehmen", "bank")),
+          ],
+          kr,
+        );
+        const euer = await reports.euerForYear(2026);
+        expect(income(euer)).toBe(0);
+        expect(expense(euer)).toBe(0);
+        expect(euer.gewinn).toBe(0);
+        const figures = await vat.computeVatFigures({ year: 2026, month: 12 });
+        expect(figures.kz81).toBe(mode === "soll" ? 100000 : 0);
+        expect(figures.kz66).toBe(19000);
+      });
 
-    it(`${kr}/${mode}: Umzug zum 1.1., Vorjahresposten zählen erst mit Zahlung im Folgejahr`, async () => {
-      await reset(kr, mode);
-      await run([
-        entry("alt-AR", "2025-12-10", invoicePosting(totals, kr, mode)),
-        entry("alt-ER", "2025-12-11", documentPosting(totals, "edv", kr, "einzelunternehmen", "bank")),
-      ], kr);
-      expect(income(await reports.euerForYear(2025))).toBe(0);
-      expect((await vat.computeVatFigures({ year: 2025, month: 12 })).kz81).toBe(0);
-      // Eigene Quellidentitäten statt Belegnummer, auch bei einer späteren Importdatei.
-      const payments = [
-        entry("alt-AR-teil", "2026-01-15", invoicePaymentPosting(totals, 59500, kr, mode), "alt-AR"),
-        entry("alt-AR-rest", "2026-02-15", invoicePaymentPosting(totals, 59500, kr, mode), "alt-AR"),
-        entry("alt-ER-zahlung", "2026-02-16", documentPaymentPosting(-119000, kr), "alt-ER"),
-      ];
-      await run(payments, kr);
-      expect((await run(payments, kr)).duplicates).toBe(3);
-      const euer = await reports.euerForYear(2026);
-      expect(income(euer)).toBe(100000);
-      expect(expense(euer)).toBe(100000);
-      expect(euer.monthly.einnahmen.slice(0, 2)).toEqual([50000, 50000]);
-      expect(euer.gewinn).toBe(0);
-      const yearly = await annual.annualOverview(2026, "2027-03-01");
-      expect(yearly.ust.figures.base19).toBe(mode === "ist" ? 100000 : 0);
-      expect(yearly.ust.figures.vorsteuer).toBe(0);
-      expect(await sql`select id from invoices union all select id from documents`).toHaveLength(0);
-      expect(await sql`select id from journal_entries`).toHaveLength(5);
-    });
+      it(`${kr}/${mode}: Umzug zum 1.1., Vorjahresposten zählen erst mit Zahlung im Folgejahr`, async () => {
+        await reset(kr, mode);
+        await run(
+          [
+            entry("alt-AR", "2025-12-10", invoicePosting(totals, kr, mode)),
+            entry("alt-ER", "2025-12-11", documentPosting(totals, "edv", kr, "einzelunternehmen", "bank")),
+          ],
+          kr,
+        );
+        expect(income(await reports.euerForYear(2025))).toBe(0);
+        expect((await vat.computeVatFigures({ year: 2025, month: 12 })).kz81).toBe(0);
+        // Eigene Quellidentitäten statt Belegnummer, auch bei einer späteren Importdatei.
+        const payments = [
+          entry("alt-AR-teil", "2026-01-15", invoicePaymentPosting(totals, 59500, kr, mode), "alt-AR"),
+          entry("alt-AR-rest", "2026-02-15", invoicePaymentPosting(totals, 59500, kr, mode), "alt-AR"),
+          entry("alt-ER-zahlung", "2026-02-16", documentPaymentPosting(-119000, kr), "alt-ER"),
+        ];
+        await run(payments, kr);
+        expect((await run(payments, kr)).duplicates).toBe(3);
+        const euer = await reports.euerForYear(2026);
+        expect(income(euer)).toBe(100000);
+        expect(expense(euer)).toBe(100000);
+        expect(euer.monthly.einnahmen.slice(0, 2)).toEqual([50000, 50000]);
+        expect(euer.gewinn).toBe(0);
+        const yearly = await annual.annualOverview(2026, "2027-03-01");
+        expect(yearly.ust.figures.base19).toBe(mode === "ist" ? 100000 : 0);
+        expect(yearly.ust.figures.vorsteuer).toBe(0);
+        expect(await sql`select id from invoices union all select id from documents`).toHaveLength(0);
+        expect(await sql`select id from journal_entries`).toHaveLength(5);
+      });
 
-    it(`${kr}/${mode}: Umzug mitten im Jahr, bereits extern abgegebener Monat bleibt versiegelt`, async () => {
-      await reset(kr, mode);
-      await run([entry("januar", "2026-01-15", invoicePosting(totals, kr, "soll").map((l) => l.account === ACCOUNTS[kr].forderungen ? { ...l, account: ACCOUNTS[kr].bank } : l))], kr);
-      const january = { year: 2026, month: 1 };
-      const draft = await vat.saveDraft(actor, january, { mode: "berechnet" });
-      const filed = await vat.vermerkeAbgabe(actor, draft.id, {
-        filedOn: "2026-02-10", transferTicket: "extern-pruefung-634", kz83: 19000,
-        file: { filename: "extern.pdf", bytes: new TextEncoder().encode("%PDF-1.4\n%%EOF") },
-      }, "2026-02-10");
-      // Nachgelieferte Originalbuchung: Jahreswerte ändern sich, der Abgabestand nicht.
-      await run([
-        entry("januar-nachtrag", "2026-01-20", invoicePosting(totals, kr, "soll").map((l) => l.account === ACCOUNTS[kr].forderungen ? { ...l, account: ACCOUNTS[kr].bank } : l)),
-        entry("juli", "2026-07-15", invoicePosting(totals, kr, "soll").map((l) => l.account === ACCOUNTS[kr].forderungen ? { ...l, account: ACCOUNTS[kr].bank } : l)),
-      ], kr);
-      expect((await annual.annualOverview(2026, "2027-03-01")).ust.figures.base19).toBe(300000);
-      expect(income(await reports.euerForYear(2026))).toBe(300000);
-      expect((await vat.returnsForPeriod(january))[0]).toMatchObject({ id: filed.id, status: "sent", kz81: 100000, kz83: 19000 });
-      await expect(vat.saveDraft(actor, january, { mode: "berechnet" })).rejects.toThrow(/berichtigte/);
-      await expect(sql`update vat_returns set kz81 = 200000 where id = ${filed.id}`).rejects.toThrow(/festgeschrieben/);
-      const correction = await vat.createCorrection(actor, january);
-      expect(correction.correctsId).toBe(filed.id);
-    });
-  }
+      it(`${kr}/${mode}: Umzug mitten im Jahr, bereits extern abgegebener Monat bleibt versiegelt`, async () => {
+        await reset(kr, mode);
+        await run(
+          [
+            entry(
+              "januar",
+              "2026-01-15",
+              invoicePosting(totals, kr, "soll").map((l) => (l.account === ACCOUNTS[kr].forderungen ? { ...l, account: ACCOUNTS[kr].bank } : l)),
+            ),
+          ],
+          kr,
+        );
+        const january = { year: 2026, month: 1 };
+        const draft = await vat.saveDraft(actor, january, { mode: "berechnet" });
+        const filed = await vat.vermerkeAbgabe(
+          actor,
+          draft.id,
+          {
+            filedOn: "2026-02-10",
+            transferTicket: "extern-pruefung-634",
+            kz83: 19000,
+            file: { filename: "extern.pdf", bytes: new TextEncoder().encode("%PDF-1.4\n%%EOF") },
+          },
+          "2026-02-10",
+        );
+        // Nachgelieferte Originalbuchung: Jahreswerte ändern sich, der Abgabestand nicht.
+        await run(
+          [
+            entry(
+              "januar-nachtrag",
+              "2026-01-20",
+              invoicePosting(totals, kr, "soll").map((l) => (l.account === ACCOUNTS[kr].forderungen ? { ...l, account: ACCOUNTS[kr].bank } : l)),
+            ),
+            entry(
+              "juli",
+              "2026-07-15",
+              invoicePosting(totals, kr, "soll").map((l) => (l.account === ACCOUNTS[kr].forderungen ? { ...l, account: ACCOUNTS[kr].bank } : l)),
+            ),
+          ],
+          kr,
+        );
+        expect((await annual.annualOverview(2026, "2027-03-01")).ust.figures.base19).toBe(300000);
+        expect(income(await reports.euerForYear(2026))).toBe(300000);
+        expect((await vat.returnsForPeriod(january))[0]).toMatchObject({ id: filed.id, status: "sent", kz81: 100000, kz83: 19000 });
+        await expect(vat.saveDraft(actor, january, { mode: "berechnet" })).rejects.toThrow(/berichtigte/);
+        await expect(sql`update vat_returns set kz81 = 200000 where id = ${filed.id}`).rejects.toThrow(/festgeschrieben/);
+        const correction = await vat.createCorrection(actor, january);
+        expect(correction.correctsId).toBe(filed.id);
+      });
+    }
+
+  it("errät fehlende Zahlungsbezüge alter Pakete nicht und nennt sie im Abgleich", async () => {
+    await reset("SKR03", "ist");
+    await run([entry("ohne-Bezug", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist"))], "SKR03");
+    expect(income(await reports.euerForYear(2026))).toBe(0);
+    expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).toMatch(/Import.*Zahlungsbezug/);
+  });
+
+  it("weist fehlende, zirkuläre, überhöhte und kontenfremde Zahlungsbezüge ohne Teilübernahme ab", async () => {
+    for (const [id, lines, target] of [
+      ["fehlt", invoicePaymentPosting(totals, 119000, "SKR03", "ist"), "nicht-vorhanden"],
+      ["selbst", invoicePaymentPosting(totals, 119000, "SKR03", "ist"), "selbst"],
+      ["zu-viel", invoicePaymentPosting(totals, 119001, "SKR03", "ist"), "AR"],
+      ["anderes-Konto", documentPaymentPosting(-119000, "SKR03"), "AR"],
+      ["doppelter-Erloes", invoicePosting(totals, "SKR03", "ist"), "AR"],
+    ] as const) {
+      await reset("SKR03", "ist");
+      await expect(
+        run([entry("AR", "2026-01-15", invoicePosting(totals, "SKR03", "ist")), entry(id, "2026-02-15", [...lines], target)], "SKR03"),
+      ).rejects.toThrow(/Zahlungsbezug ungültig/);
+      expect(await sql`select id from journal_entries`).toHaveLength(0);
+    }
+  });
+
+  it("erhält Cent-Reste über Jahreswechsel und Rückzahlung ohne zweite Erlösbuchung", async () => {
+    await reset("SKR04", "ist");
+    const tiny = totalsFromTaxes([{ rate: 1900, base: 5, tax: 1 }]);
+    await run(
+      [
+        entry("klein", "2026-12-28", invoicePosting(tiny, "SKR04", "ist")),
+        entry("z1", "2026-12-30", invoicePaymentPosting(tiny, 3, "SKR04", "ist"), "klein"),
+        entry("z2", "2027-01-02", invoicePaymentPosting(tiny, 3, "SKR04", "ist"), "klein"),
+        entry("rueck", "2027-01-02", invoicePaymentPosting(tiny, -6, "SKR04", "ist"), "klein"),
+      ],
+      "SKR04",
+    );
+    const first = await reports.euerForYear(2026);
+    const next = await reports.euerForYear(2027);
+    expect(income(first)).toBe(2);
+    expect(income(next)).toBe(-2);
+    expect(first.gewinn + next.gewinn).toBe(0);
+    expect(await sql`select id from journal_entries`).toHaveLength(4);
+  });
+
+  it("prüft beim Kontenrahmenwechsel nur neu zugeordnete Posten derselben Quelle", async () => {
+    await reset("SKR03", "ist");
+    await run(
+      [
+        entry("AR-2025", "2025-01-15", invoicePosting(totals, "SKR03", "ist")),
+        entry("zahlung-2025", "2025-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist"), "AR-2025"),
+      ],
+      "SKR03",
+    );
+    await sql`update company set kontenrahmen='SKR04'`;
+    await run(
+      [
+        entry("AR-2026", "2026-01-15", invoicePosting(totals, "SKR04", "ist")),
+        entry("zahlung-2026", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR04", "ist"), "AR-2026"),
+      ],
+      "SKR04",
+    );
+    expect(income(await reports.euerForYear(2026))).toBe(100000);
+    expect((await vat.computeVatFigures({ year: 2026, month: 2 })).kz81).toBe(100000);
+  });
 });

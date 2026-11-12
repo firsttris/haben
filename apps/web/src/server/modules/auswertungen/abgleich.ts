@@ -263,6 +263,10 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).limit(1);
   const euerAusDemJournal = !firma || !isKapitalgesellschaft(firma.rechtsform);
   const ausJournal = await euerAusJournal(year, q);
+  if (euerAusDemJournal && ausJournal.ungeklaerteImporte > 0)
+    hinweise.push(
+      `${ausJournal.ungeklaerteImporte} Import-Buchungen auf Forderungen oder Verbindlichkeiten haben keinen Zahlungsbezug. Vor der EÜR die Quellzuordnung prüfen; daraus werden keine Einnahmen oder Ausgaben geschätzt.`,
+    );
   if (euerAusDemJournal) {
     const label = (key: EuerLineKey) =>
       [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.label ??

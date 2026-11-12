@@ -98,6 +98,8 @@ export const externalJournalSchema = z.strictObject({
   externalId: key,
   date: z.iso.date(),
   description: z.string().min(1).max(2000),
+  /** Quellidentität der ursprünglichen OP-Buchung derselben Quelle; keine Belegnummer und kein Zahlungsstatus. */
+  settles: key.optional(),
   lines: z
     .array(
       z

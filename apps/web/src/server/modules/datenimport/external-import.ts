@@ -6,8 +6,9 @@ import { schema, type Tx } from "../../db/index.ts";
 import { storeLegacyOrder, storeLegacyVoucher } from "../archiv/index.ts";
 import { addImportedCashEntries, lockCash, type ImportedCashEntry } from "../bank/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import type { ExternalImport, ExternalInvoice, ExternalQuote } from "./external-schema.ts";
+import { externalJournalSchema, type ExternalImport, type ExternalInvoice, type ExternalQuote } from "./external-schema.ts";
 import { ExternalImportError, validateExternalImport } from "./external-validation.ts";
+import { validateExternalSettlements } from "./external-settlements.ts";
 
 /** Quellidentität und Hash sind unabhängig von JSON-Eigenschaftsreihenfolgen. */
 export function importPayloadHash(value: unknown): string {
@@ -128,6 +129,13 @@ export async function runExternalImport(
     if (company.kontenrahmen !== parsed.kontenrahmen) throw new ExternalImportError("Paket und Firma verwenden unterschiedliche Kontenrahmen.");
     const previous = await tx.select().from(schema.externalImports).where(eq(schema.externalImports.source, parsed.source));
     const known = new Map(previous.map((r) => [`${r.kind}:${r.externalId}`, r]));
+    const journals = new Map(previous.filter((r) => r.kind === "journal").map((r) => [r.externalId, externalJournalSchema.parse(r.payload)]));
+    for (const entry of parsed.entries) if (entry.kind === "journal") journals.set(entry.externalId, entry);
+    const targets = new Set(parsed.entries.flatMap((e) => (e.kind === "journal" && e.settles ? [e.settles] : [])));
+    validateExternalSettlements(
+      company.kontenrahmen,
+      [...journals.values()].filter((e) => targets.has(e.externalId) || (e.settles && targets.has(e.settles))),
+    );
     if (parsed.entries.some((e) => e.kind === "journal" && !known.has(`journal:${e.externalId}`))) {
       const [taken] = await tx.execute<{ id: string }>(sql`select v.id from external_imports o
         join lexoffice_vouchers v on v.id=o.voucher_id where o.source=${parsed.source}

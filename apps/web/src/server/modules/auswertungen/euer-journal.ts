@@ -1,18 +1,11 @@
-import {
-  ACCOUNTS,
-  euerAusZeilen,
-  leereEuerAusJournal,
-  zahlungsAnteil,
-  zahlungsStand,
-  type EuerAusJournal,
-  type EuerHerkunft,
-  type Kontenrahmen,
-} from "@haben/core";
+import { ACCOUNTS, euerAusZeilen, kontoart, leereEuerAusJournal, zahlungsAnteil, type EuerAusJournal, type EuerHerkunft, type Kontenrahmen } from "@haben/core";
 import { and, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { imEuerJahr } from "./euer-jahreswechsel.ts";
 import { ausgleichsBuchungenJe, bloecke, type Buchung, buchungen, buchungenJe, offenerPosten, type Zeile } from "./euer-journal-buchungen.ts";
 import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebenbuch } from "./euer-journal-nebenbuch.ts";
+import { offenerSaldo as offen, rechnungsAnteile } from "./euer-journal-anteile.ts";
+import { importAnteile } from "./euer-import.ts";
 
 /*
  * EÜR aus dem Journal (#542, Schritt 5b), als Schattenrechnung neben euerForYear. Eine Buchung ohne Forderungen und
@@ -22,7 +15,6 @@ import { belegNebenbuecher, belegTeilzahlung, uebernommeneZeilen, type BelegNebe
  * Skonto und Forderungsausfall wirken nicht, die EÜR zählt nur, was gezahlt wird.
  */
 
-const offen = (b: Buchung) => b.zeilen.filter((z) => offenerPosten(b.kontenrahmen, z)).reduce((s, z) => s + z.debit - z.credit, 0);
 const ausbuchungOhneZahlung = (b: Buchung) => {
   const a = ACCOUNTS[b.kontenrahmen];
   return b.zeilen.some((z) => z.account === a.skontiGewaehrt || z.account === a.skontiErhalten || z.account === a.forderungsverluste);
@@ -57,6 +49,8 @@ export interface EuerJournal {
    * bzw. Aufwandszeilen; verteilt wird auf die Zeilen, die Haben für Rechnung bzw. Beleg buchen würde (uebernommeneZeilen)
    */
   uebernommen: number;
+  /** Importierte Ausgleiche ohne eindeutigen Quellbezug; keine geschätzte EÜR-Zuordnung. */
+  ungeklaerteImporte: number;
   /** Wirkung je Monat (Index 0 = Januar), für die Grafik nach Monaten */
   monate: EuerAusJournal[];
 }
@@ -71,26 +65,6 @@ interface Ursprung {
   /** Rechnung: Anteil jeder ausgleichenden Buchung an den Zeilen, wie gespeichert (settlementTaxShares) */
   anteile?: Map<string, number[]>;
   beleg?: BelegNebenbuch;
-}
-
-/**
- * Anteile aller Zahlungen, Ausbuchungen und Bareinnahmen einer Rechnung, wie Haben sie beim Zuordnen speichert: jede gegen
- * das bis dahin Erfasste (settlementTaxShares), eine Gegenbuchung genau umgekehrt wie die aufgehobene
- */
-function rechnungsAnteile(kr: Kontenrahmen, zeilen: Zeile[], gesamt: number, ausgleiche: Buchung[]): Map<string, number[]> {
-  const anteile = new Map<string, number[]>();
-  let ausgeglichen = 0;
-  let erfasst = zeilen.map(() => 0);
-  for (const a of ausgleiche) {
-    const betrag = -offen(a);
-    const umgekehrt = a.reversesId ? anteile.get(a.reversesId) : undefined;
-    const stand = umgekehrt ? null : zahlungsStand(kr, zeilen, gesamt, ausgeglichen + betrag);
-    const anteil = umgekehrt ? umgekehrt.map((v) => -v) : stand!.map((v, i) => v - erfasst[i]!);
-    erfasst = erfasst.map((v, i) => v + anteil[i]!);
-    ausgeglichen += betrag;
-    anteile.set(a.id, anteil);
-  }
-  return anteile;
 }
 
 const alsZeilen = (zeilen: Zeile[], anteil: number[]): Zeile[] =>
@@ -113,6 +87,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     await buchungen(q, and(gte(e.date, `${year}-01-01`), lt(e.date, `${year + 1}-01-01`), ne(e.sourceType, "eroeffnung"))),
     q,
   );
+  const importiert = await importAnteile(q, jahr);
   const zielVon = await ziele(
     q,
     jahr.filter((b) => b.sourceType === "allocation" || b.sourceType === "ausbuchung" || b.sourceType === "kasse").map((b) => b.sourceId),
@@ -145,6 +120,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
 
   const summe = leereEuerAusJournal();
   let uebernommen = 0;
+  let ungeklaerteImporte = 0;
   const ursprung = new Map<string, Ursprung>();
   const ursprungVon = async (typ: "invoice" | "document", id: string, kr: Kontenrahmen): Promise<Ursprung> => {
     const key = `${typ}|${id}`;
@@ -178,7 +154,7 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
     dazu(summe, beitrag);
     dazu(monate[Number(b.date.slice(5, 7)) - 1]!, beitrag);
   }
-  return { summe, uebernommen, monate };
+  return { summe, uebernommen, ungeklaerteImporte, monate };
 
   /** Was eine Buchung in der EÜR bewirkt */
   async function wirkung(b: Buchung): Promise<EuerAusJournal> {
@@ -195,8 +171,14 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
             : "sonst";
     const ausgeglichen = offen(b);
     const hatOffenenPosten = b.zeilen.some((z) => offenerPosten(kr, z));
+    const importAnteil = importiert.get(b.id);
+    if (hatOffenenPosten && b.sourceType === "import" && !importAnteil && !b.zeilen.some((z) => kontoart(kr, z.account) !== "bestand")) ungeklaerteImporte++;
     // Rechnung bzw. Beleg auf Ziel: wirkt erst mit der Zahlung
-    if (hatOffenenPosten && (b.sourceType === "invoice" || b.sourceType === "document" || b.sourceType === "asset")) return summe;
+    if (
+      hatOffenenPosten &&
+      (b.sourceType === "invoice" || b.sourceType === "document" || b.sourceType === "asset" || (b.sourceType === "import" && !importAnteil))
+    )
+      return summe;
     if (ausbuchungOhneZahlung(b)) return summe;
     // Eigene Zeilen der Buchung (Kursdifferenz, Umbuchung der Umsatzsteuer, die sich aufhebt) nach ihren Konten
     const eigene = b.zeilen.filter((z) => !offenerPosten(kr, z));
@@ -217,6 +199,10 @@ export async function euerAusJournal(year: number, q: Db | Tx = db): Promise<Eue
       ),
       umkehr ? -1 : 1,
     );
+    if (importAnteil) {
+      euerAusZeilen(importAnteil.kontenrahmen, alsZeilen(importAnteil.zeilen, importAnteil.anteil), "sonst", summe);
+      return summe;
+    }
     if (!hatOffenenPosten || ausgeglichen === 0) return summe;
     const typ = ziel?.invoiceId ? "invoice" : ziel?.documentId ? "document" : null;
     const zielId = ziel?.invoiceId ?? ziel?.documentId;
