@@ -29,6 +29,7 @@ import {
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
+import { embedFacturX } from "./zugferd.ts";
 
 type UblInvoice = Invoice["ubl:Invoice"];
 type InvoiceLine = UblInvoice["cac:InvoiceLine"][number];
@@ -449,15 +450,7 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
 
   if (doc.format === "zugferd") {
     const xml = ciiXml(data, "factur-x");
-    // ÜBERGANG: Einbetten bis Schritt 3 noch über die Bibliothek
-    const pdf = await generateEInvoice(structuredClone(data), {
-      format: SERVICE_FORMATS.zugferd,
-      lang: "de-de",
-      pdf: { buffer: visual, filename: `${doc.number}.pdf`, mimetype: "application/pdf" },
-      noWarnings: true,
-    });
-    if (typeof pdf === "string") throw new Error("ZUGFeRD-Erzeugung lieferte kein PDF");
-    return { xml, pdf };
+    return { xml, pdf: await embedFacturX(visual, xml, doc.issueDate) };
   }
   if (doc.format === "xrechnung-cii") return { xml: ciiXml(data, "xrechnung"), pdf: visual };
 
