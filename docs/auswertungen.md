@@ -199,6 +199,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
 | `FEHLER.txt` | Nur wenn eine Datei nicht lesbar war, mit Liste der betroffenen Belege |
+| `index.xml` | Beschreibung aller CSV-Dateien für die Prüfsoftware, siehe [index.xml für die Prüfsoftware](#indexxml-für-die-prüfsoftware) |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |
 
 Die Stammdaten sind nicht nach Jahr gefiltert, sondern der Stand beim Export.
@@ -224,6 +225,16 @@ Alle CSV-Dateien im Archiv sind gleich aufgebaut:
 - Datumsangaben als `JJJJ-MM-TT`, Zeitpunkte in UTC nach ISO 8601
 - Felder mit Semikolon, Anführungszeichen oder Zeilenumbruch in Anführungszeichen, Anführungszeichen verdoppelt (RFC 4180)
 - Wahrheitswerte als `ja` bzw. `nein`
+
+### index.xml für die Prüfsoftware
+
+Bei einer Außenprüfung kann die Finanzverwaltung die Daten auf einem Datenträger verlangen (Datenüberlassung, Z3, § 147 Abs. 6 AO). Prüfsoftware wie IDEA liest sie ohne Handarbeit ein, wenn eine Beschreibungsdatei `index.xml` nach dem Beschreibungsstandard der Finanzverwaltung (GDPdU, Version 1.6 von 2019) dabeiliegt. Das Jahresarchiv enthält sie: Zu jeder CSV-Datei steht dort ihr Pfad, der Zeichensatz (UTF-8), das Dezimalkomma, das Semikolon als Trenner, das Anführungszeichen für Felder, die übersprungene Kopfzeile und jede Spalte mit ihrem Namen. Betragsspalten (`1234,56`) und Datumsspalten (`JJJJ-MM-TT`) sind als Zahl mit zwei Nachkommastellen bzw. als Datum beschrieben, soweit Haben sie so schreibt, etwa bei Rechnungen, Belegen, Journal und Bankumsätzen; alles andere gilt als Text, damit Nummern ihre führenden Nullen behalten. Zeitpunkte sind Text, der Standard kennt keine Uhrzeit. Pro Jahr gibt es eine eigene `index.xml`; einen gemeinsamen Datenträger für mehrere Jahre stellt Haben nicht zusammen.
+
+> [!IMPORTANT]
+> Die `index.xml` verweist auf die Datei `gdpdu-01-03-2019.dtd`, legt sie aber **nicht** bei: Die DTD darf nicht verändert werden, und Haben hat keine Originalfassung. Sie gehört mit der `index.xml` zusammen auf den Datenträger. Die Prüfsoftware bringt sie meist mit; sonst gibt CaseWare Germany sie kostenlos heraus (Beschreibungsstandard, [Haufe](https://www.haufe.de/id/norm/grundsaetze-zur-ordnungsmaessigen-fuehrung-und-aufbewahrung-1-beschreibungsstandard-fuer-die-datenueberlassung-HI16888200.html)).
+
+> [!WARNING]
+> **Ungeprüft:** Ob IDEA oder eine andere Prüfsoftware die `index.xml` annimmt, hat niemand ausprobiert. Haben prüft den Aufbau gegen die Inhaltsmodelle der DTD und die Werte jeder Betrags- und Datumsspalte gegen das erzeugte Archiv, mehr nicht. Die CSV-Dateien beginnen mit einem Byte Order Mark (damit Tabellenprogramme sie öffnen); ob die Prüfsoftware es verträgt, ist ebenfalls offen. Leere Felder in Zahl- und Datumsspalten stehen für „kein Wert“. Beziehungen zwischen Tabellen (`ForeignKey`) und Zuordnungen von Werten (`Map`) beschreibt die Datei noch nicht.
 
 ### Prüfsummen prüfen
 
