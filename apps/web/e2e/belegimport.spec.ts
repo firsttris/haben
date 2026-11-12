@@ -9,6 +9,7 @@ test.describe.configure({ mode: "serial" });
 let page: Page;
 let closeDatabase: () => Promise<void>;
 let ids: { invoice: string; quote: string };
+const importedInvoices: { id: string; label: string }[] = [];
 const pdf = new TextEncoder().encode("%PDF-1.4\n1 0 obj <</Type/Catalog>> endobj\n%%EOF");
 const pdfSha256 = createHash("sha256").update(pdf).digest("hex");
 
@@ -85,10 +86,83 @@ test.beforeAll(async ({ browser }) => {
     async () => pdf,
   );
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher, takeOverLegacyItem } = await import("../src/server/modules/archiv/index.ts");
+  const [oldImport] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  for (const [source, label] of [
+    ["lexoffice", "Lexoffice"],
+    ["sevdesk", "sevDesk"],
+    ["import", "Beispiel-Programm"],
+  ] as const) {
+    const voucher = await withActor("e2e-import", async (tx) => {
+      const result = await storeLegacyVoucher(
+        tx,
+        {
+          source,
+          importId: oldImport!.id,
+          lexofficeId: `herkunft-${source}`,
+          type: "invoice",
+          direction: "einnahme",
+          number: `HERKUNFT-${source}`,
+          date: "2026-01-03",
+          dueDate: "2026-01-17",
+          status: "open",
+          contactName: "Frida Import",
+          net: 10000,
+          tax: 0,
+          gross: 10000,
+          taxes: [{ rate: 0, net: 10000, tax: 0 }],
+          categories: [],
+          payment: { openAmount: 10000, paidDate: null, items: [] },
+          raw: { sourceName: "Beispiel-Programm", taxType: "vatfree" },
+        },
+        [{ role: "pdf", sourceFileId: null, filename: `herkunft-${source}.pdf`, mimeType: "application/pdf", bytes: pdf }],
+      );
+      if (source === "import")
+        await tx.insert(schema.externalImports).values({
+          source: "Beispiel-Programm",
+          externalId: "herkunft-import",
+          kind: "invoice",
+          payloadHash: "0".repeat(64),
+          voucherId: result!.id,
+          payload: {},
+        });
+      return result!;
+    });
+    const native = await takeOverLegacyItem("e2e-import", voucher.id, "2026-01-31");
+    importedInvoices.push({ id: native.id, label });
+  }
 });
 test.afterAll(async () => {
   await closeDatabase?.();
   await page?.context().close();
+});
+
+test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", async () => {
+  for (const invoice of importedInvoices) {
+    await page.goto(`/rechnungen/${invoice.id}`);
+    await page.waitForLoadState("networkidle");
+    if (invoice.label === "sevDesk" && process.env.IMPORT_SCREENSHOTS) {
+      const dir = "/tmp/haben-pr-import-source";
+      await mkdir(dir, { recursive: true });
+      for (const theme of ["wald", "nacht"])
+        for (const [device, width, height] of [
+          ["desktop", 1440, 900],
+          ["handy", 390, 844],
+        ] as const) {
+          await page.setViewportSize({ width, height });
+          await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+          await page.screenshot({ path: `${dir}/herkunft-${theme}-${device}-${process.env.IMPORT_SCREENSHOTS}.png`, animations: "disabled", caret: "hide" });
+        }
+    }
+    await expect(
+      page
+        .locator("dt")
+        .filter({ hasText: /^Format$/ })
+        .locator("+ dd"),
+    ).toHaveText(`Original aus ${invoice.label}`);
+  }
 });
 
 test("Originale nutzen das gemeinsame Archiv mit tatsächlicher Quelle und unverändertem PDF", async () => {
