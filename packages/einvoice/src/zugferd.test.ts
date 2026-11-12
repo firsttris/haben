@@ -2,7 +2,7 @@ import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStre
 import { describe, expect, it } from "vitest";
 import { sampleDocument } from "./samples.ts";
 import { buildEInvoice } from "./xml.ts";
-import { extractFacturXXml } from "./zugferd.ts";
+import { embedFacturX, extractFacturXXml } from "./zugferd.ts";
 
 async function load(pdf: Uint8Array) {
   return PDFDocument.load(pdf, { updateMetadata: false });
@@ -55,5 +55,19 @@ describe("ZUGFeRD-PDF", () => {
     );
     // Zeitstempel aus dem Rechnungsdatum, nicht aus der Uhr
     expect(xmp).toContain("<xmp:CreateDate>2026-10-02T12:00:00+00:00</xmp:CreateDate>");
+  });
+
+  it("bricht ab, wenn dem PDF das XMP oder dessen Erweiterungsschemas fehlen", async () => {
+    const ohneXmp = await PDFDocument.create();
+    ohneXmp.addPage();
+    await expect(embedFacturX(await ohneXmp.save(), "<x/>", "2026-10-02")).rejects.toThrow("Rechnungs-PDF ohne XMP-Metadaten");
+
+    const ohneSchemas = await PDFDocument.create();
+    ohneSchemas.addPage();
+    const xmp = new TextEncoder().encode(
+      '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF></x:xmpmeta>',
+    );
+    ohneSchemas.catalog.set(PDFName.of("Metadata"), ohneSchemas.context.register(ohneSchemas.context.stream(xmp, { Type: "Metadata", Subtype: "XML" })));
+    await expect(embedFacturX(await ohneSchemas.save(), "<x/>", "2026-10-02")).rejects.toThrow("XMP des Rechnungs-PDF ohne PDF/A-Erweiterungsschemas");
   });
 });

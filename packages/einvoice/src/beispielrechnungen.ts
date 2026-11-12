@@ -226,6 +226,46 @@ export const BEISPIELRECHNUNGEN: Record<string, InvoiceDocument> = {
     format: "xrechnung-cii",
     lines: [{ description: "Leistung zum Nullsatz", quantity: 1000, unit: "Psch.", unitPrice: 50000, taxRate: 0 }],
   }),
+  // Die Fälle darüber, die es nur in einem oder zwei Formaten gibt, in den übrigen (#734)
+  ...Object.fromEntries(
+    (
+      [
+        ["korrektur", ["zugferd", "xrechnung-cii"], (format) => sampleDocument({ kind: "korrektur", format, lines: mixedRateLines })],
+        ["korrektur-gemischt", ["zugferd"], korrekturMitZuschlag],
+        ["leitweg", ["zugferd"], (format) => sampleDocument({ format, buyer: publicBuyer })],
+        ["leistungsdatum", ["zugferd", "xrechnung-cii"], (format) => ({ ...sampleDocument({ format }), serviceFrom: "2026-09-30", serviceTo: undefined })],
+        [
+          "storno-ig-lieferung",
+          ["zugferd", "xrechnung-ubl"],
+          (format) => sampleDocument({ kind: "storno", format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" }),
+        ],
+        [
+          "storno-reverse-charge",
+          ["zugferd", "xrechnung-cii"],
+          (format) => sampleDocument({ kind: "storno", format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" }),
+        ],
+        [
+          "brutto-grosse-menge",
+          ["zugferd", "xrechnung-cii"],
+          (format) =>
+            sampleDocument({
+              format,
+              lines: [
+                { description: "Druckseiten", quantity: 123_456_789, unit: "Stk.", unitPrice: 7, taxRate: 1900 },
+                { description: "Versand", quantity: 3000, unit: "Psch.", unitPrice: 499, taxRate: 1900 },
+              ],
+              priceMode: "brutto",
+            }),
+        ],
+        [
+          "nullsatz",
+          ["zugferd", "xrechnung-ubl"],
+          (format) =>
+            sampleDocument({ format, lines: [{ description: "Leistung zum Nullsatz", quantity: 1000, unit: "Psch.", unitPrice: 50000, taxRate: 0 }] }),
+        ],
+      ] as [string, InvoiceDocument["format"][], (format: InvoiceDocument["format"]) => InvoiceDocument][]
+    ).flatMap(([name, formats, make]) => formats.map((format) => [`${name}-${format}`, make(format)])),
+  ),
   // Bestellnummer (BT-13), Auftragsnummer (BT-14) und Lieferschein (BT-16); BT-16 mit Lieferdatum und ohne
   ...Object.fromEntries(
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
