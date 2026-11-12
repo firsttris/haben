@@ -83,6 +83,17 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
     expect(booked).toContainEqual({ account: ACCOUNTS.SKR03.ust[1900], amount: 5_700 });
   });
 
+  it("beschränkt Auswertungspläne auf Ereignisse im Zieljahr und berücksichtigt Zahlungen auf Vorjahresanzahlungen", async () => {
+    const invoice = await advance();
+    const { advanceVatPlans } = invoices;
+    const { db } = await import("../../db/index.ts");
+    expect(await advanceVatPlans(db, 2027)).toEqual([]);
+    await bank.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2027-01-12", amount: 35_700 }, "2027-01-12");
+    expect((await advanceVatPlans(db, 2027)).map((p) => p.original.id)).toEqual([invoice.id]);
+    expect(await advanceVatPlans(db, 2028)).toEqual([]);
+    await tax(2027, 1, 30_000, 5_700);
+  });
+
   it("SKR04, 7 %: zwei Teilzahlungen versteuern den Abschlag nur anteilig und insgesamt genau einmal", async () => {
     await sql`update company set kontenrahmen = 'SKR04'`;
     const invoice = await advance(700);

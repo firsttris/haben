@@ -86,4 +86,4 @@ export * from "./darlehen.ts";
 export * from "./direkt-kategorie.ts";
 export * from "./bareinnahme.ts";
 export * from "./kleinunternehmer-stand.ts";
-export { advanceVatPlan, type AdvanceVatEvent, type AdvanceVatChange } from "./anzahlung-steuer.ts";
+export { advanceVatPlan, advanceVatDifference, advanceUsesPayments, type AdvanceVatEvent, type AdvanceVatChange } from "./anzahlung-steuer.ts";

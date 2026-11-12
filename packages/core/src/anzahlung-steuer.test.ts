@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { advanceVatPlan } from "./anzahlung-steuer.ts";
+import { advanceVatDifference, advanceVatPlan } from "./anzahlung-steuer.ts";
 
 const total = [{ rate: 1900, base: 30_000, tax: 5_700 }];
 const part = [{ rate: 1900, base: 10_000, tax: 1_900 }];
 
 describe("Steuerzeitpunkte einer Soll-Anzahlung", () => {
+  it("später zugeordnete frühere Zahlung verschiebt nur deren Anteil vom Leistungsmonat in den Zahlungsmonat", () => {
+    const before = advanceVatPlan(total, [{ date: "2027-02-01", performance: 1 }]);
+    const after = advanceVatPlan(total, [
+      { date: "2027-01-12", paid: part },
+      { date: "2027-02-01", performance: 1 },
+    ]);
+    expect(advanceVatDifference(before, after)).toEqual([
+      { date: "2027-01-12", shares: part },
+      { date: "2027-02-01", shares: [{ rate: 1900, base: -10_000, tax: -1_900 }] },
+    ]);
+    expect(advanceVatDifference(after, after)).toEqual([]);
+  });
+
   it("verteilt eine Zahlung vor der Leistung und ignoriert spätere Zahlungen bis zur Aufhebung der Schlussrechnung", () => {
     expect(
       advanceVatPlan(total, [

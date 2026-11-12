@@ -56,35 +56,29 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
 test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistungsdatum (#622)", async () => {
   await go("/rechnungen/neu");
   await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
-  const screenshots = process.env.ANZAHLUNG_SCREENSHOTS;
-  if (screenshots) {
-    for (const [theme, name] of [
-      ["wald", "hell"],
-      ["nacht", "dunkel"],
-    ] as const) {
-      await page.evaluate((value) => {
-        localStorage.setItem("haben-theme", value);
-        document.documentElement.dataset.theme = value;
-      }, theme);
-      for (const [size, viewport] of [
-        ["desktop", { width: 1280, height: 900 }],
-        ["handy", { width: 375, height: 812 }],
-      ] as const) {
-        await page.setViewportSize(viewport);
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await page.screenshot({ path: `test-results/anzahlung/abschlag-${name}-${size}-${screenshots}.png` });
-      }
-    }
-    await page.setViewportSize(LAPTOP);
-  }
   const erbracht = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht" });
   await expect(erbracht).not.toBeChecked();
-  await expect(page.getByText("Umsatzsteuer entsteht erst bei Zahlungseingang.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.", { exact: true }),
+  ).toBeVisible();
   await erbracht.check();
   await expect(page.getByLabel("Leistung von", { exact: true })).toHaveAttribute("required", "");
   await expect(page.getByText("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.", { exact: true })).toBeVisible();
   await erbracht.uncheck();
   await expect(page.getByLabel("Leistung von", { exact: true })).not.toHaveAttribute("required");
+  for (const treatment of ["reverse_charge", "ig_lieferung", "drittland"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht.",
+    );
+  }
+  for (const treatment of ["ausfuhr", "steuerfrei"]) {
+    await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption(treatment);
+    await expect(erbracht).toHaveAccessibleDescription(
+      "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung.",
+    );
+  }
+  await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("regulaer");
 });
 
 test("Kontaktseite: Rechnungen des Kunden mit Summe je Jahr (#587)", async () => {

@@ -21,7 +21,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
-import { computeVatFigures } from "./vat-figures.ts";
+import { vatFiguresContext, computeVatFigures } from "./vat-figures.ts";
 import { VatError } from "./vat.ts";
 
 /*
@@ -52,8 +52,8 @@ const ZM_ARTEN: Partial<Record<TaxTreatment, ZmArt>> = { reverse_charge: "S", ig
 /** Lieferungen über diesem Betrag im Quartal verlangen eine Monatsmeldung (§ 18a Abs. 1 Satz 2 UStG) */
 const MONATSMELDUNG_AB: Cents = 50_000_00;
 
-async function zmQuellen(period: VatPeriod, q: Db | Tx): Promise<ZmQuelle[]> {
-  const revenue = (await computeVatFigures(period, q)).revenue.filter(
+async function zmQuellen(period: VatPeriod, q: Db | Tx, context?: ReturnType<typeof vatFiguresContext>): Promise<ZmQuelle[]> {
+  const revenue = (await computeVatFigures(period, q, context)).revenue.filter(
     (r): r is typeof r & { type: "invoice" | "ausbuchung" } => r.treatment in ZM_ARTEN && (r.type === "invoice" || r.type === "ausbuchung"),
   );
   const ids = [...new Set(revenue.map((r) => r.invoiceId))];
@@ -268,7 +268,8 @@ export async function zmQuartale(q: Db | Tx = db): Promise<(VatPeriod & { sent: 
     if (date) quartale.set(periodKey(quarter(date)), { ...quarter(date), sent: false });
   }
   // Heben sich die Umsätze eines Quartals auf, ist keine Meldung abzugeben (keine Nullmeldung, § 18a Abs. 1 UStG)
-  for (const [k, quartal] of quartale) if (zmZeilen(await zmQuellen(quartal, q)).length === 0) quartale.delete(k);
+  const context = vatFiguresContext(q);
+  for (const [k, quartal] of quartale) if (zmZeilen(await zmQuellen(quartal, q, context)).length === 0) quartale.delete(k);
   for (const s of sent) quartale.set(periodKey(s), { ...s, sent: true });
   return [...quartale.values()].sort((a, b) => a.year - b.year || a.month - b.month);
 }

@@ -559,8 +559,7 @@ export async function quoteToInvoice(
     };
     const advances =
       variant === "schluss"
-        ? (await openAbschlaege(null, tx))
-            .filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
+        ? (await openAbschlaege(null, tx)).filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
         : [];
     const deducts = advances.map((a) => a.id);
     // Angebotsdaten sind geplant, keine bestätigte Schlussleistung. Neue Schlussrechnungen schlagen heute vor;

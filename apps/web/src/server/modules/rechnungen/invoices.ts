@@ -53,8 +53,8 @@ import { documentReferences, referenceColumns, referenceFieldsSchema } from "./o
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
-import { invoiceVatDate, invoiceVatMode } from "./invoice-vat.ts";
-import { lockAdvanceVat, syncAdvanceVat } from "./advance-vat.ts";
+import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -512,7 +512,7 @@ export async function applyPublishedRatesToDrafts(actor: string): Promise<number
   let count = 0;
   for (const { id } of drafts) {
     const changed = await withActor(actor, async (tx) => {
-      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+      const invoice = await lockInvoice(tx, id);
       return invoice ? applyRateToDraft(tx, invoice) : false;
     });
     if (changed) count++;
@@ -586,7 +586,7 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
   await lockQuotes(tx, input.quoteId ? [input.quoteId] : []);
   // Vor dem ersten Audit-Eintrag sperren: Der Fremdschlüssel der Abzugsposition braucht sonst erst danach den
   // Abschlag, während dessen parallele Zahlung auf die Audit-Kette wartet.
-  for (const id of [...new Set([...(input.deducts ?? []), ...(extra.correctsId ? [extra.correctsId] : [])])].sort()) await lockAdvanceVat(tx, id);
+  for (const id of [...new Set([...(input.deducts ?? []), ...(extra.correctsId ? [extra.correctsId] : [])])].sort()) await lockInvoice(tx, id);
   const { bundesland } = await loadCompany(tx);
   await checkQuote(tx, input.quoteId);
   const lines = await allLines(tx, null, input);
@@ -605,7 +605,7 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
 }
 
 export async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
-  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+  const invoice = await lockInvoice(tx, id);
   if (!invoice) throw new InvoiceError("Rechnung nicht gefunden.");
   const problem = invoiceEditProblem(invoice);
   if (problem) throw new InvoiceError(problem);
@@ -616,8 +616,7 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
   return withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id], [input.quoteId]));
     const draft = await lockDraft(tx, id);
-    await lockAdvanceVat(tx, id);
-    for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockAdvanceVat(tx, reference);
+    for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockInvoice(tx, reference);
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
     if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
@@ -658,7 +657,6 @@ export async function deleteDraft(actor: string, id: string) {
   const unused = await withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id]));
     await lockDraft(tx, id);
-    await lockAdvanceVat(tx, id);
     await assertQuotesLocked(tx, quoteIds, [id]);
     // Aus einem Angebot entstanden: das Angebot lässt sich danach wieder abrechnen
     await tx.update(schema.quotes).set({ invoiceId: null, updatedAt: new Date() }).where(eq(schema.quotes.invoiceId, id));
@@ -1086,7 +1084,6 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   // oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein.
   const deducts = deductionIds(lines);
   const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
-  await lockAdvanceVat(tx, id);
   if (referenced.length > 0) {
     await tx
       .select({ id: schema.invoices.id })
@@ -1134,31 +1131,33 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const now = new Date();
 
   await takeNumber(tx, "rechnung", circle, counter);
-  const [finalized] = await tx
-    .update(schema.invoices)
-    .set({
-      status: "final",
-      advanceType: invoice.advanceType,
-      number,
-      numberYear: circle,
-      numberCounter: counter,
-      contactVersion: contact!.version,
-      seller,
-      buyer,
-      net: totals.net,
-      tax: totals.tax,
-      gross: totals.gross,
-      pdf: Buffer.from(rendered.pdf),
-      pdfSha256: sha256(rendered.pdf),
-      xml: rendered.xml,
-      xmlSha256: sha256(rendered.xml),
-      lockedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(schema.invoices.id, id))
-    .returning();
+  const [finalized] = await withAdvanceVatChange(tx, id, () =>
+    tx
+      .update(schema.invoices)
+      .set({
+        status: "final",
+        advanceType: invoice.advanceType,
+        number,
+        numberYear: circle,
+        numberCounter: counter,
+        contactVersion: contact!.version,
+        seller,
+        buyer,
+        net: totals.net,
+        tax: totals.tax,
+        gross: totals.gross,
+        pdf: Buffer.from(rendered.pdf),
+        pdfSha256: sha256(rendered.pdf),
+        xml: rendered.xml,
+        xmlSha256: sha256(rendered.xml),
+        lockedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(schema.invoices.id, id))
+      .returning(),
+  );
 
-  const versteuerung = await invoiceVatMode(invoice, tx);
+  const versteuerung = await invoicePostingMode(invoice, tx);
   await post(tx, company, {
     date: await invoiceVatDate(invoice, tx),
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
@@ -1171,7 +1170,6 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
   });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
-  await syncAdvanceVat(tx, id);
   await syncQuoteBilling(tx, quoteIds);
 
   return finalized!;
@@ -1263,8 +1261,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     await lockQuotes(tx, await quotesTouching(tx, [id]));
     // Original zuerst: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf (Fremdschlüssel
     // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
-    await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
-    await lockAdvanceVat(tx, id);
+    await lockInvoice(tx, id);
     // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
     await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today));

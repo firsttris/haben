@@ -2,6 +2,7 @@ import {
   type LetterheadDesign,
   type PaymentMethod,
   computeInvoice,
+  advanceUsesPayments,
   ITEM_NUMBER_MAX,
   convertPrice,
   CURRENCY_CODE,
@@ -769,8 +770,16 @@ export function InvoiceEditor({
                   </label>
                   <span id="invoice-advance-hint" className="field-hint">
                     {advanceType === "teilleistung"
-                      ? "Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung."
-                      : "Umsatzsteuer entsteht erst bei Zahlungseingang."}
+                      ? taxTreatment === "regulaer"
+                        ? "Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung."
+                        : "Tatsächliches Leistungsdatum der Teilleistung angeben. Der Meldezeitpunkt richtet sich nach der gewählten Steuerbehandlung."
+                      : taxTreatment === "regulaer"
+                        ? "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung."
+                        : taxTreatment === "kleinunternehmer"
+                          ? "Als Kleinunternehmer weist du auf der Anzahlung keine Umsatzsteuer aus."
+                          : advanceUsesPayments(taxTreatment)
+                            ? "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung."
+                            : "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht."}
                   </span>
                 </div>
               )}

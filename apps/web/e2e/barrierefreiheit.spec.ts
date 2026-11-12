@@ -598,7 +598,9 @@ test("Rechnungsart: Der Hinweis erscheint nur bei Abschlags- und Schlussrechnung
   await expect(art).toHaveAccessibleDescription("Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung.");
   const teilleistung = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht", exact: true });
   await expect(teilleistung).not.toBeChecked();
-  await expect(teilleistung).toHaveAccessibleDescription("Umsatzsteuer entsteht erst bei Zahlungseingang.");
+  await expect(teilleistung).toHaveAccessibleDescription(
+    "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.",
+  );
   await teilleistung.check();
   await expect(teilleistung).toHaveAccessibleDescription("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.");
   await art.selectOption("schluss");

@@ -1,4 +1,8 @@
 import type { TaxShare } from "./posting.ts";
+import type { TaxTreatment } from "./treatment.ts";
+
+/** § 18b UStG: EU-Leistungen und innergemeinschaftliche Lieferungen behalten ihre gesonderten Meldezeitpunkte. */
+export const advanceUsesPayments = (treatment: TaxTreatment) => ["regulaer", "steuerfrei", "ausfuhr"].includes(treatment);
 
 export interface AdvanceVatEvent {
   date: string;
@@ -15,6 +19,31 @@ export interface AdvanceVatEvent {
 export interface AdvanceVatChange {
   date: string;
   shares: TaxShare[];
+}
+
+/** Differenz zweier mit advanceVatPlan berechneter Stände, ohne Rückrechnung aus Kontonummern. */
+export function advanceVatDifference(before: readonly AdvanceVatChange[], after: readonly AdvanceVatChange[]): AdvanceVatChange[] {
+  const days = new Map<string, Map<number, TaxShare>>();
+  for (const [changes, sign] of [
+    [before, -1],
+    [after, 1],
+  ] as const) {
+    for (const { date, shares } of changes) {
+      let rates = days.get(date);
+      if (!rates) {
+        rates = new Map();
+        days.set(date, rates);
+      }
+      for (const share of shares) {
+        const previous = rates.get(share.rate) ?? { rate: share.rate, base: 0, tax: 0 };
+        rates.set(share.rate, { rate: share.rate, base: previous.base + sign * share.base, tax: previous.tax + sign * share.tax });
+      }
+    }
+  }
+  return [...days]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, rates]) => ({ date, shares: [...rates.values()].filter((s) => s.base || s.tax) }))
+    .filter((d) => d.shares.length);
 }
 
 /**

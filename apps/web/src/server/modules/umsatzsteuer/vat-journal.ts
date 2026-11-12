@@ -10,7 +10,7 @@ import {
   type Versteuerung,
 } from "@haben/core";
 import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
-import { invoiceVatMode } from "../rechnungen/index.ts";
+import { invoiceTaxReader } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -50,24 +50,22 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .where(and(gte(e.date, start), lt(e.date, end), nurManuell ? eq(e.sourceType, "manuell") : notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
   const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; zeilen: JournalZeile[] }>();
+  const taxes = invoiceTaxReader(q);
   for (const r of rows) {
     let b = buchungen.get(r.id);
     if (!b) {
       // Auch Storno und Korrektur folgen der ursprünglichen Rechnung.
       const mode = r.invoiceDate
-        ? await invoiceVatMode(
-            {
-              issueDate: r.invoiceDate,
-              correctsId: r.correctsId,
-              advanceType: r.advanceType,
-              id: r.invoiceId ?? undefined,
-              variant: r.variant,
-              serviceFrom: r.serviceFrom,
-              serviceTo: r.serviceTo,
-              taxTreatment: r.treatment ?? "regulaer",
-            },
-            q,
-          )
+        ? await taxes.postingMode({
+            issueDate: r.invoiceDate,
+            correctsId: r.correctsId,
+            advanceType: r.advanceType,
+            id: r.invoiceId ?? undefined,
+            variant: r.variant,
+            serviceFrom: r.serviceFrom,
+            serviceTo: r.serviceTo,
+            taxTreatment: r.treatment ?? "regulaer",
+          })
         : versteuerung;
       b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
       buchungen.set(r.id, b);

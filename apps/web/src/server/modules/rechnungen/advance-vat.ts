@@ -1,9 +1,9 @@
-import { ACCOUNTS, invoicePaymentPosting, totalsFromTaxes, type TaxShare, type Kontenrahmen } from "@haben/core";
+import { advanceVatDifference, invoicePaymentPosting, totalsFromTaxes } from "@haben/core";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { loadAdvanceVatPlan } from "./advance-vat-plan.ts";
-import { managedAdvance } from "./invoice-vat.ts";
+import { managedAdvance } from "./invoice-tax.ts";
 
 /** Betroffene Anzahlung oder die in einer Schlussrechnung abgezogenen neuen Anzahlungen. */
 async function affectedAdvances(tx: Tx, invoiceId: string) {
@@ -22,7 +22,7 @@ async function affectedAdvances(tx: Tx, invoiceId: string) {
 }
 
 /** Vor dem ersten Audit-Schreibzugriff; Zahlungen und Schlussrechnung rechnen unter derselben Rechnungssperre. */
-export async function lockAdvanceVat(tx: Tx, invoiceId: string): Promise<void> {
+async function lockAdvanceVat(tx: Tx, invoiceId: string): Promise<void> {
   const originals = await affectedAdvances(tx, invoiceId);
   if (!originals.length) return;
   await tx
@@ -38,59 +38,39 @@ export async function lockAdvanceVat(tx: Tx, invoiceId: string): Promise<void> {
     .for("update");
 }
 
-/** Bereits gebuchte Steueranteile je Datum, nur für diese neue Anzahlung; die ursprüngliche Rechnung enthält nicht fällige USt. */
-async function bookedShares(tx: Tx, invoiceId: string): Promise<Map<string, TaxShare[]>> {
-  const rows = await tx
-    .select({
-      date: schema.journalEntries.date,
-      kr: schema.journalEntries.kontenrahmen,
-      account: schema.journalLines.account,
-      debit: schema.journalLines.debit,
-      credit: schema.journalLines.credit,
-      basis: schema.journalLines.basis,
-    })
-    .from(schema.journalLines)
-    .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
-    .where(and(eq(schema.journalEntries.sourceType, "invoice"), eq(schema.journalEntries.sourceId, invoiceId)));
-  const byDate = new Map<string, TaxShare[]>();
-  for (const r of rows) {
-    const a = ACCOUNTS[r.kr as Kontenrahmen];
-    const rate = r.account === a.ust[1900] ? 1900 : r.account === a.ust[700] ? 700 : r.account === a.forderungen && r.basis !== null ? 0 : null;
-    if (rate === null) continue;
-    byDate.set(r.date, [...(byDate.get(r.date) ?? []), { rate, base: r.basis ?? 0, tax: r.credit - r.debit }]);
-  }
-  return byDate;
+/** Ein gemeinsamer Rechnungslader hält Anzahlungsoriginale vor allen weiteren Schreibzugriffen gesperrt. */
+export async function lockInvoice(tx: Tx, id: string) {
+  await lockAdvanceVat(tx, id);
+  const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+  return invoice;
 }
 
 /**
- * Ergänzt nur Differenzbuchungen, nie Änderungen an bestehenden Buchungen. Eine spät zugeordnete frühere Zahlung
- * erhält ihren Steueranteil am Zahlungstag; derselbe Anteil wird am Tag der Schlussleistung zurückgenommen.
- * Die vorhandenen Konten „Umsatzsteuer nicht fällig“ und die Umbuchung mit gespeicherter Bemessungsgrundlage werden
- * wie bei Ist verwendet. Bank, Forderung und EÜR-Zufluss bleiben in der ursprünglichen Zahlungsbuchung.
+ * Persistenz von Zahlung, Ausbuchung und Festschreibung: dieselbe Nebenbuchrechnung vor und nach der Änderung.
+ * Keine Rückrechnung aus Kontenrollen und keine zweite Formel. Die Rechnungssperre hält beide Stände zusammen;
+ * bei einem Fehler rollen Quelldatensatz, normale Buchung und Steuerumbuchung gemeinsam zurück.
  */
-export async function syncAdvanceVat(tx: Tx, invoiceId: string): Promise<void> {
-  for (const original of await affectedAdvances(tx, invoiceId)) {
-    const { changes } = await loadAdvanceVatPlan(original, tx);
-    const booked = await bookedShares(tx, original.id);
-    const wanted = new Map(changes.map((c) => [c.date, c.shares]));
+export async function withAdvanceVatChange<T>(tx: Tx, invoiceId: string | null, work: () => Promise<T>): Promise<T> {
+  if (!invoiceId) return work();
+  await lockAdvanceVat(tx, invoiceId);
+  const originals = await affectedAdvances(tx, invoiceId);
+  const before = await Promise.all(originals.map((original) => loadAdvanceVatPlan(original, tx)));
+  const result = await work();
+  for (const [i, original] of originals.entries()) {
+    const after = await loadAdvanceVatPlan(original, tx);
+    const changes = advanceVatDifference(before[i]!.changes, after.changes);
+    if (!changes.length) continue;
     const books = await openBooks(tx);
-    for (const date of [...new Set([...wanted.keys(), ...booked.keys()])].sort()) {
-      const target = wanted.get(date) ?? [];
-      const previous = booked.get(date) ?? [];
-      const rates = [...new Set([...target, ...previous].map((s) => s.rate))];
-      const sum = (rows: TaxShare[], rate: number, key: "base" | "tax") => rows.filter((s) => s.rate === rate).reduce((n, s) => n + s[key], 0);
-      const shares = rates
-        .map((rate) => ({ rate, base: sum(target, rate, "base") - sum(previous, rate, "base"), tax: sum(target, rate, "tax") - sum(previous, rate, "tax") }))
-        .filter((s) => s.base || s.tax);
-      if (!shares.length) continue;
+    for (const { date, shares } of changes) {
       await post(tx, books, {
         date,
         description: `Umsatzsteuer Anzahlung ${original.number}`,
         sourceType: "invoice",
         sourceId: original.id,
-        // 0 € Zahlung: nur Steuerumbuchung und Bemessungsgrundlage, keine zweite Bank- oder Kassenbewegung.
+        // Nur Steuerumbuchung, Bank/Kasse und Forderung bleiben in der normalen Zahlungsbuchung.
         lines: invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, original.taxTreatment),
       });
     }
   }
+  return result;
 }
