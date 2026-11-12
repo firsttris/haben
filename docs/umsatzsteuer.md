@@ -109,6 +109,10 @@ Den Antrag schickst du wie die Voranmeldung über ERiC: **Nur prüfen**, **Prüf
 
 Hast du die Verlängerung außerhalb von Haben beantragt, setzt du unter **Außerhalb von Haben** den Haken **Dauerfristverlängerung besteht für &lt;Jahr&gt;** und, bei monatlicher Abgabe, die angemeldete Sondervorauszahlung im Feld darüber. Nimmst du den Antrag zurück oder widerruft ihn das Finanzamt, entfernst du den Haken für das Jahr, ab dem sie nicht mehr gilt. Ein Jahr ohne eigenen Eintrag übernimmt den Stand des Vorjahres. Jede Änderung steht im Änderungsprotokoll.
 
+Ändert der neue Stand die Zuordnung einer Vorauszahlung zum EÜR-Jahr und ist eine betroffene EÜR oder Einkommensteuererklärung schon übermittelt, nennt Haben sie nach **Stand speichern** oder einer erfolgreichen Echtübermittlung in einem Hinweis. Speichern bleibt möglich; die übermittelten Erklärungen bleiben unverändert. Ob eine Berichtigung nötig ist, klärst du mit der Steuerberatung. Das gilt auch für Folgejahre, die den geänderten Stand übernehmen. Ohne betroffene Zahlung oder übermittelte Erklärung und beim unveränderten Speichern erscheint kein Hinweis.
+
+Maßgeblich ist dieselbe [Zehn-Tage-Regel wie in der EÜR](auswertungen.md#umsatzsteuer-vorauszahlung-um-den-jahreswechsel): etwa Dezember ohne Dauerfrist oder November mit Dauerfrist, wenn die Zahlung vom 1. bis 10. Januar abfließt und in dieser Zeit fällig ist ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html), [§ 46 UStDV](https://www.gesetze-im-internet.de/ustdv_1980/__46.html)). Eine Erstattung oder aufgehobene Zuordnung löst diesen Hinweis nicht aus. Die Berechnung und bereits gespeicherte Jahreswerte werden durch den Hinweis nicht geändert.
+
 ### Was sich ändert
 
 - **Fälligkeit und Fristen:** einen Monat später, auf der Seite der Voranmeldung, in der Übersicht und unter [Fristen](fristen.md). Bei monatlicher Abgabe steht ab dem zweiten Jahr die **Sondervorauszahlung** als Frist am 10. Februar, bis sie für das Jahr eingetragen ist.

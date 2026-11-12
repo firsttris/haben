@@ -132,6 +132,13 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
     expect(await save(true, 2025)).toEqual({ euerHinweis: null });
   });
 
+  it("GmbH: Eine übermittelte E-Bilanz löst keinen EÜR-Hinweis aus", async () => {
+    await sql`update company set rechtsform = 'gmbh', name = 'Test GmbH' where id = 1`;
+    await payment();
+    await filed(2026, "ebilanz");
+    expect(await save(true)).toEqual({ euerHinweis: null });
+  });
+
   for (const kind of ["send", "test", "validate", "abgelehnt"] as const)
     it(`ELSTER-Ergebnis nennt den EÜR-Hinweis nur nach erfolgreichem Eintragen (${kind})`, async () => {
       await sql`update company set strasse = 'Musterstraße 1', plz = '93047', ort = 'Regensburg',
