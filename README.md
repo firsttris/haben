@@ -10,10 +10,10 @@ die du auf deinem eigenen Server betreibst. Sie schreibt E-Rechnungen (ZUGFeRD, 
 erstellt EÜR oder Bilanz und übermittelt die Steuern an ELSTER.
 
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?label=release)](https://github.com/firsttris/haben/releases/latest)
+[![Doku](https://img.shields.io/badge/Doku-haben.app-1f6f5c)](https://haben.app/)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
-[![Doku](https://img.shields.io/badge/Doku-haben.app-1f6f5c)](https://haben.app/)
 
 <sub>English: self-hosted open-source bookkeeping for German freelancers and small companies (GmbH, UG), with e-invoicing, bank reconciliation and tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
