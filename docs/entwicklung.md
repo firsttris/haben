@@ -665,8 +665,9 @@ Das gilt in voller Tiefe für Änderungen, die beeinflussen können, was gebucht
 - **Nicht mehr als nötig:** Jeder Teil des Diffs dient einem Akzeptanzkriterium. Keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, nichts „für später“.
 - **Vorhandenes genutzt:** keine zweite Lösung für ein Problem, das Haben schon löst; Fachlogik am richtigen Ort.
 - **Lesbar:** Jemand ohne den Verlauf des Autors versteht den Code in einem Durchgang.
+- **Eine Stelle:** Eine Regel, die für alle Wege gilt, steht an der Stelle, durch die alle laufen, nicht in jedem Weg. Sonst muss jeder künftige Beitrag sie von Hand mitziehen.
 
-Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt.
+Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt; eine fehlende gemeinsame Stelle, wenn sich die Stelle benennen lässt.
 
 **Nach unseren Regeln gemacht?**
 
