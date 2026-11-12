@@ -1,6 +1,6 @@
 import { kontoart } from "./ledger.ts";
 import { isPrivateAccount } from "./manual.ts";
-import { ACCOUNTS, type Kontenrahmen, type PostingLine } from "./posting.ts";
+import { ACCOUNTS, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 
 export interface ExternalSettlementJournal {
   externalId: string;
@@ -20,6 +20,7 @@ const invalid = (id: string) =>
 export function isExternalSettlementPayment(kr: Kontenrahmen, lines: ExternalSettlementJournal["lines"]): boolean {
   const a = ACCOUNTS[kr];
   const money = new Set<string>([a.geldtransit, a.gesellschafter]);
+  for (let index = 1; index <= 9; index++) money.add(paymentProviderAccount(kr, index));
   // DATEV SKR03/SKR04 2026 (Art. 11174/11175): Kasse, Postbank und Bank einschließlich weiterer Geldkonten.
   // https://www.datev.de/hilfe/0907817
   const first = kr === "SKR03" ? 1000 : 1600;
