@@ -60,11 +60,19 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   beforeEach(async () => {
     await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, vat_return_submissions,
-      vat_returns, elster_certificates, company cascade`;
+      vat_returns, elster_certificates cascade`;
+    // Die Firma bleibt stehen: Sie ist eine feste Zeile (id 1), die auch eine parallel laufende Testdatei benutzt. Ein
+    // `truncate … company` würde ihr die Zeile unter den Füßen wegziehen (Issue #784). Das Insert setzt sie stattdessen
+    // idempotent auf den erwarteten Stand – inklusive der Spalten, die einzelne Tests weiter unten ändern.
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
-              einkunftsart, taetigkeit)
+              einkunftsart, taetigkeit, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
-              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'selbstaendig', 'Softwareentwicklung')`;
+              'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'selbstaendig', 'Softwareentwicklung', false)
+      on conflict (id) do update set
+        name = excluded.name, strasse = excluded.strasse, plz = excluded.plz, ort = excluded.ort, email = excluded.email,
+        telefon = excluded.telefon, steuernummer = excluded.steuernummer, ust_id = excluded.ust_id, bundesland = excluded.bundesland,
+        iban = excluded.iban, versteuerung = excluded.versteuerung, kontenrahmen = excluded.kontenrahmen,
+        einkunftsart = excluded.einkunftsart, taetigkeit = excluded.taetigkeit, kleinunternehmer = excluded.kleinunternehmer`;
   });
 
   async function bookedDocument(
@@ -200,7 +208,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(issue(false, 2025)).not.toMatch(/Kleinunternehmer/);
     // Als Kleinunternehmer kein Hinweis auf fehlende Voranmeldungen
     expect(issue(true, 2025)).not.toMatch(/gesendete Voranmeldung/);
-  });
+    // Eigener Rahmen: Der Test baut ein volles Geschäftsjahr auf (Rechnung, fünf Belege, Bankimport, Anlagegut) und
+    // wertet es mehrfach aus. Die 5 s von Vitest sind dafür zu knapp, sobald ein paralleler Worker auf derselben
+    // Datenbank Sperren hält (CI: 5240 ms, lokal 1544 ms). Kein globales Limit, nur hier.
+  }, 20_000);
 
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
     const { car } = await year2025();
