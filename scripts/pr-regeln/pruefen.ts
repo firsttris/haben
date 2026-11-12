@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { countLines, grownOldFiles } from "../dateigroesse/regel.ts";
-import { checkBody, checkTitle, growthHints, hints, isBot, type Report } from "./regel.ts";
+import { checkBody, checkTitle, growthHints, hints, isBot, type Report, reviewHint } from "./regel.ts";
 
 /*
  * Prüft einen Pull Request nach regel.ts. Läuft in .github/workflows/pr-regeln.yml mit dem Ereignis aus
@@ -13,6 +13,8 @@ import { checkBody, checkTitle, growthHints, hints, isBot, type Report } from ".
 type PullRequest = {
   number: number;
   title: string;
+  draft?: boolean;
+  author_association?: string;
   body: string | null;
   user: { login: string; type?: string };
   base: { sha: string };
@@ -46,7 +48,12 @@ const linesAt = (sha: string) =>
   );
 const grown = grownOldFiles(linesAt(mergeBase), linesAt(pr.head.sha), oldFiles);
 
-const reports: Report[] = [...(isBot(pr.user) ? [] : [...checkTitle(pr.title), ...checkBody(pr.body)]), ...hints(files, subjects), ...growthHints(grown)];
+const reports: Report[] = [
+  ...(isBot(pr.user) ? [] : [...checkTitle(pr.title), ...checkBody(pr.body)]),
+  ...hints(files, subjects),
+  ...growthHints(grown),
+  ...reviewHint(pr, files),
+];
 
 // Annotationen von GitHub Actions: erscheinen an der Prüfung und in der Zusammenfassung des Laufs
 for (const { level, message } of reports) console.log(`::${level} title=PR-Regeln::${message}`);
