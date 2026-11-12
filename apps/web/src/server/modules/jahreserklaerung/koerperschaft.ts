@@ -152,7 +152,7 @@ export async function saveKapgErklaerungAngaben(actor: string, year: number, inp
 async function berechne(year: number, angaben: KapgSteuerAngaben): Promise<KapgSteuern | null> {
   const company = await loadCompany();
   if (!isKapitalgesellschaft(company.rechtsform)) return null;
-  const rows = (await saldenliste(ledgerRange(year))).filter((r) => r.kontenrahmen === company.kontenrahmen);
+  const rows = (await saldenliste(ledgerRange(year), { aufgeloest: true })).filter((r) => r.kontenrahmen === company.kontenrahmen);
   const salden = rows.map((r) => ({ account: r.account, saldo: r.saldo }));
   return kapgSteuern(company.kontenrahmen, year, salden, abschluss(company.kontenrahmen, salden).jahresergebnis, angaben);
 }
