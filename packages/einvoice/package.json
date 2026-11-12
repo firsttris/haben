@@ -9,10 +9,10 @@
   },
   "scripts": {
     "typecheck": "bun --bun tsc -p .",
-    "kosit": "bun scripts/kosit-check.ts"
+    "kosit": "bun scripts/kosit-check.ts",
+    "zugferd": "bun scripts/zugferd-check.ts"
   },
   "dependencies": {
-    "@e-invoice-eu/core": "^3.3.3",
     "@haben/core": "workspace:*",
     "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
     "fast-xml-parser": "^5.11.2",

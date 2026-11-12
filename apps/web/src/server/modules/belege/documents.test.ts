@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { computeInvoiceTotals } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // Die KI wird nicht aufgerufen; die Auslesung liefert feste Werte.
 vi.mock("./extraction.ts", async (importOriginal) => {
@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
   });
 

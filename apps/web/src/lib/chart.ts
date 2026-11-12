@@ -18,6 +18,18 @@ export function niceTicks(min: number, max: number, count = 4): number[] {
   return ticks;
 }
 
+/** Balken mit 4px runder Datenkante, eckig an der Grundlinie */
+export function barPath(x: number, y0: number, y1: number, w: number): string {
+  const h = Math.abs(y1 - y0);
+  if (h < 0.5) return "";
+  const r = Math.min(4, h, w / 2);
+  if (y1 < y0) {
+    // positiv: nach oben
+    return `M${x},${y0}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + w - r}Q${x + w},${y1} ${x + w},${y1 + r}V${y0}Z`;
+  }
+  return `M${x},${y0}V${y1 - r}Q${x},${y1} ${x + r},${y1}H${x + w - r}Q${x + w},${y1} ${x + w},${y1 - r}V${y0}Z`;
+}
+
 /**
  * Breite des Diagramm-Containers in Pixeln. Das SVG bekommt sie als viewBox-Breite, damit die Schrift
  * überall so groß ist wie im CSS (11px) statt mit dem Diagramm gestreckt oder gestaucht zu werden.

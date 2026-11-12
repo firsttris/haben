@@ -1,7 +1,7 @@
 import { EricGeprueftClient } from "../../test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 31.12.2025:";"10.000,00 €"\n""\n`;
@@ -58,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, vat_return_submissions,
       vat_returns, elster_certificates, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
@@ -272,6 +272,28 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(euer.figures.uebrige).toBeUndefined();
   });
 
+  it.each([
+    ["SKR03", "ist", "1840"],
+    ["SKR04", "soll", "2250"],
+  ] as const)(
+    "Spende vom Geschäftskonto: Entnahme, keine Betriebsausgabe, Summe auf Zuwendungen, Spenden (%s, %s)",
+    async (kontenrahmen, versteuerung, konto) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+      await bank.importStatement(actor, { bytes: dkbCsv([row("15.12.25", "Ärzte ohne Grenzen e.V.", "Spende", "-150,00")]), filename: "s.csv" }, null);
+      const [tx] = await sql`select id from bank_transactions`;
+      await bank.allocate(actor, { kind: "spende", transactionId: tx!.id, amount: -15_000 });
+
+      const lines = await sql`select account, debit, credit from journal_lines order by debit`;
+      expect(lines.map((l) => [l.account, Number(l.debit), Number(l.credit)])).toEqual([
+        [kontenrahmen === "SKR03" ? "1200" : "1800", 0, 15_000],
+        [konto, 15_000, 0],
+      ]);
+      const euer = await annual.euerYear(2025);
+      // Keine Ausgabe, keine andere Zeile: nur die Entnahme (Einlagen weist die Anlage stets aus)
+      expect(euer.figures).toEqual({ entnahmen: 15_000, einlagen: 0 });
+    },
+  );
+
   it("prüft und übermittelt testweise, speichert Werte und XML, sperrt eine zweite Echtübermittlung", async () => {
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
@@ -319,13 +341,20 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       /schon übermittelt/,
     );
     expect((await annual.annualOverview(2025, TODAY)).ust.sent).not.toBeNull();
+
+    // Ein Vermerk außerhalb von Haben sperrt die Echtübermittlung ebenso: beides zugleich wäre eine doppelte Abgabe
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '')`;
+    await expect(annual.submitAnnual(actor, "euer", 2025, realClient, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(
+      /außerhalb von Haben/,
+    );
     await expect(sql`update annual_submissions set ok = false`).rejects.toThrow();
   });
 
   it("Einkommensteuer: Gewinn aus der EÜR, gespeicherte Angaben und Zusammenveranlagung", async () => {
     const taxpayer = await import("../stammdaten/taxpayer.ts");
     const incomeTax = await import("./income-tax.ts");
-    await sql`truncate income_tax_inputs`;
+    await leeren(sql)`truncate income_tax_inputs`;
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
     const client = new EricGeprueftClient();
@@ -384,7 +413,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     const taxpayer = await import("../stammdaten/taxpayer.ts");
     const incomeTax = await import("./income-tax.ts");
     const pauschalen = await import("../buchhaltung/pauschalen.ts");
-    await sql`truncate income_tax_inputs`;
+    await leeren(sql)`truncate income_tax_inputs`;
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
     const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };

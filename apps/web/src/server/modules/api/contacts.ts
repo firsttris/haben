@@ -21,6 +21,7 @@ export function contactOut(contact: Contact, baseUrl: string): ContactOut {
     ustId: contact.ustId,
     iban: contact.iban,
     leitwegId: contact.leitwegId,
+    hourlyRateCents: contact.hourlyRateCents,
     defaultFormat: contact.defaultFormat,
     language: contact.language,
     version: contact.version,

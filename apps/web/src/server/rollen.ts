@@ -42,12 +42,21 @@ export async function sessionUser(headers: Headers): Promise<SessionUser | null>
 }
 
 /**
- * Für API-Routen: das Konto, wenn es angemeldet ist und `zugriff` hat; sonst die Antwort 401 bzw. 403.
- * Mit `instanceof Response` prüft die Route, was zurückkam.
+ * Das Konto zur Anfrage, wenn es angemeldet ist und `zugriff` hat; sonst die Antwort 401 bzw. 403. Routen nehmen
+ * `requireUser` (nur Inhaber) oder `lesend` (lese-route.ts), nicht diese Funktion selbst.
  */
-export async function requireUser(request: Request, zugriff: Zugriff): Promise<SessionUser | Response> {
+export async function pruefeZugriff(request: Request, zugriff: Zugriff): Promise<SessionUser | Response> {
   const user = await sessionUser(request.headers);
   if (!user) return new Response("Nicht angemeldet", { status: 401 });
   if (!darf(user.role, zugriff)) return new Response("Nur für den Inhaber", { status: 403 });
   return user;
+}
+
+/**
+ * Für API-Routen nur des Inhabers: das Konto, wenn es angemeldet ist und Inhaber ist; sonst die Antwort 401 bzw. 403.
+ * Mit `instanceof Response` prüft die Route, was zurückkam. Was auch die Steuerberatung abruft, steht in `lesend`
+ * (lese-route.ts), damit es im Nur-Lesen-Rahmen läuft.
+ */
+export function requireUser(request: Request, zugriff: "inhaber"): Promise<SessionUser | Response> {
+  return pruefeZugriff(request, zugriff);
 }

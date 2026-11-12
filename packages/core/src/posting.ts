@@ -37,6 +37,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "1600",
     privateinlagen: "1890",
     privatentnahmen: "1800",
+    /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
+    spenden: "1840",
     /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR03: Verbindlichkeiten gegenüber Gesellschaftern) */
     gesellschafter: "0730",
     /** GmbH, UG: einbehaltene KapESt, Soli und KiSt auf offene Ausschüttungen (DATEV SKR03 1746) */
@@ -83,6 +85,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "3300",
     privateinlagen: "2180",
     privatentnahmen: "2100",
+    /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
+    spenden: "2250",
     /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR04: Verbindlichkeiten gegenüber Gesellschaftern) */
     gesellschafter: "3510",
     kapestEinbehalt: "3760",
@@ -746,6 +750,8 @@ export function documentPaymentPosting(amount: Cents, kontenrahmen: Kontenrahmen
 /** Bankumsätze ohne Rechnung oder Beleg */
 export const DIRECT_BOOKINGS = {
   privat: "Privat (Entnahme oder Einlage)",
+  // Entnahme auf ein eigenes Privatkonto, damit die Summe für die Sonderausgaben (§ 10b EStG) im Journal steht
+  spende: "Spende (privat, Sonderausgabe)",
   geldtransit: "Geldtransit (eigenes Konto)",
   ustVorauszahlung: "Umsatzsteuer an das Finanzamt",
   sondervorauszahlung: "Sondervorauszahlung (Dauerfristverlängerung)",
@@ -780,31 +786,39 @@ export function directBookingLabel(kind: DirectBooking, rechtsform: Rechtsform):
   return kind === "privat" ? ownerLabels(rechtsform).bank : DIRECT_BOOKINGS[kind];
 }
 
-/** Buchungen ohne Beleg, die es in der Rechtsform gibt: Ausschüttungen und ihre Kapitalertragsteuer nur in GmbH und UG */
+/**
+ * Buchungen ohne Beleg, die es in der Rechtsform gibt: Ausschüttungen und ihre Kapitalertragsteuer nur in GmbH und UG, die
+ * private Spende nur ohne GmbH und UG (deren Spenden sind Aufwand mit Abzug nach § 9 Abs. 1 Nr. 2 KStG)
+ */
 export function directBookingsFor(rechtsform: Rechtsform): DirectBooking[] {
-  return (Object.keys(DIRECT_BOOKINGS) as DirectBooking[]).filter((kind) => kind !== "kapest" || isKapitalgesellschaft(rechtsform));
+  const gmbh = isKapitalgesellschaft(rechtsform);
+  return (Object.keys(DIRECT_BOOKINGS) as DirectBooking[]).filter((kind) => (kind === "kapest" ? gmbh : kind === "spende" ? !gmbh : true));
 }
 
 export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
-  if (!directBookingsFor(rechtsform).includes(kind)) throw new Error(`${DIRECT_BOOKINGS[kind]} gibt es nur in GmbH und UG`);
+  if (!directBookingsFor(rechtsform).includes(kind)) {
+    throw new Error(`${DIRECT_BOOKINGS[kind]} gibt es ${kind === "spende" ? "nicht in GmbH und UG" : "nur in GmbH und UG"}`);
+  }
   const counter = isLohnZahlung(kind)
     ? lohnZahlungKonto(kind, kontenrahmen)
     : kind === "kapest"
       ? accounts.kapestEinbehalt
       : kind === "privat"
         ? ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage")
-        : kind === "geldtransit"
-          ? accounts.geldtransit
-          : kind === "ustVorauszahlung"
-            ? accounts.ustVorauszahlung
-            : kind === "sondervorauszahlung"
-              ? accounts.sondervorauszahlung
-              : kind === "mahnerloes"
-                ? accounts.mahnerloes
-                : kind === "zinsertrag"
-                  ? accounts.zinsertraege
-                  : accounts.nebenkostenGeldverkehr;
+        : kind === "spende"
+          ? accounts.spenden
+          : kind === "geldtransit"
+            ? accounts.geldtransit
+            : kind === "ustVorauszahlung"
+              ? accounts.ustVorauszahlung
+              : kind === "sondervorauszahlung"
+                ? accounts.sondervorauszahlung
+                : kind === "mahnerloes"
+                  ? accounts.mahnerloes
+                  : kind === "zinsertrag"
+                    ? accounts.zinsertraege
+                    : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 

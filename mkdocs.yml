@@ -21,6 +21,9 @@ docs_dir: docs
 use_directory_urls: false
 exclude_docs: |
   banner.svg
+# Hintergrund zu umgesetzten Entscheidungen; erreichbar über die Links in architektur.md und aus Code-Kommentaren
+not_in_nav: |
+  adr/*.md
 
 nav:
   - Start: index.md
@@ -34,6 +37,7 @@ nav:
       - Angebote: angebote.md
       - Belege: belege.md
       - Pauschalen: pauschalen.md
+      - Leistungen und Zeiteinträge: leistungen.md
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md

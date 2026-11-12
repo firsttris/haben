@@ -82,15 +82,6 @@ export function analyseAccountableUpload(bytes: Uint8Array, filename: string): A
   return analysis;
 }
 
-/** Was bereitliegt, ohne erneuten Upload; für die Oberfläche nach einem Neuladen. */
-export function stagedAccountableAnalysis(): AccountableAnalysis | null {
-  return stagedExport()?.analysis ?? null;
-}
-
-export function discardAccountableUpload() {
-  stageExport(null);
-}
-
 export type AccountableImportRun = typeof schema.lexofficeImports.$inferSelect & { accountable: AccountableAnalysis | null };
 
 function runOf(row: typeof schema.lexofficeImports.$inferSelect): AccountableImportRun {

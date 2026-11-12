@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../test-db.ts";
 import { APP_RUNNING_LOCK } from "./app-lock.ts";
 import { prepareLocalOwner } from "./local-owner.ts";
 
@@ -12,7 +12,7 @@ describe.skipIf(!testDatabaseUrl)("Offline-Rückweg aus SSO (Postgres)", () => {
     database = await setupTestDb();
   }, 60_000);
   beforeEach(async () => {
-    await database`truncate "user" cascade`;
+    await leeren(database)`truncate "user" cascade`;
     await database`insert into "user"(id,name,email,role) values('sso','SSO','sso@example.de',null),('other','Andere','other@example.de',null)`;
     await database`insert into account(id,account_id,provider_id,user_id) values('identity','["https://offline.invalid","subject"]','oidc','sso')`;
   });

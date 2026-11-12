@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
   let quotes: typeof import("./quotes.ts");
@@ -73,7 +73,7 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate mail_log, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines, invoices,
+    await leeren(sql)`truncate mail_log, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines, invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank, payment_term_days)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
@@ -126,6 +126,23 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     await quotes.setQuoteDecision(actor, quote.id, null);
     expect(quotes.quoteStatus((await quotes.getQuote(quote.id))!.quote, "2026-10-05")).toBe("offen");
     expect(quotes.quoteStatus((await quotes.getQuote(quote.id))!.quote, "2026-11-01")).toBe("abgelaufen");
+  });
+
+  it.each([
+    ["2026-12-10", "2026-12-20"],
+    ["2026-09-01", null],
+  ])("Schlussrechnung übernimmt geplante Angebotsdaten %s bis %s nicht als tatsächliche Schlussleistung (#622)", async (serviceFrom, serviceTo) => {
+    await sql`update company set versteuerung = 'soll', journal_ab = 2026, telefon = '0941 1'`;
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft({ serviceFrom, serviceTo }))).id);
+    await abschlag(quote.id, 95_000, "2026-10-05");
+    const final = await quotes.quoteToInvoice(actor, quote.id, "2026-11-10", "schluss");
+    expect(final).toMatchObject({ serviceFrom: "2026-11-10", serviceTo: null });
+    expect(await invoices.finalizeIssues(final.id)).toEqual([]);
+    await invoices.finalizeInvoice(actor, final.id);
+    const { computeVatFigures } = await import("../umsatzsteuer/index.ts");
+    expect(await computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz81: 0, tax81: 0 });
+    expect(await computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: 0, tax81: 0 });
+    expect(await computeVatFigures({ year: 2026, month: 11 })).toMatchObject({ kz81: 380_000, tax81: 72_200 });
   });
 
   it("macht aus dem Angebot einen Rechnungsentwurf, einmal", async () => {

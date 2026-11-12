@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("SEPA-Lastschriftmandate am Kontakt (Postgres, #445)", () => {
   let sql: postgres.Sql;
@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Lastschriftmandate am Kontakt (Postgres,
   });
 
   beforeEach(async () => {
-    await sql`truncate sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate sepa_mandate_files, sepa_mandate_revocations, sepa_mandates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name) values (1, 'Testfirma')`;
     [{ id: contactId }] =
       (await sql`insert into contacts (name, iban) values ('Nordwerk Software GmbH', 'DE02120300000000202051') returning id`) as unknown as [{ id: string }];

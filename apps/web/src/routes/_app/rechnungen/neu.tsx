@@ -56,6 +56,7 @@ function NewInvoicePage() {
       abschlaege={data.abschlaege}
       quotes={data.quotes}
       mandates={data.mandates}
+      contactPersons={data.contactPersons}
     />
   );
 }

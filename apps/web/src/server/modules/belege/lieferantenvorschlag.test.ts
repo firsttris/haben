@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { completion, startTestService, type TestService } from "./test-ki-dienst.ts";
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 1, 2, 3]);
@@ -51,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Lieferantenvorschlag und IBAN als Vorschlag (
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, kontenrahmen, versteuerung) values (1, 'Testfirma', 'SKR03', 'ist')`;
   });
 

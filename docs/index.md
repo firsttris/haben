@@ -143,8 +143,8 @@ die Kategorie und buchst.
 
 ## Bankabgleich
 
-Die Umsätze holt Haben einmal am Tag per PSD2 ab, oder du lädst einen Kontoauszug von DKB, N26, PayPal, Stripe
-und anderen hoch. Zu jedem Umsatz schlägt Haben die passende Rechnung oder den Beleg vor und nennt den Grund,
+Die Umsätze holt Haben einmal am Tag per PSD2 ab, oder du lädst einen Kontoauszug von DKB, Commerzbank, C24,
+N26, Swan, PayPal, Stripe und anderen hoch. Zu jedem Umsatz schlägt Haben die passende Rechnung oder den Beleg vor und nennt den Grund,
 etwa Betrag, Rechnungsnummer, IBAN oder Name. Mit Enter übernimmst du den Vorschlag.
 
 [Bankimport und Abgleich](bank.md)

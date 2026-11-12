@@ -27,9 +27,18 @@ import {
   uploadDocument,
 } from "../modules/belege/index.ts";
 import { extractionAvailable, extractionSettings, supplierSuggestion } from "../modules/belege/index.ts";
+import {
+  listSettlements,
+  openAmount,
+  reversalSchema,
+  reverseSettlement,
+  settleDocuments,
+  settlementCandidates,
+  settlementSchema,
+} from "../modules/bank/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
-import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
-import { documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
+import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
+import { documentBankAllocations, documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
@@ -72,7 +81,9 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       sepaTransfers: await documentSepaTransfers(data),
       // IBAN der E-Rechnung gegen die des Kontakts (#410)
       ibanCheck: await documentIbanCheck(data),
-      // Was gegen einen Storno spricht; die Zahlung im Bankabgleich prüft erst der Storno selbst
+      // Bestätigter Umfang einschließlich ganzer Aufteilungen; der Storno prüft ihn erneut in seiner Transaktion.
+      cancellationAllocations: result.document.lockedAt && !cancellation && result.document.payment === "bank" ? await documentBankAllocations(data) : [],
+      // Was gegen einen Storno spricht; Bankzuordnungen werden nach ausdrücklicher Bestätigung mit aufgehoben.
       cancellationIssues: result.document.lockedAt && !cancellation ? cancellationIssues(result.document) : [],
       // Datum, das ein Storno heute bekäme: im noch offenen Zeitraum der Belegbuchung oder heute
       cancellationDate: result.document.lockedAt && !cancellation ? await plannedCancellationDate(data, today()) : null,
@@ -94,7 +105,7 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       // Vorschlag für „Neuen Lieferanten anlegen“ aus E-Rechnung oder Auslesung; die IBAN nur zum ausdrücklichen Übernehmen (#329)
       supplierSuggestion: result.document.lockedAt ? null : await supplierSuggestion(data),
       // Lieferanten aus den Kontakten zur Auswahl im Beleg
-      suppliers: (await listContacts(false, "lieferant")).map(({ id, name, ustId }) => ({ id, name, ustId })),
+      suppliers: await listContactChoices("lieferant"),
       // Aus einem Dauerbeleg angelegt: Name der Vorlage für den Verweis
       dauerbeleg: result.document.recurringDocumentId
         ? { id: result.document.recurringDocumentId, name: await dauerbelegName(result.document.recurringDocumentId) }
@@ -181,3 +192,30 @@ export const reenterDocumentFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => ({ id: await reenterDocument(context.user.id, data) }));
+
+/**
+ * Verrechnung zweier Eingangsbelege ohne Zahlung (#274): Gutschrift und Rechnung gleichen sich aus,
+ * ohne dass ein Bankumsatz entsteht. Gibt die Verrechnung samt Gegenbelegen zurück.
+ */
+export const settleDocumentsFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(settlementSchema)
+  .handler(async ({ data, context }) => settleDocuments(context.user.id, data));
+
+export const reverseSettlementFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(reversalSchema)
+  .handler(async ({ data, context }) => {
+    await reverseSettlement(context.user.id, data.id, data.date, data.note);
+    return { ok: true };
+  });
+
+/** Verrechnungen eines Belegs und die offenen Belege desselben Lieferanten als Gegenbeleg */
+export const getDocumentSettlements = createServerFn({ method: "GET" })
+  .middleware([readMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data }) => ({
+    settlements: await listSettlements(data),
+    candidates: await settlementCandidates(data),
+    open: await openAmount(data),
+  }));

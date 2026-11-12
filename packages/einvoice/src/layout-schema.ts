@@ -1,3 +1,4 @@
+import type { LayoutDocumentType } from "@haben/core";
 import { z } from "zod";
 
 /*
@@ -180,3 +181,70 @@ export function layoutJsonSchema() {
     mahnung: z.toJSONSchema(mahnungDatenSchema),
   };
 }
+
+/**
+ * Felder, die ein eigenes Layout verwenden muss (#113): Haben sucht ihren Namen im Quelltext, bevor es setzt. So fällt
+ * ein vergessenes Feld auch dann auf, wenn kein Beispiel es füllt, etwa der Hinweis bei Reverse Charge in taxNote.
+ * Mehrere Namen mit „|“: einer davon genügt. Bei Listen zählt der letzte Teil des Pfads (lines[].rate → rate).
+ * Ob das Feld auch auf dem Blatt erscheint, prüft erst das Setzen der Beispiele; mehr garantiert Haben nicht.
+ */
+export const LAYOUT_PFLICHTFELDER = {
+  beleg: [
+    "title",
+    "reference",
+    "senderLine",
+    "recipient",
+    "meta",
+    "lines",
+    "lines[].description",
+    "lines[].quantity",
+    "lines[].rate",
+    "lines[].net",
+    "totals",
+    "taxNote",
+    "payment",
+    "footer|footerFormatted",
+    "legal",
+    "draft",
+  ],
+  mahnung: [
+    "title",
+    "senderLine",
+    "recipient",
+    "meta",
+    "intro|introFormatted",
+    "invoices",
+    "rows",
+    "total",
+    "closing|closingFormatted",
+    "footer|footerFormatted",
+    "legal",
+    "draft",
+  ],
+} as const satisfies Record<"beleg" | "mahnung", readonly string[]>;
+
+const ALLE_BELEGE = ["rechnung", "angebot", "auftragsbestaetigung", "lieferschein", "mahnung"] as const satisfies readonly LayoutDocumentType[];
+
+/**
+ * Einstellungen unter Einstellungen › Beleggestaltung, die nur über ein Feld des Vertrags aufs Blatt kommen (#113):
+ * Nennt das zugeordnete eigene Layout keines der Felder, ändert die Einstellung dort nichts. belege sind die Belegarten,
+ * auf die sie überhaupt wirkt, etwa der GiroCode nur auf Rechnung und Mahnung. Gesucht wird wie bei den Pflichtfeldern
+ * der letzte Teil des Pfads im Quelltext (look.foldMarks → foldMarks), mehrere Pfade mit „|“: einer genügt.
+ * Kundennummer, Fußzeile und „Fußzeile steht auf dem Briefpapier“ fehlen hier: Sie wirken über Pflichtfelder (meta,
+ * footer, legal), die jedes Layout verwendet.
+ */
+export const LAYOUT_GESTALTUNG = {
+  accent: { label: "Akzentfarbe", felder: "accent|palette", belege: ALLE_BELEGE },
+  font: { label: "Schrift", felder: "font", belege: ALLE_BELEGE },
+  logo: { label: "Logo", felder: "logo", belege: ALLE_BELEGE },
+  logoSize: { label: "Größe des Logos", felder: "look.logoHeight|look.logoWidth", belege: ALLE_BELEGE },
+  logoPosition: { label: "Seite des Logos", felder: "look.logoLeft", belege: ALLE_BELEGE },
+  foldMarks: { label: "Falz- und Lochmarken", felder: "look.foldMarks", belege: ALLE_BELEGE },
+  giroCode: { label: "GiroCode", felder: "qr", belege: ["rechnung", "mahnung"] },
+  itemNumber: { label: "Artikelnummer", felder: "itemNumbers", belege: ["rechnung", "angebot", "auftragsbestaetigung", "lieferschein"] },
+  vatColumn: { label: "Spalte USt je Position", felder: "hideVatColumn", belege: ["rechnung", "angebot", "auftragsbestaetigung"] },
+  background: { label: "Briefpapier", felder: "background", belege: ALLE_BELEGE },
+  backgroundPages: { label: "Seiten mit Briefpapier", felder: "look.backgroundPages", belege: ALLE_BELEGE },
+} as const satisfies Record<string, { label: string; felder: string; belege: readonly LayoutDocumentType[] }>;
+
+export type LayoutGestaltung = keyof typeof LAYOUT_GESTALTUNG;

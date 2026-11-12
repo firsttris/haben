@@ -32,6 +32,7 @@ import {
 import { abgleichIssues, euerForYear, openPositions, vatAbgleich } from "../auswertungen/index.ts";
 import { listAccounts, listTransactions } from "../bank/index.ts";
 import { listDocuments } from "../belege/index.ts";
+import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { accountName, pendingDepreciation } from "../buchhaltung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
 import { listFristen, listVastBelege, openAppealDeadlines } from "../finanzamt/index.ts";
@@ -841,6 +842,7 @@ export const MCP_TOOLS: McpTool[] = [
       if (month !== undefined && (month < 1 || month > 12)) throw new McpError(`Zeitraum „${zeitraum}“ ungültig.`);
       const [company, totals] = await Promise.all([loadCompany(), accountTotals(year, month)]);
       const rahmen = company.kontenrahmen;
+      await refreshOwnAccountNames();
       const konten = totals.map((t) => {
         const saldo = t.debit - t.credit;
         return {

@@ -7,7 +7,7 @@ description: >-
 
 # GmbH und UG
 
-Haben führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter Buchführung und Bilanz: vom ersten Beleg bis zur E-Bilanz, Körperschaft- und Gewerbesteuererklärung und Gewinnausschüttung. Diese Seite zeigt den Ablauf eines Jahres; die Details stehen in den verlinkten Kapiteln.
+Haben führt die Bücher einer GmbH oder UG (haftungsbeschränkt) mit doppelter Buchführung und Bilanz: vom ersten Beleg bis zur E-Bilanz, Körperschaft- und Gewerbesteuererklärung und Gewinnausschüttung.
 
 Gedacht ist das für eine kleine GmbH, etwa die eines Freiberuflers mit einem oder wenigen Gesellschaftern, ohne Beteiligungen an anderen Gesellschaften und ohne Organschaft. Bilanz und GuV sind ein Entwurf; lasst Abschluss und Erklärungen von der Steuerberatung ansehen, bevor ihr echt sendet.
 
@@ -47,4 +47,4 @@ Die Termine für Voranmeldung, Kapitalertragsteuer-Anmeldung und Erklärungen st
 - Organschaft, Beteiligungen an anderen Gesellschaften, verdeckte Gewinnausschüttungen, Spenden, Einlagen in das Einlagekonto, ausländische Einkünfte; die Liste je Erklärung steht bei den [Jahreserklärungen](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug).
 - Eine Überleitung von der Handels- zur Steuerbilanz; rein steuerliche Abschreibungen wie die Staffel für Elektrofahrzeuge (§ 7 Abs. 2a EStG) gibt es deshalb nicht, siehe [Elektrofahrzeuge](anlagen.md#elektrofahrzeuge).
 
-Was davon geplant ist, steht in der [Roadmap](roadmap.md).
+Was davon geplant ist, steht im [Project „Roadmap“](https://github.com/users/firsttris/projects/2).

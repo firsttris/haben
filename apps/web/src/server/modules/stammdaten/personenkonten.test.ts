@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("DATEV-Debitor und -Kreditor am Kontakt (Postgres, #327)", () => {
   let sql: postgres.Sql;
@@ -31,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Debitor und -Kreditor am Kontakt (Postg
   });
 
   beforeEach(async () => {
-    await sql`truncate contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name) values (1, 'Testfirma')`;
   });
 

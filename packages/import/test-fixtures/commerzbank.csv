@@ -1,0 +1,8 @@
+﻿Buchungstag;Wertstellung;Umsatzart;Buchungstext;Betrag;Währung;IBAN Kontoinhaber;Kategorie;Sender;Empfänger;Verwendungszweck
+30.10.2026;31.10.2026;Zinsen/Entgelte;Commerzbank AG Abrechnung 30.10.2026  Kontofuehrung 01.10.2026 bis 31.10.2026 Entgelte 9,9- EUR;-9,9;EUR;DE60123456780012345678;;;Commerzbank AG;
+28.10.2026;28.10.2026;Überweisung;Nordwerk Software GmbH RE-2026-031 End-to-End-Ref.: Rechnung 2026031 Kundenreferenz: NSCT2610280000123456789012345678;4760;EUR;DE60123456780012345678;;Nordwerk Software GmbH;;RE-2026-031
+27.10.2026;27.10.2026;Überweisung (Echtzeit);Alpenblick Media AG RE-2026-030 End-to-End-Ref.: NOTPROVIDED Kundenreferenz: 9c41ab02ef5d4c7a8b1e2f3a4b5c6d7e;119,5;EUR;DE60123456780012345678;;Alpenblick Media AG;;RE-2026-030
+20.10.2026;20.10.2026;Überweisung;Bürohaus Nord GmbH B-2026-118 DE89370400440532013000 COBADEFF End-to-End-Ref.: NOTPROVIDED Kundenreferenz: 2610200123;-1190;EUR;DE60123456780012345678;;;Bürohaus Nord GmbH;B-2026-118
+15.10.2026;14.10.2026;Lastschrift;Telefon AG Kundennr. 4711 Rechnung 10/2026 End-to-End-Ref.: TA 2026 10 4711 Mandatsref: TA-4711-01 Gläubiger-ID: DE98ZZZ09999999999 SEPA-BASISLASTSCHRIFT wiederholend;-39,9;EUR;DE60123456780012345678;;;Telefon AG;Kundennr. 4711 Rechnung 10/2026
+10.10.2026;10.10.2026;Lastschrift;Rheinpixel GmbH RE-2026-028 DE14100100109876543210 End-to-End-Ref.: RP-2026-0007 Mandatsref: M-RP-0007 Gläubiger-ID: DE98ZZZ09999999999 SEPA-BASISLASTSCHRIFT einmalig;1725,5;EUR;DE60123456780012345678;;Rheinpixel GmbH;;RE-2026-028
+01.10.2026;01.10.2026;Dauerauftrag;Hausverwaltung Beispiel Miete Büro Oktober DE34200505501234567890 End-to-End-Ref.: NOTPROVIDED Dauerauftrag;-850;EUR;DE60123456780012345678;;;Hausverwaltung Beispiel;Miete Büro Oktober

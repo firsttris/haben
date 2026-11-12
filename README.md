@@ -2,17 +2,18 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
-  <img src="docs/hero-hell.png" alt="Haben als T-Konto: auf der Soll-Seite E-Rechnung nach § 14 UStG, unveränderbare Belege nach § 146 AO, Umsatzsteuer-Voranmeldung nach § 18 UStG und Einnahmen-Überschuss-Rechnung nach § 4 Abs. 3 EStG; auf der Haben-Seite „Deine Bücher. Dein Server.“" width="900">
+  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € und Zahlungseingang zugeordnet, nach GoBD festgeschrieben, in der Voranmeldung für ELSTER enthalten" width="900">
 </picture>
 
 Haben ist eine Open-Source-Buchhaltung für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs,
 die du auf deinem eigenen Server betreibst. Sie schreibt E-Rechnungen (ZUGFeRD, XRechnung), gleicht dein Konto ab,
 erstellt EÜR oder Bilanz und übermittelt die Steuern an ELSTER.
 
-[![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 [![Doku](https://img.shields.io/badge/Doku-haben.app-1f6f5c)](https://haben.app/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
+[![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 
 <sub>English: self-hosted open-source bookkeeping for German freelancers and small companies (GmbH, UG), with e-invoicing, bank reconciliation and tax returns via ELSTER. The app and its [documentation](https://haben.app/) are in German.</sub>
 
@@ -32,7 +33,8 @@ erstellt EÜR oder Bilanz und übermittelt die Steuern an ELSTER.
 
 Haben ist eine Alternative zu Lexware Office und sevDesk, die nichts kostet und deine Rechnungen auf deinem Server
 lässt. Gebuchtes wird nach den GoBD festgeschrieben und lässt sich nur per Storno korrigieren. Bestehende Daten
-übernimmst du aus Lexware Office, sevDesk, BuchhaltungsButler oder Accountable. Entwickelt wird Haben in Deutschland
+übernimmst du aus Lexware Office, sevDesk, BuchhaltungsButler oder Accountable; dabei rechnet Haben deine alten Jahre
+nach, damit du die Zahlen vor der Kündigung vergleichen kannst. Entwickelt wird Haben in Deutschland
 und nur für das deutsche Steuerrecht.
 
 ## Funktionen
@@ -79,8 +81,9 @@ deshalb startet Haben mit Caddy, PostgreSQL und einem täglichen Backup mit rest
 mkdir haben && cd haben
 curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
 curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+chmod 600 .env
 # in .env eintragen: DOMAIN, DB_PASSWORD (openssl rand -hex 24),
-# AUTH_SECRET und ENCRYPTION_KEY (je openssl rand -base64 32), dann
+# AUTH_SECRET, ENCRYPTION_KEY und RESTIC_PASSWORD (je openssl rand -base64 32), dann
 docker compose up -d
 ```
 
@@ -90,8 +93,9 @@ Danach öffnest du deine Domain und legst dein Konto an. Wie es weitergeht, steh
 auch für dich abarbeiten.
 
 > [!IMPORTANT]
-> Bewahre `ENCRYPTION_KEY` zusätzlich an einem zweiten Ort auf. Ohne ihn sind ELSTER-Zertifikat und API-Schlüssel
-> nach einer Wiederherstellung nicht mehr lesbar.
+> Bewahre `ENCRYPTION_KEY` und `RESTIC_PASSWORD` zusätzlich an einem zweiten Ort auf. Ohne den Schlüssel sind
+> ELSTER-Zertifikat und API-Schlüssel nach einer Wiederherstellung nicht mehr lesbar, ohne das Passwort lässt sich das
+> Backup nicht öffnen.
 
 ## Fragen
 
@@ -99,6 +103,17 @@ auch für dich abarbeiten.
 <summary><b>Was kostet Haben?</b></summary>
 
 Nichts, die Software steht unter der AGPL. Du zahlst nur deinen Server, ein kleiner VPS reicht.
+</details>
+
+<details>
+<summary><b>Woher weiß ich, dass die Zahlen stimmen?</b></summary>
+
+Du kannst nachrechnen. Beim Umzug rechnet Haben deine alten Jahre aus Lexware Office oder sevDesk nach, zum Vergleich
+mit deinen Voranmeldungen ([Abgleich je Jahr](https://haben.app/lexoffice.html#schritt-5-abgleich-je-jahr)). Danach
+stehen unter jeder Kennzahl der Voranmeldung die Rechnungen, Belege und Zahlungen dahinter, und Voranmeldung und EÜR
+rechnet Haben zweimal, aus dem Journal und aus den Vorgängen
+([Abgleich](https://haben.app/buchhaltung.html#abgleich-von-journal-umsatzsteuer-und-eür)). Nachprüfbar heißt nicht
+geprüft: Die fachliche Prüfung bleibt bei dir und deiner Steuerberatung.
 </details>
 
 <details>
@@ -121,13 +136,22 @@ Die Wege im Vergleich stehen unter [Abgabe an ELSTER](https://haben.app/elster-a
 <summary><b>Ist das sicher?</b></summary>
 
 Zugangsdaten liegen verschlüsselt in der Datenbank, ERiC läuft getrennt vom App-Prozess, und das Änderungsprotokoll
-ist eine Hashkette. Ein unabhängiges Audit gibt es bisher nicht. Lücken meldest du bitte vertraulich, wie in
+ist eine Hashkette. Zur Laufzeit kommt Haben mit gut zwanzig direkten Paketen aus. Ein unabhängiges Audit gibt es bisher nicht. Lücken meldest du bitte vertraulich, wie in
 [SECURITY.md](SECURITY.md) beschrieben.
+</details>
+
+<details>
+<summary><b>Wird Haben mit KI entwickelt?</b></summary>
+
+Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft. Beträge gibt es nur in ganzen Cent, die
+Festschreibung erzwingt die Datenbank, jede Änderung bringt Tests mit, und ein zweiter, unabhängiger Agent darf einen
+Fehler nur melden, wenn ein Test ihn rot zeigt. Gemergt wird von einem Menschen. Mehr unter
+[Leitplanken für Agenten](https://haben.app/entwicklung.html#leitplanken-für-agenten).
 </details>
 
 ## Entwicklung
 
-Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Mit Docker geht es auch ohne beides: `docker compose up` im
+Voraussetzungen: Bun in der Version aus `packageManager` in `package.json`, Git und PostgreSQL 18. Mit Docker geht es auch ohne beides: `docker compose up` im
 Hauptordner startet Datenbank, Migrationen und Dev-Server.
 
 ```sh
@@ -142,11 +166,23 @@ Ohne ERiC simuliert Haben die Übermittlung an ELSTER und zeigt das an. Aufbau u
 
 ## Mitwirken
 
-Fehler und Ideen gern als [Issue](https://github.com/firsttris/haben/issues/new). Besonders hilfreich sind
-anonymisierte Kontoauszüge von Banken, die Haben noch nicht kennt, und Rückmeldungen zur Übermittlung an ELSTER.
+Fehler und Ideen gern als [Issue](https://github.com/firsttris/haben/issues/new). Wer mitbauen will, sucht sich eine
+Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`
+([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte
+Kontoauszüge von Banken, die Haben noch nicht kennt, und Rückmeldungen zur Übermittlung an ELSTER. Was ein Pull Request
+mitbringt, steht unter [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
 
 Vom selben Autor: [Kontext](https://github.com/firsttris/kontext) für Mail, Kalender und Chat im Team und
 [Schreibzeug](https://github.com/firsttris/schreibzeug) für Office-Dateien im Browser, beide selbst gehostet.
+
+## Sterne im Verlauf
+
+<a href="https://www.star-history.com/#firsttris/haben&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=firsttris/haben&type=Date&theme=dark">
+    <img alt="Verlauf der GitHub-Sterne von Haben" src="https://api.star-history.com/svg?repos=firsttris/haben&type=Date">
+  </picture>
+</a>
 
 ---
 

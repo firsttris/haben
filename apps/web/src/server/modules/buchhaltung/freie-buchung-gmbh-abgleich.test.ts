@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // Review #585 Runde 2: GmbH bucht die Gewerbesteuerrückstellung als Umbuchung (wie bookSteuerrueckstellungen)
 const KONTEN = {
@@ -22,7 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen einer GmbH im EÜR-Abgleic
   });
   for (const kr of ["SKR03", "SKR04"] as const) {
     it(`Gewerbesteuerrückstellung der GmbH: keine Abweichung (${kr})`, async () => {
-      await sql`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
+      await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
       await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
         values (1, 'Test GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'soll', 'gmbh', false, 2026)`;
       await manual.createManualEntry(

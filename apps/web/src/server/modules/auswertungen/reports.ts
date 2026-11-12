@@ -18,6 +18,8 @@ import {
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { journalAbJahr, loadCompany } from "../stammdaten/index.ts";
+import { euerVerschiebung } from "./euer-jahreswechsel.ts";
+import { verrechnungenImJahr } from "./verrechnungen.ts";
 import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -72,6 +74,9 @@ async function documentTotalsById(
 export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerPayment[]> {
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
+  // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar: zählt im Vorjahr (euer-jahreswechsel.ts)
+  const { herein, hinaus } = await euerVerschiebung(year, q);
+  const imJahr = and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end));
   const allocations = await q
     .select({
       id: schema.allocations.id,
@@ -102,8 +107,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
     .where(
       and(
-        gte(schema.bankTransactions.bookingDate, start),
-        lt(schema.bankTransactions.bookingDate, end),
+        herein.size > 0 ? or(imJahr, inArray(schema.allocations.id, [...herein])) : imJahr,
         inArray(schema.allocations.kind, [
           "invoice",
           "document",
@@ -158,6 +162,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .where(
       and(inArray(schema.documents.payment, ["privat", "kasse"]), gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)),
     );
+
+  // Verrechnungen zweier Belege ohne Zahlung (#274), siehe verrechnungen.ts
+  const settlements = await verrechnungenImJahr(start, end, q);
 
   // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
@@ -219,6 +226,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [
       ...new Set([
         ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
+        ...settlements.map((s) => s.documentId),
         ...privateDocs.map((d) => d.id),
         ...cancelledDocs.map((d) => d.id),
       ]),
@@ -237,7 +245,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   };
 
   const payments: EuerPayment[] = [];
-  for (const a of allocations) {
+  for (const zuordnung of allocations) {
+    if (hinaus.has(zuordnung.id)) continue;
+    const a = herein.has(zuordnung.id) ? { ...zuordnung, date: `${year}-12-31` } : zuordnung;
     // Zuordnung und Gegenzeile hängen am selben Umsatz und heben sich so exakt auf
     const group = `${a.transactionId}|${a.invoiceId ?? a.documentId ?? a.kind}`;
     if (a.kind === "invoice" && a.invoiceId) {
@@ -273,7 +283,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       a.kind === "zinsertrag" ||
       a.kind === "kursdifferenz"
     ) {
-      payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
+      payments.push({
+        kind: a.kind,
+        date: a.date,
+        amount: a.amount,
+        // Verrechnete Zahlung und Erstattung desselben Umsatzes bleiben eigene EÜR-Zeilen (Anleitung EÜR 2025, Z. 18/58).
+        // Nur eine Zuordnung und ihre Gegenzeile verrechnen; ustAbfluss gehört jeweils zu dieser ursprünglichen Zuordnung.
+        group: a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? (a.reversesId ?? a.id) : group,
+        // Die Richtung bleibt die der ursprünglichen Zuordnung, auch nach einer jahresübergreifenden Rücknahme.
+        ...(a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? { ustAbfluss: (a.reversesId ? -a.amount : a.amount) < 0 } : {}),
+      });
     } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
       // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,
@@ -297,6 +316,19 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       // Lohn, Lohnsteuer und Beiträge: Ausgaben für Personal, wenn sie von der Bank abfließen (§ 11 Abs. 2 Satz 1 EStG)
       payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });
     }
+  }
+  // Verrechnung wie eine Zahlung auf den Beleg: ausgeglichen ist `-amount`, gezahlt also `amount` mit umgekehrtem Vorzeichen
+  for (const s of settlements) {
+    payments.push({
+      kind: "document",
+      date: s.date,
+      paid: -s.amount,
+      totals: docTotals.get(s.documentId)!,
+      category: isCategory(s.category) ? s.category : "sonstiges",
+      vorsteuerAbzug: s.vorsteuerAbzug ?? true,
+      privateShare: s.privateShare ?? 0,
+      ...belegAngaben(s.documentId),
+    });
   }
   for (const w of exchangeDifferences) {
     const group = `kurs|${w.transactionId}|${w.invoiceId ?? w.documentId}`;
@@ -404,7 +436,8 @@ export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db
 /**
  * Umsatzsteuer früherer Jahre (Steuerzahlung) in den zehn Tagen um einen Jahreswechsel. Eine Abschlusszahlung aus der
  * Jahreserklärung zählt im Jahr der Zahlung; ist es aber die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie
- * als regelmäßig wiederkehrende Ausgabe in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) und als Voranmeldung zugeordnet.
+ * als Voranmeldung zugeordnet. Dann zählt die EÜR sie im Vorjahr, wenn sie dort fällig war (§ 11 Abs. 2 Satz 2 EStG,
+ * euer-jahreswechsel.ts).
  */
 export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | Tx = db): Promise<number> {
   return zahlungenUmJahreswechsel(
@@ -454,6 +487,7 @@ async function paidSums(ids: string[]) {
     sql`select id, sum(amount) as paid from (
           select document_id as id, amount from allocations where document_id in ${ids}
           union all select document_id as id, amount from write_offs where document_id in ${ids}
+          union all select document_id as id, amount from document_settlements where document_id in ${ids}
         ) settled group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));

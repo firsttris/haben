@@ -26,6 +26,7 @@ const PAGES = [
   "/angebote",
   "/angebote/neu",
   "/artikel",
+  "/leistungen",
   "/kontakte",
   "/kontakte/neu",
   "/belege",
@@ -78,6 +79,8 @@ const PAGES = [
   "/einstellungen?bereich=export",
   "/einstellungen?bereich=seiten",
   "/einstellungen?bereich=sicherheit",
+  "/einstellungen?bereich=persoenlich",
+  "/einstellungen?bereich=waehrung",
   // So sieht die Steuerberatung Haben; ihre eigene Sicht und die Einladung prüft steuerberatung.spec.ts
   "/steuerberatung",
 ];
@@ -464,8 +467,12 @@ test("Felder mit zustandsabhängigem Hinweis verweisen auf vorhandene Ziele: Zah
   await expect(zahlungsart).toHaveAccessibleDescription(/Jede Rechnung nimmt das jüngste Mandat/);
 });
 
-/** Kontrollkästchen und Optionsfelder, deren Hinweis im umschließenden `<label>` steht und damit zum Namen zählt */
-function hintsInCheckboxLabel(p: Page) {
+/**
+ * Kontrollkästchen und Optionsfelder mit Hinweis: Er steht nie im umschließenden `<label>` (sonst zählt er zum Namen) und
+ * folgt dem Label als `.field-hint`, auf den die Eingabe per `aria-describedby` zeigt (DESIGN.md, Felder). Ein Absatz oder
+ * `span` gleich hinter dem Label ohne diese Verknüpfung gilt als Hinweis, der es nicht ist.
+ */
+function checkboxHintProblems(p: Page) {
   return p.evaluate(() => {
     const where = (el: Element) =>
       `${el.tagName.toLowerCase()}[name=${el.getAttribute("name")}] „${(el.parentElement?.textContent ?? "").trim().slice(0, 40)}“`;
@@ -474,16 +481,27 @@ function hintsInCheckboxLabel(p: Page) {
       const ids = (input.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
       const inLabel = ids.filter((id) => labels.some((label) => label.contains(document.getElementById(id))));
       const hint = labels.some((label) => label.querySelector(".field-hint"));
-      return inLabel.length || hint ? [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`] : [];
+      if (inLabel.length || hint) return [`${where(input)} trägt den Hinweis im Label (${inLabel.join(", ") || ".field-hint"})`];
+      return labels.flatMap((label) => {
+        const next = label.nextElementSibling;
+        if (!next || !["P", "SPAN"].includes(next.tagName) || next.classList.contains("banner") || !(next.textContent ?? "").trim()) return [];
+        const linked = next.id !== "" && ids.includes(next.id);
+        const text = (next.textContent ?? "").trim().slice(0, 40);
+        if (!next.classList.contains("field-hint") || !linked) {
+          return [`${where(input)}: Hinweis „${text}“ neben dem Label ist ${linked ? "kein .field-hint" : "nicht per aria-describedby verknüpft"}`];
+        }
+        // Einzug und Zeilenhöhe kommen aus .checkbox-hinted (styles.css)
+        return label.parentElement?.classList.contains("checkbox-hinted") ? [] : [`${where(input)}: Hinweis „${text}“ steht nicht in .checkbox-hinted`];
+      });
     });
   });
 }
 
 for (const group of chunks(PAGES, GROUP)) {
-  test(`Kein Hinweis im Label eines Kontrollkästchens: ${group.join(", ")}`, async ({ page }) => {
+  test(`Hinweis eines Kontrollkästchens: außerhalb des Labels, als .field-hint in .checkbox-hinted, verknüpft: ${group.join(", ")}`, async ({ page }) => {
     for (const path of group) {
       await open(page, path);
-      expect.soft(await hintsInCheckboxLabel(page), path).toEqual([]);
+      expect.soft(await checkboxHintProblems(page), path).toEqual([]);
     }
   });
 }
@@ -578,8 +596,16 @@ test("Rechnungsart: Der Hinweis erscheint nur bei Abschlags- und Schlussrechnung
   await expect(art).toHaveValue("");
   await expect(art).toHaveAccessibleDescription("");
   await art.selectOption("abschlag");
-  await expect(art).toHaveAccessibleDescription(/^Über einen Teil der Leistung/);
+  await expect(art).toHaveAccessibleDescription("Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung.");
+  const teilleistung = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht", exact: true });
+  await expect(teilleistung).not.toBeChecked();
+  await expect(teilleistung).toHaveAccessibleDescription(
+    "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.",
+  );
+  await teilleistung.check();
+  await expect(teilleistung).toHaveAccessibleDescription("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.");
   await art.selectOption("schluss");
+  await expect(teilleistung).toBeHidden();
   await expect(art).toHaveAccessibleDescription(/^Über die gesamte Leistung/);
   await art.selectOption("");
   await expect(art).toHaveAccessibleDescription("");
@@ -617,6 +643,29 @@ test("Dateiwähler: Ein Klick auf „Datei wählen“ öffnet an jeder Stelle de
       expect(await input.evaluate((el: HTMLInputElement) => el.labels?.length ?? 0), `${path} Nr. ${i + 1}: Feldname`).toBeGreaterThan(0);
     }
   }
+});
+
+test("Dateiwähler: Der zugängliche Name enthält den sichtbaren Feldnamen (Label in Name, WCAG 2.5.3)", async ({ page }) => {
+  const pruefen = async (stelle: string) => {
+    const pickers = page.locator(".file-picker");
+    expect(await pickers.count(), `${stelle} hat einen Dateiwähler`).toBeGreaterThan(0);
+    for (let i = 0; i < (await pickers.count()); i++) {
+      const feld = pickers.nth(i).locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' field ')][1]");
+      const sichtbar = ((await feld.locator(".field-label").first().textContent()) ?? "").trim();
+      const maskiert = sichtbar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      await expect(pickers.nth(i).locator("input[type=file]"), `${stelle} Nr. ${i + 1}: „${sichtbar}“`).toHaveAccessibleName(new RegExp(maskiert, "i"));
+    }
+  };
+  for (const path of FILE_PICKER_PAGES) {
+    await open(page, path);
+    await pruefen(path);
+  }
+  // Accountable hat einen eigenen Upload, den die Seite erst nach der Wahl der Quelle zeigt
+  await open(page, "/archiv");
+  await page.getByRole("button", { name: "Umzug aus Accountable" }).click();
+  // Der Upload dieser Quelle muss da sein; der andere Dateiwähler der Seite (Archiv) stünde sonst für ihn
+  await expect(page.getByLabel("Exportdatei (ZIP)")).toBeAttached();
+  await pruefen("/archiv (Accountable)");
 });
 
 test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört zum Eingabefeld", async ({ page }) => {

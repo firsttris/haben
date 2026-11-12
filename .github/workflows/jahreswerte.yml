@@ -4,7 +4,7 @@ name: Jahreswerte prüfen
 # gesetze-im-internet.de (Sozialversicherungsrechengrößen, Normen in scripts/jahreswerte/normen.json), download.elster.de
 # (ERiC) und den DATEV-Shop (SKR03/SKR04) und öffnet je Befund ein Issue mit dem Label „jahreswerte“. Ein offenes Issue
 # mit derselben Kennung bekommt kein zweites, bei geändertem Befund einen Kommentar. Eine Quelle, die nicht antwortet,
-# ist nur eine Warnung. Was dann zu tun ist: docs/entwicklung.md, „Jahreswerte: Erinnerung per Workflow“.
+# ist nur eine Warnung. Was dann zu tun ist: docs/entwicklung.md, „Jahreswerte“, die Schritte im Skill jahreswerte.
 on:
   schedule:
     # Montags früh (UTC); der BMF veröffentlicht den PAP meist im November, die SV-Werte erscheinen im November

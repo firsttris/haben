@@ -53,9 +53,9 @@ async function gespeichert(year: number): Promise<{ data: z.output<typeof gespei
 
 /**
  * Offene Rechnungen und Belege zum Stichtag, die erst mehr als ein Jahr danach fällig sind: ausgestellt bzw. datiert bis
- * zum Stichtag, nicht bis dahin storniert, abzüglich der bis dahin zugeordneten Zahlungen, Bareinnahmen und Ausbuchungen (Skonto,
- * Forderungsausfall, Kursdifferenz). Offen wie in den offenen Posten (lebenszyklus.ts): Eine Korrekturrechnung ist ein
- * eigener Posten mit negativem Betrag und mindert, was offen ist.
+ * zum Stichtag, nicht bis dahin storniert, abzüglich der bis dahin zugeordneten Zahlungen, Verrechnungen, Bareinnahmen und
+ * Ausbuchungen (Skonto, Forderungsausfall, Kursdifferenz). Offen wie in den offenen Posten (lebenszyklus.ts): Eine
+ * Korrekturrechnung ist ein eigener Posten mit negativem Betrag und mindert, was offen ist.
  */
 async function spaetFaellig(year: number): Promise<SpaetFaellig> {
   const stichtag = `${year}-12-31`;
@@ -66,6 +66,7 @@ async function spaetFaellig(year: number): Promise<SpaetFaellig> {
          where a.${sql.raw(spalte)} = ${id} and t.booking_date <= ${stichtag}
         union all
         select w.amount from write_offs w where w.${sql.raw(spalte)} = ${id} and w.date <= ${stichtag}
+        ${spalte === "document_id" ? sql`union all select s.amount from document_settlements s where s.document_id = ${id} and s.date <= ${stichtag}` : sql``}
         ${spalte === "invoice_id" ? sql`union all select c.amount from cash_entries c where c.invoice_id = ${id} and c.date <= ${stichtag}` : sql``}
       ) z), 0)`;
   const [row] = await db.execute<{ forderungen: string; verbindlichkeiten: string }>(sql`

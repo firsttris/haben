@@ -37,6 +37,11 @@ export interface OpenItem {
   skonto?: SkontoZahlfrist[];
   /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
   period?: VatPeriod;
+  /**
+   * Nur bei Voranmeldungen: letzter Tag der Schonfrist für den Säumniszuschlag (`schonfristEnde`, mit den Feiertagen im
+   * Bundesland des Finanzamts); fehlt er, zählen nur die bundesweiten Feiertage
+   */
+  schonfristEnde?: string;
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -199,7 +204,7 @@ function vatPostenSuggestion(tx: MatchTransaction, item: OpenItem): Suggestion |
     score += 5;
     reasons.push("Teilbetrag des offenen Betrags");
   } else if (tx.amount < 0 && item.dueDate) {
-    const monate = saeumnisMonate(item.dueDate, tx.bookingDate);
+    const monate = saeumnisMonate(item.dueDate, tx.bookingDate, item.schonfristEnde);
     const zuschlag = saeumniszuschlag(-item.open, monate);
     if (zuschlag > 0 && -tx.amount === -item.open + zuschlag) {
       score += 40;
@@ -265,7 +270,17 @@ export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp |
 }
 
 export interface DirectSuggestion {
-  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "lohnsteuer" | "zinsertrag" | "kategorie";
+  kind:
+    | "privat"
+    | "spende"
+    | "geldtransit"
+    | "ustVorauszahlung"
+    | "sondervorauszahlung"
+    | "gebuehren"
+    | "mahnerloes"
+    | "lohnsteuer"
+    | "zinsertrag"
+    | "kategorie";
   reasons: string[];
   /** Nur bei „kategorie“: Kategorie und Steuersatz, wie früher direkt gebucht (#324) */
   kategorie?: KategorieAngabe;
@@ -425,7 +440,7 @@ export interface LearnedBooking {
  * wissen oder was eine Angabe braucht, die sich je Zahlung ändert (Steuerart und Jahr, Teil einer Darlehensrate, die
  * offene Lohnverbindlichkeit).
  */
-const LEARNED_KINDS = new Set(["privat", "gebuehren", "mahnerloes", "zinsertrag", "kategorie"]);
+const LEARNED_KINDS = new Set(["privat", "spende", "gebuehren", "mahnerloes", "zinsertrag", "kategorie"]);
 
 /** „2026-09-30“ → „30.09.2026“; `last` kann ein Zeitstempel sein, gezählt wird der Tag */
 const tagText = (iso: string) => iso.slice(0, 10).split("-").reverse().join(".");

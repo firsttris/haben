@@ -94,7 +94,7 @@ function kapitalVorjahr(company: Company, rows: Salden) {
 }
 
 async function salden(company: Company, year: number, to?: string): Promise<Salden> {
-  return (await saldenliste({ ...ledgerRange(year), ...(to ? { to } : {}) })).filter((r) => r.kontenrahmen === company.kontenrahmen);
+  return (await saldenliste({ ...ledgerRange(year), ...(to ? { to } : {}) }, { aufgeloest: true })).filter((r) => r.kontenrahmen === company.kontenrahmen);
 }
 
 async function grundlagen(year: number, beschluss: string, q: Db | Tx): Promise<Grundlagen> {

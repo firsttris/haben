@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { EricGeprueftClient } from "../../test-eric.ts";
 
 // Ein installiertes ERiC wie 44.3, das die Taxonomie 6.9 prüfen kann, 6.10 aber nicht (kein libcheckBilanz_6_10.so)
@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz mit ERiC ohne Taxonomie 6.10 (Postgr
   });
 
   it.each(["SKR03", "SKR04"] as const)("%s: 2027 abgelehnt, 2026 in Taxonomie 6.9", async (kontenrahmen) => {
-    await sql`truncate journal_lines, journal_entries, annual_submissions, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, annual_submissions, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kontenrahmen}, 'ist', 'gmbh')`;
     const hinweis =

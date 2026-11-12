@@ -1,0 +1,44 @@
+# Schreibt das Ergebnis von „PR-Regeln“ als Kommentar in den Pull Request (scripts/pr-regeln/kommentar.ts):
+# einen je Pull Request, bei jedem Push geändert. Ohne Fehler und Hinweise kommt keiner; ein alter zeigt dann,
+# dass nichts mehr offen ist.
+# workflow_run statt pull_request: Nur so darf das Token auch bei PRs aus Forks kommentieren. Sicher, weil hier
+# nur die Basis ausgecheckt wird und vom Lauf des PR nur das Artefakt kommt, das kommentieren.ts als Daten prüft.
+name: PR-Regeln Kommentar
+
+on:
+  workflow_run:
+    workflows: [PR-Regeln]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-regeln-kommentar-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  kommentar:
+    # Abgebrochene Läufe (ein neuer Push kam dazwischen) haben kein vollständiges Ergebnis
+    if: github.event.workflow_run.event == 'pull_request' && contains(fromJSON('["success","failure"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/download-artifact@v8
+        with:
+          name: pr-regeln-ergebnis
+          path: ${{ runner.temp }}/pr-regeln-ergebnis
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      # Ohne bun install: das Skript braucht nur fetch und node:-Module
+      - run: bun scripts/pr-regeln/kommentieren.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          ERGEBNIS: ${{ runner.temp }}/pr-regeln-ergebnis/ergebnis.json

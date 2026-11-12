@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -46,8 +46,8 @@ describe.skipIf(!testDatabaseUrl)("Stichjahr vorziehen nur, wenn beide Quellen d
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate vat_return_submissions, vat_returns, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, invoice_lines, invoices,
-      invoice_number_counters, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate vat_return_submissions, vat_returns, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+      invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
               'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, 2027)`;

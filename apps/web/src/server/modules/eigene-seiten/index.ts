@@ -6,6 +6,7 @@
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export {
+  checkCustomPageEmbedding,
   createCustomPage,
   CustomPageError,
   customPageInputSchema,

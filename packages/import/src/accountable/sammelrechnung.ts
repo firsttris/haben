@@ -6,9 +6,12 @@ import type { AccountableExpenseRow } from "./types.ts";
  * Ausgabenblatt. Im Export steht keine Belegnummer, an der man die Zeilen wieder
  * zusammenbinden könnte; gleich sind nur Lieferant und Buchungsdatum.
  *
- * Wer die Zeilen einzeln übernimmt, bekommt einen Beleg über den Teilbetrag der ersten
- * Zeile und für den Rest Belege ohne Datei. Deshalb dieser Vorschlag: Zeilen mit gleichem
- * Lieferanten und Datum gelten als eine Rechnung mit Aufteilung.
+ * Spalte Y (Dokument vorhanden) gilt dabei für die ganze Rechnung: sie steht auch an den
+ * Zeilen, die keinen eigenen Dateinamen tragen. Im Belege-Ordner liegt die Datei einmal,
+ * benannt nach Datum und Lieferant. Wer die Zeilen einzeln übernimmt, bekommt deshalb
+ * einen Beleg ueber den Teilbetrag einer Zeile, während der Rest ohne Buchung bleibt.
+ * Deshalb dieser Vorschlag: Zeilen mit gleichem Lieferanten und Datum gelten als eine
+ * Rechnung mit Aufteilung.
  *
  * Das bleibt eine Annahme. Zwei getrennte Käufe beim selben Händler am selben Tag sehen
  * genauso aus. Für den gebuchten Aufwand ist der Unterschied trotzdem nicht gleichgültig:
@@ -58,6 +61,8 @@ function gruppierbar(e: AccountableExpenseRow): boolean {
     e.taxRate !== null &&
     (e.currency === "" || e.currency === "EUR") &&
     e.taxStatus !== "Importieren" &&
+    // Y ist true, sobald zu der Rechnung eine Datei existiert, auch an den Zeilen ohne
+    // eigenen Dateinamen. Ein false heißt: zu dieser Zeile gibt es gar keinen Beleg.
     e.documentPresent !== false
   );
 }

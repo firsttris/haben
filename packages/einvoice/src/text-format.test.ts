@@ -56,7 +56,7 @@ describe("Formatierung von PDF und E-Rechnung", () => {
   });
 
   it("übergibt nur Klartext als BT-22 und BT-154", () => {
-    const invoice = toEInvoiceData(formattedDocument())["ubl:Invoice"];
+    const invoice = toEInvoiceData(formattedDocument());
     expect(invoice["cbc:Note"]).toEqual(["Leistungsumfang", "Abnahme und Freigabe"]);
     expect(invoice["cac:InvoiceLine"][0]!["cac:Item"]["cbc:Description"]).toBe("Systempflege und Kontrolle");
   });

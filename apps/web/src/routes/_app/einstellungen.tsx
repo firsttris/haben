@@ -24,7 +24,9 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { AccentColorCard } from "../../components/AccentColorCard.tsx";
-import { LayoutsCard, LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
+import { LetterheadBackgroundCard, LetterheadOptionsCard } from "../../components/GestaltungCards.tsx";
+import { LayoutsCard } from "../../components/LayoutsCard.tsx";
+import { getLayouts } from "../../server/functions/layouts.ts";
 import { FooterCard } from "../../components/FooterCard.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
@@ -88,6 +90,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       logo,
       background,
       design,
+      overview,
       inbox,
       exportYears,
       datev,
@@ -111,6 +114,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getLogo(),
       getBackground(),
       getLetterheadDesign(),
+      getLayouts(),
       getInbox(),
       getExportYears(),
       getDatevNumbers(),
@@ -136,6 +140,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
       logo,
       background,
       design,
+      layouts: overview.layouts,
+      layoutHints: overview.hints,
       inbox,
       exportYears,
       datev,
@@ -166,6 +172,8 @@ function SettingsPage() {
     logo,
     background,
     design,
+    layouts,
+    layoutHints,
     mail,
     inbox,
     exportYears,
@@ -231,11 +239,11 @@ function SettingsPage() {
           )}
           {bereich === "gestaltung" && (
             <>
-              <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} />
-              <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} />
-              <AccentColorCard color={design.accent} />
+              <LetterheadOptionsCard design={design} logo={logo?.sha256 ?? null} hints={layoutHints} />
+              <LetterheadBackgroundCard design={design} background={background?.sha256 ?? null} hints={layoutHints} />
+              <AccentColorCard color={design.accent} hint={layoutHints.accent} />
               <FooterCard columns={design.footerColumns} seller={company} hidden={design.footerHidden && background !== null} />
-              <LayoutsCard design={design} />
+              <LayoutsCard design={design} layouts={layouts} />
             </>
           )}
           {bereich === "elster" && (

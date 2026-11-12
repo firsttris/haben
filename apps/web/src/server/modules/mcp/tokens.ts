@@ -31,6 +31,8 @@ export const TOKEN_SCOPES = [
   "rechnungen:entwuerfe",
   "belege:lesen",
   "belege:anlegen",
+  "leistungen:lesen",
+  "leistungen:schreiben",
 ] as const;
 export type TokenScope = (typeof TOKEN_SCOPES)[number];
 
@@ -43,6 +45,8 @@ export const TOKEN_SCOPE_LABELS: Record<TokenScope, string> = {
   "rechnungen:entwuerfe": "API: Rechnungen lesen, Entwürfe anlegen, ändern und löschen",
   "belege:lesen": "API: Belege lesen",
   "belege:anlegen": "API: Belege lesen und hochladen (landen als „Zu prüfen“)",
+  "leistungen:lesen": "API: Leistungseinträge lesen",
+  "leistungen:schreiben": "API: Leistungseinträge lesen, anlegen und löschen (Zeiterfassung)",
 };
 
 /** Ein Recht schließt ein anderes mit ein: wer schreiben darf, darf auch lesen */
@@ -50,14 +54,12 @@ const IMPLIED: Partial<Record<TokenScope, TokenScope>> = {
   "kontakte:schreiben": "kontakte:lesen",
   "rechnungen:entwuerfe": "rechnungen:lesen",
   "belege:anlegen": "belege:lesen",
+  "leistungen:schreiben": "leistungen:lesen",
 };
 
 export function hasScope(granted: readonly TokenScope[], needed: TokenScope): boolean {
   return granted.some((scope) => scope === needed || IMPLIED[scope] === needed);
 }
-
-/** Gültigkeit eines neuen Tokens in Tagen */
-export const MCP_TOKEN_DAYS = [30, 90, 365] as const;
 
 const TOKEN_PREFIX = "hb_";
 /** Protokoll der Aufrufe so lange aufheben */
@@ -119,11 +121,19 @@ export async function createMcpToken(input: z.input<typeof mcpTokenInputSchema>,
   return { id: row.id, token };
 }
 
-export async function revokeMcpToken(id: string, now = new Date()): Promise<void> {
-  await db
-    .update(schema.mcpTokens)
-    .set({ revokedAt: now })
-    .where(and(eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)));
+/**
+ * Widerruft ein Token. mcp_tokens hat kein Audit-Log; wer wann widerrufen hat, steht deshalb wie Anlegen und Übernehmen
+ * in token_events. Ein schon widerrufenes Token ändert sich nicht und bekommt kein zweites Ereignis.
+ */
+export async function revokeMcpToken(actor: string, id: string, now = new Date()): Promise<void> {
+  await withActor(actor, async (tx) => {
+    const [revoked] = await tx
+      .update(schema.mcpTokens)
+      .set({ revokedAt: now })
+      .where(and(eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)))
+      .returning({ responsibleId: schema.mcpTokens.responsibleId });
+    if (revoked) await tokenEvent(tx, actor, "api", id, "widerrufen", revoked.responsibleId);
+  });
 }
 
 /** Alle Zugänge, gültige zuerst; widerrufene und abgelaufene bleiben zur Nachvollziehbarkeit sichtbar */

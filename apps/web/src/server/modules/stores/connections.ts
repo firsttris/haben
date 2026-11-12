@@ -18,6 +18,7 @@ import type { Store, StoreConfig } from "../../db/schema.ts";
 import { env } from "../../env.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
+import { contactRoleProblem, listContacts } from "../stammdaten/index.ts";
 
 /*
  * Zugänge zu den Finanzberichten von Google Play und App Store Connect (Einstellungen › Bank). Das Geheimnis
@@ -157,9 +158,23 @@ export async function setStoreContact(actor: string, input: z.input<typeof store
     if (!contact) throw new StoreError("Kontakt nicht gefunden.");
     if (contact.land === "DE")
       throw new StoreError("Die Store-Gesellschaft sitzt im Ausland (Google Commerce Ltd und Apple Distribution International in Irland).");
+    // Nur ein neuer Kontakt wird geprüft: ein bisheriger, der inzwischen kein Kunde mehr ist, bleibt gewählt
+    const problem = data.contactId === row.config.contactId ? null : await contactRoleProblem(db, data.contactId, "kunde");
+    if (problem) throw new StoreError(problem);
   }
   const config = { ...row.config, contactId: data.contactId ?? undefined };
   await withActor(actor, (tx) => tx.update(schema.storeConnections).set({ config }).where(eq(schema.storeConnections.store, data.store)));
+}
+
+/**
+ * Kontakte zur Auswahl der Store-Gesellschaft: Kunden im Ausland, denn nur sie lässt setStoreContact zu. Ein schon gewählter
+ * Kontakt bleibt in der Liste, auch wenn er die Rolle Kunde inzwischen nicht mehr hat.
+ */
+export async function storeContactChoices(): Promise<{ id: string; name: string; land: string; ustId: string }[]> {
+  const chosen = new Set((await db.select({ config: schema.storeConnections.config }).from(schema.storeConnections)).map((r) => r.config.contactId));
+  return (await listContacts())
+    .filter((c) => c.land !== "DE" && (c.isCustomer || chosen.has(c.id)))
+    .map((c) => ({ id: c.id, name: c.name, land: c.land, ustId: c.ustId }));
 }
 
 export async function deleteStoreConnection(actor: string, store: Store): Promise<void> {

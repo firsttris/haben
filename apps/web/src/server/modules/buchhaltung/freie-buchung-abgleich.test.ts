@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Review #585: freie Buchungen gegen Privat auf Konten, die der EÜR-Abgleich nur aus Zahlungen (sourceType allocation)
@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Review #585: EÜR-Abgleich mit freien Buchung
   for (const kr of ["SKR03", "SKR04"] as const) {
     for (const art of ["gewst", "zinsen", "zuschlag", "ustVorjahr"] as const) {
       it(`${art} privat bezahlt: keine Abweichung im EÜR-Abgleich (${kr})`, async () => {
-        await sql`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
+        await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
         await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
           values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false, 2026)`;
         await manual.createManualEntry(
@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("Review #585: EÜR-Abgleich mit freien Buchung
       }, 60_000);
     }
     it(`Aufwand privat bezahlt: Integrität ohne Befund (${kr})`, async () => {
-      await sql`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
+      await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
       await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
         values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${kr}, 'ist', 'einzelunternehmen', false, 2026)`;
       const id = await manual.createManualEntry(

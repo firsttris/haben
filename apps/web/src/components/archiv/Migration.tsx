@@ -314,7 +314,6 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
   const pollAccountable = useServerFn(getAccountableStatus);
   const [run, setRun] = useState<ImportRow | null>(initial);
   const fileInput = useRef<HTMLInputElement>(null);
-  const fileId = useId();
   const action = useAction();
   const running = run?.status === "laeuft";
   // Die Frage gehört zu genau diesem Lauf: Endet er, darf sie beim nächsten nicht von selbst wiederkommen
@@ -380,12 +379,7 @@ function ImportCard({ source, connected, initial }: { source: ConnectedSource | 
       </p>
       {accountable && !running && (
         <form className="stack" onSubmit={onUpload} style={{ gap: 12 }}>
-          <div className="field">
-            <label className="field-label" htmlFor={`${fileId}-files`}>
-              Exportdatei (ZIP)
-            </label>
-            <FilePicker id={`${fileId}-files`} inputRef={fileInput} multiple accept=".zip,application/zip" ariaLabel="Accountable-Export (ZIP)" />
-          </div>
+          <Field label="Exportdatei (ZIP)">{(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" />}</Field>
           <div className="actions">
             <button type="submit" className="btn btn-primary" disabled={action.busy}>
               {action.busy ? "Übernehme …" : "Hochladen und übernehmen"}

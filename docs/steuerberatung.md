@@ -11,12 +11,10 @@ Deine Steuerberatung kann mit einem eigenen Zugang direkt in Haben nachsehen, st
 
 ## Rollen
 
-Haben kennt zwei Rollen:
-
 | Rolle | Wer | Was |
 | --- | --- | --- |
-| **Inhaber** | Das Konto aus der [Einrichtung](einrichtung.md#konto-anlegen), genau eines | Alles |
-| **Steuerberatung** | Jedes weitere Konto, nur per Einladung | Nur lesen |
+| **Inhaber** | Das Konto aus der [Einrichtung](einrichtung.md#konto-anlegen), genau eines; im SSO-Modus jedes Mitglied der Inhaber-Gruppe | Alles |
+| **Steuerberatung** | Jedes weitere Konto, nur per Einladung; im SSO-Modus jedes Mitglied der Steuerberatungs-Gruppe | Nur lesen |
 
 Die Steuerberatung sieht:
 
@@ -61,7 +59,7 @@ Jede Anmeldung steht mit Zeitpunkt, Konto, Rolle und Art (Passwort, Passkey, SSO
 
 ## Sicherheit
 
-- Die Rolle eines Kontos ändert sich nie, auch nicht durch einen Fehler im Code: Die Datenbank lehnt das ab. Über eine Einladung entsteht nie ein zweiter Inhaber.
+- Im Standardmodus ändert sich die Rolle eines Kontos nie, auch nicht durch einen Fehler im Code: Die Datenbank lehnt das ab. Über eine Einladung entsteht nie ein zweiter Inhaber. Im SSO-Modus folgt die Rolle bei jeder Anmeldung der Gruppe, siehe [Im SSO-Modus](#im-sso-modus).
 - Für die Steuerberatung lehnt der Server jede schreibende Anfrage ab. Selbst eine Funktion, die nur lesen soll, kann für sie nichts ins Änderungsprotokoll schreiben; Haben bricht sie dann ab.
 - Zertifikat, PIN, Zugangsdaten für Bank, E-Mail und Lexware Office sowie API-Tokens liefert Haben an die Steuerberatung nicht aus.
 - Anmeldeversuche sind wie beim Inhaber auf 20 je Minute begrenzt.
@@ -79,11 +77,10 @@ Läuft Haben mit `OIDC_ONLY=true`, entscheiden die Gruppen im Anmeldedienst (etw
 - **Einstellungen › Zugänge** zeigt statt „Sicherheit“ die schon angemeldeten Konten mit ihrer zuletzt bestätigten Rolle. Einladen, Sperren und Entfernen gibt es dort nicht; das geschieht über die Gruppen.
 - Wer aus der Gruppe genommen wird, verliert den Zugang bei der nächsten Anmeldung sofort, sonst spätestens nach 15 Minuten. Eine Abmeldung in Authelia beendet die Haben-Sitzung nicht sofort.
 - Die Steuerberatung kann eine neue Instanz nicht erstmals einrichten; das macht ein Inhaber.
+- Wird ein Inhaber zur Steuerberatung herabgestuft, deaktiviert Haben die Tokens, für die er verantwortlich ist; die Steuerberatung kann sie nicht reaktivieren, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
 - Anmeldungen ohne Pause von mehr als sechs Stunden zählen als ein Besuch. „Seit deinem letzten Besuch“ reicht deshalb bis zur letzten Anmeldung vor dieser Pause, auch wenn die 15-Minuten-Frist zwischendurch neue Anmeldungen verlangt.
 - Alte Einladungslinks zeigen „Einladungen nicht verfügbar“.
 
 Einrichtung, Authelia-Beispiel und Umstellung bestehender Konten: [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
 
 [Zurück zur Übersicht](ueberblick.md)
-
-Bei einer Herabstufung vom Inhaber zur Steuerberatung werden beim geprüften SSO-Durchlauf zusätzlich die verantworteten API-/MCP- und Kalender-Tokens deaktiviert. Ein anderer Inhaber kann diese übernehmen; die Steuerberatung darf keine Tokens reaktivieren. Ohne erneute Anmeldung gelten die Tokens höchstens 30 Tage nach der letzten Bestätigung.

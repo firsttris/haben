@@ -1,5 +1,5 @@
 import { isKapitalgesellschaft } from "@haben/core";
-import { and, count, eq, gte, lt } from "drizzle-orm";
+import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 import { listAssets } from "../buchhaltung/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { loadCompany, type Company, type CompanyInput } from "./company.ts";
@@ -113,7 +113,7 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
     if (locked) throw new UserError(locked);
     await tx
       .update(schema.company)
-      .set({ ...input, dunning: keptBaseRateState(current!, input), updatedAt: new Date() })
+      .set({ ...input, dunning: keptBaseRateState(current!, input), companySavedAt: sql`clock_timestamp()`, updatedAt: new Date() })
       .where(eq(schema.company.id, 1));
   });
 }

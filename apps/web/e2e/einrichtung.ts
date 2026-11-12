@@ -62,7 +62,7 @@ export async function gehe(page: Page, path: string): Promise<void> {
 }
 
 /** Konto anlegen und die Firmendaten speichern; danach steht der Durchlauf in den Einstellungen */
-export async function einrichten(page: Page): Promise<void> {
+export async function einrichten(page: Page, kleinunternehmer = false): Promise<void> {
   await gehe(page, "/");
   await expect(page).toHaveURL(/\/setup/);
   await page.getByLabel("Einrichtungscode").fill(SETUP_CODE);
@@ -83,6 +83,7 @@ export async function einrichten(page: Page): Promise<void> {
   await firma.getByLabel("Bundesland").selectOption("BY");
   await firma.getByLabel(/^Steuernummer/).fill("198/113/10010");
   await firma.getByLabel("IBAN").fill("DE89370400440532013000");
+  if (kleinunternehmer) await firma.getByLabel("Kleinunternehmer nach § 19 UStG").check();
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
 }
@@ -119,6 +120,25 @@ export async function kundeWaehlen(page: Page, kunde?: string): Promise<void> {
 export async function neuenKontaktOeffnen(page: Page): Promise<void> {
   await page.getByRole("combobox", { name: "Kunde", exact: true }).click();
   await trefferliste(page).getByRole("option", { name: "Neuen Kontakt anlegen" }).click();
+}
+
+/** Lieferanten am Beleg oder im Dauerbeleg über die Suche „Aus den Kontakten“ wählen; name wie in der Liste, auch „Name · USt-IdNr.“ */
+export async function lieferantWaehlen(page: Page, name: string): Promise<void> {
+  const feld = page.getByRole("combobox", { name: "Aus den Kontakten" });
+  const gesucht = name.split(" · ")[0]!;
+  await feld.fill(gesucht);
+  await trefferliste(page).getByRole("option").filter({ hasText: gesucht }).first().click();
+  await expect(feld).toHaveValue(new RegExp(`^${gesucht.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+}
+
+/** Dialog für einen neuen Lieferanten über den letzten Eintrag der Trefferliste öffnen; mit text als getipptem Namen */
+export async function neuenLieferantenOeffnen(page: Page, text?: string): Promise<void> {
+  const feld = page.getByRole("combobox", { name: "Aus den Kontakten" });
+  if (text === undefined) await feld.click();
+  else await feld.fill(text);
+  await trefferliste(page)
+    .getByRole("option", { name: text === undefined ? "Neuen Lieferanten anlegen" : `„${text}“ als neuen Lieferanten anlegen` })
+    .click();
 }
 
 /** Artikel aus der Trefferliste einer Position übernehmen */
