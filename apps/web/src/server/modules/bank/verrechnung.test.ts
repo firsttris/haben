@@ -1,4 +1,5 @@
-import type postgres from "postgres";
+import { randomUUID } from "node:crypto";
+import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
@@ -27,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
   });
 
   async function firma() {
-    await leeren(sql)`truncate document_settlements, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate document_settlements, year_closings, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, documents, document_amounts, document_splits, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, payment_term_days)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -35,12 +36,18 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
   }
 
   /** Gebuchter Beleg über die Bank; net negativ ergibt eine Gutschrift des Lieferanten */
-  async function beleg(datum: string, netto: number, steuer: number, kategorie: "software" | "hardware" | "telefon" = "telefon") {
+  async function beleg(
+    datum: string,
+    netto: number,
+    steuer: number,
+    kategorie: "software" | "hardware" | "telefon" = "telefon",
+    lieferant = "Telekom Deutschland GmbH",
+  ) {
     // Eigene Bytes je Beleg: gleiche Datei erkennt Haben als Dublette und gibt den ersten Beleg zurueck
     const bytes = new Uint8Array([...JPEG, datum.charCodeAt(9), Math.abs(netto) % 251]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `${datum}-${netto}.jpg` });
     await documents.updateDocument(actor, id, {
-      supplierName: "Telekom Deutschland GmbH",
+      supplierName: lieferant,
       supplierUstId: "",
       invoiceNumber: `R-${datum}-${netto}`,
       documentDate: datum,
@@ -94,6 +101,143 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(await verrechnung.openAmount(rechnung)).toBe(5_950);
     expect(await verrechnung.openAmount(gutschrift)).toBe(-3_570);
     await expect(verrechnung.reverseSettlement(actor, ids[0]!, "2026-03-12")).rejects.toThrow(/bereits/);
+  }, 30_000);
+
+  it("hebt bei zwei gleichen Verrechnungen nur das gewählte Paar auf", async () => {
+    await firma();
+    const rechnung = await beleg("2026-07-10", 10_000, 1_900); // 119,00 EUR
+    const gutschrift = await beleg("2026-07-12", -4_000, -760); // -47,60 EUR
+    const erste = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 2_000,
+      date: "2026-07-12",
+      note: "Teil 1",
+    });
+    await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 2_000,
+      date: "2026-07-13",
+      note: "Teil 2",
+    });
+    expect(await verrechnung.openAmount(rechnung)).toBe(7_900);
+    expect(await verrechnung.openAmount(gutschrift)).toBe(-760);
+
+    await verrechnung.reverseSettlement(actor, erste.ids[0]!, "2026-07-14");
+
+    // Nur die eine Verrechnung fällt weg: 99,00 EUR offen, die Gutschrift -27,60 EUR, nicht wieder -47,60
+    expect(await verrechnung.openAmount(rechnung)).toBe(9_900);
+    expect(await verrechnung.openAmount(gutschrift)).toBe(-2_760);
+    // Zwei Verrechnungen, aber nur eine Gegenzeile
+    const zeilen = await verrechnung.listSettlements(rechnung);
+    expect(zeilen).toHaveLength(3);
+    expect(zeilen.filter((z) => z.reversesId !== null)).toHaveLength(1);
+  }, 30_000);
+
+  it("sperrt beide Belege: eine gleichzeitige Verrechnung überzahlt den Rest nicht", async () => {
+    await firma();
+    const rechnung = await beleg("2026-08-10", 10_000, 1_900); // 119,00 EUR
+    const gutschrift = await beleg("2026-08-12", -10_000, -1_900); // -119,00 EUR
+    // Eigene Verbindung, weil der Testpool nur eine hat: sie hält die Zeile gesperrt und bucht, während die
+    // Verrechnung schon läuft — wie ein zweiter Aufruf, der denselben Rest gelesen hat.
+    const sperre = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
+    try {
+      let haelt!: () => void;
+      const haeltSperre = new Promise<void>((resolve) => {
+        haelt = resolve;
+      });
+      let freigeben!: () => void;
+      const weiter = new Promise<void>((resolve) => {
+        freigeben = resolve;
+      });
+      const halter = sperre.begin(async (tx) => {
+        // Wie settleDocuments beide Belege in fester Reihenfolge sperren, damit der Test nicht selbst einen Kreis baut
+        const reihenfolge = [rechnung, gutschrift].sort();
+        await tx`select id from documents where id = ${reihenfolge[0]!} for update`;
+        await tx`select id from documents where id = ${reihenfolge[1]!} for update`;
+        haelt();
+        await weiter;
+        // Die "parallele" Verrechnung: sie bucht 60,00 EUR und gibt die Sperre erst danach frei
+        await tx`select set_config('haben.actor', ${actor}, true)`;
+        const pairId = randomUUID();
+        await tx`insert into document_settlements (document_id, counter_document_id, pair_id, date, amount, note, created_by)
+                 values (${rechnung}, ${gutschrift}, ${pairId}, '2026-08-12', -6000, 'Parallel', ${actor}),
+                        (${gutschrift}, ${rechnung}, ${pairId}, '2026-08-12', 6000, 'Parallel', ${actor})`;
+      });
+      await haeltSperre;
+
+      const laeuft = verrechnung.settleDocuments(actor, {
+        documentId: rechnung,
+        counterDocumentId: gutschrift,
+        amount: 10_000,
+        date: "2026-08-12",
+        note: "Gutschrift",
+      });
+      // Zeit, in der die Verrechnung ohne Sperre den alten Rest lesen und anschließend einfügen würde
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      freigeben();
+      await halter;
+
+      // Mit Sperre liest sie erst nach der parallelen Buchung: 119,00 − 60,00 = 59,00, also zu wenig für 100,00
+      await expect(laeuft).rejects.toThrow(/nicht verrechnen/);
+      expect(await verrechnung.openAmount(rechnung)).toBe(5_900);
+    } finally {
+      await sperre.end({ timeout: 5 });
+    }
+  }, 30_000);
+
+  it("verrechnet keine Belege verschiedener Lieferanten", async () => {
+    await firma();
+    const rechnung = await beleg("2026-09-10", 10_000, 1_900);
+    const fremd = await beleg("2026-09-12", -3_000, -570, "telefon", "Vodafone GmbH");
+    await expect(
+      verrechnung.settleDocuments(actor, {
+        documentId: rechnung,
+        counterDocumentId: fremd,
+        amount: 1_000,
+        date: "2026-09-12",
+        note: "Gutschrift",
+      }),
+    ).rejects.toThrow(/Lieferant/);
+
+    // Derselbe Lieferant in anderer Schreibweise geht
+    const eigene = await beleg("2026-09-13", -1_000, -190, "telefon", "  TELEKOM   Deutschland GmbH ");
+    await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: eigene,
+      amount: 1_000,
+      date: "2026-09-13",
+      note: "Gutschrift",
+    });
+    expect(await verrechnung.openAmount(rechnung)).toBe(10_900);
+  }, 30_000);
+
+  it("lehnt Verrechnung und Aufhebung in einem abgeschlossenen Jahr ab", async () => {
+    await firma();
+    const rechnung = await beleg("2025-11-10", 10_000, 1_900);
+    const gutschrift = await beleg("2025-11-12", -3_000, -570);
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 1_000,
+      date: "2025-11-20",
+      note: "Gutschrift",
+    });
+    await sql`insert into year_closings (year) values (2025)`;
+
+    await expect(
+      verrechnung.settleDocuments(actor, {
+        documentId: rechnung,
+        counterDocumentId: gutschrift,
+        amount: 1_000,
+        date: "2025-11-21",
+        note: "Gutschrift",
+      }),
+    ).rejects.toThrow(/abgeschlossen/);
+    await expect(verrechnung.reverseSettlement(actor, ids[0]!, "2025-11-21")).rejects.toThrow(/abgeschlossen/);
+    // Nichts wurde gebucht: die Verrechnung steht weiter, die Aufhebung fehlt
+    expect(await verrechnung.openAmount(rechnung)).toBe(10_900);
   }, 30_000);
 
   it("hebt an einem späteren Tag auf: die EÜR des Ursprungsjahres bleibt, die Gegenwirkung trifft das Aufhebungsjahr", async () => {

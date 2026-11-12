@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { formatEuro } from "@haben/core";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
+import { today } from "../../today.ts";
 import { settledOn } from "./bank.ts";
 
 /*
@@ -11,6 +13,10 @@ import { settledOn } from "./bank.ts";
  * oder mehrere Rechnungen aus. Beide Belege bleiben erhalten, es entsteht kein Bankumsatz und kein
  * Kassenstand ändert sich. Je Verrechnung zwei Zeilen in `document_settlements`, damit jede Seite für
  * sich als erledigt zählt; aufgehoben wird per Gegenzeile wie bei den Ausbuchungen.
+ *
+ * Beide Zeilen einer Verrechnung tragen dieselbe `pair_id`: Aufheben trifft damit genau dieses Paar,
+ * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde. Die Gegenzeilen einer
+ * Aufhebung bilden ihrerseits ein Paar mit eigener Kennung.
  */
 
 export const settlementSchema = z.object({
@@ -26,9 +32,6 @@ export const settlementSchema = z.object({
   note: z.string().trim().min(1, "Bitte den Grund der Verrechnung angeben.").max(500),
 });
 
-/** Heute in Berlin, damit der Vergleich mit den Belegdaten ohne Zeitzone stimmt */
-const heute = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
-
 /** Aufhebung einer Verrechnung: Pflicht ist der Tag, an dem sie erklärt wird */
 export const reversalSchema = z.object({
   /** Zeile der Verrechnung, die aufgehoben wird */
@@ -43,8 +46,9 @@ export type SettlementInput = z.input<typeof settlementSchema>;
 
 export class SettlementError extends UserError {}
 
-async function beleg(tx: Tx, id: string) {
-  const [row] = await tx
+/** Ein Beleg, wie ihn Verrechnung und Aufhebung brauchen; `sperren` nimmt die Zeilensperre der Transaktion */
+async function beleg(tx: Tx, id: string, sperren = false) {
+  const abfrage = tx
     .select({
       id: schema.documents.id,
       date: schema.documents.documentDate,
@@ -55,8 +59,21 @@ async function beleg(tx: Tx, id: string) {
     })
     .from(schema.documents)
     .where(eq(schema.documents.id, id));
+  const [row] = sperren ? await abfrage.for("update") : await abfrage;
   if (!row) throw new SettlementError("Beleg nicht gefunden.");
   return row;
+}
+
+/** Lieferantenname für den Vergleich: ohne Rand- und Mehrfach-Leerzeichen, klein geschrieben (wie die Kandidatenliste) */
+function lieferant(name: string | null): string {
+  return (name ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Abgeschlossene Jahre nehmen keine Verrechnung mehr an, so wie das Hauptbuch keine Buchung mehr (ledger.post) */
+async function pruefeJahrOffen(tx: Tx, date: string) {
+  const jahr = Number(date.slice(0, 4));
+  const [closed] = await tx.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, jahr));
+  if (closed) throw new SettlementError(`Das Jahr ${jahr} ist abgeschlossen; Verrechnungen mit Datum darin sind nicht mehr möglich.`);
 }
 
 /**
@@ -68,11 +85,27 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
   const parsed = settlementSchema.parse(input);
   if (parsed.documentId === parsed.counterDocumentId) throw new SettlementError("Ein Beleg lässt sich nicht mit sich selbst verrechnen.");
   return withActor(actor, async (tx) => {
-    const a = await beleg(tx, parsed.documentId);
-    const b = await beleg(tx, parsed.counterDocumentId);
+    // Sperre wie beim Bankabgleich: Zwei gleichzeitige Verrechnungen könnten denselben Rest sonst zweimal verbrauchen.
+    // Beide Belege in fester Reihenfolge sperren, sonst blockieren sich zwei Aufrufe mit vertauschten Rollen gegenseitig.
+    const gesperrt = new Map<string, Awaited<ReturnType<typeof beleg>>>();
+    for (const id of [parsed.documentId, parsed.counterDocumentId].sort()) gesperrt.set(id, await beleg(tx, id, true));
+    const a = gesperrt.get(parsed.documentId)!;
+    const b = gesperrt.get(parsed.counterDocumentId)!;
     for (const d of [a, b]) {
       if (d.status !== "gebucht") throw new SettlementError(`Beleg ${d.date ?? ""} ist nicht gebucht.`);
       if (d.payment !== "bank") throw new SettlementError(`Beleg ${d.date ?? ""} läuft nicht über die Bank und hat keinen offenen Posten.`);
+    }
+    // Eine Gutschrift gleicht nur Belege desselben Lieferanten aus (docs/belege.md); die Kandidatenliste filtert danach,
+    // der Server muss es selbst prüfen.
+    const nameA = lieferant(a.supplier);
+    const nameB = lieferant(b.supplier);
+    if (!nameA || !nameB) {
+      throw new SettlementError("Bei einem der Belege fehlt der Lieferant; ohne ihn lässt sich nicht prüfen, ob die Gutschrift dazugehört.");
+    }
+    if (nameA !== nameB) {
+      throw new SettlementError(
+        `Die Belege stammen von verschiedenen Lieferanten (${a.supplier} und ${b.supplier}); eine Gutschrift gleicht nur Belege desselben Lieferanten aus.`,
+      );
     }
     const storniert = await tx
       .select({ id: schema.documentCancellations.documentId })
@@ -98,13 +131,16 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
         `Das Datum liegt vor dem jüngeren der beiden Belege (${juenger}). Steuerlich zählt die Aufrechnungserklärung, nicht eine Rückwirkung.`,
       );
     }
-    if (parsed.date > heute()) throw new SettlementError("Das Datum der Verrechnung liegt in der Zukunft.");
+    if (parsed.date > today()) throw new SettlementError("Das Datum der Verrechnung liegt in der Zukunft.");
+    await pruefeJahrOffen(tx, parsed.date);
     const date = parsed.date;
+    // Gemeinsame Kennung für beide Zeilen: die Aufhebung findet das Paar damit eindeutig
+    const pairId = randomUUID();
     const rows = await tx
       .insert(schema.documentSettlements)
       .values([
-        { documentId: a.id, counterDocumentId: b.id, date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
-        { documentId: b.id, counterDocumentId: a.id, date, amount: parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: a.id, counterDocumentId: b.id, pairId, date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: b.id, counterDocumentId: a.id, pairId, date, amount: parsed.amount, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
@@ -119,9 +155,24 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
 export async function reverseSettlement(actor: string, id: string, date: string, note?: string) {
   const parsed = reversalSchema.parse({ id, date, note });
   return withActor(actor, async (tx) => {
-    const [row] = await tx.select().from(schema.documentSettlements).where(eq(schema.documentSettlements.id, parsed.id)).for("update");
+    // Erst die Paar-Kennung lesen, dann beide Zeilen des Paars in fester Reihenfolge sperren: so treffen sich zwei
+    // gleichzeitige Aufhebungen nicht im Kreis und die Aufhebung trifft genau diese Verrechnung.
+    const [gefunden] = await tx
+      .select({ pairId: schema.documentSettlements.pairId })
+      .from(schema.documentSettlements)
+      .where(eq(schema.documentSettlements.id, parsed.id));
+    if (!gefunden) throw new SettlementError("Verrechnung nicht gefunden.");
+    const paar = await tx
+      .select()
+      .from(schema.documentSettlements)
+      .where(eq(schema.documentSettlements.pairId, gefunden.pairId))
+      .orderBy(asc(schema.documentSettlements.id))
+      .for("update");
+    const row = paar.find((r) => r.id === parsed.id);
     if (!row) throw new SettlementError("Verrechnung nicht gefunden.");
     if (row.reversesId) throw new SettlementError("Diese Zeile ist bereits eine Gegenzeile.");
+    const partner = paar.find((r) => r.id !== row.id && r.reversesId === null);
+    if (!partner) throw new SettlementError("Zu dieser Verrechnung fehlt die zweite Zeile; sie lässt sich nicht aufheben.");
     const [already] = await tx
       .select({ id: schema.documentSettlements.id })
       .from(schema.documentSettlements)
@@ -133,40 +184,34 @@ export async function reverseSettlement(actor: string, id: string, date: string,
         `Das Datum liegt vor der Verrechnung (${row.date}). Eine Aufhebung wirkt an dem Tag, an dem sie erklärt wird, nicht rückwirkend.`,
       );
     }
-    if (parsed.date > heute()) throw new SettlementError("Das Datum der Aufhebung liegt in der Zukunft.");
+    if (parsed.date > today()) throw new SettlementError("Das Datum der Aufhebung liegt in der Zukunft.");
+    await pruefeJahrOffen(tx, parsed.date);
     /** Notiz der Gegenzeile: sie nennt die Aufhebung und, wenn angegeben, den Grund */
     const aufhebung = (alt: string) => (parsed.note ? `Aufhebung: ${alt} (${parsed.note})` : `Aufhebung: ${alt}`);
-    const partner = await tx
-      .select()
-      .from(schema.documentSettlements)
-      .where(
-        and(
-          eq(schema.documentSettlements.documentId, row.counterDocumentId),
-          eq(schema.documentSettlements.counterDocumentId, row.documentId),
-          eq(schema.documentSettlements.amount, -row.amount),
-        ),
-      );
-    const gegenzeilen = [
+    // Die Gegenzeilen sind selbst ein Paar: beide mit derselben, neuen Kennung
+    const pairId = randomUUID();
+    await tx.insert(schema.documentSettlements).values([
       {
         documentId: row.documentId,
         counterDocumentId: row.counterDocumentId,
+        pairId,
         date: parsed.date,
         amount: -row.amount,
         note: aufhebung(row.note),
         reversesId: row.id,
         createdBy: actor,
       },
-      ...partner.map((p) => ({
-        documentId: p.documentId,
-        counterDocumentId: p.counterDocumentId,
+      {
+        documentId: partner.documentId,
+        counterDocumentId: partner.counterDocumentId,
+        pairId,
         date: parsed.date,
-        amount: -p.amount,
-        note: aufhebung(p.note),
-        reversesId: p.id,
+        amount: -partner.amount,
+        note: aufhebung(partner.note),
+        reversesId: partner.id,
         createdBy: actor,
-      })),
-    ];
-    await tx.insert(schema.documentSettlements).values(gegenzeilen);
+      },
+    ]);
     return { ok: true as const, date: parsed.date };
   });
 }

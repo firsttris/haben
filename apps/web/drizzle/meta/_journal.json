@@ -1464,6 +1464,13 @@
       "when": 1794485637316,
       "tag": "0208_beleg_verrechnung",
       "breakpoints": true
+    },
+    {
+      "idx": 209,
+      "version": "7",
+      "when": 1794486252987,
+      "tag": "0209_verrechnung_paar",
+      "breakpoints": true
     }
   ]
 }
