@@ -512,7 +512,7 @@ Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://gi
 1. **Aussuchen:** eine Karte aus „Geplant“, am liebsten weit oben, denn die Reihenfolge ist die Priorität. Für den Einstieg eignen sich Karten mit Aufwand „S“ und Issues mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg). Ein Entwurf ohne Issue bekommt zuerst ein Issue.
 2. **Übernehmen:** im Issue eine Zeile `/übernehmen` kommentieren, gern mit einem kurzen Plan darunter. Der Workflow „Übernehmen“ (`.github/workflows/uebernehmen.yml`) weist dir das Issue zu, schiebt die Karte nach „In Arbeit“ und bestätigt es im Issue; Schreibrecht brauchst du dafür nicht. Er lehnt mit Begründung ab, wenn das Issue schon vergeben ist, noch keine Karte hat oder die Karte nicht in „Geplant“ oder „Später“ steht. Wie viele Karten jemand übernimmt, ist nicht begrenzt. Bei Karten aus „Später“ den Umfang am besten erst kurz im Issue klären.
 3. **Nachfragen und Freigeben:** Kommt 14 Tage lang weder ein Pull Request mit `Refs` oder `Umgesetzt` noch ein Kommentar von dir, fragt der Workflow im Issue nach; kommt danach sieben Tage nichts, hebt er die Zuweisung auf, und die Karte geht zurück nach „Geplant“. Wer aufhören will, kommentiert `/freigeben`. Ein Maintainer kann eine Zuweisung jederzeit von Hand ändern, etwa wenn der Plan nicht passt.
-4. **Bauen:** wie im Folgenden beschrieben, mit `Umgesetzt #…` in der Beschreibung des Pull Requests. Ein früher Entwurf als Pull Request hilft, wenn du unsicher bist, ob der Weg passt.
+4. **Bauen:** wie im Folgenden beschrieben, mit `Umgesetzt #…` in der Beschreibung des Pull Requests und vor „Ready for review“ mit der [Selbstprüfung](#beiträge-annehmen). Ein früher Entwurf als Pull Request hilft, wenn du unsicher bist, ob der Weg passt.
 
 ### Branches, Titel und Commits
 
@@ -619,6 +619,8 @@ Neben dem Typ gibt es diese Labels:
 ### Beiträge annehmen
 
 Bevor ein Pull Request ins [Review](#review) geht, egal von wem, prüft ein Maintainer oder Collaborator, der ihn nicht selbst geschrieben hat, vier Fragen: Wollen wir die Änderung in Haben haben? Ist sie nach den Quellen gebaut und fachlich richtig? Ist sie die einfachste Lösung? Ist sie nach den Regeln dieser Seite gemacht? Anders als im TDD-Review braucht ein Befund hier keinen roten Test: Es geht um Passung, Quellen und Vollständigkeit, nicht um Fehler im Code.
+
+**Selbstprüfung:** Erwartet wird, dass Beitragende die vier Fragen vor „Ready for review“ und vor dem TDD-Review selbst beantworten, wie beim Review durch jemanden oder einen frischen Agenten ohne den Verlauf der Entstehung. Was fehlt, bessern sie selbst nach; das Ergebnis steht mit Belegen und offenen Fragen als Kommentar im Pull Request. Dann prüft der Maintainer nur nach: Ob die Änderung gewollt ist, entscheidet er weiter selbst, und bei fachlich heiklen Änderungen liest er mindestens eine Quelle selbst und rechnet einen Fall gegen. Ohne Selbstprüfung prüft er wie bisher alles.
 
 **Wollen wir das?**
 
