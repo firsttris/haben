@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
-import { einrichten } from "./einrichtung.ts";
+import { einrichten, gehe } from "./einrichtung.ts";
 
 test.describe.configure({ mode: "serial" });
 let page: Page;
@@ -15,7 +15,7 @@ const pdfSha256 = createHash("sha256").update(pdf).digest("hex");
 
 test.beforeAll(async ({ browser }) => {
   page = await (await browser.newContext()).newPage();
-  await einrichten(page);
+  await einrichten(page, true);
   const url = databaseUrlFuer("belegimport");
   if (!new URL(url).pathname.endsWith("_e2e")) throw new Error("Eigene E2E-Datenbank fehlt.");
   Object.assign(process.env, {
@@ -86,6 +86,42 @@ test.beforeAll(async ({ browser }) => {
     async () => pdf,
   );
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
+});
+
+test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforderung in Hell/Dunkel und am Handy", async () => {
+  const viewport = page.viewportSize()!;
+  const originalTheme = await page.evaluate(() => localStorage.getItem("haben-theme"));
+  try {
+    for (const size of [
+      { width: 1280, height: 1000 },
+      { width: 375, height: 812 },
+    ]) {
+      await page.setViewportSize(size);
+      for (const theme of ["wald", "nacht"]) {
+        await gehe(page, "/");
+        await page.evaluate((value) => {
+          localStorage.setItem("haben-theme", value);
+          document.documentElement.dataset.theme = value;
+        }, theme);
+        await expect(page.getByRole("heading", { name: "Übersicht", exact: true })).toBeVisible();
+        await expect(page.getByRole("link", { name: /^Voranmeldung / })).toHaveCount(0);
+        await expect(page.getByText(/^Voranmeldung .* senden$/)).toHaveCount(0);
+        await expect(page.getByText(/^USt-Zahllast /)).toHaveCount(0);
+        await expect(page.getByText(/Voranmeldung fällig/)).toHaveCount(0);
+        await expect(page.getByText(/ERiC ist nicht eingerichtet/)).toHaveCount(0);
+        await expect(page.getByRole("heading", { name: "Letzte Voranmeldungen" })).toHaveCount(0);
+        await expect(page.getByRole("link", { name: "Neue Rechnung", exact: true })).toBeVisible();
+        await expect(page.getByText("Offene Forderungen", { exact: true })).toBeVisible();
+      }
+    }
+  } finally {
+    await page.setViewportSize(viewport);
+    await page.evaluate((value) => {
+      if (value === null) localStorage.removeItem("haben-theme");
+      else localStorage.setItem("haben-theme", value);
+      document.documentElement.dataset.theme = value ?? "wald";
+    }, originalTheme);
+  }
 });
 
 async function seedImportedInvoices() {

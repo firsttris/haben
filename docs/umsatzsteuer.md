@@ -21,7 +21,7 @@ Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal au
 
 Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich. Die [Dauerfristverlängerung](#dauerfristverlängerung) mit Sondervorauszahlung beantragst du auf derselben Seite.
 
-Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Die Übersicht zeigt dann keine Aufgaben zur Voranmeldung, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER.
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Für solche Kleinunternehmerzeiträume blendet die Übersicht reguläre Voranmeldungsaufgaben, Zahllast/Fälligkeit, ELSTER-Einrichtungshinweise und die leere Karte „Letzte Voranmeldungen“ aus. Vorhandene Anmeldungen, offene Steuerposten und tatsächlich berechnete Steuerbeträge bleiben sichtbar.
 
 ## So gehst du vor
 

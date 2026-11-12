@@ -247,7 +247,7 @@ Dazu legt er an, was die Tests im Projekt `mit-daten` vorfinden müssen: einen A
 - `belege-steuern.spec.ts`: Belege, Bankabgleich, Bank verbinden für den automatischen Abruf, ELSTER, Voranmeldung und Zusammenfassende Meldung, Anlagen und Darlehen. Den Abruf beantwortet eine nachgebaute Enable-Banking-API im Test auf Port `E2E_PORT` + 9; `playwright.config.ts` richtet `ENABLE_BANKING_API_URL` aller Server darauf.
 - `gmbh.spec.ts`: dasselbe für eine GmbH (siehe unten).
 - `rueckfragen.spec.ts`: Rückfragen vor Aktionen, die früher mit einem Klick auslösten, in einer GmbH.
-- `belegimport.spec.ts`: der lokale JSON-Eingang ([Belegimport](belegimport.md)) mit Archiv, offenen Posten, Journal und Kasse.
+- `belegimport.spec.ts`: Kleinunternehmer-Ersteinrichtung ohne reguläre UStVA-Hinweise und der lokale JSON-Eingang ([Belegimport](belegimport.md)) mit Archiv, offenen Posten, Journal und Kasse.
 - `bb-import.spec.ts`: Umzug aus BuchhaltungsButler mit Testlauf, Import und PDF im Archiv.
 - `dauerfrist-euer.spec.ts`: Änderung der Dauerfristverlängerung nach übermittelter EÜR, Hinweis und unveränderte Erklärungen; eigener Durchlauf, damit die festgeschriebene Erklärung andere Steuerfälle nicht beeinflusst.
 
