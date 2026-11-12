@@ -1,9 +1,8 @@
-import type { Kontenrahmen } from "@haben/core";
+import { externalSettlementProblem, type Kontenrahmen } from "@haben/core";
 import { and, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 import { externalJournalSchema, type ExternalImport, type ExternalJournal } from "./external-schema.ts";
-import { validateExternalSettlements } from "./external-settlements.ts";
 import { ExternalImportError } from "./external-validation.ts";
 
 /** Vorhandene Bezüge bleiben unverändert; beide Eingabeformen laufen durch dieselbe Prüfung unter der Quellsperre. */
@@ -59,10 +58,11 @@ export async function prepareExternalSettlements(
         })
         .map(([, original]) => original),
     );
-    validateExternalSettlements(
+    const problem = externalSettlementProblem(
       frame,
       [...journals.values()].filter((e) => targets.has(e.externalId) || (e.settles && targets.has(e.settles))),
     );
+    if (problem) throw new ExternalImportError(problem);
   }
   return links;
 }

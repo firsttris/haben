@@ -1,17 +1,21 @@
-import { ACCOUNTS, kontoart, type Kontenrahmen } from "@haben/core";
-import type { ExternalJournal } from "./external-schema.ts";
-import { ExternalImportError } from "./external-validation.ts";
+import { kontoart } from "./ledger.ts";
+import { ACCOUNTS, type Kontenrahmen, type PostingLine } from "./posting.ts";
 
-const saldo = (entry: ExternalJournal, account: string) => entry.lines.filter((l) => l.account === account).reduce((s, l) => s + l.debit - l.credit, 0);
-const success = (kr: Kontenrahmen, entry: ExternalJournal) => entry.lines.some((l) => l.debit !== l.credit && kontoart(kr, l.account) !== "bestand");
-const invalid = (id: string): never => {
-  throw new ExternalImportError(
-    `Buchung ${id}: Zahlungsbezug ungültig. Eine ursprüngliche OP-Buchung derselben Quelle, passende Konten und Beträge sind erforderlich.`,
-  );
-};
+export interface ExternalSettlementJournal {
+  externalId: string;
+  date: string;
+  lines: readonly Pick<PostingLine, "account" | "debit" | "credit">[];
+  settles?: string;
+}
 
-/** Ein Zahlungsbezug gilt einer ursprünglichen Buchung, nicht einem anderen Ausgleich; geprüft unter der Importsperre. */
-export function validateExternalSettlements(kr: Kontenrahmen, journals: ExternalJournal[]) {
+const saldo = (entry: ExternalSettlementJournal, account: string) =>
+  entry.lines.filter((l) => l.account === account).reduce((s, l) => s + l.debit - l.credit, 0);
+const success = (kr: Kontenrahmen, entry: ExternalSettlementJournal) => entry.lines.some((l) => l.debit !== l.credit && kontoart(kr, l.account) !== "bestand");
+const invalid = (id: string) =>
+  `Buchung ${id}: Zahlungsbezug ungültig. Eine ursprüngliche OP-Buchung derselben Quelle, passende Konten und Beträge sind erforderlich.`;
+
+/** Ein Zahlungsbezug gilt einer ursprünglichen Buchung derselben Quelle, nicht einem anderen Ausgleich. */
+export function externalSettlementProblem(kr: Kontenrahmen, journals: readonly ExternalSettlementJournal[]): string | null {
   const byId = new Map(journals.map((e) => [e.externalId, e]));
   const days = new Map<string, { id: string; gross: number; amount: number }>();
   for (const payment of [...journals].sort((a, b) => a.date.localeCompare(b.date) || a.externalId.localeCompare(b.externalId))) {
@@ -38,4 +42,5 @@ export function validateExternalSettlements(kr: Kontenrahmen, journals: External
     if ((total !== 0 && Math.sign(total) !== Math.sign(day.gross)) || Math.abs(total) > Math.abs(day.gross)) return invalid(day.id);
     paid.set(day.id, total);
   }
+  return null;
 }

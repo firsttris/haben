@@ -90,6 +90,9 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
         );
         expect(income(await reports.euerForYear(2025))).toBe(0);
         expect((await vat.computeVatFigures({ year: 2025, month: 12 })).kz81).toBe(0);
+        const previousYear = await annual.annualOverview(2025, "2027-03-01");
+        expect(previousYear.ust.figures.base19).toBe(0);
+        expect(previousYear.ust.figures.vorsteuer).toBe(0);
         // Eigene Quellidentitäten statt Belegnummer, auch bei einer späteren Importdatei.
         const payments = [
           entry("alt-AR-teil", "2026-01-15", invoicePaymentPosting(totals, 59500, kr, mode), "alt-AR"),
