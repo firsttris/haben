@@ -10,17 +10,22 @@ import { testDatabaseUrl } from "../test-db.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../../../drizzle", import.meta.url));
 
-describe.skipIf(!testDatabaseUrl)("Migration 0208: vorhandene Abschläge (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Migration der Anzahlungsart: vorhandene Abschläge (Postgres)", () => {
   it("ändert weder Buchungen noch Belegstände, Audit-Kette oder bestehende Siegel", async () => {
     const name = decodeURIComponent(new URL(testDatabaseUrl!).pathname.slice(1));
     const admin = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
     await admin`drop database if exists ${admin(name)} with (force)`;
     await admin`create database ${admin(name)}`;
     await admin.end();
-    const previous = mkdtempSync(join(tmpdir(), "haben-migration-0208-"));
+    const previous = mkdtempSync(join(tmpdir(), "haben-migration-advance-tax-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta/_journal.json"), "utf8"));
-    writeFileSync(join(previous, "meta/_journal.json"), JSON.stringify({ ...full, entries: full.entries.filter((e: { idx: number }) => e.idx < 208) }));
+    const addition = (full.entries as { idx: number; tag: string }[]).find((e) => e.tag.endsWith("_abschlag_steuerzeitpunkt"));
+    if (!addition) throw new Error("Migration der Anzahlungsart fehlt.");
+    writeFileSync(
+      join(previous, "meta/_journal.json"),
+      JSON.stringify({ ...full, entries: full.entries.filter((e: { idx: number }) => e.idx < addition.idx) }),
+    );
     const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
     try {
       await migrate(drizzle(sql), { migrationsFolder: previous });

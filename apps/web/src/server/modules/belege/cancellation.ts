@@ -44,7 +44,8 @@ export function cancellationIssues(doc: Pick<Document, "lockedAt" | "lexofficeVo
 async function settled(tx: Tx, documentId: string): Promise<number> {
   const [row] = await tx.execute<{ settled: string }>(sql`
     select coalesce((select sum(amount) from allocations where document_id = ${documentId}), 0)
-         + coalesce((select sum(amount) from write_offs where document_id = ${documentId}), 0) as settled`);
+         + coalesce((select sum(amount) from write_offs where document_id = ${documentId}), 0)
+         + coalesce((select sum(amount) from document_settlements where document_id = ${documentId}), 0) as settled`);
   return Number(row?.settled ?? 0);
 }
 

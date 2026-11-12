@@ -1,5 +1,5 @@
 {
-  "id": "09684b29-c7d1-423f-bfcb-2ec3e0da3158",
+  "id": "4260a1ad-9036-46d3-b8bb-dcfc53c2a4db",
   "prevId": "91e2f371-3bca-4461-ac8a-c0c967b8d079",
   "version": "7",
   "dialect": "postgresql",
@@ -4085,6 +4085,171 @@
       },
       "isRLSEnabled": false
     },
+    "public.document_settlements": {
+      "name": "document_settlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counter_document_id": {
+          "name": "counter_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "reverses_id": {
+          "name": "reverses_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "document_settlements_document": {
+          "name": "document_settlements_document",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_settlements_counter": {
+          "name": "document_settlements_counter",
+          "columns": [
+            {
+              "expression": "counter_document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "document_settlements_reverses": {
+          "name": "document_settlements_reverses",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "document_settlements_document_id_documents_id_fk": {
+          "name": "document_settlements_document_id_documents_id_fk",
+          "tableFrom": "document_settlements",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "document_settlements_counter_document_id_documents_id_fk": {
+          "name": "document_settlements_counter_document_id_documents_id_fk",
+          "tableFrom": "document_settlements",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "counter_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "document_settlements_reverses_fk": {
+          "name": "document_settlements_reverses_fk",
+          "tableFrom": "document_settlements",
+          "tableTo": "document_settlements",
+          "columnsFrom": [
+            "reverses_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "document_settlements_two": {
+          "name": "document_settlements_two",
+          "value": "\"document_settlements\".\"document_id\" <> \"document_settlements\".\"counter_document_id\""
+        },
+        "document_settlements_amount": {
+          "name": "document_settlements_amount",
+          "value": "\"document_settlements\".\"amount\" <> 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.document_splits": {
       "name": "document_splits",
       "schema": "",
@@ -6344,12 +6509,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "advance_type": {
-          "name": "advance_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -6743,10 +6902,6 @@
         "invoices_variant_kind": {
           "name": "invoices_variant_kind",
           "value": "\"invoices\".\"variant\" is null or \"invoices\".\"kind\" = 'rechnung'"
-        },
-        "invoices_advance_type": {
-          "name": "invoices_advance_type",
-          "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",

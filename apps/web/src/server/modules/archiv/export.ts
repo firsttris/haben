@@ -24,6 +24,7 @@ import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
+import { VERRECHNUNGEN_HEADER, verrechnungenFuerArchiv } from "./export-verrechnung.ts";
 
 /**
  * Jahresarchiv als ZIP: alle Rechnungen, Belege, Buchungen, Bankumsätze, Voranmeldungen,
@@ -599,6 +600,20 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
+
+  // Verrechnungen zweier Eingangsbelege (#274): eigene Datei, siehe export-verrechnung.ts
+  const verrechnungen = await verrechnungenFuerArchiv(documentPaths, {
+    documentDay,
+    von: yearStart(year),
+    bis: yearEnd(year),
+    safeName,
+    extension: (mimeType) => EXTENSIONS[mimeType] ?? "bin",
+    money,
+    iso,
+  });
+  if (verrechnungen) {
+    yield { path: "belege/verrechnungen.csv", content: csv(VERRECHNUNGEN_HEADER, verrechnungen), compress: true };
+  }
 
   // Buchungen -------------------------------------------------------------
   const entries = await db
@@ -1681,6 +1696,10 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
                          ursprünglichem Dateinamen.
+belege/verrechnungen.csv Nur wenn vorhanden: Verrechnungen zweier Eingangsbelege ohne
+                         Zahlung (etwa eine Gutschrift gegen eine Rechnung), je
+                         Verrechnung beide Seiten mit Datum, Betrag und Grund;
+                         aufgehobene als Gegenzeile.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
                          Steuerschlüssel, Bemessungsgrundlage bei Ist-Versteuerung an
                          der Zahlung); Stornos verweisen auf die Ursprungsbuchung.
