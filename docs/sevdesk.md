@@ -63,7 +63,7 @@ Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Hab
 | Rechnung (RE, TR, ER) | Rechnung |
 | Abschlagsrechnung (AR) | Abschlagsrechnung |
 | Stornorechnung (SR) | Gutschrift, negativ; hebt die Rechnung aus `origin` auf, siehe [Stornierte Rechnungen](#stornierte-rechnungen) |
-| Gutschrift | Gutschrift, negativ |
+| Gutschrift | Gutschrift, negativ; Honorar und Provision als Ausgabe-Gutschrift, positiv (siehe unten) |
 | Beleg „Einnahme“ (`creditDebit` D) | Einnahmebeleg, bei negativer Summe Einnahme-Gutschrift |
 | Beleg „Ausgabe“ (`creditDebit` C) | Ausgabebeleg, bei negativer Summe Ausgabe-Gutschrift |
 

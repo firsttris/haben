@@ -21,7 +21,7 @@ function sevdeskVoucher(alias: string) {
  */
 const EXPENSE_CREDIT_NOTE_CATEGORIES = ["ROYALTY_ASSIGNED", "ROYALTY_UNASSIGNED", "PROVISION"];
 
-function expenseCreditNote(alias: string): string {
+export function expenseCreditNote(alias: string): string {
   const categories = EXPENSE_CREDIT_NOTE_CATEGORIES.map((c) => `'${c}'`).join(", ");
   return `(${alias}.source = 'sevdesk' and ${alias}.lexoffice_id like 'creditnote/%' and upper(coalesce(${alias}.raw->>'bookingCategory', '')) in (${categories}))`;
 }
