@@ -246,6 +246,10 @@ export async function settlementCandidates(documentId: string, q: Db | Tx = db) 
     .from(schema.documents)
     .where(eq(schema.documents.id, documentId));
   if (!doc) return [];
+  // Ohne Lieferanten gibt es keinen Gegenbeleg: settleDocuments lehnt den Beleg ab, und ein Vergleich mit „“ träfe
+  // jeden Beleg ohne Lieferanten (siehe `lieferant`).
+  const name = lieferant(doc.supplier);
+  if (!name) return [];
   const rows = await q.execute<{
     id: string;
     document_date: string;
@@ -261,7 +265,7 @@ export async function settlementCandidates(documentId: string, q: Db | Tx = db) 
      where d.id <> ${documentId}
        and d.status = 'gebucht'
        and d.payment = 'bank'
-       and lower(d.supplier_name) = lower(${doc.supplier ?? ""})
+       and regexp_replace(btrim(lower(d.supplier_name)), '[[:space:]]+', ' ', 'g') = ${name}
        and sign(d.gross) <> sign(${doc.gross ?? 0})
      order by d.document_date desc
      limit 50`);
