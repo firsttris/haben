@@ -2,6 +2,7 @@ import type { Versteuerung } from "@haben/core";
 import { and, eq } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
+import { invoiceTaxYear } from "./invoice-tax-year.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
 type Reference = Pick<Invoice, "issueDate" | "correctsId"> & Partial<Invoice>;
@@ -20,7 +21,7 @@ export async function vatOriginal(invoice: Reference, q: Db | Tx = db): Promise<
 /** § 13 Abs. 1 Nr. 1 a Satz 4 UStG: neue Anzahlungen werden auch bei Soll zunächst wie Ist gebucht. */
 export async function invoiceVatMode(invoice: Reference, q: Db | Tx = db): Promise<Versteuerung> {
   const original = await vatOriginal(invoice, q);
-  const mode = await versteuerungForYear(Number(original.issueDate.slice(0, 4)), q);
+  const mode = await versteuerungForYear(await invoiceTaxYear(original, q), q);
   return original.advanceType === "anzahlung" && advanceAfterPayment(original) ? "ist" : mode;
 }
 
@@ -40,7 +41,7 @@ export async function managedAdvance(invoice: Reference, q: Db | Tx = db): Promi
  * Quelle: https://www.gesetze-im-internet.de/ustg_1980/__13.html
  */
 export async function invoiceVatDate(invoice: Invoice, q: Db | Tx = db): Promise<string> {
-  if (invoice.kind !== "rechnung" || (await invoiceVatMode(invoice, q)) !== "soll") return invoice.issueDate;
+  if (invoice.kind !== "rechnung" || !advanceAfterPayment(invoice) || (await invoiceVatMode(invoice, q)) !== "soll") return invoice.issueDate;
   let performance = invoice.advanceType === "teilleistung";
   if (invoice.variant === "schluss") {
     const [advance] = await q

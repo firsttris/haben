@@ -38,6 +38,8 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
       invoiceDate: schema.invoices.issueDate,
       correctsId: schema.invoices.correctsId,
       advanceType: schema.invoices.advanceType,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
       treatment: schema.invoices.taxTreatment,
     })
     .from(l)
@@ -55,7 +57,7 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
       const year = r.invoiceDate ? await invoiceTaxYear({ issueDate: r.invoiceDate, correctsId: r.correctsId }, q) : period.year;
       if (!modes.has(year)) modes.set(year, await versteuerungForYear(year, q));
       const mode = r.invoiceDate
-        ? await invoiceVatMode({ issueDate: r.invoiceDate, correctsId: r.correctsId, advanceType: r.advanceType, taxTreatment: r.treatment ?? "regulaer" }, q)
+        ? await invoiceVatMode({ issueDate: r.invoiceDate, correctsId: r.correctsId, advanceType: r.advanceType, serviceFrom: r.serviceFrom, serviceTo: r.serviceTo, taxTreatment: r.treatment ?? "regulaer" }, q)
         : modes.get(year)!;
       b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
       buchungen.set(r.id, b);

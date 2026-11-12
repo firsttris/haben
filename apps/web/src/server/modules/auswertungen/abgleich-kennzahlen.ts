@@ -61,6 +61,8 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       invoiceDate: schema.invoices.issueDate,
       correctsId: schema.invoices.correctsId,
       advanceType: schema.invoices.advanceType,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
       treatment: schema.invoices.taxTreatment,
     })
     .from(l)
@@ -84,7 +86,7 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
           invoiceYear === null
             ? undefined
             : await invoiceVatMode(
-                { issueDate: r.invoiceDate!, correctsId: r.correctsId, advanceType: r.advanceType, taxTreatment: r.treatment ?? "regulaer" },
+                { issueDate: r.invoiceDate!, correctsId: r.correctsId, advanceType: r.advanceType, serviceFrom: r.serviceFrom, serviceTo: r.serviceTo, taxTreatment: r.treatment ?? "regulaer" },
                 q,
               ),
         zeilen: [],
