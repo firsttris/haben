@@ -140,6 +140,8 @@ TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 bun --bun vitest run packages/core     # nur ein Bereich
 ```
 
+In der CI laufen die Tests in vier Teilen parallel (Jobs `test-teil`, `bun run test --shard=<n>/4`); der Job `test` fasst sie zu einem Ergebnis zusammen, ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso.
+
 Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohne die Variable werden sie übersprungen. Mit ihr legt `apps/web/src/server/test-db.ts` zu Beginn des Laufs neben der Datenbank (`haben_test`) eine Vorlage `haben_test_vorlage` an und wendet dort einmal alle Migrationen an. Jeder Worker von Vitest hat eine eigene Datenbank (`haben_test_1`, `haben_test_2`, …); jede Testdatei legt sie als Kopie der Vorlage neu an (`CREATE DATABASE … TEMPLATE`, rund 0,1 s statt 0,6 s für die Migrationen). Der Benutzer braucht dafür das Recht, Datenbanken anzulegen (`CREATEDB`); der aus `compose.yml` hat es. Zwischen zwei Testfällen leeren die Tests Tabellen mit ``await leeren(sql)`truncate … cascade` `` aus `test-db.ts`: `TRUNCATE` auf festgeschriebenen und nur anhängbaren Tabellen lehnen Trigger ab, `leeren` schaltet sie nur für diese eine Anweisung per `session_replication_role` ab. Das braucht einen Superuser; der aus `compose.yml` und der CI ist einer.
 
 > [!IMPORTANT]
@@ -278,7 +280,7 @@ E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run e2e
 
 Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="bun .output/server/index.mjs"` nach `bun run build`). Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-In der CI laufen die Tests bei jedem Pull Request in drei Teilen parallel (Jobs `e2e-teil`, `bun run e2e --shard=<n>/3`). Jeder Teil mit Tests aus `mit-daten` spielt `app.spec.ts` vorher selbst durch. Der Job `e2e` fasst die Teile zu einem Ergebnis zusammen; ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso, etwa `bun run e2e --shard=2/3`.
+In der CI laufen die Tests bei jedem Pull Request in fünf Teilen parallel (Jobs `e2e-teil`, `bun run e2e --shard=<n>/5`), die SSO-Tests (`playwright.sso-only.config.ts`) als sechster Teil `e2e-teil (sso)`. Jeder Teil mit Tests aus `mit-daten` spielt `app.spec.ts` vorher selbst durch. Der Job `e2e` fasst die Teile zu einem Ergebnis zusammen; ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso, etwa `bun run e2e --shard=2/5`.
 
 Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-bericht-teil-<n>` am Lauf.
 
@@ -497,7 +499,7 @@ zensical build --strict                                                       # 
 Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server mit echten Daten zeigen lassen. Was übersprungen wurde, gehört in die Beschreibung des Pull Requests.
 
 - Ein Pull Request, ein Thema; er trägt nur seine eigenen Commits.
-- Tests für das, was sich ändert: Vitest für Logik, Postgres-Integrationstests neben dem Modul, Playwright in `apps/web/e2e/` für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.
+- Tests für das, was sich ändert: Vitest für Logik, Postgres-Integrationstests neben dem Modul, Playwright in `apps/web/e2e/` für das, was ein Nutzer anklickt. Ein Bugfix beginnt mit einem Test, der fehlschlägt. Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll: Jede der vier Angaben kommt in einem Fall vor, das volle Kreuzprodukt mit weiteren Varianten nur, wo sich der Weg durch den Code dabei unterscheidet. Ein Fall gegen Postgres kostet bei jedem Lauf der CI rund eine Sekunde; was ohne Datenbank geht (Konten, Beträge, Fristen), wird ohne Datenbank getestet.
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Was ein Skript prüft, etwa neue Seiten in den E2E-Tests, steht unter [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
