@@ -10,8 +10,7 @@ import {
   type Versteuerung,
 } from "@haben/core";
 import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
-import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear, invoiceVatMode } from "../rechnungen/index.ts";
+import { invoiceVatMode } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -48,17 +47,24 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, start), lt(e.date, end), nurManuell ? eq(e.sourceType, "manuell") : notInArray(e.sourceType, ["eroeffnung", "asset"])))
     .orderBy(asc(e.id));
-  const modes = new Map<number, Versteuerung>([[period.year, versteuerung]]);
   const buchungen = new Map<string, { kontenrahmen: Kontenrahmen; versteuerung: Versteuerung; zeilen: JournalZeile[] }>();
   for (const r of rows) {
     let b = buchungen.get(r.id);
     if (!b) {
       // Auch Storno und Korrektur folgen der ursprünglichen Rechnung.
-      const year = r.invoiceDate ? await invoiceTaxYear({ issueDate: r.invoiceDate, correctsId: r.correctsId }, q) : period.year;
-      if (!modes.has(year)) modes.set(year, await versteuerungForYear(year, q));
       const mode = r.invoiceDate
-        ? await invoiceVatMode({ issueDate: r.invoiceDate, correctsId: r.correctsId, advanceType: r.advanceType, serviceFrom: r.serviceFrom, serviceTo: r.serviceTo, taxTreatment: r.treatment ?? "regulaer" }, q)
-        : modes.get(year)!;
+        ? await invoiceVatMode(
+            {
+              issueDate: r.invoiceDate,
+              correctsId: r.correctsId,
+              advanceType: r.advanceType,
+              serviceFrom: r.serviceFrom,
+              serviceTo: r.serviceTo,
+              taxTreatment: r.treatment ?? "regulaer",
+            },
+            q,
+          )
+        : versteuerung;
       b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
       buchungen.set(r.id, b);
     }

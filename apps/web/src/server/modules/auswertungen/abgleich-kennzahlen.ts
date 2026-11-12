@@ -11,8 +11,7 @@ import {
 } from "@haben/core";
 import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear, invoiceVatMode } from "../rechnungen/index.ts";
+import { invoiceVatMode } from "../rechnungen/index.ts";
 import type { computeVatFigures } from "../umsatzsteuer/index.ts";
 
 /*
@@ -70,25 +69,28 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
     .leftJoin(schema.writeOffs, and(eq(e.sourceType, "ausbuchung"), eq(e.sourceId, schema.writeOffs.id)))
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, from), lt(e.date, to), ne(e.sourceType, "eroeffnung")));
-  const modes = new Map<number, Versteuerung>();
   const byEntry = new Map<string, JournalBuchung>();
   for (const r of rows) {
     let buchung = byEntry.get(r.id);
     if (!buchung) {
-      const invoiceYear = r.invoiceDate ? await invoiceTaxYear({ issueDate: r.invoiceDate, correctsId: r.correctsId }, q) : null;
-      if (invoiceYear !== null && !modes.has(invoiceYear)) modes.set(invoiceYear, await versteuerungForYear(invoiceYear, q));
       buchung = {
         month: Number(r.month),
         kontenrahmen: r.kontenrahmen as Kontenrahmen,
         sourceType: r.sourceType,
         sourceId: r.sourceId,
-        versteuerung:
-          invoiceYear === null
-            ? undefined
-            : await invoiceVatMode(
-                { issueDate: r.invoiceDate!, correctsId: r.correctsId, advanceType: r.advanceType, serviceFrom: r.serviceFrom, serviceTo: r.serviceTo, taxTreatment: r.treatment ?? "regulaer" },
-                q,
-              ),
+        versteuerung: !r.invoiceDate
+          ? undefined
+          : await invoiceVatMode(
+              {
+                issueDate: r.invoiceDate!,
+                correctsId: r.correctsId,
+                advanceType: r.advanceType,
+                serviceFrom: r.serviceFrom,
+                serviceTo: r.serviceTo,
+                taxTreatment: r.treatment ?? "regulaer",
+              },
+              q,
+            ),
         zeilen: [],
       };
       byEntry.set(r.id, buchung);

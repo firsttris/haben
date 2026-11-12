@@ -13,8 +13,13 @@ export async function invoiceTaxYear(invoice: TaxInvoice, q: Db | Tx = db): Prom
   let current = invoice;
   while (current.correctsId) {
     const [original] = await q
-      .select({ issueDate: schema.invoices.issueDate, correctsId: schema.invoices.correctsId, advanceType: schema.invoices.advanceType,
-        serviceFrom: schema.invoices.serviceFrom, serviceTo: schema.invoices.serviceTo })
+      .select({
+        issueDate: schema.invoices.issueDate,
+        correctsId: schema.invoices.correctsId,
+        advanceType: schema.invoices.advanceType,
+        serviceFrom: schema.invoices.serviceFrom,
+        serviceTo: schema.invoices.serviceTo,
+      })
       .from(schema.invoices)
       .where(eq(schema.invoices.id, current.correctsId));
     if (!original) break;
