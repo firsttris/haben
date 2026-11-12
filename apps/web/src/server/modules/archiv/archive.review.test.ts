@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -5,6 +6,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 const HEADER = `"EXTF";700;21;"Buchungsstapel";13;20240102120000000;;"LO";"";"";1001;12345;20230101;4;20230101;20231231;"Lexoffice Export";"";1;0;0;"EUR";;"";;;"03";;;"";""`;
 const COLUMNS = `Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext`;
 const stack = (rows: string[]) => new TextEncoder().encode([HEADER, COLUMNS, ...rows].join("\r\n"));
+const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 describe.skipIf(!testDatabaseUrl)("Archiv (Review)", () => {
   let archive: typeof import("./archive.ts");
@@ -29,7 +31,8 @@ describe.skipIf(!testDatabaseUrl)("Archiv (Review)", () => {
       archive.addArchiveFile(actor, { bytes: b, filename: "DATEV_b.csv", kind: "datev", year: null }),
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    const [row] = await sql`select count(*)::int as n from datev_bookings`;
+    const [row] =
+      await sql`select count(*)::int as n from datev_bookings where file_id in (select id from archive_files where sha256 in (${sha256(a)}, ${sha256(b)}))`;
     // Sonst zählen die Buchungen doppelt (Kontensummen, Abgleich mit Lexoffice)
     expect(row!.n).toBe(1);
   });

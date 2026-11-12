@@ -125,66 +125,68 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler: Originale und Stapel im A
   });
 
   const row1: Row = { id: "1", debit: "1200", credit: "8400", bu: "3", rate: "19", receipt: true, date: "0108" };
-  const files = () => sql`select kind, filename, sha256, note from archive_files order by kind, filename`;
+  /** Nur die Zeilen dieses Testfalls: die Prüfsummen der Bytes, die er selbst ablegt */
+  const files = (shas: string[]) => sql`select kind, filename, sha256, note from archive_files where sha256 in ${sql(shas)} order by kind, filename`;
   const sha = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-  const datevIds = async () =>
-    (await sql`select progress from lexoffice_imports where source = 'buchhaltungsbutler' order by started_at`).map(
-      (r) => (r.progress as { datevFileIds?: string[] }).datevFileIds,
-    );
+  const shaOfParts = async (p: { bytes: Uint8Array }[]) => Promise.all(p.map((x) => sha(x.bytes)));
+  const datevIds = async (importId: string) =>
+    (await sql`select progress from lexoffice_imports where id = ${importId}`)[0]!.progress as { datevFileIds?: string[] };
 
   it("getrennte Dateien: drei Archivdateien, eine davon DATEV mit Buchungen, Bytes unverändert", async () => {
     const p = parts([row1]);
-    await bb.startBuchhaltungsbutlerImport("test-user", p);
-    const rows = await files();
+    const lauf = await bb.startBuchhaltungsbutlerImport("test-user", p);
+    const hashes = await shaOfParts(p);
+    const rows = await files(hashes);
     expect(rows.map((r) => [r.kind, r.filename])).toEqual([
       ["datev", "EXTF_Buchungsstapel.csv"],
       ["sonstiges", "BB_Buchungsstapel.csv"],
       ["sonstiges", "Belege.zip"],
     ]);
-    expect(new Set(rows.map((r) => r.sha256))).toEqual(new Set(await Promise.all(p.map((x) => sha(x.bytes)))));
-    expect((await sql`select count(*)::int as n from datev_bookings`)[0]!.n).toBe(1);
-    expect((await datevIds())[0]).toHaveLength(1);
+    expect(new Set(rows.map((r) => r.sha256))).toEqual(new Set(hashes));
+    expect((await sql`select count(*)::int as n from datev_bookings where file_id = (select id from archive_files where sha256 = ${hashes[0]!})`)[0]!.n).toBe(
+      1,
+    );
+    expect((await datevIds(lauf.id)).datevFileIds).toHaveLength(1);
   });
 
   it(".zip: die .zip unverändert als sonstiges, der Stapel als DATEV; erneuter Import legt nichts doppelt ab", async () => {
     const p = parts([row1]);
     const zip = zipSync(Object.fromEntries(p.map((part) => [part.name, part.bytes])));
-    await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
-    await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
-    const rows = await files();
+    const erster = await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
+    const zweiter = await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
+    const stapel = await sha(p[0]!.bytes);
+    const rows = await files([stapel, await sha(zip)]);
     expect(rows.map((r) => [r.kind, r.filename, r.sha256])).toEqual([
-      ["datev", "EXTF_Buchungsstapel.csv", await sha(p[0]!.bytes)],
+      ["datev", "EXTF_Buchungsstapel.csv", stapel],
       ["sonstiges", "datenexport.zip", await sha(zip)],
     ]);
-    const ids = await datevIds();
-    expect(ids[0]).toEqual(ids[1]);
-    expect((await sql`select count(*)::int as n from datev_bookings`)[0]!.n).toBe(1);
+    expect((await datevIds(zweiter.id)).datevFileIds).toEqual((await datevIds(erster.id)).datevFileIds);
+    expect((await sql`select count(*)::int as n from datev_bookings where file_id = (select id from archive_files where sha256 = ${stapel})`)[0]!.n).toBe(1);
   });
 
   it("Stapel vorher schon von Hand hochgeladen, dann .zip-Import: keine Überschneidung, Stapel zählt im Mischjahr", async () => {
     const p = parts([row1]);
     const manual = await archive.addArchiveFile("test-user", { bytes: p[0]!.bytes, filename: "stapel.csv", kind: "datev", year: 2023 });
     const zip = zipSync(Object.fromEntries(p.map((part) => [part.name, part.bytes])));
-    await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
-    expect((await datevIds())[0]).toEqual([manual.id]);
-    expect((await files()).map((r) => r.kind)).toEqual(["datev", "sonstiges"]);
+    const lauf = await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
+    expect((await datevIds(lauf.id)).datevFileIds).toEqual([manual.id]);
+    expect((await files([await sha(p[0]!.bytes), await sha(zip)])).map((r) => r.kind)).toEqual(["datev", "sonstiges"]);
   });
 
   it("erst getrennt, dann derselbe Export als .zip: Stapel nur einmal", async () => {
     const p = parts([row1]);
-    await bb.startBuchhaltungsbutlerImport("test-user", p);
+    const erster = await bb.startBuchhaltungsbutlerImport("test-user", p);
     const zip = zipSync(Object.fromEntries(p.map((part) => [part.name, part.bytes])));
-    await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
-    const ids = await datevIds();
-    expect(ids[1]).toEqual(ids[0]);
-    expect((await sql`select count(*)::int as n from archive_files where kind = 'datev'`)[0]!.n).toBe(1);
+    const zweiter = await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
+    expect((await datevIds(zweiter.id)).datevFileIds).toEqual((await datevIds(erster.id)).datevFileIds);
+    expect((await sql`select count(*)::int as n from archive_files where sha256 = ${await sha(p[0]!.bytes)}`)[0]!.n).toBe(1);
   });
 
   it(".zip mit Ordner (z. B. Ordner im Finder/Explorer gepackt): Import läuft, Stapel als DATEV ohne Ordnernamen", async () => {
     const p = parts([row1]);
     const zip = zipSync({ datenexport: Object.fromEntries(p.map((part) => [part.name, part.bytes])) });
     await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }]);
-    expect((await files()).map((r) => [r.kind, r.filename])).toEqual([
+    expect((await files([await sha(p[0]!.bytes), await sha(zip)])).map((r) => [r.kind, r.filename])).toEqual([
       ["datev", "EXTF_Buchungsstapel.csv"],
       ["sonstiges", "datenexport.zip"],
     ]);
@@ -198,8 +200,9 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler: Originale und Stapel im A
       entries[part.name] = part.bytes;
       entries[`__MACOSX/._${part.name}`] = fork;
     }
-    await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "Archiv.zip", bytes: zipSync(entries) }]);
-    expect((await files()).map((r) => r.kind)).toEqual(["datev", "sonstiges"]);
+    const zip = zipSync(entries);
+    await bb.startBuchhaltungsbutlerImport("test-user", [{ name: "Archiv.zip", bytes: zip }]);
+    expect((await files([await sha(p[0]!.bytes), await sha(zip)])).map((r) => r.kind)).toEqual(["datev", "sonstiges"]);
   });
 
   it("Fehler beim Ablegen des Stapels (Zeitraum schon belegt): Import endet mit Fehler, kein datevFileIds", async () => {
@@ -208,10 +211,10 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler: Originale und Stapel im A
     await archive.addArchiveFile("test-user", { bytes: other[0]!.bytes, filename: "anderer.csv", kind: "datev", year: 2023 });
     const zip = zipSync(Object.fromEntries(p.map((part) => [part.name, part.bytes])));
     await expect(bb.startBuchhaltungsbutlerImport("test-user", [{ name: "datenexport.zip", bytes: zip }])).rejects.toThrow("überschneidet");
-    const [run] = await sql`select status, progress from lexoffice_imports where source = 'buchhaltungsbutler'`;
+    const [run] = await sql`select status, progress from lexoffice_imports where source = 'buchhaltungsbutler' order by started_at desc limit 1`;
     expect(run!.status).toBe("fehler");
     expect((run!.progress as { datevFileIds?: string[] }).datevFileIds).toBeUndefined();
-    expect((await sql`select count(*)::int as n from lexoffice_vouchers`)[0]!.n).toBe(0);
+    expect((await sql`select count(*)::int as n from lexoffice_vouchers where lexoffice_id = 'booking/2023/1'`)[0]!.n).toBe(0);
   });
 
   it("reines BB-Jahr aus der .zip: Summen aus dem Stapel, Archiv-Export enthält .zip und Stapel", async () => {
