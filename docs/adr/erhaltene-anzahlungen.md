@@ -57,7 +57,8 @@ die bilanzielle Trennung zwischen Anzahlung und Erlös bleibt erforderlich.
    noch keine bilanzierten Forderungen? Der Abgleich muss diese Unterscheidung ausdrücklich berücksichtigen.
 2. **Konten und Auswertungen:** Die konkreten SKR03-/SKR04-Konten, ihre Steuerautomatik und Zuordnung zu Bilanz und
    E-Bilanz sind anhand der aktuellen DATEV-Primärquellen zu belegen. Ein Rücklesetest gleicher DATEV-Salden allein
-   bestätigt die fachliche Kontierung nicht.
+   bestätigt die fachliche Kontierung nicht. Dazu gehört das Ausweiswahlrecht: unter den Verbindlichkeiten oder offen
+   von den Vorräten abgesetzt ([§ 268 Abs. 5 Satz 2 HGB](https://www.gesetze-im-internet.de/hgb/__268.html)).
 3. **Realisierung und Bestand:** Festlegen, welche dokumentierte Leistung die Auflösung auslöst und wie der Übergang
    auf neue Buchungen erkennbar bleibt. Bereits gesperrte Belege, Journalzeilen und deren Siegel bleiben unverändert;
    nötige Bestandskorrekturen erfolgen über nachvollziehbare Folgebuchungen in zulässigen Zeiträumen.
