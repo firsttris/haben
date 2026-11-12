@@ -2,7 +2,7 @@ import { createServiceEntry, deleteServiceEntry, getServiceEntry, listServiceEnt
 import { noContent, notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { serviceEntryCreateSchema, serviceEntryQuerySchema } from "./leistungen-schemas.ts";
 
-/* Leistungseinträge über die REST-API (#417): auflisten, anlegen (mit Quelle und Kennung idempotent), löschen. */
+/* Leistungseinträge über die REST-API (#417): auflisten, lesen, anlegen (mit Quelle und Kennung idempotent), löschen. */
 
 export async function listServiceEntriesHandler(request: ApiRequest): Promise<ApiResult> {
   const query = validate(serviceEntryQuerySchema, request.query);
@@ -10,6 +10,11 @@ export async function listServiceEntriesHandler(request: ApiRequest): Promise<Ap
   const { limit, offset, ...filter } = query.data;
   const all = await listServiceEntries(filter);
   return ok({ data: all.slice(offset, offset + limit), total: all.length, limit, offset });
+}
+
+export async function getServiceEntryHandler(request: ApiRequest): Promise<ApiResult> {
+  const entry = await getServiceEntry(request.params.id!);
+  return entry ? ok(entry) : notFound("Eintrag nicht gefunden.");
 }
 
 export async function createServiceEntryHandler(request: ApiRequest): Promise<ApiResult> {

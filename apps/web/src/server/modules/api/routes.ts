@@ -5,7 +5,7 @@ import { createContactHandler, getContactHandler, listContactsHandler, updateCon
 import type { Handler } from "./http.ts";
 import { createDocumentHandler, getDocumentHandler, listDocumentsHandler } from "./documents.ts";
 import { createInvoiceHandler, deleteInvoiceHandler, getInvoiceHandler, listInvoicesHandler, updateInvoiceHandler } from "./invoices.ts";
-import { createServiceEntryHandler, deleteServiceEntryHandler, listServiceEntriesHandler } from "./leistungen.ts";
+import { createServiceEntryHandler, deleteServiceEntryHandler, getServiceEntryHandler, listServiceEntriesHandler } from "./leistungen.ts";
 import { serviceEntryQuerySchema } from "./leistungen-schemas.ts";
 import { contactQuerySchema, documentQuerySchema, invoiceQuerySchema } from "./schemas.ts";
 
@@ -209,6 +209,15 @@ export const API_ROUTES: ApiRoute[] = [
     },
     errors: { 422: "Den Kontakt gibt es nicht, er ist kein Kunde oder er ist archiviert" },
     handler: createServiceEntryHandler,
+  },
+  {
+    method: "GET",
+    path: "/leistungen/{id}",
+    scope: "leistungen:lesen",
+    tag: "Leistungen",
+    summary: "Leistungseintrag lesen",
+    responses: { 200: { schema: "ServiceEntry", description: "Der Eintrag" } },
+    handler: getServiceEntryHandler,
   },
   {
     method: "DELETE",

@@ -18,7 +18,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
-| Leistungen | Zeiteinträge je Kunde auflisten, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
+| Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
 
 Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https://<deine Adresse>/api/v1/openapi.json`, ohne Token. Werkzeuge wie Swagger UI, Bruno oder Postman lesen sie ein.
 
@@ -38,7 +38,7 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
-| `leistungen:lesen` | `GET /leistungen` |
+| `leistungen:lesen` | `GET /leistungen`, `GET /leistungen/{id}` |
 | `leistungen:schreiben` | dazu `POST /leistungen`, `DELETE /leistungen/{id}` |
 | `haben:lesen` | nur die Werkzeuge über [MCP](ki-assistenten.md), nicht die REST-API |
 
@@ -187,7 +187,7 @@ curl -X POST "$HABEN/leistungen" \
   -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
 ```
 
-Gelöscht wird mit `DELETE /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
 
 ### Zeitbuchungen aus Kimai holen
 
