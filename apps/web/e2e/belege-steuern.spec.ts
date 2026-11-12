@@ -1974,7 +1974,8 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
   const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
-  const karte = ust.getByRole("region", { name: "Außerhalb von Haben abgegeben", exact: true });
+  // Die Karte traegt Formular und Jahr im Namen, weil sie auf der Seite zweimal vorkommt (USt und EÜR)
+  const karte = ust.getByRole("region", { name: `Abgabe außerhalb von Haben: Umsatzsteuererklärung ${jahr}`, exact: true });
   await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
@@ -1989,6 +1990,9 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4\n% Übermittlungsprotokoll\n%%EOF\n"),
   });
+  // Weicht der Betrag vom gerechneten Wert ab, verlangt der Dialog eine ausdrueckliche Bestaetigung
+  const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+  if (await haken.count()) await haken.check();
   await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
 
   // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
