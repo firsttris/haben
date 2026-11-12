@@ -1,5 +1,5 @@
 import { numberFormatError } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -44,6 +44,17 @@ export async function saveNumberFormats(actor: string, formats: NumberFormats): 
         quoteCounterRunning: quoteRunning,
         updatedAt: new Date(),
       })
-      .where(eq(schema.company.id, 1));
+      // Unveränderte Verwaltungswerte wählen keinen Steuerstatus und erzeugen keinen uneindeutigen Audit-Eintrag.
+      .where(
+        and(
+          eq(schema.company.id, 1),
+          or(
+            ne(schema.company.invoiceNumberFormat, invoice),
+            ne(schema.company.quoteNumberFormat, quote),
+            ne(schema.company.invoiceCounterRunning, invoiceRunning),
+            ne(schema.company.quoteCounterRunning, quoteRunning),
+          ),
+        ),
+      );
   });
 }

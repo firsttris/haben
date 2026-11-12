@@ -1,5 +1,5 @@
 import { formatDocumentNumber, numberFormatError } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -27,7 +27,10 @@ export async function saveCustomerNumbering(actor: string, input: { format: stri
   if (!Number.isInteger(input.next) || input.next < 1) throw new CustomerNumberError("Die nächste Kundennummer muss mindestens 1 sein.");
   await loadCompany();
   await withActor(actor, (tx) =>
-    tx.update(schema.company).set({ customerNumberFormat: format, customerNumberNext: input.next, updatedAt: new Date() }).where(eq(schema.company.id, 1)),
+    tx
+      .update(schema.company)
+      .set({ customerNumberFormat: format, customerNumberNext: input.next, updatedAt: new Date() })
+      .where(and(eq(schema.company.id, 1), or(ne(schema.company.customerNumberFormat, format), ne(schema.company.customerNumberNext, input.next)))),
   );
 }
 

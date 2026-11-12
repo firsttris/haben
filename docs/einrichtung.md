@@ -306,6 +306,8 @@ Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Bu
 
 Die automatisch angelegten leeren Firmendaten sind noch keine frühere Regelbesteuerung. Bei der Ersteinrichtung zählt der erste fachlich gespeicherte Status auch für Zeiträume vor der Einrichtung. Das gilt ebenso bei einer Datenübernahme. Änderungen in anderen Einstellungsbereichen, etwa am Nummernformat oder die Bestätigung der ELSTER-Datenschutzhinweise, wählen keinen Umsatzsteuerstatus. Wurden die Vorgaben vorher bereits für Buchungen, festgeschriebene Belege oder übermittelte Anmeldungen verwendet, bleibt dieser Ausgangsstand erhalten. Auch bewusst gespeicherte Regelbesteuerung und spätere Wechsel deutet Haben nicht nachträglich um. Das Änderungsprotokoll bleibt vollständig, einschließlich des technischen Einrichtungseintrags.
 
+Unverändertes Speichern von Nummernformaten, Kundennummern, Zahlungsplanvorlagen, DATEV-Angaben, persönlichen Angaben oder MCP-Einstellungen erzeugt keinen neuen Firmeneintrag im Änderungsprotokoll. So kann auch ein erneuter Klick auf „Speichern“ vor der Ersteinrichtung keine frühere Regelbesteuerung bestätigen. Das ausdrückliche Speichern der Firmendaten selbst bleibt davon unberührt.
+
 Ins Vorjahr buchen geht nach einem Wechsel nur noch, wo es nicht von der Einstellung abhängt:
 
 - **Kontenrahmen:** In ein Jahr, das im alten Kontenrahmen gebucht ist, bucht Haben nichts mehr, auch keine Gegenbuchung beim Aufheben einer Zuordnung. Ordne Zahlungen des Vorjahres also vor dem Wechsel richtig zu.

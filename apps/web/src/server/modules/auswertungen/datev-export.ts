@@ -1,7 +1,7 @@
 import { UserError } from "../../errors.ts";
 import { ACCOUNTS, currentYear, PERSONENKONTO_LABEL, personenkontenBetroffen, personenkontenIm } from "@haben/core";
 import { buildDatevBuchungsstapel, type DatevExportEntry, personenkontenEinsetzen } from "@haben/import";
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, personenkontoKey, vergibPersonenkonten } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -52,7 +52,16 @@ export async function saveDatevNumbers(actor: string, input: z.input<typeof date
     tx
       .update(schema.company)
       .set({ datevBeraterNr: beraterNr, datevMandantNr: mandantNr, ...(personenkontenAb === undefined ? {} : { datevPersonenkontenAb: personenkontenAb }) })
-      .where(eq(schema.company.id, 1)),
+      .where(
+        and(
+          eq(schema.company.id, 1),
+          or(
+            sql`${schema.company.datevBeraterNr} is distinct from ${beraterNr}`,
+            sql`${schema.company.datevMandantNr} is distinct from ${mandantNr}`,
+            personenkontenAb === undefined ? undefined : sql`${schema.company.datevPersonenkontenAb} is distinct from ${personenkontenAb}`,
+          ),
+        ),
+      ),
   );
 }
 

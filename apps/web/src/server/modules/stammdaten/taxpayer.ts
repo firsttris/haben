@@ -1,5 +1,5 @@
 import { isValidIdnr } from "@haben/elster";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { withActor } from "../../db/actor.ts";
@@ -40,6 +40,11 @@ export async function loadTaxpayer(): Promise<TaxpayerData> {
 export async function saveTaxpayer(actor: string, input: TaxpayerInput): Promise<TaxpayerData> {
   const data = taxpayerSchema.parse(input);
   await loadCompany();
-  await withActor(actor, (tx) => tx.update(schema.company).set({ taxpayer: data, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+  await withActor(actor, (tx) =>
+    tx
+      .update(schema.company)
+      .set({ taxpayer: data, updatedAt: new Date() })
+      .where(and(eq(schema.company.id, 1), sql`${schema.company.taxpayer} is distinct from ${JSON.stringify(data)}::jsonb`)),
+  );
   return data;
 }

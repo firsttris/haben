@@ -1,5 +1,5 @@
 import { planProblem, type PlanTemplate } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -33,5 +33,10 @@ export async function savePlanTemplates(actor: string, templates: PlanTemplate[]
   const problem = planTemplatesProblem(cleaned);
   if (problem) throw new PlanTemplateError(`${problem}.`);
   await loadCompany();
-  await withActor(actor, (tx) => tx.update(schema.company).set({ paymentPlanTemplates: cleaned, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+  await withActor(actor, (tx) =>
+    tx
+      .update(schema.company)
+      .set({ paymentPlanTemplates: cleaned, updatedAt: new Date() })
+      .where(and(eq(schema.company.id, 1), sql`${schema.company.paymentPlanTemplates} is distinct from ${JSON.stringify(cleaned)}::jsonb`)),
+  );
 }
