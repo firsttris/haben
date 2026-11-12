@@ -94,7 +94,6 @@ describe("Auflösung", () => {
   });
 });
 
-<<<<<<< HEAD
 describe.each(KR)("Systemkonten, ausdrücklich aufgezählt (%s, #270)", (kr) => {
   it("sperrt die Konten der Gewerbesteuer-Hinzurechnung: ein eigenes Konto dort nähme ihnen die Hinzurechnung", () => {
     const konten = Object.values(GEWST_HINZURECHNUNG_KONTEN[kr]).flat();
