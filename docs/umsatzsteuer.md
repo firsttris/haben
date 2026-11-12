@@ -225,6 +225,8 @@ Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **
 
 Zwei Vorgänge verschieben die Minderung: Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift** (Beleg mit negativen Beträgen) erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Ausbuchung (erhaltenes Skonto, Kursdifferenz) anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum; bar oder privat bezahlt ist sie mit der Buchung ausgeglichen und zählt im Belegmonat.
 
+Diese Verteilung greift, solange die Voranmeldung aus den Nebenbüchern rechnet, also für Jahre **vor dem Stichjahr**. Ab dem Stichjahr kommt Kz 66 aus dem Journal, und dort steht die Vorsteuer weiter am Belegdatum; die Verschiebung wirkt dann noch nicht. Bekannte Grenze, siehe [#778](https://github.com/firsttris/haben/issues/778); der Test `gutschrift-vorsteuer-grenze.test.ts` hält sie fest und wird rot, sobald die Journal-Seite gebaut ist.
+
 ### § 13b als Leistungsempfänger
 
 Aus [Belegen mit § 13b](belege-ausland.md#reverse-charge-als-leistungsempfänger--13b) nach Belegdatum:

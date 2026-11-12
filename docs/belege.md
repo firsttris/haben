@@ -116,7 +116,7 @@ Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit de
 | 1576 (1406) Vorsteuer 19 % | 190,00 | |
 | 1600 (3300) Verbindlichkeiten | | 1.190,00 |
 
-Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)).
+Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)). Eine Gutschrift ist die Ausnahme: ihre Vorsteuer mindert sich erst, wenn sie ausgeglichen ist.
 
 ### Ändern, pausieren, beenden
 
@@ -435,7 +435,7 @@ Im [Bankabgleich](bank.md#zuordnen) geht es genauso: Nach dem vollständigen Zuo
 
 ## Vorsteuer in der Voranmeldung
 
-Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
+Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Eine Gutschrift zählt nicht im Belegmonat: Ihre Vorsteuer mindert sich erst, wenn das Entgelt zurückkommt oder der Posten verrechnet wird, anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 UStG). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
 
 ## Stornieren und neu erfassen
 

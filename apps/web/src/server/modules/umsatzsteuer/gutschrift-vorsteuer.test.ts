@@ -182,4 +182,17 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     expect(imMaerz.kz66).toBe(-1_757);
     expect(imMaerz.inputTax.reduce((summe, zeile) => summe + zeile.tax, 0)).toBe(-1_757);
   }, 60_000);
+
+  it("Grenze: ab dem Stichjahr kommt Kz 66 aus dem Journal und kennt den Versatz nicht (#778)", async () => {
+    // Stichjahr auf das Buchungsjahr ziehen: die Voranmeldung rechnet dann aus dem Journal statt aus den Nebenbüchern
+    await sql`update company set journal_ab = 2026`;
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }]);
+    await zahle("15.03.26", "Erstattung Stadtwerke", 43_956, gutschrift);
+
+    // Bekannte Grenze: das Journal bucht die Vorsteuer der Gutschrift am Belegdatum und kennt den Ausgleich nicht.
+    // Deshalb steht sie hier im Februar statt im März — die Verteilung aus #777 greift nur vor dem Stichjahr.
+    // Wird die Journal-Seite aus #778 gebaut, muss dieser Test rot werden und die Erwartung wandern.
+    expect((await figures.computeVatFigures(februar)).kz66).toBe(-7_018);
+    expect((await figures.computeVatFigures(maerz)).kz66).toBe(0);
+  }, 60_000);
 });
