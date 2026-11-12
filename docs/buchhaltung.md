@@ -150,6 +150,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Einbehaltene Kapitalertragsteuer, Soli und Kirchensteuer auf [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug) (nur GmbH, UG) | 1746 | 3760 |
 | Geldtransit | 1360 | 1460 |
 | Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe, eBay …) | 1361–1369 | 1461–1469 |
+| Zwischenkonto für [Verrechnungen zweier Belege](belege.md#verrechnen-ohne-zahlung) („Durchlaufende Posten“) | 1590 | 1370 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
 | Gewährte Skonti | 8730 | 4730 |
 | Erhaltene Skonti | 3730 | 5730 |

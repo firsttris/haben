@@ -59,8 +59,9 @@ function SourcePill({ entry }: { entry: Entry }) {
         {label}
       </Link>
     );
-  // Manuelle Buchungen haben keinen Vorgang außerhalb des Journals
-  if (entry.sourceType === "manuell" || entry.sourceType === "eroeffnung" || entry.sourceType === "import") return <span className="pill">{label}</span>;
+  // Manuelle Buchungen und Verrechnungen haben keinen eigenen Vorgang außerhalb des Journals
+  if (entry.sourceType === "manuell" || entry.sourceType === "eroeffnung" || entry.sourceType === "import" || entry.sourceType === "verrechnung")
+    return <span className="pill">{label}</span>;
   if (entry.sourceType === "lohn")
     return (
       <Link to="/lohn" search={{ jahr: Number(entry.date.slice(0, 4)), monat: Number(entry.date.slice(5, 7)) }} className="pill">

@@ -36,6 +36,7 @@ export const JOURNAL_SOURCE = {
   pauschale: "Pauschale",
   kasse: "Kasse",
   ausbuchung: "Ausbuchung",
+  verrechnung: "Verrechnung",
   manuell: "Manuell",
   eroeffnung: "Eröffnung",
   ausschuettung: "Ausschüttung",

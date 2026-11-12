@@ -12,6 +12,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
   let documents: typeof import("../belege/documents.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let euerJournal: typeof import("../auswertungen/euer-journal.ts");
+  let vat: typeof import("../umsatzsteuer/index.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]);
@@ -21,6 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     documents = await import("../belege/documents.ts");
     verrechnung = await import("./verrechnung.ts");
     euerJournal = await import("../auswertungen/euer-journal.ts");
+    vat = await import("../umsatzsteuer/index.ts");
   }, 60_000);
 
   afterAll(async () => {
@@ -124,6 +126,118 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(await verrechnung.openAmount(rechnung)).toBe(5_950);
     expect(await verrechnung.openAmount(gutschrift)).toBe(-3_570);
     await expect(verrechnung.reverseSettlement(actor, ids[0]!, "2026-03-12")).rejects.toThrow(/bereits/);
+  }, 30_000);
+
+  it("bucht die Verrechnung ins Journal: je Belegseite Verbindlichkeiten gegen das Zwischenkonto", async () => {
+    await firma();
+    const rechnung = await beleg("2026-02-10", 10_000, 1_900); // 119,00 EUR
+    const gutschrift = await beleg("2026-02-16", -3_000, -570); // -35,70 EUR
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 2_000,
+      date: "2026-02-16",
+      note: "Gutschrift 4711",
+    });
+
+    // Eine Buchung je Verrechnung, mit der Kennung des Paars als Quelle
+    const eintraege = await sql`select * from journal_entries where source_type = 'verrechnung'`;
+    expect(eintraege).toHaveLength(1);
+    const eintrag = eintraege[0]!;
+    const paare = await sql`select settlement_id from document_settlements where id = ${ids[0]!}`;
+    const settlement_id = String(paare[0]!.settlement_id);
+    expect(eintrag).toMatchObject({ date: "2026-02-16", source_type: "verrechnung", source_id: settlement_id, reverses_id: null });
+    expect(eintrag.description).toContain("Telekom Deutschland GmbH");
+    expect(eintrag.description).toContain("Gutschrift 4711");
+    expect(eintrag.locked_at).not.toBeNull();
+
+    // Verbindlichkeiten (1600) und Zwischenkonto „Durchlaufende Posten“ (1590), je 20,00 EUR auf beiden Seiten
+    const zeilen = await sql`select account, debit, credit, tax_code from journal_lines where entry_id = ${eintrag.id}`;
+    expect(zeilen).toHaveLength(4);
+    expect(zeilen.every((z) => z.tax_code === null)).toBe(true);
+    for (const konto of ["1600", "1590"]) {
+      expect(zeilen.filter((z) => z.account === konto && z.debit === 2_000)).toHaveLength(1);
+      expect(zeilen.filter((z) => z.account === konto && z.credit === 2_000)).toHaveLength(1);
+    }
+    const saldo = (konto: string) => zeilen.filter((z) => z.account === konto).reduce((s, z) => s + z.debit - z.credit, 0);
+    expect(saldo("1590")).toBe(0);
+    expect(saldo("1600")).toBe(0);
+    // Soll und Haben der Buchung sind gleich hoch
+    expect(zeilen.reduce((s, z) => s + z.debit, 0)).toBe(zeilen.reduce((s, z) => s + z.credit, 0));
+  }, 30_000);
+
+  it("hebt im Journal mit einer Gegenbuchung am Aufhebungsdatum auf, die Historie bleibt", async () => {
+    await firma();
+    const rechnung = await beleg("2026-03-10", 5_000, 950);
+    const gutschrift = await beleg("2026-03-12", -3_000, -570);
+    const { ids } = await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 3_570,
+      date: "2026-03-12",
+      note: "Gutschrift",
+    });
+    const [original] = await sql`select * from journal_entries where source_type = 'verrechnung'`;
+    const originalZeilen = await sql`select account, debit, credit from journal_lines where entry_id = ${original!.id}`;
+
+    await verrechnung.reverseSettlement(actor, ids[0]!, "2026-04-02", "Jahresabschluss");
+
+    const eintraege = await sql`select * from journal_entries where source_type = 'verrechnung' order by created_at`;
+    expect(eintraege).toHaveLength(2);
+    const gegen = eintraege.find((e) => e.reverses_id === original!.id)!;
+    expect(gegen).toMatchObject({ date: "2026-04-02", reverses_id: original!.id });
+    expect(gegen.description).toBe(`Storno: ${original!.description}`);
+    // Die Gegenbuchung gehört zum Gegenzeilen-Paar in document_settlements: dieselbe Kennung als Quelle
+    const gegenPaare = await sql`select settlement_id from document_settlements where reverses_id = ${ids[0]!}`;
+    const gegenPaar = String(gegenPaare[0]!.settlement_id);
+    expect(gegen.source_id).toBe(gegenPaar);
+
+    // Seiten getauscht, Beträge gleich: Zusammen steht das Zwischenkonto wieder auf null
+    const gegenZeilen = await sql`select account, debit, credit from journal_lines where entry_id = ${gegen.id}`;
+    const gedreht = (zeilen: { account: string; debit: number; credit: number }[]) =>
+      [...zeilen].map((z) => ({ account: z.account, debit: z.credit, credit: z.debit })).sort((a, b) => a.account.localeCompare(b.account));
+    expect([...gegenZeilen].sort((a, b) => a.account.localeCompare(b.account))).toEqual(
+      gedreht([...originalZeilen] as { account: string; debit: number; credit: number }[]),
+    );
+    const alle = await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_type = 'verrechnung'`;
+    for (const konto of ["1600", "1590"]) {
+      expect(alle.filter((z) => z.account === konto).reduce((s, z) => s + z.debit - z.credit, 0)).toBe(0);
+    }
+
+    // GoBD: Die ursprüngliche Buchung bleibt unverändert stehen
+    const [nachher] = await sql`select * from journal_entries where id = ${original!.id}`;
+    expect(nachher).toEqual(original);
+  }, 30_000);
+
+  it("lässt Voranmeldung und EÜR unverändert: die Buchung trägt keine Steuer und keinen Zahlungsfluss", async () => {
+    await firma();
+    // Beide Belege als Telefonkosten, damit die Verrechnung die EÜR nicht zwischen Kategorien verschiebt
+    const rechnung = await beleg("2026-02-10", 10_000, 1_900, "telefon");
+    const gutschrift = await beleg("2026-02-16", -3_000, -570, "telefon");
+    const quartal = { year: 2026, month: 41 };
+    const vorherVat = await vat.kennzahlenBeiderQuellen(quartal);
+    const vorherEuer = (await euerJournal.euerAusJournal(2026)).summe;
+
+    await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: gutschrift,
+      amount: 2_000,
+      date: "2026-02-16",
+      note: "Gutschrift",
+    });
+
+    const nachherVat = await vat.kennzahlenBeiderQuellen(quartal);
+    expect(nachherVat.journal).toEqual(vorherVat.journal);
+    expect(nachherVat.nebenbuecher).toEqual(vorherVat.nebenbuecher);
+    // Journal und Nebenbücher stimmen weiter überein
+    expect(nachherVat.journal).toEqual(nachherVat.nebenbuecher);
+
+    // EÜR: die Verrechnung wirkt wie eine Zahlung, hier auf beiden Seiten mit gleichem Betrag und Satz — per Saldo null
+    const nachherEuer = (await euerJournal.euerAusJournal(2026)).summe;
+    const ohneNullen = (zeilen: object) => Object.fromEntries(Object.entries(zeilen).filter(([, betrag]) => betrag !== 0));
+    expect(ohneNullen(nachherEuer.zeilen)).toEqual(ohneNullen(vorherEuer.zeilen));
+    expect(nachherEuer.zeilen.vorsteuer ?? 0).toBe(0);
   }, 30_000);
 
   it("hebt bei zwei gleichen Verrechnungen nur das gewählte Paar auf", async () => {

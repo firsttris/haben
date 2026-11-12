@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { formatEuro } from "@haben/core";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { formatEuro, settlementPosting, type Kontenrahmen, type PostingLine } from "@haben/core";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
-import { settledOn } from "./bank.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
+import { reverseLinesIn, settledOn } from "./bank.ts";
 
 /*
  * Verrechnung zweier Eingangsbelege ohne Zahlung (#274): eine Gutschrift des Lieferanten gleicht eine
@@ -146,6 +147,17 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
         { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: -Math.sign(restB) * parsed.amount, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
+    // Der Ausgleich steht als Buchung im Journal, nicht nur in der Tabelle: Sonst kennt das Journal als Quelle von
+    // Voranmeldung und EÜR den Ausgleich zweier Belege nicht (#778). Verbindlichkeiten gegen Zwischenkonto je Belegseite,
+    // ohne Steuerzeile — die Vorsteuer steckt schon in der Buchung des Belegs (settlementPosting in @haben/core).
+    const books = await openBooks(tx);
+    await post(tx, books, {
+      date,
+      description: `Verrechnung: ${a.supplier} · ${parsed.note}`,
+      sourceType: "verrechnung",
+      sourceId: settlementId,
+      lines: settlementPosting(parsed.amount, books.kontenrahmen),
+    });
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
   });
 }
@@ -181,6 +193,18 @@ export async function reverseSettlement(actor: string, id: string, date: string,
       .from(schema.documentSettlements)
       .where(eq(schema.documentSettlements.reversesId, row.id));
     if (already) throw new SettlementError("Die Verrechnung ist bereits aufgehoben.");
+    // Die Buchung der Verrechnung: eine je Paar, am Tag der Verrechnung. Ältere Verrechnungen von vor #778 haben keine;
+    // dann entsteht beim Aufheben auch keine Gegenbuchung, die Gegenzeile in document_settlements bleibt dieselbe.
+    const [entry] = await tx
+      .select()
+      .from(schema.journalEntries)
+      .where(
+        and(
+          eq(schema.journalEntries.sourceType, "verrechnung"),
+          eq(schema.journalEntries.sourceId, row.settlementId),
+          isNull(schema.journalEntries.reversesId),
+        ),
+      );
     // Wie beim Verrechnen: keine Rückwirkung, keine Zukunft
     if (parsed.date < row.date) {
       throw new SettlementError(
@@ -215,6 +239,23 @@ export async function reverseSettlement(actor: string, id: string, date: string,
         createdBy: actor,
       },
     ]);
+    // Gegenbuchung am Tag der Aufhebung, nicht rückwirkend: Die Historie bleibt, die Wirkung trifft das Aufhebungsjahr.
+    if (entry) {
+      const lines = await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id));
+      const books = await openBooks(tx);
+      await post(tx, books, {
+        date: parsed.date,
+        description: `Storno: ${entry.description}`,
+        sourceType: "verrechnung",
+        sourceId: settlementId,
+        reversesId: entry.id,
+        lines: reverseLinesIn(
+          entry.kontenrahmen as Kontenrahmen,
+          books.kontenrahmen,
+          lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+        ),
+      });
+    }
     return { ok: true as const, date: parsed.date };
   });
 }

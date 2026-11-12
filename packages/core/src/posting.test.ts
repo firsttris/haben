@@ -21,6 +21,7 @@ import {
   openingInvoicePosting,
   paidTaxShares,
   recordedTaxShares,
+  settlementPosting,
   settlementTaxShares,
   type TaxShare,
 } from "./posting.ts";
@@ -254,6 +255,48 @@ describe("Zahlungen", () => {
       { account: "1600", debit: 4_590, credit: 0, taxCode: null },
       { account: "1200", debit: 0, credit: 4_590, taxCode: null },
     ]);
+  });
+
+  describe("Verrechnung zweier Belege ohne Zahlung", () => {
+    it.each([
+      ["SKR03", "1600", "1590"],
+      ["SKR04", "3300", "1370"],
+    ] as const)("%s: Verbindlichkeiten gegen das Zwischenkonto, beide Seiten im selben Buchungssatz", (kontenrahmen, verbindlichkeiten, zwischenkonto) => {
+      const lines = settlementPosting(19_000, kontenrahmen);
+      expect(lines).toEqual([
+        { account: verbindlichkeiten, debit: 19_000, credit: 0, taxCode: null },
+        { account: zwischenkonto, debit: 0, credit: 19_000, taxCode: null },
+        { account: zwischenkonto, debit: 19_000, credit: 0, taxCode: null },
+        { account: verbindlichkeiten, debit: 0, credit: 19_000, taxCode: null },
+      ]);
+      expect(balanced(lines)).toBe(true);
+      // Jedes beteiligte Konto steht per Saldo auf null: Das Zwischenkonto bleibt leer, keine Seite überwiegt
+      const saldo = (account: string) => lines.filter((l) => l.account === account).reduce((s, l) => s + l.debit - l.credit, 0);
+      expect(saldo(zwischenkonto)).toBe(0);
+      expect(saldo(verbindlichkeiten)).toBe(0);
+    });
+
+    it("bucht weder Umsatzsteuer noch Vorsteuer und ist in beiden Kontenrahmen dasselbe Zwischenkonto", () => {
+      for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+        const lines = settlementPosting(4_590, kontenrahmen);
+        expect(lines.every((l) => l.taxCode === null)).toBe(true);
+        const steuerkonten: string[] = [
+          ...Object.values(ACCOUNTS[kontenrahmen].ust),
+          ...Object.values(ACCOUNTS[kontenrahmen].ustNichtFaellig),
+          ...Object.values(ACCOUNTS[kontenrahmen].vorsteuer),
+        ];
+        expect(lines.some((l) => steuerkonten.includes(l.account))).toBe(false);
+      }
+      // DATEV führt „Durchlaufende Posten“ in beiden Kontenrahmen: SKR03 1590, SKR04 1370
+      expect(ACCOUNTS.SKR03.zwischenkonto).toBe("1590");
+      expect(ACCOUNTS.SKR04.zwischenkonto).toBe("1370");
+      expect(ACCOUNT_NAMES.SKR03[ACCOUNTS.SKR03.zwischenkonto]).toBe("Durchlaufende Posten");
+      expect(ACCOUNT_NAMES.SKR04[ACCOUNTS.SKR04.zwischenkonto]).toBe("Durchlaufende Posten");
+    });
+
+    it("Betrag ohne Vorzeichen: negativ übergeben ergibt dieselben Seiten", () => {
+      expect(settlementPosting(-10_000, "SKR03")).toEqual(settlementPosting(10_000, "SKR03"));
+    });
   });
 
   it("Privatentnahme und Einlage", () => {

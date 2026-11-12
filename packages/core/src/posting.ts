@@ -35,6 +35,12 @@ export const ACCOUNTS = {
     ustIge: { 1900: "1774", 700: "1772" },
     vorsteuerIge: { 1900: "1574", 700: "1572" },
     verbindlichkeiten: "1600",
+    /**
+     * Zwischenkonto für die Verrechnung zweier Belege ohne Zahlung (#778): DATEV „Durchlaufende Posten“ („Sonstige
+     * Vermögensgegenstände oder sonstige Verbindlichkeiten“). Es dient Klärungen und Interimskonten und soll keinen Saldo
+     * aufweisen; kein Automatikkonto, die Buchung trägt keine Umsatzsteuer.
+     */
+    zwischenkonto: "1590",
     privateinlagen: "1890",
     privatentnahmen: "1800",
     /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
@@ -83,6 +89,8 @@ export const ACCOUNTS = {
     ustIge: { 1900: "3804", 700: "3802" },
     vorsteuerIge: { 1900: "1404", 700: "1402" },
     verbindlichkeiten: "3300",
+    /** Zwischenkonto für Verrechnungen ohne Zahlung (#778): DATEV „Durchlaufende Posten“, wie SKR03 1590 */
+    zwischenkonto: "1370",
     privateinlagen: "2180",
     privatentnahmen: "2100",
     /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
@@ -197,6 +205,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1200": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`136${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
     "1400": "Forderungen aus Lieferungen und Leistungen",
+    "1590": "Durchlaufende Posten",
     "1761": "Umsatzsteuer nicht fällig 7 %",
     "1766": "Umsatzsteuer nicht fällig 19 %",
     "1771": "Umsatzsteuer 7 %",
@@ -225,6 +234,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   },
   SKR04: {
     "1200": "Forderungen aus Lieferungen und Leistungen",
+    "1370": "Durchlaufende Posten",
     "1600": "Kasse",
     "1800": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`146${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
@@ -745,6 +755,29 @@ export function documentPaymentPosting(amount: Cents, kontenrahmen: Kontenrahmen
   return [side(accounts.verbindlichkeiten, -amount, true, null), side(accounts.bank, amount, true, null)].filter(
     (line) => line.debit !== 0 || line.credit !== 0,
   );
+}
+
+/**
+ * Verrechnung zweier Belege ohne Zahlung (#778): Der Ausgleich berührt weder Bank noch Kasse, sondern nur die
+ * Verbindlichkeiten beider Belege. Er läuft deshalb über ein Zwischenkonto, das sich im selben Buchungssatz wieder
+ * schließt: Verbindlichkeiten an Zwischenkonto für die eine Belegseite, Zwischenkonto an Verbindlichkeiten für die
+ * andere. Das Konto ist DATEV „Durchlaufende Posten“ (SKR03 1590, SKR04 1370): Klärungen und Interimskonten, die nach
+ * Möglichkeit keinen Saldo aufweisen, kein Automatikkonto.
+ *
+ * Ohne Umsatzsteuerzeile: `documentPosting` bucht die Vorsteuer eines Belegs bereits im Belegmonat; eine Steuerzeile
+ * hier zählte sie doppelt. Wann die Vorsteuer bei Ist-Versteuerung tatsächlich fällig wird, ist ein eigener Punkt und
+ * nicht Teil der Verrechnung.
+ */
+export function settlementPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  // Der Betrag der Verrechnung trägt kein Vorzeichen: Beide offenen Posten bewegen sich um denselben Betrag auf null zu
+  const betrag = Math.abs(amount);
+  return [
+    side(accounts.verbindlichkeiten, betrag, true, null),
+    side(accounts.zwischenkonto, -betrag, true, null),
+    side(accounts.zwischenkonto, betrag, true, null),
+    side(accounts.verbindlichkeiten, -betrag, true, null),
+  ].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
 /** Bankumsätze ohne Rechnung oder Beleg */
