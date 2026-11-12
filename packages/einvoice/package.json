@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "bun --bun tsc -p .",
-    "kosit": "bun scripts/kosit-check.ts"
+    "kosit": "bun scripts/kosit-check.ts",
+    "zugferd": "bun scripts/zugferd-check.ts"
   },
   "dependencies": {
     "@haben/core": "workspace:*",

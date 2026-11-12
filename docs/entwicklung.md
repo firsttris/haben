@@ -221,7 +221,15 @@ bun run --cwd packages/einvoice kosit /tmp/haben-kosit
 
 Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
 
-Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+Neue Releases von Validator, XRechnung-Konfiguration und Mustang ([ZUGFeRD-PDFs](#zugferd-pdfs)) bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+
+### ZUGFeRD-PDFs
+
+Der CI-Job `zugferd` erzeugt die ZUGFeRD-PDFs der Beispielrechnungen und prüft sie mit dem [Mustang-Validator](https://github.com/ZUGFeRD/mustangproject): das PDF als PDF/A-3 (veraPDF) und das eingebettete `factur-x.xml` nach Factur-X. Lokal mit Java und `Mustang-CLI-<version>.jar` aus den Releases von `ZUGFeRD/mustangproject` (Version in `.github/workflows/ci.yml` unter `MUSTANG`):
+
+```sh
+MUSTANG_JAR=/pfad/Mustang-CLI-<version>.jar bun run --cwd packages/einvoice zugferd /tmp/haben-zugferd
+```
 
 ### ERiC heben
 
@@ -503,7 +511,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Was ein Skript prüft, etwa neue Seiten in den E2E-Tests, steht unter [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
-- Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
+- Änderungen an der E-Rechnung prüfen in der CI die Jobs `kosit` (XML) und `zugferd` (PDF).
 - Texte in der Oberfläche auf Deutsch.
 - Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung; hochgeladen werden sie als Anhang, nie als Branch im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
 
