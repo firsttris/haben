@@ -26,6 +26,7 @@ const positions = [{ sumNet: "100.00", sumTax: "19.00", sumGross: "119.00", taxR
 
 describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Postgres)", () => {
   let lexoffice: typeof import("./lexoffice.ts");
+  let kontakt: typeof import("./kontakt-altbestand.ts");
   let legacy: typeof import("./legacy-open.ts");
   let exporter: typeof import("./export.ts");
   let sql: postgres.Sql;
@@ -33,6 +34,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Po
   beforeAll(async () => {
     sql = await setupTestDb();
     lexoffice = await import("./lexoffice.ts");
+    kontakt = await import("./kontakt-altbestand.ts");
     legacy = await import("./legacy-open.ts");
     exporter = await import("./export.ts");
   }, 30_000);
@@ -47,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Po
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await leeren(sql)`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, company cascade`;
+    await leeren(sql)`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${kontenrahmen}, ${versteuerung}, 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{}'::jsonb, 'sevdesk')`;
@@ -126,6 +128,16 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Gutschriften je Buchungskategorie (Po
       .map((c) => c.replaceAll('"', ""));
     expect(row[header.indexOf("Brutto")]).toMatch(/^119[.,]00$/);
     expect(row).toContain("Ausgabe-Gutschrift");
+  });
+
+  it.each([["ROYALTY_ASSIGNED"], ["PROVISION"]])("zeigt %s auf der Kontaktseite als Ausgabe mit positivem Betrag", async (category) => {
+    const [contact] = await sql`insert into contacts (name, land, email) values ('Erfundener Dienstleister', 'DE', 'dienst@example.com') returning id`;
+    const id = await insert(category);
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update lexoffice_vouchers set contact_id = ${contact!.id} where id = ${id}`;
+    });
+    expect(await kontakt.legacyVouchersForContact(contact!.id as string)).toMatchObject([{ id, direction: "ausgabe", net: 10_000, gross: 11_900 }]);
   });
 
   it("ändert die gespeicherte Zeile nicht", async () => {
