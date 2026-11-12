@@ -44,7 +44,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
-import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
+import { contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -559,8 +559,19 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
 
 type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate" | "externalSource" | "externalId" | "paymentPlanRow">>;
 
+/** Rechnungen gehen an Kunden; ein Lieferant oder ein unbekannter Kontakt passt nicht */
+export async function assertCustomer(tx: Tx, contactId: string | null | undefined) {
+  if (!contactId) return;
+  const problem = await contactRoleProblem(tx, contactId, "kunde");
+  if (problem) throw new InvoiceError(problem);
+}
+
 export async function createDraft(actor: string, input: DraftInput, extra: DraftExtra = {}) {
-  return withActor(actor, (tx) => insertDraft(tx, input, extra));
+  return withActor(actor, async (tx) => {
+    // Storno, Korrektur und der Lauf einer Vorlage übernehmen den Kunden; gewählt wird er nur bei einer neuen Rechnung
+    if (!extra.correctsId && !extra.recurringId) await assertCustomer(tx, input.contactId);
+    return insertDraft(tx, input, extra);
+  });
 }
 
 /** Legt einen Entwurf in einer laufenden Transaktion an, z. B. zusammen mit dem Festschreiben (Storno) */
@@ -593,6 +604,8 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
   return withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id], [input.quoteId]));
     const draft = await lockDraft(tx, id);
+    // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
+    if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
     if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
@@ -668,6 +681,17 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
   if (!invoice) return null;
   const lines = await q.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(asc(schema.invoiceLines.position));
   const [contact] = invoice.contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId)) : [];
+  const [importSource] = invoice.lexofficeVoucherId
+    ? await q
+        .select({
+          source: schema.lexofficeVouchers.source,
+          sourceName: sql<
+            string | null
+          >`case when ${schema.lexofficeVouchers.source} = 'import' then ${schema.lexofficeVouchers.raw}->>'sourceName' else null end`,
+        })
+        .from(schema.lexofficeVouchers)
+        .where(eq(schema.lexofficeVouchers.id, invoice.lexofficeVoucherId))
+    : [];
   const [corrects] = invoice.correctsId
     ? await q
         .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
@@ -679,7 +703,7 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
     .from(schema.invoices)
     .where(eq(schema.invoices.correctsId, id))
     .orderBy(asc(schema.invoices.createdAt));
-  return { invoice, lines, contact: contact ?? null, corrects: corrects ?? null, correctedBy };
+  return { invoice, lines, contact: contact ?? null, importSource: importSource ?? null, corrects: corrects ?? null, correctedBy };
 }
 
 export type { InvoiceListStatus };

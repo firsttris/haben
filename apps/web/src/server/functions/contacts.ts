@@ -15,8 +15,8 @@ export const getContacts = createServerFn({ method: "GET" })
 /** Hinweis beim Eintippen einer USt-IdNr.: gibt es sie schon bei einem Kontakt, gleich welcher Rolle? */
 export const findContactsByUstIdFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ ustId: z.string().max(40), excludeId: z.uuid().optional() }))
-  .handler(({ data }) => findContactsByUstId(data.ustId, data.excludeId));
+  .validator(z.object({ ustId: z.string().max(40), excludeId: z.uuid().optional(), isCustomer: z.boolean().optional(), isSupplier: z.boolean().optional() }))
+  .handler(({ data }) => findContactsByUstId(data.ustId, data.excludeId, { isCustomer: data.isCustomer, isSupplier: data.isSupplier }));
 
 export const getContactDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

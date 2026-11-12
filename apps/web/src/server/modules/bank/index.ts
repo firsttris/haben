@@ -46,6 +46,7 @@ export {
   updateAccount,
   accountSettingsSchema,
   reverseAllocation,
+  reverseAllocationIn,
   splitSchema,
   transactionDetail,
   transferSchema,
@@ -58,6 +59,7 @@ export {
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { documentBankAllocations } from "./document-allocations.ts";
 export {
   nachStatusSortieren,
   SORTIERRICHTUNGEN,

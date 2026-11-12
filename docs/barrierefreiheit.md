@@ -25,7 +25,7 @@ Haben lässt sich vollständig mit der Tastatur bedienen und erfüllt nach den a
 - **Nach einem Seitenwechsel** steht der Fokus am Anfang des Inhalts, nicht mehr in der Navigation. Der nächste `Tab` führt zum ersten Element der neuen Seite. Filter und Suche ändern nur die Liste, der Fokus bleibt, wo er ist.
 - **Anmelden:** Nach **Passwort verwenden** steht der Fokus im Feld **E-Mail**.
 - **Dateien hochladen:** Statt Drag-and-drop öffnen **Dateien auswählen** und **Foto aufnehmen** den Dateidialog des Systems.
-- **Kunde und Artikel suchen** im Rechnungs- und Angebotseditor: Beim Tippen erscheint eine Trefferliste. `Pfeil runter` und `Pfeil hoch` bewegen den aktiven Treffer, `Enter` übernimmt ihn, `Esc` schließt die Liste; `Alt+Pfeil runter` öffnet sie, ohne einen Treffer zu wechseln. Beim Kunden übernimmt auch `Tab` den aktiven Treffer.
+- **Kunde, Lieferant und Artikel suchen** (Kunde im Rechnungs- und Angebotseditor, bei Serienrechnungen und Textbausteinen, Lieferant im Beleg und im Dauerbeleg, Artikel im Editor): Beim Tippen erscheint eine Trefferliste. `Pfeil runter` und `Pfeil hoch` bewegen den aktiven Treffer, `Enter` übernimmt ihn, `Esc` schließt die Liste; `Alt+Pfeil runter` öffnet sie, ohne einen Treffer zu wechseln. Bei Kunden und Lieferanten übernimmt auch `Tab` den aktiven Treffer.
 - **Diagramm unter Auswertungen:** Mit `Tab` springst du von Monat zu Monat und siehst die Werte. Dieselben Zahlen stehen unter **Als Tabelle anzeigen**.
 
 Tastenkürzel einzelner Seiten:

@@ -26,7 +26,7 @@ export const savedAsChoice = (saved: SavedContact): ContactChoice => ({
   isSupplier: saved.isSupplier ?? false,
 });
 
-export type ContactRole = "kunde" | "lieferant" | "alle";
+export type ContactRole = "kunde" | "lieferant";
 
 /** Was sich je Rolle unterscheidet: Platzhalter und Beschriftung der Zeile zum Anlegen */
 const ROLE_TEXT: Record<ContactRole, { placeholder: string; createNamed: (name: string) => string; createEmpty: string }> = {
@@ -40,20 +40,15 @@ const ROLE_TEXT: Record<ContactRole, { placeholder: string; createNamed: (name: 
     createNamed: (name) => `„${name}“ als neuen Lieferanten anlegen`,
     createEmpty: "Neuen Lieferanten anlegen",
   },
-  alle: {
-    placeholder: "Name oder Ort",
-    createNamed: (name) => `„${name}“ als neuen Kontakt anlegen`,
-    createEmpty: "Neuen Kontakt anlegen",
-  },
 };
 
-const inRole = (c: ContactChoice, rolle: ContactRole) => rolle === "alle" || (rolle === "kunde" ? c.isCustomer : c.isSupplier);
+const inRole = (c: ContactChoice, rolle: ContactRole) => (rolle === "kunde" ? c.isCustomer : c.isSupplier);
 
 const contactText = (c: ContactChoice) => `${c.name}${c.ort ? ` · ${c.ort}` : ""}`;
 
 /**
  * Kontakt suchen und wählen: der Kunde im Rechnungs- und Angebotsentwurf, der Lieferant am Beleg und im Dauerbeleg,
- * suchbar nach Name, Nummer und Ort. Zur Auswahl stehen die Kontakte der Rolle (Kunde, Lieferant oder alle); ein
+ * suchbar nach Name, Nummer und Ort. Zur Auswahl stehen die Kontakte der Rolle (Kunde oder Lieferant); ein
  * schon gewählter Kontakt bleibt sichtbar. Wer die Eingabe stehen lässt, ohne zu wählen, behält den bisherigen
  * Kontakt; ein geleertes Feld nimmt ihn weg (onChoose mit leerer id). Ohne onCreate fehlt die Zeile zum Anlegen.
  */

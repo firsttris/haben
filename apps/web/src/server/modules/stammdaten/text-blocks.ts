@@ -2,7 +2,8 @@ import { UserError } from "../../errors.ts";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
+import { contactRoleProblem } from "./contacts.ts";
 
 /**
  * Textbausteine: Kopf- und Fußtexte zum Einfügen in Rechnungen, Angebote und wiederkehrende Rechnungen.
@@ -32,31 +33,36 @@ export async function listTextBlocks({ archived = false }: { archived?: boolean 
     .orderBy(asc(schema.textBlocks.kind), asc(schema.textBlocks.name));
 }
 
-async function checkContact(contactId: string | null) {
+/** Ein Baustein gehört zu einem Kunden; ein Lieferant oder ein unbekannter Kontakt passt nicht */
+async function checkContact(tx: Tx, contactId: string | null) {
   if (!contactId) return;
-  const [contact] = await db.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
-  if (!contact) throw new TextBlockError("Kontakt nicht gefunden.");
+  const problem = await contactRoleProblem(tx, contactId, "kunde");
+  if (problem) throw new TextBlockError(problem);
 }
 
 export async function createTextBlock(actor: string, input: TextBlockInput): Promise<TextBlock> {
   const values = textBlockInputSchema.parse(input);
-  await checkContact(values.contactId);
-  const [row] = await withActor(actor, (tx) => tx.insert(schema.textBlocks).values(values).returning());
-  return row!;
+  return withActor(actor, async (tx) => {
+    await checkContact(tx, values.contactId);
+    const [row] = await tx.insert(schema.textBlocks).values(values).returning();
+    return row!;
+  });
 }
 
 export async function updateTextBlock(actor: string, id: string, input: TextBlockInput): Promise<TextBlock> {
   const values = textBlockInputSchema.parse(input);
-  await checkContact(values.contactId);
-  const [row] = await withActor(actor, (tx) =>
-    tx
+  return withActor(actor, async (tx) => {
+    const [previous] = await tx.select({ contactId: schema.textBlocks.contactId }).from(schema.textBlocks).where(eq(schema.textBlocks.id, id)).for("update");
+    if (!previous) throw new TextBlockError("Textbaustein nicht gefunden.");
+    // Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt am Baustein
+    if (values.contactId !== previous.contactId) await checkContact(tx, values.contactId);
+    const [row] = await tx
       .update(schema.textBlocks)
       .set({ ...values, updatedAt: new Date() })
       .where(eq(schema.textBlocks.id, id))
-      .returning(),
-  );
-  if (!row) throw new TextBlockError("Textbaustein nicht gefunden.");
-  return row;
+      .returning();
+    return row!;
+  });
 }
 
 /** Archivieren statt löschen, wie beim Artikelkatalog */

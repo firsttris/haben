@@ -149,22 +149,25 @@ export function VastBelege({ data }: { data: Data }) {
                 />
               )}
             </Field>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={testOnly || !data.herstellerIdConfigured}
-                disabled={!data.herstellerIdConfigured}
-                onChange={(e) => setTestOnly(e.target.checked)}
-              />
-              Nur testweise abrufen
-            </label>
-            {!data.herstellerIdConfigured && (
-              <p className="small muted" style={{ margin: 0 }}>
-                {data.mode === "simuliert"
-                  ? "Der Testabruf läuft ohne ERiC simuliert und liefert Beispielbelege."
-                  : "ERiC nimmt Abrufe, auch zum Test, nur mit eigener Hersteller-ID an (ELSTER_HERSTELLER_ID)."}
-              </p>
-            )}
+            <div className="checkbox-hinted">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={testOnly || !data.herstellerIdConfigured}
+                  disabled={!data.herstellerIdConfigured}
+                  onChange={(e) => setTestOnly(e.target.checked)}
+                  aria-describedby={data.herstellerIdConfigured ? undefined : "vast-test-hint"}
+                />
+                Nur testweise abrufen
+              </label>
+              {!data.herstellerIdConfigured && (
+                <span id="vast-test-hint" className="field-hint">
+                  {data.mode === "simuliert"
+                    ? "Der Testabruf läuft ohne ERiC simuliert und liefert Beispielbelege."
+                    : "ERiC nimmt Abrufe, auch zum Test, nur mit eigener Hersteller-ID an (ELSTER_HERSTELLER_ID)."}
+                </span>
+              )}
+            </div>
             {person === "b" && (
               <BerechtigungPanel
                 data={data}

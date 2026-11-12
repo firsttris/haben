@@ -37,7 +37,7 @@ import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
+import { contactRoleProblem, loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
@@ -197,10 +197,18 @@ async function insertQuoteDraft(tx: Tx, parsed: z.output<typeof quoteDraftSchema
   return quote!;
 }
 
+/** Angebote gehen an Kunden; ein Lieferant oder ein unbekannter Kontakt passt nicht */
+async function checkCustomer(tx: Tx, contactId: string | null) {
+  if (!contactId) return;
+  const problem = await contactRoleProblem(tx, contactId, "kunde");
+  if (problem) throw new QuoteError(problem);
+}
+
 /** Neuer Entwurf; er bekommt die Standardanhänge aus den Einstellungen (#415) als eigene Anhänge */
 export async function createQuoteDraft(actor: string, input: QuoteDraftInput): Promise<Quote> {
   const parsed = quoteDraftSchema.parse(input);
   return withActor(actor, async (tx) => {
+    await checkCustomer(tx, parsed.contactId);
     const quote = await insertQuoteDraft(tx, parsed);
     // Mit ihrem Zeitpunkt aus den Einstellungen, wie beim Kopieren: so bleibt deren Reihenfolge
     await attachStoredToQuote(tx, quote.id, await listQuoteDefaultAttachments(tx));
@@ -220,7 +228,9 @@ export async function lockDraft(tx: Tx, id: string): Promise<Quote> {
 export async function updateQuoteDraft(actor: string, id: string, input: QuoteDraftInput): Promise<Quote> {
   const parsed = quoteDraftSchema.parse(input);
   return withActor(actor, async (tx) => {
-    await lockDraft(tx, id);
+    const previous = await lockDraft(tx, id);
+    // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt am Angebot
+    if (parsed.contactId !== previous.contactId) await checkCustomer(tx, parsed.contactId);
     await tx.delete(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id));
     if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(id, parsed));
     const [updated] = await tx.update(schema.quotes).set(draftValues(parsed)).where(eq(schema.quotes.id, id)).returning();
