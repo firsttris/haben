@@ -56,7 +56,13 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(liste[0]).toMatchObject({ transferTicket: "ABC123456789", note: "Anlage EÜR außerhalb von Haben mit WISO abgegeben." });
 
     const uebersicht = await annual.annualOverview(2025, TODAY);
-    expect(uebersicht.euer.submitted).toMatchObject({ filedOn: "2026-05-20", transferTicket: "ABC123456789", amount: 12_345, hasPdf: true });
+    expect(uebersicht.euer.submitted).toMatchObject({
+      filedOn: "2026-05-20",
+      transferTicket: "ABC123456789",
+      amount: 12_345,
+      note: "Anlage EÜR außerhalb von Haben mit WISO abgegeben.",
+      hasPdf: true,
+    });
     expect(uebersicht.ust.submitted).toBeNull();
 
     // Die Zeile trägt die Form einer abgeschlossenen Abgabe, damit Verlauf und Protokoll sie wie eine Sendung zeigen
@@ -81,6 +87,24 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
   });
 
+  it("verhindert einen zweiten Vermerk auch ohne Vorprüfung über den partiellen Unique-Index", async () => {
+    await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY);
+    await expect(
+      sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+        values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{"amount": 1}'::jsonb, '', '', '')`,
+    ).rejects.toThrow(/annual_submissions_vermerk/);
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
+  });
+
+  it("lehnt ein noch nicht abgelaufenes Jahr ab", async () => {
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2026, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/Ablauf des Jahres/);
+    expect(await jahresvermerk.jahresvermerke(2026)).toHaveLength(0);
+  });
+
+  it("lehnt ein Jahr vor den Jahreserklärungen ab", async () => {
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2022, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/ab 2023/);
+  });
+
   it("lehnt ein abgeschlossenes Jahr ab", async () => {
     await sql`insert into year_closings (year) values (2025)`;
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/abgeschlossen/);
@@ -98,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
   });
 
   it("meldet eine Abweichung zum gerechneten Betrag nur als Hinweis", async () => {
-    const pruefung = await jahresvermerk.vermerkPruefung(actor, "ust", 2025, 500);
+    const pruefung = await jahresvermerk.vermerkPruefung("ust", 2025, 500);
     expect(pruefung.berechnet).toBe(0);
     expect(pruefung.abweichung).toBe(500);
     expect(pruefung.hinweis).toContain("weicht");

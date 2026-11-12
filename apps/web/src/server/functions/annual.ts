@@ -141,7 +141,7 @@ export const fileAnnualElsewhere = createServerFn({ method: "POST" })
         ...(data.file && bytes ? { file: { bytes, filename: data.file.name } } : {}),
       });
       // Der Vergleich ist nur ein Hinweis: Scheitert er, bleibt der Vermerk trotzdem gespeichert
-      const pruefung = await vermerkPruefung(context.user.id, data.form, data.year, data.amount).catch(() => null);
+      const pruefung = await vermerkPruefung(data.form, data.year, data.amount).catch(() => null);
       return { ok: true as const, hinweis: pruefung?.hinweis ?? null };
     } catch (error) {
       if (error instanceof AnnualError) return { ok: false as const, message: error.message };

@@ -21,12 +21,4 @@ export {
 } from "./koerperschaft.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";
-export {
-  jahresvermerke,
-  vermerkPruefung,
-  vermerkeJahresabgabe,
-  vermerkSchema,
-  type Jahresvermerk,
-  type JahresvermerkInput,
-  type VermerkForm,
-} from "./vermerk.ts";
+export { vermerkPruefung, vermerkeJahresabgabe } from "./vermerk.ts";

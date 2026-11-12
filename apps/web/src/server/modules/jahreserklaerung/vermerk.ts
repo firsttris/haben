@@ -1,4 +1,5 @@
 import { formatEuro, type Cents } from "@haben/core";
+import { ERSTES_ERKLAERUNGSJAHR } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -12,7 +13,7 @@ import { AnnualError, annualOverview } from "./annual.ts";
 /*
  * Abgabe vermerken: Eine Jahreserklärung (Umsatzsteuererklärung oder Anlage EÜR), die außerhalb von Haben abgegeben
  * wurde (WISO, Accountable, ELSTER-Portal), wird mit Tag der Abgabe, Transferticket, Betrag und Übermittlungsprotokoll
- * an der Erklärung festgehalten. Die Frist ist damit erledigt, und der Betrag lässt sich als offener Posten führen.
+ * an der Erklärung festgehalten. Die Frist ist damit erledigt; der Vorgang steht im Verlauf und im Jahresüberblick.
  * Das Gegenstück für die Voranmeldung ist umsatzsteuer/vermerk.ts.
  */
 
@@ -89,6 +90,8 @@ export async function vermerkeJahresabgabe(actor: string, form: VermerkForm, yea
   const data = parsed.data;
   const problem = vermerkProblem(data, heute);
   if (problem) throw new AnnualError(problem);
+  if (year >= Number(heute.slice(0, 4))) throw new AnnualError("Die Erklärung lässt sich erst nach Ablauf des Jahres vermerken.");
+  if (year < ERSTES_ERKLAERUNGSJAHR) throw new AnnualError(`Jahreserklärungen gibt es ab ${ERSTES_ERKLAERUNGSJAHR}.`);
   const transferTicket = data.transferTicket.trim();
 
   return underSendLock(`haben.jahreserklaerung.${form}.${year}`, "send", async () => {
@@ -165,10 +168,10 @@ export async function jahresvermerke(year: number): Promise<Jahresvermerk[]> {
  * Vergleicht den angegebenen Betrag mit dem aus den Buchungen gerechneten Wert der Erklärung. Reine Information: eine
  * Abweichung bricht den Vermerk nicht ab, denn außerhalb von Haben kann eine andere Rechnung maßgeblich sein.
  */
-export async function vermerkPruefung(actor: string, form: VermerkForm, year: number, amount: Cents) {
+export async function vermerkPruefung(form: VermerkForm, year: number, amount: Cents) {
   const overview = await annualOverview(year, today());
   const berechnet = form === "ust" ? overview.ust.abschluss : overview.euer.gewinn;
-  return { actor, form, year, amount, berechnet, abweichung: amount - berechnet, hinweis: abweichungHinweis(amount, berechnet) };
+  return { berechnet, abweichung: amount - berechnet, hinweis: abweichungHinweis(amount, berechnet) };
 }
 
 function abweichungHinweis(amount: Cents, berechnet: Cents): string | null {
