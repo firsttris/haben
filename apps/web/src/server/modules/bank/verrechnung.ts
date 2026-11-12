@@ -136,11 +136,14 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     const date = parsed.date;
     // Gemeinsame Kennung für beide Zeilen: die Aufhebung findet das Paar damit eindeutig
     const settlementId = randomUUID();
+    // Das Vorzeichen kommt aus dem offenen Rest, nicht aus der Rolle des Belegs: die Zeile muss den Rest
+    // gegen Null bewegen. Fest an documentId/counterDocumentId gebunden waere es falsch, sobald der geoeffnete
+    // Beleg die Gutschrift ist (negativer Rest) — dann waechst der offene Rest auf beiden Seiten.
     const rows = await tx
       .insert(schema.documentSettlements)
       .values([
-        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
-        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: -Math.sign(restA) * parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: -Math.sign(restB) * parsed.amount, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };

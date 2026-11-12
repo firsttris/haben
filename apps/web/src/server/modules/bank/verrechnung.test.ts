@@ -82,6 +82,29 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     ).rejects.toThrow(/nicht verrechnen/);
   }, 30_000);
 
+  it("verrechnet auch, wenn die Gutschrift der geoeffnete Beleg ist", async () => {
+    await firma();
+    const rechnung = await beleg("2026-02-10", 10_000, 1_900); // 119,00 EUR
+    const gutschrift = await beleg("2026-02-16", -3_000, -570); // -35,70 EUR
+
+    // Rolle vertauscht: der geoeffnete Beleg ist die Gutschrift, nicht die Rechnung.
+    // Das Vorzeichen der Zeilen muss aus dem offenen Rest kommen, nicht aus der Rolle.
+    await verrechnung.settleDocuments(actor, {
+      documentId: gutschrift,
+      counterDocumentId: rechnung,
+      amount: 2_000,
+      date: "2026-02-16",
+      note: "Gutschrift",
+    });
+
+    expect(await verrechnung.openAmount(gutschrift)).toBe(-1_570);
+    expect(await verrechnung.openAmount(rechnung)).toBe(9_900);
+    const zeilen = await verrechnung.listSettlements(gutschrift);
+    expect(zeilen).toHaveLength(1);
+    // Auf der Gutschrift (negativer Rest) muss die Zeile positiv sein, damit der Rest gegen Null geht
+    expect(zeilen[0]).toMatchObject({ amount: 2_000 });
+  }, 30_000);
+
   it("hebt eine Verrechnung per Gegenzeile auf", async () => {
     await firma();
     const rechnung = await beleg("2026-03-10", 5_000, 950);
