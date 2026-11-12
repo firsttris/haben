@@ -590,12 +590,20 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 
 Was „PR-Regeln“ meldet, steht auch als ein Kommentar im Pull Request, bei jedem Push aktualisiert (Workflow „PR-Regeln Kommentar“; er startet aus der Fassung auf `main`, eine Änderung an ihm wirkt also erst nach dem Merge).
 
-Wenn eine Prüfung anschlägt:
+Vor dem Push meldet `bun scripts/pr-regeln/pruefen.ts --titel "…" --beschreibung <datei>` dasselbe wie der Workflow, nur mit git und in unter einer Sekunde; verglichen wird mit `origin/main` (`--basis` für einen anderen Stand). Den Hinweis auf Selbstprüfung und Review gibt es nur im Workflow.
+
+#### Wenn eine Prüfung anschlägt
 
 - **Modulgrenzen:** den fehlenden Namen in der `index.ts` des anderen Moduls ergänzen.
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
 - **Dateigröße:** das Neue in eine eigene Datei. In `scripts/dateigroesse/altdateien.json` kommt keine neue Datei; von Hand ändert sich dort nur der Pfad einer umbenannten alten Datei. Geschrumpfte nimmt `bun scripts/dateigroesse/pruefen.ts --aufraeumen` heraus.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
+- **Titel:** `Bereich: was sich ändert (#Issue)` ohne Präfix wie `feat:` und ohne Punkt am Ende, etwa „Belege: Splitbuchung mit zwei Steuersätzen (#123)“.
+- **Issue-Verweise:** `Closes`, `Fixes` und `Resolves` in der Beschreibung durch `Umgesetzt #…` (fertig) oder `Refs #…` (Teil) ersetzen.
+- **Alte große Datei wächst:** das Neue in eine eigene Datei; bleibt es, wo es ist, steht der Grund in der Beschreibung.
+- **Code ohne Doku:** die Seite des Bereichs ergänzen, wenn sich Verhalten ändert; ändert sich keins (Refactor), steht das in der Beschreibung.
+- **Fix ohne Test:** einen Test ergänzen, der ohne den Fix fehlschlägt; betrifft der Fix nichts Testbares (etwa die CI), steht das in der Beschreibung.
+- **Selbstprüfung und Review:** nach Skill `beitrag-pruefen`, dann `tdd-review` oder `doku-pruefen`, jeweils in einem frischen Agenten oder durch eine andere Person.
 
 Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in den Kommentaren der Skripte.
 
