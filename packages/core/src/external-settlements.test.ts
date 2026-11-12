@@ -25,6 +25,10 @@ for (const kr of ["SKR03", "SKR04"] as const)
       ).toBeNull();
     });
 
+    it("nimmt einen belegten Zufluss vor dem Rechnungsdatum im Zahlungsjahr an (§ 11 EStG)", () => {
+      expect(externalSettlementProblem(kr, [original(kr), { ...payment(kr), date: "2025-12-30" }])).toBeNull();
+    });
+
     it.each([
       ["fehlender Posten", (kr: Kontenrahmen) => payment(kr, 119000, "fehlt")],
       ["Selbstbezug", (kr: Kontenrahmen) => payment(kr, 119000, "zahlung")],
@@ -42,3 +46,4 @@ for (const kr of ["SKR03", "SKR04"] as const)
       );
     });
   });
+
