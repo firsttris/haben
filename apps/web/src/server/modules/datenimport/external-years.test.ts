@@ -164,6 +164,20 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
       });
     }
 
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("%s/%s: Zahlungsbezug einer Anlagenrechnung berücksichtigt nur die gezahlte Vorsteuer", async (kr, mode) => {
+    await reset(kr, mode);
+    await run([entry("anlage", "2026-01-15", documentPosting(totals, "anlage", kr, "einzelunternehmen", "bank"))], kr);
+    expect((await reports.euerForYear(2026)).totalAusgaben).toBe(0);
+    await run([entry("anlage-zahlung", "2026-02-15", documentPaymentPosting(-119000, kr), "anlage")], kr);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.ausgaben.find((l) => l.key === "vorsteuer")?.amount).toBe(19000);
+    expect(euer.totalAusgaben).toBe(19000);
+    expect(euer.gewinn).toBe(-19000);
+  });
+
   it("errät fehlende Zahlungsbezüge alter Pakete nicht und nennt sie im Abgleich", async () => {
     await reset("SKR03", "ist");
     await run([entry("ohne-Bezug", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist"))], "SKR03");

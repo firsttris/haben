@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { externalSettlementProblem, type ExternalSettlementJournal } from "./external-settlements.ts";
-import { documentPaymentPosting, invoicePaymentPosting, invoicePosting, type Kontenrahmen } from "./posting.ts";
+import { documentPaymentPosting, documentPosting, invoicePaymentPosting, invoicePosting, type Kontenrahmen } from "./posting.ts";
 import { totalsFromTaxes } from "./invoice.ts";
 
 const totals = totalsFromTaxes([{ rate: 1900, base: 100000, tax: 19000 }]);
@@ -14,6 +14,25 @@ const payment = (kr: Kontenrahmen, amount = 119000, settles = "AR"): ExternalSet
 
 for (const kr of ["SKR03", "SKR04"] as const)
   describe(`Importierte Zahlungsbezüge ohne Datenbank (${kr})`, () => {
+    it.each([true, false])("nimmt die Zahlung auf eine Anlagenrechnung ohne Erfolgskonto an (Vorsteuerabzug: %s)", (vorsteuerAbzug) => {
+      expect(
+        externalSettlementProblem(kr, [
+          { externalId: "anlage", date: "2026-01-15", lines: documentPosting(totals, "anlage", kr, "einzelunternehmen", "bank", vorsteuerAbzug) },
+          { externalId: "zahlung-anlage", date: "2026-02-15", lines: documentPaymentPosting(-119000, kr), settles: "anlage" },
+        ]),
+      ).toBeNull();
+    });
+
+    it("nimmt die Auszahlung einer Gutschrift mit negativem OP an", () => {
+      const credit = totalsFromTaxes([{ rate: 1900, base: -100000, tax: -19000 }]);
+      expect(
+        externalSettlementProblem(kr, [
+          { externalId: "gutschrift", date: "2026-01-15", lines: invoicePosting(credit, kr, "ist") },
+          { externalId: "auszahlung", date: "2026-02-15", lines: invoicePaymentPosting(credit, -119000, kr, "ist"), settles: "gutschrift" },
+        ]),
+      ).toBeNull();
+    });
+
     it("nimmt Teilzahlungen und die Rückzahlung am selben Tag unabhängig von der Quellkennung an", () => {
       expect(
         externalSettlementProblem(kr, [
