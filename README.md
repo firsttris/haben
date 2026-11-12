@@ -2,7 +2,10 @@
 
 <h1>Haben: Open-Source-Buchhaltung, selbst gehostet</h1>
 
-<img src="docs/banner.png" alt="Haben: Rechnung 2026-031 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung September an ELSTER übermittelt" width="900">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
+  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € festgeschrieben, Zahlungseingang zugeordnet, in der Voranmeldung Oktober mit Kennzahl 81 enthalten und an ELSTER übermittelt" width="900">
+</picture>
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
