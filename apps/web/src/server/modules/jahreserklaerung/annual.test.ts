@@ -341,6 +341,13 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       /schon übermittelt/,
     );
     expect((await annual.annualOverview(2025, TODAY)).ust.sent).not.toBeNull();
+
+    // Ein Vermerk außerhalb von Haben sperrt die Echtübermittlung ebenso: beides zugleich wäre eine doppelte Abgabe
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '')`;
+    await expect(annual.submitAnnual(actor, "euer", 2025, realClient, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(
+      /außerhalb von Haben/,
+    );
     await expect(sql`update annual_submissions set ok = false`).rejects.toThrow();
   });
 

@@ -17,6 +17,7 @@ import { buchungen, type Buchung } from "./euer-journal-buchungen.ts";
  *   Gesetz hinein, nennt die Vorprüfung des Zahlungsjahres sie (vorauszahlungVorjahrHinweis). Ebenso bei einem Vorjahr, das
  *   beim Zuordnen schon abgeschlossen war.
  * - Sonst, wenn das Jahr der Zahlung übermittelt ist: Zuordnungen, die es dabei schon gab, zählen, wie es sie übermittelt hat.
+ * Ein Vermerk einer außerhalb von Haben abgegebenen Anlage EÜR zählt wie eine Übermittlung und hält das Kennzeichen ebenso fest.
  * Erklärungen, die Haben vor dieser Regel übermittelt hat, tragen kein Kennzeichen; sie zählten jede Zahlung am Buchungstag.
  */
 
@@ -58,7 +59,8 @@ async function uebermittlungen(year: number, q: Db | Tx): Promise<Uebermittlung[
   const rows = await q
     .select({ createdAt: s.createdAt, figures: s.figures })
     .from(s)
-    .where(and(eq(s.year, year), inArray(s.form, ["euer", "est"]), eq(s.kind, "send"), eq(s.ok, true)));
+    // Auch eine außerhalb von Haben abgegebene und vermerkte EÜR hält ihr Kennzeichen fest (jahreserklaerung/vermerk.ts)
+    .where(and(eq(s.year, year), inArray(s.form, ["euer", "est"]), inArray(s.kind, ["send", "vermerk"]), eq(s.ok, true)));
   return rows.map((r) => ({ createdAt: r.createdAt, kennzeichen: kennzeichen(r.figures) }));
 }
 

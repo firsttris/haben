@@ -29,6 +29,12 @@ Fristen: ohne Steuerberatung bis 31. Juli des Folgejahres, mit Steuerberatung sp
 
 Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintragen**. „Werte für Mein ELSTER kopieren“ legt die Feldkennungen und Werte der Erklärung in die Zwischenablage, genau die aus dem XML, das Haben senden würde. Die Erweiterung **Haben für Mein ELSTER** trägt sie dann Seite für Seite in das Formular ein; prüfen und absenden machst du dort. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md). Einen XML-Import wie bei der Voranmeldung bietet Mein ELSTER für die Jahreserklärungen nicht; alle Wege: [Abgabe an ELSTER](elster-abgabe.md).
 
+## Abgabe außerhalb von Haben vermerken
+
+Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab, etwa mit WISO, über Accountable oder im ELSTER-Portal, hältst du das je Erklärung in der Karte **Außerhalb von Haben abgegeben** mit **Abgabe vermerken** fest. Der Dialog fragt nach dem Tag der Abgabe laut Übermittlungsprotokoll, dem Transferticket, dem Betrag und einer kurzen Begründung; das Protokoll kannst du als PDF anhängen. Vorgeschlagen ist der aus den Buchungen gerechnete Betrag. Weicht der Betrag laut Protokoll davon ab, nennt Haben die Differenz, und der Vermerk geht erst durch, wenn du die Abweichung ausdrücklich bestätigst. Gespeichert wird der Betrag laut Protokoll.
+
+Mit dem Vermerk gilt die Erklärung als abgegeben, wie nach einer Übermittlung: Die Frist ist erledigt, das Jahr nimmt keine rückdatierten Buchungen mehr an, die Karte zeigt Datum, Ticket und Betrag statt des Knopfs, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
+
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
@@ -90,7 +96,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Darlehen: Zinsen und Gebühren, laufender Betrieb | Übrige Schuldzinsen (Zeile 56, `E6004303`). Die Anlage SZ (nicht abziehbare Schuldzinsen bei Überentnahmen, § 4 Abs. 4a EStG) füllt Haben nicht |
 | Steuerzahlung: Einkommen-, Kirchensteuer, Soli, einbehaltene Kapitalertragsteuer | keine Betriebsausgabe; Entnahme (Privatsteuern), Erstattungen mindern die Entnahmen |
 
-**Vorauszahlung bei gesperrtem Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon übermittelt bzw. das Jahr abgeschlossen, als du die Vorauszahlung für Dezember zugeordnet hast, bleibt das Vorjahr, wie übermittelt (GoBD): Die Zahlung zählt im Jahr der Zahlung, und die Vorprüfung nennt Zeitraum und Betrag als Hinweis, damit du mit der Steuerberatung klärst, ob die Erklärung des Vorjahres zu berichtigen ist. Mit jeder Übermittlung speichert Haben, welche Vorauszahlungen sie in das Vorjahr verschoben bzw. hereingenommen hat; danach richten sich beide Jahre, auch wenn du später die Dauerfristverlängerung änderst. Erklärungen aus älteren Versionen enthalten die Zahlung nicht und sperren das Vorjahr immer; im Jahr der Zahlung zählt sie dort weiter am Buchungstag.
+**Vorauszahlung bei gesperrtem Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon übermittelt (oder die Anlage EÜR als außerhalb abgegeben vermerkt) bzw. das Jahr abgeschlossen, als du die Vorauszahlung für Dezember zugeordnet hast, bleibt das Vorjahr, wie übermittelt (GoBD): Die Zahlung zählt im Jahr der Zahlung, und die Vorprüfung nennt Zeitraum und Betrag als Hinweis, damit du mit der Steuerberatung klärst, ob die Erklärung des Vorjahres zu berichtigen ist. Mit jeder Übermittlung und jedem Vermerk speichert Haben, welche Vorauszahlungen sie in das Vorjahr verschoben bzw. hereingenommen hat; danach richten sich beide Jahre, auch wenn du später die Dauerfristverlängerung änderst. Erklärungen aus älteren Versionen enthalten die Zahlung nicht und sperren das Vorjahr immer; im Jahr der Zahlung zählt sie dort weiter am Buchungstag.
 
 **Entnahmen und Einlagen** kommen aus dem Journal: alles, was auf den Privatkonten gebucht ist (Privatüberweisungen im Bankabgleich, private Steuern vom Geschäftskonto auf Privatsteuern, privat bezahlte Belege, Pauschalen ohne Beleg, Privatanteile, Privatnutzung der Firmenwagen mit Umsatzsteuer).
 
