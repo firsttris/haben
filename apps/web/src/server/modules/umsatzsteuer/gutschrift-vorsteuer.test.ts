@@ -57,8 +57,10 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 2027)`;
   });
 
+  type BelegBetrag = { taxRate: 1900 | 700; net: number; tax: number; originalNet?: number; originalTax?: number };
+
   /** Bucht einen Beleg; negative Beträge sind eine Gutschrift */
-  async function beleg(date: string, amounts: { taxRate: 1900 | 700; net: number; tax: number }[]) {
+  async function beleg(date: string, amounts: BelegBetrag[], extra: { payment?: "bank" | "kasse"; currency?: string; exchangeRate?: string } = {}) {
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ++lauf, 16, 74, 70]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `beleg-${lauf}.jpg` });
     await documents.updateDocument(actor, id, {
@@ -68,8 +70,9 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
       documentDate: date,
       dueDate: null,
       category: "telefon",
-      payment: "bank",
+      payment: extra.payment ?? "bank",
       note: "",
+      ...(extra.currency ? { currency: extra.currency, exchangeRate: extra.exchangeRate } : {}),
       amounts,
     });
     await documents.bookDocument(actor, id);
@@ -146,5 +149,37 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
       [700, -5_000, -350],
     ]);
     expect(maerz66 + april.kz66).toBe(-19_700);
+  }, 60_000);
+
+  it("Bar bezahlte Gutschrift: das Geld ist mit der Buchung zurück, die Vorsteuer zählt im Belegmonat", async () => {
+    // Kasse statt Bank: bar bezahlt gibt es keinen offenen Posten, den eine spätere Erstattung ausgleichen könnte
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }], { payment: "kasse" });
+
+    const februar66 = await figures.computeVatFigures(februar);
+    expect(februar66.kz66).toBe(-7_018);
+    expect(februar66.inputTax.map(({ number: _nummer, ...rest }) => rest)).toEqual([
+      { documentId: gutschrift, date: "2026-02-16", supplier: "Musterlieferant GmbH", rate: 1900, base: -36_938, tax: -7_018 },
+    ]);
+  }, 60_000);
+
+  it("Kursdifferenz auf eine Gutschrift in Fremdwährung: der Rest gleicht aus, die Vorsteuer ist vollständig", async () => {
+    // 100,00 USD + 19,00 USD zu 1,0812: 92,49 € + 17,57 € = 110,06 € brutto
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: 0, tax: 0, originalNet: -10_000, originalTax: -1_900 }], {
+      currency: "USD",
+      exchangeRate: "1,0812",
+    });
+    await bank.importStatement(actor, { bytes: dkbCsv([eingang("15.03.26", "Erstattung Acme", "100,00")]), filename: "kurs.csv" }, null);
+    const [tx] = await sql`select id from bank_transactions where purpose = ${"Erstattung Acme"}`;
+    // 100,00 € erstattet, 10,06 € Kursdifferenz: der offene Posten ist damit ganz ausgeglichen
+    await bank.allocateWithRest(actor, {
+      transactionId: tx!.id as string,
+      target: { kind: "document", documentId: gutschrift },
+      rest: "kursdifferenz",
+    });
+
+    expect((await figures.computeVatFigures(februar)).kz66).toBe(0);
+    const imMaerz = await figures.computeVatFigures(maerz);
+    expect(imMaerz.kz66).toBe(-1_757);
+    expect(imMaerz.inputTax.reduce((summe, zeile) => summe + zeile.tax, 0)).toBe(-1_757);
   }, 60_000);
 });
