@@ -111,7 +111,7 @@ export interface EntryCustomer {
   name: string;
   hourlyRateCents: number | null;
   /** Archiviert oder kein Kunde mehr, aber mit Einträgen: steht in der Liste und im Filter, wird für neue Einträge nicht angeboten */
-  archived: boolean;
+  inactive: boolean;
 }
 
 /** Die Kunden der Seite: alle aktiven und die archivierten oder nicht mehr als Kunde geführten, bei denen noch Einträge liegen; nach Name */
@@ -122,7 +122,7 @@ export async function listEntryCustomers(): Promise<EntryCustomer[]> {
     .from(c)
     .where(or(and(eq(c.isCustomer, true), isNull(c.archivedAt)), sql`${c.id} in (select ${schema.serviceEntries.contactId} from ${schema.serviceEntries})`))
     .orderBy(asc(c.name));
-  return rows.map(({ archivedAt, isCustomer, ...rest }) => ({ ...rest, archived: archivedAt !== null || !isCustomer }));
+  return rows.map(({ archivedAt, isCustomer, ...rest }) => ({ ...rest, inactive: archivedAt !== null || !isCustomer }));
 }
 
 /** Ein Eintrag; null, wenn es ihn nicht gibt */

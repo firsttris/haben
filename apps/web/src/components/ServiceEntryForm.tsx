@@ -80,7 +80,7 @@ export function ServiceEntryForm({
                 Kunde wählen
               </option>
               {customers
-                .filter((c) => !c.archived || c.id === entry?.contactId)
+                .filter((c) => !c.inactive || c.id === entry?.contactId)
                 .map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}

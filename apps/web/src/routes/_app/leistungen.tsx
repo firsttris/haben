@@ -119,7 +119,7 @@ function ServiceEntriesPage() {
                   <option value="">Alle Kunden</option>
                   {customers.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.archived ? `${c.name} (archiviert)` : c.name}
+                      {c.inactive ? `${c.name} (inaktiv)` : c.name}
                     </option>
                   ))}
                 </select>

@@ -143,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungseinträge (Postgres, #417)", () => {
     await entries.createServiceEntry(actor, eintrag({ contactId: archiviert!.id }));
     await sql`update contacts set archived_at = now() where id = ${archiviert!.id}`;
     const kunden = await entries.listEntryCustomers();
-    expect(kunden.map((k) => [k.name, k.archived])).toEqual([
+    expect(kunden.map((k) => [k.name, k.inactive])).toEqual([
       ["Altkunde GmbH", true],
       ["Nordwerk Software GmbH", false],
       ["Rheinpixel GmbH", false],
@@ -159,7 +159,7 @@ describe.skipIf(!testDatabaseUrl)("Leistungseinträge (Postgres, #417)", () => {
     await sql`update contacts set is_customer = false, is_supplier = true where id = ${otherContactId}`;
     const kunden = await entries.listEntryCustomers();
     // Die Zeile in der Liste braucht den Namen; für neue Einträge wird der Kontakt nicht angeboten
-    expect(kunden.find((k) => k.id === otherContactId)).toMatchObject({ name: "Rheinpixel GmbH", archived: true });
+    expect(kunden.find((k) => k.id === otherContactId)).toMatchObject({ name: "Rheinpixel GmbH", inactive: true });
   });
 
   describe("von außen angelegt (Kennung)", () => {
