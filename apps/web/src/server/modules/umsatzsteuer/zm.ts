@@ -248,7 +248,7 @@ export async function zmQuartale(q: Db | Tx = db): Promise<(VatPeriod & { sent: 
   const quarter = (date: string) => ({ year: Number(date.slice(0, 4)), month: 40 + Math.ceil(Number(date.slice(5, 7)) / 3) });
   const [issued, writeOffs, sent] = await Promise.all([
     q
-      .selectDistinct({ date: schema.invoices.issueDate })
+      .selectDistinct({ date: schema.invoices.issueDate, serviceFrom: schema.invoices.serviceFrom, serviceTo: schema.invoices.serviceTo })
       .from(schema.invoices)
       .where(and(rc, eq(schema.invoices.status, "final"))),
     q
@@ -262,7 +262,11 @@ export async function zmQuartale(q: Db | Tx = db): Promise<(VatPeriod & { sent: 
       .where(and(eq(schema.zmSubmissions.kind, "send"), eq(schema.zmSubmissions.ok, true))),
   ]);
   const quartale = new Map<string, VatPeriod & { sent: boolean }>();
-  for (const { date } of [...issued, ...writeOffs]) if (date) quartale.set(periodKey(quarter(date)), { ...quarter(date), sent: false });
+  // Neue EU-Teilleistungen können nach § 18b Satz 3 UStG vor dem Rechnungsquartal liegen. Die Quellenprüfung unten
+  // entscheidet, welches Kandidatenquartal tatsächlich meldepflichtige Umsätze enthält, auch bei Bestandsbelegen.
+  for (const date of [...issued.flatMap((i) => [i.date, i.serviceFrom, i.serviceTo]), ...writeOffs.map((r) => r.date)]) {
+    if (date) quartale.set(periodKey(quarter(date)), { ...quarter(date), sent: false });
+  }
   // Heben sich die Umsätze eines Quartals auf, ist keine Meldung abzugeben (keine Nullmeldung, § 18a Abs. 1 UStG)
   for (const [k, quartal] of quartale) if (zmZeilen(await zmQuellen(quartal, q)).length === 0) quartale.delete(k);
   for (const s of sent) quartale.set(periodKey(s), { ...s, sent: true });
