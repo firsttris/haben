@@ -18,7 +18,7 @@ Haben speichert nur Name, Adresse und wie sich die Seite öffnet. Was die Seite 
 3. Unter **Öffnen** wählen, wie der Menüeintrag die Seite zeigt:
    - **In Haben, neben dem Menü**: im Rahmen, ohne Haben zu verlassen. Die Seite muss das Einbetten erlauben (siehe unten).
    - **In neuem Tab**: als eigener Tab des Browsers, ohne Rahmen. Das geht mit jeder Seite, auch mit solchen, die das Einbetten verbieten, etwa [Paperless-ngx](https://docs.paperless-ngx.com).
-4. **Seite hinzufügen.** Die Seite steht jetzt im Menü unter **Eigene Seiten**.
+4. **Seite hinzufügen.** Die Seite steht jetzt im Menü unter **Eigene Seiten**. Das Symbol davor zeigt, wie sie sich öffnet: ein Fenster mit Seitenleiste für **In Haben**, ein Pfeil aus dem Kasten für **In neuem Tab**.
 
 Ist **In Haben** gewählt, ruft Haben die Adresse nach der Eingabe einmal auf und prüft, ob die Seite das Einbetten verbietet. Dann erscheint ein Hinweis mit dem Header, der es verbietet, und dem Rat, **In neuem Tab** zu wählen. Der Hinweis hält nichts auf: Haben sieht die Seite vom Server aus, nicht aus deinem Browser. Erreicht der Server sie nicht, etwa weil sie nur in deinem Netz läuft oder ein Proxy davor erst die Anmeldung zeigt, sagt Haben das, und du siehst nach dem Speichern im Menü, ob sie erscheint.
 

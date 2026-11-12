@@ -259,7 +259,7 @@ function AppLayout() {
                   </a>
                 ) : (
                   <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
-                    <Icon name="external" />
+                    <Icon name="embed" />
                     {seite.name}
                   </Link>
                 ),

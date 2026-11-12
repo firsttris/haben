@@ -53,6 +53,8 @@ Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
 
 Oben in der Navigation steht die Marke: das „H“ und „Haben“ (18px, halbfett); beides bleibt immer gleich. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
 
+Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
+
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
