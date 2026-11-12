@@ -36,7 +36,10 @@ function collect(value: unknown, into: Record<Kontenrahmen, Set<string>>, only?:
     if (!/^\d{4}$/.test(nummer)) return;
     for (const kr of only ? [only] : (["SKR03", "SKR04"] as const)) into[kr].add(nummer);
   };
-  if (typeof value === "string") return add(value);
+  if (typeof value === "string") {
+    add(value);
+    return;
+  }
   if (value === null || typeof value !== "object") return;
   for (const [key, inner] of Object.entries(value)) {
     add(key);
@@ -75,7 +78,8 @@ export function reservedAccountNumbers(kontenrahmen: Kontenrahmen): ReadonlySet<
   ]) {
     collect(quelle, into);
   }
-  return (reservedCache[kontenrahmen] = into[kontenrahmen]);
+  reservedCache[kontenrahmen] = into[kontenrahmen];
+  return into[kontenrahmen];
 }
 
 export interface OwnAccountInput {

@@ -101,7 +101,8 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
       .where(and(eq(schema.ownAccounts.kontenrahmen, kontenrahmen), eq(schema.ownAccounts.account, input.account)));
     if (vorhanden) throw new OwnAccountError(`Das Konto ${input.account} gibt es schon.`);
     // Eine Nummer, die das Journal schon kennt, bedeutete für alte Buchungen plötzlich etwas anderes
-    if (await imJournalGebucht(tx, kontenrahmen, input.account)) throw new OwnAccountError(`Auf ${input.account} ist im Journal schon gebucht; bitte eine freie Nummer nehmen.`);
+    if (await imJournalGebucht(tx, kontenrahmen, input.account))
+      throw new OwnAccountError(`Auf ${input.account} ist im Journal schon gebucht; bitte eine freie Nummer nehmen.`);
     const [created] = await tx
       .insert(schema.ownAccounts)
       .values({ kontenrahmen, account: input.account, name, parentCategory: input.parentCategory, createdBy: actor })
@@ -114,7 +115,8 @@ export async function createOwnAccount(actor: string, input: OwnAccountInput): P
 
 export async function renameOwnAccount(actor: string, id: string, name: string): Promise<void> {
   const clean = name.trim();
-  if (clean === "" || Array.from(clean).length > OWN_ACCOUNT_NAME_MAX) throw new OwnAccountError(`Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`);
+  if (clean === "" || Array.from(clean).length > OWN_ACCOUNT_NAME_MAX)
+    throw new OwnAccountError(`Der Name fehlt oder ist länger als ${OWN_ACCOUNT_NAME_MAX} Zeichen.`);
   await withActor(actor, async (tx) => {
     const [konto] = await tx.select({ id: schema.ownAccounts.id }).from(schema.ownAccounts).where(eq(schema.ownAccounts.id, id)).for("update");
     if (!konto) throw new OwnAccountError("Konto nicht gefunden.");
