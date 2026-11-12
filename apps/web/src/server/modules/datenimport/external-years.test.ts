@@ -220,4 +220,27 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     expect(income(await reports.euerForYear(2026))).toBe(100000);
     expect((await vat.computeVatFigures({ year: 2026, month: 2 })).kz81).toBe(100000);
   });
+
+  it("pflegt Zahlungsbezüge alter Importe idempotent nach, ohne Originale oder Kassenbewegungen neu zu buchen", async () => {
+    await reset("SKR03", "ist");
+    await run([
+      entry("AR-alt", "2026-01-15", invoicePosting(totals, "SKR03", "ist")),
+      entry("zahlung-alt", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist")),
+    ], "SKR03");
+    const before = await sql`select id,payload_hash,payload from external_imports order by id`;
+    expect(income(await reports.euerForYear(2026))).toBe(0);
+    const patch = { version: 2 as const, source: "pruefung-634", kontenrahmen: "SKR03" as const, entries: [],
+      settlements: [{ paymentExternalId: "zahlung-alt", originalExternalId: "AR-alt" }] };
+    const apply = () => imports.runExternalImport(actor, patch, async () => new Uint8Array());
+    expect((await apply()).created).toBe(0);
+    expect((await apply()).created).toBe(0);
+    expect(income(await reports.euerForYear(2026))).toBe(100000);
+    expect(await sql`select id,payload_hash,payload from external_imports order by id`).toEqual(before);
+    expect(await sql`select id from journal_entries`).toHaveLength(2);
+    expect(await sql`select id from external_import_settlements`).toHaveLength(1);
+    expect(await sql`select actor from audit_log where table_name='external_import_settlements'`).toEqual([{ actor }]);
+    await expect(sql`update external_import_settlements set original_import_id=payment_import_id`).rejects.toThrow(/nur ergänzt/);
+    await expect(sql`delete from external_import_settlements`).rejects.toThrow(/nur ergänzt/);
+    await expect(sql`truncate external_import_settlements`).rejects.toThrow(/TRUNCATE/);
+  });
 });
