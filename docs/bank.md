@@ -141,6 +141,10 @@ Importe, Umsätze, Zuordnungen und [Verrechnungen](#gegenläufige-umsätze-verre
 
 Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** (auch verrechnete Umsätze) schränken die Liste ein, das Suchfeld durchsucht Gegenpartei, Verwendungszweck und Betrag. Angezeigt werden höchstens 500 Umsätze.
 
+Die Spaltenköpfe Datum, Gegenpartei · Verwendungszweck, Betrag und Status sortieren die Liste. Der erste Klick sortiert absteigend, ein zweiter Klick auf denselben Kopf dreht die Richtung; der aktive Kopf zeigt einen Pfeil. Ohne Auswahl steht der neueste Umsatz oben. Am Handy sind Datum und Status ausgeblendet, dort sortieren Gegenpartei und Betrag.
+
+Nach Datum, Gegenpartei und Betrag sortiert Haben alle Umsätze des Kontos, die zu Filter und Suche passen, und zeigt davon die ersten 500: „Betrag absteigend“ zeigt also die größten Beträge, auch wenn sie Jahre zurückliegen. Umsätze ohne Gegenpartei stehen beim Sortieren nach Gegenpartei unten. Den Status bestimmt Haben erst beim Anzeigen; nach Status sortiert es deshalb die neuesten 500 Umsätze. Absteigend steht oben, was zu tun ist, in der Reihenfolge „Beleg fehlt“, „Vorschlag“, „Offen“, „Teilweise“, „Zugeordnet“, zuletzt „Verrechnet“.
+
 | Hinweis | Bedeutung |
 | --- | --- |
 | Vorschlag | Es gibt einen passenden offenen Posten. |
@@ -587,6 +591,10 @@ Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die 
 Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung und Betrag. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), ebenfalls mit dem Buchungsdatum des Umsatzes. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
 
 Eine Zuordnung lässt sich nur einmal aufheben.
+
+Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
+
+Die Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen stehen auch dabei am ursprünglichen Buchungsdatum. Die neu berechneten Steuerwerte eines früheren Zeitraums können sich deshalb ändern; eine gespeicherte, bereits gesendete Voranmeldung bleibt unverändert. Prüfe dann, ob du eine [berichtigte Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) abgeben musst. Die Gegenbuchung des Belegs erhält unabhängig davon ihr eigenes, im Stornodialog genanntes Datum.
 
 ## Gegenläufige Umsätze verrechnen
 

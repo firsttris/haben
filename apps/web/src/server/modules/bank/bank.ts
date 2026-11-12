@@ -69,6 +69,7 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
 export class BankError extends UserError {}
 
@@ -348,7 +349,8 @@ const openAmountSql = bankOpenAmountSql;
 
 export type TransactionFilter = "offen" | "zugeordnet" | "alle";
 
-export async function listTransactions(accountId: string, filter: TransactionFilter, search: string) {
+/** Höchstens 500 Umsätze, sortiert vor der Grenze (umsatzliste.ts); ohne Sortierung der neueste oben */
+export async function listTransactions(accountId: string, filter: TransactionFilter, search: string, sortierung: UmsatzSortierung = STANDARD_SORTIERUNG) {
   const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
@@ -377,7 +379,7 @@ export async function listTransactions(accountId: string, filter: TransactionFil
     })
     .from(schema.bankTransactions)
     .where(and(...conditions))
-    .orderBy(desc(schema.bankTransactions.bookingDate), desc(schema.bankTransactions.createdAt))
+    .orderBy(...umsatzReihenfolge(sortierung))
     .limit(500);
 }
 
@@ -1256,40 +1258,43 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
 
 /** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen. */
 export async function reverseAllocation(actor: string, allocationId: string): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
-    if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
-    const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
-    if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
-    // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
-    const parts = allocation.splitId
-      ? await tx
-          .select()
-          .from(schema.allocations)
-          .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
-          .orderBy(asc(schema.allocations.createdAt))
-          .for("update")
-      : [allocation];
-    await darlehenAufhebenPruefen(tx, parts);
-    for (const part of parts) await reverseOne(tx, part);
-    // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
-    const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
-    if (targets.length > 0) {
-      const linked = await tx
+  await withActor(actor, (tx) => reverseAllocationIn(tx, allocationId));
+}
+
+/** Wie reverseAllocation, innerhalb der withActor-Transaktion des Aufrufers (z. B. gemeinsamer Belegstorno). */
+export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise<void> {
+  const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
+  if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
+  const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
+  if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
+  // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
+  const parts = allocation.splitId
+    ? await tx
         .select()
-        .from(schema.writeOffs)
-        .where(
-          and(
-            eq(schema.writeOffs.transactionId, allocation.transactionId),
-            isNull(schema.writeOffs.reversesId),
-            or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
-          ),
-        )
-        .for("update");
-      for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
-    }
-    await assertNoReturnWithoutPayment(tx, parts);
-  });
+        .from(schema.allocations)
+        .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
+        .orderBy(asc(schema.allocations.createdAt))
+        .for("update")
+    : [allocation];
+  await darlehenAufhebenPruefen(tx, parts);
+  for (const part of parts) await reverseOne(tx, part);
+  // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
+  const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
+  if (targets.length > 0) {
+    const linked = await tx
+      .select()
+      .from(schema.writeOffs)
+      .where(
+        and(
+          eq(schema.writeOffs.transactionId, allocation.transactionId),
+          isNull(schema.writeOffs.reversesId),
+          or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
+        ),
+      )
+      .for("update");
+    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
+  }
+  await assertNoReturnWithoutPayment(tx, parts);
 }
 
 /**
