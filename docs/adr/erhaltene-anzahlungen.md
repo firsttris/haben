@@ -57,8 +57,10 @@ die bilanzielle Trennung zwischen Anzahlung und Erlös bleibt erforderlich.
    noch keine bilanzierten Forderungen? Der Abgleich muss diese Unterscheidung ausdrücklich berücksichtigen.
 2. **Konten und Auswertungen:** Die konkreten SKR03-/SKR04-Konten, ihre Steuerautomatik und Zuordnung zu Bilanz und
    E-Bilanz sind anhand der aktuellen DATEV-Primärquellen zu belegen. Ein Rücklesetest gleicher DATEV-Salden allein
-   bestätigt die fachliche Kontierung nicht. Dazu gehört das Ausweiswahlrecht: unter den Verbindlichkeiten oder offen
-   von den Vorräten abgesetzt ([§ 268 Abs. 5 Satz 2 HGB](https://www.gesetze-im-internet.de/hgb/__268.html)).
+   bestätigt die fachliche Kontierung nicht. Dazu gehört das Ausweiswahlrecht: unter den Verbindlichkeiten oder, soweit
+   es Anzahlungen auf Vorräte sind, offen vom Posten „Vorräte“ abgesetzt
+   ([§ 268 Abs. 5 Satz 2 HGB](https://www.gesetze-im-internet.de/hgb/__268.html)). Ohne Vorräte, etwa bei reinen
+   Dienstleistungen, bleibt nur der Ausweis unter den Verbindlichkeiten.
    Infrage kommen nach den DATEV-Kontenrahmen 2026 (SKR03 Art.-Nr. 11174, S. 10; SKR04 Art.-Nr. 11175, S. 3 und 11):
 
    | Konto | SKR03 | SKR04 |
