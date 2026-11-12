@@ -26,6 +26,15 @@ describe("Hinweis-Header", () => {
     expect(decodeURIComponent(header).endsWith("…")).toBe(true);
   });
 
+  // TDD-Review Runde 2: In Schritten von UTF-16-Einheiten gekürzt, teilte der Schnitt ein Surrogatpaar (Emoji, seltene
+  // CJK-Zeichen); encodeURIComponent warf URIError und /api/datev/$jahr antwortete mit 500 statt der Datei
+  it("kürzt eine lange Zeile, ohne ein Surrogatpaar zu teilen", () => {
+    const lang = `${"„R🧾1“, ".repeat(300)}stehen im Belegfeld 1 als „R1“; DATEV kann ihre offenen Posten verwechseln.`;
+    const header = hinweisHeader([lang, "zweite Zeile"]);
+    expect(header.length).toBeLessThanOrEqual(HINWEIS_HEADER_MAX_BYTES);
+    expect(decodeURIComponent(header)).toMatch(/…\nUnd 1 weitere\.$/);
+  });
+
   it("lässt wenige Zeilen unverändert", () => {
     expect(decodeURIComponent(hinweisHeader([zeile(1), zeile(2)]))).toBe(`${zeile(1)}\n${zeile(2)}`);
   });
