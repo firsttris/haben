@@ -138,12 +138,42 @@ export async function setOwnAccountArchived(actor: string, id: string, archived:
   });
 }
 
+/** Nummer je ID aller eigenen Konten, auch archivierter: Belege und Zeilen zeigen über die ID darauf */
+export async function loadOwnAccountNumbers(q: Db | Tx = db): Promise<Map<string, string>> {
+  const rows = await q.select({ id: schema.ownAccounts.id, account: schema.ownAccounts.account }).from(schema.ownAccounts);
+  return new Map(rows.map((r) => [r.id, r.account]));
+}
+
+/**
+ * Warum ein eigenes Konto an einem Beleg oder an einer Zeile der Aufteilung mit dieser Kategorie nicht gewählt werden darf;
+ * null, wenn es geht. Es muss zum Kontenrahmen der Firma gehören und die Kategorie als Elternkategorie haben; ein archiviertes
+ * nehmen nur Belege, die es schon haben (`current`).
+ */
+export async function ownAccountAssignmentProblem(
+  q: Db | Tx,
+  ownAccountId: string | null,
+  category: string | null,
+  current: string | null = null,
+): Promise<string | null> {
+  if (ownAccountId === null) return null;
+  const [konto] = await q.select().from(schema.ownAccounts).where(eq(schema.ownAccounts.id, ownAccountId));
+  if (!konto) return "Konto nicht gefunden.";
+  if (category === null) return "Ein eigenes Konto braucht eine Kategorie.";
+  if ((await loadCompany(q)).kontenrahmen !== konto.kontenrahmen) return "Das eigene Konto gehört zu einem anderen Kontenrahmen als dem der Firma.";
+  if (konto.parentCategory !== category) return "Die Elternkategorie des eigenen Kontos passt nicht zur Kategorie.";
+  if (konto.archivedAt !== null && ownAccountId !== current) return "Das eigene Konto ist archiviert.";
+  return null;
+}
+
 /** Löscht ein Konto, auf das noch nichts zeigt (nach einem Vertippen) */
 export async function deleteOwnAccount(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {
     const [konto] = await tx.select().from(schema.ownAccounts).where(eq(schema.ownAccounts.id, id)).for("update");
     if (!konto) throw new OwnAccountError("Konto nicht gefunden.");
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`own_accounts:${konto.kontenrahmen}:${konto.account}`}))`);
+    const [beleg] = await tx.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.ownAccountId, id)).limit(1);
+    const [zeile] = await tx.select({ id: schema.documentSplits.id }).from(schema.documentSplits).where(eq(schema.documentSplits.ownAccountId, id)).limit(1);
+    if (beleg || zeile) throw new OwnAccountError(`Das Konto ${konto.account} wird in Belegen verwendet; es lässt sich nur archivieren.`);
     if (await imJournalGebucht(tx, konto.kontenrahmen, konto.account)) {
       throw new OwnAccountError(`Auf ${konto.account} ist im Journal schon gebucht; das Konto lässt sich nur archivieren.`);
     }

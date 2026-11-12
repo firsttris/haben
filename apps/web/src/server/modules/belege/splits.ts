@@ -14,6 +14,8 @@ export type DocumentSplit = typeof schema.documentSplits.$inferSelect;
 
 export const splitInputSchema = z.object({
   category: z.enum(EXPENSE_CATEGORY_KEYS),
+  /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie */
+  ownAccountId: z.uuid().nullable().default(null),
   taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
   net: z.number().int().min(-100_000_000_00).max(100_000_000_00),
 });
@@ -23,9 +25,18 @@ const MAX_SPLIT_CENTS = 2_147_483_647;
 
 export type SplitInput = z.output<typeof splitInputSchema>;
 
-/** Zeilen als Kontierungszeilen für Buchung, EÜR und Prüfung */
-export function splitLines(splits: Pick<DocumentSplit, "category" | "taxRate" | "net" | "tax">[]): AllocatedSplitLine[] {
-  return splits.map(({ category, taxRate, net, tax }) => ({ category: category as ExpenseCategory, taxRate, net, tax }));
+/**
+ * Zeilen als Kontierungszeilen für Buchung, EÜR und Prüfung. Mit `eigene` (ID → Nummer, loadOwnAccountNumbers) bucht eine
+ * Zeile auf ihr eigenes Sachkonto (#270); ohne gilt das Konto der Kategorie.
+ */
+export function splitLines(
+  splits: (Pick<DocumentSplit, "category" | "taxRate" | "net" | "tax"> & { ownAccountId?: string | null })[],
+  eigene: ReadonlyMap<string, string> = new Map(),
+): AllocatedSplitLine[] {
+  return splits.map(({ category, taxRate, net, tax, ownAccountId }) => {
+    const account = ownAccountId ? eigene.get(ownAccountId) : undefined;
+    return { category: category as ExpenseCategory, ...(account ? { account } : {}), taxRate, net, tax };
+  });
 }
 
 /** Ersetzt die Zeilen eines offenen Belegs; die Vorsteuer je Zeile kommt aus den Euro-Beträgen des Belegs je Satz */
@@ -37,7 +48,7 @@ export async function replaceSplits(tx: Tx, documentId: string, splits: SplitInp
   if (allocated.some((line) => Math.abs(line.net) > MAX_SPLIT_CENTS || Math.abs(line.tax) > MAX_SPLIT_CENTS)) {
     throw new UserError("Ein Betrag der Aufteilung ist zu groß. Stimmen die Nettobeträge der Zeilen?");
   }
-  await tx.insert(schema.documentSplits).values(allocated.map((line, i) => ({ documentId, position: i + 1, ...line })));
+  await tx.insert(schema.documentSplits).values(allocated.map((line, i) => ({ documentId, position: i + 1, ...line, ownAccountId: splits[i]!.ownAccountId })));
 }
 
 export async function loadSplits(documentId: string, q: Db | Tx = db): Promise<DocumentSplit[]> {

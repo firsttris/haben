@@ -1844,6 +1844,8 @@ export const documents = pgTable(
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
     category: text("category"),
+    /** Eigenes Sachkonto (#270) der Kategorie; `category` bleibt die Elternkategorie, auf die Steuer und EÜR rechnen */
+    ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
     payment: text("payment", { enum: ["bank", "privat", "kasse"] })
       .notNull()
       .default("bank"),
@@ -1969,6 +1971,8 @@ export const documentSplits = pgTable(
     /** Reihenfolge wie eingegeben, ab 1 */
     position: smallint("position").notNull(),
     category: text("category").notNull(),
+    /** Eigenes Sachkonto (#270) der Kategorie der Zeile */
+    ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
     taxRate: smallint("tax_rate").notNull(),
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),

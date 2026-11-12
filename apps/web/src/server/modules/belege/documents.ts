@@ -31,6 +31,7 @@ import {
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
+import { loadOwnAccountNumbers, ownAccountAssignmentProblem } from "../eigene-konten/index.ts";
 import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
@@ -66,6 +67,8 @@ export const documentInputSchema = z.object({
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
+  /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie. Mit Aufteilung stehen die Konten in den Zeilen */
+  ownAccountId: z.uuid().nullable().default(null),
   payment: z.enum(["bank", "privat", "kasse"]),
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
@@ -482,6 +485,25 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
       const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
       if (problem) throw new DocumentError(problem);
     }
+    // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
+    const mitAufteilung = parsed.splits.length > 0;
+    const belegProblem = await ownAccountAssignmentProblem(
+      tx,
+      mitAufteilung ? null : parsed.ownAccountId,
+      mitAufteilung ? null : parsed.category,
+      previous.ownAccountId,
+    );
+    if (belegProblem) throw new DocumentError(belegProblem);
+    const bisher = new Set((await loadSplits(id, tx)).flatMap((s) => (s.ownAccountId ? [s.ownAccountId] : [])));
+    for (const zeile of parsed.splits) {
+      const problem = await ownAccountAssignmentProblem(
+        tx,
+        zeile.ownAccountId,
+        zeile.category,
+        zeile.ownAccountId && bisher.has(zeile.ownAccountId) ? zeile.ownAccountId : null,
+      );
+      if (problem) throw new DocumentError(problem);
+    }
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
@@ -492,12 +514,14 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     await replaceSplits(tx, id, parsed.splits, amounts);
     const { amounts: _amounts, splits, asset, ...fields } = parsed;
     const category = splits.length > 0 ? null : fields.category;
+    const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
     await tx
       .update(schema.documents)
       .set({
         ...fields,
         ...rate,
         category,
+        ownAccountId,
         asset: category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
         ...totalsOf(amounts, fields.reverseCharge),
@@ -689,7 +713,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
   }
   const asset = doc.category === "anlage" ? doc.asset : null;
-  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug);
+  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug, await loadOwnAccountNumbers(tx));
   const now = new Date();
   const entryId = await post(tx, company, {
     date: doc.documentDate!,
