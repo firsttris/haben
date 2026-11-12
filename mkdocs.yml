@@ -113,10 +113,6 @@ extra_css:
   - assets/stylesheets/extra.css
   - assets/stylesheets/startseite.css
 
-# Schieberegler hell/dunkel auf der Startseite (index.md)
-extra_javascript:
-  - assets/javascripts/vergleich.js
-
 plugins:
   # Zensical setzt viele MkDocs-Plugins selbst um, git-revision-date-localized (Änderungsdatum
   # unter der Seite) noch nicht: dort „Planned“, nicht gelistete Plugins ignoriert es stillschweigend
