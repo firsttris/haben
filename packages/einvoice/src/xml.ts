@@ -285,6 +285,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   }
 
   // Fester Aufbewahrungshinweis (§ 14 Abs. 4 Nr. 9 UStG) zusätzlich zu den Nutzereingaben als BT-22.
+  // KoSIT XRechnung 3.0.2, Abschnitt 11.17 (BT-22), nennt diesen Hinweis ausdrücklich:
+  // https://xeinkauf.de/app/uploads/2024/07/XRechnung-v3.0.2.pdf#page=61
   const notes = [doc.intro, doc.propertyRetention ? texts(doc.language).propertyRetention : null, doc.note]
     .map((n) => plainFormattedText(n?.trim() ?? ""))
     .filter(Boolean);
