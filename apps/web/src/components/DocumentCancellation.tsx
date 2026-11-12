@@ -92,7 +92,7 @@ function cancellationNotice(date: string | null, today: string): string {
   if (date && date < today) {
     return `Haben bucht den Beleg zum ${formatDate(date)} zurück, im Zeitraum der Belegbuchung: Für ihn ist noch keine Voranmeldung abgegeben. Der Beleg bleibt festgeschrieben.`;
   }
-  return `Haben bucht den Beleg zum ${formatDate(date ?? today)} zurück; der Beleg bleibt festgeschrieben. Eine abgegebene Voranmeldung bleibt unberührt, die Korrektur steht im laufenden Zeitraum.`;
+  return `Haben bucht den Beleg zum ${formatDate(date ?? today)} zurück; der Beleg bleibt festgeschrieben. Die Gegenbuchung des Belegs steht im laufenden Zeitraum.`;
 }
 
 function CancelForm({
@@ -151,6 +151,12 @@ function CancelForm({
           </p>
         )}
         <p>{cancellationNotice(date, today)}</p>
+        {allocations.length > 0 && (
+          <p>
+            Die Bankgegenbuchungen einschließlich Skonto werden zum ursprünglichen Buchungsdatum erfasst. Dadurch können sich die neu berechneten Werte früherer
+            Zeiträume ändern. Gespeicherte Voranmeldungen bleiben unverändert; prüfe, ob du eine berichtigte Anmeldung abgeben musst.
+          </p>
+        )}
         <Field label="Grund (optional)">
           {(control) => (
             <input {...control} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="z. B. Brutto als Netto erfasst" />
