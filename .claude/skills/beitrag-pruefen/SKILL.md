@@ -74,8 +74,9 @@ Je Punkt ein Ergebnis mit Stelle im Diff:
 - **Nichts auf Vorrat:** keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, kein Schalter für einen Fall, den es nicht gibt, keine generische Schicht „für später“.
 - **Lesbar:** Versteht jemand ohne den Verlauf des Autors den Code in einem Durchgang? Ein Umweg, den nur ein Kommentar erklärt, deutet auf einen einfacheren Weg.
 - **Am richtigen Ort:** richtiges Modul, Fachlogik in `packages/core`, keine Umgehung von `index.ts`.
+- **Eine Stelle:** Muss ein künftiger Weg (Zahlungsweg, Speicherweg, neue Spalte) etwas von Hand mitziehen, damit Buchung, Steuer oder Status stimmen? Etwa derselbe Aufruf in jedem Zahlungsweg oder eine Liste von Feldern, die bei jeder neuen Spalte zu ergänzen ist. Dann gehört die Regel an die Stelle, durch die alle Wege laufen. Diese Frage stellen die Punkte darüber nicht: Jeder einzelne Aufruf ist nötig und lesbar.
 
-Overengineering ist ein Befund, wenn sich die einfachere Lösung konkret benennen lässt; „könnte schlanker sein“ allein nicht.
+Overengineering ist ein Befund, wenn sich die einfachere Lösung konkret benennen lässt; „könnte schlanker sein“ allein nicht. Eine fehlende gemeinsame Stelle ist ein Befund, wenn sich die Stelle benennen lässt und die wiederholten Stellen im Diff belegt sind.
 
 ## 4. Regeln
 
