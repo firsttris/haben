@@ -26,7 +26,8 @@ Die Planung von Haben steht im [Project „Roadmap“](https://github.com/users/
 - **Reihenfolge in „Geplant“:** zuerst Fehler bei Steuer und Buchung, dann kleine Wünsche aus dem Alltag, dann was Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt (`docs/roadmap.md`).
 - **Eine Karte je Thema.** Gehören mehrere Issues zu einem Thema, stehen sie als eigene Karten direkt untereinander; Hinweis nur auf der ersten. Ein Thema ohne Issue ist ein Entwurf (Draft Item).
 - **Nicht ins Board:** Fragen, Sammel-Issues, Interna (Renovate, CI), Themen unter „Bewusst nicht“.
-- **`einstieg`:** Label für kleine, abgegrenzte Issues ohne Steuer- oder GoBD-Feinheiten, die niemand übernommen hat.
+- **`einstieg`:** Label für kleine, abgegrenzte Issues ohne Steuer- oder GoBD-Feinheiten, die niemand übernommen hat. Auch größere Issues, die sich in kleine Pull Requests teilen lassen und deren Ergebnis Tests absichern (etwa Aufräumen ohne Verhaltensänderung).
+- **Labels:** Jedes offene Issue hat einen Typ (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`, `technik`, `doku`); die Formulare setzen ihn selbst, Issues per `gh issue create` oder von Agenten oft nicht. Dazu passt, wo es zutrifft, ein Themen-Label (`buchung`, `oberfläche`, `schnittstelle`, `jahreswerte`). Was jedes Label bedeutet, zeigt `gh label list --repo firsttris/haben`.
 
 ## Ablauf
 
@@ -39,6 +40,7 @@ gh issue list --repo firsttris/haben --state open --limit 300 --json number,titl
 
 Daraus ermitteln:
 - offene Issues ohne Karte (weiter mit Schritt 2);
+- offene Issues ohne Typ-Label (`jq '.[]|select([.labels[].name]|any(. as $l|["fehler","wunsch","steuer","umzug","frage","technik","doku"]|index($l))|not)' issues.json`), auch solche, die schon eine Karte haben;
 - **offene Gespräche:** offene Issues, deren letzter Kommentar nicht vom Maintainer und nicht von einem Bot stammt (`jq '.[]|select((.comments|length)>0 and (.comments|last|.author.login)!="firsttris")' issues.json`). Jedes lesen und einordnen: **Übernahme** (jemand will die Karte bauen und ist nicht zugewiesen; meist hat der Workflow „Übernehmen“ dann mit Begründung abgelehnt, oder die Person hat ohne `/übernehmen` geschrieben: dann auf den Befehl hinweisen oder nach OK von Hand zuweisen), **Frage an den Maintainer**, **neue Angaben** (Anwendungsfall, Beispieldatei, Rückmeldung zu einem Release) oder **keine Antwort nötig** (Dank, Notiz eines Collaborators, Verweis auf ein anderes Issue);
 - Karten in „In Arbeit“ ohne offenen PR und ohne Kommentar seit 14 Tagen (`gh issue view <n> --json comments,updatedAt`, `gh pr list --search "<n> in:body"`);
 - geschlossene Issues, deren Karte nicht in „Erledigt“ steht;
@@ -55,13 +57,13 @@ Jedes offene Issue ohne Karte lesen, mit Kommentaren (`gh issue view <n> --json 
 | **Duplikat** | Thema steht schon in einem Issue oder Entwurf | Nummer bzw. Titel des Entwurfs; Neues aus diesem Issue nennen, damit es nicht verloren geht |
 | **Nicht ins Board** | Unter „Bewusst nicht“, Frage, Sammel-Issue, Interna | Zeile in „Bewusst nicht“ oder die Art des Issues |
 | **Rückfrage** | Angaben reichen nicht für Aufwand und Akzeptanzkriterien: kein Beispiel, kein Ablauf, unklar, was „fertig“ ist | Die eine oder zwei Fragen, die fehlen |
-| **Aufnehmen** | Alles andere | Spalte, Position, Aufwand, Bereich, Hinweis, `einstieg` |
+| **Aufnehmen** | Alles andere | Spalte, Position, Aufwand, Bereich, Hinweis, Labels, `einstieg` |
 
 Bei `steuer`-Issues und Fehlern bei Buchung oder Steuer die fachliche Aussage an der Primärquelle prüfen, die das Issue nennt. Stimmt sie nicht oder ist sie unsicher, ist das eine Rückfrage, keine Karte.
 
 ### 3. Vorschlagen
 
-Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1. Die offenen Gespräche kommen als eigene Tabelle mit Antwortentwurf; **Übernahmen stehen ganz oben**, weil die Person laut „Etwas übernehmen“ auf die Zuweisung wartet. Dazu je Übernahme: bisherige PRs der Person (`gh pr list --state all --author <login>`), wie viele Karten sie schon hat, offene Fragen in ihrer Skizze. Was nur der Maintainer entscheiden kann (Registrierungen, Verträge, Rechtsfragen, Reihenfolge), steht als Frage an ihn in der Tabelle, nicht als Antwortentwurf. Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
+Eine Tabelle an den Maintainer, je Zeile: Issue, Titel, Ergebnis aus Schritt 2, bei „Aufnehmen“ Spalte, Position „nach #…“, Aufwand, Bereich, Hinweis, Labels (Typ und Thema), `einstieg` ja/nein, dazu ein Satz Begründung und ob ein Kommentar kommt (Schritt 5). Eigene Abschnitte für die übrigen Funde aus Schritt 1, darunter eine Tabelle „Labels ergänzen“ (Issue, Vorschlag) für Issues ohne Typ-Label. Die offenen Gespräche kommen als eigene Tabelle mit Antwortentwurf; **Übernahmen stehen ganz oben**, weil die Person laut „Etwas übernehmen“ auf die Zuweisung wartet. Dazu je Übernahme: bisherige PRs der Person (`gh pr list --state all --author <login>`), wie viele Karten sie schon hat, offene Fragen in ihrer Skizze. Was nur der Maintainer entscheiden kann (Registrierungen, Verträge, Rechtsfragen, Reihenfolge), steht als Frage an ihn in der Tabelle, nicht als Antwortentwurf. Die Rangfolge in „Geplant“ entscheidet der Maintainer. Erledigtes ohne `Umgesetzt` schließt der Maintainer von Hand mit Hinweis auf das Release.
 
 ### 4. Umsetzen, nach OK
 
@@ -78,7 +80,7 @@ gh project field-list 2 --owner firsttris --format json             # Feld- und 
 | Entwurf anlegen | `gh project item-create 2 --owner firsttris --title "…" --body "…" --format json --jq .id` |
 | Auswahlfeld setzen | `gh project item-edit --project-id $PROJECT_ID --id <item> --field-id <feld> --single-select-option-id <option>` |
 | Text setzen | `gh project item-edit --project-id $PROJECT_ID --id <item> --field-id <feld> --text "…"` |
-| Label setzen | `gh issue edit <n> --repo firsttris/haben --add-label einstieg` |
+| Labels setzen | `gh issue edit <n> --repo firsttris/haben --add-label wunsch,buchung` |
 | Zuweisen (Übernahme) | `gh issue edit <n> --repo firsttris/haben --add-assignee <login>`; der Workflow „Board“ schiebt die Karte nach „In Arbeit“ |
 
 Position (das CLI kann es nicht): GraphQL, `afterId` ist die Karte darüber, ohne `afterId` ganz nach oben.
@@ -108,7 +110,7 @@ Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurd
 
 Antworten in offenen Gesprächen (Schritt 1) gehen genauso nach OK, mit dem freigegebenen Entwurf. Bei einer Übernahme: @-Erwähnung, „gehört dir“, Umfang in einem Satz (bei einer Skizze: „Die Skizze passt so“ oder was abweicht), Hinweis auf „In Arbeit“.
 
-Schließen und Labels außer `einstieg` bleiben beim Maintainer.
+Schließen bleibt beim Maintainer, ebenso die Labels `rückmeldung`, `sammlung` und `verbesserung`.
 
 ### 6. Prüfen
 
