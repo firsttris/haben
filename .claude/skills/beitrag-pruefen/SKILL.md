@@ -69,14 +69,13 @@ Der wichtigste Schritt bei Steuer, Buchung und Formaten: Hier sind Code und Test
 
 Je Punkt ein Ergebnis mit Stelle im Diff:
 
-- **Kleiner ginge es:** Löst ein Bruchteil des Diffs das Problem des Issues? Was im Diff dient keinem Akzeptanzkriterium?
-- **Vorhandenes genutzt:** Gibt es in `packages/*` oder im Modul schon eine Funktion, Komponente oder Tabelle dafür? Eine zweite Lösung für ein gelöstes Problem ist ein Befund.
-- **Nichts auf Vorrat:** keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, kein Schalter für einen Fall, den es nicht gibt, keine generische Schicht „für später“.
-- **Lesbar:** Versteht jemand ohne den Verlauf des Autors den Code in einem Durchgang? Ein Umweg, den nur ein Kommentar erklärt, deutet auf einen einfacheren Weg.
-- **Am richtigen Ort:** richtiges Modul, Fachlogik in `packages/core`, keine Umgehung von `index.ts`.
-- **Eine Stelle:** Muss ein künftiger Weg (Zahlungsweg, Speicherweg, neue Spalte) etwas von Hand mitziehen, damit Buchung, Steuer oder Status stimmen? Etwa derselbe Aufruf in jedem Zahlungsweg oder eine Liste von Feldern, die bei jeder neuen Spalte zu ergänzen ist. Dann gehört die Regel an die Stelle, durch die alle Wege laufen. Diese Frage stellen die Punkte darüber nicht: Jeder einzelne Aufruf ist nötig und lesbar.
+Die Maßstäbe stehen in `docs/entwicklung.md`, „Beiträge annehmen“, Frage 3. So prüfen:
 
-Overengineering ist ein Befund, wenn sich die einfachere Lösung konkret benennen lässt; „könnte schlanker sein“ allein nicht. Eine fehlende gemeinsame Stelle ist ein Befund, wenn sich die Stelle benennen lässt und die wiederholten Stellen im Diff belegt sind.
+- Je Hunk des Diffs das Akzeptanzkriterium nennen, dem er dient; was keins hat, ist der Kandidat zum Streichen.
+- Mit `git grep` in `packages/*` und im Modul nach einer Funktion, Komponente oder Tabelle für dasselbe suchen.
+- Ein Umweg, den nur ein Kommentar erklärt, deutet auf einen einfacheren Weg.
+- Modul, `packages/core` für Fachlogik, Import nur über `index.ts`.
+- **Eine Stelle:** Muss ein künftiger Weg (Zahlungsweg, Speicherweg, neue Spalte) etwas von Hand mitziehen, etwa derselbe Aufruf in jedem Zahlungsweg oder eine Feldliste je neuer Spalte? Die wiederholten Stellen im Diff belegen und die gemeinsame Stelle benennen; sonst kein Befund.
 
 ## 4. Regeln
 
@@ -145,7 +144,7 @@ Aus den Schritten 1 bis 4 eines von drei Ergebnissen:
 
 ## 7. TDD-Review und Merge
 
-- **Review schon mitgebracht?** Ein TDD-Review des Beitragenden zählt, wenn es im Pull Request erkennbar nach `docs/entwicklung.md` (Review) lief: in einem frischen Agenten ohne den Verlauf der Entstehung oder durch eine andere Person, jeder Befund mit rotem Test belegt und mit Commits für Test und Fix behoben, ein Abschlusskommentar, CI auf dem aktuellen Stand grün. Dass Autor und Reviewer dasselbe Konto haben, macht es nicht abhängig. Dann kein eigenes Review, weiter mit Merge oder Bericht unten. Nur wenn ein Merkmal fehlt, wir nach Schritt 6 selbst Commits ergänzt haben oder Schritt 2 einen fachlichen Zweifel offen lässt, folgt ein eigenes Review.
+- **Review schon mitgebracht?** Wann es zählt, steht in `docs/entwicklung.md`, Review, Punkt 1. Im Pull Request nachsehen: Hinweis auf frischen Agenten oder andere Person, je Befund ein roter Test mit Commits für Test und Fix, ein Abschlusskommentar, CI auf dem aktuellen Stand grün; dasselbe Konto für Autor und Reviewer ist kein Hindernis. Fehlt ein Merkmal, haben wir nach Schritt 6 Commits ergänzt oder lässt Schritt 2 einen Zweifel offen: eigenes Review.
 - Sonst Skill `tdd-review` bis zum Merge, mit dessen Regeln für Runden und CI. Ohne eigene Commits in dieser Session darf sie das Review selbst machen.
 - **Nicht heikel** (nach Schritt 2): mergen per Squash, sobald die CI auf dem aktuellen Stand grün ist und Titel und Beschreibung passen. Der Aufruf durch den Maintainer genügt; ein Collaborator holt vorher seine Zustimmung ein.
 - **Heikel** (nach Schritt 2): bis grün fertig machen, dann nicht mergen, sondern dem Maintainer in höchstens fünf Zeilen berichten und auf sein „OK“ warten:

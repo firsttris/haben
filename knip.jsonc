@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@5.88.1/schema.json",
+  // Läuft über "bun --bun biome" in package.json, das knip nicht als Aufruf erkennt
+  "ignoreDependencies": ["@biomejs/biome"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.ts"],
+      "project": ["scripts/**/*.ts"]
+    },
+    "apps/web": {
+      // Nitro lädt die Plugins über vite.config.ts, der Service Worker kommt aus public/
+      "entry": ["src/**/*.test.{ts,tsx}", "src/server/plugins/*.ts", "e2e/*.ts", "playwright.*.ts", "public/sw.js"],
+      // Nur aus styles.css per url() geladen
+      "ignoreDependencies": ["@fontsource/ibm-plex-mono", "@fontsource/ibm-plex-sans"]
+    },
+    // Einstiegspunkte stehen in manifest.json und popup.html
+    "apps/elster-helfer": {
+      "entry": ["src/popup.ts", "src/content.ts"]
+    },
+    "packages/*": {
+      "entry": ["src/**/*.test.ts"]
+    },
+    // Kindprozesse und CLI-Skripte, die per Pfad gestartet werden
+    "packages/elster": {
+      "entry": ["src/**/*.test.ts", "src/worker.ts", "src/*-cli.ts", "test-fixtures/**"]
+    },
+    "packages/einvoice": {
+      "entry": ["src/**/*.test.ts", "src/render-worker.ts"]
+    }
+  }
+}

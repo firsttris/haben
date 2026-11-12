@@ -18,7 +18,7 @@
  * nichts Freigegebenes darüber liegt, nennt eine Warnung die neueste BETA. Wartungsreleases der eingestellten
  * Hauptversion, Mai-Releases und ab `<Haupt>.2` sind Befunde.
  */
-import { type Abruf, abrufen, begrenzt, befund, DOKU_JAHRESWERTE, type Ergebnis, type Holen, LEER, warnung, zusammen } from "./abruf.ts";
+import { type Abruf, abrufen, begrenzt, befund, type Ergebnis, type Holen, LEER, SKILL_JAHRESWERTE, warnung, zusammen } from "./abruf.ts";
 
 export const ERIC_BASIS = "https://download.elster.de/download/eric";
 
@@ -101,6 +101,8 @@ const ZU_TUN = [
   "Zu tun: die neue Version installieren (`bun packages/elster/src/install-cli.ts --lizenz-akzeptiert <Version>`), die Tests mit echtem ERiC laufen lassen (docs/entwicklung.md, „Tests mit echtem ERiC“) und eine Testübermittlung machen; danach `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` anheben.",
   "",
   "Dabei prüfen, was die Version mitbringt (`common/Plugins` und Jahresdokumentation im Paket): Datenarten des nächsten Jahres (z. B. `checkUStVA_<Jahr>`, `USt_<Jahr>`, `EUER_<Jahr>`, ESt, KSt, GewSt) und eine neue Taxonomie der E-Bilanz (`EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts`). Die Prüfung im Workflow sieht nur, dass es das Paket gibt.",
+  "",
+  `Schritte in [Skill jahreswerte, „ERiC heben“](${SKILL_JAHRESWERTE}#eric-heben).`,
 ];
 
 const neuere = (aktuell: string, gefunden: readonly string[]) => {
@@ -112,8 +114,6 @@ const neuere = (aktuell: string, gefunden: readonly string[]) => {
       `Bei download.elster.de liegen neuere ERiC-Versionen als \`DEFAULT_ERIC_VERSION\` (${aktuell}): ${gefunden.map((v) => `[${v}](${ericUrl(v)})`).join(", ")}.`,
       "",
       ...ZU_TUN,
-      "",
-      `Wie die Prüfung sucht: [docs/entwicklung.md](${DOKU_JAHRESWERTE}).`,
     ].join("\n"),
   };
 };

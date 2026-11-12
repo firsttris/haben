@@ -86,4 +86,5 @@ export * from "./darlehen.ts";
 export * from "./direkt-kategorie.ts";
 export * from "./bareinnahme.ts";
 export * from "./kleinunternehmer-stand.ts";
+export * from "./own-accounts.ts";
 export * from "./external-settlements.ts";

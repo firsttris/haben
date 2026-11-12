@@ -1,6 +1,6 @@
 {
-  "id": "544dce5f-f11e-46ba-a8ab-70c2aa4f3194",
-  "prevId": "5d39dd14-5633-441e-8c93-a71a0e241d06",
+  "id": "ae7f9750-0912-402d-947f-49858a87e6b3",
+  "prevId": "ce9c06bf-259d-4735-bff9-2be5cb46fb44",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5506,108 +5506,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.external_import_settlements": {
-      "name": "external_import_settlements",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "payment_import_id": {
-          "name": "payment_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "original_import_id": {
-          "name": "original_import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "external_import_settlements_payment": {
-          "name": "external_import_settlements_payment",
-          "columns": [
-            {
-              "expression": "payment_import_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "external_import_settlements_original": {
-          "name": "external_import_settlements_original",
-          "columns": [
-            {
-              "expression": "original_import_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "external_import_settlements_payment_import_id_external_imports_id_fk": {
-          "name": "external_import_settlements_payment_import_id_external_imports_id_fk",
-          "tableFrom": "external_import_settlements",
-          "columnsFrom": [
-            "payment_import_id"
-          ],
-          "tableTo": "external_imports",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "external_import_settlements_original_import_id_external_imports_id_fk": {
-          "name": "external_import_settlements_original_import_id_external_imports_id_fk",
-          "tableFrom": "external_import_settlements",
-          "columnsFrom": [
-            "original_import_id"
-          ],
-          "tableTo": "external_imports",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "external_import_settlements_different": {
-          "name": "external_import_settlements_different",
-          "value": "\"external_import_settlements\".\"payment_import_id\" <> \"external_import_settlements\".\"original_import_id\""
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.external_imports": {
       "name": "external_imports",
       "schema": "",
@@ -9445,6 +9343,108 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.own_accounts": {
+      "name": "own_accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kontenrahmen": {
+          "name": "kontenrahmen",
+          "type": "kontenrahmen",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account": {
+          "name": "account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_category": {
+          "name": "parent_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "own_accounts_nummer_key": {
+          "name": "own_accounts_nummer_key",
+          "columns": [
+            {
+              "expression": "kontenrahmen",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "own_accounts_nummer": {
+          "name": "own_accounts_nummer",
+          "value": "\"own_accounts\".\"account\" ~ '^[0-9]{4}$'"
+        },
+        "own_accounts_name": {
+          "name": "own_accounts_name",
+          "value": "length(btrim(\"own_accounts\".\"name\")) between 1 and 80"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.passkey": {

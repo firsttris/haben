@@ -5,6 +5,10 @@ import { mkdir } from "node:fs/promises";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
 import { einrichten, gehe } from "./einrichtung.ts";
 
+/**
+ * Kleinunternehmer-Ersteinrichtung ohne reguläre UStVA-Hinweise und der lokale JSON-Eingang (docs/belegimport.md) mit
+ * Archiv, offenen Posten, Journal und Kasse, in eigener, leerer Datenbank (Projekt „belegimport“, e2e/durchlaeufe.ts).
+ */
 test.describe.configure({ mode: "serial" });
 let page: Page;
 let closeDatabase: () => Promise<void>;

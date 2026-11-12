@@ -2,6 +2,7 @@ import { abschluss, carryForward, isKapitalgesellschaft, kapgSteuern, type Absch
 import { datevSalden, hasOpeningBalances, type DatevSaldenBooking } from "@haben/import";
 import { eq, lte, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
+import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { abschlussHinweise, accountName, type AbschlussHinweis } from "../buchhaltung/index.ts";
 import { gespeicherteKapgAngaben } from "../jahreserklaerung/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
@@ -97,6 +98,7 @@ function hinweise(kontenrahmen: Kontenrahmen, year: number, inYear: Row[], vortr
 
 /** Abschluss eines Jahres aus den archivierten DATEV-Buchungen; null ohne Buchungen im Jahr oder im Einzelunternehmen */
 export async function datevAbschluss(year: number): Promise<DatevAbschluss | null> {
+  await refreshOwnAccountNames();
   const company = await loadCompany();
   if (!isKapitalgesellschaft(company.rechtsform)) return null;
   const rows = await bookingsUntil(year);

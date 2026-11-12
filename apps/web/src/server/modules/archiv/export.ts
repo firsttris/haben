@@ -15,6 +15,7 @@ import {
   PAUSCHALE_LABEL,
   WRITE_OFF_KINDS,
 } from "@haben/core";
+import { refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName, openingCash } from "../buchhaltung/index.ts";
@@ -283,6 +284,7 @@ export async function exportYears(now = new Date()): Promise<number[]> {
 async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> {
   const [company] = await db.select().from(schema.company).where(eq(schema.company.id, 1));
   const problems: string[] = [];
+  await refreshOwnAccountNames();
 
   yield { path: "LIESMICH.txt", content: encoder.encode(readme(year, now, company)), compress: true };
   yield* externalImportArchive(year);
