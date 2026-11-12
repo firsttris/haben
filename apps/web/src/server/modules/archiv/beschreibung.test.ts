@@ -202,20 +202,26 @@ describe("indexXml", () => {
 });
 
 describe("Befunde des Reviews (#546)", () => {
-  it("beschreibt keine fremden Originale, die zufällig auf .csv enden (DATEV-Stapel, Lexoffice-Belege, Anhänge, Belege), nur Haben-eigene CSVs", async () => {
+  it("beschreibt keine fremden Originale, die zufällig auf .csv enden (DATEV-Stapel, Lexoffice-Belege, Belege), nur Haben-eigene CSVs, auch die anhaenge.csv unter anhaenge/", async () => {
     const fremd = new TextEncoder().encode('"EXTF";700;21;"Buchungsstapel";13;20260101\r\nUmsatz;SH;Konto\r\n');
     const out = await sammle([
       { path: "lexoffice/originale/datev/EXTF_x.csv", content: fremd, compress: true },
       { path: "lexoffice/belege/2026-01-01_x_ab12cd34.csv", content: fremd, compress: true },
-      { path: "rechnungen/anhaenge/Nummer_daten.csv", content: fremd, compress: true },
       { path: "belege/2026-09-29_Lieferant_ab12cd34.csv", content: fremd, compress: true },
       datei("lexoffice/belege.csv", ["Datum", "Art"]),
       datei("belege/belege.csv", ["Datum", "Netto"]),
       datei("belege/verrechnungen.csv", ["Datum"]),
-      datei("rechnungen/anhaenge.csv", ["Rechnung"]),
+      datei("rechnungen/anhaenge/anhaenge.csv", ["Rechnung"]),
+      datei("angebote/anhaenge/anhaenge.csv", ["Angebot"]),
     ]);
     const urls = [...decode(out.at(-1)!).matchAll(/<URL>([^<]+)<\/URL>/g)].map((m) => m[1]);
-    expect(urls).toEqual(["belege/belege.csv", "belege/verrechnungen.csv", "lexoffice/belege.csv", "rechnungen/anhaenge.csv"]);
+    expect(urls).toEqual([
+      "angebote/anhaenge/anhaenge.csv",
+      "belege/belege.csv",
+      "belege/verrechnungen.csv",
+      "lexoffice/belege.csv",
+      "rechnungen/anhaenge/anhaenge.csv",
+    ]);
   });
 
   it("lässt in Firmenname, Ort, Pfaden und Spaltennamen alle Zeichen weg, die XML 1.0 nicht kennt (Steuerzeichen, einzelne Surrogate)", () => {
