@@ -155,6 +155,27 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   expect(kennzeichen.headers()["cache-control"]).toBe("private, max-age=31536000, immutable");
   // Das Bild hat kein alt: Der Name des Links bleibt „Haben“ und der Firmenname (#599), ohne Text aus dem Logo
   await expect(nav.getByRole("link", { name: "Haben Mustermann IT · Max Mustermann", exact: true })).toBeVisible();
+  // Wechselt das Logo im Gestaltungs-Panel des Editors, zieht die Navigation sofort nach, ohne Neuladen und ohne
+  // Seitenwechsel: ein neues Logo hat eine neue Adresse, ohne Logo gilt wieder die eigene Farbe
+  const logoVorher = await logoZeichen.getAttribute("src");
+  await go("/rechnungen/neu");
+  const gestaltungKnopf = page.getByRole("button", { name: "Gestaltung" }).first();
+  if (!(await gestaltungKnopf.isVisible())) await page.locator(".main > .page-head").getByRole("button", { name: "Vorschau", exact: true }).click();
+  await gestaltungKnopf.click();
+  const vorschauDialog = page.getByRole("dialog", { name: "Vorschau" });
+  const gestaltung = vorschauDialog.getByRole("complementary", { name: "Gestaltung" });
+  await gestaltung.getByLabel("Logodatei").setInputFiles("public/icon-512.png");
+  await expect(gestaltung.getByRole("status")).toContainText("Logo gespeichert");
+  await expect(logoZeichen).toHaveAttribute("src", /\/api\/kennzeichen\?v=/);
+  await expect(logoZeichen).not.toHaveAttribute("src", logoVorher!);
+  await gestaltung.getByRole("button", { name: "Entfernen" }).click();
+  await expect(logoZeichen).toHaveCount(0);
+  await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
+  // Das Logo aus der Einrichtung wieder herstellen; die Tests im Projekt „mit-daten“ rechnen damit
+  await gestaltung.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  await expect(logoZeichen).toHaveAttribute("src", logoVorher!);
+  await vorschauDialog.getByRole("button", { name: "Schließen" }).click();
+  await go("/einstellungen");
   // Zurück zum „H“ des Themes; die eigene Farbe bleibt für später gespeichert, die übrigen Tests rechnen mit dem Standard
   await zeichen.getByLabel("„H“ in der Farbe des Themes").check();
   await zeichenSpeichern();
