@@ -20,17 +20,18 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
   // Die Seite, die gerade im Formular steht; null = neue Seite
   const [editing, setEditing] = useState<Page | null>(null);
   const [removing, setRemoving] = useState<Page | null>(null);
+  const [saved, setSaved] = useState(0);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
+    const values = new FormData(event.currentTarget);
     const page = { name: String(values.get("name") ?? ""), url: String(values.get("url") ?? ""), openInNewTab: values.get("open") === "tab" };
     void run(
       async () => {
         await save({ data: { id: editing?.id ?? null, page } });
         setEditing(null);
-        form.reset();
+        // Neuer key: Adresse und „Öffnen“ stehen im Zustand von PageTargetFields, form.reset() leert sie nicht
+        setSaved((count) => count + 1);
         // Lädt auch das Menü neu (_app lädt die eigenen Seiten in beforeLoad)
         await router.invalidate();
       },
@@ -108,7 +109,12 @@ export function EigeneSeitenCard({ pages }: { pages: Page[] }) {
       )}
 
       {/* key: beim Wechsel der bearbeiteten Seite stehen ihre Werte im Formular */}
-      <form key={editing?.id ?? "neu"} className="form-grid" onSubmit={onSubmit} aria-label={editing ? `${editing.name} bearbeiten` : "Neue eigene Seite"}>
+      <form
+        key={editing?.id ?? `neu-${saved}`}
+        className="form-grid"
+        onSubmit={onSubmit}
+        aria-label={editing ? `${editing.name} bearbeiten` : "Neue eigene Seite"}
+      >
         <Field label="Name im Menü">
           {(control) => <input {...control} name="name" required maxLength={40} defaultValue={editing?.name} placeholder="Bestellungen" />}
         </Field>

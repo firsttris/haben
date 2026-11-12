@@ -70,7 +70,7 @@ function schemeMatches(expression: string, url: string): boolean {
 
 /**
  * Passt eine Quelle auf die Herkunft von Haben (CSP Level 3, 6.7.2.8 „Does url match expression“)? `'none'` und
- * `'self'` passen nie, denn die Seite läuft nie unter der Herkunft von Haben. Pfade zählen bei frame-ancestors nicht.
+ * `'self'` passen nie, denn die Seite läuft nie unter der Herkunft von Haben. Eine Quelle mit Pfad passt nicht.
  * Eine Quelle ohne Schema passt nur, wenn das Schema der Seite auf das von Haben passt (Schritt 4.2): Eine https-Seite
  * mit `frame-ancestors haben.local` lässt sich nicht in Haben unter http einbetten.
  */
@@ -78,7 +78,8 @@ function matchesSource(source: string, haben: URL, pageScheme: string | null): b
   if (source === "*") return true;
   // Schema-Quelle wie `https:`; `http:` erlaubt auch https
   if (/^[a-z][a-z0-9+.-]*:$/.test(source)) return schemeMatches(source, haben.protocol);
-  const match = /^(?:([a-z][a-z0-9+.-]*):\/\/)?(\*|(?:\*\.)?[a-z0-9.-]+)(?::(\d+|\*))?(?:\/.*)?$/.exec(source);
+  // Ein Pfad außer „/“ passt nie: Der Browser vergleicht mit der Herkunft von Haben, nicht mit einer Seite darin
+  const match = /^(?:([a-z][a-z0-9+.-]*):\/\/)?(\*|(?:\*\.)?[a-z0-9.-]+)(?::(\d+|\*))?\/?$/.exec(source);
   if (!match) return false;
   const [, scheme, host, port] = match;
   const schemeOk = scheme
