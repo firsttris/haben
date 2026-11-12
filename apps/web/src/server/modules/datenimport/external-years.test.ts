@@ -178,6 +178,12 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     expect(euer.gewinn).toBe(-19000);
   });
 
+  it("verwechselt eine offene Anlagenrechnung im Abgleich nicht mit einer ungeklärten Zahlungsbuchung", async () => {
+    await reset("SKR03", "ist");
+    await run([entry("offene-anlage", "2026-01-15", documentPosting(totals, "anlage", "SKR03", "einzelunternehmen", "bank"))], "SKR03");
+    expect((await reports.euerAbgleich(2026)).hinweise.join(" ")).not.toMatch(/Import-Buchungen.*keinen Zahlungsbezug/);
+  });
+
   it("errät fehlende Zahlungsbezüge alter Pakete nicht und nennt sie im Abgleich", async () => {
     await reset("SKR03", "ist");
     await run([entry("ohne-Bezug", "2026-02-15", invoicePaymentPosting(totals, 119000, "SKR03", "ist"))], "SKR03");
