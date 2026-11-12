@@ -11,7 +11,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * Warum die Erwartungen in allen vier Kombinationen gleich sind: Bei Eingangsbelegen hängt der Vorsteuerabzug an der
  * Rechnung, nicht an der Zahlung (§ 15 Abs. 1 Satz 1 Nr. 1 UStG); die Ist-Versteuerung betrifft nur die eigenen Umsätze
  * (§ 20 Satz 1 UStG). Die Versteuerung darf hier also nichts ändern. Die Konten dagegen unterscheiden sich je
- * Kontenrahmen (DATEV SKR03/SKR04 2026, Stand in scripts/jahreswerte/datev.ts); der erste Fall prüft sie, damit ein
+ * Kontenrahmen (DATEV SKR03/SKR04 2026, Konten in packages/core/src/posting.ts, ACCOUNTS); der erste Fall prüft sie, damit ein
  * Fehler im Kontenrahmen nicht von den gleichen Beträgen verdeckt wird. In der EÜR zählt die Verrechnung wie eine
  * Zahlung am Tag der Aufrechnung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des
  * § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601; docs/belege.md).
