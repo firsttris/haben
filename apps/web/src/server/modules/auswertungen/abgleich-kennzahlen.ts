@@ -11,8 +11,7 @@ import {
 } from "@haben/core";
 import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear } from "../rechnungen/index.ts";
+import { invoiceTaxReader } from "../rechnungen/index.ts";
 import type { computeVatFigures } from "../umsatzsteuer/index.ts";
 
 /*
@@ -60,25 +59,40 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       basis: l.basis,
       invoiceDate: schema.invoices.issueDate,
       correctsId: schema.invoices.correctsId,
+      advanceType: schema.invoices.advanceType,
+      invoiceId: schema.invoices.id,
+      variant: schema.invoices.variant,
+      serviceFrom: schema.invoices.serviceFrom,
+      serviceTo: schema.invoices.serviceTo,
+      treatment: schema.invoices.taxTreatment,
     })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
     .leftJoin(schema.writeOffs, and(eq(e.sourceType, "ausbuchung"), eq(e.sourceId, schema.writeOffs.id)))
     .leftJoin(schema.invoices, or(eq(schema.invoices.id, schema.writeOffs.invoiceId), and(eq(e.sourceType, "invoice"), eq(e.sourceId, schema.invoices.id))))
     .where(and(gte(e.date, from), lt(e.date, to), ne(e.sourceType, "eroeffnung")));
-  const modes = new Map<number, Versteuerung>();
   const byEntry = new Map<string, JournalBuchung>();
+  const taxes = invoiceTaxReader(q);
   for (const r of rows) {
     let buchung = byEntry.get(r.id);
     if (!buchung) {
-      const invoiceYear = r.invoiceDate ? await invoiceTaxYear({ issueDate: r.invoiceDate, correctsId: r.correctsId }, q) : null;
-      if (invoiceYear !== null && !modes.has(invoiceYear)) modes.set(invoiceYear, await versteuerungForYear(invoiceYear, q));
       buchung = {
         month: Number(r.month),
         kontenrahmen: r.kontenrahmen as Kontenrahmen,
         sourceType: r.sourceType,
         sourceId: r.sourceId,
-        versteuerung: invoiceYear === null ? undefined : modes.get(invoiceYear),
+        versteuerung: !r.invoiceDate
+          ? undefined
+          : await taxes.postingMode({
+              issueDate: r.invoiceDate!,
+              correctsId: r.correctsId,
+              advanceType: r.advanceType,
+              id: r.invoiceId ?? undefined,
+              variant: r.variant,
+              serviceFrom: r.serviceFrom,
+              serviceTo: r.serviceTo,
+              taxTreatment: r.treatment ?? "regulaer",
+            }),
         zeilen: [],
       };
       byEntry.set(r.id, buchung);

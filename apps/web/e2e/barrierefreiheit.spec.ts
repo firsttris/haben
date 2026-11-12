@@ -26,6 +26,7 @@ const PAGES = [
   "/angebote",
   "/angebote/neu",
   "/artikel",
+  "/leistungen",
   "/kontakte",
   "/kontakte/neu",
   "/belege",
@@ -595,8 +596,16 @@ test("Rechnungsart: Der Hinweis erscheint nur bei Abschlags- und Schlussrechnung
   await expect(art).toHaveValue("");
   await expect(art).toHaveAccessibleDescription("");
   await art.selectOption("abschlag");
-  await expect(art).toHaveAccessibleDescription(/^Über einen Teil der Leistung/);
+  await expect(art).toHaveAccessibleDescription("Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung.");
+  const teilleistung = page.getByRole("checkbox", { name: "Teilleistung bereits erbracht", exact: true });
+  await expect(teilleistung).not.toBeChecked();
+  await expect(teilleistung).toHaveAccessibleDescription(
+    "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung.",
+  );
+  await teilleistung.check();
+  await expect(teilleistung).toHaveAccessibleDescription("Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung.");
   await art.selectOption("schluss");
+  await expect(teilleistung).toBeHidden();
   await expect(art).toHaveAccessibleDescription(/^Über die gesamte Leistung/);
   await art.selectOption("");
   await expect(art).toHaveAccessibleDescription("");

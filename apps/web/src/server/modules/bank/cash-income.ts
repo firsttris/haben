@@ -1,7 +1,8 @@
+import { insertCashEntry } from "./settlement-store.ts";
 import { BAREINNAHME_BEHANDLUNG_KEYS, bareinnahmeFehler, bareinnahmePosting, bareinnahmeText, type BareinnahmeAngabe, type Cents } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { schema, type Tx } from "../../db/index.ts";
+import type { Tx } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth } from "../stammdaten/index.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
@@ -62,19 +63,16 @@ export async function bookCashIncome(
     sourceId: id,
     lines: bareinnahmePosting(angabe, amount, books.kontenrahmen),
   });
-  const [row] = await tx
-    .insert(schema.cashEntries)
-    .values({
-      id,
-      number: await nextNumber(tx),
-      date,
-      amount,
-      kind: "einnahme",
-      text,
-      taxTreatment: angabe.behandlung,
-      taxRate: angabe.steuersatz,
-      journalEntryId,
-    })
-    .returning();
+  const [row] = await insertCashEntry(tx, {
+    id,
+    number: await nextNumber(tx),
+    date,
+    amount,
+    kind: "einnahme",
+    text,
+    taxTreatment: angabe.behandlung,
+    taxRate: angabe.steuersatz,
+    journalEntryId,
+  });
   return row!;
 }

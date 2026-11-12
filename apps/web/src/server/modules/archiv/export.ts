@@ -1,3 +1,4 @@
+import { mitIndexXml } from "./beschreibung.ts";
 import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { bankAccountIncludedSql } from "../../db/bank-open.ts";
@@ -257,7 +258,13 @@ const SUBMISSION_LABELS: Record<string, string> = { validate: "Prüfung", test: 
 
 /** Das ZIP-Archiv eines Kalenderjahrs als Byte-Stücke */
 export function exportYear(year: number, now = new Date()): AsyncGenerator<Uint8Array> {
-  return zipArchive(yearFiles(year, now), now);
+  return zipArchive(withIndex(yearFiles(year, now), year), now);
+}
+
+/** Hängt die index.xml (Beschreibungsstandard der Finanzverwaltung, #546) hinter die Dateien des Jahres */
+async function* withIndex(files: AsyncIterable<ArchiveFile>, year: number): AsyncGenerator<ArchiveFile> {
+  const [company] = await db.select({ name: schema.company.name, ort: schema.company.ort }).from(schema.company).where(eq(schema.company.id, 1));
+  yield* mitIndexXml(files, { name: company?.name || "–", ort: company?.ort || "–", jahr: year, version: HABEN_VERSION });
 }
 
 export function exportFilename(year: number, now = new Date()): string {
@@ -1746,6 +1753,11 @@ protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert
                          Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
 protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am
                          Ende des Jahres.
+index.xml                Beschreibung aller CSV-Dateien (Pfad, Zeichensatz, Trenner, Spalten,
+                         Beträge und Daten) nach dem Beschreibungsstandard der Finanzverwaltung
+                         (GDPdU), mit der eine Prüfsoftware die Dateien einliest. Die DTD
+                         gdpdu-01-03-2019.dtd gehört dazu und liegt nicht bei (Bezug: CaseWare
+                         Germany). Ob eine Prüfsoftware die Datei annimmt, ist nicht geprüft.
 pruefsummen.sha256       SHA-256 jeder Datei in diesem Archiv.
 
 
