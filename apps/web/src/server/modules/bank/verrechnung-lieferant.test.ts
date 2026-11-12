@@ -36,7 +36,13 @@ describe.skipIf(!testDatabaseUrl)("Gegenbeleg-Liste und Verrechnung vergleichen 
   }
 
   /** Gebuchter Beleg über die Bank; net negativ ergibt eine Gutschrift des Lieferanten */
-  async function beleg(datum: string, netto: number, steuer: number, lieferant: string) {
+  async function beleg(
+    datum: string,
+    netto: number,
+    steuer: number,
+    lieferant: string,
+    { payment = "bank", buchen = true }: { payment?: "bank" | "privat"; buchen?: boolean } = {},
+  ) {
     // Eigene Bytes je Beleg: gleiche Datei erkennt Haben als Dublette und gibt den ersten Beleg zurueck
     const bytes = new Uint8Array([...JPEG, datum.charCodeAt(9), Math.abs(netto) % 251]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `${datum}-${netto}.jpg` });
@@ -47,11 +53,11 @@ describe.skipIf(!testDatabaseUrl)("Gegenbeleg-Liste und Verrechnung vergleichen 
       documentDate: datum,
       dueDate: null,
       category: "telefon",
-      payment: "bank",
+      payment,
       note: "",
       amounts: [{ taxRate: 1900, net: netto, tax: steuer }],
     });
-    await documents.bookDocument(actor, id);
+    if (buchen) await documents.bookDocument(actor, id);
     return id;
   }
 
@@ -81,5 +87,21 @@ describe.skipIf(!testDatabaseUrl)("Gegenbeleg-Liste und Verrechnung vergleichen 
       }),
     ).rejects.toThrow(/verschiedenen Lieferanten/);
     expect((await verrechnung.settlementCandidates(rechnung)).map((k) => k.id)).not.toContain(gutschrift);
+  }, 30_000);
+
+  it("bietet keinen Gegenbeleg an, wenn der geöffnete Beleg nicht gebucht ist oder nicht über die Bank läuft", async () => {
+    await firma();
+    const gutschrift = await beleg("2026-03-12", -3_000, -570, "Telekom Deutschland GmbH");
+    // Rechnung noch im Entwurf und Rechnung privat bezahlt: settleDocuments lehnt beide ab
+    const entwurf = await beleg("2026-03-10", 10_000, 1_900, "Telekom Deutschland GmbH", { buchen: false });
+    const privat = await beleg("2026-03-11", 5_000, 950, "Telekom Deutschland GmbH", { payment: "privat" });
+
+    for (const rechnung of [entwurf, privat]) {
+      await expect(
+        verrechnung.settleDocuments(actor, { documentId: rechnung, counterDocumentId: gutschrift, amount: 1_000, date: "2026-03-12", note: "Gutschrift" }),
+      ).rejects.toThrow(/nicht gebucht|nicht über die Bank/);
+      // Die Oberfläche zeigt den Abschnitt „Verrechnung“, sobald die Liste etwas enthält; sie darf deshalb nichts anbieten
+      expect(await verrechnung.settlementCandidates(rechnung)).toEqual([]);
+    }
   }, 30_000);
 });
