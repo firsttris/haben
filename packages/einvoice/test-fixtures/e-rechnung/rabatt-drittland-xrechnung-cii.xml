@@ -86,7 +86,16 @@
 				</ram:URIUniversalCommunication>
 			</ram:BuyerTradeParty>
 		</ram:ApplicableHeaderTradeAgreement>
-		<ram:ApplicableHeaderTradeDelivery/>
+		<ram:ApplicableHeaderTradeDelivery>
+			<ram:ShipToTradeParty>
+				<ram:PostalTradeAddress>
+					<ram:PostcodeCode>8001</ram:PostcodeCode>
+					<ram:LineOne>Bahnhofstrasse 1</ram:LineOne>
+					<ram:CityName>Zürich</ram:CityName>
+					<ram:CountryID>CH</ram:CountryID>
+				</ram:PostalTradeAddress>
+			</ram:ShipToTradeParty>
+		</ram:ApplicableHeaderTradeDelivery>
 		<ram:ApplicableHeaderTradeSettlement>
 			<ram:PaymentReference>2026-034</ram:PaymentReference>
 			<ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>

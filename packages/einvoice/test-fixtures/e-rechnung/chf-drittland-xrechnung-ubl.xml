@@ -62,6 +62,18 @@
 			</cac:Contact>
 		</cac:Party>
 	</cac:AccountingCustomerParty>
+	<cac:Delivery>
+		<cac:DeliveryLocation>
+			<cac:Address>
+				<cbc:StreetName>Bahnhofstrasse 1</cbc:StreetName>
+				<cbc:CityName>Zürich</cbc:CityName>
+				<cbc:PostalZone>8001</cbc:PostalZone>
+				<cac:Country>
+					<cbc:IdentificationCode>CH</cbc:IdentificationCode>
+				</cac:Country>
+			</cac:Address>
+		</cac:DeliveryLocation>
+	</cac:Delivery>
 	<cac:PaymentMeans>
 		<cbc:PaymentMeansCode>58</cbc:PaymentMeansCode>
 		<cbc:PaymentID>2026-034</cbc:PaymentID>
