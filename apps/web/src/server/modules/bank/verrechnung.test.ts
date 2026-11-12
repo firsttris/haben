@@ -240,6 +240,27 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
     expect(nachherEuer.zeilen.vorsteuer ?? 0).toBe(0);
   }, 30_000);
 
+  it("hebt eine Verrechnung ohne Journalbuchung auf, ohne eine Gegenbuchung zu erfinden", async () => {
+    await firma();
+    const rechnung = await beleg("2026-05-10", 10_000, 1_900);
+    const gutschrift = await beleg("2026-05-12", -3_000, -570);
+    // Altbestand von vor #778: die Zeilen stehen nur in document_settlements, das Journal kennt sie nicht
+    await sql`insert into document_settlements (document_id, counter_document_id, settlement_id, date, amount, note, created_by)
+      values (${rechnung}, ${gutschrift}, '11111111-1111-4111-8111-111111111111', '2026-05-12', -3_570, 'Altbestand', ${actor}),
+             (${gutschrift}, ${rechnung}, '11111111-1111-4111-8111-111111111111', '2026-05-12', 3_570, 'Altbestand', ${actor})`;
+    const [zeile] = await sql`select id from document_settlements where document_id = ${rechnung}`;
+    expect(await sql`select id from journal_entries where source_type = 'verrechnung'`).toHaveLength(0);
+
+    await verrechnung.reverseSettlement(actor, zeile!.id, "2026-06-02");
+
+    // Die Gegenzeilen in document_settlements entstehen wie immer, eine Buchung gibt es weiterhin nicht
+    expect(await sql`select id from journal_entries where source_type = 'verrechnung'`).toHaveLength(0);
+    const [gegen] = await sql`select * from document_settlements where reverses_id = ${zeile!.id}`;
+    expect(gegen).toMatchObject({ date: "2026-06-02", amount: 3_570 });
+    expect(await verrechnung.openAmount(rechnung)).toBe(11_900);
+    expect(await verrechnung.openAmount(gutschrift)).toBe(-3_570);
+  }, 30_000);
+
   it("hebt bei zwei gleichen Verrechnungen nur das gewählte Paar auf", async () => {
     await firma();
     const rechnung = await beleg("2026-07-10", 10_000, 1_900); // 119,00 EUR

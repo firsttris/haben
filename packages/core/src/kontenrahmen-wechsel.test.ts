@@ -19,6 +19,7 @@ describe.each(RICHTUNGEN)("Konten von %s nach %s", (von, nach) => {
     for (const rolle of [
       "forderungen",
       "verbindlichkeiten",
+      "zwischenkonto",
       "kasse",
       "bank",
       "forderungsverluste",
