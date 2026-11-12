@@ -537,6 +537,7 @@ export async function annualOverview(year: number, today: string) {
       id: vermerk.id,
       filedOn: vermerk.filedOn,
       transferTicket: vermerk.transferTicket,
+      note: vermerk.note,
       amount: vermerk.amount,
       hasPdf: vermerk.hasPdf,
     };

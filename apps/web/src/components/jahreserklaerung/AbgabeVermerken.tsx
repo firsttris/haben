@@ -15,6 +15,7 @@ export interface JahresvermerkStand {
   id: string;
   filedOn: string | null;
   transferTicket: string | null;
+  note: string | null;
   amount: number | null;
   hasPdf: boolean;
 }
@@ -104,6 +105,10 @@ export function AbgabeVermerken({
             <dt>Betrag</dt>
             <dd>{vermerkt.amount === null ? "–" : formatEuro(vermerkt.amount)}</dd>
           </div>
+          <div>
+            <dt>Begründung</dt>
+            <dd>{vermerkt.note ?? "–"}</dd>
+          </div>
         </dl>
         {vermerkt.hasPdf && (
           <a href={`/api/protokoll/${vermerkt.id}`} target="_blank" rel="noreferrer" className="small">
@@ -121,7 +126,7 @@ export function AbgabeVermerken({
       </h2>
       <p className="small muted" style={{ margin: 0 }}>
         Hast du {LABEL[art]} {year} in WISO, Accountable oder im ELSTER-Portal abgegeben, hältst du das hier mit Tag, Transferticket und Betrag fest. Die Frist
-        ist damit erledigt; der Betrag steht als offener Posten bereit.
+        ist damit erledigt, und der Vorgang erscheint im Verlauf.
       </p>
       <div className="actions">
         <button type="button" className="btn" onClick={() => setOpen(true)}>
