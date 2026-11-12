@@ -10,6 +10,7 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  */
 describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postgres)", () => {
   let documents: typeof import("../belege/documents.ts");
+  let cancellation: typeof import("../belege/cancellation.ts");
   let verrechnung: typeof import("./verrechnung.ts");
   let euerJournal: typeof import("../auswertungen/euer-journal.ts");
   let sql: postgres.Sql;
@@ -19,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
   beforeAll(async () => {
     sql = await setupTestDb();
     documents = await import("../belege/documents.ts");
+    cancellation = await import("../belege/cancellation.ts");
     verrechnung = await import("./verrechnung.ts");
     euerJournal = await import("../auswertungen/euer-journal.ts");
   }, 60_000);
@@ -28,8 +30,9 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
   });
 
   async function firma() {
-    await leeren(sql)`truncate document_settlements, year_closings, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
-      journal_lines, journal_entries, documents, document_amounts, document_splits, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate document_cancellations, document_settlements, year_closings, write_offs, allocations,
+      bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, documents, document_amounts,
+      document_splits, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, payment_term_days)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 14)`;
@@ -234,6 +237,55 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
       note: "Gutschrift",
     });
     expect(await verrechnung.openAmount(rechnung)).toBe(10_900);
+  }, 30_000);
+
+  it("bietet als Gegenbeleg denselben Lieferanten an, den die Verrechnung akzeptiert", async () => {
+    await firma();
+    const rechnung = await beleg("2026-09-10", 10_000, 1_900);
+    // Andere Schreibweise, geschütztes Leerzeichen (U+00A0) und schmales geschütztes (U+202F), wie aus kopierten
+    // PDFs: lieferant() zählt sie als Leerzeichen, [[:space:]] im UTF-8-Locale nicht
+    const mitLeerzeichen = await beleg("2026-09-12", -3_000, -570, "telefon", "  TELEKOM   Deutschland GmbH ");
+    const mitGeschuetztem = await beleg("2026-09-14", -2_000, -380, "telefon", "Telekom\u00A0Deutschland GmbH");
+    const mitSchmalem = await beleg("2026-09-15", -1_000, -190, "telefon", "Telekom\u202FDeutschland GmbH");
+
+    const kandidaten = await verrechnung.settlementCandidates(rechnung);
+    expect(kandidaten.map((k) => [k.id, k.rest])).toEqual(
+      expect.arrayContaining([
+        [mitLeerzeichen, -3_570],
+        [mitGeschuetztem, -2_380],
+        [mitSchmalem, -1_190],
+      ]),
+    );
+    // Der Server nimmt das Paar an; die Liste muss es also auch anbieten
+    await verrechnung.settleDocuments(actor, {
+      documentId: rechnung,
+      counterDocumentId: mitGeschuetztem,
+      amount: 2_380,
+      date: "2026-09-14",
+      note: "Gutschrift",
+    });
+    expect(await verrechnung.openAmount(mitGeschuetztem)).toBe(0);
+  }, 30_000);
+
+  it("bietet stornierte Belege nicht als Gegenbeleg an", async () => {
+    await firma();
+    const rechnung = await beleg("2026-09-10", 10_000, 1_900);
+    const gutschrift = await beleg("2026-09-12", -3_000, -570);
+    await cancellation.cancelDocument(actor, gutschrift, { reason: "Doppelt erfasst" }, "2026-09-13");
+
+    // docs/belege.md, „Verrechnen ohne Zahlung“: Beide Belege sind gebucht, laufen über die Bank und sind nicht storniert
+    expect((await verrechnung.settlementCandidates(rechnung)).map((k) => k.id)).not.toContain(gutschrift);
+    expect(await verrechnung.settlementCandidates(gutschrift)).toEqual([]);
+    // Der Server lehnt sie ab; genau deshalb darf die Liste sie nicht anbieten
+    await expect(
+      verrechnung.settleDocuments(actor, {
+        documentId: rechnung,
+        counterDocumentId: gutschrift,
+        amount: 1_000,
+        date: "2026-09-13",
+        note: "Gutschrift",
+      }),
+    ).rejects.toThrow(/storniert/);
   }, 30_000);
 
   it("lehnt Verrechnung und Aufhebung in einem abgeschlossenen Jahr ab", async () => {
