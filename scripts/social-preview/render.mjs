@@ -12,7 +12,15 @@ const out = path.join(root, "docs/social-preview.png");
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 1 });
 await page.goto(`file://${path.join(here, "social-preview.html")}`);
-await page.evaluate(() => document.fonts.ready);
+await page.evaluate(async () => {
+  await Promise.all([
+    document.fonts.load('600 80px "IBM Plex Serif"'),
+    document.fonts.load('400 24px "IBM Plex Sans"'),
+    document.fonts.load('500 22px "IBM Plex Sans"'),
+    document.fonts.load('600 34px "IBM Plex Sans"'),
+  ]);
+  await document.fonts.ready;
+});
 await page.screenshot({ path: out, type: "png" });
 await browser.close();
 console.log("written", out);

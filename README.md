@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dunkel.png">
-  <img src="docs/hero-hell.png" alt="Haben als T-Konto: auf der Soll-Seite E-Rechnung nach § 14 UStG, unveränderbare Belege nach § 146 AO, Umsatzsteuer-Voranmeldung nach § 18 UStG und Einnahmen-Überschuss-Rechnung nach § 4 Abs. 3 EStG; auf der Haben-Seite „Deine Bücher. Dein Server.“" width="900">
+  <img src="docs/hero-hell.png" alt="Haben, Deine Bücher. Dein Server.: E-Rechnung über 1.725,50 € und Zahlungseingang zugeordnet, nach GoBD festgeschrieben, in der Voranmeldung für ELSTER enthalten" width="900">
 </picture>
 
 Haben ist eine Open-Source-Buchhaltung für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs,

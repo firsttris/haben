@@ -29,7 +29,8 @@ try {
       await Promise.all([
         document.fonts.load('400 16px "IBM Plex Sans"'),
         document.fonts.load('500 16px "IBM Plex Sans"'),
-        document.fonts.load('600 54px "IBM Plex Sans"'),
+        document.fonts.load('600 24px "IBM Plex Sans"'),
+        document.fonts.load('600 58px "IBM Plex Serif"'),
         document.fonts.load('400 14px "IBM Plex Mono"'),
         document.fonts.load('500 13px "IBM Plex Mono"'),
       ]);

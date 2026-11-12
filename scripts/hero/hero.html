@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Bild oben in der README, 1280 × 360 bei doppelter Auflösung. Gesetzt als T-Konto: links Soll, was das Steuerrecht verlangt, rechts Haben.
+<!-- Bild oben in der README, 1280 × 360 bei doppelter Auflösung. Aufbau nach einem Entwurf von Codex; der Slogan in IBM Plex Serif aus packages/einvoice/fonts, alles andere in Plex Sans wie die App.
      Farben und Schriften wie in apps/web/src/styles.css: ohne Hash Wald (hell), mit #nacht das dunkle Theme.
      Rendern: bun run docs:hero → docs/hero-hell.png und docs/hero-dunkel.png -->
 <html lang="de">
@@ -12,6 +12,7 @@
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+    @font-face { font-family: "IBM Plex Serif"; font-style: normal; font-weight: 600; src: url("../../packages/einvoice/fonts/IBMPlexSerif-SemiBold.ttf") format("truetype"); }
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
 
@@ -30,6 +31,7 @@
       --danger-ink: #9b1c1c; --danger-soft: #fbe4e4;
       --sans: "IBM Plex Sans", system-ui, sans-serif;
       --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --serif: "IBM Plex Serif", Georgia, serif;
     }
     html.nacht {
       color-scheme: dark;
@@ -47,46 +49,40 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 1280px; height: 360px; }
     body { background: var(--ground); color: var(--ink); font: 400 16px/24px var(--sans); }
-    main { position: relative; width: 1280px; height: 360px; padding: 36px 64px 0; }
-    .brand { display: flex; justify-content: center; align-items: center; gap: 12px; height: 40px; font-size: 26px; font-weight: 600; }
+    main { width: 1280px; height: 360px; padding: 36px 64px; display: grid; grid-template-columns: 540px 1fr; gap: 80px; align-items: center; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 24px; line-height: 36px; font-weight: 600; }
     .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: var(--brand); color: #fff; font-size: 24px; }
-    /* Das T: Querstrich über beide Seiten, Mittelstrich bis fast zum Rand */
-    .konto { position: relative; margin-top: 24px; height: 236px; border-top: 2px solid var(--ink); display: grid; grid-template-columns: 1fr 1fr; }
-    .konto::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); }
-    .seite { position: relative; padding-top: 34px; }
-    .soll { padding-right: 40px; }
-    .haben { padding-left: 48px; }
-    .kopf { position: absolute; top: 8px; font: 500 14px/16px var(--mono); color: var(--muted); }
-    .soll .kopf { left: 0; }
-    .haben .kopf { right: 0; }
-    ul { list-style: none; margin: 0; padding: 0; }
-    li { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; height: 44px; padding-top: 9px; border-bottom: 1px solid var(--line); font-size: 19px; color: var(--ink-2); }
-    li:last-child { border-bottom: 0; }
-    li span { font: 400 15px/20px var(--mono); color: var(--muted); white-space: nowrap; }
-    h1 { margin: 0; font-size: 54px; line-height: 62px; font-weight: 600; letter-spacing: -1.3px; }
+    h1 { margin: 16px 0 12px; font: 600 58px/70px var(--serif); letter-spacing: -1px; }
     h1 span { display: block; color: var(--accent-ink); }
-    .beschreibung { margin: 16px 0 0; color: var(--ink-2); font-size: 18px; line-height: 26px; }
+    .beschreibung { margin: 0; color: var(--ink-2); font-size: 17px; line-height: 26px; }
+    /* Rechts wie ein Auszug, ohne Kasten: die Linie in der Markenfarbe hält Rechnung und Zahlung zusammen */
+    .auszug { padding-left: 22px; border-left: 3px solid var(--brand); }
+    .zeile { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; padding: 8px 0 10px; }
+    .zeile + .zeile { border-top: 1px solid var(--line); }
+    .was { font-size: 17px; font-weight: 500; line-height: 24px; }
+    .wer { font-size: 14px; line-height: 20px; color: var(--muted); }
+    .betrag { font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    dl { display: grid; grid-template-columns: 76px 1fr; gap: 4px 12px; margin: 12px 0 0; font-size: 14px; line-height: 20px; }
+    dt { font-weight: 600; color: var(--accent-ink); }
+    dd { margin: 0; color: var(--ink-2); }
   </style>
 </head>
 <body>
   <main>
-    <div class="brand"><span class="brand-mark">H</span>Haben</div>
-    <div class="konto">
-      <section class="seite soll">
-        <span class="kopf">Soll</span>
-        <ul>
-          <li>E-Rechnungen senden und empfangen<span>§ 14 UStG</span></li>
-          <li>Belege unveränderbar aufbewahren<span>§ 146 AO</span></li>
-          <li>Umsatzsteuer-Voranmeldung<span>§ 18 UStG</span></li>
-          <li>Einnahmen-Überschuss-Rechnung<span>§ 4 Abs. 3 EStG</span></li>
-        </ul>
-      </section>
-      <section class="seite haben">
-        <span class="kopf">Haben</span>
-        <h1>Deine Bücher.<span>Dein Server.</span></h1>
-        <p class="beschreibung">Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs.</p>
-      </section>
-    </div>
+    <section>
+      <div class="brand"><span class="brand-mark">H</span>Haben</div>
+      <h1>Deine Bücher.<span>Dein Server.</span></h1>
+      <p class="beschreibung">Open-Source-Buchhaltung für Freiberufler, Selbstständige und kleine GmbHs, von der E-Rechnung bis zur Voranmeldung.</p>
+    </section>
+    <section class="auszug">
+      <div class="zeile"><div><div class="was">E-Rechnung 2026-034</div><div class="wer">Studio Linde, Webdesign, ZUGFeRD</div></div><div class="betrag">1.725,50 €</div></div>
+      <div class="zeile"><div><div class="was">Zahlungseingang am 14.10.2026</div><div class="wer">Girokonto, Verwendungszweck RE 2026-034</div></div><div class="betrag">1.725,50 €</div></div>
+      <dl>
+        <dt>Abgleich</dt><dd>Zahlung der Rechnung zugeordnet</dd>
+        <dt>GoBD</dt><dd>Festgeschrieben, Korrektur nur per Storno</dd>
+        <dt>ELSTER</dt><dd>Voranmeldung Oktober, Kennzahl 81: 1.450 €</dd>
+      </dl>
+    </section>
   </main>
 </body>
 </html>
