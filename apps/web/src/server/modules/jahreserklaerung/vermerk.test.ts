@@ -116,6 +116,18 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
   });
 
+  for (const rechtsform of ["gmbh", "ug"] as const)
+    it(`lehnt bei einer Kapitalgesellschaft (${rechtsform}) die Anlage EÜR ab, die Umsatzsteuererklärung nicht`, async () => {
+      // Kapitalgesellschaften bilanzieren (§ 6, § 238 HGB); die EÜR nach § 4 Abs. 3 EStG gibt es für sie nicht
+      await sql`update company set rechtsform = ${rechtsform} where id = 1`;
+      await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
+        /Kapitalgesellschaft/,
+      );
+      expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
+      await jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("DEF123456789", { abweichungBestaetigt: true }), TODAY);
+      expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
+    });
+
   it("lehnt ein schon verwendetes Transferticket ab", async () => {
     await jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { abweichungBestaetigt: true }), TODAY);
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "ust", 2025, eingabe("ABC123456789"), TODAY)).rejects.toThrow(/Transferticket/);
