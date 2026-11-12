@@ -581,6 +581,9 @@ export async function createDraft(actor: string, input: DraftInput, extra: Draft
 /** Legt einen Entwurf in einer laufenden Transaktion an, z. B. zusammen mit dem Festschreiben (Storno) */
 export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra = {}): Promise<Invoice> {
   await lockQuotes(tx, input.quoteId ? [input.quoteId] : []);
+  // Vor dem ersten Audit-Eintrag sperren: Der Fremdschlüssel der Abzugsposition braucht sonst erst danach den
+  // Abschlag, während dessen parallele Zahlung auf die Audit-Kette wartet.
+  for (const id of [...new Set([...(input.deducts ?? []), ...(extra.correctsId ? [extra.correctsId] : [])])].sort()) await lockAdvanceVat(tx, id);
   const { bundesland } = await loadCompany(tx);
   await checkQuote(tx, input.quoteId);
   const lines = await allLines(tx, null, input);
@@ -608,6 +611,8 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
   return withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id], [input.quoteId]));
     const draft = await lockDraft(tx, id);
+    await lockAdvanceVat(tx, id);
+    for (const reference of [...new Set(input.deducts ?? [])].sort()) await lockAdvanceVat(tx, reference);
     // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Rechnung
     if (input.contactId !== draft.contactId) await assertCustomer(tx, input.contactId);
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
@@ -645,6 +650,7 @@ export async function deleteDraft(actor: string, id: string) {
   const unused = await withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id]));
     await lockDraft(tx, id);
+    await lockAdvanceVat(tx, id);
     await assertQuotesLocked(tx, quoteIds, [id]);
     // Aus einem Angebot entstanden: das Angebot lässt sich danach wieder abrechnen
     await tx.update(schema.quotes).set({ invoiceId: null, updatedAt: new Date() }).where(eq(schema.quotes.invoiceId, id));

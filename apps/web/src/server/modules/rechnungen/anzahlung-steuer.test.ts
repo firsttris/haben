@@ -27,7 +27,9 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung vor Leistung (Postgres)", () => {
     await sql?.end();
   });
   beforeEach(async () => {
-    await leeren(sql)`truncate company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
+    // Jede Probe beginnt mit einem leeren Bestand samt dessen Siegeln und Kette. Sonst blieben nach CASCADE die
+    // Siegel gelöschter Fixture-Belege zurück und die Integritätsprüfung meldete zu Recht fehlende Datensätze.
+    await leeren(sql)`truncate seals, audit_log, company, invoices, invoice_number_counters, contacts, journal_entries, bank_accounts, cash_entries cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, bundesland, iban, kontenrahmen, versteuerung, journal_ab)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '0941 1', '198/113/10010',
       'BY', 'DE89370400440532013000', 'SKR03', 'soll', 2026)`;
