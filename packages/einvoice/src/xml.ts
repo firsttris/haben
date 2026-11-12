@@ -13,7 +13,7 @@ import {
   type Cents,
   type Millis,
 } from "@haben/core";
-import { ciiPostProcessor } from "./cii.ts";
+import { ciiXml } from "./cii.ts";
 import { generateEInvoice } from "./generate.ts";
 import {
   accountHolder,
@@ -29,7 +29,6 @@ import {
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
-import { extractFacturXXml } from "./zugferd.ts";
 
 type UblInvoice = Invoice["ubl:Invoice"];
 type InvoiceLine = UblInvoice["cac:InvoiceLine"][number];
@@ -449,29 +448,20 @@ export async function buildEInvoice(doc: InvoiceDocument): Promise<{ xml: string
   const visual = renderInvoicePdf(doc);
 
   if (doc.format === "zugferd") {
+    const xml = ciiXml(data, "factur-x");
+    // ÜBERGANG: Einbetten bis Schritt 3 noch über die Bibliothek
     const pdf = await generateEInvoice(structuredClone(data), {
       format: SERVICE_FORMATS.zugferd,
       lang: "de-de",
       pdf: { buffer: visual, filename: `${doc.number}.pdf`, mimetype: "application/pdf" },
       noWarnings: true,
-      postProcessor: ciiPostProcessor(withoutInvalidXmlChars(doc.references)),
     });
-    const xml = typeof pdf === "string" ? null : extractFacturXXml(pdf);
-    if (typeof pdf === "string" || !xml) throw new Error("ZUGFeRD-Erzeugung lieferte kein PDF mit factur-x.xml");
+    if (typeof pdf === "string") throw new Error("ZUGFeRD-Erzeugung lieferte kein PDF");
     return { xml, pdf };
   }
+  if (doc.format === "xrechnung-cii") return { xml: ciiXml(data, "xrechnung"), pdf: visual };
 
-  const xml = await generateXml(data, SERVICE_FORMATS[doc.format], doc);
+  const xml = await generateEInvoice(structuredClone(data), { format: SERVICE_FORMATS[doc.format], lang: "de-de", noWarnings: true });
+  if (typeof xml !== "string") throw new Error(`${doc.format} lieferte kein XML`);
   return { xml, pdf: visual };
-}
-
-async function generateXml(data: Invoice, format: string, doc: InvoiceDocument): Promise<string> {
-  const result = await generateEInvoice(structuredClone(data), {
-    format,
-    lang: "de-de",
-    noWarnings: true,
-    postProcessor: ciiPostProcessor(withoutInvalidXmlChars(doc.references)),
-  });
-  if (typeof result !== "string") throw new Error(`${format} lieferte kein XML`);
-  return result;
 }
