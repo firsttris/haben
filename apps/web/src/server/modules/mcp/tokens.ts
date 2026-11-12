@@ -89,12 +89,7 @@ export async function mcpEnabled(): Promise<boolean> {
 
 export async function setMcpEnabled(actor: string, enabled: boolean): Promise<void> {
   await loadCompany();
-  await withActor(actor, (tx) =>
-    tx
-      .update(schema.company)
-      .set({ mcpEnabled: enabled, updatedAt: new Date() })
-      .where(and(eq(schema.company.id, 1), eq(schema.company.mcpEnabled, !enabled))),
-  );
+  await withActor(actor, (tx) => tx.update(schema.company).set({ mcpEnabled: enabled, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }
 
 /** Legt ein Token an; den Klartext gibt es nur in dieser Antwort. */

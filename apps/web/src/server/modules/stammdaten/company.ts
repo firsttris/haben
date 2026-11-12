@@ -22,7 +22,6 @@ import { z } from "zod";
 import { listArticles } from "./articles.ts";
 import { listTextBlocks } from "./text-blocks.ts";
 import { listContacts } from "./contacts.ts";
-import { unrelatedCompanyAudit } from "./company-audit.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadDesign } from "./letterhead.ts";
@@ -216,8 +215,19 @@ export async function kleinunternehmerStand(q: Db | Tx = db): Promise<Kleinunter
     .from(schema.auditLog)
     .where(eq(schema.auditLog.tableName, "company"))
     .orderBy(schema.auditLog.seq);
-  // Nummernformate, ELSTER-Datenschutzhinweise usw. können schon vor der Firmeneinrichtung gespeichert werden.
-  const settings = rows.filter((r) => !unrelatedCompanyAudit(r));
+  // Alte Snapshots ohne Kennzeichnung bleiben konservativ erhalten. Neue Verwaltungsupdates bestätigen
+  // keine Besteuerungsart; tatsächliche Statusänderungen (auch Übernahmen) bleiben fachlich wirksam.
+  const settings = rows.filter((r) => {
+    const after = r.newValue as Record<string, unknown> | null;
+    const before = r.oldValue as Record<string, unknown> | null;
+    if (typeof after?.kleinunternehmer !== "boolean") return false;
+    if (!Object.hasOwn(after, "firmendaten_gespeichert_at")) return true;
+    return (
+      r.action === "INSERT" ||
+      after.kleinunternehmer !== before?.kleinunternehmer ||
+      (after.firmendaten_gespeichert_at !== null && after.firmendaten_gespeichert_at !== before?.firmendaten_gespeichert_at)
+    );
+  });
   const firstSetting = settings.find(
     (r) => !defaultCompanyAudit(r) && typeof (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer === "boolean",
   );
