@@ -41,10 +41,11 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
   [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
-- Zuerst schaut ein Maintainer oder Collaborator, ob die Änderung zu Haben passt, gegen die Quellen geprüft ist und
-  Tests und Doku mitbringt ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)). Ein Issue
-  vorab spart dir Arbeit an etwas, das wir nicht übernehmen können.
-- Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**: Ein Befund zählt nur mit einem Test, der
+- Vor „Ready for review“ prüfst du selbst, ob die Änderung zu Haben passt, gegen die Quellen geprüft ist, die
+  einfachste Lösung ist und Tests und Doku mitbringt, und schreibst das Ergebnis in den Pull Request; ein Maintainer
+  oder Collaborator prüft es nach ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)). Ein
+  Issue vorab spart dir Arbeit an etwas, das wir nicht übernehmen können.
+- Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, ohne Code eine Doku-Prüfung: Ein Befund zählt nur mit einem Test, der
   auf dem Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf. Gemergt wird von einem
   Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Die Schritte stehen unter
   [Review](https://haben.app/entwicklung.html#review).

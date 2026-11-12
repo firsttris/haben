@@ -17,7 +17,7 @@ Das Abtippen kann ein KI-Assistent übernehmen, etwa Claude Code. Er braucht daf
 1. **Haben-MCP** ([KI-Assistenten](ki-assistenten.md)): liefert die Werte der Voranmeldung, mit dem Werkzeug `ustva_ausfuellliste` in der Reihenfolge des Formulars.
 2. **Einen Browser, den er steuern kann** und in dem du bei Mein ELSTER angemeldet bist. Am einfachsten ist die Erweiterung [Claude in Chrome](#weg-1-claude-in-chrome); ohne Claude-Abo oder mit einem anderen Modell geht es mit [Playwright MCP](#alternative-playwright-mcp).
 
-Abgegeben wird über das offizielle Portal und mit deiner eigenen Anmeldung. Weder ERiC noch eine Hersteller-ID sind dafür nötig.
+Abgegeben wird über das offizielle Portal und mit deiner eigenen Anmeldung.
 
 | Schritt | Wer |
 | --- | --- |

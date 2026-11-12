@@ -37,9 +37,9 @@ Bezahlt ein Kunde eine Rechnung bar, wählst du unter **Eintragen** die Art **Re
 - **Auf der Rechnung** steht die Zahlung unter **Zahlungen** als „bar“ mit der Nummer im Kassenbuch; die Rechnung ist bezahlt, sobald nichts mehr offen ist.
 - **Storno:** **Stornieren** in der Liste schreibt eine Gegenzeile mit neuer Nummer und heutigem Datum und bucht gegen (Forderungen an Kasse, bei Ist die Umsatzsteuer zurück auf „nicht fällig“). Die Rechnung ist danach wieder offen, ein mit der Bareinnahme ausgebuchtes Skonto wird mit aufgehoben. Auch hier darf der Kassenbestand nicht negativ werden. Ist die Bareinnahme in einem anderen Kontenrahmen gebucht als dem jetzt eingestellten (Wechsel zum Jahreswechsel), bucht das Storno mit den Konten derselben Rolle im neuen Rahmen, etwa Forderungen und Kasse aus SKR04 statt SKR03.
 
-**Warum im Kassenbuch:** Die Bareinnahme bucht den Zahlungseingang dort, wo er stattfindet. So stimmen Kassenbuch und Bargeld überein, und bei Ist-Versteuerung fällt die Umsatzsteuer in den Monat, in dem das Geld vereinnahmt ist. Ein Kassensystem für den Ladenverkauf wird Haben damit nicht: Haben zeichnet keine einzelnen Verkäufe an einer Registrierkasse auf; Barverkäufe ohne Rechnung trägst du als [Bareinnahme ohne Rechnung](#bareinnahme-ohne-rechnung) ein, etwa als Tagessumme.
+**Warum im Kassenbuch:** Die Bareinnahme bucht den Zahlungseingang dort, wo er stattfindet. So stimmen Kassenbuch und Bargeld überein, und bei Ist-Versteuerung fällt die Umsatzsteuer in den Monat, in dem das Geld vereinnahmt ist.
 
-Eine Bareinnahme gehört zu genau einer Rechnung. Bezahlt ein Kunde mehrere Rechnungen auf einmal bar, trägst du je Rechnung eine Zeile ein; so steht jede Quittung für sich im Kassenbuch.
+Eine Bareinnahme gehört zu genau einer Rechnung. Bezahlt ein Kunde mehrere Rechnungen auf einmal bar, trägst du je Rechnung eine Zeile ein.
 
 ## Bareinnahme ohne Rechnung
 

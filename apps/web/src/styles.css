@@ -716,7 +716,12 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .search-box { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); min-width: 200px; }
 .search-box:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .search-box input { border: 0; outline: none; font: inherit; font-size: 13px; color: var(--ink); background: transparent; width: 100%; }
-.tx-cols { grid-template-columns: 64px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+.tx-cols { grid-template-columns: 84px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+/* Spaltenkopf als Schaltfläche: sortiert die Liste, der zweite Klick dreht die Richtung (#681) */
+.sort-head { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+.sort-head.num { justify-content: flex-end; }
+.sort-head:hover { color: var(--ink); }
+.sort-head.aktiv { color: var(--ink); font-weight: 500; }
 .tx-row.selected { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
 .tx-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .section-label { font-size: 13px; color: var(--muted); }

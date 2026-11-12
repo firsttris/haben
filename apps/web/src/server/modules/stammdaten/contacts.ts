@@ -15,7 +15,7 @@ import {
 import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema, type Tx } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
@@ -138,6 +138,22 @@ export async function listContactChoices(role: ContactRole): Promise<ContactChoi
   }));
 }
 
+/**
+ * Meldung, wenn ein Kontakt in der Rolle nicht gewählt werden kann (Kunde bei Rechnung, Angebot, Vorlage und Textbaustein,
+ * Lieferant bei Beleg und Dauerbeleg), sonst null. Das Formular zeigt nur passende Kontakte; geprüft wird hier, weil auch
+ * die API und ein veraltetes Formular Kontakte zuordnen. Fehlt der Kontakt, gilt `missing`.
+ */
+export async function contactRoleProblem(client: Db | Tx, contactId: string, role: ContactRole, missing = "Kontakt nicht gefunden."): Promise<string | null> {
+  const [contact] = await client
+    .select({ name: schema.contacts.name, isCustomer: schema.contacts.isCustomer, isSupplier: schema.contacts.isSupplier })
+    .from(schema.contacts)
+    .where(eq(schema.contacts.id, contactId));
+  if (!contact) return missing;
+  if (role === "kunde" ? contact.isCustomer : contact.isSupplier) return null;
+  const label = role === "kunde" ? "Kunde" : "Lieferant";
+  return `„${contact.name}“ ist kein ${label}. Setze beim Kontakt den Haken „${label}“, dann lässt er sich hier wählen.`;
+}
+
 /** Kontakt mit gleicher USt-IdNr., als Hinweis beim Anlegen oder Ändern (ContactForm) */
 export interface UstIdMatch {
   id: string;
@@ -153,9 +169,15 @@ const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
 
 /**
  * Kontakte aller Rollen mit derselben USt-IdNr., auch archivierte; excludeId nimmt den Kontakt aus, den das Formular
- * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen.
+ * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen. Aus mehr als fünf
+ * Treffern bleiben die ersten fünf; wanted (die Rollen des neuen Kontakts) stellt die Kontakte voran, die alle diese
+ * Rollen haben, denn nur einen solchen kann man statt eines neuen wählen.
  */
-export async function findContactsByUstId(ustId: string, excludeId?: string): Promise<UstIdMatch[]> {
+export async function findContactsByUstId(
+  ustId: string,
+  excludeId?: string,
+  wanted: { isCustomer?: boolean; isSupplier?: boolean } = {},
+): Promise<UstIdMatch[]> {
   const compact = compactUstId(ustId);
   if (!compact) return [];
   const rows = await db
@@ -169,8 +191,13 @@ export async function findContactsByUstId(ustId: string, excludeId?: string): Pr
     })
     .from(schema.contacts)
     .where(and(sql`upper(replace(${schema.contacts.ustId}, ' ', '')) = ${compact}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
-    // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken
-    .orderBy(sql`${schema.contacts.archivedAt} is not null`, asc(schema.contacts.name))
+    // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken; dann die mit den
+    // gewünschten Rollen, damit sie nicht hinter fünf anderen aus der Liste fallen
+    .orderBy(
+      sql`${schema.contacts.archivedAt} is not null`,
+      sql`not (${wanted.isCustomer ? schema.contacts.isCustomer : sql`true`} and ${wanted.isSupplier ? schema.contacts.isSupplier : sql`true`})`,
+      asc(schema.contacts.name),
+    )
     .limit(5);
   return rows.map(({ archivedAt, ...rest }) => ({ ...rest, archived: archivedAt !== null }));
 }

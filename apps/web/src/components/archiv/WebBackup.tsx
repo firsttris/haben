@@ -102,9 +102,7 @@ export function WebBackup() {
         </a>
       </div>
       <form className="stack" onSubmit={onSubmit} style={{ gap: 12 }}>
-        <Field label="Teile der Sicherung (ZIP)">
-          {(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" ariaLabel="Teile der Sicherung" />}
-        </Field>
+        <Field label="Teile der Sicherung (ZIP)">{(control) => <FilePicker {...control} inputRef={fileInput} multiple accept=".zip,application/zip" />}</Field>
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? "Übernehme …" : "Hochladen und übernehmen"}
