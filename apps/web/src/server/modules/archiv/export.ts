@@ -600,6 +600,55 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     compress: true,
   };
 
+  // Verrechnungen zweier Eingangsbelege (#274): Eine Gutschrift gleicht eine Rechnung ohne Zahlung aus. Je Verrechnung
+  // stehen zwei Zeilen (negativ beim Beleg, positiv bei der Gutschrift), eine Aufhebung ist eine Gegenzeile mit dem Datum
+  // der Aufhebung. Wie die Verrechnungen von Umsätzen (bank/verrechnungen.csv) haben sie keinen Bankumsatz und keine
+  // Buchung; ohne eigene Datei wäre der Vorgang im Archiv nicht nachvollziehbar.
+  const settlements = await db
+    .select()
+    .from(schema.documentSettlements)
+    .where(and(gte(schema.documentSettlements.date, yearStart(year)), lte(schema.documentSettlements.date, yearEnd(year))))
+    .orderBy(asc(schema.documentSettlements.date), asc(schema.documentSettlements.createdAt), asc(schema.documentSettlements.id));
+  if (settlements.length > 0) {
+    // Der Gegenbeleg kann in einem anderen Jahr liegen; dann fehlt sein Pfad im Archiv und der Name kommt aus dem Beleg
+    const ids = [...new Set(settlements.flatMap((s) => [s.documentId, s.counterDocumentId]))];
+    const missing = ids.filter((id) => !documentPaths.has(id));
+    const outside = missing.length
+      ? await db
+          .select({
+            id: schema.documents.id,
+            day: documentDay,
+            supplierName: schema.documents.supplierName,
+            mimeType: schema.documents.mimeType,
+          })
+          .from(schema.documents)
+          .where(inArray(schema.documents.id, missing))
+      : [];
+    const belegName = new Map<string, string>([
+      ...[...documentPaths].map(([id, path]) => [id, path.replace(/^belege\//, "")] as const),
+      ...outside.map((d) => [d.id, `${d.day}_${safeName(d.supplierName)}_${d.id.slice(0, 8)}.${EXTENSIONS[d.mimeType] ?? "bin"}`] as const),
+    ]);
+    yield {
+      path: "belege/verrechnungen.csv",
+      content: csv(
+        ["Datum", "Beleg", "Gegenbeleg", "Betrag", "Notiz", "Hebt auf", "Angelegt", "Beleg-ID", "Gegenbeleg-ID", "Verrechnungs-ID"],
+        settlements.map((s) => [
+          s.date,
+          belegName.get(s.documentId) ?? "",
+          belegName.get(s.counterDocumentId) ?? "",
+          money(s.amount),
+          s.note,
+          s.reversesId,
+          iso(s.createdAt),
+          s.documentId,
+          s.counterDocumentId,
+          s.id,
+        ]),
+      ),
+      compress: true,
+    };
+  }
+
   // Buchungen -------------------------------------------------------------
   const entries = await db
     .select()
@@ -1681,6 +1730,10 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
                          Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
                          ursprünglichem Dateinamen.
+belege/verrechnungen.csv Nur wenn vorhanden: Verrechnungen zweier Eingangsbelege ohne
+                         Zahlung (etwa eine Gutschrift gegen eine Rechnung), je
+                         Verrechnung beide Seiten mit Datum, Betrag und Grund;
+                         aufgehobene als Gegenzeile.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
                          Steuerschlüssel, Bemessungsgrundlage bei Ist-Versteuerung an
                          der Zahlung); Stornos verweisen auf die Ursprungsbuchung.
