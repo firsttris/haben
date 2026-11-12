@@ -156,4 +156,116 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer: technische Erstanlage und f
     expect(await company.kleinunternehmerForYear(year - 1)).toBe(false);
     expect((await company.kleinunternehmerHistory())(today)).toBe(true);
   });
+
+  it.each(["Nummernformat", "ELSTER-Datenschutzhinweis"])("%s vor Firmendaten bestätigt keine Regelbesteuerung", async (setting) => {
+    await company.loadCompany();
+    if (setting === "Nummernformat") {
+      const { saveNumberFormats } = await import("./number-formats.ts");
+      await saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: "AN-{JJJJ}-{NNNN}" });
+    } else {
+      const { confirmElsterDatenschutz } = await import("../elster/elster.ts");
+      await confirmElsterDatenschutz(actor);
+    }
+    // Beide Aktionen sind in eigenen Bereichen der Einstellungen möglich, ohne den Steuerstatus zu wählen.
+    const initial = await company.loadCompany();
+    await guard.saveCompany(actor, company.companySchema.parse({ ...initial, name: "Musterfirma", kleinunternehmer: true }), today);
+
+    expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  it("ausdrücklich gespeicherte Regelbesteuerung bleibt auch bei noch leerem Firmennamen erhalten", async () => {
+    const initial = company.companySchema.parse(await company.loadCompany());
+    await guard.saveCompany(actor, initial, today);
+    await guard.saveCompany(actor, { ...initial, name: "Musterfirma", kleinunternehmer: true }, today);
+    expect((await company.kleinunternehmerHistory())(previous)).toBe(false);
+  });
+
+  it("nach einer fachfremden Einstellung tatsächlich verwendete Vorgaben bleiben erhalten", async () => {
+    const initial = await company.loadCompany();
+    const { saveNumberFormats } = await import("./number-formats.ts");
+    await saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: "AN-{JJJJ}-{NNNN}" });
+    const previousYear = Number(today.slice(0, 4)) - 1;
+    await sql.begin(async (tx) => {
+      const [entry] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values (${`${previousYear}-12-10`}, 'Bereits verwendete Vorgaben', 'manuell', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values
+        (${entry!.id}, '1000', 100, 0), (${entry!.id}, '1890', 0, 100)`;
+      await tx`update journal_entries set locked_at = now() where id = ${entry!.id}`;
+    });
+    await guard.saveCompany(actor, company.companySchema.parse({ ...initial, name: "Musterfirma", kleinunternehmer: true }), today);
+    expect(await company.kleinunternehmerForYear(previousYear)).toBe(false);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  it("Speichern der unveränderten Nummernformate bestätigt keine Regelbesteuerung", async () => {
+    const initial = await company.loadCompany();
+    const { saveNumberFormats } = await import("./number-formats.ts");
+    await saveNumberFormats(actor, { invoice: initial.invoiceNumberFormat, quote: initial.quoteNumberFormat });
+    await guard.saveCompany(actor, company.companySchema.parse({ ...initial, name: "Synthetische Musterfirma", kleinunternehmer: true }), today);
+
+    expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
+  it.each(["Kundennummern", "Zahlungsplanvorlagen", "DATEV-Angaben", "persönlicher Angaben", "MCP-Einstellungen"])(
+    "Speichern unveränderter %s bestätigt keine Regelbesteuerung",
+    async (setting) => {
+      const initial = await company.loadCompany();
+      if (setting === "Kundennummern") {
+        const { saveCustomerNumbering } = await import("./customer-numbers.ts");
+        await saveCustomerNumbering(actor, { format: initial.customerNumberFormat, next: initial.customerNumberNext });
+      } else if (setting === "Zahlungsplanvorlagen") {
+        const { savePlanTemplates } = await import("./plan-templates.ts");
+        await savePlanTemplates(actor, initial.paymentPlanTemplates);
+      } else if (setting === "DATEV-Angaben") {
+        const { saveDatevNumbers } = await import("../auswertungen/datev-export.ts");
+        const numbers = { beraterNr: "1234", mandantNr: "123", personenkontenAb: null };
+        await saveDatevNumbers(actor, numbers);
+        await saveDatevNumbers(actor, numbers);
+      } else if (setting === "persönlicher Angaben") {
+        const { saveTaxpayer } = await import("./taxpayer.ts");
+        await saveTaxpayer(actor, { veranlagung: "einzel" });
+        await saveTaxpayer(actor, { veranlagung: "einzel" });
+      } else {
+        const { setMcpEnabled } = await import("../mcp/tokens.ts");
+        await setMcpEnabled(actor, true);
+        await setMcpEnabled(actor, true);
+      }
+      await guard.saveCompany(actor, company.companySchema.parse({ ...initial, name: "Synthetische Musterfirma", kleinunternehmer: true }), today);
+
+      expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
+      expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR03", "soll"],
+    ["SKR04", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("jede ausdrückliche Firmenspeicherung erhält eine eigene Bestätigung (%s, %s)", async (kontenrahmen, versteuerung) => {
+    const input = company.companySchema.parse({ ...(await company.loadCompany()), kontenrahmen, versteuerung });
+    await guard.saveCompany(actor, input, today);
+    const [first] = await sql`select new_value ->> 'firmendaten_gespeichert_at' as confirmation, seq, row_hash
+      from audit_log where table_name = 'company' and action = 'UPDATE' order by seq desc limit 1`;
+    expect(first!.confirmation).toEqual(expect.any(String));
+    await guard.saveCompany(actor, input, today);
+    const [second] = await sql`select old_value ->> 'firmendaten_gespeichert_at' as previous,
+      new_value ->> 'firmendaten_gespeichert_at' as confirmation from audit_log
+      where table_name = 'company' and action = 'UPDATE' order by seq desc limit 1`;
+    expect(second!.previous).toBe(first!.confirmation);
+    expect(second!.confirmation).toEqual(expect.any(String));
+    expect(second!.confirmation).not.toBe(first!.confirmation);
+    const { saveNumberFormats } = await import("./number-formats.ts");
+    await saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: "AN-{JJJJ}-{NNNN}" });
+    const [admin] = await sql`select new_value ->> 'firmendaten_gespeichert_at' as confirmation
+      from audit_log where table_name = 'company' order by seq desc limit 1`;
+    expect(admin!.confirmation).toBe(second!.confirmation);
+    await guard.saveCompany(actor, { ...input, name: "Bestätigte Musterfirma", kleinunternehmer: true }, today);
+    expect((await company.kleinunternehmerHistory())(previous)).toBe(false);
+    expect((await company.kleinunternehmerHistory())(today)).toBe(true);
+    expect((await sql`select row_hash from audit_log where seq = ${first!.seq}`)[0]!.row_hash).toBe(first!.row_hash);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
 });
