@@ -149,6 +149,10 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await zeichenSpeichern();
   await expect(marke).toHaveCSS("background-color", "rgb(36, 50, 58)");
   await expect(marke).toHaveCSS("box-shadow", /inset/);
+  // Zurück zu #B5462F, das die folgenden Schritte als eigene Farbe erwarten
+  await zeichen.getByLabel("Hex-Wert").fill("#b5462f");
+  await zeichenSpeichern();
+  await expect(marke).toHaveCSS("box-shadow", "none");
   // Das Logo der Belege nur auf ausdrückliche Wahl; statt des „H“ steht dann das Bild, auf Weiß
   await zeichen.getByLabel("Logo aus der Beleggestaltung").check();
   await zeichenSpeichern();
