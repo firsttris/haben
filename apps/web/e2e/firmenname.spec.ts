@@ -161,6 +161,83 @@ test("am Handy steht der Name in einer Zeile, und die Leiste bleibt so hoch wie 
   });
 });
 
+// Das Zeichen links von „Haben“ ist fest quadratisch, am Desktop 48 und am Handy 40 Pixel, für das „H“ wie für ein
+// Logo (#504). Ein breites Logo wird in der Kachel verkleinert und nimmt „Haben“ und dem Namen keinen Platz; die
+// Kachel bleibt bündig mit den Symbolen der Menüpunkte, rechts hat die Marke keinen Innenabstand mehr
+const BREITES_LOGO = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300"><rect width="900" height="300" fill="#b5462f"/></svg>',
+)}`;
+
+async function zeichenGemessen(page: Page): Promise<{ groesse: [number, number]; text: [number, number] }> {
+  return page.evaluate(() => {
+    const brand = document.querySelector<HTMLElement>("nav.nav .brand")!;
+    const zeichen = brand.firstElementChild!.getBoundingClientRect();
+    const text = brand.querySelector<HTMLElement>(".brand-text")!.getBoundingClientRect();
+    return { groesse: [Math.round(zeichen.width), Math.round(zeichen.height)], text: [Math.round(text.left), Math.round(text.width)] };
+  });
+}
+
+test("das Zeichen ist fest quadratisch, am Desktop 48 und am Handy 40 Pixel, auch mit einem breiten Logo", async ({ page }) => {
+  const gemessen: Record<string, { h: [number, number]; logo: [number, number]; gleicherPlatz: boolean }> = {};
+  let nameDesktop = 0;
+  let zeichenLinks = 0;
+  let symbolLinks = 0;
+  for (const breite of [1280, 375, 320]) {
+    await page.setViewportSize({ width: breite, height: 812 });
+    await page.goto("/");
+    await expect(nav(page).getByText(FIRMA)).toBeVisible();
+    const h = await zeichenGemessen(page);
+    if (breite === 1280) {
+      nameDesktop = h.text[1];
+      ({ zeichenLinks, symbolLinks } = await page.evaluate(() => ({
+        zeichenLinks: Math.round(document.querySelector(".brand-mark")!.getBoundingClientRect().left),
+        symbolLinks: Math.round(document.querySelector(".nav-body .nav-link svg")!.getBoundingClientRect().left),
+      })));
+    }
+    // Statt des „H“ ein Logo im Format 3 : 1, so wie NavMarkSymbol es ausgibt
+    await nav(page)
+      .locator(".brand-mark")
+      .evaluate((el, src) => {
+        const img = document.createElement("img");
+        img.className = "brand-logo";
+        img.alt = "";
+        img.width = 48;
+        img.height = 48;
+        img.src = src;
+        el.replaceWith(img);
+      }, BREITES_LOGO);
+    const bild = nav(page).locator("img.brand-logo");
+    await expect.poll(() => bild.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+    const logo = await zeichenGemessen(page);
+    gemessen[`${breite}px`] = { h: h.groesse, logo: logo.groesse, gleicherPlatz: h.text.join() === logo.text.join() };
+  }
+  expect(gemessen).toEqual({
+    "1280px": { h: [48, 48], logo: [48, 48], gleicherPlatz: true },
+    "375px": { h: [40, 40], logo: [40, 40], gleicherPlatz: true },
+    "320px": { h: [40, 40], logo: [40, 40], gleicherPlatz: true },
+  });
+  // Rechts ohne Innenabstand: Der Name behält trotz der größeren Kachel 132 Pixel
+  expect(nameDesktop).toBe(132);
+  expect(zeichenLinks).toBe(symbolLinks);
+});
+
+test("am Handy bleibt zwischen Name und Menüknopf Platz", async ({ page }) => {
+  const abstaende: Record<string, number> = {};
+  for (const breite of [375, 320]) {
+    await page.setViewportSize({ width: breite, height: 812 });
+    await page.goto("/");
+    await expect(nav(page).getByText(FIRMA)).toBeVisible();
+    await nameSetzen(page, LANG);
+    abstaende[`${breite}px`] = await page.evaluate(() => {
+      const name = document.querySelector(".brand-firma")!.getBoundingClientRect();
+      const knopf = document.querySelector(".nav-toggle")!.getBoundingClientRect();
+      return Math.round(knopf.left - name.right);
+    });
+  }
+  expect(abstaende["375px"]).toBeGreaterThanOrEqual(8);
+  expect(abstaende["320px"]).toBeGreaterThanOrEqual(8);
+});
+
 // Ist der Name länger als zwei Zeilen, klappt er beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf, in der
 // Breite der Navigation und über den ersten Menüpunkten. Der Name in der Marke bleibt dabei, wo er ist („Haben“
 // springt nicht); das Aufklappen ist ein zweites, für Hilfstechnik verborgenes Element (WCAG 1.4.13: es verschwindet mit

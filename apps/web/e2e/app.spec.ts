@@ -148,6 +148,11 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(logoZeichen).toBeVisible();
   await expect.poll(() => logoZeichen.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
   await expect(marke).toHaveCount(0);
+  // Fest 48 × 48 wie das „H“, und das Bild kommt aus dem Cache: Die Adresse ändert sich mit dem Logo (?v=…)
+  expect(await logoZeichen.boundingBox()).toMatchObject({ width: 48, height: 48 });
+  const kennzeichen = await page.request.get((await logoZeichen.getAttribute("src"))!);
+  expect(kennzeichen.status()).toBe(200);
+  expect(kennzeichen.headers()["cache-control"]).toBe("private, max-age=31536000, immutable");
   // Das Bild hat kein alt: Der Name des Links bleibt „Haben“ und der Firmenname (#599), ohne Text aus dem Logo
   await expect(nav.getByRole("link", { name: "Haben Mustermann IT · Max Mustermann", exact: true })).toBeVisible();
   // Zurück zum „H“ des Themes; die eigene Farbe bleibt für später gespeichert, die übrigen Tests rechnen mit dem Standard
