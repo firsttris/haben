@@ -482,6 +482,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     base: schema.documentAmounts.net,
     tax: schema.documentAmounts.tax,
     gross: schema.documents.gross,
+    payment: schema.documents.payment,
     privateShare: schema.documents.privateShare,
     vorsteuerAbzug: schema.documents.vorsteuerAbzug,
     reverseCharge: schema.documents.reverseCharge,
@@ -511,10 +512,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   ];
   // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
-  // Gutschriften (negativer Beleg) mindern die Vorsteuer erst mit der Erstattung oder Verrechnung (#690, gutschrift.ts)
+  // Gutschriften (negativer Beleg) mindern die Vorsteuer erst mit der Erstattung oder Verrechnung (#690, gutschrift.ts);
+  // bar oder privat bezahlte sind mit der Buchung ausgeglichen und zählen wie jeder andere Beleg im Belegmonat
   const inputTax = amounts
-    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && a.gross >= 0)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, gross: _gross, sign, category: _category, ...a }) => ({
+    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge && (a.gross >= 0 || a.payment !== "bank"))
+    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, gross: _gross, payment: _payment, sign, category: _category, ...a }) => ({
       ...a,
       base: business(a.base, privateShare, sign),
       tax: business(a.tax, privateShare, sign),
@@ -565,7 +567,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
     .filter((a): a is typeof a & { reverseCharge: "eu" | "drittland" } => a.reverseCharge === "eu" || a.reverseCharge === "drittland")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, gross: _gross, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, gross: _gross, payment: _payment, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
@@ -576,7 +578,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung
   const igErwerb: IgErwerbSource[] = amounts
     .filter((a) => a.reverseCharge === "ig_erwerb")
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, gross: _gross, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, gross: _gross, payment: _payment, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
@@ -585,7 +587,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
   // Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG): der Betrag des Bescheids ist die Steuer, abziehbar nach Belegdatum
   const einfuhr: InputTaxSource[] = amounts
     .filter((a) => a.category === "einfuhrumsatzsteuer" && a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, gross: _gross, sign, ...a }) => ({
+    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, gross: _gross, payment: _payment, sign, ...a }) => ({
       ...a,
       base: 0,
       tax: sign * (a.base + a.tax),

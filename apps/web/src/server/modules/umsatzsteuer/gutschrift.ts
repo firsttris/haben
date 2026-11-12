@@ -6,13 +6,14 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * Vorsteuer aus einer Gutschrift, also einem Beleg mit negativen Beträgen (#690). Eine Gutschrift erstattet ein schon
  * bezahltes Entgelt; die Vorsteuer mindert sich deshalb nicht im Belegmonat, sondern erst, wenn das Geld tatsächlich
  * zurückkommt oder der Posten verrechnet wird: je Zahlung (allocations), Verrechnung (document_settlements) und
- * Ausbuchung (write_offs) ein Anteil mit dem Datum dieses Vorgangs (§ 17 Abs. 1 UStG, UStAE 17.1 Abs. 2 Satz 3 und
- * Abs. 7; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Anteilig je Steuersatz wie beim
- * erhaltenen Skonto, aber fortgeschrieben wie eine Teilzahlung (settlementTaxShares): Alle Vorgänge einer Gutschrift
- * ergeben zusammen genau ihre Vorsteuer, auch über mehrere Zeiträume und nach einer Aufhebung.
+ * Ausbuchung (write_offs; erhaltenes Skonto, Kursdifferenz) ein Anteil mit dem Datum dieses Vorgangs (§ 17 Abs. 1
+ * Satz 2 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12).
+ * Anteilig je Steuersatz wie beim erhaltenen Skonto, aber fortgeschrieben wie eine Teilzahlung (settlementTaxShares):
+ * Alle Vorgänge einer Gutschrift ergeben zusammen genau ihre Vorsteuer, auch über mehrere Zeiträume und nach einer
+ * Aufhebung.
  *
  * Solange nichts ausgeglichen ist, taucht die Vorsteuer der Gutschrift in keinem Zeitraum auf. Aufgehobene Vorgänge
- * tragen eine Gegenzeile mit eigenem Datum und heben ihren Anteil dort wieder auf.
+ * tragen eine Gegenzeile und heben ihren Anteil an deren Datum wieder auf.
  */
 
 export interface GutschriftAnteil {
@@ -36,12 +37,20 @@ const beleg = {
   privateShare: schema.documents.privateShare,
 };
 
-/** Nur Gutschriften mit Vorsteuerabzug: negativer, gebuchter Beleg ohne § 13b-Steuer */
+/**
+ * Nur Gutschriften mit Vorsteuerabzug, die über die Bank laufen: negativer, gebuchter Beleg ohne § 13b-Steuer.
+ *
+ * Bar oder privat bezahlt gibt es keinen offenen Posten, den eine Erstattung ausgleichen könnte; das Geld ist mit der
+ * Buchung zurück, die Vorsteuer zählt dort im Belegmonat (vat-figures.ts). Aus einem Umzug übernommene Belege lässt
+ * Haben aus, weil ihre Steuer im bisherigen Programm schon angemeldet ist.
+ */
 const nurGutschrift = and(
   lt(schema.documents.gross, 0),
   eq(schema.documents.vorsteuerAbzug, true),
   eq(schema.documents.status, "gebucht"),
+  eq(schema.documents.payment, "bank"),
   isNull(schema.documents.reverseCharge),
+  isNull(schema.documents.lexofficeVoucherId),
 );
 
 /** Ein Vorgang, der den offenen Posten einer Gutschrift ausgleicht */
@@ -78,11 +87,12 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
     .from(schema.documentSettlements)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentSettlements.documentId))
     .where(and(nurGutschrift, lt(schema.documentSettlements.date, end)));
+  // Erhaltenes Skonto und Kursdifferenz gleichen den Rest des offenen Postens ohne Geldbewegung aus
   const ausbuchungen = await q
     .select({ ...beleg, date: schema.writeOffs.date, amount: schema.writeOffs.amount })
     .from(schema.writeOffs)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
-    .where(and(nurGutschrift, eq(schema.writeOffs.kind, "skontoErhalten"), lt(schema.writeOffs.date, end)));
+    .where(and(nurGutschrift, inArray(schema.writeOffs.kind, ["skontoErhalten", "kursdifferenz"]), lt(schema.writeOffs.date, end)));
   const vorgaenge: Vorgang[] = [...zahlungen, ...verrechnungen, ...ausbuchungen].sort((a, b) => a.date.localeCompare(b.date));
   if (vorgaenge.length === 0) return [];
   const rows = await q
