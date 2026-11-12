@@ -234,6 +234,10 @@ describe.skipIf(!testDatabaseUrl)("JSON-Umzug: Jahreswerte und offene Posten (Po
     expect(income(first)).toBe(2);
     expect(income(next)).toBe(-2);
     expect(first.gewinn + next.gewinn).toBe(0);
+    const firstVat = await vat.computeVatFigures({ year: 2026, month: 12 });
+    const nextVat = await vat.computeVatFigures({ year: 2027, month: 1 });
+    expect(firstVat.kz81 + nextVat.kz81).toBe(0);
+    expect(firstVat.tax81 + nextVat.tax81).toBe(0);
     expect(await sql`select id from journal_entries`).toHaveLength(4);
   });
 
