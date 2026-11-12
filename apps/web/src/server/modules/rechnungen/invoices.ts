@@ -1063,6 +1063,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   await assertQuotesLocked(tx, quoteIds, [id, invoice.correctsId]);
   // Inzwischen veröffentlichten Kurs übernehmen, bevor geprüft wird
   if (await applyRateToDraft(tx, invoice)) invoice = await lockDraft(tx, id);
+  // Nur bereits festgeschriebene Altabschläge behalten ihr Verfahren; offene Altentwürfe erhalten die neue Vorgabe.
+  // Erst mit der Festschreibung speichern, damit die Audit-Kette nicht vor der Nummernkreissperre gehalten wird.
+  if (invoice.variant === "abschlag" && invoice.advanceType === null) invoice = { ...invoice, advanceType: "anzahlung" };
   const issues = await finalizeIssues(id, tx);
   if (issues.length > 0) throw new InvoiceError(`Noch nicht bereit: ${issues.join(", ")}.`);
   const company = await openBooks(tx);
@@ -1125,6 +1128,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     .update(schema.invoices)
     .set({
       status: "final",
+      advanceType: invoice.advanceType,
       number,
       numberYear: circle,
       numberCounter: counter,
