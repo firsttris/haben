@@ -37,6 +37,7 @@ describe("ERiC", () => {
     expect(e.befunde[0]?.text).toContain(ericUrl("43.5.4.0"));
     expect(e.befunde[0]?.text).toContain("DEFAULT_ERIC_VERSION");
     expect(e.befunde[0]?.text).toContain("checkUStVA_<Jahr>");
+    expect(e.befunde[0]?.text).toContain("skills/jahreswerte/SKILL.md#eric-heben");
   });
 
   it("meldet, wenn die eingestellte Version vom Server genommen wurde", async () => {
