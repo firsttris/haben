@@ -25,7 +25,7 @@ export async function invoiceVatMode(invoice: Reference, q: Db | Tx = db): Promi
   return original.advanceType === "anzahlung" && advanceAfterPayment(original) ? "ist" : mode;
 }
 
-/** Auslands-Meldezeitpunkte (§ 18b UStG) ändern sich hier nicht. */
+/** Auslandsfälle werden nicht nach vereinnahmten Anzahlungen gemeldet (§ 18b UStG). */
 export const advanceAfterPayment = (invoice: Reference) => ["regulaer", "steuerfrei", "ausfuhr"].includes(invoice.taxTreatment ?? "regulaer");
 
 /** Neue Anzahlungen folgen den Zahlungen und dem Verfahren ihrer späteren Leistung, auch nach einem Jahreswechsel. */
@@ -46,7 +46,11 @@ export async function invoicePaymentMode(invoice: Reference, q: Db | Tx = db): P
  * Quelle: https://www.gesetze-im-internet.de/ustg_1980/__13.html
  */
 export async function invoiceVatDate(invoice: Invoice, q: Db | Tx = db): Promise<string> {
-  if (invoice.kind !== "rechnung" || !advanceAfterPayment(invoice) || (await invoiceVatMode(invoice, q)) !== "soll") return invoice.issueDate;
+  if (invoice.kind !== "rechnung") return invoice.issueDate;
   const performance = invoice.advanceType === "teilleistung" || (invoice.variant === "schluss" && (await hasNewAdvance(invoice.id, q)));
+  // § 18b Satz 3 UStG: Ausgeführte EU-Dienstleistungen sind auch bei Ist im Leistungsmonat zu melden.
+  // https://www.gesetze-im-internet.de/ustg_1980/__18b.html
+  if (performance && invoice.taxTreatment === "reverse_charge") return invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
+  if (!advanceAfterPayment(invoice) || (await invoiceVatMode(invoice, q)) !== "soll") return invoice.issueDate;
   return performance ? (invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate) : invoice.issueDate;
 }
