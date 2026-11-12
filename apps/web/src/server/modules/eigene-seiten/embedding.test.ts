@@ -47,7 +47,9 @@ describe("frameVerdict", () => {
     expect(allowed("http://192.168.1.10:3000", "http://192.168.1.10:3000")).toBe("allowed");
     expect(allowed("http://192.168.1.10", "http://192.168.1.10:3000")).toBe("blocked");
     expect(allowed("http://192.168.1.10:*", "http://192.168.1.10:3000")).toBe("allowed");
-    expect(allowed("HTTPS://Haben.Example.de/pfad")).toBe("allowed");
+    expect(allowed("HTTPS://Haben.Example.de/")).toBe("allowed");
+    // Der Rahmen meldet nur die Herkunft von Haben; eine Quelle mit Pfad passt nicht (Chromium blockiert)
+    expect(allowed("https://haben.example.de/pfad")).toBe("blocked");
   });
 
   it("mehrere Richtlinien gelten alle: eine verbietende reicht", () => {

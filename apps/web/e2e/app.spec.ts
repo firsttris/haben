@@ -686,6 +686,9 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   const paperless = menu.getByRole("link", { name: /^Paperless/ });
   await expect(paperless).toHaveAttribute("href", verboten.href);
   await expect(paperless).toHaveAttribute("target", "_blank");
+  // Danach ist das Formular wieder leer, mit der Vorgabe „In Haben“
+  await expect(form.getByLabel("Adresse")).toHaveValue("");
+  await expect(form.getByLabel("Öffnen")).toHaveValue("haben");
   await expect(paperless).toHaveAccessibleName("Paperless (öffnet in neuem Tab)");
   await expect(page.getByText("Öffnet in neuem Tab")).toBeVisible();
   await page.getByRole("button", { name: "Paperless bearbeiten" }).click();
