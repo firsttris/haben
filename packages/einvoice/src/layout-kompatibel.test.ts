@@ -1,7 +1,11 @@
-import { readdirSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BEISPIEL_PNG, layoutBeispiele } from "./layout-beispiele.ts";
+import { pdfData, templateInputs } from "./pdf.ts";
+import { sampleDocument } from "./samples.ts";
 import { compileWith, createCompiler, getCompiler, PACKAGE_DIR } from "./typst-compiler.ts";
 
 /*
@@ -30,6 +34,25 @@ function setzen(pfad: string, data: object): Uint8Array {
 }
 
 describe("Kompatibilität der Belegvorlagen", () => {
+  it.skipIf(spawnSync("pdftotext", ["-v"]).status !== 0)("druckt den Aufbewahrungshinweis auch mit der unveränderten v1-Vorlage unter die Summen", () => {
+    const dir = mkdtempSync(join(tmpdir(), "haben-aufbewahrung-"));
+    try {
+      const doc = { ...sampleDocument({ note: "Freier Hinweis bleibt erhalten." }), propertyRetention: true };
+      const data = templateInputs(pdfData(doc), doc);
+      for (const pfad of [join(templates, "rechnung.typ"), join(templates, "kompatibel/v1/rechnung.typ")]) {
+        const datei = join(dir, "rechnung.pdf");
+        writeFileSync(datei, setzen(pfad, data));
+        const text = execFileSync("pdftotext", [datei, "-"], { encoding: "utf8" }).replace(/\s+/g, " ");
+        expect(text).toContain("zwei Jahre aufzubewahren (§ 14b Abs. 1 Satz 5 UStG)");
+        expect(text).toContain("Schluss des Kalenderjahres der Rechnungsausstellung");
+        expect(text).toContain("Freier Hinweis bleibt erhalten.");
+        expect(text.indexOf("steuerpflichtigen Grundstücksleistungen")).toBeGreaterThan(text.indexOf(data.totals.gross.value));
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("es gibt mindestens die eingefrorene Version 1", () => {
     expect(versionen.map((ordner) => ordner.split("/").at(-1))).toContain("v1");
   });

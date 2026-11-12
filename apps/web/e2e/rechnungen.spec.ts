@@ -53,6 +53,43 @@ test("Einrichtung mit drei Kunden und einer festgeschriebenen Rechnung", async (
   await rechnungFestschreiben(page, INVOICES[0]!);
 });
 
+test("Grundstücksleistung: fester Aufbewahrungshinweis, Entwurf speichern und erneut laden (#718)", async () => {
+  await go("/rechnungen/neu");
+  await kundeWaehlen(page);
+  await page.getByLabel("Beschreibung Position 1").fill("Terrassenrenovierung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1200");
+  const haken = page.getByRole("checkbox", { name: "Leistung an einem Grundstück für einen Privatkunden (§ 14 Abs. 4 Nr. 9 UStG)" });
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  await expect(haken).not.toBeChecked();
+  await expect(vorschau).not.toContainText("zwei Jahre aufzubewahren");
+  await haken.focus();
+  await page.keyboard.press("Space");
+  await expect(haken).toBeChecked();
+  await expect(vorschau).toContainText("zwei Jahre aufzubewahren");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(page).toHaveURL(/\/rechnungen\/[0-9a-f-]{36}$/);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(haken).toBeChecked();
+  await haken.uncheck();
+  await expect(vorschau).not.toContainText("zwei Jahre aufzubewahren");
+  await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Entwurf gespeichert." })).toBeVisible();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(haken).not.toBeChecked();
+  await page.getByRole("button", { name: "Entwurf löschen", exact: true }).click();
+  await bestaetigen(page, "Entwurf löschen");
+  await expect(page).toHaveURL(/\/rechnungen(?:\?.*)?$/);
+
+  await go("/rechnungen/wiederkehrend/neu");
+  await expect(haken).not.toBeChecked();
+  await haken.check();
+  await expect(haken).toBeChecked();
+  await expect(haken).toHaveAccessibleDescription(/zweijährigen Aufbewahrung/);
+  await go("/angebote/neu");
+  await expect(haken).toHaveCount(0);
+});
+
 test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistungsdatum (#622)", async () => {
   await go("/rechnungen/neu");
   await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
