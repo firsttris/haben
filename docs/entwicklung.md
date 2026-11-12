@@ -502,7 +502,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub; ein Branch nur für Bilder ist eine Notlösung, nur im eigenen Fork und nie im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
+- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung; hochgeladen werden sie als Anhang, nie als Branch im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
 
 ### Etwas übernehmen
 

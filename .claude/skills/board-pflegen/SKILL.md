@@ -106,7 +106,7 @@ Wer ein Issue schreibt, soll wissen, dass es gelesen und wie es eingeordnet wurd
 | Nicht ins Board | Danke! Das planen wir nicht: [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), Zeile „…“. Kurz der Grund … |
 | Erledigt | Danke! Das gibt es seit v… ([Release](https://github.com/firsttris/haben/releases/tag/v…), PR #…). |
 
-Antworten in offenen Gesprächen (Schritt 1) gehen genauso nach OK, mit dem freigegebenen Entwurf. Bei einer Übernahme: @-Erwähnung, „gehört dir“, Umfang in einem Satz (bei einer Skizze: „Die Skizze passt so“ oder was abweicht), Hinweis auf „In Arbeit“. Hat die Person schon mehrere Karten, dazuschreiben, dass sie nacheinander gern gesehen sind.
+Antworten in offenen Gesprächen (Schritt 1) gehen genauso nach OK, mit dem freigegebenen Entwurf. Bei einer Übernahme: @-Erwähnung, „gehört dir“, Umfang in einem Satz (bei einer Skizze: „Die Skizze passt so“ oder was abweicht), Hinweis auf „In Arbeit“.
 
 Schließen und Labels außer `einstieg` bleiben beim Maintainer.
 
