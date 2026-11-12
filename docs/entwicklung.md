@@ -521,7 +521,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus:
 
 1. **Aussuchen:** eine Karte aus „Geplant“, am liebsten weit oben, denn die Reihenfolge ist die Priorität. Für den Einstieg eignen sich Karten mit Aufwand „S“ und Issues mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg). Ein Entwurf ohne Issue bekommt zuerst ein Issue.
-2. **Übernehmen:** im Issue eine Zeile `/übernehmen` kommentieren, gern mit einem kurzen Plan darunter. Der Workflow „Übernehmen“ (`.github/workflows/uebernehmen.yml`) weist dir das Issue zu, schiebt die Karte nach „In Arbeit“ und bestätigt es im Issue; Schreibrecht brauchst du dafür nicht. Er lehnt mit Begründung ab, wenn das Issue schon vergeben ist, noch keine Karte hat oder die Karte nicht in „Geplant“ oder „Später“ steht. Wie viele Karten jemand übernimmt, ist nicht begrenzt. Bei Karten aus „Später“ den Umfang am besten erst kurz im Issue klären.
+2. **Übernehmen:** im Issue eine Zeile `/übernehmen` kommentieren, gern mit einem kurzen Plan darunter. Der Workflow „Übernehmen“ (`.github/workflows/uebernehmen.yml`) weist dir das Issue zu, schiebt die Karte nach „In Arbeit“ und bestätigt es im Issue; Schreibrecht brauchst du dafür nicht. Er lehnt mit Begründung ab, wenn das Issue schon vergeben ist, noch keine Karte hat oder die Karte schon in „Im nächsten Release“ oder „Erledigt“ steht. Eine Karte in „In Arbeit“ ohne Zuweisung, etwa weil ein Pull Request sie vorgezogen hat, lässt sich übernehmen. Wie viele Karten jemand übernimmt, ist nicht begrenzt. Bei Karten aus „Später“ den Umfang am besten erst kurz im Issue klären.
 3. **Nachfragen und Freigeben:** Kommt 14 Tage lang weder ein Pull Request mit `Refs` oder `Umgesetzt` noch ein Kommentar von dir, fragt der Workflow im Issue nach; kommt danach sieben Tage nichts, hebt er die Zuweisung auf, und die Karte geht zurück nach „Geplant“. Wer aufhören will, kommentiert `/freigeben`. Ein Maintainer kann eine Zuweisung jederzeit von Hand ändern, etwa wenn der Plan nicht passt.
 4. **Bauen:** wie im Folgenden beschrieben, mit `Umgesetzt #…` in der Beschreibung des Pull Requests und vor „Ready for review“ mit der [Selbstprüfung](#beiträge-annehmen). Ein früher Entwurf als Pull Request hilft, wenn du unsicher bist, ob der Weg passt.
 
@@ -665,8 +665,9 @@ Das gilt in voller Tiefe für Änderungen, die beeinflussen können, was gebucht
 - **Nicht mehr als nötig:** Jeder Teil des Diffs dient einem Akzeptanzkriterium. Keine Abstraktion mit nur einem Nutzer, keine Einstellung, die niemand verlangt hat, nichts „für später“.
 - **Vorhandenes genutzt:** keine zweite Lösung für ein Problem, das Haben schon löst; Fachlogik am richtigen Ort.
 - **Lesbar:** Jemand ohne den Verlauf des Autors versteht den Code in einem Durchgang.
+- **Eine Stelle:** Eine Regel, die für alle Wege gilt, steht an der Stelle, durch die alle laufen, nicht in jedem Weg. Sonst muss jeder künftige Beitrag sie von Hand mitziehen.
 
-Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt.
+Overengineering zählt als Befund, wenn sich die einfachere Lösung konkret benennen lässt; eine fehlende gemeinsame Stelle, wenn sich die Stelle benennen lässt.
 
 **Nach unseren Regeln gemacht?**
 

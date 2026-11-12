@@ -53,8 +53,9 @@ export function entscheiden(was: Befehl, lage: Lage): Entscheidung {
   if (lage.status === null) {
     return ablehnen(`das Issue ist noch nicht im ${BOARD} eingeordnet. Ein Maintainer schaut es sich an und meldet sich hier.`);
   }
-  if (lage.status !== "Geplant" && lage.status !== "Später") {
-    return ablehnen(`die Karte steht in „${lage.status}“ und ist damit schon in Arbeit oder umgesetzt.`);
+  // „In Arbeit“ ohne Zuweisung: die Karte hat ein Pull Request mit `Refs` oder `Umgesetzt` vorgezogen, vergeben ist sie nicht
+  if (lage.status !== "Geplant" && lage.status !== "Später" && lage.status !== "In Arbeit") {
+    return ablehnen(`die Karte steht in „${lage.status}“ und ist damit schon umgesetzt.`);
   }
   return { art: "zuweisen" };
 }

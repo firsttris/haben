@@ -9,6 +9,7 @@ files: `checks` (checks with and without Bun), `beitrag` (branch, commits, draft
 then self-check and independent review), `beitrag-pruefen` (wanted, sources, simplest solution, rules: contributors
 check their own pull request first, maintainers and collaborators then judge it), `tdd-review`
 (independent review, a finding needs a failing test), `doku-pruefen` (review of a pull request without code: matches code
-and sources, short, every rule in one place), `issue-schreiben`, `pr-screenshots`, `belegvorlage` (own
+and sources, short, every rule in one place), `fork-pushen` (push to someone else's fork, from the cloud through a
+session with the fork as source), `issue-schreiben`, `pr-screenshots`, `belegvorlage` (own
 Typst layouts for documents, with the field contract), `board-pflegen` (the roadmap board on GitHub) and `release`
 (choose and check a release, trigger it only with the maintainer's approval).
