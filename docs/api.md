@@ -167,8 +167,6 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 
 ## Ablauf für Bestellungen
 
-Ein Ablauf für Bestellungen sieht typischerweise so aus:
-
 1. Neue Bestellungen von der Plattform holen (Trigger oder Zeitplan).
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.

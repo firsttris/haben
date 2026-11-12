@@ -7,7 +7,7 @@ description: >-
 
 # Buchhaltung in Haben (Buchungslogik)
 
-Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vorgang welchen Buchungssatz erzeugt und wie die Unveränderbarkeit nach GoBD technisch abgesichert ist. Sie richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, und an Steuerberatungen.
+Diese Seite richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, und an Steuerberatungen.
 
 ## Grundsätze
 
@@ -39,7 +39,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 
 Trigger schreiben jede Änderung an den wichtigen Tabellen mit altem und neuem Wert als JSON in `audit_log`: Firmendaten, Zertifikate, Voranmeldungen und Übermittlungen, Kontakte, Rechnungen, Buchungen, Nummernkreis, Belege, Bankkonten, Importe, Zuordnungen, Archivdateien, Lexoffice-Abrufe und -Verbindung. Weggelassen werden Binärdaten und große Nachrichten, die unveränderlich in ihrer eigenen Tabelle stehen, sowie verschlüsselte Inhalte, nämlich die Spalten `pdf`, `protocol_pdf`, `xml`, `logo`, `request_xml`, `response_xml`, `server_response_xml`, `abholung` (VaSt), `ciphertext` und `pin_ciphertext`. Bei Tabellen ohne `id` (Nummernkreise, Angaben zur Einkommensteuer) steht das Jahr als Zeilenkennung im Protokoll.
 
-Jede schreibende Aktion läuft in einer Transaktion, die vorher `haben.actor` auf die ID des angemeldeten Nutzers setzt (`withActor` in `apps/web/src/server/db/actor.ts`). Der Trigger übernimmt diesen Wert in die Spalte `actor`. So ist jede Änderung einer Person zugeordnet.
+Jede schreibende Aktion läuft in einer Transaktion, die vorher `haben.actor` auf die ID des angemeldeten Nutzers setzt (`withActor` in `apps/web/src/server/db/actor.ts`). Der Trigger übernimmt diesen Wert in die Spalte `actor`.
 
 ### Manipulationserkennung: Hash-Kette und Siegel
 
@@ -64,7 +64,7 @@ Die wöchentliche Mail prüft vorher Kette und Siegel und vergleicht den Prüfwe
 
 ## Abgleich von Journal, Umsatzsteuer und EÜR
 
-Rechnungen, Belege, Zuordnungen, Pauschalen und das Anlagenverzeichnis (die Nebenbücher) ergeben Voranmeldung und EÜR; das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Das **Stichjahr** ist das Jahr, ab dem Haben Voranmeldung und EÜR aus dem Journal rechnet; davor rechnet es aus den Nebenbüchern. Wie es festgelegt ist und wann es sich vorziehen lässt, steht unter [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen). Ab dem Stichjahr kommen die Kennzahlen der Voranmeldung und die EÜR aus dem Journal ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen), [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)); der Abgleich vergleicht dann das Journal mit der Rechnung aus Rechnungen, Belegen und Zahlungen als Gegenprobe. Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege verteilt die EÜR aus dem Journal auf die Zeilen, die Haben für sie gebucht hätte; sie werden wie alle anderen verglichen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Wo der Abgleich im Code steht: [Architektur](architektur.md#module-im-server).
+Rechnungen, Belege, Zuordnungen, Pauschalen und das Anlagenverzeichnis (die Nebenbücher) ergeben Voranmeldung und EÜR; das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Das **Stichjahr** ist das Jahr, ab dem Haben Voranmeldung und EÜR aus dem Journal rechnet; davor rechnet es aus den Nebenbüchern. Wie es festgelegt ist und wann es sich vorziehen lässt, steht unter [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen). Ab dem Stichjahr vergleicht der Abgleich das Journal mit der Rechnung aus Rechnungen, Belegen und Zahlungen als Gegenprobe ([EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)). Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege verteilt die EÜR aus dem Journal auf die Zeilen, die Haben für sie gebucht hätte; sie werden wie alle anderen verglichen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Wo der Abgleich im Code steht: [Architektur](architektur.md#module-im-server).
 
 | Bereich | Verglichen wird | Journal |
 | --- | --- | --- |
@@ -498,7 +498,7 @@ Die Summe aller Vorträge ist null wie im Journal. Bestandskonten sind nach DATE
 
 Alle vier Konten stehen so im DATEV-Kontenrahmen 2026.
 
-Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr (eine Rechnung vom 31.12., eine Abschlussbuchung), stimmt der Vortrag sofort wieder. Vorgetragen wird im Kontenrahmen der Firmendaten; bei GmbH und UG ist er deshalb ab der ersten Buchung fest (`0101_kontenrahmen_kapg.sql`). Im Einzelunternehmen mit EÜR beginnt jedes Jahr bei null wie bisher. Den DATEV-Export betrifft der Vortrag nicht; den Saldenvortrag in DATEV übernimmt die Steuerberatung aus dem Vorjahr.
+Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr (eine Rechnung vom 31.12., eine Abschlussbuchung), stimmt der Vortrag sofort wieder. Vorgetragen wird im Kontenrahmen der Firmendaten; bei GmbH und UG ist er deshalb ab der ersten Buchung fest (`0101_kontenrahmen_kapg.sql`). Im Einzelunternehmen mit EÜR beginnt jedes Jahr bei null. Den DATEV-Export betrifft der Vortrag nicht; den Saldenvortrag in DATEV übernimmt die Steuerberatung aus dem Vorjahr.
 
 **Eröffnungsbuchung:** Beginnt die Buchhaltung der GmbH nicht in Haben, übernimmst du die Bestände der bisherigen Buchhaltung mit **Buchung erfassen › Eröffnungsbuchung**. Sie steht am 1. Januar des ersten Jahres in Haben und bucht nur Bestandskonten, dazu den Kontostand der Bank und 9000 Saldenvorträge, zum Beispiel:
 
@@ -551,8 +551,6 @@ Hat die Bilanz eine Vorjahresspalte, steht der Vorjahresstichtag darunter; was d
 
 Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.
 
-Im Einzelunternehmen gehen [manuelle Buchungen](#manuelle-und-freie-buchungen) erst ab dem Stichjahr, wenn die Anlage EÜR aus dem Journal rechnet; davor käme eine Umbuchung im Journal in ihr nicht an.
-
 ## Hinterlegung beim Unternehmensregister (GmbH und UG)
 
 Eine Kleinstkapitalgesellschaft (§ 267a HGB) muss ihren Jahresabschluss nicht offenlegen, sondern kann nur die Bilanz beim Unternehmensregister hinterlegen (§ 326 Abs. 2 HGB). Dritte sehen sie dann nur auf Antrag und gegen Gebühr. Die Frist endet ein Jahr nach dem Bilanzstichtag, für 2025 also am 31.12.2026 (§ 325 Abs. 1a HGB); wer sie versäumt, riskiert ein Ordnungsgeld (§ 335 HGB).
@@ -587,7 +585,7 @@ Gesetzestexte: [§ 264](https://www.gesetze-im-internet.de/hgb/__264.html), [§ 
 
 ### XML oder XBRL statt PDF
 
-Ein PDF nimmt das Unternehmensregister nur gegen ein Entgelt für die Umwandlung an: 1,75 Cent je sichtbarem Zeichen ohne Leerzeichen zuzüglich Umsatzsteuer, zusätzlich zur Gebühr ([Gebühren und Entgelte](https://www.publikations-plattform.de/order/D051Preisliste.pdf), Abschnitt 2). Ohne dieses Entgelt angenommen werden XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und das Webformular der Plattform ([Allgemeine Nutzungsbedingungen für das Unternehmensregister](https://www.publikations-plattform.de/order/D088.pdf), §§ 8 und 9). Wer die Umwandlung sparen will, tippt die Bilanz aus dem PDF in das Webformular ab. Haben erzeugt kein XML und kein XBRL zur Hinterlegung; geprüft im November 2026 unter **Arbeitshilfen & Standards › Technische Standards** der Publikations-Plattform:
+Ein PDF nimmt das Unternehmensregister nur gegen ein Entgelt für die Umwandlung an: 1,75 Cent je sichtbarem Zeichen ohne Leerzeichen zuzüglich Umsatzsteuer, zusätzlich zur Gebühr ([Gebühren und Entgelte](https://www.publikations-plattform.de/order/D051Preisliste.pdf), Abschnitt 2). Ohne dieses Entgelt angenommen werden XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und das Webformular der Plattform ([Allgemeine Nutzungsbedingungen für das Unternehmensregister](https://www.publikations-plattform.de/order/D088.pdf), §§ 8 und 9). Haben erzeugt kein XML und kein XBRL zur Hinterlegung; geprüft im November 2026 unter **Arbeitshilfen & Standards › Technische Standards** der Publikations-Plattform:
 
 - **XML nach dem Schema des Verlags.** Die Schemata „Bundesanzeiger“ und „Unternehmensregister“ (Stand September 2007) beschreiben ein Layout aus Überschriften, Absätzen und Tabellen. Der Download setzt eine gesonderte Freischaltung voraus, und die [Nutzungsbedingungen für die Strukturdefinitionen](https://www.publikations-plattform.de/order/de/arbeitshilfenstandards/standards/xml_schemata) (Stand 02.07.2016) erlauben sie nur, um eigene Daten oder die eigener Kunden an den Verlag zu übermitteln, und untersagen „jegliche Vervielfältigung und/oder Weitergabe“. Das Schema kann also nicht in dieses Repository, und ohne Schema lässt sich keine Datei prüfen.
 - **XBRL nach der HGB-Taxonomie.** Das Register nimmt Jahresabschlüsse als XBRL 2.1 mit Dimensions 1.0 nach der HGB-Taxonomie von XBRL Deutschland an, auch in der Sicht „Einzelabschluss MicroBilG“ (`de-gaap-ci-2025-04-01-microbilg` mit `de-gcd-2025-04-01` für Version 6.9; [Arbeitshilfe für die Einreichung im XBRL-Format](https://www.publikations-plattform.de/order/D008.pdf), Stand September 2025). Das ist dieselbe Taxonomie, Version 6.9, die Haben für die [E-Bilanz](#e-bilanz-gmbh-und-ug) nutzt. Für eine Einreichung fehlt aber die Dokumentation des Verlags für Softwareanbieter, die es nur nach der Freischaltung gibt, und der Zugang zur Testplattform, den der Verlag auf Anfrage vergibt ([XBRL-Programm](https://www.publikations-plattform.de/order/de/arbeitshilfenstandards/arbeitshilfen/xbrlprogramm)). Sollen Texte wie die Angaben unter der Bilanz mit Absätzen oder Listen erscheinen, braucht es zudem das Zusatzschema „BA-Jahresabschluss-XHTML“, ebenfalls hinter der Freischaltung; XBRL-Dateien, deren gestaltete Fußnoten nicht dagegen gültig sind, nimmt der Verlag nicht an. Ohne das Zusatzschema erscheinen Texte als einfache Fußnoten (Arbeitshilfe, S. 2). Haben kennt von der Taxonomie außerdem nur einen Auszug für die Übermittlung an ELSTER, nicht ihre Dateien und Bezeichnungen. Ohne die Vorgaben und ohne Prüfung gegen die Testplattform wäre eine solche Datei geraten.
