@@ -78,7 +78,7 @@ const VERMERK_COLUMNS = {
   filedOn: schema.annualSubmissions.filedOn,
   transferTicket: schema.annualSubmissions.transferTicket,
   note: schema.annualSubmissions.note,
-  amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::int`,
+  amount: sql<number | null>`(${schema.annualSubmissions.figures}->>'amount')::bigint`.mapWith(Number),
   hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
   createdAt: schema.annualSubmissions.createdAt,
 };
