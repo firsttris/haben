@@ -1,6 +1,6 @@
 name: Update screenshots
 
-# Nimmt die Bilder in README und Doku (docs/screenshot-*.png) und das Vorschaubild neu auf und
+# Nimmt die Bilder in README und Doku (docs/screenshot-*.png), Vorschaubild und Hero neu auf und
 # committet, was sich geändert hat: die Ende-zu-Ende-Tests legen die Daten an,
 # e2e/zz-doku-screenshots.spec.ts fotografiert (bun run docs:screenshots). Nach einer Änderung am
 # Aussehen von Hand starten.
@@ -25,6 +25,7 @@ jobs:
       paths: |
         docs/screenshot-*.png
         docs/social-preview.png
+        docs/hero-*.png
       commit-message: Screenshots erneuert
     # Wie in bump.yml: das Ruleset auf main lehnt Pushes mit dem GITHUB_TOKEN ab, der Deploy Key
     # steht auf seiner Bypass-Liste. Der Commit mit den Bildern startet dann die CI auf main.
