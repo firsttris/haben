@@ -1970,6 +1970,40 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
+test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  const karte = ust.getByRole("region", { name: "Außerhalb von Haben abgegeben", exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr}-12-30`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");
+  await dialog.getByLabel("Betrag", { exact: true }).fill("0,00");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  const protokollFeld = dialog.locator(".field", { has: page.getByText("Übermittlungsprotokoll (PDF, optional)", { exact: true }) });
+  const protokollDialog = await filePickerPruefen(page, protokollFeld, "Übermittlungsprotokoll");
+  await protokollDialog.setFiles({
+    name: "Uebermittlungsprotokoll.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% Übermittlungsprotokoll\n%%EOF\n"),
+  });
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+
+  // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
+  await expect(ust.getByText(`Außerhalb abgegeben 30.12.${jahr}`)).toBeVisible();
+  await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
+  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
+  const protokoll = await page.request.get((await karte.getByRole("link", { name: "Übermittlungsprotokoll" }).getAttribute("href"))!);
+  expect(protokoll.headers()["content-type"]).toContain("application/pdf");
+
+  // Auch nach dem Neuladen bleibt der Vermerk stehen
+  await go(`/jahreserklaerung/${jahr}`);
+  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben 30.12.${jahr}`)).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",
