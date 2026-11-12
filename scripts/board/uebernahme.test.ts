@@ -38,9 +38,15 @@ describe("entscheiden", () => {
     expect(ergebnis).toMatchObject({ art: "ablehnen", text: expect.stringContaining("@bert") });
   });
 
-  it("lehnt ab ohne Karte im Board, in Arbeit und bei Geschlossenem", () => {
+  it("weist eine Karte in „In Arbeit“ zu, wenn sie niemandem zugewiesen ist", () => {
+    expect(entscheiden("übernehmen", lage({ status: "In Arbeit" }))).toEqual({ art: "zuweisen" });
+    expect(entscheiden("übernehmen", lage({ status: "In Arbeit", zugewiesen: ["bert"] }))).toMatchObject({ art: "ablehnen" });
+  });
+
+  it("lehnt ab ohne Karte im Board, wenn umgesetzt und bei Geschlossenem", () => {
     expect(entscheiden("übernehmen", lage({ status: null }))).toMatchObject({ art: "ablehnen", text: expect.stringContaining("noch nicht im") });
     expect(entscheiden("übernehmen", lage({ status: "Im nächsten Release" }))).toMatchObject({ art: "ablehnen" });
+    expect(entscheiden("übernehmen", lage({ status: "Erledigt" }))).toMatchObject({ art: "ablehnen" });
     expect(entscheiden("übernehmen", lage({ offen: false }))).toMatchObject({ art: "ablehnen" });
   });
 
