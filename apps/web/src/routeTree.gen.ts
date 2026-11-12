@@ -30,6 +30,7 @@ import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeport
 import { Route as AppUeberweisungenRouteImport } from './routes/_app/ueberweisungen'
 import { Route as ApiBelegvorlagenRouteImport } from './routes/api/belegvorlagen'
 import { Route as ApiBriefpapierRouteImport } from './routes/api/briefpapier'
+import { Route as ApiKennzeichenRouteImport } from './routes/api/kennzeichen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as EinladungTokenRouteImport } from './routes/einladung.$token'
@@ -218,6 +219,11 @@ const ApiBelegvorlagenRoute = ApiBelegvorlagenRouteImport.update({
 const ApiBriefpapierRoute = ApiBriefpapierRouteImport.update({
   id: '/api/briefpapier',
   path: '/api/briefpapier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKennzeichenRoute = ApiKennzeichenRouteImport.update({
+  id: '/api/kennzeichen',
+  path: '/api/kennzeichen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLogoRoute = ApiLogoRouteImport.update({
@@ -680,6 +686,7 @@ export interface FileRoutesByFullPath {
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
+  '/api/kennzeichen': typeof ApiKennzeichenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
@@ -786,6 +793,7 @@ export interface FileRoutesByTo {
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
+  '/api/kennzeichen': typeof ApiKennzeichenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
@@ -895,6 +903,7 @@ export interface FileRoutesById {
   '/_app/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/belegvorlagen': typeof ApiBelegvorlagenRoute
   '/api/briefpapier': typeof ApiBriefpapierRoute
+  '/api/kennzeichen': typeof ApiKennzeichenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/einladung/$token': typeof EinladungTokenRoute
@@ -1005,6 +1014,7 @@ export interface FileRouteTypes {
     | '/ueberweisungen'
     | '/api/belegvorlagen'
     | '/api/briefpapier'
+    | '/api/kennzeichen'
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
@@ -1111,6 +1121,7 @@ export interface FileRouteTypes {
     | '/ueberweisungen'
     | '/api/belegvorlagen'
     | '/api/briefpapier'
+    | '/api/kennzeichen'
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
@@ -1219,6 +1230,7 @@ export interface FileRouteTypes {
     | '/_app/ueberweisungen'
     | '/api/belegvorlagen'
     | '/api/briefpapier'
+    | '/api/kennzeichen'
     | '/api/logo'
     | '/api/mcp'
     | '/einladung/$token'
@@ -1313,6 +1325,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   ApiBelegvorlagenRoute: typeof ApiBelegvorlagenRoute
   ApiBriefpapierRoute: typeof ApiBriefpapierRoute
+  ApiKennzeichenRoute: typeof ApiKennzeichenRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMcpRoute: typeof ApiMcpRoute
   EinladungTokenRoute: typeof EinladungTokenRoute
@@ -1502,6 +1515,13 @@ declare module '@tanstack/react-router' {
       path: '/api/briefpapier'
       fullPath: '/api/briefpapier'
       preLoaderRoute: typeof ApiBriefpapierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kennzeichen': {
+      id: '/api/kennzeichen'
+      path: '/api/kennzeichen'
+      fullPath: '/api/kennzeichen'
+      preLoaderRoute: typeof ApiKennzeichenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/logo': {
@@ -2238,6 +2258,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   ApiBelegvorlagenRoute: ApiBelegvorlagenRoute,
   ApiBriefpapierRoute: ApiBriefpapierRoute,
+  ApiKennzeichenRoute: ApiKennzeichenRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMcpRoute: ApiMcpRoute,
   EinladungTokenRoute: EinladungTokenRoute,

@@ -71,6 +71,7 @@ import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 import { Icon } from "../../components/Icon.tsx";
 import { StichjahrCard } from "../../components/StichjahrCard.tsx";
+import { NavMarkCard } from "../../components/NavMarkCard.tsx";
 import { getStichjahr } from "../../server/functions/stichjahr.ts";
 import { FormattedTextarea } from "../../components/FormattedTextarea.tsx";
 import { Field } from "../../components/Field.tsx";
@@ -218,6 +219,7 @@ function SettingsPage() {
             <>
               <CompanyForm />
               <StichjahrCard stand={stichjahr} />
+              <NavMarkCard color={company.navColor} logo={company.navLogo} logoSha256={logo?.sha256 ?? null} />
             </>
           )}
           {bereich === "persoenlich" && <TaxpayerForm />}

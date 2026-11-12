@@ -1531,8 +1531,15 @@
     {
       "idx": 218,
       "version": "7",
-      "when": 1794522571418,
-      "tag": "0218_eigene_konten_belege",
+      "when": 1794521593045,
+      "tag": "0218_zeichen_navigation",
+      "breakpoints": true
+    },
+    {
+      "idx": 219,
+      "version": "7",
+      "when": 1794525304849,
+      "tag": "0219_eigene_konten_belege",
       "breakpoints": true
     }
   ]

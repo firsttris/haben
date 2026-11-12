@@ -1,5 +1,5 @@
 {
-  "id": "1a7b530f-d7a6-4c87-ba76-1dd75f943f14",
+  "id": "a189a95d-665f-4d7b-81e5-cec36e2da8b8",
   "prevId": "5417f7c0-aa08-4ce2-ac8f-5e812283dff1",
   "version": "7",
   "dialect": "postgresql",
@@ -2897,6 +2897,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "nav_color": {
+          "name": "nav_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nav_logo": {
+          "name": "nav_logo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2918,6 +2931,10 @@
         "company_rechtsform": {
           "name": "company_rechtsform",
           "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
+        },
+        "company_nav_color": {
+          "name": "company_nav_color",
+          "value": "\"company\".\"nav_color\" ~ '^#[0-9A-F]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -4362,12 +4379,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "own_account_id": {
-          "name": "own_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "tax_rate": {
           "name": "tax_rate",
           "type": "smallint",
@@ -4422,19 +4433,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "document_splits_own_account_id_own_accounts_id_fk": {
-          "name": "document_splits_own_account_id_own_accounts_id_fk",
-          "tableFrom": "document_splits",
-          "tableTo": "own_accounts",
-          "columnsFrom": [
-            "own_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -4555,12 +4553,6 @@
         "category": {
           "name": "category",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "own_account_id": {
-          "name": "own_account_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -4789,19 +4781,6 @@
           "tableTo": "contacts",
           "columnsFrom": [
             "supplier_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "documents_own_account_id_own_accounts_id_fk": {
-          "name": "documents_own_account_id_own_accounts_id_fk",
-          "tableFrom": "documents",
-          "tableTo": "own_accounts",
-          "columnsFrom": [
-            "own_account_id"
           ],
           "columnsTo": [
             "id"

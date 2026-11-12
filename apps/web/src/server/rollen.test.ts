@@ -40,6 +40,7 @@ const STEUERBERATUNG_LAEDT = [
   "beleg/$id.ts",
   "datev/$jahr.ts",
   "export/$jahr.ts",
+  "kennzeichen.ts",
   "konten/$jahr.ts",
   "mahnung/$id.ts",
   "rechnung/$id.$datei.ts",
