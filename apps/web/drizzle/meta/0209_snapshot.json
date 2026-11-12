@@ -1,5 +1,5 @@
 {
-  "id": "06f39d9a-8a4a-42b8-b965-4cc9d9745f51",
+  "id": "7145f91a-5920-4053-a67f-a3efedb3ca80",
   "prevId": "4260a1ad-9036-46d3-b8bb-dcfc53c2a4db",
   "version": "7",
   "dialect": "postgresql",
@@ -4108,8 +4108,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "pair_id": {
-          "name": "pair_id",
+        "settlement_id": {
+          "name": "settlement_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true,
@@ -4185,11 +4185,11 @@
           "method": "btree",
           "with": {}
         },
-        "document_settlements_pair": {
-          "name": "document_settlements_pair",
+        "document_settlements_settlement": {
+          "name": "document_settlements_settlement",
           "columns": [
             {
-              "expression": "pair_id",
+              "expression": "settlement_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4200,11 +4200,11 @@
           "method": "btree",
           "with": {}
         },
-        "document_settlements_pair_document": {
-          "name": "document_settlements_pair_document",
+        "document_settlements_settlement_document": {
+          "name": "document_settlements_settlement_document",
           "columns": [
             {
-              "expression": "pair_id",
+              "expression": "settlement_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

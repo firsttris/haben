@@ -14,7 +14,7 @@ import { settledOn } from "./bank.ts";
  * Kassenstand ändert sich. Je Verrechnung zwei Zeilen in `document_settlements`, damit jede Seite für
  * sich als erledigt zählt; aufgehoben wird per Gegenzeile wie bei den Ausbuchungen.
  *
- * Beide Zeilen einer Verrechnung tragen dieselbe `pair_id`: Aufheben trifft damit genau dieses Paar,
+ * Beide Zeilen einer Verrechnung tragen dieselbe `settlement_id`: Aufheben trifft damit genau dieses Paar,
  * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde. Die Gegenzeilen einer
  * Aufhebung bilden ihrerseits ein Paar mit eigener Kennung.
  */
@@ -135,12 +135,12 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     await pruefeJahrOffen(tx, parsed.date);
     const date = parsed.date;
     // Gemeinsame Kennung für beide Zeilen: die Aufhebung findet das Paar damit eindeutig
-    const pairId = randomUUID();
+    const settlementId = randomUUID();
     const rows = await tx
       .insert(schema.documentSettlements)
       .values([
-        { documentId: a.id, counterDocumentId: b.id, pairId, date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
-        { documentId: b.id, counterDocumentId: a.id, pairId, date, amount: parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: a.id, counterDocumentId: b.id, settlementId, date, amount: -parsed.amount, note: parsed.note, createdBy: actor },
+        { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: parsed.amount, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
@@ -158,14 +158,14 @@ export async function reverseSettlement(actor: string, id: string, date: string,
     // Erst die Paar-Kennung lesen, dann beide Zeilen des Paars in fester Reihenfolge sperren: so treffen sich zwei
     // gleichzeitige Aufhebungen nicht im Kreis und die Aufhebung trifft genau diese Verrechnung.
     const [gefunden] = await tx
-      .select({ pairId: schema.documentSettlements.pairId })
+      .select({ settlementId: schema.documentSettlements.settlementId })
       .from(schema.documentSettlements)
       .where(eq(schema.documentSettlements.id, parsed.id));
     if (!gefunden) throw new SettlementError("Verrechnung nicht gefunden.");
     const paar = await tx
       .select()
       .from(schema.documentSettlements)
-      .where(eq(schema.documentSettlements.pairId, gefunden.pairId))
+      .where(eq(schema.documentSettlements.settlementId, gefunden.settlementId))
       .orderBy(asc(schema.documentSettlements.id))
       .for("update");
     const row = paar.find((r) => r.id === parsed.id);
@@ -189,12 +189,12 @@ export async function reverseSettlement(actor: string, id: string, date: string,
     /** Notiz der Gegenzeile: sie nennt die Aufhebung und, wenn angegeben, den Grund */
     const aufhebung = (alt: string) => (parsed.note ? `Aufhebung: ${alt} (${parsed.note})` : `Aufhebung: ${alt}`);
     // Die Gegenzeilen sind selbst ein Paar: beide mit derselben, neuen Kennung
-    const pairId = randomUUID();
+    const settlementId = randomUUID();
     await tx.insert(schema.documentSettlements).values([
       {
         documentId: row.documentId,
         counterDocumentId: row.counterDocumentId,
-        pairId,
+        settlementId,
         date: parsed.date,
         amount: -row.amount,
         note: aufhebung(row.note),
@@ -204,7 +204,7 @@ export async function reverseSettlement(actor: string, id: string, date: string,
       {
         documentId: partner.documentId,
         counterDocumentId: partner.counterDocumentId,
-        pairId,
+        settlementId,
         date: parsed.date,
         amount: -partner.amount,
         note: aufhebung(partner.note),

@@ -2363,7 +2363,7 @@ export const documentSettlements = pgTable(
      * auch wenn zwischen denselben Belegen mehrfach derselbe Betrag verrechnet wurde; die Gegenzeilen einer Aufhebung
      * bilden ein neues Paar.
      */
-    pairId: uuid("pair_id").notNull().defaultRandom(),
+    settlementId: uuid("settlement_id").notNull().defaultRandom(),
     date: date("date", { mode: "string" }).notNull(),
     /** Vorzeichen wie eine Zahlung: negativ beim Beleg, positiv bei der Gutschrift */
     amount: integer("amount").notNull(),
@@ -2378,9 +2378,9 @@ export const documentSettlements = pgTable(
     check("document_settlements_amount", sql`${t.amount} <> 0`),
     index("document_settlements_document").on(t.documentId),
     index("document_settlements_counter").on(t.counterDocumentId),
-    index("document_settlements_pair").on(t.pairId),
+    index("document_settlements_settlement").on(t.settlementId),
     /** Je Paar höchstens eine Zeile pro Beleg: genau zwei Zeilen, eine je Seite */
-    uniqueIndex("document_settlements_pair_document").on(t.pairId, t.documentId),
+    uniqueIndex("document_settlements_settlement_document").on(t.settlementId, t.documentId),
     uniqueIndex("document_settlements_reverses").on(t.reversesId),
     foreignKey({ name: "document_settlements_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],

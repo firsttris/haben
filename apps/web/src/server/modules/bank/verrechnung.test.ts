@@ -160,10 +160,10 @@ describe.skipIf(!testDatabaseUrl)("Verrechnung zweier Belege ohne Zahlung (Postg
         await weiter;
         // Die "parallele" Verrechnung: sie bucht 60,00 EUR und gibt die Sperre erst danach frei
         await tx`select set_config('haben.actor', ${actor}, true)`;
-        const pairId = randomUUID();
-        await tx`insert into document_settlements (document_id, counter_document_id, pair_id, date, amount, note, created_by)
-                 values (${rechnung}, ${gutschrift}, ${pairId}, '2026-08-12', -6000, 'Parallel', ${actor}),
-                        (${gutschrift}, ${rechnung}, ${pairId}, '2026-08-12', 6000, 'Parallel', ${actor})`;
+        const settlementId = randomUUID();
+        await tx`insert into document_settlements (document_id, counter_document_id, settlement_id, date, amount, note, created_by)
+                 values (${rechnung}, ${gutschrift}, ${settlementId}, '2026-08-12', -6000, 'Parallel', ${actor}),
+                        (${gutschrift}, ${rechnung}, ${settlementId}, '2026-08-12', 6000, 'Parallel', ${actor})`;
       });
       await haeltSperre;
 
