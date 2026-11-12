@@ -34,4 +34,35 @@ describe.skipIf(!testDatabaseUrl)("Kleinunternehmer-Ersteinrichtung nach unverä
     expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
+
+  it.each(["Kundennummern", "Zahlungsplanvorlagen", "DATEV-Angaben", "persönlicher Angaben", "MCP-Einstellungen"])(
+    "Speichern unveränderter %s bestätigt keine Regelbesteuerung",
+    async (setting) => {
+    const initial = await company.loadCompany();
+    if (setting === "Kundennummern") {
+      const { saveCustomerNumbering } = await import("./customer-numbers.ts");
+      await saveCustomerNumbering(actor, { format: initial.customerNumberFormat, next: initial.customerNumberNext });
+    } else if (setting === "Zahlungsplanvorlagen") {
+      const { savePlanTemplates } = await import("./plan-templates.ts");
+      await savePlanTemplates(actor, initial.paymentPlanTemplates);
+    } else if (setting === "DATEV-Angaben") {
+      const { saveDatevNumbers } = await import("../auswertungen/datev-export.ts");
+      const numbers = { beraterNr: "1234", mandantNr: "123", personenkontenAb: null };
+      await saveDatevNumbers(actor, numbers);
+      await saveDatevNumbers(actor, numbers);
+    } else if (setting === "persönlicher Angaben") {
+      const { saveTaxpayer } = await import("./taxpayer.ts");
+      await saveTaxpayer(actor, { veranlagung: "einzel" });
+      await saveTaxpayer(actor, { veranlagung: "einzel" });
+    } else {
+      const { setMcpEnabled } = await import("../mcp/tokens.ts");
+      await setMcpEnabled(actor, true);
+      await setMcpEnabled(actor, true);
+    }
+    await guard.saveCompany(actor, company.companySchema.parse({ ...initial, name: "Synthetische Musterfirma", kleinunternehmer: true }), today);
+
+    expect((await company.kleinunternehmerHistory())(previous)).toBe(true);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+    },
+  );
 });
