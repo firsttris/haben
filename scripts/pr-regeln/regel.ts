@@ -73,6 +73,27 @@ export function hints(files: string[], commitSubjects: string[]): Report[] {
   return reports;
 }
 
+/** Nur Markdown, docs/ oder LICENSE: dieselbe Grenze wie der Job `changes` in ci.yml, ohne dessen Sonderfall für Gelöschtes */
+const isDocsOnly = (files: string[]) => files.length > 0 && files.every((file) => /\.md$|^docs\/|^LICENSE$/.test(file));
+/** Wer Haben pflegt, prüft und mergt selbst; author_association aus dem Ereignis von GitHub */
+const MAINTAINERS = ["OWNER", "MEMBER", "COLLABORATOR"];
+
+/**
+ * Erinnerung an Selbstprüfung und unabhängiges Review (docs/entwicklung.md, Beiträge annehmen) für fremde Pull
+ * Requests außerhalb des Entwurfs. Fest, ohne Blick auf die Kommentare: pr-regeln.yml läuft nicht bei neuen
+ * Kommentaren, ein Hinweis, der von einem Kommentar abhängt, bliebe bis zum nächsten Push stehen (#737).
+ */
+export function reviewHint(pr: { draft?: boolean; author_association?: string; user: { login: string; type?: string } }, files: string[]): Report[] {
+  if (pr.draft || isBot(pr.user) || MAINTAINERS.includes(pr.author_association ?? "")) return [];
+  const review = isDocsOnly(files) ? "`doku-pruefen` (nur Doku geändert)" : "`tdd-review`";
+  return [
+    {
+      level: "warning",
+      message: `Vor dem Merge: Selbstprüfung mit \`beitrag-pruefen\` als Kommentar im Pull Request, dann ein unabhängiges Review mit ${review} durch jemand anderen oder einen frischen Agenten. Die Skills liegen in .claude/skills/; ohne beides prüfen wir alles selbst nach, und der Merge dauert (docs/entwicklung.md, Beiträge annehmen).`,
+    },
+  ];
+}
+
 /**
  * Wachstum, ab dem ein Hinweis kommt: Kleinere Änderungen an alten Dateien sind die Regel (im Review von #463 hätte
  * der Hinweis ohne Schwelle bei 50 von 100 Pull Requests angeschlagen) und würden ihn überhören lassen.

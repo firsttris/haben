@@ -570,6 +570,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
+| Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `doku-pruefen` oder `tdd-review` je nach geänderten Dateien | Hinweis |
 | Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |
 | Kein Feld einer Version fällt weg, wird umbenannt oder wechselt den Typ | `layout-schema.test.ts` gegen `layout-schema.v<n>.json` | Fehler |
 | Alte Layouts ergeben mit heutigen Daten ein PDF | `layout-kompatibel.test.ts` mit `templates/kompatibel/` | Fehler |
