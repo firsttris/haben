@@ -32,7 +32,7 @@ an ELSTER. Für Freiberufler, Selbstständige und kleine GmbHs, ohne Abo.</p>
 <div markdown>
 ### [Kein Abo](installation.md)
 
-Open Source unter AGPL-3.0. Du zahlst nur den Server, etwa einen VPS ab rund 5 € im Monat.
+Open Source unter AGPL-3.0. Du zahlst nur den Server, ein kleiner VPS reicht.
 </div>
 <div markdown>
 ### [Mit Docker installiert](installation.md#docker-compose)
