@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aktion, eigenerKommentar, entschaerfen, ergebnisLesen, type Kommentar, kommentarText, MARKER } from "./kommentar.ts";
+import { ANLEITUNG, aktion, eigenerKommentar, entschaerfen, ergebnisLesen, type Kommentar, kommentarText, MARKER } from "./kommentar.ts";
 import type { Report } from "./regel.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -59,8 +59,15 @@ describe("kommentarText", () => {
     expect(kommentarText([hinweis], SHA)).not.toContain("**Fehler**");
   });
 
-  it("sagt ohne Meldungen, dass nichts mehr offen ist", () => {
+  it("sagt ohne Meldungen, dass nichts mehr offen ist, ohne Anleitung", () => {
     expect(kommentarText([], SHA)).toContain("Keine Fehler und keine Hinweise mehr.");
+    expect(kommentarText([], SHA)).not.toContain(ANLEITUNG);
+  });
+
+  it("verweist bei Meldungen auf die Anleitung und den Skill für Agenten", () => {
+    const text = kommentarText([hinweis], SHA);
+    expect(text).toContain(ANLEITUNG);
+    expect(text).toContain("Skill `beitrag`, Schritt 6");
   });
 });
 
