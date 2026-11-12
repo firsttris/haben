@@ -73,7 +73,9 @@ test("nach Eintragen die betroffene übermittelte EÜR nennen, ohne Speichern zu
       messages.push((await card.getByRole("status").textContent()) ?? "");
       if (process.env.DAUERFRIST_SCREENSHOTS) {
         await mkdir("test-results/dauerfrist-bilder", { recursive: true });
-        await card.screenshot({ path: `test-results/dauerfrist-bilder/dauerfrist-${theme}-${device}-${process.env.DAUERFRIST_SCREENSHOTS}.png` });
+        await card.getByRole("form", { name: "Außerhalb von Haben" }).screenshot({
+          path: `test-results/dauerfrist-bilder/dauerfrist-${theme}-${device}-${process.env.DAUERFRIST_SCREENSHOTS}.png`,
+        });
       }
       expect(await sql`select * from annual_submissions`).toEqual(originalFiling);
       expect(await dauerfrist.dauerfristFor(2026)).toBe(true);

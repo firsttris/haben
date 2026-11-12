@@ -1,6 +1,8 @@
+import type { ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { EricGeprueftClient } from "../../test-eric.ts";
 
 /** #652: Eine geänderte Dauerfrist darf übermittelte Jahreserklärungen nur mit einem Hinweis berühren, nicht verändern. */
 describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/ESt (Postgres)", () => {
@@ -122,4 +124,37 @@ describe.skipIf(!testDatabaseUrl)("Dauerfriständerung nach übermittelter EÜR/
     await filed(2028);
     expect(await save(true, 2025)).toEqual({ euerHinweis: null });
   });
+
+  for (const kind of ["send", "test", "validate", "abgelehnt"] as const)
+    it(`ELSTER: Hinweis nur nach erfolgreichem Eintragen, nicht bei ${kind === "send" ? "fehlendem Fehler" : kind}`, async () => {
+      await sql`update company set strasse = 'Musterstraße 1', plz = '93047', ort = 'Regensburg',
+        bundesland = 'BY', steuernummer = '198/113/10010' where id = 1`;
+      const { encrypt } = await import("../../crypto.ts");
+      await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${encrypt(Buffer.from("pfx"))})`;
+      await payment();
+      await filed(2026);
+      const original = await sql`select * from annual_submissions`;
+      const fake = new EricGeprueftClient();
+      const client: ElsterClient = {
+        validate: (xml) => fake.validate(xml),
+        send: async (...args) => {
+          const result = await fake.send(...args);
+          return kind === "abgelehnt" ? { ...result, ok: false, code: 1, message: "Testablehnung" } : result;
+        },
+        fetchPostfach: (...args) => fake.fetchPostfach(...args),
+        fetchBelege: (...args) => fake.fetchBelege(...args),
+      };
+      expect(
+        await dauerfrist.submitDauerfrist(actor, client, {
+          year: 2026,
+          kind: kind === "abgelehnt" ? "send" : kind,
+          sondervorauszahlung: 0,
+          berichtigt: false,
+          pin: "1234",
+          herstellerId: "12345",
+        }),
+      ).toMatchObject({ euerHinweis: kind === "send" ? expect.stringContaining("EÜR 2026") : null });
+      expect(await dauerfrist.dauerfristFor(2026)).toBe(kind === "send");
+      expect(await sql`select * from annual_submissions`).toEqual(original);
+    });
 });
