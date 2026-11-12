@@ -1,4 +1,4 @@
-import type { Invoice } from "@e-invoice-eu/core";
+import type { Address, Allowance, DocumentAllowance, Invoice, InvoiceLine as Line, Party, PaymentMeans, TaxCategory, TaxSubtotal } from "./modell.ts";
 import { el, elIf, txt, type XmlElement, xmlDocument } from "./xml-baum.ts";
 
 /*
@@ -8,12 +8,7 @@ import { el, elIf, txt, type XmlElement, xmlDocument } from "./xml-baum.ts";
  * Zuordnung der Felder nach EN 16931-1 mit den Syntax-Bindings in EN 16931-3-3 (CII) und EN 16931-3-2 (UBL).
  */
 
-type Ubl = Invoice["ubl:Invoice"];
-type Party = Ubl["cac:AccountingSupplierParty"]["cac:Party"] | Ubl["cac:AccountingCustomerParty"]["cac:Party"];
-type Address = Ubl["cac:AccountingSupplierParty"]["cac:Party"]["cac:PostalAddress"];
-type TaxCategory = { "cbc:ID": string; "cbc:Percent"?: string };
-type Allowance = NonNullable<Ubl["cac:AllowanceCharge"]>[number];
-type Line = Ubl["cac:InvoiceLine"][number];
+type Ubl = Invoice;
 
 /** Kennung des Profils in BT-24 */
 export type CiiProfile = "xrechnung" | "factur-x";
@@ -54,8 +49,8 @@ function tradeTax(name: string, category: TaxCategory) {
 }
 
 /** Abzug (BG-20 auf Belegebene mit Steuerkategorie, BG-27 in der Position ohne) */
-function allowanceCharge(allowance: Allowance | NonNullable<Line["cac:AllowanceCharge"]>[number]) {
-  const category = "cac:TaxCategory" in allowance ? (allowance["cac:TaxCategory"] as TaxCategory) : null;
+function allowanceCharge(allowance: Allowance | DocumentAllowance) {
+  const category = "cac:TaxCategory" in allowance ? allowance["cac:TaxCategory"] : null;
   return el("ram:SpecifiedTradeAllowanceCharge", [
     el("ram:ChargeIndicator", [txt("udt:Indicator", allowance["cbc:ChargeIndicator"])]),
     txt("ram:CalculationPercent", allowance["cbc:MultiplierFactorNumeric"]),
@@ -79,7 +74,7 @@ function lineItem(line: Line) {
     el("ram:SpecifiedLineTradeAgreement", [el("ram:NetPriceProductTradePrice", [txt("ram:ChargeAmount", line["cac:Price"]["cbc:PriceAmount"])])]),
     el("ram:SpecifiedLineTradeDelivery", [txt("ram:BilledQuantity", line["cbc:InvoicedQuantity"], { unitCode: line["cbc:InvoicedQuantity@unitCode"] })]),
     el("ram:SpecifiedLineTradeSettlement", [
-      tradeTax("ram:ApplicableTradeTax", item["cac:ClassifiedTaxCategory"] as TaxCategory),
+      tradeTax("ram:ApplicableTradeTax", item["cac:ClassifiedTaxCategory"]),
       ...list(line["cac:AllowanceCharge"]).map(allowanceCharge),
       el("ram:SpecifiedTradeSettlementLineMonetarySummation", [txt("ram:LineTotalAmount", line["cbc:LineExtensionAmount"])]),
     ]),
@@ -107,8 +102,7 @@ function taxRegistrations(party: Party) {
 
 /** Verkäufer (BG-4) oder Käufer (BG-7); die Gläubiger-ID (schemeID SEPA) steht nicht hier, sondern in BT-90 */
 function tradeParty(name: string, party: Party) {
-  // Beim Käufer kennt das Modell weder Rechtsform noch Registernummer
-  const legal: { "cbc:RegistrationName": string; "cbc:CompanyID"?: string; "cbc:CompanyLegalForm"?: string } = party["cac:PartyLegalEntity"];
+  const legal = party["cac:PartyLegalEntity"];
   const contact = party["cac:Contact"];
   const endpoint = party["cbc:EndpointID"];
   return el(name, [
@@ -154,7 +148,7 @@ function delivery(invoice: Ubl) {
   ]);
 }
 
-function paymentMeans(means: NonNullable<Ubl["cac:PaymentMeans"]>[number]) {
+function paymentMeans(means: PaymentMeans) {
   const payee = means["cac:PayeeFinancialAccount"];
   const payer = means["cac:PaymentMandate"]?.["cac:PayerFinancialAccount"];
   return el("ram:SpecifiedTradeSettlementPaymentMeans", [
@@ -167,7 +161,7 @@ function paymentMeans(means: NonNullable<Ubl["cac:PaymentMeans"]>[number]) {
 }
 
 /** Steueraufschlüsselung (BG-23) */
-function headerTax(subtotal: NonNullable<Ubl["cac:TaxTotal"][number]["cac:TaxSubtotal"]>[number]) {
+function headerTax(subtotal: TaxSubtotal) {
   const category = subtotal["cac:TaxCategory"];
   return el("ram:ApplicableTradeTax", [
     txt("ram:CalculatedAmount", subtotal["cbc:TaxAmount"]),
@@ -222,8 +216,7 @@ function settlement(invoice: Ubl) {
 }
 
 /** CII einer Rechnung aus dem Modell von toEInvoiceData */
-export function ciiXml(data: Invoice, profile: CiiProfile): string {
-  const invoice = data["ubl:Invoice"];
+export function ciiXml(invoice: Invoice, profile: CiiProfile): string {
   return xmlDocument(
     el(
       "rsm:CrossIndustryInvoice",

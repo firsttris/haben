@@ -1,4 +1,5 @@
 import { treatmentIssues } from "@haben/core";
+import { LAENDERCODES, WAEHRUNGSCODES } from "./codelisten.ts";
 import { isCreditNote } from "./format.ts";
 import type { InvoiceDocument } from "./types.ts";
 
@@ -25,6 +26,11 @@ export function validateForFormat(doc: InvoiceDocument): string[] {
   if (xrechnung && blank(buyer.email) && blank(buyer.leitwegId)) {
     problems.push("E-Mail-Adresse oder Leitweg-ID des Kunden fehlt (für XRechnung Pflicht)");
   }
+
+  // Codes nach EN 16931; ein unbekannter ergäbe XML, das der Empfänger ablehnt
+  if (!LAENDERCODES.has(seller.land.toUpperCase())) problems.push(`Ländercode des Rechnungsstellers „${seller.land}“ unbekannt`);
+  if (!LAENDERCODES.has(buyer.land.toUpperCase())) problems.push(`Ländercode des Kunden „${buyer.land}“ unbekannt`);
+  if (!WAEHRUNGSCODES.has(doc.currency)) problems.push(`Währung „${doc.currency}“ unbekannt`);
 
   if (doc.lines.length === 0) problems.push("Rechnung hat keine Positionen");
   if (doc.totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700 && t.rate !== 0)) {

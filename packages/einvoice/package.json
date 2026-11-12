@@ -12,10 +12,8 @@
     "kosit": "bun scripts/kosit-check.ts"
   },
   "dependencies": {
-    "@e-invoice-eu/core": "^3.3.3",
     "@haben/core": "workspace:*",
     "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
-    "ajv": "^8.20.0",
     "fast-xml-parser": "^5.11.2",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
