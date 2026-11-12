@@ -141,6 +141,12 @@ export async function schliessen(token: string, repo: string, nummer: number): P
 
 type Person = { login: string; type?: string };
 
+/** Zuweisungen, wie sie jetzt sind; die im Ereignis sind beim Lauf womöglich schon überholt */
+export async function zugewiesenLesen(token: string, repo: string, nummer: number): Promise<string[]> {
+  const issue = await anfrage<{ assignees: Person[] }>(token, `/repos/${repo}/issues/${nummer}`);
+  return issue.assignees.map((p) => p.login);
+}
+
 export async function zuweisen(token: string, repo: string, nummer: number, person: string): Promise<string[]> {
   const issue = await anfrage<{ assignees: Person[] }>(token, `/repos/${repo}/issues/${nummer}/assignees`, {
     method: "POST",
