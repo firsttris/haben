@@ -5,11 +5,11 @@ description: "Eigene Commits (Fixes aus Review oder Beitragsprüfung, Ergänzung
 
 # Auf einen fremden Fork pushen
 
-Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst darum bitten oder als letzten Ausweg einen eigenen Pull Request anlegen (`docs/entwicklung.md`, „Review“, Schritt 4). Commits der Person nie umschreiben, nie Force.
+Voraussetzung: Im Pull Request ist „Allow edits by maintainers“ an; sonst darum bitten oder als letzten Ausweg einen eigenen Pull Request anlegen (`docs/entwicklung.md`, „Review“, Schritt 4). Commits der beitragenden Person nie umschreiben, nie Force.
 
-**Lokal** (Claude Code auf dem Rechner der Person): `git push` auf den Branch des Forks geht mit ihren Zugangsdaten. Der Rest dieses Skills betrifft nur die Cloud.
+**Lokal** (Claude Code auf dem eigenen Rechner): `git push` auf den Branch des Forks geht mit den eigenen Zugangsdaten. Der Rest dieses Skills betrifft nur die Cloud.
 
-**Cloud-Session:** Sie schreibt nur in die Repositories, die beim Start als Quelle gewählt wurden. Ein Fork heißt meist ebenfalls `haben`; neben `firsttris/haben` lässt er sich nicht nachträglich hinzufügen (gleicher Name, gleiches Verzeichnis), und `git push`, `add_repo` und das GitHub-Werkzeug lehnen ihn ab. Das nicht durchprobieren und die Person nicht selbst pushen lassen, sondern sofort so:
+**Cloud-Session:** Sie schreibt nur in die Repositories, die beim Start als Quelle gewählt wurden. Ein Fork heißt meist ebenfalls `haben`; neben `firsttris/haben` lässt er sich nicht nachträglich hinzufügen (gleicher Name, gleiches Verzeichnis), und `git push`, `add_repo` und das GitHub-Werkzeug lehnen ihn ab. Das nicht durchprobieren und niemanden bitten, von Hand zu pushen, sondern sofort so:
 
 1. Die Commits in dieser Session fertig machen und prüfen, auf einer lokalen Kopie des PR-Branches (`git fetch origin pull/<nr>/head:pr-<nr>`). Den erwarteten HEAD-SHA des Forks notieren.
 2. `git format-patch <head-sha>..pr-<nr> --stdout` erzeugt den Patch mit Nachrichten, Autor und Trailern.
