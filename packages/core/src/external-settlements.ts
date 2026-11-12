@@ -25,7 +25,8 @@ export function externalSettlementProblem(kr: Kontenrahmen, journals: readonly E
     if (!original || original.settles || original.externalId === payment.externalId) return invalid(payment.externalId);
     const accounts = [ACCOUNTS[kr].forderungen, ACCOUNTS[kr].verbindlichkeiten];
     const open = accounts.filter((a) => original.lines.some((l) => l.account === a));
-    if (open.length !== 1 || !success(kr, original) || success(kr, payment)) return invalid(payment.externalId);
+    // Eine Anlagenrechnung hat kein Erfolgskonto; ihre gezahlte Vorsteuer wirkt dennoch (§ 11 Abs. 2, § 9b Abs. 1 EStG).
+    if (open.length !== 1 || success(kr, payment)) return invalid(payment.externalId);
     const account = open[0]!;
     if (payment.lines.some((l) => accounts.includes(l.account as never) && l.account !== account)) return invalid(payment.externalId);
     const gross = saldo(original, account);
