@@ -54,7 +54,8 @@ import { documentReferences, referenceColumns, referenceFieldsSchema } from "./o
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns } from "./lastschrift.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
-import { invoiceTaxYear } from "./invoice-tax-year.ts";
+import { invoiceVatDate, invoiceVatMode } from "./invoice-vat.ts";
+import { lockAdvanceVat, syncAdvanceVat } from "./advance-vat.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -99,6 +100,7 @@ export const draftSchema = z
     language: z.enum(["de", "en"]).default("de"),
     /** Abschlags- oder Schlussrechnung; null = normale Rechnung */
     variant: z.enum(["abschlag", "schluss"]).nullable().default(null),
+    advanceType: z.enum(["anzahlung", "teilleistung"]).nullable().optional(),
     /** Schlussrechnung: abzuziehende Abschlagsrechnungen */
     deducts: z.array(z.uuid()).max(50).default([]),
     /** Angebot, zu dem die Rechnung gehört (Abschlags- und Schlussrechnung, Rechnung aus dem Angebot) */
@@ -546,6 +548,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
+    advanceType: input.variant === "abschlag" ? (input.advanceType ?? "anzahlung") : null,
     quoteId: input.quoteId ?? null,
     ...discountColumns(input.discount),
     ...paymentColumns(input, kind),
@@ -936,6 +939,13 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
     }
   }
   if (!contact) issues.push("Kunde fehlt");
+  if (invoice.advanceType === "teilleistung") {
+    if (!invoice.serviceFrom) issues.push("Leistungsdatum der erbrachten Teilleistung fehlt");
+    if ((invoice.serviceTo ?? invoice.serviceFrom ?? "") > invoice.issueDate) issues.push("Die Teilleistung ist am Rechnungsdatum noch nicht erbracht");
+  }
+  if (invoice.variant === "schluss" && (await invoiceVatDate(invoice, q)) > invoice.issueDate) {
+    issues.push("Die Schlussleistung ist am Rechnungsdatum noch nicht erbracht");
+  }
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
@@ -1057,6 +1067,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   // oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein.
   const deducts = deductionIds(lines);
   const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
+  await lockAdvanceVat(tx, id);
   if (referenced.length > 0) {
     await tx
       .select({ id: schema.invoices.id })
@@ -1127,9 +1138,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     .where(eq(schema.invoices.id, id))
     .returning();
 
-  const versteuerung = invoice.correctsId ? await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx) : company.versteuerung;
+  const versteuerung = await invoiceVatMode(invoice, tx);
   await post(tx, company, {
-    date: invoice.issueDate,
+    date: await invoiceVatDate(invoice, tx),
     description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
     sourceType: "invoice",
     sourceId: id,
@@ -1140,6 +1151,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
   });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
+  await syncAdvanceVat(tx, id);
   await syncQuoteBilling(tx, quoteIds);
 
   return finalized!;
@@ -1232,6 +1244,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     // Original zuerst: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf (Fremdschlüssel
     // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
     await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+    await lockAdvanceVat(tx, id);
     // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
     await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today));

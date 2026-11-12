@@ -58,9 +58,18 @@ test("Abschlag: Anzahlung ist Vorgabe, erbrachte Teilleistung braucht ein Leistu
   await page.getByLabel("Rechnungsart", { exact: true }).selectOption("abschlag");
   const screenshots = process.env.ANZAHLUNG_SCREENSHOTS;
   if (screenshots) {
-    for (const [theme, name] of [["wald", "hell"], ["nacht", "dunkel"]] as const) {
-      await page.evaluate((value) => { localStorage.setItem("haben-theme", value); document.documentElement.dataset.theme = value; }, theme);
-      for (const [size, viewport] of [["desktop", { width: 1280, height: 900 }], ["handy", { width: 375, height: 812 }]] as const) {
+    for (const [theme, name] of [
+      ["wald", "hell"],
+      ["nacht", "dunkel"],
+    ] as const) {
+      await page.evaluate((value) => {
+        localStorage.setItem("haben-theme", value);
+        document.documentElement.dataset.theme = value;
+      }, theme);
+      for (const [size, viewport] of [
+        ["desktop", { width: 1280, height: 900 }],
+        ["handy", { width: 375, height: 812 }],
+      ] as const) {
         await page.setViewportSize(viewport);
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({ path: `test-results/anzahlung/abschlag-${name}-${size}-${screenshots}.png` });

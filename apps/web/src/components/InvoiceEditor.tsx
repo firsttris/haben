@@ -317,6 +317,7 @@ export function InvoiceEditor({
   const [exchangeRate, setExchangeRate] = useState(initial.exchangeRate ?? "");
   const [exchangeRateDate, setExchangeRateDate] = useState(initial.exchangeRateDate ?? "");
   const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
+  const [advanceType, setAdvanceType] = useState<"anzahlung" | "teilleistung">(initial.advanceType ?? "anzahlung");
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
@@ -565,6 +566,7 @@ export function InvoiceEditor({
       priceMode: grossPrices ? "brutto" : "netto",
       language,
       variant: kind === "rechnung" ? variant : null,
+      advanceType: kind === "rechnung" && variant === "abschlag" ? advanceType : null,
       deducts: schluss ? deducted.map((a) => a.id) : [],
       quoteId: kind === "rechnung" && quoteId ? quoteId : null,
       currency: currencyCode,
@@ -820,7 +822,7 @@ export function InvoiceEditor({
                   hint={
                     variant &&
                     (variant === "abschlag"
-                      ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
+                      ? "Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung."
                       : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen.")
                   }
                   style={{ gridColumn: "1 / -1" }}
@@ -833,6 +835,25 @@ export function InvoiceEditor({
                     </select>
                   )}
                 </Field>
+              )}
+              {kind === "rechnung" && variant === "abschlag" && (
+                <div className="checkbox-hinted" style={{ gridColumn: "1 / -1" }}>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={advanceType === "teilleistung"}
+                      disabled={!editable}
+                      aria-describedby="invoice-advance-hint"
+                      onChange={(e) => touch(setAdvanceType)(e.target.checked ? "teilleistung" : "anzahlung")}
+                    />
+                    Teilleistung bereits erbracht
+                  </label>
+                  <span id="invoice-advance-hint" className="field-hint">
+                    {advanceType === "teilleistung"
+                      ? "Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung."
+                      : "Umsatzsteuer entsteht erst bei Zahlungseingang."}
+                  </span>
+                </div>
               )}
               <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
                 {(control) => (
@@ -925,7 +946,15 @@ export function InvoiceEditor({
                 />
               )}
               <Field label="Leistung von">
-                {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+                {(control) => (
+                  <input
+                    {...control}
+                    type="date"
+                    value={serviceFrom}
+                    onChange={(e) => touch(setServiceFrom)(e.target.value)}
+                    required={variant === "abschlag" && advanceType === "teilleistung"}
+                  />
+                )}
               </Field>
               <Field label="Leistung bis">
                 {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}

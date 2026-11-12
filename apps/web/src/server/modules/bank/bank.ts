@@ -57,7 +57,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceTotalsById, invoiceVatMode, lockAdvanceVat, syncAdvanceVat } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
@@ -1098,6 +1098,7 @@ async function returnBooking(
 ) {
   const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
   if (invoice?.status !== "final" || invoice.kind !== "rechnung") throw new BankError("Rechnung nicht zuordenbar.");
+  await lockAdvanceVat(tx, invoice.id);
   const paid = await settledOn(tx, "invoice_id", invoice.id);
   if (part.amount >= 0 || -part.amount > paid) throw new BankError(`Rechnung ${invoice.number} ist nur über ${paid / 100} € bezahlt.`);
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
@@ -1142,6 +1143,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   if (part.kind === "invoice") {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+    await lockAdvanceVat(tx, invoice.id);
     const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
     let open: number;
     if (invoice.kind === "storno") {
@@ -1227,6 +1229,7 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     sourceId: allocation!.id,
     lines: onLedger(lines, company.kontenrahmen, bank.ledgerIndex),
   });
+  if (target.invoiceId) await syncAdvanceVat(tx, target.invoiceId);
 }
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
@@ -1330,6 +1333,7 @@ async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.alloca
 }
 
 async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
+  if (allocation.invoiceId) await lockAdvanceVat(tx, allocation.invoiceId);
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocation.id));
   if (already) return;
   const [entry] = await tx
@@ -1382,6 +1386,7 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       reversesId: entry.id,
     });
   }
+  if (allocation.invoiceId) await syncAdvanceVat(tx, allocation.invoiceId);
 }
 
 export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid() });
@@ -1511,6 +1516,7 @@ export async function bookWriteOff(
   } else {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+    await lockAdvanceVat(tx, invoice.id);
     if (invoice.kind === "storno") throw new BankError("Eine Stornorechnung lässt sich nicht ausbuchen.");
     const [storno] = await tx
       .select({ id: schema.invoices.id })
@@ -1524,15 +1530,7 @@ export async function bookWriteOff(
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-    lines = invoiceWriteOffPosting(
-      input.kind,
-      totals,
-      amount,
-      company.kontenrahmen,
-      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
-      invoice.taxTreatment,
-      taxShares,
-    );
+    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, await invoiceVatMode(invoice, tx), invoice.taxTreatment, taxShares);
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
     target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
   }
@@ -1548,6 +1546,7 @@ export async function bookWriteOff(
     })
     .returning();
   await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
+  if (target.invoiceId) await syncAdvanceVat(tx, target.invoiceId);
   return amount;
 }
 
@@ -1673,6 +1672,7 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
 
 /** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
 export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
+  if (row.invoiceId) await lockAdvanceVat(tx, row.invoiceId);
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
   if (already) return;
   const [entry] = await tx
@@ -1710,4 +1710,5 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
       reversesId: entry.id,
     });
   }
+  if (row.invoiceId) await syncAdvanceVat(tx, row.invoiceId);
 }

@@ -91,6 +91,7 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
     priceMode: invoice.priceMode,
     language: invoice.language,
     variant: invoice.variant,
+    advanceType: invoice.advanceType,
     quoteId: invoice.quoteId,
     deducts: [...new Set(lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
     currency: invoice.currency,

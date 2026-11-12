@@ -11,7 +11,7 @@ import {
 } from "@haben/core";
 import { and, asc, eq, gte, lt, notInArray, or } from "drizzle-orm";
 import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceVatMode } from "../rechnungen/index.ts";
 import { schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
@@ -37,6 +37,8 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
       basis: l.basis,
       invoiceDate: schema.invoices.issueDate,
       correctsId: schema.invoices.correctsId,
+      advanceType: schema.invoices.advanceType,
+      treatment: schema.invoices.taxTreatment,
     })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
@@ -52,7 +54,10 @@ export async function kennzahlenAusDemJournal(period: VatPeriod, versteuerung: V
       // Auch Storno und Korrektur folgen der ursprünglichen Rechnung.
       const year = r.invoiceDate ? await invoiceTaxYear({ issueDate: r.invoiceDate, correctsId: r.correctsId }, q) : period.year;
       if (!modes.has(year)) modes.set(year, await versteuerungForYear(year, q));
-      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: modes.get(year)!, zeilen: [] };
+      const mode = r.invoiceDate
+        ? await invoiceVatMode({ issueDate: r.invoiceDate, correctsId: r.correctsId, advanceType: r.advanceType, taxTreatment: r.treatment ?? "regulaer" }, q)
+        : modes.get(year)!;
+      b = { kontenrahmen: r.kontenrahmen as Kontenrahmen, versteuerung: mode, zeilen: [] };
       buchungen.set(r.id, b);
     }
     b.zeilen.push({ account: r.account, debit: r.debit, credit: r.credit, taxCode: r.taxCode as JournalZeile["taxCode"], basis: r.basis });

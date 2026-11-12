@@ -4,7 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceTotalsById, lockAdvanceVat, syncAdvanceVat } from "../rechnungen/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
@@ -49,6 +49,7 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
     const books = await openBooks(tx);
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, parsed.invoiceId)).for("update");
     if (invoice?.status !== "final") throw new CashError("Rechnung nicht gefunden.");
+    await lockAdvanceVat(tx, invoice.id);
     if (invoice.kind === "storno") throw new CashError("Eine Stornorechnung lässt sich nicht bar kassieren.");
     if (invoice.currency !== "EUR") throw new CashError("Bar kassieren geht nur bei Rechnungen in Euro.");
     // Ein Datum vor dem Rechnungsdatum ist erlaubt (#455), wie im Bankabgleich: Der Kunde hat bar bezahlt, die Rechnung
@@ -113,6 +114,7 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
         angabe: parsed.extra.steuer,
       });
     }
+    await syncAdvanceVat(tx, invoice.id);
     return row!;
   });
 }

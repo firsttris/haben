@@ -1436,6 +1436,13 @@
       "when": 1794465587819,
       "tag": "0204_firmendaten_gespeichert",
       "breakpoints": true
+    },
+    {
+      "idx": 205,
+      "version": "7",
+      "when": 1794475181751,
+      "tag": "0205_abschlag_steuerzeitpunkt",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,7 @@ import {
 import { and, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTaxYear } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceVatMode } from "../rechnungen/index.ts";
 import type { computeVatFigures } from "../umsatzsteuer/index.ts";
 
 /*
@@ -60,6 +60,8 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
       basis: l.basis,
       invoiceDate: schema.invoices.issueDate,
       correctsId: schema.invoices.correctsId,
+      advanceType: schema.invoices.advanceType,
+      treatment: schema.invoices.taxTreatment,
     })
     .from(l)
     .innerJoin(e, eq(e.id, l.entryId))
@@ -78,7 +80,13 @@ export async function journalBuchungen(from: string, to: string, q: Db | Tx = db
         kontenrahmen: r.kontenrahmen as Kontenrahmen,
         sourceType: r.sourceType,
         sourceId: r.sourceId,
-        versteuerung: invoiceYear === null ? undefined : modes.get(invoiceYear),
+        versteuerung:
+          invoiceYear === null
+            ? undefined
+            : await invoiceVatMode(
+                { issueDate: r.invoiceDate!, correctsId: r.correctsId, advanceType: r.advanceType, taxTreatment: r.treatment ?? "regulaer" },
+                q,
+              ),
         zeilen: [],
       };
       byEntry.set(r.id, buchung);

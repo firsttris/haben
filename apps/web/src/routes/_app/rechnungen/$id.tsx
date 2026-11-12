@@ -71,6 +71,7 @@ function InvoicePage() {
           priceMode: invoice.priceMode,
           language: invoice.language,
           variant: invoice.variant,
+          advanceType: invoice.advanceType,
           currency: invoice.currency,
           // Ein übernommener USt-Kurs bleibt im Feld leer: er folgt dem Leistungsmonat
           exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,

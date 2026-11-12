@@ -48,6 +48,9 @@ export {
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 export { invoiceTaxYear } from "./invoice-tax-year.ts";
+export { invoiceVatDate, invoiceVatMode } from "./invoice-vat.ts";
+export { lockAdvanceVat, syncAdvanceVat } from "./advance-vat.ts";
+export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,

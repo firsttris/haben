@@ -19,7 +19,7 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { journalAbJahr, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTotalsById, lockAdvanceVat, syncAdvanceVat } from "../rechnungen/index.ts";
 import { negatedShares, reverseLinesIn, reverseWriteOffRow } from "./bank.ts";
 
 /**
@@ -253,6 +253,7 @@ async function cashLinesWieHeute(tx: Tx, original: CashEntry, kontenrahmen: Kont
  * wie beim Aufheben einer Zuordnung im Bankabgleich; ohne die Zahlung wäre er falsch.
  */
 async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string): Promise<CashEntry> {
+  if (original.invoiceId) await lockAdvanceVat(tx, original.invoiceId);
   if (!original.journalEntryId) throw new CashError("Zur Bareinnahme gibt es keine Buchung.");
   const reversalId = crypto.randomUUID();
   const text = `Storno Nr. ${original.number}: ${original.text}`;
@@ -298,6 +299,7 @@ async function reverseBookedCashEntry(tx: Tx, original: CashEntry, date: string)
     .where(and(eq(schema.writeOffs.cashEntryId, original.id), isNull(schema.writeOffs.reversesId)))
     .for("update");
   for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff, date);
+  if (original.invoiceId) await syncAdvanceVat(tx, original.invoiceId);
   return row!;
 }
 
