@@ -204,32 +204,21 @@ jobs:
     steps:
       - run: test "${{ needs.e2e-teil.result }}" = success
 
-  # Der Job laeuft immer, wenn Code geaendert ist, auch wenn die E-Rechnung nicht betroffen ist: er ist in der
-  # Ruleset fuer main ein erforderlicher Check, und ein uebersprungener Job gilt dort nicht als bestanden.
-  # Nur die Schritte, die wirklich pruefen, haengen an einvoice.
   kosit:
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.einvoice != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - name: E-Rechnung nicht betroffen
-        if: ${{ needs.changes.outputs.einvoice == 'false' }}
-        run: echo "::notice::Keine Aenderung an packages/einvoice, packages/core, bun.lock, package.json oder ci.yml, der KoSIT-Pruefer laeuft nicht."
       - uses: actions/checkout@v7
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
       - uses: oven-sh/setup-bun@v2
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
         with:
           bun-version-file: package.json
       - uses: actions/setup-java@v6
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
         with:
           distribution: temurin
           java-version: 25
       - run: bun install --frozen-lockfile
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
       - name: KoSIT-Validator und XRechnung-Konfiguration laden
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
           # Die Releases, gegen die die E-Rechnungen geprüft werden; Renovate hebt sie
@@ -258,8 +247,7 @@ jobs:
           echo "KOSIT_JAR=$jar" >> "$GITHUB_ENV"
           echo "KOSIT_CONFIG=$RUNNER_TEMP/kosit/xr/scenarios.xml" >> "$GITHUB_ENV"
       - run: bun run --cwd packages/einvoice kosit "$RUNNER_TEMP/kosit/out"
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
-      - if: always() && needs.changes.outputs.einvoice != 'false'
+      - if: always()
         uses: actions/upload-artifact@v7
         with:
           name: kosit-reports
@@ -267,30 +255,21 @@ jobs:
           if-no-files-found: ignore
 
   # Die ZUGFeRD-PDFs: PDF/A-3 (veraPDF) und factur-x.xml nach Factur-X, mit dem Mustang-Validator
-  # Wie kosit: der Job laeuft immer bei Codeaenderungen, nur die Pruefschritte haengen an einvoice.
   zugferd:
     needs: changes
-    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.einvoice != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - name: E-Rechnung nicht betroffen
-        if: ${{ needs.changes.outputs.einvoice == 'false' }}
-        run: echo "::notice::Keine Aenderung an packages/einvoice, packages/core, bun.lock, package.json oder ci.yml, der ZUGFeRD-Pruefer laeuft nicht."
       - uses: actions/checkout@v7
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
       - uses: oven-sh/setup-bun@v2
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
         with:
           bun-version-file: package.json
       - uses: actions/setup-java@v6
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
         with:
           distribution: temurin
           java-version: 25
       - run: bun install --frozen-lockfile
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
       - name: Mustang-Validator laden
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
           # Renovate hebt die Version (.github/renovate.json5)
@@ -302,8 +281,7 @@ jobs:
           [ -n "$jar" ] || { echo "::error::$MUSTANG: kein Mustang-CLI-*.jar"; exit 1; }
           echo "MUSTANG_JAR=$jar" >> "$GITHUB_ENV"
       - run: bun run --cwd packages/einvoice zugferd "$RUNNER_TEMP/zugferd"
-        if: ${{ needs.changes.outputs.einvoice != 'false' }}
-      - if: always() && needs.changes.outputs.einvoice != 'false'
+      - if: always()
         uses: actions/upload-artifact@v7
         with:
           name: zugferd-berichte
