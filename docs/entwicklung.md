@@ -127,7 +127,7 @@ Seiten der Doku:
 - **Front Matter:** `title:` (für Suchmaschinen, höchstens etwa 60 Zeichen; die Navigation nimmt den Namen aus `mkdocs.yml`) und `description:` (höchstens etwa 160 Zeichen, Pflicht). Daraus setzt `overrides/main.html` Beschreibung und Open Graph.
 - **Hinweise** im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile); die deutschen Titel setzt `scripts/doku-hinweise`.
 - **Kurz halten:** Die Doku sagt Menschen, was gilt und warum. Schritte für Agenten stehen in den Skills unter `.claude/skills/`, wie ein Skript intern entscheidet, in dessen Kommentaren. Keine Sätze, die nur wiederholen, ankündigen oder zusammenfassen.
-- Änderungsdatum (`scripts/doku-aenderungsdatum`) und Weiterleitungen für Pfade mit Schrägstrich (`scripts/doku-kurzlinks`) entstehen beim Build; Tests mit `python -m unittest discover -s scripts/<ordner>`.
+- Änderungsdatum (`scripts/doku-aenderungsdatum`) und Weiterleitungen für Pfade mit Schrägstrich (`scripts/doku-kurzlinks`) entstehen beim Build, Canonical, `og:url` und Sitemap nennen die Startseite danach `https://haben.app/` statt `index.html` (`scripts/doku-startseite`); Tests mit `python -m unittest discover -s scripts/<ordner>`.
 
 ## Tests
 
