@@ -18,7 +18,7 @@
  * nichts Freigegebenes darüber liegt, nennt eine Warnung die neueste BETA. Wartungsreleases der eingestellten
  * Hauptversion, Mai-Releases und ab `<Haupt>.2` sind Befunde.
  */
-import { type Abruf, abrufen, begrenzt, befund, DOKU_JAHRESWERTE, type Ergebnis, type Holen, LEER, warnung, zusammen } from "./abruf.ts";
+import { type Abruf, abrufen, begrenzt, befund, type Ergebnis, type Holen, LEER, SKILL_JAHRESWERTE, warnung, zusammen } from "./abruf.ts";
 
 export const ERIC_BASIS = "https://download.elster.de/download/eric";
 
@@ -113,7 +113,7 @@ const neuere = (aktuell: string, gefunden: readonly string[]) => {
       "",
       ...ZU_TUN,
       "",
-      `Wie die Prüfung sucht: [docs/entwicklung.md](${DOKU_JAHRESWERTE}).`,
+      `Schritte in [Skill jahreswerte, „ERiC heben“](${SKILL_JAHRESWERTE}#eric-heben).`,
     ].join("\n"),
   };
 };
