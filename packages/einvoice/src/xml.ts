@@ -287,11 +287,12 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const notes = [doc.intro, doc.note].map((n) => plainFormattedText(n?.trim() ?? "")).filter(Boolean);
   if (notes.length > 0) invoice["cbc:Note"] = notes;
 
-  // BR-IC-12: Bei der innergemeinschaftlichen Lieferung ist das Lieferland (BT-80) Pflicht, mit der Lieferanschrift
-  // (BG-15) verlangt XRechnung auch Ort und Postleitzahl (BR-DE-10, BR-DE-11). Haben kennt keine eigene Lieferanschrift;
-  // die Anschrift des Kunden ist der Bestimmungsort (siehe docs/rechnungen.md).
+  // BR-IC-12 verlangt bei innergemeinschaftlicher Lieferung das Lieferland (BT-80). Bei Zeiträumen füllt die
+  // Lieferanschrift außerdem den CII-Pflichtblock (Factur-X 1.08, BR-FX-EN-04), ohne ein Leistungsdatum zu erfinden.
+  // Zu BG-15 verlangt XRechnung auch Ort und Postleitzahl (BR-DE-10, BR-DE-11). Haben nimmt die Kundenanschrift
+  // als Bestimmungsort an; eine abweichende Lieferanschrift kennt es nicht (siehe docs/rechnungen.md).
   const deliveryLocation =
-    treatment === "ig_lieferung"
+    treatment === "ig_lieferung" || period.from !== period.to
       ? {
           "cac:DeliveryLocation": {
             "cac:Address": {
@@ -307,7 +308,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     invoice["cac:Delivery"] = { "cbc:ActualDeliveryDate": period.from, ...deliveryLocation };
   } else {
     invoice["cac:InvoicePeriod"] = { "cbc:StartDate": period.from, "cbc:EndDate": period.to };
-    if (treatment === "ig_lieferung") invoice["cac:Delivery"] = deliveryLocation;
+    invoice["cac:Delivery"] = deliveryLocation;
   }
 
   Object.assign(invoice, orderReferences(doc));

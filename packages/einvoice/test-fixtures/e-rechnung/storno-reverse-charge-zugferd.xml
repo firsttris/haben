@@ -92,7 +92,16 @@
 				</ram:SpecifiedTaxRegistration>
 			</ram:BuyerTradeParty>
 		</ram:ApplicableHeaderTradeAgreement>
-		<ram:ApplicableHeaderTradeDelivery/>
+		<ram:ApplicableHeaderTradeDelivery>
+			<ram:ShipToTradeParty>
+				<ram:PostalTradeAddress>
+					<ram:PostcodeCode>1070</ram:PostcodeCode>
+					<ram:LineOne>Mariahilfer Straße 10</ram:LineOne>
+					<ram:CityName>Wien</ram:CityName>
+					<ram:CountryID>AT</ram:CountryID>
+				</ram:PostalTradeAddress>
+			</ram:ShipToTradeParty>
+		</ram:ApplicableHeaderTradeDelivery>
 		<ram:ApplicableHeaderTradeSettlement>
 			<ram:PaymentReference>2026-035</ram:PaymentReference>
 			<ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>

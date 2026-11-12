@@ -13,6 +13,9 @@ export const MARKER = "<!-- haben:pr-regeln -->";
 
 export type Ergebnis = { pr: number; headSha: string; reports: Report[] };
 
+/** Abschnitt in docs/entwicklung.md mit dem, was bei jeder Meldung zu tun ist */
+export const ANLEITUNG = "[Wenn eine Prüfung anschlägt](https://haben.app/entwicklung.html#wenn-eine-prüfung-anschlägt)";
+
 const MAX_REPORTS = 50;
 const MAX_LAENGE = 500;
 
@@ -56,10 +59,9 @@ export function kommentarText(reports: Report[], headSha: string): string {
   } else {
     if (fehler.length > 0) teile.push("**Fehler** (halten den Pull Request auf):", "", liste(fehler), "");
     if (hinweise.length > 0) teile.push("**Hinweise** (der Check bleibt grün, bitte trotzdem ansehen):", "", liste(hinweise), "");
+    teile.push(`Was bei jeder Meldung zu tun ist: ${ANLEITUNG}. Agenten arbeiten sie nach Skill \`beitrag\`, Schritt 6, ab.`, "");
   }
-  teile.push(
-    `<sub>Stand ${headSha.slice(0, 7)}. Dieser Kommentar ändert sich mit jedem Push; die Regeln stehen in docs/entwicklung.md unter „Automatische Prüfungen der Regeln“.</sub>`,
-  );
+  teile.push(`<sub>Stand ${headSha.slice(0, 7)}. Dieser Kommentar ändert sich mit jedem Push.</sub>`);
   return teile.join("\n");
 }
 
