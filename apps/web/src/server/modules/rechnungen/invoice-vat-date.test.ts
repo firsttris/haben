@@ -58,7 +58,8 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
     lines: [{ description: "Teilleistung", quantity: 1000, unit: "Psch." as const, unitPrice: 30_000, taxRate: 1900 as const }],
   });
 
-  it("Reverse Charge behält auch bei Teilleistungen den besonderen Meldezeitpunkt nach Rechnungsdatum", async () => {
+  it.each(["ist", "soll"] as const)("Reverse-Charge-Teilleistung wird auch bei %s im Leistungsmonat gemeldet (§ 18b Satz 3 UStG)", async (mode) => {
+    await sql`update company set versteuerung = ${mode}, kontenrahmen = ${mode === "ist" ? "SKR04" : "SKR03"}`;
     const foreign = await contacts.createContact(actor, {
       kundennummer: "",
       name: "Muster GmbH",
@@ -79,9 +80,9 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
       lines: [{ description: "Erbrachte Teilleistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 0 }],
     });
     await invoices.finalizeInvoice(actor, draft.id);
-    expect(await vat.computeVatFigures({ year: 2026, month: 11 })).toMatchObject({ kz21: 0 });
-    expect(await vat.computeVatFigures({ year: 2026, month: 12 })).toMatchObject({ kz21: 30_000 });
-    expect((await reports.vatAbgleich({ year: 2026, month: 12 })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
+    expect(await vat.computeVatFigures({ year: 2026, month: 11 })).toMatchObject({ kz21: 30_000 });
+    expect(await vat.computeVatFigures({ year: 2026, month: 12 })).toMatchObject({ kz21: 0 });
+    for (const month of [11, 12]) expect((await reports.vatAbgleich({ year: 2026, month })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
   });
 
   it("eine unter Ist erbrachte Teilleistung bleibt nach dem Wechsel zu Soll bei Zahlung steuerpflichtig", async () => {
