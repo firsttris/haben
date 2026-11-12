@@ -139,6 +139,8 @@ test("Aufheben: der offene Rest ist wieder der volle Betrag", async () => {
   await formular.getByRole("button", { name: "Aufheben", exact: true }).click();
 
   await expect(karte().getByRole("status")).toContainText("Verrechnung aufgehoben");
+  // Die aufgehobene Verrechnung verschwindet aus der Liste, statt einen zweiten "aufheben"-Knopf anzubieten
+  await expect(karte().getByRole("listitem")).toHaveCount(0);
   // Aufgehoben wird per Gegenzeile: beide Belege tragen wieder ihren vollen offenen Rest
   await expect(offen()).toHaveText(RECHNUNG.betrag);
   await gehe(page, `/belege/${gutschrift}`);

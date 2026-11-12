@@ -81,7 +81,10 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
 
   if (ladefehler) return <p className="banner banner-danger">{ladefehler}</p>;
   if (!daten) return null;
-  const sichtbar = daten.settlements.filter((s) => !s.reversesId);
+  // Eine aufgehobene Verrechnung steht als Gegenzeile in der Liste; die Originalzeile selbst hat reversesId null und
+  // bliebe sonst mit einem zweiten "aufheben"-Knopf stehen. Beide Seiten ausblenden, wie in document-allocations.ts
+  const aufgehoben = new Set(daten.settlements.map((s) => s.reversesId).filter((id): id is string => id !== null));
+  const sichtbar = daten.settlements.filter((s) => !s.reversesId && !aufgehoben.has(s.id));
   const kannVerrechnen = !readOnly && daten.open !== 0 && daten.candidates.length > 0;
   if (!kannVerrechnen && sichtbar.length === 0) return null;
 
