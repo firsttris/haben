@@ -2981,6 +2981,8 @@ export const customPages = pgTable("custom_pages", {
   name: text("name").notNull(),
   /** http(s)-Adresse auf einem anderen Host als Haben */
   url: text("url").notNull(),
+  /** Menüeintrag öffnet die Seite in einem neuen Tab statt im Rahmen (#636), für Seiten, die das Einbetten verbieten */
+  openInNewTab: boolean("open_in_new_tab").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

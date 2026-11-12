@@ -32,7 +32,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     // Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet, für alle Rollen dieser Instanz
     firma: company ? firmaInNavigation(company.name) : null,
     // Eigene Seiten (#199) als Menüeinträge des Inhabers, ebenfalls erst nach der Anmeldung
-    eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name }) => ({ id, name })) : [],
+    eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name, url, openInNewTab }) => ({ id, name, url, openInNewTab })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
   };
