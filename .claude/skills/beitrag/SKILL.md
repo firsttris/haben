@@ -42,6 +42,6 @@ Als Datei (im Scratchpad), auf Deutsch:
 
 ## 6. Danach
 
-Review nach Skill `tdd-review`, nie durch die Session, die den Code geschrieben hat. Link, Stand der Prüfungen und Übersprungenes zurückmelden.
+Zuerst die Selbstprüfung nach Skill `beitrag-pruefen` (Wollen wir das, Quellen, einfachste Lösung, Regeln), dann das Review nach Skill `tdd-review`; beides nie durch die Session, die den Code geschrieben hat. Ob die Änderung gewollt ist, klärt man am besten schon vor dem ersten Code im Issue. Link, Stand der Prüfungen und Übersprungenes zurückmelden.
 
 Die Beschreibung bleibt bis zum Merge aktuell: Nach jedem Push, der ändert, was der Pull Request tut oder wie er geprüft wurde, auch nach Fixes aus dem Review und nach einem Rebase, die Datei anpassen und die Beschreibung mit dem vorhandenen GitHub-Werkzeug ersetzen, etwa `gh pr edit <nummer> --body-file …`. Ohne Werkzeug den neuen Text an die Person geben.
