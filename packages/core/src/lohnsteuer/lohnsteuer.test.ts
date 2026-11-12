@@ -21,7 +21,7 @@ describe("lohnsteuer, Jahressperre", () => {
   });
 
   // Liest als einziger Test das echte Datum: Ab Dezember schlägt er fehl, bis der PAP des nächsten Jahres
-  // hinterlegt ist (docs/entwicklung.md, Abschnitt „Lohnsteuer: PAP jährlich aktualisieren“).
+  // hinterlegt ist (Skill jahreswerte, „Lohnsteuer: PAP“).
   it("Jahreswechsel (echtes Datum): PAP für dieses und ab Dezember das nächste Jahr ist hinterlegt", () => {
     expect(fehlendeLohnsteuerJahre(new Date())).toEqual([]);
   });

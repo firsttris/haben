@@ -62,12 +62,12 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 
 ## Wie viele Runden
 
-- **Eine Runde, eine zweite nur nach Fixes** (Schritte 1–5 sind eine Runde). Findet Runde 1 keinen belegten Befund, ist das Review fertig. Hat sie Fixes am Code gebracht, prüft Runde 2 diese Fixes und den betroffenen Bereich: Jeder Fix ist neuer Code, den sonst niemand geprüft hat.
-- **Eine Runde, ein Stand:** Codex oder ein anderes KI-Review zählt zur selben Runde und prüft denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
-- **Weitere Runden nur nach einem schweren Befund** (roter Test und Sicherheit, falsche Buchung oder Steuer, GoBD oder Datenverlust). Sie prüfen nur den Fix und den betroffenen Bereich.
-- **Höchstens vier Runden.** Danach noch ein schwerer Befund offen: nicht weiter fixen, nicht mergen, an den Maintainer zurückmelden.
-- **Konstruierte Eingaben** (Daten, die in echten Antworten nicht vorkommen): notieren, nicht fixen; lohnt es sich, ein eigenes Issue vorschlagen. Ausnahme: Sicherheit.
-- Die Regel steht in `docs/entwicklung.md` unter „Review“.
+Die Regel steht in `docs/entwicklung.md`, Review, „Runden“. Schritte 1 bis 5 sind eine Runde; für den Agenten heißt das:
+
+- Hat Runde 1 Fixes am Code gebracht, prüft eine Runde 2 nur diese Fixes und den betroffenen Bereich.
+- Laufen Codex oder ein anderes KI-Review mit, prüfen alle denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
+- Nach vier Runden noch ein schwerer Befund offen: nicht weiter fixen, nicht mergen, an den Maintainer zurückmelden.
+- Befunde nur mit konstruierten Eingaben (außer Sicherheit): notieren, nicht fixen, lohnt es sich, ein Issue vorschlagen.
 
 ## 6. Merge (Maintainer oder Collaborator mit Zustimmung)
 

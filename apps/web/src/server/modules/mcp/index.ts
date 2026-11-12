@@ -12,7 +12,6 @@ export {
   createMcpToken,
   hasScope,
   listMcpTokens,
-  MCP_TOKEN_DAYS,
   mcpEnabled,
   McpError,
   mcpTokenInputSchema,
