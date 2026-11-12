@@ -119,10 +119,8 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `bun run --cwd packages/einvoice zugferd [ausgabeverzeichnis]` | ZUGFeRD-PDFs der Beispielrechnungen erzeugen und mit dem Mustang-Validator prüfen ([ZUGFeRD-PDFs](#zugferd-pdfs)) |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
-| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild, Hero und Hell-Dunkel-Bild |
+| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
-| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
-| `bun run docs:hell-dunkel` | Setzt `scripts/hell-dunkel/hell-dunkel.html` aus den Bildern der Übersicht zu `docs/screenshot-hell-dunkel.png` zusammen (hell und dunkel schräg geteilt, für die README) |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
 Seiten der Doku:
@@ -224,7 +222,6 @@ Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, w
 ### Bilder für README und Doku
 
 Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; ohne `DOKU_SCREENSHOTS=1` überspringt es sich, die CI wird also nicht langsamer.
-Jedes Bild entsteht im Theme Wald und Nacht (`screenshot-<name>-dunkel.png`); die README wählt per `<picture>`, die Doku per `#only-light` und `#only-dark`. Die Hinweise zur Einrichtung von ERiC und Hersteller-ID blendet die Spec aus, damit die Bilder Haben eingerichtet zeigen. Das Bild oben in der README (`scripts/hero/hero.html`) und das Hell-Dunkel-Bild sind keine Screenshots, sie rendern `bun run docs:hero` und `bun run docs:hell-dunkel`.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
