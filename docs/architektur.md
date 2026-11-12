@@ -407,6 +407,9 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 
 ## Entwurfsentscheidungen
 
+Noch offen ist der [Fachentwurf zur Bilanzierung erhaltener Anzahlungen bei GmbH und UG](adr/erhaltene-anzahlungen.md)
+aus [#750](https://github.com/firsttris/haben/issues/750); er beschreibt keine bereits umgestellte Buchungslogik.
+
 | Entscheidung | Warum |
 | --- | --- |
 | Ganze Cent statt Dezimalzahlen | Keine Rundungsfehler durch Gleitkomma; Summen stimmen auf den Cent mit Rechnung und ELSTER überein |
