@@ -66,7 +66,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 
 ## Wie viele Runden
 
-- **Zwei reguläre Runden** je Pull Request (Schritte 1–5 sind eine Runde). Grund: Jeder Fix ist neuer Code, und weitere Runden prüfen vor allem den Code, den die Reviews selbst erzeugt haben.
+- **Eine Runde, eine zweite nur nach Fixes** (Schritte 1–5 sind eine Runde). Findet Runde 1 keinen belegten Befund, ist das Review fertig. Hat sie Fixes am Code gebracht, prüft Runde 2 diese Fixes und den betroffenen Bereich: Jeder Fix ist neuer Code, den sonst niemand geprüft hat.
 - **Eine Runde, ein Stand:** Codex oder ein anderes KI-Review zählt zur selben Runde und prüft denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
 - **Weitere Runden nur nach einem schweren Befund** (roter Test und Sicherheit, falsche Buchung oder Steuer, GoBD oder Datenverlust). Sie prüfen nur den Fix und den betroffenen Bereich.
 - **Höchstens vier Runden.** Danach noch ein schwerer Befund offen: nicht weiter fixen, nicht mergen, an den Maintainer zurückmelden.

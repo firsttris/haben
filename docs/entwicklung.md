@@ -116,6 +116,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
+| `bun run --cwd packages/einvoice zugferd [ausgabeverzeichnis]` | ZUGFeRD-PDFs der Beispielrechnungen erzeugen und mit dem Mustang-Validator prüfen ([ZUGFeRD-PDFs](#zugferd-pdfs)) |
 | `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Regeln für die Seiten unter der Tabelle |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
@@ -161,7 +162,7 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
 | Netz | Schema der Deutschen Kreditwirtschaft für SEPA übersprungen | ja | ja, sonst Fehler |
 | `ERIC_DOKU` (Dokumentation von ERiC mit den Schemas der Lohnsteuerbescheinigung) | Schema-Test in `packages/elster/src/lstb.test.ts` übersprungen | nein | nein |
-| Java, wenn `ERIC_DOKU` gesetzt ist | derselbe Schema-Test schlägt fehl; sonst braucht nur `kosit` Java (eigener Befehl, kein Test) | nein | `kosit` als eigener Job |
+| Java, wenn `ERIC_DOKU` gesetzt ist | derselbe Schema-Test schlägt fehl; sonst brauchen nur `kosit` und `zugferd` Java (eigene Befehle, keine Tests) | nein | `kosit` und `zugferd` als eigene Jobs |
 | Beispielantworten aus erica unter `/var/tmp/erica/tests/worker/samples/` | je ein Test in `vast.test.ts` und `berechtigung.test.ts` übersprungen | nein | nein |
 
 ### Tests mit echtem ERiC
@@ -211,7 +212,7 @@ Kommt eine neue Version der Anlage 3, gehören neues Schema, URL und Prüfsumme 
 
 ### KoSIT-Validator
 
-Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise, Positions- und Gesamtrabatt, SEPA-Lastschrift) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 25 (wie in der CI) sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
+Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` die Beispielrechnungen aus `src/beispielrechnungen.ts` in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise, Positions- und Gesamtrabatt, SEPA-Lastschrift) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 25 (wie in der CI) sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
 
 ```sh
 KOSIT_JAR=/pfad/validator-<version>-standalone.jar \
@@ -221,7 +222,15 @@ bun run --cwd packages/einvoice kosit /tmp/haben-kosit
 
 Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
 
-Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+Neue Releases von Validator, XRechnung-Konfiguration und Mustang ([ZUGFeRD-PDFs](#zugferd-pdfs)) bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der Job `kosit` bzw. `zugferd` des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+
+### ZUGFeRD-PDFs
+
+Der CI-Job `zugferd` erzeugt die ZUGFeRD-PDFs der Beispielrechnungen und prüft sie mit dem [Mustang-Validator](https://github.com/ZUGFeRD/mustangproject): das PDF als PDF/A-3 (veraPDF) und das eingebettete `factur-x.xml` nach Factur-X. Lokal mit Java und `Mustang-CLI-<version>.jar` aus den Releases von `ZUGFeRD/mustangproject` (Version in `.github/workflows/ci.yml` unter `MUSTANG`):
+
+```sh
+MUSTANG_JAR=/pfad/Mustang-CLI-<version>.jar bun run --cwd packages/einvoice zugferd /tmp/haben-zugferd
+```
 
 ### ERiC heben
 
@@ -503,7 +512,7 @@ Beide Datenbanken leeren die Tests (siehe [Tests](#tests)); nie auf einen Server
 - Die Doku in `docs/`, die das Verhalten beschreibt, im selben Pull Request, kurz und für Menschen; Schritte für Agenten gehören in einen Skill, Interna eines Skripts in seine Kommentare (siehe [Befehle](#befehle), „Kurz halten“). Das README nur, wenn ein Bereich dazukommt oder wegfällt oder seine einzeilige Beschreibung nicht mehr passt; Details gehören nach `docs/`, die Tabellenzeile bleibt kurz.
 - Was ein Skript prüft, etwa neue Seiten in den E2E-Tests, steht unter [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln).
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
-- Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
+- Änderungen an der E-Rechnung prüfen in der CI die Jobs `kosit` (XML) und `zugferd` (PDF).
 - Texte in der Oberfläche auf Deutsch.
 - Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung; hochgeladen werden sie als Anhang, nie als Branch im Haupt-Repository. Aufnehmen und Hochladen: [`.claude/skills/pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md). Die Bilder in README und Doku erneuert danach der Workflow **Update screenshots** auf dem Branch (siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)); die neuen Bilder dann ansehen.
 
@@ -519,7 +528,7 @@ Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://gi
 ### Branches, Titel und Commits
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht. Vor jedem Push prüfen, ob der Pull Request des Branches noch offen ist; ist er gemergt, neu von `origin/main` und ein neuer Pull Request. Force-Push nur mit `--force-with-lease` auf den eigenen Branch nach einem Merge.
-- **Entwurf:** Ein Pull Request darf als Entwurf beginnen; die CI startet erst mit „Ready for review“. Ändert er nur Markdown, `docs/` oder `LICENSE` (ohne Dateien zu löschen oder zu verschieben), überspringt die CI alles außer dem Doku-Build (Job `changes` in `ci.yml`).
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen; die CI startet erst mit „Ready for review“. Ändert er nur Markdown, `docs/` oder `LICENSE` (ohne Dateien zu löschen oder zu verschieben), überspringt die CI alles außer dem Doku-Build (Job `changes` in `ci.yml`). Ebenso laufen `kosit` und `zugferd` nur, wenn sich `packages/einvoice`, `packages/core`, die Abhängigkeiten (`package.json`, `bun.lock`) oder `ci.yml` ändern, `backup` und `db-upgrade` nur bei `deploy/`, den Migrationen in `apps/web/drizzle/`, den Abhängigkeiten oder `ci.yml`. Auf `main` und im Release laufen alle Jobs.
 - **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“; die Nummer nur, falls es ein Issue gibt. Der Bereich ist ein bis drei Wörter, groß geschrieben (klein nur bei Namen wie „sevDesk“), ohne Punkt am Ende. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`. Der Workflow „PR-Regeln“ prüft das, auch für Entwürfe; Pull Requests von Bots wie Renovate behalten ihre eigenen Titel (siehe [Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
 - **Beschreibung:** Beim Squash wird die Beschreibung des Pull Requests die Nachricht des Commits auf `main` (Einstellung des Repositorys: `PR_BODY`) und bleibt so in der Historie. Sie muss deshalb bis zum Merge zum Stand des Pull Requests passen: Ändert ein weiterer Push, was der Pull Request tut oder wie er geprüft wurde, ändert sich die Beschreibung mit, auch nach Fixes aus dem Review und nach einem Rebase. Sie nennt alles, was der Pull Request ändert, und beschreibt das Ergebnis, nicht den Weg dorthin; Zwischenstände und Antworten auf Reviews gehören in Kommentare.
 - **Issues in der Beschreibung:** mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…` (ein Teil, ein Bezug). Mehrere gehen als Liste: `Umgesetzt #12, #13`. Nie `Closes` oder `Fixes`: GitHub schlösse das Issue schon beim Merge, die Nutzer haben es aber erst mit dem Release; „PR-Regeln“ meldet es als Fehler. Beispiele in Code (`` `Umgesetzt #1` ``) und Verneintes („noch nicht umgesetzt #1“) zählen nicht.
@@ -677,11 +686,11 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Ein P
 5. **Grün:** Lokal gezielt, was der Pull Request und die Fixes berühren: Lint, Typecheck, die Tests zu den geänderten Stellen, Playwright nur für die betroffenen Dateien, der Doku-Build nur bei Änderungen in `docs/`. Die volle Suite läuft in der CI und muss dort grün sein; auf Entwürfen läuft sie erst nach „Ready for review“. Dann ein Abschlusskommentar mit den behobenen Befunden und dem, was lokal lief.
 6. **Merge:** durch einen Maintainer oder, mit dessen Zustimmung, durch einen Collaborator, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. Vorher prüfen, ob Titel und Beschreibung noch zum Stand passen; sie werden der Commit auf `main`. Bei einem eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Beschreibung, und sein Pull Request wird mit Link auf den Ersatz geschlossen.
 
-**Wie viele Runden:** zwei reguläre je Pull Request. Jede weitere Runde prüft vor allem den Code, den die Reviews selbst erzeugt haben.
+**Wie viele Runden:** eine; findet sie keinen belegten Befund, ist das Review fertig. Eine zweite gibt es nur, wenn die erste Fixes am Code gebracht hat; sie prüft diese Fixes, denn das ist Code, den sonst niemand geprüft hat.
 
 - **Eine Runde, ein Stand:** Ein Codex- oder anderes KI-Review zählt zur selben Runde. Alle Reviewer einer Runde prüfen denselben Stand; ihre Befunde werden zusammengeführt und dann gemeinsam behoben.
-- **Weitere Runden nur nach einem schweren Befund:** belegt durch einen roten Test und eines von Sicherheit (Rechteprüfung, Secrets, Zugriff auf fremde Daten), falsche Buchungen oder Steuerbeträge (Journal, EÜR, Umsatzsteuer, ELSTER), GoBD (Siegel, Audit-Kette) oder Datenverlust. Ein kleiner Fehler im normalen Gebrauch wird in Runde zwei behoben oder ein eigenes Issue, öffnet aber keine weitere Runde. Zusatzrunden prüfen nur den Fix und den betroffenen Bereich, nicht den ganzen Pull Request.
-- **Höchstens vier Runden:** zwei reguläre und höchstens zwei wegen schwerer Befunde. Ist danach noch ein schwerer Befund offen, wird nicht weiter behoben und nicht gemergt; der Maintainer entscheidet, ob der Pull Request geteilt oder neu angesetzt wird.
+- **Weitere Runden nur nach einem schweren Befund:** belegt durch einen roten Test und eines von Sicherheit (Rechteprüfung, Secrets, Zugriff auf fremde Daten), falsche Buchungen oder Steuerbeträge (Journal, EÜR, Umsatzsteuer, ELSTER), GoBD (Siegel, Audit-Kette) oder Datenverlust. Ein kleiner Fehler im normalen Gebrauch wird behoben oder ein eigenes Issue, öffnet aber keine Zusatzrunde. Zusatzrunden prüfen nur den Fix und den betroffenen Bereich, nicht den ganzen Pull Request.
+- **Höchstens vier Runden:** bis zu zwei reguläre und höchstens zwei wegen schwerer Befunde. Ist danach noch ein schwerer Befund offen, wird nicht weiter behoben und nicht gemergt; der Maintainer entscheidet, ob der Pull Request geteilt oder neu angesetzt wird.
 - **Konstruierte Eingaben:** Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen, werden im Pull Request notiert und nicht mehr behoben; lohnen sie sich, werden sie ein eigenes Issue. Das gilt nicht für Sicherheit: Ein Angriff ist immer eine konstruierte Eingabe.
 
 Haben steht unter der AGPL-3.0.

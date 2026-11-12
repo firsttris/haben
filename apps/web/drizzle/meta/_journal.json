@@ -1440,8 +1440,15 @@
     {
       "idx": 205,
       "version": "7",
-      "when": 1794475181751,
-      "tag": "0205_abschlag_steuerzeitpunkt",
+      "when": 1794473880659,
+      "tag": "0205_eigene_seiten_neuer_tab",
+      "breakpoints": true
+    },
+    {
+      "idx": 206,
+      "version": "7",
+      "when": 1794478544767,
+      "tag": "0206_abschlag_steuerzeitpunkt",
       "breakpoints": true
     }
   ]

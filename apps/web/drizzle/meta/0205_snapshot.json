@@ -1,5 +1,5 @@
 {
-  "id": "0a72bbcf-7f6c-4be8-b071-43483f839701",
+  "id": "23eea8bd-f607-49ae-9bab-36e149207f03",
   "prevId": "8d3c16b3-de8e-4b5f-811d-69ca1c697bb3",
   "version": "7",
   "dialect": "postgresql",
@@ -3297,6 +3297,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "open_in_new_tab": {
+          "name": "open_in_new_tab",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -6230,12 +6237,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "advance_type": {
-          "name": "advance_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -6610,10 +6611,6 @@
         "invoices_variant_kind": {
           "name": "invoices_variant_kind",
           "value": "\"invoices\".\"variant\" is null or \"invoices\".\"kind\" = 'rechnung'"
-        },
-        "invoices_advance_type": {
-          "name": "invoices_advance_type",
-          "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",

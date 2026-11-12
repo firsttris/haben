@@ -8,7 +8,7 @@ describe("Abschlags- und Schlussrechnung", () => {
     const doc = { ...sampleDocument(), variant: "abschlag" as const };
     expect(pdfData(doc).title).toBe("Abschlagsrechnung");
     expect(pdfData({ ...doc, language: "en" }).title).toBe("Partial invoice");
-    expect(toEInvoiceData(doc)["ubl:Invoice"]["cbc:InvoiceTypeCode"]).toBe("326");
+    expect(toEInvoiceData(doc)["cbc:InvoiceTypeCode"]).toBe("326");
   });
 
   it("Schlussrechnung: Typ 380 mit Bezug auf jede Abschlagsrechnung", () => {
@@ -21,7 +21,7 @@ describe("Abschlags- und Schlussrechnung", () => {
       ],
     };
     expect(pdfData(doc).title).toBe("Schlussrechnung");
-    const invoice = toEInvoiceData(doc)["ubl:Invoice"];
+    const invoice = toEInvoiceData(doc);
     expect(invoice["cbc:InvoiceTypeCode"]).toBe("380");
     expect(invoice["cac:BillingReference"]?.map((r) => r["cac:InvoiceDocumentReference"]["cbc:ID"])).toEqual(["2026-030", "2026-031"]);
     // Storno einer Abschlagsrechnung bleibt eine Stornorechnung
