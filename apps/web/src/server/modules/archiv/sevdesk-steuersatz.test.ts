@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * sevDesk liefert Rechnungen auch ohne Positionen, der Kopf nennt Netto und Steuer (#472). Frühere Abrufe haben dafür Satz 0
@@ -27,7 +27,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Rechnung ohne Positionen (Postgres)",
   });
 
   async function setup(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate journal_lines, journal_entries, invoice_lines, invoices, document_amounts, documents, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contact_versions, contacts, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, invoice_lines, invoices, document_amounts, documents, lexoffice_voucher_files,
+      lexoffice_vouchers, lexoffice_imports, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${kontenrahmen}, ${versteuerung}, 'einzelunternehmen')`;
     await sql`insert into lexoffice_imports (status, progress, source) values ('fertig', '{}'::jsonb, 'sevdesk')`;

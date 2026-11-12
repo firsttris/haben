@@ -24,8 +24,10 @@ import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
+import { legacySource } from "../../../lib/altbestand.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -53,6 +55,7 @@ function InvoicePage() {
         kind={invoice.kind}
         initial={{
           contactId: invoice.contactId,
+          contactPersonId: invoice.contactPersonId,
           issueDate: invoice.issueDate,
           serviceFrom: invoice.serviceFrom,
           serviceTo: invoice.serviceTo,
@@ -111,6 +114,7 @@ function InvoicePage() {
         kleinunternehmer={data.kleinunternehmer}
         companySkonto={data.companySkonto}
         mandates={data.mandates}
+        contactPersons={data.contactPersons}
         articles={data.articles}
         textBlocks={data.textBlocks}
         abschlaege={data.abschlaege}
@@ -274,7 +278,13 @@ function FinalInvoice({ data }: { data: Detail }) {
                 </>
               )}
               <dt>Format</dt>
-              <dd>{invoice.lexofficeVoucherId ? "Original aus Lexoffice" : FORMAT_LABEL[invoice.format]}</dd>
+              <dd>
+                {data.importSource
+                  ? `Original aus ${legacySource(data.importSource.source, data.importSource.sourceName).name}`
+                  : invoice.lexofficeVoucherId
+                    ? "Übernommenes Original"
+                    : FORMAT_LABEL[invoice.format]}
+              </dd>
               {invoice.taxTreatment !== "regulaer" && (
                 <>
                   <dt>Umsatzsteuer</dt>
@@ -609,27 +619,27 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
             im Kassenbuch.
           </p>
           <div className="form-grid">
-            <label className="field">
-              Art
-              <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-                <option value="forderungsausfall">{WRITE_OFF_KINDS.forderungsausfall} (uneinbringlich)</option>
-                <option value="skonto">{WRITE_OFF_KINDS.skonto}</option>
-              </select>
-            </label>
-            <label className="field">
-              Datum
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </label>
-            <label className="field">
-              Betrag
-              <input
-                className="mono"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                aria-invalid={parsed === null || parsed <= 0 || parsed > open}
-              />
-            </label>
+            <Field label="Art">
+              {(control) => (
+                <select {...control} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+                  <option value="forderungsausfall">{WRITE_OFF_KINDS.forderungsausfall} (uneinbringlich)</option>
+                  <option value="skonto">{WRITE_OFF_KINDS.skonto}</option>
+                </select>
+              )}
+            </Field>
+            <Field label="Datum">{(control) => <input {...control} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />}</Field>
+            <Field label="Betrag">
+              {(control) => (
+                <input
+                  {...control}
+                  className="mono"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  aria-invalid={parsed === null || parsed <= 0 || parsed > open}
+                />
+              )}
+            </Field>
           </div>
           <NoticeBanner notice={notice} />
           <div className="actions">

@@ -1,6 +1,6 @@
 {
   "name": "haben",
-  "version": "0.6.5",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
+    "@tanstack/redact": "0.3.1",
     "oxc-parser": "^0.156.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

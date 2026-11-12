@@ -1,4 +1,5 @@
 import {
+  type LetterheadDesign,
   type PaymentMethod,
   computeInvoice,
   ITEM_NUMBER_MAX,
@@ -7,20 +8,16 @@ import {
   discountedLineAmount,
   discountInput,
   documentDiscountProblem,
-  lineDiscountProblem,
   orderRateAmounts,
   parseDiscount,
   planSchedule,
   quoteLineKindProblem,
-  type Discount,
   type PaymentPlanRow,
   type PlanTemplate,
-  type QuoteLineKind,
   formatDecimal,
   formatEuro,
   counterCircle,
   formatDocumentNumber,
-  formatQuantity,
   invoiceDueDate,
   LINE_DETAIL_MAX,
   parseEuro,
@@ -29,25 +26,23 @@ import {
   skontoFristen,
   skontoProblem,
   TAX_TREATMENTS,
-  treatmentNote,
   UNITS,
   type Bundesland,
-  type InvoiceLineInput,
   type PriceMode,
   type SkontoStufe,
   type TaxTreatment,
   type UnitLabel,
   distinctVatRates,
-  needsSellerVatId,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { useLoadedState } from "../lib/use-loaded-state.ts";
+import { emptyLine, type EditorLine, type LineState, type ParsedLine, parseLine, sameText, toLineState } from "../lib/editor-lines.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
@@ -58,13 +53,14 @@ import { PaymentMethodFields } from "./PaymentMethodFields.tsx";
 import { ArticleCombobox, CatalogCombobox, type ArticleOption } from "./ArticleCombobox.tsx";
 import { ArticleDialog } from "./ArticleDialog.tsx";
 import type { ArticlePrefill } from "./ArticleForm.tsx";
-import { ContactDialog } from "./ContactDialog.tsx";
+import { NewContactDialog } from "./NewContactDialog.tsx";
 import type { SavedContact } from "./ContactForm.tsx";
-import { CustomerCombobox } from "./CustomerCombobox.tsx";
+import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
+import { ContactPersonField, type ContactPersonOption } from "./ContactPersonField.tsx";
 import { PreviewButton, PreviewLayout, useDocumentPreview } from "./DocumentPreview.tsx";
 import { DesignPanel, useDesignDraft } from "./DesignPanel.tsx";
 import { Icon } from "./Icon.tsx";
-import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
+import { RenderedSheet } from "./RenderedSheet.tsx";
 import { LineAmount, LineCell } from "./LineCell.tsx";
 import { LineKind } from "./LineKind.tsx";
 import { OrderReferenceFields, orderReferenceValues } from "./OrderReferenceFields.tsx";
@@ -115,26 +111,6 @@ export interface QuoteOption {
   issueDate: string;
 }
 
-interface LineState {
-  key: number;
-  description: string;
-  /** Mehrzeilige Beschreibung unter der Bezeichnung */
-  detail: string;
-  /** Artikelnummer (BT-155), aus dem Artikel kopiert und änderbar */
-  itemNumber: string;
-  quantity: string;
-  unit: UnitLabel;
-  unitPrice: string;
-  taxRate: 1900 | 700 | 0;
-  /** Positionsrabatt wie eingegeben, „10 %“ oder „50,00“ */
-  discount: string;
-  /** Nur im Angebot: optional oder Alternative zur Hauptposition davor */
-  kind: QuoteLineKind | null;
-}
-
-/** Position im Entwurf; im Angebot zusätzlich die Art */
-type EditorLine = DraftInput["lines"][number] & { kind?: QuoteLineKind | null };
-
 /** Werte beim Öffnen; beim Angebot zusätzlich Gültigkeit und Zahlungsplan */
 export type EditorInitial = Omit<DraftInput, "lines"> & {
   lines: EditorLine[];
@@ -142,72 +118,6 @@ export type EditorInitial = Omit<DraftInput, "lines"> & {
   paymentPlan?: PaymentPlanRow[];
   paymentPlanInConfirmation?: boolean;
 };
-
-let nextKey = 1;
-
-/** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
-const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
-
-function toLineState(line: EditorLine): LineState {
-  return {
-    key: nextKey++,
-    description: line.description,
-    detail: line.detail ?? "",
-    itemNumber: line.itemNumber ?? "",
-    quantity: formatQuantity(line.quantity),
-    unit: line.unit,
-    unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
-    taxRate: line.taxRate,
-    discount: discountInput(line.discount),
-    kind: line.kind ?? null,
-  };
-}
-
-/** Leere Zeile mit Einheit und Satz der letzten */
-const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
-  key: nextKey++,
-  description: "",
-  detail: "",
-  itemNumber: "",
-  quantity: "1",
-  unit,
-  unitPrice: "",
-  taxRate,
-  discount: "",
-  kind: null,
-});
-
-type ParsedLine = InvoiceLineInput & {
-  detail: string;
-  itemNumber: string;
-  discount: Discount | null;
-  kind: QuoteLineKind | null;
-  valid: boolean;
-  discountError: boolean;
-};
-
-function parseLine(line: LineState): ParsedLine {
-  const quantity = parseQuantity(line.quantity);
-  const unitPrice = parseEuro(line.unitPrice);
-  const discount = parseDiscount(line.discount);
-  const parsed = {
-    description: line.description.trim(),
-    detail: line.detail.trim(),
-    itemNumber: line.itemNumber.trim(),
-    quantity: quantity ?? 0,
-    unit: line.unit,
-    unitPrice: unitPrice ?? 0,
-    taxRate: line.taxRate,
-    discount: discount === "ungültig" ? null : discount,
-    kind: line.kind,
-  };
-  const discountError = discount === "ungültig" || lineDiscountProblem(parsed) !== null;
-  return {
-    ...parsed,
-    discountError,
-    valid: quantity !== null && quantity > 0 && unitPrice !== null && line.description.trim() !== "" && !discountError,
-  };
-}
 
 export function InvoiceEditor({
   id,
@@ -234,6 +144,7 @@ export function InvoiceEditor({
   attachments = null,
   planTemplates = [],
   mandates = [],
+  contactPersons = [],
   keptDeductions = [],
   action: sharedAction,
 }: {
@@ -244,7 +155,8 @@ export function InvoiceEditor({
   /** Beim Angebot zusätzlich Gültigkeit und Zahlungsplan; Zahlungsziel und Format spielen dort keine Rolle */
   initial: EditorInitial;
   contacts: ContactOption[];
-  seller: PreviewSeller;
+  /** Gestaltung aus dem Profil und das Logo; die Firmendaten fürs Blatt liest der Server */
+  seller: { logo?: string | null; design?: LetterheadDesign };
   sellerIssues: string[];
   /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
   letterIssues?: string[];
@@ -279,6 +191,8 @@ export function InvoiceEditor({
   planTemplates?: PlanTemplate[];
   /** Gültige Lastschriftmandate aller Kunden (#445), für die Zahlungsart der Rechnung */
   mandates?: MandateOption[];
+  /** Ansprechpartner aller Kunden (#424), für die Auswahl unter „Kunde“ */
+  contactPersons?: ContactPersonOption[];
   /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
   keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
@@ -296,6 +210,7 @@ export function InvoiceEditor({
   const editable = kind === "rechnung" || quote;
 
   const [contactId, setContactId] = useState(initial.contactId ?? "");
+  const [contactPersonId, setContactPersonId] = useState(initial.contactPersonId ?? "");
   /** Offener Dialog „Neuer Kunde“ mit dem vorgetragenen Namen; null = geschlossen */
   const [newContactName, setNewContactName] = useState<string | null>(null);
   /** Offener Dialog „Neuer Artikel“ und die Position, die ihn danach übernimmt */
@@ -341,6 +256,10 @@ export function InvoiceEditor({
   const [logo, setLogo] = useLoadedState(seller.logo ?? null);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
+  const contactChoices: ContactChoice[] = useMemo(
+    () => contacts.map((c) => ({ id: c.id, name: c.name, ort: c.ort, nummer: c.kundennummer, ustId: c.ustId, isCustomer: c.isCustomer, isSupplier: false })),
+    [contacts],
+  );
   const parsed = lines.map(parseLine);
   const schluss = kind === "rechnung" && variant === "schluss";
   /** Abschlagsrechnungen des gewählten Kunden; schon gewählte bleiben sichtbar */
@@ -513,6 +432,8 @@ export function InvoiceEditor({
   /** saved: gerade im Dialog angelegt, steht also noch nicht in contacts */
   function chooseContact(value: string, saved?: SavedContact) {
     touch(setContactId)(value);
+    // Ein Ansprechpartner gehört zu genau einem Kunden
+    if (value !== contactId) setContactPersonId("");
     const chosen = saved ?? contacts.find((c) => c.id === value);
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
@@ -547,6 +468,7 @@ export function InvoiceEditor({
   function draft(): DraftInput {
     return {
       contactId: contactId || null,
+      contactPersonId: contactPersonId || null,
       issueDate,
       serviceFrom: serviceFrom || null,
       serviceTo: serviceTo || null,
@@ -691,16 +613,10 @@ export function InvoiceEditor({
       >
         <p>Der Entwurf{contact ? ` für ${contact.name}` : ""} wird endgültig entfernt. Das lässt sich nicht rückgängig machen.</p>
       </ConfirmDialog>
-      <ContactDialog
-        open={newContactName !== null}
-        title="Neuen Kunden anlegen"
-        prefill={{ isCustomer: true, isSupplier: false, name: newContactName ?? "" }}
-        existing={contacts}
-        onSaved={(saved) => {
-          chooseContact(saved.id, saved);
-          // Die Liste der Kunden neu laden; die Eingaben im Entwurf bleiben, der Editor wird nicht neu aufgebaut
-          void router.invalidate();
-        }}
+      <NewContactDialog
+        rolle="kunde"
+        name={newContactName}
+        onSaved={(saved) => chooseContact(saved.id, saved)}
         onPickExisting={(id) => chooseContact(id)}
         onClose={() => setNewContactName(null)}
       />
@@ -765,36 +681,52 @@ export function InvoiceEditor({
           onClosed: designDraft.discard,
         }}
         label="Vorschau"
-        caption={
-          <>
-            {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
-            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
-          </>
-        }
+        caption={quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
         sheet={
-          <InvoicePreview
-            needsVatId={needsSellerVatId(taxTreatment)}
-            kind={kind}
-            number={nextNumber}
-            issueDate={issueDate || initial.issueDate}
-            dueDate={dueDate}
-            validUntil={quote ? validUntil || null : null}
-            serviceFrom={serviceFrom || null}
-            serviceTo={serviceTo || null}
-            seller={{ ...seller, logo, accent: designDraft.design.accent, design: designDraft.design }}
-            buyer={contact}
-            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
-            discount={discountIssue ? null : discount}
-            plan={planIssue ? [] : planPreview}
-            intro={intro}
-            note={note}
-            priceMode={grossPrices ? "brutto" : "netto"}
-            taxNote={treatmentNote(taxTreatment, exemptionReason)}
-            corrects={corrects}
-            title={title}
-            skonto={skonto.stufen}
-            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
-            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
+          <RenderedSheet
+            revision={logo}
+            input={{
+              kind,
+              number: nextNumber,
+              issueDate: issueDate || initial.issueDate,
+              dueDate,
+              validUntil: quote ? validUntil || null : null,
+              serviceFrom: serviceFrom || null,
+              serviceTo: serviceTo || null,
+              paymentTermDays: termValid ? term : 0,
+              contactId: contactId || null,
+              contactPersonId: contactPersonId || null,
+              ...references,
+              lines: [...parsed, ...deductionPreview]
+                .filter((l) => l.valid)
+                .map((l) => ({
+                  description: l.description,
+                  detail: "detail" in l ? (l.detail ?? "") : "",
+                  itemNumber: "itemNumber" in l ? (l.itemNumber ?? "") : "",
+                  quantity: l.quantity,
+                  unit: l.unit,
+                  unitPrice: l.unitPrice,
+                  taxRate: l.taxRate,
+                  discount: "discount" in l ? (l.discount ?? null) : null,
+                  kind: quote && "kind" in l ? (l.kind ?? null) : null,
+                  ...("deductionOf" in l && l.deductionOf ? { deductionOf: l.deductionOf } : {}),
+                })),
+              discount: discountIssue ? null : discount,
+              plan: planIssue ? [] : plan.rows,
+              intro,
+              note,
+              taxTreatment,
+              exemptionReason: special ? exemptionReason : "",
+              priceMode: grossPrices ? "brutto" : "netto",
+              language,
+              variant: kind === "rechnung" ? variant : null,
+              corrects: corrects ?? null,
+              // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+              currency: currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR",
+              skonto: skonto.stufen,
+              sepaMandateId: lastschrift ? mandateId || null : null,
+              design: designDraft.changes,
+            }}
           />
         }
       >
@@ -802,31 +734,31 @@ export function InvoiceEditor({
           <section className="card" aria-label={quote ? "Angebotsdaten" : "Rechnungsdaten"}>
             <div className="form-grid">
               {kind === "rechnung" && (
-                <label className="field" style={{ gridColumn: "1 / -1" }}>
-                  Rechnungsart
-                  <select
-                    value={variant ?? ""}
-                    onChange={(e) => chooseVariant((e.target.value || null) as "abschlag" | "schluss" | null)}
-                    aria-describedby="variant-hint"
-                  >
-                    <option value="">Rechnung</option>
-                    <option value="abschlag">Abschlagsrechnung</option>
-                    <option value="schluss">Schlussrechnung</option>
-                  </select>
-                  {variant && (
-                    <span id="variant-hint" className="small">
-                      {variant === "abschlag"
-                        ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
-                        : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen."}
-                    </span>
+                <Field
+                  label="Rechnungsart"
+                  hint={
+                    variant &&
+                    (variant === "abschlag"
+                      ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
+                      : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen.")
+                  }
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  {(control) => (
+                    <select {...control} value={variant ?? ""} onChange={(e) => chooseVariant((e.target.value || null) as "abschlag" | "schluss" | null)}>
+                      <option value="">Rechnung</option>
+                      <option value="abschlag">Abschlagsrechnung</option>
+                      <option value="schluss">Schlussrechnung</option>
+                    </select>
                   )}
-                </label>
+                </Field>
               )}
               <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
                 {(control) => (
-                  <CustomerCombobox
+                  <ContactCombobox
                     {...control}
-                    contacts={contacts}
+                    rolle="kunde"
+                    contacts={contactChoices}
                     contactId={contactId}
                     disabled={!editable}
                     onChoose={chooseContact}
@@ -834,54 +766,64 @@ export function InvoiceEditor({
                   />
                 )}
               </Field>
+              <ContactPersonField
+                persons={contactPersons}
+                contactId={contactId}
+                value={contactPersonId}
+                disabled={!editable}
+                onChange={touch(setContactPersonId)}
+              />
               {kind === "rechnung" && (variant || quoteId) && (
-                <label className="field" style={{ gridColumn: "1 / -1" }}>
-                  Angebot
-                  <select value={quoteId} onChange={(e) => chooseQuote(e.target.value)} disabled={!editable} aria-describedby="quote-hint">
-                    <option value="">Ohne Angebot</option>
-                    {customerQuotes.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        Angebot {q.number} vom {formatDate(q.issueDate)}
-                      </option>
-                    ))}
-                  </select>
-                  <span id="quote-hint" className="small">
-                    {contactId
+                <Field
+                  label="Angebot"
+                  hint={
+                    contactId
                       ? "Die Schlussrechnung zu einem Angebot zieht nur dessen Abschläge ab; auf der Seite des Angebots stehen alle Rechnungen dazu."
-                      : "Zur Auswahl stehen die festgeschriebenen Angebote des gewählten Empfängers."}
-                  </span>
-                </label>
+                      : "Zur Auswahl stehen die festgeschriebenen Angebote des gewählten Empfängers."
+                  }
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  {(control) => (
+                    <select {...control} value={quoteId} onChange={(e) => chooseQuote(e.target.value)} disabled={!editable}>
+                      <option value="">Ohne Angebot</option>
+                      {customerQuotes.map((q) => (
+                        <option key={q.id} value={q.id}>
+                          Angebot {q.number} vom {formatDate(q.issueDate)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
               )}
-              <label className="field">
-                {quote ? "Angebotsdatum" : "Rechnungsdatum"}
-                <input type="date" value={issueDate} onChange={(e) => touch(setIssueDate)(e.target.value)} required />
-              </label>
+              <Field label={quote ? "Angebotsdatum" : "Rechnungsdatum"}>
+                {(control) => <input {...control} type="date" value={issueDate} onChange={(e) => touch(setIssueDate)(e.target.value)} required />}
+              </Field>
               {quote ? (
-                <label className="field">
-                  Gültig bis
-                  <input
-                    type="date"
-                    value={validUntil}
-                    min={issueDate || undefined}
-                    onChange={(e) => touch(setValidUntil)(e.target.value)}
-                    aria-invalid={!validUntilOk}
-                    required
-                  />
-                </label>
+                <Field label="Gültig bis">
+                  {(control) => (
+                    <input
+                      {...control}
+                      type="date"
+                      value={validUntil}
+                      min={issueDate || undefined}
+                      onChange={(e) => touch(setValidUntil)(e.target.value)}
+                      aria-invalid={!validUntilOk}
+                      required
+                    />
+                  )}
+                </Field>
               ) : (
-                <label className="field">
-                  Zahlungsziel in Tagen
-                  <input
-                    inputMode="numeric"
-                    value={paymentTermDays}
-                    onChange={(e) => touch(setPaymentTermDays)(e.target.value)}
-                    aria-invalid={!termValid}
-                    aria-describedby="due-hint"
-                  />
-                  <span id="due-hint" className="small">
-                    fällig {formatDate(dueDate)}
-                  </span>
-                </label>
+                <Field label="Zahlungsziel in Tagen" hint={<>fällig {formatDate(dueDate)}</>}>
+                  {(control) => (
+                    <input
+                      {...control}
+                      inputMode="numeric"
+                      value={paymentTermDays}
+                      onChange={(e) => touch(setPaymentTermDays)(e.target.value)}
+                      aria-invalid={!termValid}
+                    />
+                  )}
+                </Field>
               )}
               {kind === "rechnung" && (
                 <PaymentMethodFields
@@ -908,68 +850,66 @@ export function InvoiceEditor({
                   }}
                 />
               )}
-              <label className="field">
-                Leistung von
-                <input type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />
-              </label>
-              <label className="field">
-                Leistung bis
-                <input type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />
-              </label>
+              <Field label="Leistung von">
+                {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+              </Field>
+              <Field label="Leistung bis">
+                {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
+              </Field>
               <OrderReferenceFields value={references} onChange={touch(setReferences)} disabled={!editable} />
-              <label className="field" style={{ gridColumn: "1 / -1" }}>
-                Sprache
-                <select
-                  value={language}
-                  onChange={(e) => touch(setLanguage)(e.target.value as "de" | "en")}
-                  disabled={!editable}
-                  aria-describedby="language-hint"
-                >
-                  <option value="de">Deutsch</option>
-                  <option value="en">Englisch</option>
-                </select>
-                <span id="language-hint" className="small">
-                  Texte im PDF und in der E-Mail; die E-Rechnung selbst bleibt maschinenlesbar wie gehabt.
-                </span>
-              </label>
+              <Field
+                label="Sprache"
+                hint="Texte im PDF und in der E-Mail; die E-Rechnung selbst bleibt maschinenlesbar wie gehabt."
+                style={{ gridColumn: "1 / -1" }}
+              >
+                {(control) => (
+                  <select {...control} value={language} onChange={(e) => touch(setLanguage)(e.target.value as "de" | "en")} disabled={!editable}>
+                    <option value="de">Deutsch</option>
+                    <option value="en">Englisch</option>
+                  </select>
+                )}
+              </Field>
               {kind === "rechnung" && (
                 <>
-                  <label className="field">
-                    Währung
-                    <input
-                      value={currency}
-                      onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
-                      list="invoice-currency-codes"
-                      maxLength={3}
-                      className="mono"
-                      aria-invalid={!CURRENCY_CODE.test(currencyCode)}
-                      aria-describedby={foreign ? "invoice-currency-hint" : undefined}
-                    />
-                    <datalist id="invoice-currency-codes">
-                      {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
-                        <option key={c} value={c} />
-                      ))}
-                    </datalist>
-                  </label>
+                  <Field label="Währung" describedBy={foreign ? "invoice-currency-hint" : undefined}>
+                    {(control) => (
+                      <>
+                        <input
+                          {...control}
+                          value={currency}
+                          onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
+                          list="invoice-currency-codes"
+                          maxLength={3}
+                          className="mono"
+                          aria-invalid={!CURRENCY_CODE.test(currencyCode)}
+                        />
+                        <datalist id="invoice-currency-codes">
+                          {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
+                            <option key={c} value={c} />
+                          ))}
+                        </datalist>
+                      </>
+                    )}
+                  </Field>
                   {foreign && (
-                    <label className="field">
-                      Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}
-                      <input
-                        className="mono"
-                        inputMode="decimal"
-                        value={exchangeRate}
-                        placeholder="leer = USt-Umrechnungskurs"
-                        onChange={(e) => touch(setExchangeRate)(e.target.value)}
-                        aria-invalid={exchangeRate.trim() !== "" && parseExchangeRate(exchangeRate) === null}
-                        aria-describedby="invoice-currency-hint"
-                      />
-                    </label>
+                    <Field label={<>Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}</>} describedBy="invoice-currency-hint">
+                      {(control) => (
+                        <input
+                          {...control}
+                          className="mono"
+                          inputMode="decimal"
+                          value={exchangeRate}
+                          placeholder="leer = USt-Umrechnungskurs"
+                          onChange={(e) => touch(setExchangeRate)(e.target.value)}
+                          aria-invalid={exchangeRate.trim() !== "" && parseExchangeRate(exchangeRate) === null}
+                        />
+                      )}
+                    </Field>
                   )}
                   {foreign && tageskurs && (
-                    <label className="field">
-                      Kursdatum
-                      <input type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />
-                    </label>
+                    <Field label="Kursdatum">
+                      {(control) => <input {...control} type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />}
+                    </Field>
                   )}
                   {foreign && (
                     <span id="invoice-currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
@@ -982,89 +922,85 @@ export function InvoiceEditor({
                 </>
               )}
               {!quote && (
-                <label className="field" style={{ gridColumn: "1 / -1" }}>
-                  E-Rechnungsformat
-                  <select value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
-                    {FORMATS.map((f) => (
-                      <option key={f} value={f}>
-                        {FORMAT_LABEL[f]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Field label="E-Rechnungsformat" style={{ gridColumn: "1 / -1" }}>
+                  {(control) => (
+                    <select {...control} value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
+                      {FORMATS.map((f) => (
+                        <option key={f} value={f}>
+                          {FORMAT_LABEL[f]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
               )}
-              <label className="field" style={{ gridColumn: "1 / -1" }}>
-                Umsatzsteuer
-                <select
-                  value={taxTreatment}
-                  onChange={(e) => chooseTreatment(e.target.value as TaxTreatment)}
-                  disabled={!editable || kleinunternehmer}
-                  aria-describedby="treatment-hint"
-                >
-                  {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
-                    .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
-                    .map((t) => (
-                      <option key={t} value={t}>
-                        {TAX_TREATMENTS[t].label}
-                      </option>
-                    ))}
-                </select>
-                {kleinunternehmer && (
-                  <span id="treatment-hint" className="small">
-                    In den Einstellungen als Kleinunternehmer eingetragen.
-                  </span>
-                )}
-                {taxTreatment === "reverse_charge" && (
-                  <span id="treatment-hint" className="small">
-                    Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben.
-                  </span>
-                )}
-                {taxTreatment === "ig_lieferung" && (
-                  <span id="treatment-hint" className="small">
-                    Nur für Ware, die zu einem Unternehmen in einem anderen EU-Land gelangt, mit dessen USt-IdNr.; Haben meldet sie in Kz 41 und in der
-                    Zusammenfassenden Meldung. Den Gelangensnachweis (§ 17a UStDV), etwa die Gelangensbestätigung oder den Versandbeleg, bewahrst du zur
-                    Rechnung auf.
-                  </span>
-                )}
-                {taxTreatment === "ausfuhr" && (
-                  <span id="treatment-hint" className="small">
-                    Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§ 8 bis § 11 UStDV), etwa dem Ausgangsvermerk aus ATLAS. Dienstleistungen ins
-                    Drittland sind „Leistung ins Nicht-EU-Ausland“.
-                  </span>
-                )}
-              </label>
-              {!special && (
-                <label className="field" style={{ gridColumn: "1 / -1" }}>
-                  Preise
+              <Field
+                label="Umsatzsteuer"
+                hint={
+                  kleinunternehmer
+                    ? "In den Einstellungen als Kleinunternehmer eingetragen."
+                    : taxTreatment === "reverse_charge"
+                      ? "Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben."
+                      : taxTreatment === "ig_lieferung"
+                        ? "Nur für Ware, die zu einem Unternehmen in einem anderen EU-Land gelangt, mit dessen USt-IdNr.; Haben meldet sie in Kz 41 und in der Zusammenfassenden Meldung. Den Gelangensnachweis (§ 17a UStDV), etwa die Gelangensbestätigung oder den Versandbeleg, bewahrst du zur Rechnung auf."
+                        : taxTreatment === "ausfuhr"
+                          ? "Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§ 8 bis § 11 UStDV), etwa dem Ausgangsvermerk aus ATLAS. Dienstleistungen ins Drittland sind „Leistung ins Nicht-EU-Ausland“."
+                          : undefined
+                }
+                style={{ gridColumn: "1 / -1" }}
+              >
+                {(control) => (
                   <select
-                    value={priceMode}
-                    onChange={(e) => touch(setPriceMode)(e.target.value as PriceMode)}
-                    disabled={!editable}
-                    aria-describedby="price-mode-hint"
+                    {...control}
+                    value={taxTreatment}
+                    onChange={(e) => chooseTreatment(e.target.value as TaxTreatment)}
+                    disabled={!editable || kleinunternehmer}
                   >
-                    <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
-                    <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
+                    {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
+                      .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
+                      .map((t) => (
+                        <option key={t} value={t}>
+                          {TAX_TREATMENTS[t].label}
+                        </option>
+                      ))}
                   </select>
-                  <span id="price-mode-hint" className="small">
-                    {grossPrices
-                      ? "Endpreise für Verbraucher: Die Umsatzsteuer wird je Steuersatz aus der Summe herausgerechnet."
-                      : "Üblich zwischen Unternehmen: Die Umsatzsteuer kommt auf die Einzelpreise."}
-                    {!editable && " Wie in der ursprünglichen Rechnung."}
-                  </span>
-                </label>
+                )}
+              </Field>
+              {!special && (
+                <Field
+                  label="Preise"
+                  hint={
+                    <>
+                      {grossPrices
+                        ? "Endpreise für Verbraucher: Die Umsatzsteuer wird je Steuersatz aus der Summe herausgerechnet."
+                        : "Üblich zwischen Unternehmen: Die Umsatzsteuer kommt auf die Einzelpreise."}
+                      {!editable && " Wie in der ursprünglichen Rechnung."}
+                    </>
+                  }
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  {(control) => (
+                    <select {...control} value={priceMode} onChange={(e) => touch(setPriceMode)(e.target.value as PriceMode)} disabled={!editable}>
+                      <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
+                      <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
+                    </select>
+                  )}
+                </Field>
               )}
               {special && (
-                <label className="field" style={{ gridColumn: "1 / -1" }}>
-                  {taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}
-                  <input
-                    value={exemptionReason}
-                    onChange={(e) => touch(setExemptionReason)(e.target.value)}
-                    maxLength={300}
-                    placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
-                    required={taxTreatment === "steuerfrei"}
-                    aria-invalid={taxTreatment === "steuerfrei" && !exemptionReason.trim()}
-                  />
-                </label>
+                <Field label={taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"} style={{ gridColumn: "1 / -1" }}>
+                  {(control) => (
+                    <input
+                      {...control}
+                      value={exemptionReason}
+                      onChange={(e) => touch(setExemptionReason)(e.target.value)}
+                      maxLength={300}
+                      placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
+                      required={taxTreatment === "steuerfrei"}
+                      aria-invalid={taxTreatment === "steuerfrei" && !exemptionReason.trim()}
+                    />
+                  )}
+                </Field>
               )}
             </div>
             {!contacts.length && (
@@ -1178,6 +1114,7 @@ export function InvoiceEditor({
                     />
                   </LineCell>
                   <LineCell label="Einheit">
+                    {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
                     <select
                       aria-label={`Einheit Position ${index + 1}`}
                       value={line.unit}
@@ -1213,6 +1150,7 @@ export function InvoiceEditor({
                     />
                   </LineCell>
                   <LineCell label="USt">
+                    {/* biome-ignore lint/plugin: Zeile einer Positionstabelle: Spaltenkopf und aria-label benennen die Zelle, ein Feldname je Zelle gäbe jeder Zeile eine Hülle `.field` */}
                     <select
                       aria-label={`Steuersatz Position ${index + 1}`}
                       value={line.taxRate}
@@ -1294,20 +1232,19 @@ export function InvoiceEditor({
               </button>
               {articles.length > 0 && <CatalogCombobox articles={articles} onPick={insertArticle} />}
             </div>
-            <label className="field">
-              Gesamtrabatt (optional)
-              <input
-                value={discountText}
-                placeholder="z. B. 5 % oder 100,00"
-                onChange={(e) => touch(setDiscountText)(e.target.value)}
-                aria-invalid={discountIssue !== null}
-                aria-describedby="discount-hint"
-              />
-              <span id="discount-hint" className={discountIssue ? "field-error" : "small"}>
-                {discountIssue ??
-                  `Auf die Summe der Positionen nach ihren Rabatten, je Steuersatz anteilig; ein Betrag gilt ${grossPrices ? "brutto" : "netto"}. Skonto bleibt davon getrennt.`}
-              </span>
-            </label>
+            <Field
+              label="Gesamtrabatt (optional)"
+              error={discountIssue}
+              hint={
+                discountIssue
+                  ? undefined
+                  : `Auf die Summe der Positionen nach ihren Rabatten, je Steuersatz anteilig; ein Betrag gilt ${grossPrices ? "brutto" : "netto"}. Skonto bleibt davon getrennt.`
+              }
+            >
+              {(control) => (
+                <input {...control} value={discountText} placeholder="z. B. 5 % oder 100,00" onChange={(e) => touch(setDiscountText)(e.target.value)} />
+              )}
+            </Field>
             <TextBlockField
               label={quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}
               kind="fuss"

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 // Keine KI: E-Rechnungen liest Haben selbst
 vi.mock("./extraction.ts", async (importOriginal) => {
@@ -70,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Review)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, company cascade`;
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
   });
 

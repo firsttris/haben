@@ -37,6 +37,8 @@ describe("learnedDirectBooking", () => {
       "2 von 2 Umsätzen von dieser Gegenpartei so gebucht, zuletzt am 01.09.2026",
     ]);
     expect(learnedDirectBooking(tx, [h("gebuehren", 1)], 1, "iban")).toBeNull();
+    // Der Dauerauftrag an den Verein: jeden Monat eine Spende
+    expect(learnedDirectBooking(tx, [h("spende", 3)], 3, "iban")?.kind).toBe("spende");
     // Ein aufgeteilter Umsatz zählt bei jeder Art, insgesamt aber einmal: 2 von 3 Umsätzen sind eine Mehrheit
     expect(learnedDirectBooking(tx, [h("privat", 2), h("invoice", 1), h("gebuehren", 1)], 3, "iban")?.reasons).toEqual([
       "2 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht, zuletzt am 01.09.2026",

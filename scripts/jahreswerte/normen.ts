@@ -5,7 +5,9 @@
  * Text von der Überschrift bis vor die Fußzeile, ohne Tags, mit aufgelösten Entities und zusammengefassten
  * Leerzeichen; Navigation („zurück“, „weiter“), Logos und Fußzeile bleiben außen vor.
  */
-import { abrufen, begrenzt, befund, beschreibe, DOKU_JAHRESWERTE, type Ergebnis, type Holen, LEER, sha256, text, warnung, zusammen } from "./abruf.ts";
+import { abrufen, begrenzt, befund, beschreibe, type Ergebnis, type Holen, LEER, SKILL_JAHRESWERTE, sha256, text, warnung, zusammen } from "./abruf.ts";
+
+const DOKU_NORMEN = `${SKILL_JAHRESWERTE}#normen`;
 
 export interface Norm {
   /** Kennung im Issue, z. B. `ustg-18` */
@@ -106,7 +108,7 @@ function bewerte({ norm, sha256, problem, verschwunden }: NormStand & Aktuell): 
       "Stellen in Haben:",
       ...norm.stellen.map((s) => `- \`${s}\``),
       "",
-      `Zu tun: die Änderung lesen (Fußnoten und „Textnachweis“ der Seite nennen das ändernde Gesetz und ab wann es gilt) und prüfen, ob die Stellen oben betroffen sind. Danach – auch wenn Haben unverändert bleibt – den Hash in \`scripts/jahreswerte/normen.json\` aktualisieren (\`bun scripts/jahreswerte/pruefen.ts --trocken --normen-schreiben\`). Bisher \`${norm.sha256}\`, jetzt \`${sha256}\`. Siehe [docs/entwicklung.md](${DOKU_JAHRESWERTE}).`,
+      `Zu tun: die Änderung lesen (Fußnoten und „Textnachweis“ der Seite nennen das ändernde Gesetz und ab wann es gilt) und prüfen, ob die Stellen oben betroffen sind. Danach – auch wenn Haben unverändert bleibt – den Hash in \`scripts/jahreswerte/normen.json\` aktualisieren (\`bun scripts/jahreswerte/pruefen.ts --trocken --normen-schreiben\`). Bisher \`${norm.sha256}\`, jetzt \`${sha256}\`. Schritte in [Skill jahreswerte, „Normen“](${DOKU_NORMEN}).`,
     ].join("\n"),
   });
 }
@@ -122,7 +124,7 @@ const nichtMehrDa = (norm: Norm) => ({
     "Stellen in Haben:",
     ...norm.stellen.map((s) => `- \`${s}\``),
     "",
-    `Zu tun: im Inhaltsverzeichnis des Gesetzes oder im Bundesgesetzblatt nachsehen, was aus der Norm geworden ist, die Stellen oben prüfen und in \`scripts/jahreswerte/normen.json\` die neue Adresse eintragen (Hash leeren und mit \`--normen-schreiben\` neu setzen) oder die Norm streichen. Siehe [docs/entwicklung.md](${DOKU_JAHRESWERTE}).`,
+    `Zu tun: im Inhaltsverzeichnis des Gesetzes oder im Bundesgesetzblatt nachsehen, was aus der Norm geworden ist, die Stellen oben prüfen und in \`scripts/jahreswerte/normen.json\` die neue Adresse eintragen (Hash leeren und mit \`--normen-schreiben\` neu setzen) oder die Norm streichen. Schritte in [Skill jahreswerte, „Normen“](${DOKU_NORMEN}).`,
   ].join("\n"),
 });
 

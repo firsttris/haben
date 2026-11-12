@@ -4,14 +4,14 @@
       "id": "9001",
       "objectName": "Invoice",
       "invoiceNumber": "RE-0001",
-      "invoiceDate": "2026-07-31T00:00:00+02:00",
+      "invoiceDate": "2025-02-23T00:00:00+01:00",
       "status": "1000",
       "currency": "EUR",
-      "sumNet": "4000",
-      "sumTax": "760",
-      "sumGross": "4760",
-      "paidAmount": 4760,
-      "payDate": "2026-09-08T00:00:00+02:00",
+      "sumNet": "1000",
+      "sumTax": "190",
+      "sumGross": "1190",
+      "paidAmount": 1190,
+      "payDate": "2025-04-03T00:00:00+02:00",
       "taxType": "default",
       "taxRate": "0",
       "invoiceType": "RE",
@@ -22,8 +22,8 @@
         "id": "1",
         "objectName": "Contact"
       },
-      "create": "2026-07-31T23:33:07+02:00",
-      "update": "2026-09-21T15:05:47+02:00"
+      "create": "2025-02-23T23:33:07+01:00",
+      "update": "2025-04-16T15:05:47+02:00"
     }
   ]
 }

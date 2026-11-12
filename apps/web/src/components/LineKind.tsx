@@ -6,6 +6,7 @@ import type { QuoteLineKind } from "@haben/core";
  */
 export function LineKind({ index, kind, onKind }: { index: number; kind: QuoteLineKind | null; onKind: (value: QuoteLineKind | null) => void }) {
   return (
+    // biome-ignore lint/plugin: Teil der Positionszeile (`.line-title`) neben der Bezeichnung; aria-label benennt die Auswahl
     <select
       className="line-kind"
       aria-label={`Art der Position ${index + 1}`}

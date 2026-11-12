@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Storno gebuchter Belege (#237): Gegenbuchung im noch nicht gemeldeten Zeitraum der Belegbuchung, sonst am Tag des
@@ -47,8 +47,8 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate document_cancellations, vat_returns, annual_submissions, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
-      asset_depreciations, assets, journal_lines, journal_entries, document_amounts, documents, year_closings, company cascade`;
+    await leeren(sql)`truncate document_cancellations, vat_returns, annual_submissions, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+      cash_entries, asset_depreciations, assets, journal_lines, journal_entries, document_amounts, documents, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen})`;
   }
@@ -83,6 +83,12 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     await documents.bookDocument(actor, id);
     return { id, bytes };
   }
+
+  it("nennt bei übernommenen Belegen keine fälschlich fest vorgegebene Herkunft", () => {
+    expect(cancellation.cancellationIssues({ lockedAt: new Date(), lexofficeVoucherId: crypto.randomUUID(), category: "software" })).toEqual([
+      "Aus einem Umzug übernommene Belege sind im bisherigen Programm angemeldet und lassen sich hier nicht stornieren.",
+    ]);
+  });
 
   it("vatPeriodsOf nennt Monat und Quartal (41–44) des Buchungsdatums", () => {
     expect(cancellation.vatPeriodsOf("2026-03-11")).toEqual({ year: 2026, months: [3, 41] });

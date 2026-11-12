@@ -3,7 +3,7 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { computeInvoiceTotals } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { completion, startTestService, type TestService } from "./test-ki-dienst.ts";
 
 // Anthropic ist zusätzlich eingerichtet, darf aber nie gefragt werden
@@ -67,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Belege mit selbst betriebenem Modell (Postgre
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, document_amounts, documents, company cascade`;
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
     service.requests.length = 0;
     service.reply(() => ({ body: completion(JSON.stringify(ANSWER)) }));

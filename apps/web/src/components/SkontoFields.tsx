@@ -1,5 +1,6 @@
 import { formatDecimal, MAX_SKONTO_STUFEN, parsePercent, type SkontoStufe } from "@haben/core";
 import { Icon } from "./Icon.tsx";
+import { Field } from "./Field.tsx";
 
 /** Eine Skontostufe im Formular, wie eingegeben */
 export interface SkontoRow {
@@ -60,28 +61,32 @@ export function SkontoFields({
         return (
           <div key={row.key} className="stack" style={{ gap: 4 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-              <label className="field" style={{ flex: "1 1 120px" }}>
-                Stufe {index + 1}: Skonto in %
-                <input
-                  inputMode="decimal"
-                  value={row.percent}
-                  placeholder="z. B. 2"
-                  onChange={(e) => update(row.key, { percent: e.target.value })}
-                  aria-invalid={filled && parsePercent(row.percent) === null}
-                  disabled={disabled}
-                />
-              </label>
-              <label className="field" style={{ flex: "1 1 120px" }}>
-                Stufe {index + 1}: Frist in Tagen
-                <input
-                  inputMode="numeric"
-                  value={row.days}
-                  placeholder="z. B. 10"
-                  onChange={(e) => update(row.key, { days: e.target.value })}
-                  aria-invalid={filled && !/^\d{1,3}$/.test(row.days.trim())}
-                  disabled={disabled}
-                />
-              </label>
+              <Field label={<>Stufe {index + 1}: Skonto in %</>} style={{ flex: "1 1 120px" }}>
+                {(control) => (
+                  <input
+                    {...control}
+                    inputMode="decimal"
+                    value={row.percent}
+                    placeholder="z. B. 2"
+                    onChange={(e) => update(row.key, { percent: e.target.value })}
+                    aria-invalid={filled && parsePercent(row.percent) === null}
+                    disabled={disabled}
+                  />
+                )}
+              </Field>
+              <Field label={<>Stufe {index + 1}: Frist in Tagen</>} style={{ flex: "1 1 120px" }}>
+                {(control) => (
+                  <input
+                    {...control}
+                    inputMode="numeric"
+                    value={row.days}
+                    placeholder="z. B. 10"
+                    onChange={(e) => update(row.key, { days: e.target.value })}
+                    aria-invalid={filled && !/^\d{1,3}$/.test(row.days.trim())}
+                    disabled={disabled}
+                  />
+                )}
+              </Field>
               <button
                 type="button"
                 className="icon-btn"

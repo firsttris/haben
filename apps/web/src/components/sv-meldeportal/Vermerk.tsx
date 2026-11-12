@@ -1,10 +1,12 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { type FormEvent, useId, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { formatDate, formatSize } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { vermerkenFn, zuruecknehmenFn } from "../../server/functions/sv-meldungen.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
+import { Field } from "../Field.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 
 export interface VermerkStandDaten {
   vermerke: { id: string; datum: string; notiz: string; protokollDateiname: string | null; protokollGroesse: number | null; geaendert: boolean }[];
@@ -24,9 +26,8 @@ export function Vermerk({ gegenstand, titel, stand, heute }: { gegenstand: strin
   const [datum, setDatum] = useState(heute);
   const [notiz, setNotiz] = useState("");
   const datei = useRef<HTMLInputElement>(null);
-  const datumId = useId();
-  const dateiId = useId();
-  const notizId = useId();
+  // Ein neuer key leert das Feld samt angezeigtem Dateinamen
+  const [vermerkt, setVermerkt] = useState(0);
 
   function absenden(event: FormEvent) {
     event.preventDefault();
@@ -39,7 +40,7 @@ export function Vermerk({ gegenstand, titel, stand, heute }: { gegenstand: strin
       if (file) form.append("protokoll", file);
       await vermerken({ data: form });
       setNotiz("");
-      if (datei.current) datei.current.value = "";
+      setVermerkt((n) => n + 1);
       await router.invalidate();
     }, "Vermerkt: im Portal abgegeben.");
   }
@@ -60,18 +61,15 @@ export function Vermerk({ gegenstand, titel, stand, heute }: { gegenstand: strin
         </div>
       )}
       <form className="actions" style={{ alignItems: "end", flexWrap: "wrap" }} onSubmit={absenden} aria-label={`Abgabe vermerken: ${titel}`}>
-        <label className="field" htmlFor={datumId}>
-          Abgegeben am
-          <input id={datumId} type="date" value={datum} max={heute} onChange={(e) => setDatum(e.target.value)} required />
-        </label>
-        <label className="field" htmlFor={dateiId}>
-          Protokoll (PDF oder Bild, optional)
-          <input id={dateiId} ref={datei} type="file" accept="application/pdf,image/png,image/jpeg" />
-        </label>
-        <label className="field" htmlFor={notizId}>
-          Notiz (optional)
-          <input id={notizId} type="text" value={notiz} maxLength={500} onChange={(e) => setNotiz(e.target.value)} />
-        </label>
+        <Field label="Abgegeben am">
+          {(control) => <input {...control} type="date" value={datum} max={heute} onChange={(e) => setDatum(e.target.value)} required />}
+        </Field>
+        <Field label="Protokoll (PDF oder Bild, optional)">
+          {(control) => <FilePicker key={vermerkt} {...control} inputRef={datei} accept="application/pdf,image/png,image/jpeg" />}
+        </Field>
+        <Field label="Notiz (optional)">
+          {(control) => <input {...control} type="text" value={notiz} maxLength={500} onChange={(e) => setNotiz(e.target.value)} />}
+        </Field>
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {stand.abgegeben ? "Erneut abgegeben" : "Im Portal abgegeben"}
         </button>
@@ -86,7 +84,6 @@ function VermerkZeile({ v, titel }: { v: VermerkStandDaten["vermerke"][number]; 
   const zuruecknehmen = useServerFn(zuruecknehmenFn);
   const { busy, notice, run } = useAction();
   const [grund, setGrund] = useState("");
-  const grundId = useId();
 
   function absenden(event: FormEvent) {
     event.preventDefault();
@@ -114,10 +111,9 @@ function VermerkZeile({ v, titel }: { v: VermerkStandDaten["vermerke"][number]; 
       <details>
         <summary className="small">Vermerk zurücknehmen</summary>
         <form className="actions" style={{ alignItems: "end" }} onSubmit={absenden} aria-label={`Vermerk zurücknehmen: ${titel}`}>
-          <label className="field" htmlFor={grundId}>
-            Grund
-            <input id={grundId} type="text" value={grund} maxLength={500} onChange={(e) => setGrund(e.target.value)} required />
-          </label>
+          <Field label="Grund">
+            {(control) => <input {...control} type="text" value={grund} maxLength={500} onChange={(e) => setGrund(e.target.value)} required />}
+          </Field>
           <button type="submit" className="btn" disabled={busy}>
             Zurücknehmen
           </button>

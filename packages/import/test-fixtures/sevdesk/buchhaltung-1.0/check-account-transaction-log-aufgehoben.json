@@ -4,20 +4,20 @@
       "id": "8005",
       "objectName": "CheckAccountTransactionLog",
       "additionalInformation": null,
-      "create": "2026-11-06T19:57:51+01:00",
+      "create": "2025-06-01T19:57:51+02:00",
       "checkAccountTransaction": {
         "id": "7004",
         "objectName": "CheckAccountTransaction",
         "additionalInformation": null,
-        "create": "2026-10-22T08:23:22+02:00",
-        "update": "2026-11-06T19:57:51+01:00",
+        "create": "2025-05-17T08:23:22+02:00",
+        "update": "2025-06-01T19:57:51+02:00",
         "sevClient": {
           "id": "1",
           "objectName": "SevClient"
         },
-        "valueDate": "2026-10-22T00:00:00+02:00",
-        "entryDate": "2026-10-22T00:00:00+02:00",
-        "amount": "1760",
+        "valueDate": "2025-05-17T00:00:00+02:00",
+        "entryDate": "2025-05-17T00:00:00+02:00",
+        "amount": "440",
         "feeAmount": null,
         "gvCode": null,
         "entryText": null,
@@ -41,8 +41,8 @@
       },
       "fromStatus": "100",
       "toStatus": "400",
-      "amountPaid": 1760,
-      "bookingDate": "2026-10-22T00:00:00+02:00",
+      "amountPaid": 440,
+      "bookingDate": "2025-05-17T00:00:00+02:00",
       "sevClient": {
         "id": "1",
         "objectName": "SevClient"

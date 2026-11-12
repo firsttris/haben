@@ -8,6 +8,7 @@ import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { useAction } from "../../lib/use-action.ts";
 import { createFristenAbo, getFristen, reactivateFristenAbo, revokeFristenAbo } from "../../server/functions/fristen.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Field } from "../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/fristen")({
   loader: () => getFristen(),
@@ -233,10 +234,9 @@ function KalenderAbo() {
         </>
       ) : url ? (
         <>
-          <label className="field">
-            Abo-Link (wird nur jetzt angezeigt)
-            <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
-          </label>
+          <Field label="Abo-Link (wird nur jetzt angezeigt)">
+            {(control) => <input {...control} readOnly value={url} onFocus={(e) => e.currentTarget.select()} />}
+          </Field>
           <div className="actions" style={{ flexWrap: "wrap" }}>
             <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true))}>
               {copied ? "Kopiert" : "Link kopieren"}

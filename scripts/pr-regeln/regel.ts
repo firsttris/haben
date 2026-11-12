@@ -1,3 +1,5 @@
+import { schliessendeStichwoerter } from "../board/regel.ts";
+
 /*
  * Regeln für Pull Requests aus CLAUDE.md und docs/entwicklung.md (Mitwirken), die sich am Pull Request selbst
  * prüfen lassen. Fehler halten den Pull Request auf, Hinweise erscheinen nur als Warnung an der Prüfung.
@@ -35,6 +37,17 @@ export function checkTitle(title: string): Report[] {
   return [];
 }
 
+/**
+ * Issues verweist die Beschreibung mit `Refs #…` (Teil) oder `Umgesetzt #…` (fertig). `Closes` und `Fixes`
+ * schlössen das Issue schon beim Merge; geschlossen wird aber erst beim Release (scripts/board).
+ */
+export function checkBody(body: string | null): Report[] {
+  return schliessendeStichwoerter(body ?? "").map((treffer) => ({
+    level: "error",
+    message: `Beschreibung: „${treffer}“ schlösse das Issue schon beim Merge. Mit „Umgesetzt #…“ (fertig) oder „Refs #…“ (Teil) schließt es das Release.`,
+  }));
+}
+
 const isTest = (file: string) => /\.(test|spec)\.tsx?$/.test(file) || file.includes("/e2e/");
 const isCode = (file: string) => /^(apps\/web\/src|packages\/[^/]+\/src)\/.*\.tsx?$/.test(file) && !isTest(file) && !file.endsWith("routeTree.gen.ts");
 const isFix = (subject: string) => /^fix(\(.*\))?!?:/.test(subject);
@@ -58,6 +71,30 @@ export function hints(files: string[], commitSubjects: string[]): Report[] {
     });
   }
   return reports;
+}
+
+/**
+ * Nur Markdown, docs/, mkdocs.yml oder LICENSE: die Grenze des Jobs `changes` in ci.yml (ohne dessen Sonderfall für
+ * Gelöschtes) und dazu mkdocs.yml, das nach tdd-review, Schritt 0, ebenfalls zu doku-pruefen gehört
+ */
+const isDocsOnly = (files: string[]) => files.length > 0 && files.every((file) => /\.md$|^docs\/|^mkdocs\.yml$|^LICENSE$/.test(file));
+/** Wer Haben pflegt, prüft und mergt selbst; author_association aus dem Ereignis von GitHub */
+const MAINTAINERS = ["OWNER", "MEMBER", "COLLABORATOR"];
+
+/**
+ * Erinnerung an Selbstprüfung und unabhängiges Review (docs/entwicklung.md, Beiträge annehmen) für fremde Pull
+ * Requests außerhalb des Entwurfs. Fest, ohne Blick auf die Kommentare: pr-regeln.yml läuft nicht bei neuen
+ * Kommentaren, ein Hinweis, der von einem Kommentar abhängt, bliebe bis zum nächsten Push stehen (#737).
+ */
+export function reviewHint(pr: { draft?: boolean; author_association?: string; user: { login: string; type?: string } }, files: string[]): Report[] {
+  if (pr.draft || isBot(pr.user) || MAINTAINERS.includes(pr.author_association ?? "")) return [];
+  const review = isDocsOnly(files) ? "`doku-pruefen` (nur Doku geändert)" : "`tdd-review`";
+  return [
+    {
+      level: "warning",
+      message: `Vor dem Merge: Selbstprüfung mit \`beitrag-pruefen\` als Kommentar im Pull Request, dann ein unabhängiges Review mit ${review} durch jemand anderen oder einen frischen Agenten. Die Skills liegen in .claude/skills/; ohne beides prüfen wir alles selbst nach, und der Merge dauert (docs/entwicklung.md, Beiträge annehmen).`,
+    },
+  ];
 }
 
 /**

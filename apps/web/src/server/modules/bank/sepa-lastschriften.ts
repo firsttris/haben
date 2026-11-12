@@ -197,6 +197,7 @@ export async function createDirectDebitFile(actor: string, input: DirectDebitFil
   const today = berlinTime.format(now).slice(0, 10);
   const [account] = await db.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, input.bankAccountId));
   if (!account?.iban || account.purpose === "zahlungsdienstleister") throw new BankError("Bitte ein Bankkonto mit IBAN als Gläubigerkonto wählen.");
+  if (account.excludedAt) throw new BankError(`${account.name} ist ausgeschlossen und kann nicht Gläubigerkonto sein.`);
   const creditorIban = account.iban;
   const company = await loadCompany();
   if (!company.glaeubigerId) throw new BankError("Die Gläubiger-ID fehlt in den Firmendaten.");

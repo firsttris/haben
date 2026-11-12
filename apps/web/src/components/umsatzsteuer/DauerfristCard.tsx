@@ -8,6 +8,7 @@ import { useAction } from "../../lib/use-action.ts";
 import { ElsterSubmit, type ElsterSetup } from "../ElsterSubmit.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { saveVatDauerfrist, submitVatDauerfrist, type getVatPeriod } from "../../server/functions/vat.ts";
+import { Field } from "../Field.tsx";
 
 type Overview = Awaited<ReturnType<typeof getVatPeriod>>["dauerfrist"];
 
@@ -54,20 +55,22 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
     action.run(async () => {
       const result = await submit({ data: { year, kind, pin, sondervorauszahlung: monthly ? parsed : null, berichtigt: monthly && berichtigt } });
       await router.invalidate();
-      action.setNotice(
-        elsterNotice(kind, result, `${monthly ? "Sondervorauszahlung angemeldet" : "Dauerfristverlängerung beantragt"} und für ${year} eingetragen.`),
+      const notice = elsterNotice(
+        kind,
+        result,
+        `${monthly ? "Sondervorauszahlung angemeldet" : "Dauerfristverlängerung beantragt"} und für ${year} eingetragen.`,
       );
+      action.setNotice(result.euerHinweis && notice ? { tone: "info", text: `${notice.text}\n${result.euerHinweis}` } : notice);
     });
 
   function onManual(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void manual.run(
-      async () => {
-        await save({ data: { year, active: manualActive, sondervorauszahlung: manualActive && monthly ? parsed : null } });
-        await router.invalidate();
-      },
-      manualActive ? `Dauerfristverlängerung für ${year} eingetragen.` : `Dauerfristverlängerung ab ${year} beendet.`,
-    );
+    void manual.run(async () => {
+      const result = await save({ data: { year, active: manualActive, sondervorauszahlung: manualActive && monthly ? parsed : null } });
+      await router.invalidate();
+      const success = manualActive ? `Dauerfristverlängerung für ${year} eingetragen.` : `Dauerfristverlängerung ab ${year} beendet.`;
+      manual.setNotice({ tone: result.euerHinweis ? "info" : "ok", text: result.euerHinweis ? `${success}\n${result.euerHinweis}` : success });
+    });
   }
 
   return (
@@ -82,17 +85,19 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
             Bei monatlicher Abgabe meldest du jedes Jahr bis zum 10. Februar eine Sondervorauszahlung an und zahlst sie (§ 47, 48 UStDV). Abgezogen wird sie in
             der Voranmeldung für Dezember (Kz 39).
           </p>
-          <label className="field">
-            Sondervorauszahlung (Kz 38, volle Euro)
-            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={parsed === null} aria-describedby="svz-hint" />
-            <span id="svz-hint" className={parsed === null ? "field-error" : "small muted"}>
-              {parsed === null
-                ? "Betrag in vollen Euro, nicht negativ."
+          <Field
+            label="Sondervorauszahlung (Kz 38, volle Euro)"
+            error={parsed === null ? "Betrag in vollen Euro, nicht negativ." : undefined}
+            hint={
+              parsed === null
+                ? undefined
                 : vorschlag
                   ? `Vorschlag ${formatEuro(vorschlag.betrag)}: ein Elftel von ${formatEuro(vorschlag.vorauszahlungen)} Vorauszahlungen ${year - 1} zuzüglich ${formatEuro(vorschlag.angerechnet)} angerechneter Sondervorauszahlung${vorschlag.months < 12 ? `, hochgerechnet von ${vorschlag.months} Monaten` : ""} (aus ${vorschlag.periods} gesendeten Voranmeldungen).`
-                  : "Ohne Vorjahr: ein Elftel der zu erwartenden Vorauszahlungen dieses Jahres (§ 47 Abs. 3 UStDV)."}
-            </span>
-          </label>
+                  : "Ohne Vorjahr: ein Elftel der zu erwartenden Vorauszahlungen dieses Jahres (§ 47 Abs. 3 UStDV)."
+            }
+          >
+            {(control) => <input {...control} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+          </Field>
           {overview.sent && (
             <label className="checkbox">
               <input type="checkbox" checked={berichtigt} onChange={(e) => setBerichtigt(e.target.checked)} />

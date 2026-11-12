@@ -9,7 +9,7 @@ description: >-
 
 Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem Export von Lexware Office, einer anderen Buchhaltung oder einer Excel-Liste. Den Import öffnest du unter **Kontakte**, **Artikel** oder **Anlagen** mit **CSV importieren**; oben auf der Seite wechselst du zwischen den drei Arten.
 
-Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md) und den [Umzug aus sevDesk](sevdesk.md), Kontoauszüge kommen über den [Bankimport](bank.md).
+Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [BuchhaltungsButler](buchhaltungsbutler.md) und aus [Accountable](accountable.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
 
 ## So gehst du vor
 
@@ -55,7 +55,7 @@ Haben legt nichts doppelt an und überschreibt nichts:
 | Artikel | Artikelnummer; eine Zeile ohne Nummer an der Bezeichnung, auch gegen einen Artikel mit Nummer |
 | Anlagen | Bezeichnung, Anschaffungsdatum und Anschaffungskosten zusammen |
 
-Eine Debitor- oder Kreditornummer, die schon ein Kontakt trägt (auch ein archivierter) oder die weiter oben in der Datei steht, zeigt die Vorschau so als Dublette mit der Nummer; Haben überschreibt und vergibt sie nicht ein zweites Mal. Früher landeten die Spalten „Debitorennummer“ und „Kreditorennummer“ in Kunden- bzw. Lieferantennummer; in der Vorschau kannst du sie dorthin zuordnen, wenn deine Datei so gemeint ist.
+Eine Debitor- oder Kreditornummer, die schon ein Kontakt trägt (auch ein archivierter) oder die weiter oben in der Datei steht, zeigt die Vorschau so als Dublette mit der Nummer; Haben überschreibt und vergibt sie nicht ein zweites Mal. Die Spalten „Debitorennummer“ und „Kreditorennummer“ ordnet Haben dem DATEV-Debitor bzw. -Kreditor zu; meint deine Datei damit Kunden- bzw. Lieferantennummer, ordnest du sie in der Vorschau dorthin um.
 
 Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffice.md#kontakte-verknüpfen): Lieber einmal zu viel überspringen als einen Kunden doppelt anlegen. Einen zweiten Kunden mit gleichem Namen legst du von Hand an.
 
@@ -79,7 +79,7 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 
 Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei einem neuen Kontakt auf „wie in den Einstellungen“, Deutsch und der Vorgabe aus den Firmendaten.
 
-Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …). Weichen die Spaltennamen deiner Datei ab, ordnest du sie in der Vorschau zu.
+Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …).
 
 ## Artikel
 
@@ -123,7 +123,7 @@ Die Übernahme erzeugt keine Buchung. Wie bei einer von Hand übernommenen Anlag
 
 ### Was der Import ablehnt
 
-Haben übernimmt nur, was das Anlagenverzeichnis fachlich richtig abbilden kann. Diese Fälle lehnt der Import ab, weil Haben sonst im Jahr des Stichtags abschriebe, was in frühere Jahre gehört, oder ein schon gebuchtes Jahr änderte:
+Diese Fälle lehnt der Import ab, weil Haben sonst im Jahr des Stichtags abschriebe, was in frühere Jahre gehört, oder ein schon gebuchtes Jahr änderte:
 
 | Fall | Warum |
 | --- | --- |

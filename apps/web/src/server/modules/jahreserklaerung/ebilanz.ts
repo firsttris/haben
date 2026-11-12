@@ -75,7 +75,7 @@ function betriebsvermoegen(
 /** Werte, BVV und Anlagenspiegel des Jahres und was die Übermittlung hindert */
 export async function ebilanzDaten(year: number, company: Company): Promise<{ daten: EbilanzDaten; issues: EbilanzHinweis[] }> {
   const kontenrahmen = company.kontenrahmen;
-  const rows = (await saldenliste(ledgerRange(year))).filter((r) => r.kontenrahmen === kontenrahmen);
+  const rows = (await saldenliste(ledgerRange(year), { aufgeloest: true })).filter((r) => r.kontenrahmen === kontenrahmen);
   const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, rows);
   const konto = (account: string) => `${account}${accountName(kontenrahmen, account) ? ` ${accountName(kontenrahmen, account)}` : ""}`;
   const issues: EbilanzHinweis[] = fehlend.map(({ account }) => ({

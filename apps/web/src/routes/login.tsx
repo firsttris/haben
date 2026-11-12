@@ -5,6 +5,7 @@ import { SsoSignIn } from "../components/SsoSignIn.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { errorMessage } from "../lib/format.ts";
 import { getAuthState } from "../server/functions/setup.ts";
+import { Field } from "../components/Field.tsx";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: async ({ location }) => {
@@ -94,14 +95,10 @@ function LoginPage() {
             </button>
             {showPassword ? (
               <form className="stack" onSubmit={withPassword}>
-                <label className="field">
-                  E-Mail
-                  <input name="email" type="email" required autoComplete="username webauthn" autoFocus />
-                </label>
-                <label className="field">
-                  Passwort
-                  <input name="password" type="password" required autoComplete="current-password" />
-                </label>
+                <Field label="E-Mail">
+                  {(control) => <input {...control} name="email" type="email" required autoComplete="username webauthn" autoFocus />}
+                </Field>
+                <Field label="Passwort">{(control) => <input {...control} name="password" type="password" required autoComplete="current-password" />}</Field>
                 <button type="submit" className="btn" disabled={busy}>
                   Mit Passwort anmelden
                 </button>

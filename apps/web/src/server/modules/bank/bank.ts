@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
+  zeilenImKontenrahmen,
   ACCOUNTS,
   paymentProviderAccount,
   providerPattern,
@@ -56,9 +57,9 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
-import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, versteuerungForYear } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
@@ -67,6 +68,8 @@ import { directDebitMatch, directDebitReferences } from "./lastschrift-abgleich.
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
+import { quellenHinweis } from "./quellen.ts";
+import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
 export class BankError extends UserError {}
 
@@ -84,7 +87,7 @@ export const accountSchema = z.object({
 });
 
 export async function listAccounts() {
-  const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.name));
+  const accounts = await db.select().from(schema.bankAccounts).where(isNull(schema.bankAccounts.excludedAt)).orderBy(asc(schema.bankAccounts.name));
   return Promise.all(
     accounts.map(async (account) => {
       const [last] = await db
@@ -133,6 +136,8 @@ export async function createAccount(actor: string, input: z.input<typeof account
   const data = accountSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, data.iban));
+    if (existing?.excludedAt)
+      throw new BankError(`Das Konto ${existing.name} mit dieser IBAN ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
     if (existing) throw new BankError("Ein Konto mit dieser IBAN gibt es schon.");
     const [created] = await tx.insert(schema.bankAccounts).values(data).returning();
     return created!;
@@ -158,7 +163,7 @@ export async function updateAccount(actor: string, input: z.infer<typeof account
 
 export const providerAccountSchema = z.object({
   name: z.string().trim().min(1, "Name fehlt").max(100),
-  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"]),
+  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "googleplay", "appstore", "sonstige"]),
 });
 
 /**
@@ -188,6 +193,8 @@ export interface ImportResult {
   skipped: number;
   warnings: string[];
   gap: string | null;
+  /** Meldung, wenn im Zeitraum schon Umsätze aus einem anderen Dateiformat liegen (#632) */
+  quelle: string | null;
 }
 
 /**
@@ -238,6 +245,10 @@ export async function storeStatement(
     throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
   } else {
     throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+  }
+  // Ein Konto, das nicht zu dieser Firma gehört (#462), nimmt nichts mehr an: weder eine Datei noch der Abruf
+  if (account.excludedAt) {
+    throw new BankError(`${source.filename}: Das Konto ${account.name} ist ausgeschlossen. Bitte erst unter „Ausgeschlossene Konten“ wieder aufnehmen.`);
   }
 
   const [previous] = await tx
@@ -317,6 +328,7 @@ export async function storeStatement(
     skipped: transactions.length - added,
     warnings: statement.warnings,
     gap: continuity.ok ? null : (continuity.message ?? "Lücke zum vorigen Import"),
+    quelle: await quellenHinweis(tx, account.id, statement.format, added, statement.periodFrom, statement.periodTo, transactions),
   };
 }
 
@@ -337,7 +349,8 @@ const openAmountSql = bankOpenAmountSql;
 
 export type TransactionFilter = "offen" | "zugeordnet" | "alle";
 
-export async function listTransactions(accountId: string, filter: TransactionFilter, search: string) {
+/** Höchstens 500 Umsätze, sortiert vor der Grenze (umsatzliste.ts); ohne Sortierung der neueste oben */
+export async function listTransactions(accountId: string, filter: TransactionFilter, search: string, sortierung: UmsatzSortierung = STANDARD_SORTIERUNG) {
   const conditions = [eq(schema.bankTransactions.bankAccountId, accountId)];
   if (filter === "offen") conditions.push(sql`${openAmountSql} <> 0`);
   if (filter === "zugeordnet") conditions.push(sql`${openAmountSql} = 0`);
@@ -366,7 +379,7 @@ export async function listTransactions(accountId: string, filter: TransactionFil
     })
     .from(schema.bankTransactions)
     .where(and(...conditions))
-    .orderBy(desc(schema.bankTransactions.bookingDate), desc(schema.bankTransactions.createdAt))
+    .orderBy(...umsatzReihenfolge(sortierung))
     .limit(500);
 }
 
@@ -379,10 +392,13 @@ async function paidByTarget(column: "invoice_id" | "document_id", ids: string[],
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
   const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
+  // Verrechnungen gibt es nur zwischen Belegen, Rechnungen kennen keine Gegenrechnung
+  const verrechnet = column === "document_id" ? sql`union all select document_id as id, amount from document_settlements where document_id in ${ids}` : sql``;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}
           union all select ${col} as id, amount from write_offs where ${col} in ${ids}
+          ${verrechnet}
           ${cash}
         ) settled group by 1`,
   );
@@ -776,7 +792,8 @@ export async function ownAccounts(): Promise<OwnAccount[]> {
       purpose: schema.bankAccounts.purpose,
       provider: schema.bankAccounts.provider,
     })
-    .from(schema.bankAccounts);
+    .from(schema.bankAccounts)
+    .where(isNull(schema.bankAccounts.excludedAt));
 }
 
 /**
@@ -846,7 +863,12 @@ export const transferSchema = z.object({
  * Schritt über das Geldtransitkonto buchen. Auf dem Geldtransitkonto heben sich beide Seiten auf.
  */
 export async function allocateTransfer(actor: string, input: z.infer<typeof transferSchema>): Promise<void> {
-  await withActor(actor, async (tx) => {
+  await withActor(actor, (tx) => allocateTransferIn(tx, input));
+}
+
+/** Geldtransit in der Transaktion des Aufrufers (etwa nach dem Anlegen der Auszahlung eines App-Stores) */
+export async function allocateTransferIn(tx: Tx, input: z.infer<typeof transferSchema>): Promise<void> {
+  {
     const company = await openBooks(tx);
     // Feste Reihenfolge beim Sperren, damit zwei gleichzeitige Aufrufe sich nicht gegenseitig blockieren
     const ids = [...new Set([input.transactionId, input.counterpartId, ...(input.payoutIds ?? [])])].sort();
@@ -911,7 +933,18 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen, company.rechtsform), company.kontenrahmen, bank.ledgerIndex),
       });
     }
-  });
+  }
+}
+
+/**
+ * Bucht einen ganz offenen Umsatz vollständig als Kursdifferenz (Ertrag bei Eingang, Aufwand bei Ausgang), etwa die
+ * Differenz zwischen den umgerechneten Monatsbeträgen eines App-Stores und seiner Auszahlung in Euro.
+ */
+export async function allocateExchangeDifferenceIn(tx: Tx, transactionId: string): Promise<void> {
+  const company = await openBooks(tx);
+  const bank = await lockTransaction(tx, transactionId);
+  if (bank.open !== bank.amount || bank.amount === 0) throw new BankError("Der Umsatz muss noch ganz offen sein.");
+  await bookPart(tx, company, bank, { kind: "kursdifferenz", amount: bank.amount }, null);
 }
 
 /**
@@ -926,11 +959,29 @@ function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex:
 }
 
 export function reverseLines(lines: PostingLine[]): PostingLine[] {
-  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
+  // Die Bemessungsgrundlage trägt ihr Vorzeichen selbst (#542) und dreht sich mit
+  return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit, ...(l.basis != null ? { basis: -l.basis } : {}) }));
+}
+
+/**
+ * Gegenbuchung zu den Zeilen einer Buchung im Kontenrahmen `von`, gebucht im eingestellten Kontenrahmen `nach`. Nach einem
+ * Wechsel zum Jahreswechsel (Storno einer Bareinnahme, Aufheben einer Ausbuchung aus dem Vorjahr) mit den Konten derselben
+ * Rolle im neuen Rahmen (kontoImKontenrahmen); die alten Kontonummern bedeuteten dort etwas anderes. Lässt sich ein Konto
+ * nicht eindeutig übertragen, geht die Gegenbuchung nicht.
+ */
+export function reverseLinesIn(von: Kontenrahmen, nach: Kontenrahmen, lines: PostingLine[]): PostingLine[] {
+  const uebertragen = zeilenImKontenrahmen(von, nach, lines);
+  if (!uebertragen) {
+    throw new BankError(
+      `Die Buchung ist im Kontenrahmen ${von} gebucht, eingestellt ist jetzt ${nach}; nicht jedes Konto hat dort eine eindeutige Entsprechung. Stornieren geht nach dem Wechsel deshalb nicht.`,
+    );
+  }
+  return reverseLines(uebertragen);
 }
 
 const DIRECT_KINDS = [
   "privat",
+  "spende",
   "geldtransit",
   "ustVorauszahlung",
   "sondervorauszahlung",
@@ -1055,7 +1106,14 @@ async function returnBooking(
   const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
   const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
   return {
-    lines: invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares),
+    lines: invoicePaymentPosting(
+      totals,
+      part.amount,
+      company.kontenrahmen,
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+      taxShares,
+      invoice.taxTreatment,
+    ),
     description: `Rücklastschrift ${invoice.number} · ${bank.counterpartyName}`,
     target: { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id, directDebitItemId: part.directDebitItemId },
   };
@@ -1105,7 +1163,14 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
-    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares);
+    lines = invoicePaymentPosting(
+      totals,
+      part.amount,
+      company.kontenrahmen,
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+      taxShares,
+      invoice.taxTreatment,
+    );
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
     target = { invoiceId: invoice.id, taxShares, taxSharesInvoiceId: invoice.id };
     // IBAN des Kunden für künftige Vorschläge merken
@@ -1210,40 +1275,43 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
 
 /** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen. */
 export async function reverseAllocation(actor: string, allocationId: string): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
-    if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
-    const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
-    if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
-    // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
-    const parts = allocation.splitId
-      ? await tx
-          .select()
-          .from(schema.allocations)
-          .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
-          .orderBy(asc(schema.allocations.createdAt))
-          .for("update")
-      : [allocation];
-    await darlehenAufhebenPruefen(tx, parts);
-    for (const part of parts) await reverseOne(tx, part);
-    // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
-    const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
-    if (targets.length > 0) {
-      const linked = await tx
+  await withActor(actor, (tx) => reverseAllocationIn(tx, allocationId));
+}
+
+/** Wie reverseAllocation, innerhalb der withActor-Transaktion des Aufrufers (z. B. gemeinsamer Belegstorno). */
+export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise<void> {
+  const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
+  if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
+  const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
+  if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
+  // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
+  const parts = allocation.splitId
+    ? await tx
         .select()
-        .from(schema.writeOffs)
-        .where(
-          and(
-            eq(schema.writeOffs.transactionId, allocation.transactionId),
-            isNull(schema.writeOffs.reversesId),
-            or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
-          ),
-        )
-        .for("update");
-      for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
-    }
-    await assertNoReturnWithoutPayment(tx, parts);
-  });
+        .from(schema.allocations)
+        .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
+        .orderBy(asc(schema.allocations.createdAt))
+        .for("update")
+    : [allocation];
+  await darlehenAufhebenPruefen(tx, parts);
+  for (const part of parts) await reverseOne(tx, part);
+  // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
+  const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
+  if (targets.length > 0) {
+    const linked = await tx
+      .select()
+      .from(schema.writeOffs)
+      .where(
+        and(
+          eq(schema.writeOffs.transactionId, allocation.transactionId),
+          isNull(schema.writeOffs.reversesId),
+          or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
+        ),
+      )
+      .for("update");
+    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
+  }
+  await assertNoReturnWithoutPayment(tx, parts);
 }
 
 /**
@@ -1303,12 +1371,17 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       .from(schema.bankTransactions)
       .where(eq(schema.bankTransactions.id, allocation.transactionId));
     // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
-    await post(tx, await openBooks(tx), {
+    const books = await openBooks(tx);
+    await post(tx, books, {
       date: bank!.bookingDate,
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
       sourceId: reversal!.id,
-      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      lines: reverseLinesIn(
+        entry.kontenrahmen as Kontenrahmen,
+        books.kontenrahmen,
+        lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+      ),
       reversesId: entry.id,
     });
   }
@@ -1395,7 +1468,17 @@ export async function bookWriteOff(
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
       const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-      lines = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares }, amount, company.kontenrahmen);
+      lines = exchangeDifferencePosting(
+        {
+          kind: "invoice",
+          totals,
+          versteuerung: await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+          shares: taxShares,
+          treatment: invoice.taxTreatment,
+        },
+        amount,
+        company.kontenrahmen,
+      );
       description = `Kursdifferenz · Rechnung ${invoice.number}`;
       target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
     } else {
@@ -1444,7 +1527,15 @@ export async function bookWriteOff(
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
-    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment, taxShares);
+    lines = invoiceWriteOffPosting(
+      input.kind,
+      totals,
+      amount,
+      company.kontenrahmen,
+      await versteuerungForYear(await invoiceTaxYear(invoice, tx), tx),
+      invoice.taxTreatment,
+      taxShares,
+    );
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
     target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
   }
@@ -1608,12 +1699,17 @@ export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$i
     })
     .returning();
   if (entry) {
-    await post(tx, await openBooks(tx), {
+    const books = await openBooks(tx);
+    await post(tx, books, {
       date,
       description: `Storno: ${entry.description}`,
       sourceType: "ausbuchung",
       sourceId: reversal!.id,
-      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      lines: reverseLinesIn(
+        entry.kontenrahmen as Kontenrahmen,
+        books.kontenrahmen,
+        lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"], basis: l.basis })),
+      ),
       reversesId: entry.id,
     });
   }

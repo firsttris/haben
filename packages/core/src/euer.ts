@@ -43,6 +43,8 @@ export type EuerPayment =
       privateShare?: number;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
       splits?: AllocatedSplitLine[];
+      /** § 13b und Erwerb: selbst geschuldete Steuer des ganzen Belegs je Steuersatz (totals tragen dann keine Steuer) */
+      selbstGeschuldet?: readonly Cents[];
       group?: string;
     }
   | {
@@ -61,6 +63,8 @@ export type EuerPayment =
       kind: "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "zinsertrag" | "kursdifferenz";
       date: string;
       amount: Cents;
+      /** Richtung der ursprünglichen USt-Zuordnung, auch wenn nur ihre Gegenzeile in dieses Jahr fällt; sonst nach Vorzeichen */
+      ustAbfluss?: boolean;
       group?: string;
     }
   | {
@@ -109,6 +113,7 @@ export type EuerLineKey =
   | "einnahmenSteuerpflichtig"
   | "einnahmenSteuerfrei"
   | "privateKfz"
+  | "sachentnahmen"
   | "ustEntnahmen"
   | "vereinnahmteUst"
   | "erstatteteUst"
@@ -158,6 +163,7 @@ export const EUER_LABELS = {
   einnahmenSteuerpflichtig: "Umsatzsteuerpflichtige Betriebseinnahmen (netto)",
   einnahmenSteuerfrei: "Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen",
   privateKfz: "Private Kfz-Nutzung",
+  sachentnahmen: "Sonstige Sach-, Nutzungs- und Leistungsentnahmen",
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
   ustEntnahmen: "Umsatzsteuer auf unentgeltliche Wertabgaben",
   erstatteteUst: "Vom Finanzamt erstattete Umsatzsteuer",
@@ -280,12 +286,20 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           add(`ausgabe:${category}`, ausgabe - nichtAbziehbar);
           monthlyOut[month]! += ausgabe - nichtAbziehbar;
         }
+        {
+          // § 13b und Erwerb: Der private Teil der selbst geschuldeten Steuer ist keine Vorsteuer, geht aber mit der
+          // Voranmeldung ans Finanzamt (gezahlteUst). Wie bei DATEV zählt er als Umsatzsteuer auf die Entnahme; anteilig
+          // zur Zahlung, Vorzeichen wie der Beleg
+          const privat = (p.selbstGeschuldet ?? []).reduce((s, steuer) => s + splitPrivateShare(steuer, p.privateShare ?? 0).private, 0);
+          if (privat !== 0 && p.totals.gross !== 0) add("vereinnahmteUst", roundHalfAwayFromZero((privat * p.sum) / p.totals.gross));
+        }
         break;
       case "ustVorauszahlung":
       // Die Sondervorauszahlung ist Umsatzsteuer an das Finanzamt wie jede Vorauszahlung, abziehbar, wenn sie gezahlt ist
       case "sondervorauszahlung":
-        // Ausgang: Zahlung an das Finanzamt; Eingang: Erstattung
-        if (p.sum < 0) add("gezahlteUst", -p.sum);
+        // Eine Rücknahme mindert dieselbe Zeile, statt eine echte Erstattung bzw. Zahlung vorzutäuschen (#651).
+        // EÜR-Anleitung 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+        if (p.ustAbfluss ?? p.sum < 0) add("gezahlteUst", -p.sum);
         else add("erstatteteUst", p.sum);
         break;
       case "mahnerloes":
@@ -366,6 +380,33 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     }
   }
 
+  return euerErgebnis(
+    year,
+    sums,
+    { einnahmen: monthlyIn, ausgaben: monthlyOut },
+    bewirtungNichtAbziehbar,
+    gewerbesteuerNichtAbziehbar,
+    depreciation,
+    withdrawals,
+  );
+}
+
+/**
+ * Die EÜR aus den Summen je Zeile: Zeilen mit Bezeichnung in der Reihenfolge der Anlage EÜR, Summen und Gewinn. Gemeinsam
+ * für computeEuer (Nebenbücher) und die EÜR aus dem Journal ab dem Stichjahr (#542). AfA und Privatnutzung kommen dazu, wenn
+ * sie übergeben sind (aus dem Anlagenverzeichnis).
+ */
+export function euerErgebnis(
+  year: number,
+  summen: ReadonlyMap<EuerLineKey, Cents>,
+  monthly: { einnahmen: Cents[]; ausgaben: Cents[] },
+  bewirtungNichtAbziehbar: Cents,
+  gewerbesteuerNichtAbziehbar: Cents,
+  depreciation?: EuerDepreciation,
+  withdrawals?: EuerWithdrawals,
+): EuerResult {
+  const sums = new Map(summen);
+  const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const line = (key: EuerLineKey, label: string, note?: string): EuerLine => ({
     key,
     label,
@@ -377,13 +418,23 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
   const optional = (
-    key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal" | "steuerNebenleistungen" | "schuldzinsenAnlage" | "schuldzinsen",
+    key:
+      | "privateKfz"
+      | "sachentnahmen"
+      | "ustEntnahmen"
+      | "kursgewinne"
+      | "kursverluste"
+      | "personal"
+      | "steuerNebenleistungen"
+      | "schuldzinsenAnlage"
+      | "schuldzinsen",
   ) => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
     line("einnahmenSteuerfrei", EUER_LABELS.einnahmenSteuerfrei),
     ...optional("privateKfz"),
+    ...optional("sachentnahmen"),
     ...optional("kursgewinne"),
     line("vereinnahmteUst", EUER_LABELS.vereinnahmteUst),
     ...optional("ustEntnahmen"),
@@ -428,7 +479,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     gewinn: totalEinnahmen - totalAusgaben,
     bewirtungNichtAbziehbar,
     gewerbesteuerNichtAbziehbar,
-    monthly: { einnahmen: monthlyIn, ausgaben: monthlyOut },
+    monthly,
   };
 }
 

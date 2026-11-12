@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
   let api: typeof import("./index.ts");
@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
 
   beforeEach(async () => {
     mcpServer.resetRateLimitForTests();
-    await sql`truncate mcp_calls, mcp_tokens, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
+    await leeren(sql)`truncate mcp_calls, mcp_tokens, journal_lines, journal_entries, invoice_lines, invoice_taxes, invoices, invoice_number_counters,
       contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'DE123456789', 'BY',
@@ -86,7 +86,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect((await call(t, "GET", "/kontakte")).status).toBe(401);
       await mcp.setMcpEnabled(actor, true);
 
-      await mcp.revokeMcpToken((await mcp.listMcpTokens())[0]!.id);
+      await mcp.revokeMcpToken(actor, (await mcp.listMcpTokens())[0]!.id);
       expect((await call(t, "GET", "/kontakte")).status).toBe(401);
     });
 
@@ -113,8 +113,25 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
         ["GET /kontakte/{id}", false],
         ["POST /kontakte", true],
       ]);
-      const [audit] = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT'`;
-      expect(audit!.actor).toBe("api:Shop-Automation");
+      const [audit] = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT' order by seq desc limit 1`;
+      expect(audit!.actor).toBe(`api:${(await mcp.listMcpTokens())[0]!.id}:Shop-Automation`);
+    });
+
+    it("unterscheidet im Audit-Log zwei Tokens mit gleichem Namen und führt den Akteur auf sein Token zurück", async () => {
+      const first = await token(["kontakte:schreiben"]);
+      expect((await call(first, "POST", "/kontakte", kunde)).status).toBe(201);
+      const [old] = await mcp.listMcpTokens();
+      await mcp.revokeMcpToken(actor, old!.id);
+      const second = await token(["kontakte:schreiben"]);
+      expect((await call(second, "POST", "/kontakte", { ...kunde, name: "Etsy-Käufer Ben Beispiel" })).status).toBe(201);
+      const renewed = (await mcp.listMcpTokens()).find((row) => row.id !== old!.id)!;
+      expect(renewed.name).toBe(old!.name);
+
+      const audit = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT' order by seq desc limit 2`;
+      expect(audit.map((row) => row.actor)).toEqual([`api:${renewed.id}:Shop-Automation`, `api:${old!.id}:Shop-Automation`]);
+      // Die ID im Akteur führt im selben Audit-Log zum Anlegen des Tokens und damit zum verantwortlichen Konto
+      const created = await sql`select actor from audit_log where table_name = 'token_events' and new_value->>'token_id' = ${renewed.id}`;
+      expect(created.map((row) => row.actor)).toEqual([actor]);
     });
 
     it("begrenzt die Anfragen je Token", async () => {
@@ -327,6 +344,31 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(half.status).toBe(400);
       expect(half.json!.error!.message).toMatch(/zusammen/);
       expect((await call(t, "POST", "/rechnungen", draft({ externalSource: "Etsy Shop", externalId: "1" }))).status).toBe(400);
+    });
+
+    it("weist einen Kontakt ohne die Rolle Kunde ab, mit und ohne externe Referenz", async () => {
+      const t = await token(["rechnungen:entwuerfe", "kontakte:schreiben"]);
+      const stammdaten = await import("../stammdaten/index.ts");
+      const lieferant = await stammdaten.createContact(actor, {
+        ...schemas.CONTACT_DEFAULTS,
+        name: "Großhandel Ton GmbH",
+        isCustomer: false,
+        isSupplier: true,
+      });
+      for (const reference of [{}, { externalSource: "etsy", externalId: "7001" }]) {
+        const result = await call(t, "POST", "/rechnungen", draft({ ...reference, contactId: lieferant.id }));
+        expect(result.status).toBe(422);
+        expect(result.json!.error!.message).toMatch(/Großhandel Ton GmbH“ ist kein Kunde/);
+      }
+      expect(await sql`select id from invoices where contact_id = ${lieferant.id}`).toHaveLength(0);
+      // Ändern: auch PATCH weist den Kontakt ohne die Rolle ab, der Entwurf behält seinen Kunden
+      const kunde = (await call(t, "POST", "/kontakte", { ...schemas.CONTACT_DEFAULTS, name: "Ton Abnehmer GmbH" })).json!;
+      const entwurf = await call(t, "POST", "/rechnungen", draft({ contactId: kunde.id }));
+      expect(entwurf.status).toBe(201);
+      const patch = await call(t, "PATCH", `/rechnungen/${entwurf.json!.id}`, { contactId: lieferant.id });
+      expect(patch.status).toBe(422);
+      expect(patch.json!.error!.message).toMatch(/ist kein Kunde/);
+      expect((await call(t, "GET", `/rechnungen/${entwurf.json!.id}`)).json).toMatchObject({ contactId: kunde.id });
     });
 
     it("filtert nach Referenz, Status und Kontakt", async () => {

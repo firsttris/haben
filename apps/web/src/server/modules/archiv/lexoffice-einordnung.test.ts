@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /**
  * Einordnung im Abgleich je Rechtsform: Was im Einzelunternehmen Einnahme oder Ausgabe ist, kann bei GmbH und UG
@@ -56,7 +56,7 @@ describe.skipIf(!testDatabaseUrl)("Einordnung privater und neutraler Kategorien 
       await tx`delete from lexoffice_vouchers`;
       await tx`delete from lexoffice_imports`;
     });
-    await sql`truncate company cascade`;
+    await leeren(sql)`truncate company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${kontenrahmen}, ${versteuerung}, ${rechtsform})`;
     await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;

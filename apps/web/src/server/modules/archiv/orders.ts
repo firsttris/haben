@@ -4,6 +4,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { loadFile, sha256Of, storeFile } from "../../storage.ts";
+import { storeLegacyOrder } from "./legacy-store.ts";
 
 export const ORDER_KINDS = { AN: "Angebot", AB: "Auftragsbestätigung", LI: "Lieferschein" } as const;
 export const ORDER_STATUSES: Record<string, string> = {
@@ -13,6 +14,12 @@ export const ORDER_STATUSES: Record<string, string> = {
   "500": "Angenommen",
   "750": "Teilweise berechnet",
   "1000": "Vollständig berechnet",
+  draft: "Entwurf",
+  open: "Offen",
+  declined: "Geschlossen / abgelehnt",
+  accepted: "Angenommen",
+  partlyInvoiced: "Teilweise berechnet",
+  invoiced: "Vollständig berechnet",
 };
 export class OrderArchiveError extends UserError {}
 
@@ -50,9 +57,9 @@ export async function importOrder(actor: string, importId: string, client: Sevde
       if (!Number.isFinite(number) || !Number.isSafeInteger(lexToCents(number))) throw new OrderArchiveError("Ungültiger Quellbetrag im Auftragsdokument.");
       return lexToCents(number);
     };
-    const [row] = await tx
-      .insert(schema.legacyOrderDocuments)
-      .values({
+    const row = await storeLegacyOrder(
+      tx,
+      {
         externalId,
         importId,
         kind: order.orderType,
@@ -66,9 +73,9 @@ export async function importOrder(actor: string, importId: string, client: Sevde
         tax: amount(foreign ? order.sumTaxForeignCurrency : order.sumTax),
         gross: amount(foreign ? order.sumGrossForeignCurrency : order.sumGross),
         raw: { order, positions, relatedObjects },
-      })
-      .onConflictDoNothing({ target: schema.legacyOrderDocuments.externalId })
-      .returning({ id: schema.legacyOrderDocuments.id });
+      },
+      [],
+    );
     return Boolean(row);
   });
 }
@@ -138,7 +145,13 @@ export async function orderDocumentDetail(id: string) {
         }))
     : [];
   return {
-    document: { ...fields, positions, relatedObjects: JSON.stringify(raw.relatedObjects ?? []) },
+    document: {
+      ...fields,
+      sourceName: fields.source === "import" ? text(raw.sourceName) || "JSON-Import" : "sevDesk",
+      sourceExternalId: fields.source === "import" ? text(raw.externalId) : fields.externalId,
+      positions,
+      relatedObjects: JSON.stringify(raw.relatedObjects ?? []),
+    },
     files,
     attempts: attempts.map(({ before, after, ...attempt }) => ({ ...attempt, states: JSON.stringify({ before, after }, null, 2) })),
   };

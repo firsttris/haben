@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen (Postgres)", () => {
   let sql: postgres.Sql;
@@ -20,7 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen (Postgres)", () => {
   });
 
   async function setup(rechtsform: "einzelunternehmen" | "gmbh" | "ug", kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll" = "ist") {
-    await sql`truncate journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Testfirma GmbH', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY',
               ${kontenrahmen}, ${versteuerung}, ${rechtsform})`;
@@ -103,7 +103,7 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen (Postgres)", () => {
     });
   });
 
-  it("nur für GmbH und UG, nicht in der Zukunft, nur ausgeglichen", async () => {
+  it("im Einzelunternehmen erst ab dem Stichjahr, nicht in der Zukunft, nur ausgeglichen", async () => {
     const input = (date: string, credit = 100) => ({
       date,
       description: "Umbuchung",
@@ -112,8 +112,11 @@ describe.skipIf(!testDatabaseUrl)("Manuelle Buchungen (Postgres)", () => {
         { account: "0730", debit: 0, credit },
       ],
     });
+    // Vor dem Stichjahr rechnet die EÜR aus den Nebenbüchern und sähe die Buchung nicht (freie Buchungen, #502)
     await setup("einzelunternehmen", "SKR03");
-    await expect(manual.createManualEntry(actor, input("2026-10-01"), today)).rejects.toThrow("nur für GmbH und UG");
+    await sql`update company set journal_ab = 2027`;
+    await expect(manual.createManualEntry(actor, input("2026-10-01"), today)).rejects.toThrow("erst ab dem Stichjahr");
+    await expect(manual.createManualEntry(actor, { ...input("2026-01-01"), kind: "eroeffnung" }, today)).rejects.toThrow("nur für GmbH und UG");
     await setup("gmbh", "SKR03");
     await expect(manual.createManualEntry(actor, input("2026-10-05"), today)).rejects.toThrow("Zukunft");
     await expect(manual.createManualEntry(actor, input("2026-10-01", 90), today)).rejects.toThrow("Soll und Haben sind nicht gleich");

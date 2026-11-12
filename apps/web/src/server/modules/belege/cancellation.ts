@@ -1,11 +1,15 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { TaxCode } from "@haben/core";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { type PostingLine, type TaxCode, zeilenWieHeute } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
-import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { documentBankAllocations, lockCash, reverseAllocationIn, reverseDocumentCashEntry } from "../bank/index.ts";
+import { journalAbJahr } from "../stammdaten/index.ts";
+import { openBooks, periodReported, post } from "../buchhaltung/index.ts";
+import { belegZeilen } from "./belegbuchung.ts";
+
+export { vatPeriodsOf } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
 import { loadSplits } from "./splits.ts";
 
@@ -21,6 +25,7 @@ import { loadSplits } from "./splits.ts";
 
 export const cancellationInputSchema = z.object({
   reason: z.string().trim().max(500).default(""),
+  allocationIds: z.array(z.uuid()).default([]),
 });
 
 export type CancellationInput = z.input<typeof cancellationInputSchema>;
@@ -29,18 +34,38 @@ export type DocumentCancellation = typeof schema.documentCancellations.$inferSel
 /** Was gegen einen Storno spricht; leere Liste = stornierbar. Bank- und Kassenstand prüft cancelDocument selbst. */
 export function cancellationIssues(doc: Pick<Document, "lockedAt" | "lexofficeVoucherId" | "category">): string[] {
   if (!doc.lockedAt) return ["Der Beleg ist noch nicht gebucht; einen Entwurf änderst oder löschst du einfach."];
-  if (doc.lexofficeVoucherId) return ["Aus Lexoffice übernommene Belege sind dort angemeldet und lassen sich hier nicht stornieren."];
+  if (doc.lexofficeVoucherId) return ["Aus einem Umzug übernommene Belege sind im bisherigen Programm angemeldet und lassen sich hier nicht stornieren."];
   // Die Anlage aus dem Beleg bleibt im Verzeichnis und würde weiter abgeschrieben; ihr Abgang gehört ins Anlagenverzeichnis
   if (doc.category === "anlage") return ["Belege zu Anlagegütern lassen sich nicht stornieren. Erfasse stattdessen den Abgang im Anlagenverzeichnis."];
   return [];
 }
 
-/** Ein Beleg über die Bank darf noch keiner Zahlung zugeordnet sein (Zuordnungen und Skonto, Gegenzeilen abgezogen) */
+/** Nach der Rücknahme der Bankzuordnungen darf keine separate Ausbuchung am Beleg verbleiben. */
 async function settled(tx: Tx, documentId: string): Promise<number> {
   const [row] = await tx.execute<{ settled: string }>(sql`
     select coalesce((select sum(amount) from allocations where document_id = ${documentId}), 0)
-         + coalesce((select sum(amount) from write_offs where document_id = ${documentId}), 0) as settled`);
+         + coalesce((select sum(amount) from write_offs where document_id = ${documentId}), 0)
+         + coalesce((select sum(amount) from document_settlements where document_id = ${documentId}), 0) as settled`);
   return Number(row?.settled ?? 0);
+}
+
+/** Bestätigter Umfang; die Gegenzeilen bleiben in der withActor-Transaktion des Belegstornos. */
+async function reverseConfirmedAllocations(tx: Tx, doc: Pick<Document, "id" | "payment">, allocationIds: string[]) {
+  const allocations = doc.payment === "bank" ? await documentBankAllocations(doc.id, tx) : [];
+  if (allocations.length > 0 && allocationIds.length === 0) {
+    throw new DocumentError("Der Beleg ist schon einer Zahlung zugeordnet. Hebe erst im Bankabgleich die Zuordnung auf, dann stornierst du ihn.");
+  }
+  const expected = allocations
+    .map((a) => a.id)
+    .sort()
+    .join();
+  if ([...allocationIds].sort().join() !== expected) {
+    throw new DocumentError("Die Bankzuordnungen haben sich geändert. Lade den Beleg neu und bestätige den aktuellen Umfang.");
+  }
+  const groups = new Map(allocations.map((a) => [a.splitId ?? a.id, a.id]));
+  // Originale bleiben nachvollziehbar (§ 146 Abs. 4 AO); scheitert der Storno, werden auch die Bankgegenzeilen zurückgerollt.
+  // https://www.gesetze-im-internet.de/ao_1977/__146.html
+  for (const allocationId of groups.values()) await reverseAllocationIn(tx, allocationId);
 }
 
 /** Die Buchung des Belegs; ein Storno hat reverses_id und zählt nicht */
@@ -51,39 +76,6 @@ async function documentEntry(tx: Db | Tx, documentId: string) {
     .where(and(eq(schema.journalEntries.sourceType, "document"), eq(schema.journalEntries.sourceId, documentId), isNull(schema.journalEntries.reversesId)));
   if (!entry) throw new DocumentError("Zum Beleg gibt es keine Buchung.");
   return entry;
-}
-
-/** Monat und Quartal (41–44 wie in vat_returns), in deren Voranmeldung eine Buchung mit diesem Datum zählt */
-export function vatPeriodsOf(date: string): { year: number; months: number[] } {
-  const year = Number(date.slice(0, 4));
-  const month = Number(date.slice(5, 7));
-  return { year, months: [month, 40 + Math.ceil(month / 3)] };
-}
-
-/**
- * Ist der Zeitraum eines Buchungsdatums schon gemeldet? Eine gesendete oder vermerkte Voranmeldung für den Monat oder das
- * Quartal (je nach Einstellung gibt es nur eins von beiden), eine gesendete Jahreserklärung des Jahres oder ein
- * abgeschlossenes Jahr. Jede Jahreserklärung zählt: Bei einer GmbH meldet die E-Bilanz (mit KSt und GewSt) die Zahlen
- * des Jahres, auch ohne Voranmeldung oder Umsatzsteuererklärung (Kleinunternehmer, befreit); ebenso die ESt-Erklärung.
- */
-async function periodReported(q: Db | Tx, date: string): Promise<boolean> {
-  const { year, months } = vatPeriodsOf(date);
-  const r = schema.vatReturns;
-  const [sent] = await q
-    .select({ id: r.id })
-    .from(r)
-    .where(and(eq(r.year, year), inArray(r.month, months), eq(r.status, "sent")))
-    .limit(1);
-  if (sent) return true;
-  const a = schema.annualSubmissions;
-  const [annual] = await q
-    .select({ id: a.id })
-    .from(a)
-    .where(and(eq(a.year, year), eq(a.kind, "send"), eq(a.ok, true)))
-    .limit(1);
-  if (annual) return true;
-  const [closed] = await q.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
-  return Boolean(closed);
 }
 
 /**
@@ -115,12 +107,29 @@ export async function plannedCancellationDate(id: string, todayDate: string): Pr
 }
 
 /**
+ * Die Zeilen des Belegs, wie Haben ihn heute bucht; null, wenn die heutige Buchungslogik ihn nicht mehr annimmt (etwa eine
+ * später verschärfte Regel). Dann bleibt es beim Storno der gebuchten Zeilen.
+ */
+function heutigeBelegZeilen(
+  doc: Document,
+  amounts: { taxRate: number; net: number; tax: number }[],
+  splits: Awaited<ReturnType<typeof loadSplits>>,
+  books: Awaited<ReturnType<typeof openBooks>>,
+): PostingLine[] | null {
+  try {
+    return belegZeilen(doc, amounts, splits, books, doc.vorsteuerAbzug);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Storniert einen gebuchten Beleg: Gegenbuchung im noch offenen Zeitraum der Belegbuchung, sonst am Tag des Stornos
  * (siehe cancellationDate), bei Barzahlung eine Gegenzeile im Kassenbuch, dazu die Zeile in `document_cancellations`.
  * Ein abgeschlossenes Jahr lehnt das Hauptbuch ab.
  */
 export async function cancelDocument(actor: string, id: string, input: CancellationInput, todayDate: string): Promise<DocumentCancellation> {
-  const { reason } = cancellationInputSchema.parse(input);
+  const { reason, allocationIds } = cancellationInputSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [peek] = await tx.select({ payment: schema.documents.payment }).from(schema.documents).where(eq(schema.documents.id, id));
     if (!peek) throw new DocumentError("Beleg nicht gefunden.");
@@ -135,8 +144,9 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.documentCancellations)
       .where(eq(schema.documentCancellations.documentId, id));
     if (already) throw new DocumentError("Der Beleg ist bereits storniert.");
+    await reverseConfirmedAllocations(tx, doc, allocationIds);
     if (doc.payment === "bank" && (await settled(tx, id)) !== 0) {
-      throw new DocumentError("Der Beleg ist schon einer Zahlung zugeordnet. Hebe erst im Bankabgleich die Zuordnung auf, dann stornierst du ihn.");
+      throw new DocumentError("Dem Beleg ist noch eine separate Ausbuchung zugeordnet. Hebe diese im Bankabgleich auf, dann stornierst du ihn.");
     }
 
     const books = await openBooks(tx);
@@ -157,6 +167,11 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.journalLines)
       .where(eq(schema.journalLines.entryId, original.id))
       .orderBy(asc(schema.journalLines.id));
+    // Vor dem Stichjahr gebucht: im heutigen Format, wenn es auf jedem Konto dasselbe ergibt (zeilenWieHeute)
+    const gebucht: PostingLine[] = lines.map((l) => ({ ...l, taxCode: l.taxCode as TaxCode | null }));
+    const vorStichjahr = Number(original.date.slice(0, 4)) < (await journalAbJahr(tx));
+    const amounts = vorStichjahr ? await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)) : [];
+    const zeilen = vorStichjahr ? zeilenWieHeute(gebucht, heutigeBelegZeilen(doc, amounts, await loadSplits(id, tx), books) ?? []) : gebucht;
     const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
     const journalEntryId = await post(tx, books, {
       date,
@@ -165,7 +180,7 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       sourceId: id,
       reversesId: original.id,
       // Soll und Haben getauscht, Steuerschlüssel wie gebucht
-      lines: lines.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode as TaxCode | null })),
+      lines: zeilen.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit, taxCode: l.taxCode })),
     });
     if (doc.payment === "kasse") {
       await reverseDocumentCashEntry(tx, {

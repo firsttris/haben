@@ -1,29 +1,54 @@
-import { useState, type Ref } from "react";
+import { type ChangeEvent, useState, type MouseEvent, type Ref } from "react";
 
 /**
  * Dateiauswahl mit deutscher Beschriftung; der Browser schreibt sonst je nach Sprache „Choose Files“.
- * Gehört in ein <label>, das Eingabefeld bleibt für Tastatur und Formular erreichbar.
+ *
+ * Der Klick auf die Fläche öffnet den Dialog selbst: Der Knopf ist nur ein `span`, ein umschließendes
+ * `<label>` hat ihn bisher zum Auslöser gemacht. `Field` umschließt seine Felder aber bewusst nicht mit
+ * einem `<label>` (siehe `Field.tsx`), dort trägt nur der Feldname den Klick — der Knopf daneben blieb
+ * ohne Wirkung. `preventDefault` nimmt einem umschließenden `<label>` den zweiten Weg, sonst öffneten
+ * sich zwei Dialoge. Deshalb setzt der Handler auch den Fokus selbst, den sonst das Label gesetzt hätte; ohne ihn springt
+ * Tab danach an den Seitenanfang. Ein Klick, der vom Eingabefeld selbst kommt, bleibt unberührt: Auch das Ereignis aus `click()` und
+ * die Tastatur kommen hier an, und `preventDefault` bräche dann den Dialog ab. Das Eingabefeld bleibt für Tastatur und
+ * Formular erreichbar. `onChange` bekommt das Ereignis des Eingabefelds, etwa um die Datei sofort hochzuladen; leeren lässt
+ * sich das Feld samt Anzeige über einen neuen `key`.
  */
 export function FilePicker({
   name,
   accept,
   multiple,
   required,
+  disabled,
+  onChange,
   id,
   inputRef,
   ariaLabel,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
 }: {
   name?: string;
   accept?: string;
   multiple?: boolean;
   required?: boolean;
+  disabled?: boolean;
+  onChange?: (event: ChangeEvent<HTMLInputElement>) => unknown;
   id?: string;
   inputRef?: Ref<HTMLInputElement>;
   ariaLabel?: string;
+  /** Von `Field`: Hinweis und Fehler gehören ans Eingabefeld, wie bei `Combobox` */
+  "aria-describedby"?: string | undefined;
+  "aria-invalid"?: true | undefined;
 }) {
   const [files, setFiles] = useState<string[]>([]);
+  const open = (event: MouseEvent<HTMLSpanElement>) => {
+    const input = event.currentTarget.querySelector<HTMLInputElement>("input[type=file]");
+    if (event.target === input || input?.disabled) return;
+    event.preventDefault();
+    input?.focus();
+    input?.click();
+  };
   return (
-    <span className="file-picker">
+    <span className="file-picker" onClick={open}>
       <input
         id={id}
         ref={inputRef}
@@ -32,9 +57,15 @@ export function FilePicker({
         accept={accept}
         multiple={multiple}
         required={required}
+        disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={describedBy}
+        aria-invalid={invalid}
         className="visually-hidden"
-        onChange={(e) => setFiles([...(e.target.files ?? [])].map((f) => f.name))}
+        onChange={(e) => {
+          setFiles([...(e.target.files ?? [])].map((f) => f.name));
+          onChange?.(e);
+        }}
       />
       <span className="btn btn-sm" aria-hidden="true">
         {multiple ? "Dateien wählen" : "Datei wählen"}

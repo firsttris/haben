@@ -13,6 +13,7 @@ import { fileInUse, lockFileUse } from "../../db/file-in-use.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { removeFile, sha256Of, sniff, storeFile } from "../../storage.ts";
+import { contactRoleProblem } from "../stammdaten/index.ts";
 import { documentFileProblem } from "./documents.ts";
 
 export type Dauerbeleg = typeof schema.recurringDocuments.$inferSelect;
@@ -64,10 +65,11 @@ function values(raw: DauerbelegInput) {
   };
 }
 
-async function checkSupplier(tx: Tx, contactId: string | null): Promise<void> {
-  if (!contactId) return;
-  const [contact] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
-  if (!contact) throw new DauerbelegError("Lieferant nicht gefunden.");
+/** Nur eine neue Zuordnung wird geprüft: ein Kontakt, der inzwischen kein Lieferant mehr ist, bleibt an der Vorlage */
+async function checkSupplier(tx: Tx, contactId: string | null, previous: string | null = null): Promise<void> {
+  if (!contactId || contactId === previous) return;
+  const problem = await contactRoleProblem(tx, contactId, "lieferant", "Lieferant nicht gefunden.");
+  if (problem) throw new DauerbelegError(problem);
 }
 
 /** Prüft die Datei und legt sie im Dokumentenspeicher ab; die Sperre hält, bis die Zeile sie nutzt */
@@ -154,7 +156,7 @@ export async function updateDauerbeleg(actor: string, id: string, input: Dauerbe
   const { updated, unused } = await withActor(actor, async (tx) => {
     const previous = await lockVorlage(tx, id);
     if (previous.status === "beendet") throw new DauerbelegError("Ein beendeter Dauerbeleg lässt sich nicht mehr ändern. Lege bei Bedarf einen neuen an.");
-    await checkSupplier(tx, row.supplierContactId);
+    await checkSupplier(tx, row.supplierContactId, previous.supplierContactId);
     const contract = file ? await storeContract(tx, file) : {};
     // Unveränderter Termin: Ankertag behalten, sonst würde aus dem Monatsletzten nach einer Änderung am 28.02. der 28.
     const anchorDay = row.nextDate === previous.nextDate ? previous.anchorDay : row.anchorDay;

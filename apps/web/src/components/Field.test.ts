@@ -75,8 +75,13 @@ describe("Field", () => {
 
   it("gibt className und style an die Hülle weiter", () => {
     const { html } = render({ className: "breit", style: { gridColumn: "1 / -1" } });
-    // Redact (App) schreibt das Semikolon am Ende, React (Vitest aus der Wurzel) nicht
-    expect(html).toMatch(/^<div class="field breit" style="grid-column:1 \/ -1;?">/);
+    expect(html).toMatch(/^<div class="field breit" style="grid-column:1 \/ -1;">/);
+  });
+
+  it("nimmt den Feldnamen mit hideLabel aus dem Bild, ohne ihn vom Feld zu lösen", () => {
+    const { html, labelFor, controlId } = render({ hideLabel: true });
+    expect(html).toContain('<label class="field-label visually-hidden"');
+    expect(labelFor).toBe(controlId);
   });
 
   it("meldet einen Fehler nur auf Wunsch als Alert", () => {

@@ -10,6 +10,11 @@ Image=docker.io/tristanteu/haben:latest
 # `podman auto-update` zieht neue Images und startet den Dienst neu
 AutoUpdate=registry
 Network=haben.network
+# Gehärtet: Dateisystem schreibgeschützt bis auf die Volumes unten (/tmp legt Podman bei ReadOnly selbst als tmpfs an),
+# keine Capabilities, keine neuen Rechte
+ReadOnly=true
+DropCapability=ALL
+NoNewPrivileges=true
 # Alternativ ERiC von Hand (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME in haben.env setzen
 # Volume=/opt/eric:/opt/eric:ro
 # ELSTER auf arm64: x86_64-Laufzeit aus deploy/eric-x86_64/einrichten.sh, Zeile einkommentieren, ERIC_WORKER_COMMAND in haben.env
@@ -18,7 +23,7 @@ Network=haben.network
 Volume=haben-belege.volume:/var/lib/haben/belege
 # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
 Volume=haben-eric-log.volume:/var/lib/haben/eric-log
-# ERiC, von Haben heruntergeladen (Einstellungen › ERiC oder ERIC_AUTO_INSTALL=ja in haben.env)
+# ERiC, von Haben heruntergeladen (Einstellungen › ELSTER › ERiC oder ERIC_AUTO_INSTALL=ja in haben.env)
 Volume=haben-eric.volume:/var/lib/haben/eric
 # OIDC_SCOPES in haben.env legt bei Bedarf die angefragten Scopes fest.
 EnvironmentFile=%h/.config/haben/haben.env

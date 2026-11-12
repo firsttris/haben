@@ -7,6 +7,8 @@ import { useAction } from "../../lib/use-action.ts";
 import { fileVatReturnElsewhere } from "../../server/functions/vat.ts";
 import { ConfirmDialog } from "../ConfirmDialog.tsx";
 import { NoticeBanner } from "../NoticeBanner.tsx";
+import { Field } from "../Field.tsx";
+import { FilePicker } from "../FilePicker.tsx";
 
 /**
  * Abgabe außerhalb von Haben vermerken (XML-Import in Mein ELSTER, Erweiterung, KI-Assistent): Tag, Transferticket,
@@ -66,29 +68,27 @@ export function AbgabeVermerken({
         Hast du die Voranmeldung in Mein ELSTER abgegeben (XML-Import, Erweiterung oder KI-Assistent), trägst du hier die Angaben aus dem Übermittlungsprotokoll
         ein. Haben schreibt die Anmeldung dann fest wie nach einer Übermittlung über ERiC; die Frist ist erledigt, und die Zahllast erscheint im Bankabgleich.
       </p>
-      <label className="field">
-        Tag der Abgabe
-        <input type="date" value={filedOn} max={today} onChange={(event) => setFiledOn(event.target.value)} required />
-      </label>
-      <label className="field">
-        Transferticket
-        <input value={ticket} onChange={(event) => setTicket(event.target.value)} autoComplete="off" spellCheck={false} required />
-      </label>
-      <label className="field">
-        Kz 83 laut Protokoll
-        <input
-          inputMode="decimal"
-          className="mono"
-          value={zahllast}
-          onChange={(event) => setZahllast(event.target.value)}
-          aria-invalid={zahllast !== "" && parsed === null}
-        />
-        <span className="small">Muss der Voranmeldung entsprechen ({formatEuro(kz83)}), sonst lehnt Haben den Vermerk ab.</span>
-      </label>
-      <label className="field">
-        Übermittlungsprotokoll (PDF)
-        <input type="file" accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
-      </label>
+      <Field label="Tag der Abgabe">
+        {(control) => <input {...control} type="date" value={filedOn} max={today} onChange={(event) => setFiledOn(event.target.value)} required />}
+      </Field>
+      <Field label="Transferticket">
+        {(control) => <input {...control} value={ticket} onChange={(event) => setTicket(event.target.value)} autoComplete="off" spellCheck={false} required />}
+      </Field>
+      <Field label="Kz 83 laut Protokoll" hint={<>Muss der Voranmeldung entsprechen ({formatEuro(kz83)}), sonst lehnt Haben den Vermerk ab.</>}>
+        {(control) => (
+          <input
+            {...control}
+            inputMode="decimal"
+            className="mono"
+            value={zahllast}
+            onChange={(event) => setZahllast(event.target.value)}
+            aria-invalid={zahllast !== "" && parsed === null}
+          />
+        )}
+      </Field>
+      <Field label="Übermittlungsprotokoll (PDF)">
+        {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />}
+      </Field>
       {blocked && <p className="small muted">Erst den Entwurf speichern; vermerkt wird die gespeicherte Anmeldung.</p>}
       <div className="actions">
         <button type="submit" className="btn" disabled={action.busy || !ready}>

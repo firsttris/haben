@@ -1,0 +1,14 @@
+language js(typescript, jsx);
+
+// Formularfelder gehören in `Field` (apps/web/src/components/Field.tsx), nicht in ein eigenes Element mit der Klasse `field`:
+// weder ein umschließendes <label className="field"> noch ein <div className="field"> mit eigenem <label htmlFor>. Das gäbe
+// denselben Aufbau wie Field, ohne dass Hinweis, Fehler und Beschriftung zusammenhängen (Namen und aria-describedby setzt Field).
+// Ausgenommen ist <fieldset className="field">: eine Gruppe mit <legend>, kein einzelnes Feld.
+// $props sind alle Attribute des Elements als Text; gemeint ist `field` als ganzes Wort in className, nicht `field-label`.
+// Erfasst "field", "field weitere", {"field"} und Varianten mit Backticks; berechnete Klassen sieht ein Muster nicht,
+// dafür gibt es den Playwright-Test in apps/web/e2e/barrierefreiheit.spec.ts.
+or { `<$tag $props>$children</$tag>`, `<$tag $props />` } as $element where {
+    $tag <: not `fieldset`,
+    $props <: r"(?s).*className=\{?[\"'`](?:[^\"'`]* )?field(?:[ \"'`][^\"'`]*)?[\"'`]\}?.*",
+    register_diagnostic(span=$props, message="Eigenes Element mit Klasse field: Formularfelder gehören in <Field label=…> (components/Field.tsx, DESIGN.md, Felder). Eine Gruppe mit legend ist ein fieldset mit der Klasse field, kein Feld.", severity="error")
+}

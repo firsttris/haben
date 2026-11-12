@@ -111,6 +111,7 @@ describe("Struktur der Module", () => {
         "env.ts",
         "errors.ts",
         "file-response.ts",
+        "lese-route.ts",
         "middleware.ts",
         "rollen.ts",
         "scheduler.ts",

@@ -1,0 +1,610 @@
+{
+  "bezahlte_rechnung": {
+    "invoice": {
+      "id": "ID_12",
+      "objectName": "Invoice",
+      "additionalInformation": null,
+      "invoiceNumber": "<anon>",
+      "contact": {
+        "id": "ID_13",
+        "objectName": "Contact"
+      },
+      "create": "2017-01-08T18:41:41+01:00",
+      "update": "2022-05-09T03:07:47+02:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "invoiceDate": "2017-01-08T18:40:02+01:00",
+      "header": "<anon>",
+      "headText": "<anon>",
+      "footText": "<anon>",
+      "timeToPay": "5",
+      "discountTime": "0",
+      "discount": "0.00",
+      "addressName": "<anon>",
+      "addressStreet": null,
+      "addressZip": null,
+      "addressCity": null,
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": "2017-01-30T00:00:00+01:00",
+      "createUser": {
+        "id": "ID_14",
+        "objectName": "SevUser"
+      },
+      "deliveryDate": "2016-12-18T00:00:00+01:00",
+      "status": "1000",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_14",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "dunningLevel": null,
+      "addressParentName": null,
+      "taxType": "default",
+      "sendDate": "2017-01-09T10:00:41+01:00",
+      "invoiceType": "RE",
+      "accountIntervall": null,
+      "accountLastInvoice": null,
+      "accountNextInvoice": "2017-01-08T00:00:00+01:00",
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": "0.00",
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountStartDate": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "sumDiscounts": "0.00",
+      "sumNetForeignCurrency": "0.00",
+      "sumTaxForeignCurrency": "0.00",
+      "sumGrossForeignCurrency": "0.00",
+      "sumDiscountsForeignCurrency": "0.00",
+      "sumNetAccounting": "100.00",
+      "sumTaxAccounting": "100.00",
+      "sumGrossAccounting": "100.00",
+      "paidAmount": 100.0,
+      "customerInternalNote": null,
+      "einvoiceReference": null,
+      "sepaMandateReference": null,
+      "sepaCreditorId": null,
+      "sepaPayerIban": null,
+      "showNet": "1",
+      "enshrined": "2017-01-09T10:00:41+01:00",
+      "sendType": "VPDF",
+      "deliveryDateUntil": null,
+      "sendPaymentReceivedNotificationDate": null,
+      "sumDiscountNet": "0.00",
+      "sumDiscountGross": "0.00",
+      "sumDiscountNetForeignCurrency": "0.00",
+      "sumDiscountGrossForeignCurrency": "0.00"
+    },
+    "logs": [
+      {
+        "id": "ID_15",
+        "objectName": "CheckAccountTransactionLog",
+        "additionalInformation": null,
+        "create": "2017-02-03T11:18:22+01:00",
+        "checkAccountTransaction": {
+          "id": "ID_16",
+          "objectName": "CheckAccountTransaction",
+          "additionalInformation": null,
+          "create": "2017-02-03T11:18:22+01:00",
+          "update": "2023-04-01T11:55:41+02:00",
+          "sevClient": {
+            "id": "ID_3",
+            "objectName": "SevClient"
+          },
+          "valueDate": "2017-01-30T00:00:00+01:00",
+          "entryDate": "2017-01-30T00:00:00+01:00",
+          "amount": "100.00",
+          "feeAmount": null,
+          "gvCode": null,
+          "entryText": null,
+          "primaNotaNo": null,
+          "paymtPurpose": "<anon>",
+          "payeePayerBankCode": "<anon>",
+          "payeePayerAcctNo": "<anon>",
+          "payeePayerName": "<anon>",
+          "checkAccount": {
+            "id": "ID_4",
+            "objectName": "CheckAccount"
+          },
+          "status": "400",
+          "score": null,
+          "compareHash": "<anon>",
+          "enshrined": "2023-04-01T11:55:41+02:00",
+          "obonoReceiptUuid": null,
+          "externalId": null,
+          "deletedAt": null,
+          "restoredAt": null
+        },
+        "fromStatus": "100",
+        "toStatus": "200",
+        "amountPaid": 100.0,
+        "bookingDate": "<anon>",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "object": {
+          "id": "ID_12",
+          "objectName": "Invoice"
+        }
+      }
+    ]
+  },
+  "zwei_zahlungen_eine_rechnung": {
+    "invoice": {
+      "id": "ID_17",
+      "objectName": "Invoice",
+      "additionalInformation": null,
+      "invoiceNumber": "<anon>",
+      "contact": {
+        "id": "ID_18",
+        "objectName": "Contact"
+      },
+      "create": "2022-04-06T18:20:20+02:00",
+      "update": "2022-05-09T03:07:53+02:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "invoiceDate": "2021-05-13T00:00:00+02:00",
+      "header": "<anon>",
+      "headText": "<anon>",
+      "footText": "<anon>",
+      "timeToPay": "0",
+      "discountTime": "0",
+      "discount": "0.00",
+      "addressName": "<anon>",
+      "addressStreet": null,
+      "addressZip": null,
+      "addressCity": null,
+      "addressCountry": {
+        "id": "1",
+        "objectName": "StaticCountry"
+      },
+      "payDate": "2021-06-11T00:00:00+02:00",
+      "createUser": {
+        "id": "ID_14",
+        "objectName": "SevUser"
+      },
+      "deliveryDate": "2021-05-13T00:00:00+02:00",
+      "status": "1000",
+      "smallSettlement": "0",
+      "contactPerson": {
+        "id": "ID_14",
+        "objectName": "SevUser"
+      },
+      "taxRate": "0",
+      "taxText": "0",
+      "dunningLevel": null,
+      "addressParentName": null,
+      "taxType": "default",
+      "sendDate": "2022-04-06T18:20:29+02:00",
+      "invoiceType": "RE",
+      "accountIntervall": null,
+      "accountLastInvoice": null,
+      "accountNextInvoice": null,
+      "reminderTotal": null,
+      "reminderDebit": null,
+      "reminderDeadline": null,
+      "reminderCharge": "0.00",
+      "addressParentName2": null,
+      "addressName2": null,
+      "addressGender": null,
+      "accountStartDate": null,
+      "accountEndDate": null,
+      "address": "<anon>",
+      "currency": "EUR",
+      "sumNet": "100.00",
+      "sumTax": "100.00",
+      "sumGross": "100.00",
+      "sumDiscounts": "0.00",
+      "sumNetForeignCurrency": "0.00",
+      "sumTaxForeignCurrency": "0.00",
+      "sumGrossForeignCurrency": "0.00",
+      "sumDiscountsForeignCurrency": "0.00",
+      "sumNetAccounting": "100.00",
+      "sumTaxAccounting": "100.00",
+      "sumGrossAccounting": "100.00",
+      "paidAmount": 100.0,
+      "customerInternalNote": "<anon>",
+      "einvoiceReference": null,
+      "sepaMandateReference": null,
+      "sepaCreditorId": null,
+      "sepaPayerIban": null,
+      "showNet": "0",
+      "enshrined": "2022-04-06T18:20:29+02:00",
+      "sendType": "VPDF",
+      "deliveryDateUntil": null,
+      "sendPaymentReceivedNotificationDate": null,
+      "sumDiscountNet": "0.00",
+      "sumDiscountGross": "0.00",
+      "sumDiscountNetForeignCurrency": "0.00",
+      "sumDiscountGrossForeignCurrency": "0.00"
+    },
+    "logs": [
+      {
+        "id": "ID_19",
+        "objectName": "CheckAccountTransactionLog",
+        "additionalInformation": null,
+        "create": "2022-04-06T18:21:01+02:00",
+        "checkAccountTransaction": {
+          "id": "ID_20",
+          "objectName": "CheckAccountTransaction",
+          "additionalInformation": null,
+          "create": "2021-06-12T08:07:00+02:00",
+          "update": "2023-04-01T11:55:35+02:00",
+          "sevClient": {
+            "id": "ID_3",
+            "objectName": "SevClient"
+          },
+          "valueDate": "2021-06-11T00:00:00+02:00",
+          "entryDate": "2021-06-11T00:00:00+02:00",
+          "amount": "100.00",
+          "feeAmount": null,
+          "gvCode": null,
+          "entryText": null,
+          "primaNotaNo": null,
+          "paymtPurpose": "<anon>",
+          "payeePayerBankCode": "<anon>",
+          "payeePayerAcctNo": "<anon>",
+          "payeePayerName": "<anon>",
+          "checkAccount": {
+            "id": "ID_21",
+            "objectName": "CheckAccount"
+          },
+          "status": "400",
+          "score": null,
+          "compareHash": "<anon>",
+          "enshrined": "2023-04-01T11:55:35+02:00",
+          "obonoReceiptUuid": null,
+          "externalId": "<anon>",
+          "deletedAt": null,
+          "restoredAt": null
+        },
+        "fromStatus": "100",
+        "toStatus": "400",
+        "amountPaid": 100.0,
+        "bookingDate": "<anon>",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "object": {
+          "id": "ID_17",
+          "objectName": "Invoice"
+        }
+      },
+      {
+        "id": "ID_22",
+        "objectName": "CheckAccountTransactionLog",
+        "additionalInformation": null,
+        "create": "2022-04-06T18:21:10+02:00",
+        "checkAccountTransaction": {
+          "id": "ID_23",
+          "objectName": "CheckAccountTransaction",
+          "additionalInformation": null,
+          "create": "2021-06-12T08:07:00+02:00",
+          "update": "2023-04-01T11:55:35+02:00",
+          "sevClient": {
+            "id": "ID_3",
+            "objectName": "SevClient"
+          },
+          "valueDate": "2021-06-11T00:00:00+02:00",
+          "entryDate": "2021-06-11T00:00:00+02:00",
+          "amount": "100.00",
+          "feeAmount": null,
+          "gvCode": null,
+          "entryText": null,
+          "primaNotaNo": null,
+          "paymtPurpose": "<anon>",
+          "payeePayerBankCode": "<anon>",
+          "payeePayerAcctNo": "<anon>",
+          "payeePayerName": "<anon>",
+          "checkAccount": {
+            "id": "ID_21",
+            "objectName": "CheckAccount"
+          },
+          "status": "400",
+          "score": null,
+          "compareHash": "<anon>",
+          "enshrined": "2023-04-01T11:55:35+02:00",
+          "obonoReceiptUuid": null,
+          "externalId": "<anon>",
+          "deletedAt": null,
+          "restoredAt": null
+        },
+        "fromStatus": "100",
+        "toStatus": "400",
+        "amountPaid": 100.0,
+        "bookingDate": "<anon>",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "object": {
+          "id": "ID_17",
+          "objectName": "Invoice"
+        }
+      }
+    ]
+  },
+  "ein_umsatz_zwei_rechnungen": [
+    {
+      "id": "ID_24",
+      "objectName": "CheckAccountTransactionLog",
+      "additionalInformation": null,
+      "create": "2017-06-02T11:27:20+02:00",
+      "checkAccountTransaction": {
+        "id": "ID_25",
+        "objectName": "CheckAccountTransaction",
+        "additionalInformation": null,
+        "create": "2017-05-14T14:46:13+02:00",
+        "update": "2023-04-01T11:55:41+02:00",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "valueDate": "2017-05-08T00:00:00+02:00",
+        "entryDate": "2017-05-08T00:00:00+02:00",
+        "amount": "100.00",
+        "feeAmount": null,
+        "gvCode": null,
+        "entryText": null,
+        "primaNotaNo": null,
+        "paymtPurpose": "<anon>",
+        "payeePayerBankCode": "<anon>",
+        "payeePayerAcctNo": "<anon>",
+        "payeePayerName": "<anon>",
+        "checkAccount": {
+          "id": "ID_4",
+          "objectName": "CheckAccount"
+        },
+        "status": "400",
+        "score": null,
+        "compareHash": "<anon>",
+        "enshrined": "2023-04-01T11:55:41+02:00",
+        "obonoReceiptUuid": null,
+        "externalId": null,
+        "deletedAt": null,
+        "restoredAt": null
+      },
+      "fromStatus": "100",
+      "toStatus": "100",
+      "amountPaid": 100.0,
+      "bookingDate": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "object": {
+        "id": "ID_26",
+        "objectName": "Invoice"
+      }
+    },
+    {
+      "id": "ID_27",
+      "objectName": "CheckAccountTransactionLog",
+      "additionalInformation": null,
+      "create": "2017-06-02T11:27:43+02:00",
+      "checkAccountTransaction": {
+        "id": "ID_25",
+        "objectName": "CheckAccountTransaction",
+        "additionalInformation": null,
+        "create": "2017-05-14T14:46:13+02:00",
+        "update": "2023-04-01T11:55:41+02:00",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "valueDate": "2017-05-08T00:00:00+02:00",
+        "entryDate": "2017-05-08T00:00:00+02:00",
+        "amount": "100.00",
+        "feeAmount": null,
+        "gvCode": null,
+        "entryText": null,
+        "primaNotaNo": null,
+        "paymtPurpose": "<anon>",
+        "payeePayerBankCode": "<anon>",
+        "payeePayerAcctNo": "<anon>",
+        "payeePayerName": "<anon>",
+        "checkAccount": {
+          "id": "ID_4",
+          "objectName": "CheckAccount"
+        },
+        "status": "400",
+        "score": null,
+        "compareHash": "<anon>",
+        "enshrined": "2023-04-01T11:55:41+02:00",
+        "obonoReceiptUuid": null,
+        "externalId": null,
+        "deletedAt": null,
+        "restoredAt": null
+      },
+      "fromStatus": "100",
+      "toStatus": "200",
+      "amountPaid": 100.0,
+      "bookingDate": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "object": {
+        "id": "ID_28",
+        "objectName": "Invoice"
+      }
+    }
+  ],
+  "ausgabebelege": [
+    {
+      "id": "ID_1",
+      "objectName": "CheckAccountTransactionLog",
+      "additionalInformation": null,
+      "create": "2020-10-18T16:40:35+02:00",
+      "checkAccountTransaction": {
+        "id": "ID_2",
+        "objectName": "CheckAccountTransaction",
+        "additionalInformation": null,
+        "create": "2017-01-09T08:53:39+01:00",
+        "update": "2023-04-01T11:55:41+02:00",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "valueDate": "2016-10-21T00:00:00+02:00",
+        "entryDate": "2016-10-21T00:00:00+02:00",
+        "amount": "-100.00",
+        "feeAmount": null,
+        "gvCode": null,
+        "entryText": null,
+        "primaNotaNo": null,
+        "paymtPurpose": "<anon>",
+        "payeePayerBankCode": "<anon>",
+        "payeePayerAcctNo": "<anon>",
+        "payeePayerName": "<anon>",
+        "checkAccount": {
+          "id": "ID_4",
+          "objectName": "CheckAccount"
+        },
+        "status": "400",
+        "score": null,
+        "compareHash": "<anon>",
+        "enshrined": "2023-04-01T11:55:41+02:00",
+        "obonoReceiptUuid": null,
+        "externalId": null,
+        "deletedAt": null,
+        "restoredAt": null
+      },
+      "fromStatus": "100",
+      "toStatus": "400",
+      "amountPaid": -100.0,
+      "bookingDate": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "object": {
+        "id": "ID_5",
+        "objectName": "Voucher"
+      }
+    },
+    {
+      "id": "ID_6",
+      "objectName": "CheckAccountTransactionLog",
+      "additionalInformation": null,
+      "create": "2020-11-02T13:55:27+01:00",
+      "checkAccountTransaction": {
+        "id": "ID_7",
+        "objectName": "CheckAccountTransaction",
+        "additionalInformation": null,
+        "create": "2017-01-09T08:53:39+01:00",
+        "update": "2023-04-01T11:55:41+02:00",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "valueDate": "2016-10-31T00:00:00+01:00",
+        "entryDate": "2016-10-31T00:00:00+01:00",
+        "amount": "-100.00",
+        "feeAmount": null,
+        "gvCode": null,
+        "entryText": null,
+        "primaNotaNo": null,
+        "paymtPurpose": "<anon>",
+        "payeePayerBankCode": null,
+        "payeePayerAcctNo": null,
+        "payeePayerName": "<anon>",
+        "checkAccount": {
+          "id": "ID_4",
+          "objectName": "CheckAccount"
+        },
+        "status": "400",
+        "score": null,
+        "compareHash": "<anon>",
+        "enshrined": "2023-04-01T11:55:41+02:00",
+        "obonoReceiptUuid": null,
+        "externalId": null,
+        "deletedAt": null,
+        "restoredAt": null
+      },
+      "fromStatus": "100",
+      "toStatus": "400",
+      "amountPaid": -100.0,
+      "bookingDate": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "object": {
+        "id": "ID_8",
+        "objectName": "Voucher"
+      }
+    },
+    {
+      "id": "ID_9",
+      "objectName": "CheckAccountTransactionLog",
+      "additionalInformation": null,
+      "create": "2020-10-18T16:41:26+02:00",
+      "checkAccountTransaction": {
+        "id": "ID_10",
+        "objectName": "CheckAccountTransaction",
+        "additionalInformation": null,
+        "create": "2017-01-09T08:53:39+01:00",
+        "update": "2023-04-01T11:55:41+02:00",
+        "sevClient": {
+          "id": "ID_3",
+          "objectName": "SevClient"
+        },
+        "valueDate": "2016-11-19T00:00:00+01:00",
+        "entryDate": "2016-11-19T00:00:00+01:00",
+        "amount": "-100.00",
+        "feeAmount": null,
+        "gvCode": null,
+        "entryText": null,
+        "primaNotaNo": null,
+        "paymtPurpose": "<anon>",
+        "payeePayerBankCode": "<anon>",
+        "payeePayerAcctNo": "<anon>",
+        "payeePayerName": "<anon>",
+        "checkAccount": {
+          "id": "ID_4",
+          "objectName": "CheckAccount"
+        },
+        "status": "400",
+        "score": null,
+        "compareHash": "<anon>",
+        "enshrined": "2023-04-01T11:55:41+02:00",
+        "obonoReceiptUuid": null,
+        "externalId": null,
+        "deletedAt": null,
+        "restoredAt": null
+      },
+      "fromStatus": "100",
+      "toStatus": "400",
+      "amountPaid": -100.0,
+      "bookingDate": "<anon>",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "object": {
+        "id": "ID_11",
+        "objectName": "Voucher"
+      }
+    }
+  ]
+}

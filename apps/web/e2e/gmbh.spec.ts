@@ -1,3 +1,4 @@
+import { filePickerPruefen } from "./dateiauswahl.ts";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
@@ -938,11 +939,14 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
 
   // Abgabe vermerken, mit Protokoll aus dem Portal
   const vermerk = nachweis.getByRole("form", { name: /^Abgabe vermerken/ });
-  await vermerk
-    .getByLabel("Protokoll (PDF oder Bild, optional)")
-    .setInputFiles({ name: "protokoll.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Protokoll\n%%EOF\n") });
+  const protokollFeld = vermerk.locator(".field", { has: page.getByText("Protokoll (PDF oder Bild, optional)", { exact: true }) });
+  const protokollDialog = await filePickerPruefen(page, protokollFeld, "Protokoll zum Beitragsnachweis");
+  await protokollDialog.setFiles({ name: "protokoll.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Protokoll\n%%EOF\n") });
+  await expect(protokollFeld.locator(".file-picker-name")).toHaveText("protokoll.pdf");
   await vermerk.getByRole("button", { name: "Im Portal abgegeben" }).click();
   await expect(nachweis.getByText("Vermerkt: im Portal abgegeben.")).toBeVisible();
+  // Nach dem Vermerk ist das Feld wieder leer, auch in der Anzeige
+  await expect(vermerk.locator(".file-picker-name")).toHaveText("Keine Datei gewählt");
   await expect(nachweis.getByText("abgegeben", { exact: true })).toBeVisible();
   const protokoll = await page.request.get((await nachweis.getByRole("link", { name: "Protokoll protokoll.pdf" }).getAttribute("href"))!);
   expect((await protokoll.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
@@ -1070,4 +1074,33 @@ test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steh
   // Was nur eine Erklärung betrifft, bleibt in ihrer Karte
   await expect(page.getByRole("region", { name: /^Gewerbesteuererklärung/ }).first()).toContainText(`nicht für ${jahr}`);
   expect(await axe(), `/jahreserklaerung/${jahr} GmbH`).toEqual([]);
+});
+
+test("Freie Buchung mit Steuerschlüssel: Leistung an den Gesellschafter, brutto geteilt, im Journal mit Umsatzsteuer", async () => {
+  await go("/buchungen/neu");
+  const form = page.getByRole("form", { name: "Manuelle Buchung" });
+  await form.getByLabel("Buchungstext").fill("Software für den Gesellschafter privat");
+  await form.getByLabel("Konto Zeile 1").fill("3510");
+  await form.getByLabel("Soll Zeile 1").fill("119,00");
+  // Der Schlüssel füllt das Erlöskonto seines Satzes vor; auf einem anderen Konto ist er nicht buchbar
+  await form.getByLabel("Steuerschlüssel Zeile 2").selectOption("USt19");
+  await expect(form.getByLabel("Konto Zeile 2")).toHaveValue("4400");
+  await form.getByLabel("Haben Zeile 2").fill("119,00");
+  const gebucht = form.getByRole("status", { name: "Gebucht wird" });
+  await expect(gebucht).toContainText("4400");
+  await expect(gebucht).toContainText("Haben 100,00");
+  await expect(gebucht).toContainText("3806");
+  await expect(gebucht).toContainText("Haben 19,00");
+  await form.getByLabel("Konto Zeile 2").fill("4300");
+  await expect(form.getByRole("status", { name: "Noch nicht buchbar" })).toContainText("Mit USt19 bucht die Zeile auf 4400");
+  await form.getByLabel("Konto Zeile 2").fill("4400");
+  expect(await axe(), "/buchungen/neu mit Steuerschlüssel").toEqual([]);
+  await form.getByRole("button", { name: "Buchen" }).click();
+
+  await page.waitForURL(/\/buchungen\?/);
+  const row = page.getByRole("region", { name: "Buchungen" }).getByRole("row").filter({ hasText: "Software für den Gesellschafter privat" });
+  await expect(row).toContainText("Manuell");
+  await expect(row).toContainText("119,00");
+  await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
+  await expect(page.getByRole("region", { name: "Buchungen" })).toContainText("3806");
 });

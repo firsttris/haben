@@ -17,7 +17,8 @@ export interface FieldControlProps {
  * children bekommt die Eigenschaften und gibt sie ans Feld weiter, so geht es für `input`, `select` und eigene Komponenten
  * gleich. describedBy nennt Hinweise, die außerhalb stehen, etwa einen gemeinsamen für zwei Felder. announceError liest
  * einen Fehler sofort vor, wenn er erst nach einer Aktion erscheint; beim Tippen wäre das zu viel. className und style
- * gehören an die Hülle, etwa für `gridColumn`.
+ * gehören an die Hülle, etwa für `gridColumn`. hideLabel nimmt den Feldnamen aus dem Bild, er bleibt für Screenreader und
+ * Sprachsteuerung (Suchfelder ohne sichtbare Beschriftung).
  */
 export function Field({
   label,
@@ -25,6 +26,7 @@ export function Field({
   error,
   describedBy,
   announceError = false,
+  hideLabel = false,
   className,
   style,
   children,
@@ -34,6 +36,7 @@ export function Field({
   error?: ReactNode;
   describedBy?: string | undefined;
   announceError?: boolean;
+  hideLabel?: boolean;
   className?: string;
   style?: CSSProperties;
   children: (control: FieldControlProps) => ReactNode;
@@ -44,7 +47,7 @@ export function Field({
   const description = [describedBy, hintId, errorId].filter(Boolean).join(" ");
   return (
     <div className={className ? `field ${className}` : "field"} style={style}>
-      <label className="field-label" htmlFor={id}>
+      <label className={hideLabel ? "field-label visually-hidden" : "field-label"} htmlFor={id}>
         {label}
       </label>
       {children({ id, "aria-describedby": description || undefined, "aria-invalid": error ? true : undefined })}

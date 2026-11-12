@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
   });
 
   beforeEach(async () => {
-    await sql`truncate vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -117,6 +117,9 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
     await sql`alter table allocations disable trigger user`;
     await sql`update allocations set tax_shares = null`;
     await sql`alter table allocations enable trigger user`;
+    // Raten ohne gespeicherten Anteil gibt es nur aus der Zeit vor der Migration; solche Jahre liegen vor dem Stichjahr und
+    // rechnen die Voranmeldung weiter aus den Nebenbüchern (Migration 0192, docs/adr/journal-als-quelle.md)
+    await sql`update company set journal_ab = 2027`;
     await pay(inv.id, [["20.10.26", "Neu", "39,64"]]);
     const oct = await figures.computeVatFigures({ year: 2026, month: 10 });
     // Gespeichert und gebucht wurde für die neue Rate 57,00 − 8 × 6,33 = 6,36 € (Journal mit echten Altzeilen: 50,64 + 6,36 = 57,00 €)

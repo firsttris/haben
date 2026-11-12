@@ -1,13 +1,13 @@
 import { formatEuro, parsePeriodKey, periodKey, periodLabel, ZM_ART_LABEL, zmEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getZm, submitZmMeldung } from "../../../server/functions/zm.ts";
+import { Field } from "../../../components/Field.tsx";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/zm/$quartal")({
   loader: ({ params }) => {
@@ -26,7 +26,6 @@ type Zeile = Data["zeilen"][number];
 function ZmPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
-  const selectId = useId();
   const key = periodKey(data.period);
   const options = data.quartale.some((q) => periodKey(q) === key) ? data.quartale : [...data.quartale, data.period];
 
@@ -37,16 +36,17 @@ function ZmPage() {
           <div className="eyebrow">Umsatzsteuer › Zusammenfassende Meldung</div>
           <h1>{periodLabel(data.period)}</h1>
         </div>
-        <label className="field" htmlFor={selectId}>
-          Quartal
-          <select id={selectId} value={key} onChange={(event) => navigate({ to: "/umsatzsteuer/zm/$quartal", params: { quartal: event.target.value } })}>
-            {options.map((option) => (
-              <option key={periodKey(option)} value={periodKey(option)}>
-                {periodLabel(option)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Quartal">
+          {(control) => (
+            <select {...control} value={key} onChange={(event) => navigate({ to: "/umsatzsteuer/zm/$quartal", params: { quartal: event.target.value } })}>
+              {options.map((option) => (
+                <option key={periodKey(option)} value={periodKey(option)}>
+                  {periodLabel(option)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
 
       {data.mode === "simuliert" && (

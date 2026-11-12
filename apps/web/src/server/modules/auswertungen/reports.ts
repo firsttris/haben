@@ -1,4 +1,5 @@
 import {
+  isKapitalgesellschaft,
   bareinnahmeTotals,
   computeEuer,
   EXPENSE_CATEGORIES,
@@ -16,6 +17,10 @@ import {
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
+import { journalAbJahr, loadCompany } from "../stammdaten/index.ts";
+import { euerVerschiebung } from "./euer-jahreswechsel.ts";
+import { verrechnungenImJahr } from "./verrechnungen.ts";
+import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { splitsByDocument } from "../belege/index.ts";
@@ -31,8 +36,12 @@ function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]
   return totalsFromTaxes(amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })));
 }
 
-async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<string, InvoiceTotals>> {
-  if (ids.length === 0) return new Map();
+/** Summen je Beleg; reverseCharge sind die Belege mit selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
+async function documentTotalsById(
+  ids: string[],
+  q: Db | Tx = db,
+): Promise<{ totals: Map<string, InvoiceTotals>; reverseCharge: Set<string>; selbstGeschuldet: Map<string, number[]> }> {
+  if (ids.length === 0) return { totals: new Map(), reverseCharge: new Set(), selbstGeschuldet: new Map() };
   const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
   const reverseCharge = new Set(
     (
@@ -44,12 +53,17 @@ async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<s
   );
   // § 13b: Gezahlt ist nur netto. Die selbst geschuldete Steuer und die Vorsteuer daraus heben sich auf;
   // ohne Vorsteuerabzug zählt die Steuer, wenn sie mit der Voranmeldung ans Finanzamt geht.
-  return new Map(
+  const totals = new Map(
     ids.map((id) => {
       const rows = amounts.filter((a) => a.documentId === id);
       return [id, documentTotals(reverseCharge.has(id) ? rows.map((a) => ({ ...a, tax: 0 })) : rows)];
     }),
   );
+  return {
+    totals,
+    reverseCharge,
+    selbstGeschuldet: new Map([...reverseCharge].map((id) => [id, amounts.filter((a) => a.documentId === id).map((a) => a.tax)])),
+  };
 }
 
 /**
@@ -60,6 +74,9 @@ async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<s
 export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerPayment[]> {
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
+  // Vorauszahlung für Dezember bzw. das vierte Quartal vom 1. bis 10. Januar: zählt im Vorjahr (euer-jahreswechsel.ts)
+  const { herein, hinaus } = await euerVerschiebung(year, q);
+  const imJahr = and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end));
   const allocations = await q
     .select({
       id: schema.allocations.id,
@@ -90,8 +107,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
     .where(
       and(
-        gte(schema.bankTransactions.bookingDate, start),
-        lt(schema.bankTransactions.bookingDate, end),
+        herein.size > 0 ? or(imJahr, inArray(schema.allocations.id, [...herein])) : imJahr,
         inArray(schema.allocations.kind, [
           "invoice",
           "document",
@@ -147,6 +163,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       and(inArray(schema.documents.payment, ["privat", "kasse"]), gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)),
     );
 
+  // Verrechnungen zweier Belege ohne Zahlung (#274), siehe verrechnungen.ts
+  const settlements = await verrechnungenImJahr(start, end, q);
+
   // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
   const exchangeDifferences = await q
@@ -199,25 +218,36 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
     q,
   );
-  const docTotals = await documentTotalsById(
+  const {
+    totals: docTotals,
+    reverseCharge,
+    selbstGeschuldet,
+  } = await documentTotalsById(
     [
       ...new Set([
         ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
+        ...settlements.map((s) => s.documentId),
         ...privateDocs.map((d) => d.id),
         ...cancelledDocs.map((d) => d.id),
       ]),
     ],
     q,
   );
-  // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs
+  // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs; § 13b: die selbst geschuldete Steuer
   const docSplits = await splitsByDocument([...docTotals.keys()], q);
-  const splitsOf = (documentId: string) => {
+  const belegAngaben = (documentId: string) => {
     const splits = docSplits.get(documentId);
-    return splits ? { splits } : {};
+    const steuer = selbstGeschuldet.get(documentId);
+    const rc = steuer ? { selbstGeschuldet: steuer } : {};
+    if (!splits) return rc;
+    // § 13b (#508): Die Zeilen tragen ihren Anteil der selbst geschuldeten Steuer; gezahlt ist wie in docTotals nur netto
+    return { ...rc, splits: reverseCharge.has(documentId) ? splits.map((line) => ({ ...line, tax: 0 })) : splits };
   };
 
   const payments: EuerPayment[] = [];
-  for (const a of allocations) {
+  for (const zuordnung of allocations) {
+    if (hinaus.has(zuordnung.id)) continue;
+    const a = herein.has(zuordnung.id) ? { ...zuordnung, date: `${year}-12-31` } : zuordnung;
     // Zuordnung und Gegenzeile hängen am selben Umsatz und heben sich so exakt auf
     const group = `${a.transactionId}|${a.invoiceId ?? a.documentId ?? a.kind}`;
     if (a.kind === "invoice" && a.invoiceId) {
@@ -242,7 +272,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(a.category) ? a.category : "sonstiges",
         vorsteuerAbzug: a.vorsteuerAbzug ?? true,
         privateShare: a.privateShare ?? 0,
-        ...splitsOf(a.documentId),
+        ...belegAngaben(a.documentId),
         group,
       });
     } else if (
@@ -253,7 +283,16 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       a.kind === "zinsertrag" ||
       a.kind === "kursdifferenz"
     ) {
-      payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
+      payments.push({
+        kind: a.kind,
+        date: a.date,
+        amount: a.amount,
+        // Verrechnete Zahlung und Erstattung desselben Umsatzes bleiben eigene EÜR-Zeilen (Anleitung EÜR 2025, Z. 18/58).
+        // Nur eine Zuordnung und ihre Gegenzeile verrechnen; ustAbfluss gehört jeweils zu dieser ursprünglichen Zuordnung.
+        group: a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? (a.reversesId ?? a.id) : group,
+        // Die Richtung bleibt die der ursprünglichen Zuordnung, auch nach einer jahresübergreifenden Rücknahme.
+        ...(a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? { ustAbfluss: (a.reversesId ? -a.amount : a.amount) < 0 } : {}),
+      });
     } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
       // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,
@@ -278,6 +317,19 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });
     }
   }
+  // Verrechnung wie eine Zahlung auf den Beleg: ausgeglichen ist `-amount`, gezahlt also `amount` mit umgekehrtem Vorzeichen
+  for (const s of settlements) {
+    payments.push({
+      kind: "document",
+      date: s.date,
+      paid: -s.amount,
+      totals: docTotals.get(s.documentId)!,
+      category: isCategory(s.category) ? s.category : "sonstiges",
+      vorsteuerAbzug: s.vorsteuerAbzug ?? true,
+      privateShare: s.privateShare ?? 0,
+      ...belegAngaben(s.documentId),
+    });
+  }
   for (const w of exchangeDifferences) {
     const group = `kurs|${w.transactionId}|${w.invoiceId ?? w.documentId}`;
     if (w.invoiceId) {
@@ -301,7 +353,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(w.category) ? w.category : "sonstiges",
         vorsteuerAbzug: w.vorsteuerAbzug ?? true,
         privateShare: w.privateShare ?? 0,
-        ...splitsOf(w.documentId),
+        ...belegAngaben(w.documentId),
         group,
       });
     }
@@ -334,7 +386,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     category: isCategory(d.category) ? d.category : "sonstiges",
     vorsteuerAbzug: d.vorsteuerAbzug,
     privateShare: d.privateShare,
-    ...splitsOf(d.id),
+    ...belegAngaben(d.id),
   });
   for (const d of privateDocs) payments.push(documentPayment(d, d.date!, d.gross));
   for (const d of cancelledDocs) payments.push(documentPayment(d, d.date, -d.gross));
@@ -384,7 +436,8 @@ export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db
 /**
  * Umsatzsteuer früherer Jahre (Steuerzahlung) in den zehn Tagen um einen Jahreswechsel. Eine Abschlusszahlung aus der
  * Jahreserklärung zählt im Jahr der Zahlung; ist es aber die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie
- * als regelmäßig wiederkehrende Ausgabe in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) und als Voranmeldung zugeordnet.
+ * als Voranmeldung zugeordnet. Dann zählt die EÜR sie im Vorjahr, wenn sie dort fällig war (§ 11 Abs. 2 Satz 2 EStG,
+ * euer-jahreswechsel.ts).
  */
 export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | Tx = db): Promise<number> {
   return zahlungenUmJahreswechsel(
@@ -394,8 +447,21 @@ export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | 
   );
 }
 
+/** Die EÜR aus den Nebenbüchern (Zahlungen, Belege, Pauschalen, Anlagenverzeichnis); ab dem Stichjahr die Gegenprobe */
+export async function euerAusNebenbuechern(year: number, q: Db | Tx = db): Promise<EuerResult> {
+  const euer = computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  // Freie Buchungen gibt es in der EÜR nur im Einzelunternehmen; manuelle Buchungen einer GmbH sind Abschlussbuchungen
+  return isKapitalgesellschaft((await loadCompany(q)).rechtsform) ? euer : mitFreienBuchungen(euer, q);
+}
+
+/**
+ * Die EÜR eines Jahres: ab dem Stichjahr aus dem Journal (#542, euer-quelle.ts), davor aus den Nebenbüchern. Nur im
+ * Einzelunternehmen: GmbH und UG bilanzieren (#567); ihre Übersicht nach Zahlung bleibt aus den Nebenbüchern, sonst
+ * zählten Abschlussbuchungen wie Rückstellungen als Ausgabe ohne Zahlung (Entwurf, Entscheidung 3).
+ */
 export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
-  return computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
+  if (year < (await journalAbJahr(q)) || isKapitalgesellschaft((await loadCompany(q)).rechtsform)) return euerAusNebenbuechern(year, q);
+  return euerAusDemJournal(year, q);
 }
 
 export interface OpenPosition {
@@ -421,6 +487,7 @@ async function paidSums(ids: string[]) {
     sql`select id, sum(amount) as paid from (
           select document_id as id, amount from allocations where document_id in ${ids}
           union all select document_id as id, amount from write_offs where document_id in ${ids}
+          union all select document_id as id, amount from document_settlements where document_id in ${ids}
         ) settled group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
@@ -516,7 +583,7 @@ export async function openPositions(today: string) {
 export async function reportYears(): Promise<number[]> {
   const rows = await db.execute<{ year: number }>(sql`
     select distinct extract(year from d)::int as year from (
-      select booking_date as d from bank_transactions
+      select booking_date as d from bank_transactions where bank_account_id not in (select id from bank_accounts where excluded_at is not null)
       union all select issue_date from invoices where status = 'final'
       union all select document_date from documents where status = 'gebucht' and document_date is not null
     ) dates order by 1`);

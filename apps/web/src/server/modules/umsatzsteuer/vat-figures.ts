@@ -11,13 +11,16 @@ import {
   type Cents,
   type TaxTreatment,
   type VatPeriod,
+  JOURNAL_KENNZAHLEN,
+  type JournalKennzahlen,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
-import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
+import { journalAbJahr, kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
+import { kennzahlenAusDemJournal } from "./vat-journal.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bankOpenAmountSql } from "../../db/bank-open.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { bankAccountIncludedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
+import { invoiceTaxYear, invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /**
@@ -68,9 +71,11 @@ export interface IgErwerbSource extends InputTaxSource {
 /**
  * Steuerfälle der Ausgangsrechnung, die auch bei Ist-Versteuerung nach Rechnungsdatum gemeldet werden: Reverse Charge
  * (Kz 21) und innergemeinschaftliche Lieferungen (Kz 41) im Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist,
- * spätestens im Folgemonat der Leistung (§ 18b Satz 1 und 2 UStG); Haben nimmt das Rechnungsdatum.
+ * spätestens im Folgemonat der Leistung (§ 18b Satz 1 und 2 UStG); Haben nimmt das Rechnungsdatum. Ebenso nicht steuerbare
+ * Leistungen ins Drittland (Kz 45): DATEV weist bei Ist-Versteuerung nur steuerpflichtige und steuerfreie inländische
+ * Umsätze mit der Zahlung aus, nicht steuerbare Umsätze im Drittland schon mit der Rechnung (DATEV-Dok. 1080673).
  */
-export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung"] as const satisfies readonly TaxTreatment[];
+export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung", "drittland"] as const satisfies readonly TaxTreatment[];
 
 export interface VatFigures {
   versteuerung: "ist" | "soll";
@@ -111,6 +116,33 @@ export interface VatFigures {
   igErwerb: IgErwerbSource[];
   /** Belege zur Einfuhrumsatzsteuer: der ganze Betrag als Steuer */
   einfuhr: InputTaxSource[];
+  /**
+   * Woher die Kennzahlen kommen: ab dem Stichjahr aus dem Journal (#542, docs/adr/journal-als-quelle.md), davor aus den
+   * Nebenbüchern. Die Listen (revenue, inputTax, …) kommen immer aus den Nebenbüchern; sie erläutern die Kennzahlen.
+   */
+  quelle: "journal" | "nebenbuecher";
+  /** Ab dem Stichjahr: die Kennzahlen aus den Nebenbüchern, die Gegenprobe im Abgleich */
+  nebenbuecher?: JournalKennzahlen;
+}
+
+/**
+ * Ab dem Stichjahr (journalAbJahr) sind die Kennzahlen die aus dem Journal; die Privatnutzung von Fahrzeugen kommt dazu wie
+ * in den Nebenbüchern aus dem Anlagenverzeichnis. Die Kennzahlen der Nebenbücher bleiben als Gegenprobe für den Abgleich.
+ */
+async function journalAlsQuelle(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
+  if (period.year < (await journalAbJahr(q))) return figures;
+  return ausDemJournal(period, figures, q);
+}
+
+async function ausDemJournal(period: VatPeriod, figures: VatFigures, q: Db | Tx): Promise<VatFigures> {
+  const journal = await kennzahlenAusDemJournal(period, figures.versteuerung, q);
+  const entnahme = figures.revenue.filter((r) => r.type === "entnahme");
+  journal.kz81 += entnahme.reduce((s, r) => s + r.base, 0);
+  journal.tax81 += entnahme.reduce((s, r) => s + r.tax, 0);
+  // Freie Buchungen haben kein Nebenbuch; die Gegenprobe zählt sie aus der festgeschriebenen Buchung selbst
+  const manuell = await kennzahlenAusDemJournal(period, figures.versteuerung, q, true);
+  const nebenbuecher = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, figures[feld] + manuell[feld]])) as JournalKennzahlen;
+  return { ...figures, ...journal, quelle: "journal", nebenbuecher };
 }
 
 /**
@@ -122,9 +154,21 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   const { start, end } = periodRange(period);
   // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
   const versteuerung = await versteuerungForYear(period.year, q);
+  // Alte Rechnungen behalten auch für spätere Zahlungen und Ausbuchungen ihr Verfahren.
+  // Pro Rechnungsjahr nur einmal im Änderungsprotokoll nachsehen.
+  const modes = new Map([[period.year, versteuerung]]);
+  async function invoiceMode(invoice: { issueDate: string; correctsId: string | null }) {
+    const year = await invoiceTaxYear(invoice, q);
+    let mode = modes.get(year);
+    if (!mode) {
+      mode = await versteuerungForYear(year, q);
+      modes.set(year, mode);
+    }
+    return mode;
+  }
   const revenue: RevenueSource[] = [];
 
-  if (versteuerung === "ist") {
+  {
     const payments = await q
       .select({
         date: schema.bankTransactions.bookingDate,
@@ -132,6 +176,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.allocations.taxShares,
         taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
+        correctsId: schema.invoices.correctsId,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -144,7 +190,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           eq(schema.allocations.kind, "invoice"),
           gte(schema.bankTransactions.bookingDate, start),
           lt(schema.bankTransactions.bookingDate, end),
-          // Reverse Charge und innergemeinschaftliche Lieferung zählen im Monat der Rechnung, auch bei Ist (siehe unten)
+          // Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen im Monat der Rechnung, auch bei Ist (siehe oben)
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
       );
@@ -157,6 +203,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.writeOffs.taxShares,
         taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
+        correctsId: schema.invoices.correctsId,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -179,6 +227,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.cashEntries.taxShares,
         taxSharesInvoiceId: schema.cashEntries.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
+        correctsId: schema.invoices.correctsId,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -189,6 +239,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
     for (const p of payments) {
+      if ((await invoiceMode(p)) !== "ist") continue;
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
       for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
@@ -207,8 +258,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     }
   }
 
-  // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge und innergemeinschaftliche Lieferungen, die
-  // Meldung in Kz 21 und 41 richtet sich nach der Rechnung, nicht nach der Zahlung (§ 18b UStG).
+  // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge, innergemeinschaftliche Lieferungen und Leistungen
+  // ins Drittland, die Meldung in Kz 21, 41 und 45 richtet sich nach der Rechnung, nicht nach der Zahlung (NACH_RECHNUNGSDATUM).
   {
     const issued = await q
       .select()
@@ -220,7 +271,6 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           lt(schema.invoices.issueDate, end),
           // aus Lexoffice übernommen: die Steuer ist dort schon angemeldet
           isNull(schema.invoices.lexofficeVoucherId),
-          ...(versteuerung === "ist" ? [inArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])] : []),
         ),
       );
     const totals = await invoiceTotalsById(
@@ -228,6 +278,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       q,
     );
     for (const inv of issued) {
+      if ((await invoiceMode(inv)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === inv.taxTreatment)) continue;
       for (const t of totals.get(inv.id)?.taxes ?? []) {
         revenue.push({
           type: "invoice",
@@ -254,6 +305,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.writeOffs.taxShares,
         taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
+        correctsId: schema.invoices.correctsId,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -266,11 +319,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           lt(schema.writeOffs.date, end),
           // Kursdifferenzen ändern die Bemessungsgrundlage nicht, sie bleibt beim Kurs der Rechnung
           ne(schema.writeOffs.kind, "kursdifferenz"),
-          ...(versteuerung === "ist" ? [inArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])] : []),
         ),
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
     for (const r of rows) {
+      if ((await invoiceMode(r)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
       const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
       for (const share of shares) {
@@ -488,7 +541,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     rows.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const treated = (treatment: TaxTreatment) => revenue.filter((r) => r.treatment === treatment).reduce((s, r) => s + r.base, 0);
 
-  return {
+  const figures: VatFigures = {
     versteuerung,
     // Stand am Ende des Zeitraums der Voranmeldung, nicht der heutige
     kleinunternehmer: await kleinunternehmerForMonth(lastMonthOfPeriod(period).year, lastMonthOfPeriod(period).month, q),
@@ -519,7 +572,9 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     reverseCharge,
     igErwerb,
     einfuhr,
+    quelle: "nebenbuecher",
   };
+  return journalAlsQuelle(period, figures, q);
 }
 
 export interface PreflightIssue {
@@ -541,7 +596,14 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
       outgoing: sql<number>`count(*) filter (where ${schema.bankTransactions.amount} < 0)::int`,
     })
     .from(schema.bankTransactions)
-    .where(and(gte(schema.bankTransactions.bookingDate, start), lt(schema.bankTransactions.bookingDate, end), sql`${open} <> 0`));
+    .where(
+      and(
+        gte(schema.bankTransactions.bookingDate, start),
+        lt(schema.bankTransactions.bookingDate, end),
+        sql`${open} <> 0`,
+        bankAccountIncludedSql("bank_account_id"),
+      ),
+    );
   if (bank && bank.outgoing > 0) {
     issues.push({
       tone: "warn",
@@ -586,4 +648,16 @@ export async function preflight(period: VatPeriod, figures: VatFigures): Promise
     });
   }
   return issues;
+}
+
+/**
+ * Kennzahlen eines Zeitraums aus dem Journal und aus den Nebenbüchern, unabhängig vom Stichjahr. Für das Vorziehen des
+ * Stichjahrs (auswertungen/stichjahr.ts): Es ändert keine Zahl, wenn beide gleich sind. Der Abgleich allein reicht dafür
+ * nicht, er lässt ältere Buchungen ohne Bemessungsgrundlage bzw. Steuerschlüssel bewusst aus.
+ */
+export async function kennzahlenBeiderQuellen(period: VatPeriod, q: Db | Tx = db): Promise<{ journal: JournalKennzahlen; nebenbuecher: JournalKennzahlen }> {
+  const figures = await computeVatFigures(period, q);
+  const beide = figures.quelle === "journal" ? figures : await ausDemJournal(period, figures, q);
+  const journal = Object.fromEntries(JOURNAL_KENNZAHLEN.map((feld) => [feld, beide[feld]])) as JournalKennzahlen;
+  return { journal, nebenbuecher: beide.nebenbuecher! };
 }

@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Saldenvortrag und Eröffnung (Postgres)", () => {
   let sql: postgres.Sql;
@@ -22,7 +22,7 @@ describe.skipIf(!testDatabaseUrl)("Saldenvortrag und Eröffnung (Postgres)", () 
   });
 
   async function setup(rechtsform: "einzelunternehmen" | "gmbh", kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll" = "ist") {
-    await sql`truncate cash_entries, journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate cash_entries, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY',
               ${kontenrahmen}, ${versteuerung}, ${rechtsform})`;

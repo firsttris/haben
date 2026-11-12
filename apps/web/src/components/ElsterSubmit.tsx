@@ -6,6 +6,7 @@ import type { Notice } from "../lib/use-action.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { ConfirmDialog, type ConfirmFact } from "./ConfirmDialog.tsx";
+import { Field } from "./Field.tsx";
 
 /** Was eine Seite über ERiC und das Zertifikat aus dem Loader mitbringt */
 export interface ElsterSetup {
@@ -50,21 +51,32 @@ export function TestOnlyToggle({
   onChange: (testOnly: boolean) => void;
 }) {
   const canSendLive = setup.herstellerIdConfigured && !lockedHint;
-  return (
-    <>
-      <label className="checkbox">
-        <input type="checkbox" checked={testOnly || !canSendLive} onChange={(e) => onChange(e.target.checked)} disabled={!canSendLive} />
-        Nur Testübermittlung
-      </label>
-      {!canSendLive && (
-        <p className="small muted" style={{ margin: 0 }}>
-          {lockedHint ??
-            (setup.mode === "simuliert"
-              ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
-              : "ERiC nimmt Prüfungen und Übermittlungen, auch zum Test, nur mit eigener Hersteller-ID an (ELSTER_HERSTELLER_ID).")}
-        </p>
-      )}
-    </>
+  const hintId = useId();
+  const box = (
+    <label className="checkbox">
+      <input
+        type="checkbox"
+        checked={testOnly || !canSendLive}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={!canSendLive}
+        aria-describedby={canSendLive ? undefined : hintId}
+      />
+      Nur Testübermittlung
+    </label>
+  );
+  // Der Grund, warum nur testweise geht, steht außerhalb des Labels und gehört per aria-describedby zum Kästchen (DESIGN.md)
+  return canSendLive ? (
+    box
+  ) : (
+    <div className="checkbox-hinted">
+      {box}
+      <span id={hintId} className="field-hint">
+        {lockedHint ??
+          (setup.mode === "simuliert"
+            ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
+            : "ERiC nimmt Prüfungen und Übermittlungen, auch zum Test, nur mit eigener Hersteller-ID an (ELSTER_HERSTELLER_ID).")}
+      </span>
+    </div>
   );
 }
 
@@ -127,10 +139,9 @@ export function ElsterSubmit({
     <form className={className} onSubmit={send} aria-labelledby={headingId}>
       <h2 id={headingId}>{title}</h2>
       <CertificateStatus certificate={setup.certificate} />
-      <label className="field">
-        Zertifikats-PIN
-        <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />
-      </label>
+      <Field label="Zertifikats-PIN">
+        {(control) => <input {...control} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />}
+      </Field>
       <TestOnlyToggle setup={setup} testOnly={testOnly} lockedHint={lockedHint} onChange={setTestOnly} />
       <ConfirmDialog
         open={confirming}

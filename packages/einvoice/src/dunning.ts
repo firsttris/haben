@@ -1,7 +1,7 @@
 import { DUNNING_LEVELS, formatEuro, parseTextFormatting, type DunningAmounts, type DunningLevel } from "@haben/core";
 import { accountHolder, formatDate, formatIban } from "./format.ts";
 import { TEXTS } from "./i18n.ts";
-import { addressLines, asDraft, draftFilename, footerData, renderDunningPdf, showsCustomerNumber, type DraftPdf } from "./pdf.ts";
+import { asDraft, draftFilename, footerData, recipientLines, renderDunningPdf, showsCustomerNumber, type DraftPdf } from "./pdf.ts";
 import { girocodeSvg } from "./qr.ts";
 import type { Buyer, Letterhead, Seller } from "./types.ts";
 
@@ -51,7 +51,7 @@ export function dunningPdfData(doc: DunningDocument) {
     title,
     reference: `zur Rechnung ${doc.invoice.number} vom ${formatDate(doc.invoice.issueDate)}`,
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer)],
+    recipient: recipientLines(buyer),
     meta,
     salutation: "Sehr geehrte Damen und Herren,",
     intro: doc.intro.trim(),

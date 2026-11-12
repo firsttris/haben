@@ -1,0 +1,10 @@
+language js(typescript, jsx);
+
+// Auswahllisten gehören wie alle Formularfelder in `Field` (apps/web/src/components/Field.tsx): `<Field label=…>{(control) => <select {...control}>…</select>}</Field>`.
+// Gemeint ist ein `<select>` ohne umschließendes `<Field>`. Wo eine Liste bewusst allein steht (Zeile einer Positionstabelle, Auswahl in der
+// dunklen Navigation), steht davor `// biome-ignore lint/plugin: Grund`. Dass `Field` das Element umschließt, sieht das Muster nur im selben Quelltext;
+// ein `<select>` in einer eigenen Komponente, die ein anderes Bauteil in `Field` einsetzt, meldet es darum auch dann, wenn es dort richtig steht.
+or { `<select $props>$children</select>`, `<select $props />` } as $auswahl where {
+    $auswahl <: not within `<Field $fprops>$fchildren</Field>`,
+    register_diagnostic(span=$auswahl, message="Auswahlliste ohne Field: gehört in <Field label=…> mit {...control} (components/Field.tsx, DESIGN.md, Felder). Bewusst allein: // biome-ignore lint/plugin: Grund.", severity="error")
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "objectName": "Invoice",
+    "invoiceType": "RE",
+    "status": "200",
+    "invoiceDate": "2024-10-31T12:00:00+01:00",
+    "deliveryDate": "2024-10-01T12:00:00+02:00",
+    "deliveryDateUntil": "2024-10-31T12:00:00+01:00",
+    "header": "<anon>",
+    "headText": "<anon>",
+    "footText": "<anon> [%ZAHLUNGSZIEL%] [%KONTAKTPERSON%]",
+    "origin": {
+      "id": "ID_26",
+      "objectName": "Invoice"
+    }
+  },
+  {
+    "objectName": "Invoice",
+    "invoiceType": "RE",
+    "status": "1000",
+    "invoiceDate": "2024-09-30T12:00:00+02:00",
+    "deliveryDate": "2024-09-01T12:00:00+02:00",
+    "deliveryDateUntil": "2024-09-30T12:00:00+02:00",
+    "header": "<anon>",
+    "headText": "<anon>",
+    "footText": "<anon> [%ZAHLUNGSZIEL%] [%KONTAKTPERSON%]",
+    "origin": {
+      "id": "ID_26",
+      "objectName": "Invoice"
+    }
+  },
+  {
+    "objectName": "Invoice",
+    "invoiceType": "RE",
+    "status": "1000",
+    "invoiceDate": "2024-11-01T12:00:00+01:00",
+    "deliveryDate": "2024-11-01T12:00:00+01:00",
+    "deliveryDateUntil": "2024-11-30T12:00:00+01:00",
+    "header": "<anon>",
+    "headText": "<anon>",
+    "footText": "<anon> [%ZAHLUNGSZIEL%] [%KONTAKTPERSON%]",
+    "origin": {
+      "id": "ID_20",
+      "objectName": "Invoice"
+    }
+  }
+]

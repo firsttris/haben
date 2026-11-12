@@ -168,6 +168,19 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(stfrei! < vereinnahmt! && vereinnahmt! < kfz!).toBe(true);
   });
 
+  it("Sachentnahme: Entnahme_Sonst/E6001001 hinter der Kfz-Nutzung, in der Summe der Einnahmen (2023 und 2025)", () => {
+    for (const year of [2023, 2025]) {
+      const xml = buildEuerXml({ ...base, year, allgemein, figures: { ...figures, sachentnahmen: 25_000 }, anlagen });
+      expect(checkXml(xml)).toBeUndefined();
+      expect(tag(xml, "E6001001")).toBe("250,00");
+      expect(xml).toMatch(/<Entnahme_Sonst>\s*<Sum>\s*<E6001001>250,00<\/E6001001>/);
+      expect(tag(xml, "E6001201")).toBe("109020,00");
+      const [kfz, sonst, danach] = order(xml, ["Nutzung_Priv_Kfz", "Entnahme_Sonst", year >= 2024 ? "GesamtSum" : "Weitere_Angabe"]);
+      expect(kfz! < sonst! && sonst! < danach!).toBe(true);
+    }
+    expect(buildEuerXml({ ...base, allgemein, figures, anlagen })).not.toContain("<Entnahme_Sonst>");
+  });
+
   it("listet Anlagen je Gruppe in der AVEÜR", () => {
     const xml = buildEuerXml({ ...base, allgemein, figures, anlagen });
     expect(tag(xml, "E6007311")).toBe("Tesla Model 3");

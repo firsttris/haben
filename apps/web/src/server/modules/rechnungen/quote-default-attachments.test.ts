@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 
 /** Kleinste Datei, die Haben am Inhalt als PDF erkennt; der Text macht jede Datei eindeutig */
@@ -33,7 +33,7 @@ describe.skipIf(!testDatabaseUrl)("Standardanhänge für Angebote (Postgres, #41
   });
 
   beforeEach(async () => {
-    await sql`truncate mail_log, mail_settings, quote_default_attachments, quote_attachments, quote_lines, quotes, quote_number_counters,
+    await leeren(sql)`truncate mail_log, mail_settings, quote_default_attachments, quote_attachments, quote_lines, quotes, quote_number_counters,
       documents, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'angebot@example.com', '198/113/10010', 'DE123456789', 'BY',

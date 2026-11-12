@@ -5,7 +5,9 @@ import {
   EXPENSE_CATEGORIES,
   inputTaxCode,
   ownerAccount,
+  REVERSE_CHARGE_IN,
   side,
+  type ReverseChargeIn,
   type DocumentPayment,
   type ExpenseCategory,
   type Kontenrahmen,
@@ -101,8 +103,14 @@ export function splitIssues(lines: AllocatedSplitLine[], amounts: DocumentRateAm
  * Buchung eines aufgeteilten Belegs: eine Buchung mit einer Aufwandszeile je Kategorie und Steuersatz (gleiche Kategorie
  * und gleicher Satz zusammengefasst), Vorsteuer je Satz in Höhe des Belegs, an Verbindlichkeiten, Privateinlage bzw.
  * Gesellschafter oder Kasse über den ganzen Betrag. Ohne Vorsteuerabzug (Kleinunternehmer) gehört der Steueranteil jeder
- * Zeile zu ihrem Aufwand. Gutschriften (negativ) drehen die Seiten. § 13b, Privatanteil und Anlagegüter gibt es mit
- * Aufteilung nicht (siehe bookingIssues); totals sind die Beträge des Belegs je Satz.
+ * Zeile zu ihrem Aufwand. Gutschriften (negativ) drehen die Seiten. Privatanteil, innergemeinschaftlicher Erwerb und
+ * Anlagegüter gibt es mit Aufteilung nicht (siehe bookingIssues); totals sind die Beträge des Belegs je Satz.
+ *
+ * § 13b (#508) wie in documentPosting: Der Aufwand jeder Zeile trägt RC13bEU bzw. RC13bDrittland, die selbst geschuldete
+ * Steuer steht je Satz einmal als Umsatzsteuer und, mit Vorsteuerabzug, im selben Betrag als Vorsteuer (VSt13b); gezahlt
+ * wird nur netto (totals.gross = Netto). Ohne Vorsteuerabzug ist die Steuer Aufwand: je Zeile ihr Anteil aus
+ * allocateSplitTax, so ergibt die Summe centgenau die Steuer des Belegs; er steht als eigene Zeile mit keineVSt neben dem
+ * Netto, damit die Bemessungsgrundlage (Kz 46/84) im Journal stimmt.
  */
 export function documentSplitPosting(
   totals: InvoiceTotals,
@@ -111,25 +119,37 @@ export function documentSplitPosting(
   rechtsform: Rechtsform,
   payment: DocumentPayment,
   vorsteuerAbzug = true,
+  reverseCharge: ReverseChargeIn | null = null,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
+  if (reverseCharge && !(reverseCharge in REVERSE_CHARGE_IN)) throw new RangeError(`${reverseCharge} mit Aufteilung wird nicht unterstützt`);
+  const rcCode = reverseCharge ? REVERSE_CHARGE_IN[reverseCharge].code : null;
+  if (rcCode && totals.taxes.some((t) => t.rate !== 1900 && t.rate !== 700)) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
   const expenses = new Map<string, { account: string; amount: Cents; code: TaxCode }>();
-  for (const line of lines) {
-    const account = EXPENSE_CATEGORIES[line.category][kontenrahmen];
-    const code = vorsteuerAbzug ? inputTaxCode(line.taxRate) : "keineVSt";
+  const add = (account: string, code: TaxCode, amount: Cents) => {
     const key = `${account}|${code}`;
-    const amount = vorsteuerAbzug ? line.net : line.net + line.tax;
     const seen = expenses.get(key);
     if (seen) seen.amount += amount;
     else expenses.set(key, { account, amount, code });
+  };
+  for (const line of lines) {
+    const account = EXPENSE_CATEGORIES[line.category][kontenrahmen];
+    if (vorsteuerAbzug) add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
+    else if (rcCode) {
+      // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die
+      // Bemessungsgrundlage trägt (#542)
+      add(account, rcCode, line.net);
+      add(account, "keineVSt", line.tax);
+    } else add(account, "keineVSt", line.net + line.tax);
   }
   const result: PostingLine[] = [...expenses.values()].map((e) => side(e.account, e.amount, true, e.code));
-  if (vorsteuerAbzug) {
-    for (const { rate, tax } of totals.taxes) {
-      if (tax === 0) continue;
-      if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
-      result.push(side(accounts.vorsteuer[rate], tax, true, inputTaxCode(rate)));
-    }
+  for (const { rate, tax } of totals.taxes) {
+    if (tax === 0) continue;
+    if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+    if (rcCode) {
+      if (vorsteuerAbzug) result.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
+      result.push(side(accounts.ustRc, tax, false, rcCode));
+    } else if (vorsteuerAbzug) result.push(side(accounts.vorsteuer[rate], tax, true, inputTaxCode(rate)));
   }
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
   result.push(side(counter, totals.gross, false, null));

@@ -24,6 +24,8 @@ export {
   allocate,
   allocateIn,
   allocateTransfer,
+  allocateTransferIn,
+  allocateExchangeDifferenceIn,
   allocateSplit,
   allocationSchema,
   BankError,
@@ -31,6 +33,8 @@ export {
   createProviderAccount,
   providerAccountSchema,
   importStatement,
+  storeStatement,
+  type ImportResult,
   invoiceLosses,
   invoiceWrittenOff,
   invoicePayments,
@@ -42,6 +46,7 @@ export {
   updateAccount,
   accountSettingsSchema,
   reverseAllocation,
+  reverseAllocationIn,
   splitSchema,
   transactionDetail,
   transferSchema,
@@ -54,6 +59,15 @@ export {
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
+export { documentBankAllocations } from "./document-allocations.ts";
+export {
+  nachStatusSortieren,
+  SORTIERRICHTUNGEN,
+  UMSATZ_SORTIERFELDER,
+  type UmsatzHinweis,
+  type UmsatzSortierung,
+} from "./umsatzliste.ts";
+export { excludeAccount, excludeBlocker, includeAccount, listExcludedAccounts } from "./konto-ausschliessen.ts";
 export { decideDocumentIban, documentIbanCheck, ibanDecisionSchema, type IbanDecisionInput } from "./iban-entscheidung.ts";
 export {
   createSepaTransfer,
@@ -76,6 +90,7 @@ export {
 } from "./cash-invoice.ts";
 export {
   addDocumentCashEntry,
+  addImportedCashEntries,
   cashBook,
   cashBookCsv,
   cashInputSchema,
@@ -84,6 +99,7 @@ export {
   lockCash,
   reverseCashEntry,
   reverseDocumentCashEntry,
+  type ImportedCashEntry,
 } from "./cash.ts";
 export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";
 export {
@@ -113,3 +129,15 @@ export {
   directDebitMatch,
   type DirectDebitMatch,
 } from "./lastschrift-abgleich.ts";
+
+export {
+  listSettlements,
+  openAmount,
+  reversalSchema,
+  reverseSettlement,
+  SettlementError,
+  settleDocuments,
+  settlementCandidates,
+  settlementSchema,
+  type SettlementInput,
+} from "./verrechnung.ts";

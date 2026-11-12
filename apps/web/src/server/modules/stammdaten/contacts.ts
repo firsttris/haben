@@ -12,10 +12,10 @@ import {
   splitEmails,
   telefonProblem,
 } from "@haben/core";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema, type Tx } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
@@ -106,6 +106,100 @@ export async function listContacts(includeArchived = false, role?: ContactRole):
     .from(schema.contacts)
     .where(and(includeArchived ? undefined : isNull(schema.contacts.archivedAt), roleFilter))
     .orderBy(asc(schema.contacts.name));
+}
+
+/** Ein Kontakt zur Auswahl in einem Formular (ContactCombobox): mit der Nummer der Rolle, Kunden- oder Lieferantennummer */
+export interface ContactChoice {
+  id: string;
+  name: string;
+  ort: string;
+  nummer: string | null;
+  ustId: string;
+  isCustomer: boolean;
+  isSupplier: boolean;
+}
+
+/**
+ * Kontakte (ohne archivierte) zur Auswahl in einem Formular. Bei Lieferanten nur die Lieferanten, wie bisher: Das Formular
+ * braucht keine anderen, und der Beleg geht auch an die Steuerberatung. Bei Kunden alle, denn ein gewählter Kontakt, der kein
+ * Kunde mehr ist, soll im Feld sichtbar bleiben; die Combobox filtert nach der Rolle. role bestimmt auch, welche Nummer
+ * als Nummer gilt.
+ */
+export async function listContactChoices(role: ContactRole): Promise<ContactChoice[]> {
+  const contacts = await listContacts(false, role === "lieferant" ? "lieferant" : undefined);
+  return contacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+    ort: c.ort,
+    nummer: role === "lieferant" ? c.lieferantennummer : c.kundennummer,
+    ustId: c.ustId,
+    isCustomer: c.isCustomer,
+    isSupplier: c.isSupplier,
+  }));
+}
+
+/**
+ * Meldung, wenn ein Kontakt in der Rolle nicht gewählt werden kann (Kunde bei Rechnung, Angebot, Vorlage und Textbaustein,
+ * Lieferant bei Beleg und Dauerbeleg), sonst null. Das Formular zeigt nur passende Kontakte; geprüft wird hier, weil auch
+ * die API und ein veraltetes Formular Kontakte zuordnen. Fehlt der Kontakt, gilt `missing`.
+ */
+export async function contactRoleProblem(client: Db | Tx, contactId: string, role: ContactRole, missing = "Kontakt nicht gefunden."): Promise<string | null> {
+  const [contact] = await client
+    .select({ name: schema.contacts.name, isCustomer: schema.contacts.isCustomer, isSupplier: schema.contacts.isSupplier })
+    .from(schema.contacts)
+    .where(eq(schema.contacts.id, contactId));
+  if (!contact) return missing;
+  if (role === "kunde" ? contact.isCustomer : contact.isSupplier) return null;
+  const label = role === "kunde" ? "Kunde" : "Lieferant";
+  return `„${contact.name}“ ist kein ${label}. Setze beim Kontakt den Haken „${label}“, dann lässt er sich hier wählen.`;
+}
+
+/** Kontakt mit gleicher USt-IdNr., als Hinweis beim Anlegen oder Ändern (ContactForm) */
+export interface UstIdMatch {
+  id: string;
+  name: string;
+  ustId: string;
+  isCustomer: boolean;
+  isSupplier: boolean;
+  archived: boolean;
+}
+
+/** USt-IdNr. ohne Leerzeichen und in Großbuchstaben, wie sie gespeichert wird */
+const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
+
+/**
+ * Kontakte aller Rollen mit derselben USt-IdNr., auch archivierte; excludeId nimmt den Kontakt aus, den das Formular
+ * gerade ändert. Der Hinweis soll eine Dublette verhindern, ohne Kontakte still zusammenzuführen. Aus mehr als fünf
+ * Treffern bleiben die ersten fünf; wanted (die Rollen des neuen Kontakts) stellt die Kontakte voran, die alle diese
+ * Rollen haben, denn nur einen solchen kann man statt eines neuen wählen.
+ */
+export async function findContactsByUstId(
+  ustId: string,
+  excludeId?: string,
+  wanted: { isCustomer?: boolean; isSupplier?: boolean } = {},
+): Promise<UstIdMatch[]> {
+  const compact = compactUstId(ustId);
+  if (!compact) return [];
+  const rows = await db
+    .select({
+      id: schema.contacts.id,
+      name: schema.contacts.name,
+      ustId: schema.contacts.ustId,
+      isCustomer: schema.contacts.isCustomer,
+      isSupplier: schema.contacts.isSupplier,
+      archivedAt: schema.contacts.archivedAt,
+    })
+    .from(schema.contacts)
+    .where(and(sql`upper(replace(${schema.contacts.ustId}, ' ', '')) = ${compact}`, excludeId ? ne(schema.contacts.id, excludeId) : undefined))
+    // Aktive zuerst: Ein archivierter Kontakt darf einen aktiven mit derselben USt-IdNr. nicht verdecken; dann die mit den
+    // gewünschten Rollen, damit sie nicht hinter fünf anderen aus der Liste fallen
+    .orderBy(
+      sql`${schema.contacts.archivedAt} is not null`,
+      sql`not (${wanted.isCustomer ? schema.contacts.isCustomer : sql`true`} and ${wanted.isSupplier ? schema.contacts.isSupplier : sql`true`})`,
+      asc(schema.contacts.name),
+    )
+    .limit(5);
+  return rows.map(({ archivedAt, ...rest }) => ({ ...rest, archived: archivedAt !== null }));
 }
 
 export async function getContact(id: string) {
