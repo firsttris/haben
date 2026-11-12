@@ -1475,8 +1475,22 @@
     {
       "idx": 210,
       "version": "7",
-      "when": 1794500472286,
-      "tag": "0210_abschlag_steuerzeitpunkt",
+      "when": 1794500484900,
+      "tag": "0210_eigene_konten",
+      "breakpoints": true
+    },
+    {
+      "idx": 211,
+      "version": "7",
+      "when": 1794500486424,
+      "tag": "0211_eigene_konten_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 212,
+      "version": "7",
+      "when": 1794515463716,
+      "tag": "0212_abschlag_steuerzeitpunkt",
       "breakpoints": true
     }
   ]

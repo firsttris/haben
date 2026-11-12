@@ -11,5 +11,5 @@ check their own pull request first, maintainers and collaborators then judge it)
 (independent review, a finding needs a failing test), `doku-pruefen` (review of a pull request without code: matches code
 and sources, short, every rule in one place), `fork-pushen` (push to someone else's fork, from the cloud through a
 session with the fork as source), `issue-schreiben`, `pr-screenshots`, `belegvorlage` (own
-Typst layouts for documents, with the field contract), `board-pflegen` (the roadmap board on GitHub) and `release`
-(choose and check a release, trigger it only with the maintainer's approval).
+Typst layouts for documents, with the field contract), `board-pflegen` (the roadmap board on GitHub), `jahreswerte` (official yearly values, ERiC and laws after a
+`jahreswerte` issue) and `release` (choose and check a release, trigger it only with the maintainer's approval).

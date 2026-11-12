@@ -35,7 +35,6 @@ import {
   AccountableError,
   analyseAccountableUpload,
   cancelAccountableImport as cancelAccountable,
-  discardAccountableUpload,
   latestAccountableImport,
   MAX_ACCOUNTABLE_SIZE as MAX_ACCOUNTABLE,
   startAccountableImport as startAccountable,
@@ -231,13 +230,6 @@ export const getAccountableStatus = createServerFn({ method: "GET" })
   });
 
 /** Hochgeladenen Export wieder verwerfen (falsche Datei); angestoßene Läufe bleiben davon unberührt. */
-export const discardAccountableExport = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .handler(async () => {
-    discardAccountableUpload();
-    return { ok: true };
-  });
-
 const kindSchema = z.enum(Object.keys(ARCHIVE_KINDS) as [ArchiveKind, ...ArchiveKind[]]);
 
 export const uploadArchiveFiles = createServerFn({ method: "POST" })
