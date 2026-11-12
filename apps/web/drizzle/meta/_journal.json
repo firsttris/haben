@@ -1503,8 +1503,15 @@
     {
       "idx": 214,
       "version": "7",
-      "when": 1794516847863,
-      "tag": "0214_zeichen_navigation",
+      "when": 1794516197537,
+      "tag": "0214_abschlag_steuerzeitpunkt",
+      "breakpoints": true
+    },
+    {
+      "idx": 215,
+      "version": "7",
+      "when": 1794517442415,
+      "tag": "0215_zeichen_navigation",
       "breakpoints": true
     }
   ]

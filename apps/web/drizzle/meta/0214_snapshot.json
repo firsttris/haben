@@ -1,5 +1,5 @@
 {
-  "id": "c4e5f087-e857-42a9-83ad-571bd1a27966",
+  "id": "998bc932-3380-449a-b20a-560740619da4",
   "prevId": "849eb208-9f00-4dfe-81dc-46d937920802",
   "version": "7",
   "dialect": "postgresql",
@@ -2863,19 +2863,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "nav_color": {
-          "name": "nav_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nav_logo": {
-          "name": "nav_logo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2897,10 +2884,6 @@
         "company_rechtsform": {
           "name": "company_rechtsform",
           "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
-        },
-        "company_nav_color": {
-          "name": "company_nav_color",
-          "value": "\"company\".\"nav_color\" ~ '^#[0-9A-F]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -6671,6 +6654,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "advance_type": {
+          "name": "advance_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -7064,6 +7053,10 @@
         "invoices_variant_kind": {
           "name": "invoices_variant_kind",
           "value": "\"invoices\".\"variant\" is null or \"invoices\".\"kind\" = 'rechnung'"
+        },
+        "invoices_advance_type": {
+          "name": "invoices_advance_type",
+          "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",

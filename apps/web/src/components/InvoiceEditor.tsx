@@ -2,6 +2,7 @@ import {
   type LetterheadDesign,
   type PaymentMethod,
   computeInvoice,
+  advanceUsesPayments,
   ITEM_NUMBER_MAX,
   convertPrice,
   CURRENCY_CODE,
@@ -232,6 +233,7 @@ export function InvoiceEditor({
   const [exchangeRate, setExchangeRate] = useState(initial.exchangeRate ?? "");
   const [exchangeRateDate, setExchangeRateDate] = useState(initial.exchangeRateDate ?? "");
   const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
+  const [advanceType, setAdvanceType] = useState<"anzahlung" | "teilleistung">(initial.advanceType ?? "anzahlung");
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
@@ -483,6 +485,7 @@ export function InvoiceEditor({
       priceMode: grossPrices ? "brutto" : "netto",
       language,
       variant: kind === "rechnung" ? variant : null,
+      advanceType: kind === "rechnung" && variant === "abschlag" ? advanceType : null,
       deducts: schluss ? deducted.map((a) => a.id) : [],
       quoteId: kind === "rechnung" && quoteId ? quoteId : null,
       currency: currencyCode,
@@ -739,7 +742,7 @@ export function InvoiceEditor({
                   hint={
                     variant &&
                     (variant === "abschlag"
-                      ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
+                      ? "Anzahlung vor Leistung oder Rechnung über eine bereits erbrachte Teilleistung."
                       : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen.")
                   }
                   style={{ gridColumn: "1 / -1" }}
@@ -752,6 +755,33 @@ export function InvoiceEditor({
                     </select>
                   )}
                 </Field>
+              )}
+              {kind === "rechnung" && variant === "abschlag" && (
+                <div className="checkbox-hinted" style={{ gridColumn: "1 / -1" }}>
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      checked={advanceType === "teilleistung"}
+                      disabled={!editable}
+                      aria-describedby="invoice-advance-hint"
+                      onChange={(e) => touch(setAdvanceType)(e.target.checked ? "teilleistung" : "anzahlung")}
+                    />
+                    Teilleistung bereits erbracht
+                  </label>
+                  <span id="invoice-advance-hint" className="field-hint">
+                    {advanceType === "teilleistung"
+                      ? taxTreatment === "regulaer"
+                        ? "Bei Soll-Versteuerung entsteht die Umsatzsteuer mit der Teilleistung."
+                        : "Tatsächliches Leistungsdatum der Teilleistung angeben. Der Meldezeitpunkt richtet sich nach der gewählten Steuerbehandlung."
+                      : taxTreatment === "regulaer"
+                        ? "Umsatzsteuer entsteht bei Zahlungseingang; bei Soll-Versteuerung spätestens mit der Schlussleistung."
+                        : taxTreatment === "kleinunternehmer"
+                          ? "Als Kleinunternehmer weist du auf der Anzahlung keine Umsatzsteuer aus."
+                          : advanceUsesPayments(taxTreatment)
+                            ? "Steuerfreie Anzahlung ohne Umsatzsteuerausweis. Der Meldezeitpunkt richtet sich nach Zahlung und Schlussleistung."
+                            : "Für diese Steuerbehandlung gelten die bisherigen Meldezeitpunkte; die Zahlungsregel für inländische Anzahlungen gilt hier nicht."}
+                  </span>
+                </div>
               )}
               <Field label="Kunde" style={{ gridColumn: "1 / -1" }}>
                 {(control) => (
@@ -851,7 +881,15 @@ export function InvoiceEditor({
                 />
               )}
               <Field label="Leistung von">
-                {(control) => <input {...control} type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />}
+                {(control) => (
+                  <input
+                    {...control}
+                    type="date"
+                    value={serviceFrom}
+                    onChange={(e) => touch(setServiceFrom)(e.target.value)}
+                    required={variant === "abschlag" && advanceType === "teilleistung"}
+                  />
+                )}
               </Field>
               <Field label="Leistung bis">
                 {(control) => <input {...control} type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />}
