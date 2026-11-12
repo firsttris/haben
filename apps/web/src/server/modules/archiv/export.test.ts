@@ -163,6 +163,14 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(exporter.safeName("x".repeat(100)).length).toBe(40);
   });
 
+  it("nennt jede Herkunft einer Journalbuchung in der Spalte Quelle", () => {
+    expect(exporter.sourceLabel("verrechnung")).toBe("Verrechnung");
+    expect(exporter.sourceLabel("import")).toBe("Import");
+    expect(exporter.sourceLabel("manuell")).toBe("Manuell");
+    // Eine Herkunft aus einem älteren Stand bleibt roh statt leer
+    expect(exporter.sourceLabel("unbekannt")).toBe("unbekannt");
+  });
+
   it("enthält die erwartete Dateistruktur", () => {
     const names = Object.keys(files).sort();
     expect(names).toEqual(
