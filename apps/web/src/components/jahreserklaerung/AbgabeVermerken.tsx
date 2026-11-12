@@ -1,7 +1,7 @@
 import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { fileAnnualElsewhere } from "../../server/functions/annual.ts";
@@ -43,7 +43,6 @@ export function AbgabeVermerken({
   berechnet: number;
   vermerkt: JahresvermerkStand | null;
 }) {
-  const headingId = useId();
   const router = useRouter();
   const vermerken = useServerFn(fileAnnualElsewhere);
   const { busy, notice, run } = useAction();
@@ -85,11 +84,9 @@ export function AbgabeVermerken({
 
   if (vermerkt) {
     return (
-      <section className="card" aria-labelledby={headingId}>
+      <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h2 id={headingId} style={{ margin: 0 }}>
-            Außerhalb von Haben abgegeben
-          </h2>
+          <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
           <span className="pill pill-ok">Abgegeben</span>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
@@ -128,10 +125,8 @@ export function AbgabeVermerken({
   }
 
   return (
-    <section className="card" aria-labelledby={headingId}>
-      <h2 id={headingId} style={{ margin: 0 }}>
-        Außerhalb von Haben abgegeben
-      </h2>
+    <section className="card" aria-label={`Abgabe außerhalb von Haben: ${LABEL[art]} ${year}`}>
+      <h2 style={{ margin: 0 }}>Außerhalb von Haben abgegeben</h2>
       <p className="small muted" style={{ margin: 0 }}>
         Hast du {LABEL[art]} {year} in WISO, Accountable oder im ELSTER-Portal abgegeben, hältst du das hier mit Tag, Transferticket und Betrag fest. Die Frist
         ist damit erledigt, und der Vorgang erscheint im Verlauf.
