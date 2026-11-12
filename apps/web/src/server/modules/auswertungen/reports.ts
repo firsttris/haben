@@ -19,6 +19,7 @@ import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } 
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { journalAbJahr, loadCompany } from "../stammdaten/index.ts";
 import { euerVerschiebung } from "./euer-jahreswechsel.ts";
+import { verrechnungenImJahr } from "./verrechnungen.ts";
 import { euerAusDemJournal, mitFreienBuchungen } from "./euer-quelle.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -162,23 +163,8 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       and(inArray(schema.documents.payment, ["privat", "kasse"]), gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)),
     );
 
-  // Verrechnungen zweier Belege (#274): Sie gleichen einen Beleg ohne Bankumsatz aus und wirken in der EÜR wie eine Zahlung
-  // auf den Beleg, am Tag der Zeile und in der gespeicherten Höhe (euer-journal.ts, euer-formel.ts). Eine aufgehobene
-  // Verrechnung ist eine Gegenzeile mit umgekehrtem Betrag. Ohne sie meldete der EÜR-Abgleich die betroffenen Zeilen als
-  // Abweichung: im Journal stehen sie, in den Nebenbüchern fehlte der Ausgleich.
-  const settlements = await q
-    .select({
-      id: schema.documentSettlements.id,
-      documentId: schema.documentSettlements.documentId,
-      date: schema.documentSettlements.date,
-      amount: schema.documentSettlements.amount,
-      category: schema.documents.category,
-      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
-      privateShare: schema.documents.privateShare,
-    })
-    .from(schema.documentSettlements)
-    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentSettlements.documentId))
-    .where(and(gte(schema.documentSettlements.date, start), lt(schema.documentSettlements.date, end)));
+  // Verrechnungen zweier Belege ohne Zahlung (#274), siehe verrechnungen.ts
+  const settlements = await verrechnungenImJahr(start, end, q);
 
   // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
