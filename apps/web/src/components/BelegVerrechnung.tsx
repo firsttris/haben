@@ -1,4 +1,4 @@
-import { formatEuro } from "@haben/core";
+import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { formatDate } from "../lib/format.ts";
@@ -26,10 +26,10 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const [counterId, setCounterId] = useState("");
   const [betrag, setBetrag] = useState("");
   const [grund, setGrund] = useState("");
-  const [datum, setDatum] = useState(() => new Date().toLocaleDateString("sv-SE"));
+  const [datum, setDatum] = useState(() => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }));
   // Aufheben wirkt am Tag der Aufhebung, deshalb fragt sie ein eigenes Datum ab (heute vorbelegt)
   const [aufhebenId, setAufhebenId] = useState<string | null>(null);
-  const [aufhebenDatum, setAufhebenDatum] = useState(() => new Date().toLocaleDateString("sv-SE"));
+  const [aufhebenDatum, setAufhebenDatum] = useState(() => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }));
   const [aufhebenGrund, setAufhebenGrund] = useState("");
   const [ladefehler, setLadefehler] = useState<string | null>(null);
   const action = useAction();
@@ -52,9 +52,9 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
   const speichern = () =>
     action
       .run(async () => {
-        const cents = Math.round(Number(betrag.replace(",", ".")) * 100);
+        const cents = parseEuro(betrag);
         if (!counterId) throw new Error("Bitte den Gegenbeleg wählen.");
-        if (!Number.isFinite(cents) || cents <= 0) throw new Error("Bitte einen Betrag größer null eintragen.");
+        if (cents === null || cents <= 0) throw new Error("Bitte einen Betrag größer null eintragen.");
         if (!datum) throw new Error("Bitte den Tag der Aufrechnung angeben.");
         if (!grund.trim()) throw new Error("Bitte den Grund der Verrechnung angeben.");
         await verrechnen({ data: { documentId, counterDocumentId: counterId, amount: cents, date: datum, note: grund.trim() } });
@@ -110,7 +110,7 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
                   className="link-button"
                   onClick={() => {
                     setAufhebenId(s.id);
-                    setAufhebenDatum(new Date().toLocaleDateString("sv-SE"));
+                    setAufhebenDatum(new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }));
                     setAufhebenGrund("");
                   }}
                   disabled={action.busy}
@@ -167,7 +167,7 @@ export function BelegVerrechnung({ documentId, supplier, readOnly }: { documentI
                 onChange={(e) => {
                   setCounterId(e.target.value);
                   const c = daten.candidates.find((x) => x.id === e.target.value);
-                  if (c) setBetrag((Math.min(Math.abs(daten.open), Math.abs(c.rest)) / 100).toFixed(2).replace(".", ","));
+                  if (c) setBetrag(formatDecimal(Math.min(Math.abs(daten.open), Math.abs(c.rest))));
                 }}
               >
                 <option value="">bitte wählen</option>
