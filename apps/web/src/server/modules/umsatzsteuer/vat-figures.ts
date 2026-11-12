@@ -154,9 +154,21 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   const { start, end } = periodRange(period);
   // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
   const versteuerung = await versteuerungForYear(period.year, q);
+  // Alte Rechnungen behalten auch für spätere Zahlungen und Ausbuchungen ihr Verfahren.
+  // Pro Rechnungsjahr nur einmal im Änderungsprotokoll nachsehen.
+  const modes = new Map([[period.year, versteuerung]]);
+  async function invoiceMode(issueDate: string) {
+    const year = Number(issueDate.slice(0, 4));
+    let mode = modes.get(year);
+    if (!mode) {
+      mode = await versteuerungForYear(year, q);
+      modes.set(year, mode);
+    }
+    return mode;
+  }
   const revenue: RevenueSource[] = [];
 
-  if (versteuerung === "ist") {
+  {
     const payments = await q
       .select({
         date: schema.bankTransactions.bookingDate,
@@ -164,6 +176,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.allocations.taxShares,
         taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -189,6 +202,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.writeOffs.taxShares,
         taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -211,6 +225,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.cashEntries.taxShares,
         taxSharesInvoiceId: schema.cashEntries.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -221,6 +236,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
     for (const p of payments) {
+      if ((await invoiceMode(p.issueDate)) !== "ist") continue;
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
       for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
@@ -286,6 +302,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         taxShares: schema.writeOffs.taxShares,
         taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
+        issueDate: schema.invoices.issueDate,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
         treatment: schema.invoices.taxTreatment,
@@ -298,11 +315,11 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           lt(schema.writeOffs.date, end),
           // Kursdifferenzen ändern die Bemessungsgrundlage nicht, sie bleibt beim Kurs der Rechnung
           ne(schema.writeOffs.kind, "kursdifferenz"),
-          ...(versteuerung === "ist" ? [inArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])] : []),
         ),
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
     for (const r of rows) {
+      if ((await invoiceMode(r.issueDate)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === r.treatment)) continue;
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
       const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
       for (const share of shares) {
