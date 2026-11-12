@@ -663,7 +663,7 @@ Die Schritte stehen im Skill `beitrag-pruefen`.
 
 ### Review
 
-Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Ausgenommen ist ein Pull Request, der nur Markdown in `docs/` oder die README ändert: Ohne Code gibt es keinen roten Test; er wird nach grüner CI gemergt. Skills, `CLAUDE.md`, `AGENTS.md` und `DESIGN.md` fallen nicht darunter. Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:
+Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Ein Pull Request ohne Code bekommt stattdessen eine [Doku-Prüfung](#pull-requests-ohne-code). Die Schritte gelten für jedes Werkzeug; mit Claude Code führt der Skill `tdd-review` durch:
 
 1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der am Code mitgeschrieben hat, startet für das Review einen neuen Agenten ohne diesen Verlauf. Ein solcher frischer Agent ist unabhängig, auch wenn ihn der Autor gestartet hat. Bringt ein Beitrag so ein Review schon mit (Schritte 2 bis 5 im Pull Request erkennbar), zählt es; wir reviewen nicht noch einmal, außer wir haben selbst Commits ergänzt oder ein fachlicher Zweifel bleibt.
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
@@ -680,6 +680,18 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Ausge
 - **Konstruierte Eingaben:** Befunde, die nur mit konstruierten Eingaben oder mit Daten auftreten, die in echten Antworten nicht vorkommen, werden im Pull Request notiert und nicht mehr behoben; lohnen sie sich, werden sie ein eigenes Issue. Das gilt nicht für Sicherheit: Ein Angriff ist immer eine konstruierte Eingabe.
 
 Haben steht unter der AGPL-3.0.
+
+#### Pull Requests ohne Code
+
+Ändert ein Pull Request nur Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`), gibt es keinen roten Test. Ein Befund braucht dann ein Zitat aus dem Text und den Beleg dagegen: Code, Quelle oder die andere Stelle. Geprüft wird, ebenso unabhängig:
+
+- Der Text stimmt mit dem Code und mit der genannten Quelle überein.
+- Er ist kurz ([Befehle](#befehle), „Kurz halten“).
+- Jede Regel steht einmal: für Menschen hier und in `DESIGN.md`, die Schritte für Agenten in den Skills. `CLAUDE.md` und `AGENTS.md` verweisen nur, nichts widerspricht sich.
+- Erzeugtes ist nicht von Hand geändert, etwa `docs/belegvorlagen.md` aus dem Feldvertrag.
+- Skills, `CLAUDE.md` und `AGENTS.md` weichen keine Regel unter „Never“ in `CLAUDE.md` auf.
+
+Befunde behebt der Prüfer mit eigenen Commits. Gemergt wird nach grüner CI, nach einer Runde.
 
 ## SSO entwickeln und prüfen
 
