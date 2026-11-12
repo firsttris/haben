@@ -33,7 +33,7 @@ Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintrag
 
 Gibst du die Umsatzsteuererklärung oder die Anlage EÜR außerhalb von Haben ab, etwa mit WISO, über Accountable oder im ELSTER-Portal, hältst du das je Erklärung unter **Abgabe außerhalb von Haben** fest. Der Dialog fragt nach dem Tag der Abgabe laut Übermittlungsprotokoll, dem Transferticket, dem Betrag und einer kurzen Begründung; das Protokoll kannst du als PDF anhängen. Haben zeigt den aus den Buchungen gerechneten Betrag als Vorschlag und weist auf eine Abweichung hin, lehnt den Vermerk deswegen aber nicht ab.
 
-Mit dem Vermerk gilt die Erklärung als abgegeben: Der Bereich zeigt danach Datum, Ticket und Betrag statt des Knopfs, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
+Mit dem Vermerk gilt die Erklärung als abgegeben: Der Bereich zeigt danach Datum, Ticket und Betrag statt des Knopfs, und eine Übermittlung aus Haben ist nicht mehr vorgesehen. Je Erklärung und Jahr ist nur ein Vermerk möglich, und ein Transferticket lässt sich nur einmal verwenden. Vermerken lässt sich nur ein abgelaufenes Jahr; ein abgeschlossenes Jahr nimmt keinen Vermerk mehr auf.
 
 ## Umsatzsteuererklärung
 
