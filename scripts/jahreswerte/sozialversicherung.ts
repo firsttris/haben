@@ -5,11 +5,11 @@
  * (svbezgrv_2027 am 05.11.2026). Die Verordnung erscheint zuerst im Bundesgesetzblatt (meist im November),
  * gesetze-im-internet.de folgt einige Tage später.
  */
-import { abrufen, befund, beschreibe, DOKU, type Ergebnis, type Holen, LEER, text, warnung, zusammen } from "./abruf.ts";
+import { abrufen, befund, beschreibe, type Ergebnis, type Holen, LEER, SKILL_JAHRESWERTE, text, warnung, zusammen } from "./abruf.ts";
 
 export const svUrl = (jahr: number) => `https://www.gesetze-im-internet.de/svbezgrv_${jahr}/`;
 
-const DOKU_SV = `${DOKU}#${encodeURIComponent("sozialversicherung-werte-jährlich-aktualisieren")}`;
+const DOKU_SV = `${SKILL_JAHRESWERTE}#sozialversicherung`;
 
 export interface SvStand {
   heute: Date;
@@ -38,7 +38,7 @@ async function pruefeJahr(jahr: number, holen: Holen): Promise<Ergebnis> {
       "",
       `Haben hat für ${jahr} noch keine Werte (\`SV_JAHRE\` in \`packages/core/src/sozialversicherung/index.ts\`) und rechnet die Sozialversicherung ${jahr} deshalb nicht.`,
       "",
-      `Zu tun: die Werte des Jahres mit Quelle sammeln – neben den Beitragsbemessungsgrenzen aus der Verordnung auch Beitragssätze, durchschnittlicher Zusatzbeitrag, Geringfügigkeitsgrenze, Faktor F und die Werte der Minijob-Zentrale –, \`SV_${jahr}\` in \`werte.ts\` anlegen und Beispielrechnungen als Tests aufnehmen. Schritte in [docs/entwicklung.md, „Sozialversicherung: Werte jährlich aktualisieren“](${DOKU_SV}).`,
+      `Zu tun: die Werte des Jahres mit Quelle sammeln – neben den Beitragsbemessungsgrenzen aus der Verordnung auch Beitragssätze, durchschnittlicher Zusatzbeitrag, Geringfügigkeitsgrenze, Faktor F und die Werte der Minijob-Zentrale –, \`SV_${jahr}\` in \`werte.ts\` anlegen und Beispielrechnungen als Tests aufnehmen. Schritte in [Skill jahreswerte, „Sozialversicherung“](${DOKU_SV}).`,
     ].join("\n"),
   });
 }
