@@ -1,27 +1,28 @@
-/* Startseite (index.md): oben was Haben ist und die Fragen vor dem Umstieg, dann je Funktion Text links und
-   Bild rechts, immer in derselben Richtung. Frage und Antwort stehen in Zeilen mit Haarlinie wie im Journal. */
+/* Startseite (index.md): wenig Text, große Bilder. Kopf mittig mit der Übersicht darunter, dann Kacheln mit je
+   einem Satz und Link, dann je Funktion Text links und Bild rechts, immer in derselben Richtung. */
 
-/* Kopf: Text links, Übersicht rechts; am Handy untereinander */
 .showcase-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
-  gap: 2.4rem;
-  align-items: center;
-  margin: 1.2rem 0 3.2rem;
+  text-align: center;
+  margin: 1.2rem 0 2.4rem;
 }
 
 .md-typeset .showcase-hero h1 {
-  margin: 0 0 0.8rem;
-  font-size: 1.9rem;
+  margin: 0 auto 0.8rem;
+  max-width: 20em;
+  font-size: 2.2rem;
   font-weight: 600;
   line-height: 1.15;
   color: var(--md-default-fg-color);
 }
 
+.md-typeset .showcase-hero h2 {
+  font-weight: 600;
+}
+
 .md-typeset .showcase-hero .showcase-claim {
-  margin: 0 0 1.4rem;
-  max-width: 30em;
-  font-size: 0.9rem;
+  margin: 0 auto 1.4rem;
+  max-width: 34em;
+  font-size: 0.95rem;
   color: var(--md-default-fg-color--light);
 }
 
@@ -48,6 +49,10 @@
   box-shadow: none;
 }
 
+.md-typeset .showcase-shot--hero img {
+  margin: 0 auto;
+}
+
 /* Das Archiv ist eine lange Seite: nur ihr oberer Teil im Format der anderen Bilder */
 .md-typeset .showcase-shot--crop img {
   aspect-ratio: 16 / 10;
@@ -61,41 +66,30 @@
   border-radius: 1.4rem;
 }
 
-/* Fragen und Antworten: Frage links, Antwort rechts, je Zeile eine Haarlinie */
-.showcase-fragen {
-  margin: 3.2rem 0;
-}
-
-.md-typeset .showcase-fragen h2,
-.md-typeset .showcase-feature h2,
-.md-typeset .showcase-installation h2 {
-  margin: 0 0 0.8rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.showcase-zeilen > div {
+/* Kacheln: Titel als Link zur Seite mit den Details, darunter ein Satz */
+.showcase-cards {
   display: grid;
-  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
-  gap: 2rem;
-  padding: 0.8rem 0;
-  border-top: 1px solid var(--md-default-fg-color--lightest);
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.8rem;
+  margin: 2.4rem 0 4rem;
 }
 
-.showcase-zeilen > div:last-child {
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+.md-typeset .showcase-cards > div {
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
 }
 
-.md-typeset .showcase-zeilen h3 {
+.md-typeset .showcase-cards h3 {
   margin: 0;
   font-size: 0.8rem;
   font-weight: 600;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
-.md-typeset .showcase-zeilen p {
-  max-width: 40em;
-  margin: 0;
+.md-typeset .showcase-cards p {
+  margin: 0.2rem 0 0;
+  color: var(--md-default-fg-color--light);
 }
 
 /* Funktionen: Text links, Bild rechts */
@@ -105,6 +99,12 @@
   gap: 2.4rem;
   align-items: center;
   margin: 4.4rem 0;
+}
+
+.md-typeset .showcase-feature h2 {
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 /* Der Rechnungseditor braucht die Breite: Text darüber, Bild über die ganze Seite */
@@ -117,38 +117,28 @@
   max-width: 36rem;
 }
 
-.showcase-installation {
-  margin: 4.4rem 0 2rem;
-}
-
-/* Sprungziele landen unter der Kopfzeile */
-#rundgang,
-#installation {
+/* „Rundgang ansehen“ landet unter der Kopfzeile */
+#rundgang {
   scroll-margin-top: 4rem;
 }
 
 /* Zwei Knöpfe nebeneinander mit Abstand, am Handy untereinander */
-.md-typeset .showcase-hero p:has(> .md-button),
-.md-typeset .showcase-installation p:has(> .md-button) {
+.md-typeset .showcase-hero p:has(> .md-button) {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.8rem;
 }
 
-.md-typeset .showcase-hero .md-button,
-.md-typeset .showcase-installation .md-button {
+.md-typeset .showcase-hero .md-button {
   margin: 0;
 }
 
 /* Handy und Tablet: eine Spalte, der Text über seinem Bild */
 @media screen and (max-width: 59.99em) {
-  .showcase-hero,
   .showcase-feature {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.2rem;
-  }
-
-  .showcase-feature {
     margin: 3.2rem 0;
   }
 
@@ -161,17 +151,10 @@
   }
 }
 
-@media screen and (max-width: 44.99em) {
-  .showcase-zeilen > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.2rem;
-  }
-}
-
 @media screen and (max-width: 29.99em) {
-  .md-typeset .showcase-hero .md-button,
-  .md-typeset .showcase-installation .md-button {
+  .md-typeset .showcase-hero .md-button {
     width: 100%;
+    max-width: 20rem;
     text-align: center;
   }
 }
