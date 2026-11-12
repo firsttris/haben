@@ -56,6 +56,12 @@ Claude Desktop bindet lokal konfigurierte Server über die Datei `claude_desktop
 
 Ein Connector aus den Einstellungen von claude.ai (auch für die Handy-App und claude.ai im Browser) geht noch nicht: Dort ruft Anthropic Haben aus dem Internet auf und erwartet OAuth. Das ist geplant, aber noch nicht dran (Spalte „Später“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2)).
 
+### Claude-App auf dem Handy über deinen Rechner
+
+Ohne Connector und ohne Freigabe nach außen geht die Handy-App, wenn das Gespräch in einer Session auf deinem Rechner läuft. Claude Desktop lädt die Server aus `claude_desktop_config.json` auch in die lokalen Sessions im Code-Tab ([Doku von Anthropic](https://code.claude.com/docs/en/desktop#mcp-servers-from-the-claude-desktop-chat-app)), Haben steht dort also ohne weiteren Eintrag bereit. Eine solche Session führst du mit `/remote-control` in der Claude-App auf dem Handy weiter ([Remote Control](https://code.claude.com/docs/en/remote-control)), ebenso eine Session von Claude Code im Terminal. Mit [Dispatch](https://code.claude.com/docs/en/desktop#sessions-from-dispatch) lässt du vom Handy aus eine neue Session auf dem Rechner starten.
+
+Den Aufruf an Haben macht dabei dein Rechner, nicht Anthropic. Haben muss also nicht aus dem Internet erreichbar sein, und die Anmeldung bleibt beim API-Token. Dafür muss der Rechner an sein und Claude Desktop oder Claude Code laufen. Remote Control gibt es in den Abos Pro, Max, Ultra, Team und Enterprise, Dispatch nur in Pro, Max und Ultra. Mit Remote Control speichert Anthropic außerdem den Verlauf der Session, damit alle Geräte denselben Stand sehen.
+
 ### Andere Clients
 
 Jeder MCP-Client, der Streamable HTTP mit eigenem Header spricht, funktioniert: Adresse `https://<deine Adresse>/api/mcp`, Header `Authorization: Bearer <Token>`. Der Endpunkt ist zustandslos und nimmt nur POST an.
