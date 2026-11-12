@@ -278,7 +278,14 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       a.kind === "zinsertrag" ||
       a.kind === "kursdifferenz"
     ) {
-      payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
+      payments.push({
+        kind: a.kind,
+        date: a.date,
+        amount: a.amount,
+        group,
+        // Die Richtung bleibt die der ursprünglichen Zuordnung, auch nach einer jahresübergreifenden Rücknahme.
+        ...(a.kind === "ustVorauszahlung" || a.kind === "sondervorauszahlung" ? { ustAbfluss: (a.reversesId ? -a.amount : a.amount) < 0 } : {}),
+      });
     } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
       // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,

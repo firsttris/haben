@@ -54,7 +54,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | [Pauschale](pauschalen.md) | Datum der Pauschale | Ausgabe je Pauschale (Homeoffice, Fahrten, Verpflegung) |
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
 
-Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf.
+Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf. Auch eine aufgehobene Umsatzsteuerzahlung wird in derselben EÜR-Position zurückgenommen; sie zählt nicht als Erstattung des Finanzamts. Nach erneuter Zuordnung zählt die Zahlung einmal. Eine tatsächliche Erstattung vom Finanzamt bleibt dagegen eine Einnahme unter „Vom Finanzamt erstattete Umsatzsteuer“ ([amtliche Anleitung EÜR 2025, Zeilen 18 und 58](https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025)).
 
 ### Umsatzsteuer-Vorauszahlung um den Jahreswechsel
 
@@ -74,7 +74,7 @@ Die Buchung selbst behält ihr Datum; Voranmeldung, Journal und DATEV-Export ble
 
 **Gesperrtes Vorjahr:** War die Anlage EÜR oder die Einkommensteuererklärung des Vorjahres schon aus Haben übermittelt oder das Jahr abgeschlossen, als du die Zahlung zugeordnet hast, ändert Haben das Vorjahr nicht (GoBD). Die Zahlung zählt dann im Jahr der Zahlung, und die Vorprüfung der [Anlage EÜR](jahreserklaerung.md#anlage-eür) nennt sie mit Zeitraum und Betrag; hast du die Zuordnung nach der Übermittlung aufgehoben und den Umsatz neu zugeordnet, zählt die Zahlung über die aufgehobene Zuordnung schon im Vorjahr, und die Vorprüfung nennt nur, was dort noch fehlt. Erklärungen, die eine ältere Version von Haben übermittelt hat, enthalten die Zahlung nicht; sie sperren das Vorjahr deshalb immer.
 
-**Übermittelt bleibt übermittelt:** Mit jeder Übermittlung speichert Haben, welche Zahlungen die Erklärung in das Vorjahr verschoben bzw. aus dem Folgejahr hereingenommen hat. Danach richten sich beide Jahre, auch wenn du später etwa die Dauerfristverlängerung des Jahres änderst. Hat eine ältere Version von Haben die EÜR des Zahlungsjahres übermittelt, zählt die Zahlung dort weiter am Buchungstag.
+**Übermittelt bleibt übermittelt:** Mit jeder Übermittlung speichert Haben, welche Zahlungen die Erklärung in das Vorjahr verschoben bzw. aus dem Folgejahr hereingenommen hat. Danach richten sich beide Jahre, auch wenn du später etwa die Dauerfristverlängerung des Jahres änderst. Hebst du eine bereits ins übermittelte Vorjahr übernommene Zuordnung auf, mindert ihre Gegenzeile im Folgejahr die gezahlte Umsatzsteuer; sie wird nicht als neue Erstattung ausgewiesen. Hat eine ältere Version von Haben die EÜR des Zahlungsjahres übermittelt, zählt die Zahlung dort weiter am Buchungstag.
 
 ### Was nicht zählt
 
