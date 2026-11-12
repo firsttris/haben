@@ -85,6 +85,37 @@ describe.skipIf(!testDatabaseUrl)("Neue Teilleistung: Steuerzeitpunkt und Verfah
     for (const month of [11, 12]) expect((await reports.vatAbgleich({ year: 2026, month })).zeilen.filter((r) => r.journal !== r.quelle)).toEqual([]);
   });
 
+  it.each([
+    ["SKR03", "soll"],
+    ["SKR04", "ist"],
+  ] as const)("ZM-Auswahl enthält das Leistungsquartal einer EU-Teilleistung bei %s und %s", async (kontenrahmen, versteuerung) => {
+    await sql`update company set versteuerung = ${versteuerung}, kontenrahmen = ${kontenrahmen}`;
+    const foreign = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Muster GmbH",
+      strasse: "Testgasse 1",
+      plz: "1010",
+      ort: "Wien",
+      land: "AT",
+      email: "rechnung@firma.example",
+      ustId: "ATU12345678",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const draft = await invoices.createDraft(actor, {
+      ...input(),
+      contactId: foreign.id,
+      issueDate: "2026-04-01",
+      serviceFrom: "2026-03-31",
+      taxTreatment: "reverse_charge",
+      lines: [{ description: "Erbrachte Teilleistung", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 0 }],
+    });
+    await invoices.finalizeInvoice(actor, draft.id);
+    expect(await vat.computeVatFigures({ year: 2026, month: 41 })).toMatchObject({ kz21: 30_000 });
+    expect(await vat.zmQuartale()).toEqual([{ year: 2026, month: 41, sent: false }]);
+  });
+
   it("eine unter Ist erbrachte Teilleistung bleibt nach dem Wechsel zu Soll bei Zahlung steuerpflichtig", async () => {
     await sql`update company set versteuerung = 'ist'`;
     const old = await invoices.finalizeInvoice(
