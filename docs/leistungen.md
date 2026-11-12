@@ -38,7 +38,7 @@ Der Betrag eines Eintrags ist die abrechenbare Dauer mal Stundensatz, auf ganze 
 
 ## Einträge aus einer Zeiterfassung
 
-Zeiterfassungsprogramme legen Einträge über `POST /api/v1/leistungen` an. Mit `source` (etwa `kimai`) und `externalId` (die Nummer der Zeile in dem Programm) ist der Aufruf wiederholbar: Gibt es die Kennung schon, aktualisiert Haben den Eintrag, statt ihn zu verdoppeln. In der Liste steht „aus kimai“. Wie ein Abruf aus Kimai aussieht, steht in der [API-Beschreibung](api.md#leistungen-und-zeiterfassung).
+Zeiterfassungsprogramme legen Einträge über `POST /api/v1/leistungen` an. Mit `source` (etwa `kimai`) und `externalId` (die Nummer der Zeile in dem Programm) ist der Aufruf wiederholbar: Gibt es die Kennung schon, aktualisiert Haben den Eintrag, statt ihn zu verdoppeln. In der Liste steht „aus kimai“. Wie ein Abruf aus Kimai aussieht, steht in der [API-Beschreibung](api.md#zeitbuchungen-aus-kimai-holen).
 
 Das Token braucht das Recht `leistungen:schreiben` (anlegen und löschen) oder `leistungen:lesen`. Der [Zugang der Steuerberatung](steuerberatung.md) sieht die Seite nicht: Zeiteinträge sind keine Buchführungsunterlage.
 

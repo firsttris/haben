@@ -185,7 +185,30 @@ Mit `source` und `externalId` ist der Aufruf wiederholbar: Die Kennung der Zeile
 curl -X POST https://haben.example/api/v1/leistungen \n  -H "Authorization: Bearer hb_…" -H "Content-Type: application/json" \n  -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
 ```
 
-Zum Abgleich mit Kimai: Die Nummer der Zeitbuchung dort ist `externalId`, `kimai` ist `source`; ein Skript oder eine Automation ruft damit regelmäßig die neuen und geänderten Zeitbuchungen ab und schickt sie an Haben. Gelöscht wird mit `DELETE /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+Gelöscht wird mit `DELETE /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+
+### Zeitbuchungen aus Kimai holen
+
+Kimai hat eine eigene [REST-API](https://www.kimai.org/documentation/rest-api.html): Anmeldung mit `Authorization: Bearer <Kimai-Token>` (das Token aus dem Profil in Kimai, nicht das Passwort), Basis `https://<deine Kimai-Adresse>/api`, die vollständige Beschreibung unter `/api/doc` der eigenen Installation. Die Zeitbuchungen holt `GET /api/timesheets`; laut Quelltext von Kimai nimmt die Liste unter anderem `begin` und `end` (lokale Zeit, `JJJJ-MM-TTThh:mm:ss`), `customer`, `project`, `exported` (0 oder 1), `billable` (0 oder 1), `active` (0 = beendet), `modified_after` (UTC), `size` (höchstens 500) und `page`; `full=1` liefert Kunde und Projekt mit Namen statt nur mit ID.
+
+Ein Skript ruft regelmäßig die beendeten, noch nicht exportierten Zeitbuchungen ab und schickt jede an Haben:
+
+| Kimai | Haben (`POST /api/v1/leistungen`) |
+| --- | --- |
+| `id` der Zeitbuchung | `externalId`, dazu `source`: `kimai` |
+| Kunde der Zeitbuchung | `contactId`: der Kontakt in Haben, den das Skript über `GET /kontakte?q=<Name oder Kundennummer>` findet |
+| Datum von `begin` | `workedOn` |
+| `duration` (Sekunden) | `minutes`: auf ganze Minuten gerundet, mindestens 1 |
+| `description` | `description` |
+| Projekt (mit `full=1` der Name) | `project` |
+| `billable` ist `false` | `nonBillable`: `true` |
+
+`hourlyRateCents` lässt das Skript weg: Dann gilt der Satz des Kunden in Haben. Weil die Kennung der Zeitbuchung `externalId` ist, ändert ein erneuter Abruf, etwa nach `modified_after`, vorhandene Einträge statt neue anzulegen. Wer eine Zeitbuchung in Kimai nachträglich ändert, schickt sie noch einmal.
+
+Kimai merkt sich, was schon abgerechnet ist, mit dem Kennzeichen `exported` (`PATCH /api/timesheets/{id}/export` schaltet es um). Setzen soll es der Abgleich, sobald Haben die Einträge zu einer Rechnung gemacht hat; das kommt mit dem Abrechnen, einem späteren Teil von [#417](https://github.com/firsttris/haben/issues/417).
+
+> [!NOTE]
+> Diese Zuordnung folgt der Kimai-Dokumentation und dem Quelltext von Kimai. Sie ist noch nicht gegen eine laufende Kimai-Installation ausprobiert; welche Felder die Antwort genau enthält, zeigt `/api/doc` der eigenen Installation.
 
 ## Belege
 
