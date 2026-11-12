@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- Übersicht hell und dunkel in einem Bild, schräg geteilt mit einer dünnen Linie in der Markenfarbe (README).
+     Setzt die Bilder aus zz-doku-screenshots.spec.ts zusammen, 1440 × 900 wie diese.
+     Rendern: bun run docs:hell-dunkel → docs/screenshot-hell-dunkel.png -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 1440px; height: 900px; overflow: hidden; }
+  .bild { position: relative; width: 1440px; height: 900px; }
+  .bild img, .bild svg { position: absolute; inset: 0; width: 1440px; height: 900px; display: block; }
+  /* Schnitt von 58 % oben nach 42 % unten; die Linie liegt genau darauf (--brand aus styles.css) */
+  .dunkel { clip-path: polygon(58% 0, 100% 0, 100% 100%, 42% 100%); }
+</style>
+</head>
+<body>
+  <div class="bild">
+    <img src="../../docs/screenshot-uebersicht.png" alt="">
+    <img class="dunkel" src="../../docs/screenshot-uebersicht-dunkel.png" alt="">
+    <svg viewBox="0 0 1440 900" aria-hidden="true"><line x1="835.2" y1="0" x2="604.8" y2="900" stroke="#3fa284" stroke-width="2"/></svg>
+  </div>
+</body>
+</html>
