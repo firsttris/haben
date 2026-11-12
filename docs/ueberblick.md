@@ -63,14 +63,20 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 ## Screenshots
 
-<img src="screenshot-rechnung.png" alt="Rechnungseditor mit Live-Vorschau" width="900">
+<img src="screenshot-rechnung.png#only-light" alt="Rechnungseditor mit Live-Vorschau" width="900">
+<img src="screenshot-rechnung-dunkel.png#only-dark" alt="Rechnungseditor mit Live-Vorschau" width="900">
 
-<img src="screenshot-bank.png" alt="Bankabgleich mit Vorschlag und Begründung" width="900">
+<img src="screenshot-bank.png#only-light" alt="Bankabgleich mit Vorschlag und Begründung" width="900">
+<img src="screenshot-bank-dunkel.png#only-dark" alt="Bankabgleich mit Vorschlag und Begründung" width="900">
 
-<img src="screenshot-umsatzsteuer.png" alt="Umsatzsteuer-Voranmeldung mit Kennzahlen und ELSTER-Übermittlung" width="900">
+<img src="screenshot-umsatzsteuer.png#only-light" alt="Umsatzsteuer-Voranmeldung mit Kennzahlen und ELSTER-Übermittlung" width="900">
+<img src="screenshot-umsatzsteuer-dunkel.png#only-dark" alt="Umsatzsteuer-Voranmeldung mit Kennzahlen und ELSTER-Übermittlung" width="900">
 
-<img src="screenshot-auswertungen.png" alt="Auswertungen mit EÜR und Monatsdiagramm" width="900">
+<img src="screenshot-auswertungen.png#only-light" alt="Auswertungen mit EÜR und Monatsdiagramm" width="900">
+<img src="screenshot-auswertungen-dunkel.png#only-dark" alt="Auswertungen mit EÜR und Monatsdiagramm" width="900">
 
-<img src="screenshot-archiv.png" alt="Archiv mit Umzug aus Lexoffice und Abgleich je Jahr" width="900">
+<img src="screenshot-archiv.png#only-light" alt="Archiv mit Umzug aus Lexoffice und Abgleich je Jahr" width="900">
+<img src="screenshot-archiv-dunkel.png#only-dark" alt="Archiv mit Umzug aus Lexoffice und Abgleich je Jahr" width="900">
 
-<img src="screenshot-mobil.png" alt="Übersicht auf dem Smartphone" width="320">
+<img src="screenshot-mobil.png#only-light" alt="Übersicht auf dem Smartphone" width="320">
+<img src="screenshot-mobil-dunkel.png#only-dark" alt="Übersicht auf dem Smartphone" width="320">
