@@ -8,11 +8,9 @@ description: >-
 # TrueNAS SCALE
 
 Haben läuft auf TrueNAS SCALE als eigene App aus einer Datei,
-[`deploy/truenas/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/truenas/compose.yml). Du änderst darin
-eine Zeile, die Adresse. Die Schlüssel erzeugt die App beim ersten Start selbst, HTTPS übernimmt ein Reverse Proxy.
-
-Gestartet werden dieselben Images wie mit [Docker Compose](installation.md#docker-compose): App, Datenbank und das
-tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
+[`deploy/truenas/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/truenas/compose.yml), mit denselben
+Images wie mit [Docker Compose](installation.md#docker-compose): App, Datenbank und das tägliche Backup, dazu der kurze
+Dienst `schluessel`, der beim ersten Start die Schlüssel erzeugt. Du änderst darin nur eine Zeile, die Adresse.
 
 ## Voraussetzungen
 

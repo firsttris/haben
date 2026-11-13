@@ -10,7 +10,7 @@ description: >-
 [Coolify](https://coolify.io/) startet Haben aus einer Datei,
 [`deploy/coolify/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/coolify/compose.yml): App, Datenbank
 und das tägliche Backup mit denselben Images wie mit [Docker Compose](installation.md#docker-compose). Die Schlüssel
-erzeugt Coolify beim Anlegen, Domain und HTTPS übernimmt sein Proxy. Den mitgelieferten Caddy gibt es hier nicht.
+erzeugt Coolify beim Anlegen, Domain und HTTPS übernimmt sein Proxy statt des mitgelieferten Caddy.
 
 ## Dienst anlegen
 
