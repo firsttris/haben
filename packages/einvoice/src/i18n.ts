@@ -85,7 +85,8 @@ export const TEXTS = {
     reference: (number: string, date: string) => `zur Rechnung ${number} vom ${date}`,
     fromQuote: (number: string, date: string) => `Gemäß unserem Angebot ${number} vom ${date}.`,
     abschlagFromQuote: (number: string, date: string) => `Abschlag gemäß Angebot ${number} vom ${date}`,
-    refund: "Der Betrag wird Ihnen erstattet.",
+    refund: "Bereits geleistete Zahlungen werden erstattet.",
+    correction: "Die ursprüngliche Rechnung wird um den ausgewiesenen Betrag korrigiert.",
     noPayment: "Es ist keine Zahlung erforderlich.",
     payBy: (date: string) => `Bitte überweisen Sie den Betrag bis zum ${date} unter Angabe der Rechnungsnummer.`,
     /** Vorabankündigung der Lastschrift (Pre-notification, SDD Core Rulebook PT-04.02): Betrag, Tag, Mandat, Gläubiger-ID */
@@ -176,7 +177,8 @@ export const TEXTS = {
     reference: (number: string, date: string) => `relating to invoice ${number} of ${date}`,
     fromQuote: (number: string, date: string) => `As per our quote ${number} of ${date}.`,
     abschlagFromQuote: (number: string, date: string) => `Progress payment as per quote ${number} of ${date}`,
-    refund: "The amount will be refunded to you.",
+    refund: "Payments already received will be refunded.",
+    correction: "The original invoice is adjusted by the amount shown.",
     noPayment: "No payment is required.",
     payBy: (date: string) => `Please transfer the amount by ${date}, quoting the invoice number.`,
     directDebit: (amount: string, date: string, iban: string, reference: string, creditorId: string) =>

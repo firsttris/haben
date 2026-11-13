@@ -627,9 +627,11 @@ Für beide gilt:
 - Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
 - Sie übernehmen die Umsatzsteuer-Behandlung und den Hinweis der ursprünglichen Rechnung, dazu [Bestell-, Auftrags- und Lieferscheinnummer](#bestellnummer-auftrag-und-lieferschein).
 - PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
-- Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen, das PDF sagt „Der Betrag wird Ihnen erstattet.“
+- Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen.
 - Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
 - War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; bei Ist-Versteuerung mindert sie im Monat der Rückzahlung die Umsatzsteuer.
+
+Der Zahlungssatz im Storno richtet sich nach dem Zahlstand beim Erstellen: Ohne Zahlung steht dort „Es ist keine Zahlung erforderlich“, bei Teil- oder Vollzahlung „Bereits geleistete Zahlungen werden erstattet“. Eine Rechnungskorrektur beschreibt die Minderung der ursprünglichen Rechnung und sagt keine pauschale Auszahlung zu. PDF und E-Rechnung verwenden denselben Inhalt; das englische PDF entsprechend übersetzt. Bereits gespeicherte Belege behalten ihren bisherigen Text.
 
 Die ursprüngliche Rechnung zeigt unter **Korrekturen** alle Stornos und Korrekturen, die sich auf sie beziehen, eine stornierte Rechnung zusätzlich einen roten Hinweis mit Link zur Stornorechnung.
 
