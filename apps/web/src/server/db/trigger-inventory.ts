@@ -24,7 +24,9 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 /**
  * pg_get_triggerdef enthält WHEN, UPDATE OF, Constraintaufschub und Argumente, keine instanzabhängigen OIDs.
  * Ein fester search_path macht darin auch Funktions- und Typnamen eindeutig; die Einstellung gilt nur lokal
- * und wird vor Verlassen der Transaktion zurückgesetzt. Keines der gelesenen Datenbankobjekte wird verändert.
+ * und wird vor Verlassen der Transaktion zurückgesetzt. Qualifizierte Kataloge verhindern den Vorrang von pg_temp.
+ * Auch die Pfadeinstellung selbst darf kein Betreiberobjekt auflösen. Keines der gelesenen Datenbankobjekte wird verändert.
+ * https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-SEARCH-PATH
  * https://www.postgresql.org/docs/18/catalog-pg-trigger.html
  * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-CATALOG-TABLE
  * https://github.com/firsttris/haben/issues/764#issuecomment-6837874131
@@ -32,15 +34,15 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 export async function readTriggerInventory(reader: Reader): Promise<TriggerInventory> {
   return reader.transaction(
     async (tx) => {
-      const [setting] = await tx.execute<{ path: string }>(sql`select current_setting('search_path') as path`);
-      await tx.execute(sql`select set_config('search_path', 'pg_catalog', true)`);
+      const [setting] = await tx.execute<{ path: string }>(sql`select pg_catalog.current_setting('search_path') as path`);
+      await tx.execute(sql`select pg_catalog.set_config('search_path', 'pg_catalog', true)`);
       try {
         const triggers = await tx.execute<TriggerInventory["triggers"][number]>(sql`
         select format('%I.%I', n.nspname, c.relname) as "table", t.tgname as name, t.tgenabled as enabled,
           pg_get_triggerdef(t.oid, false) as definition,
           format('%I.%I(%s)', pn.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) as function
-        from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
-        join pg_proc p on p.oid = t.tgfoid join pg_namespace pn on pn.oid = p.pronamespace
+        from pg_catalog.pg_trigger t join pg_catalog.pg_class c on c.oid = t.tgrelid join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+        join pg_catalog.pg_proc p on p.oid = t.tgfoid join pg_catalog.pg_namespace pn on pn.oid = p.pronamespace
         where n.nspname = 'public' and not t.tgisinternal order by n.nspname, c.relname, t.tgname`);
         // prosrc ist bei SQL-Standardrümpfen leer; der zusätzliche Definitionshash deckt auch diese ab.
         // proconfig, Sprache und SECURITY DEFINER können die Wirkung ohne Änderung von prosrc verändern.
@@ -56,10 +58,10 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
         select format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) as name,
           p.prosrc as source, pg_get_functiondef(p.oid) as definition, coalesce(p.proconfig, '{}'::text[]) as config,
           l.lanname as language, p.prosecdef as "securityDefiner"
-        from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_language l on l.oid = p.prolang
+        from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace join pg_catalog.pg_language l on l.oid = p.prolang
         where (n.nspname = 'public' and left(p.proname, 6) = 'haben_')
-          or p.oid in (select t.tgfoid from pg_trigger t join pg_class c on c.oid = t.tgrelid
-            join pg_namespace tn on tn.oid = c.relnamespace where tn.nspname = 'public' and not t.tgisinternal)
+          or p.oid in (select t.tgfoid from pg_catalog.pg_trigger t join pg_catalog.pg_class c on c.oid = t.tgrelid
+            join pg_catalog.pg_namespace tn on tn.oid = c.relnamespace where tn.nspname = 'public' and not t.tgisinternal)
         order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)`);
         return {
           triggers: [...triggers],
@@ -71,7 +73,7 @@ export async function readTriggerInventory(reader: Reader): Promise<TriggerInven
           })),
         };
       } finally {
-        await tx.execute(sql`select set_config('search_path', ${setting!.path}, true)`);
+        await tx.execute(sql`select pg_catalog.set_config('search_path', ${setting!.path}, true)`);
       }
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
