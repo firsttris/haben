@@ -78,11 +78,15 @@ der Synology im Browser deines Rechners führen deshalb nicht zu Haben. Als Ziel
 ist nur auf dieser IPv4-Adresse veröffentlicht, `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt,
 änderst du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
 
-## Im Heimnetz erreichen
+## Nur im Heimnetz oder auch aus dem Internet
 
 Über Synology DDNS zeigt `haben.deinname.synology.me` auf die öffentliche Adresse deines Anschlusses, also von außen auf
-deinen Router. Ohne Freigabe endet der Aufruf dort mit einer Zeitüberschreitung (`ERR_CONNECTION_TIMED_OUT`). Damit Haben
-im Heimnetz erreichbar ist und sonst nirgends, zeigt derselbe Name im Heimnetz auf die Synology:
+deinen Router. Ob Haben nur zu Hause oder auch unterwegs erreichbar ist, entscheidest du mit einem der beiden Wege. Ohne
+einen davon endet der Aufruf mit einer Zeitüberschreitung (`ERR_CONNECTION_TIMED_OUT`).
+
+### Nur im Heimnetz, ohne Internet
+
+Im Router gibst du nichts frei. Stattdessen zeigt derselbe Name im Heimnetz auf die Synology:
 
 - **Ein Rechner:** in der hosts-Datei eine Zeile mit der IP der Synology im Heimnetz und dem Namen, etwa
   `192.168.178.20 haben.deinname.synology.me`. Unter Windows ist das `C:\Windows\System32\drivers\etc\hosts`, mit dem
@@ -94,12 +98,12 @@ im Heimnetz erreichbar ist und sonst nirgends, zeigt derselbe Name im Heimnetz a
 Das Zertifikat bleibt gültig, weil der Name derselbe ist. Die IP der Synology oder ein selbst signiertes Zertifikat
 reichen nicht: Der Browser warnt, Passkeys verweigert er, und die Anmeldung erwartet die Adresse aus `BETTER_AUTH_URL`.
 
-### Von unterwegs
+### Auch aus dem Internet
 
-Soll Haben auch unterwegs erreichbar sein, leitet der Router Port 443 an die Synology weiter (Fritzbox: **Internet ›
-Freigaben**). Die Anmeldeseite ist dann aus dem Internet erreichbar. Ein Gerät im Heimnetz ohne den Eintrag von oben
-erreicht Haben nur, wenn der Router Anfragen an die eigene öffentliche Adresse ins Heimnetz zurückleitet; nicht jeder kann
-das. Ohne eigene öffentliche IPv4-Adresse (DS-Lite, bei manchen Kabelanschlüssen) geht die Freigabe über IPv4 nicht.
+Der Router leitet Port 443 an die Synology weiter (Fritzbox: **Internet › Freigaben**). Die Anmeldeseite ist dann aus dem
+Internet erreichbar. Ein Gerät im Heimnetz erreicht Haben über die öffentliche Adresse nur, wenn der Router solche
+Anfragen ins Heimnetz zurückleitet; nicht jeder kann das, dann hilft der Eintrag aus dem Weg oben zusätzlich. Ohne eigene
+öffentliche IPv4-Adresse (DS-Lite, bei manchen Kabelanschlüssen) geht die Freigabe über IPv4 nicht.
 
 ## Konto anlegen
 
