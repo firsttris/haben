@@ -170,19 +170,21 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     const probe = postgres(appUrl, { max: 1, onnotice: () => {} });
     try {
       const rollback = new Error("nur zurückgerollte Gegenprobe");
-      await expect(probe.begin(async (tx) => {
-        if (kind === "owner") {
-          await tx`set role ${tx(context!.owner)}`;
-          expect(await tx`select current_user as role`).toEqual([{ role: context!.owner }]);
-        }
-        if (kind === "replication") {
-          await tx`set local session_replication_role = replica`;
-          expect(await tx`select current_setting('session_replication_role') as mode`).toEqual([{ mode: "replica" }]);
-        }
-        if (kind === "temporary") await tx`create temp table audit_log (id integer)`;
-        if (kind === "schema") await tx`create table ${tx(ownSchema)}.audit_log (id integer)`;
-        throw rollback;
-      })).rejects.toBe(rollback);
+      await expect(
+        probe.begin(async (tx) => {
+          if (kind === "owner") {
+            await tx`set role ${tx(context!.owner)}`;
+            expect(await tx`select current_user as role`).toEqual([{ role: context!.owner }]);
+          }
+          if (kind === "replication") {
+            await tx`set local session_replication_role = replica`;
+            expect(await tx`select current_setting('session_replication_role') as mode`).toEqual([{ mode: "replica" }]);
+          }
+          if (kind === "temporary") await tx`create temp table audit_log (id integer)`;
+          if (kind === "schema") await tx`create table ${tx(ownSchema)}.audit_log (id integer)`;
+          throw rollback;
+        }),
+      ).rejects.toBe(rollback);
       await migrate(appUrl, testDatabaseUrl, undefined, 1);
     } finally {
       await probe.end();

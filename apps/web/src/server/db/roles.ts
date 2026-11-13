@@ -25,6 +25,8 @@ async function identity(sql: Reader): Promise<Identity> {
  * PostgreSQL-Rechte schließen PUBLIC und erreichbare Rollen ein, nicht nur die direkten Grants.
  * https://www.postgresql.org/docs/18/role-membership.html
  * https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-SESSION-REPLICATION-ROLE
+ * Eigentümer kommen aus dem Katalog statt aus einer Liste von Objekttypen oder Schema-Präfixen:
+ * https://www.postgresql.org/docs/18/catalog-pg-shdepend.html
  */
 async function accessFor(sql: Reader, who: Identity): Promise<DatabaseAccessInfo> {
   const [rights] = await sql<
@@ -40,19 +42,17 @@ async function accessFor(sql: Reader, who: Identity): Promise<DatabaseAccessInfo
   >`with reachable as (
       select r.* from pg_roles r join pg_roles login on login.rolname = ${who.loginRole}
       where pg_has_role(login.oid, r.oid, 'MEMBER')
-    ), application_schemas as (
-      select oid, nspowner from pg_namespace where nspname not like 'pg_%' and nspname <> 'information_schema'
+    ), schemas as (
+      select oid from pg_namespace
     ), owners as (
       select datdba as oid from pg_database where datname = current_database()
-      union select nspowner from application_schemas
-      union select relowner from pg_class where relnamespace in (select oid from application_schemas)
-      union select proowner from pg_proc where pronamespace in (select oid from application_schemas)
-      union select typowner from pg_type where typnamespace in (select oid from application_schemas)
+      union select refobjid from pg_shdepend where refclassid = 'pg_authid'::regclass and deptype = 'o'
+        and dbid = (select oid from pg_database where datname = current_database())
     ) select
       exists(select 1 from reachable where rolsuper or rolcreaterole or rolcreatedb or rolreplication or rolbypassrls) as admin,
       exists(select 1 from reachable r join owners o on o.oid = r.oid) as owner,
       exists(select 1 from reachable r where has_database_privilege(r.oid, current_database(), 'CREATE'))
-        or exists(select 1 from reachable r cross join application_schemas s where has_schema_privilege(r.oid, s.oid, 'CREATE')) as "createObjects",
+        or exists(select 1 from reachable r cross join schemas s where has_schema_privilege(r.oid, s.oid, 'CREATE')) as "createObjects",
       exists(select 1 from reachable r where has_database_privilege(r.oid, current_database(), 'TEMP')) as temporary,
       exists(select 1 from reachable r where has_parameter_privilege(r.oid, 'session_replication_role', 'SET,ALTER SYSTEM')) as replication,
       exists(select 1 from reachable where rolname in ('pg_read_server_files', 'pg_write_server_files', 'pg_execute_server_program')) as files,
