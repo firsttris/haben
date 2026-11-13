@@ -405,7 +405,7 @@ Abgerufene Belege, ihre Dateien, archivierte Exporte und DATEV-Buchungen kann ni
 
 Unter **Belege** findest du den Altbestand je Jahr, filterbar nach Einnahmen und Ausgaben, nach Nummer, Kontakt oder Notiz durchsuchbar und mit dem Filter „ohne Datei“. Jeder Beleg zeigt die Beträge je Steuersatz, die Kategorien, den Zahlungsstatus und seine Dateien. Unter **Originaldateien** liegen die hochgeladenen Exporte zum Herunterladen.
 
-Archivierte Belege mit Kontakt stehen außerdem auf dessen Kontaktseite, zusammen mit den Rechnungen und Belegen aus Haben und mit Summen je Jahr ([Rechnungen und Belege am Kontakt](rechnungen.md#rechnungen-und-belege-am-kontakt)).
+Archivierte Belege mit Kontakt stehen außerdem auf dessen Kontaktseite, zusammen mit den Rechnungen und Belegen aus Haben und mit Summen je Jahr ([Rechnungen und Belege am Kontakt](kontakte.md#rechnungen-und-belege-am-kontakt)).
 
 Im [Jahresexport](auswertungen.md#jahresexport) steht der Altbestand jedes Jahres unter `lexoffice/`: Belege mit Originaldateien, `belege.csv`, `datev-buchungen.csv` und die Originalexporte unter `originale/`.
 

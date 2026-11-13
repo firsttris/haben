@@ -65,9 +65,9 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 
 | Feld | Spaltennamen, die Haben vorschlägt | Prüfung |
 | --- | --- | --- |
-| Kundennummer | Kundennummer, Kundennr | Leer: Bei Kunden vergibt Haben die nächste, wenn unter Einstellungen ein Format steht ([Kontakte](rechnungen.md#kontakte)) |
+| Kundennummer | Kundennummer, Kundennr | Leer: Bei Kunden vergibt Haben die nächste, wenn unter Einstellungen ein Format steht ([Kontakte](kontakte.md)) |
 | Lieferantennummer | Lieferantennummer, Lieferantennr | |
-| Debitor | Debitorennummer, Debitor, Debitorenkonto | DATEV-Personenkonto, nur Ziffern, 10000 bis 69999 ([Kontakte](rechnungen.md#kontakte)); macht wie die Kundennummer zum Kunden |
+| Debitor | Debitorennummer, Debitor, Debitorenkonto | DATEV-Personenkonto, nur Ziffern, 10000 bis 69999 ([Kontakte](kontakte.md)); macht wie die Kundennummer zum Kunden |
 | Kreditor | Kreditorennummer, Kreditor, Kreditorenkonto | DATEV-Personenkonto, nur Ziffern, 70000 bis 99999; macht wie die Lieferantennummer zum Lieferanten |
 | Firma | Firmenname, Firma, Unternehmen, Name | Fehlt sie, gilt „Vorname Nachname“; ohne beides ist die Zeile fehlerhaft |
 | Vorname, Nachname | Vorname, Nachname | |
