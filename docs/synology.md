@@ -74,7 +74,7 @@ Danach unter **Systemsteuerung › Sicherheit › Zertifikat › Einstellungen**
 Zertifikat aus dem ersten Abschnitt wählen.
 
 Die App ist nur auf der Synology selbst unter `127.0.0.1:3000` erreichbar, nicht im Netz. Als Ziel `127.0.0.1` statt
-`localhost`: Die App hört nur auf IPv4, und `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt, änderst
+`localhost`: Der Port ist nur auf dieser IPv4-Adresse veröffentlicht, `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt, änderst
 du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
 
 ## Konto anlegen
