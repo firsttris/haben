@@ -65,7 +65,7 @@ const sso = [
   "OIDC_GROUP_STEUERBERATUNG",
 ];
 // ERiC von Hand oder emuliert braucht eine Shell, der Kontoabruf eine eingehängte Schlüsseldatei, der Rest wird selten
-// gebraucht; wer das braucht, ergänzt es nach docs/installation.md
+// gebraucht; wer das braucht, ergänzt es nach docs/installation-konfiguration.md
 const ohneShell = [
   "ERIC_HOME",
   "ERIC_SHA256",
@@ -128,7 +128,7 @@ describe.each(vorlagen)("$name", ({ dienste, ausSchluesseln, ausgelassen, backup
     expect(bekannt.filter((name) => !haupt.app.variablen.includes(name))).toEqual([]);
   });
 
-  // Ein zweites System als Repository (docs/installation.md, „Repository auf einem zweiten System“) braucht etwa für S3
+  // Ein zweites System als Repository (docs/installation-backup.md, „Repository auf einem zweiten System“) braucht etwa für S3
   // AWS_ACCESS_KEY_ID und AWS_SECRET_ACCESS_KEY; fehlen sie in der Vorlage, schlägt das Backup dorthin fehl
   test("übernimmt jede Umgebungsvariable des Backups aus deploy/compose.yml", () => {
     const fehlend = haupt.backup.variablen.filter((name) => !dienste.backup.variablen.includes(backupAlsDatei[name] ?? name));

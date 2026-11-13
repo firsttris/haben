@@ -2,7 +2,7 @@ import type { getDatabaseAccessInfo } from "../server/functions/integrity.ts";
 
 type Access = Awaited<ReturnType<typeof getDatabaseAccessInfo>>;
 
-const DOCS = "https://haben.app/installation.html#getrennte-datenbankrollen";
+const DOCS = "https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen";
 
 /** Tatsächliche Rechte der laufenden Datenbankverbindung, unabhängig von den Startvariablen. */
 export function DatabaseAccessCard({ access }: { access: Access }) {

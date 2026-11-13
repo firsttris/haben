@@ -45,7 +45,7 @@ direkt an ELSTER. Für die GoBD gebaut, auf deinem Server, ohne Datenabfluss.
 > [!WARNING]
 > **Beta:** Haben wird noch stark weiterentwickelt. Datenmodell und Abläufe können sich von Version zu Version
 > ändern, und Migrationen lassen sich nicht zurückspielen. Vor jedem Update ein Backup machen
-> (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation.html#backup-und-wiederherstellen))
+> (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://haben.app/installation-backup.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
 ## Warum Haben?
@@ -145,8 +145,10 @@ docker compose up -d
 Öffne **https://deine-domain**, leg dein Konto an und richte Firmendaten, Nummernkreis und ELSTER ein, wie in
 [Erste Schritte](https://haben.app/einrichtung.html) beschrieben.
 
-Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Umgebungsvariablen stehen in
-[Betrieb und Installation](https://haben.app/installation.html).
+Podman Quadlets stehen in [Installation](https://haben.app/installation.html), ERiC für die ELSTER-Übermittlung in
+[Anbindungen](https://haben.app/installation-anbindungen.html), Backup und Updates in
+[Backup und Updates](https://haben.app/installation-backup.html), alle Umgebungsvariablen in
+[Konfiguration](https://haben.app/installation-konfiguration.html).
 
 > [!IMPORTANT]
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) und das
@@ -240,7 +242,7 @@ Ja, mit einem [eigenen Zugang](https://haben.app/steuerberatung.html), der nur l
 
 Haben ist für dich und deine eigene Firma gedacht: Im Standardmodus gibt es genau einen Inhaber mit allen Rechten. Dazu kannst du deine
 Steuerberatung per Einladungslink mit einem [Zugang, der nur lesen kann](https://haben.app/steuerberatung.html), dazuholen.
-Mit [Single Sign-on](https://haben.app/installation.html#single-sign-on-mit-openid-connect) sind auch mehrere Inhaber
+Mit [Single Sign-on](https://haben.app/installation-sso.html) sind auch mehrere Inhaber
 möglich; die Rolle kommt dann bei jeder Anmeldung aus der Gruppe im Anmeldedienst.
 </details>
 
@@ -289,7 +291,7 @@ Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist ein
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Betrieb und Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify, Backup, Updates),
+- **Einstieg:** [Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify), [Backup und Updates](https://haben.app/installation-backup.html),
   [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),

@@ -18,7 +18,7 @@ x-backup: &backup
   environment:
     # Passwort der Datenbank für pg_dump und psql, auch bei docker compose exec
     PGPASSFILE: /run/haben/pgpass
-    # Standard: Volume backups auf der Synology. Besser ein zweites System: s3:… oder rest:… (docs/installation.md)
+    # Standard: Volume backups auf der Synology. Besser ein zweites System: s3:… oder rest:… (docs/installation-backup.md)
     RESTIC_REPOSITORY: /backups
     RESTIC_PASSWORD_FILE: /run/haben/backup-passwort
     BACKUP_HOST: haben
@@ -119,7 +119,7 @@ services:
       ELSTER_HERSTELLER_ID: ""
       # Optional: KI-Auslesung von Belegen mit Claude (Anthropic-API)
       ANTHROPIC_API_KEY: ""
-      # Oder über eine OpenAI-kompatible Schnittstelle (Ollama, OpenRouter, …), siehe docs/installation.md
+      # Oder über eine OpenAI-kompatible Schnittstelle (Ollama, OpenRouter, …), siehe docs/installation-anbindungen.md
       EXTRACTION_BASE_URL: ""
       EXTRACTION_MODEL: ""
       EXTRACTION_API_KEY: ""

@@ -25,7 +25,7 @@ bun install
 cp apps/web/.env.example apps/web/.env
 ```
 
-In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` ein (beide mit `openssl rand -base64 32`). `BETTER_AUTH_URL` bleibt `http://localhost:3000`. Alle Variablen erklärt [Betrieb und Installation](installation.md#umgebungsvariablen).
+In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` ein (beide mit `openssl rand -base64 32`). `BETTER_AUTH_URL` bleibt `http://localhost:3000`. Alle Variablen erklärt [Konfiguration](installation-konfiguration.md#umgebungsvariablen).
 
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` ohne KI-Auslesung. Für die Auslesung mit einem eigenen Modell genügt ein lokales Ollama mit `EXTRACTION_BASE_URL=http://localhost:11434/v1` und `EXTRACTION_MODEL=qwen2.5vl:7b`; PDFs brauchen dafür `pdftoppm` (Paket poppler-utils). Für die Entwicklung reicht beides.
@@ -85,7 +85,7 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 
 Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
 
-Mit [getrennten Datenbankrollen](installation.md#getrennte-datenbankrollen) bleibt `DATABASE_URL` die App-Anmeldung; `MIGRATION_DATABASE_URL` führt Migration und Rechtevergabe aus. `TEST_DATABASE_URL` braucht weiterhin einen Betreiber mit Superuser- und `CREATEDB`-Rechten für die isolierten Testdatenbanken. Für den abgesicherten Browserlauf bleibt `E2E_DATABASE_URL` die Betreiberbasis; `E2E_APP_DATABASE_URL` ergänzt die echte Serveranmeldung. Der E2E-Reset legt ausschließlich Testrollen namens `haben_e2e_app` oder `haben_e2e_app_<kennung>` an. Ohne die zusätzliche Adresse bleibt der bisherige Testweg erhalten.
+Mit [getrennten Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) bleibt `DATABASE_URL` die App-Anmeldung; `MIGRATION_DATABASE_URL` führt Migration und Rechtevergabe aus. `TEST_DATABASE_URL` braucht weiterhin einen Betreiber mit Superuser- und `CREATEDB`-Rechten für die isolierten Testdatenbanken. Für den abgesicherten Browserlauf bleibt `E2E_DATABASE_URL` die Betreiberbasis; `E2E_APP_DATABASE_URL` ergänzt die echte Serveranmeldung. Der E2E-Reset legt ausschließlich Testrollen namens `haben_e2e_app` oder `haben_e2e_app_<kennung>` an. Ohne die zusätzliche Adresse bleibt der bisherige Testweg erhalten.
 
 Die Doku baut ein Container mit Python, wie in der CI mit Zensical. Er läuft unter der eigenen Nutzerkennung, damit `site/` und `.cache/` danach nicht `root` gehören. Git braucht er nicht, der Befehl geht also auch in einem Git-Worktree; ohne git im Container fehlt nur das Änderungsdatum unter den Seiten:
 
@@ -177,7 +177,7 @@ ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben
 bun packages/elster/src/check-formats-cli.ts   # Belegabruf, Berechtigung, Postfach; auch als Knopf unter Einstellungen › ELSTER › ERiC
 ```
 
-Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung; die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
+Ohne Linux x86_64 (arm64) laufen die Tests mit `ERIC_WORKER_COMMAND` wie unter [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64); emuliert dauert ein Aufruf rund 25 Sekunden, alle Dateien zusammen rund 40 Minuten. Die Test-Hersteller-ID `74931` sperrt ERiC seit 39.4 auch für die lokale Prüfung; die Tests nehmen `ELSTER_HERSTELLER_ID` oder eine Platzhalter-ID.
 
 ### Schemas der SEPA-Überweisung und -Lastschrift
 
@@ -551,7 +551,7 @@ Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbiete
 
 ### Mit Authelia
 
-`oidc-authelia.test.ts` läuft nur mit `AUTHELIA_TEST_ISSUER` gegen eine eigene Authelia-Instanz auf Loopback (geprüft mit Authelia 4.39) und wird sonst übersprungen. Die Instanz braucht TLS (dem Zertifikat der Test-CA über `NODE_EXTRA_CA_CERTS` vertrauen, die TLS-Prüfung bleibt an), den Client aus [Installation › Authelia konfigurieren](installation.md#authelia-konfigurieren) mit Callback `http://localhost:3000/api/auth/callback/oidc`, Clientsecret `secret` und testweise `consent_mode: implicit`, `refresh_interval: always`, ein Dateibackend mit `watch: true` und die Testnutzer aus dem Kopf der Testdatei mit synthetischem TOTP-Schlüssel. Der Test ändert die Gruppen in der Benutzerdatei (`AUTHELIA_TEST_USERS_FILE`) bei bestehender Authelia-Sitzung und prüft, dass Haben die neue Rolle beim nächsten Durchlauf übernimmt und beim Entzug ablehnt.
+`oidc-authelia.test.ts` läuft nur mit `AUTHELIA_TEST_ISSUER` gegen eine eigene Authelia-Instanz auf Loopback (geprüft mit Authelia 4.39) und wird sonst übersprungen. Die Instanz braucht TLS (dem Zertifikat der Test-CA über `NODE_EXTRA_CA_CERTS` vertrauen, die TLS-Prüfung bleibt an), den Client aus [Single Sign-on › Authelia konfigurieren](installation-sso.md#authelia-konfigurieren) mit Callback `http://localhost:3000/api/auth/callback/oidc`, Clientsecret `secret` und testweise `consent_mode: implicit`, `refresh_interval: always`, ein Dateibackend mit `watch: true` und die Testnutzer aus dem Kopf der Testdatei mit synthetischem TOTP-Schlüssel. Der Test ändert die Gruppen in der Benutzerdatei (`AUTHELIA_TEST_USERS_FILE`) bei bestehender Authelia-Sitzung und prüft, dass Haben die neue Rolle beim nächsten Durchlauf übernimmt und beim Entzug ablehnt.
 
 ```sh
 NODE_EXTRA_CA_CERTS=/pfad/test-ca.crt AUTHELIA_TEST_ISSUER=https://127.0.0.1:9091 AUTHELIA_TEST_USERS_FILE=/pfad/users.yml   TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test apps/web/src/server/oidc-authelia.test.ts

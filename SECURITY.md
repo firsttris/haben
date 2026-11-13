@@ -3,7 +3,7 @@
 ## Unterstützte Versionen
 
 Sicherheitsfixes gibt es nur für das neueste Release. Bitte vor einer Meldung auf die neueste Version aktualisieren,
-wie unter [Updates](https://haben.app/installation.html#updates) beschrieben.
+wie unter [Updates](https://haben.app/installation-backup.html#updates) beschrieben.
 
 | Version | Unterstützt |
 | --- | --- |
@@ -29,7 +29,7 @@ Konfiguration von Haben in `deploy/` sie ausnutzbar, bitte hier melden.
 
 ## Getrennte Datenbankrollen
 
-Bei [getrennten Rollen](https://haben.app/installation.html#getrennte-datenbankrollen) verwendet die laufende App eine eigene Anmeldung ohne Eigentümer- oder Administrationsrechte. Nur der Migrationsschritt verwendet die Eigentümerverbindung und vergibt anschließend die benötigten Rechte neu. Die mitgelieferten Container-Startskripte geben deren private Verbindungsadresse nicht an den Server weiter. Bestehende Installationen mit einer Adresse bleiben nutzbar; **Einstellungen › Export › Datenbankzugriff** zeigt die tatsächlich wirksamen Rechte.
+Bei [getrennten Rollen](https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen) verwendet die laufende App eine eigene Anmeldung ohne Eigentümer- oder Administrationsrechte. Nur der Migrationsschritt verwendet die Eigentümerverbindung und vergibt anschließend die benötigten Rechte neu. Die mitgelieferten Container-Startskripte geben deren private Verbindungsadresse nicht an den Server weiter. Bestehende Installationen mit einer Adresse bleiben nutzbar; **Einstellungen › Export › Datenbankzugriff** zeigt die tatsächlich wirksamen Rechte.
 
 Die Trennung verhindert, dass die App Sperr-Trigger abschaltet oder Anwendungsobjekte per DDL verändert. Erlaubte Datenänderungen prüfen weiterhin die vorhandenen Trigger. Sie schützt nicht gegen den Betreiber mit Server- oder Eigentümerzugang; dafür bleiben Prüfwerte außerhalb des Servers und Backups erforderlich.
 
@@ -55,4 +55,4 @@ E-Rechnungen mit dem KoSIT-Validator.
   ERiC-Versionen meldet der Workflow „Jahreswerte prüfen“ wöchentlich als Issue.
 
 Ein Fix erreicht eine Installation mit dem nächsten Release von Haben. Wie du aktualisierst, steht unter
-[Updates](https://haben.app/installation.html#updates).
+[Updates](https://haben.app/installation-backup.html#updates).

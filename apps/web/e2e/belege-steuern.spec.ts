@@ -215,7 +215,7 @@ test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anz
     await expect(card).toContainText(/Appbetrieb mit eingeschränkten Rechten|Verbindung mit weitergehenden Rechten/);
     await expect(card.getByRole("link", { name: "Getrennte Datenbankrollen einrichten" })).toHaveAttribute(
       "href",
-      "https://haben.app/installation.html#getrennte-datenbankrollen",
+      "https://haben.app/installation-konfiguration.html#getrennte-datenbankrollen",
     );
     await expect(card.locator("input, textarea, select, button")).toHaveCount(0);
   } finally {

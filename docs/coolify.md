@@ -22,11 +22,11 @@ erzeugt Coolify beim Anlegen, Domain und HTTPS übernimmt sein Proxy statt des m
 3. **Deploy.** Im Log von `app` steht nach „Listening on …“ der Einrichtungscode. Ruf die Domain auf, gib ihn ein und leg
    dein Konto an; weiter geht es in [Erste Schritte](einrichtung.md).
 
-Die übrigen Einstellungen aus [Umgebungsvariablen](installation.md#umgebungsvariablen), etwa `ERIC_AUTO_INSTALL=ja` oder
+Die übrigen Einstellungen aus [Umgebungsvariablen](installation-konfiguration.md#umgebungsvariablen), etwa `ERIC_AUTO_INSTALL=ja` oder
 die KI-Auslesung, trägst du unter **Environment Variables** ein. ELSTER geht nur auf einem Server mit Intel- oder
-AMD-Prozessor, siehe [ERiC einbinden](installation.md#eric-einbinden).
+AMD-Prozessor, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 
-Für [getrennte Datenbankrollen](installation.md#getrennte-datenbankrollen) legst du die App-Rolle vorher selbst an und
+Für [getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) legst du die App-Rolle vorher selbst an und
 setzt unter **Environment Variables** `DATABASE_URL` auf den App-Zugang und `MIGRATION_DATABASE_URL` auf den
 Eigentümerzugang zur selben Datenbank. Bleiben beide Werte leer, nutzt Haben den bisherigen Eigentümerzugang mit dem von
 Coolify erzeugten `SERVICE_HEX_64_POSTGRES`.
@@ -58,7 +58,7 @@ Proxy neu starten:
 Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr in das Volume `backups` auf demselben Server.
 Gegen den Verlust des Servers trägst du unter **Environment Variables** bei `RESTIC_REPOSITORY` ein zweites System ein,
 für S3 dazu `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`, siehe
-[Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system).
+[Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system).
 
 Ein Backup von Hand, etwa vor einem Update: im **Terminal** von Coolify den Container `backup` wählen und `backup.sh`
 ausführen.
@@ -73,9 +73,9 @@ docker compose run --rm restore latest
 docker compose start app
 ```
 
-Was dabei passiert, steht unter [Wiederherstellen](installation.md#wiederherstellen).
+Was dabei passiert, steht unter [Wiederherstellen](installation-backup.md#wiederherstellen).
 
 ## Updates
 
 Erst ein Backup von Hand wie oben, dann den Dienst neu deployen; Coolify holt dabei die aktuellen Images. Migrationen
-laufen beim Start der App, siehe [Updates](installation.md#updates).
+laufen beim Start der App, siehe [Updates](installation-backup.md#updates).

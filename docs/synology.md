@@ -20,7 +20,7 @@ tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
 - DSM 7.2 oder neuer mit dem Paket **Container Manager** (Paket-Zentrum). Es gibt ihn für Modelle mit Intel- oder
   AMD-Prozessor und für einige mit ARMv8, etwa DS223 und DS124.
 - Für die Übermittlung an ELSTER ein Modell mit Intel- oder AMD-Prozessor. Auf ARM läuft alles andere, ELSTER nur
-  emuliert und mit Shell, siehe [ELSTER auf arm64](installation.md#elster-auf-arm64).
+  emuliert und mit Shell, siehe [ELSTER auf arm64](installation-anbindungen.md#elster-auf-arm64).
 - Eine Adresse mit HTTPS, sonst funktionieren Passkeys und die Installation als App nicht. Am einfachsten ist ein Name bei
   Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert, auch
   [nur fürs Heimnetz](#nur-im-heimnetz-ohne-internet).
@@ -48,7 +48,7 @@ Haben bekommt so eine eigene Subdomain, etwa `https://haben.deinname.synology.me
 4. Die Webportal-Einstellungen überspringen, „Projekt nach der Erstellung starten“ anhaken und fertigstellen. Der erste
    Start lädt die Images, das dauert ein paar Minuten.
 
-Optional kannst du mit der Kommandozeile [getrennte Datenbankrollen](installation.md#getrennte-datenbankrollen) einrichten.
+Optional kannst du mit der Kommandozeile [getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) einrichten.
 Lege die App-Rolle vorher selbst an und trage unter `app.environment` `DATABASE_URL` für den App-Zugang und
 `MIGRATION_DATABASE_URL` für den Eigentümerzugang zur selben Datenbank ein. Der bisherige Eigentümerzugang verwendet das
 erzeugte `db-passwort` aus dem Volume `schluessel`. Bleiben beide Werte leer, startet Haben unverändert mit diesem Zugang.
@@ -119,7 +119,7 @@ Einrichtungscode. Ruf deine Adresse auf, gib den Code ein und leg dein Konto an;
 [Erste Schritte](einrichtung.md).
 
 ERiC für ELSTER lädst du unter **Einstellungen › ELSTER › ERiC** per Knopf herunter, siehe
-[ERiC einbinden](installation.md#eric-einbinden).
+[ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 
 ## Backup
 
@@ -127,7 +127,7 @@ Der Container `haben-backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr
 auf dieselbe Synology. Ob es lief, zeigt Haben unter **Einstellungen › Export**; die Übersicht warnt, wenn ein Lauf fehlschlug. Gegen einen Defekt der Synology hilft nur
 ein zweiter Ort: Trag im Projekt (**Projekt › haben › YAML-Konfiguration**) bei `RESTIC_REPOSITORY` ein zweites System
 ein, etwa einen S3-Speicher (dazu `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`) oder einen restic REST-Server, siehe
-[Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system). SFTP braucht einen
+[Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system). SFTP braucht einen
 eingehängten SSH-Schlüssel und damit die Kommandozeile.
 
 Ein Backup von Hand, etwa vor einem Update: **Container › `haben-backup` › Details › Terminal**, dort `backup.sh`
@@ -142,10 +142,10 @@ sudo docker compose run --rm restore latest
 sudo docker compose start app
 ```
 
-Was dabei passiert und wie du einen älteren Stand wählst, steht unter [Wiederherstellen](installation.md#wiederherstellen).
+Was dabei passiert und wie du einen älteren Stand wählst, steht unter [Wiederherstellen](installation-backup.md#wiederherstellen).
 
 ## Updates
 
 Erst ein Backup von Hand wie oben, dann im **Container Manager › Projekt › haben** das Projekt stoppen, unter **Image** die
 Images `tristanteu/haben`, `tristanteu/haben-db` und `tristanteu/haben-backup` aktualisieren und das Projekt wieder
-starten. Migrationen laufen beim Start der App, siehe [Updates](installation.md#updates).
+starten. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).

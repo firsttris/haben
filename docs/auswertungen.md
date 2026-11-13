@@ -270,6 +270,6 @@ Der Text in `LIESMICH.txt` fasst die Fristen nach § 147 AO und den GoBD so zusa
 Die Frist beginnt mit dem Ende des Kalenderjahrs. Am einfachsten bewahrst du das ganze Archiv 10 Jahre auf, für 2025 also bis mindestens 31.12.2035, unverändert und lesbar, zum Beispiel zusätzlich zum Backup auf einem zweiten Datenträger. Elektronisch empfangene Rechnungen (E-Rechnungen) musst du elektronisch aufbewahren; ein Ausdruck reicht nicht.
 
 > [!IMPORTANT]
-> Die Fristen haben sich zuletzt geändert und können für dich abweichen. Kläre mit deiner Steuerberatung, wie lange du was aufbewahren musst, bevor du alte Daten löschst. Das Jahresarchiv ersetzt kein Backup der Datenbank und der Belegdateien (siehe [Installation](installation.md)).
+> Die Fristen haben sich zuletzt geändert und können für dich abweichen. Kläre mit deiner Steuerberatung, wie lange du was aufbewahren musst, bevor du alte Daten löschst. Das Jahresarchiv ersetzt kein Backup der Datenbank und der Belegdateien (siehe [Backup und Updates](installation-backup.md)).
 
 Ein guter Zeitpunkt für den Export ist, wenn das Jahr abgeschlossen ist: alle Umsätze zugeordnet, alle Belege gebucht, die Dezember-Voranmeldung übermittelt. Du kannst den Export jederzeit wiederholen; Änderungen danach, etwa eine berichtigte Voranmeldung, stehen dann im neuen ZIP.

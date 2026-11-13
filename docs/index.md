@@ -230,7 +230,7 @@ Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 **🖥️ Einen Server**
 
 Linux mit Docker oder Podman, etwa ein VPS ab rund 5 € im Monat, und eine Domain für HTTPS.
-[Betrieb und Installation](installation.md)
+[Installation](installation.md)
 </div>
 <div markdown>
 **📦 Oder dein NAS**

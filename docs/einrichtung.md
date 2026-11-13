@@ -7,7 +7,7 @@ description: >-
 
 # Erste Schritte
 
-Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).
+Wie du Haben auf dem Server installierst, steht in [Installation](installation.md).
 
 ## Checkliste
 
@@ -29,7 +29,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 
 ## Konto anlegen
 
-Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läuft Haben im SSO-Modus (`OIDC_ONLY=true`), zeigt `/setup` nur die Schaltfläche zum Einrichten über den Anbieter: Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein, ohne Einrichtungscode, Passwort oder Passkey. Siehe [Single Sign-on mit OpenID Connect](installation.md#single-sign-on-mit-openid-connect).
+Die folgenden Schritte gelten für den Standardmodus mit lokaler Anmeldung. Läuft Haben im SSO-Modus (`OIDC_ONLY=true`), zeigt `/setup` nur die Schaltfläche zum Einrichten über den Anbieter: Die erste Anmeldung eines Mitglieds der Inhaber-Gruppe richtet Haben ein, ohne Einrichtungscode, Passwort oder Passkey. Siehe [Single Sign-on mit OpenID Connect](installation-sso.md).
 
 Beim ersten Aufruf leitet Haben auf `/setup` weiter. Das erste Konto ist der **Inhaber** mit allen Rechten: Du gibst den Einrichtungscode, Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“.
 
@@ -446,7 +446,7 @@ Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigene
 ### Schritte
 
 1. **ERiC laden:** unter **Einstellungen › ELSTER › ERiC** den Nutzungsbedingungen zustimmen und **Herunterladen und einrichten** klicken. ERiC darf nicht weitergegeben werden und liegt deshalb weder im Repository noch im Image; Haben holt es direkt von der Finanzverwaltung (Linux x86_64).
-2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation.md#eric-einbinden).
+2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 3. **Hersteller-ID eintragen.** Die eigene Hersteller-ID aus dem ELSTER-Entwicklerbereich ([siehe oben](#was-du-brauchst)) als `ELSTER_HERSTELLER_ID` (fünf Ziffern) eintragen. Seit ERiC 43 ist die frühere Test-Hersteller-ID `74931` gesperrt; ERiC lehnt ohne eigene ID schon das Prüfen ab („Bitte verwenden Sie Ihre eigene Hersteller-ID auch für Testfälle“). Ohne ERiC laufen Prüfen und Testübermittlung weiter simuliert.
 4. **Datenschutzhinweise bestätigen.** Unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung lesen und bestätigen. Der ERiC-Lizenzvertrag verlangt das vor der ersten Nutzung; ohne Bestätigung lehnt Haben jeden Aufruf von ERiC ab. Die Bestätigung gilt für die Installation und steht im Änderungsprotokoll.
 5. **Zertifikat hochladen.** Die `.pfx`-Datei aus deinem Konto mit Anmeldeart Zertifikatsdatei ([siehe oben](#zertifikatsdatei-statt-elster-secure)) unter **Einstellungen › ELSTER › ELSTER-Zertifikat** hochladen (höchstens 64 KB). Haben speichert die Datei AES-256-GCM-verschlüsselt in der Datenbank. Trägst du „Gültig bis“ ein, warnt die Übersicht 30 Tage vor Ablauf. Ein neues Zertifikat ersetzt das alte.
@@ -574,7 +574,7 @@ Optional. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) liest Haben immer selbst a
 | | Claude (Anthropic-API) | OpenAI-kompatibel, selbst betrieben | OpenAI-kompatibel, in der Cloud |
 | --- | --- | --- | --- |
 | Beispiele | Claude-Modelle von Anthropic | Ollama, LM Studio, vLLM, `docker model run` | OpenRouter, OpenAI, andere Anbieter mit OpenAI-kompatibler API |
-| Einschalten | `ANTHROPIC_API_KEY` ([Installation](installation.md#ki-auslesung-anthropic)) | `EXTRACTION_BASE_URL` und `EXTRACTION_MODEL` ([Installation](installation.md#ki-auslesung-über-openai-kompatible-schnittstelle)) | `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` und `EXTRACTION_API_KEY` ([Installation](installation.md#ki-auslesung-über-openai-kompatible-schnittstelle)) |
+| Einschalten | `ANTHROPIC_API_KEY` ([Anbindungen](installation-anbindungen.md#ki-auslesung-anthropic)) | `EXTRACTION_BASE_URL` und `EXTRACTION_MODEL` ([Anbindungen](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle)) | `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` und `EXTRACTION_API_KEY` ([Anbindungen](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle)) |
 | Wohin der Beleg geht | an Anthropic | nur an deinen Dienst, er verlässt deinen Server nicht | nur an diesen Anbieter (bei OpenRouter auch an den Anbieter des Modells) |
 | PDFs | direkt | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten |
 | Kosten | ein paar Cent je Beleg | Rechenzeit auf deinem Server, mit CPU leicht ein bis mehrere Minuten je Beleg | nach Preisliste des Anbieters und Modells |
@@ -598,7 +598,7 @@ Läuft Haben mit Docker Compose und Ollama auf demselben Server:
 4. `docker compose up -d`, dann unter **Einstellungen › KI-Assistenten und API** prüfen, dass „Eigener Dienst (OpenAI-kompatibel)“ mit dem Modell angezeigt wird.
 5. Einen Beleg als Foto hochladen. Er zeigt „Wird ausgelesen“ und danach die Felder; ein Fehler (nicht erreichbar, Zeitüberschreitung, falsches Antwortformat) steht am Beleg.
 
-Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama als eigenen Container neben Haben, Schlüssel und Wartezeit beschreibt [Installation](installation.md#ki-auslesung-über-openai-kompatible-schnittstelle).
+Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama als eigenen Container neben Haben, Schlüssel und Wartezeit beschreibt [Anbindungen](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle).
 
 ### Beispiel: OpenRouter
 
@@ -619,7 +619,7 @@ Der Beleg geht dann an OpenRouter und an den Anbieter des Modells. Wie lange sie
 
 ## Bankkonten
 
-Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Installation](installation.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
+Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
 
 1. Auf der Seite **Bank** „Konto hinzufügen“ wählen.
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.

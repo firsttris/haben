@@ -29,11 +29,16 @@ nav:
   - Start: index.md
   - Übersicht: ueberblick.md
   - Betrieb:
-      - Betrieb und Installation: installation.md
+      - Installation: installation.md
       - Synology: synology.md
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md
       - Coolify: coolify.md
+      - Konfiguration: installation-konfiguration.md
+      - Anbindungen: installation-anbindungen.md
+      - Single Sign-on: installation-sso.md
+      - Backup und Updates: installation-backup.md
+      - Häufige Probleme: installation-probleme.md
       - Erste Schritte: einrichtung.md
   - Im Alltag:
       - Rechnungen und E-Rechnung: rechnungen.md
