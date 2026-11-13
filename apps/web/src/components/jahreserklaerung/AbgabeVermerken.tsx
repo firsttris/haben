@@ -137,64 +137,62 @@ export function AbgabeVermerken({
         </button>
       </div>
       <FormDialog open={open} title={`${LABEL[art]} ${year} als abgegeben vermerken`} onClose={() => !busy && setOpen(false)}>
-        <form className="card form-card contact-form" onSubmit={absenden}>
-          <div className="form-section">
-            <Field label="Tag der Abgabe">
-              {(control) => <input {...control} type="date" value={filedOn} max={today} onChange={(event) => setFiledOn(event.target.value)} required />}
-            </Field>
-            <Field label="Transferticket" hint="Steht im Übermittlungsprotokoll; mindestens 10 Zeichen.">
-              {(control) => (
-                <input
-                  {...control}
-                  value={ticket}
-                  onChange={(event) => setTicket(event.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                  minLength={10}
-                  required
-                />
-              )}
-            </Field>
-            <Field label="Betrag" hint={`Aus den Buchungen gerechnet: ${formatEuro(berechnet)}.`}>
-              {(control) => (
-                <input
-                  {...control}
-                  inputMode="decimal"
-                  className="mono"
-                  value={betrag}
-                  onChange={(event) => {
-                    setBetrag(event.target.value);
-                    // Ein neuer Betrag ist eine neue Abweichung; der alte Haken darf nicht weiter gelten
-                    setBestaetigt(false);
-                  }}
-                  aria-invalid={(betrag !== "" && cents === null) || undefined}
-                  required
-                />
-              )}
-            </Field>
-            {weichtAb && cents !== null && (
-              <>
-                <p className="banner banner-warn" role="status">
-                  Der Betrag weicht um {formatEuro(Math.abs(differenz))} vom in Haben gerechneten Wert ({formatEuro(berechnet)}) ab. Der Betrag laut Protokoll
-                  wird gespeichert; die Abweichung bleibt am Vermerk stehen.
-                </p>
-                <label className="checkbox">
-                  <input type="checkbox" checked={bestaetigt} onChange={(event) => setBestaetigt(event.target.checked)} required />
-                  Abweichung geprüft und bewusst übernommen
-                </label>
-              </>
+        <form onSubmit={absenden}>
+          <Field label="Tag der Abgabe">
+            {(control) => <input {...control} type="date" value={filedOn} max={today} onChange={(event) => setFiledOn(event.target.value)} required />}
+          </Field>
+          <Field label="Transferticket" hint="Steht im Übermittlungsprotokoll; mindestens 10 Zeichen.">
+            {(control) => (
+              <input
+                {...control}
+                value={ticket}
+                onChange={(event) => setTicket(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                minLength={10}
+                required
+              />
             )}
-            <Field label="Begründung" hint="Warum außerhalb von Haben, mindestens 10 Zeichen.">
-              {(control) => (
-                <textarea {...control} value={begruendung} onChange={(event) => setBegruendung(event.target.value)} rows={3} maxLength={2000} required />
-              )}
-            </Field>
-            <Field label="Übermittlungsprotokoll (PDF, optional)">
-              {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
-            </Field>
-            <NoticeBanner notice={notice} />
-          </div>
-          <div className="actions form-footer">
+          </Field>
+          <Field label="Betrag" hint={`Aus den Buchungen gerechnet: ${formatEuro(berechnet)}.`}>
+            {(control) => (
+              <input
+                {...control}
+                inputMode="decimal"
+                className="mono"
+                value={betrag}
+                onChange={(event) => {
+                  setBetrag(event.target.value);
+                  // Ein neuer Betrag ist eine neue Abweichung; der alte Haken darf nicht weiter gelten
+                  setBestaetigt(false);
+                }}
+                aria-invalid={(betrag !== "" && cents === null) || undefined}
+                required
+              />
+            )}
+          </Field>
+          {weichtAb && cents !== null && (
+            <>
+              <p className="banner banner-warn" role="status">
+                Der Betrag weicht um {formatEuro(Math.abs(differenz))} vom in Haben gerechneten Wert ({formatEuro(berechnet)}) ab. Der Betrag laut Protokoll
+                wird gespeichert; die Abweichung bleibt am Vermerk stehen.
+              </p>
+              <label className="checkbox">
+                <input type="checkbox" checked={bestaetigt} onChange={(event) => setBestaetigt(event.target.checked)} required />
+                Abweichung geprüft und bewusst übernommen
+              </label>
+            </>
+          )}
+          <Field label="Begründung" hint="Warum außerhalb von Haben, mindestens 10 Zeichen.">
+            {(control) => (
+              <textarea {...control} value={begruendung} onChange={(event) => setBegruendung(event.target.value)} rows={3} maxLength={2000} required />
+            )}
+          </Field>
+          <Field label="Übermittlungsprotokoll (PDF, optional)">
+            {(control) => <FilePicker {...control} accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />}
+          </Field>
+          <NoticeBanner notice={notice} />
+          <div className="actions">
             <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>
               Abbrechen
             </button>
