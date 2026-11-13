@@ -117,6 +117,7 @@ export function umgebung() {
   const basis = join(dir, "haben");
   const docker = nachbau();
   let shell: Record<string, string> = { PATH: "/usr/bin:/bin", HOME: dir };
+  let eingabe: string | (() => string) | null = null;
   async function lauf(...args: string[]) {
     const stdout: string[] = [];
     const stderr: string[] = [];
@@ -130,6 +131,10 @@ export function umgebung() {
       takt: 0,
       aus: (z) => stdout.push(z),
       fehler: (z) => stderr.push(z),
+      eingabe: () => {
+        if (eingabe === null) throw new Error("keine Standardeingabe");
+        return typeof eingabe === "string" ? eingabe : eingabe();
+      },
     };
     const status = await main(["--basis", basis, ...args], a);
     return { status, stdout: stdout.join("\n"), stderr: stderr.join("\n") };
@@ -139,6 +144,10 @@ export function umgebung() {
     basis,
     docker,
     lauf,
+    /** Was auf der Standardeingabe ankommt, oder was beim Lesen passiert */
+    eingabe: (text: string | (() => string)) => {
+      eingabe = text;
+    },
     /** Zusätzliche Variablen in der Shell der Person */
     shell: (extra: Record<string, string>) => {
       shell = { ...shell, ...extra };
