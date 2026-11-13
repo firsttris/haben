@@ -317,6 +317,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db, cont
     );
     for (const inv of issued) {
       if (advanceIds.has(inv.id)) continue;
+      if (!(await context.taxes.invoicePostingAllowed(inv))) continue;
       const date = await context.taxes.date(inv);
       if (date < start || date >= end) continue;
       if ((await invoiceMode(inv)) === "ist" && !NACH_RECHNUNGSDATUM.some((t) => t === inv.taxTreatment)) continue;

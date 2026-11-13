@@ -140,10 +140,10 @@ Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr
 
 | Umsatz | Quartal |
 | --- | --- |
-| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung, wie Kz 21 |
+| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Wie [Kz 21](#umsätze-ohne-steuer-kz-21-41-43-45-und-48), unabhängig von Ist/Soll |
 | Rechnung mit **Innergemeinschaftliche Lieferung**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
-| Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ |
-| Skonto und Forderungsausfall dazu | Datum der Ausbuchung |
+| Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ. Ausgenommen ist das [Papierstorno einer neuen Bilanz-Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung) |
+| Skonto und Forderungsausfall dazu | Datum der Ausbuchung; für Skonto vor der Schlussleistung gelten die [Ausnahmen bei neuen Bilanz-Anzahlungsketten](#umsätze-ohne-steuer-kz-21-41-43-45-und-48) |
 
 Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
 
@@ -205,15 +205,17 @@ Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen regul�
 
 Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung)) meldet Haben mit ihrer Bemessungsgrundlage, ohne Steuer. Sie ändern Kz 83 nicht.
 
+Bei neuen Bilanz-Anzahlungs-/Schlussketten von GmbH und UG gehen reine Anforderungen bei Reverse Charge, innergemeinschaftlicher Lieferung und Leistungen ins Drittland noch nicht in die Meldung ein. Mit der Schlussrechnung zählt der gesamte Leistungsbetrag einschließlich Anzahlungsanteil zum jeweiligen Meldezeitpunkt. Skonto auf die Anforderung vor der Schlussleistung mindert diesen späteren Betrag. Für den [bloßen Schlussrechnungsaustausch](rechnungen.md#abschlags--und-schlussrechnung) bleibt der bereits gemeldete Umsatz bestehen.
+
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
-| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | bei neuen ausdrücklich erbrachten Teilleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | bei neuen ausdrücklich erbrachten Teil- und Schlussleistungen Leistungsdatum, sonst Rechnungsdatum als Näherung; unabhängig von Ist/Soll |
 | 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
 | 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
 | 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 
-Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Bei neuen ausdrücklich erbrachten Teilleistungen nimmt Haben das Leistungsdatum, sonst weiterhin das Rechnungsdatum als Näherung dafür ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Nicht steuerbare Leistungen ins Drittland meldet Haben wie DATEV mit der Rechnung: Bei Ist-Versteuerung weist DATEV nur steuerpflichtige und steuerfreie inländische Umsätze erst mit der Zahlung aus, andere Steuersachverhalte wie nicht steuerbare Umsätze im Drittland schon mit der Rechnung ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)). Bis Version 0.6.6 zählte Kz 45 bei Ist-Versteuerung im Monat der Zahlung. Gesendete Voranmeldungen bleiben, wie sie gesendet wurden; die Steuer (Kz 83) war darin richtig, nur die Bemessungsgrundlage in Kz 45 steht im Monat der Zahlung statt der Rechnung. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
 In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
@@ -388,7 +390,7 @@ Die Sondervorauszahlung selbst ist kein Posten der Voranmeldung; sie wird als **
 
 Bei einer Lastschrift oder Erstattung des Finanzamts schlägt der [Bankabgleich](bank.md#vorschläge) die passende Voranmeldung vor, etwa „Voranmeldung USt 10/2026“, mit den Gründen Betrag, Zeitraum im Verwendungszweck („USt 10/26“, „10.2026“, „Okt. 2026“, für Quartale „Q3/26“, „3. VJ 2026“, „III/26“) und Finanzamt als Gegenpartei. Unter **Andere Rechnung** steht sie in der Auswahl **Rechnung, Beleg oder Voranmeldung**.
 
-Gebucht wird „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
+Gebucht wird „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank, auf einem Konto mit dem Zweck **privat** gegen die Privatentnahme bzw. die Einlage, siehe [Bank](bank.md#voranmeldung-zahllast-und-erstattung)); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
 
 - **Teilzahlung:** Ordnest du weniger zu, bleibt der Rest offen, bis die nächste Zahlung kommt.
 - **Säumniszuschlag:** Zieht das Finanzamt nach der Fälligkeit mehr ein, erkennt Haben einen Säumniszuschlag nach § 240 AO (je angefangenem Monat 1 % der auf 50 € abgerundeten Zahllast, gezählt ab der Fälligkeit; keiner bei Zahlung in der Schonfrist von drei Tagen, § 240 Abs. 3 AO, die an einem Samstag, Sonntag oder Feiertag im Bundesland der Firma erst am nächsten Werktag endet, § 108 Abs. 3 AO) und schlägt nur die Zahllast vor. Der Zuschlag ist keine Umsatzsteuer, sondern eine steuerliche Nebenleistung und Betriebsausgabe: Den Rest ordnest du einem Beleg zu, etwa dem Schreiben des Finanzamts.

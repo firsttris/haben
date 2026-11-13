@@ -1,5 +1,5 @@
 {
-  "id": "3e5a7824-1885-4646-a0f8-0a9842e84109",
+  "id": "92df79c8-3586-45f4-8736-79ab26f61ea8",
   "prevId": "d03e0521-a472-4325-852f-64c56271d4e8",
   "version": "7",
   "dialect": "postgresql",
@@ -6762,6 +6762,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "advance_accounting": {
+          "name": "advance_accounting",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "replaces_invoice_id": {
+          "name": "replaces_invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
@@ -7022,6 +7034,22 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "invoices_one_final_replacement": {
+          "name": "invoices_one_final_replacement",
+          "columns": [
+            {
+              "expression": "replaces_invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"invoices\".\"status\" = 'final'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -7083,6 +7111,19 @@
           "tableTo": "invoices",
           "columnsFrom": [
             "corrects_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invoices_replaces_fk": {
+          "name": "invoices_replaces_fk",
+          "tableFrom": "invoices",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "replaces_invoice_id"
           ],
           "columnsTo": [
             "id"
@@ -7159,6 +7200,14 @@
         "invoices_advance_type": {
           "name": "invoices_advance_type",
           "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
+        },
+        "invoices_advance_accounting": {
+          "name": "invoices_advance_accounting",
+          "value": "\"invoices\".\"advance_accounting\" is null or \"invoices\".\"advance_accounting\" = 'deferred'"
+        },
+        "invoices_replaces_schluss": {
+          "name": "invoices_replaces_schluss",
+          "value": "\"invoices\".\"replaces_invoice_id\" is null or (\"invoices\".\"replaces_invoice_id\" <> \"invoices\".\"id\" and \"invoices\".\"kind\" = 'rechnung' and \"invoices\".\"variant\" is not distinct from 'schluss' and \"invoices\".\"advance_accounting\" is not distinct from 'deferred' and \"invoices\".\"corrects_id\" is null)"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",
@@ -12976,87 +13025,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.sevdesk_accounting_types": {
-      "name": "sevdesk_accounting_types",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "import_id": {
-          "name": "import_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accounting_type_id": {
-          "name": "accounting_type_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "raw": {
-          "name": "raw",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sevdesk_accounting_types_stand": {
-          "name": "sevdesk_accounting_types_stand",
-          "columns": [
-            {
-              "expression": "accounting_type_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "md5(\"raw\"::text)",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sevdesk_accounting_types_import_id_lexoffice_imports_id_fk": {
-          "name": "sevdesk_accounting_types_import_id_lexoffice_imports_id_fk",
-          "tableFrom": "sevdesk_accounting_types",
-          "tableTo": "lexoffice_imports",
-          "columnsFrom": [
-            "import_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
