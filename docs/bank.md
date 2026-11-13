@@ -463,11 +463,15 @@ Bei Eingängen (Privateinlage, Geldtransit, Erstattung vom Finanzamt) steht die 
 
 ## Zuordnung aufheben
 
-Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung, Betrag und den **Tag der Aufhebung** (vorbelegt mit heute). Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), und zwar an diesem Tag. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
+Unter **Zugeordnet** steht neben jeder Zuordnung **Aufheben**, bei einer Aufteilung einmal **Aufteilung aufheben** für alle Teile. Haben fragt vorher in einem Dialog nach und nennt Zuordnung, Betrag und den **Tag der Aufhebung**. Vorbelegt ist der Buchungstag der Zahlung, solange deren Zeitraum nicht gemeldet ist, sonst heute. Es löscht dabei nichts: Es legt eine Gegenzeile mit umgekehrtem Betrag an und bucht die ursprüngliche Buchung mit vertauschten Seiten zurück („Storno: …“), und zwar an diesem Tag. Die aufgehobene Zuordnung bleibt durchgestrichen sichtbar, der Betrag ist wieder offen.
 
 Eine Zuordnung lässt sich nur einmal aufheben.
 
-Der Tag der Aufhebung darf nicht in der Zukunft liegen. Als Untergrenze gilt das Buchungsdatum der Zahlung, bei einem künftigen Buchungsdatum heute. Er wird nicht rückdatiert: Eine Zahlung aus dem März, die im Juli aufgehoben wird, berichtigt die Umsatzsteuer nach [§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html) im Juli, und die Voranmeldung des März bleibt, wie sie abgegeben wurde. Über das Jahr bleibt der Saldo gleich; in den Voranmeldungen wandert der Betrag vom März in den Juli. Eine Aufhebung in einem schon gemeldeten Zeitraum ist deshalb erlaubt und der übliche Weg, einen Fehler zu berichtigen.
+Der Tag der Aufhebung darf nicht in der Zukunft liegen. Als Untergrenze gilt das Buchungsdatum der Zahlung, bei einem künftigen Buchungsdatum heute. Vorbelegt ist der Buchungstag der Zahlung, solange deren Zeitraum noch nicht gemeldet ist; ist er gemeldet, heute. Änderbar bleibt der Tag in beiden Fällen.
+
+Eine Aufhebung in einem schon gemeldeten Zeitraum bleibt erlaubt. Die Gegenbuchung wirkt an ihrem Tag, die abgegebene Voranmeldung ändert sich nicht nachträglich.
+
+[§ 17 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html) greift, wenn sich die Bemessungsgrundlage nachträglich ändert, also bei Rückzahlung, Storno oder Ausfall. Dann gehört die Berichtigung in den Zeitraum, in dem die Änderung eintritt. War die Zuordnung von Anfang an falsch, etwa auf die falsche Rechnung oder ohne jede Kundenzahlung, ist das keine Änderung der Bemessungsgrundlage, sondern ein Fehler im ursprünglichen Zeitraum: Dann den Tag der Zahlung wählen und, falls dieser Zeitraum schon gemeldet ist, die Voranmeldung berichtigen.
 
 Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
 
