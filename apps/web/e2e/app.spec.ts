@@ -16,10 +16,10 @@ import {
   INVOICES,
   kontaktAnlegen,
   kundeWaehlen,
-  receiptJpeg,
   rechnungFestschreiben,
   lieferantWaehlen,
 } from "./einrichtung.ts";
+import { receiptJpeg } from "./belegbild.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,

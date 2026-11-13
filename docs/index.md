@@ -20,9 +20,11 @@ hide:
 
 <p class="showcase-claim">Rechnungen mit E-Rechnung, Belege, Bankabgleich, EÜR oder Bilanz und die
 Steuern direkt an ELSTER – für Freiberufler, Selbstständige und kleine GmbHs. Auf deinem Server,
-ohne Abo und ohne fremden Dienst, der jede Rechnung sieht. Noch in der Beta: vor jedem Update ein Backup.</p>
+ohne Abo und ohne fremden Dienst, der jede Rechnung sieht.</p>
 
 [Rundgang starten](#rundgang){ .md-button .md-button--primary } [Installieren](installation.md){ .md-button } [Alle Funktionen im Detail](ueberblick.md){ .md-button }
+
+<p class="showcase-hinweis">Haben ist noch in der Beta: vor jedem Update ein Backup.</p>
 
 </div>
 

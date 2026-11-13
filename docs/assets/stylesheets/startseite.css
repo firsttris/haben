@@ -168,3 +168,10 @@
 [data-md-color-scheme="slate"] .md-typeset .showcase-hero .showcase-akzent {
   color: var(--md-primary-fg-color--light);
 }
+
+/* Der Beta-Hinweis klein unter den Knöpfen, nicht im Untertitel */
+.md-typeset .showcase-hero .showcase-hinweis {
+  margin: 0.4rem auto 0;
+  font-size: 0.75rem;
+  color: var(--md-default-fg-color--light);
+}

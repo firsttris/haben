@@ -239,17 +239,3 @@ export async function kontrasteInThemes(page: Page, paths: string[]): Promise<vo
     localStorage.removeItem("haben-modus");
   });
 }
-
-/** Erfundene Mobilfunkrechnung als JPEG, gerendert im Browser */
-export async function receiptJpeg(browser: Browser, title = "Funknetz Mobil GmbH"): Promise<Buffer> {
-  const p = await browser.newPage({ viewport: { width: 620, height: 640 } });
-  await p.setContent(`<body style="font: 14px sans-serif; padding: 40px">
-    <h2>${title}</h2><p>Hafenallee 10 · 28217 Bremen · USt-IdNr. DE298765432</p>
-    <h1>Mobilfunkrechnung</h1><p>Rechnungsnummer MF-0815 · Rechnungsdatum ${day(-9)}</p>
-    <table style="width:100%"><tr><td>Tarif Business M</td><td align="right">38,57 €</td></tr>
-    <tr><td>Umsatzsteuer 19 %</td><td align="right">7,33 €</td></tr><tr><th align="left">Rechnungsbetrag</th><th align="right">45,90 €</th></tr></table>
-  </body>`);
-  const jpeg = await p.screenshot({ type: "jpeg", quality: 80 });
-  await p.close();
-  return jpeg;
-}
