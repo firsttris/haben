@@ -29,12 +29,22 @@ describe.skipIf(!testDatabaseUrl)("Sollbestand der Sperrtrigger (Postgres, #764)
 
   it.each([
     "drop function haben_reject_locked() cascade",
-    "create or replace trigger journal_lines_locked before update of account on journal_lines for each row execute function haben_reject_locked_journal_line()",
+    "create or replace trigger journal_lines_locked before insert or update of account or delete on journal_lines for each row execute function haben_reject_locked_journal_line()",
   ])("erkennt fehlende Funktion beziehungsweise UPDATE OF: %s", async (statement) => {
     const rollback = new Error("Gegenprobe zurückrollen");
     await expect(
       drizzle(sql).transaction(async (tx) => {
+        const [before] = await tx.execute<{ events: number; columns: string }>(query`
+          select tgtype as events, tgattr::text as columns from pg_trigger
+          where tgrelid = 'public.journal_lines'::regclass and tgname = 'journal_lines_locked'`);
         await tx.execute(query.raw(statement));
+        if (statement.startsWith("create or replace trigger")) {
+          const [changed] = await tx.execute<{ events: number; columns: string }>(query`
+            select tgtype as events, tgattr::text as columns from pg_trigger
+            where tgrelid = 'public.journal_lines'::regclass and tgname = 'journal_lines_locked'`);
+          expect(changed!.events).toBe(before!.events);
+          expect(changed!.columns).not.toBe(before!.columns);
+        }
         const result = await inventory.checkTriggerIntegrity(tx);
         expect(result.problems).toContainEqual(expect.objectContaining({ art: "sperre" }));
         if (statement.startsWith("drop function")) {
