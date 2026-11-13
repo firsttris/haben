@@ -67,8 +67,9 @@ export function IntegrityCard({ head }: { head: Head }) {
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen, Belege,
         Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht die Prüfung das Journal mit
-        Umsatzsteuer und EÜR ab. Sie findet nachträgliche Änderungen an der Datenbank, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die
-        Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
+        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab. Sie findet nachträgliche Änderungen an der Datenbank, verhindert sie aber nicht. Wer die
+        Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst
+        (wöchentliche Mail, Jahresarchiv).
       </p>
       {current && (
         <div className="small">
@@ -98,11 +99,11 @@ export function IntegrityCard({ head }: { head: Head }) {
                   : differences > 0
                     ? {
                         tone: "danger",
-                        text: `Kette und Siegel sind unverändert, aber Journal und Steuerwerte weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
+                        text: `Kette und Siegel sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
                       }
                     : {
                         tone: "ok",
-                        text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Journal, Umsatzsteuer und EÜR stimmen überein.`,
+                        text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
                       },
               );
             })
@@ -124,12 +125,12 @@ export function IntegrityCard({ head }: { head: Head }) {
       )}
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
         <div className="small">
-          <div className="muted">Abgleich von Journal, Umsatzsteuer und EÜR</div>
+          <div className="muted">Abgleich von Journal, Umsatzsteuer, EÜR und Anzahlungsbeständen</div>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {report.abgleich.abweichungen.map((a, i) => (
               <li key={i}>
                 <strong>
-                  {a.bereich === "ustva" ? "Voranmeldung" : "EÜR"} {a.zeitraum}
+                  {a.bereich === "ustva" ? "Voranmeldung" : a.bereich === "opos" ? "Anzahlungsbestände" : "EÜR"} {a.zeitraum}
                 </strong>
                 , {a.posten}: Journal {formatEuro(a.journal)}, laut Rechnungen, Belegen und Zahlungen {formatEuro(a.quelle)}
               </li>
