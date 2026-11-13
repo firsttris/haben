@@ -1,3 +1,4 @@
+import { lineAmount, type Millis } from "./invoice.ts";
 import { roundHalfAwayFromZero, type Cents } from "./money.ts";
 
 /*
@@ -52,4 +53,68 @@ export function billableMinutes(entry: Abrechenbar): number {
 /** Abrechenbarer Betrag in Cent; ohne Stundensatz 0 */
 export function billableAmount(entry: Abrechenbar & { hourlyRateCents: Cents | null }): Cents {
   return entry.hourlyRateCents === null ? 0 : serviceAmount(billableMinutes(entry), entry.hourlyRateCents);
+}
+
+/** Offener Eintrag, wie ihn „Abrechnen“ zu Positionen zusammenfasst */
+export interface OffeneLeistung extends Abrechenbar {
+  workedOn: string;
+  hourlyRateCents: Cents | null;
+  project: string;
+}
+
+/** Position je Stundensatz */
+export interface BillingLine {
+  rateCents: Cents;
+  /** Abrechenbare Minuten */
+  minutes: number;
+  /** Menge der Position in Tausendstel Stunden */
+  quantity: Millis;
+  net: Cents;
+  projects: string[];
+}
+
+export interface BillingPreview {
+  entries: number;
+  minutes: number;
+  net: Cents;
+  /** Offene abrechenbare Einträge ohne Stundensatz: ohne ihn lässt sich nicht abrechnen */
+  withoutRate: number;
+  lines: BillingLine[];
+  from: string | null;
+  to: string | null;
+}
+
+/**
+ * Fasst offene Einträge (nach Arbeitstag sortiert) je Stundensatz zu einer Position in Std. zusammen: Menge die Summe der
+ * abrechenbaren Minuten, einmal je Position auf Tausendstel gerundet (100 Minuten sind 1,667 Std.), Netto wie jede
+ * Rechnungszeile (lineAmount). Zeitraum ist der erste bis letzte Arbeitstag, auch von Einträgen ohne Stundensatz.
+ */
+export function billingPreview(entries: OffeneLeistung[]): BillingPreview {
+  const byRate = new Map<Cents, OffeneLeistung[]>();
+  for (const entry of entries) {
+    if (entry.hourlyRateCents !== null) byRate.set(entry.hourlyRateCents, [...(byRate.get(entry.hourlyRateCents) ?? []), entry]);
+  }
+  const lines = [...byRate.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([rateCents, group]): BillingLine => {
+      const minutes = group.reduce((sum, e) => sum + billableMinutes(e), 0);
+      const quantity = roundHalfAwayFromZero((minutes * 1000) / 60);
+      return {
+        rateCents,
+        minutes,
+        quantity,
+        net: lineAmount(quantity, rateCents),
+        projects: [...new Set(group.map((e) => e.project).filter((p) => p !== ""))],
+      };
+    });
+  const withRate = entries.filter((e) => e.hourlyRateCents !== null).length;
+  return {
+    entries: withRate,
+    minutes: lines.reduce((sum, l) => sum + l.minutes, 0),
+    net: lines.reduce((sum, l) => sum + l.net, 0),
+    withoutRate: entries.length - withRate,
+    lines,
+    from: entries[0]?.workedOn ?? null,
+    to: entries.at(-1)?.workedOn ?? null,
+  };
 }

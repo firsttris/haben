@@ -1,4 +1,4 @@
-import { billableMinutes } from "@haben/core";
+import { type BillingPreview, billingPreview, type OffeneLeistung } from "@haben/core";
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -8,11 +8,11 @@ import { onActiveInvoice, ServiceEntryError } from "./service-entries.ts";
 
 /*
  * Leistungen abrechnen (#417): Die offenen, abrechenbaren Einträge eines Kunden und Zeitraums werden ein Rechnungsentwurf.
- * Je Stundensatz entsteht eine Position „Leistungen“ in Std., Menge die Summe der abrechenbaren Minuten, einmal auf
- * Tausendstel gerundet (nicht je Eintrag). Leistungszeitraum ist der erste bis letzte Arbeitstag. Jeder Eintrag
- * trägt danach die Nummer des Entwurfs (service_entries.invoice_id) und ist nicht noch einmal abrechenbar. Löscht man
- * den Entwurf, löst die Datenbank die Verknüpfung (on delete set null); nach dem Storno gilt der Eintrag wieder als offen,
- * die Auswertung steht in onActiveInvoice. Eine Buchung entsteht hier nicht, die macht das Festschreiben der Rechnung.
+ * Je Stundensatz entsteht eine Position „Leistungen“ in Std. (billingPreview in packages/core), Leistungszeitraum ist der
+ * erste bis letzte Arbeitstag. Jeder Eintrag trägt danach die Nummer des Entwurfs (service_entries.invoice_id) und ist
+ * nicht noch einmal abrechenbar. Löscht man den Entwurf, löst die Datenbank die Verknüpfung (on delete set null); nach
+ * dem Storno gilt der Eintrag wieder als offen, die Auswertung steht in onActiveInvoice. Eine Buchung entsteht hier
+ * nicht, die macht das Festschreiben der Rechnung.
  */
 
 export const billingSchema = z
@@ -25,37 +25,9 @@ export const billingSchema = z
 
 export type BillingInput = z.input<typeof billingSchema>;
 
-interface OpenEntry {
-  id: string;
-  workedOn: string;
-  minutes: number;
-  billableMinutes: number | null;
-  nonBillable: boolean;
-  hourlyRateCents: number | null;
-  project: string;
-}
+type OpenEntry = OffeneLeistung & { id: string };
 
-/** Position je Stundensatz */
-export interface BillingLine {
-  rateCents: number;
-  /** Abrechenbare Minuten */
-  minutes: number;
-  /** Menge der Position in Tausendstel Stunden */
-  quantity: number;
-  net: number;
-  projects: string[];
-}
-
-export interface BillingPreview {
-  entries: number;
-  minutes: number;
-  net: number;
-  /** Offene abrechenbare Einträge ohne Stundensatz: ohne ihn lässt sich nicht abrechnen */
-  withoutRate: number;
-  lines: BillingLine[];
-  from: string | null;
-  to: string | null;
-}
+export type { BillingLine, BillingPreview } from "@haben/core";
 
 async function openEntries(q: typeof db | Tx, input: z.infer<typeof billingSchema>, lock: boolean): Promise<OpenEntry[]> {
   const query = q
@@ -83,39 +55,9 @@ async function openEntries(q: typeof db | Tx, input: z.infer<typeof billingSchem
   return lock ? query.for("update") : query;
 }
 
-function previewOf(entries: OpenEntry[]): BillingPreview {
-  const withRate = entries.filter((e) => e.hourlyRateCents !== null);
-  const byRate = new Map<number, OpenEntry[]>();
-  for (const entry of withRate) byRate.set(entry.hourlyRateCents!, [...(byRate.get(entry.hourlyRateCents!) ?? []), entry]);
-  const lines = [...byRate.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([rateCents, group]): BillingLine => {
-      const minutes = group.reduce((sum, e) => sum + billableMinutes(e), 0);
-      // Menge einmal je Position gerundet: 100 Minuten sind 1,667 Std.
-      const quantity = Math.round((minutes * 1000) / 60);
-      return {
-        rateCents,
-        minutes,
-        quantity,
-        net: Math.round((rateCents * quantity) / 1000),
-        projects: [...new Set(group.map((e) => e.project).filter((p) => p !== ""))],
-      };
-    });
-  const days = entries.map((e) => e.workedOn);
-  return {
-    entries: withRate.length,
-    minutes: lines.reduce((sum, l) => sum + l.minutes, 0),
-    net: lines.reduce((sum, l) => sum + l.net, 0),
-    withoutRate: entries.length - withRate.length,
-    lines,
-    from: days.length > 0 ? days[0]! : null,
-    to: days.length > 0 ? days[days.length - 1]! : null,
-  };
-}
-
 /** Was „Abrechnen“ für diesen Kunden und Zeitraum anlegen würde, ohne etwas zu ändern */
 export async function previewBilling(input: BillingInput): Promise<BillingPreview> {
-  return previewOf(await openEntries(db, billingSchema.parse(input), false));
+  return billingPreview(await openEntries(db, billingSchema.parse(input), false));
 }
 
 /** Legt aus den offenen, abrechenbaren Einträgen einen Rechnungsentwurf an und verknüpft sie damit */
@@ -125,7 +67,7 @@ export async function billServiceEntries(actor: string, input: BillingInput, tod
     await assertCustomer(tx, data.contactId);
     const entries = await openEntries(tx, data, true);
     if (entries.length === 0) throw new ServiceEntryError("Im Zeitraum gibt es keine offenen, abrechenbaren Einträge dieses Kunden.");
-    const preview = previewOf(entries);
+    const preview = billingPreview(entries);
     if (preview.withoutRate > 0) {
       throw new ServiceEntryError(
         `Bei ${preview.withoutRate} ${preview.withoutRate === 1 ? "Eintrag fehlt" : "Einträgen fehlt"} der Stundensatz. Trage ihn am Eintrag oder im Kontakt ein, dann lässt sich abrechnen.`,
