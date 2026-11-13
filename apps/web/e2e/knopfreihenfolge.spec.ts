@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { firstLink, SESSION } from "./daten.ts";
+import { firstLink, SESSION, YEAR } from "./daten.ts";
 import { gehe, neuenKontaktOeffnen } from "./einrichtung.ts";
 
 /**
@@ -27,6 +27,8 @@ async function abweichungen(page: Page): Promise<string[]> {
       if (stil.flexDirection.endsWith("reverse") || knoepfe.some((el) => getComputedStyle(el).order !== "0")) {
         befunde.push(`umgedreht per CSS: ${folge}`);
       }
+      // Ein positiver tabindex zieht den Knopf vor alle übrigen Elemente der Seite (HTML, „sequential focus navigation“)
+      if (knoepfe.some((el) => (el as HTMLElement).tabIndex > 0)) befunde.push(`Tab-Reihenfolge per tabindex verändert: ${folge}`);
       if (knoepfe.at(-1) !== primaer[0]) befunde.push(`Hauptaktion nicht zuletzt: ${folge}`);
       const ersterNormaler = knoepfe.findIndex((el) => !el.classList.contains("btn-danger"));
       const letzterGefahr = knoepfe.findLastIndex((el) => el.classList.contains("btn-danger"));
@@ -104,6 +106,22 @@ test("Neues SEPA-Mandat: Hauptaktion zuletzt", async ({ page }) => {
   await karte.getByRole("button", { name: "Mandat anlegen" }).click();
   await expect(karte.getByRole("form", { name: "Neues Mandat" })).toBeVisible();
   expect(await abweichungen(page)).toEqual([]);
+});
+
+test("Formulare, die erst nach einem Klick aufgehen: Hauptaktion zuletzt", async ({ page }) => {
+  const befunde: string[] = [];
+  const kontakt = await firstLink(page, "/kontakte", /^\/kontakte\/[0-9a-f-]{36}$/);
+  for (const [url, knopf, formular] of [
+    ...(kontakt ? [[kontakt, "Ansprechpartner hinzufügen", "Neuer Ansprechpartner"] as const] : []),
+    ["/leistungen", "Neuer Eintrag", "Neuer Eintrag"],
+    [`/jahreserklaerung/${YEAR - 1}`, "Abgabe vermerken", null],
+  ] as const) {
+    await gehe(page, url);
+    await page.getByRole("button", { name: knopf, exact: true }).first().click();
+    await expect(formular ? page.getByRole("form", { name: formular }) : page.getByRole("dialog")).toBeVisible();
+    befunde.push(...(await abweichungen(page)).map((b) => `${url}: ${b}`));
+  }
+  expect(befunde).toEqual([]);
 });
 
 test("Knopfzeilen auf den Seiten mit Formularen und Rückfragen", async ({ page }) => {
