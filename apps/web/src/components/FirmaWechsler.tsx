@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Firma } from "../lib/firmen.ts";
 import { Field } from "./Field.tsx";
 import { Icon } from "./Icon.tsx";
@@ -7,26 +7,21 @@ import { Icon } from "./Icon.tsx";
 const FILTER_AB = 8;
 
 /**
- * Firma wechseln (#504): Knopf mit Pfeil am Firmennamen der Marke, der die Instanzen der anderen Firmen zeigt. Am
- * Desktop schwebt die Liste neben der Navigation (`position: fixed`, weil die Navigation selbst scrollt und sie sonst
- * abschnitte), am Handy klappt sie im geöffneten Menü als Abschnitt auf. Die Firmen sind Links im selben Tab, deshalb
- * eine Liste und kein `role="menu"`.
+ * Firma wechseln (#504): erste Zeile der Navigation, unter der die Instanzen der anderen Firmen im Fluss aufklappen.
+ * Die Firmen sind Links im selben Tab, deshalb eine Liste und kein `role="menu"`.
  */
 export function FirmaWechsler({ aktuell, andere }: { aktuell: string | null; andere: Firma[] }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
-  const [top, setTop] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const popup = useRef<HTMLDivElement>(null);
-  const popupId = useId();
+  const auswahl = useRef<HTMLDivElement>(null);
+  const auswahlId = useId();
   const mitFilter = andere.length >= FILTER_AB;
   const gesucht = filter.trim().toLocaleLowerCase("de");
   const treffer = gesucht ? andere.filter((firma) => firma.name.toLocaleLowerCase("de").includes(gesucht)) : andere;
 
   function toggle() {
-    // Die schwebende Liste beginnt unter dem Knopf; am Handy steht sie im Fluss und braucht den Wert nicht
-    setTop((button.current?.getBoundingClientRect().bottom ?? 0) + 4);
     setFilter("");
     setOpen((war) => !war);
   }
@@ -34,8 +29,7 @@ export function FirmaWechsler({ aktuell, andere }: { aktuell: string | null; and
   useEffect(() => {
     if (!open) return;
     // Fokus ins Filterfeld, ohne Filter auf die erste Firma
-    popup.current?.querySelector<HTMLElement>("input, a")?.focus({ preventScroll: true });
-    const schwebt = window.matchMedia("(min-width: 861px)").matches;
+    auswahl.current?.querySelector<HTMLElement>("input, a")?.focus({ preventScroll: true });
     const daneben = (event: Event) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -47,41 +41,24 @@ export function FirmaWechsler({ aktuell, andere }: { aktuell: string | null; and
       setOpen(false);
       button.current?.focus();
     };
-    // Rollt die Navigation oder die Seite, stünde die schwebende Liste nicht mehr am Knopf
-    const rollt = (event: Event) => {
-      if (schwebt && !popup.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const zu = () => setOpen(false);
     document.addEventListener("pointerdown", daneben);
     document.addEventListener("focusin", daneben);
     window.addEventListener("keydown", taste, true);
-    window.addEventListener("scroll", rollt, true);
-    window.addEventListener("resize", zu);
     return () => {
       document.removeEventListener("pointerdown", daneben);
       document.removeEventListener("focusin", daneben);
       window.removeEventListener("keydown", taste, true);
-      window.removeEventListener("scroll", rollt, true);
-      window.removeEventListener("resize", zu);
     };
   }, [open]);
 
   return (
     <div className="firma-wechsler" ref={root}>
-      <button ref={button} type="button" className="firma-wechsler-knopf" aria-expanded={open} aria-controls={popupId} onClick={toggle}>
-        <span className="firma-wechsler-text">Firma wechseln</span>
+      <button ref={button} type="button" className="firma-wechsler-knopf" aria-expanded={open} aria-controls={auswahlId} onClick={toggle}>
+        Firma wechseln
         <Icon name="chevron-down" size={16} />
       </button>
       {/* Bleibt im Dokument, damit aria-controls immer ein Ziel hat */}
-      <div
-        ref={popup}
-        id={popupId}
-        className="firma-popup"
-        role="group"
-        aria-label="Firma wechseln"
-        hidden={!open}
-        style={{ "--firma-top": `${top}px` } as CSSProperties}
-      >
+      <div ref={auswahl} id={auswahlId} className="firma-auswahl" role="group" aria-label="Firma wechseln" hidden={!open}>
         {aktuell && (
           <div className="firma-aktuell">
             <Icon name="check" size={16} />

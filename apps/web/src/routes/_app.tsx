@@ -193,7 +193,7 @@ function AppLayout() {
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link
           to={inhaber ? "/" : STEUERBERATUNG_START}
-          className={firmen.andere.length > 0 ? "brand brand-mit-wechsler" : "brand"}
+          className="brand"
           onPointerEnter={firmaAufklappen}
           onFocus={firmaAufklappen}
           onPointerLeave={firmaZeigerWeg}
@@ -229,9 +229,8 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {/* Firma wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung. Der Knopf
-              steht als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke: am Desktop rechts am
-              Firmennamen (absolut, neben dem Link der Marke, nicht darin), am Handy als erste Zeile des offenen Menüs */}
+          {/* Firma wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung. Die Zeile
+              steht als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
           {firmen.andere.length > 0 && <FirmaWechsler aktuell={firmen.aktuell ?? firma} andere={firmen.andere} />}
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
