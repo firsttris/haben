@@ -816,6 +816,7 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await expect(max.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
   await erika.getByRole("button", { name: "Entwurf löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await expect(erika.getByRole("button", { name: "Entwurf löschen" })).toHaveCount(0);
 
   await page.getByRole("link", { name: `Lohnsteuerbescheinigungen ${lohnJahr}` }).click();

@@ -464,11 +464,14 @@ export async function legacyVoucherFile(fileId: string) {
   return file ?? null;
 }
 
-/** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
+/**
+ * Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze).
+ * Eine Zuordnung über 0 € ist keine Zahlung (#472).
+ */
 function legacyPayments(v: { source: LegacySource; gross: number; status: string; payment: LegacyPayment | null }) {
   if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
-    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
+    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date && p.amount !== 0)
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
 }
 

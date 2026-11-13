@@ -181,6 +181,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(logoZeichen).toHaveAttribute("src", /\/api\/kennzeichen\?v=/);
   await expect(logoZeichen).not.toHaveAttribute("src", logoVorher!);
   await gestaltung.getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog", { name: "Logo entfernen?" }).getByRole("button", { name: "Entfernen" }).click();
   await expect(logoZeichen).toHaveCount(0);
   await expect(marke).toHaveCSS("background-color", "rgb(181, 70, 47)");
   // Das Logo aus der Einrichtung wieder herstellen; die Tests im Projekt „mit-daten“ rechnen damit
