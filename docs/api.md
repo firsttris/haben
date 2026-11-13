@@ -189,7 +189,7 @@ curl -X POST "$HABEN/leistungen" \
   -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
 ```
 
-Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from`, `to` und `status` (`offen`, `abgerechnet`, `nicht-abrechenbar`) listet. Jeder Eintrag trägt `invoiceId`, `invoiceNumber` und `invoiceStatus` (`draft` oder `final`) der Rechnung, auf der er steht; `null` heißt offen, auch nach dem Storno der Rechnung. Ein Eintrag auf einer Rechnung lässt sich nicht löschen (`422`), und ein erneutes `POST` mit seiner Kennung ändert ihn nicht. Abgerechnet wird in Haben unter [Leistungen](leistungen.md#abrechnen).
 
 ### Zeitbuchungen aus Kimai holen
 

@@ -5,6 +5,7 @@ import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
 import { openPositions } from "../modules/auswertungen/index.ts";
+import { serviceEntriesOfInvoice } from "../modules/leistungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
 import {
@@ -141,6 +142,8 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       writeOffs: result.invoice.status === "final" ? await listWriteOffs({ invoiceId: data }) : [],
       /** Zahlungen über die Bank und bar im Kassenbuch */
       payments: result.invoice.status === "final" ? await invoicePaymentList(data) : [],
+      /** Leistungen, aus denen die Rechnung entstanden ist (Nachweis); die Steuerberatung sieht sie nicht, wie die Seite Leistungen */
+      serviceEntries: context.user.role === "inhaber" ? await serviceEntriesOfInvoice(data) : [],
       /** Vorschlag für das Datum einer Ausbuchung, nach deutscher Zeit */
       today: today(),
       ...(await abschlagLinks(data)),
