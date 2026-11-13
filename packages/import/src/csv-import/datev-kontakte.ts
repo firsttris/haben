@@ -55,17 +55,19 @@ const steuernummer = (row: DatevGpRow) => row.steuernummer.replace(/\D/g, "");
 
 /** Was am Kontakt steht; der Debitor bringt die Kundennummer, was „Kundennummer“ am Kreditor meint, ist nicht belegt */
 function contactRow(rows: DatevGpRow[]): ContactRow {
-  const field = (key: "name" | "strasse" | "plz" | "ort" | "email" | "telefon" | "ustId" | "iban") => rows.find((r) => r[key])?.[key] ?? "";
+  const field = (key: "name" | "email" | "telefon" | "ustId" | "iban") => rows.find((r) => r[key])?.[key] ?? "";
+  // Die Anschrift samt Land aus einer Zeile: Ein leeres Land liest der Parser als DE, gemischt hieße Paris dann Deutschland
+  const address = rows.find((r) => r.strasse || r.plz || r.ort) ?? rows[0]!;
   const debitor = rows.find((r) => r.rolle === "debitor");
   const kreditor = rows.find((r) => r.rolle === "kreditor");
   return {
     kundennummer: debitor?.kundennummer ?? "",
     lieferantennummer: "",
     name: field("name"),
-    strasse: field("strasse"),
-    plz: field("plz"),
-    ort: field("ort"),
-    land: rows[0]!.land,
+    strasse: address.strasse,
+    plz: address.plz,
+    ort: address.ort,
+    land: address.land,
     email: field("email"),
     telefon: field("telefon"),
     ustId: field("ustId"),
