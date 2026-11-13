@@ -251,7 +251,7 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | `KU` | 0 % | – | Kleinunternehmer § 19 UStG |
 | `VSt19` | 19 % | 66 | Vorsteuer 19 % |
 | `VSt7` | 7 % | 66 | Vorsteuer 7 % |
-| `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege von Kleinunternehmern |
+| `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege ohne Vorsteuerabzug |
 | `IGL` | 0 % | 41 | Steuerfreie innergemeinschaftliche Lieferung |
 | `Ausfuhr` | 0 % | 43 | Steuerfreie Ausfuhrlieferung |
 | `RC13bEU` | 19 % / 7 % | 46 / 47 | Steuerschuld als Leistungsempfänger, Leistung eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1 UStG) |
