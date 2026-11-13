@@ -135,6 +135,7 @@ Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#up
 Für jede Firma eine eigene Instanz, siehe [Mehrere Instanzen](installation.md#mehrere-instanzen): je Instanz ein
 Verzeichnis wie `/opt/haben-firma2` mit eigenem `COMPOSE_PROJECT_NAME` und eigenen Schlüsseln in `.env`, in
 `compose.override.yml` ein eigener Port (`127.0.0.1:3001:3000`), dazu in Plesk eine eigene Subdomain mit den
-Einstellungen von oben und eine Proxy-Regel auf den Container `haben-firma2-app-1` und diesen Port. Das Werkzeug
-`haben-instanzen.ts` passt hier nicht: Es verbindet die Instanzen über ein Container-Netz, der nginx von Plesk läuft
-aber auf dem Host.
+Einstellungen von oben und eine Proxy-Regel auf den Container `haben-firma2-app-1` und diesen Port. Teilen sich die
+Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (etwa `BACKUP_HOST=haben-firma2`).
+Das Werkzeug `haben-instanzen.ts` passt hier nicht: Es verbindet die Instanzen über ein Container-Netz, der nginx von
+Plesk läuft aber auf dem Host.
