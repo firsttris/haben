@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,14 +25,14 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
   };
 
   async function migrate(runtimeUrl: string, migrationUrl?: string, script = fileURLToPath(new URL("./migrate.ts", import.meta.url)), expectedExit = 0) {
-    const child = Bun.spawn([Bun.which("bun")!, script], {
-      env: { ...globalThis.process.env, DATABASE_URL: runtimeUrl, MIGRATION_DATABASE_URL: migrationUrl ?? "" },
-      stdout: "pipe",
-      stderr: "pipe",
+    // Vitest läuft unter Bun; derselbe Interpreter führt auch die echte CLI aus.
+    const child = spawnSync(process.execPath, [script], {
+      env: { ...process.env, DATABASE_URL: runtimeUrl, MIGRATION_DATABASE_URL: migrationUrl ?? "" },
+      encoding: "utf-8",
+      timeout: 15_000,
     });
-    const [stdout, stderr, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-    expect(exit, `${stdout}\n${stderr}`).toBe(expectedExit);
-    expect(`${stdout}\n${stderr}`).not.toContain("rollen-test-619");
+    expect(child.status, `${child.stdout}\n${child.stderr}`).toBe(expectedExit);
+    expect(`${child.stdout}\n${child.stderr}`).not.toContain("rollen-test-619");
   }
 
   // Alle Rechteproben gehen erst durch den echten CLI-Start, nicht durch eine im Test vorab abgesicherte Rolle.
