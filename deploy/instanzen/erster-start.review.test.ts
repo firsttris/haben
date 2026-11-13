@@ -76,6 +76,23 @@ describe("--nicht-starten", () => {
   });
 });
 
+describe("--nicht-starten nennt, wo nach dem ersten Start der Einrichtungscode steht", () => {
+  it("als letzten Schritt docker compose logs app: neu nennt den Code sonst selbst, hier startet es nichts", async () => {
+    const r = await t.lauf("neu", "firma1", "firma1.example.de", "--nicht-starten");
+    reihenfolge(r.stdout, [CREATEUSER, "  docker compose up -d\n", "Einrichtungscode", "docker compose logs app"]);
+  });
+
+  it("nicht mit --sso: Dort gibt es keinen Einrichtungscode", async () => {
+    t.eingabe("geheim\n");
+    const r = await t.lauf(
+      ...["neu", "firma1", "firma1.example.de", "--nicht-starten", "--sso", "--oidc-issuer", "https://auth.example.de"],
+      ...["--oidc-client-id", "haben-firma1", "--oidc-client-secret-stdin"],
+    );
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).not.toContain("Einrichtungscode");
+  });
+});
+
 describe("nach einem Abbruch nennen die Schritte das Netz der Instanz (#872)", () => {
   it("mit gemeinsamem Caddy: Er legt haben-proxy-firma1 beim Start an", async () => {
     t.docker.z.dbKaputt.add("firma1");

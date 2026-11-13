@@ -130,3 +130,27 @@ describe("Instanzen im gemeinsamen Netz haben-proxy von vor #872", () => {
     expect(netze(datei("proxy", "compose.override.yml"))).toEqual(["haben-proxy-alt", "haben-proxy-firma2"]);
   });
 });
+
+describe("Netzname in der Override-Datei einer Instanz, von Hand geschrieben", () => {
+  // Wer nach docs/installation.md von Hand umstellt, setzt leicht Anführungszeichen oder einen Kommentar; Compose
+  // liest den Namen trotzdem. Fehlte das Netz dann beim Caddy, wäre die Instanz nach dem nächsten neu ohne Meldung
+  // nicht mehr erreichbar (Review #875)
+  it.each([
+    ['name: "haben-proxy-alt"', "in doppelten Anführungszeichen"],
+    ["name: 'haben-proxy-alt'", "in einfachen Anführungszeichen"],
+    ["name: haben-proxy-alt # eigenes Netz", "mit Kommentar am Zeilenende"],
+    ["name:   haben-proxy-alt  ", "mit Leerzeichen"],
+  ])("liest %s wie Compose (%s) und behält das Netz beim Caddy", async (zeile) => {
+    const vorher = altbestand();
+    writeFileSync(join(t.basis, "alt", "compose.override.yml"), vorher.override.replace("name: haben-proxy\n", `${zeile}\n`));
+    await t.lauf("neu", "firma2", "firma2.example.de");
+    expect(netze(datei("proxy", "compose.override.yml"))).toEqual(["haben-proxy-alt", "haben-proxy-firma2"]);
+  });
+
+  it("nimmt ein anderes Netz nicht für das der Instanz", async () => {
+    const vorher = altbestand();
+    writeFileSync(join(t.basis, "alt", "compose.override.yml"), vorher.override.replace("name: haben-proxy\n", "name: haben-proxy-alt2\n"));
+    await t.lauf("neu", "firma2", "firma2.example.de");
+    expect(netze(datei("proxy", "compose.override.yml"))).toEqual(["haben-proxy-firma2"]);
+  });
+});
