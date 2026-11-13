@@ -146,8 +146,8 @@ describe.each(vorlagen)("$name", ({ dienste, ausSchluesseln, ausgelassen, backup
   });
 });
 
-describe("Synology-Datenbankzugänge", () => {
-  const vorlage = (Bun.YAML.parse(text("deploy/synology/compose.yml")) as Compose).services;
+describe.each(["deploy/synology/compose.yml", "deploy/truenas/compose.yml"])("%s – Datenbankzugänge", (datei) => {
+  const vorlage = (Bun.YAML.parse(text(datei)) as Compose).services;
 
   test.each([
     { fall: "ohne getrennte Zugänge", adresse: "", migration: "", erwartet: "postgres://haben:test-db-passwort@db:5432/haben" },
@@ -158,7 +158,7 @@ describe("Synology-Datenbankzugänge", () => {
       erwartet: "postgres://haben_app:test-app-passwort@db:5432/haben",
     },
   ])("übergibt die Datenbankzugänge $fall an haben-entrypoint", ({ adresse, migration, erwartet }) => {
-    const ordner = mkdtempSync(join(tmpdir(), "haben-synology-"));
+    const ordner = mkdtempSync(join(tmpdir(), "haben-vorlage-"));
     try {
       writeFileSync(join(ordner, "db-passwort"), "test-db-passwort");
       writeFileSync(join(ordner, "auth-secret"), "test-auth-secret");
@@ -183,5 +183,4 @@ describe("Synology-Datenbankzugänge", () => {
       rmSync(ordner, { recursive: true, force: true });
     }
   });
-
 });
