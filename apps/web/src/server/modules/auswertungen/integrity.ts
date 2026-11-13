@@ -1,3 +1,4 @@
+import { reservedAccountNumbers, type Kontenrahmen } from "@haben/core";
 import { count, eq, sql } from "drizzle-orm";
 import { abgleichAll, abweichungen, type AbgleichZeile } from "./abgleich.ts";
 import { db, schema } from "../../db/index.ts";
@@ -42,6 +43,8 @@ export interface IntegrityReport {
    * Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern, der zu klären ist.
    */
   abgleich: { abweichungen: AbgleichZeile[]; hinweise: string[] };
+  /** Eigene Nummern, die eine spätere Version von Haben selbst nutzt; kein Beweis einer Manipulation. */
+  accountCollisions: { kontenrahmen: Kontenrahmen; account: string; name: string }[];
 }
 
 /** Lesezugriff auf die Datenbank: db selbst oder eine Transaktion */
@@ -73,7 +76,14 @@ function readSnapshot(now: string) {
       const [entries] = await tx.select({ n: count() }).from(schema.auditLog);
       const [seals] = await tx.select({ n: count() }).from(schema.seals);
       const abgleich = await abgleichAll(now, tx);
-      return { rows, head, entries: entries!.n, seals: seals!.n, abgleich };
+      // #787: Auch archivierte Konten und frühere Kontenrahmen bestimmen weiterhin die Bedeutung alter Buchungen.
+      // https://github.com/firsttris/haben/issues/787#issuecomment-6840030954
+      const ownAccounts = await tx
+        .select({ kontenrahmen: schema.ownAccounts.kontenrahmen, account: schema.ownAccounts.account, name: schema.ownAccounts.name })
+        .from(schema.ownAccounts)
+        .orderBy(schema.ownAccounts.kontenrahmen, schema.ownAccounts.account);
+      const accountCollisions = ownAccounts.filter((account) => reservedAccountNumbers(account.kontenrahmen).has(account.account));
+      return { rows, head, entries: entries!.n, seals: seals!.n, abgleich, accountCollisions };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
@@ -85,7 +95,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
   // und geht in der Transaktion mit festem Stand nicht. Ohne Buchungen bleibt die Prüfung ohne jeden Schreibzugriff.
   const [booking] = await db.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
   if (booking) await loadCompany();
-  const { rows, head, entries, seals, abgleich } = await readSnapshot(now);
+  const { rows, head, entries, seals, abgleich, accountCollisions } = await readSnapshot(now);
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
   for (const p of problems) perKind.set(`${p.art}:${p.tabelle}`, (perKind.get(`${p.art}:${p.tabelle}`) ?? 0) + 1);
@@ -96,6 +106,7 @@ export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
     problems,
     truncated: [...perKind.values()].some((n) => n >= MAX_ROWS),
     abgleich: { abweichungen: abweichungen(abgleich.zeilen), hinweise: abgleich.hinweise },
+    accountCollisions,
   };
 }
 
