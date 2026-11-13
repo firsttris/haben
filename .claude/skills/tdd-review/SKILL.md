@@ -1,11 +1,11 @@
 ---
 name: "tdd-review"
-description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler melden, die ein fehlschlagender Test belegt, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request mit Code vor dem Merge; ohne Code doku-pruefen."
+description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler im Code melden, die ein fehlschlagender Test belegt, geänderte Markdown-Dateien nach doku-pruefen, Findings im PR posten, nach Red-Green fixen, bis CI grün ist; mergen nur als Maintainer oder Collaborator mit Zustimmung. Für jeden Pull Request mit Code vor dem Merge; ohne Code doku-pruefen."
 ---
 
 # TDD-Review
 
-Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
+Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht; für Markdown im selben PR gilt Schritt 1, „Markdown“. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
 
 ## 0. Wer reviewt?
 
