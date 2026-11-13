@@ -134,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Belege am Kontakt (Postgres)",
   // Jede festgeschriebene Rechnung erzeugt ihr PDF; wenige je Test, damit keiner unter Last an die 5 s stößt
   it("Kunde: festgeschriebene Rechnungen, Storno im Jahr des Stornos, ohne Entwurf", async () => {
     const dezember = await rechnung(kunde, "2025-12-01", 120_000);
-    const storno = await invoices.cancelInvoice(actor, dezember.id, "2026-01-10");
+    await invoices.cancelInvoice(actor, dezember.id, "2026-01-10");
     const maerz = await rechnung(kunde, "2026-03-02", 400_000);
     await rechnung(kunde, "2026-11-10", 99_900, false);
 
