@@ -6,8 +6,9 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Gutschriften aus Buchhaltungsversion 2.0 (#472): Provision und Honorar mit `taxRule` 9 am Kopf, `taxRate` 0 am Kopf und
- * 19 % an den Positionen, fertiggestellt und nicht bezahlt. sevDesk bucht sie wie in 1.0 im Soll des Aufwandskontos mit BU 9
- * (DATEV-Export in den Fixtures); Haben folgt dem wie bei 1.0 (docs/sevdesk.md).
+ * 19 % an den Positionen, fertiggestellt und nicht bezahlt. Provision und `ROYALTY_ASSIGNED` bucht sevDesk wie in 1.0 im Soll
+ * des Aufwandskontos mit BU 9 (DATEV-Export in den Fixtures); `ROYALTY_UNASSIGNED` über 0 € hat keine Buchung. Haben folgt
+ * dem wie bei 1.0 (docs/sevdesk.md).
  */
 
 type Fixture = { creditNote: Record<string, unknown>; positions: unknown[] };
