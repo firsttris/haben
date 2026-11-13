@@ -437,7 +437,7 @@ Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und eine
 
 Die Liste ist nach Rechnungsdatum sortiert, neueste zuerst, bei gleichem Datum nach Rechnungsnummer absteigend. In derselben Reihenfolge zeigt die Übersicht unter **Letzte Rechnungen** die fünf jüngsten festgeschriebenen Rechnungen.
 
-Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überfällige Rechnungen sind farbig hinterlegt, damit sie in der Liste auffallen; ein Entwurf hat einen leeren Ring statt eines Punkts.
+Unter dem Status steht in Grau, was er für diese Rechnung gerade heißt. Überfällige Rechnungen sind farbig hinterlegt, auch die Zeile darunter, damit sie in der Liste auffallen; ein Entwurf hat einen leeren Ring statt eines Punkts.
 
 | Status | Bedeutung | Darunter |
 | --- | --- | --- |
