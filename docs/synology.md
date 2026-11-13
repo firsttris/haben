@@ -90,8 +90,9 @@ ERiC für ELSTER lädst du unter **Einstellungen › ELSTER › ERiC** per Knopf
 Der Container `haben-backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr mit restic in das Volume `backups`, also
 auf dieselbe Synology. Ob es lief, zeigt Haben unter **Einstellungen › Export**; die Übersicht warnt, wenn ein Lauf fehlschlug. Gegen einen Defekt der Synology hilft nur
 ein zweiter Ort: Trag im Projekt (**Projekt › haben › YAML-Konfiguration**) bei `RESTIC_REPOSITORY` ein zweites System
-ein, etwa eine andere NAS über SFTP oder einen S3-Speicher, siehe
-[Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system).
+ein, etwa einen S3-Speicher (dazu `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`) oder einen restic REST-Server, siehe
+[Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system). SFTP braucht einen
+eingehängten SSH-Schlüssel und damit die Kommandozeile.
 
 Ein Backup von Hand, etwa vor einem Update: **Container › `haben-backup` › Details › Terminal**, dort `backup.sh`
 ausführen.

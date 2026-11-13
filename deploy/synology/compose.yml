@@ -18,12 +18,15 @@ x-backup: &backup
   environment:
     # Passwort der Datenbank für pg_dump und psql, auch bei docker compose exec
     PGPASSFILE: /run/haben/pgpass
-    # Standard: Volume backups auf der Synology. Besser ein zweites System: sftp:…, s3:…, rest:… (docs/installation.md)
+    # Standard: Volume backups auf der Synology. Besser ein zweites System: s3:… oder rest:… (docs/installation.md)
     RESTIC_REPOSITORY: /backups
     RESTIC_PASSWORD_FILE: /run/haben/backup-passwort
     BACKUP_HOST: haben
     BACKUP_TIME: "03:15"
     RESTORE_CHECK_DAYS: "7"
+    # Zugangsdaten für ein Repository auf S3, sonst leer
+    AWS_ACCESS_KEY_ID: ""
+    AWS_SECRET_ACCESS_KEY: ""
 
 services:
   # Erzeugt beim ersten Start die Schlüssel und zeigt bei jedem Start die beiden, die du sichern musst
