@@ -107,7 +107,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace: Typen für Node aus den Dev-Abhängigkeiten der Wurzel, der benutzte Teil von Bun in `deploy/instanzen/bun.d.ts`, weil `@types/bun` in der Wurzel auch die Typen von `apps/web` ändern würde) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go), danach `tsc -p deploy` für das Werkzeug in `deploy/instanzen` (kein Workspace, Gründe in `deploy/tsconfig.json`) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach Modulgrenzen, Seitenabdeckung und Dateigröße ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bunx knip@5.88.1 --include files,dependencies,unlisted` | Unbenutzte Dateien und Abhängigkeiten (Einstiegspunkte in `knip.jsonc`); nicht in der CI, vor dem Löschen mit `git grep` gegenprüfen |

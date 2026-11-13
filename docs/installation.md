@@ -403,9 +403,10 @@ Optionen für `neu`:
 | Option | Wirkung |
 | --- | --- |
 | `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
-| `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](#eric-einbinden) |
+| `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](#eric-einbinden). Ob ein gemeinsames ERiC als Weitergabe gilt, wenn du Instanzen [für andere betreibst](#für-andere-betreiben), ist nicht geklärt |
 | `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
-| `--sso --oidc-issuer URL --oidc-client-id ID --oidc-client-secret WERT` | ausschließlich [Single Sign-on](#single-sign-on-mit-openid-connect), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia) |
+| `--sso --oidc-issuer URL --oidc-client-id ID` | ausschließlich [Single Sign-on](#single-sign-on-mit-openid-connect), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia). Dazu das Clientsecret aus genau einer Quelle (nächste Zeile) |
+| `--oidc-client-secret-file PFAD` oder `--oidc-client-secret-stdin` | das Clientsecret für `--sso`: aus einer Datei, die nur du lesen kannst, oder von der Standardeingabe (`pass show haben/firma1 \| bun … --oidc-client-secret-stdin`); ohne Pipe fragt das Werkzeug am Terminal danach und zeigt die Eingabe nicht an. Ein Zeilenumbruch am Ende zählt nicht dazu. Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der Shell-Historie |
 | `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen |
 
 `ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
