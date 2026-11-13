@@ -7,7 +7,7 @@ description: >-
 
 # In Mein ELSTER mit der Erweiterung abgeben
 
-Ohne eigene **Hersteller-ID** sendet Haben nicht selbst an das Finanzamt ([einrichtung.md › Hersteller-ID](einrichtung.md#hersteller-id-wer-ist-hersteller)). Die Erklärungen gibst du dann im Portal **Mein ELSTER** ab. Die Browser-Erweiterung **Haben für Mein ELSTER** trägt die Werte aus Haben dort ein, für alle vier Formulare:
+Ohne eigene **Hersteller-ID** sendet Haben nicht selbst an das Finanzamt ([ELSTER einrichten › Hersteller-ID](einrichtung-elster.md#hersteller-id-wer-ist-hersteller)). Die Erklärungen gibst du dann im Portal **Mein ELSTER** ab. Die Browser-Erweiterung **Haben für Mein ELSTER** trägt die Werte aus Haben dort ein, für alle vier Formulare:
 
 | Formular in Mein ELSTER | Werte in Haben | Weitere Wege ohne Hersteller-ID |
 | --- | --- | --- |
@@ -20,7 +20,7 @@ Mit eigener Hersteller-ID sendet Haben alle vier direkt über ERiC; den [KI-Assi
 
 ## Wie es funktioniert
 
-- **Du meldest dich selbst bei Mein ELSTER an**, wie immer (Zertifikatsdatei, ELSTER Secure oder Ausweis). Haben und die Erweiterung kennen weder Passwort noch Zertifikat noch Steuer-ID, und Haben verbindet sich nicht mit ELSTER.
+- **Du meldest dich selbst bei Mein ELSTER an** (Zertifikatsdatei, ELSTER Secure oder Ausweis). Haben und die Erweiterung kennen weder Passwort noch Zertifikat noch Steuer-ID, und Haben verbindet sich nicht mit ELSTER.
 - **Haben liefert die Werte**: „Werte für Mein ELSTER kopieren“ legt eine Liste aus Feldkennung und Wert in die Zwischenablage. Die Werte stammen aus genau dem XML, das Haben über ERiC senden würde.
 - **Die Erweiterung trägt sie ein**: Mein ELSTER benennt jedes Eingabefeld nach seiner amtlichen Kennung und führt dazu den Pfad im ERiC-XML. Die Erweiterung sucht auf der geöffneten Seite jedes Feld mit einer Kennung aus der Liste und trägt den Wert ein. Sie rät nichts aus Beschriftungen.
 - **Du blätterst, prüfst und sendest**: Die Erweiterung klickt nie. Seiten wechseln, „Eintrag übernehmen“, „Prüfen“ und „Absenden“ machst du in Mein ELSTER.
@@ -69,7 +69,7 @@ Die Werte enthalten Monat und Kennzahlen. Auf der Startseite des Formulars wähl
 
 ### Einkommensteuer
 
-Mein ELSTER füllt die Einkommensteuererklärung aus dem gewählten Haushalt und der Vorjahresabgabe vor; viele Felder haben also schon Werte. Die Erweiterung zeigt sie als **abweichend**, wenn Haben etwas anderes hat, und überschreibt sie nur auf deinen Klick.
+Mein ELSTER füllt die Einkommensteuererklärung aus dem gewählten Haushalt und der Vorjahresabgabe vor. Die Erweiterung zeigt sie als **abweichend**, wenn Haben etwas anderes hat, und überschreibt sie nur auf deinen Klick.
 
 Anlagen wie **S**, **N** und **Vorsorgeaufwand** führt Mein ELSTER je Person, mit dem Namen in der Überschrift: „Anlage S (Erika Muster)“. Haben gibt die Namen beider Personen aus den Steuerdaten mit; die Erweiterung trägt Werte einer Person nur auf deren Anlage ein. Stimmen die Namen in Haben und Mein ELSTER nicht überein, erkennt sie die Person nicht und listet die Werte unter „gehört zur Anlage einer anderen Person“.
 

@@ -17,7 +17,7 @@
     "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all", "arrowParentheses": "always" }
   },
   "assist": { "enabled": false },
-  // Eigene Regeln als GritQL-Muster; siehe docs/entwicklung.md, Automatische Prüfungen der Regeln
+  // Eigene Regeln als GritQL-Muster; siehe docs/mitwirken.md, Automatische Prüfungen der Regeln
   "plugins": ["./scripts/felder/kein-label-field.grit", "./scripts/felder/keine-nackte-auswahl.grit"],
   "linter": {
     "enabled": true,
@@ -28,6 +28,11 @@
       "style": {
         // Nach Prüfungen wie `.find()` ist der Wert bekannt; `!` war auch unter ESLint erlaubt
         "noNonNullAssertion": "off"
+      },
+      "complexity": {
+        // Eine Funktion ab etwa 80 Zeilen wird geteilt (docs/entwicklung.md, Konventionen); Leerzeilen zählen nicht.
+        // Nur als Hinweis: im Editor an der Funktion und in der Ausgabe von bun run lint, ohne die CI anzuhalten
+        "noExcessiveLinesPerFunction": { "level": "info", "options": { "maxLines": 80, "skipBlankLines": true } }
       },
       "suspicious": {
         // TypeScript leitet den Typ aus den Zuweisungen ab (strict meldet echtes any)
@@ -55,6 +60,11 @@
     }
   },
   "overrides": [
+    {
+      // Tests gliedern sich in lange describe-Blöcke; die Grenze gilt für den Code, den sie prüfen
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "apps/web/e2e/**"],
+      "linter": { "rules": { "complexity": { "noExcessiveLinesPerFunction": "off" } } }
+    },
     {
       // Die Regel kennt nur Playwright; im App-Code heißen auch eigene Funktionen describe
       "includes": ["**", "!apps/web/e2e/**"],

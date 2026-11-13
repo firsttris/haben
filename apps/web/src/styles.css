@@ -32,7 +32,9 @@
   --accent-ink: #17574a;
   --accent-soft: #e5f1ec;
   --accent-tint: #eef4f1;
-  /* Text in Akzentfarbe (Links, Aktionen): in den dunklen Themes das helle accent-ink, sonst reicht der Kontrast nicht */
+  /* Schrift auf Akzentfläche (Hauptknopf): Weiß, im dunklen Modus dunkel auf dem hellen Akzent */
+  --accent-fg: #fff;
+  /* Text in Akzentfarbe (Links, Aktionen): im dunklen Modus das helle accent-ink, sonst reicht der Kontrast nicht */
   --link: var(--accent);
   --link-hover: var(--accent-hover);
   --brand: #3fa284;
@@ -57,6 +59,10 @@
   /* Unterkante des stehenden Kopfs: darunter beginnen Unternavigation, Belegansicht, Tabellenköpfe und Sprungziele */
   --below-head: calc(var(--nav-height) + var(--page-head-height));
   --main-pad-x: 40px;
+  /* Feiner Schatten unter Karten und Knöpfen, Fläche beim Überfahren, Dauer der Übergänge */
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+  --hover: var(--line-soft);
+  --fade: 0.15s ease;
 }
 @media (pointer: coarse) { :root { --control-h: 44px; } }
 /* Safari auf dem iPhone vergrößert die Seite beim Fokus in ein Feld mit weniger als 16 px Schrift und bleibt vergrößert:
@@ -70,7 +76,7 @@ html { scroll-padding-top: calc(var(--below-head) + 16px); }
    hier mit. Handys quer haben mindestens 320 px Höhe und behalten ihn. */
 @media (max-height: 300px) { :root { --below-head: var(--nav-height); } }
 
-/* Themes: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald. */
+/* Farben: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald, ohne data-mode hell. */
 :root { color-scheme: light; }
 [data-theme="ozean"] {
   --accent: #1d5fa8; --accent-hover: #164a84; --accent-ink: #174d8a; --accent-soft: #e4eefa; --accent-tint: #eef4fb;
@@ -87,27 +93,27 @@ html { scroll-padding-top: calc(var(--below-head) + 16px); }
   --brand: #8a98a6; --nav: #15191d; --nav-active: #2a3037; --nav-ink: #b8bfc6;
   --ink: #181c20; --ink-2: #40474e; --muted: #5c646c; --ground: #f4f5f6; --line: #dee1e4; --line-soft: #eef0f1; --line-strong: #c9cdd2;
 }
-[data-theme="nacht"], [data-theme="tiefsee"] {
+/* Dunkler Modus (data-mode, lib/theme.ts) für jede Farbe: neutrale Flächen ohne Farbstich, Farbe nur im Akzent.
+   Der Akzent ist heller als im hellen Modus und trägt dunkle Schrift (--accent-fg), damit er auf dem Grund leuchtet. */
+[data-mode="dark"] {
   color-scheme: dark;
   /* Auf Dunkel trägt der Schatten kaum, die helle Haarlinie hält die Kante des Papiers */
   --paper-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 32px -8px rgb(0 0 0 / 0.6), 0 32px 64px -16px rgb(0 0 0 / 0.5);
+  --ink: #f4f4f5; --ink-2: #d4d4d8; --muted: #a1a1aa; --ground: #111113; --surface: #1a1a1d;
+  --line: #2c2c31; --line-soft: #232327; --line-strong: #3f3f46;
+  /* Die Navigation hat den Ton des Grunds und trennt sich mit einer Linie ab (.nav unten), statt als eigener Block */
+  /* --nav-ink heller als --muted: Gruppennamen, Rolle und Version tragen opacity 0.7 und brauchen trotzdem 4,5 : 1 */
+  --nav: #111113; --nav-active: #232327; --nav-ink: #b4b4bb;
   --link: var(--accent-ink); --link-hover: var(--ink);
-  --warn-ink: #f2b880; --warn-soft: #3a2615; --warn-dot: #e08a3c;
-  --info-ink: #9cc3f0; --info-soft: #172a42;
-  --danger-ink: #f3a5a5; --danger-soft: #3d1a1a;
+  --accent: #4cc29a; --accent-hover: #6dd0ad; --accent-ink: #7fd3b5; --accent-soft: #193a2f; --accent-tint: #162a23; --accent-fg: #111113;
+  --warn-ink: #f0bd8c; --warn-soft: #30241a; --warn-dot: #e08a3c;
+  --info-ink: #a3c4ee; --info-soft: #1a2536;
+  --danger-ink: #f2a8a8; --danger-soft: #371d1e;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
 }
-[data-theme="nacht"] {
-  --ink: #e4ebe7; --ink-2: #c3cec8; --muted: #93a19a; --ground: #121815; --surface: #1a221e;
-  --line: #2c3732; --line-soft: #222b27; --line-strong: #3a4741;
-  --accent: #2a7f65; --accent-hover: #236b55; --accent-ink: #7fd3b5; --accent-soft: #1d3a31; --accent-tint: #19302a;
-  --brand: #3fa284; --nav: #0d1210; --nav-active: #1f2a25; --nav-ink: #a9b6af;
-}
-[data-theme="tiefsee"] {
-  --ink: #e3e9f1; --ink-2: #c0cad6; --muted: #8f9cad; --ground: #10151d; --surface: #18202b;
-  --line: #2a3544; --line-soft: #202936; --line-strong: #384558;
-  --accent: #3a78c2; --accent-hover: #4a8ad6; --accent-ink: #93bdf0; --accent-soft: #1a2d47; --accent-tint: #172538;
-  --brand: #5a9be0; --nav: #0b1017; --nav-active: #1e2a3a; --nav-ink: #a7b4c4;
-}
+[data-theme="ozean"][data-mode="dark"] { --accent: #6aa8f0; --accent-hover: #8cbcf5; --accent-ink: #93bdf0; --accent-soft: #1b2d47; --accent-tint: #172338; }
+[data-theme="pflaume"][data-mode="dark"] { --accent: #c99ad8; --accent-hover: #d8b2e4; --accent-ink: #d7aee5; --accent-soft: #35233d; --accent-tint: #281d2e; }
+[data-theme="graphit"][data-mode="dark"] { --accent: #e4e4e7; --accent-hover: #fafafa; --accent-ink: #e4e4e7; --accent-soft: #2c2c31; --accent-tint: #222226; }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; }
@@ -134,14 +140,25 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .shell { display: flex; min-height: 100vh; }
 /* Navigation bleibt am Fenster stehen: sonst wächst sie mit langen Seiten mit und der Fuß rutscht nach unten */
 .nav { width: 232px; flex-shrink: 0; background: var(--nav); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
-.brand { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px 12px 28px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
+/* Rechts ohne Innenabstand: Der Platz geht an den Namen, die 40px große Kachel kostet ihn so nicht (#504) */
+.brand { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 0 28px 12px; color: #fff; font-weight: 600; font-size: 18px; text-decoration: none; }
 .brand:hover { color: #fff; }
 /* Mit Firmenname (#504): „Haben“ bleibt, darunter der Name in bis zu zwei Zeilen, klein genug für lange Namen */
 .brand-text { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .brand-firma { color: var(--nav-ink); font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 /* Voller Name beim Überfahren (nur Desktop): wächst an der Stelle des gekürzten Namens nach unten und über die ersten Menüpunkte, bis zum rechten Rand der Navigation; das „H“ und „Haben“ bleiben frei */
-.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: -12px; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
-.brand-mark { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 16px; }
+.brand-firma-voll { position: absolute; z-index: 5; left: -8px; right: 0; top: calc(100% - 36px); padding: 4px 8px; border-radius: 8px; background: var(--nav-active); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #fff; font-size: 13px; font-weight: 500; line-height: 16px; overflow-wrap: anywhere; }
+/* Das Zeichen ist fest quadratisch und voll gefüllt, 40px am Desktop, 36px am Handy; das „H“ und ein Logo gleich groß (#504) */
+.brand-mark { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: var(--nav); font-size: 23px; }
+/* Eigene Farbe, die sich in einem Theme nicht mit 3 : 1 von der Navigation abhebt (WCAG 1.4.11): feine helle Innenkante, die Größe bleibt */
+.brand-mark-kante { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nav-ink) 60%, transparent); }
+/* Logo als Zeichen (#504): auf Weiß wie auf dem Beleg, damit auch ein dunkles Logo auf dunkler Navigation zu sehen ist */
+.brand-logo { display: block; width: 40px; height: 40px; padding: 3px; border-radius: 10px; background: #fff; object-fit: contain; flex-shrink: 0; }
+.nav-mark-choice { display: flex; gap: 24px; align-items: start; flex-wrap: wrap; }
+.nav-mark-choice > fieldset { flex: 1 1 280px; margin: 0; padding: 0; border: 0; }
+/* Alle drei Optionen gleich hoch, auch die mit Hinweis darunter */
+.nav-mark-choice .checkbox-hinted > .checkbox { align-items: center; min-height: 44px; }
+.nav-mark-preview { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 12px; background: var(--nav); color: #fff; font-weight: 600; font-size: 18px; }
 .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--nav-ink); text-decoration: none; font-size: 14px; overflow-wrap: anywhere; }
 .nav-link:hover { color: #fff; }
 .nav-link[data-status="active"] { background: var(--nav-active); color: #fff; font-weight: 500; }
@@ -159,14 +176,19 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .nav-user-meta { font-size: 12px; opacity: 0.7; }
 .nav-foot-link { min-height: 36px; font-size: 13px; }
 button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.nav-theme { display: flex; flex-direction: column; gap: 4px; margin: 10px 12px 0; font-size: 12px; }
-.nav-theme select { min-height: 32px; padding: 0 8px; border: 1px solid var(--nav-active); border-radius: 8px; background-color: var(--nav-active); color: #fff; font: inherit; font-size: 13px; color-scheme: dark; }
+/* Farbe und Modus nebeneinander, je mit Namen darüber */
+.nav-theme { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 12px 0; font-size: 12px; }
+.nav-theme > label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nav-theme select { width: 100%; min-width: 0; min-height: 32px; padding: 0 8px; border: 1px solid var(--nav-active); border-radius: 8px; background-color: var(--nav-active); color: #fff; font: inherit; font-size: 13px; color-scheme: dark; }
 .nav-theme select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .nav-version { margin: 8px 12px 0; color: inherit; font-size: 12px; opacity: 0.7; text-decoration: none; font-variant-numeric: tabular-nums; }
 .nav-version:hover { opacity: 1; color: #fff; }
 .main { flex-grow: 1; min-width: 0; padding: 32px var(--main-pad-x); display: flex; flex-direction: column; gap: 24px; }
 
 .nav-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+/* Im dunklen Modus hat die Navigation den Ton des Grunds; die Linie trennt sie vom Inhalt, am Handy unten statt rechts */
+[data-mode="dark"] .nav { border-right: 1px solid var(--line); }
+@media (max-width: 860px) { [data-mode="dark"] .nav { border-right: 0; border-bottom: 1px solid var(--line); } }
 .nav-toggle { display: none; }
 
 @media (max-width: 860px) {
@@ -174,7 +196,10 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; align-self: stretch; height: auto; overflow-y: visible; }
   /* Am Handy nimmt der Firmenname eine Zeile unter „Haben“ (22 + 16px), damit die Leiste --nav-height hoch bleibt;
      er wird gekürzt */
-  .brand { padding: 0 12px; flex: 1 1 0; min-width: 0; }
+  /* Rechts 8px Abstand zum Menüknopf */
+  .brand { padding: 0 8px 0 12px; flex: 1 1 0; min-width: 0; }
+  .brand-mark, .brand-logo { width: 36px; height: 36px; border-radius: 9px; }
+  .brand-mark { font-size: 21px; }
   .brand-text { line-height: 22px; }
   .brand-firma { display: block; white-space: nowrap; text-overflow: ellipsis; }
   .brand-firma-voll { display: none; }
@@ -207,7 +232,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+/* Ein Hauch Schatten hebt die Karte vom Grund ab; auf Dunkel trägt ihn kaum etwas, dort hält die Linie die Kante */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-xs); }
 /* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
 .card-link { color: inherit; text-decoration: none; }
 .card-link:hover { border-color: var(--line-strong); }
@@ -225,14 +251,21 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 
 /* Zweizeilige Beschriftungen schieben die Zahl nicht aus der Reihe */
 .kpi-label { font-size: 13px; color: var(--muted); min-height: 2.6em; }
-.kpi-value { font-family: var(--mono); font-size: 24px; font-weight: 500; }
+.kpi-value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; }
-.btn:hover { color: var(--ink); border-color: var(--muted); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; box-shadow: var(--shadow-xs); transition: background-color var(--fade), border-color var(--fade), color var(--fade), box-shadow var(--fade); }
+/* Beim Überfahren färbt sich die Fläche, nicht nur der Rahmen */
+.btn:hover:not(:disabled) { color: var(--ink); background: var(--hover); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-fg); }
+/* Nebenaktionen in Werkzeugleisten (Blättern, Vorschau): ohne Rahmen, Fläche erst beim Überfahren */
+.btn-ghost { border-color: transparent; background: transparent; box-shadow: none; }
+.btn-ghost:hover:not(:disabled) { border-color: transparent; }
+/* Quadratisch, nur mit Symbol; der Name steht in aria-label */
+.btn-icon { width: var(--control-h); padding: 0; }
+.btn-icon.btn-sm { width: 36px; }
 /* Nur für „+ Zeile hinzufügen“ */
-.btn-dashed { border-style: dashed; background: transparent; }
+.btn-dashed { border-style: dashed; background: transparent; box-shadow: none; }
 /* Suchfeld mit Trefferliste (Combobox.tsx); die Pfeile und Maße wie bei den Auswahlfeldern */
 .field-label { align-self: flex-start; }
 /* Feldname links neben dem Feld statt darüber, etwa „Konto“ neben der Auswahl */
@@ -240,7 +273,6 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .field-inline > .field-label { align-self: center; }
 .combobox { position: relative; min-width: 0; }
 .combobox input { width: 100%; min-height: var(--control-h); padding: 0 36px 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
-.combobox input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .combobox input[aria-invalid="true"] { border-color: var(--danger-ink); }
 .combobox input:disabled { opacity: 0.7; }
 .line-row .combobox input { padding: 0 36px 0 8px; }
@@ -258,13 +290,14 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .combobox-popup > .combobox-note:first-child { border-top: 0; }
 /* Löschen, Entfernen, Stornieren, Widerrufen */
 .btn-danger { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger-ink) 45%, var(--line-strong)); }
-.btn-danger:hover { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
+.btn-danger:hover:not(:disabled) { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
 /* Bestätigung von Unumkehrbarem im ConfirmDialog: voll in Rot; die Schrift nimmt die Fläche, weil --danger-ink im dunklen Theme hell ist */
 .btn-destructive { background: var(--danger-ink); border-color: var(--danger-ink); color: var(--surface); }
-.btn-destructive:hover { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
+.btn-destructive:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); border-color: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); color: var(--surface); }
 /* Klein: in Bannern, Tabellenzeilen und Trefferkarten */
 .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Gesperrt: Die Hover-Regeln oben gelten nur für :not(:disabled); Zeiger-Ereignisse bleiben, damit ein title den Grund nennen kann */
+.btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
 .field input { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
@@ -276,7 +309,10 @@ select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--
 .field input:is([type="date"], [type="month"])::-webkit-date-and-time-value { text-align: start; }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
-.field input:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field input, select, textarea, .combobox input { transition: border-color var(--fade), box-shadow var(--fade); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Bei Feldern liegt der Fokusring auf dem eigenen Rahmen statt als zweiter Rahmen daneben */
+.field input:focus-visible, select:focus-visible, textarea:focus-visible, .combobox input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
 .field-error { color: var(--danger-ink); font-size: 13px; }
 /* Einstellungen: Bereiche links, Inhalt rechts in einer Spalte */
 .settings-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -319,6 +355,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-row { display: grid; gap: 16px; align-items: start; }
 .form-row.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .form-row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-row.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form-row.cols-address { grid-template-columns: 120px minmax(0, 1fr) 120px; }
 .form-row.cols-place { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); }
 .form-row.align-end { align-items: end; }
@@ -344,7 +381,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 @media (max-width: 640px) {
   .form-card-head, .form-section, .form-footer { padding-left: 16px; padding-right: 16px; }
   .form-card > .banner { margin: 0 16px 16px; }
-  .form-row.cols-2, .form-row.cols-3 { grid-template-columns: minmax(0, 1fr); }
+  .form-row.cols-2, .form-row.cols-3, .form-row.cols-4 { grid-template-columns: minmax(0, 1fr); }
   .form-row.cols-address, .form-row.cols-place { grid-template-columns: 100px minmax(0, 1fr); }
   .form-row.cols-address > :last-child, .form-row.cols-place > :last-child { grid-column: 1 / -1; }
   .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
@@ -395,7 +432,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .kz-row.head { min-height: 32px; border-top: 0; font-size: 13px; color: var(--muted); }
 .kz-row.total { border-top: 2px solid var(--ink); font-weight: 600; }
 .kz-num { font-family: var(--mono); font-size: 13px; color: var(--muted); }
-.kz-amount { text-align: right; font-family: var(--mono); font-size: 14px; }
+.kz-amount { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
 .kz-row input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-family: var(--mono); font-size: 14px; text-align: right; color: var(--ink); background-color: var(--surface); }
 .kz-row input:read-only { border-color: transparent; background: transparent; }
 .kz-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
@@ -433,10 +470,12 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .table-row { display: grid; gap: 12px; align-items: center; min-height: 52px; padding: 0 12px; border-top: 1px solid var(--line-soft); color: var(--ink); text-decoration: none; }
 a.table-row:hover { background: var(--ground); color: var(--ink); }
 .table-row.head { min-height: 32px; border-top: 0; font-size: 13px; color: var(--muted); }
-.table-row.head .num { font-family: var(--sans); font-size: 12px; }
+.table-row.head .num { font-size: 13px; }
 .invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 120px; }
 .cash-cols { grid-template-columns: 48px 96px minmax(0, 1fr) 120px 120px 150px; padding-top: 8px; padding-bottom: 8px; }
 .article-cols { grid-template-columns: minmax(0, 1fr) 160px 60px auto; }
+.service-cols { grid-template-columns: 90px minmax(0, 1fr) 90px 90px 100px auto; }
+.proof-cols { grid-template-columns: 90px minmax(0, 1fr) 90px; }
 .contact-cols { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 200px; }
 .table-row .row-title { font-weight: 500; color: var(--accent-ink); }
 .plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }
@@ -447,7 +486,9 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .transfer-cols { grid-template-columns: 28px 96px minmax(0, 1.3fr) minmax(0, 1fr) 130px; padding-top: 8px; padding-bottom: 8px; }
 .row-check { width: 18px; height: 18px; accent-color: var(--accent); }
 .sepa-file-cols { grid-template-columns: 150px 110px minmax(0, 1fr) 130px auto; padding-top: 8px; padding-bottom: 8px; }
-.num { text-align: right; font-family: var(--mono); font-size: 13px; }
+/* Beträge in der Grundschrift mit gleich breiten Ziffern: stehen bündig untereinander, ohne Schreibmaschinenschrift */
+.num { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+.amount { font-family: var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
 @media (max-width: 760px) {
   /* Kunde links, Betrag rechts, Status darunter rechts */
   .invoice-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
@@ -485,6 +526,10 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .article-cols > :nth-child(3) { display: none; }
   .article-cols > :nth-child(4) { grid-column: 1 / -1; justify-content: flex-start !important; }
   .table-row.head.article-cols { display: none; }
+  .service-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 6px; }
+  .service-cols > :nth-child(1), .service-cols > :nth-child(2), .service-cols > :nth-child(6) { grid-column: 1 / -1; }
+  .service-cols > :nth-child(6) { justify-content: flex-start !important; }
+  .table-row.head.service-cols { display: none; }
   .contact-cols { grid-template-columns: minmax(0, 1fr) auto; padding-top: 8px; padding-bottom: 8px; }
   .contact-cols > :nth-child(2), .contact-cols > :nth-child(4) { display: none; }
   .table-row.head.contact-cols { display: none; }
@@ -642,7 +687,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 /* Im Fluss statt fest unten: Ein hoher eigener Fuß schiebt das Blatt länger, statt den Text zu verdecken */
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }
-.paper-totals dd { margin: 0; text-align: right; font-family: var(--mono); }
+.paper-totals dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .paper-totals .strong { color: var(--ink); font-weight: 600; border-top: 1px solid var(--ink); padding-top: 4px; }
 .pdf-frame { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 0; }
@@ -716,7 +761,12 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .search-box { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); min-width: 200px; }
 .search-box:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .search-box input { border: 0; outline: none; font: inherit; font-size: 13px; color: var(--ink); background: transparent; width: 100%; }
-.tx-cols { grid-template-columns: 64px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+.tx-cols { grid-template-columns: 84px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+/* Spaltenkopf als Schaltfläche: sortiert die Liste, der zweite Klick dreht die Richtung (#681) */
+.sort-head { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+.sort-head.num { justify-content: flex-end; }
+.sort-head:hover { color: var(--ink); }
+.sort-head.aktiv { color: var(--ink); font-weight: 500; }
 .tx-row.selected { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
 .tx-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .section-label { font-size: 13px; color: var(--muted); }
@@ -839,7 +889,7 @@ fieldset.card > legend + * { clear: both; }
 select:not([multiple], [size]) { appearance: none; padding-right: 36px; background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
 .nav-theme select:not([multiple], [size]) { padding-right: 30px; background-image: var(--select-arrow-dark); background-position: right 10px center; }
 :root { --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2356625c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); --select-arrow-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23b9c4be' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
-[data-theme="nacht"], [data-theme="tiefsee"] { --select-arrow: var(--select-arrow-dark); }
+[data-mode="dark"] { --select-arrow: var(--select-arrow-dark); }
 
 /* Tippflächen mindestens 24 px hoch (WCAG 2.5.8): aufklappbare Abschnitte überall, Links in Tabellenzellen auf dem Handy */
 summary { cursor: pointer; min-height: 24px; }
@@ -862,7 +912,7 @@ summary { cursor: pointer; min-height: 24px; }
 .plan-share { display: flex; gap: 6px; }
 .plan-share input { flex: 1 1 auto; min-width: 0; }
 .plan-share select { flex: 0 0 auto; width: auto; }
-.plan-amount { align-self: center; color: var(--muted); font-family: var(--mono); }
+.plan-amount { align-self: center; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
 .choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }

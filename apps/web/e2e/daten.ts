@@ -90,13 +90,13 @@ export async function fakeEigeneSeite(p: Page): Promise<void> {
  * ist; die Seitenleiste (sticky, `height: 100vh`) endete dann nach einer Fensterhöhe mitten im Bild, und ihre unteren
  * Einträge fehlten. Deshalb wird das Fenster für die Aufnahme so hoch wie die Seite und danach wieder wie vorher.
  */
-export async function fullPageScreenshot(p: Page, options: Omit<PageScreenshotOptions, "fullPage">): Promise<void> {
+export async function fullPageScreenshot(p: Page, options: Omit<PageScreenshotOptions, "fullPage">): Promise<Buffer> {
   const viewport = p.viewportSize();
   if (!viewport) throw new Error("Screenshot ohne feste Fenstergröße");
   const height = await p.evaluate(() => document.documentElement.scrollHeight);
   await p.setViewportSize({ width: viewport.width, height: Math.max(height, viewport.height) });
   try {
-    await p.screenshot(options);
+    return await p.screenshot(options);
   } finally {
     await p.setViewportSize(viewport);
   }

@@ -16,10 +16,10 @@ import {
 import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import { draftLineSchema } from "./draft-line.ts";
 import { defaultSkonto } from "./skonto.ts";
-import { loadCompany, validMandateOn, type Company } from "../stammdaten/index.ts";
+import { contactRoleProblem, loadCompany, validMandateOn, type Company } from "../stammdaten/index.ts";
 import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "../mail/index.ts";
@@ -42,6 +42,7 @@ export const recurringInputSchema = z.object({
   /** Einleitung über den Positionen; Platzhalter wie bei den Positionen */
   intro: z.string().max(2000).default(""),
   note: z.string().max(2000),
+  propertyRetention: z.boolean().default(false),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().trim().max(300),
   /** Einzelpreise netto oder brutto inkl. USt */
@@ -102,22 +103,38 @@ export async function getRecurring(id: string) {
   return { recurring, invoices };
 }
 
+/** Vorlagen gehören zu Kunden; ein Lieferant oder ein unbekannter Kontakt passt nicht */
+async function checkCustomer(tx: Tx, contactId: string) {
+  const problem = await contactRoleProblem(tx, contactId, "kunde");
+  if (problem) throw new RecurringError(problem);
+}
+
 export async function createRecurring(actor: string, input: RecurringInput): Promise<RecurringInvoice> {
   return withActor(actor, async (tx) => {
-    const [created] = await tx.insert(schema.recurringInvoices).values(values(input)).returning();
+    const row = values(input);
+    await checkCustomer(tx, row.contactId);
+    const [created] = await tx.insert(schema.recurringInvoices).values(row).returning();
     return created!;
   });
 }
 
 export async function updateRecurring(actor: string, id: string, input: RecurringInput): Promise<RecurringInvoice> {
   return withActor(actor, async (tx) => {
+    const row = values(input);
+    const [previous] = await tx
+      .select({ contactId: schema.recurringInvoices.contactId })
+      .from(schema.recurringInvoices)
+      .where(eq(schema.recurringInvoices.id, id))
+      .for("update");
+    if (!previous) throw new RecurringError("Vorlage nicht gefunden.");
+    // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt an der Vorlage
+    if (row.contactId !== previous.contactId) await checkCustomer(tx, row.contactId);
     const [updated] = await tx
       .update(schema.recurringInvoices)
-      .set({ ...values(input), lastError: null })
+      .set({ ...row, lastError: null })
       .where(eq(schema.recurringInvoices.id, id))
       .returning();
-    if (!updated) throw new RecurringError("Vorlage nicht gefunden.");
-    return updated;
+    return updated!;
   });
 }
 
@@ -153,6 +170,7 @@ export function invoiceForDate(
     format: recurring.format,
     intro: fillPlaceholders(recurring.intro, reference),
     note: fillPlaceholders(recurring.note, reference),
+    propertyRetention: recurring.propertyRetention,
     taxTreatment: recurring.taxTreatment,
     exemptionReason: recurring.exemptionReason,
     priceMode: recurring.priceMode,

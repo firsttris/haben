@@ -17,6 +17,7 @@ const routesApi = fileURLToPath(new URL("../routes/api", import.meta.url));
 const STEUERBERATUNG_LIEST = [
   "documents.ts:getDocumentDetail",
   "documents.ts:getDocuments",
+  "documents.ts:getDocumentSettlements",
   "export.ts:getExportYears",
   "invoices.ts:getInvoiceDetail",
   "invoices.ts:getInvoices",
@@ -39,6 +40,7 @@ const STEUERBERATUNG_LAEDT = [
   "beleg/$id.ts",
   "datev/$jahr.ts",
   "export/$jahr.ts",
+  "kennzeichen.ts",
   "konten/$jahr.ts",
   "mahnung/$id.ts",
   "rechnung/$id.$datei.ts",

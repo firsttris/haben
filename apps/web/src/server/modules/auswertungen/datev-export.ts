@@ -82,7 +82,7 @@ export async function datevExport(
   year: number,
   now = new Date(),
   exporteur?: DatevExporteur,
-): Promise<{ bytes: Uint8Array; filename: string; bookings: number }> {
+): Promise<{ bytes: Uint8Array; filename: string; bookings: number; warnings: string[] }> {
   const company = await loadCompany();
   if (!company.datevBeraterNr || !company.datevMandantNr) throw new DatevExportError("Berater- und Mandantennummer fehlen.");
   const entries = await db
@@ -152,7 +152,7 @@ export async function datevExport(
     exportEntries = result.entries;
     verwendet = result.verwendet;
   }
-  const { bytes, rows } = buildDatevBuchungsstapel(
+  const { bytes, rows, warnings } = buildDatevBuchungsstapel(
     {
       beraterNr: company.datevBeraterNr,
       mandantNr: company.datevMandantNr,
@@ -166,7 +166,7 @@ export async function datevExport(
     exportEntries,
   );
   if (verwendet.length > 0) await festschreiben(exporteur, verwendet, year);
-  return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length };
+  return { bytes, filename: `EXTF_Buchungsstapel_${year}.csv`, bookings: rows.length, warnings };
 }
 
 /** Ablehnung für jemanden ohne Recht zum Vergeben: welche Kontakte noch keine Nummer haben */

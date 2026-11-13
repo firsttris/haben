@@ -1,0 +1,128 @@
+# documentation: https://haben.app/coolify.html
+# slogan: Buchhaltung für Freelancer und kleine Firmen: Rechnungen mit E-Rechnung, Belege, Bankabgleich, EÜR und Umsatzsteuer an ELSTER.
+# category: productivity
+# tags: buchhaltung, accounting, invoices, e-rechnung, zugferd, xrechnung, elster, finance
+# logo: svgs/haben.svg
+# port: 3000
+#
+# Haben in Coolify: Projekt › + New › Docker Compose, diese Datei einfügen (docs/coolify.md).
+# Die Schlüssel erzeugt Coolify beim Anlegen (SERVICE_HEX_64_*, SERVICE_REALBASE64_*), Domain und HTTPS
+# übernimmt der Proxy von Coolify (SERVICE_URL_APP_3000). Gegenüber deploy/compose.yml: ohne Caddy und ohne .env.
+
+# Gemeinsam für das tägliche Backup und das Wiederherstellen (Image aus deploy/backup)
+x-backup: &backup
+  image: tristanteu/haben-backup:latest
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    - PGPASSWORD=${SERVICE_HEX_64_POSTGRES}
+    # Standard: Volume backups auf diesem Server. Besser ein zweites System: sftp:…, s3:…, rest:… (docs/installation-backup.md)
+    - RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-/backups}
+    - RESTIC_PASSWORD=${SERVICE_REALBASE64_RESTIC}
+    - BACKUP_HOST=${BACKUP_HOST:-haben}
+    - BACKUP_TIME=${BACKUP_TIME:-03:15}
+    - RESTORE_CHECK_DAYS=${RESTORE_CHECK_DAYS:-7}
+    # Zugangsdaten für ein Repository auf S3, sonst leer
+    - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+    - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+
+services:
+  db:
+    # postgres mit automatischem Upgrade älterer Bestände beim Start (deploy/db)
+    image: tristanteu/haben-db:latest
+    environment:
+      - POSTGRES_USER=haben
+      - POSTGRES_DB=haben
+      - POSTGRES_PASSWORD=${SERVICE_HEX_64_POSTGRES}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "haben"]
+      interval: 5s
+      retries: 20
+      start_period: 10m
+
+  app:
+    image: tristanteu/haben:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    # Gehärtet wie in deploy/compose.yml
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Coolify vergibt die Domain und leitet sie mit HTTPS an Port 3000; Passkeys hängen an ihr, später nicht mehr ändern
+      - SERVICE_URL_APP_3000
+      - BETTER_AUTH_URL=${SERVICE_URL_APP}
+      # Optional: getrennte App- und Eigentümerzugänge (docs/coolify.md); ohne Vorgabe bleibt der bisherige Zugang.
+      - DATABASE_URL=${DATABASE_URL:-postgres://haben:${SERVICE_HEX_64_POSTGRES}@db:5432/haben}
+      - MIGRATION_DATABASE_URL=${MIGRATION_DATABASE_URL:-}
+      - BETTER_AUTH_SECRET=${SERVICE_HEX_64_AUTH}
+      # 32 Byte base64; zusätzlich im Passwortmanager sichern, ohne ihn sind ELSTER-Zertifikat und Zugangsdaten nach
+      # einer Wiederherstellung verloren
+      - HABEN_ENCRYPTION_KEY=${SERVICE_REALBASE64_ENCRYPTION}
+      # Optional, siehe docs/installation-konfiguration.md; leer heißt nicht gesetzt
+      - OIDC_ONLY=${OIDC_ONLY:-false}
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_SCOPES=${OIDC_SCOPES:-}
+      - OIDC_DISPLAY_NAME=${OIDC_DISPLAY_NAME:-}
+      - OIDC_GROUPS_CLAIM=${OIDC_GROUPS_CLAIM:-groups}
+      - OIDC_GROUP_INHABER=${OIDC_GROUP_INHABER:-}
+      - OIDC_GROUP_STEUERBERATUNG=${OIDC_GROUP_STEUERBERATUNG:-}
+      # ERiC beim Start laden (ja = Zustimmung zu den Nutzungsbedingungen), nur auf x86_64
+      - ERIC_AUTO_INSTALL=${ERIC_AUTO_INSTALL:-}
+      - ERIC_SHA256=${ERIC_SHA256:-}
+      - ELSTER_HERSTELLER_ID=${ELSTER_HERSTELLER_ID:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - EXTRACTION_PROVIDER=${EXTRACTION_PROVIDER:-}
+      - EXTRACTION_BASE_URL=${EXTRACTION_BASE_URL:-}
+      - EXTRACTION_MODEL=${EXTRACTION_MODEL:-}
+      - EXTRACTION_API_KEY=${EXTRACTION_API_KEY:-}
+      - EXTRACTION_TIMEOUT_SECONDS=${EXTRACTION_TIMEOUT_SECONDS:-}
+      - EXTRACTION_MAX_PAGES=${EXTRACTION_MAX_PAGES:-}
+      - EXTRACTION_INPUT=${EXTRACTION_INPUT:-}
+      - EXTRACTION_EXTRA_BODY=${EXTRACTION_EXTRA_BODY:-}
+      - LAYOUTS_MAX_COUNT=${LAYOUTS_MAX_COUNT:-}
+      - LAYOUTS_MAX_MB=${LAYOUTS_MAX_MB:-}
+      - LAYOUTS_PACKAGES_URL=${LAYOUTS_PACKAGES_URL:-}
+    volumes:
+      # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
+      - belege:/var/lib/haben/belege
+      - eric-log:/var/lib/haben/eric-log
+      - eric:/var/lib/haben/eric
+
+  # Tägliches Backup von Datenbank und Belegen mit restic
+  backup:
+    <<: *backup
+    volumes:
+      - belege:/belege:ro
+      - backups:/backups
+    healthcheck:
+      # Ungesund, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief; vor dem ersten Lauf gesund
+      test: ["CMD-SHELL", "s=/var/lib/haben-backup/status; [ ! -f $$s ] || { grep -q '^ok' $$s && [ -n \"$$(find $$s -mmin -2880)\" ]; }"]
+      interval: 5m
+
+  # Wiederherstellen per SSH im Ordner des Dienstes (docs/coolify.md), startet nicht mit dem Stack
+  restore:
+    <<: *backup
+    profiles: [restore]
+    exclude_from_hc: true
+    entrypoint: ["restore.sh"]
+    volumes:
+      - belege:/belege
+      - backups:/backups
+
+volumes:
+  db:
+  belege:
+  eric-log:
+  eric:
+  # restic-Repository, wenn RESTIC_REPOSITORY nicht gesetzt ist
+  backups:

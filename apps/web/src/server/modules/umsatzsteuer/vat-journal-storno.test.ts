@@ -58,7 +58,9 @@ describe.skipIf(!testDatabaseUrl)("Stornos im Stichjahr von Buchungen aus der Ze
   async function reset(versteuerung: "ist" | "soll", kontenrahmen: "SKR03" | "SKR04", journalAb: number | null = null) {
     await leeren(sql)`truncate asset_depreciations, assets, vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions,
       bank_imports, bank_accounts, cash_entries, document_cancellations, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices,
-      invoice_number_counters, contact_versions, contacts, company cascade`;
+      invoice_number_counters, contact_versions, contacts, company, seals, audit_log, audit_chain cascade`;
+    // Jeder Fall beginnt mit seinem eigenen Steuerverlauf, nicht mit den Audit-Werten des vorigen Falls.
+    await sql`insert into audit_chain (id, seq, hash) values (1, 0, haben_audit_genesis())`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen, journal_ab)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', ${versteuerung}, ${kontenrahmen}, ${journalAb})`;

@@ -56,9 +56,45 @@ Claude Desktop bindet lokal konfigurierte Server über die Datei `claude_desktop
 
 Ein Connector aus den Einstellungen von claude.ai (auch für die Handy-App und claude.ai im Browser) geht noch nicht: Dort ruft Anthropic Haben aus dem Internet auf und erwartet OAuth. Das ist geplant, aber noch nicht dran (Spalte „Später“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2)).
 
+### Claude-App auf dem Handy über deinen Rechner
+
+Ohne Connector und ohne Freigabe nach außen geht die Handy-App, wenn das Gespräch in einer Session auf deinem Rechner läuft. Claude Desktop lädt die Server aus `claude_desktop_config.json` auch in die lokalen Sessions im Code-Tab ([Doku von Anthropic](https://code.claude.com/docs/en/desktop#mcp-servers-from-the-claude-desktop-chat-app)), Haben steht dort also ohne weiteren Eintrag bereit. Eine solche Session führst du mit `/remote-control` in der Claude-App auf dem Handy weiter ([Remote Control](https://code.claude.com/docs/en/remote-control)), ebenso eine Session von Claude Code im Terminal. Mit [Dispatch](https://code.claude.com/docs/en/desktop#sessions-from-dispatch) lässt du vom Handy aus eine neue Session auf dem Rechner starten.
+
+Den Aufruf an Haben macht dabei dein Rechner, nicht Anthropic. Haben muss also nicht aus dem Internet erreichbar sein, und die Anmeldung bleibt beim API-Token. Dafür muss der Rechner an sein und Claude Desktop oder Claude Code laufen. Remote Control gibt es in den Abos Pro, Max, Ultra, Team und Enterprise, Dispatch nur in Pro, Max und Ultra. Mit Remote Control speichert Anthropic außerdem den Verlauf der Session, damit alle Geräte denselben Stand sehen.
+
 ### Andere Clients
 
 Jeder MCP-Client, der Streamable HTTP mit eigenem Header spricht, funktioniert: Adresse `https://<deine Adresse>/api/mcp`, Header `Authorization: Bearer <Token>`. Der Endpunkt ist zustandslos und nimmt nur POST an.
+
+**Hermes Agent** trägt Haben in `mcp_servers` in `~/.hermes/config.yaml` ein:
+
+```yaml
+mcp_servers:
+  haben:
+    url: https://haben.example.de/api/mcp
+    headers:
+      Authorization: Bearer hb_…
+```
+
+**OpenClaw** nimmt Haben unter `mcp.servers` auf, im Control UI unter Einstellungen → MCP oder in der Konfiguration:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "haben": {
+        "url": "https://haben.example.de/api/mcp",
+        "transport": "streamable-http",
+        "headers": { "Authorization": "Bearer hb_…" }
+      }
+    }
+  }
+}
+```
+
+`openclaw mcp doctor haben --probe` prüft danach bei gestopptem Gateway, ob die Werkzeuge ankommen. Beide Agenten laufen auf deinem Rechner oder im Heimnetz, Haben muss also nicht aus dem Internet erreichbar sein.
+
+Anders als ein Chat-Client haben sie Zeitpläne und eigene Kanäle: ein täglicher Blick auf offene Posten und Fristen, ein Bericht zur Voranmeldung vor dem Stichtag, eine Frage im Chat.
 
 ### Haben im Heimnetz mit eigenem Zertifikat
 
@@ -98,12 +134,12 @@ Die `lexoffice_`-Werkzeuge helfen beim [Umzug aus Lexoffice](lexoffice.md). Was 
 
 Den Abruf selbst und das Hochladen der Exporte machst du in Haben. PDFs im Archiv kann der Assistent nicht lesen.
 
-Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Einträge begrenzt (bis 200 auf Wunsch), damit der Assistent nicht mit Tausenden Zeilen arbeiten muss.
+Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Einträge begrenzt (bis 200 auf Wunsch).
 
 ## Protokoll und Grenzen
 
 Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt hat und ob es geklappt hat, ohne Eingaben und Ergebnisse. Haben hebt das 90 Tage auf. Je Token sind 120 Anfragen pro Minute erlaubt, zusammen mit Aufrufen der REST-API; schickt ein Client mehrere Nachrichten in einer Anfrage (Batch), zählt jede einzeln.
 
-Das Ein- und Ausschalten des Zugangs steht im Änderungsprotokoll. Die Tokens selbst sind Zugangsdaten wie die Passkeys und stehen nicht darin.
+Im Änderungsprotokoll stehen das Ein- und Ausschalten des Zugangs und wer ein Token angelegt, übernommen, widerrufen oder deaktiviert hat. Das Token selbst und sein Hash sind Zugangsdaten wie die Passkeys und stehen nicht darin.
 
-Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
+Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).

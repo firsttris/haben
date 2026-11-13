@@ -76,7 +76,7 @@ function pflicht(art: LayoutBeispiel["art"], d: Daten): { was: string; text: str
       .filter((r) => /Umsatzsteuer|Netto|VAT|Net\b/.test(r.label))
       .flatMap((r) => /\d+(?:,\d+)? ?%/.exec(r.label) ?? [])
       .map((satz) => ({ was: "Steuersatz", text: satz })),
-    ...(d.taxNote ? [{ was: "Hinweis ohne Steuerausweis", text: d.taxNote }] : []),
+    ...(d.taxNote ? [{ was: "Pflichthinweis unter den Summen (taxNote)", text: d.taxNote }] : []),
     // Skonto ist eine im Voraus vereinbarte Minderung des Entgelts (§ 14 Abs. 4 Nr. 7 UStG); er steht im Zahlungssatz
     ...(d.payment && /Skonto/.test(d.payment) ? [{ was: "Hinweis auf Skonto (payment)", text: d.payment }] : []),
   ];

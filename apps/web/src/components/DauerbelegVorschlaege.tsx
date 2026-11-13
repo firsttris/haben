@@ -23,7 +23,7 @@ export function DauerbelegVorschlaege({ suggestions, busy, onBook }: { suggestio
                 {s.item.number ? ` · ${s.item.number}` : ""}
               </span>
             </div>
-            <span className="mono">{formatEuro(Math.abs(s.item.open))}</span>
+            <span className="amount">{formatEuro(Math.abs(s.item.open))}</span>
           </div>
           <ul className="reasons">
             {s.reasons.map((reason) => (

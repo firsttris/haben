@@ -33,6 +33,8 @@ export const TEXTS = {
     variants: { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" },
     confirmation: "Auftragsbestätigung",
     deliveryNote: "Lieferschein",
+    /** Zeile im Empfängerblock: der Ansprechpartner des Kunden (#424) */
+    attention: (name: string) => `z. Hd. ${name}`,
     date_: "Datum",
     quoteRef: "Zu Angebot",
     invoiceRef: "Zu Rechnung",
@@ -83,7 +85,8 @@ export const TEXTS = {
     reference: (number: string, date: string) => `zur Rechnung ${number} vom ${date}`,
     fromQuote: (number: string, date: string) => `Gemäß unserem Angebot ${number} vom ${date}.`,
     abschlagFromQuote: (number: string, date: string) => `Abschlag gemäß Angebot ${number} vom ${date}`,
-    refund: "Der Betrag wird Ihnen erstattet.",
+    cancellation: "Die ursprüngliche Rechnung wird storniert.",
+    correction: "Die ursprüngliche Rechnung wird um den ausgewiesenen Betrag korrigiert.",
     noPayment: "Es ist keine Zahlung erforderlich.",
     payBy: (date: string) => `Bitte überweisen Sie den Betrag bis zum ${date} unter Angabe der Rechnungsnummer.`,
     /** Vorabankündigung der Lastschrift (Pre-notification, SDD Core Rulebook PT-04.02): Betrag, Tag, Mandat, Gläubiger-ID */
@@ -113,6 +116,9 @@ export const TEXTS = {
     rate: (rate: number) => formatRate(rate),
     quantity: (quantity: Millis, unit: UnitLabel) => `${formatQuantity(quantity)} ${unit}`,
     note: (treatment: TaxTreatment, reason?: string | null) => treatmentNote(treatment, reason),
+    // § 14b Abs. 1 Satz 5 mit Satz 3 UStG: zwei Jahre ab Schluss des Ausstellungsjahres; § 34a UStDV begründet keine pauschale Pflicht für KU.
+    propertyRetention:
+      "Bei steuerpflichtigen Grundstücksleistungen für den privaten Bereich sind diese Rechnung, ein Zahlungsbeleg oder eine andere beweiskräftige Unterlage zwei Jahre aufzubewahren (§ 14b Abs. 1 Satz 5 UStG). Die Frist beginnt mit dem Schluss des Kalenderjahres der Rechnungsausstellung.",
     countryLocale: "de",
   },
   en: {
@@ -123,6 +129,7 @@ export const TEXTS = {
     variants: { abschlag: "Partial invoice", schluss: "Final invoice" },
     confirmation: "Order confirmation",
     deliveryNote: "Delivery note",
+    attention: (name: string) => `FAO ${name}`,
     date_: "Date",
     quoteRef: "Quote",
     invoiceRef: "Invoice",
@@ -173,7 +180,8 @@ export const TEXTS = {
     reference: (number: string, date: string) => `relating to invoice ${number} of ${date}`,
     fromQuote: (number: string, date: string) => `As per our quote ${number} of ${date}.`,
     abschlagFromQuote: (number: string, date: string) => `Progress payment as per quote ${number} of ${date}`,
-    refund: "The amount will be refunded to you.",
+    cancellation: "The original invoice is cancelled.",
+    correction: "The original invoice is adjusted by the amount shown.",
     noPayment: "No payment is required.",
     payBy: (date: string) => `Please transfer the amount by ${date}, quoting the invoice number.`,
     directDebit: (amount: string, date: string, iban: string, reference: string, creditorId: string) =>
@@ -212,6 +220,8 @@ export const TEXTS = {
       return `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 3 }).format(value)} ${value === 1 ? one : many}`;
     },
     note: (treatment: TaxTreatment, reason?: string | null) => (treatment === "regulaer" ? null : reason?.trim() || EN_NOTES[treatment]),
+    propertyRetention:
+      "For taxable property-related services supplied for private use, this invoice, proof of payment or other supporting document must be retained for two years (§ 14b(1), sentence 5 UStG). The period starts at the end of the calendar year in which the invoice was issued.",
     countryLocale: "en",
   },
 } as const;

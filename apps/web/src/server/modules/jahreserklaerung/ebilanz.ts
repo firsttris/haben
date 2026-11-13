@@ -20,7 +20,7 @@ import {
   type ElsterClient,
   type ElsterResult,
 } from "@haben/elster";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
@@ -75,7 +75,7 @@ function betriebsvermoegen(
 /** Werte, BVV und Anlagenspiegel des Jahres und was die Übermittlung hindert */
 export async function ebilanzDaten(year: number, company: Company): Promise<{ daten: EbilanzDaten; issues: EbilanzHinweis[] }> {
   const kontenrahmen = company.kontenrahmen;
-  const rows = (await saldenliste(ledgerRange(year))).filter((r) => r.kontenrahmen === kontenrahmen);
+  const rows = (await saldenliste(ledgerRange(year), { aufgeloest: true })).filter((r) => r.kontenrahmen === kontenrahmen);
   const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, rows);
   const konto = (account: string) => `${account}${accountName(kontenrahmen, account) ? ` ${accountName(kontenrahmen, account)}` : ""}`;
   const issues: EbilanzHinweis[] = fehlend.map(({ account }) => ({
@@ -130,20 +130,30 @@ function xmlFor(year: number, company: Company, daten: EbilanzDaten, test: boole
 }
 
 export async function ebilanzSubmissions(year: number) {
-  return db
-    .select({
-      id: schema.annualSubmissions.id,
-      kind: schema.annualSubmissions.kind,
-      ok: schema.annualSubmissions.ok,
-      code: schema.annualSubmissions.code,
-      message: schema.annualSubmissions.message,
-      transferTicket: schema.annualSubmissions.transferTicket,
-      hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
-      createdAt: schema.annualSubmissions.createdAt,
-    })
-    .from(schema.annualSubmissions)
-    .where(and(eq(schema.annualSubmissions.form, "ebilanz"), eq(schema.annualSubmissions.year, year)))
-    .orderBy(desc(schema.annualSubmissions.createdAt));
+  return (
+    db
+      .select({
+        id: schema.annualSubmissions.id,
+        kind: schema.annualSubmissions.kind,
+        ok: schema.annualSubmissions.ok,
+        code: schema.annualSubmissions.code,
+        message: schema.annualSubmissions.message,
+        transferTicket: schema.annualSubmissions.transferTicket,
+        hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
+        createdAt: schema.annualSubmissions.createdAt,
+      })
+      .from(schema.annualSubmissions)
+      // Ein Vermerk gilt nur für Umsatzsteuererklärung und Anlage EÜR; die E-Bilanz kennt nur Prüfung, Test und Sendung.
+      // Der Filter bleibt, damit später ergänzte Arten nicht im Verlauf der E-Bilanz auftauchen; er verengt den Typ nicht.
+      .where(
+        and(
+          eq(schema.annualSubmissions.form, "ebilanz"),
+          eq(schema.annualSubmissions.year, year),
+          inArray(schema.annualSubmissions.kind, ["validate", "test", "send"]),
+        ),
+      )
+      .orderBy(desc(schema.annualSubmissions.createdAt))
+  );
 }
 
 /** Stand der E-Bilanz eines Jahres für die Abschluss-Seite; null für Einzelunternehmen */

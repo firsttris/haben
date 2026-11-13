@@ -18,7 +18,7 @@ import {
   type Bundesland,
   type VatPeriod,
 } from "@haben/core";
-import { and, eq, min } from "drizzle-orm";
+import { and, eq, inArray, min } from "drizzle-orm";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
@@ -57,7 +57,8 @@ const shift = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:0
 
 /**
  * Alle Fristen der letzten 60 Tage bis in einem Jahr, dazu alles Offene aus der Vergangenheit, ab dem ersten
- * Buchungsmonat. Erledigt ist eine Voranmeldung oder Erklärung, sobald sie echt übermittelt ist.
+ * Buchungsmonat. Erledigt ist eine Voranmeldung oder Erklärung, sobald sie echt übermittelt oder außerhalb von Haben
+ * abgegeben und hier vermerkt ist.
  */
 export async function listFristen(today: string): Promise<Frist[]> {
   const [company, certificate, appeals, [first], sentReturns, sentAnnual] = await Promise.all([
@@ -69,7 +70,7 @@ export async function listFristen(today: string): Promise<Frist[]> {
     db
       .select({ form: schema.annualSubmissions.form, year: schema.annualSubmissions.year })
       .from(schema.annualSubmissions)
-      .where(and(eq(schema.annualSubmissions.kind, "send"), eq(schema.annualSubmissions.ok, true))),
+      .where(and(inArray(schema.annualSubmissions.kind, ["send", "vermerk"]), eq(schema.annualSubmissions.ok, true))),
   ]);
   const bundesland = company.bundesland as Bundesland | null;
   const bis = shift(today, 365);

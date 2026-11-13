@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { currentYear, isKapitalgesellschaft } from "@haben/core";
 import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
+import { NavMarkSymbol } from "../components/NavMarkSymbol.tsx";
 import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_app")({
       eigeneSeiten: state.eigeneSeiten,
       hatMitarbeiter: state.hatMitarbeiter,
       firma: state.firma,
+      zeichen: state.zeichen,
       firmen: state.firmen,
     };
   },
@@ -44,6 +46,7 @@ const NAV_GROUPS = [
       { to: "/lastschriften", icon: "bank", label: "Lastschriften" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
+      { to: "/leistungen", icon: "calendar", label: "Leistungen" },
       { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
     ],
   },
@@ -113,7 +116,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter, firma, firmen, zeichen } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -195,7 +198,7 @@ function AppLayout() {
           onPointerLeave={firmaZeigerWeg}
           onBlur={firmaZuklappen}
         >
-          <span className="brand-mark">H</span>
+          <NavMarkSymbol mark={zeichen} />
           <span className="brand-text">
             Haben
             {/* Mehrere Firmen (#504): Der Name unter „Haben“ zeigt, in welcher Instanz man gerade arbeitet. Ist er länger
@@ -250,12 +253,21 @@ function AppLayout() {
               <div className="nav-group-label" aria-hidden="true">
                 Eigene Seiten
               </div>
-              {eigeneSeiten.map((seite) => (
-                <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
-                  <Icon name="external" />
-                  {seite.name}
-                </Link>
-              ))}
+              {eigeneSeiten.map((seite) =>
+                // Seiten, die das Einbetten verbieten, öffnen in einem neuen Tab (#636); noreferrer wie der Rahmen
+                seite.openInNewTab ? (
+                  <a key={seite.id} href={seite.url} target="_blank" rel="noreferrer" className="nav-link">
+                    <Icon name="external" />
+                    {seite.name}
+                    <span className="visually-hidden"> (öffnet in neuem Tab)</span>
+                  </a>
+                ) : (
+                  <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
+                    <Icon name="embed" />
+                    {seite.name}
+                  </Link>
+                ),
+              )}
             </div>
           )}
           {/* Firmen wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung */}

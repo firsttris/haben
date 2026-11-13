@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+	<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>
+	<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+	<cbc:ID>2026-035</cbc:ID>
+	<cbc:IssueDate>2026-10-02</cbc:IssueDate>
+	<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>
+	<cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+	<cbc:BuyerReference>K-1007</cbc:BuyerReference>
+	<cac:InvoicePeriod>
+		<cbc:StartDate>2026-09-01</cbc:StartDate>
+		<cbc:EndDate>2026-09-30</cbc:EndDate>
+	</cac:InvoicePeriod>
+	<cac:BillingReference>
+		<cac:InvoiceDocumentReference>
+			<cbc:ID>2026-034</cbc:ID>
+			<cbc:IssueDate>2026-09-30</cbc:IssueDate>
+		</cac:InvoiceDocumentReference>
+	</cac:BillingReference>
+	<cac:AccountingSupplierParty>
+		<cac:Party>
+			<cbc:EndpointID schemeID="EM">rechnung@mustermann.example</cbc:EndpointID>
+			<cac:PostalAddress>
+				<cbc:StreetName>Lindenstraße 12</cbc:StreetName>
+				<cbc:CityName>Berlin</cbc:CityName>
+				<cbc:PostalZone>10969</cbc:PostalZone>
+				<cac:Country>
+					<cbc:IdentificationCode>DE</cbc:IdentificationCode>
+				</cac:Country>
+			</cac:PostalAddress>
+			<cac:PartyTaxScheme>
+				<cbc:CompanyID>DE123456789</cbc:CompanyID>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:PartyTaxScheme>
+			<cac:PartyTaxScheme>
+				<cbc:CompanyID>13/345/67890</cbc:CompanyID>
+				<cac:TaxScheme>
+					<cbc:ID>FC</cbc:ID>
+				</cac:TaxScheme>
+			</cac:PartyTaxScheme>
+			<cac:PartyLegalEntity>
+				<cbc:RegistrationName>Erika Mustermann</cbc:RegistrationName>
+			</cac:PartyLegalEntity>
+			<cac:Contact>
+				<cbc:Name>Erika Mustermann</cbc:Name>
+				<cbc:Telephone>+49 30 1234567</cbc:Telephone>
+				<cbc:ElectronicMail>rechnung@mustermann.example</cbc:ElectronicMail>
+			</cac:Contact>
+		</cac:Party>
+	</cac:AccountingSupplierParty>
+	<cac:AccountingCustomerParty>
+		<cac:Party>
+			<cbc:EndpointID schemeID="EM">buchhaltung@beispiel.example</cbc:EndpointID>
+			<cac:PartyIdentification>
+				<cbc:ID>K-1007</cbc:ID>
+			</cac:PartyIdentification>
+			<cac:PostalAddress>
+				<cbc:StreetName>Hafenweg 3</cbc:StreetName>
+				<cbc:CityName>Hamburg</cbc:CityName>
+				<cbc:PostalZone>20457</cbc:PostalZone>
+				<cac:Country>
+					<cbc:IdentificationCode>DE</cbc:IdentificationCode>
+				</cac:Country>
+			</cac:PostalAddress>
+			<cac:PartyLegalEntity>
+				<cbc:RegistrationName>Beispiel GmbH</cbc:RegistrationName>
+			</cac:PartyLegalEntity>
+			<cac:Contact>
+				<cbc:ElectronicMail>buchhaltung@beispiel.example</cbc:ElectronicMail>
+			</cac:Contact>
+		</cac:Party>
+	</cac:AccountingCustomerParty>
+	<cac:Delivery>
+		<cac:DeliveryLocation>
+			<cac:Address>
+				<cbc:StreetName>Hafenweg 3</cbc:StreetName>
+				<cbc:CityName>Hamburg</cbc:CityName>
+				<cbc:PostalZone>20457</cbc:PostalZone>
+				<cac:Country>
+					<cbc:IdentificationCode>DE</cbc:IdentificationCode>
+				</cac:Country>
+			</cac:Address>
+		</cac:DeliveryLocation>
+	</cac:Delivery>
+	<cac:PaymentMeans>
+		<cbc:PaymentMeansCode>1</cbc:PaymentMeansCode>
+		<cbc:PaymentID>2026-035</cbc:PaymentID>
+	</cac:PaymentMeans>
+	<cac:PaymentTerms>
+		<cbc:Note>Die ursprüngliche Rechnung wird storniert.</cbc:Note>
+	</cac:PaymentTerms>
+	<cac:TaxTotal>
+		<cbc:TaxAmount currencyID="EUR">2779.68</cbc:TaxAmount>
+		<cac:TaxSubtotal>
+			<cbc:TaxableAmount currencyID="EUR">14629.90</cbc:TaxableAmount>
+			<cbc:TaxAmount currencyID="EUR">2779.68</cbc:TaxAmount>
+			<cac:TaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:TaxCategory>
+		</cac:TaxSubtotal>
+	</cac:TaxTotal>
+	<cac:LegalMonetaryTotal>
+		<cbc:LineExtensionAmount currencyID="EUR">14629.90</cbc:LineExtensionAmount>
+		<cbc:TaxExclusiveAmount currencyID="EUR">14629.90</cbc:TaxExclusiveAmount>
+		<cbc:TaxInclusiveAmount currencyID="EUR">17409.58</cbc:TaxInclusiveAmount>
+		<cbc:PayableAmount currencyID="EUR">17409.58</cbc:PayableAmount>
+	</cac:LegalMonetaryTotal>
+	<cac:CreditNoteLine>
+		<cbc:ID>1</cbc:ID>
+		<cbc:CreditedQuantity unitCode="HUR">152</cbc:CreditedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">14440.00</cbc:LineExtensionAmount>
+		<cac:Item>
+			<cbc:Name>Softwareentwicklung September</cbc:Name>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">95.00</cbc:PriceAmount>
+		</cac:Price>
+	</cac:CreditNoteLine>
+	<cac:CreditNoteLine>
+		<cbc:ID>2</cbc:ID>
+		<cbc:CreditedQuantity unitCode="LS">1</cbc:CreditedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">189.90</cbc:LineExtensionAmount>
+		<cac:Item>
+			<cbc:Name>Reisekosten Hamburg</cbc:Name>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">189.90</cbc:PriceAmount>
+		</cac:Price>
+	</cac:CreditNoteLine>
+</CreditNote>

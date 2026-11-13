@@ -2,7 +2,7 @@ import { ohneCode } from "./regel.ts";
 
 /*
  * Regeln zum Übernehmen und Freigeben von Karten, ohne Zugriff auf GitHub. Der Ablauf steht in
- * docs/entwicklung.md unter „Etwas übernehmen“: `/übernehmen` im Issue weist es zu, `/freigeben` gibt es zurück,
+ * docs/mitwirken.md unter „Etwas übernehmen“: `/übernehmen` im Issue weist es zu, `/freigeben` gibt es zurück,
  * nach 14 Tagen ohne Lebenszeichen kommt eine Erinnerung, nach sieben weiteren die Freigabe.
  */
 
@@ -12,7 +12,7 @@ export const TAGE_BIS_FREIGABE = 7;
 export const MARKE_ERINNERUNG = "<!-- board:erinnerung -->";
 
 const BOARD = "[Board](https://github.com/users/firsttris/projects/2)";
-const ANLEITUNG = "[Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)";
+const ANLEITUNG = "[Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen)";
 const TAG = 24 * 60 * 60 * 1000;
 
 export type Befehl = "übernehmen" | "freigeben";
@@ -53,8 +53,9 @@ export function entscheiden(was: Befehl, lage: Lage): Entscheidung {
   if (lage.status === null) {
     return ablehnen(`das Issue ist noch nicht im ${BOARD} eingeordnet. Ein Maintainer schaut es sich an und meldet sich hier.`);
   }
-  if (lage.status !== "Geplant" && lage.status !== "Später") {
-    return ablehnen(`die Karte steht in „${lage.status}“ und ist damit schon in Arbeit oder umgesetzt.`);
+  // „In Arbeit“ ohne Zuweisung: die Karte hat ein Pull Request mit `Refs` oder `Umgesetzt` vorgezogen, vergeben ist sie nicht
+  if (lage.status !== "Geplant" && lage.status !== "Später" && lage.status !== "In Arbeit") {
+    return ablehnen(`die Karte steht in „${lage.status}“ und ist damit schon umgesetzt.`);
   }
   return { art: "zuweisen" };
 }

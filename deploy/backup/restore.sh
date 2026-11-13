@@ -7,7 +7,7 @@
 #   docker compose run --rm restore latest       # oder eine Snapshot-ID
 #   docker compose start app
 #
-# Mit den Quadlets steht der Aufruf in docs/installation.md (Backup und Wiederherstellen).
+# Mit den Quadlets steht der Aufruf in docs/installation-backup.md (Backup und Wiederherstellen).
 # Achtung: ersetzt die aktuelle Datenbank und die Belegdateien vollständig.
 # Die App muss mit demselben HABEN_ENCRYPTION_KEY laufen wie beim Backup, sonst lassen sich
 # ELSTER-Zertifikat, Mail-, Bank- und Lexoffice-Zugänge aus dem Dump nicht mehr entschlüsseln.

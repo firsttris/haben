@@ -3,18 +3,23 @@ import { expect, test, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { databaseUrlFuer, portFuer } from "./durchlaeufe.ts";
-import { einrichten } from "./einrichtung.ts";
+import { einrichten, gehe } from "./einrichtung.ts";
 
+/**
+ * Kleinunternehmer-Ersteinrichtung ohne reguläre UStVA-Hinweise und der lokale JSON-Eingang (docs/belegimport.md) mit
+ * Archiv, offenen Posten, Journal und Kasse, in eigener, leerer Datenbank (Projekt „belegimport“, e2e/durchlaeufe.ts).
+ */
 test.describe.configure({ mode: "serial" });
 let page: Page;
 let closeDatabase: () => Promise<void>;
 let ids: { invoice: string; quote: string };
+const importedInvoices: { id: string; label: string }[] = [];
 const pdf = new TextEncoder().encode("%PDF-1.4\n1 0 obj <</Type/Catalog>> endobj\n%%EOF");
 const pdfSha256 = createHash("sha256").update(pdf).digest("hex");
 
 test.beforeAll(async ({ browser }) => {
   page = await (await browser.newContext()).newPage();
-  await einrichten(page);
+  await einrichten(page, true);
   const url = databaseUrlFuer("belegimport");
   if (!new URL(url).pathname.endsWith("_e2e")) throw new Error("Eigene E2E-Datenbank fehlt.");
   Object.assign(process.env, {
@@ -86,10 +91,133 @@ test.beforeAll(async ({ browser }) => {
   );
   closeDatabase = (await import("../src/server/db/index.ts")).closeDatabase;
 });
+
+test("Kleinunternehmer-Ersteinrichtung: Übersicht ohne reguläre UStVA-Aufforderung in Hell/Dunkel und am Handy", async () => {
+  const viewport = page.viewportSize()!;
+  const originalMode = await page.evaluate(() => localStorage.getItem("haben-modus"));
+  try {
+    for (const size of [
+      { width: 1280, height: 1000 },
+      { width: 375, height: 812 },
+    ]) {
+      await page.setViewportSize(size);
+      for (const modus of ["hell", "dunkel"]) {
+        await gehe(page, "/");
+        await page.evaluate((value) => {
+          localStorage.setItem("haben-modus", value);
+          document.documentElement.dataset.mode = value === "dunkel" ? "dark" : "light";
+        }, modus);
+        await expect(page.getByRole("heading", { name: "Übersicht", exact: true })).toBeVisible();
+        await expect(page.getByRole("link", { name: /^Voranmeldung / })).toHaveCount(0);
+        await expect(page.getByText(/^Voranmeldung .* senden$/)).toHaveCount(0);
+        await expect(page.getByText(/^USt-Zahllast /)).toHaveCount(0);
+        await expect(page.getByText(/Voranmeldung fällig/)).toHaveCount(0);
+        await expect(page.getByText(/ERiC ist nicht eingerichtet/)).toHaveCount(0);
+        await expect(page.getByRole("heading", { name: "Letzte Voranmeldungen" })).toHaveCount(0);
+        await expect(page.getByRole("link", { name: "Neue Rechnung", exact: true })).toBeVisible();
+        await expect(page.getByText("Offene Forderungen", { exact: true })).toBeVisible();
+      }
+    }
+  } finally {
+    await page.setViewportSize(viewport);
+    await page.evaluate((value) => {
+      if (value === null) localStorage.removeItem("haben-modus");
+      else localStorage.setItem("haben-modus", value);
+      document.documentElement.dataset.mode = value === "dunkel" ? "dark" : "light";
+    }, originalMode);
+  }
+});
+
+async function seedImportedInvoices() {
+  const { db, schema } = await import("../src/server/db/index.ts");
+  const { withActor } = await import("../src/server/db/actor.ts");
+  const { storeLegacyVoucher, takeOverLegacyItem } = await import("../src/server/modules/archiv/index.ts");
+  const [oldImport] = await db.select({ id: schema.lexofficeImports.id }).from(schema.lexofficeImports).limit(1);
+  for (const [source, label] of [
+    ["lexoffice", "Lexoffice"],
+    ["sevdesk", "sevDesk"],
+    ["import", "Beispiel-Programm"],
+  ] as const) {
+    const voucher = await withActor("e2e-import", async (tx) => {
+      const result = await storeLegacyVoucher(
+        tx,
+        {
+          source,
+          importId: oldImport!.id,
+          lexofficeId: `herkunft-${source}`,
+          type: "invoice",
+          direction: "einnahme",
+          number: `HERKUNFT-${source}`,
+          date: "2026-01-03",
+          dueDate: "2026-01-17",
+          status: "open",
+          contactName: "Frida Import",
+          net: 10000,
+          tax: 0,
+          gross: 10000,
+          taxes: [{ rate: 0, net: 10000, tax: 0 }],
+          categories: [],
+          payment: { openAmount: 10000, paidDate: null, items: [] },
+          raw: { sourceName: "Beispiel-Programm", taxType: "vatfree" },
+        },
+        [{ role: "pdf", sourceFileId: null, filename: `herkunft-${source}.pdf`, mimeType: "application/pdf", bytes: pdf }],
+      );
+      if (source === "import")
+        await tx.insert(schema.externalImports).values({
+          source: "Beispiel-Programm",
+          externalId: "herkunft-import",
+          kind: "invoice",
+          payloadHash: "0".repeat(64),
+          voucherId: result!.id,
+          payload: {},
+        });
+      return result!;
+    });
+    const native = await takeOverLegacyItem("e2e-import", voucher.id, "2026-01-31");
+    importedInvoices.push({ id: native.id, label });
+  }
+}
 test.afterAll(async () => {
   await closeDatabase?.();
   await page?.context().close();
 });
+
+async function checkImportedInvoiceSources() {
+  await seedImportedInvoices();
+  const viewport = page.viewportSize()!;
+  for (const invoice of importedInvoices) {
+    await page.goto(`/rechnungen/${invoice.id}`);
+    await page.waitForLoadState("networkidle");
+    if (invoice.label === "sevDesk" && process.env.IMPORT_SCREENSHOTS) {
+      const dir = "/tmp/haben-pr-import-source";
+      await mkdir(dir, { recursive: true });
+      for (const theme of ["light", "dark"])
+        for (const [device, width, height] of [
+          ["desktop", 1440, 900],
+          ["handy", 390, 844],
+        ] as const) {
+          await page.setViewportSize({ width, height });
+          await page.evaluate((value) => document.documentElement.setAttribute("data-mode", value), theme);
+          await page
+            .locator(".card")
+            .filter({ has: page.getByText("Format", { exact: true }) })
+            .screenshot({
+              path: `${dir}/herkunft-${theme}-${device}-${process.env.IMPORT_SCREENSHOTS}.png`,
+              animations: "disabled",
+              caret: "hide",
+            });
+        }
+    }
+    await expect(
+      page
+        .locator("dt")
+        .filter({ hasText: /^Format$/ })
+        .locator("+ dd"),
+    ).toHaveText(`Original aus ${invoice.label}`);
+  }
+  await page.setViewportSize(viewport);
+  await page.evaluate(() => document.documentElement.setAttribute("data-mode", "light"));
+}
 
 test("Originale nutzen das gemeinsame Archiv mit tatsächlicher Quelle und unverändertem PDF", async () => {
   await page.goto("/archiv?ansicht=auftraege&jahr=2026");
@@ -147,19 +275,24 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
   ] as const) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
-    for (const theme of ["wald", "nacht"])
+    for (const theme of ["light", "dark"])
       for (const [device, viewport] of [
         ["desktop", { width: 1440, height: 900 }],
         ["handy", { width: 390, height: 844 }],
       ] as const) {
         await page.setViewportSize(viewport);
-        await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+        await page.evaluate((value) => document.documentElement.setAttribute("data-mode", value), theme);
         if (process.env.IMPORT_SCREENSHOTS) {
           const dir = "/tmp/haben-pr-common-import";
           await mkdir(dir, { recursive: true });
           await page.screenshot({ path: `${dir}/${name}-${theme}-${device}-${process.env.IMPORT_SCREENSHOTS}.png`, animations: "disabled", caret: "hide" });
         }
       }
+    // Erst prüfen, wenn die Übergänge der Farben (.btn: transition var(--fade)) nach dem Wechsel des Modus fertig
+    // sind; sonst misst axe den Knopf zwischen hell und dunkel
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
     expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
   }
 });
+
+test("Übernommene Rechnungen zeigen das tatsächliche Quellprogramm", checkImportedInvoiceSources);

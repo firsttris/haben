@@ -64,8 +64,10 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
-      # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation.md)
+      # Alte .env ohne getrennte Adressen startet weiter mit dem bisherigen Zugang.
+      DATABASE_URL: ${DATABASE_URL:-postgres://haben:${DB_PASSWORD}@db:5432/haben}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-}
+      # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation-sso.md)
       OIDC_ONLY: ${OIDC_ONLY:-false}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -81,7 +83,7 @@ services:
       ERIC_HOME: ${ERIC_HOME:-}
       ERIC_AUTO_INSTALL: ${ERIC_AUTO_INSTALL:-}
       ERIC_SHA256: ${ERIC_SHA256:-}
-      # ELSTER auf arm64: startet den ERiC-Worker emuliert als x86_64 (docs/installation.md, „ELSTER auf arm64“)
+      # ELSTER auf arm64: startet den ERiC-Worker emuliert als x86_64 (docs/installation-anbindungen.md, „ELSTER auf arm64“)
       ERIC_WORKER_COMMAND: ${ERIC_WORKER_COMMAND:-}
       ELSTER_HERSTELLER_ID: ${ELSTER_HERSTELLER_ID:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

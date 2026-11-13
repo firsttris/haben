@@ -44,10 +44,22 @@ export interface Seller extends Address {
   legalInfo?: LegalInfo;
 }
 
+/**
+ * Ansprechpartner des Käufers (#424), Stand beim Festschreiben. Im PDF steht nur der Name („z. Hd. …“), in der E-Rechnung
+ * der Name als BT-56; E-Mail, Telefon und Funktion dienen Haben (Kontaktseite, Auswahl), nicht dem Beleg.
+ */
+export interface Ansprechpartner {
+  name: string;
+  email?: string;
+  telefon?: string;
+  funktion?: string;
+}
+
 export interface Buyer extends Address {
   name: string;
   email?: string;
   ustId?: string;
+  ansprechpartner?: Ansprechpartner;
   /** Leitweg-ID öffentlicher Auftraggeber (BT-10) */
   leitwegId?: string;
   kundennummer?: string;
@@ -154,6 +166,8 @@ export interface InvoiceDocument extends Letterhead {
   intro?: string;
   /** Hinweis unter den Summen (Fußtext) */
   note?: string;
+  /** Fester Aufbewahrungshinweis für private Grundstücksleistungen (§ 14 Abs. 4 Nr. 9, § 14b Abs. 1 Satz 5 UStG); fehlt = aus */
+  propertyRetention?: boolean;
   /** Fehlt = regulär besteuert */
   taxTreatment?: TaxTreatment;
   /** Fehlt = Nettopreise; brutto nur bei regulärer Besteuerung */

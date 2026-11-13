@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 import { z } from "zod/mini";
 import { JOURNAL_SOURCE, journalSourcesFor, shortDate, type JournalSource } from "../../../components/Ledger.tsx";
+import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { getJournal, reverseManualEntryFn } from "../../../server/functions/journal.ts";
@@ -174,12 +175,14 @@ function JournalPage() {
         <div className="actions">
           {prev.year >= ERSTES_JAHR && (
             <Link to="/buchungen" search={{ jahr: prev.year, monat: prev.month }} className="btn">
-              ‹ {periodLabel(prev)}
+              <Icon name="chevron-left" size={16} />
+              {periodLabel(prev)}
             </Link>
           )}
           {next.year <= LETZTES_JAHR && (
             <Link to="/buchungen" search={{ jahr: next.year, monat: next.month }} className="btn">
-              {periodLabel(next)} ›
+              {periodLabel(next)}
+              <Icon name="chevron-right" size={16} />
             </Link>
           )}
           {/* Im Einzelunternehmen ab dem Stichjahr (freie Buchungen); davor erklärt die Seite, warum noch nicht */}

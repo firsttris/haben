@@ -11,6 +11,8 @@ Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem
 
 Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [BuchhaltungsButler](buchhaltungsbutler.md) und aus [Accountable](accountable.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
 
+Für selbst vorbereitete Listen aus WISO EÜR & Kasse beachtest du die [Hinweise zum Jahreswechsel, zu Ländern und Anlagen](wiso.md).
+
 ## So gehst du vor
 
 1. **Datei wählen.** Bis 5 MB und 5.000 Zeilen; die erste nicht leere Zeile enthält die Spaltennamen. Trennzeichen und Kodierung erkennt Haben selbst, du kannst sie aber festlegen.
@@ -63,9 +65,9 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 
 | Feld | Spaltennamen, die Haben vorschlägt | Prüfung |
 | --- | --- | --- |
-| Kundennummer | Kundennummer, Kundennr | Leer: Bei Kunden vergibt Haben die nächste, wenn unter Einstellungen ein Format steht ([Kontakte](rechnungen.md#kontakte)) |
+| Kundennummer | Kundennummer, Kundennr | Leer: Bei Kunden vergibt Haben die nächste, wenn unter Einstellungen ein Format steht ([Kontakte](kontakte.md)) |
 | Lieferantennummer | Lieferantennummer, Lieferantennr | |
-| Debitor | Debitorennummer, Debitor, Debitorenkonto | DATEV-Personenkonto, nur Ziffern, 10000 bis 69999 ([Kontakte](rechnungen.md#kontakte)); macht wie die Kundennummer zum Kunden |
+| Debitor | Debitorennummer, Debitor, Debitorenkonto | DATEV-Personenkonto, nur Ziffern, 10000 bis 69999 ([Kontakte](kontakte.md)); macht wie die Kundennummer zum Kunden |
 | Kreditor | Kreditorennummer, Kreditor, Kreditorenkonto | DATEV-Personenkonto, nur Ziffern, 70000 bis 99999; macht wie die Lieferantennummer zum Lieferanten |
 | Firma | Firmenname, Firma, Unternehmen, Name | Fehlt sie, gilt „Vorname Nachname“; ohne beides ist die Zeile fehlerhaft |
 | Vorname, Nachname | Vorname, Nachname | |
@@ -79,7 +81,7 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 
 Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei einem neuen Kontakt auf „wie in den Einstellungen“, Deutsch und der Vorgabe aus den Firmendaten.
 
-Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …). Weichen die Spaltennamen deiner Datei ab, ordnest du sie in der Vorschau zu.
+Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …).
 
 ## Artikel
 
@@ -108,7 +110,7 @@ Der Import ist eine [Übernahme aus der bisherigen Buchhaltung](anlagen.md#über
 | Art | Art, Anlagenart, Kategorie | Fahrzeug (auch Pkw, Lkw), Computer (auch Hardware, Software, Laptop), Büromöbel, Sonstige Transportmittel (auch Anhänger, Lastenrad; ein Transporter ist ein Fahrzeug), Sonstiges. Leer ist Sonstiges |
 | Abschreibung | Abschreibung, AfA-Art, AfA-Methode | linear, degressiv, Elektro (§ 7 Abs. 2a EStG, nur Fahrzeuge im Einzelunternehmen), GWG, Sammelposten oder digital (Computer mit einem Jahr). Leer: der Vorschlag zur Art ([Art und Abschreibung](anlagen.md#art-und-abschreibung)) |
 | Anschaffungsdatum | Anschaffungsdatum, Kaufdatum, Zugangsdatum | Pflicht, vor dem Stichtag |
-| Anschaffungskosten | Anschaffungskosten, AK, AHK | Pflicht, netto |
+| Anschaffungskosten | Anschaffungskosten, AK, AHK | Pflicht; Anschaffungskosten aus der bisherigen Buchhaltung ohne damals abziehbare und einschließlich damals nicht abziehbarer Vorsteuer ([§ 9b Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__9b.html)) |
 | Nutzungsdauer | Nutzungsdauer (Jahre), Nutzungsdauer (Monate) | Bei linearer und degressiver AfA Pflicht; in Jahren auch als Bruchteil, solange ganze Monate herauskommen (`2,5` = 30 Monate) |
 | Degressiver Satz | Degressiver Satz, AfA-Satz | In Prozent (`25`, `23,07`); leer: der Höchstsatz ([Degressive AfA](anlagen.md#degressive-afa)) |
 | Restbuchwert zum Stichtag | Restbuchwert, Buchwert | Buchwert am Tag vor dem Stichtag, also zum 31.12. des Vorjahres |
@@ -123,7 +125,7 @@ Die Übernahme erzeugt keine Buchung. Wie bei einer von Hand übernommenen Anlag
 
 ### Was der Import ablehnt
 
-Haben übernimmt nur, was das Anlagenverzeichnis fachlich richtig abbilden kann. Diese Fälle lehnt der Import ab, weil Haben sonst im Jahr des Stichtags abschriebe, was in frühere Jahre gehört, oder ein schon gebuchtes Jahr änderte:
+Diese Fälle lehnt der Import ab, weil Haben sonst im Jahr des Stichtags abschriebe, was in frühere Jahre gehört, oder ein schon gebuchtes Jahr änderte:
 
 | Fall | Warum |
 | --- | --- |

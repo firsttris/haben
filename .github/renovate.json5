@@ -7,7 +7,7 @@
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
 // Testübermittlung) und Habens eigene Images. Neue ERiC-Versionen, Lohnsteuer-PAP, Sozialversicherungswerte,
 // DATEV-Kontenrahmen und geänderte Normen meldet stattdessen der Workflow .github/workflows/jahreswerte.yml
-// als Issue mit dem Label „jahreswerte“ (docs/entwicklung.md, „Jahreswerte: Erinnerung per Workflow“).
+// als Issue mit dem Label „jahreswerte“ (docs/entwicklung.md, „Jahreswerte“).
 // Alle übrigen Pakete, die Actions und die Images kommen mit den gemeinsamen Einstellungen aus
 // firsttris/workflows (renovate/default.json5): Minor- und Patch-Updates einmal im Monat in einem
 // Pull Request, der sich bei grüner CI selbst merged; Majors auf Anfrage im Dashboard.
@@ -25,6 +25,15 @@
       depNameTemplate: "itplr-kosit/validator",
       datasourceTemplate: "github-releases",
       versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+    },
+    {
+      // Mustang-Validator für die ZUGFeRD-PDFs (Job zugferd); die Tags heißen core-2.26.0
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/ci\\.yml$/"],
+      matchStrings: ["MUSTANG: (?<currentValue>core-\\d+\\.\\d+\\.\\d+)\\n"],
+      depNameTemplate: "ZUGFeRD/mustangproject",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "regex:^core-(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
     },
     {
       // Die XRechnung-Konfiguration des Validators; die Tags heißen release-2025-07-10, ab 2026
@@ -56,7 +65,7 @@
       managerFilePatterns: [
         "/^\\.github/workflows/[^/]+\\.ya?ml$/",
         "/^README\\.md$/",
-        "/^docs/installation\\.md$/",
+        "/^docs/installation(-[a-z]+)?\\.md$/",
         "/^deploy/(backup|db)/(README\\.md|Containerfile)$/",
       ],
       matchStrings: [
@@ -75,7 +84,7 @@
     {
       // Der Caddy der Doku (Compose und Quadlet: eigene Manager)
       customType: "regex",
-      managerFilePatterns: ["/^docs/installation\\.md$/"],
+      managerFilePatterns: ["/^docs/installation(-[a-z]+)?\\.md$/"],
       matchStrings: ["`caddy:(?<currentValue>\\d+)`"],
       depNameTemplate: "docker.io/library/caddy",
       datasourceTemplate: "docker",
@@ -132,7 +141,7 @@
       groupName: "PostgreSQL",
       sourceUrl: "https://github.com/postgres/postgres",
       prBodyNotes: [
-        "Eine neue Hauptversion zieht in `deploy/db/Containerfile` (Datenbank), `deploy/backup/Containerfile` (pg_dump), CI und Doku zusammen. Beide Images bauen die Programme aller Versionen von `UPGRADE_FROM` bis zur vorletzten mit ein: `haben-db` hebt damit vorhandene Bestände beim Start mit `pg_upgrade` an, `backup.sh` nimmt das `pg_dump` der Version, in der die Datenbank läuft. Der CI-Job `db-upgrade` prüft das Upgrade von 16 mit Backup und Test-Restore davor und danach; bei einer weiteren Hauptversion dort einen Schritt von der bisherigen ergänzen. Fällt eine alte Version aus dem PGDG-Repository, `UPGRADE_FROM` in beiden Containerfiles anheben und das in docs/installation.md (PostgreSQL-Update) vermerken. Die Trigger der Migrationen (`apps/web/drizzle/*_trigger.sql`, Festschreibung und Hash-Kette) laufen in CI gegen die neue Version.",
+        "Eine neue Hauptversion zieht in `deploy/db/Containerfile` (Datenbank), `deploy/backup/Containerfile` (pg_dump), CI und Doku zusammen. Beide Images bauen die Programme aller Versionen von `UPGRADE_FROM` bis zur vorletzten mit ein: `haben-db` hebt damit vorhandene Bestände beim Start mit `pg_upgrade` an, `backup.sh` nimmt das `pg_dump` der Version, in der die Datenbank läuft. Der CI-Job `db-upgrade` prüft das Upgrade von 16 mit Backup und Test-Restore davor und danach; bei einer weiteren Hauptversion dort einen Schritt von der bisherigen ergänzen. Fällt eine alte Version aus dem PGDG-Repository, `UPGRADE_FROM` in beiden Containerfiles anheben und das in docs/installation-backup.md (PostgreSQL-Update) vermerken. Die Trigger der Migrationen (`apps/web/drizzle/*_trigger.sql`, Festschreibung und Hash-Kette) laufen in CI gegen die neue Version.",
       ],
       schedule: ["at any time"],
       automerge: false,

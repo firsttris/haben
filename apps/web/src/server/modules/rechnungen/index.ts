@@ -47,9 +47,13 @@ export {
   type ExternalReference,
 } from "./external-reference.ts";
 export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
+export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
+export { advanceVatPlans } from "./advance-vat-plan.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,
+  assertCustomer,
   buyerFrom,
   cancelInvoice,
   createCorrection,
@@ -61,6 +65,7 @@ export {
   finalizeIssues,
   getInvoice,
   InvoiceError,
+  insertDraft,
   invoiceSummary,
   listInvoices,
   newDraftDefaults,

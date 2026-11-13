@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBody, checkTitle, growthHints, hints, isBot } from "./regel.ts";
+import { checkBody, checkTitle, countWords, docPageHints, growthHints, hints, isBot, reviewHint } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -68,6 +68,44 @@ describe("growthHints", () => {
   });
 });
 
+describe("docPageHints", () => {
+  it("weist auf eine Doku-Seite hin, die über die Grenze wächst, auch auf eine neue", () => {
+    expect(
+      docPageHints([
+        { file: "docs/belege.md", before: 7900, after: 8100 },
+        { file: "docs/neu.md", before: 0, after: 8001 },
+      ]),
+    ).toEqual([
+      { level: "warning", message: expect.stringContaining("docs/belege.md hat 8100 Wörter") },
+      { level: "warning", message: expect.stringContaining("docs/neu.md hat 8001 Wörter") },
+    ]);
+  });
+
+  it("weist auf eine lange Seite hin, die noch deutlich wächst", () => {
+    expect(docPageHints([{ file: "docs/rechnungen.md", before: 9800, after: 10_100 }])).toEqual([
+      { level: "warning", message: expect.stringContaining("docs/rechnungen.md hat 10100 Wörter") },
+    ]);
+  });
+
+  it("schweigt bei kurzen Seiten, kleinen Änderungen an langen Seiten, Seiten außerhalb docs/ und ADRs", () => {
+    expect(
+      docPageHints([
+        { file: "docs/fristen.md", before: 1500, after: 1800 },
+        { file: "docs/rechnungen.md", before: 9800, after: 9950 },
+        { file: "README.md", before: 7000, after: 9000 },
+        { file: "docs/adr/journal-als-quelle.md", before: 7000, after: 9000 },
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe("countWords", () => {
+  it("zählt Wörter wie wc -w", () => {
+    expect(countWords("# Titel\n\nEin  kurzer\tSatz.\n")).toBe(5);
+    expect(countWords("")).toBe(0);
+  });
+});
+
 describe("isBot", () => {
   it("erkennt Renovate und andere Bots", () => {
     expect(isBot({ login: "renovate[bot]", type: "Bot" })).toBe(true);
@@ -91,5 +129,51 @@ describe("checkBody", () => {
 
   it("lässt Beispiele in Code durch", () => {
     expect(checkBody("Nicht `Closes #12`, sondern Umgesetzt #12")).toEqual([]);
+  });
+});
+
+describe("reviewHint", () => {
+  const fremd = { draft: false, author_association: "CONTRIBUTOR", user: { login: "TheLord83", type: "User" } };
+
+  it("erinnert bei einem fremden Pull Request mit Code an beitrag-pruefen und tdd-review", () => {
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts"]);
+    expect(report.level).toBe("warning");
+    expect(report.message).toContain("`beitrag-pruefen`");
+    expect(report.message).toContain("`tdd-review`");
+    expect(report.message).not.toContain("`doku-pruefen`");
+  });
+
+  it("nennt bei Code und Markdown tdd-review und doku-pruefen nebeneinander (tdd-review, Schritt 0)", () => {
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts", "docs/bank.md"]);
+    expect(report.message).toContain("`tdd-review`");
+    expect(report.message).toContain("`doku-pruefen`");
+  });
+
+  it("nennt doku-pruefen auch bei Code und LICENSE, wie bei LICENSE allein", () => {
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts", "LICENSE"]);
+    expect(report.message).toContain("`tdd-review`");
+    expect(report.message).toContain("`doku-pruefen`");
+  });
+
+  it("nennt doku-pruefen, wenn nur Markdown, docs/ oder LICENSE geändert sind", () => {
+    const [report] = reviewHint({ ...fremd, author_association: "FIRST_TIME_CONTRIBUTOR" }, ["docs/ki-assistenten.md", "README.md"]);
+    expect(report.message).toContain("`beitrag-pruefen`");
+    expect(report.message).toContain("`doku-pruefen`");
+    expect(report.message).not.toContain("`tdd-review`");
+  });
+
+  it("nennt doku-pruefen auch für eine neue Doku-Seite mit Eintrag in mkdocs.yml (Grenze aus tdd-review, Schritt 0)", () => {
+    const [report] = reviewHint(fremd, ["docs/neue-seite.md", "mkdocs.yml"]);
+    expect(report.message).toContain("`doku-pruefen`");
+    expect(report.message).not.toContain("`tdd-review`");
+  });
+
+  it.each(["OWNER", "MEMBER", "COLLABORATOR"])("schweigt bei %s", (author_association) => {
+    expect(reviewHint({ ...fremd, author_association }, ["docs/bank.md"])).toEqual([]);
+  });
+
+  it("schweigt bei Entwürfen und Bots", () => {
+    expect(reviewHint({ ...fremd, draft: true }, ["docs/bank.md"])).toEqual([]);
+    expect(reviewHint({ ...fremd, user: { login: "renovate[bot]", type: "Bot" } }, ["package.json"])).toEqual([]);
   });
 });

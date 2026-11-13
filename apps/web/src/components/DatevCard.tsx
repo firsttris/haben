@@ -1,6 +1,7 @@
 import { currentYear, personenkontenBetroffen } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type MouseEvent } from "react";
+import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveDatevNumbersFn, type getDatevNumbers } from "../server/functions/datev-export.ts";
@@ -16,7 +17,7 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
   const [savedAb, setSavedAb] = useState<number | null>(numbers.personenkontenAb);
   const [bestaetigt, setBestaetigt] = useState(false);
   const [saved, setSaved] = useState(Boolean(numbers.beraterNr && numbers.mandantNr));
-  const { busy, notice, run } = useAction();
+  const { busy, notice, setNotice, run } = useAction();
   const kontenrahmen = numbers.kontenrahmen;
   const thisYear = currentYear();
   // Ab-Jahre: vom ersten gebuchten Jahr bis zum nächsten; ein gespeichertes älteres bleibt wählbar
@@ -34,19 +35,13 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
     }, "Gespeichert.");
   }
 
-  /** Herunterladen über fetch, damit eine Ablehnung (etwa fehlende Personenkonten) hier lesbar erscheint */
+  /** Herunterladen über fetch, damit eine Ablehnung (etwa fehlende Personenkonten) und Nummern, die im Belegfeld 1 zusammenfallen, hier lesbar erscheinen */
   function onDownload(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     const href = event.currentTarget.href;
     void run(async () => {
-      const response = await fetch(href);
-      if (!response.ok) throw new Error((await response.text()) || "Der Export ist fehlgeschlagen.");
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? `EXTF_Buchungsstapel_${year}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const hinweis = await downloadFrom(href, `EXTF_Buchungsstapel_${year}.csv`);
+      if (hinweis) setNotice({ tone: "info", text: hinweis });
     });
   }
 

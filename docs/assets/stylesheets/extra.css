@@ -11,7 +11,7 @@
   --md-accent-fg-color: #3fa284;
   --md-accent-fg-color--transparent: rgba(63, 162, 132, .15);
 }
-/* Screenshots: Rahmen und Schatten, nie breiter als der Text */
+/* Bilder: Ecken und Schatten, nie breiter als der Text; Screenshots und Hero bringen ihren Rahmen selbst mit (unten) */
 .md-typeset img {
   max-width: 100%;
   height: auto;
@@ -59,4 +59,30 @@
 .md-typeset .aenderungsdatum {
   margin-top: 2.5em;
   color: var(--md-default-fg-color--light);
+}
+/* Agentic Engineering (agentic-engineering.md): Karten in den Farben des Ablaufdiagramms, Mensch gelb, Agent blau,
+   Automatik grün */
+.md-typeset .showcase-cards > .rolle {
+  border-top: 4px solid var(--rolle-farbe);
+  background: color-mix(in srgb, var(--rolle-farbe) 8%, transparent);
+}
+.rolle--mensch { --rolle-farbe: #d97706; }
+.rolle--agent { --rolle-farbe: #6366f1; }
+.rolle--auto { --rolle-farbe: #059669; }
+/* Drei Karten nebeneinander, auch neben dem Inhaltsverzeichnis; am Handy untereinander */
+.showcase-cards.showcase-cards--drei {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+/* Dunkles Schema: ein schwarzer Schatten verschwindet auf dem dunklen Grund, deshalb eine feine helle Kante und ein
+   weicher Schein wie um das Zeichen der Firma in der App (.brand-mark-kante) */
+[data-md-color-scheme="slate"] .md-typeset img {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .16), 0 0 20px 1px rgb(255 255 255 / .08);
+}
+/* Screenshots und Hero bringen Kante, Schatten oder Schein und Ecken im Bild mit, für GitHub
+   (apps/web/e2e/bildrahmen.ts); um sie kein zweiter Rahmen */
+.md-typeset img[src*="screenshot-"],
+.md-typeset img[src*="hero-"] {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }

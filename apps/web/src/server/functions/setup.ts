@@ -3,9 +3,9 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { count } from "drizzle-orm";
 import { db, schema } from "../db/index.ts";
 import { listCustomPages } from "../modules/eigene-seiten/index.ts";
-import { firmaInNavigation } from "../../lib/navigation.ts";
+import { firmaInNavigation, navMark } from "../../lib/navigation.ts";
 import { hasEmployees } from "../modules/lohn/index.ts";
-import { loadCompany } from "../modules/stammdaten/index.ts";
+import { loadCompany, logoInfo } from "../modules/stammdaten/index.ts";
 import { env } from "../env.ts";
 import { firmenSicht } from "../../lib/firmen.ts";
 import { oidcPublicConfig } from "../oidc.ts";
@@ -32,8 +32,10 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     rechtsform: company?.rechtsform ?? null,
     // Mehrere Firmen (#504): in welcher Instanz man gerade arbeitet, für alle Rollen dieser Instanz
     firma: company ? firmaInNavigation(company.name) : null,
+    // Zeichen der Firma (#504), getrennt von der Beleggestaltung; das Logo nur auf ausdrückliche Wahl
+    zeichen: company ? navMark({ color: company.navColor, logo: company.navLogo }, company.navLogo ? ((await logoInfo())?.sha256 ?? null) : null) : null,
     // Eigene Seiten (#199) als Menüeinträge des Inhabers, ebenfalls erst nach der Anmeldung
-    eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name }) => ({ id, name })) : [],
+    eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name, url, openInNewTab }) => ({ id, name, url, openInNewTab })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
     // Firmen wechseln (#504): Name der eigenen Firma, die übrigen nur für den Inhaber

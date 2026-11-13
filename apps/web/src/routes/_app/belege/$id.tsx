@@ -24,6 +24,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
@@ -194,14 +195,22 @@ function DocumentPage() {
           <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={data.cancellation !== null} />
           {navigation.position > 0 && (
             <div className="doc-nav" role="group" aria-label="Zwischen Belegen wechseln">
-              <button type="button" className="btn" onClick={() => go(navigation.previousId)} disabled={!navigation.previousId} title="Vorheriger Beleg (K)">
-                ‹ Vorheriger
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => go(navigation.previousId)}
+                disabled={!navigation.previousId}
+                title="Vorheriger Beleg (K)"
+              >
+                <Icon name="chevron-left" size={16} />
+                Vorheriger
               </button>
               <span className="small muted">
                 {navigation.position} von {navigation.total}
               </span>
-              <button type="button" className="btn" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
-                Nächster ›
+              <button type="button" className="btn btn-ghost" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
+                Nächster
+                <Icon name="chevron-right" size={16} />
               </button>
             </div>
           )}
@@ -257,6 +266,7 @@ function DocumentPage() {
           <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
           {/* Außerhalb des Formulars: Enter im Feld „Grund“ speichert nicht */}
           {inhaber && <DocumentCancellation key={`storno-${doc.id}`} data={data} />}
+          <BelegVerrechnung key={`verrechnung-${doc.id}`} documentId={doc.id} supplier={doc.supplierName} readOnly={!inhaber} />
         </div>
       </div>
     </>
@@ -924,7 +934,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           </button>
           <div style={{ textAlign: "right" }}>
             <span className="muted small">{reverseCharge ? "Zu zahlen (netto) " : "Gesamt "}</span>
-            <span className="mono" style={{ fontWeight: 600 }}>
+            <span className="amount" style={{ fontWeight: 600 }}>
               {gross === null ? "–" : foreign ? `${formatDecimal(gross)} ${currencyCode}` : formatEuro(gross)}
             </span>
             {foreign && (
@@ -932,7 +942,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 {euroRows ? (
                   <>
                     in Euro{" "}
-                    <span className="mono" style={{ fontWeight: 600 }}>
+                    <span className="amount" style={{ fontWeight: 600 }}>
                       {formatEuro(euroGross!)}
                     </span>
                     {euroRows.length > 0 && (

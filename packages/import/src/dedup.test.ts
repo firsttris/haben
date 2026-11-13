@@ -54,6 +54,19 @@ describe("withDedupHashes", () => {
     expect(bekannt.has(andere[4]!.dedupHash)).toBe(false);
   });
 
+  it("erkennt dieselben C24-Umsätze in überlappenden Exporten", () => {
+    const text = new TextDecoder().decode(fixture("c24.csv"));
+    const [kopf, ...zeilen] = text.split("\n");
+    // Zweiter Export: die drei jüngsten Umsätze fehlen, ein älterer ist dazugekommen
+    const neuer = `Überweisung,30.09.2026,,"500,00 €",Rheinpixel GmbH,DE89370400440532013000,COBADEFFXXX,RE-2026-020,,1234567890,Geschäft,Einkommen,Selbstständige Einkünfte`;
+    const zweiter = new TextEncoder().encode([kopf, ...zeilen.slice(3), neuer].join("\n"));
+    const erste = withDedupHashes(parseStatement(fixture("c24.csv")).transactions);
+    const andere = withDedupHashes(parseStatement(zweiter).transactions);
+    const bekannt = new Set(erste.map((t) => t.dedupHash));
+    expect(andere.filter((t) => bekannt.has(t.dedupHash)).map((t) => t.index)).toEqual([0, 1, 2, 3]);
+    expect(bekannt.has(andere[4]!.dedupHash)).toBe(false);
+  });
+
   it("erkennt dieselben Umsätze in CSV und CAMT der gleichen Bank", () => {
     const camt = withDedupHashes(parseStatement(fixture("camt053-001-02.xml")).transactions);
     const altHashes = new Set(alt.map((t) => t.dedupHash));

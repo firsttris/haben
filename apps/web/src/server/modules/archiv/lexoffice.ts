@@ -1,7 +1,7 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import { datevGuidFound, datevInternalId, datevVoucherFound, datevWithoutReceipt, truncatedNumberMatches } from "./datev-belegnummer.ts";
 import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -384,7 +384,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     gross: number;
     files: number;
   }>(sql`
-    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.net, v.tax, v.gross,
+    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
     from lexoffice_vouchers v
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
@@ -428,9 +428,9 @@ export async function legacyVoucherDetail(id: string) {
       contactId: schema.lexofficeVouchers.contactId,
       contactName: effectiveContactName("lexoffice_vouchers"),
       currency: schema.lexofficeVouchers.currency,
-      net: schema.lexofficeVouchers.net,
-      tax: schema.lexofficeVouchers.tax,
-      gross: schema.lexofficeVouchers.gross,
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
@@ -460,11 +460,14 @@ export async function legacyVoucherFile(fileId: string) {
   return file ?? null;
 }
 
-/** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
+/**
+ * Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze).
+ * Eine Zuordnung über 0 € ist keine Zahlung (#472).
+ */
 function legacyPayments(v: { source: LegacySource; gross: number; status: string; payment: LegacyPayment | null }) {
   if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
-    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
+    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date && p.amount !== 0)
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
 }
 
@@ -511,9 +514,9 @@ export async function reconciliation() {
       number: schema.lexofficeVouchers.number,
       date: schema.lexofficeVouchers.date,
       status: schema.lexofficeVouchers.status,
-      net: schema.lexofficeVouchers.net,
-      tax: schema.lexofficeVouchers.tax,
-      gross: schema.lexofficeVouchers.gross,
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
       categories: schema.lexofficeVouchers.categories,
       payment: effectivePayment("lexoffice_vouchers"),
@@ -767,7 +770,7 @@ export async function legacyVouchersForPeriod(filter: {
       .select({
         source: schema.lexofficeVouchers.source,
         direction: effectiveDirection("lexoffice_vouchers"),
-        gross: schema.lexofficeVouchers.gross,
+        gross: effectiveAmount("lexoffice_vouchers", "gross"),
         status: schema.lexofficeVouchers.status,
         payment: effectivePayment("lexoffice_vouchers"),
         payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
@@ -804,7 +807,7 @@ export async function legacyVouchersForPeriod(filter: {
     tax_sub_type: string | null;
     files: number;
   }>(sql`
-    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, v.net, v.tax, v.gross,
+    select v.id, v.source, ${effectiveType("v")} as type, ${effectiveDirection("v")} as direction, v.number, v.date::text as date, v.status, ${effectiveContactName("v")} as contact_name, v.currency, ${effectiveAmount("v", "net")} as net, ${effectiveAmount("v", "tax")} as tax, ${effectiveAmount("v", "gross")} as gross,
       ${effectiveTaxes("v")} as taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,

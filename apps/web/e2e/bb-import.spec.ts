@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { zipSync } from "fflate";
 import { bestaetigen, durchlaufSeite, einrichten, gehe } from "./einrichtung.ts";
 
+/** Umzug aus BuchhaltungsButler mit Testlauf, Import und PDF im Archiv, in eigener, leerer Datenbank (Projekt „bb-import“, e2e/durchlaeufe.ts) */
 const BB_HEADERS = [
   "Datum",
   "Buchungstext",

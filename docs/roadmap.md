@@ -24,15 +24,12 @@ Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt. Wünsche kommen al
 Kommentar, ob und wo es ins Board kommt, oder eine Rückfrage; was umgesetzt ist, steht im jeweiligen
 Kapitel der Doku und in den [Releases](https://github.com/firsttris/haben/releases).
 
-Diese Seite hält fest, was sich selten ändert: was bewusst nicht kommt, was ohne Zertifizierung nicht
-geht, was blockiert ist und welche Quellen geprüft sind.
-
 ## Bewusst nicht
 
 | Thema | Grund |
 | --- | --- |
 | Lagerbestand | Kein Kern einer Buchhaltung; gehört in eine Warenwirtschaft (Lexware Office führt keinen, sevDesk nur als Zusatzmodul) |
-| Stoppuhr, Projektverwaltung und Teamplanung | Gehören in eigene Werkzeuge; abrechenbare Leistungen erfasst Haben schlicht selbst oder übernimmt sie über die API („Abrechenbare Leistungen“, [#417](https://github.com/firsttris/haben/issues/417)) |
+| Stoppuhr, Projektverwaltung und Teamplanung | Gehören in eigene Werkzeuge; abrechenbare Leistungen erfasst Haben selbst oder übernimmt sie über die API („Abrechenbare Leistungen“, [#417](https://github.com/firsttris/haben/issues/417)) |
 | Eigene Shop-Anbindungen, Bestellungen und Versand | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an. Bestellungen mit Status, Druck-Buttons, Sendungsnummern und Webhook-Aktionen würden Haben zum Versandtool machen; eigene Seiten bekommen bewusst keine Anmeldung von Haben, weil eine fremde Seite mit der Sitzung festschreiben oder an ELSTER senden könnte ([#199](https://github.com/firsttris/haben/issues/199)) |
 | Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
 | Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |
@@ -63,7 +60,7 @@ geht, was blockiert ist und welche Quellen geprüft sind.
 | Meldungen an die Sozialversicherung, Beitragsnachweise, Erstattungsanträge | Nur aus systemgeprüften Programmen (§ 95b SGB IV, Prüfung durch die ITSG) | [Ausfüllliste](lohn.md#sv-meldeportal) zum Eintragen im SV-Meldeportal der ITSG |
 | Eigenes Geschäftskonto | Banklizenz | Abruf bestehender Konten über Enable Banking |
 | DATEV-Online-Schnittstellen | Kostenpflichtige Partnerschaft mit DATEV | DATEV-Export (Buchungsstapel) |
-| Hinterlegung des Jahresabschlusses als XML oder XBRL | Schema und XBRL-Vorgaben des Bundesanzeiger Verlags gibt es nur nach einer Freischaltung, ihre Nutzungsbedingungen untersagen die Weitergabe; die Testplattform nur auf Anfrage ([Hinterlegung](buchhaltung.md#xml-oder-xbrl-statt-pdf)) | Bilanz als PDF, das das Register gegen ein Entgelt je Zeichen umwandelt, oder Abtippen im Webformular |
+| Hinterlegung des Jahresabschlusses als XML oder XBRL | Schema und XBRL-Vorgaben des Bundesanzeiger Verlags gibt es nur nach einer Freischaltung, ihre Nutzungsbedingungen untersagen die Weitergabe; die Testplattform nur auf Anfrage ([Hinterlegung](gmbh-abschluss.md#xml-oder-xbrl-statt-pdf)) | Bilanz als PDF, das das Register gegen ein Entgelt je Zeichen umwandelt, oder Abtippen im Webformular |
 | Kassensystem mit TSE | Elektronische Kassen brauchen eine zertifizierte technische Sicherheitseinrichtung (§ 146a AO) | Kein Kassensystem für den Ladenverkauf; das Kassenbuch führt Bargeld, das nicht über eine Registrierkasse läuft ([Kasse](kasse.md)) |
 
 ## Blockiert

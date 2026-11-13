@@ -43,6 +43,7 @@ function NewRecurringPage() {
           paymentTermDays: defaults.paymentTermDays,
           intro: "",
           note: "",
+          propertyRetention: false,
           taxTreatment: defaults.kleinunternehmer ? "kleinunternehmer" : "regulaer",
           exemptionReason: "",
           priceMode: "netto",

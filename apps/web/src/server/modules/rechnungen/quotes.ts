@@ -37,7 +37,7 @@ import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
+import { ansprechpartnerSnapshot, contactPersonProblem, contactRoleProblem, loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
@@ -67,6 +67,8 @@ const isoDate = z.iso.date();
 export const quoteDraftSchema = z
   .object({
     contactId: z.uuid().nullable(),
+    /** Ansprechpartner des Kunden (#424); der Stand beim Festschreiben steht im Käufer des Angebots */
+    contactPersonId: z.uuid().nullable().default(null),
     issueDate: isoDate,
     validUntil: isoDate,
     serviceFrom: isoDate.nullable(),
@@ -169,6 +171,7 @@ function draftValues(input: QuoteDraftInput) {
   const treatment = input.taxTreatment ?? "regulaer";
   return {
     contactId: input.contactId,
+    contactPersonId: input.contactPersonId ?? null,
     issueDate: input.issueDate,
     validUntil: input.validUntil,
     serviceFrom: input.serviceFrom,
@@ -192,15 +195,25 @@ function draftValues(input: QuoteDraftInput) {
 
 /** Legt den Entwurf an; parsed ist schon durch quoteDraftSchema gelaufen */
 async function insertQuoteDraft(tx: Tx, parsed: z.output<typeof quoteDraftSchema>): Promise<Quote> {
+  const personProblem = await contactPersonProblem(tx, parsed.contactId, parsed.contactPersonId);
+  if (personProblem) throw new QuoteError(personProblem);
   const [quote] = await tx.insert(schema.quotes).values(draftValues(parsed)).returning();
   if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(quote!.id, parsed));
   return quote!;
+}
+
+/** Angebote gehen an Kunden; ein Lieferant oder ein unbekannter Kontakt passt nicht */
+async function checkCustomer(tx: Tx, contactId: string | null) {
+  if (!contactId) return;
+  const problem = await contactRoleProblem(tx, contactId, "kunde");
+  if (problem) throw new QuoteError(problem);
 }
 
 /** Neuer Entwurf; er bekommt die Standardanhänge aus den Einstellungen (#415) als eigene Anhänge */
 export async function createQuoteDraft(actor: string, input: QuoteDraftInput): Promise<Quote> {
   const parsed = quoteDraftSchema.parse(input);
   return withActor(actor, async (tx) => {
+    await checkCustomer(tx, parsed.contactId);
     const quote = await insertQuoteDraft(tx, parsed);
     // Mit ihrem Zeitpunkt aus den Einstellungen, wie beim Kopieren: so bleibt deren Reihenfolge
     await attachStoredToQuote(tx, quote.id, await listQuoteDefaultAttachments(tx));
@@ -220,7 +233,12 @@ export async function lockDraft(tx: Tx, id: string): Promise<Quote> {
 export async function updateQuoteDraft(actor: string, id: string, input: QuoteDraftInput): Promise<Quote> {
   const parsed = quoteDraftSchema.parse(input);
   return withActor(actor, async (tx) => {
-    await lockDraft(tx, id);
+    const draft = await lockDraft(tx, id);
+    // Nur ein neuer Kunde wird geprüft: ein Kontakt, der inzwischen kein Kunde mehr ist, bleibt am Angebot
+    if (parsed.contactId !== draft.contactId) await checkCustomer(tx, parsed.contactId);
+    // Die schon gewählte Person bleibt, auch wenn sie inzwischen deaktiviert ist; eine neue muss aktiv sein und zum Kunden gehören
+    const personProblem = await contactPersonProblem(tx, parsed.contactId, parsed.contactPersonId, draft.contactPersonId);
+    if (personProblem) throw new QuoteError(personProblem);
     await tx.delete(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id));
     if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(id, parsed));
     const [updated] = await tx.update(schema.quotes).set(draftValues(parsed)).where(eq(schema.quotes.id, id)).returning();
@@ -447,7 +465,7 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const counter = await peekNumber(tx, "angebot", circle);
     const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter);
     const seller = sellerFrom(company);
-    const buyer = buyerFrom(contact!);
+    const buyer = buyerFrom(contact!, await ansprechpartnerSnapshot(tx, quote.contactPersonId));
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const pdf = await withCustomLayout("angebot", await loadLetterhead(), (letterhead) => buildQuotePdf({ ...doc, ...letterhead }));
     const now = new Date();
@@ -539,19 +557,25 @@ export async function quoteToInvoice(
       unitPrice: 0,
       taxRate: (mainRate ?? 0) as 1900 | 700 | 0,
     };
-    const deducts =
+    const advances =
       variant === "schluss"
-        ? (await openAbschlaege(null, tx))
-            .filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
-            .map((a) => a.id)
+        ? (await openAbschlaege(null, tx)).filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
         : [];
+    const deducts = advances.map((a) => a.id);
+    // Angebotsdaten sind geplant, keine bestätigte Schlussleistung. Neue Schlussrechnungen schlagen heute vor;
+    // das tatsächliche Leistungsdatum lässt sich vor der Festschreibung im Entwurf berichtigen.
+    const newFinal = advances.some((a) => a.advanceType !== null);
+    // Die Person des Angebots geht in die Rechnung über, solange sie noch aktiv ist; sonst wählt man in der Rechnung neu
+    const contactPersonId =
+      locked.contactPersonId && (await contactPersonProblem(tx, locked.contactId, locked.contactPersonId)) === null ? locked.contactPersonId : null;
     const invoice = await insertDraft(
       tx,
       {
         contactId: locked.contactId,
+        contactPersonId,
         issueDate: today,
-        serviceFrom: locked.serviceFrom,
-        serviceTo: locked.serviceTo,
+        serviceFrom: newFinal ? today : locked.serviceFrom,
+        serviceTo: newFinal ? null : locked.serviceTo,
         paymentTermDays: company.paymentTermDays,
         skonto: defaultSkonto(company, contact, company.paymentTermDays),
         format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
@@ -601,6 +625,8 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
   const validDays = Math.max(0, Math.round((Date.parse(quote.validUntil) - Date.parse(quote.issueDate)) / 86_400_000));
   const input: QuoteDraftInput = {
     contactId: quote.contactId,
+    // Eine Kopie behält die Person, solange sie noch aktiv ist
+    contactPersonId: quote.contactPersonId && (await contactPersonProblem(db, quote.contactId, quote.contactPersonId)) === null ? quote.contactPersonId : null,
     issueDate: today,
     validUntil: addDays(today, validDays || QUOTE_VALID_DAYS),
     serviceFrom: null,

@@ -20,6 +20,7 @@ on:
       - 'scripts/doku-aenderungsdatum/**'
       - 'scripts/doku-hinweise/**'
       - 'scripts/doku-kurzlinks/**'
+      - 'scripts/doku-startseite/**'
       - '.github/workflows/docs.yml'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -31,6 +32,7 @@ on:
       - 'scripts/doku-aenderungsdatum/**'
       - 'scripts/doku-hinweise/**'
       - 'scripts/doku-kurzlinks/**'
+      - 'scripts/doku-startseite/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -63,6 +65,7 @@ jobs:
       - run: python -m unittest discover -s scripts/doku-aenderungsdatum
       - run: python -m unittest discover -s scripts/doku-hinweise
       - run: python -m unittest discover -s scripts/doku-kurzlinks
+      - run: python -m unittest discover -s scripts/doku-startseite
       - uses: actions/configure-pages@v6
         if: github.event_name != 'pull_request'
         with:
@@ -71,6 +74,10 @@ jobs:
       # Adressen mit Schrägstrich: haben.app/api/ führt auf api.html, statt 404 (scripts/doku-kurzlinks)
       - run: python scripts/doku-kurzlinks/haben_doku_kurzlinks.py site
       - run: grep -q 'url=../api.html' site/api/index.html
+      # Startseite als https://haben.app/, nicht index.html: Canonical, og:url, Sitemap (scripts/doku-startseite)
+      - run: python scripts/doku-startseite/haben_doku_startseite.py site https://haben.app/
+      - run: grep -q '<link rel="canonical" href="https://haben.app/">' site/index.html
+      - run: "! grep -q 'https://haben.app/index.html' site/index.html site/sitemap.xml"
       # Ohne git-Historie fehlt das Datum, ohne dass der Build scheitert; hier fällt es auf
       - run: grep -q 'class="aenderungsdatum"' site/index.html
       # Das Datum gehört nicht in den Suchindex, sonst findet die Suche nach „Update“ jede Seite

@@ -1,13 +1,18 @@
-import { expect, test, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
+import { type Browser, expect, test, type Page } from "@playwright/test";
+import postgres from "postgres";
 import { day, fullPageScreenshot, USER, vorschauAnheften, YEAR } from "./daten.ts";
+import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { dkb, kundeWaehlen, type Rechnung, rechnungFestschreiben } from "./einrichtung.ts";
+import { mitRahmen } from "./bildrahmen.ts";
 
 /**
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
  * davor angelegt hat: Kunden, festgeschriebene Rechnungen, ein gebuchter Beleg, der Kontoauszug mit
  * dem noch offenen Zahlungseingang von Rheinpixel. Läuft nur mit DOKU_SCREENSHOTS=1
  * (bun run docs:screenshots, Workflow „Update screenshots“), im Projekt „mit-daten“ nach app.spec.ts
- * (playwright.config.ts). Weil app.spec.ts nur anlegt, was die Tests brauchen, ergänzt der erste Test
+ * (playwright.config.ts). docs:screenshots startet nur diese Datei und damit app.spec.ts, nicht die ganze Suite:
+ * Alle Durchläufe gleichzeitig in einem Job brauchen mehr Verbindungen, als Postgres zulässt (100). Weil app.spec.ts nur anlegt, was die Tests brauchen, ergänzt der erste Test
  * Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen, damit Übersicht, Umsatzsteuer und Auswertungen nach
  * Betrieb aussehen; die CI braucht diese Daten nicht und überspringt die Datei.
  */
@@ -20,8 +25,10 @@ const DESKTOP = { width: 1440, height: 900 };
 const MOBIL = { width: 390, height: 844 };
 
 let page: Page;
+let browserFuerRahmen: Browser;
 
 test.beforeAll(async ({ browser }) => {
+  browserFuerRahmen = browser;
   page = await browser.newPage({ viewport: DESKTOP, locale: "de-DE", timezoneId: "Europe/Berlin" });
   // Das Bild „Rechnung schreiben mit Vorschau“ zeigt Formular und Vorschau nebeneinander
   await vorschauAnheften(page);
@@ -45,10 +52,44 @@ async function go(path: string) {
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
 }
 
+/** Setzt den Modus ohne Neuladen, damit Eingaben und Auswahl der Seite stehen bleiben; die Farbe bleibt Wald */
+async function theme(mode: "light" | "dark") {
+  await page.evaluate((m) => {
+    document.documentElement.dataset.mode = m;
+  }, mode);
+  // Ein Bild erst, wenn der Browser mit den neuen Farben gezeichnet hat
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
+/**
+ * Ohne ERiC und Hersteller-ID, wie hier, zeigen die Seiten zwei Hinweise zur Einrichtung. Die Bilder zeigen Haben
+ * eingerichtet, deshalb fallen nur diese beiden Hinweise heraus; alle anderen Meldungen bleiben im Bild.
+ */
+const EINRICHTUNGSHINWEISE = ["ERiC ist nicht eingerichtet", "Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab"];
+
+async function einrichtungshinweiseAusblenden() {
+  await page.evaluate((texte) => {
+    for (const banner of document.querySelectorAll<HTMLElement>(".banner")) {
+      if (texte.some((text) => banner.textContent?.includes(text))) banner.style.display = "none";
+    }
+  }, EINRICHTUNGSHINWEISE);
+}
+
+/** Jedes Bild in Wald hell und dunkel; README und Doku zeigen das passende zur Systemeinstellung, beide mit Rahmen (bildrahmen.ts) */
 async function shot(name: string, fullPage = false) {
-  // Kein blinkender Cursor, keine halb abgelaufene Animation im Bild
-  const options = { path: `${DOCS}/screenshot-${name}.png`, animations: "disabled", caret: "hide" } as const;
-  await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
+  await einrichtungshinweiseAusblenden();
+  for (const [id, suffix] of [
+    ["light", ""],
+    ["dark", "-dunkel"],
+  ] as const) {
+    await theme(id);
+    // Kein blinkender Cursor, keine halb abgelaufene Animation im Bild
+    const options = { animations: "disabled", caret: "hide" } as const;
+    const png = await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
+    const radius = page.viewportSize()?.width === MOBIL.width ? 36 : 16;
+    await writeFile(`${DOCS}/screenshot-${name}${suffix}.png`, await mitRahmen(browserFuerRahmen, png, id === "dark" ? "dunkel" : "hell", { radius }));
+  }
+  await theme("light");
 }
 
 /** Rechnungen in den Monaten davor, nur im Jahr der übrigen Daten; alle bis auf die letzte nach zwölf Tagen bezahlt */
@@ -127,6 +168,25 @@ test("Daten für die Bilder ergänzen", async () => {
   await fahrt.getByLabel("Kilometer einfach", { exact: true }).fill("120");
   await fahrt.getByRole("button", { name: /buchen$/ }).click();
   await expect(neu.getByRole("status")).toContainText("Fahrt über");
+
+  // Ohne Zertifikat zeigen Übersicht und Voranmeldung nur, was noch fehlt; ohne ERiC prüft Haben die Datei nicht
+  await go("/einstellungen?bereich=elster");
+  const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
+  await cert
+    .getByLabel("Zertifikatsdatei")
+    .setInputFiles({ name: "zertifikat.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
+  await cert.getByRole("button", { name: "Hochladen" }).click();
+  await expect(cert.getByRole("button", { name: "Entfernen" })).toBeVisible();
+
+  // Den Stand des Backups schreibt im Betrieb der Backup-Container (deploy/backup); hier ein Lauf von heute Nacht
+  const sql = postgres(databaseUrlFuer(), { max: 1 });
+  try {
+    await sql`insert into backup_status (kind, ok, snapshot, bytes, message) values
+      ('backup', true, 'a1b2c3d4', 48234496, 'Backup erfolgreich'),
+      ('restore_check', true, 'a1b2c3d4', null, 'Test-Restore erfolgreich')`;
+  } finally {
+    await sql.end();
+  }
 });
 
 test("Übersicht", async () => {
@@ -144,6 +204,8 @@ test("Rechnung schreiben mit Vorschau", async () => {
   await page.getByLabel("Beschreibung Position 2").fill("Hosting");
   await page.getByLabel("Menge Position 2").fill("1");
   await page.getByLabel(/Einzelpreis Position 2/).fill("49,00");
+  await page.getByLabel("Leistung von").fill(`${day(-30).slice(0, 8)}01`);
+  await page.getByLabel("Leistung bis").fill(day(-1));
   await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("2.329,00");
   // Oben anfangen: Kopf, Kunde und Vorschau gehören ins Bild
   await page.evaluate(() => {
@@ -178,11 +240,20 @@ test("Beleg mit ausgelesenen Feldern", async () => {
 });
 
 test("Umsatzsteuer, Auswertungen und Archiv", async () => {
+  // Die Voranmeldung testweise gesendet: Verlauf mit Prüfung und Testübermittlung statt „Noch nichts geprüft“
   await go("/umsatzsteuer");
+  const elster = page.getByRole("form", { name: "An ELSTER übermitteln" });
+  await elster.getByLabel("Zertifikats-PIN").fill("123456");
+  await elster.getByRole("button", { name: "Prüfen und testweise senden" }).click();
+  await expect(page.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Verlauf / })).toContainText(/Testübermittlung\s*OK/);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await shot("umsatzsteuer");
   await go("/auswertungen");
   await shot("auswertungen");
   await go("/archiv");
+  // Der obere Teil für die Startseite der Doku, mit eigenem Rahmen; die ganze Seite für die übrigen Seiten
+  await shot("archiv-oben");
   await shot("archiv", true);
 });
 

@@ -87,6 +87,12 @@ const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konte
   ],
 };
 
+/** Die Konten der Hinzurechnung je Kontenrahmen, nach Art; eigene Sachkonten (#270) dürfen sie nicht belegen */
+export const GEWST_HINZURECHNUNG_KONTEN: Record<Kontenrahmen, Record<string, readonly string[]>> = {
+  SKR03: Object.fromEntries(HINZURECHNUNG.SKR03.map(([art, konten]) => [art, konten])),
+  SKR04: Object.fromEntries(HINZURECHNUNG.SKR04.map(([art, konten]) => [art, konten])),
+};
+
 /** Nicht abziehbarer Teil der Bewirtung (§ 4 Abs. 5 Nr. 2 EStG); Haben bucht sie voll auf das Bewirtungskonto */
 const BEWIRTUNG_NICHT_ABZIEHBAR = 3000;
 

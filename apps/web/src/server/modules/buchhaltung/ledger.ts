@@ -1,6 +1,7 @@
 import {
   ACCOUNTS,
   carryForward,
+  resolveOwnAccount,
   isKapitalgesellschaft,
   type Cents,
   type KontenblattZeile,
@@ -12,6 +13,7 @@ import { and, asc, eq, gt, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
+import { loadOwnAccountParents, refreshOwnAccountNames } from "../eigene-konten/index.ts";
 import { accountName } from "./journal.ts";
 import { UserError } from "../../errors.ts";
 
@@ -147,8 +149,33 @@ async function openingBalances(start: string): Promise<{ kontenrahmen: Kontenrah
   };
 }
 
-/** Saldenliste: jedes im Jahr bebuchte Konto mit Eröffnung ab Jahresbeginn, Soll, Haben und Saldo */
-export async function saldenliste({ from, to }: LedgerRange): Promise<SaldenZeile[]> {
+/**
+ * Saldenliste: jedes im Jahr bebuchte Konto mit Eröffnung ab Jahresbeginn, Soll, Haben und Saldo.
+ *
+ * Mit `aufgeloest` liegt ein eigenes Sachkonto (#270) auf dem Konto seiner Elternkategorie, zusammen mit dessen Buchungen: für
+ * E-Bilanz, HGB und Körperschaftsteuer, die nach Kontonummer rechnen. Ohne steht es mit eigener Nummer und eigenem Namen darin.
+ */
+export async function saldenliste(range: LedgerRange, optionen: { aufgeloest?: boolean } = {}): Promise<SaldenZeile[]> {
+  const rows = await saldenlisteRoh(range);
+  if (!optionen.aufgeloest) return rows;
+  const eigene = { SKR03: await loadOwnAccountParents("SKR03"), SKR04: await loadOwnAccountParents("SKR04") };
+  if (eigene.SKR03.size === 0 && eigene.SKR04.size === 0) return rows;
+  const summen = new Map<string, SaldenZeile>();
+  for (const r of rows) {
+    const account = resolveOwnAccount(r.kontenrahmen, r.account, eigene[r.kontenrahmen]);
+    const key = `${r.kontenrahmen}:${account}`;
+    const vorhanden = summen.get(key);
+    if (!vorhanden) {
+      summen.set(key, { ...r, account, name: accountName(r.kontenrahmen, account) });
+      continue;
+    }
+    for (const feld of ["eroeffnung", "vortrag", "soll", "haben", "sollJahr", "habenJahr", "saldo"] as const) vorhanden[feld] += r[feld];
+  }
+  return [...summen.values()].sort((a, b) => a.account.localeCompare(b.account)).filter((r) => r.eroeffnung !== 0 || r.soll !== 0 || r.haben !== 0);
+}
+
+async function saldenlisteRoh({ from, to }: LedgerRange): Promise<SaldenZeile[]> {
+  await refreshOwnAccountNames();
   const e = schema.journalEntries;
   const l = schema.journalLines;
   const rows = await db
@@ -199,7 +226,7 @@ export async function saldenliste({ from, to }: LedgerRange): Promise<SaldenZeil
 /**
  * Übernahmen im Jahr: Salden der Buchungen ohne Herkunft „Eröffnung“, die gegen 9000 Saldenvorträge buchen, etwa offene
  * Posten aus dem Umzug oder die Eröffnung einer übernommenen Anlage. Sie gehören zum Stand am 1. Januar wie die
- * Eröffnungsbuchung (docs/buchhaltung.md, „Saldenvortrag und Eröffnung“).
+ * Eröffnungsbuchung (docs/gmbh-abschluss.md, „Saldenvortrag und Eröffnung“).
  */
 export async function uebernahmen(year: number, kontenrahmen: Kontenrahmen): Promise<{ account: string; saldo: Cents }[]> {
   const e = schema.journalEntries;
@@ -235,6 +262,7 @@ export interface Kontenblatt {
 
 /** Alle Buchungen auf einem Konto im Zeitraum mit Gegenkonten und laufendem Saldo */
 export async function kontenblatt(account: string, { from, to }: LedgerRange): Promise<Kontenblatt> {
+  await refreshOwnAccountNames();
   const e = schema.journalEntries;
   const l = schema.journalLines;
   const [opening] = await db
