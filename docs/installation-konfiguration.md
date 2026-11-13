@@ -73,8 +73,8 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
 | `ENABLE_BANKING_API_URL` | nein | Andere Basis-URL der API, nur zum Testen. Standard `https://api.enablebanking.com` | `http://localhost:4555` |
-| `GOOGLE_PLAY_TOKEN_URL`, `GOOGLE_PLAY_STORAGE_URL` | nein | Andere Adressen für Anmeldung und Cloud Storage beim Abruf der [Google-Play-Berichte](bank.md#google-play-und-app-store), nur zum Testen. Standard `https://oauth2.googleapis.com/token` bzw. `https://storage.googleapis.com` | `http://localhost:4556` |
-| `APP_STORE_CONNECT_URL` | nein | Andere Basis-URL von App Store Connect beim Abruf der [Finanzberichte](bank.md#google-play-und-app-store), nur zum Testen. Standard `https://api.appstoreconnect.apple.com` | `http://localhost:4557` |
+| `GOOGLE_PLAY_TOKEN_URL`, `GOOGLE_PLAY_STORAGE_URL` | nein | Andere Adressen für Anmeldung und Cloud Storage beim Abruf der [Google-Play-Berichte](bank-zahlungsdienstleister.md#google-play-und-app-store), nur zum Testen. Standard `https://oauth2.googleapis.com/token` bzw. `https://storage.googleapis.com` | `http://localhost:4556` |
+| `APP_STORE_CONNECT_URL` | nein | Andere Basis-URL von App Store Connect beim Abruf der [Finanzberichte](bank-zahlungsdienstleister.md#google-play-und-app-store), nur zum Testen. Standard `https://api.appstoreconnect.apple.com` | `http://localhost:4557` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |

@@ -50,6 +50,8 @@ nav:
       - Kassenbuch: kasse.md
       - Anlagen und AfA: anlagen.md
       - Bankimport und Abgleich: bank.md
+      - Zahlungsdienstleister: bank-zahlungsdienstleister.md
+      - Steuerzahlungen und Darlehen: bank-steuern-darlehen.md
       - Umsatzsteuer-Voranmeldung: umsatzsteuer.md
       - Finanzamt: finanzamt.md
       - Fristen: fristen.md
