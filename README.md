@@ -68,9 +68,6 @@ auf deinem eigenen Server betreibst.
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office oder sevDesk übernehmen, DATEV-Export archivieren
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
   Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
-- **Für GmbH und UG**: Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung mit
-  Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
-  Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://haben.app/gmbh.html)
 
 ## Funktionen
 
@@ -277,22 +274,17 @@ Wir prüfen automatisiert, und du kannst es auch: Der Code ist offen. Ein unabh�
 <details>
 <summary><b>Wird Haben mit KI entwickelt?</b></summary>
 
-Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
-
-- **Fehlerklassen ausgeschlossen:** Beträge nur in ganzen Cent, Festschreibung per Datenbank-Trigger, die auch fehlerhafter Code nicht umgehen kann.
-- **Tests für jede Änderung:** Vitest, Postgres und Playwright; ein Bugfix beginnt mit einem Test, der fehlschlägt. E-Rechnungen prüft der KoSIT-Validator in der CI.
-- **Regeln als Skript:** Modulgrenzen, Dateigröße und die Regeln für Pull Requests prüft die CI, nicht nur der Text.
-- **Review mit Beweis:** Ein zweiter, unabhängiger Agent reviewt jeden Pull Request und darf einen Fehler nur melden, wenn ein Test ihn rot zeigt. Gemergt wird von einem Menschen.
-
-Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Wie das abläuft, an einem echten Beispiel: [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
+Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft: Jede Änderung bringt Tests mit, frische Agenten
+reviewen sie und melden nur, was ein fehlschlagender Test belegt, und gemergt wird von einem Menschen. Die fachliche
+Prüfung durch eine Steuerberatung ersetzt das nicht. Wie das abläuft, an einem echten Beispiel:
+[Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
 </details>
 
 ## Dokumentation
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify), [Backup und Updates](https://haben.app/installation-backup.html),
-  [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten),
+- **Einstieg:** [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten),
   [ELSTER einrichten](https://haben.app/einrichtung-elster.html) (Zertifikat und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
@@ -314,6 +306,15 @@ Migrationen und Dev-Server mit Neuladen beim Speichern
 ([Mit Docker Compose](https://haben.app/entwicklung.html#mit-docker-compose)).
 
 Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere [Entwicklung](https://haben.app/entwicklung.html).
+
+| Paket | Inhalt |
+|---|---|
+| `apps/web` | Oberfläche, Server Functions, Datenbank, Anmeldung |
+| `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
+| `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
+| `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
+| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, Commerzbank, C24, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
+| `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
 
 ## Mehr von uns
 
