@@ -51,7 +51,7 @@ function SourceLink({ entry }: { entry: Entry }) {
   // Verrechnung zweier Belege (#786): je Belegseite eine Buchung, der Link führt auf ihren Beleg
   if (entry.sourceType === "verrechnung" && entry.documentId)
     return (
-      <Link to="/belege/$id" params={{ id: entry.documentId }} className="pill">
+      <Link to="/belege/$id" params={{ id: entry.documentId }} className="journal-source">
         {label}
       </Link>
     );
