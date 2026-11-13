@@ -227,7 +227,7 @@ Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, w
 
 ### Bilder für README und Doku
 
-Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; `bun run docs:screenshots` startet nur diese beiden Dateien, nicht die ganze Suite. Ohne `DOKU_SCREENSHOTS=1` überspringt sich die Spec, die CI wird also nicht langsamer. Jedes Bild entsteht in Wald hell und dunkel (`screenshot-<name>-dunkel.png`); die README wählt per `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark`. Die Hinweise zur Einrichtung von ERiC und Hersteller-ID blendet die Spec aus, damit die Bilder Haben eingerichtet zeigen.
+Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; `bun run docs:screenshots` startet nur diese beiden Dateien, nicht die ganze Suite. Ohne `DOKU_SCREENSHOTS=1` überspringt sich die Spec, die CI wird also nicht langsamer. Jedes Bild entsteht in Wald hell und dunkel (`screenshot-<name>-dunkel.png`), mit Kante, Schatten oder Schein und transparentem Rand im Bild (`e2e/bildrahmen.ts`), weil GitHub kein CSS annimmt; die README wählt per `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark`. Die Hinweise zur Einrichtung von ERiC und Hersteller-ID blendet die Spec aus, damit die Bilder Haben eingerichtet zeigen.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots

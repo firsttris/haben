@@ -73,3 +73,16 @@
 .showcase-cards.showcase-cards--drei {
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }
+/* Dunkles Schema: ein schwarzer Schatten verschwindet auf dem dunklen Grund, deshalb eine feine helle Kante und ein
+   weicher Schein wie um das Zeichen der Firma in der App (.brand-mark-kante) */
+[data-md-color-scheme="slate"] .md-typeset img {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .16), 0 0 20px 1px rgb(255 255 255 / .08);
+}
+/* Screenshots und Hero bringen Kante, Schatten oder Schein und Ecken im Bild mit, für GitHub
+   (apps/web/e2e/bildrahmen.ts); um sie kein zweiter Rahmen */
+.md-typeset img[src*="screenshot-"],
+.md-typeset img[src*="hero-"] {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}

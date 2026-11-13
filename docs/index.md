@@ -29,8 +29,8 @@ ohne Abo und ohne fremden Dienst, der jede Rechnung sieht.</p>
 </div>
 
 <div class="showcase-shot showcase-shot--hero" markdown>
-![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht.png#only-light){ width="1440" height="900" }
-![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht-dunkel.png#only-dark){ width="1440" height="900" }
+![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht.png#only-light){ width="1488" height="948" }
+![Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben](screenshot-uebersicht-dunkel.png#only-dark){ width="1488" height="948" }
 </div>
 
 <div class="showcase-feature" id="rundgang" markdown>
@@ -46,8 +46,8 @@ Rechnungen, Mahnungen und Versand per E-Mail gehören dazu.
 [Rechnungen und E-Rechnung](rechnungen.md)
 </div>
 <div class="showcase-shot" markdown>
-![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung.png#only-light){ width="1440" height="900" loading="lazy" }
-![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung.png#only-light){ width="1488" height="948" loading="lazy" }
+![Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts](screenshot-rechnung-dunkel.png#only-dark){ width="1488" height="948" loading="lazy" }
 </div>
 </div>
 
@@ -64,8 +64,8 @@ Du prüfst, wählst die Kategorie und buchst.
 [Belege](belege.md)
 </div>
 <div class="showcase-shot" markdown>
-![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege.png#only-light){ width="1440" height="900" loading="lazy" }
-![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege.png#only-light){ width="1488" height="948" loading="lazy" }
+![Gebuchte Mobilfunkrechnung der Funknetz Mobil GmbH: links das Original, rechts Lieferant, Kategorie und Beträge je Steuersatz](screenshot-belege-dunkel.png#only-dark){ width="1488" height="948" loading="lazy" }
 </div>
 </div>
 
@@ -82,8 +82,8 @@ Rechnungsnummer, IBAN, Name.
 [Bankimport und Abgleich](bank.md)
 </div>
 <div class="showcase-shot" markdown>
-![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank.png#only-light){ width="1440" height="900" loading="lazy" }
-![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank.png#only-light){ width="1488" height="948" loading="lazy" }
+![Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen](screenshot-bank-dunkel.png#only-dark){ width="1488" height="948" loading="lazy" }
 </div>
 </div>
 
@@ -99,8 +99,8 @@ Gesendet wird direkt per ERiC an ELSTER oder, ganz ohne Hersteller-ID, über Mei
 [Umsatzsteuer-Voranmeldung](umsatzsteuer.md)
 </div>
 <div class="showcase-shot" markdown>
-![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer.png#only-light){ width="1440" height="900" loading="lazy" }
-![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer.png#only-light){ width="1488" height="948" loading="lazy" }
+![Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER](screenshot-umsatzsteuer-dunkel.png#only-dark){ width="1488" height="948" loading="lazy" }
 </div>
 </div>
 
@@ -116,8 +116,8 @@ ganze Jahr als ZIP mit Prüfsummen – für die Aufbewahrung und für die Steuer
 [Auswertungen und Jahresexport](auswertungen.md)
 </div>
 <div class="showcase-shot" markdown>
-![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen.png#only-light){ width="1440" height="900" loading="lazy" }
-![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen-dunkel.png#only-dark){ width="1440" height="900" loading="lazy" }
+![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen.png#only-light){ width="1488" height="948" loading="lazy" }
+![Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm](screenshot-auswertungen-dunkel.png#only-dark){ width="1488" height="948" loading="lazy" }
 </div>
 </div>
 
@@ -135,8 +135,8 @@ auch per CSV.
 [Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
 </div>
 <div class="showcase-shot showcase-shot--crop" markdown>
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv.png#only-light){ width="1440" height="2918" loading="lazy" }
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv-dunkel.png#only-dark){ width="1440" height="2918" loading="lazy" }
+![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv.png#only-light){ width="1488" height="3059" loading="lazy" }
+![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv-dunkel.png#only-dark){ width="1488" height="3059" loading="lazy" }
 </div>
 </div>
 
@@ -152,8 +152,8 @@ teilst du direkt hinein, die Übersicht hast du unterwegs dabei.
 [Als App installieren](einrichtung.md#als-app-installieren)
 </div>
 <div class="showcase-phone" markdown>
-![Übersicht auf dem Smartphone](screenshot-mobil.png#only-light){ width="390" height="844" loading="lazy" }
-![Übersicht auf dem Smartphone](screenshot-mobil-dunkel.png#only-dark){ width="390" height="844" loading="lazy" }
+![Übersicht auf dem Smartphone](screenshot-mobil.png#only-light){ width="438" height="892" loading="lazy" }
+![Übersicht auf dem Smartphone](screenshot-mobil-dunkel.png#only-dark){ width="438" height="892" loading="lazy" }
 </div>
 </div>
 
