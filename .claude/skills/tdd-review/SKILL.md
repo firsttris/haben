@@ -23,7 +23,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 - Gesucht werden echte Fehler: falsche Logik, Randfälle (null, leer, Grenzwerte, Vorzeichen, Gutschriften), Fehlerbehandlung, Race Conditions, Sicherheitslücken, Regressionen gegenüber dem bisherigen Verhalten. Auch die anderen Stellen ansehen, die die geänderten Funktionen oder Daten nutzen.
 - Fachlich in Haben besonders: Buchungen in **SKR03 und SKR04**, **Ist und Soll**, **Einzelunternehmen und GmbH**; Abgleich Journal ↔ Voranmeldung/EÜR, E-Bilanz, DATEV-Export; GoBD-Sperren und Siegel; Geld in ganzen Cent. Hängt ein Detail an Steuerrecht oder einem Format, die Quelle nennen (`docs/entwicklung.md`, Konventionen, „Quellen statt Gedächtnis“).
 - Keine Anmerkungen zu Stil, Namen oder Geschmack.
-- **Markdown:** Ändert der Diff auch `*.md`, prüft derselbe Reviewer in derselben Runde diese Dateien nach `doku-pruefen`, jeden der Schritte 2 bis 6 einzeln: Stimmt es, ist es kurz, steht es einmal am richtigen Ort, Erzeugtes, Skills und `CLAUDE.md`. Ein Befund braucht dort keinen roten Test, sondern Zitat und Beleg (`doku-pruefen`, Einleitung); Schritt 2 hier gilt nur für Code.
+- **Markdown:** Ändert der Diff auch `*.md`, prüft derselbe Reviewer in derselben Runde diese Dateien nach `doku-pruefen`, jeden der Schritte 2 bis 6 einzeln: Stimmt es, ist es kurz, steht es einmal am richtigen Ort, Erzeugtes, Skills und `CLAUDE.md`. Ein Befund braucht dort keinen roten Test, sondern Zitat und Beleg (`doku-pruefen`, Einleitung); der rote Test aus Schritt 2 gilt nur für Code.
 
 ## 2. Jeden Verdacht mit einem Test beweisen
 
