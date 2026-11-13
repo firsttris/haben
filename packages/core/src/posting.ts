@@ -35,6 +35,8 @@ export const ACCOUNTS = {
     ustIge: { 1900: "1774", 700: "1772" },
     vorsteuerIge: { 1900: "1574", 700: "1572" },
     verbindlichkeiten: "1600",
+    /** DATEV SKR03 2026, Art.-Nr. 11174, S. 10: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
+    erhalteneAnzahlungen: "1710",
     privateinlagen: "1890",
     privatentnahmen: "1800",
     /** Spenden aus dem Betrieb, im Einzelunternehmen privat (Sonderausgabe, § 10b EStG); DATEV SKR03 1840 „Zuwendungen, Spenden“ */
@@ -83,6 +85,8 @@ export const ACCOUNTS = {
     ustIge: { 1900: "3804", 700: "3802" },
     vorsteuerIge: { 1900: "1404", 700: "1402" },
     verbindlichkeiten: "3300",
+    /** DATEV SKR04 2026, Art.-Nr. 11175, S. 11: Anzahlungen ohne AM-Funktion; Umsatzsteuer wird separat gebucht. */
+    erhalteneAnzahlungen: "3250",
     privateinlagen: "2180",
     privatentnahmen: "2100",
     /** DATEV SKR04 2250 „Zuwendungen, Spenden“ */
