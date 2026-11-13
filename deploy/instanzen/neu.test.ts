@@ -50,7 +50,7 @@ describe("neu", () => {
     const vorlage = readFileSync(join(VORLAGEN, "compose.env.example"), "utf8").split("\n");
     const neu = roh("firma1").split("\n");
     const geaendert = vorlage.slice(0, -1).flatMap((z, i) => (neu[i] === z ? [] : [neu[i]?.split("=")[0]]));
-    expect(geaendert.sort()).toEqual(["AUTH_SECRET", "DB_PASSWORD", "DOMAIN", "ENCRYPTION_KEY", "RESTIC_PASSWORD"]);
+    expect(geaendert.sort()).toEqual(["AUTH_SECRET", "DATABASE_URL", "DB_PASSWORD", "DOMAIN", "ENCRYPTION_KEY", "RESTIC_PASSWORD"]);
     // In der Vorlage fehlen COMPOSE_PROJECT_NAME und BACKUP_HOST; sie kommen am Ende dazu
     expect(neu.slice(vorlage.length - 1)).toEqual(["COMPOSE_PROJECT_NAME=haben-firma1", "BACKUP_HOST=haben-firma1", ""]);
   });
@@ -58,7 +58,7 @@ describe("neu", () => {
   it("startet den Proxy vor der Instanz, lädt ihn danach nur neu und nennt den Einrichtungscode", async () => {
     const erste = await t.lauf("neu", "firma1", "firma1.example.de");
     expect(erste.stdout).toContain("Einrichtungscode für https://x/setup: abcd-efgh");
-    expect(t.docker.aufrufe.filter((a) => a.includes(" up -d"))).toEqual(["proxy compose up -d", "firma1 compose up -d"]);
+    expect(t.docker.aufrufe.filter((a) => a.includes(" up -d"))).toEqual(["proxy compose up -d", "firma1 compose up -d --wait db", "firma1 compose up -d"]);
     t.docker.z.caddyLaeuft = true;
     await t.lauf("neu", "firma2", "firma2.example.de");
     expect(t.docker.aufrufe).toContain("proxy compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile");

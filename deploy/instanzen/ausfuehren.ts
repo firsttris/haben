@@ -16,6 +16,8 @@ export interface AusfuehrenOptionen {
   env: Record<string, string>;
   /** Ausgabe direkt im Terminal zeigen statt einzusammeln (Pull, Start, Backup); stdout und stderr bleiben dann leer */
   sichtbar?: boolean;
+  /** Text für die Standardeingabe des Befehls, etwa ein Passwort, das nicht in den Argumenten stehen soll */
+  eingabe?: string;
 }
 
 export type Ausfuehren = (befehl: string[], optionen: AusfuehrenOptionen) => Promise<Ergebnis>;
@@ -33,10 +35,11 @@ export function umgebungFuerDocker(shell: Record<string, string | undefined>): R
 }
 
 /** Ausfuehren mit Bun.spawn; fehlt das Programm, Code 127 wie in der Shell */
-export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar }) => {
+export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar, eingabe }) => {
+  const stdin = eingabe === undefined ? "ignore" : new TextEncoder().encode(eingabe);
   let prozess: Bun.Prozess;
   try {
-    prozess = Bun.spawn(befehl, { cwd, env, stdin: "ignore", stdout: sichtbar ? "inherit" : "pipe", stderr: sichtbar ? "inherit" : "pipe" });
+    prozess = Bun.spawn(befehl, { cwd, env, stdin, stdout: sichtbar ? "inherit" : "pipe", stderr: sichtbar ? "inherit" : "pipe" });
   } catch (error) {
     return { code: 127, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
   }
@@ -46,8 +49,8 @@ export const bunAusfuehren: Ausfuehren = async (befehl, { cwd, env, sichtbar }) 
 };
 
 /** docker compose im Verzeichnis einer Instanz: Compose liest dort compose.yml, die Override-Datei und .env */
-export function compose(k: Kontext, dir: string, args: string[], sichtbar = false): Promise<Ergebnis> {
-  return k.ausfuehren(["docker", "compose", ...args], { cwd: dir, env: umgebungFuerDocker(k.shell), sichtbar });
+export function compose(k: Kontext, dir: string, args: string[], sichtbar = false, eingabe?: string): Promise<Ergebnis> {
+  return k.ausfuehren(["docker", "compose", ...args], { cwd: dir, env: umgebungFuerDocker(k.shell), sichtbar, eingabe });
 }
 
 /** docker ohne Projekt (Volumes, Netze, Liste der Projekte); im Wurzelverzeichnis, damit keine compose.yml mitliest */

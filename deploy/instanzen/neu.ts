@@ -5,7 +5,7 @@
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { compose, docker } from "./ausfuehren.ts";
-import { envSchreiben, envSetzen } from "./env-datei.ts";
+import { envSchreiben, envSetzen, envWerte } from "./env-datei.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
 import { caddyBlock, NETZ, proxyEintragen, proxyStarten } from "./proxy.ts";
 import { type NeuAngaben, pruefeAngaben, pruefeTrennung } from "./pruefen.ts";
@@ -18,6 +18,10 @@ function zufall(bytes: number): Uint8Array {
 const hex = (bytes: number) => Buffer.from(zufall(bytes)).toString("hex");
 const base64 = (bytes: number) => Buffer.from(zufall(bytes)).toString("base64");
 
+/** Rolle des laufenden Servers; Eigentümer und Migrationen bleiben bei haben (docs/installation-konfiguration.md) */
+const APP_ROLLE = "haben_app";
+const CREATEUSER = ["createuser", "-U", "haben", "--login", "--no-superuser", "--no-createdb", "--no-createrole", "--pwprompt", APP_ROLLE];
+
 /** Die .env aus compose.env.example mit eigenen Zufallswerten und Namen dieser Instanz */
 export function envFuer(vorlage: string, a: NeuAngaben): string {
   const projekt = `haben-${a.name}`;
@@ -26,6 +30,8 @@ export function envFuer(vorlage: string, a: NeuAngaben): string {
     ["DOMAIN", a.domain],
     // Wie in compose.env.example: openssl rand -hex 24 bzw. -base64 32
     ["DB_PASSWORD", hex(24)],
+    // Eigenes Passwort der App-Rolle statt des Platzhalters der Vorlage; MIGRATION_DATABASE_URL bleibt, wie sie ist
+    ["DATABASE_URL", `postgres://${APP_ROLLE}:${hex(24)}@db:5432/haben`],
     ["AUTH_SECRET", base64(32)],
     ["ENCRYPTION_KEY", base64(32)],
     ["RESTIC_PASSWORD", base64(32)],
@@ -85,11 +91,27 @@ async function anlegen(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
   }
 }
 
+/**
+ * Die App-Rolle muss es geben, bevor die App startet: Der Start legt keine Rolle an. Das Passwort steht in
+ * DATABASE_URL der .env und geht über die Standardeingabe an createuser (--pwprompt fragt zweimal), nicht als
+ * Argument.
+ */
+async function appRolleAnlegen(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
+  const url = envWerte(await readFile(join(dir, ".env"), "utf8")).get("DATABASE_URL") ?? "";
+  const passwort = URL.canParse(url) ? new URL(url).password : "";
+  if (passwort === "") abbrechen(`In ${dir}/.env fehlt das Passwort der App-Rolle in DATABASE_URL.`);
+  if ((await compose(k, dir, ["up", "-d", "--wait", "db"], true)).code !== 0)
+    abbrechen(`Die Datenbank von ${a.name} ließ sich nicht starten; siehe: cd ${dir} && docker compose logs db`);
+  if ((await compose(k, dir, ["exec", "-T", "db", ...CREATEUSER], false, `${passwort}\n${passwort}\n`)).code !== 0)
+    abbrechen(`Die App-Rolle ${APP_ROLLE} von ${a.name} ließ sich nicht anlegen; die App ist nicht gestartet. Siehe: cd ${dir} && docker compose logs db`);
+}
+
 async function starten(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
   if (a.eigenerProxy) {
     if ((await docker(k, ["network", "inspect", NETZ])).code !== 0 && (await docker(k, ["network", "create", NETZ])).code !== 0)
       abbrechen(`Das Netz ${NETZ} ließ sich nicht anlegen.`);
   } else await proxyStarten(k);
+  await appRolleAnlegen(k, a, dir);
   if ((await compose(k, dir, ["up", "-d"], true)).code !== 0)
     abbrechen(`Die Instanz ${a.name} ließ sich nicht starten; siehe: cd ${dir} && docker compose logs`);
   if (!(await wartenAufApp(k, dir))) abbrechen(`Die App von ${a.name} ist nicht gesund geworden; siehe: cd ${dir} && docker compose logs app`);
@@ -113,11 +135,14 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
     k.aus("");
     k.aus(`Im Anmeldedienst: Gruppen haben-${a.name}-inhaber und haben-${a.name}-steuerberatung anlegen, Client ${a.sso.clientId} mit`);
     k.aus(`  redirect_uris: [https://${a.domain}/api/auth/callback/oidc]`);
-    k.aus("(vollständiges Beispiel für Authelia: docs/installation.md, „Authelia konfigurieren“).");
+    k.aus("(vollständiges Beispiel für Authelia: docs/installation-sso.md, „Authelia konfigurieren“).");
   }
 
   if (!a.starten) {
-    k.aus(`Nicht gestartet (--nicht-starten). Später: cd ${dir} && docker compose up -d`);
+    k.aus(`Nicht gestartet (--nicht-starten). Vor dem ersten Start die App-Rolle anlegen, mit dem Passwort aus DATABASE_URL in ${dir}/.env:`);
+    k.aus(`  cd ${dir} && docker compose up -d --wait db`);
+    k.aus(`  docker compose exec db ${CREATEUSER.join(" ")}`);
+    k.aus("  docker compose up -d");
     return;
   }
   await starten(k, a, dir);

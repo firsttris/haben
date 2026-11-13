@@ -29,7 +29,11 @@ it("setzt je Instanz ein eigenes Passwort der App-Rolle statt des Platzhalters d
   expect(appPasswort("firma1")).not.toBe(appPasswort("firma2"));
   expect(appPasswort("firma1")).not.toBe(env("firma1").get("DB_PASSWORD"));
   // Der Eigentümerzugang für Migrationen bleibt, wie die Vorlage ihn schreibt
-  expect(roh("firma1")).toContain("\nMIGRATION_DATABASE_URL=postgres://haben:${DB_PASSWORD}@db:5432/haben\n");
+  const migration = readFileSync(join(VORLAGEN, "compose.env.example"), "utf8")
+    .split("\n")
+    .filter((z) => z.startsWith("MIGRATION_DATABASE_URL=postgres://haben:"));
+  expect(migration).toHaveLength(1);
+  expect(roh("firma1").split("\n")).toContain(migration[0]);
 });
 
 it("startet erst die Datenbank, legt die App-Rolle an und startet dann die App; das Passwort geht nur über die Standardeingabe", async () => {

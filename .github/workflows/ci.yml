@@ -333,6 +333,9 @@ jobs:
             "INSERT INTO documents (sha256, filename, mime_type, size, net, tax, gross) VALUES ('$sha', 'beleg.pdf', 'application/pdf', 6, 0, 0, 0)")
           test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -Atc 'SELECT count(*) FROM documents')" = 1
           test "$(cd "$HABEN_INSTANZEN/firma2" && docker compose exec -T db psql -U haben -d haben -Atc 'SELECT count(*) FROM documents')" = 0
+          # Die App läuft als eingeschränkte Rolle haben_app, nicht als Eigentümer (#816)
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app sh -c 'case "$DATABASE_URL" in postgres://haben_app:*) ;; *) exit 1 ;; esac')
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -Atc "SELECT count(*) FROM pg_roles WHERE rolname = 'haben_app' AND NOT rolsuper")" = 1
           # Ein Proxy im Netz haben-proxy erreicht jede App unter ihrem eigenen Namen
           for n in firma1 firma2; do
             docker run --rm --network haben-proxy --entrypoint bun haben:ci \

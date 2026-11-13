@@ -33,6 +33,11 @@ describe("bunAusfuehren", () => {
     }
   });
 
+  it("gibt eingabe an die Standardeingabe des Befehls und schließt sie danach", async () => {
+    const r = await bunAusfuehren(["/bin/cat"], { cwd: "/", env: {}, eingabe: "ge$heim\nge$heim\n" });
+    expect(r).toEqual({ code: 0, stdout: "ge$heim\nge$heim\n", stderr: "" });
+  });
+
   it("meldet ein fehlendes Programm mit Code 127", async () => {
     expect((await bunAusfuehren(["haben-gibt-es-nicht"], { cwd: "/", env: { PATH: "/nirgends" } })).code).toBe(127);
   });

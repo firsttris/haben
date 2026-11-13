@@ -14,7 +14,7 @@ declare namespace Bun {
     optionen: {
       cwd: string;
       env: Record<string, string>;
-      stdin: "ignore";
+      stdin: "ignore" | Uint8Array;
       stdout: "pipe" | "inherit";
       stderr: "pipe" | "inherit";
     },
