@@ -192,6 +192,7 @@ export function otherDatevExportName(bytes: Uint8Array): string | null {
   // Vollständig dekodieren: Eine Bytegrenze kann UTF-8 teilen und den Windows-1252-Fallback auslösen (RFC 3629 § 3).
   // https://www.rfc-editor.org/rfc/rfc3629#section-3
   // Nur den ersten CSV-Datensatz lesen; Zeilenumbrüche in einem zitierten Feld gehören noch zur Kopfzeile.
+  // https://www.rfc-editor.org/rfc/rfc4180#section-2
   const fields = splitLines(stripBom(decodeText(bytes)), 1)[0]?.fields ?? [];
   const category = (fields[2] ?? "").trim();
   if (!/^\d+$/.test(category) || Number(category) === BUCHUNGSSTAPEL) return null;
