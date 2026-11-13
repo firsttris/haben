@@ -233,7 +233,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungsart Lastschrift an Rechnung und Vorla
     });
     await recurring.runDueRecurring("2026-11-02");
     // Der Kunde unterschreibt am 20.11. ein neues Mandat; „der nächste Lauf holt den Termin nach, sobald ein Mandat da ist“
-    // (docs/rechnungen.md, Lastschrift)
+    // (docs/rechnungen-zahlung.md, Lastschrift)
     const neu = await mandates.createMandate(
       actor,
       contactId,

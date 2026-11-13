@@ -221,7 +221,7 @@ Zugeordnet wird wie immer erst mit **Zuordnen**. Wurde mit Skonto überwiesen, b
 
 ### Lastschriften aus Haben
 
-Für Rechnungen mit Zahlungsart [Lastschrift](rechnungen.md#lastschrift) erzeugt Haben eine [Sammeldatei](rechnungen.md#sammeldatei-für-die-bank). Jede Lastschrift darin trägt eine eigene Referenz (EndToEndId, `HABEN-…`), jeder Sammler eine Kennung (PmtInfId).
+Für Rechnungen mit Zahlungsart [Lastschrift](rechnungen-zahlung.md#lastschrift) erzeugt Haben eine [Sammeldatei](rechnungen-zahlung.md#sammeldatei-für-die-bank). Jede Lastschrift darin trägt eine eigene Referenz (EndToEndId, `HABEN-…`), jeder Sammler eine Kennung (PmtInfId).
 
 **Sammelgutschrift.** Die Bank schreibt jeden Sammler als eine Summe gut. Liefert der Auszug Einzelangaben (CAMT.053 mit `TxDtls`), zerlegt der Import die Summe schon in Einzelumsätze; jeder findet seine Rechnung über die Referenz wie unter [Überweisungen aus Haben](#überweisungen-aus-haben). Bleibt es eine Summe (etwa im CSV-Export der DKB), erkennt Haben sie am Betrag: Ergeben die noch nicht gutgeschriebenen Lastschriften eines Sammlers, oder alle Sammler desselben Einzugstags aus einer Datei, genau den Betrag, und liegt die Buchung zwischen einem Tag vor und 30 Tagen nach dem Einzugstag, steht rechts **Sammler einer Lastschriftdatei** mit den Rechnungen. **Auf … Rechnungen aufteilen** bucht jede Rechnung mit ihrem Betrag als Zahlung, als [Aufteilung](#aufteilen-splitbuchung).
 
@@ -229,7 +229,7 @@ Für Rechnungen mit Zahlungsart [Lastschrift](rechnungen.md#lastschrift) erzeugt
 
 **Rechnung wieder öffnen** bucht den Betrag als negative Zahlung auf die Rechnung und das Entgelt als Kontoführung und Bankgebühren; beides ist eine Aufteilung und lässt sich nur zusammen aufheben. Die Sammelgutschrift davor hebst du erst auf, wenn die Rücklastschrift aufgehoben ist; sonst stünde die Rechnung doppelt offen. Die Steuerbehandlung bleibt die des Rechnungsjahres, auch nach einem [Wechsel zwischen Ist und Soll](buchhaltung.md#ist--und-soll-versteuerung): Eine vorher nach Soll versteuerte Rechnung ändert durch die Rücklastschrift und erneute Zahlung allein keine Umsatzsteuer. Bei einer vorher nach Ist versteuerten Rechnung mindert die Rücklastschrift die Steuer; die erneute Zahlung meldet sie wieder. Eine tatsächliche Uneinbringlichkeit wird gesondert als Forderungsausfall behandelt ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Auch Skonto und Barzahlungen behalten das Verfahren der Rechnung. Beim Aufheben einer Zuordnung wird ihre ursprüngliche Buchung mit unveränderter Steuerbehandlung gegengebucht.
 
-Die Rechnung ist wieder offen und steht unter **Lastschriften** zum erneuten Einzug (jetzt als Folgelastschrift), solange das Mandat gilt. Die Rückgabe zählt für den Verfall des Mandats wie ein Einzug (Rulebook Kap. 4.2: „even if rejected, returned or refunded“). Ob du das Entgelt beim Kunden einforderst, entscheidest du; dafür gibt es die [Mahnung](rechnungen.md#mahnwesen) mit Gebühr.
+Die Rechnung ist wieder offen und steht unter **Lastschriften** zum erneuten Einzug (jetzt als Folgelastschrift), solange das Mandat gilt. Die Rückgabe zählt für den Verfall des Mandats wie ein Einzug (Rulebook Kap. 4.2: „even if rejected, returned or refunded“). Ob du das Entgelt beim Kunden einforderst, entscheidest du; dafür gibt es die [Mahnung](rechnungen-zahlung.md#mahnwesen) mit Gebühr.
 
 ## Zuordnen
 
@@ -289,7 +289,7 @@ Einen Forderungsausfall ohne Zahlung, etwa bei Insolvenz des Kunden, buchst du a
 
 ### Skonto auf eigene Rechnungen
 
-Steht auf deiner Rechnung [Skonto](rechnungen.md#skonto), rechnet Haben für jede Stufe den Zahlbetrag aus. Geht bis zum letzten Tag einer Frist (Buchungsdatum des Umsatzes) genau dieser Betrag ein – endet die Frist an einem Samstag, Sonntag oder Feiertag, auch noch am nächsten Werktag (§ 193 BGB, Feiertage des Bundeslands aus den Firmendaten wie beim Zahlungsziel) –, schlägt Haben die Rechnung vor wie bei einem exakten Betrag, mit der Begründung „Betrag stimmt mit 2 % Skonto (95,20 €), in der Frist“. Der Knopf heißt dann **Zuordnen, Rest 95,20 € als Skonto**: Ein Klick (oder Enter) ordnet die Zahlung zu und bucht den Rest als gewährtes Skonto aus. Die Rechnung ist danach „Bezahlt“.
+Steht auf deiner Rechnung [Skonto](rechnungen-zahlung.md#skonto), rechnet Haben für jede Stufe den Zahlbetrag aus. Geht bis zum letzten Tag einer Frist (Buchungsdatum des Umsatzes) genau dieser Betrag ein – endet die Frist an einem Samstag, Sonntag oder Feiertag, auch noch am nächsten Werktag (§ 193 BGB, Feiertage des Bundeslands aus den Firmendaten wie beim Zahlungsziel) –, schlägt Haben die Rechnung vor wie bei einem exakten Betrag, mit der Begründung „Betrag stimmt mit 2 % Skonto (95,20 €), in der Frist“. Der Knopf heißt dann **Zuordnen, Rest 95,20 € als Skonto**: Ein Klick (oder Enter) ordnet die Zahlung zu und bucht den Rest als gewährtes Skonto aus. Die Rechnung ist danach „Bezahlt“.
 
 Das gilt nur, solange die Rechnung noch ganz offen ist, und nur für Rechnungen in Euro. Kommt die Zahlung nach der Frist oder mit einem anderen Betrag, ist sie ein Teilbetrag; willst du das Skonto trotzdem gewähren, nimmst du **Rest … als Skonto** von Hand.
 

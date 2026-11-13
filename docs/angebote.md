@@ -15,7 +15,7 @@ Einleitung, Texte zu Positionen und Hinweis unterstützen [fett, kursiv und unte
 
 **Neues Angebot** öffnet den Editor:
 
-- Kunde und, wenn er Personen hat, ein [Ansprechpartner](rechnungen.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein)
+- Kunde und, wenn er Personen hat, ein [Ansprechpartner](kontakte.md#ansprechpartner) („z. Hd.“ im PDF und in Auftragsbestätigung und Lieferschein)
 - Angebotsdatum
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
