@@ -59,7 +59,9 @@ services:
       # Coolify vergibt die Domain und leitet sie mit HTTPS an Port 3000; Passkeys hängen an ihr, später nicht mehr ändern
       - SERVICE_URL_APP_3000
       - BETTER_AUTH_URL=${SERVICE_URL_APP}
-      - DATABASE_URL=postgres://haben:${SERVICE_HEX_64_POSTGRES}@db:5432/haben
+      # Optional: getrennte App- und Eigentümerzugänge (docs/coolify.md); ohne Vorgabe bleibt der bisherige Zugang.
+      - DATABASE_URL=${DATABASE_URL:-postgres://haben:${SERVICE_HEX_64_POSTGRES}@db:5432/haben}
+      - MIGRATION_DATABASE_URL=${MIGRATION_DATABASE_URL:-}
       - BETTER_AUTH_SECRET=${SERVICE_HEX_64_AUTH}
       # 32 Byte base64; zusätzlich im Passwortmanager sichern, ohne ihn sind ELSTER-Zertifikat und Zugangsdaten nach
       # einer Wiederherstellung verloren

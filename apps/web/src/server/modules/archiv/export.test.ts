@@ -141,6 +141,22 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const [submission] = await sql`select id from vat_return_submissions`;
     vatSubmissionPrefix = String(submission!.id).slice(0, 8);
 
+    // Eine Buchung aus dem Datenimport: ihre Herkunft „import“ muss in der Spalte Quelle als Name stehen
+    const ledger = await import("../buchhaltung/ledger.ts");
+    const { db } = await import("../../db/index.ts");
+    await db.transaction(async (tx) => {
+      await ledger.post(tx, await ledger.openBooks(tx), {
+        date: "2026-08-01",
+        description: "Übernommene Buchung aus der Vorsoftware",
+        sourceType: "import",
+        sourceId: crypto.randomUUID(),
+        lines: [
+          { account: "1200", debit: 100_000, credit: 0, taxCode: null },
+          { account: "8400", debit: 0, credit: 100_000, taxCode: null },
+        ],
+      });
+    });
+
     const chunks: Uint8Array[] = [];
     for await (const chunk of exporter.exportYear(2026, new Date("2026-10-02T10:00:00Z"))) chunks.push(chunk);
     files = unzipSync(Buffer.concat(chunks));
@@ -226,6 +242,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(belege).toContain(`${sha256(JPEG)};quittung foto.jpg;2026-09-29_Mueller-Buero-GmbH-Filiale_${documentId.slice(0, 8)}.jpg`);
 
     const journal = text(files["buchungen/journal.csv"]);
+    // Die Herkunft „import“ nennt ihren Namen; der rohe Enum-Wert darf nicht in der Spalte Quelle stehen
+    expect(journal).toContain(";Übernommene Buchung aus der Vorsoftware;Import;");
+    expect(journal).not.toContain(";Übernommene Buchung aus der Vorsoftware;import;");
     expect(journal).toContain(";1400;Forderungen aus Lieferungen und Leistungen;4760,00;;");
     expect(journal).toContain(";4920;Telefon;38,57;;VSt19;");
     // Nur Buchungen des Jahres: die erste Spalte ist das Datum. Nicht über den ganzen Text prüfen, zufällige UUIDs

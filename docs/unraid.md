@@ -57,6 +57,11 @@ Unter **Docker › Add Container** die Vorlagen in dieser Reihenfolge wählen, a
 
 Weitere Einstellungen wie ERiC oder die KI-Auslesung stehen in `haben` unter **Show more settings**.
 
+Für [getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) legst du die App-Rolle vorher selbst an und
+setzt in `haben` `DATABASE_URL` auf den App-Zugang. Unter **Show more settings** trägst du bei „Migrationsdatenbank“
+(`MIGRATION_DATABASE_URL`) den Eigentümerzugang zur selben Datenbank ein. Wer den bisherigen Datenbankzugang beibehält,
+lässt dieses zusätzliche Feld leer.
+
 ## Reverse Proxy
 
 Der Proxy leitet deine Domain an `haben` weiter: an `haben:3000`, wenn er im Netzwerk `haben` hängt, sonst an

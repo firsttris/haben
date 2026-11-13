@@ -10,7 +10,7 @@ description: >-
 Haben läuft auf einer Synology im Container Manager als Projekt aus einer einzigen Datei,
 [`deploy/synology/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/synology/compose.yml). Du änderst darin
 eine Zeile, die Adresse. Die Schlüssel erzeugt das Projekt beim ersten Start selbst, HTTPS übernimmt der Reverse Proxy von
-DSM. Eine Kommandozeile brauchst du dafür nicht, nur zum Wiederherstellen eines Backups.
+DSM. Für die Grundeinrichtung brauchst du keine Kommandozeile.
 
 Gestartet werden dieselben Images wie mit [Docker Compose](installation.md#docker-compose): App, Datenbank und das
 tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
@@ -47,6 +47,11 @@ Haben bekommt so eine eigene Subdomain, etwa `https://haben.deinname.synology.me
    `BETTER_AUTH_URL: https://haben.deinname.synology.me`.
 4. Die Webportal-Einstellungen überspringen, „Projekt nach der Erstellung starten“ anhaken und fertigstellen. Der erste
    Start lädt die Images, das dauert ein paar Minuten.
+
+Optional kannst du mit der Kommandozeile [getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) einrichten.
+Lege die App-Rolle vorher selbst an und trage unter `app.environment` `DATABASE_URL` für den App-Zugang und
+`MIGRATION_DATABASE_URL` für den Eigentümerzugang zur selben Datenbank ein. Der bisherige Eigentümerzugang verwendet das
+erzeugte `db-passwort` aus dem Volume `schluessel`. Bleiben beide Werte leer, startet Haben unverändert mit diesem Zugang.
 
 ## Schlüssel sichern
 

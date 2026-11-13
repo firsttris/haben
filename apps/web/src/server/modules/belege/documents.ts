@@ -31,6 +31,7 @@ import {
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
+import { documentOwnAccountProblems, loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { contactRoleProblem, loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { isReadOnly, withActor } from "../../db/actor.ts";
@@ -66,6 +67,8 @@ export const documentInputSchema = z.object({
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
+  /** Eigenes Sachkonto (#270) der Kategorie; fehlt = das Konto der Kategorie. Mit Aufteilung stehen die Konten in den Zeilen */
+  ownAccountId: z.uuid().nullable().default(null),
   payment: z.enum(["bank", "privat", "kasse"]),
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
@@ -247,6 +250,8 @@ async function applyFields(
         currency: fields.currency,
         ...rate,
         category,
+        // Die Kategorie gilt neu: ein eigenes Konto der alten passt nicht mehr
+        ownAccountId: null,
         ...(payment ? { payment } : {}),
         privateShare,
         ...totalsOf(amounts, doc.reverseCharge),
@@ -272,6 +277,7 @@ async function applyOwnInvoiceHint(actor: string, id: string, verdict: OwnInvoic
       .update(schema.documents)
       .set({
         category: null,
+        ownAccountId: null,
         privateShare: 0,
         extractionStatus: "fertig",
         extractionError: hint,
@@ -482,6 +488,11 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
       const problem = await contactRoleProblem(tx, parsed.supplierContactId, "lieferant", "Lieferant nicht gefunden.");
       if (problem) throw new DocumentError(problem);
     }
+    // Eigene Sachkonten (#270): am Beleg oder je Zeile, passend zur Kategorie; ein archiviertes nur, wenn schon gewählt
+    const beleg = parsed.splits.length > 0 ? { ownAccountId: null, category: null } : parsed;
+    const bisher = { beleg: previous.ownAccountId, zeilen: (await loadSplits(id, tx)).map((s) => s.ownAccountId) };
+    const [kontoProblem] = await documentOwnAccountProblems(tx, beleg, parsed.splits, bisher);
+    if (kontoProblem) throw new DocumentError(kontoProblem);
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
@@ -492,12 +503,14 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     await replaceSplits(tx, id, parsed.splits, amounts);
     const { amounts: _amounts, splits, asset, ...fields } = parsed;
     const category = splits.length > 0 ? null : fields.category;
+    const ownAccountId = splits.length > 0 ? null : fields.ownAccountId;
     await tx
       .update(schema.documents)
       .set({
         ...fields,
         ...rate,
         category,
+        ownAccountId,
         asset: category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
         ...totalsOf(amounts, fields.reverseCharge),
@@ -678,6 +691,9 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, !company.kleinunternehmer, doc.privateShare, doc.reverseCharge));
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
+  // Eigene Sachkonten (#270): Kontenrahmen oder Kategorie können sich seit dem Speichern geändert haben; das Konto selbst darf archiviert sein
+  const gespeichert = { beleg: doc.ownAccountId, zeilen: splits.map((s) => s.ownAccountId) };
+  issues.push(...(await documentOwnAccountProblems(tx, doc, splits, gespeichert)).map((p) => p.replace(/.$/, "")));
   if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
@@ -689,7 +705,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
     throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
   }
   const asset = doc.category === "anlage" ? doc.asset : null;
-  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug);
+  const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug, await loadOwnAccountNumbers(tx));
   const now = new Date();
   const entryId = await post(tx, company, {
     date: doc.documentDate!,

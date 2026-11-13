@@ -1541,6 +1541,13 @@
       "when": 1794524285491,
       "tag": "0219_grundstuecksleistung_aufbewahrung",
       "breakpoints": true
+    },
+    {
+      "idx": 220,
+      "version": "7",
+      "when": 1794555341075,
+      "tag": "0220_eigene_konten_belege",
+      "breakpoints": true
     }
   ]
 }

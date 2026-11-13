@@ -33,7 +33,7 @@ Für den laufenden Betrieb gibt es eigene Seiten:
 
 | Seite | Inhalt |
 | --- | --- |
-| <a id="umgebungsvariablen"></a><a id="datenablage"></a>[Konfiguration](installation-konfiguration.md) | Alle Umgebungsvariablen, wo Datenbank, Belege und ERiC liegen |
+| <a id="getrennte-datenbankrollen"></a><a id="umgebungsvariablen"></a><a id="datenablage"></a>[Konfiguration](installation-konfiguration.md) | Getrennte Datenbankrollen, alle Umgebungsvariablen, wo Datenbank, Belege und ERiC liegen |
 | <a id="backup-und-wiederherstellen"></a><a id="repository-auf-einem-zweiten-system"></a><a id="wiederherstellen"></a><a id="updates"></a><a id="postgresql-update"></a>[Backup und Updates](installation-backup.md) | Tägliches Backup, zweites System, Test-Restore, Wiederherstellen, Updates, PostgreSQL-Update |
 | <a id="eric-einbinden"></a><a id="elster-auf-arm64"></a><a id="ki-auslesung-anthropic"></a><a id="ki-auslesung-über-openai-kompatible-schnittstelle"></a><a id="kontoabruf-enable-banking"></a><a id="lexware-office-api"></a>[Anbindungen](installation-anbindungen.md) | ERiC (auch auf arm64), KI-Auslesung mit Anthropic oder einem eigenen Dienst, Kontoabruf, Lexware-Office-API |
 | <a id="single-sign-on-mit-openid-connect"></a>[Single Sign-on](installation-sso.md) | Anmeldung über OpenID Connect mit Rollen aus Gruppen |
@@ -93,6 +93,8 @@ In `.env` trägst du ein:
 | --- | --- |
 | `DOMAIN` | Domain ohne `https://`, z. B. `haben.example.de`. Caddy holt dafür das Zertifikat, die App nutzt `https://DOMAIN` als `BETTER_AUTH_URL` |
 | `DB_PASSWORD` | Datenbank-Passwort, nur Buchstaben und Ziffern, weil es in der Verbindungs-URL steht: `openssl rand -hex 24` |
+| `DATABASE_URL` | App-Verbindung aus der Vorlage: `APP_PASSWORT_EINTRAGEN` durch ein zweites Passwort (`openssl rand -hex 24`) ersetzen |
+| `MIGRATION_DATABASE_URL` | Eigentümerverbindung aus der Vorlage; `${DB_PASSWORD}` übernimmt Compose aus der Zeile darüber |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
@@ -102,6 +104,9 @@ In `.env` trägst du ein:
 | `OIDC_ONLY`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, `OIDC_DISPLAY_NAME`, `OIDC_GROUPS_CLAIM`, `OIDC_GROUP_INHABER`, `OIDC_GROUP_STEUERBERATUNG` | nur für den SSO-Modus, siehe [Single Sign-on mit OpenID Connect](installation-sso.md) |
 
 ```sh
+docker compose up -d --wait db
+docker compose exec db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+# Zweimal das App-Passwort aus DATABASE_URL eingeben; die Rolle nur einmal anlegen.
 docker compose up -d
 docker compose logs -f app   # „Migrationen angewendet“, „Einrichtungscode …“, dann „Listening on …“
 ```
@@ -142,7 +147,10 @@ Zugangsdaten liegen nicht in `haben.env`, sondern als Podman Secrets. Die Quadle
 ```sh
 DBPW="$(openssl rand -hex 24)"
 printf '%s' "$DBPW" | podman secret create haben-db-password -
-printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-database-url -
+printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-migration-database-url -
+APPPW="$(systemd-ask-password 'Passwort der App-Datenbankrolle haben_app')"
+printf 'postgres://haben_app:%s@haben-db:5432/haben' "$APPPW" | podman secret create haben-database-url -
+unset DBPW APPPW
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-auth-secret -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-password -
@@ -151,7 +159,8 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-passwor
 | Secret | Variable im Container | Inhalt |
 | --- | --- | --- |
 | `haben-db-password` | `POSTGRES_PASSWORD` (in `haben-db`) | Passwort des Datenbanknutzers `haben` |
-| `haben-database-url` | `DATABASE_URL` | Verbindung zur Datenbank, Passwort wie oben |
+| `haben-database-url` | `DATABASE_URL` | App-Verbindung als `haben_app`, eigenes Passwort |
+| `haben-migration-database-url` | `MIGRATION_DATABASE_URL` | Eigentümerverbindung als `haben`, Passwort wie `haben-db-password` |
 | `haben-auth-secret` | `BETTER_AUTH_SECRET` | Signiert die Sitzungen |
 | `haben-encryption-key` | `HABEN_ENCRYPTION_KEY` | Schlüssel für ELSTER-Zertifikat und die API-Schlüssel für Lexoffice und sevDesk |
 | `haben-restic-password` | `RESTIC_PASSWORD` (in `haben-backup`) | Verschlüsselt das Backup |
@@ -178,9 +187,14 @@ Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Was
 
 ### Starten
 
+In `haben-app.container` die vorbereitete Zeile `Secret=haben-migration-database-url,type=env,target=MIGRATION_DATABASE_URL` einkommentieren.
+
 ```sh
 systemctl --user daemon-reload
-systemctl --user start haben-db haben-app haben-caddy
+systemctl --user start haben-db
+podman exec -it haben-db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+# Zweimal dasselbe App-Passwort wie für haben-database-url eingeben; nur einmal anlegen.
+systemctl --user start haben-app haben-caddy
 systemctl --user enable --now haben-backup.timer
 ```
 

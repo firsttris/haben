@@ -104,11 +104,14 @@ services:
       - |
         export BETTER_AUTH_SECRET="$$(cat /run/haben/auth-secret)"
         export HABEN_ENCRYPTION_KEY="$$(cat /run/haben/encryption-key)"
-        export DATABASE_URL="postgres://haben:$$(cat /run/haben/db-passwort)@db:5432/haben"
+        export DATABASE_URL="$${DATABASE_URL:-postgres://haben:$$(cat /run/haben/db-passwort)@db:5432/haben}"
         exec haben-entrypoint
     environment:
       # HIER ÄNDERN: die Adresse, unter der du Haben aufrufst, mit https://. Passkeys hängen daran; später nicht mehr ändern.
       BETTER_AUTH_URL: https://haben.DEINNAME.synology.me
+      # Optional: getrennte App- und Eigentümerzugänge (docs/synology.md). Leer bleibt der bisherige Zugang aus db-passwort.
+      DATABASE_URL: ""
+      MIGRATION_DATABASE_URL: ""
       # Optional: ERiC beim Start von download.elster.de laden (ja = Zustimmung zu den Nutzungsbedingungen von ERiC),
       # nur auf Geräten mit Intel- oder AMD-Prozessor. Alternativ unter Einstellungen › ELSTER › ERiC per Knopf.
       ERIC_AUTO_INSTALL: ""

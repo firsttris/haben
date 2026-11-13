@@ -28,6 +28,11 @@ Dienst `schluessel`, der beim ersten Start die Schlüssel erzeugt. Du änderst d
 
 Ist Port 3000 schon belegt, änderst du die linke Zahl in `3000:3000` und nimmst sie auch im Proxy.
 
+Für [getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen) legst du die App-Rolle vorher selbst an.
+Trage unter `app.environment` `DATABASE_URL` für den App-Zugang und `MIGRATION_DATABASE_URL` für den Eigentümerzugang zur
+selben Datenbank ein. Der bisherige Eigentümerzugang verwendet das erzeugte `db-passwort` aus dem Volume `schluessel`.
+Bleiben beide Werte leer, startet Haben unverändert mit diesem Zugang.
+
 ## Schlüssel sichern
 
 **Apps › haben › Workloads**: Das Log des Containers `haben-schluessel` zeigt `ENCRYPTION_KEY` und `RESTIC_PASSWORD`.

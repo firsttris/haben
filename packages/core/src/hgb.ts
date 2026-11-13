@@ -328,6 +328,15 @@ function bereichOf(kontenrahmen: Kontenrahmen, account: string): Bereich | undef
   return BEREICHE[kontenrahmen].find(([von, bis]) => account >= von && account <= bis);
 }
 
+/**
+ * Die Posten des Bereichs eines Kontos: der gewöhnliche und, wo der DATEV-Kontenrahmen einen kennt, der bei umgekehrtem
+ * Saldo; null = nicht zugeordnet. Zwei Konten liegen im selben Bereich, wenn beide Posten gleich sind (eigene Sachkonten, #270).
+ */
+export function bereichPosten(kontenrahmen: Kontenrahmen, account: string): [Posten, Posten | undefined] | null {
+  const bereich = bereichOf(kontenrahmen, account);
+  return bereich ? [bereich[2], bereich[3]] : null;
+}
+
 /** Posten eines Kontos bei gewöhnlichem Saldo; null = nicht zugeordnet */
 export function postenOf(kontenrahmen: Kontenrahmen, account: string): Posten | null {
   return bereichOf(kontenrahmen, account)?.[2] ?? null;

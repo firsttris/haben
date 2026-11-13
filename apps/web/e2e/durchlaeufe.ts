@@ -31,5 +31,14 @@ export const LAYOUT_PAKETE_PORT = PORT + 10;
 export const portFuer = (durchlauf?: Durchlauf) => PORT + (durchlauf ? DURCHLAEUFE[durchlauf] : 0);
 
 /** Neben der E2E-Datenbank, Name endet wie verlangt auf „e2e“: haben_e2e → haben_gmbh_e2e */
-export const databaseUrlFuer = (durchlauf?: Durchlauf) =>
-  durchlauf ? databaseUrl.replace(/e2e(\?.*)?$/i, `${durchlauf.replace(/-/g, "_")}_e2e$1`) : databaseUrl;
+export const databaseUrlFuer = (durchlauf?: Durchlauf, basis = databaseUrl) =>
+  durchlauf ? basis.replace(/e2e(\?.*)?$/i, `${durchlauf.replace(/-/g, "_")}_e2e$1`) : basis;
+
+/** Echte Server nutzen optional die App-Anmeldung; direkte SQL-Fixtures behalten databaseUrlFuer. */
+export function appDatabaseUrlFuer(durchlauf?: Durchlauf, server: string = durchlauf ?? "ablauf") {
+  if (!process.env.E2E_APP_DATABASE_URL) return databaseUrlFuer(durchlauf);
+  const url = new URL(databaseUrlFuer(durchlauf, process.env.E2E_APP_DATABASE_URL));
+  // Die Identitätsprobe unterscheidet den Hauptserver von den zusätzlichen Servern gegen dieselbe Datenbank.
+  url.searchParams.set("application_name", `haben-e2e-${server}`);
+  return url.toString();
+}

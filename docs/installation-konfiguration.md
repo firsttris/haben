@@ -1,10 +1,28 @@
 ---
-title: "Umgebungsvariablen und Datenablage"
+title: "Datenbankrollen, Umgebungsvariablen und Datenablage"
 description: >-
-  Alle Umgebungsvariablen von Haben und wo Datenbank, Belege, ERiC und Backups liegen.
+  Getrennte Datenbankrollen für App und Migrationen, alle Umgebungsvariablen von Haben und wo Datenbank, Belege, ERiC und Backups liegen.
 ---
 
 # Konfiguration
+
+## Getrennte Datenbankrollen
+
+`DATABASE_URL` ist die echte Anmeldung des laufenden Servers. `MIGRATION_DATABASE_URL` ist der Eigentümerzugang für Migrationen und die anschließende Rechtevergabe; der Server erhält diese Adresse nicht. Die App-Rolle darf Tabellen und Funktionen von Haben weder besitzen noch die Eigentümerrechte erben oder per `SET ROLE` erreichen. Ohne Superuser-, Rollenverwaltungs- und Datenbankanlage-Rechte kann sie lesen und schreiben, aber keine Sperr-Trigger abschalten. Auch temporäre Schattenrelationen und eigene Objekte im Schema sind gesperrt. Die Rollenverwaltung bleibt beim Betreiber; der App-Start legt keine Rolle an und ändert kein Passwort.
+
+Neue Installationen verwenden die beiden Verbindungen aus den Vorlagen. [`createuser`](https://www.postgresql.org/docs/18/app-createuser.html) fragt das Passwort verdeckt ab; dafür ein eigenes Passwort aus dem Passwortmanager wählen, bei den gezeigten URLs nur Buchstaben und Ziffern. Es muss mit dem Passwort in `DATABASE_URL` übereinstimmen. Der Datenbanknutzer `haben` bleibt Eigentümer und Betreiberzugang für Backup, Restore und PostgreSQL-Upgrade.
+
+**Bestehende Installation umstellen:** Zuerst ein Backup anlegen und die App stoppen. Die Rolle wie oben einmalig anlegen. Bei Compose die bisherige Datenbankadresse in `MIGRATION_DATABASE_URL` übernehmen und `DATABASE_URL` auf den neuen App-Zugang setzen. Bei Quadlets den bisherigen Wert von `haben-database-url` als neues Secret `haben-migration-database-url` hinterlegen, `haben-database-url` mit dem App-Zugang ersetzen und die vorbereitete Secret-Zeile in `haben-app.container` einkommentieren; danach `systemctl --user daemon-reload`. Anschließend die App starten und unter **Einstellungen › Export** den Stand der Verbindung und „Kette prüfen“ kontrollieren. Die bisherigen Tabellen behalten ihren Eigentümer, Buchungen und Siegel bleiben erhalten.
+
+Ohne zweite Adresse startet eine bestehende Konfiguration weiter mit dem bisherigen Zugang; Einstellungen melden dessen weitergehende Rechte. Bei ausdrücklich eingerichteter Trennung bricht ein fehlerhafter Zugang den Start ab, statt den Eigentümer für den Server zu verwenden.
+
+Auch eine Login-Vorgabe `session_replication_role=replica` schaltet Trigger aus, ohne dass die App den Parameter selbst ändern darf. Haben erkennt den tatsächlich aktiven Modus und weist diesen Start vor der Migration zurück. Der Betreiber muss dann die Rollen- oder Datenbankvorgabe korrigieren; Haben überschreibt sie nicht.
+
+Eine bloße Mitgliedschaft ohne nutzbare Vererbung, Rollenwechsel oder Verwaltungsrechte verhindert den Start nicht. Tatsächlich verfügbare ADMIN-Optionen gelten dagegen als Rollenverwaltungsrechte und sind für die App-Anmeldung nicht zulässig.
+
+**Extern verwaltete Datenbank, etwa CloudNativePG:** Der Operator stellt beide Anmeldungen bereit. Die Eigentümerrolle darf ohne Superuser und ohne `CREATEROLE` arbeiten, muss aber Eigentümer der Haben-Objekte sein und die Schema- und Datenbankrechte vergeben können. Die App-Rolle braucht keine Mitgliedschaft in ihr. Beide Adressen müssen dieselbe Haben-Datenbank erreichen. Haben vergibt nach jeder Migration die benötigten Tabellen-, Sequenz- und Funktionsrechte, auch ohne neue Migration. Im dedizierten Haben-Datenbankkontext entfallen beim Umstieg die von `PUBLIC` geerbten Rechte zum Anlegen temporärer Tabellen und zum Erzeugen von Objekten in `public`; andere direkte oder geerbte unsichere Rechte muss der Operator vorher entfernen, auch Ausführungsrechte auf [Serverdateifunktionen wie `lo_import` und `lo_export`](https://www.postgresql.org/docs/18/lo-funcs.html). Eine Datenbank für weitere Anwendungen ist dafür ungeeignet.
+
+Ein externer Eigentümer ohne `CREATEDB` reicht zum Migrieren, aber nicht für die eingebauten Restore-Werkzeuge: Sie legen Wegwerf-Datenbanken an und ersetzen beim Restore die bisherige Datenbank. Für diese Betreiberaufgaben einen dafür berechtigten Zugang bereitstellen oder die Sicherung und Wiederherstellung des Operators verwenden. Weder Backup noch Upgrade verwenden die eingeschränkte App-Rolle.
 
 ## Umgebungsvariablen
 
@@ -12,7 +30,8 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 
 | Variable | Pflicht | Bedeutung | Beispiel |
 | --- | --- | --- | --- |
-| `DATABASE_URL` | ja | PostgreSQL-Verbindung. Wird auch vom Migrationsschritt beim Start gelesen | `postgres://haben:…@haben-db:5432/haben` |
+| `DATABASE_URL` | ja | Echte PostgreSQL-Anmeldung der App; ohne zweite Adresse auch für Migrationen | `postgres://haben_app:…@haben-db:5432/haben` |
+| `MIGRATION_DATABASE_URL` | nein | Eigentümerverbindung nur für Migrationen und Rechtevergabe, siehe [Getrennte Datenbankrollen](#getrennte-datenbankrollen) | `postgres://haben:…@haben-db:5432/haben` |
 | `BETTER_AUTH_SECRET` | ja | Geheimnis für Sitzungen, mindestens 32 Zeichen | Ausgabe von `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | ja | Öffentliche Adresse, unter der Haben im Browser läuft. Bestimmt die Domain der Passkeys | `https://haben.example.de` |
 | `OIDC_ONLY` | nein | Betriebsart: `false` (Vorgabe) ausschließlich lokale Anmeldung, `true` ausschließlich SSO. Andere Werte verhindern den Start | `false` |
@@ -61,7 +80,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
 
-Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `DB_PASSWORD`, `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
+Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` und `MIGRATION_DATABASE_URL` wie eingetragen, ohne `DATABASE_URL` den bisherigen Zugang aus `DB_PASSWORD`; `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
 
 In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `LEXOFFICE_API_URL` oder `SEVDESK_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
 

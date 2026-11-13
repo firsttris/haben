@@ -64,7 +64,9 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
+      # Alte .env ohne getrennte Adressen startet weiter mit dem bisherigen Zugang.
+      DATABASE_URL: ${DATABASE_URL:-postgres://haben:${DB_PASSWORD}@db:5432/haben}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-}
       # Betriebsart: false lokale Anmeldung, true ausschließlich OpenID Connect mit Rollen aus Gruppen (docs/installation-sso.md)
       OIDC_ONLY: ${OIDC_ONLY:-false}
       OIDC_ISSUER: ${OIDC_ISSUER:-}

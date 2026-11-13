@@ -1,0 +1,4 @@
+ALTER TABLE "document_splits" ADD COLUMN "own_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "documents" ADD COLUMN "own_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "document_splits" ADD CONSTRAINT "document_splits_own_account_id_own_accounts_id_fk" FOREIGN KEY ("own_account_id") REFERENCES "public"."own_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_own_account_id_own_accounts_id_fk" FOREIGN KEY ("own_account_id") REFERENCES "public"."own_accounts"("id") ON DELETE no action ON UPDATE no action;

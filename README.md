@@ -134,8 +134,11 @@ mkdir haben && cd haben
 curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
 curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
 chmod 600 .env
-# in .env eintragen: DOMAIN, DB_PASSWORD (openssl rand -hex 24),
-# AUTH_SECRET, ENCRYPTION_KEY und RESTIC_PASSWORD (je openssl rand -base64 32), dann
+```
+
+Fülle `.env` aus und lege die App-Datenbankrolle nach [Docker Compose](https://haben.app/installation.html#docker-compose) an. Danach:
+
+```bash
 docker compose up -d
 ```
 

@@ -1,0 +1,11 @@
+# Ausschließlich für die Wegwerf-Installation des Container-CI-Jobs, mit der ausgelieferten deploy/compose.yml.
+services:
+  app:
+    image: ${HABEN_TEST_APP_IMAGE:-haben:ci}
+    environment:
+      BETTER_AUTH_URL: http://localhost:${HABEN_TEST_PORT:-3386}
+    ports:
+      - "127.0.0.1:${HABEN_TEST_PORT:-3386}:3000"
+    volumes:
+      # Nur Testfakes: Der echte Bun-Server darf die private Adresse aus .env nicht erneut laden.
+      - ./tests/rollen.env:/app/apps/web/.env:ro
