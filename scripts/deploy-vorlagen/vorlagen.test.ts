@@ -17,6 +17,8 @@ const hauptVariablen = Object.keys(app.environment ?? {});
 const vorlagen = [
   {
     datei: "deploy/synology/compose.yml",
+    // Backup und Restore lesen diese Geheimnisse aus Dateien im Volume schluessel
+    backupAlsDatei: { PGPASSWORD: "PGPASSFILE", RESTIC_PASSWORD: "RESTIC_PASSWORD_FILE" } as Record<string, string>,
     // Setzt der Einstiegspunkt der App aus den erzeugten Schlüsseln
     ausSchluesseln: ["DATABASE_URL", "BETTER_AUTH_SECRET", "HABEN_ENCRYPTION_KEY"],
     // Ohne Shell nicht einzurichten (Dateien einhängen, SSO-Anbieter, x86_64-Laufzeit) oder selten gebraucht;
@@ -48,7 +50,7 @@ const vorlagen = [
   },
 ];
 
-describe.each(vorlagen)("$datei", ({ datei, ausSchluesseln, ausgelassen }) => {
+describe.each(vorlagen)("$datei", ({ datei, ausSchluesseln, ausgelassen, backupAlsDatei }) => {
   const vorlage = read(datei).services;
   const variablen = Object.keys(vorlage.app.environment ?? {});
 
@@ -60,6 +62,14 @@ describe.each(vorlagen)("$datei", ({ datei, ausSchluesseln, ausgelassen }) => {
   test("nennt keine Variable, die es in deploy/compose.yml nicht gibt", () => {
     const veraltet = [...variablen, ...ausSchluesseln, ...ausgelassen].filter((name) => !hauptVariablen.includes(name));
     expect(veraltet).toEqual([]);
+  });
+
+  // Ein zweites System als Repository (docs/installation.md, „Repository auf einem zweiten System“) braucht etwa für S3
+  // AWS_ACCESS_KEY_ID und AWS_SECRET_ACCESS_KEY; fehlen sie in der Vorlage, schlägt das Backup dorthin fehl
+  test("übernimmt jede Umgebungsvariable des Backups aus deploy/compose.yml", () => {
+    const backupVariablen = Object.keys(vorlage.backup.environment ?? {});
+    const fehlend = Object.keys(haupt.services.backup.environment ?? {}).filter((name) => !backupVariablen.includes(backupAlsDatei[name] ?? name));
+    expect(fehlend).toEqual([]);
   });
 
   test("setzt die Variablen aus den Schlüsseln im Einstiegspunkt der App", () => {
