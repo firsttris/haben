@@ -315,15 +315,6 @@ Migrationen und Dev-Server mit Neuladen beim Speichern
 
 Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere [Entwicklung](https://haben.app/entwicklung.html).
 
-| Paket | Inhalt |
-|---|---|
-| `apps/web` | Oberfläche, Server Functions, Datenbank, Anmeldung |
-| `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
-| `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
-| `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
-| `packages/import` | CSV-Import von Kontakten, Artikeln und Anlagen, Kontoauszüge (DKB, Commerzbank, C24, N26, Swan, CAMT.053), Exporte von Zahlungsdienstleistern (PayPal, Stripe, Shopify Payments, eBay), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
-| `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite): trägt die Werte aus Haben in die Formulare ein |
-
 ## Mehr von uns
 
 - Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
@@ -331,10 +322,8 @@ Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.h
 
 ## Mitwirken
 
-Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und kommentiert im Issue `/übernehmen`. Wie es dann bis zum Merge weitergeht, zeigt [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
-kennt, und Rückmeldungen zur ELSTER-Übermittlung. Ein Pull Request bringt seine Selbstprüfung (`beitrag-pruefen`) und ein
-unabhängiges Review mit (`tdd-review` für Code, `doku-pruefen` für Markdown). Was vor einem Pull Request laufen muss und was er
-enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html).
+Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und kommentiert im Issue `/übernehmen`. Wie es dann bis zum Merge weitergeht, zeigt [Agentic Engineering bei Haben](https://haben.app/agentic-engineering.html).
+Was vor einem Pull Request laufen muss und was er enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html).
 
 ## Sterne im Verlauf
 
