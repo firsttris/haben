@@ -96,7 +96,7 @@ Eine Datei „Debitoren/Kreditoren“ aus einem DATEV-Export (EXTF, Formatkatego
 | Kundennummer | Kundennummer, nur beim Debitor; was die Spalte beim Kreditor meint, ist nicht belegt |
 | Steuernummer | nur zum Zusammenführen, Haben speichert sie nicht |
 
-Haben führt Personenkonten fünfstellig ([Kontakte](rechnungen.md#kontakte)). Nennt die Kopfzeile eine andere Sachkontenlänge als 4, lehnt Haben die Datei ab, statt Nummern zu kürzen; exportiere sie dann mit Sachkontenlänge 4.
+Haben führt Personenkonten fünfstellig ([Kontakte](kontakte.md)). Nennt die Kopfzeile eine andere Sachkontenlänge als 4, lehnt Haben die Datei ab, statt Nummern zu kürzen; exportiere sie dann mit Sachkontenlänge 4.
 
 Wiedererkannt wird ein Kontakt am Personenkonto, nicht am Namen:
 
