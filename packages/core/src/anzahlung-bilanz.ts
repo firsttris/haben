@@ -2,6 +2,36 @@ import type { AdvanceVatEvent } from "./anzahlung-steuer.ts";
 import { totalsFromTaxes } from "./invoice.ts";
 import { ACCOUNTS, invoicePosting, invoiceWriteOffPosting, side, type Kontenrahmen, type PostingLine, type TaxShare } from "./posting.ts";
 import type { TaxTreatment } from "./treatment.ts";
+import type { Cents } from "./money.ts";
+
+/**
+ * Neue Bilanz-Schlussketten unterstützen Zahlungen vor Leistung noch nicht (#853). Eine Anforderung ist dafür
+ * der vorgesehene Weg; Altbelege behalten ihre Zahlungswege. § 13 Abs. 1 Nr. 1 a Satz 4 UStG und Entscheidung:
+ * https://github.com/firsttris/haben/issues/750#issuecomment-6850907108
+ */
+export function advancePaymentDateProblem(
+  invoice: {
+    kind: "rechnung" | "storno" | "korrektur";
+    variant: "abschlag" | "schluss" | null;
+    advanceAccounting: "deferred" | null;
+    issueDate: string;
+    serviceFrom: string | null;
+    serviceTo: string | null;
+  },
+  date: string,
+  amount: Cents,
+): string | null {
+  if (
+    amount > 0 &&
+    invoice.kind === "rechnung" &&
+    invoice.advanceAccounting === "deferred" &&
+    invoice.variant === "schluss" &&
+    date < (invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate)
+  ) {
+    return "Eine Zahlung vor dem Leistungsdatum lässt sich dieser Schlussrechnung nicht zuordnen. Bitte verwende dafür eine Abschlagsrechnung.";
+  }
+  return null;
+}
 
 export interface AdvanceBalanceEvent extends AdvanceVatEvent {
   /** Bei writtenOff erforderlich: Das normale Ausbuchungskonto wird bis zur Leistung neutralisiert. */

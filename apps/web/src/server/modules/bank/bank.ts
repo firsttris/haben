@@ -31,6 +31,7 @@ import {
   documentPaymentPosting,
   invoiceOpen,
   invoicePaymentPosting,
+  advancePaymentDateProblem,
   recordedTaxShares,
   settlementTaxShares,
   skontoZahlfristen,
@@ -66,6 +67,7 @@ import {
   invoicePaymentGroup,
   invoicePaymentGroups,
   paperCancellationIds,
+  unbilledAdvanceRequest,
 } from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
@@ -1180,6 +1182,8 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   if (part.kind === "invoice") {
     const invoice = await lockInvoice(tx, part.invoiceId);
     if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+    const dateProblem = advancePaymentDateProblem(invoice, bank.bookingDate, part.amount);
+    if (dateProblem) throw new BankError(dateProblem);
 
     const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
     let open: number;
@@ -1548,6 +1552,11 @@ export async function bookWriteOff(
       .from(schema.invoices)
       .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
     if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert.`);
+    if (input.kind === "forderungsausfall" && (await unbilledAdvanceRequest(invoice, input.date, tx))) {
+      throw new BankError(
+        "Diese Anzahlungsanforderung ist noch nicht bilanziert. Bitte storniere die Anforderung. Ein Preisnachlass gehört in die Schlussrechnung.",
+      );
+    }
     const open = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
     amount = input.amount ?? open;
     if (open === 0 || Math.sign(open) !== Math.sign(amount) || Math.abs(amount) > Math.abs(open)) {

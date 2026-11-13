@@ -252,6 +252,21 @@ describe.skipIf(!testDatabaseUrl)("Sperren vor der Schlussleistung (Postgres)", 
     expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
   });
 
+  it("prüft beim Forderungsausfall das Leistungsdatum und behält die Leistung trotz Papierstorno bei", async () => {
+    const { request, final } = await finalInvoice();
+    const before = await state();
+    await expect(bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: request.id, date: "2027-01-19" })).rejects.toThrow(/storn/i);
+    expect(await state()).toEqual(before);
+
+    await invoices.cancelInvoice(actor, final.id, "2027-02-12");
+    await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: request.id, date: "2027-01-20" });
+
+    expect((await bank.listWriteOffs({ invoiceId: request.id })).map(({ kind, amount }) => ({ kind, amount }))).toEqual([
+      { kind: "forderungsausfall", amount: 35_700 },
+    ]);
+    expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
+  });
+
   it("lässt Skonto zusammen mit einer echten Bank- oder Baranzahlung vor Leistung weiterhin zu", async () => {
     const bankRequest = await advance();
     const cashRequest = await advance();

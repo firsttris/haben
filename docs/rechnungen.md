@@ -371,7 +371,9 @@ Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue A
 
 **Schlussrechnung bei GmbH und UG ersetzen:** Im neuen Bilanzverfahren bleibt die bereits erbrachte Schlussleistung beim bloßen Rechnungsstorno bestehen. Für einen Ersatz nach diesem Storno müssen dieselben Abschläge, derselbe Kunde, dieselbe Steuerbehandlung, derselbe Leistungstag und dieselben Netto-/Steuerbeträge je Satz vorliegen. Haben verbindet den Ersatz mit dem eindeutigen Vorgänger; bisherige Zahlungen zählen auf den offenen Rest, ihre Zuordnungen bleiben am ursprünglichen Beleg. Das Papierstorno eröffnet keine Erstattung. Eine echte Rückzahlung nach Storno einer Anforderung vor Leistung bleibt möglich ([bestätigter Ablauf in #750](https://github.com/firsttris/haben/issues/750#issuecomment-6837873675)).
 
-Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Die fachliche Zuordnung solcher Korrekturen und der Umgang mit Forderungsausfall vor Leistung sind [noch offen](https://github.com/firsttris/haben/issues/750#issuecomment-6839453725).
+Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Eine echte Entgeltminderung braucht eine eigene datierte Korrektur im Zeitraum der Änderung; das Datum des Ersatzbelegs weist diesen Zeitpunkt nicht nach ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Für den Ausfall einer noch unbilanzierten Anforderung gilt die Grenze unter [Anzahlungen vor Leistung](buchhaltung.md#anzahlungen-vor-leistung).
+
+Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Der allgemeine Vorauszahlungsfall auf normalen Rechnungen ist als [#853](https://github.com/firsttris/haben/issues/853) abgegrenzt.
 
 Regeln:
 

@@ -125,6 +125,8 @@ Die Journalgegenprobe vergleicht Forderungen und erhaltene Nettoanzahlungen ders
 
 Das neue Bilanzverfahren gilt nur für neue GmbH-/UG-Anforderungen und ihre Folgebelege. Bestehende festgeschriebene Belege, Buchungen, Siegel und abgeschlossene Jahre werden nicht umgerechnet; ihre Korrekturen behalten das bisherige Verfahren. Die EÜR des Einzelunternehmens bleibt zahlungsbezogen. Fremdwährungs-Abschläge und -Schlussrechnungen bleiben gesperrt.
 
+Eine noch unbilanzierte Anzahlungsanforderung lässt sich vor der Schlussleistung nicht als Forderungsausfall ausbuchen. Storniere dafür die Anforderung; ein Preisnachlass gehört in die Schlussrechnung. Skonto zusammen mit einer tatsächlichen Zahlung bleibt möglich ([bestätigte Grenze in #750](https://github.com/firsttris/haben/issues/750#issuecomment-6850907108)).
+
 Steuerzeitpunkt und Leistungsjahr nach einem Verfahrenswechsel folgen weiterhin [§ 13 Abs. 1 Nr. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html) und dem unter [Rechnungen](rechnungen.md#abschlags--und-schlussrechnung) beschriebenen Ablauf. Haben verwendet die vorhandenen Konten für nicht fällige und fällige Umsatzsteuer; die Umbuchungen tragen ihre Bemessungsgrundlage. Wird eine frühere Zahlung erst später zugeordnet oder eine Zuordnung aufgehoben, entstehen ergänzende Differenzbuchungen zu den betroffenen Tagen; bestehende Buchungen bleiben erhalten. Kassenbuch und Zahlungsnebenbücher erhalten keine zweite Geldbewegung für die Erlösrealisierung. Der DATEV-Export übernimmt die Kontenbewegungen und hebt die Steuerautomatik auf, damit die separat gebuchte Steuer nicht nochmals berechnet wird ([DATEV-Export](auswertungen.md#datev-export-für-die-steuerberatung)).
 
 ## Kontenrahmen

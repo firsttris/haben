@@ -1,5 +1,5 @@
 import { insertCashEntry } from "./settlement-store.ts";
-import { formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
+import { advancePaymentDateProblem, formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -52,9 +52,10 @@ export async function createCashInvoiceEntry(actor: string, input: CashInvoiceIn
 
     if (invoice.kind === "storno") throw new CashError("Eine Stornorechnung lässt sich nicht bar kassieren.");
     if (invoice.currency !== "EUR") throw new CashError("Bar kassieren geht nur bei Rechnungen in Euro.");
-    // Ein Datum vor dem Rechnungsdatum ist erlaubt (#455), wie im Bankabgleich: Der Kunde hat bar bezahlt, die Rechnung
-    // (etwa eine Sammelrechnung) kam später. Bei Ist zählt die Steuer im Monat der Bareinnahme (§ 13 Abs. 1 Nr. 1 Buchst. b
-    // UStG), bei Soll bleibt sie bei der Rechnung, die EÜR zählt den Zufluss am Tag der Bareinnahme (§ 11 Abs. 1 EStG).
+    const dateProblem = advancePaymentDateProblem(invoice, parsed.date, parsed.amount);
+    if (dateProblem) throw new CashError(dateProblem);
+    // Außerhalb neuer Bilanz-Schlussketten bleibt das frühere Zahlungsdatum erlaubt (#455), wie im Bankabgleich:
+    // Der Kunde hat bar bezahlt, die Rechnung kam später. Die EÜR zählt den tatsächlichen Zufluss (§ 11 Abs. 1 EStG).
     const [storno] = await tx
       .select({ id: schema.invoices.id })
       .from(schema.invoices)

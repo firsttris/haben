@@ -11,7 +11,7 @@ description: >-
 **Bezug:** [#750](https://github.com/firsttris/haben/issues/750),
 [#622](https://github.com/firsttris/haben/issues/622), [PR #745](https://github.com/firsttris/haben/pull/745).
 
-Die folgenden Abschnitte halten den ursprünglichen Vorschlag mit seinen damaligen Prüffragen fest. Den bestätigten Kern und die verbleibenden Fragen dokumentiert die [Fortschreibung](#fortschreibung-des-beitrags-zu-750).
+Die folgenden Abschnitte halten den ursprünglichen Vorschlag mit seinen damaligen Prüffragen fest. Den bestätigten Kern und die späteren Umfangsentscheidungen dokumentiert die [Fortschreibung](#fortschreibung-des-beitrags-zu-750).
 
 ## Fachlicher Sollzustand
 
@@ -100,4 +100,4 @@ Die [Maintainerentscheidung](https://github.com/firsttris/haben/issues/750#issue
 
 Der Beitrag speichert das Verfahren in `advance_accounting`; `null` behält den bisherigen Weg. `replaces_invoice_id` verbindet den Ersatz mit seinem eindeutigen Vorgänger. Der Stichtagsleser trennt unbilanzierte Anforderungen, bilanzierte Forderungen einschließlich des offenen Anspruchs ohne aktuellen Schlussbeleg und echte Anzahlungs-Erstattungen. Journalgegenprobe und Restlaufzeiten verwenden dieselben datierten Belege und Erledigungen. Das aktuelle Verhalten steht in [Buchhaltung](../buchhaltung.md#anzahlungen-vor-leistung) und [Rechnungen](../rechnungen.md#abschlags--und-schlussrechnung).
 
-Für [abweichenden Ersatz, die zeitliche Zuordnung echter Entgeltkorrekturen und Forderungsausfall vor Leistung](https://github.com/firsttris/haben/issues/750#issuecomment-6839453725) liegt noch keine Antwort vor. Der Beitrag lehnt einen abweichenden oder mehrdeutigen Ersatz sowie Ersatz nach bereits vorhandener Entgeltkorrektur ab. Eine zusätzliche Sperre für Forderungsausfall vor Leistung ist bisher ein Vorschlag in der offenen Frage; sie ist hier weder als beschlossen noch als implementiert dokumentiert. Fremdwährungs-Abschläge sind bereits im bisherigen Festschreibungsweg ausgeschlossen und werden mit diesem Beitrag nicht eingeführt.
+Die [ergänzende Maintainerentscheidung](https://github.com/firsttris/haben/issues/750#issuecomment-6850907108) bestätigt die Ersatzgrenze, datierte Entgeltkorrekturen sowie die Sperren für Forderungsausfall auf eine noch unbilanzierte Anforderung und für Zahlungen vor Leistung auf neue Bilanz-Schlussketten. Die Bedienung steht in den oben verlinkten Nutzerseiten. Der allgemeine Vorauszahlungsfall normaler Rechnungen folgt in [#853](https://github.com/firsttris/haben/issues/853). Fremdwährungs-Abschläge bleiben im bisherigen Festschreibungsweg ausgeschlossen.
