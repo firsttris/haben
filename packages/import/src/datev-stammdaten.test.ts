@@ -171,6 +171,26 @@ describe("parseDatevStammdaten", () => {
     ]);
   });
 
+  // Echter GP-Stamm aus sevDesk (#472, Kommentar in #811): Telefonnummern stehen dort mit vorangestelltem Apostroph,
+  // damit Excel sie als Text liest; 5 von 168 Zeilen fielen sonst ganz aus dem Import. Nummern erfunden
+  it("liest eine Telefonnummer mit vorangestelltem Apostroph ohne ihn", () => {
+    const { rows } = parsed(
+      utf8(
+        row({ Konto: "10015", "Name (Adressatentyp Unternehmen)": "Erfundene Werkstatt", Telefon: "'+49(0)30/1234567" }),
+        row({ Konto: "70015", "Name (Adressatentyp Unternehmen)": "Erfundener Verlag", Telefon: "'0301234567-89" }),
+      ),
+    );
+    expect(rows.map((r) => [r.errors, r.telefon])).toEqual([
+      [[], "+49(0)30/1234567"],
+      [[], "0301234567-89"],
+    ]);
+  });
+
+  it("meldet eine Telefonnummer, die nach dem Apostroph keine ist", () => {
+    const { rows } = parsed(utf8(row({ Konto: "10016", "Name (Adressatentyp Unternehmen)": "Erfundene Werkstatt", Telefon: "'abc" })));
+    expect(rows[0]!.errors).toEqual(["Telefon: nur Ziffern, Leerzeichen und + ( ) / - ."]);
+  });
+
   it("lehnt andere DATEV-Exporte und Dateien ohne Spalte Konto ab", () => {
     expect(parseDatevStammdaten(fixture("2.0").subarray(0, 0))).toEqual({ ok: false, error: "Die Datei ist leer." });
     const stapel = new TextEncoder().encode(`"EXTF";700;21;"Buchungsstapel";13\nUmsatz;Konto`);
