@@ -31,6 +31,8 @@ import type { Rechtsform } from "./rechtsform.ts";
 /** Eine Kontierungszeile, wie sie eingegeben wird */
 export interface DocumentSplitLine {
   category: ExpenseCategory;
+  /** Eigenes Sachkonto (#270) der Kategorie: gebucht wird auf dessen Nummer statt auf das Konto der Kategorie */
+  account?: string;
   taxRate: BasisPoints;
   net: Cents;
 }
@@ -133,7 +135,7 @@ export function documentSplitPosting(
     else expenses.set(key, { account, amount, code });
   };
   for (const line of lines) {
-    const account = EXPENSE_CATEGORIES[line.category][kontenrahmen];
+    const account = line.account ?? EXPENSE_CATEGORIES[line.category][kontenrahmen];
     if (vorsteuerAbzug) add(account, rcCode ?? inputTaxCode(line.taxRate), line.net);
     else if (rcCode) {
       // § 13b ohne Vorsteuerabzug: Netto mit dem Steuerschlüssel, die Steuer als Aufwand daneben, damit das Journal die

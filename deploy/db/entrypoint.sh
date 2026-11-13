@@ -131,7 +131,7 @@ upgrade() {
   fi
   log "Upgrade auf PostgreSQL $PG_MAJOR fertig. Der alte Bestand liegt unverändert in $old;"
   log "läuft Haben einwandfrei, kann er weg: rm -rf $(dirname "$old") im Container"
-  log "(siehe docs/installation.md, Abschnitt PostgreSQL-Update)."
+  log "(siehe docs/installation-backup.md, Abschnitt PostgreSQL-Update)."
 }
 
 if [ "$(id -u)" = 0 ] && [ ! -s "$PGDATA/PG_VERSION" ]; then

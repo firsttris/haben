@@ -1,5 +1,5 @@
 {
-  "id": "e38c0629-ce9c-4d38-8e3f-a2d8ebfd4af6",
+  "id": "88bd66c6-f76a-4962-b2ce-11c231f9ca2e",
   "prevId": "a189a95d-665f-4d7b-81e5-cec36e2da8b8",
   "version": "7",
   "dialect": "postgresql",
@@ -6625,6 +6625,13 @@
           "notNull": true,
           "default": "''"
         },
+        "property_retention": {
+          "name": "property_retention",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "buyer_order_reference": {
           "name": "buyer_order_reference",
           "type": "text",
@@ -6714,18 +6721,6 @@
         "advance_type": {
           "name": "advance_type",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "advance_accounting": {
-          "name": "advance_accounting",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "replaces_invoice_id": {
-          "name": "replaces_invoice_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -6989,22 +6984,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "invoices_one_final_replacement": {
-          "name": "invoices_one_final_replacement",
-          "columns": [
-            {
-              "expression": "replaces_invoice_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"invoices\".\"status\" = 'final'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -7066,19 +7045,6 @@
           "tableTo": "invoices",
           "columnsFrom": [
             "corrects_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "invoices_replaces_fk": {
-          "name": "invoices_replaces_fk",
-          "tableFrom": "invoices",
-          "tableTo": "invoices",
-          "columnsFrom": [
-            "replaces_invoice_id"
           ],
           "columnsTo": [
             "id"
@@ -7155,14 +7121,6 @@
         "invoices_advance_type": {
           "name": "invoices_advance_type",
           "value": "\"invoices\".\"advance_type\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"advance_type\" in ('anzahlung', 'teilleistung'))"
-        },
-        "invoices_advance_accounting": {
-          "name": "invoices_advance_accounting",
-          "value": "\"invoices\".\"advance_accounting\" is null or \"invoices\".\"advance_accounting\" = 'deferred'"
-        },
-        "invoices_replaces_schluss": {
-          "name": "invoices_replaces_schluss",
-          "value": "\"invoices\".\"replaces_invoice_id\" is null or (\"invoices\".\"replaces_invoice_id\" <> \"invoices\".\"id\" and \"invoices\".\"kind\" = 'rechnung' and \"invoices\".\"variant\" is not distinct from 'schluss' and \"invoices\".\"advance_accounting\" is not distinct from 'deferred' and \"invoices\".\"corrects_id\" is null)"
         },
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",
@@ -11572,6 +11530,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "property_retention": {
+          "name": "property_retention",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "tax_treatment": {
           "name": "tax_treatment",

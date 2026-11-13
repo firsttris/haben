@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, getTableColumns, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { bankAccountIncludedSql } from "../../db/bank-open.ts";
 import { effectivePayment } from "./payment-history.ts";
-import { effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
+import { effectiveAmount, effectiveContactName, effectiveDirection, effectiveTaxes, effectiveType } from "./sevdesk-richtung.ts";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
 import {
@@ -221,7 +221,9 @@ const KIND_LABELS: Record<string, string> = {
   schluss: "Schlussrechnung",
 };
 const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-cii": "XRechnung (CII)", "xrechnung-ubl": "XRechnung (UBL)" };
-const SOURCE_LABELS: Record<string, string> = {
+/** Herkunft einer Buchung im Journal, wie sie die Datenbank zulässt */
+type JournalSource = (typeof schema.journalEntries.$inferInsert)["sourceType"];
+const SOURCE_LABELS: Record<JournalSource, string> = {
   invoice: "Rechnung",
   document: "Beleg",
   allocation: "Zahlung",
@@ -233,7 +235,16 @@ const SOURCE_LABELS: Record<string, string> = {
   eroeffnung: "Eröffnung",
   ausschuettung: "Ausschüttung",
   lohn: "Lohn",
+  import: "Import",
 };
+
+/**
+ * Herkunft einer Journalbuchung für die Spalte „Quelle“. Die Zuordnung deckt jeden Wert ab, den das Schema zulässt;
+ * eine Herkunft aus einem älteren Stand bleibt roh statt leer.
+ */
+export function sourceLabel(sourceType: string): string {
+  return SOURCE_LABELS[sourceType as JournalSource] ?? sourceType;
+}
 const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
   document: "Beleg",
@@ -648,7 +659,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       entry.date,
       entry.id,
       entry.description,
-      SOURCE_LABELS[entry.sourceType] ?? entry.sourceType,
+      sourceLabel(entry.sourceType),
       entry.sourceId,
       entry.kontenrahmen,
       line.account,
@@ -1339,6 +1350,9 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
       direction: effectiveDirection("lexoffice_vouchers"),
       contactName: effectiveContactName("lexoffice_vouchers"),
       taxes: effectiveTaxes("lexoffice_vouchers"),
+      net: effectiveAmount("lexoffice_vouchers", "net"),
+      tax: effectiveAmount("lexoffice_vouchers", "tax"),
+      gross: effectiveAmount("lexoffice_vouchers", "gross"),
       payment: effectivePayment("lexoffice_vouchers"),
     })
     .from(schema.lexofficeVouchers)

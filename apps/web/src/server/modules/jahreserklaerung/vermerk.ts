@@ -1,5 +1,5 @@
 import { formatEuro, isKapitalgesellschaft, type Cents } from "@haben/core";
-import { ERSTES_ERKLAERUNGSJAHR } from "@haben/elster";
+import { ERSTES_ERKLAERUNGSJAHR, transferticketProblem } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -32,24 +32,36 @@ export interface JahresvermerkInput {
   note: string;
   /** Abweichung zum gerechneten Wert ausdrücklich bestätigt; ohne sie wird ein abweichender Betrag abgelehnt */
   abweichungBestaetigt?: boolean;
-  /** Übermittlungsprotokoll (PDF), optional */
-  file?: { bytes: Uint8Array; filename: string };
+  /** Übermittlungsprotokoll (PDF), optional; den Dateinamen der Auslieferung baut loadAnnualProtocol */
+  file?: { bytes: Uint8Array };
 }
 
-const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
+/** Betrag in Cent; die Grenze hält einen Tippfehler davon ab, den Jahresüberblick zu sprengen */
+export const vermerkBetrag = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
 
-export const vermerkSchema = z.object({
+/**
+ * Die Feldregeln des Vermerks an einer Stelle: Der Validator der Server-Funktion (functions/annual.ts) und das Modul
+ * prüfen damit gleich, samt der Meldungen, die die Oberfläche anzeigt.
+ */
+export const vermerkFelder = {
   filedOn: z.iso.date("Bitte den Tag der Abgabe angeben."),
   transferTicket: z.string().trim().min(10, "Bitte das Transferticket aus dem Übermittlungsprotokoll angeben.").max(64, "Das Transferticket ist zu lang."),
-  amount: centsSchema,
+  amount: vermerkBetrag,
   note: z.string().trim().min(10, "Bitte kurz begründen, warum außerhalb von Haben abgegeben wurde.").max(2000, "Die Begründung ist zu lang."),
+};
+
+export const vermerkSchema = z.object({
+  ...vermerkFelder,
   abweichungBestaetigt: z.boolean().optional(),
-  file: z.object({ bytes: z.instanceof(Uint8Array), filename: z.string().min(1).max(200) }).optional(),
+  file: z.object({ bytes: z.instanceof(Uint8Array) }).optional(),
 });
 
 /** Was gegen die Eingaben spricht, die ohne Datenbank prüfbar sind, oder null */
 export function vermerkProblem(data: z.infer<typeof vermerkSchema>, heute: string): string | null {
   if (data.filedOn > heute) return "Der Tag der Abgabe liegt in der Zukunft.";
+  // Wie bei der Voranmeldung: Das Ticket steht so im Übermittlungsprotokoll, ein Muster hält Tippfehler fest
+  const ticketProblem = transferticketProblem(data.transferTicket);
+  if (ticketProblem) return ticketProblem;
   if (!data.file) return null;
   if (data.file.bytes.byteLength === 0) return "Die Datei des Protokolls ist leer.";
   if (data.file.bytes.byteLength > MAX_DOCUMENT_SIZE) return "Das Protokoll ist größer als 20 MB.";

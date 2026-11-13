@@ -1,4 +1,5 @@
 export * from "./types.ts";
+export * from "./ticket.ts";
 export * from "./xml.ts";
 export * from "./dauerfrist.ts";
 export * from "./zm.ts";

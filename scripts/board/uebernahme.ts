@@ -2,7 +2,7 @@ import { ohneCode } from "./regel.ts";
 
 /*
  * Regeln zum Übernehmen und Freigeben von Karten, ohne Zugriff auf GitHub. Der Ablauf steht in
- * docs/entwicklung.md unter „Etwas übernehmen“: `/übernehmen` im Issue weist es zu, `/freigeben` gibt es zurück,
+ * docs/mitwirken.md unter „Etwas übernehmen“: `/übernehmen` im Issue weist es zu, `/freigeben` gibt es zurück,
  * nach 14 Tagen ohne Lebenszeichen kommt eine Erinnerung, nach sieben weiteren die Freigabe.
  */
 
@@ -12,7 +12,7 @@ export const TAGE_BIS_FREIGABE = 7;
 export const MARKE_ERINNERUNG = "<!-- board:erinnerung -->";
 
 const BOARD = "[Board](https://github.com/users/firsttris/projects/2)";
-const ANLEITUNG = "[Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)";
+const ANLEITUNG = "[Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen)";
 const TAG = 24 * 60 * 60 * 1000;
 
 export type Befehl = "übernehmen" | "freigeben";

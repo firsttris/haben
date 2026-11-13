@@ -1071,6 +1071,11 @@ export const serviceEntries = pgTable(
     project: text("project").notNull().default(""),
     externalSource: text("external_source"),
     externalId: text("external_id"),
+    /**
+     * Rechnung, auf der der Eintrag abgerechnet ist (Entwurf oder festgeschrieben). Nach dem Storno der Rechnung gilt er wieder als
+     * offen und wird beim nächsten Abrechnen neu verknüpft. Eigene Spalte statt an invoices: Neue Spalten dort landen im Siegel.
+     */
+    invoiceId: uuid("invoice_id").references(() => invoices.id, { onDelete: "set null" }),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1082,6 +1087,7 @@ export const serviceEntries = pgTable(
     check("service_entries_extern", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),
     index("service_entries_contact").on(t.contactId, t.workedOn),
+    index("service_entries_invoice").on(t.invoiceId),
   ],
 );
 
@@ -1234,6 +1240,8 @@ export const invoices = pgTable(
     intro: text("intro").notNull().default(""),
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
+    /** Aufbewahrungshinweis für Grundstücksleistungen (§ 14 Abs. 4 Satz 1 Nr. 9 UStG), getrennt vom freien Fußtext */
+    propertyRetention: boolean("property_retention").notNull().default(false),
     /**
      * Referenzen nach EN 16931 (#389), leer = keine: Bestellnummer des Kunden (BT-13), eigene Auftragsnummer (BT-14) und
      * Lieferschein (BT-16). Im XML an ihrem eigenen Feld, im PDF im Kopfblock.
@@ -1865,6 +1873,8 @@ export const documents = pgTable(
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
     category: text("category"),
+    /** Eigenes Sachkonto (#270) der Kategorie; `category` bleibt die Elternkategorie, auf die Steuer und EÜR rechnen */
+    ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
     payment: text("payment", { enum: ["bank", "privat", "kasse"] })
       .notNull()
       .default("bank"),
@@ -1990,6 +2000,8 @@ export const documentSplits = pgTable(
     /** Reihenfolge wie eingegeben, ab 1 */
     position: smallint("position").notNull(),
     category: text("category").notNull(),
+    /** Eigenes Sachkonto (#270) der Kategorie der Zeile */
+    ownAccountId: uuid("own_account_id").references(() => ownAccounts.id),
     taxRate: smallint("tax_rate").notNull(),
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),
@@ -3012,6 +3024,7 @@ export const recurringInvoices = pgTable(
     /** Einleitung über den Positionen; Platzhalter wie bei den Positionen */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
+    propertyRetention: boolean("property_retention").notNull().default(false),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */

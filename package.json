@@ -1,6 +1,6 @@
 {
   "name": "haben",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -23,7 +23,7 @@
     "db:generate": "bun run --cwd apps/web db:generate",
     "db:migrate": "bun run --cwd apps/web db:migrate",
     "e2e": "bun run --cwd apps/web e2e",
-    "docs:screenshots": "DOKU_SCREENSHOTS=1 LANG=de_DE.UTF-8 LANGUAGE=de bun run e2e && bun run docs:social-preview && bun run docs:hero",
+    "docs:screenshots": "DOKU_SCREENSHOTS=1 LANG=de_DE.UTF-8 LANGUAGE=de bun run e2e zz-doku-screenshots.spec.ts && bun run docs:social-preview && bun run docs:hero",
     "docs:social-preview": "bun scripts/social-preview/render.mjs",
     "docs:hero": "bun scripts/hero/render.mjs"
   },

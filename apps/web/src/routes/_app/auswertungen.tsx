@@ -7,6 +7,7 @@ import { formatDate } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { Icon } from "../../components/Icon.tsx";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 
@@ -46,7 +47,7 @@ function ReportsPage() {
           <nav className="year-switch" aria-label="Jahr wählen">
             {year > ERSTES_JAHR && (
               <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`} title={`Vorjahr ${year - 1}`}>
-                ‹
+                <Icon name="chevron-left" size={16} />
               </Link>
             )}
             {yearOptions.map((y) => (
@@ -62,7 +63,7 @@ function ReportsPage() {
             ))}
             {year < LETZTES_JAHR && (
               <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`} title={`Folgejahr ${year + 1}`}>
-                ›
+                <Icon name="chevron-right" size={16} />
               </Link>
             )}
           </nav>
@@ -323,11 +324,11 @@ function OpenTable(props: {
       <div className="chart-head">
         <h2 id={`${id}-heading`}>{title}</h2>
         <div className="small muted">
-          Summe <span className="mono">{formatEuro(props.total)}</span>
+          Summe <span className="amount">{formatEuro(props.total)}</span>
           {props.overdue !== 0 && (
             <>
               {" "}
-              · davon überfällig <span className="mono">{formatEuro(props.overdue)}</span>
+              · davon überfällig <span className="amount">{formatEuro(props.overdue)}</span>
             </>
           )}
         </div>

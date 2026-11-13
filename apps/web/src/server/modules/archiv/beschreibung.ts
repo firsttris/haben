@@ -34,6 +34,8 @@ const TYPEN: { pfad: RegExp; zahlen: string[]; daten: string[] }[] = [
   { pfad: /^buchungen\/journal\.csv$/, zahlen: ["Soll", "Haben", "Bemessungsgrundlage"], daten: ["Datum"] },
   { pfad: /^bank\/[^/]+\/umsaetze\.csv$/, zahlen: ["Betrag", "Zugeordnet", "Offen"], daten: ["Buchungsdatum", "Wertstellung"] },
   { pfad: /^bank\/zuordnungen\.csv$/, zahlen: ["Betrag"], daten: ["Buchungsdatum"] },
+  // Kassenbuch (cashBookCsv): Einnahme und Ausgabe sind je Zeile eine von beiden, die andere bleibt leer; der Anfangsbestand hat nur den Bestand
+  { pfad: /^kasse\/kassenbuch\.csv$/, zahlen: ["Einnahme", "Ausgabe", "Bestand"], daten: ["Datum"] },
 ];
 
 /** Die Spalten je Datei mit bekanntem Betrags- oder Datumsformat; für den Test, der die Werte dagegen prüft */

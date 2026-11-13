@@ -13,7 +13,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 const MIGRATIONS = fileURLToPath(new URL("../../../../drizzle", import.meta.url));
 
 /**
- * Echter Prä-0219-Bestand wie in db/migrate-advance-balance.test.ts, anschließend normale gemischte Schlusskette.
+ * Echter Prä-0223-Bestand wie in db/migrate-advance-balance.test.ts, anschließend normale gemischte Schlusskette.
  * Das neue Papierstorno erhält die Schlussleistung auch dann, wenn einer ihrer Abzüge das alte Bilanzverfahren hat.
  * Entscheidung: https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
  */
@@ -32,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("Übergang einer gemischten Anzahlungs-Schluss
     const previous = mkdtempSync(join(tmpdir(), "haben-mixed-advance-transition-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta/_journal.json"), "utf8"));
-    const addition = (full.entries as { idx: number; tag: string }[]).find((entry) => entry.tag === "0219_anzahlung_bilanz");
+    const addition = (full.entries as { idx: number; tag: string }[]).find((entry) => entry.tag === "0223_anzahlung_bilanz");
     if (!addition) throw new Error("Migration des neuen Anzahlungs-Bilanzverfahrens fehlt.");
     writeFileSync(
       join(previous, "meta/_journal.json"),

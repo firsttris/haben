@@ -11,7 +11,7 @@ Haben übernimmt deinen Bestand aus sevDesk, damit du das Abo kündigen kannst, 
 
 Für eine GmbH oder UG gilt dasselbe wie beim [Umzug aus Lexoffice](lexoffice.md#umzug-einer-gmbh-oder-ug): Die Bestände über die offenen Posten hinaus übernimmst du mit einer Eröffnungsbuchung.
 
-Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege**, die [Kontaktseite](rechnungen.md#rechnungen-und-belege-am-kontakt) und der Jahresexport behandeln beide Quellen gleich.
+Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffice. Abgleich je Jahr, offene Posten, die Ansicht **Belege**, die [Kontaktseite](kontakte.md#rechnungen-und-belege-am-kontakt) und der Jahresexport behandeln beide Quellen gleich.
 
 > [!WARNING]
 > Der Abruf ist gegen die öffentliche OpenAPI-Beschreibung von sevDesk gebaut und mit nachgestellten Antworten getestet. Gezielt angelegte Auftragsdokumente wurden inzwischen mit sevDesk V1 geprüft; ein vollständiger Umzug wurde damit noch nicht getestet. Die Datei eines Belegs holt Haben über `GET /Document/{id}/download`; dieser Endpunkt steht nicht in der aktuellen Beschreibung. Prüfe nach dem Abruf den Punkt „Jeder Beleg hat eine Datei“ im Abgleich und kündige erst, wenn er für jedes Jahr aufgeht.
@@ -63,11 +63,13 @@ Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Hab
 | Rechnung (RE, TR, ER) | Rechnung |
 | Abschlagsrechnung (AR) | Abschlagsrechnung |
 | Stornorechnung (SR) | Gutschrift, negativ; hebt die Rechnung aus `origin` auf, siehe [Stornierte Rechnungen](#stornierte-rechnungen) |
-| Gutschrift | Gutschrift, negativ |
+| Gutschrift | Gutschrift, negativ; Honorar und Provision als Ausgabe-Gutschrift, positiv (siehe unten) |
 | Beleg „Einnahme“ (`creditDebit` D) | Einnahmebeleg, bei negativer Summe Einnahme-Gutschrift |
 | Beleg „Ausgabe“ (`creditDebit` C) | Ausgabebeleg, bei negativer Summe Ausgabe-Gutschrift |
 
 Die Richtung `creditDebit` beschreibt die OpenAPI nur als „credit (C) or debit (D)“; dass C die Ausgabe ist, ist mit echten Antworten der Buchhaltungsversionen 1.0 und 2.0 belegt ([#472](https://github.com/firsttris/haben/issues/472)). Frühere Abrufe hatten beide vertauscht. Die Archivkopie bleibt unverändert, Haben liest Richtung und Belegart von sevDesk-Belegen aus der gespeicherten API-Antwort; ein neuer Abruf ist nicht nötig. Wurde vor der Korrektur eine Einnahme als offener Ausgabebeleg übernommen, bleibt sie versiegelt und erscheint weiter als übernommen; prüfe sie und korrigiere sie in Haben.
+
+**Gutschriften** folgen der Buchung von sevDesk, zur Laufzeit aus der gespeicherten Antwort ([#472](https://github.com/firsttris/haben/issues/472)). Honorar und Provision (`bookingCategory` `ROYALTY_ASSIGNED`, `ROYALTY_UNASSIGNED`, `PROVISION`) bucht sevDesk auf ein Aufwandskonto mit Vorsteuer; sie erscheinen als „Ausgabe-Gutschrift“ auf der Ausgabenseite und in Kz 66. Minderleistung und Buchungskonto (`UNDERACHIEVEMENT`, `ACCOUNTING_TYPE`) mindern die Einnahmen. Belegt ist das am DATEV-Export von sevDesk mit je einer Gutschrift in Buchhaltungsversion 1.0 und in 2.0 für `PROVISION` und `ROYALTY_ASSIGNED`; für `ROYALTY_UNASSIGNED` gibt es in 2.0 nur das Buchungskonto (4909), keine Buchung. In 2.0 nennt der Kopf der Gutschrift 0 % und die Steuerregel 9, der Steuersatz steht nur an den Positionen; Haben nimmt ihn wie in 1.0 aus den Positionen. Steuerlich ist das nicht geprüft. Bei `ACCOUNTING_TYPE` entscheidet in sevDesk das gewählte Konto; Haben kennt es beim Abruf nicht und führt sie immer als Einnahme, prüfe eine Gutschrift auf einem Aufwandskonto also von Hand. Offene Gutschriften aus Honorar und Provision werden nicht als offene Posten übernommen.
 
 sevDesk lässt bei vielen Belegen den Namen des Lieferanten leer (`supplierName`). Haben zeigt dann den Namen, den der Beleg beim Speichern trug (`supplierNameAtSave`), und erst ohne ihn den Namen des verknüpften Kontakts. So bleibt ein alter Beleg richtig, wenn der Kontakt später umbenannt wird. Die Archivkopie bleibt unverändert.
 

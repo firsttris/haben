@@ -1104,7 +1104,7 @@ function AllocationPanel({
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
         <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
-        <div className="mono" style={{ fontSize: 24, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
+        <div className="amount" style={{ fontSize: 24, fontWeight: 600, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
           {tx.amount > 0 ? "+" : "−"}
           {formatEuro(Math.abs(tx.amount))}
         </div>
@@ -1205,7 +1205,7 @@ function AllocationPanel({
                       {best.item.type === "document" && best.item.number ? ` · ${best.item.number}` : ""}
                     </span>
                   </div>
-                  <span className="mono">{formatEuro(Math.abs(best.item.open))}</span>
+                  <span className="amount">{formatEuro(Math.abs(best.item.open))}</span>
                 </div>
                 <ul className="reasons">
                   {best.reasons.map((reason) => (

@@ -98,11 +98,23 @@ describe("reviewHint", () => {
   const fremd = { draft: false, author_association: "CONTRIBUTOR", user: { login: "TheLord83", type: "User" } };
 
   it("erinnert bei einem fremden Pull Request mit Code an beitrag-pruefen und tdd-review", () => {
-    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts", "docs/bank.md"]);
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts"]);
     expect(report.level).toBe("warning");
     expect(report.message).toContain("`beitrag-pruefen`");
     expect(report.message).toContain("`tdd-review`");
     expect(report.message).not.toContain("`doku-pruefen`");
+  });
+
+  it("nennt bei Code und Markdown tdd-review und doku-pruefen nebeneinander (tdd-review, Schritt 0)", () => {
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts", "docs/bank.md"]);
+    expect(report.message).toContain("`tdd-review`");
+    expect(report.message).toContain("`doku-pruefen`");
+  });
+
+  it("nennt doku-pruefen auch bei Code und LICENSE, wie bei LICENSE allein", () => {
+    const [report] = reviewHint(fremd, ["apps/web/src/server/modules/bank/index.ts", "LICENSE"]);
+    expect(report.message).toContain("`tdd-review`");
+    expect(report.message).toContain("`doku-pruefen`");
   });
 
   it("nennt doku-pruefen, wenn nur Markdown, docs/ oder LICENSE geändert sind", () => {

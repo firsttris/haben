@@ -143,7 +143,8 @@ export async function ebilanzSubmissions(year: number) {
         createdAt: schema.annualSubmissions.createdAt,
       })
       .from(schema.annualSubmissions)
-      // Ein Vermerk gilt nur für Umsatzsteuererklärung und Anlage EÜR; die E-Bilanz kennt weiter nur Prüfung, Test und Sendung
+      // Ein Vermerk gilt nur für Umsatzsteuererklärung und Anlage EÜR; die E-Bilanz kennt nur Prüfung, Test und Sendung.
+      // Der Filter bleibt, damit später ergänzte Arten nicht im Verlauf der E-Bilanz auftauchen; er verengt den Typ nicht.
       .where(
         and(
           eq(schema.annualSubmissions.form, "ebilanz"),
@@ -152,7 +153,6 @@ export async function ebilanzSubmissions(year: number) {
         ),
       )
       .orderBy(desc(schema.annualSubmissions.createdAt))
-      .then((rows) => rows as (Omit<(typeof rows)[number], "kind"> & { kind: "validate" | "test" | "send" })[])
   );
 }
 

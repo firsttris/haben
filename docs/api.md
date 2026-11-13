@@ -85,6 +85,8 @@ Jeder Fehler hat dieselbe Form, mit einer deutschen Meldung und bei ungültigen 
 
 Ein Rechnungsentwurf nimmt `buyerOrderReference` (Bestellnummer des Kunden, BT-13), `sellerOrderReference` (eigene Auftragsnummer, BT-14) und `despatchAdviceReference` (Lieferscheinnummer, BT-16) an, je bis 100 Zeichen, leer = keine. Sie stehen im PDF und in der E-Rechnung an ihrem eigenen Feld ([Rechnungen](rechnungen.md#bestellnummer-auftrag-und-lieferschein)). `PATCH` ohne diese Felder behält sie. Die externe Referenz (unten) bleibt davon getrennt; soll die Bestellnummer der Plattform auf der Rechnung stehen, schick sie zusätzlich als `sellerOrderReference` oder `buyerOrderReference`.
 
+`propertyRetention: true` ergänzt den festen [Aufbewahrungshinweis für private Grundstücksleistungen](rechnungen.md#aufbewahrungshinweis-bei-grundstücksleistungen) im PDF und in BT-22 der E-Rechnung. Beim Anlegen ist die Vorgabe `false`; ein `PATCH` ohne Feld behält die Auswahl, `false` schaltet sie aus. Die Antwort liefert den gespeicherten Wahrheitswert. Festgeschriebene Rechnungen bleiben unveränderlich.
+
 ## Externe Referenz: eine Rechnung je Bestellung
 
 Ein Rechnungsentwurf kann eine externe Referenz tragen: `externalSource` ist die Plattform (Kleinbuchstaben, Ziffern, `.`, `-`, `_`, etwa `etsy` oder `ebay`), `externalId` die Bestellnummer dort. Beide gibt es nur zusammen, und zusammen sind sie eindeutig.
@@ -149,7 +151,7 @@ Die Antwort enthält Summen, Positionen und `url`, den Link auf den Entwurf in H
 }
 ```
 
-Skonto steht in `skonto` als Liste von Stufen, Frist in Tagen ab dem Rechnungsdatum und Satz in Basispunkten: `"skonto": [{ "days": 10, "percent": 200 }]` für 2 % in 10 Tagen, `[]` für keins. Ohne Angabe gilt das Skonto des Kontakts, sonst das aus den Firmendaten, ohne Stufen über das Zahlungsziel hinaus; bei Fremdwährung keins (siehe [Skonto](rechnungen.md#skonto)).
+Skonto steht in `skonto` als Liste von Stufen, Frist in Tagen ab dem Rechnungsdatum und Satz in Basispunkten: `"skonto": [{ "days": 10, "percent": 200 }]` für 2 % in 10 Tagen, `[]` für keins. Ohne Angabe gilt das Skonto des Kontakts, sonst das aus den Firmendaten, ohne Stufen über das Zahlungsziel hinaus; bei Fremdwährung keins (siehe [Skonto](rechnungen-zahlung.md#skonto)).
 
 Endpreise inklusive Umsatzsteuer, wie in Shops üblich, gehen mit `"priceMode": "brutto"`; dann ist `unitPrice` der Bruttopreis in Cent. Einheiten sind `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.` und `km`.
 
@@ -187,7 +189,7 @@ curl -X POST "$HABEN/leistungen" \
   -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
 ```
 
-Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from`, `to` und `status` (`offen`, `abgerechnet`, `nicht-abrechenbar`) listet. Jeder Eintrag trägt `invoiceId`, `invoiceNumber` und `invoiceStatus` (`draft` oder `final`) der Rechnung, auf der er steht; `null` heißt offen, auch nach dem Storno der Rechnung. Ein Eintrag auf einer Rechnung lässt sich nicht löschen (`422`), und ein erneutes `POST` mit seiner Kennung ändert ihn nicht. Abgerechnet wird in Haben unter [Leistungen](leistungen.md#abrechnen).
 
 ### Zeitbuchungen aus Kimai holen
 
@@ -286,6 +288,6 @@ Paperless-ngx schickt neue Dokumente mit einem Workflow ohne eigenen Code an Hab
 - Jedes Token hat nur die Rechte, die du ihm gibst. Keines kann buchen, festschreiben, stornieren, versenden oder etwas an ELSTER schicken, und keines sieht Zertifikat, Passwörter, API-Schlüssel oder Steuer-ID. Ein Token mit `belege:anlegen` kann Belege nur hinzufügen, nicht ändern, löschen oder herunterladen.
 - Die API meldet sich nur mit dem Token an, nie mit dem Sitzungscookie. Eine fremde Webseite, die du im selben Browser öffnest, kann sie deshalb nicht in deinem Namen aufrufen.
 - Ein Token ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten deines Werkzeugs, nicht im Klartext in Skripten oder Workflows, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
-- Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
+- Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation-sso.md#tokens-nach-gruppenentzug).
 
 [Zurück zur Übersicht](ueberblick.md)

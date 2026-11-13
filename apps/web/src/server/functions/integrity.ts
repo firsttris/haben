@@ -1,8 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { databaseAccessInfo } from "../db/index.ts";
 import { UserError } from "../errors.ts";
 import { chainHead, checkIntegrity, checkPruefwert, parsePruefwert } from "../modules/auswertungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
+
+/** Rechte der tatsächlich verwendeten Verbindung für die Einstellungen. */
+export const getDatabaseAccessInfo = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => databaseAccessInfo());
 
 /** Kopf der Kette für die Einstellungen */
 export const getChainHead = createServerFn({ method: "GET" })

@@ -27,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Migration des Anzahlungs-Bilanzverfahrens: Al
     const previous = mkdtempSync(join(tmpdir(), "haben-migration-advance-balance-"));
     cpSync(MIGRATIONS, previous, { recursive: true });
     const full = JSON.parse(readFileSync(join(MIGRATIONS, "meta/_journal.json"), "utf8"));
-    const addition = (full.entries as { idx: number; tag: string }[]).find((entry) => entry.tag === "0219_anzahlung_bilanz");
+    const addition = (full.entries as { idx: number; tag: string }[]).find((entry) => entry.tag === "0223_anzahlung_bilanz");
     if (!addition) throw new Error("Migration des Anzahlungs-Bilanzverfahrens fehlt.");
     writeFileSync(
       join(previous, "meta/_journal.json"),

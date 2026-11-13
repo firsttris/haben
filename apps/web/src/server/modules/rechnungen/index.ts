@@ -55,6 +55,7 @@ export { advanceReceivablesAt } from "./advance-receivables.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,
+  assertCustomer,
   buyerFrom,
   cancelInvoice,
   createCorrection,
@@ -66,6 +67,7 @@ export {
   finalizeIssues,
   getInvoice,
   InvoiceError,
+  insertDraft,
   invoiceSummary,
   listInvoices,
   newDraftDefaults,

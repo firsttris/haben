@@ -40,6 +40,9 @@ set -a
 set +a
 
 bun run db:migrate
+# Auch der Dev-Server erhält bei getrennten Rollen nur die App-Anmeldung.
+# Bun darf die private Adresse nicht aus apps/web/.env wieder laden; andere .env-Werte bleiben erhalten.
+export MIGRATION_DATABASE_URL=
 # --host: im Container auf allen Schnittstellen lauschen, sonst erreicht ihn die Portfreigabe nicht
 cd apps/web
 exec bun --bun vite dev --host 0.0.0.0 --port "$HABEN_DEV_PORT"

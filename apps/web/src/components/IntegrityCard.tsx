@@ -67,9 +67,9 @@ export function IntegrityCard({ head }: { head: Head }) {
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen, Belege,
         Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht die Prüfung das Journal mit
-        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab. Sie findet nachträgliche Änderungen an der Datenbank, verhindert sie aber nicht. Wer die
-        Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst
-        (wöchentliche Mail, Jahresarchiv).
+        Umsatzsteuer, EÜR und den neuen Anzahlungsbeständen ab und meldet Kontenkollisionen. Sie findet nachträgliche Änderungen an der Datenbank, verhindert
+        sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des
+        Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
       </p>
       {current && (
         <div className="small">
@@ -90,6 +90,7 @@ export function IntegrityCard({ head }: { head: Head }) {
               const result = await check();
               setReport(result);
               const differences = result.abgleich.abweichungen.length;
+              const collisions = result.accountCollisions.length;
               action.setNotice(
                 result.problems.length > 0
                   ? {
@@ -101,10 +102,15 @@ export function IntegrityCard({ head }: { head: Head }) {
                         tone: "danger",
                         text: `Kette und Siegel sind unverändert, aber Journal und Nebenbücher weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
                       }
-                    : {
-                        tone: "ok",
-                        text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
-                      },
+                    : collisions > 0
+                      ? {
+                          tone: "info",
+                          text: `Kette und Siegel sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
+                        }
+                      : {
+                          tone: "ok",
+                          text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Die geprüften Journal-, Steuer- und OPOS-Werte stimmen überein.`,
+                        },
               );
             })
           }
@@ -142,6 +148,22 @@ export function IntegrityCard({ head }: { head: Head }) {
             ))}
           </ul>
         </div>
+      )}
+      {report && report.accountCollisions.length > 0 && (
+        <section className="small" aria-labelledby="account-collisions-heading">
+          <h3 id="account-collisions-heading">Kontenkollisionen</h3>
+          <p>
+            Diese eigenen Kontonummern werden inzwischen auch von Haben verwendet. Das kann Auswertungen verfälschen. Kläre die Zuordnung mit deiner
+            Steuerberatung. Archivieren allein löst die Kollision nicht, weil die Zuordnung für bestehende Buchungen weiterwirkt.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {report.accountCollisions.map((account) => (
+              <li key={`${account.kontenrahmen}:${account.account}`} style={{ overflowWrap: "anywhere" }}>
+                {account.kontenrahmen} · {account.account} · {account.name}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       <form className="actions" style={{ alignItems: "flex-end", borderTop: "1px solid var(--line)", paddingTop: 16 }} onSubmit={onCompare}>
         <Field label="Prüfwert aus Mail oder Jahresarchiv" style={{ flex: 1, minWidth: 0 }}>

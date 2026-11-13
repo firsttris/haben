@@ -1,0 +1,106 @@
+[
+  {
+    "id": "ID_80",
+    "objectName": "CheckAccountTransactionLog",
+    "additionalInformation": null,
+    "create": "2024-01-15T12:00:00+01:00",
+    "checkAccountTransaction": {
+      "id": "ID_81",
+      "objectName": "CheckAccountTransaction",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "valueDate": "2024-01-15T12:00:00+01:00",
+      "entryDate": "2024-01-15T12:00:00+01:00",
+      "amount": "-100",
+      "feeAmount": null,
+      "gvCode": null,
+      "entryText": null,
+      "primaNotaNo": null,
+      "paymtPurpose": "<anon>",
+      "payeePayerBankCode": null,
+      "payeePayerAcctNo": null,
+      "payeePayerName": "<anon>",
+      "checkAccount": {
+        "id": "ID_82",
+        "objectName": "CheckAccount"
+      },
+      "status": "400",
+      "score": null,
+      "compareHash": null,
+      "enshrined": null,
+      "obonoReceiptUuid": null,
+      "externalId": null,
+      "deletedAt": null,
+      "restoredAt": null
+    },
+    "fromStatus": "100",
+    "toStatus": "400",
+    "amountPaid": -100,
+    "bookingDate": "2024-01-15T12:00:00+01:00",
+    "sevClient": {
+      "id": "ID_3",
+      "objectName": "SevClient"
+    },
+    "object": {
+      "id": "ID_65",
+      "objectName": "CreditNote"
+    }
+  },
+  {
+    "id": "ID_83",
+    "objectName": "CheckAccountTransactionLog",
+    "additionalInformation": null,
+    "create": "2024-01-15T12:00:00+01:00",
+    "checkAccountTransaction": {
+      "id": "ID_84",
+      "objectName": "CheckAccountTransaction",
+      "additionalInformation": null,
+      "create": "2024-01-15T12:00:00+01:00",
+      "update": "2024-01-15T12:00:00+01:00",
+      "sevClient": {
+        "id": "ID_3",
+        "objectName": "SevClient"
+      },
+      "valueDate": "2024-01-15T12:00:00+01:00",
+      "entryDate": "2024-01-15T12:00:00+01:00",
+      "amount": "-100",
+      "feeAmount": null,
+      "gvCode": null,
+      "entryText": null,
+      "primaNotaNo": null,
+      "paymtPurpose": "<anon>",
+      "payeePayerBankCode": null,
+      "payeePayerAcctNo": null,
+      "payeePayerName": "<anon>",
+      "checkAccount": {
+        "id": "ID_82",
+        "objectName": "CheckAccount"
+      },
+      "status": "400",
+      "score": null,
+      "compareHash": null,
+      "enshrined": null,
+      "obonoReceiptUuid": null,
+      "externalId": null,
+      "deletedAt": null,
+      "restoredAt": null
+    },
+    "fromStatus": "100",
+    "toStatus": "400",
+    "amountPaid": -100,
+    "bookingDate": "2024-01-15T12:00:00+01:00",
+    "sevClient": {
+      "id": "ID_3",
+      "objectName": "SevClient"
+    },
+    "object": {
+      "id": "ID_75",
+      "objectName": "CreditNote"
+    }
+  }
+]
