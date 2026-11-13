@@ -46,8 +46,8 @@ import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts
  */
 
 export interface AbgleichZeile {
-  bereich: "ustva" | "euer";
-  /** JJJJ-MM für die Voranmeldung, JJJJ für die EÜR */
+  bereich: "ustva" | "euer" | "opos";
+  /** JJJJ-MM für die Voranmeldung, JJJJ für die EÜR, JJJJ-MM-TT für den OPOS-Stichtag */
   zeitraum: string;
   posten: string;
   journal: Cents;
