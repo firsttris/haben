@@ -81,9 +81,10 @@ export async function steuerbuchung(
   const ausRueckstellung = kontierung.rueckstellung
     ? Math.min(-amount, await offeneRueckstellung(tx, kontierung.rueckstellung, angabe.jahr, bank.bookingDate, company.kontenrahmen))
     : 0;
-  // Umsatzsteuer auf einem privaten Konto (#866): Das Geld fließt ins Private oder kommt von dort, die Gegenzeile ist
-  // deshalb die Privatentnahme bzw. -einlage, nicht die Bank.
-  const zahlungskonto = angabe.art === "ust" && bank.purpose === "privat" ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
+  // Privates Konto (#866, #873): Das Geld fließt ins Private oder kommt von dort, die Gegenzeile ist deshalb die
+  // Privatentnahme bzw. -einlage und nicht die Bank. Das gilt für jede Steuerart, nicht nur die Umsatzsteuer: Auch
+  // Gewerbesteuer, Vorauszahlungen und Erstattungen zur Einkommensteuer laufen über das Privatkonto.
+  const zahlungskonto = bank.purpose === "privat" ? privatZahlung(amount, company.kontenrahmen, company.rechtsform) : undefined;
   return {
     lines: steuerzahlungPosting(kontierung, amount, ausRueckstellung, company.kontenrahmen, zahlungskonto),
     description: `${steuerzahlungText(angabe, amount)} · ${bank.counterpartyName || "Finanzamt"}`,

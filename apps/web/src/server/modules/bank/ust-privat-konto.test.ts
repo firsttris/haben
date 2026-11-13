@@ -98,6 +98,23 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
     ]);
   });
 
+  it("bucht Gewerbesteuer auf dem privaten Konto als Einlage, nicht gegen die Bank (#873)", async () => {
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-11-10", -50_000);
+
+    await bank.allocate(actor, {
+      kind: "steuer",
+      transactionId: transaction,
+      amount: -50_000,
+      steuer: { art: "gewst", jahr: 2025, posten: "steuer" },
+    });
+
+    const rows = await zeilen(transaction);
+    // Zahlung vom privaten Konto: die Bank bleibt unberührt, die Gegenzeile ist die Einlage
+    expect(rows.map((r) => r.account)).not.toContain("1200");
+    expect(rows.map((r) => r.account)).toContain("1890");
+  });
+
   it("bucht eine Erstattung ohne Voranmeldungsbezug auf dem privaten Konto ebenfalls als Entnahme", async () => {
     const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
     const transaction = await umsatz(account, "2026-10-12", 503_68);
