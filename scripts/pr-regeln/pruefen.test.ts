@@ -63,3 +63,55 @@ describe("pruefen.ts lokal", () => {
     expect(pruefen("--basis", "main", "--titel", "Kern: neue Konstante").ausgabe).not.toContain("beitrag-pruefen");
   });
 });
+
+describe("pruefen.ts: lange Seiten der Doku", () => {
+  const woerter = (n: number) => `${"wort ".repeat(n)}\n`;
+
+  beforeAll(() => {
+    git("checkout", "-q", "main");
+    datei("docs/lang.md", woerter(9000));
+    datei("docs/alt.md", woerter(9000));
+    git("add", ".");
+    git("commit", "-qm", "Doku");
+    git("checkout", "-qb", "doku");
+  });
+
+  it("weist auf eine Seite hin, die über 8.000 Wörter wächst", () => {
+    datei("docs/neu.md", woerter(8100));
+    git("add", ".");
+    git("commit", "-qm", "Doku: neue Seite");
+    expect(pruefen("--basis", "main").ausgabe).toMatch(/^Hinweis: docs\/neu\.md hat 8100 Wörter/m);
+  });
+
+  it("schweigt bei einer umbenannten langen Seite, die kaum wächst", () => {
+    git("mv", "docs/alt.md", "docs/umbenannt.md");
+    datei("docs/umbenannt.md", woerter(9010));
+    git("add", ".");
+    git("commit", "-qm", "Doku: Seite umbenannt");
+    expect(pruefen("--basis", "main").ausgabe).not.toContain("docs/umbenannt.md");
+  });
+});
+
+describe("pruefen.ts: mehrere umbenannte Seiten", () => {
+  // eigener Inhalt je Seite, sonst paart git gleiche Seiten beliebig
+  const woerter = (n: number, wort: string) => `${`${wort} `.repeat(n)}\n`;
+
+  beforeAll(() => {
+    git("checkout", "-q", "main");
+    datei("docs/mit leer.md", woerter(9000, "leer"));
+    datei("docs/eins.md", woerter(9000, "eins"));
+    datei("docs/zwei.md", woerter(9000, "zwei"));
+    git("add", ".");
+    git("commit", "-qm", "Doku Randfälle");
+    git("checkout", "-qb", "randfaelle");
+  });
+
+  it("schweigt bei Umbenennung einer Seite mit Leerzeichen und bei mehreren Umbenennungen", () => {
+    git("mv", "docs/mit leer.md", "docs/ohne-leer.md");
+    git("mv", "docs/eins.md", "docs/einsb.md");
+    git("mv", "docs/zwei.md", "docs/zweib.md");
+    git("commit", "-qm", "Doku: mehrere");
+    const { ausgabe } = pruefen("--basis", "main");
+    expect(ausgabe).not.toMatch(/docs\/(ohne-leer|einsb|zweib)\.md hat/);
+  });
+});

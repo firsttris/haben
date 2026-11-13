@@ -123,6 +123,34 @@ export function growthHints(grown: { file: string; before: number; after: number
 }
 
 /**
+ * Grenze für eine Seite der Doku in Wörtern (docs/entwicklung.md, „Seiten der Doku“). Die Seiten von main lagen nach
+ * dem Teilen der langen Seiten (#831 bis #851) bei höchstens 9.800 Wörtern; eine längere Seite liest niemand mehr am
+ * Stück, ein Thema für einen Teil der Leser gehört dann auf eine Unterseite.
+ */
+export const DOC_WORDS = 8000;
+/** Wachstum einer schon langen Seite, ab dem ein Hinweis kommt; kleine Änderungen daran sind die Regel */
+export const DOC_GROWTH = 300;
+
+/** Wörter wie `wc -w`: alles zwischen Leerraum */
+export function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Hinweis auf Seiten unter docs/ (ohne die ADRs), die im Pull Request über DOC_WORDS wachsen oder darüber noch um
+ * DOC_GROWTH Wörter zulegen. `before` ist 0 bei einer neuen Seite.
+ */
+export function docPageHints(pages: { file: string; before: number; after: number }[]): Report[] {
+  return pages
+    .filter(({ file }) => /^docs\/[^/]+\.md$/.test(file))
+    .filter(({ before, after }) => after > DOC_WORDS && (before <= DOC_WORDS || after - before >= DOC_GROWTH))
+    .map(({ file, after }) => ({
+      level: "warning",
+      message: `${file} hat ${after} Wörter, mehr als ${DOC_WORDS}: Gehört ein Teil auf eine Unterseite (docs/entwicklung.md, Seiten der Doku)?`,
+    }));
+}
+
+/**
  * Pull Requests von Bots (Renovate) tragen deren eigene Titel wie „Lock file maintenance“. Sie bekommen keine
  * Titelprüfung, sonst würde der rote Check den Automerge von Renovate stoppen (Review von #463).
  */
