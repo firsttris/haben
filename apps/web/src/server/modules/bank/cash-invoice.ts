@@ -1,11 +1,11 @@
 import { insertCashEntry } from "./settlement-store.ts";
 import { formatEuro, invoiceCashPaymentPosting, invoiceOpen, type Cents, type SkontoZahlfrist } from "@haben/core";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
-import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice } from "../rechnungen/index.ts";
+import { invoicePaymentPostingMode, invoiceTotalsById, lockInvoice, invoicePaymentGroup } from "../rechnungen/index.ts";
 import { bookWriteOff, invoiceTaxShares, openItems, settledOn } from "./bank.ts";
 import { CashError, lockCash, nextNumber, type CashEntry } from "./cash.ts";
 import { bareinnahmeSteuerSchema, bookCashIncome } from "./cash-income.ts";
@@ -148,6 +148,7 @@ export interface InvoicePayment {
 
 /** Zahlungen auf eine Rechnung, über die Bank und bar, ohne Gegenzeilen, mit Merker „storniert“ bzw. „aufgehoben“ */
 export async function invoicePaymentList(invoiceId: string): Promise<InvoicePayment[]> {
+  const invoiceIds = await invoicePaymentGroup(invoiceId);
   const allocations = await db
     .select({
       id: schema.allocations.id,
@@ -158,9 +159,9 @@ export async function invoicePaymentList(invoiceId: string): Promise<InvoicePaym
     })
     .from(schema.allocations)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-    .where(eq(schema.allocations.invoiceId, invoiceId))
+    .where(inArray(schema.allocations.invoiceId, invoiceIds))
     .orderBy(asc(schema.allocations.createdAt));
-  const cash = await db.select().from(schema.cashEntries).where(eq(schema.cashEntries.invoiceId, invoiceId)).orderBy(asc(schema.cashEntries.number));
+  const cash = await db.select().from(schema.cashEntries).where(inArray(schema.cashEntries.invoiceId, invoiceIds)).orderBy(asc(schema.cashEntries.number));
   const reversed = new Set([...allocations, ...cash].flatMap((r) => (r.reversesId ? [r.reversesId] : [])));
   const payments: InvoicePayment[] = [
     ...allocations

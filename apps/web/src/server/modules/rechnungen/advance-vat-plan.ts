@@ -12,6 +12,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
 import { invoiceTaxReader } from "./invoice-tax.ts";
+import { UserError } from "../../errors.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
 
@@ -96,10 +97,10 @@ export interface ManagedAdvancePlan {
 }
 
 /** Gegenprobe aus den Nebenbüchern, ausdrücklich ohne Journalzeilen zu lesen. */
-export async function loadAdvanceVatPlan(original: Invoice, q: Db | Tx = db, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan> {
+export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db | Tx = db, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan> {
   // Die Festschreibung kann den Verfahrensmarker gerade erst gesetzt haben; der Vorher-Lader hält noch den Entwurf.
-  const [current] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, original.id));
-  if (current) original = current;
+  const [original] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, reference.id));
+  if (!original) throw new UserError("Die ursprüngliche Anzahlungsrechnung fehlt.");
   const invoices = await family(original.id, q);
   const totals = await invoiceTotalsById(
     invoices.map((i) => i.id),

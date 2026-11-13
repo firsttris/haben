@@ -58,7 +58,15 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { bankNeutralizedSql, bankOpenAmountSql } from "../../db/bank-open.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
-import { invoicePaymentPostingMode, invoiceTotalsById, invoicePostingMode, lockInvoice } from "../rechnungen/index.ts";
+import {
+  invoicePaymentPostingMode,
+  invoiceTotalsById,
+  invoicePostingMode,
+  lockInvoice,
+  invoicePaymentGroup,
+  invoicePaymentGroups,
+  paperCancellationIds,
+} from "../rechnungen/index.ts";
 import { dauerbelegSuggestions } from "../belege/index.ts";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
@@ -408,7 +416,9 @@ async function paidByTarget(column: "invoice_id" | "document_id", ids: string[],
 
 /** Erledigter Betrag einer Rechnung bzw. eines Belegs innerhalb einer Transaktion (nach dem Sperren) */
 export async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: string): Promise<number> {
-  return (await paidByTarget(column, [id], tx)).get(id) ?? 0;
+  const ids = column === "invoice_id" ? await invoicePaymentGroup(id, tx) : [id];
+  const paid = await paidByTarget(column, ids, tx);
+  return ids.reduce((sum, target) => sum + (paid.get(target) ?? 0), 0);
 }
 
 /**
@@ -417,14 +427,15 @@ export async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id
  * mit dem aus ihrem Betrag gerechneten. Erst nach dem Sperren der Rechnung aufrufen.
  */
 export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: InvoiceTotals, amount: number): Promise<TaxShare[]> {
-  const rows = await tx.execute<{ amount: number; tax_shares: TaxShare[] | null; tax_shares_invoice_id: string | null }>(
-    sql`select amount, tax_shares, tax_shares_invoice_id from allocations where invoice_id = ${invoiceId}
-        union all select amount, tax_shares, tax_shares_invoice_id from write_offs where invoice_id = ${invoiceId}
-        union all select amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id = ${invoiceId}`,
+  const ids = await invoicePaymentGroup(invoiceId, tx);
+  const rows = await tx.execute<{ invoice_id: string; amount: number; tax_shares: TaxShare[] | null; tax_shares_invoice_id: string | null }>(
+    sql`select invoice_id, amount, tax_shares, tax_shares_invoice_id from allocations where invoice_id in ${ids}
+        union all select invoice_id, amount, tax_shares, tax_shares_invoice_id from write_offs where invoice_id in ${ids}
+        union all select invoice_id, amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id in ${ids}`,
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === invoiceId ? r.tax_shares : null));
+  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === r.invoice_id ? r.tax_shares : null));
   return settlementTaxShares(totals, settled, recorded, amount);
 }
 
@@ -432,7 +443,13 @@ export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: Invoic
 export const negatedShares = (shares: TaxShare[] | null) => shares?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
 
 export async function invoicePayments(ids: string[], q: Db | Tx = db) {
-  return paidByTarget("invoice_id", ids, q);
+  const groups = await invoicePaymentGroups(ids, q);
+  const paid = await paidByTarget("invoice_id", [...new Set([...groups.values()].flat())], q);
+  return new Map(
+    [...groups]
+      .filter(([, group]) => group.some((id) => paid.has(id)))
+      .map(([id, group]) => [id, group.reduce((sum, target) => sum + (paid.get(target) ?? 0), 0)]),
+  );
 }
 
 /** Erledigter Betrag je Beleg (Zuordnungen und Ausbuchungen), Vorzeichen wie auf dem Konto */
@@ -493,7 +510,8 @@ export async function openItems(): Promise<OpenItem[]> {
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
   const cancelled = new Set(stornos.map((r) => r.correctsId));
-  const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
+  const invoicePaid = await invoicePayments([...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
+  const paperStornos = await paperCancellationIds(stornos.map((st) => st.id));
   // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
   const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
 
@@ -544,6 +562,7 @@ export async function openItems(): Promise<OpenItem[]> {
   }
   // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
   for (const storno of stornos) {
+    if (paperStornos.has(storno.id)) continue;
     const open = invoiceOpen({
       status: "final",
       kind: "storno",

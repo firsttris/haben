@@ -50,6 +50,7 @@ export { invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./i
 export { invoiceTaxReader, invoiceTaxYear, invoicePaymentPostingMode, invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 export { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 export { advanceVatPlans } from "./advance-vat-plan.ts";
+export { invoicePaymentGroup, invoicePaymentGroups, paperCancellationIds } from "./advance-payment-group.ts";
 export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,

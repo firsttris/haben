@@ -11,7 +11,7 @@ async function affectedAdvances(tx: Tx, invoiceId: string) {
   if (!invoice) return [];
   const original = await invoiceTaxReader(tx).original(invoice);
   // KU hat keine Anzahlungs-USt, benötigt bei GmbH/UG aber denselben Bilanzierungsanschluss.
-  if (original.advanceType === "anzahlung") return [original as typeof schema.invoices.$inferSelect];
+  if (original.advanceType === "anzahlung" && original.id) return [{ id: original.id }];
   const referenced = await tx
     .selectDistinct({ invoice: schema.invoices })
     .from(schema.invoiceLines)
@@ -64,11 +64,11 @@ export async function withAdvanceVatChange<T>(tx: Tx, invoiceId: string | null, 
     for (const { date, shares } of changes) {
       await post(tx, books, {
         date,
-        description: `Umsatzsteuer Anzahlung ${original.number}`,
+        description: `Umsatzsteuer Anzahlung ${after.original.number}`,
         sourceType: "invoice",
         sourceId: original.id,
         // Nur Steuerumbuchung, Bank/Kasse und Forderung bleiben in der normalen Zahlungsbuchung.
-        lines: invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, original.taxTreatment),
+        lines: invoicePaymentPosting(totalsFromTaxes(shares), 0, books.kontenrahmen, "ist", shares, after.original.taxTreatment),
       });
     }
     for (const { date, lines } of balanceChanges) {

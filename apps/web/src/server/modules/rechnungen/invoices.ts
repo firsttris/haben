@@ -57,6 +57,7 @@ import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
 import { advanceProcedure } from "./advance-procedure.ts";
 import { advanceInvoicePosting } from "./advance-invoice.ts";
+import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -764,6 +765,10 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
   );
+  const paperStornos = await paperCancellationIds(
+    rows.filter((r) => r.kind === "storno").map((r) => r.id),
+    q,
+  );
   return rows.map(({ cancelled, ...row }) => {
     const facts = {
       ...row,
@@ -778,7 +783,7 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       customer: row.buyerName ?? row.contactName ?? "–",
       listStatus: invoiceListStatus(facts, today),
       paid: facts.paid,
-      open: invoiceOpen(facts),
+      open: paperStornos.has(row.id) ? 0 : invoiceOpen(facts),
     };
   });
 }
