@@ -9,11 +9,11 @@ Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, di
 
 ## 0. Wer reviewt?
 
-Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft derselbe Reviewer in derselben Runde die Markdown-Dateien nach `doku-pruefen`, Schritte 2 bis 6; diese Befunde brauchen keinen roten Test und stehen im selben Kommentar (Schritt 3).
+Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, gilt dieser Skill für beides (Schritt 1, Markdown).
 
 Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/entwicklung.md`, Review, Punkt 1).
 
-- **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, keine eigene Einschätzung. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Der Subagent arbeitet in einem eigenen Worktree auf dem Branch des PR und mit einer eigenen Compose-Instanz samt Test-Datenbank (Skill `checks`, Schritt 2: eigener Projektname und Ports), nie im Checkout oder in der `haben-dev`-Umgebung der Person; am Ende räumt er beides ab. Bei mehreren parallelen Reviews je eine eigene Instanz. Danach weiter mit Schritt 5.
+- **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, samt dem Punkt „Markdown“ in Schritt 1, keine eigene Einschätzung. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Der Subagent arbeitet in einem eigenen Worktree auf dem Branch des PR und mit einer eigenen Compose-Instanz samt Test-Datenbank (Skill `checks`, Schritt 2: eigener Projektname und Ports), nie im Checkout oder in der `haben-dev`-Umgebung der Person; am Ende räumt er beides ab. Bei mehreren parallelen Reviews je eine eigene Instanz. Danach weiter mit Schritt 5.
 - **Frische Session, nur ein PR genannt:** Diese Session ist unabhängig; direkt mit Schritt 1 beginnen.
 
 ## 1. Direkt reviewen
@@ -23,6 +23,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 - Gesucht werden echte Fehler: falsche Logik, Randfälle (null, leer, Grenzwerte, Vorzeichen, Gutschriften), Fehlerbehandlung, Race Conditions, Sicherheitslücken, Regressionen gegenüber dem bisherigen Verhalten. Auch die anderen Stellen ansehen, die die geänderten Funktionen oder Daten nutzen.
 - Fachlich in Haben besonders: Buchungen in **SKR03 und SKR04**, **Ist und Soll**, **Einzelunternehmen und GmbH**; Abgleich Journal ↔ Voranmeldung/EÜR, E-Bilanz, DATEV-Export; GoBD-Sperren und Siegel; Geld in ganzen Cent. Hängt ein Detail an Steuerrecht oder einem Format, die Quelle nennen (`docs/entwicklung.md`, Konventionen, „Quellen statt Gedächtnis“).
 - Keine Anmerkungen zu Stil, Namen oder Geschmack.
+- **Markdown:** Ändert der Diff auch `*.md`, prüft derselbe Reviewer in derselben Runde diese Dateien nach `doku-pruefen`, jeden der Schritte 2 bis 6 einzeln: Stimmt es, ist es kurz, steht es einmal am richtigen Ort, Erzeugtes, Skills und `CLAUDE.md`. Ein Befund braucht dort keinen roten Test, sondern Zitat und Beleg (`doku-pruefen`, Einleitung); Schritt 2 hier gilt nur für Code.
 
 ## 2. Jeden Verdacht mit einem Test beweisen
 
@@ -36,11 +37,13 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 ## 3. Findings in den PR posten
 
 - Ein Kommentar im PR: je Finding Titel, Datei/Zeile, Testname, Ausgabe des roten Tests, kurze Erklärung; dazu die verworfenen Verdachte in je einem Satz.
+- Ändert der PR Markdown, im selben Kommentar ein Abschnitt „Markdown (doku-pruefen 2–6)“ mit einer Zeile je Schritt: Befund mit Zitat und Beleg oder „ohne Befund“ und was geprüft wurde. Ein Satz für alle Schritte zusammen reicht nicht.
 - Keine Findings: das kurz im PR vermerken und weiter mit Schritt 5.
 - Sprache Deutsch.
 
 ## 4. Fixen (Red → Green)
 
+- Markdown-Befunde ohne Test direkt beheben (`doku-pruefen`, Schritt 7).
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
 - Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/entwicklung.md` unter „Review“, Schritt 4.
@@ -78,4 +81,4 @@ Die Regel steht in `docs/entwicklung.md`, Review, „Runden“. Schritte 1 bis 5
 
 ## Abschlussbericht
 
-Immer zurückmelden: PR-Link, Anzahl belegter Findings, was behoben wurde (Commits), Stand der Checks, ob gemergt wurde oder warum nicht.
+Immer zurückmelden: PR-Link, Anzahl belegter Findings und Markdown-Befunde, was behoben wurde (Commits), Stand der Checks, ob gemergt wurde oder warum nicht.
