@@ -64,6 +64,7 @@ nav:
       - Umzug aus sevDesk: sevdesk.md
       - Umzug aus BuchhaltungsButler: buchhaltungsbutler.md
       - Umzug aus Accountable: accountable.md
+      - Umzug aus WISO EÜR & Kasse: wiso.md
       - CSV-Import: csv-import.md
       - Belegimport: belegimport.md
       - KI-Assistenten (MCP): ki-assistenten.md
