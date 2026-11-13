@@ -10,7 +10,7 @@ unser [Verhaltenskodex](CODE_OF_CONDUCT.md).
 Neues Issue über die Formulare: [Issue anlegen](https://github.com/firsttris/haben/issues/new/choose). Bitte vorher
 im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) nachsehen, ob das Thema schon geplant ist, und
 unter [Bewusst nicht](https://haben.app/roadmap.html#bewusst-nicht), ob es ausgeschlossen ist. Wie ein gutes Issue
-aufgebaut ist, steht unter [Issues schreiben](https://haben.app/entwicklung.html#issues-schreiben).
+aufgebaut ist, steht unter [Issues schreiben](https://haben.app/mitwirken.html#issues-schreiben).
 
 **Keine echten Belegdaten, Steuernummern, IBANs oder Zugangsdaten** in Issues, Screenshots oder Logs. Sicherheitslücken
 bitte privat melden, siehe [SECURITY.md](SECURITY.md).
@@ -20,7 +20,7 @@ bitte privat melden, siehe [SECURITY.md](SECURITY.md).
 Such dir eine Karte aus „Geplant“ im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, für den
 Einstieg gern mit dem Label [`einstieg`](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg), und
 kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau abläuft, steht unter
-[Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen).
+[Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen).
 
 ## Pull Requests
 
@@ -34,34 +34,34 @@ kommentier im Issue `/übernehmen`; dann ist es dir zugewiesen. Wie das genau ab
 - Titel: `Bereich: was sich ändert (#Issue)`, die Nummer nur, falls es ein Issue gibt. Commits gern als
   `fix(bereich): …`, `test: …` mit Beschreibung auf Deutsch. Ein Entwurf ist willkommen; die CI startet mit „Ready for
   review“. Was bei einem Pull Request nur mit Doku geprüft wird, steht unter
-  [Branches, Titel und Commits](https://haben.app/entwicklung.html#branches-titel-und-commits).
+  [Branches, Titel und Commits](https://haben.app/mitwirken.html#branches-titel-und-commits).
 - Issues in der Beschreibung mit `Umgesetzt #…`, wenn der Pull Request das Issue fertig macht, sonst mit `Refs #…`.
   Nie `Closes` oder `Fixes`: Das Issue schließt das Release, nicht der Merge.
 - Mit KI-Werkzeugen zu arbeiten ist in Ordnung. Der Transparenz halber bitte kennzeichnen: `Co-Authored-By:` im
   Commit, eine Zeile wie „🤖 Generated with <Werkzeug>“ im Pull Request. Siehe
-  [Mit KI-Werkzeugen](https://haben.app/entwicklung.html#mit-ki-werkzeugen).
+  [Mit KI-Werkzeugen](https://haben.app/mitwirken.html#mit-ki-werkzeugen).
 - Sprache: Deutsch für Kommentare, Doku, Commits und alles, was Nutzer sehen. Bezeichner bleiben Englisch.
 - Vor „Ready for review“ die **Selbstprüfung** (mit KI-Agenten Skill `beitrag-pruefen`): passt die Änderung zu
   Haben, ist sie gegen die Quellen geprüft, die einfachste Lösung, mit Tests und Doku? Das Ergebnis kommt als
   Kommentar in den Pull Request; ein Maintainer oder Collaborator prüft es nur nach
-  ([Beiträge annehmen](https://haben.app/entwicklung.html#beiträge-annehmen)).
+  ([Beiträge annehmen](https://haben.app/mitwirken.html#beiträge-annehmen)).
 - Vor dem Merge ein unabhängiges **TDD-Review** (`tdd-review`) für Code, eine **Doku-Prüfung** (`doku-pruefen`) für Markdown,
   durch jemand anderen oder einen frischen Agenten. Im TDD-Review zählt ein Befund nur mit einem Test, der auf dem
   Stand des Pull Requests fehlschlägt; Fixes kommen als eigene Commits obendrauf
-  ([Review](https://haben.app/entwicklung.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
+  ([Review](https://haben.app/mitwirken.html#review)). Bringst du es mit, reviewen wir nicht noch einmal.
 - Fehlt beides, machen wir alles selbst noch einmal, und weil jeder Merge über uns läuft, wartet dein Pull Request
   dann länger. Gemergt wird von einem Maintainer oder, mit dessen Zustimmung, von einem Collaborator. Ein Issue vorab
   spart dir Arbeit an etwas, das wir nicht übernehmen können.
 
 Die vollständigen Regeln (Codestil, Geld in Cent, GoBD-Sperren, Migrationen, Modulgrenzen) stehen unter
 [Konventionen](https://haben.app/entwicklung.html#konventionen) und
-[Mitwirken](https://haben.app/entwicklung.html#mitwirken). KI-Agenten starten mit [CLAUDE.md](CLAUDE.md)
+[Mitwirken](https://haben.app/mitwirken.html). KI-Agenten starten mit [CLAUDE.md](CLAUDE.md)
 ([AGENTS.md](AGENTS.md)), das dorthin verweist.
 
 ## Prüfungen
 
 Vor jedem Push dieselben Prüfungen wie in der CI; die Befehle stehen unter
-[Mitwirken](https://haben.app/entwicklung.html#mitwirken). Die Tests leeren ihre Datenbanken; nie auf einen Server mit
+[Mitwirken](https://haben.app/mitwirken.html). Die Tests leeren ihre Datenbanken; nie auf einen Server mit
 echten Daten zeigen lassen. Ohne Bun auf dem Rechner laufen dieselben Prüfungen im Dev-Container, siehe
 [Prüfungen ohne Bun auf dem Rechner](https://haben.app/entwicklung.html#prüfungen-ohne-bun-auf-dem-rechner).
 

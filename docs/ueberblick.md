@@ -58,7 +58,8 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 |---|---|
 | [Buchhaltung in Haben](buchhaltung.md) | Grundsätze, GoBD und Festschreibung, Ist und Soll, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
 | [Architektur](architektur.md) | Module, Datenmodell, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
-| [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate, Mitwirken |
+| [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate |
+| [Mitwirken](mitwirken.md) | Aufgabe übernehmen, Branches und Commits, KI-Werkzeuge, automatische Prüfungen, Issues, Beiträge annehmen, Review |
 | [Roadmap](roadmap.md) | Wo die Planung steht, was bewusst nicht kommt, was blockiert ist, Quellen für Feldkennungen |
 | [Lohn (Plan)](lohn-plan.md) | Recherche und Umsetzungsplan für den Lohn: Pull Requests, Pflichten einer Lohnsoftware, offene Fragen, Quellen |
 

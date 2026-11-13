@@ -5,7 +5,7 @@ description: "Unabhängige Prüfung der Markdown-Dateien eines Pull Requests in 
 
 # Doku prüfen
 
-Die Regel steht in `docs/entwicklung.md`, Review, „Doku-Prüfung“, hier die Schritte. Ein Befund braucht keinen Test, aber ein Zitat aus dem Diff und einen Beleg dagegen: Datei und Zeile im Code, die Quelle oder die andere Stelle im Repo. Wortwahl und Satzbau sind kein Befund.
+Die Regel steht in `docs/mitwirken.md`, Review, „Doku-Prüfung“, hier die Schritte. Ein Befund braucht keinen Test, aber ein Zitat aus dem Diff und einen Beleg dagegen: Datei und Zeile im Code, die Quelle oder die andere Stelle im Repo. Wortwahl und Satzbau sind kein Befund.
 
 ## 0. Wer prüft?
 
@@ -39,7 +39,7 @@ Nicht streichen: Fakten, Zahlen, Konten, Paragraphen, Links, Befehle, Front Matt
 
 - Die Kernbegriffe der Änderung suchen, `git grep -n -i "<begriff>" -- '*.md'`, und die Treffer in `docs/`, `.claude/skills/`, `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `DESIGN.md` und `README.md` vergleichen.
 - Der Ort:
-  - was gilt und warum: `docs/`, die Regeln fürs Mitarbeiten in `docs/entwicklung.md`, die Gestaltung in `DESIGN.md`;
+  - was gilt und warum: `docs/`, die Regeln fürs Mitarbeiten in `docs/mitwirken.md`, die Gestaltung in `DESIGN.md`;
   - was ein Agent tut (Befehle, Werkzeuge, Reihenfolge, wann anhalten): ein Skill; er begründet nicht, sondern verweist mit dem Abschnittsnamen auf `docs/`;
   - wie ein Skript entscheidet: Kommentar im Skript;
   - `CLAUDE.md` und `AGENTS.md`: nur wohin schauen und was nie passieren darf; `CONTRIBUTING.md` und README: Kurzfassung mit Link.

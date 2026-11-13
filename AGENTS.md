@@ -1,6 +1,6 @@
 # Notes for coding agents
 
-The rules for this repository are in [`docs/entwicklung.md`](docs/entwicklung.md), in German, for people and
+The rules for this repository are in [`docs/entwicklung.md`](docs/entwicklung.md) and [`docs/mitwirken.md`](docs/mitwirken.md), in German, for people and
 agents alike. [`CLAUDE.md`](CLAUDE.md) is the short entry point: where to look and what must never happen. Both
 apply to every agent, not only Claude.
 

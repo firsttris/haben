@@ -5,7 +5,7 @@ description: "Prüfungen von Haben ausführen (lint, typecheck, Tests mit Postgr
 
 # Prüfungen
 
-Welche Prüfungen gelten, steht in `docs/entwicklung.md` unter „Mitwirken“; die Befehle im Container unter „Prüfungen ohne Bun auf dem Rechner“, eigene Instanzen unter „Mehrere Umgebungen nebeneinander“. Hier nur, wie ein Agent die Umgebung wählt und was er zurückmeldet.
+Welche Prüfungen gelten, steht in `docs/mitwirken.md`; die Befehle im Container (`docs/entwicklung.md`) unter „Prüfungen ohne Bun auf dem Rechner“, eigene Instanzen unter „Mehrere Umgebungen nebeneinander“. Hier nur, wie ein Agent die Umgebung wählt und was er zurückmeldet.
 
 ## 1. Umgebung wählen
 

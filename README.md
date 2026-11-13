@@ -284,7 +284,7 @@ Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
 - **Regeln als Skript:** Modulgrenzen, Dateigröße und die Regeln für Pull Requests prüft die CI, nicht nur der Text.
 - **Review mit Beweis:** Ein zweiter, unabhängiger Agent reviewt jeden Pull Request und darf einen Fehler nur melden, wenn ein Test ihn rot zeigt. Gemergt wird von einem Menschen.
 
-Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/entwicklung.html#leitplanken-für-agenten).
+Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/mitwirken.html#leitplanken-für-agenten).
 </details>
 
 ## Dokumentation
@@ -336,10 +336,10 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 
 ## Mitwirken
 
-Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/entwicklung.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
+Fehler und Ideen gern als Issue. Wer mitbauen will, sucht sich eine Aufgabe im [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aus, etwa mit dem Label `einstieg`, und meldet sich im Issue ([Etwas übernehmen](https://haben.app/mitwirken.html#etwas-übernehmen)). Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Ein Pull Request bringt seine Selbstprüfung (`beitrag-pruefen`) und ein
 unabhängiges Review mit (`tdd-review` für Code, `doku-pruefen` für Markdown). Was vor einem Pull Request laufen muss und was er
-enthält, steht unter [Mitwirken](https://haben.app/entwicklung.html#mitwirken).
+enthält, steht unter [Mitwirken](https://haben.app/mitwirken.html).
 
 ## Sterne im Verlauf
 
