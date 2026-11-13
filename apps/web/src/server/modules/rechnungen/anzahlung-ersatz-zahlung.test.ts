@@ -103,6 +103,17 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
     expect(await sql`select id from write_offs`).toEqual([]);
   }
 
+  it("eine vor Leistung bezahlte und stornierte Anzahlungsanforderung behält den tatsächlichen Erstattungsanspruch", async () => {
+    await sql`update company set rechtsform='gmbh'`;
+    const paidAdvance = await advance();
+    const cancellation = await invoices.cancelInvoice(actor, paidAdvance.id, "2027-02-12");
+    expect(await listed(cancellation.id)).toMatchObject({ open: -35_700 });
+    expect((await bank.openItems()).filter((item) => item.type === "invoice").map(({ id, open }) => ({ id, open })))
+      .toEqual([{ id: cancellation.id, open: -35_700 }]);
+    expect((await bank.cashBook(2026)).entries).toHaveLength(1);
+    expect((await bank.cashBook(2027)).entries).toHaveLength(0);
+  });
+
   for (const { form, frame, vatMode } of [
     { form: "gmbh", frame: "SKR03", vatMode: "soll" },
     { form: "ug", frame: "SKR04", vatMode: "ist" },
@@ -153,7 +164,8 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
     expect(await cashRows()).toEqual(unchanged);
     const replacement = await finalInvoice(paidAdvance.id, "2027-03-12");
     expect(replacement).toMatchObject({ replacesInvoiceId: original.id });
-    expect(await listed(replacement.id)).toMatchObject({ paid: 10_000, open: 73_300, listStatus: "teilbezahlt" });
+    expect(await listed(replacement.id, "2027-03-20")).toMatchObject({ paid: 10_000, open: 73_300, listStatus: "teilbezahlt" });
+    expect(await listed(replacement.id)).toMatchObject({ paid: 10_000, open: 73_300, listStatus: "ueberfaellig" });
     await onlyOpen(replacement.id, 73_300);
     expect(await cashRows()).toEqual(unchanged);
     await expect(bank.createCashInvoiceEntry(actor, { invoiceId: replacement.id, date: "2027-03-20", amount: 73_301 }, "2027-03-20")).rejects.toThrow();
