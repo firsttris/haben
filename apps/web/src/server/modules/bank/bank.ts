@@ -1319,13 +1319,36 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
   });
 }
 
-/** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen. */
-export async function reverseAllocation(actor: string, allocationId: string): Promise<void> {
-  await withActor(actor, (tx) => reverseAllocationIn(tx, allocationId));
+/**
+ * Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen.
+ *
+ * Gebucht wird am Tag der Aufhebung (#782), nicht am Buchungsdatum des Umsatzes: Eine Aufhebung ist ein Vorgang von
+ * heute und berichtigt die Umsatzsteuer nach § 17 Abs. 1 UStG in dem Zeitraum, in dem sie erklärt wird. Ohne eigenes
+ * Datum gilt heute. Ein schon gemeldeter Zeitraum ist bewusst kein Hindernis: Gerade dann wirkt die Aufhebung am
+ * heutigen Tag und lässt die abgegebene Voranmeldung unberührt — eine Sperre nähme den einzigen Weg, einen Fehler zu
+ * berichtigen. Den Belegstorno bedient reverseAllocationIn mit dem Datum aus cancellationDate.
+ */
+export async function reverseAllocation(actor: string, allocationId: string, date = today()): Promise<void> {
+  const heute = today();
+  if (date > heute) throw new BankError("Das Datum der Aufhebung liegt in der Zukunft.");
+  await withActor(actor, async (tx) => {
+    // Die Zuordnung steht buchhalterisch am Buchungsdatum ihres Umsatzes; früher kann die Aufhebung nicht wirken.
+    // Liegt die Zahlung selbst in der Zukunft (vorgehaltener Auszug), ist heute schon der früheste Tag.
+    const [row] = await tx
+      .select({ bookingDate: schema.bankTransactions.bookingDate })
+      .from(schema.allocations)
+      .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
+      .where(eq(schema.allocations.id, allocationId));
+    // Nur der Weg über die Oberfläche datiert vor; der Belegstorno bringt sein Datum selbst mit (cancellationDate)
+    if (row && row.bookingDate <= heute && date < row.bookingDate) {
+      throw new BankError(`Das Datum liegt vor dem Buchungsdatum der Zahlung (${row.bookingDate}). Eine Aufhebung wirkt an dem Tag, an dem sie erklärt wird.`);
+    }
+    await reverseAllocationIn(tx, allocationId, date);
+  });
 }
 
 /** Wie reverseAllocation, innerhalb der withActor-Transaktion des Aufrufers (z. B. gemeinsamer Belegstorno). */
-export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise<void> {
+export async function reverseAllocationIn(tx: Tx, allocationId: string, date: string): Promise<void> {
   const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
   if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
@@ -1340,7 +1363,7 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise
         .for("update")
     : [allocation];
   await darlehenAufhebenPruefen(tx, parts);
-  for (const part of parts) await reverseOne(tx, part);
+  for (const part of parts) await reverseOne(tx, part, date);
   // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
   const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
   if (targets.length > 0) {
@@ -1355,7 +1378,8 @@ export async function reverseAllocationIn(tx: Tx, allocationId: string): Promise
         ),
       )
       .for("update");
-    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
+    // Die mit der Zahlung ausgebuchte Restbuchung wirkt wie die Aufhebung selbst: am Tag der Aufhebung
+    for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff, date);
   }
   await assertNoReturnWithoutPayment(tx, parts);
 }
@@ -1378,7 +1402,7 @@ async function assertNoReturnWithoutPayment(tx: Tx, parts: (typeof schema.alloca
   }
 }
 
-async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
+async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect, date: string) {
   if (allocation.invoiceId) await lockInvoice(tx, allocation.invoiceId);
   const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocation.id));
   if (already) return;
@@ -1410,14 +1434,10 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
     taxSharesInvoiceId: allocation.taxSharesInvoiceId,
   });
   if (entry) {
-    const [bank] = await tx
-      .select({ bookingDate: schema.bankTransactions.bookingDate })
-      .from(schema.bankTransactions)
-      .where(eq(schema.bankTransactions.id, allocation.transactionId));
     // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
     const books = await openBooks(tx);
     await post(tx, books, {
-      date: bank!.bookingDate,
+      date,
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
       sourceId: reversal!.id,
@@ -1719,7 +1739,10 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
   });
 }
 
-/** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
+/**
+ * Gegenzeile einer Ausbuchung; ohne Datum an ihrem eigenen. Mit einer Zuordnung zusammen trägt sie deren Aufhebungsdatum
+ * (reverseAllocationIn), mit einer Bareinnahme das der Kasse (cash.ts).
+ */
 export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
   if (row.invoiceId) await lockInvoice(tx, row.invoiceId);
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));

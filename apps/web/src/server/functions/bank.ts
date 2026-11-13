@@ -279,11 +279,14 @@ export const reverseWriteOffFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Aufhebung einer Zuordnung: Pflicht ist der Tag, an dem sie erklärt wird (#782); er ist nicht rückdatiert */
+const reverseAllocationSchema = z.object({ id: z.uuid(), date: z.iso.date() });
+
 export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(reverseAllocationSchema)
   .handler(async ({ data, context }) => {
-    await reverseAllocation(context.user.id, data);
+    await reverseAllocation(context.user.id, data.id, data.date);
     return { ok: true };
   });
 

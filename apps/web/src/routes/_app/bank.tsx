@@ -129,14 +129,18 @@ function zuordnungText(a: Allocation, gesellschaft: boolean): string {
 }
 
 /** Bei einer Aufteilung hebt der Server alle Teile auf, also nennt die Rückfrage auch alle */
-function zuAufhebendeZuordnung(a: Allocation, allocations: Allocation[], gesellschaft: boolean): AufzuhebendeZuordnung {
+function zuAufhebendeZuordnung(a: Allocation, allocations: Allocation[], gesellschaft: boolean, tag: string): AufzuhebendeZuordnung {
   const teile = a.splitId ? allocations.filter((other) => other.splitId === a.splitId && !other.reversed) : [a];
+  const heute = todayInGermany();
   return {
     id: a.id,
     bezeichnung: a.splitId ? `Aufteilung in ${teile.length} Teile` : zuordnungText(a, gesellschaft),
     betrag: teile.reduce((summe, teil) => summe + teil.amount, 0),
     aufteilung: a.splitId !== null,
     mitBeleg: teile.some((teil) => teil.kind === "invoice" || teil.kind === "document"),
+    // Die Zuordnung steht am Buchungsdatum ihres Umsatzes; früher kann die Aufhebung nicht wirken (#782). Liegt die
+    // Zahlung selbst in der Zukunft, ist heute der früheste Tag — dieselbe Grenze prüft der Server.
+    tag: tag <= heute ? tag : heute,
   };
 }
 
@@ -1113,7 +1117,7 @@ function AllocationPanel({
                 <button
                   type="button"
                   className="btn btn-sm btn-danger"
-                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft))}
+                  onClick={() => setReversing(zuAufhebendeZuordnung(a, allocations, gesellschaft, tx.bookingDate))}
                   disabled={busy}
                 >
                   {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
@@ -1131,7 +1135,7 @@ function AllocationPanel({
       <VerrechnungAnzeige daten={neutralization} busy={busy} onReverse={(id) => void run(() => reverseNeutralizationFn({ data: id }))} />
 
       <NoticeBanner notice={notice} />
-      <ZuordnungAufheben ziel={reversing} onConfirm={(id) => void run(() => reverseFn({ data: id }))} onClose={() => setReversing(null)} />
+      <ZuordnungAufheben ziel={reversing} onConfirm={(id, date) => void run(() => reverseFn({ data: { id, date } }))} onClose={() => setReversing(null)} />
 
       {tx.open !== 0 && mode === "split" && (
         <SplitForm
