@@ -89,6 +89,7 @@ nav:
       - Eigene Seiten: eigene-seiten.md
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
+      - Buchungssätze: buchhaltung-buchungssaetze.md
       - Architektur: architektur.md
       - Datenmodell: architektur-datenmodell.md
       - Anmeldung und SSO-Modus: architektur-anmeldung.md
