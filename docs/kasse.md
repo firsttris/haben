@@ -7,7 +7,7 @@ description: >-
 
 # Kassenbuch
 
-Unter **Kasse** führst du das Kassenbuch für Bargeld: jede Bewegung mit fortlaufender Nummer, Datum, Text, Betrag und dem Bestand danach. Wer nur selten bar bezahlt, braucht es meist nicht; privat ausgelegte Belege laufen über **Privat bezahlt** (siehe [Belege](belege.md#bezahlung)).
+Unter **Kasse** führst du das Kassenbuch für Bargeld: jede Bewegung mit fortlaufender Nummer, Datum, Text, Betrag und dem Bestand danach. Wer nur selten bar bezahlt, braucht es meist nicht; privat ausgelegte Belege laufen über **Privat bezahlt** (siehe [Belege](belege-bezahlen.md#bezahlung)).
 
 ## Was ins Kassenbuch kommt
 

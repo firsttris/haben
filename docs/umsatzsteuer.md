@@ -223,7 +223,7 @@ Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **
 
 ### § 13b als Leistungsempfänger
 
-Aus [Belegen mit § 13b](belege.md#reverse-charge-als-leistungsempfänger--13b) nach Belegdatum:
+Aus [Belegen mit § 13b](belege-ausland.md#reverse-charge-als-leistungsempfänger--13b) nach Belegdatum:
 
 | Kz | Inhalt |
 | --- | --- |
@@ -235,7 +235,7 @@ Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand
 
 ### Innergemeinschaftlicher Erwerb
 
-Aus [Belegen mit innergemeinschaftlichem Erwerb](belege.md#innergemeinschaftlicher-erwerb--1a-ustg) nach **Belegdatum**, bei Ist- wie bei Soll-Versteuerung: Die Erwerbsteuer entsteht mit der Ausstellung der Rechnung, spätestens mit Ablauf des Monats nach dem Erwerb (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung.
+Aus [Belegen mit innergemeinschaftlichem Erwerb](belege-ausland.md#innergemeinschaftlicher-erwerb--1a-ustg) nach **Belegdatum**, bei Ist- wie bei Soll-Versteuerung: Die Erwerbsteuer entsteht mit der Ausstellung der Rechnung, spätestens mit Ablauf des Monats nach dem Erwerb (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung.
 
 | Kz | Inhalt |
 | --- | --- |
@@ -419,6 +419,6 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 ## Grenzen
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
-- Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 62, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98) und Dreiecksgeschäfte (Kz 42, § 25b UStG). Die Einfuhrumsatzsteuer (Kz 62) kommt aus Belegen der Kategorie „Einfuhrumsatzsteuer“ ([Belege](belege.md#einfuhrumsatzsteuer)).
+- Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 62, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98) und Dreiecksgeschäfte (Kz 42, § 25b UStG). Die Einfuhrumsatzsteuer (Kz 62) kommt aus Belegen der Kategorie „Einfuhrumsatzsteuer“ ([Belege](belege-ausland.md#einfuhrumsatzsteuer)).
 - Wann Haben die Umsatzsteuer-Jahreserklärung nicht übermittelt, steht unter [Jahreserklärungen › Umsatzsteuererklärung](jahreserklaerung.md#umsatzsteuererklärung).
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.
