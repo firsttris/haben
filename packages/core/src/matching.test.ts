@@ -205,3 +205,89 @@ describe("Lohnsteuer an das Finanzamt", () => {
     ).toBeNull();
   });
 });
+
+describe("Bestellnummer im Verwendungszweck", () => {
+  const rechnung = (number: string, date: string, order: string): OpenItem => ({
+    type: "invoice",
+    id: number,
+    number,
+    date,
+    open: 2200,
+    partyName: "Etsy Kunden USA",
+    partyIbans: [],
+    currency: "EUR",
+    orderReferences: [order],
+  });
+  const items = [
+    rechnung("2023-004", "2023-06-07", "1000000001"),
+    rechnung("2023-005", "2023-06-23", "1000000003"),
+    rechnung("2023-006", "2023-06-28", "1000000005"),
+  ];
+  const tx = (purpose: string, amount = 2200) => ({ bookingDate: "2023-06-28", amount, counterpartyName: "Etsy", purpose });
+
+  it("entscheidet bei gleichem Betrag über die Bestellnummer", () => {
+    const [best] = suggestMatches(tx("Sale · Payment for Order #1000000005"), items);
+    expect(best?.item.number).toBe("2023-006");
+    expect(best?.reasons).toContain("Bestellnummer im Verwendungszweck (1000000005)");
+  });
+
+  it("trifft keine Nummer, die nur der Anfang einer anderen ist", () => {
+    const [best] = suggestMatches(tx("Sale · Payment for Order #10000000"), items);
+    expect(best?.reasons.some((r) => r.startsWith("Bestellnummer"))).toBe(false);
+  });
+
+  it("zählt Nummern unter fünf Zeichen nicht, auch nicht mit Trennzeichen", () => {
+    const kurz = [rechnung("2023-004", "2023-06-07", "#1234"), rechnung("2023-005", "2023-06-23", "A-1-2-3")];
+    for (const purpose of ["Sale · Payment for Order 1234", "Sale · Payment for Order A123"]) {
+      const best = suggestMatches(tx(purpose), kurz)[0];
+      expect(best?.reasons.some((r) => r.startsWith("Bestellnummer")) ?? false).toBe(false);
+    }
+  });
+
+  it("schlägt für eine Gebühr mit derselben Bestellnummer keine Rechnung vor", () => {
+    expect(suggestMatches(tx("Gebühr · Transaction fee · Order #1000000005", -143), items)).toEqual([]);
+  });
+
+  // Fälle wie in einer Etsy-Abrechnung (erfundene Nummern): Dieselbe Bestellnummer steht auch bei Gutschriften und dem Karteneinzug
+  // einer Erstattung, jeweils mit positivem Betrag und anderem Betrag als die Rechnung.
+  const verkauf = (order: string, open: number): OpenItem => ({ ...rechnung("2023-007", "2023-06-14", order), open });
+  it("gibt für eine Gebühren-Gutschrift mit positivem Betrag keine Bestellnummer-Punkte", () => {
+    const gutschrift = tx("Gebühr · Credit for transaction fee · Order #1000000002", 131);
+    expect(suggestMatches(gutschrift, [verkauf("1000000002", 2050)])).toEqual([]);
+  });
+
+  it("gibt für den Karteneinzug einer Erstattung keine Bestellnummer-Punkte", () => {
+    const einzug = tx("Zahlung · Gebühr für Rückerstattung 1000000002", 1950);
+    expect(suggestMatches(einzug, [verkauf("1000000002", 2050)])).toEqual([]);
+  });
+
+  it("zählt die Bestellnummer erst mit exaktem Betrag, auch bei sonst gleicher Nummer", () => {
+    const rechnungen = [verkauf("1000000002", 2050), { ...verkauf("1000000004", 2050), id: "2023-008", number: "2023-008" }];
+    const [best] = suggestMatches(tx("Sale · Payment for Order #1000000004", 2050), rechnungen);
+    expect(best?.item.number).toBe("2023-008");
+    expect(best?.reasons).toContain("Bestellnummer im Verwendungszweck (1000000004)");
+  });
+});
+
+describe("Bestellnummer bei Erstattungen", () => {
+  it("findet für eine Erstattung das Storno mit derselben Bestellnummer", () => {
+    const storno: OpenItem = {
+      type: "invoice",
+      id: "st",
+      number: "2023-009",
+      date: "2023-07-01",
+      open: -2200,
+      partyName: "Jane Doe",
+      partyIbans: [],
+      currency: "EUR",
+      orderReferences: ["1000000005"],
+    };
+    const anderes: OpenItem = { ...storno, id: "st2", number: "2023-010", orderReferences: ["1000000001"] };
+    const [best] = suggestMatches(
+      { bookingDate: "2023-07-02", amount: -2200, counterpartyName: "Etsy", purpose: "Erstattung · Refund to buyer for Order #1000000005" },
+      [anderes, storno],
+    );
+    expect(best?.item.number).toBe("2023-009");
+    expect(best?.reasons).toContain("Bestellnummer im Verwendungszweck (1000000005)");
+  });
+});

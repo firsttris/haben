@@ -1,13 +1,13 @@
 <!doctype html>
 <!-- Bild oben in der README, 1280 × 360 bei doppelter Auflösung. Aufbau nach einem Entwurf von Codex; der Slogan in IBM Plex Serif aus packages/einvoice/fonts, alles andere in Plex Sans wie die App.
-     Farben und Schriften wie in apps/web/src/styles.css: ohne Hash Wald (hell), mit #nacht das dunkle Theme.
+     Farben und Schriften wie in apps/web/src/styles.css: ohne Hash Wald (hell), mit #dunkel der dunkle Modus.
      Rendern: bun run docs:hero → docs/hero-hell.png und docs/hero-dunkel.png -->
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=1280, initial-scale=1">
   <title>Haben: Deine Bücher. Dein Server.</title>
-  <script>document.documentElement.classList.toggle("nacht", location.hash === "#nacht");</script>
+  <script>document.documentElement.classList.toggle("dunkel", location.hash === "#dunkel");</script>
   <style>
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
     @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
@@ -16,7 +16,7 @@
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
     @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
 
-    /* Farb- und Schriftvariablen aus apps/web/src/styles.css: Wald und Nacht. */
+    /* Farb- und Schriftvariablen aus apps/web/src/styles.css: Wald hell und dunkel. */
     :root {
       color-scheme: light;
       --ink: #16211c; --ink-2: #3f4a44; --muted: #56625c;
@@ -33,18 +33,18 @@
       --mono: "IBM Plex Mono", ui-monospace, monospace;
       --serif: "IBM Plex Serif", Georgia, serif;
     }
-    html.nacht {
+    html.dunkel {
       color-scheme: dark;
-      --ink: #e4ebe7; --ink-2: #c3cec8; --muted: #93a19a;
-      --ground: #121815; --surface: #1a221e;
-      --line: #2c3732; --line-soft: #222b27; --line-strong: #3a4741;
-      --accent: #2a7f65; --accent-hover: #236b55; --accent-ink: #7fd3b5;
-      --accent-soft: #1d3a31; --accent-tint: #19302a;
+      --ink: #f4f4f5; --ink-2: #d4d4d8; --muted: #a1a1aa;
+      --ground: #111113; --surface: #1a1a1d;
+      --line: #2c2c31; --line-soft: #232327; --line-strong: #3f3f46;
+      --accent: #4cc29a; --accent-hover: #6dd0ad; --accent-ink: #7fd3b5;
+      --accent-soft: #193a2f; --accent-tint: #162a23;
       --link: var(--accent-ink); --link-hover: var(--ink);
-      --brand: #3fa284; --nav: #0d1210; --nav-active: #1f2a25; --nav-ink: #a9b6af;
-      --warn-ink: #f2b880; --warn-soft: #3a2615; --warn-dot: #e08a3c;
-      --info-ink: #9cc3f0; --info-soft: #172a42;
-      --danger-ink: #f3a5a5; --danger-soft: #3d1a1a;
+      --brand: #3fa284; --nav: #111113; --nav-active: #232327; --nav-ink: #b4b4bb;
+      --warn-ink: #f0bd8c; --warn-soft: #30241a; --warn-dot: #e08a3c;
+      --info-ink: #a3c4ee; --info-soft: #1a2536;
+      --danger-ink: #f2a8a8; --danger-soft: #371d1e;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 1280px; height: 360px; }
