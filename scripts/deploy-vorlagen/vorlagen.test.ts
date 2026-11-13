@@ -80,6 +80,8 @@ const ohneShell = [
   "LAYOUTS_PACKAGES_URL",
   "ENABLE_BANKING_APP_ID",
   "ENABLE_BANKING_KEY_FILE",
+  // Firma wechseln (#504): nur mit mehreren Instanzen, und dann in jeder dieselbe Liste
+  "HABEN_FIRMEN",
 ];
 
 const vorlagen = [
