@@ -67,6 +67,8 @@ Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbf
 
 Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
+Mit `HABEN_FIRMEN` steht darunter die Gruppe „Firma wechseln“ mit den Instanzen der anderen Firmen (#504), ebenfalls mit `external`; sie öffnen im selben Tab, weil man die Firma wechselt und nicht daneben eine Seite aufschlägt.
+
 ### Kennzahlen
 
 Die Kennzahlenreihe zeigt nur Zahlen.
