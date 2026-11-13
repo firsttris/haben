@@ -21,7 +21,7 @@
 .archive-fingerprint { overflow-wrap: anywhere; }
 .archive-proof { white-space: pre-wrap; overflow-wrap: anywhere; }
 .legacy-cols { grid-template-columns: 96px 140px minmax(0, 1fr) 110px 110px 60px; }
-/* Markierung einer Zeile unter Kontakt und Art, am Handy über Kontakt und Netto (LegacyVouchers.tsx) */
+/* Markierung einer Zeile unter Kontakt und Art, am Handy über die ganze Zeile: ab Kontakt wäre sie bei 320 px zu breit (LegacyVouchers.tsx) */
 .legacy-flag { grid-column: 3 / 4; margin-top: -8px; padding-bottom: 10px; }
 .archive-file-cols { grid-template-columns: 60px 170px minmax(0, 1fr) 90px 150px; }
 .archive-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -33,7 +33,7 @@
   .upload-row { grid-template-columns: minmax(0, 1fr); }
   .legacy-cols { grid-template-columns: 84px minmax(0, 1fr) 100px; }
   .legacy-cols > :nth-child(2), .legacy-cols > :nth-child(5), .legacy-cols > :nth-child(6) { display: none; }
-  .legacy-flag { grid-column: 2 / -1; }
+  .legacy-flag { grid-column: 1 / -1; }
   .archive-file-cols { grid-template-columns: 50px minmax(0, 1fr) 80px; }
   .archive-file-cols > :nth-child(2), .archive-file-cols > :nth-child(5) { display: none; }
 }
