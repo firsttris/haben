@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { compose, docker } from "./ausfuehren.ts";
 import { envSchreiben, envSetzen, envWerte } from "./env-datei.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
-import { caddyBlock, NETZ, proxyEintragen, proxyStarten } from "./proxy.ts";
+import { CADDY_RELOAD, caddyBlock, NETZ, proxyDir, proxyEintragen, proxyStarten } from "./proxy.ts";
 import { type NeuAngaben, pruefeAngaben, pruefeTrennung } from "./pruefen.ts";
 import { wartenAufApp } from "./zustand.ts";
 
@@ -106,12 +106,42 @@ async function appRolleAnlegen(k: Kontext, a: NeuAngaben, dir: string): Promise<
     abbrechen(`Die App-Rolle ${APP_ROLLE} von ${a.name} ließ sich nicht anlegen; die App ist nicht gestartet. Siehe: cd ${dir} && docker compose logs db`);
 }
 
+/**
+ * Der erste Start von Hand, in der Reihenfolge von starten(): nach --nicht-starten und nach einem Abbruch, bevor es
+ * die App-Rolle gibt. `neu` lässt sich für dieselbe Instanz nicht wiederholen, und `docker compose up -d` allein
+ * startet eine App, die sich als haben_app nicht anmelden kann.
+ */
+function ersterStart(k: Kontext, a: NeuAngaben, dir: string): string[] {
+  return [
+    a.eigenerProxy
+      ? `  docker network inspect ${NETZ} > /dev/null 2>&1 || docker network create ${NETZ}`
+      : `  cd ${proxyDir(k)} && docker compose up -d && docker compose ${CADDY_RELOAD.join(" ")}`,
+    `  cd ${dir} && docker compose up -d --wait db`,
+    `  docker compose exec db ${CREATEUSER.join(" ")}`,
+    "  docker compose up -d",
+  ];
+}
+
+/** Proxy bzw. Netz, Datenbank und App-Rolle; bricht davon etwas ab, stehen die Schritte zum Nachholen in der Meldung */
+async function vorDerApp(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
+  try {
+    if (a.eigenerProxy) {
+      if ((await docker(k, ["network", "inspect", NETZ])).code !== 0 && (await docker(k, ["network", "create", NETZ])).code !== 0)
+        abbrechen(`Das Netz ${NETZ} ließ sich nicht anlegen.`);
+    } else await proxyStarten(k);
+    await appRolleAnlegen(k, a, dir);
+  } catch (error) {
+    if (!(error instanceof Error) || error.name !== "Abbruch") throw error;
+    abbrechen(
+      [error.message, `Den Start danach von Hand nachholen, mit dem Passwort aus DATABASE_URL in ${dir}/.env für createuser:`, ...ersterStart(k, a, dir)].join(
+        "\n",
+      ),
+    );
+  }
+}
+
 async function starten(k: Kontext, a: NeuAngaben, dir: string): Promise<void> {
-  if (a.eigenerProxy) {
-    if ((await docker(k, ["network", "inspect", NETZ])).code !== 0 && (await docker(k, ["network", "create", NETZ])).code !== 0)
-      abbrechen(`Das Netz ${NETZ} ließ sich nicht anlegen.`);
-  } else await proxyStarten(k);
-  await appRolleAnlegen(k, a, dir);
+  await vorDerApp(k, a, dir);
   if ((await compose(k, dir, ["up", "-d"], true)).code !== 0)
     abbrechen(`Die Instanz ${a.name} ließ sich nicht starten; siehe: cd ${dir} && docker compose logs`);
   if (!(await wartenAufApp(k, dir))) abbrechen(`Die App von ${a.name} ist nicht gesund geworden; siehe: cd ${dir} && docker compose logs app`);
@@ -139,10 +169,8 @@ export async function neu(k: Kontext, a: NeuAngaben): Promise<void> {
   }
 
   if (!a.starten) {
-    k.aus(`Nicht gestartet (--nicht-starten). Vor dem ersten Start die App-Rolle anlegen, mit dem Passwort aus DATABASE_URL in ${dir}/.env:`);
-    k.aus(`  cd ${dir} && docker compose up -d --wait db`);
-    k.aus(`  docker compose exec db ${CREATEUSER.join(" ")}`);
-    k.aus("  docker compose up -d");
+    k.aus(`Nicht gestartet (--nicht-starten). Der erste Start, mit dem Passwort aus DATABASE_URL in ${dir}/.env für createuser:`);
+    for (const zeile of ersterStart(k, a, dir)) k.aus(zeile);
     return;
   }
   await starten(k, a, dir);

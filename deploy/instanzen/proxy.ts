@@ -51,6 +51,9 @@ volumes:
   caddy:
 `;
 
+/** Caddy liest Caddyfile und sites/ nur auf Aufforderung neu ein */
+export const CADDY_RELOAD = ["exec", "-T", "caddy", "caddy", "reload", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"];
+
 export function proxyDir(k: Kontext): string {
   return join(k.basis, "proxy");
 }
@@ -68,9 +71,6 @@ export async function proxyEintragen(k: Kontext, name: string, domain: string): 
 /** Startet den gemeinsamen Caddy (legt dabei das Netz an); läuft er schon, liest er seine Konfiguration neu ein */
 export async function proxyStarten(k: Kontext): Promise<void> {
   const dir = proxyDir(k);
-  const r =
-    lauf(await dienste(k, dir), "caddy") === "laeuft"
-      ? await compose(k, dir, ["exec", "-T", "caddy", "caddy", "reload", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"], true)
-      : await compose(k, dir, ["up", "-d"], true);
+  const r = lauf(await dienste(k, dir), "caddy") === "laeuft" ? await compose(k, dir, CADDY_RELOAD, true) : await compose(k, dir, ["up", "-d"], true);
   if (r.code !== 0) abbrechen(`Der gemeinsame Caddy ließ sich nicht starten oder neu laden; siehe: cd ${dir} && docker compose logs caddy`);
 }
