@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- Datenbank von Haben für Unraid (docs/unraid.md). Zuerst einrichten, dann haben und haben-backup. -->
+<Container version="2">
+  <Name>haben-db</Name>
+  <Repository>tristanteu/haben-db:latest</Repository>
+  <Registry>https://hub.docker.com/r/tristanteu/haben-db</Registry>
+  <Network>haben</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/firsttris/haben/issues</Support>
+  <Project>https://haben.app/</Project>
+  <Overview>Datenbank für Haben (PostgreSQL 18, hebt ältere Bestände beim Start selbst an). Nur zusammen mit dem Container haben.[br][br]Database for Haben (PostgreSQL 18, upgrades older data on start). Use together with the haben container.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <TemplateURL>https://raw.githubusercontent.com/firsttris/haben/main/deploy/unraid/haben-db.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/icon-512.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <Requires>Netzwerk haben und Ordner aus der Anleitung: https://haben.app/unraid.html</Requires>
+  <Config Name="Datenbank" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/haben/db" Mode="rw" Description="Daten von PostgreSQL" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/haben/db</Config>
+  <Config Name="Datenbank-Passwort" Target="POSTGRES_PASSWORD" Default="" Mode="" Description="Nur Buchstaben und Ziffern, im Terminal: openssl rand -hex 24. Derselbe Wert gehört in haben (DATABASE_URL) und haben-backup (PGPASSWORD)." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Datenbank-Nutzer" Target="POSTGRES_USER" Default="haben" Mode="" Description="Nicht ändern" Type="Variable" Display="advanced" Required="true" Mask="false">haben</Config>
+  <Config Name="Datenbank-Name" Target="POSTGRES_DB" Default="haben" Mode="" Description="Nicht ändern" Type="Variable" Display="advanced" Required="true" Mask="false">haben</Config>
+</Container>

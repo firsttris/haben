@@ -171,11 +171,14 @@ Jeder Posten bekommt Punkte:
 | Betrag stimmt mit … Skonto (…), in der Frist (siehe [Skonto auf eigene Rechnungen](#skonto-auf-eigene-rechnungen)) | 50 |
 | Betrag passt bis auf eine Kursdifferenz (…), nur bei Fremdwährung (siehe [Kursdifferenz](#kursdifferenz-bei-fremdwährung)) | 30 |
 | Rechnungsnummer im Verwendungszweck | 40 |
+| Bestellnummer im Verwendungszweck, nur bei exaktem Betrag (siehe unten) | 60 |
 | Überweisung aus Haben (Referenz), nur bei Belegen | 60 |
 | IBAN bekannt vom Kontakt bzw. bei Belegen IBAN des Lieferanten | 30 |
 | Name passt | 15 |
 | Datum passt (± 5 Tage), nur bei Belegen, gemessen an Beleg- oder Fälligkeitsdatum | 10 |
 | Teilbetrag des offenen Betrags | 5 |
+
+**Bestellnummer:** Zahlungsdienstleister wie Etsy nennen im Umsatz die Bestellnummer der Plattform statt deiner Rechnungsnummer (`Payment for Order #1234567890`). Steht dieselbe Nummer als externe Referenz, Bestellnummer des Kunden oder eigene Auftragsnummer an einer Rechnung, einer Korrektur oder einem Storno (etwa über die REST-API angelegt), zählt sie 60 Punkte. Das gilt nur, wenn auch der Betrag exakt stimmt: Gebühren, Gebühren-Gutschriften und der Karteneinzug bei einer Erstattung nennen dieselbe Bestellnummer, gehören aber nicht zur Rechnung. Nummern unter fünf Zeichen und Nummern, die nur der Anfang einer anderen sind, zählen nicht. Bei mehreren Rechnungen mit gleichem Betrag entscheidet so die Bestellnummer, eine Erstattung findet das Storno derselben Bestellung. Bei einer Fremdwährung (Kursdifferenz) und bei Skonto zählt die Nummer nicht, weil der Betrag dann nicht exakt stimmt. Wie alle Gründe ist es nur ein Vorschlag: Du ordnest weiterhin selbst zu, auch wenn eine freie Bestellnummer des Kunden zufällig mit einer Nummer im Verwendungszweck übereinstimmt.
 
 Die Rechnungsnummer wird ohne Leer- und Trennzeichen gesucht, `2026-034` findet also auch `2026034`. Beim Namen zählen gemeinsame Wörter ab drei Buchstaben; Rechtsformen wie GmbH, UG oder AG werden ignoriert.
 

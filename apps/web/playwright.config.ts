@@ -128,6 +128,7 @@ export default defineConfig({
         "doku-startseite.spec.ts",
         "datenbankrolle.spec.ts",
         "knoepfe.spec.ts",
+        "navigation-kontrast.spec.ts",
       ],
       use: chromium,
     },

@@ -1120,10 +1120,10 @@ test("Trefferliste ist barrierefrei, hell und dunkel (#359)", async () => {
     expect(await axeVerstoesse(page)).toEqual([]);
   };
   await pruefen();
-  await page.evaluate(() => localStorage.setItem("haben-theme", "nacht"));
+  await page.evaluate(() => localStorage.setItem("haben-modus", "dunkel"));
   await go("/rechnungen/neu");
   await pruefen();
-  await page.evaluate(() => localStorage.removeItem("haben-theme"));
+  await page.evaluate(() => localStorage.removeItem("haben-modus"));
 });
 
 test("Angebot festschreiben, annehmen und abrechnen", async () => {
