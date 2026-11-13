@@ -353,7 +353,7 @@ Zwischen RC und fertiger Version nur Fixes mergen, sonst geht Ungetestetes mit r
 
 ## SSO entwickeln und prüfen
 
-Die SSO-Anbindung nutzt Better Auth 1.7.14 (`genericOAuth`, `addOAuthServerContext`, `getOAuthState`). Bei Updates besonders prüfen: Signatur- und Nonce-Prüfung vor `getUserInfo`, Reihenfolge von State, Codeaustausch und Kontoanlage im Callback (`oauth2/callback.mjs`), das Rate-Limit für `/sign-in/*` und dass Fehler weiterhin als Redirect mit `error` enden (darauf baut das Rollback in `auth-transaction.ts`). Keine Sicherheitsoption abschalten, um einen Anbieter passend zu machen. Aufbau: [Architektur › SSO-Modus](architektur-anmeldung.md#sso-modus).
+Die SSO-Anbindung nutzt Better Auth 1.7.14 (`genericOAuth`, `addOAuthServerContext`, `getOAuthState`). Bei Updates besonders prüfen: Signatur- und Nonce-Prüfung vor `getUserInfo`, Reihenfolge von State, Codeaustausch und Kontoanlage im Callback (`oauth2/callback.mjs`), das Rate-Limit für `/sign-in/*` und dass Fehler weiterhin als Redirect mit `error` enden (darauf baut das Rollback in `auth-transaction.ts`). Keine Sicherheitsoption abschalten, um einen Anbieter passend zu machen. Aufbau: [SSO-Modus](architektur-anmeldung.md#sso-modus).
 
 | Test | Was er prüft |
 | --- | --- |
