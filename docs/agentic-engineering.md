@@ -81,18 +81,18 @@ Die Farben sind dieselben wie bei den Karten oben. „Frisch“ heißt: ein neue
 
 | Schritt | Wer | Regel | Skill |
 | --- | --- | --- | --- |
-| Issue schreiben und einordnen | Agent, Maintainer entscheidet | [Issues schreiben](mitwirken.md#issues-schreiben) | `issue-schreiben`, `board-pflegen` |
+| Issue schreiben und einordnen | Agent, Maintainer entscheidet | [Issues schreiben](mitwirken.md#issues-schreiben) | [`issue-schreiben`](https://github.com/firsttris/haben/blob/main/.claude/skills/issue-schreiben/SKILL.md), [`board-pflegen`](https://github.com/firsttris/haben/blob/main/.claude/skills/board-pflegen/SKILL.md) |
 | Übernehmen | wer mitbauen will | [Etwas übernehmen](mitwirken.md#etwas-übernehmen) | |
-| Bauen | Agent | [Konventionen](entwicklung.md#konventionen), [Tests](entwicklung.md#tests) | `checks` |
-| Pull Request | Agent | [Branches, Titel und Commits](mitwirken.md#branches-titel-und-commits) | `beitrag`, `pr-screenshots` |
-| Selbstprüfung | frischer Agent | [Beiträge annehmen](mitwirken.md#beiträge-annehmen) | `beitrag-pruefen` |
-| Review | frischer Agent, je einer für Code und Markdown | [Review](mitwirken.md#review), [Doku-Prüfung](mitwirken.md#doku-prüfung) | `tdd-review`, `doku-pruefen` |
-| Fixes im Fork einer anderen Person | Agent | [Review](mitwirken.md#review), Punkt 4 | `fork-pushen` |
+| Bauen | Agent | [Konventionen](entwicklung.md#konventionen), [Tests](entwicklung.md#tests) | [`checks`](https://github.com/firsttris/haben/blob/main/.claude/skills/checks/SKILL.md) |
+| Pull Request | Agent | [Branches, Titel und Commits](mitwirken.md#branches-titel-und-commits) | [`beitrag`](https://github.com/firsttris/haben/blob/main/.claude/skills/beitrag/SKILL.md), [`pr-screenshots`](https://github.com/firsttris/haben/blob/main/.claude/skills/pr-screenshots/SKILL.md) |
+| Selbstprüfung | frischer Agent | [Beiträge annehmen](mitwirken.md#beiträge-annehmen) | [`beitrag-pruefen`](https://github.com/firsttris/haben/blob/main/.claude/skills/beitrag-pruefen/SKILL.md) |
+| Review | frischer Agent, je einer für Code und Markdown | [Review](mitwirken.md#review), [Doku-Prüfung](mitwirken.md#doku-prüfung) | [`tdd-review`](https://github.com/firsttris/haben/blob/main/.claude/skills/tdd-review/SKILL.md), [`doku-pruefen`](https://github.com/firsttris/haben/blob/main/.claude/skills/doku-pruefen/SKILL.md) |
+| Fixes im Fork einer anderen Person | Agent | [Review](mitwirken.md#review), Punkt 4 | [`fork-pushen`](https://github.com/firsttris/haben/blob/main/.claude/skills/fork-pushen/SKILL.md) |
 | Merge | Maintainer oder Collaborator mit Zustimmung | [Review](mitwirken.md#review), Punkt 6 | |
-| Release | Agent schlägt vor, Maintainer gibt frei | [Veröffentlichen](entwicklung.md#veröffentlichen) | `release` |
-| Amtliche Jahreswerte | Workflow öffnet ein Issue, Agent zieht nach | [Jahreswerte](entwicklung.md#jahreswerte) | `jahreswerte` |
+| Release | Agent schlägt vor, Maintainer gibt frei | [Veröffentlichen](entwicklung.md#veröffentlichen) | [`release`](https://github.com/firsttris/haben/blob/main/.claude/skills/release/SKILL.md) |
+| Amtliche Jahreswerte | Workflow öffnet ein Issue, Agent zieht nach | [Jahreswerte](entwicklung.md#jahreswerte) | [`jahreswerte`](https://github.com/firsttris/haben/blob/main/.claude/skills/jahreswerte/SKILL.md) |
 
-Dazu kommt `belegvorlage`. Mit diesem Skill schreiben Nutzer ihr eigenes Rechnungslayout, ohne das Repository zu brauchen ([Eigene Belegvorlagen](belegvorlagen.md#mit-einem-ki-agenten)).
+Dazu kommt [`belegvorlage`](https://github.com/firsttris/haben/blob/main/.claude/skills/belegvorlage/SKILL.md). Mit diesem Skill schreiben Nutzer ihr eigenes Rechnungslayout, ohne das Repository zu brauchen ([Eigene Belegvorlagen](belegvorlagen.md#mit-einem-ki-agenten)).
 
 ## Doku für Menschen, Skills für Agenten
 
@@ -105,7 +105,7 @@ Dazu kommt `belegvorlage`. Mit diesem Skill schreiben Nutzer ihr eigenes Rechnun
 <div markdown>
 **🛠️ Skills: was zu tun ist**
 
-`.claude/skills/`, Schritt für Schritt je Aufgabe. Ein Skill verweist auf die Regel, statt sie zu wiederholen.
+[`.claude/skills/`](https://github.com/firsttris/haben/tree/main/.claude/skills), Schritt für Schritt je Aufgabe. Ein Skill verweist auf die Regel, statt sie zu wiederholen.
 </div>
 <div markdown>
 **✅ Skripte: was sich sicher prüfen lässt**
@@ -126,7 +126,7 @@ Dazu kommt `belegvorlage`. Mit diesem Skill schreiben Nutzer ihr eigenes Rechnun
 | Bump version, Release | Maintainer löst aus | Version, Image, GitHub-Release, schließt die umgesetzten Issues |
 | Jahreswerte prüfen | montags | öffnet je neuem amtlichem Wert, neuer ERiC-Version oder geänderter Norm ein Issue |
 
-Was die Automatik nicht sieht, also neue Issues einordnen, offene Gespräche finden und Karten aufräumen, übernimmt `board-pflegen`. Seine Vorschläge setzt es erst nach dem OK des Maintainers um.
+Was die Automatik nicht sieht, also neue Issues einordnen, offene Gespräche finden und Karten aufräumen, übernimmt [`board-pflegen`](https://github.com/firsttris/haben/blob/main/.claude/skills/board-pflegen/SKILL.md). Seine Vorschläge setzt es erst nach dem OK des Maintainers um.
 
 ## Ein Beispiel: der Satz auf dem Storno { #beispiel }
 
@@ -170,7 +170,7 @@ sequenceDiagram
 4. **Zweite Fassung:** Danach soll das Storno auch den Saldo des Kundenkontos nennen. Der Agent baut in #821 einen Satz dafür („Ihr Kundenkonto weist ein Guthaben i. H. v. … aus“), wieder mit roten Tests zuerst. Zwei Runden TDD-Review durch frische Agenten finden nichts. Für jeden Verdacht schrieben sie einen eigenen Test, und jeder blieb grün.
 5. **Der Mensch entscheidet:** In der Beitragsprüfung rechnet der Maintainer den Saldo selbst nach. Er stimmt. Gemergt wird trotzdem nicht: Das Storno wird festgeschrieben und geht an den Kunden. Der Saldo stimmt aber nur, wenn der Bankabgleich vollständig ist. Bei einer eingegangenen, noch nicht zugeordneten Zahlung würde Haben dem Kunden schriftlich eine Forderung bescheinigen, die es nicht gibt. Sein Vorschlag lautet deshalb: nur „Die ursprüngliche Rechnung wird storniert.“
 6. **Umbau:** Wieder kommt der rote Test zuerst, dann der Fix. Die Berechnung des Saldos fällt ganz weg. Weil sich der Ansatz geändert hat, läuft die Selbstprüfung neu.
-7. **Code und Markdown getrennt geprüft:** `tdd-review` und `doku-pruefen` laufen nebeneinander, je in einem frischen Agenten. Das TDD-Review schreibt 25 eigene Tests für Grenzfälle und ältere Belege, die Doku-Prüfung gleicht `docs/rechnungen.md` mit Code und Entscheidung ab. Keiner findet einen Befund.
+7. **Code und Markdown getrennt geprüft:** [`tdd-review`](https://github.com/firsttris/haben/blob/main/.claude/skills/tdd-review/SKILL.md) und [`doku-pruefen`](https://github.com/firsttris/haben/blob/main/.claude/skills/doku-pruefen/SKILL.md) laufen nebeneinander, je in einem frischen Agenten. Das TDD-Review schreibt 25 eigene Tests für Grenzfälle und ältere Belege, die Doku-Prüfung gleicht `docs/rechnungen.md` mit Code und Entscheidung ab. Keiner findet einen Befund.
 8. **Merge:** Die CI ist grün, der Maintainer merged per Squash. #821 verweist nur mit `Refs #716`, umgesetzt war das Issue schon mit #814. Es bleibt offen, bis das nächste Release es schließt.
 
 > [!IMPORTANT]
