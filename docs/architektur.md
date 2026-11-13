@@ -243,6 +243,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `lexoffice_vouchers` | Rechnungen und Belege aller Umzugsquellen (`source`) mit vollständiger Quellantwort beziehungsweise Originalpaket | nur anhängen |
 | `lexoffice_voucher_files` | Dateien zu einem Lexoffice-Beleg | nur anhängen |
 | `legacy_voucher_payments` | Belegte Einzelzahlungen aus sevDesk oder lokalen Paketen mit Datum, Betrag, Konto und Herkunft; eindeutig je Zuordnung | nur anhängen, Audit |
+| `sevdesk_accounting_types` | Kontostamm der Buchungskonten aus sevDesk (`GET /AccountingType/{id}`), unverändert; eindeutig je Konto und Stand | nur anhängen, Audit, TRUNCATE gesperrt |
 | `legacy_order_documents` | Angebote, Auftragsbestätigungen und Lieferscheine aus sevdesk oder lokalen Paketen mit Positionen und Quelldaten; ohne Buchungswirkung | nur anhängen, Audit |
 | `legacy_order_pdf_attempts` | Vorher-/Nachher-Quellantworten und Ergebnis automatischer V1-Auftrags-PDF-Abrufe | nur anhängen, Audit |
 | `legacy_order_files` | Automatisch abgerufene oder manuell nachgereichte Original-PDFs zu Auftragsdokumenten mit Prüfsumme und Zeitpunkt | nur anhängen, Audit |

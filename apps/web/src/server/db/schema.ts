@@ -2889,6 +2889,24 @@ export const legacyVoucherPayments = pgTable(
   (t) => [uniqueIndex("legacy_voucher_payments_source_external").on(t.source, t.externalId), index("legacy_voucher_payments_voucher").on(t.voucherId)],
 );
 
+/**
+ * Kontostamm eines Buchungskontos aus sevDesk (GET /AccountingType/{id}), unverändert. Gutschriften mit `bookingCategory`
+ * ACCOUNTING_TYPE folgen zur Laufzeit dessen Kontonummern (#472). Nur anhängen; ein gleicher Stand kommt nur einmal an.
+ */
+export const sevdeskAccountingTypes = pgTable(
+  "sevdesk_accounting_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    accountingTypeId: text("accounting_type_id").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
+);
+
 /** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */
 export const lexofficeVoucherFiles = pgTable(
   "lexoffice_voucher_files",

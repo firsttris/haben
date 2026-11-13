@@ -91,7 +91,15 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
               <div className="mono small ellipsis">{row.number || "–"}</div>
               <div className="ellipsis">
                 {row.contactName || "–"}
-                <div className="small muted">{LEGACY_TYPES[row.type] ?? row.type}</div>
+                <div className="small muted">
+                  {LEGACY_TYPES[row.type] ?? row.type}
+                  {row.accountingTypeUnclear && (
+                    <>
+                      {" "}
+                      <span className="pill pill-warn">Buchungskonto nicht erkannt</span>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="num">{formatEuro(row.net)}</div>
               <div className="num">{formatEuro(row.gross)}</div>
