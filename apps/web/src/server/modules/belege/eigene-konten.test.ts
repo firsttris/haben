@@ -8,6 +8,12 @@ import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
  * behalten das Konto. Alle Daten sind erfunden.
  */
 
+function dkbCsv(rows: string[][]) {
+  const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
+  const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
+  return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
+}
+
 const KONTEN = {
   SKR03: { eigen: "4999", software: "4964", buero: "4930", vorsteuer: "1576", verbindlichkeiten: "1600" },
   SKR04: { eigen: "6999", software: "6837", buero: "6815", vorsteuer: "1406", verbindlichkeiten: "3300" },
@@ -19,6 +25,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg mit eigenem Konto (Postgres, #270)", ()
   let konten: typeof import("../eigene-konten/index.ts");
   let reports: typeof import("../auswertungen/reports.ts");
   let vat: typeof import("../umsatzsteuer/vat-figures.ts");
+  let bank: typeof import("../bank/bank.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
   let fileSeq = 0;
@@ -30,17 +37,18 @@ describe.skipIf(!testDatabaseUrl)("Beleg mit eigenem Konto (Postgres, #270)", ()
     konten = await import("../eigene-konten/index.ts");
     reports = await import("../auswertungen/reports.ts");
     vat = await import("../umsatzsteuer/vat-figures.ts");
+    bank = await import("../bank/bank.ts");
   }, 30_000);
 
   afterAll(async () => {
     await sql?.end();
   });
 
-  async function reset(kontenrahmen: "SKR03" | "SKR04") {
+  async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll" = "soll") {
     await leeren(sql)`truncate document_cancellations, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
       asset_depreciations, assets, journal_lines, journal_entries, document_splits, document_amounts, documents, own_accounts, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen, kleinunternehmer)
-      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', 'soll', ${kontenrahmen}, false)`;
+      values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen}, false)`;
     return konten.createOwnAccount(actor, { account: KONTEN[kontenrahmen].eigen, name: "Software: Entwicklung", parentCategory: "software" });
   }
 
@@ -189,4 +197,28 @@ describe.skipIf(!testDatabaseUrl)("Beleg mit eigenem Konto (Postgres, #270)", ()
       });
     });
   }
+
+  it("Ist-Versteuerung (SKR04): Vorsteuer nach Belegdatum in Kz 66, die EÜR zählt das eigene Konto mit der Zahlung über die Bank in der Elternkategorie", async () => {
+    const own = await reset("SKR04", "ist");
+    const id = await draft(own);
+    await documents.bookDocument(actor, id);
+    expect((await lines(id)).map((l) => l.account)).toContain(KONTEN.SKR04.eigen);
+    // Vorsteuer auch bei Ist nach Belegdatum (§ 15 Abs. 1 Satz 1 Nr. 1 UStG), nicht im Monat der Zahlung
+    expect((await vat.computeVatFigures({ year: 2026, month: 9 })).kz66).toBe(1_900);
+    expect((await reports.euerForYear(2026)).ausgaben.find((l) => l.key === "ausgabe:software")).toBeUndefined();
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([["05.10.26", "05.10.26", "Gebucht", "Testfirma", "Softwarehaus Nord GmbH", "SN", "Ausgang", "", "-119,00", "", "", ""]]),
+        filename: "softwarehaus.csv",
+      },
+      null,
+    );
+    const [t] = await sql`select id from bank_transactions`;
+    await bank.allocate(actor, { kind: "document", transactionId: t!.id, documentId: id, amount: -11_900 });
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(0);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.ausgaben.find((l) => l.key === "ausgabe:software")?.amount).toBe(10_000);
+    expect(euer.ausgaben.find((l) => l.key === "vorsteuer")?.amount).toBe(1_900);
+  });
 });
