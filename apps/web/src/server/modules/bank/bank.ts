@@ -1164,6 +1164,9 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     let open: number;
     if (invoice.kind === "storno") {
       if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
+      if ((await paperCancellationIds([invoice.id], tx)).has(invoice.id)) {
+        throw new BankError("Die Schlussleistung besteht weiter; eine Erstattung lässt sich diesem Storno nicht zuordnen.");
+      }
       open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), paidOnOriginal: await paidOn(invoice.correctsId), cancelled: false });
     } else {
       const [storno] = await tx

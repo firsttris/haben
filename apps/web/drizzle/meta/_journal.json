@@ -1541,6 +1541,13 @@
       "when": 1794527959879,
       "tag": "0219_anzahlung_bilanz",
       "breakpoints": true
+    },
+    {
+      "idx": 220,
+      "version": "7",
+      "when": 1794530293265,
+      "tag": "0220_anzahlung_rechtsform",
+      "breakpoints": true
     }
   ]
 }
