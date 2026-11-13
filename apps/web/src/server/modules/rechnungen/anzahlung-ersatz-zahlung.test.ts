@@ -108,8 +108,9 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
     const paidAdvance = await advance();
     const cancellation = await invoices.cancelInvoice(actor, paidAdvance.id, "2027-02-12");
     expect(await listed(cancellation.id)).toMatchObject({ open: -35_700 });
-    expect((await bank.openItems()).filter((item) => item.type === "invoice").map(({ id, open }) => ({ id, open })))
-      .toEqual([{ id: cancellation.id, open: -35_700 }]);
+    expect((await bank.openItems()).filter((item) => item.type === "invoice").map(({ id, open }) => ({ id, open }))).toEqual([
+      { id: cancellation.id, open: -35_700 },
+    ]);
     expect((await bank.cashBook(2026)).entries).toHaveLength(1);
     expect((await bank.cashBook(2027)).entries).toHaveLength(0);
   });
@@ -135,6 +136,7 @@ describe.skipIf(!testDatabaseUrl)("Zahlungen auf die ersetzte GmbH-/UG-Schlussre
       expect(replacement).toMatchObject({ replacesInvoiceId: original.id });
       expect(await listed(original.id)).toMatchObject({ paid: 83_300, open: 0 });
       expect(await listed(replacement.id)).toMatchObject({ paid: 83_300, open: 0, listStatus: "bezahlt" });
+      expect((await bank.invoicePaymentList(replacement.id)).map(({ id }) => id)).toEqual([payment.id]);
       expect(await listed(cancellation.id)).toMatchObject({ open: 0 });
       await onlyOpen(replacement.id, 0);
       await expect(bank.createCashInvoiceEntry(actor, { invoiceId: replacement.id, date: "2027-03-20", amount: 1 }, "2027-03-20")).rejects.toThrow();
