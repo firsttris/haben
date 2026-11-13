@@ -213,9 +213,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Als Kleinunternehmer kein Hinweis auf fehlende Voranmeldungen
     expect(issue(true, 2025)).not.toMatch(/gesendete Voranmeldung/);
     // Eigener Rahmen nur für diesen Test: Er baut ein volles Geschäftsjahr auf (Rechnung, fünf Belege, Bankimport,
-    // Anlagegut) und ist unter paralleler Last auf derselben Datenbank zu langsam für die 5 s von Vitest. Läuft er in
-    // den Timeout, arbeitet sein Code weiter und legt die Firma in genau dem Fenster zwischen Truncate und Insert des
-    // nächsten `beforeEach` an – daher kommt der Flake, nicht aus dem Upsert selbst.
+    // Anlagegut) und braucht im CI über die 5 s von Vitest (5240 ms im Lauf 43286362239, #784). Läuft er in den
+    // Timeout, arbeitet sein Code weiter, und `loadCompany` legt die Firma in genau dem Fenster zwischen Truncate und
+    // Insert des nächsten `beforeEach` an – daher kam der company_pkey-Fehler.
   }, 20_000);
 
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
