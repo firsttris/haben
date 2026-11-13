@@ -471,7 +471,7 @@ Der Tag der Aufhebung darf nicht in der Zukunft und nicht vor dem Buchungsdatum 
 
 Beim [Stornieren eines Belegs](belege.md#stornieren-und-neu-erfassen) kann Haben dessen Bankzuordnungen in derselben bestätigten Aktion aufheben. Die Rückfrage nennt die Zuordnungen einschließlich aller Teile betroffener Aufteilungen. Mit der Zahlung verknüpfte Ausbuchungen wie Skonto werden mit aufgehoben. Scheitert die Rücknahme oder der Belegstorno, wird keiner der beiden Teile gespeichert.
 
-Die Bankgegenbuchungen einschließlich verknüpfter Ausbuchungen tragen dabei dasselbe Datum wie der Storno selbst: Ist der Zeitraum der Belegbuchung schon gemeldet, ist das der Tag des Stornos, sonst der Tag der Belegbuchung. Die abgegebene Voranmeldung eines gemeldeten Zeitraums bleibt in beiden Fällen unverändert.
+Das [Datum der Bankgegenbuchungen](belege.md#stornieren-und-neu-erfassen) richtet sich dabei nach der Beleggegenbuchung und dem Buchungsdatum der Zahlung.
 
 ## Gegenläufige Umsätze verrechnen
 
