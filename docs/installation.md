@@ -1121,7 +1121,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **`haben-app` startet nicht, Fehler beim Mount von `/opt/eric`.** Podman bricht ab, wenn das Quellverzeichnis eines Bind-Mounts fehlt. Lege ERiC dort ab oder lass die `Volume`-Zeile auskommentiert.
 
-**„DATABASE_URL fehlt“ oder Verbindungsfehler beim Start.** Das Secret `haben-database-url` fehlt oder das Passwort darin passt nicht zu `haben-db-password`. Beachte: Postgres übernimmt `POSTGRES_PASSWORD` nur beim ersten Anlegen des Volumes. Ein später geändertes Secret ändert das Passwort in der Datenbank nicht.
+**„DATABASE_URL fehlt“ oder Verbindungsfehler beim Start.** Prüfe die Adresse und das Passwort der darin genannten Datenbankrolle. Bei Quadlets enthält `haben-database-url` den App-Zugang; bei getrennten Rollen enthält `haben-migration-database-url` den Eigentümerzugang mit dem Passwort aus `haben-db-password`. Beachte: Postgres übernimmt `POSTGRES_PASSWORD` nur beim ersten Anlegen des Volumes. Ein später geändertes Secret ändert das Passwort in der Datenbank nicht.
 
 **Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Die Anmeldung ist auf 20 Anfragen pro Minute begrenzt.
 
