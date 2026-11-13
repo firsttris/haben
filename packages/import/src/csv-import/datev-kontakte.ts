@@ -187,6 +187,10 @@ function againstStock(value: Numbers, stock: readonly DatevStockContact[]): Stoc
   const [match] = matches;
   if (match) {
     const byUstId = sameUstId(match.ustId, value.ustId);
+    // Zwei verschiedene USt-IdNr. sind zwei Unternehmer, auch bei gleicher Kundennummer; wie beim vergebenen Personenkonto
+    if (!byUstId && match.ustId && value.ustId) {
+      return { status: "fehler", message: `${named(match)} mit gleicher Kundennummer hat eine andere USt-IdNr. (${match.ustId})` };
+    }
     const clash = otherNumber(match, wanted, `${named(match)} mit gleicher ${byUstId ? "USt-IdNr." : "Kundennummer"}`);
     if (clash) return { status: "fehler", message: clash };
     return { status: "zuordnen-an", contact: match, why: `gleiche ${byUstId ? "USt-IdNr." : "Kundennummer"}` };

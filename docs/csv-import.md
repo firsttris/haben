@@ -105,7 +105,7 @@ Wiedererkannt wird ein Kontakt am Personenkonto, nicht am Namen:
 - **Debitor und Kreditor eines Partners:** Haben sie dieselbe USt-IdNr. oder Steuernummer, wird daraus ein Kontakt mit beiden Rollen; die Vorschau zeigt beide Zeilen.
 - **Gleicher Name allein** führt nicht zusammen, denn zwei Kunden dürfen gleich heißen: Die Zeile wird ein eigener Kontakt, die Vorschau nennt den gleichnamigen.
 - **Vorhandener Kontakt ohne Personenkonto für die Rolle,** mit gleicher USt-IdNr. oder Kundennummer oder mit dem anderen Personenkonto desselben Partners: Die Vorschau zeigt einen Vorschlag. Die Nummer bekommt der Kontakt nur, wenn du ihn mit **Bestätigen** annimmst; er wird dabei Kunde bzw. Lieferant, sonst ändert sich nichts an ihm. Ohne Bestätigung überspringt Haben die Zeile und legt keinen zweiten Kontakt an.
-- **Fehler:** Trägt ein Kontakt mit anderer USt-IdNr. die Nummer schon, hat der passende Kontakt für diese Rolle eine andere Nummer oder passen mehrere Kontakte, übernimmt Haben die Zeile nicht. Eine Nummer, die schon in einem DATEV-Export stand, bleibt fest.
+- **Fehler:** Trägt ein Kontakt mit anderer USt-IdNr. die Nummer oder dieselbe Kundennummer schon, hat der passende Kontakt für diese Rolle eine andere Nummer oder passen mehrere Kontakte, übernimmt Haben die Zeile nicht. Eine Nummer, die schon in einem DATEV-Export stand, bleibt fest.
 
 ## Artikel
 
