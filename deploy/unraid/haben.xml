@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!-- App von Haben für Unraid (docs/unraid.md). Braucht haben-db im Netzwerk haben und HTTPS über einen Reverse Proxy. -->
+<Container version="2">
+  <Name>haben</Name>
+  <Repository>tristanteu/haben:latest</Repository>
+  <Registry>https://hub.docker.com/r/tristanteu/haben</Registry>
+  <Network>haben</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/firsttris/haben/issues</Support>
+  <Project>https://haben.app/</Project>
+  <Overview>Haben: selbst gehostete Buchhaltung für Freelancer und kleine Firmen. Rechnungen mit ZUGFeRD und XRechnung, Belege, Bankabgleich, EÜR und Umsatzsteuer-Voranmeldung an ELSTER. Braucht haben-db, ein tägliches Backup macht haben-backup. HTTPS ist Pflicht (Reverse Proxy), ELSTER nur auf x86_64.[br][br]Haben: self-hosted bookkeeping for German freelancers and small companies (e-invoices, receipts, bank reconciliation, VAT returns to ELSTER). Needs haben-db; haben-backup runs daily backups. HTTPS via a reverse proxy is required.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <TemplateURL>https://raw.githubusercontent.com/firsttris/haben/main/deploy/unraid/haben.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/firsttris/haben/main/apps/web/public/icon-512.png</Icon>
+  <ExtraParams>--restart unless-stopped --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true</ExtraParams>
+  <Requires>haben-db, Netzwerk haben, Ordner mit Eigentümer 1000 und ein Reverse Proxy mit HTTPS: https://haben.app/unraid.html</Requires>
+  <Config Name="Port" Target="3000" Default="3000" Mode="tcp" Description="Für den Reverse Proxy; nicht ins Internet freigeben" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Adresse" Target="BETTER_AUTH_URL" Default="https://haben.example.de" Mode="" Description="Öffentliche Adresse mit https://, wie sie im Browser steht. Passkeys hängen daran, später nicht mehr ändern." Type="Variable" Display="always" Required="true" Mask="false">https://haben.example.de</Config>
+  <Config Name="Datenbank" Target="DATABASE_URL" Default="postgres://haben:DATENBANK-PASSWORT@haben-db:5432/haben" Mode="" Description="DATENBANK-PASSWORT durch das Passwort aus haben-db ersetzen" Type="Variable" Display="always" Required="true" Mask="true">postgres://haben:DATENBANK-PASSWORT@haben-db:5432/haben</Config>
+  <Config Name="AUTH_SECRET" Target="BETTER_AUTH_SECRET" Default="" Mode="" Description="Signiert die Sitzungen, im Terminal: openssl rand -base64 32" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="ENCRYPTION_KEY" Target="HABEN_ENCRYPTION_KEY" Default="" Mode="" Description="Verschlüsselt ELSTER-Zertifikat und Zugangsdaten, im Terminal: openssl rand -base64 32. Zusätzlich im Passwortmanager sichern, ohne ihn sind sie nach einer Wiederherstellung verloren." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Belege" Target="/var/lib/haben/belege" Default="/mnt/user/appdata/haben/belege" Mode="rw" Description="Belegdateien (GoBD: 10 Jahre aufbewahren); Eigentümer 1000" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/haben/belege</Config>
+  <Config Name="ERiC" Target="/var/lib/haben/eric" Default="/mnt/user/appdata/haben/eric" Mode="rw" Description="ERiC für ELSTER, lädt Haben selbst herunter; Eigentümer 1000" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/haben/eric</Config>
+  <Config Name="ERiC-Protokolle" Target="/var/lib/haben/eric-log" Default="/mnt/user/appdata/haben/eric-log" Mode="rw" Description="Protokolle von ERiC; Eigentümer 1000" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/haben/eric-log</Config>
+  <Config Name="ERiC beim Start laden" Target="ERIC_AUTO_INSTALL" Default="" Mode="" Description="ja = ERiC von download.elster.de laden (Zustimmung zu den Nutzungsbedingungen), nur x86_64. Oder unter Einstellungen › ELSTER › ERiC per Knopf." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Hersteller-ID" Target="ELSTER_HERSTELLER_ID" Default="" Mode="" Description="Eigene Hersteller-ID für ELSTER, erst nach erfolgreicher Testübermittlung" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Anthropic-API-Schlüssel" Target="ANTHROPIC_API_KEY" Default="" Mode="" Description="KI-Auslesung von Belegen mit Claude" Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="KI-Dienst: URL" Target="EXTRACTION_BASE_URL" Default="" Mode="" Description="Oder ein OpenAI-kompatibler Dienst, z. B. Ollama: http://IP-DES-SERVERS:11434/v1" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="KI-Dienst: Modell" Target="EXTRACTION_MODEL" Default="" Mode="" Description="Vision-Modell des Dienstes, z. B. qwen2.5vl:7b" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="KI-Dienst: Schlüssel" Target="EXTRACTION_API_KEY" Default="" Mode="" Description="Nur falls der Dienst einen verlangt" Type="Variable" Display="advanced" Required="false" Mask="true"/>
+</Container>
