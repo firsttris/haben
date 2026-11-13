@@ -22,8 +22,8 @@ tägliche Backup, dazu der kurze Dienst `schluessel`, der die Schlüssel anlegt.
 - Für die Übermittlung an ELSTER ein Modell mit Intel- oder AMD-Prozessor. Auf ARM läuft alles andere, ELSTER nur
   emuliert und mit Shell, siehe [ELSTER auf arm64](installation.md#elster-auf-arm64).
 - Eine Adresse mit HTTPS, sonst funktionieren Passkeys und die Installation als App nicht. Am einfachsten ist ein Name bei
-  Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert.
-  Erreichbar aus dem Internet ist Haben dann nur, wenn dein Router Port 443 an die Synology weiterleitet.
+  Synology DDNS (`deinname.synology.me`) mit dem Zertifikat von Let's Encrypt, das DSM selbst holt und erneuert. Das
+  gilt auch, wenn Haben nur im Heimnetz laufen soll; im Router gibst du dafür nichts frei.
 
 ## Adresse und Zertifikat
 
@@ -73,9 +73,33 @@ ELSTER wartet in der Anfrage auf ERiC, mit dem Standard bräche sie nach 60 Seku
 Danach unter **Systemsteuerung › Sicherheit › Zertifikat › Einstellungen** für `haben.deinname.synology.me` das
 Zertifikat aus dem ersten Abschnitt wählen.
 
-Die App ist nur auf der Synology selbst unter `127.0.0.1:3000` erreichbar, nicht im Netz. Als Ziel `127.0.0.1` statt
-`localhost`: Der Port ist nur auf dieser IPv4-Adresse veröffentlicht, `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt, änderst
-du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
+Die App ist nur auf der Synology selbst unter `127.0.0.1:3000` erreichbar, nicht im Netz; `localhost:3000` oder die IP
+der Synology im Browser deines Rechners führen deshalb nicht zu Haben. Als Ziel `127.0.0.1` statt `localhost`: Der Port
+ist nur auf dieser IPv4-Adresse veröffentlicht, `localhost` kann auf `::1` (IPv6) zeigen. Ist Port 3000 schon belegt,
+änderst du im Projekt die linke Zahl in `127.0.0.1:3000:3000` und nimmst sie auch im Reverse Proxy.
+
+## Im Heimnetz erreichen
+
+Über Synology DDNS zeigt `haben.deinname.synology.me` auf die öffentliche Adresse deines Anschlusses, also von außen auf
+deinen Router. Ohne Freigabe endet der Aufruf dort mit einer Zeitüberschreitung (`ERR_CONNECTION_TIMED_OUT`). Damit Haben
+im Heimnetz erreichbar ist und sonst nirgends, zeigt derselbe Name im Heimnetz auf die Synology:
+
+- **Ein Rechner:** in der hosts-Datei eine Zeile mit der IP der Synology im Heimnetz und dem Namen, etwa
+  `192.168.178.20 haben.deinname.synology.me`. Unter Windows ist das `C:\Windows\System32\drivers\etc\hosts`, mit dem
+  Editor als Administrator geöffnet, unter macOS und Linux `/etc/hosts`.
+- **Alle Geräte, auch Handys:** ein DNS-Eintrag im Heimnetz, etwa mit dem Paket **DNS Server** der Synology, mit Pi-hole
+  oder AdGuard Home, den der Router als DNS-Server verteilt. Eine Fritzbox lässt die Antwort mit einer Adresse aus dem
+  Heimnetz nur durch, wenn der Name beim DNS-Rebind-Schutz als Ausnahme eingetragen ist.
+
+Das Zertifikat bleibt gültig, weil der Name derselbe ist. Die IP der Synology oder ein selbst signiertes Zertifikat
+reichen nicht: Der Browser warnt, Passkeys verweigert er, und die Anmeldung erwartet die Adresse aus `BETTER_AUTH_URL`.
+
+### Von unterwegs
+
+Soll Haben auch unterwegs erreichbar sein, leitet der Router Port 443 an die Synology weiter (Fritzbox: **Internet ›
+Freigaben**). Die Anmeldeseite ist dann aus dem Internet erreichbar. Ein Gerät im Heimnetz ohne den Eintrag von oben
+erreicht Haben nur, wenn der Router Anfragen an die eigene öffentliche Adresse ins Heimnetz zurückleitet; nicht jeder kann
+das. Ohne eigene öffentliche IPv4-Adresse (DS-Lite, bei manchen Kabelanschlüssen) geht die Freigabe über IPv4 nicht.
 
 ## Konto anlegen
 
