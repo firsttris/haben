@@ -462,12 +462,19 @@ export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map
   return new Map(rows.map((r) => [r.id!, Number(r.sum)]));
 }
 
+/** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
+function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }, externalId = inv.externalId) {
+  const refs = [...new Set([externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
+  return refs.length > 0 ? { orderReferences: refs } : {};
+}
+
 /** Offene Rechnungen und Belege für den Abgleich */
 export async function openItems(): Promise<OpenItem[]> {
   const invoices = await db
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
+      correctsId: schema.invoices.correctsId,
       number: schema.invoices.number,
       issueDate: schema.invoices.issueDate,
       dueDate: schema.invoices.dueDate,
@@ -476,6 +483,9 @@ export async function openItems(): Promise<OpenItem[]> {
       skonto: schema.invoices.skonto,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
+      externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
@@ -488,11 +498,19 @@ export async function openItems(): Promise<OpenItem[]> {
       issueDate: schema.invoices.issueDate,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
+      externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
   const cancelled = new Set(stornos.map((r) => r.correctsId));
+  // Die eindeutige externe Referenz bleibt am Original. Für den Abgleich zählen Korrektur und Storno zur selben Bestellung.
+  const externalIds = new Map(invoices.map((inv) => [inv.id, inv.externalId]));
+  for (const inv of invoices) {
+    if (inv.correctsId && !inv.externalId) externalIds.set(inv.id, externalIds.get(inv.correctsId) ?? null);
+  }
   const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
   // EndToEndIds der Lastschriften aus Haben (#445): ein Einzelumsatz aus einem CAMT-Auszug findet so seine Rechnung
   const directDebitRefs = await directDebitReferences(invoices.map((i) => i.id));
@@ -538,6 +556,7 @@ export async function openItems(): Promise<OpenItem[]> {
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
       ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
+      ...orderReferencesOf(inv, externalIds.get(inv.id)),
       currency: inv.currency,
       ...(skonto.length > 0 ? { skonto } : {}),
     });
@@ -562,6 +581,8 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: storno.buyer?.name ?? "",
       partyIbans: storno.contactIban ? [storno.contactIban] : [],
+      // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
+      ...orderReferencesOf(storno, externalIds.get(storno.correctsId!)),
     });
   }
   for (const doc of documents) {

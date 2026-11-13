@@ -47,11 +47,11 @@ async function go(path: string) {
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
 }
 
-/** Setzt das Theme ohne Neuladen, damit Eingaben und Auswahl der Seite stehen bleiben */
-async function theme(id: "wald" | "nacht") {
-  await page.evaluate((t) => {
-    document.documentElement.dataset.theme = t;
-  }, id);
+/** Setzt den Modus ohne Neuladen, damit Eingaben und Auswahl der Seite stehen bleiben; die Farbe bleibt Wald */
+async function theme(mode: "light" | "dark") {
+  await page.evaluate((m) => {
+    document.documentElement.dataset.mode = m;
+  }, mode);
   // Ein Bild erst, wenn der Browser mit den neuen Farben gezeichnet hat
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
@@ -70,19 +70,19 @@ async function einrichtungshinweiseAusblenden() {
   }, EINRICHTUNGSHINWEISE);
 }
 
-/** Jedes Bild hell (Wald) und dunkel (Nacht); README und Doku zeigen das passende zur Systemeinstellung */
+/** Jedes Bild in Wald hell und dunkel; README und Doku zeigen das passende zur Systemeinstellung */
 async function shot(name: string, fullPage = false) {
   await einrichtungshinweiseAusblenden();
   for (const [id, suffix] of [
-    ["wald", ""],
-    ["nacht", "-dunkel"],
+    ["light", ""],
+    ["dark", "-dunkel"],
   ] as const) {
     await theme(id);
     // Kein blinkender Cursor, keine halb abgelaufene Animation im Bild
     const options = { path: `${DOCS}/screenshot-${name}${suffix}.png`, animations: "disabled", caret: "hide" } as const;
     await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
   }
-  await theme("wald");
+  await theme("light");
 }
 
 /** Rechnungen in den Monaten davor, nur im Jahr der übrigen Daten; alle bis auf die letzte nach zwölf Tagen bezahlt */

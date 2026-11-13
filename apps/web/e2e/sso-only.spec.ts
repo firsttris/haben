@@ -16,12 +16,12 @@ async function capture(page: Page, view: string) {
   if (!output) return;
   await mkdir(output, { recursive: true });
   const original = page.viewportSize();
-  // Wie die Auswahl unten in der Navigation: Theme im Browser speichern, Seite neu laden (nur GET-Seiten)
-  for (const [scheme, theme] of [
-    ["light", "wald"],
-    ["dark", "nacht"],
+  // Wie die Auswahl unten in der Navigation: Modus im Browser speichern, Seite neu laden (nur GET-Seiten)
+  for (const [scheme, modus] of [
+    ["light", "hell"],
+    ["dark", "dunkel"],
   ] as const) {
-    await page.evaluate((t) => localStorage.setItem("haben-theme", t), theme);
+    await page.evaluate((m) => localStorage.setItem("haben-modus", m), modus);
     await page.reload({ waitUntil: "networkidle" });
     for (const [size, viewport] of [
       ["desktop", { width: 1280, height: 900 }],
@@ -32,7 +32,7 @@ async function capture(page: Page, view: string) {
       await page.screenshot({ path: `${output}/${view}-${scheme}-${size}.png`, fullPage: true, animations: "disabled" });
     }
   }
-  await page.evaluate(() => localStorage.setItem("haben-theme", "wald"));
+  await page.evaluate(() => localStorage.setItem("haben-modus", "hell"));
   if (original) await page.setViewportSize(original);
 }
 
