@@ -79,13 +79,8 @@ export async function readDatabaseAccess(sql: Reader): Promise<DatabaseAccessInf
   return accessFor(sql, await identity(sql));
 }
 
-/**
- * Nach jeder Migration unter deren Sitzungssperre; Rollen und Kennwörter verwaltet der Betreiber.
- * TEMP/CREATE aus PUBLIC würden unqualifizierte Triggernamen überdecken, auch ohne Eigentümerrechte:
- * https://www.postgresql.org/docs/18/ddl-schemas.html
- * https://www.postgresql.org/docs/18/sql-grant.html
- */
-export async function grantApplicationAccess(owner: postgres.Sql, application: postgres.Sql, migrationLock: number): Promise<void> {
+/** Beide echten Anmeldungen vor dem ersten Migrations-DDL unter der bereits gehaltenen Sitzungssperre prüfen. */
+export async function checkApplicationConnection(owner: postgres.Sql, application: postgres.Sql, migrationLock: number): Promise<Identity> {
   const migration = await identity(owner);
   const app = await identity(application);
   if (app.role !== app.loginRole || app.loginRole === migration.loginRole) {
@@ -99,11 +94,20 @@ export async function grantApplicationAccess(owner: postgres.Sql, application: p
       and classid = (${migrationLock}::bigint >> 32)::oid and objid = (${migrationLock}::bigint & 4294967295)::oid
       and database = (select oid from pg_database where datname = current_database())) as same`;
   if (app.database !== migration.database || !proof!.same) throw new Error("App und Migration müssen dieselbe Datenbank verwenden.");
+  return app;
+}
 
+/**
+ * Nach jeder Migration unter deren Sitzungssperre; Rollen und Kennwörter verwaltet der Betreiber.
+ * TEMP/CREATE aus PUBLIC würden unqualifizierte Triggernamen überdecken, auch ohne Eigentümerrechte:
+ * https://www.postgresql.org/docs/18/ddl-schemas.html
+ * https://www.postgresql.org/docs/18/sql-grant.html
+ */
+export async function grantApplicationAccess(owner: postgres.Sql, app: Identity): Promise<void> {
   await owner.begin(async (tx) => {
     await tx`revoke create on schema public from public`;
-    await tx`revoke temporary on database ${tx(migration.database)} from public`;
-    await tx`grant connect on database ${tx(migration.database)} to ${tx(app.loginRole)}`;
+    await tx`revoke temporary on database ${tx(app.database)} from public`;
+    await tx`grant connect on database ${tx(app.database)} to ${tx(app.loginRole)}`;
     await tx`grant usage on schema public to ${tx(app.loginRole)}`;
     await tx`grant select, insert, update, delete on all tables in schema public to ${tx(app.loginRole)}`;
     await tx`grant usage on all sequences in schema public to ${tx(app.loginRole)}`;
