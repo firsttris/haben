@@ -98,6 +98,18 @@ function pairs(rows: DatevGpRow[]): Map<DatevGpRow, { partner: DatevGpRow; reaso
   return paired;
 }
 
+/** Land der USt-IdNr. nach ISO 3166-1: EL ist Griechenland, XI Nordirland; EU (OSS) hat keins */
+const ustIdLand = (ustId: string): string | null => {
+  const prefix = ustId.slice(0, 2).toUpperCase();
+  if (!/^[A-Z]{2}$/.test(prefix) || prefix === "EU") return null;
+  return ({ EL: "GR", XI: "GB" } as Record<string, string>)[prefix] ?? prefix;
+};
+
+function landHint(land: string, ustId: string): string | null {
+  const expected = ustIdLand(ustId);
+  return expected && expected !== land ? `Land ${land} passt nicht zur USt-IdNr. aus ${ustId.slice(0, 2).toUpperCase()}; bitte das Land prüfen` : null;
+}
+
 export function datevContactCandidates(rows: readonly DatevGpRow[]): DatevContactCandidate[] {
   const seen = new Map<number, number>();
   const duplicates = new Map<DatevGpRow, string>();
@@ -128,6 +140,8 @@ export function datevContactCandidates(rows: readonly DatevGpRow[]): DatevContac
       const other = group.find((r) => r.name !== value.name);
       if (other) base.hints.push(`Name in Zeile ${other.line}: „${other.name}“`);
     }
+    const land = landHint(value.land, value.ustId);
+    if (land) base.hints.push(land);
     const key = value.name.trim().toLowerCase();
     const sameName = names.get(key);
     if (sameName !== undefined) base.hints.push(`Gleicher Name wie Zeile ${sameName}; ohne gleiche USt-IdNr. oder Steuernummer ein eigener Kontakt`);

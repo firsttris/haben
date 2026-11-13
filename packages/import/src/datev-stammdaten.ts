@@ -102,7 +102,9 @@ function readRow(line: number, get: (name: string) => string): DatevGpRow {
   const rawUst = rawUstId(get("EU-Mitgliedstaat"), get("EU-UStId."));
   const ustProblem = rawUst ? ustIdImportProblem(rawUst) : null;
   if (ustProblem) errors.push(ustProblem);
-  const land = parseImportCountry(get("Land"));
+  // „UN“ steht im GP-Stamm von sevDesk bei Kontakten ohne Anschrift (sevDesk zeigt „UNKNOWN“, #472); kein Land, also wie leer
+  const rawLand = get("Land");
+  const land = parseImportCountry(rawLand.toUpperCase() === "UN" ? "" : rawLand);
   if (!land.ok) errors.push(land.error);
   const rawIban = get("IBAN-Nr. 1");
   if (rawIban && !isValidIban(rawIban)) errors.push(`IBAN: „${rawIban}“ ist ungültig (Prüfziffer oder Länge)`);
