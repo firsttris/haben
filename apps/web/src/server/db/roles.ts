@@ -25,8 +25,14 @@ async function identity(sql: Reader): Promise<Identity> {
 }
 
 /**
- * PostgreSQL-Rechte schließen PUBLIC und erreichbare Rollen ein, nicht nur die direkten Grants.
+ * SET bestimmt mögliche Sitzungsrollen; die Rechtefunktionen berücksichtigen dort INHERIT und PUBLIC.
+ * Rollenattribute gelten nur für die Sitzungsrolle, Eigentum und Dateirollen auch über INHERIT.
+ * https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-ACCESS-TABLE
  * https://www.postgresql.org/docs/18/role-membership.html
+ * ADMIN-Optionen einer geerbten Rolle erlauben weitere Grants, auch wenn SET derzeit fehlt.
+ * pg_has_role(... WITH ADMIN OPTION) folgt dagegen auch inaktiven MEMBER-Pfaden:
+ * https://www.postgresql.org/docs/18/sql-grant.html#SQL-GRANT-ROLES
+ * https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/adt/acl.c
  * https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-SESSION-REPLICATION-ROLE
  * Eigentümer kommen aus dem Katalog statt aus einer Liste von Objekttypen oder Schema-Präfixen:
  * https://www.postgresql.org/docs/18/catalog-pg-shdepend.html
@@ -44,7 +50,7 @@ async function accessFor(sql: Reader, who: Identity): Promise<DatabaseAccessInfo
     }[]
   >`with reachable as (
       select r.* from pg_roles r join pg_roles login on login.rolname = ${who.loginRole}
-      where pg_has_role(login.oid, r.oid, 'MEMBER')
+      where pg_has_role(login.oid, r.oid, 'SET')
     ), schemas as (
       select oid from pg_namespace
     ), owners as (
@@ -52,13 +58,17 @@ async function accessFor(sql: Reader, who: Identity): Promise<DatabaseAccessInfo
       union select refobjid from pg_shdepend where refclassid = 'pg_authid'::regclass and deptype = 'o'
         and dbid = (select oid from pg_database where datname = current_database())
     ) select
-      exists(select 1 from reachable where rolsuper or rolcreaterole or rolcreatedb or rolreplication or rolbypassrls) as admin,
-      exists(select 1 from reachable r join owners o on o.oid = r.oid) as owner,
+      exists(select 1 from reachable where rolsuper or rolcreaterole or rolcreatedb or rolreplication or rolbypassrls)
+        or exists(select 1 from reachable r cross join pg_auth_members m
+          where m.admin_option and pg_has_role(r.oid, m.member, 'USAGE')) as admin,
+      exists(select 1 from reachable r cross join owners o where pg_has_role(r.oid, o.oid, 'USAGE')) as owner,
       exists(select 1 from reachable r where has_database_privilege(r.oid, current_database(), 'CREATE'))
         or exists(select 1 from reachable r cross join schemas s where has_schema_privilege(r.oid, s.oid, 'CREATE')) as "createObjects",
       exists(select 1 from reachable r where has_database_privilege(r.oid, current_database(), 'TEMP')) as temporary,
       exists(select 1 from reachable r where has_parameter_privilege(r.oid, 'session_replication_role', 'SET,ALTER SYSTEM')) as replication,
-      exists(select 1 from reachable where rolname in ('pg_read_server_files', 'pg_write_server_files', 'pg_execute_server_program')) as files,
+      exists(select 1 from reachable r cross join pg_roles f
+        where f.rolname in ('pg_read_server_files', 'pg_write_server_files', 'pg_execute_server_program')
+          and pg_has_role(r.oid, f.oid, 'USAGE')) as files,
       exists(select 1 from reachable r cross join pg_class c where c.relnamespace = 'public'::regnamespace
         and c.relkind in ('r', 'p', 'v', 'f') and has_table_privilege(r.oid, c.oid, 'TRIGGER')) as triggers`;
   const problems: string[] = [];
