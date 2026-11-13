@@ -1,4 +1,5 @@
 import {
+  abziehbarerAnteil,
   ASSET_KINDS,
   ASSET_METHODS,
   convertForeignAmounts,
@@ -15,6 +16,7 @@ import {
   usesUsefulLife,
   type ExpenseCategory,
   type SelfAssessedTax,
+  VOLLER_ABZUG,
   isKapitalgesellschaft,
   elektroAvailable,
   ownerLabels,
@@ -327,6 +329,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
+  // Abziehbarer Anteil der Vorsteuer (#852): null = Vorgabe der Firmendaten, sonst 0 oder VOLLER_ABZUG
+  const [vorsteuerAnteil, setVorsteuerAnteil] = useState(doc.vorsteuerAnteil);
   // Gutschrift erstattet bereits Bezahltes (#786): die Vorsteuerminderung wartet auf den Ausgleich
   const [erstattetBezahltes, setErstattetBezahltes] = useState(doc.erstattetBezahltes);
   // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
@@ -374,6 +378,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
   const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
   const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  // Gebucht gilt der festgehaltene Abzug (deckt Altbelege ab), im Entwurf Belegwahl vor Firmenvorgabe
+  const vorgabeOhne = abziehbarerAnteil(data, null) === 0;
+  const ohneAbzug = doc.lockedAt ? !doc.vorsteuerAbzug : abziehbarerAnteil(data, vorsteuerAnteil) === 0;
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
@@ -476,6 +483,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           payment,
           note,
           privateShare: privateShareValue,
+          vorsteuerAnteil,
           // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
           erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
           reverseCharge,
@@ -773,14 +781,16 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             reverseCharge === "ig_erwerb" ? (
               <>
                 Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
-                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
-                zieht sie zugleich als Vorsteuer ab (Kz 61). Bezahlt wird nur der Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein
-                gewöhnlicher Beleg.
+                schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung
+                {ohneAbzug ? "; ohne Vorsteuerabzug wird sie Teil der Ausgabe" : ", und zieht sie zugleich als Vorsteuer ab (Kz 61)"}. Bezahlt wird nur der
+                Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein gewöhnlicher Beleg.
               </>
             ) : reverseCharge ? (
               <>
                 Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
-                {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67). Bezahlt wird nur der Nettobetrag.
+                {reverseCharge === "eu" ? "46/47" : "84/85"}
+                {ohneAbzug ? "; ohne Vorsteuerabzug wird sie Teil der Ausgabe" : " und zieht sie zugleich als Vorsteuer ab (Kz 67)"}. Bezahlt wird nur der
+                Nettobetrag.
               </>
             ) : (
               looksLikeReverseCharge && (
@@ -980,6 +990,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               />
             )}
           </Field>
+        )}
+        {/* Kleinunternehmer ziehen nie ab (§ 19 Abs. 1 UStG): dort gibt es nichts zu wählen */}
+        {!data.kleinunternehmer && (
+          <div className="checkbox-hinted">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={ohneAbzug}
+                onChange={(e) => touch(setVorsteuerAnteil)(e.target.checked === vorgabeOhne ? null : e.target.checked ? 0 : VOLLER_ABZUG)}
+                aria-describedby="vorsteuer-ohne-hint"
+              />
+              <span>Ohne Vorsteuerabzug</span>
+            </label>
+            <span id="vorsteuer-ohne-hint" className="field-hint">
+              Die Steuer wird Teil der Ausgabe, keine Vorsteuer (§ 15 Abs. 2 UStG). Vorgabe in den Firmendaten: {vorgabeOhne ? "ohne" : "mit"} Vorsteuerabzug.
+            </span>
+          </div>
         )}
       </fieldset>
 

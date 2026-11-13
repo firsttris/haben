@@ -351,6 +351,7 @@ function CompanyForm() {
           invoiceIntro: text("invoiceIntro"),
           quoteIntro: text("quoteIntro"),
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          ohneVorsteuerabzug: form.get("ohneVorsteuerabzug") === "on",
           tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
@@ -577,6 +578,16 @@ function CompanyForm() {
               : company.kleinunternehmer
                 ? "Ausschalten, sobald die Umsatzgrenze überschritten ist; ab dann gilt die Regelbesteuerung."
                 : ""}
+          </span>
+        </div>
+        <div className="checkbox-hinted">
+          <label className="checkbox">
+            <input type="checkbox" name="ohneVorsteuerabzug" defaultChecked={company.ohneVorsteuerabzug} aria-describedby="ohne-vorsteuerabzug-hint" />
+            <span>Ohne Vorsteuerabzug (steuerfreie Umsätze nach § 4 UStG)</span>
+          </label>
+          <span id="ohne-vorsteuerabzug-hint" className="field-hint">
+            Etwa bei Heilbehandlung oder Unterricht (§ 4 Nr. 14 und 21 UStG): Belege werden ohne Vorsteuer gebucht, die Steuer wird Teil der Ausgabe (§ 15 Abs.
+            2 UStG). Am einzelnen Beleg änderbar; Rechnungen bleiben, wie sie sind.
           </span>
         </div>
       </section>
