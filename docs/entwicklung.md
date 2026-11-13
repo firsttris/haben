@@ -25,7 +25,7 @@ bun install
 cp apps/web/.env.example apps/web/.env
 ```
 
-In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` ein (beide mit `openssl rand -base64 32`). `BETTER_AUTH_URL` bleibt `http://localhost:3000`. Alle Variablen erklärt [Betrieb und Installation](installation-konfiguration.md#umgebungsvariablen).
+In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` ein (beide mit `openssl rand -base64 32`). `BETTER_AUTH_URL` bleibt `http://localhost:3000`. Alle Variablen erklärt [Konfiguration](installation-konfiguration.md#umgebungsvariablen).
 
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` ohne KI-Auslesung. Für die Auslesung mit einem eigenen Modell genügt ein lokales Ollama mit `EXTRACTION_BASE_URL=http://localhost:11434/v1` und `EXTRACTION_MODEL=qwen2.5vl:7b`; PDFs brauchen dafür `pdftoppm` (Paket poppler-utils). Für die Entwicklung reicht beides.
@@ -547,7 +547,7 @@ Die Datenbank muss auf `e2e` enden und wird geleert; die Ports 3216 (Testanbiete
 
 ### Mit Authelia
 
-`oidc-authelia.test.ts` läuft nur mit `AUTHELIA_TEST_ISSUER` gegen eine eigene Authelia-Instanz auf Loopback (geprüft mit Authelia 4.39) und wird sonst übersprungen. Die Instanz braucht TLS (dem Zertifikat der Test-CA über `NODE_EXTRA_CA_CERTS` vertrauen, die TLS-Prüfung bleibt an), den Client aus [Installation › Authelia konfigurieren](installation-sso.md#authelia-konfigurieren) mit Callback `http://localhost:3000/api/auth/callback/oidc`, Clientsecret `secret` und testweise `consent_mode: implicit`, `refresh_interval: always`, ein Dateibackend mit `watch: true` und die Testnutzer aus dem Kopf der Testdatei mit synthetischem TOTP-Schlüssel. Der Test ändert die Gruppen in der Benutzerdatei (`AUTHELIA_TEST_USERS_FILE`) bei bestehender Authelia-Sitzung und prüft, dass Haben die neue Rolle beim nächsten Durchlauf übernimmt und beim Entzug ablehnt.
+`oidc-authelia.test.ts` läuft nur mit `AUTHELIA_TEST_ISSUER` gegen eine eigene Authelia-Instanz auf Loopback (geprüft mit Authelia 4.39) und wird sonst übersprungen. Die Instanz braucht TLS (dem Zertifikat der Test-CA über `NODE_EXTRA_CA_CERTS` vertrauen, die TLS-Prüfung bleibt an), den Client aus [Single Sign-on › Authelia konfigurieren](installation-sso.md#authelia-konfigurieren) mit Callback `http://localhost:3000/api/auth/callback/oidc`, Clientsecret `secret` und testweise `consent_mode: implicit`, `refresh_interval: always`, ein Dateibackend mit `watch: true` und die Testnutzer aus dem Kopf der Testdatei mit synthetischem TOTP-Schlüssel. Der Test ändert die Gruppen in der Benutzerdatei (`AUTHELIA_TEST_USERS_FILE`) bei bestehender Authelia-Sitzung und prüft, dass Haben die neue Rolle beim nächsten Durchlauf übernimmt und beim Entzug ablehnt.
 
 ```sh
 NODE_EXTRA_CA_CERTS=/pfad/test-ca.crt AUTHELIA_TEST_ISSUER=https://127.0.0.1:9091 AUTHELIA_TEST_USERS_FILE=/pfad/users.yml   TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test apps/web/src/server/oidc-authelia.test.ts

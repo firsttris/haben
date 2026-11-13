@@ -574,7 +574,7 @@ Optional. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) liest Haben immer selbst a
 | | Claude (Anthropic-API) | OpenAI-kompatibel, selbst betrieben | OpenAI-kompatibel, in der Cloud |
 | --- | --- | --- | --- |
 | Beispiele | Claude-Modelle von Anthropic | Ollama, LM Studio, vLLM, `docker model run` | OpenRouter, OpenAI, andere Anbieter mit OpenAI-kompatibler API |
-| Einschalten | `ANTHROPIC_API_KEY` ([Installation](installation-anbindungen.md#ki-auslesung-anthropic)) | `EXTRACTION_BASE_URL` und `EXTRACTION_MODEL` ([Installation](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle)) | `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` und `EXTRACTION_API_KEY` ([Installation](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle)) |
+| Einschalten | `ANTHROPIC_API_KEY` ([Anbindungen](installation-anbindungen.md#ki-auslesung-anthropic)) | `EXTRACTION_BASE_URL` und `EXTRACTION_MODEL` ([Anbindungen](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle)) | `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` und `EXTRACTION_API_KEY` ([Anbindungen](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle)) |
 | Wohin der Beleg geht | an Anthropic | nur an deinen Dienst, er verlässt deinen Server nicht | nur an diesen Anbieter (bei OpenRouter auch an den Anbieter des Modells) |
 | PDFs | direkt | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten |
 | Kosten | ein paar Cent je Beleg | Rechenzeit auf deinem Server, mit CPU leicht ein bis mehrere Minuten je Beleg | nach Preisliste des Anbieters und Modells |
@@ -598,7 +598,7 @@ Läuft Haben mit Docker Compose und Ollama auf demselben Server:
 4. `docker compose up -d`, dann unter **Einstellungen › KI-Assistenten und API** prüfen, dass „Eigener Dienst (OpenAI-kompatibel)“ mit dem Modell angezeigt wird.
 5. Einen Beleg als Foto hochladen. Er zeigt „Wird ausgelesen“ und danach die Felder; ein Fehler (nicht erreichbar, Zeitüberschreitung, falsches Antwortformat) steht am Beleg.
 
-Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama als eigenen Container neben Haben, Schlüssel und Wartezeit beschreibt [Installation](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle).
+Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama als eigenen Container neben Haben, Schlüssel und Wartezeit beschreibt [Anbindungen](installation-anbindungen.md#ki-auslesung-über-openai-kompatible-schnittstelle).
 
 ### Beispiel: OpenRouter
 
@@ -619,7 +619,7 @@ Der Beleg geht dann an OpenRouter und an den Anbieter des Modells. Wie lange sie
 
 ## Bankkonten
 
-Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Installation](installation-anbindungen.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
+Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Anbindungen](installation-anbindungen.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
 
 1. Auf der Seite **Bank** „Konto hinzufügen“ wählen.
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.
