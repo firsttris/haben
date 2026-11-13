@@ -1,4 +1,4 @@
-import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatDeduction, formatEuro, formatSigned, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -218,15 +218,15 @@ function UstSection({ data }: { data: Data }) {
             {ust.igErwerb19 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 19 %" extra={formatEuro(ust.igErwerb19)} value="–" />}
             {ust.igErwerb7 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 7 %" extra={formatEuro(ust.igErwerb7)} value="–" />}
             {ust.igErwerbVorsteuer !== 0 && (
-              <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={`−${formatEuro(ust.igErwerbVorsteuer)}`} />
+              <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={formatDeduction(ust.igErwerbVorsteuer)} />
             )}
             {ust.einfuhrumsatzsteuer !== 0 && (
-              <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={`−${formatEuro(ust.einfuhrumsatzsteuer)}`} />
+              <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={formatDeduction(ust.einfuhrumsatzsteuer)} />
             )}
-            <Row label="Abziehbare Vorsteuer" extra="" value={`−${formatEuro(f.vorsteuer)}`} />
+            <Row label="Abziehbare Vorsteuer" extra="" value={formatDeduction(f.vorsteuer)} />
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`−${formatEuro(f.vorauszahlungen)}`} />
-            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(Math.abs(ust.abschluss))} total />
+            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={formatSigned(f.vorauszahlungen)} />
+            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatSigned(ust.abschluss)} total />
           </tbody>
         </table>
         <p className="small muted" style={{ margin: 0 }}>

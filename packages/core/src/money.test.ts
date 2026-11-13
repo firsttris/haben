@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEuro, parseEuro, taxOf } from "./money.ts";
+import { formatDeduction, formatEuro, formatSigned, parseEuro, taxOf } from "./money.ts";
 
 describe("parseEuro", () => {
   it.each([
@@ -21,6 +21,25 @@ describe("parseEuro", () => {
 describe("formatEuro", () => {
   it("formatiert deutsch", () => {
     expect(formatEuro(2341872).replace(/\s/g, " ")).toBe("23.418,72 €");
+  });
+});
+
+describe("formatDeduction", () => {
+  // Abzugszeilen der Jahresübersicht: Vorsteuer, Einfuhrumsatzsteuer und Vorauszahlungssoll
+  it("setzt das Minus vor den positiven Betrag", () => {
+    expect(formatDeduction(24552).replace(/\s/g, " ")).toBe("−245,52 €");
+  });
+
+  it("verdoppelt das Minus bei einem negativen Betrag nicht", () => {
+    expect(formatDeduction(-24552).replace(/\s/g, " ")).toBe("−245,52 €");
+  });
+});
+
+describe("formatSigned", () => {
+  // Abschlusszahlung oder Erstattung: der Betrag trägt sein eigenes Vorzeichen
+  it("lässt das Vorzeichen des Betrags stehen", () => {
+    expect(formatSigned(50368).replace(/\s/g, " ")).toBe("503,68 €");
+    expect(formatSigned(-50368).replace(/\s/g, " ")).toBe("-503,68 €");
   });
 });
 

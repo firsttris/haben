@@ -35,6 +35,19 @@ export function formatDecimal(cents: Cents): string {
   return formatter.format(cents / 100 + 0);
 }
 
+/**
+ * Betrag einer Zeile, die vom Ergebnis abzieht: das Minus gehört zur Zeile. Ein negativer Betrag wird betragsmäßig
+ * gezeigt, damit nicht „−-245,52 €“ dasteht (#869).
+ */
+export function formatDeduction(cents: Cents): string {
+  return `−${formatEuro(Math.abs(cents))}`;
+}
+
+/** Betrag, der sein eigenes Vorzeichen trägt: Abschlusszahlung positiv, Erstattung negativ (#869). */
+export function formatSigned(cents: Cents): string {
+  return formatEuro(cents);
+}
+
 /** Für CSV-Dateien: Dezimalkomma ohne Tausenderpunkt, 123456 → "1234,56", -5 → "-0,05" */
 export function csvDecimal(cents: Cents): string {
   const abs = Math.abs(cents);
