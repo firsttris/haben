@@ -464,7 +464,7 @@ Nicht stornieren lassen sich:
 | Es bleibt eine separate Ausbuchung ohne zugehörige Bankzuordnung offen | Erst die Ausbuchung im [Bankabgleich](bank.md) aufheben, dann stornieren. |
 | Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
 | Beim Umzug als offener Posten übernommen (aus Lexware Office, sevDesk, BuchhaltungsButler, Accountable oder über den [JSON-Eingang](belegimport.md)) | Die Vorsteuer ist im bisherigen Programm angemeldet; korrigiere den Beleg dort. |
-| Das Jahr des Stornos oder einer zurückzunehmenden Zahlung ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. |
+| Das Jahr des Stornos ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr; auch eine gemeinsame Rücknahme bleibt dann vollständig aus. Liegt nur die Zahlung in einem abgeschlossenen Jahr, tragen ihre Bankgegenbuchungen den Tag des Stornos und fallen ins offene Jahr. |
 | Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 
 ## Löschen
