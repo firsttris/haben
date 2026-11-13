@@ -141,7 +141,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const [submission] = await sql`select id from vat_return_submissions`;
     vatSubmissionPrefix = String(submission!.id).slice(0, 8);
 
-    // Eine Buchung aus dem Datenimport: ihre Herkunft „import“ muss in der Spalte Quelle als Name stehen (#774)
+    // Eine Buchung aus dem Datenimport: ihre Herkunft „import“ muss in der Spalte Quelle als Name stehen
     const ledger = await import("../buchhaltung/ledger.ts");
     const { db } = await import("../../db/index.ts");
     await db.transaction(async (tx) => {
