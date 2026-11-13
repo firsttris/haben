@@ -398,11 +398,9 @@ Was das Zwischenkonto für die Auswertungen bedeutet:
 
 - **Voranmeldung aus dem Journal** (ab dem Stichjahr): Kz 66 sieht die Minderung genau im Zeitraum des Ausgleichs. Die
   Zeile auf 1548/1434 trägt ihren Steuerschlüssel, aber keine Kennzahl.
-- **Voranmeldung aus den Nebenbüchern** (davor): Sie zieht die Vorsteuer im Belegmonat, denn Rechnungen und Belege kennt
-  das Zwischenkonto nicht. Der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) meldet die
-  Abweichung in Kz 66 deshalb mit Betrag, Konto und Ursache („… ist in diesem Zeitraum auf 1548 (SKR04 1434) geparkt“).
-  Ob die Nebenbücher es künftig mitlesen sollen, ist eine eigene Entscheidung; solange sie es nicht tun, steht der
-  Hinweis neben jeder betroffenen Zeile.
+- **Voranmeldung aus den Nebenbüchern** (davor): Sie folgt derselben Regel und verteilt die Vorsteuer der Gutschrift
+  nach Zahlung, Verrechnung und Kursdifferenz (`gutschrift.ts`). Beide Quellen sagen deshalb in Kz 66 je Monat
+  dasselbe, und der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) meldet hier keine Abweichung.
 - **EÜR:** 1548/1434 ist ein Bestandskonto und ändert die EÜR nicht — weder Einnahmen noch Ausgaben. Die Vorsteuerzeile
   der EÜR folgt der Umbuchung.
 - **E-Bilanz:** Das Konto steht unter den sonstigen Vermögensgegenständen aus Umsatzsteuer, mit Haben-Saldo (die

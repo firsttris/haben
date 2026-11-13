@@ -223,9 +223,11 @@ In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nich
 
 Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung.
 
-Zwei Vorgänge verschieben die Minderung: Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift** (Beleg mit negativen Beträgen) erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Ausbuchung (erhaltenes Skonto, Kursdifferenz) anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum; bar oder privat bezahlt ist sie mit der Buchung ausgeglichen und zählt im Belegmonat.
+Zwei Vorgänge verschieben die Minderung. Ein erhaltenes Skonto mindert die Vorsteuer anteilig im Monat der Ausbuchung (§ 17 Abs. 1 UStG). Eine **Gutschrift mit der Angabe „erstattet bereits Bezahltes“** erstattet ein schon bezahltes Entgelt; ihre Vorsteuer mindert sich erst, wenn das Geld tatsächlich zurückkommt oder der Posten verrechnet wird, je Zahlung, Verrechnung und Kursdifferenz anteilig nach Steuersatz im Monat des Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12). Solange nichts ausgeglichen ist, erscheint sie in keinem Zeitraum. Ohne die Angabe gilt auch für eine Gutschrift das Belegdatum; bar oder privat bezahlt ist sie mit der Buchung ausgeglichen.
 
-Diese Verteilung greift, solange die Voranmeldung aus den Nebenbüchern rechnet, also für Jahre **vor dem Stichjahr**. Ab dem Stichjahr kommt Kz 66 aus dem Journal, und dort steht die Vorsteuer weiter am Belegdatum; die Verschiebung wirkt dann noch nicht. Bekannte Grenze, siehe [#786](https://github.com/firsttris/haben/issues/786); der Fall „Grenze: ab dem Stichjahr“ in `gutschrift-vorsteuer.test.ts` hält sie fest und wird rot, sobald die Journal-Seite aus #786 gebaut ist.
+Ausgebuchtes Skonto an einer solchen Gutschrift zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ziehen.
+
+Beide Quellen sagen dasselbe: Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto (SKR03 1548, SKR04 1434) und zieht sie erst mit dem Ausgleich auf die Vorsteuer, und die Voranmeldung aus den Nebenbüchern verteilt sie nach derselben Regel. Kz 66 stimmt deshalb aus Journal und Nebenbüchern je Monat überein (`kz66-paritaet.test.ts`).
 
 ### § 13b als Leistungsempfänger
 
