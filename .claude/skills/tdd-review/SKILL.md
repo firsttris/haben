@@ -5,13 +5,13 @@ description: "Unabhängiges Review eines Pull Requests in Haben: nur Fehler meld
 
 # TDD-Review
 
-Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/entwicklung.md` unter „Review“.
+Ein unabhängiger Reviewer prüft einen Pull Request und meldet **nur Fehler, die er mit einem fehlschlagenden Test beweisen kann**. Behauptungen ohne Test zählen nicht. Die Fehler werden nach Red-Green behoben; ist alles grün, mergt ein Maintainer oder mit dessen Zustimmung ein Collaborator. Der Ablauf ohne Claude steht in `docs/mitwirken.md` unter „Review“.
 
 ## 0. Wer reviewt?
 
 Zeigt `git diff --name-only origin/main...<branch>` nur `*.md` und `mkdocs.yml`, gilt Skill `doku-pruefen` statt dieses Skills. Ändert der PR Code und Markdown, prüft dieser Skill nur den Code; für die Markdown-Dateien zugleich einen frischen Subagenten mit `doku-pruefen`, PR-Nummer und Branch starten. Gemergt wird erst, wenn beide fertig sind (Schritt 6).
 
-Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/entwicklung.md`, Review, Punkt 1).
+Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agent oder Mensch, nicht das Konto: Ein frischer Agent ohne den Verlauf der Entstehung ist unabhängig, auch wenn ihn der Autor gestartet hat (`docs/mitwirken.md`, Review, Punkt 1).
 
 - **In dieser Session wurde am Code gearbeitet:** nicht selbst reviewen, sondern einen **separaten Subagenten** starten, der die Entstehung nicht gesehen hat. Ihm nur Repo, PR-Nummer, Branch, Basis-Branch und die Schritte 1–4 geben, keine eigene Einschätzung. Gibt es noch keinen PR, vorher Branch pushen und PR anlegen. Der Subagent arbeitet in einem eigenen Worktree auf dem Branch des PR und mit einer eigenen Compose-Instanz samt Test-Datenbank (Skill `checks`, Schritt 2: eigener Projektname und Ports), nie im Checkout oder in der `haben-dev`-Umgebung der Person; am Ende räumt er beides ab. Bei mehreren parallelen Reviews je eine eigene Instanz. Danach weiter mit Schritt 5.
 - **Frische Session, nur ein PR genannt:** Diese Session ist unabhängig; direkt mit Schritt 1 beginnen.
@@ -43,7 +43,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
-- Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/entwicklung.md` unter „Review“, Schritt 4.
+- Fixes als neue Commits auf den Branch des Pull Requests, Commits von Beitragenden nie umschreiben; wie bei Forks und „Allow edits by maintainers“ vorzugehen ist, steht in `docs/mitwirken.md` unter „Review“, Schritt 4.
 - **PR aus einem fremden Fork:** pushen nach Skill `fork-pushen`.
 - Dann gezielt prüfen, was der PR und die Fixes berühren. Die volle Suite läuft in der CI, lokal nicht noch einmal (Befehle und Umgebung: Skill `checks`):
   - immer `lint` und `typecheck`;
@@ -62,7 +62,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat. Gemeint ist der Agen
 
 ## Wie viele Runden
 
-Die Regel steht in `docs/entwicklung.md`, Review, „Runden“. Schritte 1 bis 5 sind eine Runde; für den Agenten heißt das:
+Die Regel steht in `docs/mitwirken.md`, Review, „Runden“. Schritte 1 bis 5 sind eine Runde; für den Agenten heißt das:
 
 - Hat Runde 1 Fixes am Code gebracht, prüft eine Runde 2 nur diese Fixes und den betroffenen Bereich.
 - Laufen Codex oder ein anderes KI-Review mit, prüfen alle denselben Stand; Befunde zusammenführen, dann gemeinsam beheben.
@@ -73,7 +73,7 @@ Die Regel steht in `docs/entwicklung.md`, Review, „Runden“. Schritte 1 bis 5
 
 - Mergen darf, wer Maintainer von Haben ist und das ausdrücklich will, oder ein Collaborator mit Zustimmung des Maintainers. Wer sonst beiträgt, hört nach Schritt 5 auf.
 - Vor dem Merge prüfen: alle Findings behoben oder nach „Wie viele Runden“ notiert, bei Markdown im PR auch `doku-pruefen` abgeschlossen, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`, Titel und Beschreibung passen zum Stand (sie werden der Squash-Commit auf `main`).
-- Merge-Methode nach `docs/entwicklung.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
+- Merge-Methode nach `docs/mitwirken.md`, „Review“, Schritt 6: immer **Squash** des Pull Requests selbst.
 - **Nicht mergen**, wenn ein zu behebendes Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
 
 ## Abschlussbericht

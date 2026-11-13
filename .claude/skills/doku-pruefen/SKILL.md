@@ -5,7 +5,7 @@ description: "Unabhängige Prüfung der Markdown-Dateien eines Pull Requests in 
 
 # Doku prüfen
 
-Die Regel steht in `docs/entwicklung.md`, Review, „Doku-Prüfung“, hier die Schritte. Ein Befund braucht keinen Test, aber ein Zitat aus dem Diff und einen Beleg dagegen: Datei und Zeile im Code, die Quelle oder die andere Stelle im Repo. Wortwahl und Satzbau sind kein Befund.
+Die Regel steht in `docs/mitwirken.md`, Review, „Doku-Prüfung“, hier die Schritte. Ein Befund braucht keinen Test, aber ein Zitat aus dem Diff und einen Beleg dagegen: Datei und Zeile im Code, die Quelle oder die andere Stelle im Repo. Wortwahl und Satzbau sind kein Befund.
 
 ## 0. Wer prüft?
 
