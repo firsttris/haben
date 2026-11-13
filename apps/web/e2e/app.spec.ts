@@ -750,6 +750,16 @@ test("sevDesk-Gutschrift auf Buchungskonto: Ausgabe-Gutschrift oder Hinweis „B
         await axePage.setViewportSize({ width, height: 900 });
         await axePage.goto(new URL(url, page.url()).toString());
         await axePage.waitForLoadState("networkidle");
+        // Die Markierung steht ganz in ihrer Spalte, auch am Handy, wo Kontakt und Art schmal sind
+        if (url.startsWith("/archiv?"))
+          expect(
+            await axePage.getByText("Buchungskonto nicht erkannt").evaluate((el) => {
+              const cell = el.closest(".table-row > div")!.getBoundingClientRect();
+              const pill = el.getBoundingClientRect();
+              return pill.left >= cell.left - 0.5 && pill.right <= cell.right + 0.5;
+            }),
+            `Markierung ganz sichtbar bei ${width} px`,
+          ).toBe(true);
         const { violations } = await new AxeBuilder({ page: axePage })
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
           .analyze();
