@@ -1,4 +1,13 @@
-import { advanceVatPlan, recordedTaxShares, type AdvanceVatEvent, type AdvanceVatChange } from "@haben/core";
+import {
+  advanceBalancePlan,
+  advanceUsesPayments,
+  advanceVatPlan,
+  recordedTaxShares,
+  type AdvanceBalanceChange,
+  type AdvanceBalanceEvent,
+  type AdvanceVatEvent,
+  type AdvanceVatChange,
+} from "@haben/core";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
@@ -23,7 +32,7 @@ async function family(originalId: string, q: Db | Tx): Promise<Invoice[]> {
     );
 }
 
-async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceVatEvent[]> {
+async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceBalanceEvent[]> {
   const ids = invoices.map((i) => i.id);
   const totals = await invoiceTotalsById(ids, q);
   const rows = await q.execute<{
@@ -33,12 +42,15 @@ async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceVa
     tax_shares: typeof schema.allocations.$inferSelect.taxShares;
     tax_shares_invoice_id: string | null;
     written_off: boolean;
+    kind: "skonto" | "forderungsausfall" | null;
   }>(sql`select a.invoice_id, b.booking_date::text as date, a.amount, a.tax_shares, a.tax_shares_invoice_id, false as written_off
+    , null::text as kind
     from allocations a join bank_transactions b on b.id = a.transaction_id where a.invoice_id in ${ids}
-    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, false from cash_entries where invoice_id in ${ids}
-    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, true from write_offs where invoice_id in ${ids}`);
+    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, false, null from cash_entries where invoice_id in ${ids}
+    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, true, kind from write_offs where invoice_id in ${ids}`);
   return [...rows].map((r) => ({
     date: r.date,
+    ...(r.kind ? { kind: r.kind } : {}),
     [r.written_off ? "writtenOff" : "paid"]: recordedTaxShares(
       totals.get(r.invoice_id)!,
       r.amount,
@@ -47,15 +59,24 @@ async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceVa
   }));
 }
 
-/** Der Leistungszeitpunkt einer Schlussrechnung und ihre spätere Aufhebung sind eigenständige Ereignisse. */
-async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnType<typeof invoiceTaxReader>): Promise<AdvanceVatEvent[]> {
+/** Beim neuen Bilanzverfahren bleibt eine tatsächlich erbrachte Leistung auch nach bloßem Rechnungsaustausch bestehen. */
+async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnType<typeof invoiceTaxReader>) {
   const finals = await q
     .selectDistinct({ invoice: schema.invoices })
     .from(schema.invoiceLines)
     .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.invoiceId))
     .where(and(eq(schema.invoiceLines.deductionOf, original.id), eq(schema.invoices.kind, "rechnung"), eq(schema.invoices.status, "final")));
   const events: AdvanceVatEvent[] = [];
+  const balanceEvents: AdvanceBalanceEvent[] = [];
   for (const { invoice } of finals) {
+    if (original.advanceAccounting === "deferred") {
+      // Ein Ersatz dokumentiert denselben Leistungsstand, nicht eine zweite Ausführung.
+      if (invoice.replacesInvoiceId) continue;
+      const date = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
+      balanceEvents.push({ date, performance: 1 });
+      if ((await taxes.companyMode(invoice)) === "soll") events.push({ date, performance: 1 });
+      continue;
+    }
     if ((await taxes.companyMode(invoice)) !== "soll") continue;
     events.push({ date: await taxes.date(invoice), performance: 1 });
     const cancellations = await q
@@ -64,28 +85,42 @@ async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnTyp
       .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
     events.push(...cancellations.map((c) => ({ date: c.issueDate, performance: -1 as const })));
   }
-  return events;
+  return { vat: events, balance: balanceEvents };
 }
 
 export interface ManagedAdvancePlan {
   original: Invoice;
   invoiceIds: Set<string>;
   changes: AdvanceVatChange[];
+  balanceChanges: AdvanceBalanceChange[];
 }
 
 /** Gegenprobe aus den Nebenbüchern, ausdrücklich ohne Journalzeilen zu lesen. */
 export async function loadAdvanceVatPlan(original: Invoice, q: Db | Tx = db, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan> {
+  // Die Festschreibung kann den Verfahrensmarker gerade erst gesetzt haben; der Vorher-Lader hält noch den Entwurf.
+  const [current] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, original.id));
+  if (current) original = current;
   const invoices = await family(original.id, q);
   const totals = await invoiceTotalsById(
     invoices.map((i) => i.id),
     q,
   );
   const events = await paymentEvents(invoices, q);
-  events.push(...(await performanceEvents(original, q, taxes)));
+  const performance = await performanceEvents(original, q, taxes);
   for (const invoice of invoices) {
     if (invoice.id !== original.id) events.push({ date: invoice.issueDate, correction: totals.get(invoice.id)!.taxes });
   }
-  return { original, invoiceIds: new Set(invoices.map((i) => i.id)), changes: advanceVatPlan(totals.get(original.id)!.taxes, events) };
+  const total = totals.get(original.id)!.taxes;
+  const [company] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).where(eq(schema.company.id, 1));
+  return {
+    original,
+    invoiceIds: new Set(invoices.map((i) => i.id)),
+    changes: advanceUsesPayments(original.taxTreatment) ? advanceVatPlan(total, [...events, ...performance.vat]) : [],
+    balanceChanges:
+      original.advanceAccounting === "deferred"
+        ? advanceBalancePlan(total, [...events, ...performance.balance], company!.kontenrahmen, original.taxTreatment)
+        : [],
+  };
 }
 
 /** Nur neue Anzahlungen: Bestandsbelege laufen unverändert durch ihre bisherigen Nebenbücher. */
