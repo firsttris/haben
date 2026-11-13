@@ -20,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
   let invoices: typeof import("./index.ts");
   let bank: typeof import("../bank/index.ts");
   let vat: typeof import("../umsatzsteuer/index.ts");
+  let reports: typeof import("../auswertungen/index.ts");
   let contacts: typeof import("../stammdaten/index.ts");
   const actor = "anzahlung-aufhebung";
   let contactId: string;
@@ -29,6 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
     invoices = await import("./index.ts");
     bank = await import("../bank/index.ts");
     vat = await import("../umsatzsteuer/index.ts");
+    reports = await import("../auswertungen/index.ts");
     contacts = await import("../stammdaten/index.ts");
   }, 30_000);
 
@@ -78,7 +80,7 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
   }
 
   /** Zahlungseingang am `day` (TT.MM.JJ), der Rechnung zugeordnet; gibt die Zuordnung zurück */
-  async function zahlen(invoiceId: string, day: string) {
+  async function zahlen(invoiceId: string, day: string, amount = 35_700) {
     await bank.importStatement(
       actor,
       {
@@ -88,12 +90,17 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;
-    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id as string, invoiceId, amount: 35_700 });
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id as string, invoiceId, amount });
     const [allocation] = await sql`select id from allocations where reverses_id is null`;
     return { transactionId: tx!.id as string, allocationId: allocation!.id as string };
   }
 
   const kz81 = async (year: number, month: number) => (await vat.computeVatFigures({ year, month })).kz81;
+
+  async function journalUndNebenbuch(year: number, month: number, base: number, tax: number) {
+    expect(await vat.computeVatFigures({ year, month })).toMatchObject({ quelle: "journal", kz81: base, tax81: tax });
+    expect((await reports.vatAbgleich({ year, month })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+  }
 
   it("Aufhebung im Juli bucht im Juli; der März behält die Anzahlung", async () => {
     const invoice = await anzahlung("2026-03-05");
@@ -115,5 +122,44 @@ describe.skipIf(!testDatabaseUrl)("Anzahlung: Aufhebung wirkt am Tag der Aufhebu
 
     expect(await kz81(2026, 12)).toBe(30_000);
     expect(await kz81(2027, 1)).toBe(-30_000);
+  }, 30_000);
+
+  it("SKR04 und Ist: Teilaufhebung im Folgejahr hält Journal und Nebenbuch in beiden Jahren zusammen", async () => {
+    await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'ist', rechtsform = 'gmbh', journal_ab = 2025`;
+    const invoice = await anzahlung("2025-12-01");
+    const { allocationId } = await zahlen(invoice.id, "20.12.25", 11_900);
+    await journalUndNebenbuch(2025, 12, 10_000, 1_900);
+
+    await bank.reverseAllocation(actor, allocationId, "2026-01-15");
+
+    await journalUndNebenbuch(2025, 12, 10_000, 1_900);
+    await journalUndNebenbuch(2026, 1, -10_000, -1_900);
+  }, 30_000);
+
+  it("Soll: Bankaufhebung nach Schlussleistung verschiebt keine bereits fällige Steuer in alte Monate", async () => {
+    await sql`update company set journal_ab = 2026`;
+    const invoice = await anzahlung("2026-03-05");
+    const { allocationId } = await zahlen(invoice.id, "20.03.26", 11_900);
+    const final = await invoices.createDraft(actor, {
+      contactId,
+      issueDate: "2026-05-20",
+      serviceFrom: "2026-05-20",
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      variant: "schluss",
+      deducts: [invoice.id],
+      lines: [{ description: "Gesamtleistung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    await invoices.finalizeInvoice(actor, final.id);
+    await journalUndNebenbuch(2026, 3, 10_000, 1_900);
+    await journalUndNebenbuch(2026, 5, 90_000, 17_100);
+
+    await bank.reverseAllocation(actor, allocationId, "2026-07-10");
+
+    await journalUndNebenbuch(2026, 3, 10_000, 1_900);
+    await journalUndNebenbuch(2026, 5, 90_000, 17_100);
+    await journalUndNebenbuch(2026, 7, 0, 0);
   }, 30_000);
 });
