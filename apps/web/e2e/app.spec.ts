@@ -559,7 +559,7 @@ test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
   await expect(page.getByRole("table")).toBeVisible();
   await page.getByRole("button", { name: /^Rechnung \(/ }).click();
   for (const row of await page.locator("tbody tr:not(.lines-row)").all()) {
-    if ((await row.locator("td").count()) > 1) await expect(row.locator(".pill")).toHaveText(/Rechnung|Gegenbuchung/);
+    if ((await row.locator("td").count()) > 1) await expect(row.locator(".journal-source")).toHaveText(/Rechnung|Gegenbuchung/);
   }
 });
 

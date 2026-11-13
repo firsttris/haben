@@ -5,6 +5,7 @@ import { formatDate } from "../../lib/format.ts";
 import type { ArchiveSearch } from "../../routes/_app/archiv/index.tsx";
 import type { getLegacyVouchers } from "../../server/functions/archive.ts";
 import { YearSwitch } from "./YearSwitch.tsx";
+import { Status } from "../Status.tsx";
 
 type Row = Awaited<ReturnType<typeof getLegacyVouchers>>[number];
 
@@ -95,11 +96,21 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
               </div>
               <div className="num">{formatEuro(row.net)}</div>
               <div className="num">{formatEuro(row.gross)}</div>
-              <div className="num">{row.files === 0 ? <span className="pill pill-warn">keine</span> : row.files}</div>
+              <div className="num">
+                {row.files === 0 ? (
+                  <Status tone="warn" emphasis="notice">
+                    Keine
+                  </Status>
+                ) : (
+                  row.files
+                )}
+              </div>
               {/* Eigene Zeile im Raster: in der gekürzten Spalte Kontakt · Art wäre sie am Handy abgeschnitten */}
               {row.accountingTypeUnclear && (
                 <div className="legacy-flag">
-                  <span className="pill pill-warn">Buchungskonto nicht erkannt</span>
+                  <Status tone="warn" emphasis="notice" inline>
+                    Buchungskonto nicht erkannt
+                  </Status>
                 </div>
               )}
             </Link>

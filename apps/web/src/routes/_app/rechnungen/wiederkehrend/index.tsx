@@ -6,6 +6,7 @@ import { formatDate } from "../../../../lib/format.ts";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
 import { getRecurringList, runRecurringNow } from "../../../../server/functions/recurring.ts";
+import { Status, Tag } from "../../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/")({
   loader: () => getRecurringList(),
@@ -66,8 +67,12 @@ function RecurringPage() {
             {items.map(({ recurring, contactName }) => (
               <Link key={recurring.id} to="/rechnungen/wiederkehrend/$id" params={{ id: recurring.id }} className="table-row recurring-cols">
                 <div>
-                  {recurring.name} {!recurring.active && <span className="pill">inaktiv</span>}
-                  {recurring.lastError && <span className="pill pill-warn">Fehler</span>}
+                  {recurring.name} {!recurring.active && <Tag>inaktiv</Tag>}{" "}
+                  {recurring.lastError && (
+                    <Status tone="danger" emphasis="urgent" inline>
+                      Fehler
+                    </Status>
+                  )}
                   <div className="small muted">
                     {recurring.mode === "festschreiben" ? (recurring.sendByMail ? "wird festgeschrieben und gemailt" : "wird festgeschrieben") : "als Entwurf"}
                   </div>

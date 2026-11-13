@@ -436,7 +436,7 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await zeile.getByRole("button", { name: "Stornieren" }).click();
   await faktenZeigen(page, "Datum", "Betrag");
   await bestaetigen(page, "Stornieren");
-  await expect(zeile.getByText("storniert", { exact: true })).toBeVisible();
+  await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
 
@@ -1337,7 +1337,7 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toBeVisible();
   await expect(page.getByRole("region", { name: `Verlauf Juni ${year}` })).toContainText("Abgabe vermerkt");
   const zahlung = page.getByRole("region", { name: "Zahlung an das Finanzamt" });
-  await expect(zahlung).toContainText("offen 190,00");
+  await expect(zahlung).toContainText("Offen 190,00");
   const protokoll = await page.request.get((await page.getByRole("link", { name: "Protokoll" }).first().getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
@@ -1383,7 +1383,7 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await page.waitForLoadState("networkidle");
 
   await go(`/umsatzsteuer/${year}-06`);
-  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("ausgeglichen");
+  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Ausgeglichen");
   await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Lastschrift 190,00");
 });
 
@@ -2126,7 +2126,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
 
   // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
-  await expect(ust.getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(ust.getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
   await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
   await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
   await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
@@ -2135,7 +2135,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
 
   // Auch nach dem Neuladen bleibt der Vermerk stehen
   await go(`/jahreserklaerung/${jahr}`);
-  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben am 02.01.${jahr + 1}`)).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

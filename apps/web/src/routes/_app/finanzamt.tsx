@@ -21,6 +21,7 @@ import { today } from "../../server/today.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
 import { Field } from "../../components/Field.tsx";
+import { Status } from "../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/finanzamt")({
   // Datum in Deutschland, nicht UTC; kommt beim ersten Aufruf mit den Loader-Daten vom Server
@@ -597,9 +598,15 @@ function History({ data }: { data: Data }) {
           <details key={m.id} className="history-row" style={{ display: "block" }}>
             <summary style={{ cursor: "pointer" }}>
               <span style={{ fontWeight: 500 }}>{m.betreff}</span>{" "}
-              <span className={`pill ${m.ok ? (m.kind === "send" ? "pill-ok" : "pill-info") : "pill-danger"}`}>
-                {m.ok ? STATUS_LABEL[m.kind] : `Fehler ${m.code}`}
-              </span>
+              {m.ok ? (
+                <Status tone={m.kind === "send" ? "ok" : "info"} inline>
+                  {STATUS_LABEL[m.kind]}
+                </Status>
+              ) : (
+                <Status tone="danger" emphasis="urgent" inline>
+                  Fehler {m.code}
+                </Status>
+              )}
               <span className="small muted">
                 {" "}
                 · {formatDateTime(m.createdAt)}
