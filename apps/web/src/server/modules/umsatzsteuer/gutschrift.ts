@@ -7,7 +7,8 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * bezahltes Entgelt; die Vorsteuer mindert sich deshalb nicht im Belegmonat, sondern erst, wenn das Geld tatsächlich
  * zurückkommt oder der Posten verrechnet wird: je Zahlung (allocations), Verrechnung (document_settlements) und
  * Ausbuchung (write_offs; erhaltenes Skonto, Kursdifferenz) ein Anteil mit dem Datum dieses Vorgangs (§ 17 Abs. 1
- * Satz 2 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12).
+ * Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich,
+ * UStAE 13.6 Abs. 1 Satz 12).
  * Anteilig je Steuersatz wie beim erhaltenen Skonto, aber fortgeschrieben wie eine Teilzahlung (settlementTaxShares):
  * Alle Vorgänge einer Gutschrift ergeben zusammen genau ihre Vorsteuer, auch über mehrere Zeiträume und nach einer
  * Aufhebung.
