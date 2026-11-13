@@ -1,5 +1,5 @@
 import { formatEuro, isKapitalgesellschaft, type Cents } from "@haben/core";
-import { ERSTES_ERKLAERUNGSJAHR } from "@haben/elster";
+import { ERSTES_ERKLAERUNGSJAHR, transferticketProblem } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -59,6 +59,9 @@ export const vermerkSchema = z.object({
 /** Was gegen die Eingaben spricht, die ohne Datenbank prüfbar sind, oder null */
 export function vermerkProblem(data: z.infer<typeof vermerkSchema>, heute: string): string | null {
   if (data.filedOn > heute) return "Der Tag der Abgabe liegt in der Zukunft.";
+  // Wie bei der Voranmeldung: Das Ticket steht so im Übermittlungsprotokoll, ein Muster hält Tippfehler fest
+  const ticketProblem = transferticketProblem(data.transferTicket);
+  if (ticketProblem) return ticketProblem;
   if (!data.file) return null;
   if (data.file.bytes.byteLength === 0) return "Die Datei des Protokolls ist leer.";
   if (data.file.bytes.byteLength > MAX_DOCUMENT_SIZE) return "Das Protokoll ist größer als 20 MB.";

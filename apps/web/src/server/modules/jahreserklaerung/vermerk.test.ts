@@ -142,6 +142,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen: Abgabe vermerken (Postgre
     expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(1);
   });
 
+  it("lehnt ein Transferticket ab, das nicht aus Buchstaben und Ziffern besteht", async () => {
+    // Wie bei der Voranmeldung steht das Ticket so im Übermittlungsprotokoll; ein Muster hält Tippfehler fest
+    await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("!!!!------", { abweichungBestaetigt: true }), TODAY)).rejects.toThrow(
+      /Buchstaben und Ziffern/,
+    );
+    expect(await jahresvermerk.jahresvermerke(2025)).toHaveLength(0);
+  });
+
   it("lehnt einen Tag der Abgabe in der Zukunft ab", async () => {
     await expect(jahresvermerk.vermerkeJahresabgabe(actor, "euer", 2025, eingabe("ABC123456789", { filedOn: "2027-01-05" }), TODAY)).rejects.toThrow(/Zukunft/);
   });
