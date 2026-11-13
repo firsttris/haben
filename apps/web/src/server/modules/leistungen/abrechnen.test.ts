@@ -183,6 +183,8 @@ describe.skipIf(!testDatabaseUrl)("Leistungen abrechnen (Postgres, #417)", () =>
       await expect(sql`update service_entries set hourly_rate_cents = 1 where id = ${id}`).rejects.toThrow(/unveränderlich/);
       await expect(sql`update service_entries set description = 'x' where id = ${id}`).rejects.toThrow(/unveränderlich/);
       await expect(sql`update service_entries set invoice_id = null where id = ${id}`).rejects.toThrow(/unveränderlich/);
+      // auch die Kennung aus der Zeiterfassung: sonst legte ein erneuter Abruf den Eintrag ein zweites Mal an
+      await expect(sql`update service_entries set external_source = 'kimai', external_id = '9' where id = ${id}`).rejects.toThrow(/unveränderlich/);
       await expect(sql`delete from service_entries where id = ${id}`).rejects.toThrow(/nicht löschen/);
     });
 

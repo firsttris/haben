@@ -54,7 +54,7 @@ Was in den Entwurf kommt:
 
 - Alle Einträge des Kunden im Zeitraum, die **abrechenbar** und noch **offen** sind. Nicht abrechenbare Einträge und solche, die schon auf einer Rechnung stehen, nimmt Haben nie mit.
 - **Eine Position je Stundensatz**, Bezeichnung „Leistungen“, Einheit Std., Menge die Summe der abrechenbaren Dauern. Die Menge rundet Haben einmal je Position auf Tausendstel Stunden (100 Minuten sind 1,667 Std.), nicht je Eintrag. Die Projekte der Einträge stehen als Text unter der Position.
-- **Leistungszeitraum** vom ersten bis zum letzten Arbeitstag der Einträge, Rechnungsdatum heute, Steuersatz und Zahlungsziel wie bei einem neuen Entwurf.
+- **Leistungszeitraum** vom ersten bis zum letzten Arbeitstag der Einträge, Rechnungsdatum heute, Steuersatz und Zahlungsziel wie bei einem neuen Entwurf. Format (bei einer Leitweg-ID XRechnung), Sprache und Skonto übernimmt Haben vom Kunden, wie im Rechnungseditor.
 - Fehlt bei einem Eintrag der Stundensatz, legt Haben nichts an: Trage ihn am Eintrag oder im Kontakt ein.
 
 Die Einzelaufstellung (Tag, Dauer, Tätigkeit) steht noch nicht auf der Rechnung selbst; in Haben zeigt der Entwurf und die festgeschriebene Rechnung unter **Enthaltene Leistungen**, aus welchen Einträgen sie entstanden ist.

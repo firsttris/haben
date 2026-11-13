@@ -18,9 +18,9 @@ BEGIN
         RAISE EXCEPTION 'Leistung % ist auf einer festgeschriebenen Rechnung abgerechnet und lässt sich nicht löschen', OLD.id
           USING ERRCODE = 'check_violation';
       END IF;
-      IF (NEW.contact_id, NEW.worked_on, NEW.minutes, NEW.billable_minutes, NEW.hourly_rate_cents, NEW.non_billable, NEW.description, NEW.project, NEW.invoice_id)
+      IF (NEW.contact_id, NEW.worked_on, NEW.minutes, NEW.billable_minutes, NEW.hourly_rate_cents, NEW.non_billable, NEW.description, NEW.project, NEW.invoice_id, NEW.external_source, NEW.external_id)
          IS DISTINCT FROM
-         (OLD.contact_id, OLD.worked_on, OLD.minutes, OLD.billable_minutes, OLD.hourly_rate_cents, OLD.non_billable, OLD.description, OLD.project, OLD.invoice_id) THEN
+         (OLD.contact_id, OLD.worked_on, OLD.minutes, OLD.billable_minutes, OLD.hourly_rate_cents, OLD.non_billable, OLD.description, OLD.project, OLD.invoice_id, OLD.external_source, OLD.external_id) THEN
         RAISE EXCEPTION 'Leistung % ist auf einer festgeschriebenen Rechnung abgerechnet und unveränderlich', OLD.id
           USING ERRCODE = 'check_violation';
       END IF;
