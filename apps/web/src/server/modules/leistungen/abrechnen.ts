@@ -3,7 +3,7 @@ import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
-import { assertCustomer, type DraftInput, insertDraft, newDraftDefaults } from "../rechnungen/index.ts";
+import { assertCustomer, defaultSkonto, type DraftInput, insertDraft, newDraftDefaults } from "../rechnungen/index.ts";
 import { onActiveInvoice, ServiceEntryError } from "./service-entries.ts";
 
 /*
@@ -132,10 +132,23 @@ export async function billServiceEntries(actor: string, input: BillingInput, tod
       );
     }
     const defaults = await newDraftDefaults(today);
+    // Vorgaben des Kunden wie im Rechnungseditor (chooseContact), bei Angebot und API: Format (mit Leitweg-ID XRechnung), Sprache, Skonto
+    const [contact] = await tx
+      .select({
+        defaultFormat: schema.contacts.defaultFormat,
+        leitwegId: schema.contacts.leitwegId,
+        language: schema.contacts.language,
+        skonto: schema.contacts.skonto,
+      })
+      .from(schema.contacts)
+      .where(eq(schema.contacts.id, data.contactId));
     const taxRate = defaults.lines[0]!.taxRate;
     const draft: DraftInput = {
       ...defaults,
       contactId: data.contactId,
+      format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : defaults.format),
+      language: contact?.language ?? defaults.language,
+      skonto: defaultSkonto({ skonto: defaults.skonto }, contact, defaults.paymentTermDays),
       issueDate: today,
       serviceFrom: preview.from,
       serviceTo: preview.to,
