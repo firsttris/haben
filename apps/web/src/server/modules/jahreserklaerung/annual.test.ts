@@ -280,8 +280,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
         .euerIssues(company, data)
         .map((i) => i.text)
         .join(" ");
-    // Der Grund muss tone fehler tragen: checkAnnual bricht nur darauf ab und wuerde sonst weiter senden.
-    // Der Test setzt oben einkunftsart auf null, deshalb zaehlen hier nur die Meldungen zu Zeile 18 und 58.
+    // Der Grund muss tone fehler tragen: checkAnnual bricht nur darauf ab und würde sonst weiter senden.
+    // euerIssues meldet auch anderes (fehlende Einkunftsart, Kontenrahmen), deshalb grenzt der Filter auf Zeile 18 und 58 ein.
     const fehler = (data: typeof euer) => annual.euerIssues(company, data).filter((i) => i.tone === "fehler" && /Zeile (58|18) \(Kz/.test(i.text));
     // Die Anlage EÜR nimmt in Zeile 58 (E6005101) kein Vorzeichen an: der Versand wird vor ERiC gestoppt
     expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
