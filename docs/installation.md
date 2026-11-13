@@ -83,6 +83,8 @@ In `.env` trägst du ein:
 | --- | --- |
 | `DOMAIN` | Domain ohne `https://`, z. B. `haben.example.de`. Caddy holt dafür das Zertifikat, die App nutzt `https://DOMAIN` als `BETTER_AUTH_URL` |
 | `DB_PASSWORD` | Datenbank-Passwort, nur Buchstaben und Ziffern, weil es in der Verbindungs-URL steht: `openssl rand -hex 24` |
+| `DATABASE_URL` | App-Verbindung aus der Vorlage: `APP_PASSWORT_EINTRAGEN` durch ein zweites Passwort (`openssl rand -hex 24`) ersetzen |
+| `MIGRATION_DATABASE_URL` | Eigentümerverbindung aus der Vorlage; `${DB_PASSWORD}` übernimmt Compose aus der Zeile darüber |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
@@ -92,6 +94,9 @@ In `.env` trägst du ein:
 | `OIDC_ONLY`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, `OIDC_DISPLAY_NAME`, `OIDC_GROUPS_CLAIM`, `OIDC_GROUP_INHABER`, `OIDC_GROUP_STEUERBERATUNG` | nur für den SSO-Modus, siehe [Single Sign-on mit OpenID Connect](#single-sign-on-mit-openid-connect) |
 
 ```sh
+docker compose up -d --wait db
+docker compose exec db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+# Zweimal das App-Passwort aus DATABASE_URL eingeben; die Rolle nur einmal anlegen.
 docker compose up -d
 docker compose logs -f app   # „Migrationen angewendet“, „Einrichtungscode …“, dann „Listening on …“
 ```
@@ -132,7 +137,10 @@ Zugangsdaten liegen nicht in `haben.env`, sondern als Podman Secrets. Die Quadle
 ```sh
 DBPW="$(openssl rand -hex 24)"
 printf '%s' "$DBPW" | podman secret create haben-db-password -
-printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-database-url -
+printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-migration-database-url -
+APPPW="$(systemd-ask-password 'Passwort der App-Datenbankrolle haben_app')"
+printf 'postgres://haben_app:%s@haben-db:5432/haben' "$APPPW" | podman secret create haben-database-url -
+unset DBPW APPPW
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-auth-secret -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-password -
@@ -141,7 +149,8 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-passwor
 | Secret | Variable im Container | Inhalt |
 | --- | --- | --- |
 | `haben-db-password` | `POSTGRES_PASSWORD` (in `haben-db`) | Passwort des Datenbanknutzers `haben` |
-| `haben-database-url` | `DATABASE_URL` | Verbindung zur Datenbank, Passwort wie oben |
+| `haben-database-url` | `DATABASE_URL` | App-Verbindung als `haben_app`, eigenes Passwort |
+| `haben-migration-database-url` | `MIGRATION_DATABASE_URL` | Eigentümerverbindung als `haben`, Passwort wie `haben-db-password` |
 | `haben-auth-secret` | `BETTER_AUTH_SECRET` | Signiert die Sitzungen |
 | `haben-encryption-key` | `HABEN_ENCRYPTION_KEY` | Schlüssel für ELSTER-Zertifikat und die API-Schlüssel für Lexoffice und sevDesk |
 | `haben-restic-password` | `RESTIC_PASSWORD` (in `haben-backup`) | Verschlüsselt das Backup |
@@ -168,15 +177,34 @@ Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Was
 
 ### Starten
 
+In `haben-app.container` die vorbereitete Zeile `Secret=haben-migration-database-url,type=env,target=MIGRATION_DATABASE_URL` einkommentieren.
+
 ```sh
 systemctl --user daemon-reload
-systemctl --user start haben-db haben-app haben-caddy
+systemctl --user start haben-db
+podman exec -it haben-db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+# Zweimal dasselbe App-Passwort wie für haben-database-url eingeben; nur einmal anlegen.
+systemctl --user start haben-app haben-caddy
 systemctl --user enable --now haben-backup.timer
 ```
 
 Die Container-Units starten über `[Install] WantedBy=default.target` beim nächsten Boot von selbst, sobald `daemon-reload` gelaufen ist. Logs liest du mit `journalctl --user -u haben-app` (bzw. `haben-db`, `haben-caddy`).
 
 Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste Schritte](einrichtung.md). Den Einrichtungscode dafür zeigt `journalctl --user -u haben-app`.
+
+## Getrennte Datenbankrollen
+
+`DATABASE_URL` ist die echte Anmeldung des laufenden Servers. `MIGRATION_DATABASE_URL` ist der Eigentümerzugang für Migrationen und die anschließende Rechtevergabe; der Server erhält diese Variable nicht. Die App-Rolle darf Tabellen und Funktionen von Haben weder besitzen noch die Eigentümerrechte erben oder per `SET ROLE` erreichen. Ohne Superuser-, Rollenverwaltungs- und Datenbankanlage-Rechte kann sie lesen und schreiben, aber keine Sperr-Trigger abschalten. Auch temporäre Schattenrelationen und eigene Objekte im Schema sind gesperrt. Die Rollenverwaltung bleibt beim Betreiber; der App-Start legt keine Rolle an und ändert kein Passwort.
+
+Neue Installationen verwenden die beiden Verbindungen aus den Vorlagen. [`createuser`](https://www.postgresql.org/docs/18/app-createuser.html) fragt das Passwort verdeckt ab; dafür ein eigenes Passwort aus dem Passwortmanager wählen, bei den gezeigten URLs nur Buchstaben und Ziffern. Es muss mit dem Passwort in `DATABASE_URL` übereinstimmen. Der Datenbanknutzer `haben` bleibt Eigentümer und Betreiberzugang für Backup, Restore und PostgreSQL-Upgrade.
+
+**Bestehende Installation umstellen:** Zuerst ein Backup anlegen und die App stoppen. Die Rolle wie oben einmalig anlegen. Bei Compose die bisherige Datenbankadresse in `MIGRATION_DATABASE_URL` übernehmen und `DATABASE_URL` auf den neuen App-Zugang setzen. Bei Quadlets den bisherigen Wert von `haben-database-url` als neues Secret `haben-migration-database-url` hinterlegen, `haben-database-url` mit dem App-Zugang ersetzen und die vorbereitete Secret-Zeile in `haben-app.container` einkommentieren; danach `systemctl --user daemon-reload`. Anschließend die App starten und unter **Einstellungen › Export** den Stand der Verbindung und „Kette prüfen“ kontrollieren. Die bisherigen Tabellen behalten ihren Eigentümer, Buchungen und Siegel bleiben erhalten.
+
+Ohne zweite Adresse startet eine bestehende Konfiguration weiter mit dem bisherigen Zugang; Einstellungen melden dessen weitergehende Rechte. Bei ausdrücklich eingerichteter Trennung bricht ein fehlerhafter Zugang den Start ab, statt den Eigentümer für den Server zu verwenden.
+
+**Extern verwaltete Datenbank, etwa CloudNativePG:** Der Operator stellt beide Anmeldungen bereit. Die Eigentümerrolle darf ohne Superuser und ohne `CREATEROLE` arbeiten, muss aber Eigentümer der Haben-Objekte sein und die Schema- und Datenbankrechte vergeben können. Die App-Rolle braucht keine Mitgliedschaft in ihr. Beide Adressen müssen dieselbe Haben-Datenbank erreichen. Haben vergibt nach jeder Migration die benötigten Tabellen-, Sequenz- und Funktionsrechte, auch ohne neue Migration. Im dedizierten Haben-Datenbankkontext entfallen beim Umstieg die von `PUBLIC` geerbten Rechte zum Anlegen temporärer Tabellen und zum Erzeugen von Objekten in `public`; andere direkte oder geerbte unsichere Rechte muss der Operator vorher entfernen. Eine Datenbank für weitere Anwendungen ist dafür ungeeignet.
+
+Ein externer Eigentümer ohne `CREATEDB` reicht zum Migrieren, aber nicht für die eingebauten Restore-Werkzeuge: Sie legen Wegwerf-Datenbanken an und ersetzen beim Restore die bisherige Datenbank. Für diese Betreiberaufgaben einen dafür berechtigten Zugang bereitstellen oder die Sicherung und Wiederherstellung des Operators verwenden. Weder Backup noch Upgrade verwenden die eingeschränkte App-Rolle.
 
 ## Eigener Reverse Proxy
 
@@ -422,7 +450,8 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 
 | Variable | Pflicht | Bedeutung | Beispiel |
 | --- | --- | --- | --- |
-| `DATABASE_URL` | ja | PostgreSQL-Verbindung. Wird auch vom Migrationsschritt beim Start gelesen | `postgres://haben:…@haben-db:5432/haben` |
+| `DATABASE_URL` | ja | Echte PostgreSQL-Anmeldung der App; ohne zweite Adresse auch für Migrationen | `postgres://haben_app:…@haben-db:5432/haben` |
+| `MIGRATION_DATABASE_URL` | nein | Eigentümerverbindung nur für Migrationen und Rechtevergabe, siehe [Getrennte Datenbankrollen](#getrennte-datenbankrollen) | `postgres://haben:…@haben-db:5432/haben` |
 | `BETTER_AUTH_SECRET` | ja | Geheimnis für Sitzungen, mindestens 32 Zeichen | Ausgabe von `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | ja | Öffentliche Adresse, unter der Haben im Browser läuft. Bestimmt die Domain der Passkeys | `https://haben.example.de` |
 | `OIDC_ONLY` | nein | Betriebsart: `false` (Vorgabe) ausschließlich lokale Anmeldung, `true` ausschließlich SSO. Andere Werte verhindern den Start | `false` |
@@ -471,7 +500,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
 
-Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `DB_PASSWORD`, `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
+Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` und `MIGRATION_DATABASE_URL` wie eingetragen, ohne `DATABASE_URL` den bisherigen Zugang aus `DB_PASSWORD`; `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
 
 In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `LEXOFFICE_API_URL` oder `SEVDESK_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
 
@@ -582,7 +611,7 @@ systemctl --user start haben-app
 
 Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
 
-Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `HABEN_ENCRYPTION_KEY`, demselben Passwort des Backups und demselben `RESTIC_REPOSITORY`. Dann startest du nur die Datenbank (`docker compose up -d db` bzw. `systemctl --user start haben-db`), stellst wie oben wieder her und startest danach alles. Lief die App schon, stoppst du sie vorher; `restore.sh` ersetzt die leere Datenbank dann genauso. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
+Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `HABEN_ENCRYPTION_KEY`, demselben Passwort des Backups und demselben `RESTIC_REPOSITORY`. Dann startest du nur die Datenbank (`docker compose up -d db` bzw. `systemctl --user start haben-db`) und legst die App-Rolle aus [Getrennte Datenbankrollen](#getrennte-datenbankrollen) an. Erst danach den Dump wiederherstellen und die App starten. [`pg_dump`](https://www.postgresql.org/docs/18/app-pgdump.html) sichert die Zugriffsrechte, aber keine Rollendefinitionen oder Rollenpasswörter: Die im Dump genannte Rolle muss vor dem Einspielen existieren. Ihre Zugangsdaten deshalb ebenfalls im Passwortmanager aufbewahren; beim neuen Ziel können sie neu gewählt werden, wenn `DATABASE_URL` dazu passt. Beim Start werden die Rechte erneut gesetzt, auch die Datenbankrechte, die der Dump ohne `--create` nicht enthält. Lief die App schon, stoppst du sie vorher; `restore.sh` ersetzt die leere Datenbank genauso. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
 
 ### Update zurücknehmen
 

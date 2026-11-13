@@ -6,6 +6,11 @@ BEGIN
   IF current_user <> 'haben_app' OR session_user <> 'haben_app' THEN
     RAISE EXCEPTION 'Die Betriebsprobe braucht die echte App-Anmeldung';
   END IF;
+  IF has_database_privilege(current_user, current_database(), 'TEMP')
+     OR has_schema_privilege(current_user, 'public', 'CREATE')
+     OR has_parameter_privilege(current_user, 'session_replication_role', 'SET') THEN
+    RAISE EXCEPTION 'Die App hat nach dem Betriebswechsel unsichere Rechte';
+  END IF;
 END;
 $$;
 SELECT set_config('haben.actor', 'test:rollen-betrieb', true);

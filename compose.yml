@@ -37,7 +37,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://haben:haben@db:5432/haben
+      DATABASE_URL: ${DATABASE_URL:-postgres://haben:haben@db:5432/haben}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-}
       # Passkeys hängen an dieser Adresse; sie muss zur Adresse im Browser passen
       BETTER_AUTH_URL: http://localhost:${HABEN_DEV_PORT:-3000}
       HABEN_DEV_PORT: ${HABEN_DEV_PORT:-3000}
