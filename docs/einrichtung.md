@@ -121,7 +121,7 @@ Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](
 
 Unter **Einstellungen › Beleggestaltung › Logo und Blatt** oder über das Zahnrad in der [Vorschau](rechnungen.md#vorschau) lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
 
-- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert.
+- Es steht oben im Briefkopf von Rechnungen, Angeboten und Mahnungen, ohne Verzerrung; Größe und Seite stellst du unter [Logo und Blatt](#logo-und-blatt) ein. Es wird sofort gespeichert; **Entfernen** fragt vorher nach.
 - Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
 - Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
 - Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
@@ -162,7 +162,7 @@ Unter **Einstellungen › Beleggestaltung › Briefpapier** legst du ein Bild hi
 - Von einem PDF nimmt Haben die erste Seite und wandelt sie mit 200 dpi in ein Bild um, denn die Belege sind PDF/A-3 und können kein PDF einbetten. Beschädigte Dateien und Bilder im Farbraum CMYK lehnt Haben ab, weil sich aus ihnen kein PDF/A erzeugen lässt; speichere sie als RGB.
 - **Erste Seite** (ab Werk) oder **Alle Seiten** legt fest, wo es erscheint. Die Vorschau zeigt es genauso, auf jeder Seite des Belegs.
 - Logo und Falzmarken liegen über dem Bild. Hat dein Briefbogen schon ein Logo, entferne das hochgeladene.
-- Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier, druckt Haben die Fußzeile wieder.
+- Trägt dein Briefbogen auch den Fuß, schalte **Fußzeile steht auf dem Briefpapier** ein. Haben fragt nach, denn dann druckt es nur noch die Seitenzahl: Steuernummer oder USt-IdNr. muss auf dem Briefpapier stehen (§ 14 Abs. 4 Nr. 2 UStG), bei Reverse Charge und innergemeinschaftlicher Lieferung die USt-IdNr. (§ 14a UStG), bei GmbH und UG auch die Angaben nach § 35a GmbHG. Prüfen kann Haben das im Bild nicht. Entfernst du das Briefpapier (nach einer Rückfrage), druckt Haben die Fußzeile wieder.
 - Jedes neu erzeugte PDF enthält das Bild, schon festgeschriebene PDFs bleiben unverändert. Im Änderungsprotokoll steht, wann es sich geändert hat, mit SHA-256, aber ohne die Bilddaten.
 
 ### Fußzeile
@@ -221,7 +221,7 @@ Den Ablauf eines Jahres für eine GmbH oder UG zeigt [GmbH und UG](gmbh.md).
 > [!WARNING]
 > **Nur das Kalenderjahr als Wirtschaftsjahr:** Haben rechnet jedes Geschäftsjahr vom 1. Januar bis 31. Dezember. Ein abweichendes Wirtschaftsjahr unterstützt Haben nicht. Das betrifft eine GmbH, UG oder einen im Handelsregister eingetragenen Gewerbetreibenden, die mit dem Finanzamt einen anderen Abschlussstichtag vereinbart haben (§ 4a Abs. 1 Satz 2 Nr. 2 EStG, § 7 Abs. 4 KStG), und das Wirtschaftsjahr von Land- und Forstwirten (Nr. 1). In diesen Fällen wären [Jahresabschluss](gmbh-abschluss.md#jahresabschluss-gmbh-und-ug), [Hinterlegung](gmbh-abschluss.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug), [E-Bilanz](gmbh-abschluss.md#e-bilanz-gmbh-und-ug), Körperschaft- und Gewerbesteuer und der [DATEV-Export](auswertungen.md) falsch. Freiberufler und nicht eingetragene Gewerbetreibende rechnen ohnehin im Kalenderjahr (§ 4a Abs. 1 Satz 1 und Satz 2 Nr. 3 EStG). Für die Umsatzsteuer gilt immer das Kalenderjahr (§ 16 Abs. 1 Satz 2 UStG).
 
-Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
+Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Bei neuen Anzahlungsanforderungen im Bilanzverfahren von GmbH und UG bindet bereits das Festschreiben die Rechtsform, auch ohne Zahlung oder Journalbuchung. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
 
 > [!IMPORTANT]
 > Das Gesellschafter-Verrechnungskonto ist das Sammelkonto „Verbindlichkeiten gegenüber Gesellschaftern“ aus dem DATEV-Kontenrahmen. Im Abschluss steht sein Saldo je nach Seite unter den Verbindlichkeiten oder Forderungen, jeweils mit dem Vermerk „gegenüber Gesellschaftern“ (§ 42 Abs. 3 GmbHG); welcher Teil länger als ein Jahr läuft, bestätigst du beim [Jahresabschluss](gmbh-abschluss.md#vermerke-unter-der-bilanz). Stimme die Konten vor dem Echtbetrieb mit der Steuerberatung ab.
@@ -313,7 +313,7 @@ Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Ges
 | Versteuerung (Ist oder Soll) | im laufenden Jahr gebucht wurde oder Rechnungen noch offen sind; ihre Umsatzsteuer würde sonst doppelt oder gar nicht angemeldet |
 | Kleinunternehmer einschalten | im laufenden Jahr gebucht wurde |
 | Kleinunternehmer ausschalten | nie |
-| Rechtsform | überhaupt schon gebucht wurde, in irgendeinem Jahr |
+| Rechtsform | überhaupt schon gebucht wurde oder eine neue Anzahlungsanforderung im Bilanzverfahren festgeschrieben ist |
 
 Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll.
 

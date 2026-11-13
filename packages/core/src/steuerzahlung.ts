@@ -314,11 +314,13 @@ export function steuerzahlungPosting(
   amount: Cents,
   ausRueckstellung: Cents,
   kontenrahmen: Kontenrahmen,
+  /** Konto, über das die Zahlung läuft; auf einem privaten Konto die Privatentnahme bzw. -einlage statt der Bank (#866) */
+  zahlungskonto: string = ACCOUNTS[kontenrahmen].bank,
 ): PostingLine[] {
   if (ausRueckstellung < 0 || (ausRueckstellung > 0 && (!kontierung.rueckstellung || ausRueckstellung > -amount))) {
     throw new RangeError("Der Teil aus der Rückstellung passt nicht zur Zahlung");
   }
-  const lines = [side(ACCOUNTS[kontenrahmen].bank, amount, true, null)];
+  const lines = [side(zahlungskonto, amount, true, null)];
   if (ausRueckstellung > 0) lines.push(side(kontierung.rueckstellung!, -ausRueckstellung, false, null));
   lines.push(side(kontierung.konto, amount + ausRueckstellung, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);

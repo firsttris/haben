@@ -1,6 +1,6 @@
 import { expect, type Locator, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { day, USER } from "./daten.ts";
+import { currentDay, day, USER } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { bestaetigen, dkb, durchlaufSeite, faktenZeigen, gehe, kontaktAnlegen, rechnungFestschreiben, SETUP_CODE } from "./einrichtung.ts";
 
@@ -519,6 +519,80 @@ test("Stichjahr vorziehen fragt nach; danach rechnet das laufende Jahr aus dem J
   await expect(karte).toContainText(`Stichjahr ${jahr} · aus dem Journal`);
   await expect(vorziehen).toHaveCount(0);
   expect(await sql`select journal_ab from company`).toEqual([{ journal_ab: jahr }]);
+});
+
+test("Logo und Briefpapier entfernen fragen nach", async () => {
+  await go("/einstellungen?bereich=gestaltung");
+  const logo = page.getByRole("region", { name: "Logo und Blatt" });
+  await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  const bild = logo.getByRole("img", { name: "Aktuelles Logo" });
+  await expect(bild).toBeVisible();
+  const entfernen = logo.getByRole("button", { name: "Entfernen" });
+
+  await entfernen.click();
+  await expect(rueckfrage("Logo entfernen?")).toContainText("festgeschriebene Belege behalten");
+  await abbrechen("Logo entfernen?");
+  await page.reload();
+  await expect(bild).toBeVisible();
+
+  await entfernen.click();
+  await bestaetigen(page, "Entfernen");
+  await expect(logo.getByText("Logo entfernt.")).toBeVisible();
+  await expect(logo.getByText("Noch kein Logo.")).toBeVisible();
+
+  const briefpapier = page.getByRole("region", { name: "Briefpapier" });
+  await briefpapier.getByLabel("Datei für das Briefpapier").setInputFiles("public/icon-192.png");
+  await expect(briefpapier.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await briefpapier.getByRole("button", { name: "Entfernen" }).click();
+  await expect(rueckfrage("Briefpapier entfernen?")).toContainText("Fußzeile");
+  await abbrechen("Briefpapier entfernen?");
+  await expect(briefpapier.getByRole("img", { name: "Aktuelles Briefpapier" })).toBeVisible();
+  await briefpapier.getByRole("button", { name: "Entfernen" }).click();
+  await bestaetigen(page, "Entfernen");
+  await expect(briefpapier.getByText("Noch kein Briefpapier.")).toBeVisible();
+});
+
+test("Lohn: Entwurf löschen fragt mit Person und Beträgen nach", async () => {
+  const [jahr, monat] = currentDay().split("-").map(Number) as [number, number];
+  const mm = String(monat).padStart(2, "0");
+  const monatsname = new Date(jahr, monat - 1, 1).toLocaleString("de-DE", { month: "long" });
+  await go("/lohn/mitarbeiter/neu");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Erika");
+  await form.getByLabel("Nachname").fill("Gesellschafter");
+  await form.getByLabel("Straße und Hausnummer").fill("Lindenweg 1");
+  await form.getByLabel("PLZ").fill("28195");
+  await form.getByLabel("Ort", { exact: true }).fill("Bremen");
+  await form.getByLabel("Geburtsdatum").fill("1980-04-12");
+  await form.getByLabel("IBAN für die Auszahlung").fill("DE89 3704 0044 0532 0130 00");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("6.000,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill("2024-01-01");
+  await form.getByLabel("Statusfeststellung (§ 7a SGB IV)").selectOption("versicherungsfrei");
+  await form.getByLabel("Steuer-ID").fill("86095742719");
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+
+  await go(`/lohn?jahr=${jahr}&monat=${monat}`);
+  const abrechnen = page.getByRole("form", { name: `${monatsname} ${jahr} abrechnen` });
+  await abrechnen.getByLabel("Zahltag").fill(`${jahr}-${mm}-28`);
+  await abrechnen.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+  const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
+  const loeschen = erika.getByRole("button", { name: "Entwurf löschen" });
+  const titel = `Entwurf mit Zahltag 28.${mm}.${jahr} löschen?`;
+
+  await loeschen.click();
+  await faktenZeigen(page, "Person", "Brutto", "Auszahlung");
+  await expect(rueckfrage(titel)).toContainText("Erika Gesellschafter");
+  await expect(rueckfrage(titel)).toContainText("nichts gebucht");
+  await abbrechen(titel);
+  await page.reload();
+  await expect(loeschen).toBeVisible();
+
+  await loeschen.click();
+  await bestaetigen(page, "Entwurf löschen");
+  await expect(loeschen).toHaveCount(0);
+  await expect(erika.getByRole("region", { name: /Abrechnung/ })).toHaveCount(0);
 });
 
 test("Umzug: laufenden Abruf abbrechen und Verbindung entfernen fragen nach", async () => {

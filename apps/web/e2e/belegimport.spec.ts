@@ -288,6 +288,9 @@ test("Gemeinsame Ansichten sind auf Desktop und Handy in beiden Themes bedienbar
           await page.screenshot({ path: `${dir}/${name}-${theme}-${device}-${process.env.IMPORT_SCREENSHOTS}.png`, animations: "disabled", caret: "hide" });
         }
       }
+    // Erst prüfen, wenn die Übergänge der Farben (.btn: transition var(--fade)) nach dem Wechsel des Modus fertig
+    // sind; sonst misst axe den Knopf zwischen hell und dunkel
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
     expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
   }
 });

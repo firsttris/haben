@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { bestaetigen, faktenZeigen, kundeWaehlen } from "./einrichtung.ts";
 import { currentDay, currentYear, vorschauAnheften } from "./daten.ts";
+import { anzahlungsbilanzPruefen } from "./anzahlung-bilanz.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -816,6 +817,7 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await expect(max.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
   await erika.getByRole("button", { name: "Entwurf löschen" }).click();
+  await bestaetigen(page, "Entwurf löschen");
   await expect(erika.getByRole("button", { name: "Entwurf löschen" })).toHaveCount(0);
 
   await page.getByRole("link", { name: `Lohnsteuerbescheinigungen ${lohnJahr}` }).click();
@@ -1103,4 +1105,9 @@ test("Freie Buchung mit Steuerschlüssel: Leistung an den Gesellschafter, brutto
   await expect(row).toContainText("119,00");
   await row.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
   await expect(page.getByRole("region", { name: "Buchungen" })).toContainText("3806");
+});
+
+test("Anzahlungsbilanz: Anforderungen getrennt und verdiente Forderung nach Papierstorno sichtbar (#750)", async () => {
+  test.setTimeout(120_000);
+  await anzahlungsbilanzPruefen(page);
 });
