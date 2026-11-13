@@ -1071,6 +1071,11 @@ export const serviceEntries = pgTable(
     project: text("project").notNull().default(""),
     externalSource: text("external_source"),
     externalId: text("external_id"),
+    /**
+     * Rechnung, auf der der Eintrag abgerechnet ist (Entwurf oder festgeschrieben). Nach dem Storno der Rechnung gilt er wieder als
+     * offen und wird beim nächsten Abrechnen neu verknüpft. Eigene Spalte statt an invoices: Neue Spalten dort landen im Siegel.
+     */
+    invoiceId: uuid("invoice_id").references(() => invoices.id, { onDelete: "set null" }),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1082,6 +1087,7 @@ export const serviceEntries = pgTable(
     check("service_entries_extern", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("service_entries_extern_key").on(t.externalSource, t.externalId),
     index("service_entries_contact").on(t.contactId, t.workedOn),
+    index("service_entries_invoice").on(t.invoiceId),
   ],
 );
 

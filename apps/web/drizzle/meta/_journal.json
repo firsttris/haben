@@ -1534,6 +1534,20 @@
       "when": 1794521593045,
       "tag": "0218_zeichen_navigation",
       "breakpoints": true
+    },
+    {
+      "idx": 219,
+      "version": "7",
+      "when": 1794526800085,
+      "tag": "0219_leistungen_rechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 220,
+      "version": "7",
+      "when": 1794526807404,
+      "tag": "0220_leistungen_abgerechnet_sperre",
+      "breakpoints": true
     }
   ]
 }

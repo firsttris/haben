@@ -143,6 +143,26 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1/leistungen (Postgres, #417)"
     expect((await call(await token(["leistungen:schreiben"]), "GET", "/leistungen")).status).toBe(200);
   });
 
+  it("ein Eintrag auf einer Rechnung: Rechnung in der Antwort, Filter nach Stand, Löschen abgelehnt, erneutes POST ändert nichts", async () => {
+    const t = await token(["leistungen:schreiben"]);
+    const created = await call(t, "POST", "/leistungen", eintrag({ source: "kimai", externalId: "9" }));
+    const { billServiceEntries } = await import("../leistungen/index.ts");
+    const { invoiceId } = await billServiceEntries(actor, { contactId, from: "2026-03-01", to: "2026-03-31" }, "2026-04-01");
+
+    const eins = await call(t, "GET", `/leistungen/${created.json!.id}`);
+    expect(eins.json).toMatchObject({ invoiceId, invoiceNumber: null, invoiceStatus: "draft" });
+    expect(await call(t, "GET", "/leistungen?status=offen")).toMatchObject({ json: { total: 0 } });
+    expect(await call(t, "GET", "/leistungen?status=abgerechnet")).toMatchObject({ json: { total: 1 } });
+
+    const gelöscht = await call(t, "DELETE", `/leistungen/${created.json!.id}`);
+    expect(gelöscht.status).toBe(422);
+    expect(gelöscht.json!.error!.message).toMatch(/Rechnungsentwurf/);
+
+    const erneut = await call(t, "POST", "/leistungen", eintrag({ source: "kimai", externalId: "9", minutes: 600 }));
+    expect(erneut.status).toBe(200);
+    expect(erneut.json).toMatchObject({ minutes: 90, invoiceId });
+  });
+
   it("der Akteur im Audit-Log ist das Token", async () => {
     const t = await token(["leistungen:schreiben"]);
     const created = await call(t, "POST", "/leistungen", eintrag());
