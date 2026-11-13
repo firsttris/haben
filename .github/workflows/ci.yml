@@ -347,6 +347,7 @@ jobs:
           docker compose logs app | grep -q "Migrationen angewendet"
           docker compose logs app | grep -q "Einrichtungscode"
           sh deploy/tests/rollen-pruefen.sh "$(docker compose ps -q app)"
+          docker compose exec -T --user bun app sh deploy/tests/rollen-env.sh
       - if: failure()
         run: docker compose logs
 

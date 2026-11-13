@@ -11,7 +11,15 @@ try {
   const [role] = await sql`select current_user as current, session_user as session`;
   if (role.current !== "haben_app" || role.session !== "haben_app") failures.push(`Laufzeit-Anmeldung: ${role.current}/${role.session} statt haben_app`);
   const environment = (await Bun.file("/proc/1/environ").text()).split("\0");
-  if (environment.some((line) => line.startsWith("MIGRATION_DATABASE_URL="))) failures.push("Server hat noch MIGRATION_DATABASE_URL");
+  const serverEnvironment = Object.fromEntries(environment.filter(Boolean).map((line) => {
+    const separator = line.indexOf("=");
+    return [line.slice(0, separator), line.slice(separator + 1)];
+  }));
+  // /proc zeigt Bun-Nachladungen aus .env nicht zuverlässig. Ein echter Child-Bun liest mit derselben Übergabe und CWD erneut.
+  const child = Bun.spawnSync([process.execPath, "-e", "console.log(Boolean(process.env.MIGRATION_DATABASE_URL))"], {
+    env: serverEnvironment, cwd: process.cwd(), stdout: "pipe", stderr: "pipe",
+  });
+  if (child.exitCode !== 0 || child.stdout.toString().trim() !== "false") failures.push("Bun erhält oder lädt die private Migrationsadresse");
   for (const [name, command] of [
     ["Trigger abschalten", "alter table journal_lines disable trigger journal_lines_locked"],
     ["Replikationsmodus", "set local session_replication_role = replica"],
