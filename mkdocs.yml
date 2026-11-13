@@ -30,6 +30,7 @@ nav:
   - Übersicht: ueberblick.md
   - Betrieb:
       - Betrieb und Installation: installation.md
+      - Synology: synology.md
       - Erste Schritte: einrichtung.md
   - Im Alltag:
       - Rechnungen und E-Rechnung: rechnungen.md

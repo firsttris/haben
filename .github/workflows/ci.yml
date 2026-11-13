@@ -493,3 +493,43 @@ jobs:
             = "backup=true,restore_check=true,backup=true,restore_check=true"
       - if: failure()
         run: docker compose logs
+
+  # Die Vorlage für Synology (deploy/synology/compose.yml): Schlüssel erzeugen, App starten, Backup und
+  # Wiederherstellen ohne .env; ein Neustart behält die Schlüssel
+  synology:
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.code != 'false' && needs.changes.outputs.deploy != 'false' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/synology
+    steps:
+      - uses: actions/checkout@v7
+      - name: Images bauen
+        run: |
+          docker build -t tristanteu/haben-backup:latest -f ../backup/Containerfile ../backup
+          docker build -t tristanteu/haben-db:latest -f ../db/Containerfile ../db
+      - name: Starten, sichern, wiederherstellen
+        run: |
+          set -x
+          docker compose up -d --wait db app
+          docker compose up -d backup
+          docker logs haben-schluessel | grep -q '^ENCRYPTION_KEY='
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3000/login && break; sleep 2; done
+          curl -sf -o /dev/null http://127.0.0.1:3000/login
+          docker logs haben-app 2>&1 | grep -q "Einrichtungscode"
+          vorher="$(docker logs haben-schluessel | grep '^ENCRYPTION_KEY=' | tail -n1)"
+          docker compose exec -T backup backup.sh
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT string_agg(kind || '=' || ok, ',' ORDER BY id) FROM backup_status")" \
+            = "backup=true,restore_check=true"
+          docker compose exec -T db psql -U haben -d haben -qc "CREATE TABLE t (x text)"
+          docker compose stop app
+          echo ja | docker compose run --rm -T restore latest
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT to_regclass('t') IS NULL")" = t
+          docker compose down
+          docker compose up -d --wait db app
+          test "$(docker logs haben-schluessel | grep '^ENCRYPTION_KEY=' | tail -n1)" = "$vorher"
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3000/login && break; sleep 2; done
+          curl -sf -o /dev/null http://127.0.0.1:3000/login
+      - if: failure()
+        run: docker compose logs

@@ -51,6 +51,8 @@ Die Trigger oben verhindern Versehen, aber wer die Datenbank direkt ändern kann
 
 **Prüfen** unter **Einstellungen › Export › Änderungsprotokoll prüfen**: „Kette prüfen“ rechnet jeden Hash und jedes Siegel nach und meldet geänderte, gelöschte oder fehlende Einträge, einen Kopf, der nicht zum Ende passt, festgeschriebene Datensätze ohne oder mit abweichendem Siegel, aufgehobene Festschreibungen und Siegel, die nicht zu ihrem Eintrag in der Kette passen.
 
+Unter **Kontenkollisionen** nennt die Prüfung außerdem eigene Konten, deren Nummer Haben inzwischen selbst verwendet, mit Kontenrahmen, Nummer und eigenem Namen. Auch archivierte Konten und frühere Kontenrahmen werden geprüft: Ihre Zuordnung wirkt für bestehende Buchungen weiter. Eine Kollision ist kein Hinweis auf eine beschädigte Kette; sie kann aber Auswertungen verfälschen. Kläre die Zuordnung mit deiner Steuerberatung. Archivieren allein löst die Kollision nicht. Die Prüfung ändert weder Konten noch Buchungen.
+
 **Was die Kette nicht kann:** Sie verhindert keine Änderung, sie macht sie sichtbar. Wer vollen Zugriff hat, kann nach einer Änderung auch die ganze Kette und alle Siegel neu berechnen; dann ist sie in sich wieder stimmig. Das fällt nur mit einem Prüfwert auf, der außerhalb des Servers liegt und zu dem der Eintrag dieser Nummer nicht mehr passt. Deshalb:
 
 - schickt Haben den Prüfwert (`Nr. <seq> · <Hash>`) einmal pro Woche per E-Mail an die Adresse für Erinnerungen, wenn sich etwas geändert hat (abschaltbar unter Einstellungen › E-Mail),

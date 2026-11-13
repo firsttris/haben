@@ -20,7 +20,7 @@ Haben läuft als vier Container in einem eigenen Netz:
 | `backup` / `haben-backup` | `tristanteu/haben-backup:latest` | Tägliches Backup von Datenbank und Belegen mit restic, Repository im Volume `backups` bzw. `haben-backups` oder auf einem zweiten System, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 
-Es gibt zwei Wege, sie zu betreiben:
+Es gibt zwei Wege, sie zu betreiben, dazu eine Vorlage für [Synology](synology.md) ohne Kommandozeile:
 
 | Weg | Gut für | Dateien |
 | --- | --- | --- |

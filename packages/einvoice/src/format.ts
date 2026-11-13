@@ -31,7 +31,7 @@ export function servicePeriod(doc: InvoiceDocument): { from: string; to: string 
   return { from, to };
 }
 
-type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit">;
+type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto" | "directDebit" | "hasPayments">;
 
 /** Lastschrift nur auf einer Rechnung mit Zahlbetrag; Storno und Erstattung laufen nicht über das Mandat */
 export function collectedByDirectDebit(doc: Pick<InvoiceDocument, "kind" | "totals" | "directDebit">): doc is typeof doc & { directDebit: DirectDebit } {
@@ -45,7 +45,9 @@ export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
 
 /** Zahlungssatz unter der Summe, mit Skonto je Stufe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
 export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string {
-  if (doc.totals.gross < 0) return t.refund;
+  // Eine Rechnungskorrektur belegt eine Minderung, noch keine Auszahlung (Verrechnung: #274).
+  if (doc.totals.gross < 0 && doc.kind === "korrektur") return t.correction;
+  if (doc.totals.gross < 0) return doc.hasPayments ? t.refund : t.noPayment;
   if (doc.totals.gross === 0) return t.noPayment;
   if (collectedByDirectDebit(doc)) {
     const d = doc.directDebit;

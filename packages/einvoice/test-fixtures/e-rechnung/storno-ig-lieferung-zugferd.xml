@@ -126,7 +126,7 @@
 				</ram:EndDateTime>
 			</ram:BillingSpecifiedPeriod>
 			<ram:SpecifiedTradePaymentTerms>
-				<ram:Description>Der Betrag wird Ihnen erstattet.</ram:Description>
+				<ram:Description>Es ist keine Zahlung erforderlich.</ram:Description>
 			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 				<ram:LineTotalAmount>1200.00</ram:LineTotalAmount>

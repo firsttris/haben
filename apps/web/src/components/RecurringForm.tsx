@@ -32,6 +32,7 @@ import { Icon } from "./Icon.tsx";
 import { ContactCombobox, type ContactChoice } from "./ContactCombobox.tsx";
 import { NewContactDialog } from "./NewContactDialog.tsx";
 import { Field } from "./Field.tsx";
+import { PropertyRetentionField } from "./PropertyRetentionField.tsx";
 
 type Rate = 1900 | 700 | 0;
 
@@ -43,6 +44,7 @@ export interface RecurringValues {
   paymentTermDays: number;
   intro: string;
   note: string;
+  propertyRetention: boolean;
   taxTreatment: TaxTreatment;
   exemptionReason: string;
   priceMode: PriceMode;
@@ -101,6 +103,7 @@ export function RecurringForm({
   const [paymentTermDays, setPaymentTermDays] = useState(String(initial.paymentTermDays));
   const [intro, setIntro] = useState(initial.intro);
   const [note, setNote] = useState(initial.note);
+  const [propertyRetention, setPropertyRetention] = useState(initial.propertyRetention);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason);
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode);
@@ -174,6 +177,7 @@ export function RecurringForm({
       paymentTermDays: term,
       intro,
       note,
+      propertyRetention,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
       priceMode: grossPrices ? "brutto" : "netto",
@@ -516,6 +520,7 @@ export function RecurringForm({
             blocks={textBlocks}
             contactId={contactId || null}
           />
+          <PropertyRetentionField checked={propertyRetention} onChange={setPropertyRetention} />
           <p className="small muted" style={{ margin: 0 }}>
             Platzhalter in Einleitung, Beschreibung, Text zur Position und Hinweis:{" "}
             {Object.entries(RECURRING_PLACEHOLDERS)

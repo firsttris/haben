@@ -28,6 +28,7 @@ function NewInvoicePage() {
           skonto: (contact.skonto ?? data.companySkonto).filter((s) => s.days <= data.draft.paymentTermDays),
           taxTreatment: abschlag.taxTreatment,
           priceMode: abschlag.priceMode,
+          propertyRetention: abschlag.propertyRetention,
           variant: "schluss" as const,
           quoteId: abschlag.quoteId,
           deducts: data.abschlaege.filter((a) => a.contactId === contact.id && (!abschlag.quoteId || a.quoteId === abschlag.quoteId)).map((a) => a.id),

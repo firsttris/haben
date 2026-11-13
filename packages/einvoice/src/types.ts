@@ -162,10 +162,14 @@ export interface InvoiceDocument extends Letterhead {
   euroTax?: { tax: Cents; taxes: { rate: number; tax: Cents }[]; rate: string };
   /** Bei Storno und Korrektur: die ursprüngliche Rechnung */
   corrects?: { number: string; issueDate: string };
+  /** Beim Storno belegte Zahlung auf das Original; fehlt = keine Erstattung zusagen (#716) */
+  hasPayments?: boolean;
   /** Einleitung über den Positionen (Kopftext) */
   intro?: string;
   /** Hinweis unter den Summen (Fußtext) */
   note?: string;
+  /** Fester Aufbewahrungshinweis für private Grundstücksleistungen (§ 14 Abs. 4 Nr. 9, § 14b Abs. 1 Satz 5 UStG); fehlt = aus */
+  propertyRetention?: boolean;
   /** Fehlt = regulär besteuert */
   taxTreatment?: TaxTreatment;
   /** Fehlt = Nettopreise; brutto nur bei regulärer Besteuerung */
