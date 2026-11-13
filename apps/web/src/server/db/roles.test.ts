@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../test-db.ts";
+import { readDatabaseAccess } from "./roles.ts";
 
 describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, #619)", () => {
   let admin: postgres.Sql;
@@ -37,6 +38,22 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
 
   // Alle Rechteproben gehen erst durch den echten CLI-Start, nicht durch eine im Test vorab abgesicherte Rolle.
   const start = () => (started ??= migrate(appUrl, testDatabaseUrl));
+
+  async function withReplicaDefault(check: (connection: postgres.Sql) => Promise<void>) {
+    await start();
+    // Ein Betreiber darf einen privilegierten Login-Default setzen, ohne der App das SET-Recht zu geben.
+    // https://www.postgresql.org/docs/18/sql-alterrole.html
+    await admin`alter role ${admin(appRole)} set session_replication_role = replica`;
+    const connection = postgres(appUrl, { max: 1, onnotice: () => {} });
+    try {
+      expect(await connection`select current_setting('session_replication_role') as mode,
+        has_parameter_privilege(current_user, 'session_replication_role', 'SET') as "canSet"`).toEqual([{ mode: "replica", canSet: false }]);
+      await check(connection);
+    } finally {
+      await connection.end();
+      await admin`alter role ${admin(appRole)} reset session_replication_role`;
+    }
+  }
 
   function futureMigration(statement: string, when = 9_000_000_000_000): string {
     const fixture = mkdtempSync(join(tmpdir(), "haben-migration-619-"));
@@ -157,6 +174,26 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
     const script = futureMigration("create table public.role619_wrong_start (id integer);", 9_000_000_000_001);
     await migrate(testDatabaseUrl!, testDatabaseUrl!, script, 1);
     expect(await admin`select to_regclass('public.role619_wrong_start')::text as name`).toEqual([{ name: null }]);
+  });
+
+  it("meldet eine Login-Vorgabe mit ausgeschalteten Triggern trotz fehlendem SET-Recht", async () => {
+    await withReplicaDefault(async (connection) => {
+      const access = await readDatabaseAccess(connection);
+      expect(access.restricted).toBe(false);
+      expect(access.problems.join(" ")).toContain("Replikationsmodus");
+    });
+  });
+
+  it("weist eine Login-Vorgabe mit ausgeschalteten Triggern vor dem ersten Migrations-DDL zurück", async () => {
+    const script = futureMigration("create table public.role619_replica_default (id integer);", 9_000_000_000_002);
+    try {
+      await withReplicaDefault(async () => {
+        await migrate(appUrl, testDatabaseUrl, script, 1);
+        expect(await admin`select to_regclass('public.role619_replica_default')::text as name`).toEqual([{ name: null }]);
+      });
+    } finally {
+      await admin`drop table if exists public.role619_replica_default`;
+    }
   });
 
   it.each(["owner", "replication", "temporary", "schema"] as const)("weist eine nachträglich unsichere App-Rolle zurück: %s", async (kind) => {
