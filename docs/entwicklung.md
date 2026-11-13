@@ -515,7 +515,7 @@ Haben steht unter der AGPL-3.0.
 
 #### Doku-Prüfung
 
-Für Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`) gibt es keinen roten Test. Die Markdown-Dateien eines Pull Requests prüft deshalb jemand, der den Text nicht geschrieben hat, bei Code im Pull Request neben dem TDD-Review. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Mit Claude Code führt der Skill `doku-pruefen` durch.
+Für Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`) gibt es keinen roten Test. Die Markdown-Dateien eines Pull Requests prüft deshalb jemand, der den Text nicht geschrieben hat. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Mit Claude Code führt der Skill `doku-pruefen` durch.
 
 - **Stimmt:** mit dem Code und mit der genannten Quelle.
 - **Kurz:** „Kurz halten“ unter [Befehle](#befehle).
