@@ -3,11 +3,13 @@
  * eigenen Schlüsseln und eigenem Backup, alle hinter einem gemeinsamen Caddy (docs/installation.md, „Mehrere Instanzen“).
  * Läuft mit Bun direkt aus dem Checkout, ohne bun install: nur node:-Module und Bun.
  */
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { bunAusfuehren } from "./ausfuehren.ts";
+import { standardeingabe } from "./eingabe.ts";
 import { abbrechen, type Kontext } from "./kontext.ts";
 import { liste } from "./liste.ts";
 import { neu } from "./neu.ts";
@@ -34,7 +36,12 @@ Optionen für neu:
   --sso                      ausschließlich OpenID Connect, Gruppen haben-<name>-inhaber und -steuerberatung
   --oidc-issuer URL          mit --sso: Issuer des Anmeldedienstes
   --oidc-client-id ID        mit --sso: Client-ID dieser Instanz
-  --oidc-client-secret WERT  mit --sso: ursprüngliches Clientsecret (kein Hash)
+  --oidc-client-secret-file PFAD
+                             mit --sso: Datei mit dem ursprünglichen Clientsecret (kein Hash), nur für dich lesbar
+  --oidc-client-secret-stdin mit --sso: Clientsecret von der Standardeingabe, etwa aus dem Passwortmanager; am
+                             Terminal fragt das Werkzeug verdeckt danach
+                             Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der
+                             Shell-Historie.
   --oidc-name NAME           mit --sso: Anzeigename der Anmeldung (Vorgabe Authelia)
   --nicht-starten            nur die Dateien anlegen, nichts starten`;
 
@@ -47,7 +54,8 @@ const OPTIONEN = {
   sso: { type: "boolean" },
   "oidc-issuer": { type: "string" },
   "oidc-client-id": { type: "string" },
-  "oidc-client-secret": { type: "string" },
+  "oidc-client-secret-file": { type: "string" },
+  "oidc-client-secret-stdin": { type: "boolean" },
   "oidc-name": { type: "string" },
   "nicht-starten": { type: "boolean" },
 } as const;
@@ -69,17 +77,41 @@ function argumente(args: string[]): { werte: Werte; positionen: string[] } {
   }
 }
 
-function neuAngaben(werte: Werte, positionen: string[]): NeuAngaben {
+/**
+ * Das Clientsecret aus genau einer Quelle: Datei oder Standardeingabe. Nicht als Argument, das stünde in der
+ * Prozessliste und in der Shell-Historie, und nicht aus der Umgebung: Eine noch gesetzte Variable gälte unbemerkt
+ * für die nächste Instanz. Ein Zeilenumbruch am Ende zählt nicht dazu.
+ */
+function clientSecret(werte: Werte, a: Abhaengigkeiten): string {
+  const datei = werte["oidc-client-secret-file"];
+  const ausEingabe = werte["oidc-client-secret-stdin"] === true;
+  if (datei === undefined && !ausEingabe) abbrechen("--sso braucht das Clientsecret: --oidc-client-secret-file oder --oidc-client-secret-stdin.");
+  if (datei !== undefined && ausEingabe) abbrechen("Das Clientsecret nur aus einer Quelle: --oidc-client-secret-file oder --oidc-client-secret-stdin.");
+  const quelle = datei === undefined ? "--oidc-client-secret-stdin: die Standardeingabe" : `--oidc-client-secret-file: ${datei}`;
+  let inhalt: string;
+  try {
+    inhalt = datei === undefined ? (a.eingabe ?? standardeingabe)() : readFileSync(datei, "utf8");
+  } catch (error) {
+    // Strg+C bei der verdeckten Eingabe ist ein Abbruch, kein Lesefehler
+    if (error instanceof Error && error.name === "Abbruch") throw error;
+    abbrechen(`${quelle} lässt sich nicht lesen.`);
+  }
+  const secret = inhalt.replace(/\r?\n$/, "");
+  if (secret === "") abbrechen(`${quelle} ist leer.`);
+  return secret;
+}
+
+function neuAngaben(werte: Werte, positionen: string[], a: Abhaengigkeiten): NeuAngaben {
   if (positionen.length !== 2) abbrechen("Aufruf: bun deploy/instanzen/haben-instanzen.ts neu <name> <domain> [Optionen]");
   const [name = "", domain = ""] = positionen;
   const issuer = werte["oidc-issuer"];
   const clientId = werte["oidc-client-id"];
-  const clientSecret = werte["oidc-client-secret"];
+  const nurSso = [issuer, clientId, werte["oidc-client-secret-file"], werte["oidc-client-secret-stdin"], werte["oidc-name"]];
   let sso: NeuAngaben["sso"];
   if (werte.sso) {
-    if (!issuer || !clientId || !clientSecret) abbrechen("--sso braucht --oidc-issuer, --oidc-client-id und --oidc-client-secret.");
-    sso = { issuer, clientId, clientSecret, anzeigename: werte["oidc-name"] ?? "Authelia" };
-  } else if ([issuer, clientId, clientSecret, werte["oidc-name"]].some((w) => w !== undefined)) abbrechen("--oidc-… nur zusammen mit --sso.");
+    if (!issuer || !clientId) abbrechen("--sso braucht --oidc-issuer und --oidc-client-id.");
+    sso = { issuer, clientId, clientSecret: clientSecret(werte, a), anzeigename: werte["oidc-name"] ?? "Authelia" };
+  } else if (nurSso.some((w) => w !== undefined)) abbrechen("--oidc-… nur zusammen mit --sso.");
   return {
     name,
     domain,
@@ -91,7 +123,11 @@ function neuAngaben(werte: Werte, positionen: string[]): NeuAngaben {
   };
 }
 
-export type Abhaengigkeiten = Omit<Kontext, "basis"> & { fehler: (zeile: string) => void };
+export type Abhaengigkeiten = Omit<Kontext, "basis"> & {
+  fehler: (zeile: string) => void;
+  /** Liest die Standardeingabe bis zum Ende, für --oidc-client-secret-stdin; ohne Angabe standardeingabe() */
+  eingabe?: () => string;
+};
 
 /** Führt einen Aufruf aus und gibt den Exit-Code zurück; Fehler stehen als „Fehler: …“ auf fehler */
 export async function main(args: string[], a: Abhaengigkeiten): Promise<number> {
@@ -110,7 +146,7 @@ export async function main(args: string[], a: Abhaengigkeiten): Promise<number> 
     const basis = werte.basis || a.shell.HABEN_INSTANZEN || resolve(a.shell.HOME || homedir(), "haben");
     const k: Kontext = { ...a, basis: resolve(basis) };
     if (befehl === "neu") {
-      await neu(k, neuAngaben(werte, rest));
+      await neu(k, neuAngaben(werte, rest, a));
       return 0;
     }
     const befehle: Record<string, (k: Kontext) => Promise<void>> = { update, status, liste };

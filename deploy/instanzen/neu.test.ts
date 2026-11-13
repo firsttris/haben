@@ -17,6 +17,12 @@ afterEach(() => t.aufraeumen());
 
 const env = (name: string) => envWerte(readFileSync(join(t.basis, name, ".env"), "utf8"));
 const roh = (name: string) => readFileSync(join(t.basis, name, ".env"), "utf8");
+/** Datei mit dem Clientsecret, wie --oidc-client-secret-file sie liest */
+function secretDatei(secret: string): string {
+  const pfad = join(t.dir, "clientsecret");
+  writeFileSync(pfad, `${secret}\n`, { mode: 0o600 });
+  return pfad;
+}
 
 describe("neu", () => {
   it("gibt jeder Instanz eigene Schlüssel, Projektnamen und Backup-Namen", async () => {
@@ -109,8 +115,8 @@ describe("neu", () => {
       "https://auth.example.de",
       "--oidc-client-id",
       `haben-${name}`,
-      "--oidc-client-secret",
-      "ge$heim #1",
+      "--oidc-client-secret-file",
+      secretDatei("ge$heim #1"),
     ];
     expect((await t.lauf("neu", "firma1", "firma1.example.de", ...sso("firma1"))).status).toBe(0);
     const zweite = await t.lauf("neu", "firma2", "firma2.example.de", ...sso("firma2"));
@@ -132,8 +138,20 @@ describe("neu", () => {
     expect((await t.lauf("neu", "firma1", "firma1.example.de", "--sso", "--oidc-issuer", "https://auth.example.de")).stderr).toContain("--sso braucht");
     expect((await t.lauf("neu", "firma1", "firma1.example.de", "--oidc-client-id", "x")).stderr).toContain("nur zusammen mit --sso");
     expect(
-      (await t.lauf("neu", "firma1", "firma1.example.de", "--sso", "--oidc-issuer", "https://a.de", "--oidc-client-id", "x", "--oidc-client-secret", "it's"))
-        .stderr,
+      (
+        await t.lauf(
+          "neu",
+          "firma1",
+          "firma1.example.de",
+          "--sso",
+          "--oidc-issuer",
+          "https://a.de",
+          "--oidc-client-id",
+          "x",
+          "--oidc-client-secret-file",
+          secretDatei("it's"),
+        )
+      ).stderr,
     ).toContain("darf weder");
     expect((await t.lauf("neu", "firma1", "firma1.example.de", "--hersteller-id")).stderr).toContain("--hersteller-id braucht einen Wert");
     expect(existsSync(join(t.basis, "firma1"))).toBe(false);

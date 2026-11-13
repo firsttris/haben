@@ -52,7 +52,7 @@ export function pruefeAngaben(a: NeuAngaben): void {
     if (!a.sso.issuer.startsWith("https://")) abbrechen("--oidc-issuer muss mit https:// beginnen.");
     pruefeWoertlich(a.sso.issuer, "--oidc-issuer");
     pruefeWoertlich(a.sso.clientId, "--oidc-client-id");
-    pruefeWoertlich(a.sso.clientSecret, "--oidc-client-secret");
+    pruefeWoertlich(a.sso.clientSecret, "Das Clientsecret");
     pruefeWoertlich(a.sso.anzeigename, "--oidc-name");
   }
 }
