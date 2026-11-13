@@ -185,8 +185,9 @@ Voranmeldung, Zusammenfassende Meldung und Jahreserklärungen über ELSTER.
 <div markdown>
 **🧮 Zahlen zum Nachrechnen**
 
-Unter jeder Kennzahl die Belege dahinter, Voranmeldung und EÜR doppelt gerechnet, vor dem Umzug
-[deine alten Jahre zum Vergleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
+Unter jeder Kennzahl die Belege dahinter, Voranmeldung und EÜR
+[doppelt gerechnet](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür), vor dem Umzug
+[deine alten Jahre zum Vergleich](lexoffice.md#schritt-5-abgleich-je-jahr).
 </div>
 <div markdown>
 **🤝 Mit deiner Steuerberatung**
