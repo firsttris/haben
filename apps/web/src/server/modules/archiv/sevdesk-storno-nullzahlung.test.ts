@@ -125,4 +125,29 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Storno mit Zuordnung über 0 € (Pos
     expect(await status(original)).not.toBe("cancelled");
     expect(await status(storno)).not.toBe("cancelled");
   });
+
+  // Aus dem TDD-Review: dieselbe Regel für eine gewöhnliche, voll bezahlte Rechnung mit belegter Zahlung
+  async function paidInvoice(logs: SevCheckAccountTransactionLog[]) {
+    const id = await insert(paar.original_storniert, { payDate: PAY_DATE, paidAmount: "100.00" });
+    await insertLogs(new Map([[`invoice/${originalId}`, id]]), logs);
+    return id;
+  }
+
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR03", "soll"],
+    ["SKR04", "ist"],
+    ["SKR04", "soll"],
+  ])("macht bei %s und %s eine bezahlte Rechnung mit zusätzlicher Zuordnung über 0 € nicht unklar", async (kontenrahmen, versteuerung) => {
+    await reset(kontenrahmen, versteuerung);
+    const id = await paidInvoice([log(originalId, 100), log(originalId, 0)]);
+    expect((await lexoffice.legacyVoucherDetail(id))!.voucher.paymentHistoryIssue).toBeNull();
+    expect((await lexoffice.reconciliation()).years.find((y) => y.year === 2025)!.vatIssue).toBeNull();
+  });
+
+  it("führt bei Ist die Zahlung im Monat, ohne den Eintrag über 0 €", async () => {
+    const id = await paidInvoice([log(originalId, 100), log(originalId, 0)]);
+    const { vouchers } = await lexoffice.legacyVouchersForPeriod({ period: "2025-04", direction: "alle", search: "", withPayments: true, limit: 100 });
+    expect(vouchers.find((v) => v.id === id)!.payments).toEqual([{ date: "2025-04-10", amount: 10_000 }]);
+  });
 });
