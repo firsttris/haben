@@ -126,11 +126,11 @@ export function ContactPersonsCard({ contactId, persons }: Props) {
             {(control) => <input {...control} name="funktion" maxLength={100} defaultValue={editing === "neu" ? "" : editing.funktion} />}
           </Field>
           <div className="actions">
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              Speichern
-            </button>
             <button type="button" className="btn" disabled={busy} onClick={() => setEditing(null)}>
               Abbrechen
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              Speichern
             </button>
           </div>
         </form>

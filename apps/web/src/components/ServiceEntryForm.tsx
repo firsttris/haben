@@ -140,11 +140,11 @@ export function ServiceEntryForm({
         </div>
       )}
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {entry ? "Speichern" : "Anlegen"}
-        </button>
         <button type="button" className="btn" onClick={() => onDone(null)}>
           Abbrechen
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {entry ? "Speichern" : "Anlegen"}
         </button>
       </div>
     </form>
