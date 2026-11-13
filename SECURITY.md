@@ -3,7 +3,7 @@
 ## Unterstützte Versionen
 
 Sicherheitsfixes gibt es nur für das neueste Release. Bitte vor einer Meldung auf die neueste Version aktualisieren,
-wie unter [Updates](https://haben.app/installation.html#updates) beschrieben.
+wie unter [Updates](https://haben.app/installation-backup.html#updates) beschrieben.
 
 | Version | Unterstützt |
 | --- | --- |
@@ -49,4 +49,4 @@ E-Rechnungen mit dem KoSIT-Validator.
   ERiC-Versionen meldet der Workflow „Jahreswerte prüfen“ wöchentlich als Issue.
 
 Ein Fix erreicht eine Installation mit dem nächsten Release von Haben. Wie du aktualisierst, steht unter
-[Updates](https://haben.app/installation.html#updates).
+[Updates](https://haben.app/installation-backup.html#updates).

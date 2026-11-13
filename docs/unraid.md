@@ -15,7 +15,7 @@ noch nicht; die Vorlagen holst du mit einem Befehl im Terminal.
 ## Voraussetzungen
 
 - Unraid mit aktiviertem Docker.
-- Für ELSTER ein Server mit Intel- oder AMD-Prozessor, siehe [ERiC einbinden](installation.md#eric-einbinden).
+- Für ELSTER ein Server mit Intel- oder AMD-Prozessor, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 - Ein Reverse Proxy mit HTTPS, etwa Nginx Proxy Manager, SWAG oder Traefik aus den Community Applications, und eine
   Domain. Ohne HTTPS funktionieren Passkeys und die Installation als App nicht, und die Anmeldung ist nur unter der
   Adresse möglich, die du in `haben` einträgst.
@@ -73,7 +73,7 @@ dein Konto an; weiter geht es in [Erste Schritte](einrichtung.md).
 
 `haben-backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr mit restic nach `/mnt/user/appdata/haben/backups`, also
 auf denselben Server. Gegen den Verlust des Servers trägst du unter **Show more settings** bei `RESTIC_REPOSITORY` ein
-zweites System ein, siehe [Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system).
+zweites System ein, siehe [Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system).
 Das Plugin Appdata Backup ersetzt das nicht: Es stoppt die Container und kopiert ihre Ordner, ohne Test-Restore.
 
 Ein Backup von Hand, etwa vor einem Update: **Docker › `haben-backup` › Console**, dort `backup.sh`.
@@ -89,9 +89,9 @@ docker run --rm -it --net haben -e PGHOST=haben-db -e PGPASSWORD='…' \
 docker start haben
 ```
 
-Was dabei passiert, steht unter [Wiederherstellen](installation.md#wiederherstellen).
+Was dabei passiert, steht unter [Wiederherstellen](installation-backup.md#wiederherstellen).
 
 ## Updates
 
 Erst ein Backup von Hand wie oben, dann unter **Docker** mit **Check for Updates** und **apply update** alle drei
-Container aktualisieren. Migrationen laufen beim Start der App, siehe [Updates](installation.md#updates).
+Container aktualisieren. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).

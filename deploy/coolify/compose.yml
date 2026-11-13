@@ -17,7 +17,7 @@ x-backup: &backup
       condition: service_healthy
   environment:
     - PGPASSWORD=${SERVICE_HEX_64_POSTGRES}
-    # Standard: Volume backups auf diesem Server. Besser ein zweites System: sftp:…, s3:…, rest:… (docs/installation.md)
+    # Standard: Volume backups auf diesem Server. Besser ein zweites System: sftp:…, s3:…, rest:… (docs/installation-backup.md)
     - RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-/backups}
     - RESTIC_PASSWORD=${SERVICE_REALBASE64_RESTIC}
     - BACKUP_HOST=${BACKUP_HOST:-haben}
@@ -64,7 +64,7 @@ services:
       # 32 Byte base64; zusätzlich im Passwortmanager sichern, ohne ihn sind ELSTER-Zertifikat und Zugangsdaten nach
       # einer Wiederherstellung verloren
       - HABEN_ENCRYPTION_KEY=${SERVICE_REALBASE64_ENCRYPTION}
-      # Optional, siehe docs/installation.md (Umgebungsvariablen); leer heißt nicht gesetzt
+      # Optional, siehe docs/installation-konfiguration.md; leer heißt nicht gesetzt
       - OIDC_ONLY=${OIDC_ONLY:-false}
       - OIDC_ISSUER=${OIDC_ISSUER:-}
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}

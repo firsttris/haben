@@ -436,7 +436,7 @@ Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu 
 - [ ] Offene Posten übernommen oder die Gründe geklärt
 - [ ] Nächste Rechnungsnummer in Haben gesetzt
 - [ ] Jahresexport für jedes übernommene Jahr heruntergeladen und die Prüfsummen geprüft
-- [ ] Backup von Datenbank und Belegdateien läuft ([Installation](installation.md))
+- [ ] Backup von Datenbank und Belegdateien läuft ([Backup und Updates](installation-backup.md))
 - [ ] API-Schlüssel in Haben entfernt und in Lexware Office widerrufen
 
 > [!NOTE]

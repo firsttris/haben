@@ -47,14 +47,14 @@ und andere stehen unter [Eigener Reverse Proxy](installation.md#beispiele). Port
 
 Im Log des Containers `haben-app` steht nach „Listening on …“ der Einrichtungscode. Ruf deine Adresse auf, gib ihn ein und
 leg dein Konto an; weiter geht es in [Erste Schritte](einrichtung.md). ERiC für ELSTER lädst du unter
-**Einstellungen › ELSTER › ERiC** per Knopf herunter, siehe [ERiC einbinden](installation.md#eric-einbinden).
+**Einstellungen › ELSTER › ERiC** per Knopf herunter, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 
 ## Backup
 
 Der Container `haben-backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr mit restic in das Volume `backups` auf
 demselben Server. Gegen den Verlust des Servers trägst du in der App (**Edit**) bei `RESTIC_REPOSITORY` ein zweites System
 ein, für S3 dazu `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY`, siehe
-[Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system).
+[Repository auf einem zweiten System](installation-backup.md#repository-auf-einem-zweiten-system).
 
 Ein Backup von Hand, etwa vor einem Update: in der Shell des Containers `haben-backup` (**Workloads**) `backup.sh`
 ausführen.
@@ -67,9 +67,9 @@ sudo docker exec -it haben-backup restore.sh latest
 sudo docker start haben-app
 ```
 
-Was dabei passiert, steht unter [Wiederherstellen](installation.md#wiederherstellen).
+Was dabei passiert, steht unter [Wiederherstellen](installation-backup.md#wiederherstellen).
 
 ## Updates
 
 Erst ein Backup von Hand wie oben, dann unter **Apps › haben** mit **Update** bzw. **Pull Images** die aktuellen Images
-holen. Migrationen laufen beim Start der App, siehe [Updates](installation.md#updates).
+holen. Migrationen laufen beim Start der App, siehe [Updates](installation-backup.md#updates).
