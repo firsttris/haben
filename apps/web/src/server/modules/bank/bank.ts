@@ -456,6 +456,20 @@ export async function invoicePayments(ids: string[], q: Db | Tx = db) {
   );
 }
 
+/** Datum der letzten Zahlung oder Ausbuchung je Rechnung (Bank, Kasse, Skonto, Forderungsausfall), für „Bezahlt am …“ */
+export async function invoiceLastSettledOn(ids: string[], q: Db | Tx = db): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await q.execute<{ id: string; settled_on: string }>(
+    sql`select id, max(d)::text as settled_on from (
+          select a.invoice_id as id, t.booking_date as d from allocations a join bank_transactions t on t.id = a.transaction_id
+            where a.invoice_id in ${ids}
+          union all select invoice_id as id, date as d from write_offs where invoice_id in ${ids}
+          union all select invoice_id as id, date as d from cash_entries where invoice_id in ${ids}
+        ) settled group by 1`,
+  );
+  return new Map([...rows].map((r) => [r.id, r.settled_on]));
+}
+
 /** Erledigter Betrag je Beleg (Zuordnungen und Ausbuchungen), Vorzeichen wie auf dem Konto */
 export async function documentPayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("document_id", ids, q);

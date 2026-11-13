@@ -495,7 +495,8 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       ["1776", 0, 76_000],
     ]);
     const list = await invoices.listInvoices("2026-10-02");
-    expect(list.find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+    // Datum der Zahlung für „Bezahlt am …“: die Buchung auf dem Konto, nicht der Tag der Zuordnung
+    expect(list.find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0, settledOn: "2026-10-01" });
     expect((await contacts.getContact(contact.id))?.contact.iban).toBe("DE02100100100006820101");
     expect((await invoices.invoiceSummary("2026-10-02")).openTotal).toBe(0);
   }, 30_000);

@@ -1,5 +1,6 @@
 import type { Abschnitt } from "@haben/core";
 import { useId } from "react";
+import { Status } from "../Status.tsx";
 
 /**
  * Ein Formular der Ausfüllliste, Abschnitt für Abschnitt in der Reihenfolge des SV-Meldeportals: links das Feld, in der
@@ -38,7 +39,14 @@ function AbschnittTabelle({ abschnitt }: { abschnitt: Abschnitt }) {
                 {f.schluessel && <span className="small muted"> ({f.schluessel})</span>}
               </th>
               <td data-label="Eintragen" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, overflowWrap: "anywhere" }}>
-                {f.wert || (f.fehlt ? <span className="pill pill-danger">fehlt</span> : <span className="muted">–</span>)}
+                {f.wert ||
+                  (f.fehlt ? (
+                    <Status tone="danger" emphasis="notice">
+                      Fehlt
+                    </Status>
+                  ) : (
+                    <span className="muted">–</span>
+                  ))}
               </td>
               <td data-label="Hinweis" className="small muted">
                 {f.hinweis ?? ""}

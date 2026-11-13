@@ -436,7 +436,7 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await zeile.getByRole("button", { name: "Stornieren" }).click();
   await faktenZeigen(page, "Datum", "Betrag");
   await bestaetigen(page, "Stornieren");
-  await expect(zeile.getByText("storniert", { exact: true })).toBeVisible();
+  await expect(zeile.getByText("Storniert", { exact: true })).toBeVisible();
   await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
 });
 
@@ -1337,7 +1337,7 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toBeVisible();
   await expect(page.getByRole("region", { name: `Verlauf Juni ${year}` })).toContainText("Abgabe vermerkt");
   const zahlung = page.getByRole("region", { name: "Zahlung an das Finanzamt" });
-  await expect(zahlung).toContainText("offen 190,00");
+  await expect(zahlung).toContainText("Offen 190,00");
   const protokoll = await page.request.get((await page.getByRole("link", { name: "Protokoll" }).first().getAttribute("href"))!);
   expect(protokoll.headers()["content-type"]).toContain("application/pdf");
 
@@ -1383,7 +1383,7 @@ test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im
   await page.waitForLoadState("networkidle");
 
   await go(`/umsatzsteuer/${year}-06`);
-  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("ausgeglichen");
+  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Ausgeglichen");
   await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Lastschrift 190,00");
 });
 

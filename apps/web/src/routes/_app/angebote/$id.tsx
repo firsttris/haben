@@ -13,6 +13,7 @@ import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { copyQuoteFn, decideQuote, getQuoteDetail, invoiceFromQuote } from "../../../server/functions/quotes.ts";
+import { OutcomeStatus, Status } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/angebote/$id")({
   loader: ({ params }) => getQuoteDetail({ data: params.id }),
@@ -144,7 +145,7 @@ function FinalQuote({ data }: { data: Detail }) {
           {/* Status neben der Überschrift wie bei der Rechnung: bleibt mit dem stehenden Kopf sichtbar */}
           <div className="title-with-status">
             <h1>Angebot {quote.number}</h1>
-            <QuoteStatus status={listStatus} />
+            <QuoteStatus quote={{ listStatus, validUntil: quote.validUntil, invoiceNumber: invoice?.number ?? null }} />
           </div>
         </div>
         <div className="actions">
@@ -169,7 +170,7 @@ function FinalQuote({ data }: { data: Detail }) {
         <div className="stack">
           <section className="card" aria-labelledby="answer-heading">
             <h2 id="answer-heading">
-              Antwort des Kunden <QuoteStatus status={listStatus} />
+              Antwort des Kunden <QuoteStatus inline quote={{ listStatus, validUntil: quote.validUntil }} />
             </h2>
             {invoice ? (
               <p style={{ margin: 0 }}>
@@ -278,9 +279,9 @@ function FinalQuote({ data }: { data: Detail }) {
                       {formatDate(b.issueDate)} · <span className="amount">{formatEuro(b.gross)}</span>
                     </span>
                   </span>
-                  <span className={`pill ${b.cancelled ? "pill-danger" : b.status === "final" ? "pill-ok" : ""}`}>
+                  <Status inline {...(b.cancelled ? { tone: "danger" } : b.status === "final" ? { tone: "ok" } : { draft: true })}>
                     {b.cancelled ? "Storniert" : b.status === "final" ? "Festgeschrieben" : "Entwurf"}
-                  </span>
+                  </Status>
                 </div>
               ))}
               {finalAbschlaege.length > 0 && (
@@ -350,7 +351,7 @@ function FinalQuote({ data }: { data: Detail }) {
                       </span>
                     )}
                   </span>
-                  <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
+                  <OutcomeStatus ok={m.ok}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</OutcomeStatus>
                 </div>
               ))
             ) : (

@@ -61,7 +61,7 @@ function InvoicesPage() {
                 <div className="muted small">{formatDate(invoice.issueDate)}</div>
                 <div className="num">{formatEuro(invoice.gross)}</div>
                 <div>
-                  <InvoiceStatus status={invoice.listStatus} />
+                  <InvoiceStatus invoice={invoice} />
                   {invoice.mailed && (
                     <span className="small muted" title="per E-Mail versendet" style={{ marginLeft: 8, verticalAlign: "middle" }}>
                       <Icon name="mail" size={14} />

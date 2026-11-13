@@ -54,7 +54,7 @@ function QuotesPage() {
                 <div className="muted small">{formatDate(quote.validUntil)}</div>
                 <div className="num">{formatEuro(quote.gross)}</div>
                 <div>
-                  <QuoteStatus status={quote.listStatus} />
+                  <QuoteStatus quote={quote} />
                   {quote.mailed && (
                     <span className="small muted" title="per E-Mail versendet" style={{ marginLeft: 8, verticalAlign: "middle" }}>
                       <Icon name="mail" size={14} />

@@ -29,6 +29,7 @@ import { legacySource } from "../../../lib/altbestand.ts";
 import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 import { ConfirmDialog } from "../../../components/ConfirmDialog.tsx";
 import { Field } from "../../../components/Field.tsx";
+import { OutcomeStatus, Status } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -210,7 +211,7 @@ function FinalInvoice({ data }: { data: Detail }) {
             <h1>
               {titleOf(invoice)} {invoice.number}
             </h1>
-            {data.listStatus && <InvoiceStatus status={data.listStatus} />}
+            {data.statusFacts && <InvoiceStatus invoice={data.statusFacts} />}
           </div>
         </div>
         <div className="actions">
@@ -386,7 +387,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                       </span>
                     )}
                   </span>
-                  <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
+                  <OutcomeStatus ok={m.ok}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</OutcomeStatus>
                 </div>
               ))
             ) : (
@@ -469,7 +470,15 @@ function FinalInvoice({ data }: { data: Detail }) {
                   <Link to="/rechnungen/$id" params={{ id: c.id }}>
                     {KIND_TITLE[c.kind]} {c.number ?? "(Entwurf)"}
                   </Link>
-                  <span className={`pill ${c.status === "draft" ? "pill-info" : ""}`}>{c.status === "draft" ? "Entwurf" : "festgeschrieben"}</span>
+                  {c.status === "draft" ? (
+                    <Status draft inline>
+                      Entwurf
+                    </Status>
+                  ) : (
+                    <Status tone="ok" inline>
+                      Festgeschrieben
+                    </Status>
+                  )}
                 </div>
               ))}
             </section>

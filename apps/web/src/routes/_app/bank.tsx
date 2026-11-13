@@ -6,13 +6,14 @@ import { z } from "zod/mini";
 import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { LastschriftVorschlag } from "../../components/LastschriftVorschlag.tsx";
 import { Icon } from "../../components/Icon.tsx";
+import { Status, type StatusLook } from "../../components/Status.tsx";
 import { StorePayoutBox } from "../../components/StorePayoutBox.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
 import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
 import { KategorieFelder, kategorieWahlFuer, type KategorieOptionen, type KategorieWahl } from "../../components/KategorieFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
-import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
+import { errorMessage, formatDate, formatDateTime, formatDayMonth, daysUntil, relativeDays } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
@@ -87,14 +88,31 @@ type Data = Awaited<ReturnType<typeof getBankOverview>>;
 type Detail = NonNullable<Data["detail"]>;
 type Allocation = Detail["allocations"][number];
 
-const HINT = {
-  vorschlag: { text: "Vorschlag", tone: "pill-info" },
-  belegFehlt: { text: "Beleg fehlt", tone: "pill-warn" },
-  offen: { text: "Offen", tone: "" },
-  teilweise: { text: "Teilweise", tone: "pill-info" },
-  zugeordnet: { text: "Zugeordnet", tone: "pill-ok" },
-  verrechnet: { text: "Verrechnet", tone: "pill-ok" },
-} as const;
+const HINT: Record<"vorschlag" | "belegFehlt" | "offen" | "teilweise" | "zugeordnet" | "verrechnet", StatusLook> = {
+  vorschlag: { text: "Vorschlag", tone: "info" },
+  // Eine Arbeitsliste: viele Zeilen sind offen, deshalb „notice“ und nicht „urgent“ (DESIGN.md › Status)
+  belegFehlt: { text: "Beleg fehlt", tone: "warn", emphasis: "notice" },
+  offen: { text: "Offen" },
+  teilweise: { text: "Teilweise", tone: "info" },
+  zugeordnet: { text: "Zugeordnet", tone: "ok" },
+  verrechnet: { text: "Verrechnet", tone: "ok" },
+};
+
+const SUGGESTION_KIND = { invoice: "Rechnung", document: "Beleg", ustva: "Voranmeldung" } as const;
+
+/** Auskunft unter dem Hinweis eines Umsatzes: wohin der Vorschlag passt, was noch offen ist */
+function hintDetail(tx: {
+  hint: keyof typeof HINT;
+  open: number;
+  suggestion: { type: keyof typeof SUGGESTION_KIND; number: string; partyName: string } | null;
+}) {
+  if (tx.hint === "vorschlag" && tx.suggestion) {
+    const s = tx.suggestion;
+    return s.type === "document" ? s.partyName || `Beleg ${s.number}` : `${SUGGESTION_KIND[s.type]} ${s.number}`.trim();
+  }
+  if (tx.hint === "teilweise") return `noch ${formatEuro(Math.abs(tx.open))} offen`;
+  return null;
+}
 
 const KIND_LABEL = {
   invoice: "Rechnung",
@@ -325,7 +343,9 @@ function BankPage() {
                     {formatEuro(Math.abs(tx.amount))}
                   </div>
                   <div>
-                    <span className={`pill ${HINT[tx.hint].tone}`}>{HINT[tx.hint].text}</span>
+                    <Status tone={HINT[tx.hint].tone} emphasis={HINT[tx.hint].emphasis} detail={hintDetail(tx)}>
+                      {HINT[tx.hint].text}
+                    </Status>
                   </div>
                 </Link>
               ))}
@@ -457,13 +477,14 @@ function AccountSettings({
 
 type Sync = Data["sync"];
 
-const CONNECTION_STATUS = {
-  aktiv: { text: "Aktiv", tone: "pill-ok" },
-  abgelaufen: { text: "Abgelaufen", tone: "pill-warn" },
-  fehler: { text: "Fehler", tone: "pill-danger" },
-  widerrufen: { text: "Getrennt", tone: "" },
-  wartet: { text: "Wartet auf Bank", tone: "pill-info" },
-} as const;
+const CONNECTION_STATUS: Record<"aktiv" | "abgelaufen" | "fehler" | "widerrufen" | "wartet", StatusLook> = {
+  aktiv: { text: "Aktiv", tone: "ok" },
+  // Ohne Verbindung kommen keine Umsätze mehr: der Abgleich bleibt stehen
+  abgelaufen: { text: "Abgelaufen", tone: "warn", emphasis: "urgent" },
+  fehler: { text: "Fehler", tone: "danger", emphasis: "urgent" },
+  widerrufen: { text: "Getrennt", tone: "neutral" },
+  wartet: { text: "Wartet auf Bank", tone: "info" },
+};
 
 /** Automatischer Abruf über Enable Banking: verbundene Banken, Abruf, Erneuern und Trennen */
 function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message: string } | null }) {
@@ -567,8 +588,25 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
             <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: "1 1 260px" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <span style={{ fontWeight: 600 }}>{c.aspspName}</span>
-                <span className={`pill ${status.tone}`}>{status.text}</span>
-                {c.renewSoon && <span className="pill pill-warn">Läuft bald ab</span>}
+                {c.renewSoon ? (
+                  <Status
+                    tone="warn"
+                    emphasis="urgent"
+                    inline
+                    detail={c.validUntil ? `${relativeDays(daysUntil(c.validUntil))}, am ${formatDayMonth(c.validUntil)}` : null}
+                  >
+                    Läuft bald ab
+                  </Status>
+                ) : (
+                  <Status
+                    tone={status.tone}
+                    emphasis={status.emphasis}
+                    inline
+                    detail={c.status === "aktiv" && c.validUntil ? `bis ${formatDate(c.validUntil)}` : null}
+                  >
+                    {status.text}
+                  </Status>
+                )}
               </div>
               <span className="small muted">{c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}</span>
               <span className="small muted">

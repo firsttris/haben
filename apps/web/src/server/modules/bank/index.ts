@@ -35,6 +35,7 @@ export {
   importStatement,
   storeStatement,
   type ImportResult,
+  invoiceLastSettledOn,
   invoiceLosses,
   invoiceWrittenOff,
   invoicePayments,
