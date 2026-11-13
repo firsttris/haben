@@ -17,6 +17,7 @@ import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnual
 import styles from "../../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../../components/ScrollTable.tsx";
 import { Field } from "../../../components/Field.tsx";
+import { Status, OutcomeStatus } from "../../../components/Status.tsx";
 
 export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
   loader: ({ params }) => {
@@ -165,9 +166,19 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
 }
 
 function SentPill({ sent, submitted }: { sent: Data["ust"]["sent"]; submitted: Data["ust"]["submitted"] }) {
-  if (sent) return <span className="pill pill-ok">Übermittelt {formatDate(sent.createdAt)}</span>;
-  if (submitted) return <span className="pill pill-ok">Außerhalb abgegeben{submitted.filedOn ? ` ${formatDate(submitted.filedOn)}` : ""}</span>;
-  return <span className="pill">Noch nicht übermittelt</span>;
+  if (sent)
+    return (
+      <Status tone="ok" inline detail={`am ${formatDate(sent.createdAt)}`}>
+        Übermittelt
+      </Status>
+    );
+  if (submitted)
+    return (
+      <Status tone="ok" inline detail={submitted.filedOn ? `am ${formatDate(submitted.filedOn)}` : null}>
+        Außerhalb abgegeben
+      </Status>
+    );
+  return <Status inline>Noch nicht übermittelt</Status>;
 }
 
 function UstSection({ data }: { data: Data }) {
@@ -720,7 +731,7 @@ function History({ data }: { data: Data }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
               <span style={{ fontWeight: 500 }}>
                 {FORM_LABEL[entry.form]} · {ELSTER_KIND_LABEL[entry.kind]}{" "}
-                <span className={`pill ${entry.ok ? "pill-ok" : "pill-danger"}`}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</span>
+                <OutcomeStatus ok={entry.ok}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</OutcomeStatus>
               </span>
               <span className="small muted" style={{ overflowWrap: "anywhere" }}>
                 {formatDateTime(entry.createdAt)}

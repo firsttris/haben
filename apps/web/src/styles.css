@@ -128,7 +128,6 @@ a:hover { color: var(--link-hover); }
 .main:focus { outline: none; }
 h1 { margin: 0; font-size: 28px; font-weight: 600; }
 .title-with-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.title-with-status .pill { font-size: 13px; }
 h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .mono { font-family: var(--mono); }
 .muted { color: var(--muted); }
@@ -404,11 +403,55 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .design-card .checkbox-hinted { margin-block: 12px; }
 @media (pointer: coarse) { .design-card .checkbox-hinted { margin-block: 0 8px; } }
 
-.pill { display: inline-block; white-space: nowrap; font-size: 12px; font-weight: 500; line-height: 16px; padding: 4px 8px; border-radius: 12px; background: var(--line-soft); color: var(--ink-2); }
-.pill-ok { background: var(--accent-soft); color: var(--accent-ink); }
-.pill-warn { background: var(--warn-soft); color: var(--warn-ink); }
-.pill-info { background: var(--info-soft); color: var(--info-ink); }
-.pill-danger { background: var(--danger-soft); color: var(--danger-ink); }
+/* Status (components/Status.tsx, DESIGN.md › Status): Punkt, Wort und Auskunft darunter. Der Punkt nimmt die Tonfarbe,
+   ab „notice“ auch das Wort, „urgent“ bekommt eine Fläche. Der negative Rand hält den Punkt in derselben Spalte wie
+   bei den ruhigen Zeilen darüber und darunter. */
+.status { --status-dot: var(--muted); --status-ink: var(--ink-2); --status-soft: var(--line-soft); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; vertical-align: middle; }
+.status-ok { --status-dot: var(--accent); --status-ink: var(--accent-ink); --status-soft: var(--accent-soft); }
+.status-info { --status-dot: var(--info-ink); --status-ink: var(--info-ink); --status-soft: var(--info-soft); }
+.status-warn { --status-dot: var(--warn-dot); --status-ink: var(--warn-ink); --status-soft: var(--warn-soft); }
+.status-danger { --status-dot: var(--danger-ink); --status-ink: var(--danger-ink); --status-soft: var(--danger-soft); }
+.status-label { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 13px; line-height: 20px; color: var(--ink-2); }
+.status-label::before { content: ""; width: 8px; height: 8px; border-radius: 4px; background: var(--status-dot); flex: none; }
+.status-draft .status-label::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-dot); }
+.status-detail { padding-left: 16px; font-size: 12px; line-height: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.status-notice .status-label { color: var(--status-ink); }
+.status-urgent .status-label { padding: 2px 8px 2px 6px; line-height: 16px; border-radius: 6px; background: var(--status-soft); color: var(--status-ink); font-weight: 500; }
+/* In Listen ragt die Fläche nach links in den Spaltenabstand, damit der Punkt mit den ruhigen Punkten darüber fluchtet;
+   im Seitenkopf und in Fließtext bleibt sie bündig mit Titel und Knöpfen */
+.table-row .status-urgent:not(.status-inline) .status-label { margin-left: -6px; }
+.status-urgent .status-detail { color: var(--status-ink); }
+/* Im Seitenkopf und in Fließtext eine Zeile, die Auskunft daneben */
+.title-with-status .status, .status-inline { flex-direction: row; align-items: center; gap: 12px; }
+.title-with-status .status-label { font-size: 14px; }
+.title-with-status .status-detail, .status-inline .status-detail { padding-left: 0; font-size: 13px; line-height: 20px; }
+/* Listen mit Status (DESIGN.md › Status): Alle Zellen stehen auf der ersten Grundlinie, so liegt das Statuswort auf der
+   Textzeile daneben und die Auskunft hängt darunter. Zwei Zeilen Platz sind immer reserviert, damit Zeilen mit und ohne
+   Auskunft gleich hoch sind; vor der Spalte 12px mehr Luft zum Betrag. */
+:is(.invoice-cols, .invoice-cols-compact, .document-cols, .tx-cols):not(.head) { align-items: first baseline; min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+:is(.invoice-cols, .invoice-cols-compact, .document-cols, .tx-cols):not(.head) .status { min-height: 38px; vertical-align: baseline; }
+:is(.invoice-cols, .document-cols, .tx-cols) > :last-child { margin-left: 12px; }
+/* Am Handy bleibt jede Zeile zweizeilig: Wort und Auskunft nebeneinander, eine zu lange Auskunft endet mit „…“ */
+@media (max-width: 760px) {
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols, .tx-cols) > :last-child { margin-left: 0; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) { row-gap: 4px; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child { justify-self: end; min-width: 0; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) > :last-child .status { flex-direction: row; align-items: baseline; gap: 6px; min-height: 0; max-width: 100%; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label { flex: none; }
+  :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Rechnungen und Angebote: die Auskunft vorn, das Wort an der rechten Kante unter dem Betrag. Die Fläche des dringenden
+     Worts ragt nach rechts in den Rand, damit das Wort mit dem Betrag fluchtet; davor etwas mehr Luft zur Auskunft */
+  :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status { flex-direction: row-reverse; }
+  /* Das Brief-Symbol „per E-Mail versendet“ steht vor der Auskunft, damit das Wort an der Kante bleibt */
+  .invoice-cols:not(.head) > :last-child:has(.mail-mark) { display: flex; flex-direction: row-reverse; align-items: baseline; gap: 6px; }
+  .invoice-cols:not(.head) > :last-child .mail-mark { margin-left: 0; }
+  :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status-urgent { gap: 8px; }
+  :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status-urgent .status-label { margin-left: 0; margin-right: -8px; }
+}
+/* Brief-Symbol neben dem Status in Rechnungs- und Angebotsliste */
+.mail-mark { margin-left: 8px; vertical-align: middle; }
+/* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
+.tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
 
 .banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
@@ -473,7 +516,7 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 a.table-row:hover { background: var(--ground); color: var(--ink); }
 .table-row.head { min-height: 32px; border-top: 0; font-size: 13px; color: var(--muted); }
 .table-row.head .num { font-size: 13px; }
-.invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 120px; }
+.invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 180px; }
 .cash-cols { grid-template-columns: 48px 96px minmax(0, 1fr) 120px 120px 150px; padding-top: 8px; padding-bottom: 8px; }
 .article-cols { grid-template-columns: minmax(0, 1fr) 160px 60px auto; }
 .service-cols { grid-template-columns: 90px minmax(0, 1fr) 90px 90px 100px auto; }
@@ -494,12 +537,14 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 @media (max-width: 760px) {
   /* Kunde links, Betrag rechts, Status darunter rechts */
   .invoice-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
+  .invoice-cols:not(.head) > :nth-child(1) { grid-column: 1; grid-row: 2; }
+  .invoice-cols:not(.head) > :nth-child(2) { grid-column: 1; grid-row: 1; }
+  .invoice-cols:not(.head) > :nth-child(5) { grid-column: 1 / -1; grid-row: 2; max-width: calc(100% - 88px); }
   /* Nummer klein über dem Kunden, Betrag und Status rechts */
   .invoice-cols > :nth-child(3) { display: none; }
-  .invoice-cols > :nth-child(1) { grid-column: 1; grid-row: 1; font-size: 12px; color: var(--muted); }
-  .invoice-cols > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .invoice-cols > :nth-child(1) { font-size: 12px; color: var(--muted); }
   .invoice-cols > :nth-child(4) { grid-column: 2; grid-row: 1; }
-  .invoice-cols > :nth-child(5) { grid-column: 2; grid-row: 2; justify-self: end; }
+
   .table-row.head.invoice-cols > :nth-child(1) { display: none; }
   .table-row.head.invoice-cols > :nth-child(2) { grid-row: 1; }
   .table-row.head.invoice-cols > :nth-child(5) { display: none; }
@@ -710,7 +755,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .dropzone { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 16px; border: 2px dashed var(--line-strong); border-radius: 12px; color: var(--ink-2); background: var(--ground); }
 .dropzone.dragging { border-color: var(--accent); background: var(--accent-tint); }
 .upload-messages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.document-cols { grid-template-columns: 96px minmax(0, 1fr) 180px 120px 130px; }
+.document-cols { grid-template-columns: 96px minmax(0, 1fr) 160px 120px 170px; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .camera-only { display: none; }
 .camera-only-text { display: none; }
@@ -722,8 +767,11 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 @media (max-width: 760px) {
   .document-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 8px; padding-bottom: 8px; }
   .document-cols > :nth-child(1), .document-cols > :nth-child(3) { display: none; }
-  .document-cols > :nth-child(2) { grid-row: 1 / span 2; }
-  .document-cols > :nth-child(5) { grid-column: 2; justify-self: end; }
+  .document-cols > :nth-child(2) { grid-column: 1; grid-row: 1 / span 2; }
+  .document-cols > :nth-child(4) { grid-column: 2; grid-row: 1; }
+  /* Lieferant und Zusatzzeile brauchen die Breite: am Handy nur das Wort, die Auskunft steht auf der Seite des Belegs */
+  .document-cols > :nth-child(5) { grid-column: 2; grid-row: 2; }
+  .document-cols > :nth-child(5) .status-detail { display: none; }
   .table-row.head.document-cols > :nth-child(5) { display: none; }
 }
 .doc-preview { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
@@ -763,7 +811,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .search-box { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); min-width: 200px; }
 .search-box:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .search-box input { border: 0; outline: none; font: inherit; font-size: 13px; color: var(--ink); background: transparent; width: 100%; }
-.tx-cols { grid-template-columns: 84px minmax(0, 1fr) 120px 112px; padding: 0 20px; min-height: 60px; }
+.tx-cols { grid-template-columns: 84px minmax(0, 1fr) 120px 170px; padding: 0 20px; min-height: 60px; }
 /* Spaltenkopf als Schaltfläche: sortiert die Liste, der zweite Klick dreht die Richtung (#681) */
 .sort-head { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 4px; }
 .sort-head.num { justify-content: flex-end; }

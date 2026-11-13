@@ -2,6 +2,7 @@ import { formatEuro, type VatPostenStand } from "@haben/core";
 import { Link } from "@tanstack/react-router";
 import { useId } from "react";
 import { formatDate } from "../../lib/format.ts";
+import { Status } from "../Status.tsx";
 
 /**
  * Zahllast bzw. Erstattung der abgegebenen Voranmeldung als offener Posten: Betrag, Fälligkeit, Zahlungen aus dem
@@ -20,9 +21,15 @@ export function UstvaZahlung({ posten }: { posten: VatPostenStand[] }) {
               {p.berichtigt ? "Berichtigung: " : ""}
               {p.betrag >= 0 ? "Zahllast" : "Erstattung"} {formatEuro(Math.abs(p.betrag))}
             </span>
-            <span className={`pill ${p.offen === 0 ? "pill-ok" : "pill-info"}`}>
-              {p.offen === 0 ? "ausgeglichen" : `offen ${formatEuro(Math.abs(p.offen))}`}
-            </span>
+            {p.offen === 0 ? (
+              <Status tone="ok" inline>
+                Ausgeglichen
+              </Status>
+            ) : (
+              <Status tone="info" inline detail={formatEuro(Math.abs(p.offen))}>
+                Offen
+              </Status>
+            )}
           </div>
           <span className="small muted">
             {p.betrag >= 0 ? "fällig" : "Erstattung ab Zustimmung des Finanzamts, frühestens"} {formatDate(p.faellig)}

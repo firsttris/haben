@@ -141,3 +141,4 @@ export {
   settlementSchema,
   type SettlementInput,
 } from "./verrechnung.ts";
+export { invoiceLastSettledOn } from "./zahldatum.ts";

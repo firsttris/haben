@@ -44,7 +44,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import { ansprechpartnerSnapshot, type Contact, contactPersonProblem, contactRoleProblem, loadLetterhead, withCustomLayout } from "../stammdaten/index.ts";
-import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
+import { invoiceLastSettledOn, invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
@@ -755,6 +755,11 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
       cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
+      // Für die Auskunft unter dem Status: welches Storno die Rechnung aufhebt, welche Rechnung Storno oder Korrektur betrifft
+      cancelledBy: sql<
+        string | null
+      >`(select s.number from invoices s where s.kind = 'storno' and s.status = 'final' and s.corrects_id = ${schema.invoices.id} order by s.number limit 1)`,
+      correctsNumber: sql<string | null>`(select o.number from invoices o where o.id = ${schema.invoices.correctsId})`,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
@@ -773,6 +778,10 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     rows.filter((r) => r.kind === "storno").map((r) => r.id),
     q,
   );
+  const settledOn = await invoiceLastSettledOn(
+    rows.filter((r) => r.status === "final").map((r) => r.id),
+    q,
+  );
   return rows.map(({ cancelled, ...row }) => {
     const facts = {
       ...row,
@@ -788,6 +797,8 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       listStatus: invoiceListStatus(facts, today),
       paid: facts.paid,
       open: paperStornos.has(row.id) ? 0 : invoiceOpen(facts),
+      /** Letzte Zahlung oder Ausbuchung, JJJJ-MM-TT */
+      settledOn: settledOn.get(row.id) ?? null,
     };
   });
 }
