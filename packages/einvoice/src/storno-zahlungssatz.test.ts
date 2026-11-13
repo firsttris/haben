@@ -5,14 +5,26 @@ import { sampleDocument } from "./samples.ts";
 import { buildEInvoice } from "./xml.ts";
 
 const cases = [
-  { name: "unbekannter Zahlstand", kind: "storno", hasPayments: undefined, de: "Es ist keine Zahlung erforderlich.", en: "No payment is required." },
-  { name: "unbezahlte Rechnung", kind: "storno", hasPayments: false, de: "Es ist keine Zahlung erforderlich.", en: "No payment is required." },
   {
-    name: "geleistete Zahlung",
+    name: "unbekannter Zahlstand",
+    kind: "storno",
+    hasPayments: undefined,
+    de: "Die ursprüngliche Rechnung wird storniert.",
+    en: "The original invoice is cancelled.",
+  },
+  {
+    name: "unbezahlte Rechnung ohne Kundensaldo",
+    kind: "storno",
+    hasPayments: false,
+    de: "Die ursprüngliche Rechnung wird storniert.",
+    en: "The original invoice is cancelled.",
+  },
+  {
+    name: "geleistete Zahlung ohne Kundensaldo",
     kind: "storno",
     hasPayments: true,
-    de: "Bereits geleistete Zahlungen werden erstattet.",
-    en: "Payments already received will be refunded.",
+    de: "Die ursprüngliche Rechnung wird storniert.",
+    en: "The original invoice is cancelled.",
   },
   {
     name: "Rechnungskorrektur",

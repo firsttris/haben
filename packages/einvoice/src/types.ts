@@ -162,8 +162,10 @@ export interface InvoiceDocument extends Letterhead {
   euroTax?: { tax: Cents; taxes: { rate: number; tax: Cents }[]; rate: string };
   /** Bei Storno und Korrektur: die ursprüngliche Rechnung */
   corrects?: { number: string; issueDate: string };
-  /** Beim Storno belegte Zahlung auf das Original; fehlt = keine Erstattung zusagen (#716) */
+  /** Bisheriger Zahlungsmarker bleibt für Aufrufer erhalten; der Stornohinweis verwendet customerBalance (#716) */
   hasPayments?: boolean;
+  /** Rechnerischer Kunden-OPOS-Saldo in Euro-Cent nach dem vollständigen Storno; fehlt = unbekannt, keine Aufrechnung */
+  customerBalance?: Cents;
   /** Einleitung über den Positionen (Kopftext) */
   intro?: string;
   /** Hinweis unter den Summen (Fußtext) */

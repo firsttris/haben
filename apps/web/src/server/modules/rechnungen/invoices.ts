@@ -24,6 +24,7 @@ import {
   type TaxTreatment,
   type UnitLabel,
   cancellationProblem,
+  cancellationCustomerBalance,
   invoiceEditProblem,
   invoiceListStatus,
   invoiceOpen,
@@ -1068,7 +1069,7 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
 }
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
-async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+async function finalizeDraft(tx: Tx, id: string, customerBalance?: number): Promise<Invoice> {
   // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
   const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
   const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
@@ -1132,8 +1133,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
   );
-  // Das Original ist gesperrt; cancelInvoice hat Ausbuchungen ausgeschlossen. Der Text hält diesen Zahlstand fest.
-  if (invoice.kind === "storno" && corrects) doc.hasPayments = ((await invoicePayments([corrects.id], tx)).get(corrects.id) ?? 0) > 0;
+  if (invoice.kind === "storno") doc.customerBalance = customerBalance;
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
@@ -1288,6 +1288,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
         "Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.",
       );
     }
+    let balance: { value: number | undefined } | undefined;
     const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
       const draft = await insertDraft(
         tx,
@@ -1311,7 +1312,10 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
         },
         { kind: "storno", correctsId: target.id },
       );
-      return finalizeDraft(tx, draft.id);
+      // Der erste Entwurf hält bereits die Audit-Kettensperre. Ein gemeinsamer Endstand für alle Stornos,
+      // auch für die erst danach erzeugten Korrekturstornos; Originale und Zahlungsdaten bleiben unverändert.
+      balance ??= { value: cancellationCustomerBalance(await listInvoices(today, undefined, tx), invoice.contactId, [id, ...corrections.map((c) => c.id)]) };
+      return finalizeDraft(tx, draft.id, balance.value);
     };
     const storno = await stornoOf(invoice, lines);
     for (const correction of corrections) {

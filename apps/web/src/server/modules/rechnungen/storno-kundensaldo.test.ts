@@ -121,7 +121,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     expect(after).toEqual(before);
     const list = await invoices.listInvoices("2026-11-13");
     expect(list.find((i) => i.id === invoice.id)!.open).toBe(0);
-    expect(list.find((i) => i.id === storno.id)!.open).toBe(-payment);
+    expect(list.find((i) => i.id === storno.id)!.open).toBe(0 - payment);
   });
 
   it("projiziert auch alle Korrekturstornos und fordert auf dem positiven Storno keine Zahlung", async () => {
@@ -130,7 +130,8 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     await original(110);
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-11-12");
     verify(storno, debit);
-    const [correctionStorno] = await sql`select pdf, xml, gross from invoices where corrects_id = ${reduction.id} and kind = 'storno'`;
+    const [correctionStorno] = await sql<{ pdf: Buffer; xml: string; gross: number }[]>`
+      select pdf, xml, gross from invoices where corrects_id = ${reduction.id} and kind = 'storno'`;
     expect(correctionStorno!.gross).toBe(20);
     verify(correctionStorno!, debit);
     expect(await customerOpen()).toBe(10);
@@ -145,12 +146,22 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     expect(await customerOpen()).toBe(-60);
   });
 
-  it("zählt gleichnamige andere Kontakte und fremde Guthaben nicht mit", async () => {
+  it("zählt Forderungen gleichnamiger anderer Kontakte nicht mit", async () => {
     const invoice = await original(100, 100);
     const other = (await contact("10002")).id;
     await original(500, 0, other);
+    await invoices.createDraft(actor, input(1000));
     verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-12"), credit);
     expect(await customerOpen()).toBe(-100);
+  });
+
+  it("summiert mehrere offene Rechnungen, Teilzahlungen und eine weitere Rechnungskorrektur", async () => {
+    const invoice = await original(100, 50);
+    const other = await original(80, 20);
+    await correction(other.id, 30);
+    await original(40);
+    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-12"), debit);
+    expect(await customerOpen()).toBe(20);
   });
 
   it("rechnet bei Fremdwährung mit gespeicherten Eurobeträgen", async () => {
@@ -170,7 +181,8 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     verify(storno, debit);
     await transfer(other.id, 150);
     expect(await customerOpen()).toBe(-100);
-    const rows = await sql`select id, pdf, xml, pdf_sha256, xml_sha256 from invoices where id in (${invoice.id}, ${storno.id})`;
+    const rows = await sql<{ id: string; pdf: Buffer; xml: string; pdf_sha256: string; xml_sha256: string }[]>`
+      select id, pdf, xml, pdf_sha256, xml_sha256 from invoices where id in (${invoice.id}, ${storno.id})`;
     for (const original of [invoice, storno]) {
       expect(rows.find((r) => r.id === original.id)).toEqual({
         id: original.id,
