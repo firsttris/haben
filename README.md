@@ -313,10 +313,7 @@ Oder ohne Bun und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im
 Migrationen und Dev-Server mit Neuladen beim Speichern
 ([Mit Docker Compose](https://haben.app/entwicklung.html#mit-docker-compose)).
 
-**Stack**: TanStack Start (React-API mit TanStack Redact, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys oder OIDC-SSO, Zod, Typst für
-die Rechnungs-PDFs, ZUGFeRD und XRechnung ohne Bibliothek (mit `pdf-lib` für das Hybrid-PDF), ERiC über `koffi` in einem eigenen Prozess,
-Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere
-[Entwicklung](https://haben.app/entwicklung.html).
+Aufbau und Abläufe beschreibt die [Architektur](https://haben.app/architektur.html), alles Weitere [Entwicklung](https://haben.app/entwicklung.html).
 
 | Paket | Inhalt |
 |---|---|
