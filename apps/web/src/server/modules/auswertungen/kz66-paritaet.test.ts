@@ -239,4 +239,16 @@ describe.skipIf(!testDatabaseUrl)("Kz 66: Journal und Nebenbücher je Monat glei
     const werte = await pruefeJahr(2026, 5);
     expect(summe(werte)).toBe(-1_900);
   }, 60_000);
+  it("eine aufgehobene frühere Teilerstattung nimmt im Nebenbuch genau ihren eigenen Anteil zurück", async () => {
+    await firma("SKR03", "ist");
+    const id = await beleg("2026-01-15", [{ taxRate: 1900, net: -10_000, tax: -1_900 }], { erstattetBezahltes: true, nummer: "GS-AUF-1" });
+    const februar = await zahle("2026-02-20", "Drittel Februar", 3_967, id);
+    await zahle("2026-03-20", "Drittel März", 3_967, id);
+    // Die Februar-Zuordnung war falsch und wird aufgehoben; der Rest kommt im Mai
+    const [zuordnung] = await sql`select id from allocations where transaction_id = ${februar} and reverses_id is null`;
+    await bank.reverseAllocation(actor, zuordnung!.id as string);
+    await zahle("2026-05-20", "Rest Mai", 7_933, id);
+    const werte = await pruefeJahr(2026, 5);
+    expect(summe(werte)).toBe(-1_900);
+  }, 60_000);
 });
