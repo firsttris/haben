@@ -23,7 +23,8 @@ export interface Zustaende {
   /** Image ohne den Befehl haben */
   zuAlt: Set<string>;
   caddyLaeuft: boolean;
-  netz: boolean;
+  /** Netze, die docker kennt (docker network create, oder von Compose angelegt) */
+  netze: Set<string>;
   projekte: string[];
   volumen: string[];
   /** docker erreicht den Daemon nicht */
@@ -48,7 +49,7 @@ export function nachbau() {
     composeKaputt: new Set(),
     zuAlt: new Set(),
     caddyLaeuft: false,
-    netz: false,
+    netze: new Set(),
     projekte: [],
     volumen: [],
     tot: false,
@@ -72,10 +73,14 @@ export function nachbau() {
     if (z.tot) return { code: 1, stdout: "", stderr: "permission denied while trying to connect to the Docker daemon socket" };
     const text = args.join(" ");
     if (args[0] === "volume") return ok(z.volumen.join("\n"));
-    if (text.startsWith("network inspect")) return { code: z.netz ? 0 : 1, stdout: "", stderr: "" };
-    if (text.startsWith("network create")) {
-      z.netz = true;
-      return ok();
+    if (args[0] === "network") {
+      const netz = args.at(-1) ?? "";
+      if (args[1] === "inspect") return { code: z.netze.has(netz) ? 0 : 1, stdout: "", stderr: "" };
+      if (args[1] === "create") {
+        z.netze.add(netz);
+        return ok();
+      }
+      if (args[1] === "ls") return ok([...z.netze].join("\n"));
     }
     if (args[0] !== "compose") return { code: 2, stdout: "", stderr: "unbekannt" };
     if (z.composeKaputt.has(d)) return { code: 1, stdout: "", stderr: "required variable RESTIC_PASSWORD is missing a value" };
@@ -107,7 +112,6 @@ export function nachbau() {
             stderr: 'OCI runtime exec failed: exec failed: unable to start container process: exec: "haben": executable file not found in $PATH',
           }
         : ok(STATUS_JSON);
-    if (sub.startsWith("exec -T caddy caddy reload")) return ok();
     if (sub === "logs app") return ok("app-1  | Haben ist noch nicht eingerichtet. Einrichtungscode für https://x/setup: abcd-efgh\n");
     if (sub === "ls -a -q") return ok(z.projekte.join("\n"));
     if (sub === "up -d --wait db") return { code: z.dbKaputt.has(d) ? 1 : 0, stdout: "", stderr: "" };
