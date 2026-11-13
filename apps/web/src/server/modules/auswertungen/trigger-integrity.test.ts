@@ -100,7 +100,7 @@ describe.skipIf(!testDatabaseUrl)("Sperrtrigger in Kette prüfen (Postgres, #764
       await sql`alter table contacts disable trigger betreiber_probe`;
       const report = await integrity.checkIntegrity();
       expect(report.problems).toEqual([]);
-      expect(JSON.stringify(report)).toContain("Zusätzlicher Trigger public.contacts.betreiber_probe");
+      expect(report.triggerHints).toContain("Zusätzlicher Trigger public.contacts.betreiber_probe");
     } finally {
       await sql`drop trigger if exists betreiber_probe on contacts`;
       await sql`drop function if exists betreiber_probe()`;

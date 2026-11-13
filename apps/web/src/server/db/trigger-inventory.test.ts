@@ -2,6 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sql as query } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import type postgres from "postgres";
@@ -32,9 +33,9 @@ describe.skipIf(!testDatabaseUrl)("Sollbestand der Sperrtrigger (Postgres, #764)
   ])("erkennt fehlende Funktion beziehungsweise UPDATE OF: %s", async (statement) => {
     const rollback = new Error("Gegenprobe zurückrollen");
     await expect(
-      sql.begin(async (tx) => {
-        await tx.unsafe(statement);
-        const result = await inventory.checkTriggerIntegrity(drizzle(tx));
+      drizzle(sql).transaction(async (tx) => {
+        await tx.execute(query.raw(statement));
+        const result = await inventory.checkTriggerIntegrity(tx);
         expect(result.problems).toContainEqual(expect.objectContaining({ art: "sperre" }));
         if (statement.startsWith("drop function")) {
           expect(result.problems).toContainEqual(expect.objectContaining({ befund: expect.stringContaining("Funktion public.haben_reject_locked() fehlt") }));
@@ -47,14 +48,18 @@ describe.skipIf(!testDatabaseUrl)("Sollbestand der Sperrtrigger (Postgres, #764)
   it("prüft den Constraintaufschub und speichert stabile Namen statt OIDs", async () => {
     const rollback = new Error("Gegenprobe zurückrollen");
     await expect(
-      sql.begin(async (tx) => {
-        const [trigger] = await tx`select tgname as name, c.relname as table, pg_get_triggerdef(t.oid) as definition
+      drizzle(sql).transaction(async (tx) => {
+        const [trigger] = await tx.execute<{
+          name: string;
+          table: string;
+          definition: string;
+        }>(query`select tgname as name, c.relname as table, pg_get_triggerdef(t.oid) as definition
         from pg_trigger t join pg_class c on c.oid = t.tgrelid
-        where c.relnamespace = 'public'::regnamespace and not t.tgisinternal and t.tgdeferrable limit 1`;
+        where c.relnamespace = 'public'::regnamespace and not t.tgisinternal and t.tgdeferrable limit 1`);
         expect(trigger).toBeDefined();
-        await tx.unsafe(`drop trigger "${trigger!.name}" on "${trigger!.table}"`);
-        await tx.unsafe(trigger!.definition.replace("DEFERRABLE", "NOT DEFERRABLE").replace(" INITIALLY DEFERRED", ""));
-        expect((await inventory.checkTriggerIntegrity(drizzle(tx))).problems).toContainEqual(
+        await tx.execute(query.raw(`drop trigger "${trigger!.name}" on "${trigger!.table}"`));
+        await tx.execute(query.raw(trigger!.definition.replace("DEFERRABLE", "NOT DEFERRABLE").replace(" INITIALLY DEFERRED", "")));
+        expect((await inventory.checkTriggerIntegrity(tx)).problems).toContainEqual(
           expect.objectContaining({ befund: expect.stringContaining(trigger!.name) }),
         );
         throw rollback;

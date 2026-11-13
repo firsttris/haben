@@ -236,6 +236,8 @@ Nach einer Änderung am Aussehen startet man auf dem Branch den Workflow **Updat
 
 ## Migrationen
 
+Ändert eine Migration Trigger oder `haben_*`-Funktionen, muss auch der ausgelieferte Sollbestand zur [Manipulationserkennung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel) aktualisiert werden. `TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun apps/web/src/server/db/write-trigger-inventory.ts` erzeugt ihn ausschließlich aus einer dafür neu angelegten und frisch migrierten Testdatenbank. Der Aktualitätstest schlägt fehl, solange `apps/web/src/server/db/trigger-inventory.json` abweicht. Die Adressen für App und Migration werden dafür nicht verwendet.
+
 Das Schema steht in `apps/web/src/server/db/schema.ts`, die Migrationen in `apps/web/drizzle/`.
 
 1. Schema anpassen.

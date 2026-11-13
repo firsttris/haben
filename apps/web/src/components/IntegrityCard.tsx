@@ -2,7 +2,7 @@ import { formatEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
-import { useAction } from "../lib/use-action.ts";
+import { useAction, type Notice } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { comparePruefwert, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
 import type { IntegrityReport } from "../server/modules/auswertungen/index.ts";
@@ -22,6 +22,30 @@ const TABELLEN: Record<string, string> = {
   pauschalen: "Pauschale",
   asset_depreciations: "AfA",
 };
+
+function checkNotice(result: IntegrityReport): Notice {
+  const differences = result.abgleich.abweichungen.length;
+  const collisions = result.accountCollisions.length;
+  if (result.problems.length > 0)
+    return {
+      tone: "danger",
+      text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
+    };
+  if (differences > 0)
+    return {
+      tone: "danger",
+      text: `Kette, Siegel und Sperren sind unverändert, aber Journal und Steuerwerte weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
+    };
+  if (collisions > 0)
+    return {
+      tone: "info",
+      text: `Kette, Siegel und Sperren sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
+    };
+  return {
+    tone: "ok",
+    text: `Kette, Siegel und Sperren sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Journal, Umsatzsteuer und EÜR stimmen überein.`,
+  };
+}
 
 /** Hash-Kette des Audit-Logs und Siegel festgeschriebener Datensätze prüfen (Einstellungen → Export) */
 export function IntegrityCard({ head }: { head: Head }) {
@@ -67,9 +91,9 @@ export function IntegrityCard({ head }: { head: Head }) {
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen, Belege,
         Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht die Prüfung das Journal mit
-        Umsatzsteuer und EÜR ab und meldet Kontenkollisionen. Sie findet nachträgliche Änderungen an der Datenbank, verhindert sie aber nicht. Wer die Datenbank
-        ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche
-        Mail, Jahresarchiv).
+        Umsatzsteuer und EÜR ab und meldet Kontenkollisionen sowie abgeschaltete, fehlende oder veränderte Sperrtrigger und Funktionen. Sie findet nachträgliche
+        Änderungen an der Datenbank, verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich
+        mit einem Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
       </p>
       {current && (
         <div className="small">
@@ -89,29 +113,7 @@ export function IntegrityCard({ head }: { head: Head }) {
             void action.run(async () => {
               const result = await check();
               setReport(result);
-              const differences = result.abgleich.abweichungen.length;
-              const collisions = result.accountCollisions.length;
-              action.setNotice(
-                result.problems.length > 0
-                  ? {
-                      tone: "danger",
-                      text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
-                    }
-                  : differences > 0
-                    ? {
-                        tone: "danger",
-                        text: `Kette und Siegel sind unverändert, aber Journal und Steuerwerte weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
-                      }
-                    : collisions > 0
-                      ? {
-                          tone: "info",
-                          text: `Kette und Siegel sind unverändert. ${collisions} ${collisions === 1 ? "Kontenkollision" : "Kontenkollisionen"}: Bitte kläre die Kontenzuordnung.`,
-                        }
-                      : {
-                          tone: "ok",
-                          text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Journal, Umsatzsteuer und EÜR stimmen überein.`,
-                        },
-              );
+              action.setNotice(checkNotice(result));
             })
           }
         >
@@ -128,6 +130,18 @@ export function IntegrityCard({ head }: { head: Head }) {
             </li>
           ))}
         </ul>
+      )}
+      {report && report.triggerHints.length > 0 && (
+        <div className="small">
+          <div className="muted">Hinweise zu Sperrtriggern</div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {report.triggerHints.map((hint) => (
+              <li key={hint} className="muted" style={{ overflowWrap: "anywhere" }}>
+                {hint}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
         <div className="small">
