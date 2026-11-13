@@ -60,19 +60,7 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
-## Leitplanken für Agenten
-
-Dass kein ungeprüfter Code nach `main` kommt, hängt nicht davon ab, ob ein Agent die Regeln kennt, sondern davon, dass ein Fehler vor dem Merge auffällt:
-
-- **Regeln an einer Stelle:** diese Seite und [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md); `CLAUDE.md` verweist nur darauf, die Abläufe stehen als Skills in `.claude/skills/`.
-- **Fehlerklassen ausgeschlossen:** Geld in Cent statt Gleitkomma; Postgres-Trigger und Hashkette schützen Festgeschriebenes auch vor fehlerhaftem Code ([Konventionen](entwicklung.md#konventionen)).
-- **Tests für jede Änderung,** keiner abgeschwächt, Übersprungenes genannt ([Mitwirken](mitwirken.md)).
-- **Fremde Maßstäbe:** [KoSIT-Validator](entwicklung.md#kosit-validator), [SEPA-Schemas](entwicklung.md#schemas-der-sepa-überweisung-und--lastschrift), WCAG 2.2 AA; fachliche Details nach der Primärquelle im Code.
-- **Regeln als Skript,** wo sie sich sicher entscheiden lassen ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
-- **Unabhängiges Review mit rotem Test** ([Review](#review)).
-- **Ein Mensch entscheidet** über den Merge.
-
-Was das nicht leistet: Die Leitplanken fangen Fehler, die ein Test zeigen kann. Ist die fachliche Annahme selbst falsch, etwa bei einer Steuerregel, sind Code und Test gemeinsam falsch und trotzdem grün. Dagegen helfen nur die Primärquelle im Code, Rückmeldungen aus echten Abgaben und die Prüfung durch eine Steuerberatung. Ein unabhängiges Audit der Software oder ihrer Fachlogik gibt es bisher nicht.
+<a id="leitplanken-für-agenten"></a>Warum dem Ergebnis trotzdem zu trauen ist und wie der Ablauf an einem Beispiel aussieht, steht unter [Agentic Engineering](agentic-engineering.md#leitplanken-für-agenten).
 
 ## Automatische Prüfungen der Regeln
 

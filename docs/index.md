@@ -219,6 +219,17 @@ Vollständig per Tastatur, jede Seite in der CI gegen WCAG 2.2 AA geprüft.
 </div>
 </div>
 
+<div class="showcase-hero" markdown>
+
+## Gebaut mit Agenten. <span class="showcase-akzent">Gemergt von Menschen.</span>
+
+<p class="showcase-claim">Haben entsteht offen mit Coding-Agenten: rote Tests zuerst, frische Agenten im Review,
+ein Mensch beim Merge. Wie das zusammenspielt, an einem echten Pull Request.</p>
+
+[Agentic Engineering bei Haben](agentic-engineering.md){ .md-button .md-button--primary }
+
+</div>
+
 <div class="showcase-center" markdown>
 
 ## Was du brauchst
