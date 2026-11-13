@@ -173,6 +173,7 @@ Auf deinem Server, Schlüssel verschlüsselt. Kein Dienst liest deine Rechnungen
 **💶 Kein Abo**
 
 Haben ist Open Source unter AGPL-3.0. Bezahlt wird nur der Server.
+Gebaut mit Agenten, gemergt von Menschen: [So entsteht Haben](agentic-engineering.md).
 </div>
 <div markdown>
 **🔒 GoBD von Anfang an**

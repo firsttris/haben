@@ -284,7 +284,7 @@ Ja, zu einem großen Teil mit Coding-Agenten, aber nicht ungeprüft:
 - **Regeln als Skript:** Modulgrenzen, Dateigröße und die Regeln für Pull Requests prüft die CI, nicht nur der Text.
 - **Review mit Beweis:** Ein zweiter, unabhängiger Agent reviewt jeden Pull Request und darf einen Fehler nur melden, wenn ein Test ihn rot zeigt. Gemergt wird von einem Menschen.
 
-Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Siehe [Leitplanken für Agenten](https://haben.app/mitwirken.html#leitplanken-für-agenten).
+Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist eine Steuerregel falsch verstanden, sind Code und Test gemeinsam falsch. Wie das abläuft, an einem echten Beispiel: [So entsteht Haben](https://haben.app/agentic-engineering.html).
 </details>
 
 ## Dokumentation

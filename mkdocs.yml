@@ -78,6 +78,7 @@ nav:
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
       - Architektur: architektur.md
+      - So entsteht Haben: agentic-engineering.md
       - Entwicklung: entwicklung.md
       - Mitwirken: mitwirken.md
       - Roadmap: roadmap.md
