@@ -1,7 +1,8 @@
 ---
 title: "Datenmodell von Haben: Tabellen und ihr Schutz"
 description: >-
-  Alle Tabellen von Haben nach Bereichen, mit Zweck und Schutz durch Trigger: Stammdaten, Rechnungen und Belege, Buchhaltung, Bank, Umsatzsteuer, Lohn, Archiv und Protokoll.
+  Alle Tabellen von Haben mit Zweck und Schutz durch Trigger: Stammdaten, Rechnungen, Belege,
+  Buchhaltung, Bank, Umsatzsteuer, Lohn, Archiv und Protokoll.
 ---
 
 # Datenmodell

@@ -2,7 +2,7 @@
 title: "Architektur: TanStack Start, Bun und PostgreSQL"
 description: >-
   Aufbau von Haben: eine Anwendung mit TanStack Start auf Bun, PostgreSQL als Datenbank, Module,
-  Datenmodell, Audit-Hash-Kette und Siegel.
+  Ablauf von Anfragen, Audit-Hash-Kette und Siegel.
 ---
 
 # Architektur
