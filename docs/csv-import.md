@@ -93,8 +93,9 @@ Eine Datei „Debitoren/Kreditoren“ aus einem DATEV-Export (EXTF, Formatkatego
 | Konto | Debitor (10000 bis 69999, macht zum Kunden) oder Kreditor (70000 bis 99999, macht zum Lieferanten); ein anderes Konto ist ein Fehler |
 | Name (Adressatentyp Unternehmen), Vorname und Name (Adressatentyp natürl. Person), Name (Adressatentyp keine Angabe), Kurzbezeichnung | Name: die erste belegte Spalte in dieser Reihenfolge |
 | EU-Mitgliedstaat und EU-UStId. | USt-IdNr., zusammengesetzt (`DE` und `136695976` ergibt `DE136695976`) und geprüft wie in [Kontakte](#kontakte) |
-| Straße, Postleitzahl, Ort, Land, Telefon, E-Mail, IBAN-Nr. 1 | wie in [Kontakte](#kontakte) |
-| Kundennummer | Kundennummer, nur beim Debitor; was die Spalte beim Kreditor meint, ist nicht belegt |
+| Straße, Postleitzahl, Ort, Land, E-Mail, IBAN-Nr. 1 | wie in [Kontakte](#kontakte) |
+| Telefon | wie in [Kontakte](#kontakte); ein `'` am Anfang, mit dem sevDesk Telefonnummern als Text kennzeichnet, lässt Haben weg |
+| Kundennummer | Kundennummer, nur beim Debitor; was die Spalte beim Kreditor meint, ist nicht belegt (im Export von sevDesk ist sie leer) |
 | Steuernummer | nur zum Zusammenführen, Haben speichert sie nicht |
 
 Haben führt Personenkonten fünfstellig ([Kontakte](kontakte.md)). Nennt die Kopfzeile eine andere Sachkontenlänge als 4, lehnt Haben die Datei ab, statt Nummern zu kürzen; exportiere sie dann mit Sachkontenlänge 4.

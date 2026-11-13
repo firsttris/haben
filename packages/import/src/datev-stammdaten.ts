@@ -106,7 +106,8 @@ function readRow(line: number, get: (name: string) => string): DatevGpRow {
   if (!land.ok) errors.push(land.error);
   const rawIban = get("IBAN-Nr. 1");
   if (rawIban && !isValidIban(rawIban)) errors.push(`IBAN: „${rawIban}“ ist ungültig (Prüfziffer oder Länge)`);
-  const telefon = text("Telefon");
+  // sevDesk schreibt Telefonnummern mit vorangestelltem Apostroph, damit Excel sie als Text liest (echter GP-Stamm, #472)
+  const telefon = text("Telefon").replace(/^'/, "");
   const telefonFehler = telefonProblem(telefon);
   if (telefonFehler) errors.push(telefonFehler);
   return {
