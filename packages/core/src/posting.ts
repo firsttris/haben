@@ -789,7 +789,9 @@ export function vorsteuerAusgleichPosting(shares: readonly TaxShare[], kontenrah
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [];
   for (const { rate, base, tax } of shares) {
-    if (tax === 0) continue;
+    // Auch der Rundungsrest einer 0 %-Zeile bleibt weg: Sie hat kein eigenes Konto (vatRate lehnt 0 ab), und die
+    // letzte Umbuchung zieht den Rest ohnehin nach, weil sie gegen das Journal fortschreibt
+    if (rate === 0 || tax === 0) continue;
     const code = inputTaxCode(rate);
     lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, true, code), basis: base });
     lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));

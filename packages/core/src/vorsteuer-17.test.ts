@@ -93,6 +93,29 @@ describe("documentPosting: Gutschrift mit „erstattet bereits Bezahltes“", ()
 });
 
 describe("vorsteuerAusgleichPosting: Umbuchung beim Ausgleich", () => {
+  it("0 %: ein Rundungsrest landet nicht auf einem Konto ohne Steuersatz", () => {
+    // Beleg mit 19 %, 7 % und 0 %, die 0 %-Zeile ist die größte: paidTaxShares legt den Rundungsrest dorthin
+    const totals = {
+      net: 5200,
+      tax: 26,
+      gross: 5226,
+      taxes: [
+        { rate: 1900, base: 100, tax: 19 },
+        { rate: 700, base: 100, tax: 7 },
+        { rate: 0, base: 5000, tax: 0 },
+      ],
+    };
+    const shares = settlementTaxShares(totals, 0, [], 500);
+    expect(shares.find((s) => s.rate === 0)?.tax).toBe(-1);
+    // Ohne die 0 %-Zeile: nur 19 % und 7 %, keine Zeile ohne Steuersatz
+    expect(vorsteuerAusgleichPosting(shares, "SKR03")).toEqual([
+      { account: ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, debit: 2, credit: 0, taxCode: "VSt19", basis: 10 },
+      { account: ACCOUNTS.SKR03.vorsteuer[1900], debit: 0, credit: 2, taxCode: "VSt19" },
+      { account: ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, debit: 1, credit: 0, taxCode: "VSt7", basis: 10 },
+      { account: ACCOUNTS.SKR03.vorsteuer[700], debit: 0, credit: 1, taxCode: "VSt7" },
+    ]);
+  });
+
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     const k = KONTEN[kontenrahmen];
 
