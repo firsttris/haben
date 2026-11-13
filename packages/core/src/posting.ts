@@ -729,20 +729,24 @@ export function invoiceWriteOffPosting(
  * Verbindlichkeiten an erhaltene Skonti und Vorsteuer, anteilig je Steuersatz. Ohne Vorsteuerabzug
  * (Kleinunternehmer) mindert das Skonto den Aufwand in voller Höhe.
  *
- * `erstattetBezahltes` (#786): Der Beleg ist eine Gutschrift, deren Vorsteuerminderung noch auf dem Zwischenkonto steht.
- * Der ausgebuchte Rest erstattet nichts mehr, seine Steuer wird also nicht gezogen, sondern vom Zwischenkonto
- * abgeschrieben — mit Steuerschlüssel und Bemessungsgrundlage, in der Richtung der bisherigen Steuerzeile.
+ * `zwischenkontoAnteile` (#786): Der Beleg ist eine Gutschrift, deren Vorsteuerminderung noch auf dem Zwischenkonto
+ * steht. Der ausgebuchte Rest erstattet nichts mehr, seine Steuer wird also nicht gezogen, sondern vom Zwischenkonto
+ * abgeschrieben — mit Steuerschlüssel und Bemessungsgrundlage, in der Richtung der bisherigen Steuerzeile. Die Anteile
+ * kommen fertig herein statt aus `paidTaxShares` dieses Betrags: Sonst rechnete die Ausbuchung für sich, und zusammen mit
+ * den vorherigen Teilerstattungen läge die Steuer einen Cent neben der des Belegs (etwa 5,80 € von 9,28 € erstattet und
+ * 3,48 € als Skonto ausgebucht: 93 + 56 statt 93 + 55).
  */
 export function documentWriteOffPosting(
   totals: InvoiceTotals,
   amount: Cents,
   kontenrahmen: Kontenrahmen,
   vorsteuerAbzug: boolean,
-  erstattetBezahltes = false,
+  /** Anteile je Steuersatz, die vom Zwischenkonto abgeschrieben werden; null = Vorsteuer wie bisher */
+  zwischenkontoAnteile: readonly TaxShare[] | null = null,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.verbindlichkeiten, -amount, true, null)];
-  for (const { rate, base, tax } of paidTaxShares(totals, -amount)) {
+  for (const { rate, base, tax } of zwischenkontoAnteile ?? paidTaxShares(totals, -amount)) {
     if (!vorsteuerAbzug || rate === 0) {
       if (base + tax !== 0) lines.push(side(accounts.skontiErhalten, base + tax, false, vorsteuerAbzug ? inputTaxCode(rate) : "keineVSt"));
       continue;
@@ -750,7 +754,7 @@ export function documentWriteOffPosting(
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(accounts.skontiErhalten, base, false, code));
     if (tax !== 0) {
-      if (!erstattetBezahltes) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+      if (!zwischenkontoAnteile) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
       // Auf dem Zwischenkonto mit der Bemessungsgrundlage, wie die Umbuchung beim Ausgleich (#786)
       else lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, false, code), basis: base });
     }

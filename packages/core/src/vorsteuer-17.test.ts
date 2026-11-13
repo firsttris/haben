@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { documentSplitPosting } from "./document-split.ts";
 import { computeInvoiceTotals } from "./invoice.ts";
-import { ACCOUNTS, documentPosting, EXPENSE_CATEGORIES, settlementTaxShares, vorsteuerAusgleichPosting } from "./posting.ts";
+import { ACCOUNTS, documentPosting, documentWriteOffPosting, EXPENSE_CATEGORIES, settlementTaxShares, vorsteuerAusgleichPosting } from "./posting.ts";
 
 /*
  * Gutschrift, die bereits Bezahltes erstattet (#786): Die Vorsteuerminderung hängt nicht an der Versteuerungsart, sondern
@@ -131,4 +131,28 @@ describe("vorsteuerAusgleichPosting: Umbuchung beim Ausgleich", () => {
       expect(vorsteuerAusgleichPosting(settlementTaxShares(ohneSteuer, 0, [], 10_000), kontenrahmen)).toEqual([]);
     });
   }
+});
+
+describe("documentWriteOffPosting: Skonto auf eine Gutschrift „erstattet bereits Bezahltes“", () => {
+  // 7,80 € netto, 1,48 € Vorsteuer, 9,28 € brutto; 5,80 € erstattet, 3,48 € als Skonto ausgebucht. Der Anteil des
+  // Skontos ist der Rest nach der Erstattung (55), nicht der Anteil des Skontobetrags für sich (56): sonst stünde ein
+  // Cent zu viel Vorsteuer und ein Cent bliebe auf dem Zwischenkonto stehen (#786).
+  const klein = { net: -780, tax: -148, gross: -928, taxes: [{ rate: 1900 as const, base: -780, tax: -148 }] };
+
+  it("schreibt den Rest des Zwischenkontos ab, mit der Bemessungsgrundlage des Skontos", () => {
+    const anteile = [
+      { rate: 1900 as const, base: -293, tax: -55 },
+    ];
+    expect(documentWriteOffPosting(klein, 348, "SKR03", true, anteile)).toEqual([
+      { account: ACCOUNTS.SKR03.verbindlichkeiten, debit: 0, credit: 348, taxCode: null },
+      { account: ACCOUNTS.SKR03.skontiErhalten, debit: 293, credit: 0, taxCode: "VSt19" },
+      { account: ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, debit: 55, credit: 0, taxCode: "VSt19", basis: -293 },
+    ]);
+  });
+
+  it("ohne Anteile bucht es wie bisher auf die Vorsteuer", () => {
+    const lines = documentWriteOffPosting(klein, 348, "SKR03", true);
+    expect(lines.some((l) => l.account === ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar)).toBe(false);
+    expect(lines.some((l) => l.account === ACCOUNTS.SKR03.vorsteuer[1900])).toBe(true);
+  });
 });

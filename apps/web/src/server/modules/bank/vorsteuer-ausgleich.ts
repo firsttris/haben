@@ -98,10 +98,38 @@ export async function vorsteuerAusgleich(
   amount: number,
   kontenrahmen: Kontenrahmen,
 ): Promise<PostingLine[]> {
-  if (!doc.erstattetBezahltes) return [];
-  // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; gebucht wird die
-  // Umbuchung im eingestellten, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
-  if (!(await aufDemZwischenkonto(tx, doc.id))) return [];
+  const anteile = await vorsteuerRest(tx, doc, totals, amount);
+  return anteile === null ? [] : vorsteuerAusgleichPosting(anteile, kontenrahmen);
+}
+
+/**
+ * Anteile einer Ausbuchung (Skonto) auf eine Gutschrift „erstattet bereits Bezahltes“ (#786), mit dem Vorzeichen der
+ * Ausbuchung — also negativ, wo `vorsteuerAusgleich` positiv bucht. Was die Ausbuchung nicht mehr erstattet, wird vom
+ * Zwischenkonto abgeschrieben statt auf die Vorsteuer gezogen; der Rest ist der Anteil am dann Ausgeglichenen abzüglich
+ * dessen, was die bisherigen Ausgleiche schon umgebucht haben. `null`, wenn der Beleg die Angabe nicht trägt oder seine
+ * Buchung nichts auf das Zwischenkonto gelegt hat: Dann bucht der Aufrufer wie bisher auf die Vorsteuer.
+ */
+export async function vorsteuerAbschreibung(
+  tx: Tx,
+  doc: { id: string; erstattetBezahltes: boolean },
+  totals: InvoiceTotals,
+  amount: number,
+): Promise<TaxShare[] | null> {
+  const anteile = await vorsteuerRest(tx, doc, totals, amount);
+  return anteile?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
+}
+
+/** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
+async function vorsteuerRest(
+  tx: Tx,
+  doc: { id: string; erstattetBezahltes: boolean },
+  totals: InvoiceTotals,
+  amount: number,
+): Promise<TaxShare[] | null> {
+  if (!doc.erstattetBezahltes) return null;
+  // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
+  // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
+  if (!(await aufDemZwischenkonto(tx, doc.id))) return null;
   const bisher = await bisherUmgebucht(tx, doc.id);
-  return vorsteuerAusgleichPosting(settlementTaxShares(totals, await steuerlichAusgeglichen(tx, doc.id), bisher, amount), kontenrahmen);
+  return settlementTaxShares(totals, await steuerlichAusgeglichen(tx, doc.id), bisher, amount);
 }
