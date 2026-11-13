@@ -33,6 +33,11 @@ export interface OpenItem {
   currency?: string;
   /** EndToEndIds der SEPA-Überweisungen, die Haben für den Beleg erzeugt hat */
   references?: string[];
+  /**
+   * Nur bei Rechnungen: Bestellnummern, unter denen die Zahlung beim Dienstleister erscheint (externe Referenz einer
+   * Plattform wie Etsy, Bestellnummer des Kunden, eigene Auftragsnummer)
+   */
+  orderReferences?: string[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
   skonto?: SkontoZahlfrist[];
   /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
@@ -152,6 +157,15 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     if (purposeContainsNumber(tx.purpose, item.number)) {
       score += 40;
       reasons.push("Rechnungsnummer im Verwendungszweck");
+    }
+    // Zahlungsdienstleister nennen die Bestellnummer statt der Rechnungsnummer („Payment for Order #…“). Sie entscheidet,
+    // wenn mehrere Rechnungen denselben Betrag haben, und zählt deshalb wie die Referenz einer Überweisung aus Haben.
+    // Nur bei exaktem Betrag: Gebühren, Gebühren-Gutschriften und Karteneinzüge nennen dieselbe Bestellnummer, gehören
+    // aber nicht zur Rechnung (Teilzahlungen gibt es bei Plattformen nicht, der Verkauf kommt in voller Höhe).
+    const order = exact ? item.orderReferences?.find((r) => compact(r).length >= 5 && purposeContainsNumber(tx.purpose, r)) : undefined;
+    if (order) {
+      score += 60;
+      reasons.push(`Bestellnummer im Verwendungszweck (${order})`);
     }
     if (iban && item.partyIbans.some((i) => i.replace(/\s/g, "").toUpperCase() === iban)) {
       score += 30;

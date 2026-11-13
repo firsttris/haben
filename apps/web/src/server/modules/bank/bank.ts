@@ -462,6 +462,12 @@ export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map
   return new Map(rows.map((r) => [r.id!, Number(r.sum)]));
 }
 
+/** Bestellnummern einer Rechnung für den Abgleich: externe Referenz, Bestellnummer des Kunden, eigene Auftragsnummer */
+function orderReferencesOf(inv: { externalId: string | null; buyerOrderReference: string; sellerOrderReference: string }) {
+  const refs = [...new Set([inv.externalId ?? "", inv.buyerOrderReference, inv.sellerOrderReference].map((r) => r.trim()).filter(Boolean))];
+  return refs.length > 0 ? { orderReferences: refs } : {};
+}
+
 /** Offene Rechnungen und Belege für den Abgleich */
 export async function openItems(): Promise<OpenItem[]> {
   const invoices = await db
@@ -476,6 +482,9 @@ export async function openItems(): Promise<OpenItem[]> {
       skonto: schema.invoices.skonto,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
+      externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
@@ -488,6 +497,9 @@ export async function openItems(): Promise<OpenItem[]> {
       issueDate: schema.invoices.issueDate,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
+      externalId: schema.invoices.externalId,
+      buyerOrderReference: schema.invoices.buyerOrderReference,
+      sellerOrderReference: schema.invoices.sellerOrderReference,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
@@ -538,6 +550,7 @@ export async function openItems(): Promise<OpenItem[]> {
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
       ...(directDebitRefs.has(inv.id) ? { references: directDebitRefs.get(inv.id) } : {}),
+      ...orderReferencesOf(inv),
       currency: inv.currency,
       ...(skonto.length > 0 ? { skonto } : {}),
     });
@@ -562,6 +575,8 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: storno.buyer?.name ?? "",
       partyIbans: storno.contactIban ? [storno.contactIban] : [],
+      // Storno erbt die Bestellnummer der Rechnung (#389): die Erstattung beim Dienstleister findet es darüber
+      ...orderReferencesOf(storno),
     });
   }
   for (const doc of documents) {
