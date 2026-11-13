@@ -77,8 +77,14 @@ describe.skipIf(!testDatabaseUrl)("EÜR: Zwischenkonto der Gutschrift „erstatt
 
   const zeilen = async (year = 2026) => (await euerJournal.euerAusJournal(year)).summe.zeilen;
 
-  it("die Konten sind in der EÜR kein Aufwand und keine Einnahme", () => {
-    for (const kr of ["SKR03", "SKR04"] as const) expect(core.euerZuordnung(kr, core.ACCOUNTS[kr].vorsteuerNochNichtAbziehbar), kr).toBeNull();
+  it("die Konten sind in der EÜR kein Aufwand und keine Einnahme, auch nicht in der DATEV-Formel", () => {
+    for (const kr of ["SKR03", "SKR04"] as const) {
+      const konto = core.ACCOUNTS[kr].vorsteuerNochNichtAbziehbar;
+      // Bestandskonto: keine Zeile in der EÜR und, wie 1766/1761, kein Konto der DATEV-Formel (Gewinn nach § 4 Abs. 3 EStG)
+      expect(core.euerZuordnung(kr, konto), kr).toBeNull();
+      expect(core.kontoart(kr, konto), kr).toBe("bestand");
+      expect(core.datevFormelKonto(kr, konto), kr).toBe(false);
+    }
   });
 
   it("geparkt ändert die EÜR nichts; nach der Erstattung ist sie so wie ohne die Angabe", async () => {
