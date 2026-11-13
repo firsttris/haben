@@ -24,8 +24,8 @@ describe.skipIf(!testDatabaseUrl)("Kontenkollisionen in der Integritätsprüfung
     { kontenrahmen: "SKR04", account: "6805", archived: true },
   ])("meldet das inzwischen reservierte $kontenrahmen-Konto $account (archiviert: $archived)", async ({ kontenrahmen, account, archived }) => {
     // Bestand nach einer Programmerweiterung: Die Nummer war beim Anlegen noch frei. Keine Trigger werden abgeschaltet.
-    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category, archived_at)
-      values (${kontenrahmen}, ${account}, 'Eigene Software', 'software', ${archived ? new Date("2026-01-01") : null})`;
+    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category, archived_at, created_by)
+      values (${kontenrahmen}, ${account}, 'Eigene Software', 'software', ${archived ? "2026-01-01T00:00:00Z" : null}, 'test-user')`;
     const before = await sql`select * from own_accounts`;
     const head = await integrity.chainHead();
 
@@ -42,8 +42,8 @@ describe.skipIf(!testDatabaseUrl)("Kontenkollisionen in der Integritätsprüfung
 
   it("meldet keine freien eigenen Konten und auch keinen leeren Bestand als Kollision", async () => {
     expect((await integrity.checkIntegrity()).accountCollisions).toEqual([]);
-    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category)
-      values ('SKR03', '4999', 'Software 03', 'software'), ('SKR04', '6999', 'Software 04', 'software')`;
+    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category, created_by)
+      values ('SKR03', '4999', 'Software 03', 'software', 'test-user'), ('SKR04', '6999', 'Software 04', 'software', 'test-user')`;
     expect((await integrity.checkIntegrity()).accountCollisions).toEqual([]);
   });
 });

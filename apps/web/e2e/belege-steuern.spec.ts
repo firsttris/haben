@@ -203,6 +203,29 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#787)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    // Bestand, dessen Nummern erst eine spätere Haben-Version reserviert hat; auch archivierte Konten wirken weiter.
+    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category, archived_at, created_by)
+      values ('SKR03', '4920', 'Eigene Software 03', 'software', null, 'test-user'),
+        ('SKR04', '6805', 'Eigene Software 04', 'software', now(), 'test-user')`;
+    await go("/einstellungen?bereich=export");
+    const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+    await card.getByRole("button", { name: "Kette prüfen" }).click();
+    await expect(card.getByRole("status")).toContainText("2 Kontenkollisionen");
+    await expect(card.getByRole("status")).toHaveClass(/banner-info/);
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    const collisions = card.getByRole("region", { name: "Kontenkollisionen" });
+    await expect(collisions).toContainText("SKR03 · 4920 · Eigene Software 03");
+    await expect(collisions).toContainText("SKR04 · 6805 · Eigene Software 04");
+    await expect(collisions).toContainText("Archivieren allein löst die Kollision nicht");
+  } finally {
+    await sql`delete from own_accounts where created_by = 'test-user' and name in ('Eigene Software 03', 'Eigene Software 04')`;
+    await sql.end();
+  }
+});
+
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
   await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });
