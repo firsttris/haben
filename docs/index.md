@@ -135,8 +135,8 @@ auch per CSV.
 [Lexoffice](lexoffice.md) · [sevDesk](sevdesk.md) · [BuchhaltungsButler](buchhaltungsbutler.md) · [Accountable](accountable.md) · [CSV-Import](csv-import.md)
 </div>
 <div class="showcase-shot" markdown>
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv-oben.png#only-light){ width="1504" height="972" loading="lazy" }
-![Archiv mit Umzug aus Lexoffice und Abgleich je Jahr](screenshot-archiv-oben-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
+![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben.png#only-light){ width="1504" height="972" loading="lazy" }
+![Archiv mit Umzug aus Lexware Office](screenshot-archiv-oben-dunkel.png#only-dark){ width="1504" height="972" loading="lazy" }
 </div>
 </div>
 
