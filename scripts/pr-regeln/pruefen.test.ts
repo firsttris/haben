@@ -91,3 +91,27 @@ describe("pruefen.ts: lange Seiten der Doku", () => {
     expect(pruefen("--basis", "main").ausgabe).not.toContain("docs/umbenannt.md");
   });
 });
+
+describe("pruefen.ts: mehrere umbenannte Seiten", () => {
+  // eigener Inhalt je Seite, sonst paart git gleiche Seiten beliebig
+  const woerter = (n: number, wort: string) => `${`${wort} `.repeat(n)}\n`;
+
+  beforeAll(() => {
+    git("checkout", "-q", "main");
+    datei("docs/mit leer.md", woerter(9000, "leer"));
+    datei("docs/eins.md", woerter(9000, "eins"));
+    datei("docs/zwei.md", woerter(9000, "zwei"));
+    git("add", ".");
+    git("commit", "-qm", "Doku Randfälle");
+    git("checkout", "-qb", "randfaelle");
+  });
+
+  it("schweigt bei Umbenennung einer Seite mit Leerzeichen und bei mehreren Umbenennungen", () => {
+    git("mv", "docs/mit leer.md", "docs/ohne-leer.md");
+    git("mv", "docs/eins.md", "docs/einsb.md");
+    git("mv", "docs/zwei.md", "docs/zweib.md");
+    git("commit", "-qm", "Doku: mehrere");
+    const { ausgabe } = pruefen("--basis", "main");
+    expect(ausgabe).not.toMatch(/docs\/(ohne-leer|einsb|zweib)\.md hat/);
+  });
+});
