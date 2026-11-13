@@ -155,6 +155,9 @@ describe.skipIf(!testDatabaseUrl)("Anzahlungsbilanzierung bei GmbH und UG (Postg
         { base: 0, tax: 0 },
         { base: 0, tax: 0 },
       ]);
+      expect(figures.map(({ nebenbuecher }) => ({ base: nebenbuecher?.kz81, tax: nebenbuecher?.tax81 }))).toEqual(
+        figures.map(({ kz81, tax81 }) => ({ base: kz81, tax: tax81 })),
+      );
       expect((await bank.cashBook(2026)).entries).toHaveLength(1);
       expect((await bank.cashBook(2027)).entries).toHaveLength(0);
       expect(await sql`select * from haben_integrity_problems(100)`).toEqual([]);
