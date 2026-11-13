@@ -270,6 +270,24 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
   });
 
+  it("Anlage EÜR: negative Umsatzsteuer in Zeile 18 oder 58 meldet die Vorprüfung vor dem Senden (#708)", async () => {
+    await year2025();
+    const euer = await annual.euerYear(2025);
+    const { loadCompany } = await import("../stammdaten/index.ts");
+    const company = await loadCompany();
+    const texte = (data: typeof euer) =>
+      annual
+        .euerIssues(company, data)
+        .map((i) => i.text)
+        .join(" ");
+    // Die Anlage EÜR nimmt in Zeile 58 (E6005101) kein Vorzeichen an: der Versand wird vor ERiC gestoppt
+    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(texte({ ...euer, figures: { ...euer.figures, gezahlteUst: -19_000 } })).toMatch(/steuerlich zu klären/);
+    expect(texte({ ...euer, figures: { ...euer.figures, erstatteteUst: -19_000 } })).toMatch(/Zeile 18 \(Kz E6000701.*190,00/);
+    // Ohne negativen Betrag bleibt die Vorprüfung still
+    expect(texte(euer)).not.toMatch(/Zeile 58|Zeile 18 \(Kz/);
+  });
+
   it.each([
     ["SKR03", "ist"],
     ["SKR04", "soll"],

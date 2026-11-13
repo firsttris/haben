@@ -1,4 +1,4 @@
-import { finanzamtsnummer, type Cents } from "@haben/core";
+import { finanzamtsnummer, formatEuro, type Cents } from "@haben/core";
 import { germanDate } from "./bankverbindung.ts";
 import { checkSteuernummer13, elsterDecimal, ElsterEingabeError, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
 
@@ -357,6 +357,9 @@ export const EUER_FIELDS: Record<
     label: "Umsatzsteuerfreie, nicht umsatzsteuerbare Betriebseinnahmen sowie Betriebseinnahmen, für die der Leistungsempfänger die Umsatzsteuer schuldet",
   },
   vereinnahmteUst: { kz: "E6000601", label: "Vereinnahmte Umsatzsteuer sowie Umsatzsteuer auf unentgeltliche Wertabgaben" },
+  // Zeile 18; kein Vorzeichen erlaubt. Jahresdokumentation E77 2025 im ERiC-Dokumentationspaket (Datenarten/
+  // ElsterErklaerung/EUER/Jahresdokumentation/Jahresdokumentation_E77_2025.ods): "GeldBetragMitCent ohne Vorzeichen";
+  // Schema E77-2025.xsd und E77-2026.xsd: type="DezimalzahlNichtNegOhneFuehrNull..." mit Muster \d{1,12}(,\d{2,2}).
   erstatteteUst: { kz: "E6000701", label: "Vom Finanzamt erstattete und ggf. verrechnete Umsatzsteuer" },
   anlagenabgang: { kz: "E6000801", label: "Veräußerung oder Entnahme von Anlagevermögen" },
   privateKfz: { kz: "E6000901", label: "Private Kfz-Nutzung" },
@@ -387,6 +390,8 @@ export const EUER_FIELDS: Record<
   },
   schuldzinsen: { kz: "E6004303", label: "Übrige Schuldzinsen" },
   vorsteuer: { kz: "E6005001", label: "Gezahlte Vorsteuerbeträge" },
+  // Zeile 58; wie E6000701 ohne Vorzeichen. ERiC 45.1.5.0 lehnt "-190,00" hier ab mit "Unzulässiges Vorzeichen.
+  // Geldbeträge müssen ohne Vorzeichen eingetragen werden." (siehe euerVorzeichenMeldungen).
   gezahlteUst: { kz: "E6005101", label: "An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer" },
   uebrige: { kz: "E6004901", label: "Übrige unbeschränkt abziehbare Betriebsausgaben" },
   kfzLeasing: { kz: "E6005801", label: "Leasingkosten für Kraftfahrzeuge" },
@@ -411,6 +416,28 @@ export const EUER_FIELDS: Record<
   entnahmen: { kz: "E6006601", label: "Entnahmen einschließlich Sach-, Leistungs- und Nutzungsentnahmen" },
   einlagen: { kz: "E6006701", label: "Einlagen einschließlich Sach-, Leistungs- und Nutzungseinlagen" },
 };
+
+/**
+ * Meldungen zu Beträgen, die die Anlage EÜR nicht aufnimmt: negative Werte in Zeile 58 (E6005101) und Zeile 18
+ * (E6000701). Fundstelle: Jahresdokumentation E77 2025 des ERiC-Dokumentationspakets 44.3.6.0/45.1.5.0, Felder
+ * E6005101 und E6000701: „GeldBetragMitCent ohne Vorzeichen, mit 12 Vorkommastellen“; die Schemata E77-2025.xsd und
+ * E77-2026.xsd führen beide als „DezimalzahlNichtNegOhneFuehrNull…“ (Muster \d{1,12}(,\d{2,2})), während E6004301 dort
+ * als „DezimalzahlOhneFuehrNull…“ mit optionalem Minus steht. ERiC 45.1.5.0 antwortet auf -190,00: „Unzulässiges
+ * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist
+ * (andere Zeile, Berichtigung des Vorjahres), ist eine steuerliche Frage und wird hier nicht entschieden.
+ */
+export function euerVorzeichenMeldungen(f: EuerFigures): string[] {
+  const felder = [
+    { wert: f.gezahlteUst, kz: "E6005101", zeile: 58, label: "An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer" },
+    { wert: f.erstatteteUst, kz: "E6000701", zeile: 18, label: "Vom Finanzamt erstattete und ggf. verrechnete Umsatzsteuer" },
+  ];
+  return felder
+    .filter((feld) => (feld.wert ?? 0) < 0)
+    .map(
+      (feld) =>
+        `In Zeile ${feld.zeile} (Kz ${feld.kz}, „${feld.label}“) steht ein negativer Betrag von ${formatEuro(feld.wert!)}. Die Anlage EÜR nimmt dort nur Beträge ohne Vorzeichen an; ELSTER lehnt negative Werte mit „Unzulässiges Vorzeichen“ ab. Wie der Betrag stattdessen einzutragen ist, ist steuerlich zu klären.`,
+    );
+}
 
 export function euerTotals(f: EuerFigures): { einnahmen: Cents; ausgaben: Cents; gewinn: Cents } {
   const einnahmen = EUER_EINNAHMEN.reduce((s, k) => s + (f[k] ?? 0), 0);
@@ -593,6 +620,9 @@ const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode
 export function buildEuerXml(input: EuerXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "EUER" };
   checkEnvelope(envelopeInput);
+  // Zeile 18 und 58 nehmen kein Vorzeichen an (#708); die Vorprüfung der Anlage EÜR meldet das schon vor dem Senden
+  const vorzeichen = euerVorzeichenMeldungen(input.figures);
+  if (vorzeichen.length > 0) throw new ElsterEingabeError(vorzeichen.join(" "));
   const f = input.figures;
   const { einnahmen, ausgaben, gewinn } = euerTotals(f);
   const kz = (key: EuerFigureKey) => EUER_FIELDS[key].kz;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkXml } from "./fake-client.ts";
-import { buildEuerXml, buildUstErklaerungXml, euerTotals, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
+import { buildEuerXml, buildUstErklaerungXml, euerTotals, euerVorzeichenMeldungen, ustErklaerungResult, type AveuerAnlage } from "./erklaerung.ts";
 import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 
 const base = {
@@ -179,6 +179,16 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
       expect(kfz! < sonst! && sonst! < danach!).toBe(true);
     }
     expect(buildEuerXml({ ...base, allgemein, figures, anlagen })).not.toContain("<Entnahme_Sonst>");
+  });
+
+  it("weist negative gezahlte und erstattete Umsatzsteuer ab (Zeile 18 und 58 ohne Vorzeichen)", () => {
+    // E77-2025/2026: E6000701 und E6005101 sind "DezimalzahlNichtNeg...", ERiC meldet "Unzulässiges Vorzeichen"
+    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: -19_000 }, anlagen: [] })).toThrow(/Zeile 58 \(Kz E6005101.*190,00/);
+    expect(() => buildEuerXml({ ...base, allgemein, figures: { ...figures, erstatteteUst: -19_000 }, anlagen: [] })).toThrow(/Zeile 18 \(Kz E6000701.*190,00/);
+    expect(euerVorzeichenMeldungen({ ...figures, gezahlteUst: -19_000 })).toHaveLength(1);
+    // Positive Beträge bleiben unverändert im XML
+    const xml = buildEuerXml({ ...base, allgemein, figures: { ...figures, gezahlteUst: 19_000 }, anlagen: [] });
+    expect(tag(xml, "E6005101")).toBe("190,00");
   });
 
   it("listet Anlagen je Gruppe in der AVEÜR", () => {

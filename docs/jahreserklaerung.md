@@ -221,4 +221,6 @@ Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den
 
 Die Elemente für Miete (`Raumkosten_u_sonst/Miete_Pacht`, `E6003201`) und Erhaltungsaufwendungen (`Sonst_unbeschraenkt/Erhaltungsaufwand`, `E6004313`) stammen direkt aus den Schemas E77-2023 bis E77-2025 im Dokumentationspaket von ERiC 44.3.6.0 und sind mit dem echten ERiC geprüft (`eric-echt.test.ts`).
 
+Die Beträge in Zeile 18 (`E6000701`, erstattete Umsatzsteuer) und Zeile 58 (`E6005101`, gezahlte Umsatzsteuer) tragen laut Jahresdokumentation E77 2025 („GeldBetragMitCent ohne Vorzeichen“) und den Schemas E77-2025 und E77-2026 kein Vorzeichen; ERiC lehnt `-190,00` dort mit „Unzulässiges Vorzeichen“ ab. Haben schickt deshalb kein negatives Feld, sondern meldet den Fall in der Vorprüfung der Anlage EÜR mit Zeile, Kennung und Betrag; wie der Betrag stattdessen einzutragen ist, klärst du mit der Steuerberatung.
+
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.
