@@ -34,6 +34,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Fristen](fristen.md) | Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen; Kalender-Abo und Erinnerungen per E-Mail |
 | [Jahreserklärungen](jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung, für GmbH und UG Körperschaft- und Gewerbesteuererklärung, Prüfen, Test- und Echtübermittlung, Belege von ELSTER |
 | [GmbH und UG](gmbh.md) | Ablauf eines Jahres mit doppelter Buchführung: Einrichten, Bilanz und GuV, Jahresabschluss, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung, Hinterlegung |
+| [Abschluss für GmbH und UG](gmbh-abschluss.md) | Eröffnung, Jahresabschluss mit Vermerken, Hinterlegung beim Unternehmensregister, Körperschaft- und Gewerbesteuer, Gewinnausschüttung, E-Bilanz |
 | [Abgabe an ELSTER](elster-abgabe.md) | Alle Wege im Überblick: direkt per ERiC mit Hersteller-ID oder über Mein ELSTER mit XML-Import, Erweiterung, KI-Assistent oder von Hand |
 | [Lohn](lohn.md) | Mitarbeiter, Abrechnung je Monat (Geschäftsführer, Minijob, Angestellte als Entwurf), festschreiben und stornieren, Entgeltabrechnung als PDF, Lohnkonto, Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal, Lohnsteuerbescheinigung |
 | [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md) | Ohne Hersteller-ID: die Browser-Erweiterung trägt Voranmeldung, USt-Erklärung, EÜR und Einkommensteuer in Mein ELSTER ein, du sendest ab |
@@ -57,7 +58,6 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [Buchhaltung in Haben](buchhaltung.md) | Grundsätze, GoBD und Festschreibung, Ist und Soll, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
-| [Abschluss für GmbH und UG](gmbh-abschluss.md) | Eröffnung, Jahresabschluss mit Vermerken, Hinterlegung beim Unternehmensregister, Körperschaft- und Gewerbesteuer, Gewinnausschüttung, E-Bilanz |
 | [Architektur](architektur.md) | Module, Datenmodell, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
 | [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate |
 | [Mitwirken](mitwirken.md) | Aufgabe übernehmen, Branches und Commits, KI-Werkzeuge, automatische Prüfungen, Issues, Beiträge annehmen, Review |
