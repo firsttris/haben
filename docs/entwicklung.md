@@ -429,7 +429,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
 | Bugfix beginnt mit einem Test | `scripts/pr-regeln/`: `fix`-Commit ohne geänderten Test | Hinweis |
-| Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `doku-pruefen` (nur Markdown, `docs/`, `mkdocs.yml`, `LICENSE`) oder `tdd-review` | Hinweis |
+| Selbstprüfung und unabhängiges Review mitbringen ([Beiträge annehmen](#beiträge-annehmen)) | `scripts/pr-regeln/`: Pull Request außerhalb des Entwurfs von jemandem ohne Schreibrecht, nennt `tdd-review` für Code, `doku-pruefen` für Markdown (`docs/`, `mkdocs.yml`, `LICENSE`), bei beidem beide | Hinweis |
 | Jedes Feld der Belegvorlagen im Feldvertrag, mit Beschreibung | `layout-schema.test.ts` in `bun run test` | Fehler |
 | Kein Feld einer Version fällt weg, wird umbenannt oder wechselt den Typ | `layout-schema.test.ts` gegen `layout-schema.v<n>.json` | Fehler |
 | Alte Layouts ergeben mit heutigen Daten ein PDF | `layout-kompatibel.test.ts` mit `templates/kompatibel/` | Fehler |
@@ -500,7 +500,7 @@ Rückmeldungen folgen dem [Verhaltenskodex](https://github.com/firsttris/haben/b
 
 ### Review
 
-Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, einer ohne Code eine [Doku-Prüfung](#pull-requests-ohne-code). Mit Claude Code führt der Skill `tdd-review` durch.
+Jeder Pull Request mit Code bekommt vor dem Merge ein unabhängiges **TDD-Review**, jeder mit Markdown eine [Doku-Prüfung](#doku-prüfung); ändert er beides, laufen beide nebeneinander, von zwei Prüfern. Mit Claude Code führt der Skill `tdd-review` durch.
 
 1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der mitgeschrieben hat, startet dafür einen neuen Agenten ohne diesen Verlauf; der ist unabhängig, auch wenn ihn der Autor gestartet hat. Ein mitgebrachtes Review dieser Art (Schritte 2 bis 5 im Pull Request erkennbar) zählt, außer wir haben selbst Commits ergänzt oder ein fachlicher Zweifel bleibt.
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework. Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund. Stil und Namen sind keiner.
@@ -513,9 +513,9 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**, einer
 
 Haben steht unter der AGPL-3.0.
 
-#### Pull Requests ohne Code
+#### Doku-Prüfung
 
-Ändert ein Pull Request nur Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`), gibt es keinen roten Test. Statt des TDD-Reviews prüft ihn jemand, der den Text nicht geschrieben hat. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Ändert ein Pull Request Code und Markdown, prüft das TDD-Review die Markdown-Dateien in derselben Runde ebenso. Mit Claude Code führt der Skill `doku-pruefen` durch.
+Für Markdown (Doku, Skills, `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`) gibt es keinen roten Test. Die Markdown-Dateien eines Pull Requests prüft deshalb jemand, der den Text nicht geschrieben hat. Ein Befund braucht ein Zitat und den Beleg dagegen: Code, Quelle oder die andere Stelle. Mit Claude Code führt der Skill `doku-pruefen` durch.
 
 - **Stimmt:** mit dem Code und mit der genannten Quelle.
 - **Kurz:** „Kurz halten“ unter [Befehle](#befehle).
