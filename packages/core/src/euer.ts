@@ -43,6 +43,8 @@ export type EuerPayment =
       privateShare?: number;
       /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
       splits?: AllocatedSplitLine[];
+      /** § 13b und Erwerb: selbst geschuldete Steuer des ganzen Belegs je Steuersatz (totals tragen dann keine Steuer) */
+      selbstGeschuldet?: readonly Cents[];
       group?: string;
     }
   | {
@@ -61,6 +63,8 @@ export type EuerPayment =
       kind: "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "zinsertrag" | "kursdifferenz";
       date: string;
       amount: Cents;
+      /** Richtung der ursprünglichen USt-Zuordnung, auch wenn nur ihre Gegenzeile in dieses Jahr fällt; sonst nach Vorzeichen */
+      ustAbfluss?: boolean;
       group?: string;
     }
   | {
@@ -282,12 +286,20 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           add(`ausgabe:${category}`, ausgabe - nichtAbziehbar);
           monthlyOut[month]! += ausgabe - nichtAbziehbar;
         }
+        {
+          // § 13b und Erwerb: Der private Teil der selbst geschuldeten Steuer ist keine Vorsteuer, geht aber mit der
+          // Voranmeldung ans Finanzamt (gezahlteUst). Wie bei DATEV zählt er als Umsatzsteuer auf die Entnahme; anteilig
+          // zur Zahlung, Vorzeichen wie der Beleg
+          const privat = (p.selbstGeschuldet ?? []).reduce((s, steuer) => s + splitPrivateShare(steuer, p.privateShare ?? 0).private, 0);
+          if (privat !== 0 && p.totals.gross !== 0) add("vereinnahmteUst", roundHalfAwayFromZero((privat * p.sum) / p.totals.gross));
+        }
         break;
       case "ustVorauszahlung":
       // Die Sondervorauszahlung ist Umsatzsteuer an das Finanzamt wie jede Vorauszahlung, abziehbar, wenn sie gezahlt ist
       case "sondervorauszahlung":
-        // Ausgang: Zahlung an das Finanzamt; Eingang: Erstattung
-        if (p.sum < 0) add("gezahlteUst", -p.sum);
+        // Eine Rücknahme mindert dieselbe Zeile, statt eine echte Erstattung bzw. Zahlung vorzutäuschen (#651).
+        // EÜR-Anleitung 2025, Zeilen 18 und 58: https://www.elster.de/eportal/helpGlobal?themaGlobal=help_euer_ufa_77_2025
+        if (p.ustAbfluss ?? p.sum < 0) add("gezahlteUst", -p.sum);
         else add("erstatteteUst", p.sum);
         break;
       case "mahnerloes":

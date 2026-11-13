@@ -98,7 +98,7 @@ for (const kr of ["SKR03", "SKR04"] as const) {
 }
 
 describe("Sachentnahme (§ 3 Abs. 1b UStG) als freie Buchung", () => {
-  const SACH = { SKR03: { 1900: "8910", 700: "8915", privat: "1800" }, SKR04: { 1900: "4620", 700: "4630", privat: "2100" } } as const;
+  const SACH = { SKR03: { 1900: "8910", 700: "8915", privat: "1800" }, SKR04: { 1900: "4620", 700: "4610", privat: "2100" } } as const;
   for (const kr of ["SKR03", "SKR04"] as const) {
     it(`${kr}: Kz 81 bzw. 86 und eigene Zeile der EÜR, die Steuer als Umsatzsteuer auf unentgeltliche Wertabgaben`, () => {
       const lines: ManualLine[] = [
@@ -135,20 +135,39 @@ describe("Sachentnahme (§ 3 Abs. 1b UStG) als freie Buchung", () => {
 
   it("Kontenrahmenwechsel: die Sachentnahme hat in beiden Rahmen ihr Konto", () => {
     expect(kontoImKontenrahmen("SKR03", "SKR04", "8910")).toBe("4620");
-    expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
+    expect(kontoImKontenrahmen("SKR04", "SKR03", "4610")).toBe("8915");
+    expect(kontoImKontenrahmen("SKR03", "SKR04", "8915")).toBe("4610");
   });
 });
 
-describe("Sachentnahme: 4630 ist in SKR03 und SKR04 ein anderes Konto", () => {
-  it("SKR03 4630 bleibt Geschenke, SKR04 4630 ist die Sachentnahme 7 %", () => {
+describe("Sachentnahme 7 % in SKR04: 4610, früher 4630", () => {
+  // DATEV SKR04 4630 ist „Verwendung von Gegenständen für Zwecke außerhalb des Unternehmens 7 % USt“, die Entnahme von
+  // Waren zu 7 % ist 4610 (DATEV-Kontenrahmen SKR04 Art.-Nr. 11175, gültig für 2026); SKR03 4630 sind Geschenke. Bis
+  // #598 buchte Haben die Sachentnahme 7 % in SKR04 auf 4630: Gebuchtes zählt weiter, neu gebucht wird nur 4610.
+  it("SKR03 4630 bleibt Geschenke, die Sachentnahme 7 % ist SKR04 4610, 4630 zählt weiter als Sachentnahme", () => {
     expect(kontoImKontenrahmen("SKR03", "SKR04", "4630")).toBe("6610");
-    expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
     expect(euerZuordnung("SKR03", "4630")).toBe("ausgabe:geschenke");
+    expect(euerZuordnung("SKR04", "4610")).toBe("sachentnahmen");
     expect(euerZuordnung("SKR04", "4630")).toBe("sachentnahmen");
+    expect(kontoImKontenrahmen("SKR04", "SKR03", "4630")).toBe("8915");
+    expect(kontoImKontenrahmen("SKR03", "SKR04", "8915")).toBe("4610");
+    expect(datevFormelKonto("SKR04", "4630")).toBe(true);
     for (const [kr, konto] of [
       ["SKR03", "8910"],
       ["SKR04", "4620"],
+      ["SKR04", "4610"],
     ] as const)
       expect(datevFormelKonto(kr, konto)).toBe(true);
+  });
+});
+
+describe("SKR04 4630 neu buchen", () => {
+  it("geht nicht mehr, auch nicht mit Steuerschlüssel", () => {
+    const zeilen = (taxCode: "USt7" | null) => [
+      { account: "2100", debit: 1_070, credit: 0, taxCode: null },
+      { account: "4630", debit: 0, credit: 1_070, taxCode },
+    ];
+    expect(manualPostingIssues(zeilen("USt7"), "SKR04", "einzelunternehmen").join(" ")).toContain("4610");
+    expect(manualPostingIssues(zeilen(null), "SKR04", "einzelunternehmen").join(" ")).toContain("Konto 4630");
   });
 });

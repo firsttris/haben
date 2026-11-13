@@ -104,14 +104,22 @@ export function currentYear(now: Date = new Date()): number {
 }
 
 /**
- * Fälligkeit: der 10. Tag nach Ablauf des Zeitraums (§ 18 Abs. 1 UStG), also der 10. des Monats nach dem Monat bzw.
- * Quartal; mit Dauerfristverlängerung einen Monat später (§ 46 UStDV). Fällt er auf ein Wochenende oder einen Feiertag,
- * gilt der nächste Werktag (§ 108 Abs. 3 AO).
+ * Fälligkeit nach dem Gesetz: der 10. Tag nach Ablauf des Zeitraums (§ 18 Abs. 1 Satz 4 UStG), also der 10. des Monats
+ * nach dem Monat bzw. Quartal; mit Dauerfristverlängerung einen Monat später (§ 46 UStDV). Ohne die Verschiebung nach
+ * § 108 Abs. 3 AO; für § 11 EStG zählt sie nicht (BFH X R 44/16).
  */
-export function dueDate(period: VatPeriod, bundesland: Bundesland | null = null, dauerfrist = false): string {
+export function gesetzlicheFaelligkeit(period: VatPeriod, dauerfrist = false): string {
   const { year, month } = lastMonthOfPeriod(period);
   const offset = month + (dauerfrist ? 2 : 1);
   const dueYear = year + Math.floor((offset - 1) / 12);
   const dueMonth = ((offset - 1) % 12) + 1;
-  return naechsterWerktag(`${dueYear}-${String(dueMonth).padStart(2, "0")}-10`, bundesland);
+  return `${dueYear}-${String(dueMonth).padStart(2, "0")}-10`;
+}
+
+/**
+ * Fälligkeit (gesetzlicheFaelligkeit); fällt sie auf ein Wochenende oder einen Feiertag, gilt der nächste Werktag
+ * (§ 108 Abs. 3 AO).
+ */
+export function dueDate(period: VatPeriod, bundesland: Bundesland | null = null, dauerfrist = false): string {
+  return naechsterWerktag(gesetzlicheFaelligkeit(period, dauerfrist), bundesland);
 }

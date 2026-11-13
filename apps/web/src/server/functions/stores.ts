@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
-import { listContacts } from "../modules/stammdaten/index.ts";
 import {
   createAllStoreDrafts,
   deleteStoreConnection,
@@ -9,6 +8,7 @@ import {
   storeContactSchema,
   saveStoreConnection,
   storeConnectionsSummary,
+  storeContactChoices,
   storePayoutSchema,
   storeSettingsSchema,
   syncStore,
@@ -23,8 +23,8 @@ export const getStoreConnections = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => ({
     connections: await storeConnectionsSummary(),
-    /** Kontakte im Ausland, aus denen die Store-Gesellschaft für die Rechnungsentwürfe gewählt wird */
-    contacts: (await listContacts()).filter((c) => c.land !== "DE").map((c) => ({ id: c.id, name: c.name, land: c.land, ustId: c.ustId })),
+    /** Kunden im Ausland, aus denen die Store-Gesellschaft für die Rechnungsentwürfe gewählt wird */
+    contacts: await storeContactChoices(),
   }));
 
 export const saveStoreConnectionFn = createServerFn({ method: "POST" })

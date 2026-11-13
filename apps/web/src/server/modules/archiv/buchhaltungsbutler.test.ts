@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const BB_HEADERS = [
   "Datum",
@@ -122,7 +122,7 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import (Postgres)", () => 
       await tx`delete from datev_bookings`;
       await tx`delete from archive_files`;
     });
-    await sql`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
+    await leeren(sql)`truncate lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', 'SKR03', 'ist', 'einzelunternehmen')`;
   });
@@ -156,8 +156,11 @@ describe.skipIf(!testDatabaseUrl)("BuchhaltungsButler-Import (Postgres)", () => 
   });
 
   it("überspringt beim erneuten Import Belege und Originalexporte", async () => {
-    await bb.startBuchhaltungsbutlerImport("test-user", parts());
-    await bb.startBuchhaltungsbutlerImport("test-user", parts());
+    // Derselbe Export, bytegleich: Ein neues zipSync würde den aktuellen DOS-Zeitstempel tragen und wäre bei einem
+    // Sekundenwechsel eine andere Originaldatei, die das Archiv zu Recht zusätzlich aufbewahrt.
+    const files = parts();
+    await bb.startBuchhaltungsbutlerImport("test-user", files);
+    await bb.startBuchhaltungsbutlerImport("test-user", files);
     expect(await sql`select count(*)::int as n from lexoffice_vouchers`).toEqual([{ n: 1 }]);
     expect(await sql`select count(*)::int as n from lexoffice_voucher_files`).toEqual([{ n: 1 }]);
     expect(await sql`select count(*)::int as n from archive_files`).toEqual([{ n: 3 }]);

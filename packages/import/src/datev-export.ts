@@ -49,12 +49,16 @@ export interface DatevBookingRow {
 }
 
 /**
- * Erlöskonten mit Umsatzsteuer-Automatik (AM) in den DATEV-Standardkontenrahmen, die Haben bebucht: Erlöse 19 % und 7 %
- * und die Sachentnahme (Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 19 % bzw. 7 % USt)
+ * Erlöskonten mit Umsatzsteuer-Automatik (AM) in den DATEV-Standardkontenrahmen, die Haben bebucht: Erlöse 19 % und 7 %,
+ * die Sachentnahme (Entnahme durch den Unternehmer für Zwecke außerhalb des Unternehmens (Waren) 19 % bzw. 7 % USt) und die
+ * private Kfz-Nutzung mit Umsatzsteuer (Verwendung von Gegenständen … 19 % USt (Fahrzeug-Nutzung)). Das Konto der
+ * Kfz-Nutzung ohne Umsatzsteuer (SKR03 8924, SKR04 4639) ist ein KU-Konto ohne Automatik. SKR04 4630 („Verwendung von
+ * Gegenständen … 7 % USt“, ebenfalls AM) trägt Sachentnahmen 7 %, die Haben vor #598 dort gebucht hat. Quelle: DATEV-Kontenrahmen
+ * SKR03 Art.-Nr. 11174 und SKR04 Art.-Nr. 11175, gültig für 2026.
  */
 export const DATEV_AUTOMATIC_ACCOUNTS: Record<DatevExportHeader["kontenrahmen"], ReadonlySet<string>> = {
-  SKR03: new Set(["8400", "8300", "8910", "8915"]),
-  SKR04: new Set(["4400", "4300", "4620", "4630"]),
+  SKR03: new Set(["8400", "8300", "8910", "8915", "8921"]),
+  SKR04: new Set(["4400", "4300", "4620", "4610", "4630", "4645"]),
 };
 
 /**
@@ -174,8 +178,39 @@ export const DATEV_COLUMNS = [
 const text = (value: string) => `"${value.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
 const compact = (iso: string) => iso.replace(/-/g, "");
 const amount = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
-/** Belegfeld 1 erlaubt laut DATEV nur bestimmte Zeichen, höchstens 36 */
-const voucherField = (value: string) => value.replace(/[^A-Za-z0-9$&%*+\-/.]/g, "").slice(0, 36);
+/**
+ * Belegfeld 1 erlaubt nur Ziffern, Buchstaben und $ & % * + - /, höchstens 36 Zeichen; unzulässig sind „insbesondere
+ * Leerzeichen, Umlaute, Punkt, Komma, Semikolon und Doppelpunkt“ (DATEV „ASCII-Import: Feldbeschreibungen für
+ * Standardformate“, Dok.-Nr. 1003221, Stand 13.08.2026, Abschnitt 3, Feld 11, https://apps.datev.de/help-center/documents/1003221).
+ * Der Punkt aus dem Nummernformat wird zu „-“, damit `RE.2026.001` als `RE-2026-001` erkennbar bleibt; alles andere
+ * außerhalb der Liste fällt weg (#675).
+ */
+const voucherField = (value: string) =>
+  value
+    .replace(/\./g, "-")
+    .replace(/[^A-Za-z0-9$&%*+\-/]/g, "")
+    .slice(0, 36);
+
+const nummern = (values: string[]) => {
+  const quoted = values.map((v) => `„${v}“`);
+  return `${quoted.slice(0, -1).join(", ")} und ${quoted.at(-1)}`;
+};
+
+/**
+ * Belegfeld 1 ist in DATEV der Schlüssel für den Ausgleich offener Posten. Ergeben verschiedene Nummern nach dem Bereinigen
+ * dasselbe Feld, nennt der Export sie (#675).
+ */
+function voucherWarnings(rows: DatevBookingRow[]): string[] {
+  const byField = new Map<string, Set<string>>();
+  for (const { voucher } of rows) {
+    if (!voucher) continue;
+    const field = voucherField(voucher);
+    byField.set(field, (byField.get(field) ?? new Set()).add(voucher));
+  }
+  return [...byField]
+    .filter(([, vouchers]) => vouchers.size > 1)
+    .map(([field, vouchers]) => `${nummern([...vouchers].sort())} stehen im Belegfeld 1 als „${field}“; DATEV kann ihre offenen Posten verwechseln.`);
+}
 
 const germanTime = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Berlin",
@@ -290,10 +325,14 @@ export function encodeCp1252(value: string): Uint8Array {
   return out.subarray(0, i);
 }
 
-export function buildDatevBuchungsstapel(header: DatevExportHeader, entries: DatevExportEntry[]): { bytes: Uint8Array; rows: DatevBookingRow[] } {
+/** `warnings`: Nummern, die nach dem Bereinigen dasselbe Belegfeld 1 ergeben */
+export function buildDatevBuchungsstapel(
+  header: DatevExportHeader,
+  entries: DatevExportEntry[],
+): { bytes: Uint8Array; rows: DatevBookingRow[]; warnings: string[] } {
   if (!/^\d{4,7}$/.test(header.beraterNr)) throw new Error("Die Beraternummer hat 4 bis 7 Ziffern.");
   if (!/^\d{1,5}$/.test(header.mandantNr)) throw new Error("Die Mandantennummer hat 1 bis 5 Ziffern.");
   const rows = entries.flatMap((entry) => splitEntry(entry, header.kontenrahmen));
   const lines = [headerLine(header), DATEV_COLUMNS.map(text).join(";"), ...rows.map(bookingLine)];
-  return { bytes: encodeCp1252(`${lines.join("\r\n")}\r\n`), rows };
+  return { bytes: encodeCp1252(`${lines.join("\r\n")}\r\n`), rows, warnings: voucherWarnings(rows) };
 }

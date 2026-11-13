@@ -7,7 +7,7 @@ description: >-
 
 # Erste Schritte
 
-Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und Passkey, Zugang für die Steuerberatung, App auf Handy und Rechner, Firmendaten, Versteuerung und Kontenrahmen, Rechnungsnummern, ELSTER, KI-Auslesung und Bankkonten. Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).
+Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).
 
 ## Checkliste
 
@@ -17,7 +17,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten; gibst du nicht monatlich ab, unter Umsatzsteuer den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) einstellen
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
-5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert ein bis zwei Wochen, siehe [Was du brauchst](#was-du-brauchst)
+5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert Tage bis Wochen, siehe [Was du brauchst](#was-du-brauchst)
 6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
@@ -47,7 +47,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Standardanhänge für Angebote, Kundennummern), **Beleggestaltung** (Farbe, Logo und Blatt, Briefpapier, Fußzeile, Layouts), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (Kontoabruf, Google Play, App Store), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`. Darunter öffnet **Dokumentation** diese Seiten in einem neuen Tab.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -61,6 +61,7 @@ Haben lässt sich auf Handy und Rechner wie eine App installieren (Progressive W
 | --- | --- |
 | Rechner mit Chrome, Edge oder Brave | Haben öffnen, in der Adressleiste auf das Symbol **Installieren** klicken oder im Menü „App installieren“ wählen |
 | Android | Haben in Chrome öffnen, im Menü **App installieren** bzw. „Zum Startbildschirm hinzufügen“ |
+| Mac mit Safari (ab macOS 14) | Haben in Safari öffnen, **Ablage › Zum Dock hinzufügen**; Haben liegt dann als eigenes Programm im Dock |
 | iPhone und iPad | Haben in Safari öffnen, **Teilen › Zum Home-Bildschirm** |
 
 Die installierte App bringt zwei Kurzbefehle mit, **Beleg hochladen** und **Neue Rechnung**: am Handy lange auf das Symbol drücken, am Rechner mit der rechten Maustaste. Unter Android steht Haben außerdem im **Teilen-Menü**: Ein PDF oder Foto aus einer anderen App teilst du direkt als Beleg ([Belege](belege.md)). Safari auf iPhone und iPad bietet das Teilen an Web-Apps nicht an; dort lädst du Belege in Haben hoch oder nimmst sie mit der Kamera auf.
@@ -73,7 +74,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 
 | Feld | Wofür |
 | --- | --- |
-| Name | Absender auf Rechnungen, Datenlieferant in der Voranmeldung. Pflicht für beides |
+| Name | Absender auf Rechnungen, Datenlieferant in der Voranmeldung. Pflicht für beides. Steht auch oben in der Navigation unter „Haben“, damit du bei [mehreren Instanzen](installation.md#mehrere-instanzen) siehst, in welcher Firma du gerade bist: am Desktop in bis zu zwei Zeilen, am Handy in einer. Ist er länger als zwei Zeilen, klappt er am Desktop beim Überfahren der Marke nach unten ganz auf |
 | Art des Betriebs bzw. Gegenstand des Unternehmens | z. B. „Softwareentwicklung“; für die Anlage EÜR, bei GmbH und UG für die Gewerbesteuererklärung, siehe [Jahreserklärungen](jahreserklaerung.md) |
 | E-Mail | Absender auf Rechnungen. Pflicht zum Festschreiben einer Rechnung |
 | Straße und Hausnummer, PLZ, Ort | Anschrift auf Rechnungen und in der Voranmeldung. Pflicht für beides; die PLZ hat fünf Ziffern |
@@ -103,6 +104,18 @@ Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsr
 Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht, meldet Haben zum Beispiel „Steuernummer für Bayern muss 11 Ziffern haben“. Für Hessen setzt Haben die führende `0` der Finanzamtsnummer wie von ELSTER verlangt auf `6`.
 
 Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
+
+Unter dem Formular steht die Karte **Voranmeldung und EÜR aus dem Journal**. Sie zeigt das Stichjahr, ab dem Haben Voranmeldung und EÜR wie DATEV aus dem Journal rechnet, und ob das laufende Jahr noch aus Rechnungen, Belegen und Zahlungen rechnet. Liegt das Stichjahr nach dem laufenden Jahr, lässt es sich mit **Ab ‹Jahr› aus dem Journal** auf das laufende Jahr vorziehen, solange für das Jahr keine Voranmeldung gesendet ist und sich dadurch keine Zahl ändert; sonst nennt die Karte die Gründe. Zurück geht es nicht. Einzelheiten: [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen).
+
+### Zeichen in der Navigation
+
+Unter **Einstellungen › Firma › Zeichen in der Navigation** wählst du, woran du die Firma oben links in der Navigation erkennst. Das hilft vor allem, wenn du [mehrere Firmen als eigene Instanzen](installation.md#mehrere-instanzen) führst.
+
+- **„H“ in der Farbe des Themes:** wie ab Werk.
+- **„H“ in eigener Farbe:** mit dem Farbfeld oder als Hex-Wert `#RRGGBB`. Die Schrift darauf ist weiß oder schwarz, je nachdem, was sich besser liest; so ist das „H“ in jeder Farbe lesbar (Kontrast mindestens 4,5 : 1 nach WCAG). Hebt sich eine sehr dunkle Farbe kaum von der Navigation ab, bekommt die Kachel eine feine helle Kante.
+- **Logo aus der Beleggestaltung:** statt des „H“ steht das [Logo](#logo) der Belege auf weißer Fläche, in einem Quadrat so groß wie das „H“. Am besten wirkt ein quadratisches Bildzeichen; ein breiter Schriftzug wird darin klein. Das geht nur, wenn ein Logo hochgeladen ist, und es ändert sich mit diesem Logo. Wird es entfernt, zeigt die Navigation wieder die eigene Farbe bzw. das „H“ des Themes.
+
+Das Zeichen gilt für alle Zugänge der Instanz, auch für die [Steuerberatung](steuerberatung.md), und hängt nicht an der Beleggestaltung: Ändern sich [Akzentfarbe](#akzentfarbe), Layout oder Logo-Einstellungen der Belege, bleibt die eigene Farbe, und Firmen mit gleich aussehenden Belegen haben trotzdem verschiedene Zeichen. Das Theme (Hell, Dunkel, Farbe der Oberfläche) wählt dagegen jeder Zugang für sich. Die Änderung steht im Änderungsprotokoll.
 
 ### Logo
 
@@ -167,7 +180,9 @@ Unter **Einstellungen › Beleggestaltung › Fußzeile** schaltest du von der a
 
 ### Layouts
 
-Unter **Einstellungen › Beleggestaltung › Layouts** siehst du, welches Layout jede Belegart bekommt. Noch gibt es nur das eingebaute Layout „Klassisch“. Weitere Layouts und eigene Vorlagen sind [geplant](roadmap.md).
+Unter **Einstellungen › Beleggestaltung › Layouts** wählst du je Belegart ein Layout: das eingebaute „Klassisch“ oder ein eigenes, das du hochgeladen hast. Wie man ein Layout schreibt, was Haben beim Hochladen prüft und wie Pakete freigegeben werden, steht unter [Eigene Belegvorlagen](belegvorlagen.md).
+
+Verwendet ein eigenes Layout eine Einstellung der Gestaltung nicht, etwa den GiroCode oder die Falz- und Lochmarken, steht darunter ein Hinweis mit dem Namen des Layouts. Wirkt die Einstellung auf keinen Beleg mehr, ist sie aus; siehe [Einstellungen, die das Layout nicht verwendet](belegvorlagen.md#hochladen-und-zuordnen).
 
 ## Persönliche Angaben
 
@@ -202,6 +217,9 @@ Eine Kapitalgesellschaft hat kein Privat. Was der Gesellschafter für sie ausleg
 Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung, rechnet Körperschaft- und Gewerbesteuer samt Rückstellungen und sendet die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) und die [Erklärungen](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug) für eine GmbH ohne Beteiligungen, Organschaft und Ausschüttungen. Die laufende Buchhaltung mit Rechnungen, Belegen, Bank und Umsatzsteuer machst du in Haben und gibst den [DATEV-Export](auswertungen.md) an die Steuerberatung. Der Weg zum Abschluss steht in [Issue #213](https://github.com/firsttris/haben/issues/213).
 
 Den Ablauf eines Jahres für eine GmbH oder UG zeigt [GmbH und UG](gmbh.md).
+
+> [!WARNING]
+> **Nur das Kalenderjahr als Wirtschaftsjahr:** Haben rechnet jedes Geschäftsjahr vom 1. Januar bis 31. Dezember. Ein abweichendes Wirtschaftsjahr unterstützt Haben nicht. Das betrifft eine GmbH, UG oder einen im Handelsregister eingetragenen Gewerbetreibenden, die mit dem Finanzamt einen anderen Abschlussstichtag vereinbart haben (§ 4a Abs. 1 Satz 2 Nr. 2 EStG, § 7 Abs. 4 KStG), und das Wirtschaftsjahr von Land- und Forstwirten (Nr. 1). In diesen Fällen wären [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug), [Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug), [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug), Körperschaft- und Gewerbesteuer und der [DATEV-Export](auswertungen.md) falsch. Freiberufler und nicht eingetragene Gewerbetreibende rechnen ohnehin im Kalenderjahr (§ 4a Abs. 1 Satz 1 und Satz 2 Nr. 3 EStG). Für die Umsatzsteuer gilt immer das Kalenderjahr (§ 16 Abs. 1 Satz 2 UStG).
 
 Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
 
@@ -299,6 +317,8 @@ Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Ges
 
 Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll.
 
+Der erste gespeicherte Kleinunternehmerstatus gilt auch für die Zeit vor der Einrichtung. Andere Einstellungen ändern diesen Stand nicht. Wer die Vorgaben vorher schon für Buchungen, festgeschriebene Belege oder gesendete Anmeldungen verwendet hat, behält den damaligen Stand; bewusst gespeicherte Regelbesteuerung und spätere Wechsel bleiben erhalten.
+
 Ins Vorjahr buchen geht nach einem Wechsel nur noch, wo es nicht von der Einstellung abhängt:
 
 - **Kontenrahmen:** In ein Jahr, das im alten Kontenrahmen gebucht ist, bucht Haben nichts mehr, auch keine Gegenbuchung beim Aufheben einer Zuordnung. Ordne Zahlungen des Vorjahres also vor dem Wechsel richtig zu.
@@ -344,7 +364,7 @@ Neben jedem Format wählst du für Rechnungen und Angebote getrennt, wie der Zä
 | läuft weiter | Über den Jahreswechsel hinweg: `RE-2026-12-0412`, dann `RE-2027-01-0413`. Das Jahr im Format ist frei, `RE-{NNNN}` geht auch. |
 
 Beides ist zulässig; eine Rechnungsnummer muss nur einmalig sein (UStAE 14.5 Abs. 10). Schaltest du auf **läuft weiter**, zählt Haben hinter der letzten Nummer des jüngsten Jahres weiter; die nächste Nummer kannst du danach unter **Rechnungsnummern** bzw. **Angebotsnummern** setzen, etwa auf die nächste aus sevDesk. Zurück auf **beginnt jedes Jahr neu** geht nur mit dem Jahr im Format; der Zähler des Jahres steht dann, wo er vor dem Umschalten stand. Ergibt das eine schon vergebene Nummer, meldet Haben sie wie bei einem Formatwechsel (unten). Storno und Korrektur zählen im selben Kreis wie Rechnungen.
-- Das Format gilt für alles, was ab dann festgeschrieben wird; schon vergebene Nummern bleiben, wie sie sind. Der Zähler läuft beim Wechsel einfach weiter.
+- Das Format gilt für alles, was ab dann festgeschrieben wird; schon vergebene Nummern bleiben, wie sie sind. Der Zähler läuft beim Wechsel weiter.
 - Ergibt das neue Format eine Nummer, die es schon gibt, schreibt Haben nicht fest, sondern meldet „Die Nummer … ist schon vergeben“; der Zähler bleibt stehen. Das passiert nur bei sehr ähnlichen Formaten.
 - Der Bankabgleich findet die Nummer im Verwendungszweck in jedem Format.
 - Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
@@ -389,7 +409,7 @@ Haben übermittelt Voranmeldung, Jahreserklärungen und Nachrichten über ERiC, 
 | **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC verlangt sie seit Version 43 schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
 | **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
 
-Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER: die Voranmeldung per XML-Import, alle Formulare mit der Erweiterung „Haben für Mein ELSTER“, mit einem KI-Assistenten oder von Hand. Die Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
+Bis Hersteller-ID und Zertifikat da sind, arbeitest du normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER: die Voranmeldung per XML-Import, alle Formulare mit der Erweiterung „Haben für Mein ELSTER“, mit einem KI-Assistenten oder von Hand. Die Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
 
 ### Zertifikatsdatei statt ELSTER Secure
 
@@ -549,7 +569,7 @@ Client Secret und privater Schlüssel liegen wie das SMTP-Passwort AES-256-GCM-v
 
 ## KI-Auslesung von Belegen
 
-Optional. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) liest Haben immer selbst aus. Für andere PDFs und Fotos (JPEG, PNG, WebP) kann ein Modell die Felder vorbefüllen: Lieferant, USt-IdNr., Rechnungsnummer, Datum, Fälligkeit, Beträge je Steuersatz und eine vorgeschlagene Kategorie. Dafür gibt es zwei Schnittstellen, eingestellt über Umgebungsvariablen auf dem Server. Die OpenAI-kompatible Schnittstelle ist nicht auf lokale Modelle beschränkt: Sie spricht ebenso Cloud-Dienste wie OpenRouter oder OpenAI an.
+Optional. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) liest Haben immer selbst aus. Für andere PDFs und Fotos (JPEG, PNG, WebP) kann ein Modell die Felder vorbefüllen: Lieferant, USt-IdNr., Rechnungsnummer, Datum, Fälligkeit, Beträge je Steuersatz und eine vorgeschlagene Kategorie. Dafür gibt es zwei Schnittstellen, eingestellt über Umgebungsvariablen auf dem Server.
 
 | | Claude (Anthropic-API) | OpenAI-kompatibel, selbst betrieben | OpenAI-kompatibel, in der Cloud |
 | --- | --- | --- | --- |
@@ -582,7 +602,7 @@ Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama
 
 ### Beispiel: OpenRouter
 
-OpenRouter vermittelt viele Modelle verschiedener Anbieter über eine OpenAI-kompatible Schnittstelle. Du brauchst dort einen Schlüssel und ein Modell, das Bilder lesen kann.
+OpenRouter vermittelt viele Modelle verschiedener Anbieter über eine OpenAI-kompatible Schnittstelle.
 
 1. Bei OpenRouter einen API-Schlüssel anlegen und in der Modellliste ein Vision-Modell wählen (Eingabe „image“), etwa `qwen/qwen2.5-vl-72b-instruct`.
 2. In `.env` eintragen:

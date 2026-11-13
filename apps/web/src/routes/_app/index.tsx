@@ -45,9 +45,10 @@ function OverviewPage() {
   const key = periodKey(data.period);
   const sent = data.current?.status === "sent";
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
+  const vatRequired = !data.kleinunternehmer && !data.exempt;
 
   const todos: Todo[] = [];
-  if (!sent && !data.kleinunternehmer && !data.exempt) {
+  if (!sent && vatRequired) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
       detail: `Fällig ${formatLongDate(data.dueDate)}`,
@@ -62,6 +63,8 @@ function OverviewPage() {
   // Abgegebene Voranmeldungen: was je Posten noch offen ist; der Zeitraum ohne Abgabe nach den Buchungen, abzüglich
   // schon eingezogener Lastschriften ohne Bezug (dann ist der Kontostand bereits um sie gesunken)
   const periodOpen = data.vatOpen.filter((p) => p.year === data.period.year && p.month === data.period.month).reduce((sum, p) => sum + p.offen, 0);
+  // Bestehende Anmeldungen und ihre offenen Beträge bleiben auch ohne reguläre Abgabepflicht erreichbar.
+  const showVatPeriod = vatRequired || data.current !== null || periodOpen !== 0 || data.computedKz83 !== 0;
   const postenOffen = data.vatOpen.filter((p) => p.offen > 0).reduce((sum, p) => sum + p.offen, 0);
   const zahllastOffen = postenOffen + (sent ? 0 : Math.max(0, data.computedKz83 - data.vatPaid));
   for (const posten of data.vatOpen.filter((p) => p.offen > 0 && daysUntil(p.faellig) < 0)) {
@@ -75,7 +78,7 @@ function OverviewPage() {
     });
   }
   const taxShortfall = taxAccount && taxAccount.balance !== null && zahllastOffen > 0 ? zahllastOffen - taxAccount.balance : 0;
-  if (taxAccount && taxShortfall > 0 && !data.kleinunternehmer && !data.exempt) {
+  if (taxAccount && taxShortfall > 0 && vatRequired) {
     todos.push({
       title: `Steuerkonto ${taxAccount.name} deckt die Zahllast nicht`,
       detail: `Es fehlen ${formatEuro(taxShortfall)} für ${periodLabel(data.period)}, fällig ${formatLongDate(data.dueDate)}`,
@@ -224,7 +227,7 @@ function OverviewPage() {
           <h1>Übersicht</h1>
         </div>
         <div className="actions">
-          {!data.exempt && (
+          {showVatPeriod && (
             <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn">
               Voranmeldung {periodLabel(data.period)}
             </Link>
@@ -235,7 +238,7 @@ function OverviewPage() {
         </div>
       </div>
 
-      {data.mode === "simuliert" && (
+      {data.mode === "simuliert" && vatRequired && (
         <div className="banner banner-info" role="status">
           ERiC ist nicht eingerichtet (Einstellungen › ERiC). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
         </div>
@@ -267,17 +270,19 @@ function OverviewPage() {
           <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth.net)}</div>
           <div className="small muted">nach Rechnungsdatum</div>
         </div>
-        <div className="card">
-          <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
-          <div className="kpi-value">{formatEuro(data.current?.status === "sent" ? data.current.kz83 : data.computedKz83)}</div>
-          <div className="small muted">
-            {sent
-              ? `gesendet ${formatDate(data.current!.sentAt!)} · ${periodOpen === 0 ? "ausgeglichen" : `${periodOpen > 0 ? "offen" : "Erstattung offen"} ${formatEuro(Math.abs(periodOpen))}`}`
-              : data.exempt
-                ? "keine Voranmeldung"
-                : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
+        {showVatPeriod && (
+          <div className="card">
+            <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
+            <div className="kpi-value">{formatEuro(data.current?.status === "sent" ? data.current.kz83 : data.computedKz83)}</div>
+            <div className="small muted">
+              {sent
+                ? `gesendet ${formatDate(data.current!.sentAt!)} · ${periodOpen === 0 ? "ausgeglichen" : `${periodOpen > 0 ? "offen" : "Erstattung offen"} ${formatEuro(Math.abs(periodOpen))}`}`
+                : vatRequired
+                  ? `Voranmeldung fällig ${formatDate(data.dueDate)}`
+                  : "keine reguläre Voranmeldung"}
+            </div>
           </div>
-        </div>
+        )}
         {taxAccount && taxAccount.balance !== null && !data.kleinunternehmer && (
           <div className="card">
             <div className="kpi-label">{taxAccount.name}</div>
@@ -333,30 +338,32 @@ function OverviewPage() {
               ))
             )}
           </section>
-          <section className="card" aria-labelledby="recent-heading">
-            <h2 id="recent-heading">Letzte Voranmeldungen</h2>
-            {data.recent.length === 0 ? (
-              <p className="muted">Noch keine Voranmeldung über Haben gesendet.</p>
-            ) : (
-              data.recent.map((entry) => (
-                <div key={entry.id} className="history-row">
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: periodKey(entry) }}>
-                      {periodLabel(entry)}
-                      {entry.berichtigt ? " (berichtigt)" : ""}
-                    </Link>
-                    <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
+          {(vatRequired || data.recent.length > 0) && (
+            <section className="card" aria-labelledby="recent-heading">
+              <h2 id="recent-heading">Letzte Voranmeldungen</h2>
+              {data.recent.length === 0 ? (
+                <p className="muted">Noch keine Voranmeldung über Haben gesendet.</p>
+              ) : (
+                data.recent.map((entry) => (
+                  <div key={entry.id} className="history-row">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: periodKey(entry) }}>
+                        {periodLabel(entry)}
+                        {entry.berichtigt ? " (berichtigt)" : ""}
+                      </Link>
+                      <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
+                    </div>
+                    <span className="amount">{formatEuro(entry.kz83)}</span>
                   </div>
-                  <span className="mono">{formatEuro(entry.kz83)}</span>
-                </div>
-              ))
-            )}
-            {/* Das Zertifikat ist keine Kennzahl; es gehört zum Senden der Voranmeldungen, Ablauf und Fehlen meldet „Zu erledigen“ */}
-            <p className="small muted" style={{ margin: 0 }}>
-              ELSTER-Zertifikat: {data.certificate ? data.certificate.filename : "nicht hinterlegt"}
-              {data.certificate && (data.certificate.validUntil ? ` · gültig bis ${formatDate(data.certificate.validUntil)}` : " · Ablaufdatum unbekannt")}
-            </p>
-          </section>
+                ))
+              )}
+              {/* Das Zertifikat ist keine Kennzahl; es gehört zum Senden der Voranmeldungen, Ablauf und Fehlen meldet „Zu erledigen“ */}
+              <p className="small muted" style={{ margin: 0 }}>
+                ELSTER-Zertifikat: {data.certificate ? data.certificate.filename : "nicht hinterlegt"}
+                {data.certificate && (data.certificate.validUntil ? ` · gültig bis ${formatDate(data.certificate.validUntil)}` : " · Ablaufdatum unbekannt")}
+              </p>
+            </section>
+          )}
         </div>
         <section className="card" aria-labelledby="invoices-heading">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

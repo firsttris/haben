@@ -60,6 +60,7 @@ function invoiceOut(row: ListRow, invoice: Invoice, lines: InvoiceLine[], baseUr
     format: invoice.format,
     intro: invoice.intro,
     note: invoice.note,
+    propertyRetention: invoice.propertyRetention,
     buyerOrderReference: invoice.buyerOrderReference,
     sellerOrderReference: invoice.sellerOrderReference,
     despatchAdviceReference: invoice.despatchAdviceReference,
@@ -176,6 +177,9 @@ export async function updateInvoiceHandler(request: ApiRequest): Promise<ApiResu
   }
   const body = request.body as Record<string, unknown>;
   const merged = { ...draftInputOf(invoice, lines), ...body };
+  // Ein Ansprechpartner gehört zu genau einem Kunden (#424): Wechselt der Kunde, entfällt die Person, die jemand in Haben gewählt hat;
+  // die API selbst setzt keine
+  if ("contactId" in body && body.contactId !== invoice.contactId) merged.contactPersonId = null;
   // Ohne Angabe passt sich das Skonto an wie beim Anlegen, damit ein Client ohne Skonto Zahlungsziel und Währung ändern
   // kann: Fristen über das neue Zahlungsziel hinaus entfallen, in Fremdwährung keins
   if (!("skonto" in body)) {

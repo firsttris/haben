@@ -16,6 +16,8 @@ import {
   gehe,
   kontrasteInThemes,
   kundeWaehlen,
+  lieferantWaehlen,
+  neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
   receiptJpeg,
   trefferliste,
@@ -199,6 +201,29 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await field.fill(pruefwert.slice(0, -1) + (pruefwert.endsWith("0") ? "1" : "0"));
   await card.getByRole("button", { name: "Vergleichen" }).click();
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
+});
+
+test("Änderungsprotokoll: Kontenkollisionen getrennt von Manipulation melden (#787)", async () => {
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    // Bestand, dessen Nummern erst eine spätere Haben-Version reserviert hat; auch archivierte Konten wirken weiter.
+    await sql`insert into own_accounts (kontenrahmen, account, name, parent_category, archived_at, created_by)
+      values ('SKR03', '4920', 'Eigene Software 03', 'software', null, 'test-user'),
+        ('SKR04', '6805', 'Eigene Software 04', 'software', now(), 'test-user')`;
+    await go("/einstellungen?bereich=export");
+    const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+    await card.getByRole("button", { name: "Kette prüfen" }).click();
+    await expect(card.getByRole("status")).toContainText("2 Kontenkollisionen");
+    await expect(card.getByRole("status")).toHaveClass(/banner-info/);
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    const collisions = card.getByRole("region", { name: "Kontenkollisionen" });
+    await expect(collisions).toContainText("SKR03 · 4920 · Eigene Software 03");
+    await expect(collisions).toContainText("SKR04 · 6805 · Eigene Software 04");
+    await expect(collisions).toContainText("Archivieren allein löst die Kollision nicht");
+  } finally {
+    await sql`delete from own_accounts where created_by = 'test-user' and name in ('Eigene Software 03', 'Eigene Software 04')`;
+    await sql.end();
+  }
 });
 
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
@@ -678,14 +703,14 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hetzner Online GmbH · DE812871812" });
+  await lieferantWaehlen(page, "Hetzner Online GmbH · DE812871812");
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
 
   // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
   await page.getByLabel("Rechnungsnummer").fill("H-2026-77");
   const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
-  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await neuenLieferantenOeffnen(page);
   await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Hetzner Online GmbH");
   await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
   await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
@@ -693,16 +718,16 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
   await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
 
-  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await neuenLieferantenOeffnen(page);
   await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
   await dialog.getByLabel("USt-IdNr.").fill("");
   await expect(dialog.getByRole("status")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" }).locator("option:checked")).toHaveText("Druckerei Süd GmbH");
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue("Druckerei Süd GmbH");
   await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
   // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
@@ -711,9 +736,159 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
     await go("/kontakte?rolle=lieferant");
     await page.getByRole("link", { name: new RegExp(name) }).click();
+    // Reiner Lieferant ohne gebuchten Beleg (#587): Abschnitt für Belege mit Hinweis, keiner für Rechnungen
+    await expect(page.getByRole("region", { name: "Ausgaben und Belege", exact: true })).toContainText("Noch keine gebuchten Belege von diesem Kontakt.");
+    await expect(page.getByRole("region", { name: "Umsatz und Rechnungen", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Archivieren" }).click();
     await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
   }
+});
+
+test("Dauerbeleg: Lieferanten suchen und direkt anlegen, ohne die Eingaben zu verlieren", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Suchfirma Nord GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("Ort").fill("Kiel");
+  await page.getByLabel("Lieferantennummer").fill("L-4711");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Ein Kunde mit USt-IdNr.: Wer ihn als Lieferanten anlegen will, bekommt einen Hinweis, aber keine Wahl
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Kundenfirma Ost AG");
+  await page.getByLabel("USt-IdNr.").fill("DE123456789");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await go("/dauerbelege/neu");
+  await page.getByLabel("Bezeichnung").fill("Wartung Server");
+  const kontakte = page.getByRole("combobox", { name: "Aus den Kontakten" });
+  // Gesucht wird auch nach der Lieferantennummer; die Zeile zeigt Nummer und Ort
+  await kontakte.fill("L-4711");
+  await expect(trefferliste(page).getByRole("option")).toHaveCount(2);
+  await expect(trefferliste(page).getByRole("option").first()).toContainText("Suchfirma Nord GmbH");
+  await expect(trefferliste(page).getByRole("option").first()).toContainText("L-4711 · Kiel");
+  await trefferliste(page).getByRole("option").first().click();
+  await expect(kontakte).toHaveValue("Suchfirma Nord GmbH · Kiel");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Suchfirma Nord GmbH");
+
+  // Der getippte Name geht in den Dialog; nach dem Speichern ist der neue Lieferant gewählt
+  await neuenLieferantenOeffnen(page, "Neufirma Süd");
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Neufirma Süd");
+  await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
+  // Gleiche USt-IdNr. wie bei einem Kunden, auch mit Leerzeichen: Der Server findet ihn unter allen Kontakten. Er ist kein
+  // Lieferant, also nur der Hinweis mit Link; ihn als Lieferanten zu wählen gäbe es nicht
+  await dialog.getByLabel("USt-IdNr.").fill("de 123 456 789");
+  await expect(dialog.getByRole("status")).toContainText("gibt es schon „Kundenfirma Ost AG“ (Kunde)");
+  await expect(dialog.getByRole("link", { name: "„Kundenfirma Ost AG“ öffnen" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "„Kundenfirma Ost AG“ wählen" })).toHaveCount(0);
+  await dialog.getByLabel("USt-IdNr.").fill("");
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await dialog.getByLabel("Ort").fill("Köln");
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(kontakte).toHaveValue("Neufirma Süd · Köln");
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Neufirma Süd");
+  await expect(page.getByLabel("Bezeichnung")).toHaveValue("Wartung Server");
+  // Der Dialog schickt das Formular nicht ab: Es steht noch auf der Seite „Neuer Dauerbeleg“
+  await expect(page).toHaveURL(/\/dauerbelege\/neu$/);
+
+  // Nicht speichern; die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
+  for (const name of ["Suchfirma Nord GmbH", "Neufirma Süd", "Kundenfirma Ost AG"]) {
+    await go("/kontakte");
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await page.getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  }
+});
+
+test("Dialog „Neuen Lieferanten anlegen“: Der wählbare Lieferant wird angeboten, auch wenn ein Kunde mit derselben USt-IdNr. davor steht", async () => {
+  // Sechs Kunden (Niederlassungen) vor dem Lieferanten: Der Server liefert nur fünf Treffer, der Lieferant fehlt also, wenn
+  // die gewünschte Rolle nicht bis dorthin gelangt
+  const KUNDEN = ["AAA", "AAB", "AAC", "AAD", "AAE", "AAF"].map((k) => `${k} Wahl Kunde GmbH`);
+  for (const [name, kunde, lieferant] of [...KUNDEN.map((n) => [n, true, false] as const), ["ZZZ Wahl Lieferant GmbH", false, true] as const]) {
+    await go("/kontakte/neu");
+    await page.getByLabel("Name oder Firma").fill(name);
+    if (!kunde) await page.getByLabel("Kunde", { exact: true }).uncheck();
+    if (lieferant) await page.getByLabel("Lieferant", { exact: true }).check();
+    await page.getByLabel("USt-IdNr.").fill("DE100000020");
+    await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+    await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  }
+
+  await go("/dauerbelege/neu");
+  await neuenLieferantenOeffnen(page, "Probe Neu");
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await dialog.getByLabel("USt-IdNr.").fill("DE100000020");
+  // Der Server nennt beide; der Hinweis nimmt den, den man als Lieferanten wählen kann, nicht den Kunden davor
+  await expect(dialog.getByRole("status")).toContainText("gibt es schon „ZZZ Wahl Lieferant GmbH“ (Lieferant)");
+  await expect(dialog.getByRole("button", { name: "„ZZZ Wahl Lieferant GmbH“ wählen" })).toBeVisible();
+
+  // Nicht speichern; beide archivieren, damit die folgenden Tests unverändert rechnen
+  for (const name of [...KUNDEN, "ZZZ Wahl Lieferant GmbH"]) {
+    await go("/kontakte");
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await page.getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  }
+});
+
+test("Kontaktformular: Gleiche USt-IdNr. wird gemeldet, auch beim archivierten Kontakt; der eigene Kontakt meldet sich nicht", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Altbestand USt GmbH");
+  await page.getByLabel("USt-IdNr.").fill("DE555555555");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  // Ein Kontakt mit beiden Rollen: Im normalen Formular fehlt ihm keine Rolle, der Hinweis sagt das nicht
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Beides USt GmbH");
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("USt-IdNr.").fill("DE777777777");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Dritter USt GmbH");
+  await page.getByLabel("USt-IdNr.").fill("DE777777777");
+  const beides = page.getByRole("status").filter({ hasText: "gibt es schon" });
+  await expect(beides).toContainText("gibt es schon „Beides USt GmbH“ (Kunde, Lieferant)");
+  await expect(beides).not.toContainText("Ergänze dort die Rolle");
+  await expect(beides.getByRole("link", { name: "„Beides USt GmbH“ öffnen" })).toBeVisible();
+
+  // Im normalen Formular, nicht nur im Dialog: Der archivierte Kontakt kann man nicht wählen, nur wiederherstellen
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Neubestand USt GmbH");
+  await page.getByLabel("USt-IdNr.").fill("DE555555555");
+  const hinweis = page.getByRole("status").filter({ hasText: "gibt es schon" });
+  await expect(hinweis).toContainText("gibt es schon „Altbestand USt GmbH“ (Kunde, archiviert)");
+  await expect(hinweis).toContainText("Stelle ihn unter Kontakte wieder her");
+  await expect(hinweis).not.toContainText("Ergänze dort die Rolle");
+  await expect(hinweis.getByRole("link", { name: "„Altbestand USt GmbH“ öffnen" })).toBeVisible();
+  await page.getByLabel("USt-IdNr.").fill("DE666666666");
+  await expect(hinweis).toHaveCount(0);
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Beim Bearbeiten nennt der Server den eigenen Kontakt nicht (excludeId), wohl aber einen fremden mit derselben USt-IdNr.
+  await page.waitForTimeout(1000);
+  await expect(hinweis).toHaveCount(0);
+  await page.getByLabel("USt-IdNr.").fill("DE555555555");
+  await expect(hinweis).toContainText("gibt es schon „Altbestand USt GmbH“");
+  await page.getByLabel("USt-IdNr.").fill("DE666666666");
+  await expect(hinweis).toHaveCount(0);
+
+  // Nicht speichern; den neuen Kontakt und den mit beiden Rollen archivieren, damit die folgenden Tests unverändert rechnen
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Beides USt GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
@@ -1575,7 +1750,7 @@ test("Abweichende IBAN der E-Rechnung: Warnung am Beleg, gesperrt unter Überwei
   await page.waitForLoadState("networkidle");
   // Der Abgleich läuft, sobald der Kontakt am Beleg hängt
   await expect(page.getByRole("region", { name: "Bankverbindung prüfen" })).toHaveCount(0);
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Netzwerk Hosting GmbH" });
+  await lieferantWaehlen(page, "Netzwerk Hosting GmbH");
   await page.getByLabel("Kategorie").selectOption("software");
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await bestaetigen(page, "Buchen");
@@ -1746,7 +1921,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await neuenLieferantenOeffnen(page);
   const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
   await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Netzwerk Hosting GmbH");
   await expect(dialog.getByLabel("Straße und Hausnummer")).not.toHaveValue("");
@@ -1761,7 +1936,7 @@ test("Neuer Lieferant aus der E-Rechnung: Anschrift vorbelegt, IBAN nur als Vors
   await expect(iban).toBeFocused();
   await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/\S/);
 });
 
 test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, auf Wunsch auch in den Kontakt (#410)", async () => {
@@ -1786,7 +1961,7 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hosting Süd GmbH" });
+  await lieferantWaehlen(page, "Hosting Süd GmbH");
   await page.getByLabel("Kategorie").selectOption("software");
   // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
   await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
@@ -1816,6 +1991,45 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(zeile).toContainText("DE02 1203 0000 0000 2020 51");
   await go(new URL(kontaktUrl).pathname);
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
+});
+
+test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
+  const jahr = YEAR - 1;
+  await go(`/jahreserklaerung/${jahr}`);
+  const ust = page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true });
+  // Die Karte traegt Formular und Jahr im Namen, weil sie auf der Seite zweimal vorkommt (USt und EÜR)
+  const karte = ust.getByRole("region", { name: `Abgabe außerhalb von Haben: Umsatzsteuererklärung ${jahr}`, exact: true });
+  await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
+  // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
+  await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
+  await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");
+  await dialog.getByLabel("Betrag", { exact: true }).fill("0,00");
+  await dialog.getByLabel("Begründung", { exact: true }).fill("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  const protokollFeld = dialog.locator(".field", { has: page.getByText("Übermittlungsprotokoll (PDF, optional)", { exact: true }) });
+  const protokollDialog = await filePickerPruefen(page, protokollFeld, "Übermittlungsprotokoll");
+  await protokollDialog.setFiles({
+    name: "Uebermittlungsprotokoll.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% Übermittlungsprotokoll\n%%EOF\n"),
+  });
+  // Weicht der Betrag vom gerechneten Wert ab, verlangt der Dialog eine ausdrueckliche Bestaetigung
+  const haken = dialog.getByLabel("Abweichung geprüft und bewusst übernommen");
+  if (await haken.count()) await haken.check();
+  await dialog.getByRole("button", { name: "Vermerken", exact: true }).click();
+
+  // Danach gilt die Erklärung als abgegeben; Tag und Begründung stehen in der Karte, ein zweiter Vermerk fehlt
+  await expect(ust.getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
+  await expect(karte).toContainText("Ein zweiter Vermerk ist nicht möglich.");
+  await expect(karte).toContainText("Umsatzsteuererklärung extern mit WISO abgegeben.");
+  await expect(karte.getByRole("button", { name: "Abgabe vermerken" })).toHaveCount(0);
+  const protokoll = await page.request.get((await karte.getByRole("link", { name: "Übermittlungsprotokoll" }).getAttribute("href"))!);
+  expect(protokoll.headers()["content-type"]).toContain("application/pdf");
+
+  // Auch nach dem Neuladen bleibt der Vermerk stehen
+  await go(`/jahreserklaerung/${jahr}`);
+  await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
 });
 
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {

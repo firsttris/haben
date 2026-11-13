@@ -1,13 +1,13 @@
 ---
-title: "Entwurf: Voranmeldung und EÜR aus dem Journal"
+title: "Entscheidung: Voranmeldung und EÜR aus dem Journal"
 description: >-
-  Entscheidungsvorlage zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
+  Entscheidung zu #542: ab einem Stichjahr rechnen Voranmeldung und EÜR aus dem Journal wie bei DATEV, die
   Nebenbücher werden zur Gegenprobe; Grundlage für freie Buchungen mit Steuerschlüssel (#502).
 ---
 
-# Entwurf: Voranmeldung und EÜR aus dem Journal
+# Entscheidung: Voranmeldung und EÜR aus dem Journal
 
-**Status:** Entwurf, Umsetzung in Schritten (siehe unten). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
+**Status:** umgesetzt in den Schritten unten (siehe „Entschieden und offen“). **Stand:** `main` nach den Pull Requests #543 bis #573 (`7e3ce67`).
 **Bezug:** [#542](https://github.com/firsttris/haben/issues/542), [#502](https://github.com/firsttris/haben/issues/502),
 [Architektur: Entwurfsentscheidungen](../architektur.md#entwurfsentscheidungen), [Abgleich](../buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür).
 DATEV-Hilfe-Center: [1080673](https://help-center.apps.datev.de/documents/1080673) (Ist-Versteuerung),
@@ -174,5 +174,5 @@ und UG und ohne Umsatzsteuer) einen Steuerschlüssel; es entsteht kein zweiter W
   Schritt 3: freie Buchungen (`freie-buchung.ts` in core, `manual.ts`): Steuerschlüssel `USt19`, `USt7`, `frei` auf den
   Erlöskonten 19 %, 7 % und 0 %, im Einzelunternehmen auch ohne Schlüssel erst ab dem Stichjahr. Die Gegenprobe im
   Abgleich zählt sie aus der festgeschriebenen Buchung selbst (sie haben kein Nebenbuch). Die Sachentnahme
-  (SKR03 8910/8915, SKR04 4620/4630 für 19 bzw. 7 %) bucht nur mit Schlüssel; in der EÜR steht sie in der eigenen Zeile
+  (SKR03 8910/8915, SKR04 4620/4610 für 19 bzw. 7 %) bucht nur mit Schlüssel; in der EÜR steht sie in der eigenen Zeile
   `sachentnahmen` („Sonstige Sach-, Nutzungs- und Leistungsentnahmen“), ihre Steuer bei der vereinnahmten Umsatzsteuer.

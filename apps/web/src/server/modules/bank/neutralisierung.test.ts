@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
  * Gegenläufige Bankumsätze verrechnen (#457): +1,00 € und −1,00 € einer Kartenprüfung bei PayPal heben sich auf. Sie
@@ -60,7 +60,8 @@ describe.skipIf(!testDatabaseUrl)("Gegenläufige Bankumsätze verrechnen (Postgr
   });
 
   async function firma(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate bank_neutralizations, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate bank_neutralizations, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+      company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung)
       values (1, 'Nordlicht Software', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB', ${kontenrahmen}, ${versteuerung})`;
   }

@@ -7,7 +7,7 @@ description: >-
 
 # Betrieb und Installation
 
-Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: mit Docker Compose (am einfachsten) oder mit Podman Quadlets unter systemd, dazu Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
+Was du nach der Installation in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
 
 ## Überblick
 
@@ -20,7 +20,7 @@ Haben läuft als vier Container in einem eigenen Netz:
 | `backup` / `haben-backup` | `tristanteu/haben-backup:latest` | Tägliches Backup von Datenbank und Belegen mit restic, Repository im Volume `backups` bzw. `haben-backups` oder auf einem zweiten System, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 
-Es gibt zwei Wege, sie zu betreiben:
+Es gibt zwei Wege, sie zu betreiben, dazu eine Vorlage für [Synology](synology.md) ohne Kommandozeile:
 
 | Weg | Gut für | Dateien |
 | --- | --- | --- |
@@ -46,8 +46,8 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 | Image | Inhalt |
 | --- | --- |
 | `docker.io/tristanteu/haben:latest` | Letzte veröffentlichte Version (Standard in Compose und Quadlet) |
-| `docker.io/tristanteu/haben:0.1` / `:0.1.0` | Feste Version, wenn du Updates selbst steuern willst |
-| `docker.io/tristanteu/haben:next` | Neuester Release Candidate (`:0.2.0-rc.1` usw.) zum Testen, nur mit Backup |
+| `docker.io/tristanteu/haben:x.y` / `:x.y.z` | Feste Version, wenn du Updates selbst steuern willst |
+| `docker.io/tristanteu/haben:next` | Neuester Release Candidate (`:x.y.z-rc.1` usw.) zum Testen, nur mit Backup |
 | `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
 | `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
 | `docker.io/tristanteu/haben-backup:…` / `ghcr.io/firsttris/haben-backup:…` | Backup-Container (`postgres:18` mit restic, `deploy/backup`), dieselben Tags wie die App |
@@ -74,6 +74,7 @@ Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: 
 mkdir haben && cd haben
 curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
 curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+chmod 600 .env   # enthält Passwörter und Schlüssel, nur für dich lesbar
 ```
 
 In `.env` trägst du ein:
@@ -87,7 +88,8 @@ In `.env` trägst du ein:
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | optional, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
-| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
+| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `EXTRACTION_INPUT`, `EXTRACTION_EXTRA_BODY`, `ENABLE_BANKING_APP_ID`, `LAYOUTS_MAX_COUNT`, `LAYOUTS_MAX_MB`, `LAYOUTS_PACKAGES_URL`, `ERIC_WORKER_COMMAND` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
+| `OIDC_ONLY`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPES`, `OIDC_DISPLAY_NAME`, `OIDC_GROUPS_CLAIM`, `OIDC_GROUP_INHABER`, `OIDC_GROUP_STEUERBERATUNG` | nur für den SSO-Modus, siehe [Single Sign-on mit OpenID Connect](#single-sign-on-mit-openid-connect) |
 
 ```sh
 docker compose up -d
@@ -143,7 +145,10 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-passwor
 | `haben-auth-secret` | `BETTER_AUTH_SECRET` | Signiert die Sitzungen |
 | `haben-encryption-key` | `HABEN_ENCRYPTION_KEY` | Schlüssel für ELSTER-Zertifikat und die API-Schlüssel für Lexoffice und sevDesk |
 | `haben-restic-password` | `RESTIC_PASSWORD` (in `haben-backup`) | Verschlüsselt das Backup |
-| `haben-anthropic-key` (optional) | `ANTHROPIC_API_KEY` | Für die KI-Auslesung, siehe unten |
+| `haben-anthropic-key` (optional) | `ANTHROPIC_API_KEY` | Für die KI-Auslesung, siehe [KI-Auslesung (Anthropic)](#ki-auslesung-anthropic) |
+| `haben-extraction-key` (optional) | `EXTRACTION_API_KEY` | Schlüssel eines eigenen KI-Dienstes, falls er einen verlangt, siehe [OpenAI-kompatible Schnittstelle](#ki-auslesung-über-openai-kompatible-schnittstelle) |
+| `haben-oidc-client-secret` (optional) | `OIDC_CLIENT_SECRET` | Clientsecret für den SSO-Modus, siehe [Single Sign-on](#single-sign-on-mit-openid-connect) |
+| `haben-enablebanking-key` (optional) | Datei `/run/secrets/enablebanking.pem` | Privater Schlüssel für den Kontoabruf, siehe [Kontoabruf](#kontoabruf-enable-banking) |
 
 > [!IMPORTANT]
 > Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, Client Secret oder Zertifikatsschlüssel für Microsoft 365, den Schlüssel und die Sitzung des Bankabrufs und die API-Schlüssel für Lexoffice und sevDesk (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup sichert ihn nicht mit. Dasselbe gilt für das Passwort des Backups. Die Werte liest du aus mit `podman exec haben-app printenv HABEN_ENCRYPTION_KEY` (solange der Container läuft) und `podman secret inspect --showsecret haben-restic-password`.
@@ -156,7 +161,7 @@ In `~/.config/haben/haben.env` stehen die Werte, die nicht geheim sind. Mindeste
 BETTER_AUTH_URL=https://haben.example.de
 ```
 
-Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Caddy leitet alles an `haben-app:3000` weiter und setzt HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options: SAMEORIGIN` (nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer).
+Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Was es sonst einstellt (Weiterleitung an `haben-app:3000`, Sicherheits-Header, Upload-Grenze), steht in [`deploy/Caddyfile`](https://github.com/firsttris/haben/blob/main/deploy/Caddyfile); `X-Frame-Options` bleibt dort `SAMEORIGIN`, nicht `DENY`, sonst bleiben die eingebetteten Vorschauen leer.
 
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Trag die Hersteller-ID erst ein, wenn du sie hast; sie muss dann genau fünf Ziffern haben.
@@ -201,7 +206,7 @@ Darin `DEIN_PROXY_NETZ` durch das Netz deines Proxy-Containers ersetzen. Das zei
 docker inspect DEIN_PROXY_CONTAINER -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 ```
 
-Die Datei startet den mitgelieferten Caddy nicht mehr und hängt die App zusätzlich in dieses Netz, dort heißt sie `haben-app`. `docker compose up -d` startet dann nur `db` und `app`.
+Die Datei startet den mitgelieferten Caddy nicht mehr und hängt die App zusätzlich in dieses Netz, dort heißt sie `haben-app`. `docker compose up -d` startet dann alles außer Caddy.
 
 Läuft dein Proxy direkt auf dem Host statt in einem Container, nimmst du die Variante, die am Ende der Datei auskommentiert steht: Sie veröffentlicht die App nur auf `127.0.0.1:3000`, dorthin leitest du weiter.
 
@@ -246,23 +251,7 @@ Getestet sind die Beispiele mit Apache 2.4, nginx 1.30, Nginx Proxy Manager 2.16
 </VirtualHost>
 ```
 
-**Caddy:** Den Block aus `deploy/Caddyfile` in dein Caddyfile übernehmen, mit deiner Domain, und `caddy reload` ausführen:
-
-```
-haben.example.de {
-	encode zstd gzip
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options nosniff
-		Referrer-Policy same-origin
-		X-Frame-Options SAMEORIGIN
-	}
-	request_body {
-		max_size 250MB
-	}
-	reverse_proxy haben-app:3000
-}
-```
+**Caddy:** Den Block aus [`deploy/Caddyfile`](https://github.com/firsttris/haben/blob/main/deploy/Caddyfile) in dein Caddyfile übernehmen, mit deiner Domain (bei Caddy direkt auf dem Host `reverse_proxy 127.0.0.1:3000`), und `caddy reload` ausführen.
 
 **nginx:** Zertifikat wie für deine anderen Seiten (etwa certbot). Wichtig sind `client_max_body_size` (Standard ist 1 MB) und die `proxy_set_header`-Zeilen:
 
@@ -365,7 +354,9 @@ backend haben-app
 
 ## Mehrere Instanzen
 
-Haben führt genau eine Buchhaltung: ein Unternehmen, ein Inhaber, auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhaber (im [SSO-Modus](#single-sign-on-mit-openid-connect) auch mehrere), auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy. In welcher Instanz du gerade bist, zeigt die Navigation mit dem Namen aus den [Firmendaten](einrichtung.md#firmendaten).
+
+Damit du die Instanzen in der Oberfläche auseinanderhältst, gib jeder ein eigenes [Zeichen in der Navigation](einrichtung.md#zeichen-in-der-navigation), etwa eine eigene Farbe.
 
 ```
 haben-firma1/
@@ -406,10 +397,24 @@ firma2.example.de {
 Weitere Punkte:
 
 - **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](#eric-einbinden).
-- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, bist du für diese Person Softwarehersteller nach der ERiC-Lizenz, siehe [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller). Wer Buchhaltungsdaten für andere hostet, ist zudem Auftragsverarbeiter nach DSGVO.
+- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, kommen Pflichten dazu, siehe [Für andere betreiben](#für-andere-betreiben).
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
 Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.
+
+### Für andere betreiben
+
+Betreibst du Haben nicht nur für dich, sondern für andere, etwa als gehostete Instanz für Kunden, bist du nicht mehr nur Nutzer. Haben ist dafür gebaut, dass jeder seine Buchhaltung selbst betreibt; für andere übernimmst du Pflichten, die bei einer eigenen Instanz nicht anfallen. Diese Liste ist keine Rechtsberatung: Lass Vertrag, AGB und Auftragsverarbeitung von einer Anwältin oder einem Anwalt für IT- und Steuerrecht prüfen, bevor du anbietest.
+
+- **Softwarehersteller nach der ERiC-Lizenz.** Mit deiner Hersteller-ID bist du für deine Kunden Hersteller im Sinne des ERiC-Lizenzvertrags (`lizenz.pdf` im ERiC-Paket): Du leistest den Support (§ 7), hältst die Mindestversion von ERiC ein (§ 5), und jeder Nutzer bestätigt vor der ersten Nutzung die Datenschutzhinweise der Finanzverwaltung (§ 5). Bei Verstößen kann das Landesamt die ID sperren (§ 9); dann sendet keine Instanz mehr, die sie trägt, auch deine eigene nicht. Hast du Haben verändert, brauchst du eine eigene ID (§ 4). Mehr unter [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller).
+- **Auftragsverarbeiter nach DSGVO.** In einer Buchhaltung stehen Namen, Anschriften, Bankverbindungen, Steuernummern und Umsätze von Kunden und Lieferanten. Wer sie für andere hostet, verarbeitet sie in deren Auftrag und braucht mit jedem Kunden einen Vertrag nach Art. 28 DSGVO mit den technischen und organisatorischen Maßnahmen (Art. 32 DSGVO): Verschlüsselung, Backups, Zugriff, Löschung. Dasselbe gilt für Dienste, die du dazuschaltest, etwa die [KI-Auslesung](#ki-auslesung-anthropic) bei einem Cloud-Anbieter; sie sind dann deine Unterauftragsverarbeiter.
+- **Jeder sendet mit seinem eigenen Zertifikat.** Haben übermittelt mit dem ELSTER-Zertifikat, das in der Instanz hinterlegt ist. Bleibt es das Zertifikat des Kunden, sendet er selbst. Sendest du für Kunden mit deinem eigenen Zertifikat, wie es Cloud-Dienste tun, ist das Datenübermittlung im Auftrag nach § 87d AO: Du musst deine Auftraggeber identifizieren und die Übermittlungen aufbewahren (siehe [Warum Lexoffice ohne dein Zertifikat sendet](einrichtung.md#warum-lexoffice-ohne-dein-zertifikat-sendet)). Dafür ist Haben nicht gebaut.
+- **Aufbewahrung und Datenzugriff.** Für die Bücher bleibt der Kunde verantwortlich. Er muss sie 8 bis 10 Jahre aufbewahren und dem Finanzamt bei einer Außenprüfung Zugriff geben (§ 147 Abs. 3 und 6 AO, siehe [Aufbewahrung](auswertungen.md#aufbewahrung)). Regle deshalb im Vertrag, wie er an seine Daten kommt, wenn er kündigt oder du den Dienst einstellst: mindestens das [Jahresarchiv](auswertungen.md) und das Änderungsprotokoll, rechtzeitig vor dem Löschen.
+- **Du hast vollen Zugriff.** Die GoBD-Trigger schützen vor Versehen, nicht vor Absicht: Wer Server und Datenbank betreibt, kann sie abschalten (siehe [Architektur › Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)). Bei einer eigenen Instanz ist das der Steuerpflichtige selbst, hier bist du es. Sag das deinen Kunden. Den Nachweis, dass nachträglich nichts verändert wurde, tragen der wöchentliche Prüfwert des Änderungsprotokolls an die Adresse des Kunden und seine eigenen Exporte, nicht dein Wort.
+- **Betrieb und Haftung.** Updates, Backups mit Test-Restore, Erneuerung von ERiC und Überwachung liegen bei dir. Fällt deine Instanz vor einer Frist aus, etwa am Tag der Voranmeldung, trifft der Verspätungszuschlag den Kunden. Leg im Vertrag fest, was du zusagst (Verfügbarkeit, Wiederherstellung, Haftung), und sag ihm, wie er im Notfall in Mein ELSTER abgibt (siehe [Abgabe an ELSTER](elster-abgabe.md)).
+- **Nur Software, keine Steuerberatung.** Bucht der Kunde selbst, stellst du nur Software und Server bereit. Buchst du für ihn, erstellst seine Voranmeldung oder berätst ihn, ist das Hilfeleistung in Steuersachen, die das Steuerberatungsgesetz nur bestimmten Personen erlaubt (§§ 2 bis 6 StBerG).
+
+Eine offizielle Aussage der Finanzverwaltung zum Betrieb freier Software für andere gibt es nicht. Wer es genau wissen will, fragt beim Bayerischen Landesamt für Steuern nach (siehe [Open Source und die Hersteller-ID](einrichtung.md#open-source-und-die-hersteller-id)).
 
 ## Umgebungsvariablen
 
@@ -451,6 +456,9 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `EXTRACTION_MAX_PAGES` | nein | So viele PDF-Seiten gehen höchstens als Bild an den eigenen Dienst, 1 bis 20. Standard `4` | `2` |
 | `EXTRACTION_INPUT` | nein | Was bei PDFs an den eigenen Dienst geht: `text-und-bild` (Text der Seiten aus der Textschicht und Seitenbilder), `text` (nur Text, für ein reines Textmodell) oder `bild` (nur Seitenbilder). Standard `text-und-bild`, siehe [KI-Auslesung](belege.md#ki-auslesung) | `text` |
 | `EXTRACTION_EXTRA_BODY` | nein | Zusätzliche Felder im Request-Body an den eigenen Dienst, als JSON-Objekt. Für Modelle, die sonst ihr Antwortbudget mit Denken verbrauchen (`reasoning_tokens`), etwa DeepSeek über ein Gateway: `{"reasoning_effort":"none"}`. `model`, `messages`, `stream` und `response_format` setzt Haben selbst und überschreibt sie. Ohne Angabe geht der Body unverändert raus, siehe [KI-Auslesung](belege.md#ki-auslesung) | `{"reasoning_effort":"none"}` |
+| `LAYOUTS_MAX_COUNT` | nein | Höchstzahl eigener Belegvorlagen ([Eigene Belegvorlagen](belegvorlagen.md)), damit niemand die Installation überlädt. Ohne Angabe unbegrenzt | `20` |
+| `LAYOUTS_MAX_MB` | nein | Speicher für eigene Belegvorlagen in MB, Quelltexte und freigegebene Pakete zusammen. Ohne Angabe unbegrenzt; eine einzelne Vorlage hat höchstens 256 KB | `50` |
+| `LAYOUTS_PACKAGES_URL` | nein | Andere Quelle für die Typst-Pakete eigener Belegvorlagen, etwa ein Spiegel ohne Zugang ins Internet; darunter je Paket `<name>-<version>.tar.gz`. Standard `https://packages.typst.org/preview` | `https://spiegel.example/typst/preview` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (u. a. wiederkehrende Rechnungen, Dauerbelege, Kontoabruf, ELSTER-Postfach, Umrechnungskurse, Belege per E-Mail, Fristen-Erinnerungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
 | `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
@@ -500,7 +508,7 @@ Ein Lauf
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
 4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab,
 5. trägt das Ergebnis in die Datenbank ein; die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
-6. spielt einmal pro Woche das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
+6. spielt alle `RESTORE_CHECK_DAYS` Tage (Standard 7) das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
 Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
 
@@ -529,13 +537,15 @@ Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), sch�
 
 ### Test-Restore
 
-Ein Backup, das sich im Ernstfall nicht einspielen lässt, merkt man sonst erst im Ernstfall. Deshalb folgt auf ein erfolgreiches Backup alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
+Auf ein erfolgreiches Backup folgt alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
 
 1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
 2. der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank `haben_restore_check_…` eingespielt (eigener Name je Lauf),
 3. darin prüft es Hash-Kette und Siegel wie „Kette prüfen“ in der App, und der letzte Eintrag der Kette im Backup muss mit demselben Hash in der laufenden Datenbank stehen,
 4. 20 zufällige Belege (`RESTORE_CHECK_FILES`) kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
 5. die Wegwerf-Datenbank wird wieder gelöscht, das Ergebnis steht in der App.
+
+`RESTORE_CHECK_SUBSET` (Standard `5%`) und `RESTORE_CHECK_FILES` (Standard 20) wirken nur bei den Quadlets in `backup.env`; `compose.yml` reicht sie nicht an den Dienst `backup` durch.
 
 Der Datenbankserver braucht dafür kurzzeitig Platz für eine zweite Kopie der Datenbank. Von Hand: `docker compose exec backup restore-check.sh` bzw. mit den Quadlets `podman run` wie unten unter Wiederherstellen, mit `restore-check.sh` statt `restore.sh latest` und `/belege` nur lesend. Eine App, die älter ist als das Backup-Image, hat die Tabelle für das Ergebnis noch nicht; dann steht es nur im Protokoll, und der Test-Restore läuft sonntags.
 
@@ -577,7 +587,7 @@ Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `
 ### Update zurücknehmen
 
 1. Vor dem Update ein Backup machen (`docker compose exec backup backup.sh` bzw. `systemctl --user start haben-backup`), wie unter [Updates](#updates).
-2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.yml` etwa `image: tristanteu/haben:0.1.9`, im Quadlet `Image=docker.io/tristanteu/haben:0.1.9`.
+2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.yml` etwa `image: tristanteu/haben:x.y.z`, im Quadlet `Image=docker.io/tristanteu/haben:x.y.z`.
 3. Den Stand von vor dem Update einspielen, wie oben unter [Wiederherstellen](#wiederherstellen). Die Snapshot-ID zeigt `restore.sh` ohne Argument; `latest` passt nur, wenn seit dem Update kein Backup mehr lief.
 4. Die App starten (`docker compose up -d` bzw. `systemctl --user daemon-reload && systemctl --user start haben-app`).
 
@@ -629,13 +639,13 @@ podman pull docker.io/tristanteu/haben-backup:latest
 
 `podman auto-update` erfasst nur laufende Container. Das Backup läuft bloß kurz, sein Image holst du deshalb mit `podman pull`.
 
-`haben-app.container` und `haben-db.container` tragen `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
+`haben-app.container` und `haben-db.container` tragen `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:x.y`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
 
 `podman auto-update` tauscht nur das Image. Lädst du neue Quadlet-Dateien wie `haben-app.container`, hole auch die `.volume`-Dateien, auf die sie verweisen (etwa `haben-eric-log.volume`), und führe danach `systemctl --user daemon-reload` aus.
 
 ### PostgreSQL-Update
 
-Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein ganz normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
+Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
 
 ```text
 haben-db: Aktualisiere die Datenbank von PostgreSQL 16 (/var/lib/postgresql/data) auf 18 (/var/lib/postgresql/data/18/docker) …
@@ -685,7 +695,7 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 
 Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
-ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
+ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Das Paket selbst (rund 520 MB) lädt Haben in einen Ordner `.download-…` im selben Volume und löscht ihn nach dem Entpacken, Reste einer abgebrochenen Installation beim nächsten Versuch; nach `/tmp` geht es nicht, denn das liegt im gehärteten Container im Arbeitsspeicher. Während der Installation braucht das Volume deshalb kurz rund 800 MB frei; die bisherige Version bleibt bis zum Umschalten liegen. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann die neue Versionsnummer eintragen und erneut laden.
 
 Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [Erste Schritte](einrichtung.md#elster-einrichten), dort auch, wer bei Haben als Hersteller gilt.
 
@@ -698,8 +708,6 @@ Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
 ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne ERiC nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
-
-Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
 ### ELSTER auf arm64
 
@@ -736,7 +744,8 @@ Warum ein Skript statt nur QEMU: `worker.sh` setzt vorher `ulimit -s unlimited`.
 Optional. Ist `ANTHROPIC_API_KEY` gesetzt, liest Haben Belege, die keine E-Rechnung sind, mit Claude aus:
 
 ```sh
-printf '%s' 'sk-ant-…' | podman secret create haben-anthropic-key -
+read -rs KEY   # Schlüssel einfügen, Enter; so landet er nicht in der Shell-Historie
+printf '%s' "$KEY" | podman secret create haben-anthropic-key - && unset KEY
 # in haben-app.container die Zeile "Secret=haben-anthropic-key,…" einkommentieren
 systemctl --user daemon-reload && systemctl --user restart haben-app
 ```
@@ -800,7 +809,7 @@ docker compose exec app bun -e 'fetch(process.env.EXTRACTION_BASE_URL + "/models
 
 ### Beispiel: Ollama als eigener Container
 
-Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Das ist nur ein Beispiel; Haben braucht diesen Container nicht.
+Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Haben braucht diesen Container nicht.
 
 ```yaml
 services:
@@ -901,7 +910,7 @@ OIDC_GROUP_STEUERBERATUNG=haben-steuerberatung
 
 Mit `OIDC_ONLY=true` sind Issuer, Client-ID, Clientsecret und beide Gruppen Pflicht; fehlt etwas, startet Haben nicht. Die Gruppen müssen verschieden sein und werden exakt verglichen (Groß-/Kleinschreibung zählt, keine Leerzeichen am Rand). `OIDC_GROUPS_CLAIM` nennt genau einen Claim auf oberster Ebene, keinen Pfad oder Ausdruck; ein URL-förmiger Name wie `https://haben.example.de/groups` ist erlaubt.
 
-In Docker Compose stehen die Werte in der geschützten `.env` neben `compose.yml`, bei Quadlets in `haben.env` und das Clientsecret als Podman-Secret `haben-oidc-client-secret` (die vorbereitete `Secret=`-Zeile in `haben-app.container` einkommentieren). In **Coolify** die Werte als Laufzeit-Umgebungsvariablen der Anwendung setzen, das Clientsecret als „Secret“ markieren und neu deployen. `BETTER_AUTH_URL` muss der öffentlichen Adresse im Browser entsprechen, einschließlich eines Ports.
+In Docker Compose stehen die Werte in der `.env` neben `compose.yml` (nur für dich lesbar, `chmod 600 .env`), bei Quadlets in `haben.env` und das Clientsecret als Podman-Secret `haben-oidc-client-secret` (die vorbereitete `Secret=`-Zeile in `haben-app.container` einkommentieren). In **Coolify** die Werte als Laufzeit-Umgebungsvariablen der Anwendung setzen, das Clientsecret als „Secret“ markieren und neu deployen. `BETTER_AUTH_URL` muss der öffentlichen Adresse im Browser entsprechen, einschließlich eines Ports.
 
 Haben lädt `${OIDC_ISSUER}/.well-known/openid-configuration`; der dort genannte Issuer muss exakt dem konfigurierten Wert entsprechen, UserInfo wird verwendet, wenn der Anbieter einen entsprechenden Endpunkt nennt. Anbieter und Haben laufen über HTTPS; HTTP ist nur auf Loopback außerhalb des Betriebs erlaubt. Hat der Anbieter ein Zertifikat einer eigenen CA, deren Datei über `NODE_EXTRA_CA_CERTS` in den Haben-Container geben. Die feste Callback-Adresse lautet:
 
@@ -1087,7 +1096,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ELSTER › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
 
-**Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ELSTER › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und für die Dauer des Downloads etwa 600 MB im temporären Verzeichnis frei haben.
+**Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ELSTER › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und während der Installation rund 800 MB im Volume `eric` bzw. `haben-eric` frei haben (siehe [ERiC einbinden](#eric-einbinden)).
 
 **Die Vorschau von Belegen, Rechnungen oder Angeboten bleibt leer oder zeigt „Verbindung abgelehnt“.** Die Vorschau ist ein eingebettetes Fenster (iframe) auf derselben Adresse. Setzt der Reverse Proxy `X-Frame-Options DENY`, verbietet das auch diese Einbettung. Stell den Header auf `SAMEORIGIN` um (so steht es im mitgelieferten `Caddyfile` und in `compose.yml`); vor Clickjacking durch fremde Seiten schützt die App selbst mit `Content-Security-Policy: frame-ancestors 'self'`. Bei Caddy mit einzeln gemounteter `Caddyfile` (Quadlet) reicht nach dem Bearbeiten `caddy reload` nicht: Editoren und `sed -i` legen eine neue Datei an, der Bind-Mount zeigt weiter auf die alte. Starte den Container neu (`systemctl --user restart haben-caddy` bzw. ohne `--user` bei rootful Podman).
 

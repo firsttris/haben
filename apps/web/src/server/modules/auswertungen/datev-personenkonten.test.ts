@@ -1,7 +1,7 @@
 import { parseDatevBuchungsstapel } from "@haben/import";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -39,7 +39,7 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate datev_personenkonten, document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
+    await leeren(sql)`truncate datev_personenkonten, document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
       cash_entries, journal_lines, journal_entries, document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions,
       contacts, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen,
@@ -257,6 +257,25 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export mit Personenkonten (Postgres, #3
     // Hat der Inhaber einmal exportiert, holt die Steuerberatung denselben Stapel
     const vomInhaber = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
     const vonDerSteuerberatung = await datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung);
+    expect(Buffer.from(vonDerSteuerberatung.bytes).equals(Buffer.from(vomInhaber.bytes))).toBe(true);
+  });
+
+  it("Recht „lesen“ im Nur-Lesen-Rahmen der API-Route: dieselbe Ablehnung bzw. derselbe Stapel, nichts geschrieben", async () => {
+    // /api/datev/$jahr läuft für die Steuerberatung in runReadOnly (lese-route.ts). Festschreiben darf nur der Inhaber,
+    // und der läuft ohne Rahmen; für die Steuerberatung schreibt datevExport ohnehin nichts, der Rahmen ändert also nichts
+    const { runReadOnly } = await import("../../db/actor.ts");
+    await reset("SKR04", "soll");
+    await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003", personenkontenAb: 2026 }, new Date(2026, 0, 1));
+    const kunde = await contacts.createContact(actor, contactInput("Nordwerk GmbH", { debitorNr: 10001 }));
+    await invoice(kunde.id, 100_00);
+    const fehler = await runReadOnly(() => datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung)).catch((e: unknown) => e);
+    expect(fehler).toBeInstanceOf(datev.DatevExportError);
+    expect((fehler as Error).message).toMatch(/muss vom Inhaber kommen/);
+    expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 0 }]);
+
+    const vomInhaber = await datev.datevExport(2026, new Date(2026, 9, 4), inhaber);
+    expect(await sql`select count(*)::int as n from datev_personenkonten`).toEqual([{ n: 1 }]);
+    const vonDerSteuerberatung = await runReadOnly(() => datev.datevExport(2026, new Date(2026, 9, 4), steuerberatung));
     expect(Buffer.from(vonDerSteuerberatung.bytes).equals(Buffer.from(vomInhaber.bytes))).toBe(true);
   });
 

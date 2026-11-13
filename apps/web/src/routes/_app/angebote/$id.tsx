@@ -23,7 +23,6 @@ export const Route = createFileRoute("/_app/angebote/$id")({
 });
 
 type Detail = Awaited<ReturnType<typeof getQuoteDetail>>;
-
 function QuotePage() {
   const data = Route.useLoaderData();
   const { quote } = data;
@@ -37,6 +36,7 @@ function QuotePage() {
         kind="angebot"
         initial={{
           contactId: quote.contactId,
+          contactPersonId: quote.contactPersonId,
           issueDate: quote.issueDate,
           validUntil: quote.validUntil,
           serviceFrom: quote.serviceFrom,
@@ -68,6 +68,7 @@ function QuotePage() {
           })),
         }}
         planTemplates={data.planTemplates}
+        contactPersons={data.contactPersons}
         contacts={data.contacts}
         seller={data.company}
         sellerIssues={data.sellerIssues}
@@ -274,7 +275,7 @@ function FinalQuote({ data }: { data: Detail }) {
                       {b.variant === "abschlag" ? "Abschlagsrechnung" : b.variant === "schluss" ? "Schlussrechnung" : "Rechnung"} {b.number ?? "(Entwurf)"}
                     </Link>
                     <span className="small muted" style={{ display: "block" }}>
-                      {formatDate(b.issueDate)} · <span className="mono">{formatEuro(b.gross)}</span>
+                      {formatDate(b.issueDate)} · <span className="amount">{formatEuro(b.gross)}</span>
                     </span>
                   </span>
                   <span className={`pill ${b.cancelled ? "pill-danger" : b.status === "final" ? "pill-ok" : ""}`}>
@@ -300,11 +301,11 @@ function FinalQuote({ data }: { data: Detail }) {
               <dt>Gültig bis</dt>
               <dd>{formatDate(quote.validUntil)}</dd>
               <dt>Netto</dt>
-              <dd className="mono">{formatEuro(quote.net)}</dd>
+              <dd className="amount">{formatEuro(quote.net)}</dd>
               <dt>Umsatzsteuer</dt>
-              <dd className="mono">{formatEuro(quote.tax)}</dd>
+              <dd className="amount">{formatEuro(quote.tax)}</dd>
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(quote.gross)}
               </dd>
               {quote.priceMode === "brutto" && (

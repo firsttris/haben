@@ -7,8 +7,7 @@ description: >-
 
 # Dokumentation
 
-Hier steht alles über Haben im Detail: wie du es betreibst und einrichtest, was jede Seite macht, was im Hintergrund
-gebucht wird und wie der Code aufgebaut ist. Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
+Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 Überblick die [README auf GitHub](https://github.com/firsttris/haben#readme).
 
 ## Betrieb
@@ -23,12 +22,13 @@ gebucht wird und wie der Code aufgebaut ist. Den Rundgang in Bildern gibt die [S
 | | |
 |---|---|
 | [Rechnungen und E-Rechnung](rechnungen.md) | Editor, Artikelkatalog, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Abschläge, wiederkehrende Rechnungen, Mahnwesen, Versand, Storno und Korrektur, Kontakte |
+| [Eigene Belegvorlagen](belegvorlagen.md) | Eigene Layouts in Typst für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung: Felder, Schriften, Prüfung beim Hochladen, Anleitung für KI-Agenten |
 | [Angebote](angebote.md) | Eigener Nummernkreis, PDF, optionale und alternative Positionen, Zahlungsplan mit Abschlägen, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot, Auftragsbestätigung und Lieferschein |
 | [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand; Buchung und Storno |
 | [Kassenbuch](kasse.md) | Barkasse: Einlage, Entnahme, Geldtransit, bar bezahlte Belege und Rechnungen; nie negativer Bestand, Storno |
 | [Anlagen und AfA](anlagen.md) | Anlagenverzeichnis, lineare und degressive AfA, Anschaffung per Beleg, Übernahme aus Lexoffice, AfA buchen, Abgang |
-| [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking), DKB, N26, CAMT.053, Zahlungsdienstleister, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg, Steuerzahlungen, Darlehen |
+| [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking), DKB, Commerzbank, C24, N26, Swan, CAMT.053, Zahlungsdienstleister, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg, Steuerzahlungen, Darlehen |
 | [Umsatzsteuer-Voranmeldung](umsatzsteuer.md) | Kennzahlen aus den Buchungen, Vorprüfung, Prüfen, Test- und Echtübermittlung, XML-Import in Mein ELSTER, Berichtigung, Zahlung an das Finanzamt, Dauerfristverlängerung, Zusammenfassende Meldung |
 | [Finanzamt](finanzamt.md) | Bescheide aus dem ELSTER-Postfach, Einspruchsfrist, Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen, Bankverbindung |
 | [Fristen](fristen.md) | Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen; Kalender-Abo und Erinnerungen per E-Mail |
@@ -41,6 +41,8 @@ gebucht wird und wie der Code aufgebaut ist. Den Rundgang in Bildern gibt die [S
 | [Umzug aus Lexoffice](lexoffice.md) | API-Abruf, Sicherung über die Web-Oberfläche oder Umzug nur über die Exporte, DATEV-Buchungsstapel, Originalexporte, offene Posten, Abgleich vor der Kündigung |
 | [Umzug aus sevDesk](sevdesk.md) | API-Abruf aus sevDesk ins selbe Archiv, Unterschiede zu Lexoffice |
 | [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) | BB Standardexport, DATEV-Stapel und Original-PDFs mit Testlauf archivieren |
+| [Umzug aus Accountable](accountable.md) | Exportdatei hochladen, DATEV-Buchungsstapel und Belege verknüpfen, ohne API-Zugang |
+| [Belegimport](belegimport.md) | Geprüfte Bestände als JSON-Paket per Betreiber-CLI übernehmen, mit Herkunft und Prüflauf |
 | [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
 | [CSV-Import](csv-import.md) | Kontakte, Artikel und Anlagen aus CSV: Trennzeichen und Kodierung erkennen, Spalten zuordnen, Vorschau mit Fehlern je Zeile, Dubletten überspringen |
 | [REST-API](api.md) | Kontakte und Rechnungsentwürfe aus eigenen Werkzeugen, mit Bestellnummer ohne Duplikate; Belege aus Dokumentenarchiven und Skripten; OpenAPI, Rechte je Token, Beispiele mit curl |
@@ -56,19 +58,25 @@ gebucht wird und wie der Code aufgebaut ist. Den Rundgang in Bildern gibt die [S
 | [Buchhaltung in Haben](buchhaltung.md) | Grundsätze, GoBD und Festschreibung, Ist und Soll, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
 | [Architektur](architektur.md) | Module, Datenmodell, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
 | [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate, Mitwirken |
-| [Roadmap](roadmap.md) | Was geplant ist, was blockiert ist, Quellen für Feldkennungen |
+| [Roadmap](roadmap.md) | Wo die Planung steht, was bewusst nicht kommt, was blockiert ist, Quellen für Feldkennungen |
 | [Lohn (Plan)](lohn-plan.md) | Recherche und Umsetzungsplan für den Lohn: Pull Requests, Pflichten einer Lohnsoftware, offene Fragen, Quellen |
 
 ## Screenshots
 
-<img src="screenshot-rechnung.png" alt="Rechnungseditor mit Live-Vorschau" width="900">
+<img src="screenshot-rechnung.png#only-light" alt="Rechnungseditor mit Live-Vorschau" width="900">
+<img src="screenshot-rechnung-dunkel.png#only-dark" alt="Rechnungseditor mit Live-Vorschau" width="900">
 
-<img src="screenshot-bank.png" alt="Bankabgleich mit Vorschlag und Begründung" width="900">
+<img src="screenshot-bank.png#only-light" alt="Bankabgleich mit Vorschlag und Begründung" width="900">
+<img src="screenshot-bank-dunkel.png#only-dark" alt="Bankabgleich mit Vorschlag und Begründung" width="900">
 
-<img src="screenshot-umsatzsteuer.png" alt="Umsatzsteuer-Voranmeldung mit Kennzahlen und ELSTER-Übermittlung" width="900">
+<img src="screenshot-umsatzsteuer.png#only-light" alt="Umsatzsteuer-Voranmeldung mit Kennzahlen und ELSTER-Übermittlung" width="900">
+<img src="screenshot-umsatzsteuer-dunkel.png#only-dark" alt="Umsatzsteuer-Voranmeldung mit Kennzahlen und ELSTER-Übermittlung" width="900">
 
-<img src="screenshot-auswertungen.png" alt="Auswertungen mit EÜR und Monatsdiagramm" width="900">
+<img src="screenshot-auswertungen.png#only-light" alt="Auswertungen mit EÜR und Monatsdiagramm" width="900">
+<img src="screenshot-auswertungen-dunkel.png#only-dark" alt="Auswertungen mit EÜR und Monatsdiagramm" width="900">
 
-<img src="screenshot-archiv.png" alt="Archiv mit Umzug aus Lexoffice und Abgleich je Jahr" width="900">
+<img src="screenshot-archiv.png#only-light" alt="Archiv mit Umzug aus Lexoffice und Abgleich je Jahr" width="900">
+<img src="screenshot-archiv-dunkel.png#only-dark" alt="Archiv mit Umzug aus Lexoffice und Abgleich je Jahr" width="900">
 
-<img src="screenshot-mobil.png" alt="Übersicht auf dem Smartphone" width="320">
+<img src="screenshot-mobil.png#only-light" alt="Übersicht auf dem Smartphone" width="320">
+<img src="screenshot-mobil-dunkel.png#only-dark" alt="Übersicht auf dem Smartphone" width="320">

@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from "fflate";
 import type postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
@@ -40,14 +40,26 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
   </content>
 </archive>`;
 
+/**
+ * Feste Änderungszeit der ZIP-Einträge: Ohne sie schreibt fflate die aktuelle Uhrzeit (auf 2 Sekunden genau) hinein, und
+ * zwei Aufrufe mit denselben Angaben ergeben je nach Uhr andere Bytes und eine andere sha256.
+ */
+const ZIP_ZEIT = { mtime: new Date(2026, 10, 10, 11, 22, 12) };
+
 /** `guid`: echte Exporte tragen eine UUID; die übrigen Tests bleiben beim lesbaren Platzhalter */
 function export_(guid = "guid-hosting", ordner = "datev_skr03_10112026"): Uint8Array {
-  const belege = zipSync({ "document.xml": strToU8(XML.replace("guid-hosting", guid)), "beleg-hosting.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n") });
-  return zipSync({
-    [`${ordner}/EXTF_Buchungsstapel_2025Test.csv`]: strToU8([KOPF, SPALTEN, ...BUCHUNGEN].join("\n").replaceAll("guid-hosting", guid)),
-    [`${ordner}/Belege.zip`]: belege,
-    "PDF/Einkäufe/beleg-hosting_Wdn.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n"),
-  });
+  const belege = zipSync(
+    { "document.xml": strToU8(XML.replace("guid-hosting", guid)), "beleg-hosting.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n") },
+    ZIP_ZEIT,
+  );
+  return zipSync(
+    {
+      [`${ordner}/EXTF_Buchungsstapel_2025Test.csv`]: strToU8([KOPF, SPALTEN, ...BUCHUNGEN].join("\n").replaceAll("guid-hosting", guid)),
+      [`${ordner}/Belege.zip`]: belege,
+      "PDF/Einkäufe/beleg-hosting_Wdn.pdf": strToU8("%PDF-1.4\n% Beleg Test\n%%EOF\n"),
+    },
+    ZIP_ZEIT,
+  );
 }
 
 describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
@@ -153,9 +165,15 @@ describe.skipIf(!testDatabaseUrl)("Accountable-Import (Postgres)", () => {
   it("legt beim zweiten Lauf nichts doppelt an (GUID und sha256)", async () => {
     accountable.analyseAccountableUpload(export_(), "Accountable_Max_Mustermann_skr03_2025-01-01_test.zip");
     await accountable.startAccountableImport(actor, { wait: true });
-    accountable.analyseAccountableUpload(export_(), "Accountable_Max_Mustermann_skr03_2025-01-01_test.zip");
+    // Zwischen den Uploads vergeht Zeit (in der CI unter Last mehr als die 2 Sekunden, in denen ZIP die Zeit speichert);
+    // derselbe Export muss trotzdem dieselben Bytes haben, sonst ist er für die sha256 ein anderer
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 10_000 });
+    const zweiter = export_();
+    vi.useRealTimers();
+    accountable.analyseAccountableUpload(zweiter, "Accountable_Max_Mustermann_skr03_2025-01-01_test.zip");
     const id = await accountable.startAccountableImport(actor, { wait: true });
     const run = await accountable.accountableImportStatus(id);
+    expect(run).toMatchObject({ status: "fertig", error: null });
     expect(run!.progress).toMatchObject({ listed: 3, imported: 0, skipped: 3, files: 0, failed: [] });
     // Die Analyse ist wieder da, der Export lag schon im Archiv
     expect(run!.accountable).toMatchObject({ withFile: 2, withoutFile: 1, archivedAlready: true });

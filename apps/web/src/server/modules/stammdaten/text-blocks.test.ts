@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Textbausteine (Postgres)", () => {
   let blocks: typeof import("./text-blocks.ts");
@@ -19,7 +19,7 @@ describe.skipIf(!testDatabaseUrl)("Textbausteine (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate text_blocks, contact_versions, contacts cascade`;
+    await leeren(sql)`truncate text_blocks, contact_versions, contacts cascade`;
   });
 
   it("legt Kopf- und Fußtexte an, ordnet sie Kunden zu, archiviert und protokolliert", async () => {

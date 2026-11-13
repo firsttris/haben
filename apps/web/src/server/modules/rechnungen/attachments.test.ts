@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 
 type Sent = { attachments?: { filename: string; contentType: string; content: Buffer | string }[] };
@@ -47,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
 
   beforeEach(async () => {
     sent.length = 0;
-    await sql`truncate mail_log, mail_settings, journal_lines, journal_entries, invoice_attachments, invoice_lines, invoices,
+    await leeren(sql)`truncate mail_log, mail_settings, journal_lines, journal_entries, invoice_attachments, invoice_lines, invoices,
       invoice_number_counters, documents, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',

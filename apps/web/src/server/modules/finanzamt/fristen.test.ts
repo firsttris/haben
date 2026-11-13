@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import nodemailer from "nodemailer";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-Mail (Postgres)", () => {
   let fristen: typeof import("./fristen.ts");
@@ -43,7 +43,8 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
 
   beforeEach(async () => {
     sent.length = 0;
-    await sql`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, elster_certificates, mail_log, mail_settings, company cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries, vat_return_submissions, vat_returns, annual_submissions, elster_certificates, mail_log,
+      mail_settings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland) values (1, 'Testfirma', 'Musterstraße 1', '77815', 'Bühl', '35/123/45678', 'BW')`;
     await taxpayer.saveTaxpayer(actor, {
       a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
   it("GmbH: Voranmeldungen, Umsatz-, Körperschaft- und Gewerbesteuererklärung und E-Bilanz, keine EÜR, Einkommensteuer oder Vorauszahlungen dafür", async () => {
     // Die Rechtsform ist ab der ersten Buchung fest; deshalb vor der Buchung umstellen
     const [entry] = await sql`select date, description, source_type, source_id from journal_entries`;
-    await sql`truncate journal_lines, journal_entries cascade`;
+    await leeren(sql)`truncate journal_lines, journal_entries cascade`;
     await sql`update company set rechtsform = 'gmbh'`;
     await sql.begin(async (tx) => {
       const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
@@ -188,5 +189,29 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(sent.at(-1)).toMatchObject({ to: "b@example.com", subject: "Haben: Test-Mail" });
     expect(await mail.runDueFristenMails("2026-10-05", new Date("2026-10-05T06:00:00Z"))).toBeNull(); // Erinnerungen aus
     expect((await mail.mailSettingsSummary()) as object).not.toHaveProperty("ciphertext");
+  });
+
+  it("erledigt die Frist einer Jahreserklärung, die außerhalb von Haben abgegeben und vermerkt wurde", async () => {
+    // Jahresfristen entstehen ab dem ersten Buchungsjahr; ohne Buchung in 2025 gibt es keine Frist für 2025
+    await sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2025-07-15', 'Test 2025', 'invoice', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 100, 0), (${e!.id}, '8400', 0, 100)`;
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    });
+    // Frist der EÜR 2025 ohne Berater: 31.07.2026. Am 05.08. liegt sie noch in der 60-Tage-Liste.
+    const vorher = await fristen.listFristen("2026-08-05");
+    expect(vorher.find((f) => f.id === "euer-2025")?.status).toBe("offen");
+
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, transfer_ticket, figures, filed_on, note,
+                request_xml, response_xml, server_response_xml)
+      values ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', 'ABC123456789', '{"amount":0}'::jsonb,
+              '2026-07-29', 'Extern über eine andere Software abgegeben', '', '', '')`;
+
+    const nachher = await fristen.listFristen("2026-08-05");
+    expect(nachher.find((f) => f.id === "euer-2025")?.status).toBe("erledigt");
+    // Älteres Erledigtes fällt nach 60 Tagen aus der Liste, offen bleibt es immer sichtbar
+    const spaeter = await fristen.listFristen("2026-11-12");
+    expect(spaeter.filter((f) => f.id === "euer-2025" && f.status === "offen")).toHaveLength(0);
   });
 });

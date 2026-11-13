@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 type Kontenrahmen = "SKR03" | "SKR04";
 
@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("Abschluss aus dem DATEV-Stapel (Postgres)", (
       await tx`delete from archive_files`;
       await tx`delete from corporate_tax_inputs`;
     });
-    await sql`truncate company cascade`;
+    await leeren(sql)`truncate company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB',
               ${kontenrahmen}, 'soll', ${rechtsform})`;

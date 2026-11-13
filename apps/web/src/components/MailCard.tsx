@@ -200,15 +200,15 @@ export function MailCard({ data }: { data: Data }) {
         </p>
         <Field label="Erinnerungen an">{(control) => <input {...control} name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />}</Field>
       </fieldset>
-      <div>
+      <div className="checkbox-hinted">
         <label className="checkbox">
-          <input type="checkbox" name="pruefwertMail" defaultChecked={s?.pruefwertMail ?? true} />
+          <input type="checkbox" name="pruefwertMail" defaultChecked={s?.pruefwertMail ?? true} aria-describedby="pruefwert-mail-hint" />
           Prüfwert des Änderungsprotokolls wöchentlich mailen
         </label>
-        <p className="small muted" style={{ margin: "6px 0 0" }}>
+        <span id="pruefwert-mail-hint" className="field-hint">
           Damit liegt der Stand des Audit-Logs auch außerhalb des Servers. Mit einem aufbewahrten Prüfwert lässt sich später zeigen, dass bis dahin nichts
           nachträglich verändert wurde (Einstellungen → Export).
-        </p>
+        </span>
       </div>
       <TemplateEditor templates={templates} onChange={setTemplates} />
       <ConfirmDialog

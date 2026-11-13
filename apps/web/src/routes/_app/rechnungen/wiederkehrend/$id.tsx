@@ -73,6 +73,7 @@ function RecurringDetailPage() {
             paymentTermDays: recurring.paymentTermDays,
             intro: recurring.intro,
             note: recurring.note,
+            propertyRetention: recurring.propertyRetention,
             taxTreatment: recurring.taxTreatment as TaxTreatment,
             exemptionReason: recurring.exemptionReason,
             priceMode: recurring.priceMode,

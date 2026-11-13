@@ -7,8 +7,6 @@ description: >-
 
 # REST-API
 
-API-Tokens besitzen einen verantwortlichen Inhaber. Wird dessen Inhaberrolle bei einer geprüften SSO-Anmeldung entzogen, deaktiviert Haben die Tokens, erhält aber Geheimnis, Rechte und Ablaufdatum. Ein anderer Inhaber kann sie in den Einstellungen ausdrücklich übernehmen und reaktivieren, der einzige Inhaber auch seine eigenen. Ohne erneuten OIDC-Durchlauf gilt ein Token höchstens 30 Tage nach der letzten Bestätigung des Verantwortlichen. Endgültig widerrufene und abgelaufene Tokens bleiben unbrauchbar. Bei der Einführung werden alte Tokens ohne belegbare Verantwortung bis zur ausdrücklichen Übernahme deaktiviert.
-
 Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe in Haben an, etwa eine Automation, die Bestellungen aus Etsy oder eBay holt. Haben bekommt dafür keine eigene Bestellverwaltung: Die Bestellung bleibt auf der Plattform, Haben schreibt die Rechnung dazu. Ebenso liefern eigene Werkzeuge, Dokumentenarchive und Skripte Eingangsbelege an Haben, die dort unter **Belege** als „Zu prüfen“ landen.
 
 Die Oberfläche einer solchen Automation kannst du als [eigene Seite](eigene-seiten.md) ins Menü von Haben hängen.
@@ -20,6 +18,7 @@ Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf
 | Kontakte | auflisten und suchen, lesen, anlegen, ändern (nicht löschen: Kontakte sind versioniert) |
 | Rechnungen | alle lesen, auch festgeschriebene; Entwürfe anlegen, ändern und löschen, solange sie Entwurf sind |
 | Belege | hochladen (landen als „Zu prüfen“), auflisten und lesen, ob sie schon geprüft und gebucht sind; nicht ändern oder löschen |
+| Leistungen | Zeiteinträge je Kunde auflisten, lesen, anlegen (mit Kennung wiederholbar) und löschen, etwa aus Kimai |
 
 Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https://<deine Adresse>/api/v1/openapi.json`, ohne Token. Werkzeuge wie Swagger UI, Bruno oder Postman lesen sie ein.
 
@@ -39,6 +38,8 @@ Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was e
 | `rechnungen:entwuerfe` | dazu `POST /rechnungen`, `PATCH /rechnungen/{id}`, `DELETE /rechnungen/{id}` |
 | `belege:lesen` | `GET /belege`, `GET /belege/{id}` |
 | `belege:anlegen` | dazu `POST /belege` |
+| `leistungen:lesen` | `GET /leistungen`, `GET /leistungen/{id}` |
+| `leistungen:schreiben` | dazu `POST /leistungen`, `DELETE /leistungen/{id}` |
 | `haben:lesen` | nur die Werkzeuge über [MCP](ki-assistenten.md), nicht die REST-API |
 
 Schreiben und anlegen schließen lesen ein. Ein Token ohne das nötige Recht bekommt `403`.
@@ -51,7 +52,7 @@ Schreiben und anlegen schließen lesen ein. Ein Token ohne das nötige Recht bek
 - **Einheiten wie überall in Haben:** Beträge in ganzen Cent (`5712` = 57,12 €), Steuersätze in Basispunkten (`1900` = 19 %, `700` = 7 %, `0`), Mengen in Tausendsteln (`1000` = 1 Stück, `1500` = 1,5 Stunden), Datum als `JJJJ-MM-TT`. Bei Fremdwährung sind `net`, `tax` und `gross` in Euro umgerechnet, die Einzelpreise stehen in der Währung der Rechnung.
 - **Listen** haben `limit` (1 bis 500, Vorgabe 100) und `offset` und antworten mit `{ "data": […], "total": …, "limit": …, "offset": … }`.
 - **Grenze:** 120 Anfragen je Minute und Token, darüber `429` mit `Retry-After: 60`. Werkzeuge über MCP und die API zählen zusammen.
-- **Protokoll:** Jeder Aufruf steht ohne Inhalte unter **Letzte Aufrufe** (z. B. `POST /rechnungen`), 90 Tage lang. Was die API anlegt oder ändert, steht im Änderungsprotokoll mit dem Namen des Tokens als Akteur (`api:Shop-Automation`).
+- **Protokoll:** Jeder Aufruf steht ohne Inhalte unter **Letzte Aufrufe** (z. B. `POST /rechnungen`), 90 Tage lang. Was die API anlegt oder ändert, steht im Änderungsprotokoll mit dem Token als Akteur: seiner ID und seinem Namen (`api:5b1d0c4e-…:Shop-Automation`). Über die ID bleiben zwei Tokens mit gleichem Namen unterscheidbar, etwa nach Widerruf und Neuanlage; ältere Einträge tragen nur den Namen (`api:Shop-Automation`).
 
 ### Fehler
 
@@ -83,6 +84,8 @@ Jeder Fehler hat dieselbe Form, mit einer deutschen Meldung und bei ungültigen 
 ## Bestell-, Auftrags- und Lieferscheinnummer
 
 Ein Rechnungsentwurf nimmt `buyerOrderReference` (Bestellnummer des Kunden, BT-13), `sellerOrderReference` (eigene Auftragsnummer, BT-14) und `despatchAdviceReference` (Lieferscheinnummer, BT-16) an, je bis 100 Zeichen, leer = keine. Sie stehen im PDF und in der E-Rechnung an ihrem eigenen Feld ([Rechnungen](rechnungen.md#bestellnummer-auftrag-und-lieferschein)). `PATCH` ohne diese Felder behält sie. Die externe Referenz (unten) bleibt davon getrennt; soll die Bestellnummer der Plattform auf der Rechnung stehen, schick sie zusätzlich als `sellerOrderReference` oder `buyerOrderReference`.
+
+`propertyRetention: true` ergänzt den festen [Aufbewahrungshinweis für private Grundstücksleistungen](rechnungen.md#aufbewahrungshinweis-bei-grundstücksleistungen) im PDF und in BT-22 der E-Rechnung. Beim Anlegen ist die Vorgabe `false`; ein `PATCH` ohne Feld behält die Auswahl, `false` schaltet sie aus. Die Antwort liefert den gespeicherten Wahrheitswert. Festgeschriebene Rechnungen bleiben unveränderlich.
 
 ## Externe Referenz: eine Rechnung je Bestellung
 
@@ -169,12 +172,47 @@ Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`
 
 ## Ablauf für Bestellungen
 
-Ein Ablauf für Bestellungen sieht typischerweise so aus:
-
 1. Neue Bestellungen von der Plattform holen (Trigger oder Zeitplan).
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
 3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
+
+## Leistungen und Zeiterfassung
+
+Ein Zeiterfassungsprogramm wie Kimai oder Toggl schickt seine Zeiteinträge mit `POST /leistungen` an Haben; sie stehen dort unter [Leistungen](leistungen.md). Der Eintrag gehört einem Kunden (`contactId`), hat einen Arbeitstag (`workedOn`), eine Dauer in ganzen Minuten (`minutes`, 1 bis 1440) und optional `description`, `hourlyRateCents`, `project` (freier Text), `billableMinutes` (abrechenbare Dauer, wenn sie von der erfassten abweicht) und `nonBillable` (`true`: erfasst, kommt aber nie in einen Rechnungsentwurf). Der Kontakt muss ein Kunde und darf nicht archiviert sein, sonst `422`. Ohne Stundensatz nimmt Haben den des Kunden; er bleibt als Kopie am Eintrag. Den Satz am Kunden setzt `PATCH /kontakte/{id}` mit `hourlyRateCents`.
+
+Mit `source` und `externalId` ist der Aufruf wiederholbar: Die Kennung der Zeile in der Quelle steht in `externalId`, der Name der Quelle in `source`. Gibt es die Kennung schon, antwortet Haben mit `200` und dem aktualisierten Eintrag, sonst mit `201`. Fehlen Stundensatz, `project`, `billableMinutes` oder `nonBillable` im Aufruf, behält ein vorhandener Eintrag seine Werte; `billableMinutes: null` nimmt eine abrechenbare Dauer zurück. Den Stundensatz des Kunden liefert `GET /kontakte/{id}` als `hourlyRateCents`.
+
+```sh
+curl -X POST "$HABEN/leistungen" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"contactId":"<Kunden-ID>","workedOn":"2026-03-02","minutes":90,"description":"Konzept Datenmodell","source":"kimai","externalId":"4711"}'
+```
+
+Gelöscht wird mit `DELETE /leistungen/{id}`, gelesen mit `GET /leistungen/{id}`; `GET /leistungen` mit `contactId`, `from` und `to` listet.
+
+### Zeitbuchungen aus Kimai holen
+
+Kimai hat eine eigene [REST-API](https://www.kimai.org/documentation/rest-api.html): Anmeldung mit `Authorization: Bearer <Kimai-Token>` (das Token aus dem Profil in Kimai, nicht das Passwort), Basis `https://<deine Kimai-Adresse>/api`, die vollständige Beschreibung unter `/api/doc` der eigenen Installation. Die Zeitbuchungen holt `GET /api/timesheets`; laut Quelltext von Kimai nimmt die Liste unter anderem `begin` und `end` (lokale Zeit, `JJJJ-MM-TTThh:mm:ss`), `customer`, `project`, `exported` (0 oder 1), `billable` (0 oder 1), `active` (0 = beendet), `modified_after` (UTC), `size` (höchstens 500) und `page`; `full=1` liefert Kunde und Projekt mit Namen statt nur mit ID.
+
+Ein Skript ruft regelmäßig die beendeten, noch nicht exportierten Zeitbuchungen ab und schickt jede an Haben:
+
+| Kimai | Haben (`POST /api/v1/leistungen`) |
+| --- | --- |
+| `id` der Zeitbuchung | `externalId`, dazu `source`: `kimai` |
+| Kunde der Zeitbuchung | `contactId`: der Kontakt in Haben, den das Skript über `GET /kontakte?q=<Name oder Kundennummer>` findet |
+| Datum von `begin` | `workedOn` |
+| `duration` (Sekunden) | `minutes`: auf ganze Minuten gerundet, mindestens 1 |
+| `description` | `description` |
+| Projekt (mit `full=1` der Name) | `project` |
+| `billable` ist `false` | `nonBillable`: `true` |
+
+`hourlyRateCents` lässt das Skript weg: Dann gilt der Satz des Kunden in Haben. Weil die Kennung der Zeitbuchung `externalId` ist, ändert ein erneuter Abruf, etwa nach `modified_after`, vorhandene Einträge statt neue anzulegen. Wer eine Zeitbuchung in Kimai nachträglich ändert, schickt sie noch einmal.
+
+Kimai merkt sich, was schon abgerechnet ist, mit dem Kennzeichen `exported` (`PATCH /api/timesheets/{id}/export` schaltet es um). Setzen soll es der Abgleich, sobald Haben die Einträge zu einer Rechnung gemacht hat; das kommt mit dem Abrechnen, einem späteren Teil von [#417](https://github.com/firsttris/haben/issues/417).
+
+> [!NOTE]
+> Diese Zuordnung folgt der Kimai-Dokumentation und dem Quelltext von Kimai. Sie ist noch nicht gegen eine laufende Kimai-Installation ausprobiert; welche Felder die Antwort genau enthält, zeigt `/api/doc` der eigenen Installation.
 
 ## Belege
 
@@ -250,5 +288,6 @@ Paperless-ngx schickt neue Dokumente mit einem Workflow ohne eigenen Code an Hab
 - Jedes Token hat nur die Rechte, die du ihm gibst. Keines kann buchen, festschreiben, stornieren, versenden oder etwas an ELSTER schicken, und keines sieht Zertifikat, Passwörter, API-Schlüssel oder Steuer-ID. Ein Token mit `belege:anlegen` kann Belege nur hinzufügen, nicht ändern, löschen oder herunterladen.
 - Die API meldet sich nur mit dem Token an, nie mit dem Sitzungscookie. Eine fremde Webseite, die du im selben Browser öffnest, kann sie deshalb nicht in deinem Namen aufrufen.
 - Ein Token ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten deines Werkzeugs, nicht im Klartext in Skripten oder Workflows, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
+- Im SSO-Modus hat jedes Token einen verantwortlichen Inhaber; verliert er die Inhaberrolle, deaktiviert Haben seine Tokens, siehe [Tokens nach Gruppenentzug](installation.md#tokens-nach-gruppenentzug).
 
 [Zurück zur Übersicht](ueberblick.md)

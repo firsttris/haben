@@ -22,6 +22,8 @@ Farben kommen aus den Variablen in `:root` von `styles.css`; die Themes übersch
 | Navigation | `--brand`, `--nav`, `--nav-active`, `--nav-ink` |
 | Status | `--warn-ink`, `--warn-soft`, `--warn-dot`, `--info-ink`, `--info-soft`, `--danger-ink`, `--danger-soft` |
 
+Einzige Ausnahme ist das Zeichen der Firma links neben „Haben“ (`NavMarkSymbol`), eine eigene Einstellung der Instanz unter Einstellungen › Firma, getrennt von der Beleggestaltung. Ein „H“ in eigener Farbe bekommt Fläche und Schrift als Inline-Style, die Schrift wählt `inkOnAccent` (`packages/core/src/accent.ts`): Weiß oder Schwarz, je nachdem, was den höheren Kontrast hat, so hält jede Farbe mindestens 4,5 : 1. Ein Logo steht auf weißer Fläche (`.brand-logo`), weil Logos für Papier gemacht sind und ein dunkles auf der dunklen Navigation verschwände, verkleinert in dieselbe quadratische Kachel wie das „H“ (`object-fit: contain`). Ab Werk bleibt `--brand` des Themes.
+
 Die Themes stehen in `apps/web/src/lib/theme.ts`: Wald (Standard), Ozean, Pflaume, Graphit, Nacht und Tiefsee (beide dunkel), dazu „Automatisch“, das der Systemeinstellung folgt.
 
 ## Schrift und Abstände
@@ -29,6 +31,8 @@ Die Themes stehen in `apps/web/src/lib/theme.ts`: Wald (Standard), Ozean, Pflaum
 Abstände auf dem 4px-Raster, Schriftgrößen aus 12, 13, 14, 16, 18, 24 und 28px, Beschriftungen und Tabellenköpfe in Satzschreibung statt Versalien mit Sperrung.
 
 Die Schriften stehen in `--sans` und `--mono`, die einheitliche Höhe von Eingabefeldern, Auswahllisten und Knöpfen in `--control-h`.
+
+Beträge und Kennzahlen stehen in `--sans` mit gleich breiten Ziffern (`font-variant-numeric: tabular-nums`), damit sie bündig untereinander stehen: in Tabellen `.num`, im Fließtext `.amount`. `--mono` bleibt für Kennungen und Code wie IBAN, Token, Kennzahlen der Formulare und Eingaben, deren Zeichen man einzeln prüft.
 
 ## Komponenten
 
@@ -43,7 +47,13 @@ Die Knopfarten (#30, `styles.css`):
 | `btn btn-danger` | Löschen, Entfernen, Stornieren, Widerrufen, Abo beenden, Ausschalten. |
 | `btn btn-destructive` | Bestätigung von Unumkehrbarem im `ConfirmDialog` (`danger`): voll in Rot. |
 | `btn btn-dashed` | Nur zum Anfügen einer Zeile oder eines Eintrags im Formular, etwa „+ Position“, „+ Steuersatz“, „+ Kind“. |
+| `btn btn-ghost` | Nebenaktion in einer Werkzeugleiste, etwa Blättern oder Vergrößern und Ausblenden der Vorschau: ohne Rahmen, Fläche erst beim Überfahren. Nie für die Hauptaktion. |
+| `btn-icon` | Quadratischer Knopf nur mit Symbol, mit `aria-label`; zusammen mit `btn-ghost` oder `btn-sm`. |
 | `btn-sm` | Kleiner Knopf; ersetzt Inline-`minHeight`. |
+
+Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpfe (`btn-ghost`, `btn-dashed`) keinen. Beim Überfahren färbt sich die Fläche (`--hover`), Übergänge dauern `--fade`; ein gesperrter Knopf färbt sich beim Überfahren nicht.
+
+Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 
 ### Reihenfolge der Knöpfe
 
@@ -54,6 +64,12 @@ Ausrichtung: auf der Seite linksbündig an der Kante der Felder, im Dialog recht
 ### Symbole
 
 Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
+
+### Navigation
+
+Oben in der Navigation steht die Marke: das Zeichen und „Haben“ (18px, halbfett). Das Zeichen ist fest quadratisch und voll gefüllt, am Desktop 40px, am Handy 36px, für das „H“ wie für ein Logo (auf weißer Fläche, weil Logos für Papier gemacht sind); ein breites Logo nimmt dem Namen so keinen Platz, und nichts springt, wenn das Bild lädt. Hebt sich ein „H“ in eigener Farbe in einem der Themes nicht mit 3 : 1 von der Navigation ab (WCAG 1.4.11), bekommt die Kachel eine feine helle Innenkante (1px, `--nav-ink` mit 60 % Deckkraft); die Hintergründe der Themes stehen dafür auch in `NAV_BACKGROUNDS` (`packages/core/src/accent.ts`) und müssen mit `--nav` übereinstimmen. Die Kachel steht bündig mit den Symbolen der Menüpunkte, rechts hat die Marke am Desktop keinen Innenabstand, am Handy 8px zum Menüknopf. Hat die Firma in den Firmendaten einen Namen, steht er darunter (13px, mittel, in `--nav-ink`, dem Grau der Menüpunkte, damit „Haben“ die Hauptzeile bleibt), denn er zeigt, in welcher Instanz man bucht (#504). Am Desktop nimmt er bis zu zwei Zeilen, damit auch lange Namen passen, am Handy eine, weil die Leiste dort `--nav-height` (60px) hoch bleibt; was nicht passt, endet mit Auslassungszeichen. Am Desktop klappt der Name dann beim Überfahren und mit Fokus auf „Haben“ nach unten ganz auf (Fläche `--nav-active`, weiße Schrift, über den ersten Menüpunkten), Escape und das Verlassen schließen ihn; ein `title` gibt es nicht, weil er nicht zu gestalten und nicht per Tastatur zu erreichen ist.
+
+Eigene Seiten stehen in ihrer Gruppe mit einem Symbol, das zeigt, wohin der Eintrag führt (#636): `embed` (Fenster mit Seitenleiste) für eine Seite, die Haben im Rahmen neben dem Menü zeigt, `external` (Pfeil aus dem Kasten) für eine, die in einem neuen Tab öffnet. Diese hat für Screenreader zusätzlich „(öffnet in neuem Tab)“ im Namen.
 
 ### Kennzahlen
 
@@ -67,11 +83,11 @@ Seine gemessene Höhe steht in `--page-head-height` (`usePageHeadHeight` in `lib
 
 Auf dem Handy steht der Kopf kompakt: die Aktionen in einer Zeile, die seitlich scrollt; im Belegeditor (`.editor-actions`) brechen sie um, damit Speichern und Festschreiben sichtbar bleiben.
 
-Der Kontaktdialog (`ContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
+Der Kontaktdialog (`NewContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
 
 ### Rückfragen
 
-Folgenreiches bestätigt der Dialog `ConfirmDialog` (#404), nie ein zweiter Klick auf denselben Knopf und nie `window.confirm`. Der Titel ist eine Frage mit dem Objekt („Entwurf löschen?“), darunter stehen die Folgen, rechts die Aktion mit ihrem Namen, nie „OK“. Der Kopf hat keine Trennlinie und kein Schließen-X; die Linie unter dem Titel gehört zu Formular-Dialogen wie `ContactDialog`, deren Inhalt scrollt.
+Folgenreiches bestätigt der Dialog `ConfirmDialog` (#404), nie ein zweiter Klick auf denselben Knopf und nie `window.confirm`. Der Titel ist eine Frage mit dem Objekt („Entwurf löschen?“), darunter stehen die Folgen, rechts die Aktion mit ihrem Namen, nie „OK“. Der Kopf hat keine Trennlinie und kein Schließen-X; die Linie unter dem Titel gehört zu Formular-Dialogen wie `NewContactDialog`, deren Inhalt scrollt.
 
 Geht es um Geld oder das Finanzamt, nennt `facts` über den Folgen, was bestätigt wird: beim Festschreiben einer Rechnung Nummer, Kunde und Betrag, bei ELSTER Steuerart, Zeitraum und Zahllast, beim Lohn Person, Brutto und Auszahlung, beim Beleg Lieferant, Datum und Betrag; ein Storno nennt dasselbe wie das, was es zurücknimmt. Ein Häkchen (`acknowledge`) gibt es nur beim Jahresabschluss, Eintippen gar nicht.
 
@@ -81,13 +97,13 @@ Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgü
 
 ### Karten
 
-Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
+Inhalte stehen in `.card`: Fläche `--surface`, Linie `--line`, Schatten `--shadow-xs`, Ecken 12px, Innenabstand 20px. Am Handy stehen `.grid-3` und `.grid-4` in zwei Spalten mit 12px Abstand, die Karten darin haben 16px Innenabstand. Felder und normale Knöpfe sind auf Touchgeräten 44px hoch (`--control-h`); ausgenommen sind kleine Knöpfe (`.btn-sm`) und die Knöpfe der Auszeichnungen (`.format-bar`).
 
-Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `ContactDialog`).
+Karte in Karte gibt es nicht: Ist ein Dialog oder Blatt selbst die Karte, verliert der Inhalt seinen Rahmen (wie das Formular im `NewContactDialog`).
 
 ### Blätter am Handy
 
-Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `PreviewDialog` und ihrer Gestaltungskarte `.design-sheet` (bis 720px) ein Blatt von unten. Formular-Dialoge wie der `ContactDialog` bleiben schwebende, fast bildschirmbreite Dialoge. Ein neues Blatt nutzt `SheetGrip` und `useSwipeToClose`, statt sie nachzubauen, und hält sich an diese Regeln:
+Am Handy wird aus dem `ConfirmDialog` (bis 640px) sowie aus der Überblendung `PreviewDialog` und ihrer Gestaltungskarte `.design-sheet` (bis 720px) ein Blatt von unten. Formular-Dialoge wie der `NewContactDialog` bleiben schwebende, fast bildschirmbreite Dialoge. Ein neues Blatt nutzt `SheetGrip` und `useSwipeToClose`, statt sie nachzubauen, und hält sich an diese Regeln:
 
 - **Form:** volle Breite, unten bündig, nur oben gerundet: `border-radius: var(--sheet-radius) var(--sheet-radius) 0 0`. Der Radius steht einmal in `styles.css`; kein Blatt bekommt einen eigenen Wert, damit alle gleich aussehen.
 - **Griff:** `SheetGrip` ist das erste Element des Blatts. `.sheet-grip` ist ausgeblendet; das Blatt schaltet ihn in seiner Media Query ein.
@@ -99,7 +115,9 @@ Die Gestaltungskarte ist am Desktop eine Spalte neben dem Blatt (`.design-sheet`
 
 ### Felder
 
-Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `Field`; das gilt auch für zusammengesetzte Felder wie `Combobox`. Der Feldname ist ein `<label>` mit `htmlFor`, nur so breit wie sein Text: Er fokussiert das Feld, die Fläche daneben nicht. Ein umschließendes `<label>` gibt es nicht, denn sonst zählte der Hinweis zum Namen des Felds. `bun run lint` meldet ein `<label className="field">` als Fehler. Ausgenommen sind Kontrollkästchen und Optionsfelder (`label.checkbox`): Ihr Text ist der Name und die ganze Zeile die Klickfläche. Ein Hinweis steht nie im Label, sonst zählte er zum Namen: Er folgt außerhalb, in `.checkbox-hinted` (`<div className="checkbox-hinted">` mit dem `<label className="checkbox">` und danach `<span id=… className="field-hint">`), und der Eingabe gehört er per `aria-describedby` auf diese `id`. Der Hinweis rückt auf die Textkante der Beschriftung ein (35px); ein Klick darauf schaltet nicht um. Auf Touchgeräten ist die Zeile mit dem Kästchen wie jedes Kontrollkästchen 44px hoch, am Desktop nur so hoch wie der Text. `barrierefreiheit.spec.ts` prüft auf den Seiten der Routenliste, dass kein Kontrollkästchen und kein Optionsfeld den Hinweis im Label trägt. Ein Bedienelement in `Field` funktioniert deshalb für sich, ohne dass ein Label darum seinen Klick weiterreicht (`FilePicker` öffnet den Dialog selbst).
+Neue Formularfelder immer über `Field` (`components/Field.tsx`), je Feld ein `Field`; das gilt auch für zusammengesetzte Felder wie `Combobox`. Der Feldname ist ein `<label>` mit `htmlFor`, nur so breit wie sein Text: Er fokussiert das Feld, die Fläche daneben nicht. Ein umschließendes `<label>` gibt es nicht, denn sonst zählte der Hinweis zum Namen des Felds. Eine Gruppe mit `<legend>` ist ein `<fieldset className="field">`; jedes andere eigene Element mit der Klasse `field` meldet `bun run lint`. Ausgenommen sind Kontrollkästchen und Optionsfelder (`label.checkbox`): Ihr Text ist der Name und die ganze Zeile die Klickfläche. Ein Hinweis steht nie im Label, sonst zählte er zum Namen: Er folgt außerhalb, in `.checkbox-hinted` (`<div className="checkbox-hinted">` mit dem `<label className="checkbox">` und danach `<span id=… className="field-hint">`), und der Eingabe gehört er per `aria-describedby` auf diese `id`. Der Hinweis rückt auf die Textkante der Beschriftung ein (35px); ein Klick darauf schaltet nicht um. Auf Touchgeräten ist die Zeile mit dem Kästchen wie jedes Kontrollkästchen 44px hoch, am Desktop nur so hoch wie der Text. `barrierefreiheit.spec.ts` prüft auf den Seiten der Routenliste, dass kein Kontrollkästchen und kein Optionsfeld den Hinweis im Label trägt. Ein Bedienelement in `Field` funktioniert deshalb für sich, ohne dass ein Label darum seinen Klick weiterreicht (`FilePicker` öffnet den Dialog selbst).
+
+Auswahllisten sind Formularfelder wie die übrigen: `<select>` steht in `Field` und nimmt `{...control}` an, auch wenn kein Feldname zu sehen sein soll (`hideLabel`, etwa die Auswahl „Textbaustein einfügen …“ unter einem Textfeld). Rahmen, Höhe, Radius und Pfeil kommen aus der Grundregel `select` in `styles.css`, nicht aus der Hülle. Ohne `Field` stehen nur Zellen einer Tabelle oder Positionszeile, deren Spaltenkopf und `aria-label` sie benennen (`.line-row`, `.report-table`), und die Auswahl des Farbschemas auf der dunklen Navigation (`.nav-theme`); jedes andere `<select>` ohne `Field` meldet `bun run lint`, eine Ausnahme steht mit `// biome-ignore lint/plugin: Grund` im Code.
 
 Hinweis und Fehler gehen als `hint` und `error` an `Field`, das `aria-describedby` und `aria-invalid` setzt. Steht ein Hinweis außerhalb, etwa für zwei Felder gemeinsam, nennt `describedBy` seine `id`. `announceError` setzt `role="alert"` an die Meldung, für Fehler, die erst nach einer Aktion erscheinen; beim Tippen bleibt es aus. `hideLabel` nimmt den Feldnamen aus dem Bild (Suchfelder), er bleibt für Screenreader. `className` und `style` gehören an die Hülle, etwa für `gridColumn`.
 
@@ -127,8 +145,8 @@ Barrierefrei und per Tastatur bedienbar: echte Knöpfe und Links, ein Label für
 
 Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an die Regel.
 
-- **4px-Raster:** 71 Zeilen in `apps/web/src/**/*.css` haben in `padding`, `margin` oder `gap` (auch `scroll-padding-*`, `row-gap`, `column-gap`) mindestens einen px-Wert, der nicht durch 4 teilbar ist. Bei 19 davon sind das nur 1 oder 2px, die übrigen 52 enthalten 6, 9, 10, 14, 22, 30 oder 78px.
-- **Farben:** 19 Zeilen in `apps/web/src/**/*.css` haben außerhalb von Variablendefinitionen und Kommentaren einen festen Hex-Wert, meist `#fff`, etwa für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
+- **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
+- **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).
-- **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `‹` und `›` an Blätter-Knöpfen (`components/archiv/DatevBookings.tsx`, `routes/_app/auswertungen.tsx`, `routes/_app/buchungen/index.tsx`, `routes/_app/belege/$id.tsx`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.
+- **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.

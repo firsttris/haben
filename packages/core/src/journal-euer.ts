@@ -45,6 +45,9 @@ const EINNAHMEN: ReadonlySet<EuerLineKey> = new Set<EuerLineKey>([
   "kursgewinne",
 ]);
 
+/** Ob eine Zeile der EÜR eine Einnahme ist */
+export const istEuerEinnahme = (key: EuerLineKey): boolean => EINNAHMEN.has(key);
+
 /** Steuerschlüssel der Bemessungsgrundlage bei selbst geschuldeter Steuer (§ 13b, innergemeinschaftlicher Erwerb) */
 const SELBST_GESCHULDET: ReadonlySet<string> = new Set(["RC13bEU", "RC13bDrittland", "IGE19", "IGE7"]);
 
@@ -143,6 +146,10 @@ export function euerAusZeilen(
   if (zeilen.some((z) => z.account === a.skontiGewaehrt || z.account === a.skontiErhalten || z.account === a.forderungsverluste)) return summe;
   // § 13b und Erwerb: die nicht abziehbare Steuer geht mit der Voranmeldung ans Finanzamt, sie ist keine Ausgabe des Belegs
   const selbstGeschuldet = zeilen.some((z) => z.taxCode !== null && SELBST_GESCHULDET.has(z.taxCode));
+  // Der private Teil der selbst geschuldeten Steuer ist keine Vorsteuer, geht aber mit der Voranmeldung ans Finanzamt
+  // (gezahlte Umsatzsteuer). Er zählt deshalb als Umsatzsteuer auf die Entnahme, wie bei DATEV, wo die Konten der
+  // selbst geschuldeten Steuer in Zeile 17 stehen: Steuer im Haben abzüglich Vorsteuer und nicht abziehbarer Steuer.
+  if (selbstGeschuldet) add("vereinnahmteUst", privateSelbstGeschuldeteSteuer(kontenrahmen, zeilen));
   for (const zeile of zeilen) {
     if (selbstGeschuldet && zeile.taxCode === "keineVSt") continue;
     const zuordnung = euerZuordnung(kontenrahmen, zeile.account, herkunft);
@@ -164,6 +171,19 @@ export function euerAusZeilen(
     }
   }
   return summe;
+}
+
+/** Selbst geschuldete Steuer (§ 13b, Erwerb) einer Buchung, die nicht als Vorsteuer abgezogen ist: der private Teil */
+function privateSelbstGeschuldeteSteuer(kontenrahmen: Kontenrahmen, zeilen: readonly Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">[]): Cents {
+  const a = ACCOUNTS[kontenrahmen];
+  const steuer = new Set<string>([a.ustRc, ...Object.values(a.ustIge)]);
+  const vorsteuer = new Set<string>([a.vorsteuerRc, ...Object.values(a.vorsteuerIge)]);
+  let privat = 0;
+  for (const z of zeilen) {
+    if (steuer.has(z.account)) privat += z.credit - z.debit;
+    else if (vorsteuer.has(z.account) || z.taxCode === "keineVSt") privat -= z.debit - z.credit;
+  }
+  return privat;
 }
 
 export type EuerJournalZeile = Pick<JournalZeile, "account" | "debit" | "credit" | "taxCode">;

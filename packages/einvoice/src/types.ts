@@ -44,10 +44,22 @@ export interface Seller extends Address {
   legalInfo?: LegalInfo;
 }
 
+/**
+ * Ansprechpartner des Käufers (#424), Stand beim Festschreiben. Im PDF steht nur der Name („z. Hd. …“), in der E-Rechnung
+ * der Name als BT-56; E-Mail, Telefon und Funktion dienen Haben (Kontaktseite, Auswahl), nicht dem Beleg.
+ */
+export interface Ansprechpartner {
+  name: string;
+  email?: string;
+  telefon?: string;
+  funktion?: string;
+}
+
 export interface Buyer extends Address {
   name: string;
   email?: string;
   ustId?: string;
+  ansprechpartner?: Ansprechpartner;
   /** Leitweg-ID öffentlicher Auftraggeber (BT-10) */
   leitwegId?: string;
   kundennummer?: string;
@@ -102,6 +114,20 @@ export interface Letterhead {
   accent?: string;
   /** Logo, Marken und Schalter aus dem Profil; fehlt = Vorgaben (DEFAULT_OPTIONS) */
   options?: LetterheadOptions;
+  /**
+   * Eigenes Layout: bekommt die fertigen Daten der Vorlage und liefert das PDF, das statt der eingebauten Vorlage gilt.
+   * undefined = eingebaute Vorlage. Der Server nutzt das zweimal: einmal, um die Daten abzufangen, einmal mit dem PDF
+   * aus dem Render-Prozess (withCustomLayout in apps/web).
+   */
+  pdfFrom?: (request: PdfRequest) => Uint8Array | undefined;
+}
+
+/** Was eine Vorlage zum Setzen bekommt; data ist schon mit dem Briefkopf ergänzt (templateInputs) */
+export interface PdfRequest {
+  /** Eingebaute Vorlage, für die die Daten gedacht sind */
+  template: "rechnung.typ" | "mahnung.typ";
+  data: object;
+  date: string;
 }
 
 /**
@@ -136,10 +162,14 @@ export interface InvoiceDocument extends Letterhead {
   euroTax?: { tax: Cents; taxes: { rate: number; tax: Cents }[]; rate: string };
   /** Bei Storno und Korrektur: die ursprüngliche Rechnung */
   corrects?: { number: string; issueDate: string };
+  /** Beim Storno belegte Zahlung auf das Original; fehlt = keine Erstattung zusagen (#716) */
+  hasPayments?: boolean;
   /** Einleitung über den Positionen (Kopftext) */
   intro?: string;
   /** Hinweis unter den Summen (Fußtext) */
   note?: string;
+  /** Fester Aufbewahrungshinweis für private Grundstücksleistungen (§ 14 Abs. 4 Nr. 9, § 14b Abs. 1 Satz 5 UStG); fehlt = aus */
+  propertyRetention?: boolean;
   /** Fehlt = regulär besteuert */
   taxTreatment?: TaxTreatment;
   /** Fehlt = Nettopreise; brutto nur bei regulärer Besteuerung */

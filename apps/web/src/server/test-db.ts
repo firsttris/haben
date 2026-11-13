@@ -74,6 +74,22 @@ export async function setupTestDb(): Promise<postgres.Sql> {
   return sql;
 }
 
+/**
+ * Leert Tabellen zwischen zwei Testfällen: `await leeren(sql)\`truncate … cascade\``. Auf festgeschriebenen und nur
+ * anhängbaren Tabellen lehnen Trigger TRUNCATE ab (0201). Die Tests schalten dafür nur in dieser einen Transaktion die
+ * Trigger ab, wie ein Replikat (`session_replication_role`, braucht einen Superuser wie den aus compose.yml und der CI);
+ * die Sperren selbst bleiben unverändert. Nur für TRUNCATE, damit kein anderer Trigger nebenbei umgangen wird.
+ */
+export function leeren(sql: postgres.Sql) {
+  return async (strings: TemplateStringsArray, ...values: never[]): Promise<void> => {
+    if (!/^\s*truncate\s/i.test(strings[0] ?? "")) throw new Error("leeren ist nur für TRUNCATE gedacht");
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx(strings, ...values);
+    });
+  };
+}
+
 /** globalSetup von Vitest: migriert einmal je Lauf die Vorlage; ohne TEST_DATABASE_URL nichts zu tun */
 export async function setup(): Promise<void> {
   if (!baseUrl) return;

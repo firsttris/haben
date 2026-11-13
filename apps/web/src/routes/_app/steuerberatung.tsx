@@ -103,11 +103,15 @@ function Aenderungen({ data }: { data: Data["aenderungen"] }) {
 
 function Exporte({ years }: { years: number[] }) {
   const [year, setYear] = useState(() => currentYear());
-  const { notice, run } = useAction();
-  // Über fetch, damit eine Ablehnung (etwa neue Personenkonten, die nur der Inhaber festschreibt) hier lesbar erscheint (#452)
+  const { notice, setNotice, run } = useAction();
+  // Über fetch, damit eine Ablehnung (etwa neue Personenkonten, die nur der Inhaber festschreibt) hier lesbar erscheint (#452),
+  // ebenso Nummern, die im Belegfeld 1 zusammenfallen (#675)
   function onDatev(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
-    void run(() => downloadFrom(`/api/datev/${year}`, `EXTF_Buchungsstapel_${year}.csv`));
+    void run(async () => {
+      const hinweis = await downloadFrom(`/api/datev/${year}`, `EXTF_Buchungsstapel_${year}.csv`);
+      if (hinweis) setNotice({ tone: "info", text: hinweis });
+    });
   }
   return (
     <section className="card" aria-labelledby="exporte-heading">

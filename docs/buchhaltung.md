@@ -7,12 +7,12 @@ description: >-
 
 # Buchhaltung in Haben (Buchungslogik)
 
-Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vorgang welchen Buchungssatz erzeugt und wie die Unveränderbarkeit nach GoBD technisch abgesichert ist. Sie richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, und an Steuerberatungen.
+Diese Seite richtet sich an Nutzer, die ihre Buchungen nachvollziehen wollen, und an Steuerberatungen.
 
 ## Grundsätze
 
 - **Beträge in Cent.** Alle Geldbeträge sind ganze Cent (`integer`), Steuersätze Basispunkte (1900 = 19 %). Es gibt keine Gleitkommarechnung mit Geld. Rechnungen runden die Steuer je Steuersatz auf die Summe der Positionen, nicht je Position.
-- **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
+- **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Ab dem [Stichjahr](umsatzsteuer.md#wie-die-kennzahlen-entstehen) rechnet Haben die Voranmeldung und, im Einzelunternehmen, die EÜR aus dem Journal; Rechnungen, Zahlungen und Belege (die Nebenbücher) sind dann die Gegenprobe. Davor rechnet es aus den Nebenbüchern, und das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
 - **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Geschrieben wird das Journal nur an einer Stelle, dem Hauptbuch (`ledger.post` in `apps/web/src/server/modules/buchhaltung/ledger.ts`). Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat; eine Buchung, die beim Commit nicht festgeschrieben ist, lehnt die Datenbank ab.
 - **Korrektur nur per Gegenbuchung.** Festgeschriebene Buchungen, Rechnungen, Belege und gesendete Voranmeldungen lassen sich nicht ändern oder löschen. Eine Rechnung wird storniert oder korrigiert, eine Zahlungszuordnung per Gegenzeile und Gegenbuchung aufgehoben, eine Voranmeldung berichtigt.
 - **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist, und das ist immer der aus den Firmendaten (die Datenbank prüft das beim Einfügen). Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt; bei GmbH und UG nur vor der ersten Buchung überhaupt.
@@ -25,20 +25,21 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | --- | --- | --- |
 | Festschreibung | `journal_entries`, `invoices`, `documents`, `vat_returns` | `UPDATE` und `DELETE` werden abgelehnt, sobald `locked_at` gesetzt ist |
 | Abhängige Zeilen | `journal_lines`, `invoice_lines`, `invoice_taxes`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist; auch das Umhängen einer Zeile aus einer festgeschriebenen Buchung oder in sie hinein |
-| Nur anhängen | `audit_log`, `seals`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen`, `cash_entries` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
+| Nur anhängen | `audit_log`, `seals`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen`, `cash_entries` | `UPDATE` und `DELETE` immer abgelehnt |
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
 | Angebote | `quotes` | Nach dem Festschreiben nur noch Antwort des Kunden und Verweis auf die Rechnung änderbar, Löschen abgelehnt |
 | Nummernkreis | `invoice_number_counters`, `quote_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
 | Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer, degressiver Satz, Erinnerungswert und Übernahmewerte fest; der Wechsel von degressiver zu linearer AfA nur in ein noch nicht gebuchtes Jahr; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 | Hauptbuch | `journal_entries` | Eine Buchung ist beim Commit festgeschrieben, sonst wird die Transaktion abgelehnt; ihr Kontenrahmen ist der aus den Firmendaten (`0065_hauptbuch_sperren.sql`) |
-| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0096_rechtsform_trigger.sql`), bei GmbH und UG ebenso der Kontenrahmen (`0101_kontenrahmen_kapg.sql`) |
+| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0096_rechtsform_trigger.sql`), bei GmbH und UG ebenso der Kontenrahmen (`0101_kontenrahmen_kapg.sql`). Diese Sperren vergleichen bei `UPDATE` alten und neuen Wert; damit Löschen und neu Anlegen der Zeile nicht an ihnen vorbeigeht, ist `DELETE` ab der ersten Buchung abgelehnt (`0202_company_loeschen_sperre.sql`). Nicht abgedeckt ist, wer die Zeile vor der ersten Buchung löscht, an Haben vorbei per SQL bucht und sie danach neu anlegt; Haben selbst legt die Firmendaten vor jeder Buchung an |
+| Leeren | jede Tabelle, deren Zeilen ein Trigger gegen Löschen schützt (alle oben, alle versiegelten und alle, die nur anhängen), und jede, deren Löschen das Änderungsprotokoll aufzeichnet (etwa `company`, `vat_frequencies`, `user`); `apps/web/src/server/db/truncate.test.ts` prüft die Liste am Katalog | `TRUNCATE` abgelehnt, auch als `CASCADE` von einer anderen Tabelle aus. Zeilen-Trigger feuern bei `TRUNCATE` nicht; deshalb hat jede dieser Tabellen einen eigenen Trigger vor `TRUNCATE` (`0201_truncate_sperre_trigger.sql`, für `audit_log`, `seals` und `audit_chain` schon `0001` und `0063`; `external_imports` nur, solange sie Zeilen hat, `0198`) |
 
 ### Änderungsprotokoll
 
 Trigger schreiben jede Änderung an den wichtigen Tabellen mit altem und neuem Wert als JSON in `audit_log`: Firmendaten, Zertifikate, Voranmeldungen und Übermittlungen, Kontakte, Rechnungen, Buchungen, Nummernkreis, Belege, Bankkonten, Importe, Zuordnungen, Archivdateien, Lexoffice-Abrufe und -Verbindung. Weggelassen werden Binärdaten und große Nachrichten, die unveränderlich in ihrer eigenen Tabelle stehen, sowie verschlüsselte Inhalte, nämlich die Spalten `pdf`, `protocol_pdf`, `xml`, `logo`, `request_xml`, `response_xml`, `server_response_xml`, `abholung` (VaSt), `ciphertext` und `pin_ciphertext`. Bei Tabellen ohne `id` (Nummernkreise, Angaben zur Einkommensteuer) steht das Jahr als Zeilenkennung im Protokoll.
 
-Jede schreibende Aktion läuft in einer Transaktion, die vorher `haben.actor` auf die ID des angemeldeten Nutzers setzt (`withActor` in `apps/web/src/server/db/actor.ts`). Der Trigger übernimmt diesen Wert in die Spalte `actor`. So ist jede Änderung einer Person zugeordnet.
+Jede schreibende Aktion läuft in einer Transaktion, die vorher `haben.actor` auf die ID des angemeldeten Nutzers setzt (`withActor` in `apps/web/src/server/db/actor.ts`). Der Trigger übernimmt diesen Wert in die Spalte `actor`.
 
 ### Manipulationserkennung: Hash-Kette und Siegel
 
@@ -49,6 +50,8 @@ Die Trigger oben verhindern Versehen, aber wer die Datenbank direkt ändern kann
 - **Bestand:** Beim Update verkettet die Migration die vorhandenen Einträge in der Reihenfolge ihrer ID und versiegelt alles schon Festgeschriebene (`genesis = true`). Ein Eintrag der Migration im Protokoll weist darauf hin. Für die Zeit davor bezeugt die Kette nichts.
 
 **Prüfen** unter **Einstellungen › Export › Änderungsprotokoll prüfen**: „Kette prüfen“ rechnet jeden Hash und jedes Siegel nach und meldet geänderte, gelöschte oder fehlende Einträge, einen Kopf, der nicht zum Ende passt, festgeschriebene Datensätze ohne oder mit abweichendem Siegel, aufgehobene Festschreibungen und Siegel, die nicht zu ihrem Eintrag in der Kette passen.
+
+Unter **Kontenkollisionen** nennt die Prüfung außerdem eigene Konten, deren Nummer Haben inzwischen selbst verwendet, mit Kontenrahmen, Nummer und eigenem Namen. Auch archivierte Konten und frühere Kontenrahmen werden geprüft: Ihre Zuordnung wirkt für bestehende Buchungen weiter. Eine Kollision ist kein Hinweis auf eine beschädigte Kette; sie kann aber Auswertungen verfälschen. Kläre die Zuordnung mit deiner Steuerberatung. Archivieren allein löst die Kollision nicht. Die Prüfung ändert weder Konten noch Buchungen.
 
 **Was die Kette nicht kann:** Sie verhindert keine Änderung, sie macht sie sichtbar. Wer vollen Zugriff hat, kann nach einer Änderung auch die ganze Kette und alle Siegel neu berechnen; dann ist sie in sich wieder stimmig. Das fällt nur mit einem Prüfwert auf, der außerhalb des Servers liegt und zu dem der Eintrag dieser Nummer nicht mehr passt. Deshalb:
 
@@ -63,7 +66,7 @@ Die wöchentliche Mail prüft vorher Kette und Siegel und vergleicht den Prüfwe
 
 ## Abgleich von Journal, Umsatzsteuer und EÜR
 
-Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Ab dem Stichjahr kommen die Kennzahlen der Voranmeldung und die EÜR aus dem Journal ([Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen), [EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)); der Abgleich vergleicht dann das Journal mit der Rechnung aus Rechnungen, Belegen und Zahlungen als Gegenprobe. Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege verteilt die EÜR aus dem Journal auf die Zeilen, die Haben für sie gebucht hätte; sie werden wie alle anderen verglichen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/modules/auswertungen/abgleich.ts`, die Bemessungsgrundlagen in `abgleich-kennzahlen.ts` und die EÜR aus dem Journal in `euer-journal.ts` daneben.
+Rechnungen, Belege, Zuordnungen, Pauschalen und das Anlagenverzeichnis (die Nebenbücher) ergeben Voranmeldung und EÜR; das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Das **Stichjahr** ist das Jahr, ab dem Haben Voranmeldung und EÜR aus dem Journal rechnet; davor rechnet es aus den Nebenbüchern. Wie es festgelegt ist und wann es sich vorziehen lässt, steht unter [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen). Ab dem Stichjahr vergleicht der Abgleich das Journal mit der Rechnung aus Rechnungen, Belegen und Zahlungen als Gegenprobe ([EÜR](auswertungen.md#eür-nach-zufluss-und-abfluss)). Zahlungen auf aus Lexoffice übernommene Rechnungen und Belege verteilt die EÜR aus dem Journal auf die Zeilen, die Haben für sie gebucht hätte; sie werden wie alle anderen verglichen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Wo der Abgleich im Code steht: [Architektur](architektur.md#module-im-server).
 
 | Bereich | Verglichen wird | Journal |
 | --- | --- | --- |
@@ -97,12 +100,20 @@ Nicht verglichen werden:
 
 Die Versteuerungsart wird unter Einstellungen festgelegt. Sie bestimmt, wann die Umsatzsteuer fällig wird:
 
-- **Soll:** mit der Rechnung. Die Rechnungsbuchung geht direkt auf das Konto „Umsatzsteuer“, die Voranmeldung zählt nach Rechnungsdatum.
+- **Soll:** mit der Rechnung. Die Rechnungsbuchung geht direkt auf das Konto „Umsatzsteuer“, die Voranmeldung zählt nach Rechnungsdatum. Die Ausnahme für neue Anzahlungen und ausdrücklich erbrachte Teilleistungen steht unter [Anzahlungen vor Leistung](#anzahlungen-vor-leistung).
 - **Ist:** mit dem Zahlungseingang. Die Rechnungsbuchung geht auf „Umsatzsteuer nicht fällig“. Beim Zahlungseingang wird der Steueranteil der Zahlung auf „Umsatzsteuer“ umgebucht, bei Teilzahlungen anteilig; die Voranmeldung zählt nach Buchungstag des Zahlungseingangs. Wie bei DATEV der Steuerschlüssel am Zahlungseingang ([DATEV-Dok. 1080673](https://help-center.apps.datev.de/documents/1080673)) trägt die Umbuchung auf „Umsatzsteuer“ die Bemessungsgrundlage des bezahlten Anteils (Spalte `basis` der Buchungszeile mit Vorzeichen, Bemessungsgrundlage im Journal-Export); den Anteil zu 0 % sowie Zahlungen auf steuerfreie Rechnungen und Ausfuhrlieferungen trägt die Forderungszeile mit Steuerschlüssel und Bemessungsgrundlage. Rundet der Steueranteil eines Satzes auf 0,00 € (kleine Raten, Restzahlungen von wenigen Cent), steht seine Bemessungsgrundlage an einer Umsatzsteuerzeile ohne Betrag; der DATEV-Export lässt solche Zeilen weg. Ältere Zahlungsbuchungen haben sie nicht. Reverse Charge, innergemeinschaftliche Lieferung und Drittland zählen mit der Rechnung, ihre Zahlung trägt nichts.
 
-Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Haben liest die Einstellung bei jeder Buchung neu. Ein Wechsel während offener Rechnungen würde Zahlungs- und Rechnungsbuchung auseinanderbringen (etwa bliebe Steuer auf „Umsatzsteuer nicht fällig“ stehen) und ihre Umsatzsteuer doppelt oder gar nicht anmelden. Haben sperrt deshalb den Wechsel, solange Rechnungen offen sind oder es im laufenden Jahr schon Buchungen gibt (`apps/web/src/server/modules/stammdaten/settings-guard.ts`, siehe [Erste Schritte](einrichtung.md#wann-sich-die-einstellungen-ändern-lassen)). Die Versteuerungsart sollte vor der ersten Rechnung feststehen und nur in Absprache mit der Steuerberatung geändert werden. Die EÜR ist unabhängig davon immer eine Zufluss-Abfluss-Rechnung (siehe [Auswertungen](auswertungen.md)).
+Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Zahlungen auf eine Ausgangsrechnung, Rücklastschriften, Skonto und Forderungsausfälle folgen der Versteuerung des Rechnungsjahres, auch nach einem Wechsel zum Jahresanfang. Das gilt für Bank und Kasse und für die Voranmeldung aus Journal und Nebenbüchern. Bereits nach Soll versteuerte Umsätze werden mit einer späteren Zahlung nicht nochmals versteuert; bei zuvor nach Ist versteuerten Umsätzen bleibt die Zahlung maßgeblich ([§ 20 UStG](https://www.gesetze-im-internet.de/ustg_1980/__20.html), [UStAE 13.6 Abs. 3](https://usth.bundesfinanzministerium.de/usth/2024/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-6.html)). Haben sperrt weiterhin den Wechsel, solange Rechnungen offen sind oder es im laufenden Jahr schon Buchungen gibt (`apps/web/src/server/modules/stammdaten/settings-guard.ts`, siehe [Erste Schritte](einrichtung.md#wann-sich-die-einstellungen-ändern-lassen)). Die Versteuerungsart sollte vor der ersten Rechnung feststehen und nur in Absprache mit der Steuerberatung geändert werden. Die EÜR ist unabhängig davon immer eine Zufluss-Abfluss-Rechnung (siehe [Auswertungen](auswertungen.md)).
 
-Voranmeldungen und Umsatzsteuererklärung rechnen ein Jahr nach der Versteuerung, nach der es gebucht ist, nicht nach der aktuellen Einstellung. Maßgeblich ist, was beim Anlegen der ersten Buchung des Jahres eingestellt war; das steht im Änderungsprotokoll der Firmendaten (`versteuerungForYear` in `apps/web/src/server/modules/stammdaten/company.ts`). Ohne Buchung im Jahr gilt die aktuelle Einstellung. Stellst du zum Jahreswechsel um, rechnen die Monate des Vorjahres und die Umsatzsteuererklärung dafür, die du erst im neuen Jahr abgibst, also weiter nach dem alten Verfahren.
+Voranmeldungen und Umsatzsteuererklärung rechnen ein Jahr nach der Versteuerung, nach der es gebucht ist, nicht nach der aktuellen Einstellung. Maßgeblich ist, was beim Anlegen der ersten Buchung des Jahres eingestellt war; das steht im Änderungsprotokoll der Firmendaten (`versteuerungForYear` in `apps/web/src/server/modules/stammdaten/company.ts`). Ohne Buchung im Jahr gilt die aktuelle Einstellung. Stellst du zum Jahreswechsel um, rechnen die Monate des Vorjahres und die Umsatzsteuererklärung dafür, die du erst im neuen Jahr abgibst, also weiter nach dem alten Verfahren. Spätere Zahlungen und Ausbuchungen auf diese Rechnungen verwenden dasselbe Verfahren; ursprüngliche Buchungen und gespeicherte Erklärungen bleiben erhalten.
+
+Auch Storno und Rechnungskorrektur behalten das Verfahren der ursprünglichen Rechnung ([§ 17 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Nach Soll mindern sie die Umsatzsteuer im Monat der Korrektur; eine spätere Erstattung ändert sie nicht nochmals. Nach Ist zählt die tatsächliche Erstattung. Wurde der Zahlungseingang bereits durch eine Rücklastschrift zurückgenommen, mindert ein anschließendes Storno die Steuer nicht nochmals. Das gilt auch für Zahlungen und Ausbuchungen auf die Korrektur und für das Storno einer Korrektur.
+
+### Anzahlungen vor Leistung
+
+Bei einer neuen Anzahlung bucht Haben die Steuer zunächst auf „Umsatzsteuer nicht fällig“ ([§ 13 Abs. 1 Nr. 1 Buchst. a UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html)). Steuerzeitpunkt, Leistungsjahr nach einem Verfahrenswechsel und Eingabe stehen unter [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung); dort ist auch der unveränderte Umgang mit Bestandsabschlägen beschrieben.
+
+Haben verwendet die vorhandenen Konten für nicht fällige und fällige Umsatzsteuer in SKR03 und SKR04. Die Umbuchungen tragen ihre Bemessungsgrundlage. Wird eine frühere Zahlung erst nach der Schlussrechnung zugeordnet oder eine Zuordnung aufgehoben, entstehen ergänzende Differenzbuchungen zu den betroffenen Tagen; bestehende Buchungen bleiben erhalten. Ein Storno der Schlussrechnung lässt die Steuer auf tatsächlich erhaltene Zahlungen stehen. EÜR und Kassenbuch zählen weiterhin ausschließlich tatsächliche Geldbewegungen. Der DATEV-Export übernimmt die Kontenbewegungen und hebt wie bisher die Steuerautomatik auf, damit die separat gebuchte Steuer nicht nochmals berechnet wird ([DATEV-Export](auswertungen.md#datev-export-für-die-steuerberatung)).
 
 ## Kontenrahmen
 
@@ -417,22 +428,14 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | `VStIGE` | 19 % / 7 % | 61 | Vorsteuer aus innergemeinschaftlichem Erwerb |
 | `EUSt` | – | 62 | Entstandene Einfuhrumsatzsteuer (Bescheid des Zolls) |
 
-Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/modules/umsatzsteuer/vat-figures.ts`):
-
-- **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung; dazu bei Ist und Soll die direkt auf eine Einnahmekategorie gebuchten Bankumsätze des Monats. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
-- **Kz 21, 41, 43, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, innergemeinschaftlicher Lieferung, Ausfuhrlieferung, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 43 und 48 zählen wie Kz 81, Kz 21, 41 und 45 immer nach Rechnungsdatum.
-- **Kz 89, 93 und 61:** Bemessungsgrundlagen der Belege mit innergemeinschaftlichem Erwerb zu 19 % bzw. 7 % und die Vorsteuer daraus, nach Belegdatum, auch bei Ist-Versteuerung.
-- **Kz 46, 47, 84, 85 und 67:** Bemessungsgrundlagen und Steuer der Belege, bei denen du die Steuer als Leistungsempfänger schuldest (§ 13b UStG, aus dem EU-Ausland bzw. Drittland), und die abziehbare Vorsteuer daraus, nach Belegdatum.
-- **Kz 62:** entstandene Einfuhrumsatzsteuer aus Belegen der Kategorie „Einfuhrumsatzsteuer“, nach Belegdatum.
-- **Kz 66:** Vorsteuer aus den gebuchten Belegen des Monats nach Belegdatum, ohne Belege, die ohne Vorsteuerabzug gebucht sind.
-- **Kz 83:** Umsatzsteuer aus Kz 81, 86, 89 und 93 plus Kz 47 und 85, minus Kz 66, 67, 61 und 62 und minus einer angerechneten Sondervorauszahlung (Kz 39).
+Ab dem Stichjahr ergibt diese Zuordnung die Kennzahlen der Voranmeldung. Woher die Werte davor kommen, wie die Gegenprobe rechnet und wie Kz 83 entsteht, steht unter [Wie die Kennzahlen entstehen](umsatzsteuer.md#wie-die-kennzahlen-entstehen) und [Rundung und Kz 83](umsatzsteuer.md#rundung-und-kz-83).
 
 Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die Vorprüfung weist darauf hin, damit sie an der Rechnung als Reverse Charge, Drittland oder steuerfrei eingestellt werden können, falls das zutrifft.
 
 ## Die Seite „Buchungen“
 
 Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung ist eine Zeile:
-- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Lohn“, in GmbH und UG „Manuell“, „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
+- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Lohn“, „Manuell“ (in GmbH und UG immer, im Einzelunternehmen ab dem Stichjahr), „Import“ (aus dem [Datenimport](belegimport.md)), in GmbH und UG „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
 - Buchungstext.
 - Soll- und Habenkonto, jeweils das größte. Weitere Konten stehen als „+n“ daneben.
 - Betrag und Steuerschlüssel.
@@ -441,7 +444,7 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-und-freie-buchungen), der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; mit [manuellen Buchungen](#manuelle-und-freie-buchungen) in GmbH und UG immer, im Einzelunternehmen ab dem Stichjahr; in einer GmbH oder UG zusätzlich mit der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
 
 ## Manuelle und freie Buchungen
 
@@ -457,7 +460,7 @@ Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben
 
 Im Einzelunternehmen steht neben einem Erfolgskonto nur ein Privatkonto, etwa eine Ausgabe ohne Beleg, privat bezahlt (Aufwand an Privateinlagen). Jedes Erfolgskonto braucht eine Zeile der Anlage EÜR; Zahlungen gehen über Bank oder Kasse.
 
-**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entwurf, Entscheidung 4](adr/journal-als-quelle.md)):
+**Mit Steuerschlüssel (freie Buchung).** Ab dem Stichjahr kann eine Zeile einen Steuerschlüssel tragen, wie bei DATEV ([Entwurfsentscheidungen](architektur.md#entwurfsentscheidungen)):
 
 | Steuerschlüssel | Erlöskonto SKR03 | SKR04 | Voranmeldung |
 | --- | --- | --- | --- |
@@ -471,7 +474,7 @@ Im Einzelunternehmen steht neben einem Erfolgskonto nur ein Privatkonto, etwa ei
 - **Als Kleinunternehmer** gibt es keinen Steuerschlüssel (§ 19 Abs. 1 UStG).
 - **Datum:** nicht in einem gemeldeten Zeitraum, also nicht nach einer gesendeten Voranmeldung des Monats oder Quartals, einer gesendeten Jahreserklärung oder einem abgeschlossenen Jahr; das gilt auch für jede manuelle Buchung im Einzelunternehmen.
 - Voranmeldung und EÜR zählen die Buchung aus dem Journal; im [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) zählt die Gegenprobe sie aus der festgeschriebenen Buchung selbst, denn ein Nebenbuch hat sie nicht.
-- **Sachentnahme:** Entnehmt ihr Waren oder Gegenstände des Betriebs für private Zwecke (unentgeltliche Wertabgabe, § 3 Abs. 1b UStG), bucht ihr Privat an das Konto der Sachentnahme mit Steuerschlüssel: SKR03 8910 (19 %) bzw. 8915 (7 %), SKR04 4620 bzw. 4630. Als Betrag den Wert der Entnahme brutto: den Einkaufspreis zum Zeitpunkt der Entnahme bzw. die Selbstkosten zuzüglich Umsatzsteuer (§ 10 Abs. 4 Nr. 1 UStG). In der Voranmeldung zählt das Netto in Kz 81 bzw. 86, in der Anlage EÜR in der Zeile „Sonstige Sach-, Nutzungs- und Leistungsentnahmen“ (§ 6 Abs. 1 Nr. 4 Satz 1 EStG), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer. Ohne Steuerschlüssel lassen sich diese Konten nicht bebuchen; als Kleinunternehmer gibt es die Buchung deshalb nicht.
+- **Sachentnahme:** Entnehmt ihr Waren oder Gegenstände des Betriebs für private Zwecke (unentgeltliche Wertabgabe, § 3 Abs. 1b UStG), bucht ihr Privat an das Konto der Sachentnahme mit Steuerschlüssel: SKR03 8910 (19 %) bzw. 8915 (7 %), SKR04 4620 bzw. 4610 (eine Zeit lang buchte Haben die 7 % in SKR04 auf 4630; was dort steht, zählt weiter als Sachentnahme, neu bebuchen lässt sich 4630 nicht). Als Betrag den Wert der Entnahme brutto: den Einkaufspreis zum Zeitpunkt der Entnahme bzw. die Selbstkosten zuzüglich Umsatzsteuer (§ 10 Abs. 4 Nr. 1 UStG). In der Voranmeldung zählt das Netto in Kz 81 bzw. 86, in der Anlage EÜR in der Zeile „Sonstige Sach-, Nutzungs- und Leistungsentnahmen“ (§ 6 Abs. 1 Nr. 4 Satz 1 EStG), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer. Ohne Steuerschlüssel lassen sich diese Konten nicht bebuchen; als Kleinunternehmer gibt es die Buchung deshalb nicht.
 
 Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung daran vorbei den Abgleich zwischen Nebenbuch und Journal bräche:
 
@@ -505,7 +508,7 @@ Die Summe aller Vorträge ist null wie im Journal. Bestandskonten sind nach DATE
 
 Alle vier Konten stehen so im DATEV-Kontenrahmen 2026.
 
-Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr (eine Rechnung vom 31.12., eine Abschlussbuchung), stimmt der Vortrag sofort wieder. Vorgetragen wird im Kontenrahmen der Firmendaten; bei GmbH und UG ist er deshalb ab der ersten Buchung fest (`0101_kontenrahmen_kapg.sql`). Im Einzelunternehmen mit EÜR beginnt jedes Jahr bei null wie bisher. Den DATEV-Export betrifft der Vortrag nicht; den Saldenvortrag in DATEV übernimmt die Steuerberatung aus dem Vorjahr.
+Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr (eine Rechnung vom 31.12., eine Abschlussbuchung), stimmt der Vortrag sofort wieder. Vorgetragen wird im Kontenrahmen der Firmendaten; bei GmbH und UG ist er deshalb ab der ersten Buchung fest (`0101_kontenrahmen_kapg.sql`). Im Einzelunternehmen mit EÜR beginnt jedes Jahr bei null. Den DATEV-Export betrifft der Vortrag nicht; den Saldenvortrag in DATEV übernimmt die Steuerberatung aus dem Vorjahr.
 
 **Eröffnungsbuchung:** Beginnt die Buchhaltung der GmbH nicht in Haben, übernimmst du die Bestände der bisherigen Buchhaltung mit **Buchung erfassen › Eröffnungsbuchung**. Sie steht am 1. Januar des ersten Jahres in Haben und bucht nur Bestandskonten, dazu den Kontostand der Bank und 9000 Saldenvorträge, zum Beispiel:
 
@@ -521,6 +524,9 @@ Offene Rechnungen und Belege übernimmst du einzeln über den [Umzug](lexoffice.
 Gibt es vor dem 1. Januar schon Buchungen in Haben, lehnt Haben eine Eröffnung ab; die Salden trägt es dann selbst vor. Umgekehrt lässt sich nach einer Eröffnung nichts mehr davor buchen, auch kein rückdatierter Beleg, sonst zählten die übernommenen Salden doppelt.
 
 ## Jahresabschluss (GmbH und UG)
+
+> [!WARNING]
+> Haben rechnet jedes Geschäftsjahr als Kalenderjahr mit Stichtag 31.12. Für ein abweichendes Wirtschaftsjahr (§ 4a Abs. 1 Satz 2 Nr. 2 EStG, § 7 Abs. 4 KStG) sind Abschluss, Hinterlegung, E-Bilanz und Steuern falsch ([Nur das Kalenderjahr als Wirtschaftsjahr](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)).
 
 Unter **Buchhaltung › Jahresabschluss** zeigt Haben für eine GmbH oder UG Bilanz und Gewinn- und Verlustrechnung eines Jahres in der Form einer Kleinstkapitalgesellschaft (§ 267a HGB):
 
@@ -554,8 +560,6 @@ Hat die Bilanz eine Vorjahresspalte, steht der Vorjahresstichtag darunter; was d
 - hält Haben Zahl und Prüfwert der Buchungen des Jahres fest: SHA-256 über ID und Inhalt jeder Buchung samt Zeilen, gerechnet wie ihr Siegel. Die Seite rechnet ihn bei jedem Aufruf aus den aktuellen Daten nach und zeigt, ob die Buchungen seitdem unverändert sind. Der Abschluss selbst steht mit Prüfwert im Änderungsprotokoll und damit in der Hash-Kette.
 
 Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.
-
-Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
 
 ## Hinterlegung beim Unternehmensregister (GmbH und UG)
 
@@ -591,7 +595,7 @@ Gesetzestexte: [§ 264](https://www.gesetze-im-internet.de/hgb/__264.html), [§ 
 
 ### XML oder XBRL statt PDF
 
-Ein PDF nimmt das Unternehmensregister nur gegen ein Entgelt für die Umwandlung an: 1,75 Cent je sichtbarem Zeichen ohne Leerzeichen zuzüglich Umsatzsteuer, zusätzlich zur Gebühr ([Gebühren und Entgelte](https://www.publikations-plattform.de/order/D051Preisliste.pdf), Abschnitt 2). Ohne dieses Entgelt angenommen werden XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und das Webformular der Plattform ([Allgemeine Nutzungsbedingungen für das Unternehmensregister](https://www.publikations-plattform.de/order/D088.pdf), §§ 8 und 9). Wer die Umwandlung sparen will, tippt die Bilanz aus dem PDF in das Webformular ab. Haben erzeugt kein XML und kein XBRL zur Hinterlegung; geprüft im November 2026 unter **Arbeitshilfen & Standards › Technische Standards** der Publikations-Plattform:
+Ein PDF nimmt das Unternehmensregister nur gegen ein Entgelt für die Umwandlung an: 1,75 Cent je sichtbarem Zeichen ohne Leerzeichen zuzüglich Umsatzsteuer, zusätzlich zur Gebühr ([Gebühren und Entgelte](https://www.publikations-plattform.de/order/D051Preisliste.pdf), Abschnitt 2). Ohne dieses Entgelt angenommen werden XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und das Webformular der Plattform ([Allgemeine Nutzungsbedingungen für das Unternehmensregister](https://www.publikations-plattform.de/order/D088.pdf), §§ 8 und 9). Haben erzeugt kein XML und kein XBRL zur Hinterlegung; geprüft im November 2026 unter **Arbeitshilfen & Standards › Technische Standards** der Publikations-Plattform:
 
 - **XML nach dem Schema des Verlags.** Die Schemata „Bundesanzeiger“ und „Unternehmensregister“ (Stand September 2007) beschreiben ein Layout aus Überschriften, Absätzen und Tabellen. Der Download setzt eine gesonderte Freischaltung voraus, und die [Nutzungsbedingungen für die Strukturdefinitionen](https://www.publikations-plattform.de/order/de/arbeitshilfenstandards/standards/xml_schemata) (Stand 02.07.2016) erlauben sie nur, um eigene Daten oder die eigener Kunden an den Verlag zu übermitteln, und untersagen „jegliche Vervielfältigung und/oder Weitergabe“. Das Schema kann also nicht in dieses Repository, und ohne Schema lässt sich keine Datei prüfen.
 - **XBRL nach der HGB-Taxonomie.** Das Register nimmt Jahresabschlüsse als XBRL 2.1 mit Dimensions 1.0 nach der HGB-Taxonomie von XBRL Deutschland an, auch in der Sicht „Einzelabschluss MicroBilG“ (`de-gaap-ci-2025-04-01-microbilg` mit `de-gcd-2025-04-01` für Version 6.9; [Arbeitshilfe für die Einreichung im XBRL-Format](https://www.publikations-plattform.de/order/D008.pdf), Stand September 2025). Das ist dieselbe Taxonomie, Version 6.9, die Haben für die [E-Bilanz](#e-bilanz-gmbh-und-ug) nutzt. Für eine Einreichung fehlt aber die Dokumentation des Verlags für Softwareanbieter, die es nur nach der Freischaltung gibt, und der Zugang zur Testplattform, den der Verlag auf Anfrage vergibt ([XBRL-Programm](https://www.publikations-plattform.de/order/de/arbeitshilfenstandards/arbeitshilfen/xbrlprogramm)). Sollen Texte wie die Angaben unter der Bilanz mit Absätzen oder Listen erscheinen, braucht es zudem das Zusatzschema „BA-Jahresabschluss-XHTML“, ebenfalls hinter der Freischaltung; XBRL-Dateien, deren gestaltete Fußnoten nicht dagegen gültig sind, nimmt der Verlag nicht an. Ohne das Zusatzschema erscheinen Texte als einfache Fußnoten (Arbeitshilfe, S. 2). Haben kennt von der Taxonomie außerdem nur einen Auszug für die Übermittlung an ELSTER, nicht ihre Dateien und Bezeichnungen. Ohne die Vorgaben und ohne Prüfung gegen die Testplattform wäre eine solche Datei geraten.
@@ -660,7 +664,7 @@ Ein **Storno** ist eine Gegenbuchung und geht nur, solange die Anmeldung nicht e
 
 Eine Kapitalgesellschaft übermittelt Bilanz und GuV elektronisch an das Finanzamt (§ 5b EStG), mit derselben Frist wie die Steuererklärungen. Auf der Seite **Jahresabschluss** steht dafür unten der Abschnitt **E-Bilanz**: Haben baut sie aus den Buchungen des Jahres, lässt sie von ERiC prüfen und sendet sie wie die [Jahreserklärungen](jahreserklaerung.md) mit Zertifikat und PIN.
 
-**Taxonomie:** Für Wirtschaftsjahre bis 2026 sendet Haben in der HGB-Taxonomie 6.9, ab 2027 in der Taxonomie 6.10. Das folgt den BMF-Schreiben vom 10. Juni 2025 und 8. Juni 2026: Eine neue Taxonomie gilt grundsätzlich für Wirtschaftsjahre, die nach dem 31. Dezember des Vorjahres beginnen; für das Jahr davor ist sie nur „nicht beanstandet“. Für 2026 bleibt es deshalb bei 6.9, die jedes ERiC ab 43 prüft. Die Taxonomie 6.10 kann erst ERiC 45 prüfen, als Test; Echtfälle nimmt die Finanzverwaltung voraussichtlich ab dem ERiC-Release im Mai 2027 an. Ist ein älteres ERiC installiert (etwa 44, der Standard), nennt der Abschnitt für 2027 das als offenen Punkt und sendet nicht, bis unter **Einstellungen › ERiC** eine Version ab 45 installiert ist.
+**Taxonomie:** Für Wirtschaftsjahre bis 2026 sendet Haben in der HGB-Taxonomie 6.9, ab 2027 in der Taxonomie 6.10. Das folgt den BMF-Schreiben vom 10. Juni 2025 und 8. Juni 2026: Eine neue Taxonomie gilt grundsätzlich für Wirtschaftsjahre, die nach dem 31. Dezember des Vorjahres beginnen; für das Jahr davor ist sie nur „nicht beanstandet“. Für 2026 bleibt es deshalb bei 6.9, die jedes ERiC ab 43 prüft. Die Taxonomie 6.10 kann erst ERiC 45 prüfen, als Test; Echtfälle nimmt die Finanzverwaltung voraussichtlich ab dem ERiC-Release im Mai 2027 an. Ist ein älteres ERiC installiert (etwa 44, der Standard), nennt der Abschnitt für 2027 das als offenen Punkt und sendet nicht, bis unter **Einstellungen › ELSTER › ERiC** eine Version ab 45 installiert ist.
 
 **Was gesendet wird:** ein Jahresabschluss (Einzelabschluss) nach deutschem Steuerrecht in der HGB-Taxonomie 6.9 oder 6.10, Kerntaxonomie, GuV nach dem Gesamtkostenverfahren, mit
 

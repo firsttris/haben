@@ -55,7 +55,7 @@ describe("buildEInvoice", () => {
     expect(xml).toContain('<ram:BilledQuantity unitCode="HUR">152</ram:BilledQuantity>');
     expect(xml).toContain('<ram:ID schemeID="FC">13/345/67890</ram:ID>');
     expect(xml).toContain("<ram:IBANID>DE89370400440532013000</ram:IBANID>");
-    expect(xml).toContain("<ram:ApplicableHeaderTradeDelivery/>");
+    expect(xml).toMatch(/<ram:ApplicableHeaderTradeDelivery>\s*<ram:ShipToTradeParty>[\s\S]*?<ram:CountryID>DE<\/ram:CountryID>/);
   });
 
   it("schreibt Storno als Gutschrift 381 mit positiven Beträgen und Rechnungsbezug (UBL)", async () => {

@@ -78,6 +78,8 @@ test("Einladung, lesen ja, ändern nein, sperren", async ({ page: owner, browser
 
   // Lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, Exporte
   const nav = stb.getByRole("navigation", { name: "Hauptnavigation" });
+  // Mehrere Firmen (#504): Auch die Steuerberatung sieht, in welcher Firma sie gerade ist
+  await expect(nav.getByRole("link", { name: "Haben Mustermann IT · Max Mustermann" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Einstellungen" })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "Bank" })).toHaveCount(0);
   for (const [path, heading] of [

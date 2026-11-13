@@ -24,7 +24,7 @@ import {
   type Discount,
   type LegalInfo,
 } from "@haben/core";
-import type { Address, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
+import type { Address, Buyer, InvoiceDocument, InvoiceDocumentLine, Letterhead, Logo } from "./types.ts";
 
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
@@ -34,6 +34,14 @@ export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   const lines = [address.strasse, `${address.plz} ${address.ort}`];
   if (address.land.toUpperCase() !== "DE") lines.push(countryName(address.land, t.countryLocale).toUpperCase());
   return lines;
+}
+
+/**
+ * Empfängerblock aller Belege, eine Zeile je Eintrag: Name des Käufers, bei einem Ansprechpartner „z. Hd. …“ (#424),
+ * dann die Anschrift. Die Zeile kommt als Eintrag im Feld `recipient` bei jeder Vorlage an, auch bei eigenen.
+ */
+export function recipientLines(buyer: Buyer, t: Texts = TEXTS.de): string[] {
+  return [buyer.name, ...(buyer.ansprechpartner ? [t.attention(buyer.ansprechpartner.name)] : []), ...addressLines(buyer, t)];
 }
 
 /** Spaltenköpfe und Seitenzahl für das Template; bei Bruttopreisen steht in der letzten Spalte der Bruttobetrag */
@@ -113,7 +121,7 @@ export function documentPdfData(
     author: seller.name,
     labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer, t)],
+    recipient: recipientLines(buyer, t),
     ...itemNumberColumn(doc.lines, doc.options),
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
@@ -175,6 +183,8 @@ export function pdfData(doc: InvoiceDocument) {
     : null;
   return {
     ...body,
+    // Bestehendes Pflichtfeld des Feldvertrags: auch eingefrorene v1-Layouts drucken und prüfen diesen Text.
+    taxNote: [body.taxNote, doc.propertyRetention ? t.propertyRetention : null].filter(Boolean).join("\n") || null,
     docTitle: `${title} ${doc.number}`,
     title,
     reference: doc.corrects ? t.reference(doc.corrects.number, t.date(doc.corrects.issueDate)) : null,
@@ -366,6 +376,10 @@ export function renderJob(template: "rechnung.typ", data: object, letterhead: Le
 }
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
+  if (letterhead.pdfFrom && (template === TEMPLATE || template === DUNNING_TEMPLATE)) {
+    const pdf = letterhead.pdfFrom({ template: template === TEMPLATE ? "rechnung.typ" : "mahnung.typ", data: templateInputs(data, letterhead), date });
+    if (pdf) return pdf;
+  }
   const typst = getCompiler();
   // Logo und Briefpapier liegen nur für diesen Lauf als Dateien neben der Vorlage
   const shadows = [

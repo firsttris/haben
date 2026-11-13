@@ -106,7 +106,7 @@ export async function createSettlementDrafts(actor: string, store: Store, settle
       exchangeRateDate: foreign ? settlement.periodTo : null,
       lines: [{ ...description(store, settlement), itemNumber: "", quantity: 1000, unit: "Psch.", unitPrice: settlement.net, taxRate: 0, discount: null }],
     };
-    const { created } = await createDraftForReference(actor, input, { externalSource: store, externalId: settlement.reference });
+    const { created } = await createDraftForReference(actor, input, { externalSource: store, externalId: settlement.reference }, { checkContact: false });
     if (created) outcome.created++;
   }
   return outcome;

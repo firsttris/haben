@@ -1,7 +1,7 @@
 import { JOURNAL_KENNZAHLEN } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 
 /*
@@ -42,7 +42,7 @@ describe.skipIf(!testDatabaseUrl)("Freie Buchungen mit Steuerschlüssel (Postgre
     journalAb?: number;
     kleinunternehmer?: boolean;
   }) {
-    await sql`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
+    await leeren(sql)`truncate vat_return_submissions, vat_returns, annual_submissions, journal_lines, journal_entries, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform, kleinunternehmer, journal_ab)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY',
               ${opts.kontenrahmen}, ${opts.versteuerung ?? "ist"}, ${opts.rechtsform ?? "einzelunternehmen"}, ${opts.kleinunternehmer ?? false},

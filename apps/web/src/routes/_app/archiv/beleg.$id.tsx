@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LEGACY_TYPES } from "../../../components/archiv/LegacyVouchers.tsx";
+import { legacySource } from "../../../lib/altbestand.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getLegacyVoucher } from "../../../server/functions/archive.ts";
 import styles from "../../../styles/archiv.css?url";
@@ -25,20 +26,12 @@ const PAYMENT_STATUS: Record<string, string> = {
   partlyPaid: "teilweise bezahlt",
 };
 
-const SOURCE = {
-  lexoffice: { name: "Lexoffice", product: "Lexware Office" },
-  sevdesk: { name: "sevDesk", product: "sevDesk" },
-  buchhaltungsbutler: { name: "BuchhaltungsButler", product: "BuchhaltungsButler" },
-  accountable: { name: "Accountable", product: "Accountable" },
-  import: { name: "JSON-Import", product: "Quellprogramm" },
-} as const;
-
 function LegacyVoucherPage() {
   const { voucher, files } = Route.useLoaderData();
   const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
-  const source = voucher.source === "import" ? { name: voucher.sourceName || "JSON-Import", product: "Quellprogramm" } : SOURCE[voucher.source];
+  const source = legacySource(voucher.source, voucher.sourceName);
   return (
     <>
       <div className="page-head">
@@ -123,7 +116,7 @@ function LegacyVoucherPage() {
                 <TaxRow key={t.rate} rate={t.rate} net={t.net} tax={t.tax} />
               ))}
               <dt>Brutto</dt>
-              <dd className="mono" style={{ fontWeight: 600 }}>
+              <dd className="amount" style={{ fontWeight: 600 }}>
                 {formatEuro(voucher.gross)}
                 {voucher.currency !== "EUR" ? ` (${voucher.currency})` : ""}
               </dd>
@@ -153,7 +146,7 @@ function LegacyVoucherPage() {
                 <div key={i} className="history-row small">
                   <span>{formatDate(item.date)}</span>
                   <span className="muted">{item.account ?? item.type}</span>
-                  <span className="mono">{formatEuro(item.amount)}</span>
+                  <span className="amount">{formatEuro(item.amount)}</span>
                 </div>
               ))}
             </section>
@@ -172,9 +165,9 @@ function TaxRow({ rate, net, tax }: { rate: number; net: number; tax: number }) 
   return (
     <>
       <dt>Netto {percent}</dt>
-      <dd className="mono">{formatEuro(net)}</dd>
+      <dd className="amount">{formatEuro(net)}</dd>
       <dt>USt {percent}</dt>
-      <dd className="mono">{formatEuro(tax)}</dd>
+      <dd className="amount">{formatEuro(tax)}</dd>
     </>
   );
 }

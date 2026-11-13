@@ -24,12 +24,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { BelegVerrechnung } from "../../../components/BelegVerrechnung.tsx";
 import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { IbanCheck } from "../../../components/IbanCheck.tsx";
 import { Icon } from "../../../components/Icon.tsx";
-import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
-import { ContactDialog } from "../../../components/ContactDialog.tsx";
+import { ContactCombobox, savedAsChoice, type ContactChoice } from "../../../components/ContactCombobox.tsx";
+import { NewContactDialog } from "../../../components/NewContactDialog.tsx";
 import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
@@ -194,14 +195,22 @@ function DocumentPage() {
           <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={data.cancellation !== null} />
           {navigation.position > 0 && (
             <div className="doc-nav" role="group" aria-label="Zwischen Belegen wechseln">
-              <button type="button" className="btn" onClick={() => go(navigation.previousId)} disabled={!navigation.previousId} title="Vorheriger Beleg (K)">
-                ‹ Vorheriger
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => go(navigation.previousId)}
+                disabled={!navigation.previousId}
+                title="Vorheriger Beleg (K)"
+              >
+                <Icon name="chevron-left" size={16} />
+                Vorheriger
               </button>
               <span className="small muted">
                 {navigation.position} von {navigation.total}
               </span>
-              <button type="button" className="btn" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
-                Nächster ›
+              <button type="button" className="btn btn-ghost" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
+                Nächster
+                <Icon name="chevron-right" size={16} />
               </button>
             </div>
           )}
@@ -257,6 +266,7 @@ function DocumentPage() {
           <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
           {/* Außerhalb des Formulars: Enter im Feld „Grund“ speichert nicht */}
           {inhaber && <DocumentCancellation key={`storno-${doc.id}`} data={data} />}
+          <BelegVerrechnung key={`verrechnung-${doc.id}`} documentId={doc.id} supplier={doc.supplierName} readOnly={!inhaber} />
         </div>
       </div>
     </>
@@ -309,7 +319,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [supplierName, setSupplierName] = useState(doc.supplierName);
   const [supplierUstId, setSupplierUstId] = useState(doc.supplierUstId);
   const [supplierContactId, setSupplierContactId] = useState<string | null>(doc.supplierContactId);
-  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
+  /** Getippter Name, wenn der Dialog für einen neuen Lieferanten offen ist; null = geschlossen */
+  const [newSupplierName, setNewSupplierName] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState(doc.invoiceNumber);
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
@@ -435,7 +446,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   }
 
   /** Gewählter Kontakt: Name und USt-IdNr. übernehmen; „frei eingetragen“ lässt die Felder stehen */
-  function pickSupplier(supplier: SupplierOption | null) {
+  function pickSupplier(supplier: ContactChoice | null) {
     setSupplierContactId(supplier?.id ?? null);
     if (!supplier) return;
     setSupplierName(supplier.name);
@@ -579,37 +590,32 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         <legend className="visually-hidden">Belegdaten</legend>
         <div className="form-grid">
           <Field label="Lieferant">{(control) => <input {...control} value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />}</Field>
-          <SupplierPicker suppliers={data.suppliers} value={supplierContactId} onPick={touch(pickSupplier)} />
-          {!readOnly && (
-            <div>
-              <button type="button" className="btn" onClick={() => setNewSupplierOpen(true)}>
-                Neuen Lieferanten anlegen
-              </button>
-            </div>
-          )}
-          <ContactDialog
-            open={newSupplierOpen}
-            title="Neuen Lieferanten anlegen"
+          <Field label="Aus den Kontakten">
+            {(control) => (
+              <ContactCombobox
+                {...control}
+                rolle="lieferant"
+                contacts={data.suppliers}
+                contactId={supplierContactId ?? ""}
+                disabled={readOnly || running}
+                onChoose={(id) => touch(pickSupplier)(data.suppliers.find((s) => s.id === id) ?? null)}
+                onCreate={readOnly ? undefined : setNewSupplierName}
+              />
+            )}
+          </Field>
+          <NewContactDialog
+            rolle="lieferant"
+            name={newSupplierName}
             // Anschrift und E-Mail aus der E-Rechnung, Name und USt-IdNr. wie am Beleg; die IBAN nur als Vorschlag zum Übernehmen (#329)
             prefill={{
               ...data.supplierSuggestion?.contact,
               ...(supplierName ? { name: supplierName } : {}),
               ...(supplierUstId ? { ustId: supplierUstId } : {}),
-              isCustomer: false,
-              isSupplier: true,
             }}
             ibanSuggestion={data.supplierSuggestion?.iban ?? null}
-            existing={data.suppliers}
-            onSaved={(saved) => {
-              touch(pickSupplier)({ id: saved.id, name: saved.name, ustId: saved.ustId });
-              // Die Lieferantenliste neu laden; die übrigen Eingaben am Beleg bleiben stehen
-              void router.invalidate();
-            }}
-            onPickExisting={(id) => {
-              const supplier = data.suppliers.find((s) => s.id === id);
-              if (supplier) touch(pickSupplier)(supplier);
-            }}
-            onClose={() => setNewSupplierOpen(false)}
+            onSaved={(saved) => touch(pickSupplier)(savedAsChoice(saved))}
+            onPickExisting={(id) => touch(pickSupplier)(data.suppliers.find((c) => c.id === id) ?? null)}
+            onClose={() => setNewSupplierName(null)}
           />
           <Field label="Rechnungsnummer">
             {(control) => <input {...control} value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />}
@@ -928,7 +934,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           </button>
           <div style={{ textAlign: "right" }}>
             <span className="muted small">{reverseCharge ? "Zu zahlen (netto) " : "Gesamt "}</span>
-            <span className="mono" style={{ fontWeight: 600 }}>
+            <span className="amount" style={{ fontWeight: 600 }}>
               {gross === null ? "–" : foreign ? `${formatDecimal(gross)} ${currencyCode}` : formatEuro(gross)}
             </span>
             {foreign && (
@@ -936,7 +942,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 {euroRows ? (
                   <>
                     in Euro{" "}
-                    <span className="mono" style={{ fontWeight: 600 }}>
+                    <span className="amount" style={{ fontWeight: 600 }}>
                       {formatEuro(euroGross!)}
                     </span>
                     {euroRows.length > 0 && (

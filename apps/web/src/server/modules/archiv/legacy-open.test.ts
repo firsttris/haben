@@ -1,6 +1,6 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 import { today as heute } from "../../today.ts";
 import { addDays } from "@haben/core";
 
@@ -38,6 +38,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   });
 
   async function legacyVoucher(values: {
+    source?: "lexoffice" | "sevdesk" | "buchhaltungsbutler" | "accountable" | "import";
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -63,14 +64,18 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         ? null
         : { status: paid >= gross ? "balanced" : "openRevenue", openAmount: values.openAmount ?? gross - paid, paidDate: null, items };
     const [contact] = values.contact ? await sql`select id from contacts where name = ${values.contact}` : [];
-    const [row] = await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
+    const [row] = await sql`insert into lexoffice_vouchers (source, lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
         contact_name, net, tax, gross, taxes, categories, payment, raw)
-      values (${crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
+      values (${values.source ?? "lexoffice"}, ${crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
         ${values.date}, ${values.date}, ${values.status ?? "open"}, ${contact?.id ?? null}, ${values.contact ?? "Bürobedarf Schmidt KG"},
         ${values.net}, ${values.tax}, ${gross}, ${JSON.stringify([{ rate, net: values.net, tax: values.tax }])}::jsonb,
         ${JSON.stringify(values.direction === "ausgabe" ? [{ categoryId: "x", name: values.category ?? "Bürobedarf", rate, net: values.net, tax: values.tax }] : [])}::jsonb,
-        ${payment ? JSON.stringify(payment) : null}::jsonb, ${JSON.stringify({ address: { name: values.contact ?? "" } })}::jsonb)
+        ${payment ? JSON.stringify(payment) : null}::jsonb, ${JSON.stringify({ address: { name: values.contact ?? "" }, ...(values.source === "import" ? { sourceName: "Beispiel-App" } : {}) })}::jsonb)
       returning id`;
+    if (values.source === "import") {
+      await sql`insert into external_imports (source, external_id, kind, payload_hash, voucher_id, payload)
+        values ('Beispiel-App', ${row!.id}, 'invoice', ${"0".repeat(64)}, ${row!.id}, '{}'::jsonb)`;
+    }
     if (values.file) {
       const sha = await storage.storeFile(values.file);
       await sql`insert into lexoffice_voucher_files (voucher_id, role, filename, mime_type, sha256, size)
@@ -81,7 +86,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   }
 
   beforeEach(async () => {
-    await sql`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents,
+    await leeren(sql)`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries, document_amounts, documents,
       invoice_lines, invoices, lexoffice_voucher_files, lexoffice_vouchers, lexoffice_imports, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -89,6 +94,27 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     await sql`insert into contacts (name, strasse, plz, ort) values ('Nordwerk Software GmbH', 'Hafenstraße 5', '20457', 'Hamburg')`;
     await sql`insert into lexoffice_imports (status, progress) values ('fertig', ${JSON.stringify({ phase: "fertig" })}::jsonb)`;
   });
+
+  it.each(["lexoffice", "sevdesk", "buchhaltungsbutler", "accountable", "import"] as const)(
+    "liefert bei einer übernommenen Rechnung die gespeicherte Herkunft %s statt sie aus der Nummer zu erraten",
+    async (source) => {
+      const id = await legacyVoucher({
+        source,
+        type: "invoice",
+        direction: "einnahme",
+        number: "LX-2026-1",
+        date: "2026-09-20",
+        net: 10_000,
+        tax: 1_900,
+        file: PDF,
+        contact: "Nordwerk Software GmbH",
+      });
+      const result = await legacy.takeOverLegacyItem(actor, id);
+      const detail = await invoices.getInvoice(result.id);
+      expect(detail).toMatchObject({ importSource: { source, sourceName: source === "import" ? "Beispiel-App" : null } });
+      expect(Buffer.from(detail!.invoice.pdf!).toString()).toBe(new TextDecoder().decode(PDF));
+    },
+  );
 
   it("listet offene Posten mit Gründen, wenn etwas nicht geht", async () => {
     await legacyVoucher({
