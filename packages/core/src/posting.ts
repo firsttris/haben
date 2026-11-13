@@ -822,6 +822,18 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
+/**
+ * Umsatzsteuer-Erstattung, die auf einem privaten Konto eingeht (#866): Die Forderung gegen das
+ * Finanzamt wird erfüllt, das Geld fließt aber ins Private. Gebucht wird deshalb gegen die
+ * Privatentnahme (SKR03 1800, SKR04 2100), in GmbH und UG gegen das Gesellschafter-Verrechnungskonto,
+ * nicht gegen die Bank. Auf einem Geschäftskonto bleibt es bei directPosting.
+ */
+export function ustPrivatPosting(amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const owner = ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "einlage" : "entnahme");
+  return [side(owner, amount, true, null), side(accounts.ustVorauszahlung, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
 /** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */
 export const CASH_BOOKINGS = {
   einlage: { label: "Einlage", sign: 1, kind: "privat" },
