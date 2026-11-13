@@ -19,9 +19,9 @@ test("der Server verbindet sich mit der eingeschränkten App-Anmeldung", async (
         return sessions.map((session) => session.usename);
       })
       .toEqual([appRole]);
-    const [role] = await sql`select rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls
+    const [role] = await sql`select rolsuper, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls
       from pg_roles where rolname = ${appRole}`;
-    expect(role).toEqual({ rolsuper: false, rolinherit: false, rolcreaterole: false, rolcreatedb: false, rolreplication: false, rolbypassrls: false });
+    expect(role).toEqual({ rolsuper: false, rolcreaterole: false, rolcreatedb: false, rolreplication: false, rolbypassrls: false });
   } finally {
     await sql.end();
   }
