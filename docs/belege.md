@@ -363,7 +363,7 @@ fällig, wenn das Geld zurückkommt oder verrechnet wird (§ 17 Abs. 1 Satz 2 un
 Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen, die über
 die Bank bezahlt sind — nur sie lassen sich ausgleichen. Haben
 bucht die Vorsteuerminderung dann nicht im Belegmonat auf die Vorsteuer, sondern auf ein Zwischenkonto, mit
-Steuerschlüssel und Bemessungsgrundlage:
+dem Steuerschlüssel des Satzes:
 
 | Konto SKR03 | Konto SKR04 | Soll | Haben |
 | --- | --- | ---: | ---: |
@@ -379,7 +379,7 @@ dem Belegdatum noch ändern.
 Ein gemeldeter Zeitraum nimmt die Angabe nicht mehr an: Steht der Belegmonat schon in einer abgegebenen Voranmeldung
 oder ist das Jahr abgeschlossen, lehnt Haben das Speichern und das Buchen ab.
 
-Ausgeglichen wird die Gutschrift über die Bank (Erstattung), über eine [Verrechnung](#verrechnung-zweier-belege) mit
+Ausgeglichen wird die Gutschrift über die Bank (Erstattung), über eine [Verrechnung](#verrechnen-ohne-zahlung) mit
 einem Beleg desselben Lieferanten oder über eine Ausbuchung wie eine Kursdifferenz. Dabei bucht Haben den Anteil vom
 Zwischenkonto auf die Vorsteuer um, mit Steuerschlüssel und Bemessungsgrundlage; Kz 66 mindert sich in diesem Zeitraum:
 
