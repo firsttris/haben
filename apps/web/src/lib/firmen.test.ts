@@ -42,6 +42,28 @@ describe("parseFirmen", () => {
     expect(parseFirmen(text)).toHaveProperty("fehler");
   });
 
+  // Review: Wo keine Shell und kein Compose die Anführungszeichen entfernt (haben.env der Quadlets, Felder einer
+  // Oberfläche, „- NAME='…'“ in einer Compose-Liste), landen sie aus dem Beispiel der Doku im Wert; das schließende
+  // hängt dann an der letzten Adresse und ergäbe einen Link auf einen Host, den es nicht gibt
+  it.each([
+    ["einfache Anführungszeichen um die ganze Liste", "'Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de'"],
+    ["doppelte Anführungszeichen um die ganze Liste", '"Studio Nord|https://nord.example.de;Werkstatt Süd|https://werkstatt.example.de"'],
+    ["Zeichen im Host, die es in keiner Domain gibt", "A|https://nord.example.de!"],
+  ])("lehnt %s ab", (_, text) => {
+    expect(parseFirmen(text)).toHaveProperty("fehler");
+  });
+
+  it("nimmt Domains mit Umlaut, Port und Unterstrich sowie die Loopback-Adressen", () => {
+    expect(parseFirmen("A|https://münchen.example.de:8443;B|https://haben_nord.intern;C|http://[::1]:3201;D|http://127.0.0.1:3202")).toEqual({
+      firmen: [
+        { name: "A", url: "https://xn--mnchen-3ya.example.de:8443" },
+        { name: "B", url: "https://haben_nord.intern" },
+        { name: "C", url: "http://[::1]:3201" },
+        { name: "D", url: "http://127.0.0.1:3202" },
+      ],
+    });
+  });
+
   it("begrenzt die Zahl der Firmen", () => {
     const viele = Array.from({ length: 51 }, (_, i) => `F${i}|https://f${i}.example.de`).join(";");
     expect(parseFirmen(viele)).toHaveProperty("fehler");
