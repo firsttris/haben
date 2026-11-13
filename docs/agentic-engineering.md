@@ -1,14 +1,41 @@
 ---
-title: "So entsteht Haben: Agentic Engineering mit Board, Agenten und Review"
+title: "Agentic Engineering in der Praxis: wie Haben mit KI-Agenten entsteht"
 description: >-
-  Wie Haben mit Coding-Agenten gebaut wird: vom Issue über das Board, das Übernehmen und den Bau
-  mit Tests bis zu Selbstprüfung, TDD-Review, Doku-Prüfung und Merge durch einen Menschen, an einem
-  echten Beispiel erklärt.
+  Wie ein Open-Source-Projekt mit KI-Agenten gebaut wird: Board und Issues, Skills für Claude Code und
+  andere Coding-Agenten, TDD-Review mit rotem Test, Doku-Prüfung und Merge durch einen Menschen, an einem
+  echten Pull Request.
 ---
 
-# So entsteht Haben
+<div class="showcase-hero" markdown>
 
-Den größten Teil des Codes von Haben schreiben Coding-Agenten. Was gebaut wird und was nach `main` kommt, entscheiden Menschen: ein Maintainer und ein paar Collaborators. Dazwischen prüfen Agenten die Arbeit anderer Agenten, und zwar so, dass ein Befund belegt sein muss. Eine Meinung reicht dafür nicht. Die Regeln stehen unter [Mitwirken](mitwirken.md), die Schritte für Agenten als Skills in [`.claude/skills/`](https://github.com/firsttris/haben/tree/main/.claude/skills). Diese Seite zeigt, wie das zusammenläuft.
+<p class="showcase-kicker">So entsteht Haben</p>
+
+# Agentic Engineering in der Praxis
+
+<p class="showcase-claim">Agenten schreiben den Code. Frische Agenten prüfen ihn und dürfen nur melden, was ein
+fehlschlagender Test belegt. Ein Mensch entscheidet, was nach <code>main</code> kommt.</p>
+
+[Ein echtes Beispiel](#beispiel){ .md-button .md-button--primary } [Etwas übernehmen](mitwirken.md#etwas-übernehmen){ .md-button } [Zum Board](https://github.com/users/firsttris/projects/2){ .md-button }
+
+</div>
+
+<div class="showcase-cards showcase-cards--drei" markdown>
+<div class="rolle rolle--mensch" markdown>
+**🧑 Mensch entscheidet**
+
+Was gebaut wird, offene fachliche Fragen, den Merge und das Release.
+</div>
+<div class="rolle rolle--agent" markdown>
+**🤖 Agent baut und prüft**
+
+Issues, Code mit rotem Test zuerst, Selbstprüfung, Review, Doku-Prüfung.
+</div>
+<div class="rolle rolle--auto" markdown>
+**⚙️ Automatik hält Regeln**
+
+Board, Zuweisung, PR-Regeln, CI und das Schließen der Issues mit dem Release.
+</div>
+</div>
 
 ## Der Ablauf
 
@@ -50,7 +77,7 @@ flowchart TB
   class Issue,Geplant,Zuweisen,CI,Naechstes,Erledigt auto
 ```
 
-Gelb entscheidet ein Mensch, blau arbeitet ein Agent, grün läuft von selbst. Issues schreiben auch Agenten, aber nur auf Anweisung.
+Die Farben sind dieselben wie bei den Karten oben. „Frisch“ heißt: ein neuer Agent ohne den Verlauf dessen, der den Code geschrieben hat. Er kennt nur den Pull Request und das Repository und prüft deshalb, was dasteht. Was gemeint war, weiß er nicht.
 
 | Schritt | Wer | Regel | Skill |
 | --- | --- | --- | --- |
@@ -67,37 +94,27 @@ Gelb entscheidet ein Mensch, blau arbeitet ein Agent, grün läuft von selbst. I
 
 Dazu kommt `belegvorlage`. Mit diesem Skill schreiben Nutzer ihr eigenes Rechnungslayout, ohne das Repository zu brauchen ([Eigene Belegvorlagen](belegvorlagen.md#mit-einem-ki-agenten)).
 
-„Frisch“ heißt: ein neuer Agent ohne den Verlauf dessen, der den Code geschrieben hat. Er kennt nur den Pull Request und das Repository und prüft deshalb, was dasteht. Was gemeint war, weiß er nicht.
+## Doku für Menschen, Skills für Agenten
 
-## Was im Repository zusammenspielt
+<div class="showcase-cards showcase-cards--drei" markdown>
+<div markdown>
+**📖 Doku: was gilt und warum**
 
-```mermaid
-flowchart LR
-  subgraph Anleitung["Anleitung für Agenten"]
-    direction TB
-    Claude["CLAUDE.md · AGENTS.md<br/>wo nachsehen, was nie passieren darf"] --> Regeln["docs/entwicklung.md<br/>docs/mitwirken.md · DESIGN.md"]
-    Claude --> Skills[".claude/skills/<br/>Schritte je Aufgabe"]
-  end
-  subgraph GitHub
-    direction TB
-    Formulare["Issue-Formulare<br/>.github/ISSUE_TEMPLATE"] --> Issues["Issues mit Labels"]
-    Issues --> Project["Project „Roadmap“<br/>Geplant · In Arbeit · Im nächsten Release · Erledigt"]
-    PRs["Pull Requests"]
-  end
-  subgraph Workflows["Workflows und Skripte"]
-    direction TB
-    Uebernehmen["Übernehmen<br/>scripts/board"]
-    Board["Board<br/>scripts/board"]
-    PRRegeln["PR-Regeln · PR-Regeln Kommentar<br/>scripts/pr-regeln"]
-    CI["CI · Docs"]
-    Release["Bump version → Release"]
-    Jahreswerte["Jahreswerte prüfen"]
-  end
-  Anleitung --> GitHub
-  GitHub --> Workflows
-```
+`docs/` und `DESIGN.md`, kurz und auf Deutsch. Menschen und Agenten lesen dieselben Regeln, jede steht nur an einer Stelle.
+</div>
+<div markdown>
+**🛠️ Skills: was zu tun ist**
 
-`CLAUDE.md` und `AGENTS.md` sind nur der Einstieg: Sie sagen, wo eine Regel steht und was nie passieren darf. Die Regeln selbst stehen in der Doku, damit Menschen und Agenten dieselben lesen. Was ein Agent dafür Schritt für Schritt tut, steht in einem Skill. Was sich sicher entscheiden lässt, prüft ein Workflow. Dann hängt es nicht davon ab, ob ein Agent die Regel gelesen hat.
+`.claude/skills/`, Schritt für Schritt je Aufgabe. Ein Skill verweist auf die Regel, statt sie zu wiederholen.
+</div>
+<div markdown>
+**✅ Skripte: was sich sicher prüfen lässt**
+
+`scripts/` und `.github/workflows/`. Ob ein Agent die Regel gelesen hat, spielt dann keine Rolle mehr.
+</div>
+</div>
+
+`CLAUDE.md` und `AGENTS.md` sind nur der Einstieg: wo eine Regel steht und was nie passieren darf. Die Workflows halten Board und Pull Requests auf Stand:
 
 | Workflow | Läuft bei | Tut |
 | --- | --- | --- |
@@ -111,9 +128,9 @@ flowchart LR
 
 Was die Automatik nicht sieht, also neue Issues einordnen, offene Gespräche finden und Karten aufräumen, übernimmt `board-pflegen`. Seine Vorschläge setzt es erst nach dem OK des Maintainers um.
 
-## Ein Beispiel: der Satz auf dem Storno
+## Ein Beispiel: der Satz auf dem Storno { #beispiel }
 
-Issue [#716](https://github.com/firsttris/haben/issues/716) und Pull Request [#821](https://github.com/firsttris/haben/pull/821): Alle Prüfungen waren grün, und trotzdem kam die erste Fassung nicht nach `main`.
+Issue [#716](https://github.com/firsttris/haben/issues/716) und Pull Request [#821](https://github.com/firsttris/haben/pull/821), vom `/übernehmen` bis zum Merge in gut acht Stunden.
 
 ```mermaid
 sequenceDiagram
@@ -152,22 +169,56 @@ sequenceDiagram
 6. **Code und Markdown getrennt geprüft:** `tdd-review` und `doku-pruefen` laufen nebeneinander, je in einem frischen Agenten. Das TDD-Review schreibt 25 eigene Tests für Grenzfälle und ältere Belege, die Doku-Prüfung gleicht `docs/rechnungen.md` mit Code und Entscheidung ab. Keiner findet einen Befund.
 7. **Merge:** Die CI ist grün, der Maintainer merged per Squash. Die Karte wandert nach „Im nächsten Release“, das Issue bleibt offen, bis das Release es schließt.
 
-Code und Tests waren in beiden Fassungen richtig. Falsch war die fachliche Annahme, dass Haben auf einem festgeschriebenen Beleg über den Kontostand sprechen darf. Das prüft kein Test, das musste ein Mensch entscheiden.
+> [!IMPORTANT]
+> **Alle Tests grün, und trotzdem falsch.** Code und Tests waren in beiden Fassungen richtig. Falsch war die fachliche Annahme, dass Haben auf einem festgeschriebenen Beleg über den Kontostand sprechen darf. Das prüft kein Test, das musste ein Mensch entscheiden.
 
 ## Leitplanken für Agenten
 
-Dass kein ungeprüfter Code nach `main` kommt, hängt nicht davon ab, ob ein Agent die Regeln kennt, sondern davon, dass ein Fehler vor dem Merge auffällt:
+Dass kein ungeprüfter Code nach `main` kommt, hängt nicht davon ab, ob ein Agent die Regeln kennt, sondern davon, dass ein Fehler vor dem Merge auffällt.
 
-- **Regeln an einer Stelle:** [Entwicklung](entwicklung.md), [Mitwirken](mitwirken.md) und [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md); `CLAUDE.md` und `AGENTS.md` verweisen nur darauf, die Abläufe stehen als Skills in `.claude/skills/`.
-- **Fehlerklassen ausgeschlossen:** Geld in Cent statt Gleitkomma; Postgres-Trigger und Hashkette schützen Festgeschriebenes auch vor fehlerhaftem Code ([Konventionen](entwicklung.md#konventionen)).
-- **Tests für jede Änderung,** keiner abgeschwächt, Übersprungenes genannt ([Mitwirken](mitwirken.md)).
-- **Fremde Maßstäbe:** [KoSIT-Validator](entwicklung.md#kosit-validator), [SEPA-Schemas](entwicklung.md#schemas-der-sepa-überweisung-und--lastschrift), WCAG 2.2 AA; fachliche Details nach der Primärquelle im Code.
-- **Regeln als Skript,** wo sie sich sicher entscheiden lassen ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)).
-- **Unabhängiges Review mit rotem Test** ([Review](mitwirken.md#review)).
-- **Ein Mensch entscheidet** über den Merge.
+<div class="showcase-cards" markdown>
+<div markdown>
+**🧱 Fehlerklassen ausgeschlossen**
 
-Was das nicht leistet: Die Leitplanken fangen Fehler, die ein Test zeigen kann. Ist die fachliche Annahme selbst falsch, etwa bei einer Steuerregel, sind Code und Test gemeinsam falsch und trotzdem grün. Dagegen helfen nur die Primärquelle im Code, Rückmeldungen aus echten Abgaben und die Prüfung durch eine Steuerberatung. Ein unabhängiges Audit der Software oder ihrer Fachlogik gibt es bisher nicht.
+Geld in Cent statt Gleitkomma; Postgres-Trigger und Hashkette schützen Festgeschriebenes auch vor fehlerhaftem Code ([Konventionen](entwicklung.md#konventionen)).
+</div>
+<div markdown>
+**🧪 Tests für jede Änderung**
+
+Keiner abgeschwächt, Übersprungenes genannt ([Mitwirken](mitwirken.md)).
+</div>
+<div markdown>
+**📏 Fremde Maßstäbe**
+
+[KoSIT-Validator](entwicklung.md#kosit-validator), [SEPA-Schemas](entwicklung.md#schemas-der-sepa-überweisung-und--lastschrift), WCAG 2.2 AA; fachliche Details nach der Primärquelle im Code.
+</div>
+<div markdown>
+**🤖 Regeln als Skript**
+
+Wo sie sich sicher entscheiden lassen ([Automatische Prüfungen der Regeln](mitwirken.md#automatische-prüfungen-der-regeln)).
+</div>
+<div markdown>
+**🔴 Review mit rotem Test**
+
+Unabhängig, ein Befund nur mit Test, der fehlschlägt ([Review](mitwirken.md#review)).
+</div>
+<div markdown>
+**🧑 Ein Mensch merged**
+
+Bei Steuer, Buchung, ELSTER und GoBD erst nach seinem OK.
+</div>
+</div>
+
+> [!WARNING]
+> **Was das nicht leistet:** Die Leitplanken fangen Fehler, die ein Test zeigen kann. Ist die fachliche Annahme selbst falsch, etwa bei einer Steuerregel, sind Code und Test gemeinsam falsch und trotzdem grün. Dagegen helfen nur die Primärquelle im Code, Rückmeldungen aus echten Abgaben und die Prüfung durch eine Steuerberatung. Ein unabhängiges Audit der Software oder ihrer Fachlogik gibt es bisher nicht.
+
+<div class="showcase-hero" markdown>
 
 ## Mitmachen
 
-Eine Karte aus dem [Project „Roadmap“](https://github.com/users/firsttris/projects/2) aussuchen und im Issue `/übernehmen` kommentieren ([Etwas übernehmen](mitwirken.md#etwas-übernehmen)). Die Skills liegen im Repository und gelten für jeden Agenten, nicht nur für Claude Code.
+<p class="showcase-claim">Eine Karte aus dem Board aussuchen, im Issue <code>/übernehmen</code> kommentieren und
+mit dem Agenten deiner Wahl loslegen. Die Skills liegen im Repository und gelten für jeden Agenten.</p>
+
+[Etwas übernehmen](mitwirken.md#etwas-übernehmen){ .md-button .md-button--primary } [Einstiegs-Issues](https://github.com/firsttris/haben/issues?q=is%3Aopen+label%3Aeinstieg){ .md-button }
+
+</div>
