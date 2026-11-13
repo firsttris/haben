@@ -88,7 +88,13 @@ const MAINTAINERS = ["OWNER", "MEMBER", "COLLABORATOR"];
  */
 export function reviewHint(pr: { draft?: boolean; author_association?: string; user: { login: string; type?: string } }, files: string[]): Report[] {
   if (pr.draft || isBot(pr.user) || MAINTAINERS.includes(pr.author_association ?? "")) return [];
-  const review = isDocsOnly(files) ? "`doku-pruefen` (nur Doku geändert)" : "`tdd-review`";
+  const hasDocs = files.some((file) => /\.md$|^docs\/|^mkdocs\.yml$/.test(file));
+  // Code und Markdown: zwei Prüfer nebeneinander (tdd-review, Schritt 0)
+  const review = isDocsOnly(files)
+    ? "`doku-pruefen` (nur Doku geändert)"
+    : hasDocs
+      ? "`tdd-review` für den Code und parallel `doku-pruefen` für die Markdown-Dateien"
+      : "`tdd-review`";
   return [
     {
       level: "warning",
