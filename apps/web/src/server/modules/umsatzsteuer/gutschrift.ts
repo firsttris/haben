@@ -67,6 +67,8 @@ interface Vorgang {
   gross: Cents;
   privateShare: number;
   createdAt: Date;
+  id: string;
+  reversesId: string | null;
 }
 
 /**
@@ -85,6 +87,8 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
       date: schema.bankTransactions.bookingDate,
       amount: schema.allocations.amount,
       createdAt: schema.allocations.createdAt,
+      id: schema.allocations.id,
+      reversesId: schema.allocations.reversesId,
     })
     .from(schema.allocations)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
@@ -96,6 +100,8 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
       date: schema.documentSettlements.date,
       amount: schema.documentSettlements.amount,
       createdAt: schema.documentSettlements.createdAt,
+      id: schema.documentSettlements.id,
+      reversesId: schema.documentSettlements.reversesId,
     })
     .from(schema.documentSettlements)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentSettlements.documentId))
@@ -108,6 +114,8 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
       date: schema.writeOffs.date,
       amount: schema.writeOffs.amount,
       createdAt: schema.writeOffs.createdAt,
+      id: schema.writeOffs.id,
+      reversesId: schema.writeOffs.reversesId,
     })
     .from(schema.writeOffs)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
@@ -124,6 +132,7 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
   // Stand je Gutschrift: der Betrag, der schon ausgeglichen ist, und die dafür erfassten Anteile
   const ausgeglichen = new Map<string, Cents>();
   const erfasst = new Map<string, TaxShare[]>();
+  const jeVorgang = new Map<string, TaxShare[]>();
   const anteile: GutschriftAnteil[] = [];
   for (const v of vorgaenge) {
     const taxes = rows
@@ -139,14 +148,20 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
     // Fortgeschrieben wird der geschäftliche Teil des kumulierten Anteils, wie die Umbuchung im Journal
     // (vorsteuer-ausgleich.ts): Den Privatanteil je Vorgang zu runden ließe über mehrere Teilerstattungen einen Cent
     // neben der Vorsteuer, die beim Buchen auf dem Zwischenkonto steht (drei Drittel bei 50 %: 316 + 317 + 316 statt 950).
-    const neu = paidTaxShares(totals, vorher + betrag).map((t) => {
-      const recorded = bisher.filter((r) => r.rate === t.rate);
-      return {
-        rate: t.rate,
-        base: splitPrivateShare(t.base, v.privateShare).business - recorded.reduce((sum, r) => sum + r.base, 0),
-        tax: splitPrivateShare(t.tax, v.privateShare).business - recorded.reduce((sum, r) => sum + r.tax, 0),
-      };
-    });
+    // Eine Gegenzeile (Aufhebung) nimmt genau den Anteil ihres Vorgangs zurück, wie die Gegenbuchung im Journal
+    // (reverseLines); neu gerechnet läge er bei einer früheren Teilerstattung einen Cent daneben.
+    const aufgehoben = v.reversesId ? jeVorgang.get(v.reversesId) : undefined;
+    const neu =
+      aufgehoben?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) ??
+      paidTaxShares(totals, vorher + betrag).map((t) => {
+        const recorded = bisher.filter((r) => r.rate === t.rate);
+        return {
+          rate: t.rate,
+          base: splitPrivateShare(t.base, v.privateShare).business - recorded.reduce((sum, r) => sum + r.base, 0),
+          tax: splitPrivateShare(t.tax, v.privateShare).business - recorded.reduce((sum, r) => sum + r.tax, 0),
+        };
+      });
+    jeVorgang.set(v.id, neu);
     ausgeglichen.set(v.documentId, vorher + betrag);
     erfasst.set(
       v.documentId,
