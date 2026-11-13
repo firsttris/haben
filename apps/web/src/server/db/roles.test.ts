@@ -38,6 +38,24 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
   // Alle Rechteproben gehen erst durch den echten CLI-Start, nicht durch eine im Test vorab abgesicherte Rolle.
   const start = () => (started ??= migrate(appUrl, testDatabaseUrl));
 
+  function futureMigration(statement: string, when = 9_000_000_000_000): string {
+    const fixture = mkdtempSync(join(tmpdir(), "haben-migration-619-"));
+    const source = fileURLToPath(new URL("./", import.meta.url));
+    const db = join(fixture, "src/server/db");
+    const meta = join(fixture, "drizzle/meta");
+    mkdirSync(db, { recursive: true });
+    mkdirSync(meta, { recursive: true });
+    for (const name of ["migrate.ts", "roles.ts"]) if (existsSync(join(source, name))) copyFileSync(join(source, name), join(db, name));
+    symlinkSync(fileURLToPath(new URL("../../../node_modules", import.meta.url)), join(fixture, "node_modules"), "junction");
+    // Nur eine synthetische Folgemigration; der ausgelieferte Migrationsbestand bleibt unverändert.
+    writeFileSync(
+      join(meta, "_journal.json"),
+      JSON.stringify({ version: "7", dialect: "postgresql", entries: [{ idx: 0, version: "7", when, tag: "0000_role619_future", breakpoints: false }] }),
+    );
+    writeFileSync(join(fixture, "drizzle/0000_role619_future.sql"), statement);
+    return join(db, "migrate.ts");
+  }
+
   beforeAll(async () => {
     admin = await setupTestDb();
     await admin`create role ${admin(appRole)} login password 'rollen-test-619' nosuperuser nocreatedb nocreaterole`;
@@ -114,25 +132,7 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
 
   it("vergibt nach einer weiteren echten Migration Tabellen- und Sequenzrechte erneut", async () => {
     await start();
-    const fixture = mkdtempSync(join(tmpdir(), "haben-migration-619-"));
-    const source = fileURLToPath(new URL("./", import.meta.url));
-    const db = join(fixture, "src/server/db");
-    const meta = join(fixture, "drizzle/meta");
-    mkdirSync(db, { recursive: true });
-    mkdirSync(meta, { recursive: true });
-    for (const name of ["migrate.ts", "roles.ts"]) if (existsSync(join(source, name))) copyFileSync(join(source, name), join(db, name));
-    symlinkSync(fileURLToPath(new URL("../../../node_modules", import.meta.url)), join(fixture, "node_modules"), "junction");
-    // Nur eine synthetische Folgemigration; der ausgelieferte Migrationsbestand bleibt unverändert.
-    writeFileSync(
-      join(meta, "_journal.json"),
-      JSON.stringify({
-        version: "7",
-        dialect: "postgresql",
-        entries: [{ idx: 0, version: "7", when: 9_000_000_000_000, tag: "0000_role619_future", breakpoints: false }],
-      }),
-    );
-    writeFileSync(join(fixture, "drizzle/0000_role619_future.sql"), "create table public.role619_future (id bigserial primary key, value text not null);");
-    await migrate(appUrl, testDatabaseUrl, join(db, "migrate.ts"));
+    await migrate(appUrl, testDatabaseUrl, futureMigration("create table public.role619_future (id bigserial primary key, value text not null);"));
     expect(await app`insert into role619_future (value) values ('neue Tabelle') returning id, value`).toEqual([{ id: "1", value: "neue Tabelle" }]);
     await migrate(appUrl, testDatabaseUrl);
     expect(await app`insert into role619_future (value) values ('erneuter Start') returning id`).toEqual([{ id: "2" }]);
@@ -151,5 +151,11 @@ describe.skipIf(!testDatabaseUrl)("Migration und echte App-Anmeldung (Postgres, 
 
   it("startet bei ausdrücklich konfigurierter, aber identischer Eigentümer-/App-Anmeldung nicht weiter", async () => {
     await migrate(testDatabaseUrl!, testDatabaseUrl!, undefined, 1);
+  });
+
+  it("prüft eine falsche App-Anmeldung vor dem ersten DDL der Migration", async () => {
+    const script = futureMigration("create table public.role619_wrong_start (id integer);", 9_000_000_000_001);
+    await migrate(testDatabaseUrl!, testDatabaseUrl!, script, 1);
+    expect(await admin`select to_regclass('public.role619_wrong_start')::text as name`).toEqual([{ name: null }]);
   });
 });
