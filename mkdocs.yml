@@ -34,6 +34,7 @@ nav:
       - TrueNAS SCALE: truenas.md
       - Unraid: unraid.md
       - Coolify: coolify.md
+      - Plesk: plesk.md
       - Konfiguration: installation-konfiguration.md
       - Anbindungen: installation-anbindungen.md
       - Single Sign-on: installation-sso.md

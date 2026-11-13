@@ -14,7 +14,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 
 | | |
 |---|---|
-| [Installation](installation.md) | Docker Compose, Podman Quadlets, Caddy, Secrets, eigener Reverse Proxy; Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md); dazu [Konfiguration](installation-konfiguration.md) (Datenbankrollen, Umgebungsvariablen), [Backup und Updates](installation-backup.md), [Anbindungen](installation-anbindungen.md) (ERiC, KI, Kontoabruf), [Single Sign-on](installation-sso.md) und [Häufige Probleme](installation-probleme.md) |
+| [Installation](installation.md) | Docker Compose, Podman Quadlets, Caddy, Secrets, eigener Reverse Proxy; Vorlagen für [Synology](synology.md), [TrueNAS SCALE](truenas.md), [Unraid](unraid.md) und [Coolify](coolify.md), Anleitung für [Plesk](plesk.md); dazu [Konfiguration](installation-konfiguration.md) (Datenbankrollen, Umgebungsvariablen), [Backup und Updates](installation-backup.md), [Anbindungen](installation-anbindungen.md) (ERiC, KI, Kontoabruf), [Single Sign-on](installation-sso.md) und [Häufige Probleme](installation-probleme.md) |
 
 ## Einrichten
 
