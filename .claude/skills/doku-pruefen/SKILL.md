@@ -1,11 +1,11 @@
 ---
 name: "doku-pruefen"
-description: "Unabhängige Prüfung eines Pull Requests in Haben, der keinen Code ändert, nur Markdown (Doku, Skills, CLAUDE.md, AGENTS.md, DESIGN.md): stimmt der Text mit Code und Quelle, ist er kurz und ohne Füllsätze, steht jede Regel einmal am richtigen Ort (Doku für Menschen, Skills für Agenten), ist nichts Erzeugtes von Hand geändert und keine Never-Regel aufgeweicht? Befunde mit Zitat und Beleg im PR, selbst beheben, bei grüner CI mergen. Statt tdd-review, wenn kein Code geändert ist; bei Code und Markdown nutzt tdd-review die Schritte 2 bis 6."
+description: "Unabhängige Prüfung der Markdown-Dateien eines Pull Requests in Haben (Doku, Skills, CLAUDE.md, AGENTS.md, DESIGN.md): stimmt der Text mit Code und Quelle, ist er kurz und ohne Füllsätze, steht jede Regel einmal am richtigen Ort (Doku für Menschen, Skills für Agenten), ist nichts Erzeugtes von Hand geändert und keine Never-Regel aufgeweicht? Befunde mit Zitat und Beleg im PR, selbst beheben, bei grüner CI mergen. Statt tdd-review, wenn kein Code geändert ist; bei Code und Markdown parallel zu tdd-review, nur für die Markdown-Dateien."
 ---
 
 # Doku prüfen
 
-Die Regel steht in `docs/entwicklung.md`, Review, „Pull Requests ohne Code“, hier die Schritte. Ein Befund braucht keinen Test, aber ein Zitat aus dem Diff und einen Beleg dagegen: Datei und Zeile im Code, die Quelle oder die andere Stelle im Repo. Wortwahl und Satzbau sind kein Befund.
+Die Regel steht in `docs/entwicklung.md`, Review, „Doku-Prüfung“, hier die Schritte. Ein Befund braucht keinen Test, aber ein Zitat aus dem Diff und einen Beleg dagegen: Datei und Zeile im Code, die Quelle oder die andere Stelle im Repo. Wortwahl und Satzbau sind kein Befund.
 
 ## 0. Wer prüft?
 
@@ -13,7 +13,7 @@ Wie `tdd-review`, Schritt 0: Hat diese Session am Text mitgeschrieben, einen fri
 
 ## 1. Holen
 
-- `git fetch origin main <branch>`, dann `git diff --name-only origin/main...<branch>`: Steht dort mehr als `*.md` und `mkdocs.yml`, gilt `tdd-review`; es prüft die Markdown-Dateien mit den Schritten 2 bis 6 dieses Skills.
+- `git fetch origin main <branch>`, dann `git diff --name-only origin/main...<branch>`: Steht dort mehr als `*.md` und `mkdocs.yml`, prüft parallel ein anderer Agent den Code nach `tdd-review`; dieser Skill prüft nur die Markdown-Dateien (`git diff origin/main...<branch> -- '*.md' mkdocs.yml`).
 - `git diff origin/main...<branch>` und die geänderten Abschnitte ganz lesen, nicht nur die Zeilen: Doppelungen stehen oft im Absatz daneben.
 
 ## 2. Stimmt es?
@@ -66,7 +66,7 @@ Nicht streichen: Fakten, Zahlen, Konten, Paragraphen, Links, Befehle, Front Matt
 - Befunde selbst beheben, je Befund ein Commit (`docs: …`). Commits des Autors nie umschreiben; bei einem fremden Fork nach Skill `fork-pushen`.
 - `zensical build --strict`, wenn `docs/` oder `mkdocs.yml` geändert ist (Skill `checks`).
 - Die Beschreibung des PR nachziehen, wenn Fixes dazukamen.
-- Eine Runde. Mergen wie `tdd-review`, Schritt 6, sobald die CI grün ist.
+- Eine Runde. Mergen wie `tdd-review`, Schritt 6, sobald die CI grün ist; ändert der PR auch Code, erst wenn auch das TDD-Review fertig ist.
 
 ## Abschlussbericht
 
