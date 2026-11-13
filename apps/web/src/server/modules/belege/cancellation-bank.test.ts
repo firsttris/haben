@@ -175,7 +175,11 @@ describe.skipIf(!testDatabaseUrl)("Beleg und bestätigte Bankzuordnungen gemeins
         const vorher = await geschlossen();
         await cancellation.cancelDocument(actor, id, { allocationIds }, "2027-01-05");
         expect(await geschlossen()).toEqual(vorher);
-        expect((await sql`select date from journal_entries where date >= '2027-01-01'`).every((r) => r.date === "2027-01-05")).toBe(true);
+        // Beleggegenbuchung, Bankgegenzeile und Skonto-Gegenzeile: drei Buchungen im offenen Jahr. Ohne die Zahl
+        // bestünde die Prüfung unten auch dann, wenn gar keine Gegenbuchung entstünde.
+        const offeneJahr = await sql`select date from journal_entries where date >= '2027-01-01'`;
+        expect(offeneJahr).toHaveLength(3);
+        expect(offeneJahr.every((r) => r.date === "2027-01-05")).toBe(true);
         expect(await ids(tx)).toEqual([]);
         expect(Number((await sql`select coalesce(sum(amount), 0) as amount from allocations where document_id = ${id}`)[0]!.amount)).toBe(0);
         expect((await sql`select id from document_cancellations where document_id = ${id}`).length).toBe(1);
