@@ -6,10 +6,8 @@
 import { compose, type Ergebnis } from "./ausfuehren.ts";
 import { instanzen } from "./instanzen.ts";
 import type { Kontext } from "./kontext.ts";
-import { spalten } from "./liste.ts";
+import { tabelle } from "./liste.ts";
 import { dienste, lauf } from "./zustand.ts";
-
-const BREITEN = [20, 32, 10, 11, 12];
 
 interface AppStand {
   version: string;
@@ -42,7 +40,7 @@ async function erreichbar(k: Kontext, domain: string): Promise<string> {
 }
 
 export async function status(k: Kontext): Promise<void> {
-  k.aus(spalten(["Instanz", "Domain", "Version", "Erreichbar", "ERiC", "Letzte Sicherung"], BREITEN));
+  const zeilen = [["Instanz", "Domain", "Version", "Erreichbar", "ERiC", "Letzte Sicherung"]];
   for (const { name, dir, env } of await instanzen(k.basis)) {
     const domain = env.get("DOMAIN") ?? "";
     const erreichbarText = await erreichbar(k, domain);
@@ -61,6 +59,7 @@ export async function status(k: Kontext): Promise<void> {
         stand = { version: "gestoppt", eric: "–", sicherung: "–" };
         break;
     }
-    k.aus(spalten([name, domain, stand.version, erreichbarText, stand.eric, stand.sicherung], BREITEN));
+    zeilen.push([name, domain, stand.version, erreichbarText, stand.eric, stand.sicherung]);
   }
+  for (const zeile of tabelle(zeilen)) k.aus(zeile);
 }

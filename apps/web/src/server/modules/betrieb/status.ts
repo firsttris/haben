@@ -10,6 +10,8 @@ import { ericHome } from "../elster/index.ts";
  * Tabellen der App selbst zu kennen.
  */
 export interface BetriebsStatus {
+  /** Format dieser Ausgabe; steigt, wenn ein Feld entfällt oder seine Bedeutung ändert. Neue Felder zählen nicht */
+  schema: 1;
   /** Version aus der package.json im Wurzelverzeichnis */
   version: string;
   eric: {
@@ -52,7 +54,7 @@ export async function betriebsStatus(options: BetriebsStatusOptions = {}): Promi
     lastBackup: overview.lastBackup?.at.toISOString() ?? null,
     failed: overview.failed.map(({ kind, run }) => ({ kind, at: run.at.toISOString() })),
   };
-  return { version: pkg.version, eric, backup, summary: { eric: ericKurz(eric), backup: sicherungKurz(backup) } };
+  return { schema: 1, version: pkg.version, eric, backup, summary: { eric: ericKurz(eric), backup: sicherungKurz(backup) } };
 }
 
 const BERLIN = new Intl.DateTimeFormat("sv-SE", {
@@ -75,10 +77,13 @@ function ericKurz(eric: BetriebsStatus["eric"]): string {
   return eric.source ? "von Hand" : "fehlt";
 }
 
-/** Letzte Sicherung kurz: Zeitpunkt oder „keine“, dazu ein Fehlschlag oder ein veralteter Stand */
+/**
+ * Letzte Sicherung kurz: Zeitpunkt oder „keine“, dazu ein Fehlschlag oder ein veralteter Stand. Ein fehlgeschlagener
+ * Test-Restore nach gelungenem Backup heißt auch so, sonst läse man ihn als fehlgeschlagenes Backup.
+ */
 function sicherungKurz(backup: BetriebsStatus["backup"]): string {
   const zeit = backup.lastBackup ? berlinerZeit(backup.lastBackup) : "keine";
-  if (backup.state === "fehler") return `${zeit} (letzter Lauf fehlgeschlagen)`;
+  if (backup.state === "fehler") return `${zeit} (${backup.failed.some((f) => f.kind === "backup") ? "letztes Backup" : "Test-Restore"} fehlgeschlagen)`;
   if (backup.state === "veraltet") return `${zeit} (veraltet)`;
   return zeit;
 }

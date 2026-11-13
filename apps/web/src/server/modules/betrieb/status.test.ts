@@ -39,6 +39,7 @@ describe.skipIf(!testDatabaseUrl)("haben status (Postgres)", () => {
 
   it("ohne Sicherung und ohne ERiC: Version aus der package.json, keine Sicherung, ERiC fehlt", async () => {
     expect(await status.betriebsStatus({ now, ericHome: null, ericFromEnv: false })).toEqual({
+      schema: 1,
       version: VERSION,
       eric: { source: null, version: null },
       backup: { state: "keins", overdue: false, lastBackup: null, failed: [] },
