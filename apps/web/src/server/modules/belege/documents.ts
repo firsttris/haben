@@ -732,6 +732,11 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
+  // Erwerbsteuer in den Anschaffungskosten wirkt nur über AfA (§ 9b Abs. 1, § 4 Abs. 3 Satz 3 EStG); die Zahlung
+  // ans Finanzamt läge in der EÜR sonst zusätzlich als Ausgabe — doppelt. Bis die EÜR das trennt: sperren
+  if (doc.reverseCharge === "ig_erwerb" && doc.category === "anlage" && !vorsteuerAbzug) {
+    issues.push("Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug wird nicht unterstützt");
+  }
   // Einfuhrumsatzsteuer (Kz 62): nur der Bescheid des Zolls allein, als Vorsteuer
   if (splits.length === 0 && doc.category === "einfuhrumsatzsteuer") {
     const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
@@ -791,8 +796,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       method: asset.method,
       account: assetAccount(asset.kind, asset.method, company.kontenrahmen),
       acquisitionDate: doc.documentDate!,
-      // Ohne Abzug gehört die Vorsteuer zu den Anschaffungskosten (§ 9b Abs. 1 EStG); bei Reverse Charge ist gross nur netto
-      cost: vorsteuerAbzug ? totals.net : totals.net + totals.tax,
+      cost: vorsteuerAbzug ? totals.net : totals.gross,
       ...documentAssetMethod(asset, doc.documentDate!),
       documentId: id,
     });

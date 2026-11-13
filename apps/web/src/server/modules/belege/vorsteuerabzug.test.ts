@@ -206,8 +206,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuerabzug unabhängig vom Kleinunternehm
     expect(await sql`select count(*)::int as n from journal_entries`).toEqual([{ n: 0 }]);
   }, 30_000);
 
-  it("Anlage aus ig. Erwerb ohne Abzug am Beleg: Erwerbsteuer in den Anschaffungskosten (§ 9b EStG)", async () => {
-    const k = KONTEN.SKR03;
+  it("Anlage aus ig. Erwerb ohne Abzug am Beleg ist gesperrt (sonst Erwerbsteuer doppelt in der EÜR)", async () => {
     await reset("SKR03", "ist");
     const id = await draft({
       reverseCharge: "ig_erwerb",
@@ -216,22 +215,8 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuerabzug unabhängig vom Kleinunternehm
       asset: { name: "Maschine", kind: "edv", method: "digital", usefulLifeMonths: null },
       amounts: [{ taxRate: 1900, net: 100_000, tax: 19_000 }],
     });
-    await documents.bookDocument(actor, id);
-
-    // Netto und nicht abziehbare Erwerbsteuer stehen auf dem Anlagekonto (§ 9b Abs. 1 EStG)
-    expect(await entryLines(id)).toEqual(
-      byAccount([
-        { account: k.edv, debit: 19_000, credit: 0, tax_code: "keineVSt" },
-        { account: k.edv, debit: 100_000, credit: 0, tax_code: "IGE19" },
-        { account: k.ustIge, debit: 0, credit: 19_000, tax_code: "IGE19" },
-        { account: k.verbindlichkeiten, debit: 0, credit: 100_000, tax_code: null },
-      ]),
-    );
-    // Die Anlage trägt dieselben Anschaffungskosten wie das Anlagekonto
-    const [anlage] = await sql`select cost from assets where document_id = ${id}`;
-    expect(anlage!.cost).toBe(119_000);
-    const september = await vat.computeVatFigures({ year: 2026, month: 9 });
-    expect([september.kz89, september.tax89, september.kz61]).toEqual([100_000, 19_000, 0]);
+    await expect(documents.bookDocument(actor, id)).rejects.toThrow(/Innergemeinschaftlicher Erwerb einer Anlage ohne Vorsteuerabzug/);
+    expect(await sql`select count(*)::int as n from journal_entries`).toEqual([{ n: 0 }]);
   }, 30_000);
 
   it("Rechnungen bleiben unberührt: „ohne Vorsteuerabzug“ ändert die Steuerbehandlung nicht", async () => {
