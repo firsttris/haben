@@ -181,7 +181,7 @@
 				</ram:EndDateTime>
 			</ram:BillingSpecifiedPeriod>
 			<ram:SpecifiedTradePaymentTerms>
-				<ram:Description>Bitte überweisen Sie den Betrag bis zum 16.10.2026 unter Angabe der Rechnungsnummer.</ram:Description>
+				<ram:Description>Die ursprüngliche Rechnung wird storniert.</ram:Description>
 			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 				<ram:LineTotalAmount>-2635.95</ram:LineTotalAmount>

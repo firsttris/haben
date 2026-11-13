@@ -1132,8 +1132,6 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     await deductedRefs(lines, tx),
     await directDebitFor(invoice, company, tx),
   );
-  // Das Original ist gesperrt; cancelInvoice hat Ausbuchungen ausgeschlossen. Der Text hält diesen Zahlstand fest.
-  if (invoice.kind === "storno" && corrects) doc.hasPayments = ((await invoicePayments([corrects.id], tx)).get(corrects.id) ?? 0) > 0;
   const rendered = await withCustomLayout("rechnung", await loadLetterhead(), (letterhead) => buildEInvoice({ ...doc, ...letterhead }));
   const now = new Date();
 
