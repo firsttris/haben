@@ -52,7 +52,7 @@ Wähle Monat und Jahr, trage den **Zahltag** ein und klicke **Monat abrechnen**.
 
 ## Prüfen und festschreiben
 
-Der Entwurf zeigt Brutto, Steuern, den Anteil zur Sozialversicherung, Netto, Auszahlung und was der Arbeitgeber zusätzlich trägt. **Entwurf ansehen (PDF)** zeigt die Entgeltabrechnung mit dem Vermerk „Entwurf“ im Kopf und groß und schräg über jeder Seite, wie bei [Rechnungsentwürfen](rechnungen.md#entwurf-als-pdf). Ändern sich danach die Stammdaten, rechnest du den Entwurf neu; ein Entwurf lässt sich auch löschen.
+Der Entwurf zeigt Brutto, Steuern, den Anteil zur Sozialversicherung, Netto, Auszahlung und was der Arbeitgeber zusätzlich trägt. **Entwurf ansehen (PDF)** zeigt die Entgeltabrechnung mit dem Vermerk „Entwurf“ im Kopf und groß und schräg über jeder Seite, wie bei [Rechnungsentwürfen](rechnungen.md#entwurf-als-pdf). Ändern sich danach die Stammdaten, rechnest du den Entwurf neu; ein Entwurf lässt sich nach einer Rückfrage auch löschen.
 
 **Festschreiben** (mit einer Rückfrage im Dialog) setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe und Beitragsgruppen, bei Beschäftigten in Stufe C dazu die Krankenkasse mit Betriebsnummer als Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
 

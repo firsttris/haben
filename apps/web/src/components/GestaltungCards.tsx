@@ -64,6 +64,8 @@ const BACKGROUND_TEXTS = {
   replace: "Anderes Briefpapier wählen",
   saved: "Briefpapier gespeichert. Es gilt für alles, was ab jetzt erzeugt wird.",
   removed: "Briefpapier entfernt.",
+  removeConsequence:
+    "Was ab jetzt erzeugt wird, steht auf weißem Papier, und die Fußzeile ist wieder zu sehen; schon festgeschriebene Belege behalten ihr PDF. Zurück kommt es nur, indem du es neu hochlädst.",
   tooBig: "Das Briefpapier darf höchstens 2 MB groß sein.",
 };
 

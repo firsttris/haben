@@ -72,6 +72,7 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
   const [entgelt, setEntgelt] = useState("");
   const [geprueft, setGeprueft] = useState(false);
   const [bestaetigen, setBestaetigen] = useState(false);
+  const [loeschenFragen, setLoeschenFragen] = useState(false);
   const sperre = p.fehlend.length > 0 || p.veraltet || (p.gegenpruefen && !geprueft);
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -101,17 +102,7 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
         <button type="submit" className="btn btn-sm" disabled={busy}>
           Neu berechnen
         </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-danger"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              await loeschen({ data: p.id });
-              await router.invalidate();
-            })
-          }
-        >
+        <button type="button" className="btn btn-sm btn-danger" disabled={busy} onClick={() => setLoeschenFragen(true)}>
           Entwurf löschen
         </button>
       </form>
@@ -140,6 +131,22 @@ function EntwurfAktionen({ p, name, aktion }: { p: Abrechnung; name: string; akt
         onClose={() => setBestaetigen(false)}
       >
         <p>Festgeschrieben ist die Abrechnung unveränderbar und gebucht; korrigieren geht dann nur mit Storno.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={loeschenFragen}
+        title={`Entwurf mit Zahltag ${formatDate(p.zahltag)} löschen?`}
+        facts={abrechnungFakten(name, p)}
+        confirmLabel="Entwurf löschen"
+        danger
+        onConfirm={() =>
+          void run(async () => {
+            await loeschen({ data: p.id });
+            await router.invalidate();
+          })
+        }
+        onClose={() => setLoeschenFragen(false)}
+      >
+        <p>Der Entwurf verschwindet; es ist noch nichts gebucht. Einen neuen legt „Monat abrechnen“ an.</p>
       </ConfirmDialog>
     </div>
   );
