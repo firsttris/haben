@@ -118,7 +118,14 @@ export default defineConfig({
     // Braucht keine Daten aus der App
     {
       name: "ohne-daten",
-      testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts", "beenden.spec.ts", "doku-startseite.spec.ts"],
+      testMatch: [
+        "elster-helfer.spec.ts",
+        "elster-helfer-erweiterung.spec.ts",
+        "langsame-anfrage.spec.ts",
+        "beenden.spec.ts",
+        "doku-startseite.spec.ts",
+        "datenbankrolle.spec.ts",
+      ],
       use: chromium,
     },
   ],
