@@ -10,12 +10,15 @@ import {
   type ExpenseCategory,
   type PauschaleArt,
   frequencyAt,
+  filingPeriodsOfYear,
   homeofficeSatz,
   isKapitalgesellschaft,
   monthsOfPeriod,
+  periodKey,
   sondervorauszahlungFor,
   STEUER_KONTEN,
   type Kontenrahmen,
+  type VatFrequencySetting,
 } from "@haben/core";
 import {
   buildEstXml,
@@ -62,6 +65,13 @@ export interface Issue {
   tone: "fehler" | "hinweis";
   text: string;
   link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank" | "/pauschalen";
+  /** Zeitraum der Umsatzsteuer für den Link („2025-Q4“); ohne Angabe leitet /umsatzsteuer auf den laufenden Zeitraum um */
+  zeitraum?: string;
+}
+
+export interface IssueOptions {
+  /** Für das Jahr liegt ein Vermerk „außerhalb von Haben abgegeben“ vor; Meldungen aus Habens eigenen (leeren) Daten treten zurück (#869) */
+  vermerkt?: boolean;
 }
 
 // ------------------------------------------------------------------ Umsatzsteuererklärung
@@ -87,6 +97,17 @@ export interface UstYear {
   einfuhrumsatzsteuer: Cents;
   /** Monate ohne gesendete Voranmeldung (Monat oder Quartal), ohne die befreiten */
   missingMonths: number[];
+  /** Letzter Voranmeldungszeitraum des Jahres nach der Einstellung: „2025-Q4“ bzw. „2025-12“, null ohne Voranmeldung */
+  lastFilingPeriod: string | null;
+}
+
+/**
+ * Letzter Voranmeldungszeitraum eines Jahres nach der Einstellung. Der Hinweis zu fehlenden Voranmeldungen verlinkt
+ * damit einen Zeitraum des betroffenen Jahres statt des laufenden (#869).
+ */
+export function lastFilingPeriodKey(settings: readonly VatFrequencySetting[], year: number): string | null {
+  const last = filingPeriodsOfYear(settings, year).at(-1);
+  return last ? periodKey(last) : null;
 }
 
 /** Zahlen der Umsatzsteuererklärung: Summe der zwölf Monate aus den Buchungen, Vorauszahlungen aus den gesendeten Voranmeldungen */
@@ -133,11 +154,12 @@ export async function ustYear(year: number): Promise<UstYear> {
     igErwerbVorsteuer: total("kz61"),
     einfuhrumsatzsteuer: total("kz62"),
     missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
+    lastFilingPeriod: lastFilingPeriodKey(frequencies, year),
   };
 }
 
 /** `kleinunternehmer`: Status im Jahr der Erklärung (kleinunternehmerForYear), nicht der heutige */
-export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number): Issue[] {
+export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number, { vermerkt = false }: IssueOptions = {}): Issue[] {
   const issues: Issue[] = [];
   if (kleinunternehmer) {
     issues.push({
@@ -164,7 +186,8 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
       text: `Das Jahr enthält ${unsupported.join(", ")}. Diese Zeilen kann Haben noch nicht übermitteln; gib die Erklärung mit den Werten unten im ELSTER-Portal ab.`,
     });
   }
-  if (data.figures.tax19 + data.figures.tax7 === 0 && data.figures.vorsteuer === 0) {
+  // Mit Vermerk hat das Finanzamt die Erklärung längst; Habens leere Daten sagen dazu nichts mehr
+  if (!vermerkt && data.figures.tax19 + data.figures.tax7 === 0 && data.figures.vorsteuer === 0) {
     issues.push({ tone: "fehler", text: "Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal." });
   }
   if (data.missingMonths.length > 0 && !kleinunternehmer) {
@@ -172,6 +195,7 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
       tone: "hinweis",
       text: `${data.missingMonths.length === 12 ? "Für keinen Monat gibt es" : `Für ${data.missingMonths.length} Monat${data.missingMonths.length === 1 ? "" : "e"} fehlt`} eine in Haben gesendete Voranmeldung. Als Vorauszahlungssoll zählen nur diese; Voranmeldungen aus einem anderen Programm fehlen darin.`,
       link: "/umsatzsteuer",
+      ...(data.lastFilingPeriod ? { zeitraum: data.lastFilingPeriod } : {}),
     });
   }
   return issues;
@@ -370,7 +394,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
   return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage };
 }
 
-export function euerIssues(company: Company, data: EuerYear): Issue[] {
+export function euerIssues(company: Company, data: EuerYear, { vermerkt = false }: IssueOptions = {}): Issue[] {
   const issues: Issue[] = [];
   // Zeile 18 und 58 der Anlage EÜR nehmen kein Vorzeichen an; sonst lehnt ERiC beim Senden ab (#708)
   for (const text of euerVorzeichenMeldungen(data.figures)) issues.push({ tone: "fehler", text, link: "/bank" });
@@ -384,7 +408,8 @@ export function euerIssues(company: Company, data: EuerYear): Issue[] {
       link: "/anlagen",
     });
   }
-  if (data.einnahmen === 0 && data.ausgaben === 0) issues.push({ tone: "fehler", text: "Keine Betriebseinnahmen und -ausgaben im Jahr." });
+  // Siehe ustIssues: der Vermerk „außerhalb von Haben abgegeben“ ersetzt die Meldung über Habens leere Daten
+  if (!vermerkt && data.einnahmen === 0 && data.ausgaben === 0) issues.push({ tone: "fehler", text: "Keine Betriebseinnahmen und -ausgaben im Jahr." });
   if (data.lohnUmJahreswechsel > 0) {
     issues.push({
       tone: "hinweis",
@@ -549,11 +574,27 @@ export async function annualOverview(year: number, today: string) {
       hasPdf: vermerk.hasPdf,
     };
   };
+  // Ein Vermerk „außerhalb von Haben abgegeben“ nimmt den Meldungen zu Habens leerem Jahr den Grund (#869)
+  const ustVermerk = submitted("ust");
+  const euerVermerk = submitted("euer");
   return {
     year,
-    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust"), submitted: submitted("ust") },
-    euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer"), submitted: submitted("euer") },
-    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est"), submitted: submitted("est") },
+    ust: {
+      ...ust,
+      issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year, { vermerkt: ustVermerk !== null })],
+      sent: sent("ust"),
+      submitted: ustVermerk,
+    },
+    euer: { ...euer, issues: [...base, ...euerIssues(company, euer, { vermerkt: euerVermerk !== null })], sent: sent("euer"), submitted: euerVermerk },
+    // Die Einkommensteuererklärung führt Haben nicht: es gibt keinen Vermerk, und was außerhalb abgegeben wurde, weiß
+    // Haben nicht. Die Seite zeigt sie deshalb nicht als offene Pflicht (#869).
+    est: {
+      ...est,
+      issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))],
+      sent: sent("est"),
+      submitted: submitted("est"),
+      verwaltet: false,
+    },
     history,
     versteuerung: await versteuerungForYear(year),
     rechtsform: company.rechtsform,

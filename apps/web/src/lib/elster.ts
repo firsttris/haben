@@ -1,9 +1,36 @@
 import { formatEuro } from "@haben/core";
 import type { ConfirmFact } from "../components/ConfirmDialog.tsx";
+import { formatDate } from "./format.ts";
 import type { Notice } from "./use-action.ts";
 
 export type ElsterKind = "validate" | "test" | "send";
 export const ELSTER_KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung", vermerk: "Vermerk" } as const;
+
+/** Pille über einer Jahreserklärung */
+export interface AbgabePille {
+  /** grün: die Erklärung liegt beim Finanzamt */
+  ok: boolean;
+  text: string;
+}
+
+/**
+ * Stand einer Jahreserklärung für die Pille: in Haben übermittelt, außerhalb abgegeben oder offen. Die
+ * Einkommensteuererklärung führt Haben nicht (kein Vermerk); ohne Übermittlung aus Haben ist „offen“ dort keine Pflicht,
+ * sondern der Normalfall, und die Pille sagt das neutral (#869).
+ */
+export function abgabePille({
+  sent,
+  submitted,
+  verwaltet = true,
+}: {
+  sent: string | Date | null;
+  submitted: { filedOn: string | null } | null;
+  verwaltet?: boolean;
+}): AbgabePille {
+  if (sent) return { ok: true, text: `Übermittelt ${formatDate(sent)}` };
+  if (submitted) return { ok: true, text: `Außerhalb abgegeben${submitted.filedOn ? ` ${formatDate(submitted.filedOn)}` : ""}` };
+  return { ok: false, text: verwaltet ? "Noch nicht übermittelt" : "Wird außerhalb von Haben abgegeben" };
+}
 
 /** Antwort von ERiC als Meldung; `sentText` sagt, was nach der Echtsendung passiert ist */
 export function elsterNotice(

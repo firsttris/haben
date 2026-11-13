@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { elsterNotice, finanzamtFakten, submitKind, zahllastFakt } from "./elster.ts";
+import { abgabePille, elsterNotice, finanzamtFakten, submitKind, zahllastFakt } from "./elster.ts";
+
+describe("abgabePille", () => {
+  const vermerk = { filedOn: "2025-09-29" };
+
+  it("meldet Übermittlung und Abgabe außerhalb mit Datum", () => {
+    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null })).toEqual({ ok: true, text: "Übermittelt 14.08.2025" });
+    expect(abgabePille({ sent: null, submitted: vermerk })).toEqual({ ok: true, text: "Außerhalb abgegeben 29.09.2025" });
+    // Ohne Tag im Vermerk bleibt es beim Zustand allein
+    expect(abgabePille({ sent: null, submitted: { filedOn: null } }).text).toBe("Außerhalb abgegeben");
+  });
+
+  it("nennt eine in Haben geführte Erklärung ohne Abgabe offen", () => {
+    expect(abgabePille({ sent: null, submitted: null })).toEqual({ ok: false, text: "Noch nicht übermittelt" });
+  });
+
+  // Einkommensteuer: Haben führt sie nicht, also ist „offen“ dort keine Pflicht (#869)
+  it("zeigt eine nicht geführte Erklärung als außerhalb abgegeben, ohne offene Pflicht", () => {
+    expect(abgabePille({ sent: null, submitted: null, verwaltet: false })).toEqual({ ok: false, text: "Wird außerhalb von Haben abgegeben" });
+  });
+
+  it("bleibt bei einer Übermittlung aus Haben oder einem Vermerk genauer", () => {
+    expect(abgabePille({ sent: "2025-08-14T10:00:00Z", submitted: null, verwaltet: false }).text).toBe("Übermittelt 14.08.2025");
+    expect(abgabePille({ sent: null, submitted: vermerk, verwaltet: false }).text).toBe("Außerhalb abgegeben 29.09.2025");
+  });
+});
 
 describe("submitKind", () => {
   it("sendet echt nur mit ausgeschaltetem Test-Schalter, wenn echt überhaupt geht", () => {

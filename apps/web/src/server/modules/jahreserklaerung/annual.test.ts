@@ -60,7 +60,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   beforeEach(async () => {
     await leeren(sql)`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, vat_return_submissions,
-      vat_returns, elster_certificates, company cascade`;
+      vat_returns, vat_frequencies, annual_submissions, elster_certificates, company cascade`;
     // `company` bleibt im Truncate: Ein Upsert setzt nur die Spalten zurück, die er ausdrücklich nennt. rechtsform
     // (finanzamt/fristen.test.ts stellt auf 'gmbh'), journal_ab, taxpayer und finanzamt stünden sonst noch aus früheren
     // Dateien desselben Workers in der Zeile. Das Insert darunter bekommt trotzdem `on conflict … do update set`: Läuft
@@ -217,6 +217,55 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Timeout, arbeitet sein Code weiter, und `loadCompany` legt die Firma in genau dem Fenster zwischen Truncate und
     // Insert des nächsten `beforeEach` an – daher kam der company_pkey-Fehler.
   }, 20_000);
+
+  it("Link zu fehlenden Voranmeldungen nennt den letzten Zeitraum des betroffenen Jahres (#869)", async () => {
+    const hinweis = (data: Awaited<ReturnType<typeof annual.ustYear>>) => annual.ustIssues(false, data, 2025).find((i) => i.link === "/umsatzsteuer");
+
+    // Vierteljährlich: das vierte Quartal des Jahres, nicht der laufende Zeitraum
+    await sql`insert into vat_frequencies (year, from_month, frequency) values (2025, 1, 'vierteljaehrlich')`;
+    const quartal = await annual.ustYear(2025);
+    expect(hinweis(quartal)).toMatchObject({ zeitraum: "2025-Q4" });
+
+    // Monatlich: der Dezember
+    await sql`update vat_frequencies set frequency = 'monatlich' where year = 2025`;
+    expect(hinweis(await annual.ustYear(2025))).toMatchObject({ zeitraum: "2025-12" });
+
+    // Der letzte Zeitraum nach der Einstellung: ein Jahr ohne eigene Einstellung übernimmt die des Vorjahres, ein
+    // Wechsel zum 1. Oktober macht den Dezember zum letzten Zeitraum
+    expect(annual.lastFilingPeriodKey([{ year: 2025, fromMonth: 1, frequency: "vierteljaehrlich" }], 2026)).toBe("2026-Q4");
+    expect(
+      annual.lastFilingPeriodKey(
+        [
+          { year: 2025, fromMonth: 1, frequency: "vierteljaehrlich" },
+          { year: 2025, fromMonth: 10, frequency: "monatlich" },
+        ],
+        2025,
+      ),
+    ).toBe("2025-12");
+    // Ohne Voranmeldung gibt es keinen Zeitraum für den Link
+    expect(annual.lastFilingPeriodKey([{ year: 2025, fromMonth: 1, frequency: "keine" }], 2025)).toBeNull();
+  });
+
+  it("Meldungen zu Habens leerem Jahr treten hinter dem Vermerk zurück (#869)", async () => {
+    const { loadCompany } = await import("../stammdaten/index.ts");
+    const company = await loadCompany();
+    const ust = await annual.ustYear(2025);
+    const euer = await annual.euerYear(2025);
+    const ohneVermerk = [...annual.ustIssues(false, ust, 2025), ...annual.euerIssues(company, euer)].map((i) => i.text);
+    expect(ohneVermerk).toContain("Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal.");
+    expect(ohneVermerk).toContain("Keine Betriebseinnahmen und -ausgaben im Jahr.");
+
+    // Der Vermerk „außerhalb von Haben abgegeben“ steht direkt darunter; die Seite darf ihm nicht widersprechen
+    await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml, filed_on)
+      values ('ust', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29'),
+             ('euer', 2025, 'vermerk', true, 0, 'Außerhalb von Haben abgegeben', '{}'::jsonb, '', '', '', '2026-09-29')`;
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.ust.submitted).not.toBeNull();
+    expect(overview.euer.submitted).not.toBeNull();
+    const texte = [...overview.ust.issues, ...overview.euer.issues].map((i) => i.text).join(" ");
+    expect(texte).not.toMatch(/Nullerklärung/);
+    expect(texte).not.toMatch(/Keine Betriebseinnahmen/);
+  });
 
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {
     const { car } = await year2025();
@@ -402,6 +451,8 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
 
     let overview = await annual.annualOverview(2025, TODAY);
     expect(overview.est.issues.some((i) => i.tone === "fehler" && i.text.includes("Persönliche Angaben"))).toBe(true);
+    // Die Einkommensteuer führt Haben nicht: ohne Versand und ohne Vermerk ist „offen“ dort keine Pflicht (#869)
+    expect(overview.est.verwaltet).toBe(false);
     await expect(annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY })).rejects.toThrow(/Persönliche Angaben/);
 
     const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
