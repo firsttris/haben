@@ -6,7 +6,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
-import { databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
+import { appDatabaseUrlFuer, databaseUrlFuer, ENABLE_BANKING_PORT } from "./durchlaeufe.ts";
 import {
   bestaetigen,
   faktenZeigen,
@@ -207,7 +207,7 @@ test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anz
   await go("/einstellungen?bereich=export");
   const card = page.getByRole("region", { name: "Datenbankzugriff", exact: true });
   await expect(card).toBeVisible();
-  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  const sql = postgres(appDatabaseUrlFuer("belege-steuern"), { max: 1 });
   try {
     const [connection] = await sql<{ role: string; login_role: string }[]>`select current_user as role, session_user as login_role`;
     await expect(card.locator("dt")).toHaveText(["Aktuelle Rolle", "Anmelderolle"]);
