@@ -114,9 +114,9 @@ function KontenblattPage() {
           <div className="kpi-label">Bewegungen im Zeitraum</div>
           <dl className="facts" style={{ gap: "2px 12px", fontSize: 16 }}>
             <dt>Soll</dt>
-            <dd className="mono">{formatEuro(data.soll)}</dd>
+            <dd className="amount">{formatEuro(data.soll)}</dd>
             <dt>Haben</dt>
-            <dd className="mono">{formatEuro(data.haben)}</dd>
+            <dd className="amount">{formatEuro(data.haben)}</dd>
           </dl>
           <div className="small muted">{data.zeilen.length} Buchungen</div>
         </div>

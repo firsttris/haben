@@ -127,6 +127,7 @@ export default defineConfig({
         "beenden.spec.ts",
         "doku-startseite.spec.ts",
         "datenbankrolle.spec.ts",
+        "knoepfe.spec.ts",
       ],
       use: chromium,
     },

@@ -149,15 +149,15 @@ export function PreviewLayout({
             <span className="small muted">{caption}</span>
             <div className="preview-pane-actions">
               {design && (
-                <button type="button" className="btn btn-sm" aria-label="Gestaltung" aria-haspopup="dialog" onClick={preview.openDesign}>
+                <button type="button" className="btn btn-sm btn-ghost btn-icon" aria-label="Gestaltung" aria-haspopup="dialog" onClick={preview.openDesign}>
                   <Icon name="settings" size={16} />
                 </button>
               )}
-              <button type="button" className="btn btn-sm" aria-haspopup="dialog" onClick={preview.openOverlay}>
+              <button type="button" className="btn btn-sm btn-ghost" aria-haspopup="dialog" onClick={preview.openOverlay}>
                 <Icon name="expand" size={16} />
                 Vergrößern
               </button>
-              <button type="button" className="btn btn-sm" onClick={preview.unpin}>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={preview.unpin}>
                 <Icon name="eye-off" size={16} />
                 Ausblenden
               </button>
