@@ -157,6 +157,18 @@ describe.skipIf(!testDatabaseUrl)("Teilausgleich, Aufhebung und Storno einer Gut
     }, 30_000);
   }
 
+  it("Teilerstattung und Skonto auf den Rest ziehen zusammen genau die Vorsteuer", async () => {
+    const p = { kr: "SKR03", versteuerung: "soll" } as const;
+    await firma(p);
+    // 7,80 € netto, 1,48 € Vorsteuer (19 %), 9,28 € brutto; 5,80 € erstattet, 3,48 € als Skonto ausgebucht
+    const gutschrift = await beleg({ datum: "2026-07-10", net: -780, tax: -148, erstattetBezahltes: true });
+    await zahlung(gutschrift, 580, "2026-07-20");
+    await bank.writeOff(actor, { kind: "skontoErhalten", documentId: gutschrift, date: "2026-07-20" });
+
+    // Das Zwischenkonto ist leer und die Vorsteuer genau um die Steuer des Belegs gemindert
+    expect(await saldo(p)).toEqual({ zwischen: 0, vorsteuer: -93 });
+  }, 30_000);
+
   it("Storno einer gebuchten Gutschrift hebt das Zwischenkonto wieder auf", async () => {
     await firma({ kr: "SKR03", versteuerung: "soll" });
     const gutschrift = await beleg({ datum: "2026-04-10", net: -10_000, tax: -1_900, erstattetBezahltes: true });
