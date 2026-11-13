@@ -191,6 +191,21 @@ describe("parseDatevStammdaten", () => {
     expect(rows[0]!.errors).toEqual(["Telefon: nur Ziffern, Leerzeichen und + ( ) / - ."]);
   });
 
+  // Echter GP-Stamm aus sevDesk (#472): „UN“ steht nur bei Kontakten ohne Anschrift; sevDesk zeigt dort „UNKNOWN“
+  // (6 von 168 Zeilen, Kontakte aus einem früheren CSV-Import). Kein Land nach ISO 3166-1, also wie leer
+  it("liest das Land „UN“ wie ein leeres Land", () => {
+    const { rows } = parsed(
+      utf8(
+        row({ Konto: "70017", "Name (Adressatentyp Unternehmen)": "Erfundener Verlag", Land: "UN" }),
+        row({ Konto: "70018", "Name (Adressatentyp Unternehmen)": "Erfundene Druckerei", Land: "" }),
+      ),
+    );
+    expect(rows.map((r) => [r.errors, r.land])).toEqual([
+      [[], "DE"],
+      [[], "DE"],
+    ]);
+  });
+
   it("lehnt andere DATEV-Exporte und Dateien ohne Spalte Konto ab", () => {
     expect(parseDatevStammdaten(fixture("2.0").subarray(0, 0))).toEqual({ ok: false, error: "Die Datei ist leer." });
     const stapel = new TextEncoder().encode(`"EXTF";700;21;"Buchungsstapel";13\nUmsatz;Konto`);

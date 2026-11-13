@@ -97,6 +97,24 @@ describe("datevContactCandidates", () => {
     ]);
   });
 
+  // Echter GP-Stamm aus sevDesk (#472): 12 Zeilen mit ausländischer USt-IdNr., aber Land DE (oft leer) oder ein anderes Land
+  it("weist hin, wenn das Land nicht zur USt-IdNr. passt; EL ist Griechenland, EU (OSS) hat kein Land", () => {
+    const candidates = datevContactCandidates([
+      gp(3, { nr: 70001, name: "Erfundene GmbH", ustId: "ATU12345678" }),
+      gp(4, { nr: 70002, name: "Erfundene Sp. z o.o.", ustId: "PL1234567890", land: "LU" }),
+      gp(5, { nr: 70003, name: "Erfundene AE", ustId: "EL123456789", land: "GR" }),
+      gp(6, { nr: 70004, name: "Erfundener Dienst", ustId: "EU123456789" }),
+      gp(7, { nr: 70005, name: "Erfundene KG", ustId: "DE136695976" }),
+    ]);
+    expect(candidates.map((c) => c.hints)).toEqual([
+      ["Land DE passt nicht zur USt-IdNr. aus AT; bitte das Land prüfen"],
+      ["Land LU passt nicht zur USt-IdNr. aus PL; bitte das Land prüfen"],
+      [],
+      [],
+      [],
+    ]);
+  });
+
   it("zählt ein Personenkonto, das weiter oben schon steht, als Dublette und lässt fehlerhafte Zeilen nicht zusammenführen", () => {
     const rows = datevContactCandidates([
       gp(3, { nr: 10001, name: "A" }),
