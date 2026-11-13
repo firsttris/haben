@@ -70,11 +70,15 @@ async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnTyp
   const events: AdvanceVatEvent[] = [];
   const balanceEvents: AdvanceBalanceEvent[] = [];
   for (const { invoice } of finals) {
-    if (original.advanceAccounting === "deferred") {
+    if (original.advanceAccounting === "deferred" || invoice.advanceAccounting === "deferred") {
       // Ein Ersatz dokumentiert denselben Leistungsstand, nicht eine zweite Ausführung.
       if (invoice.replacesInvoiceId) continue;
       const date = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
-      balanceEvents.push({ date, performance: 1 });
+      // Die neue Schlussleistung besteht auch für abgezogene Altanzahlungen fort (§ 13 UStG); nur neue Originale
+      // benötigen die Nettoabgrenzung. Alte Erlöse und Siegel bleiben erhalten. Entscheidung in #750:
+      // https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+      // Steuerzeitpunkt: https://www.gesetze-im-internet.de/ustg_1980/__13.html
+      if (original.advanceAccounting === "deferred") balanceEvents.push({ date, performance: 1 });
       if ((await taxes.companyMode(invoice)) === "soll") events.push({ date, performance: 1 });
       continue;
     }
