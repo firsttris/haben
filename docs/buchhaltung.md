@@ -123,7 +123,7 @@ Die offenen Posten trennen im neuen Verfahren:
 
 Die Journalgegenprobe vergleicht Forderungen und erhaltene Nettoanzahlungen derselben neuen Belegketten mit den datierten Nebenbüchern: zu historischen Monatsenden und im laufenden Monat zum heutigen Tag. Die Restlaufzeiten zum 31. Dezember verwenden denselben Stichtagsstand; unbilanzierte Anforderungen bleiben draußen, ein fortbestehender Schlussrest und seine damalige Fälligkeit bleiben enthalten. Erst später datierte Zahlungen oder Ersatzbelege ändern den früheren Stand nicht.
 
-Das neue Bilanzverfahren gilt nur für neue GmbH-/UG-Anforderungen und ihre Folgebelege. Bestehende festgeschriebene Belege, Buchungen, Siegel und abgeschlossene Jahre werden nicht umgerechnet; ihre Korrekturen behalten das bisherige Verfahren. Die EÜR des Einzelunternehmens bleibt zahlungsbezogen. Fremdwährungs-Abschläge und -Schlussrechnungen bleiben gesperrt.
+Das neue Bilanzverfahren gilt nur für neue GmbH-/UG-Anforderungen und ihre Folgebelege. Bestehende festgeschriebene Belege, Buchungen, Siegel und abgeschlossene Jahre werden nicht umgerechnet; ihre Korrekturen behalten das bisherige Verfahren. Die EÜR des Einzelunternehmens bleibt zahlungsbezogen. Für Fremdwährung gelten die [Grenzen bei Rechnungen](rechnungen.md#rechnungen-in-fremdwährung).
 
 Eine noch unbilanzierte Anzahlungsanforderung lässt sich vor der Schlussleistung nicht als Forderungsausfall ausbuchen. Storniere dafür die Anforderung; ein Preisnachlass gehört in die Schlussrechnung. Skonto zusammen mit einer tatsächlichen Zahlung bleibt möglich ([bestätigte Grenze in #750](https://github.com/firsttris/haben/issues/750#issuecomment-6850907108)).
 
