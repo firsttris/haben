@@ -104,4 +104,21 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
       { account: "1800", debit: 503_68, credit: 0 },
     ]);
   });
+
+  it("bucht eine Erstattung Umsatzsteuer Vorjahr (Steuerzahlung mit Bezugsjahr) auf dem privaten Konto als Entnahme", async () => {
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-10-12", 503_68);
+
+    await bank.allocate(actor, {
+      kind: "steuer",
+      transactionId: transaction,
+      amount: 503_68,
+      steuer: { art: "ust", jahr: 2025, posten: "steuer" },
+    });
+
+    expect(await zeilen(transaction)).toEqual([
+      { account: "1790", debit: 0, credit: 503_68 },
+      { account: "1800", debit: 503_68, credit: 0 },
+    ]);
+  });
 });
