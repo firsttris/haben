@@ -7,7 +7,7 @@ import { firmaInNavigation, navMark } from "../../lib/navigation.ts";
 import { hasEmployees } from "../modules/lohn/index.ts";
 import { loadCompany, logoInfo } from "../modules/stammdaten/index.ts";
 import { env } from "../env.ts";
-import { firmenSicht } from "../../lib/firmen.ts";
+import { andereFirmen } from "../../lib/firmen.ts";
 import { oidcPublicConfig } from "../oidc.ts";
 import { ssoInitialized } from "../sso-callback.ts";
 import { ssoOnly } from "../sso-policy.ts";
@@ -38,7 +38,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name, url, openInNewTab }) => ({ id, name, url, openInNewTab })) : [],
     // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
     hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
-    // Firmen wechseln (#504): Name der eigenen Firma, die übrigen nur für den Inhaber
-    firmen: user ? firmenSicht(env().HABEN_FIRMEN, env().BETTER_AUTH_URL, user.role) : { aktuell: null, andere: [] },
+    // Firma wechseln (#504): die Instanzen der anderen Firmen, nur für den Inhaber
+    firmen: user ? andereFirmen(env().HABEN_FIRMEN, env().BETTER_AUTH_URL, user.role) : [],
   };
 });

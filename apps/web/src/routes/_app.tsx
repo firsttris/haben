@@ -168,7 +168,8 @@ function AppLayout() {
   useEffect(() => {
     if (!menuOpen) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      // Ein aufgeklappter Bereich im Menü (Firma wechseln) schließt zuerst sich selbst
+      if (event.key !== "Escape" || document.querySelector('#hauptmenue [aria-expanded="true"]')) return;
       // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
       event.preventDefault();
       setMenuOpen(false);
@@ -229,9 +230,8 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          {/* Firma wechseln (#504): jede Firma ist eine eigene Instanz mit eigener Adresse und eigener Anmeldung. Die Zeile
-              steht als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
-          {firmen.andere.length > 0 && <FirmaWechsler aktuell={firmen.aktuell ?? firma} andere={firmen.andere} />}
+          {/* Firma wechseln (#504): nur mit anderen Firmen. Als Erstes im Menü, also in der Tab-Reihenfolge gleich nach der Marke */}
+          {firmen.length > 0 && <FirmaWechsler andere={firmen} />}
           <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht

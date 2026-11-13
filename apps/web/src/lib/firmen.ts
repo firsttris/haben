@@ -1,7 +1,7 @@
 /*
  * Firmen wechseln (#504): Jede Firma ist eine eigene Instanz von Haben mit eigener Adresse. HABEN_FIRMEN nennt sie,
  * damit die Navigation zwischen ihnen verlinkt. Haben kennt dabei nur Namen und Adressen, keine Daten der anderen.
- * Ohne Serverbezug: env.ts prüft die Angabe beim Start, getAuthState gibt der Sitzung ihren Teil.
+ * Ohne Serverbezug: env.ts prüft die Angabe beim Start, getAuthState gibt dem Inhaber die anderen Firmen.
  */
 import type { Rolle } from "./rollen.ts";
 
@@ -9,12 +9,6 @@ export interface Firma {
   name: string;
   /** Origin der Instanz, z. B. https://nord.example.de */
   url: string;
-}
-
-/** Was eine Sitzung sieht: den Namen der eigenen Firma und, nur der Inhaber, die übrigen zum Wechseln */
-export interface FirmenSicht {
-  aktuell: string | null;
-  andere: Firma[];
 }
 
 const MAX_FIRMEN = 50;
@@ -57,15 +51,13 @@ export function parseFirmen(text: string): { firmen: Firma[] } | { fehler: strin
 }
 
 /**
- * Teil der Liste für eine Sitzung. Die eigene Firma erkennt Haben an der eigenen Adresse (BETTER_AUTH_URL). Die
- * Steuerberatung sieht nur deren Namen, nicht die übrigen Firmen: Sie kann in jeder Instanz einen eigenen Zugang
- * haben oder keinen.
+ * Die Firmen, zu denen eine Sitzung wechseln kann: alle außer der eigenen, die Haben an der eigenen Adresse
+ * (BETTER_AUTH_URL) erkennt. Nur für den Inhaber: Die Steuerberatung kann in jeder Instanz einen eigenen Zugang
+ * haben oder keinen und erfährt nicht, welche anderen Firmen es gibt.
  */
-export function firmenSicht(text: string | undefined, eigeneAdresse: string, rolle: Rolle): FirmenSicht {
+export function andereFirmen(text: string | undefined, eigeneAdresse: string, rolle: Rolle): Firma[] {
   const ergebnis = parseFirmen(text ?? "");
-  if ("fehler" in ergebnis || !URL.canParse(eigeneAdresse)) return { aktuell: null, andere: [] };
+  if (rolle !== "inhaber" || "fehler" in ergebnis || !URL.canParse(eigeneAdresse)) return [];
   const eigene = new URL(eigeneAdresse).origin;
-  const aktuell = ergebnis.firmen.find((f) => f.url === eigene)?.name ?? null;
-  const andere = rolle === "inhaber" ? ergebnis.firmen.filter((f) => f.url !== eigene) : [];
-  return { aktuell, andere };
+  return ergebnis.firmen.filter((firma) => firma.url !== eigene);
 }

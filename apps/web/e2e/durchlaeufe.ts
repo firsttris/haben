@@ -54,4 +54,5 @@ export const ANDERE_FIRMEN = [
 ];
 
 /** HABEN_FIRMEN für einen Server unter `eigene`: er selbst als „Studio Nord“ und die anderen */
-export const habenFirmen = (eigene: string, andere = ANDERE_FIRMEN) => [{ name: "Studio Nord", url: eigene }, ...andere].map((firma) => `${firma.name}|${firma.url}`).join(";");
+export const habenFirmen = (eigene: string, andere = ANDERE_FIRMEN) =>
+  [{ name: "Studio Nord", url: eigene }, ...andere].map((firma) => `${firma.name}|${firma.url}`).join(";");

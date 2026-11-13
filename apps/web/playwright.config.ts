@@ -1,6 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { appDatabaseUrlFuer, DURCHLAEUFE, databaseUrlFuer, type Durchlauf, ENABLE_BANKING_PORT, habenFirmen, LAYOUT_PAKETE_PORT, portFuer } from "./e2e/durchlaeufe.ts";
+import {
+  appDatabaseUrlFuer,
+  DURCHLAEUFE,
+  databaseUrlFuer,
+  type Durchlauf,
+  ENABLE_BANKING_PORT,
+  habenFirmen,
+  LAYOUT_PAKETE_PORT,
+  portFuer,
+} from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
