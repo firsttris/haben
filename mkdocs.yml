@@ -31,6 +31,9 @@ nav:
   - Betrieb:
       - Betrieb und Installation: installation.md
       - Synology: synology.md
+      - TrueNAS SCALE: truenas.md
+      - Unraid: unraid.md
+      - Coolify: coolify.md
       - Erste Schritte: einrichtung.md
   - Im Alltag:
       - Rechnungen und E-Rechnung: rechnungen.md

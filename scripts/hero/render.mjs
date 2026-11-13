@@ -14,7 +14,7 @@ const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { execut
 try {
   for (const [name, hash] of [
     ["hell", ""],
-    ["dunkel", "#nacht"],
+    ["dunkel", "#dunkel"],
   ]) {
     // Ein neues Dokument führt das Inline-Skript auch für die Hash-Variante aus.
     const page = await browser.newPage({

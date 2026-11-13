@@ -34,7 +34,7 @@
   --accent-tint: #eef4f1;
   /* Schrift auf Akzentfläche (Hauptknopf): Weiß, im dunklen Modus dunkel auf dem hellen Akzent */
   --accent-fg: #fff;
-  /* Text in Akzentfarbe (Links, Aktionen): in den dunklen Themes das helle accent-ink, sonst reicht der Kontrast nicht */
+  /* Text in Akzentfarbe (Links, Aktionen): im dunklen Modus das helle accent-ink, sonst reicht der Kontrast nicht */
   --link: var(--accent);
   --link-hover: var(--accent-hover);
   --brand: #3fa284;
@@ -102,7 +102,8 @@ html { scroll-padding-top: calc(var(--below-head) + 16px); }
   --ink: #f4f4f5; --ink-2: #d4d4d8; --muted: #a1a1aa; --ground: #111113; --surface: #1a1a1d;
   --line: #2c2c31; --line-soft: #232327; --line-strong: #3f3f46;
   /* Die Navigation hat den Ton des Grunds und trennt sich mit einer Linie ab (.nav unten), statt als eigener Block */
-  --nav: #111113; --nav-active: #232327; --nav-ink: #a1a1aa;
+  /* --nav-ink heller als --muted: Gruppennamen, Rolle und Version tragen opacity 0.7 und brauchen trotzdem 4,5 : 1 */
+  --nav: #111113; --nav-active: #232327; --nav-ink: #b4b4bb;
   --link: var(--accent-ink); --link-hover: var(--ink);
   --accent: #4cc29a; --accent-hover: #6dd0ad; --accent-ink: #7fd3b5; --accent-soft: #193a2f; --accent-tint: #162a23; --accent-fg: #111113;
   --warn-ink: #f0bd8c; --warn-soft: #30241a; --warn-dot: #e08a3c;
