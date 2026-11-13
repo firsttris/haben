@@ -382,6 +382,65 @@ Haben führt genau eine Buchhaltung: ein Unternehmen, im Standardmodus ein Inhab
 
 Damit du die Instanzen in der Oberfläche auseinanderhältst, gib jeder ein eigenes [Zeichen in der Navigation](einrichtung.md#zeichen-in-der-navigation), etwa eine eigene Farbe.
 
+### Mit dem Werkzeug
+
+`deploy/instanzen/haben-instanzen.ts` legt Instanzen an, aktualisiert alle nacheinander und zeigt ihren Stand. Es läuft mit [Bun](https://bun.com) direkt aus einem Checkout des Repositorys, ohne `bun install` und ohne Build, und braucht dazu Docker mit Compose 2.23 oder neuer. Die Vorlagen (`compose.yml`, `compose.env.example`) nimmt es aus `deploy/` im Checkout:
+
+```sh
+git clone --depth 1 https://github.com/firsttris/haben.git ~/haben-werkzeug
+cd ~/haben-werkzeug
+bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.example.de
+bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.example.de
+```
+
+Das Werkzeug selbst aktualisierst du mit `git pull` im Checkout; die Instanzen aktualisiert danach `update`. Eine neue Vorlage übernimmt `update` nicht: Die `compose.yml` jeder Instanz bleibt, wie sie beim Anlegen war, bis du sie aus `deploy/` neu kopierst.
+
+Danach liegt unter `~/haben` (anders mit `--basis` oder `HABEN_INSTANZEN`):
+
+```
+~/haben/
+  proxy/                   # gemeinsamer Caddy für alle Instanzen
+    compose.yml
+    Caddyfile              # import sites/*.caddy
+    sites/firma1.caddy     # eine Datei je Domain
+  firma1/
+    compose.yml            # unverändert aus deploy/
+    compose.override.yml   # eigener Caddy aus, App im Netz haben-proxy als haben-firma1
+    .env                   # eigene Schlüssel, Rechte 600
+  firma2/
+    …
+```
+
+| Befehl | Was es tut |
+| --- | --- |
+| `neu <name> <domain>` | Verzeichnis, `.env` mit eigenen Zufallswerten für `DB_PASSWORD`, das Passwort der App-Rolle in `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY` und `RESTIC_PASSWORD`, dazu `COMPOSE_PROJECT_NAME=haben-<name>` und `BACKUP_HOST=haben-<name>`, die Override-Datei und der Eintrag im gemeinsamen Caddy. Startet den Proxy, dann die Datenbank, legt die App-Rolle `haben_app` an ([Getrennte Datenbankrollen](installation-konfiguration.md#getrennte-datenbankrollen)), startet die App und nennt den Einrichtungscode. Gibt es das Verzeichnis oder das Compose-Projekt `haben-<name>` schon (auch nur noch seine Volumes) oder gehört die Domain einer anderen Instanz oder einem übrig gebliebenen Eintrag in `proxy/sites/`, bricht es ab und ändert nichts; ebenso, wenn docker nicht antwortet. Der Name besteht aus a–z, 0–9 und `-`; `proxy`, `app` und Namen auf `app-1`, `db-1` o. Ä. sind vergeben |
+| `update` | Je Instanz der Reihe nach: Backup, `docker compose pull`, `up -d`, warten, bis die App gesund ist. Schlägt ein Schritt fehl, etwa eine Migration, hält es an, nennt die Instanz und lässt die folgenden unverändert. Gestoppte Instanzen überspringt es und nennt sie am Ende; startet eine App ständig neu oder meldet Compose für eine Instanz einen Fehler, hält es dort an |
+| `status` | Je Instanz Version, Erreichbarkeit unter `https://<domain>/login`, ERiC-Version und letzte erfolgreiche Sicherung. Version, ERiC und Sicherung meldet die App selbst über `docker compose exec -T app haben status --json`; ein Image von vor diesem Befehl steht als „? (Image zu alt)“ in der Liste. Eine gestoppte Instanz steht als „gestoppt“ da, eine App, die ständig neu startet, als „startet neu“ |
+| `liste` | Name, Domain und Verzeichnis |
+
+Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell gesetzte Variablen wie `COMPOSE_PROJECT_NAME`, `COMPOSE_FILE`, `DOMAIN` oder `ENCRYPTION_KEY` reicht es nicht an `docker compose` weiter. Wer eine Instanz löscht, entfernt auch ihre Datei in `proxy/sites/`.
+
+`update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
+
+Optionen für `neu`:
+
+| Option | Wirkung |
+| --- | --- |
+| `--hersteller-id ID` | setzt `ELSTER_HERSTELLER_ID` (fünf Ziffern). Ohne die Option bleibt sie leer; das Werkzeug trägt nie von sich aus eine ID ein |
+| `--eric-home PFAD` | bindet ein von Hand entpacktes ERiC lesend ein und setzt `ERIC_HOME`; so teilen sich die Instanzen ein Paket statt je rund 300 MB, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden). Ob ein gemeinsames ERiC als Weitergabe gilt, wenn du Instanzen [für andere betreibst](#für-andere-betreiben), ist nicht geklärt |
+| `--eigener-proxy` | kein gemeinsamer Caddy: legt nur das Netz `haben-proxy` an und gibt den Block für deinen Proxy aus. Hänge den Proxy-Container in dieses Netz (`docker network connect haben-proxy <proxy>`) und leite an `haben-<name>:3000` weiter, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
+| `--sso --oidc-issuer URL --oidc-client-id ID` | ausschließlich [Single Sign-on](installation-sso.md), mit Gruppen nur für diese Instanz (siehe unten); `--oidc-name` setzt den Anzeigenamen (Vorgabe Authelia). Dazu das Clientsecret aus genau einer Quelle (nächste Zeile) |
+| `--oidc-client-secret-file PFAD` oder `--oidc-client-secret-stdin` | das Clientsecret für `--sso`: aus einer Datei, die nur du lesen kannst, oder von der Standardeingabe (`pass show haben/firma1 \| bun … --oidc-client-secret-stdin`); ohne Pipe fragt das Werkzeug am Terminal danach und zeigt die Eingabe nicht an. Ein Zeilenumbruch am Ende zählt nicht dazu. Als Argument gibt es das Secret nicht: Es stünde in der Prozessliste und in der Shell-Historie |
+| `--nicht-starten` | legt nur die Dateien an, etwa um `.env` vor dem Start zu ergänzen. Den ersten Start machst du dann selbst: gemeinsamer Caddy bzw. Netz `haben-proxy`, Datenbank, App-Rolle, App; das Werkzeug nennt die Befehle, ebenso, wenn `neu` abbricht, bevor es die Rolle gibt |
+
+`ENCRYPTION_KEY` und `RESTIC_PASSWORD` jeder Instanz sicherst du wie bei einer einzelnen zusätzlich an einem zweiten Ort; ohne sie sind Zertifikat, Zugangsdaten und Backup nach einem Verlust des Servers nicht mehr zu öffnen. Weitere Einstellungen (Backup auf einem zweiten System, KI-Auslesung, Kontoabruf) trägst du danach in die `.env` der Instanz ein und startest sie mit `docker compose up -d` in ihrem Verzeichnis neu.
+
+**Mit SSO:** Jede Instanz ist ein eigener Client beim Anmeldedienst und bekommt eigene Gruppen, `haben-<name>-inhaber` und `haben-<name>-steuerberatung`. Teilen sich Instanzen einen Anmeldedienst und dieselben Gruppennamen, wäre jedes Mitglied der Inhaber-Gruppe Inhaber in allen Firmen. Das Werkzeug nennt nach `neu` die Gruppen und die Redirect-URI `https://<domain>/api/auth/callback/oidc`; den Client legst du wie unter [Authelia konfigurieren](installation-sso.md#authelia-konfigurieren) an, je Instanz mit eigener `client_id` und eigenem Secret. Wer in mehreren Firmen arbeitet, ist Mitglied in den Gruppen jeder dieser Firmen und meldet sich beim Anmeldedienst nur einmal an.
+
+### Von Hand
+
+Ohne Werkzeug legst du dieselben Dateien selbst an:
+
 ```
 haben-firma1/
   compose.yml              # unverändert aus deploy/
@@ -418,9 +477,9 @@ firma2.example.de {
 
 (Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).) Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`. Jede Instanz hat ihren eigenen Dienst `backup`. Teilen sich mehrere Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (z. B. `BACKUP_HOST=haben-firma1`), sonst räumt das Aufräumen der einen die Stände der anderen ab und `restore latest` nimmt den falschen Stand.
 
-Weitere Punkte:
+### Weitere Punkte
 
-- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
+- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden); mit dem Werkzeug über `--eric-home /opt/eric`.
 - **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, kommen Pflichten dazu, siehe [Für andere betreiben](#für-andere-betreiben).
 - **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
 
