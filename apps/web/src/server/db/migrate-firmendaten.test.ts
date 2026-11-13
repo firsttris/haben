@@ -61,7 +61,9 @@ describe.skipIf(!testDatabaseUrl)("Firmendaten-Bestätigung bei einer bestehende
       expect(await sql`select firmendaten_gespeichert_at from company`).toEqual([{ firmendaten_gespeichert_at: null }]);
       // Spätere Migrationen ergänzen Spalten mit Vorgabe, etwa das Zeichen in der Navigation (#504); sonst bleibt alles gleich
       expect(await sql`select nav_color, nav_logo from company`).toEqual([{ nav_color: null, nav_logo: false }]);
-      expect(await sql`select to_jsonb(company) - 'firmendaten_gespeichert_at' - 'nav_color' - 'nav_logo' as value from company`).toEqual(before.company);
+      expect(
+        await sql`select to_jsonb(company) - 'firmendaten_gespeichert_at' - 'nav_color' - 'nav_logo' - 'ohne_vorsteuerabzug' as value from company`,
+      ).toEqual(before.company);
       expect(await sql`select * from audit_log order by seq`).toEqual(before.audit);
       expect(await sql`select * from journal_entries order by id`).toEqual(before.entries);
       expect(await sql`select * from journal_lines order by id`).toEqual(before.lines);

@@ -7,6 +7,7 @@ import {
   assetIssues,
   convertForeignAmounts,
   CURRENCY_CODE,
+  abziehbarerAnteil,
   einfuhrumsatzsteuerIssues,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
@@ -17,6 +18,7 @@ import {
   isKapitalgesellschaft,
   SELF_ASSESSED_TAX_KEYS,
   taxOf,
+  VOLLER_ABZUG,
   normalizeUstId,
   ustIdProblem,
   maxDegressiveRate,
@@ -73,6 +75,11 @@ export const documentInputSchema = z.object({
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
+  /** Vorsteuerabzug am Beleg (#852): 0 = ohne, 10000 = voll; null = Vorgabe der Firmendaten. Teilabzug folgt mit #433 */
+  vorsteuerAnteil: z
+    .union([z.literal(0), z.literal(VOLLER_ABZUG)])
+    .nullable()
+    .default(null),
   /**
    * Gutschrift erstattet bereits Bezahltes (#786): etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
    * schon bezahlte Rechnung. Die Vorsteuerminderung wird dann erst mit der Erstattung oder Verrechnung gezogen
@@ -717,6 +724,10 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   const company = await openBooks(tx);
   const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
   const splits = await loadSplits(id, tx);
+  // Abziehbarer Anteil der Vorsteuer: Kleinunternehmer nie, sonst die Angabe am Beleg vor der Firmenvorgabe (#852);
+  // beim Buchen am Beleg festgehalten, damit spätere Auswertungen stimmen
+  const vorsteuerAnteil = abziehbarerAnteil(company, doc.vorsteuerAnteil);
+  const vorsteuerAbzug = vorsteuerAnteil > 0;
   const issues = bookingIssues(doc, amounts, today(), splits);
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
@@ -724,7 +735,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // Einfuhrumsatzsteuer (Kz 62): nur der Bescheid des Zolls allein, als Vorsteuer
   if (splits.length === 0 && doc.category === "einfuhrumsatzsteuer") {
     const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
-    issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, !company.kleinunternehmer, doc.privateShare, doc.reverseCharge));
+    issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, vorsteuerAbzug, doc.privateShare, doc.reverseCharge));
   }
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
   // Gutschrift, die bereits Bezahltes erstattet (#786): nur an einer Gutschrift und nur im noch nicht gemeldeten Zeitraum
@@ -742,11 +753,12 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
   const totals = belegSummen(doc, amounts);
-  // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
-  const vorsteuerAbzug = !company.kleinunternehmer;
-  // Kleinunternehmer erwerben nur oberhalb der Erwerbsschwelle oder mit Option steuerpflichtig (§ 1a Abs. 3 und 4 UStG)
-  if (doc.reverseCharge === "ig_erwerb" && company.kleinunternehmer) {
-    throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
+  // Wer nur steuerfreie Umsätze ohne Vorsteuerabzug ausführt (auch Kleinunternehmer, § 19 Abs. 1 UStG), erwirbt nur
+  // oberhalb der Erwerbsschwelle oder mit Verzicht steuerpflichtig (§ 1a Abs. 3 Nr. 1 Buchst. a und Abs. 4 UStG)
+  if (doc.reverseCharge === "ig_erwerb" && (company.kleinunternehmer || company.ohneVorsteuerabzug)) {
+    throw new DocumentError(
+      "Innergemeinschaftlicher Erwerb als Kleinunternehmer oder mit nur steuerfreien Umsätzen (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.",
+    );
   }
   const asset = doc.category === "anlage" ? doc.asset : null;
   const lines = belegZeilen(doc, amounts, splits, company, vorsteuerAbzug, await loadOwnAccountNumbers(tx));
@@ -768,7 +780,10 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       journalEntryId: entryId,
     });
   }
-  await tx.update(schema.documents).set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
+  await tx
+    .update(schema.documents)
+    .set({ status: "gebucht", vorsteuerAbzug, vorsteuerAnteil, lockedAt: now, updatedAt: now })
+    .where(eq(schema.documents.id, id));
   if (asset) {
     await tx.insert(schema.assets).values({
       name: asset.name,
@@ -776,7 +791,8 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
       method: asset.method,
       account: assetAccount(asset.kind, asset.method, company.kontenrahmen),
       acquisitionDate: doc.documentDate!,
-      cost: vorsteuerAbzug ? totals.net : totals.gross,
+      // Ohne Abzug gehört die Vorsteuer zu den Anschaffungskosten (§ 9b Abs. 1 EStG); bei Reverse Charge ist gross nur netto
+      cost: vorsteuerAbzug ? totals.net : totals.net + totals.tax,
       ...documentAssetMethod(asset, doc.documentDate!),
       documentId: id,
     });

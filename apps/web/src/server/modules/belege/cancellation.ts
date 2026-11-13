@@ -254,6 +254,7 @@ export async function reenterDocument(actor: string, id: string): Promise<string
           gross: d.gross,
           asset: d.asset,
           privateShare: d.privateShare,
+          vorsteuerAnteil: d.vorsteuerAnteil,
           reverseCharge: d.reverseCharge,
           // Die Neuerfassung mindert dasselbe Entgelt; die Angabe „erstattet bereits Bezahltes“ bleibt (#786)
           erstattetBezahltes: d.erstattetBezahltes,

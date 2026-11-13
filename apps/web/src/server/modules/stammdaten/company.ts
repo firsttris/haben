@@ -97,6 +97,8 @@ export const companySchema = z
     invoiceIntro: z.string().trim().max(2000).default(""),
     quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
+    /** Nur steuerfreie Umsätze ohne Vorsteuerabzug (§ 15 Abs. 2 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
+    ohneVorsteuerabzug: z.boolean().default(false),
     /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
     einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
     taetigkeit: z.string().trim().max(100).default(""),

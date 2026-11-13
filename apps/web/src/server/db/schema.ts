@@ -141,6 +141,8 @@ export const company = pgTable(
     paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    /** Nur steuerfreie Umsätze, die den Vorsteuerabzug ausschließen (§ 15 Abs. 2 Satz 1 Nr. 1 UStG), etwa nach § 4 Nr. 14 oder 21 UStG: Vorgabe für Belege */
+    ohneVorsteuerabzug: boolean("ohne_vorsteuerabzug").notNull().default(false),
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
@@ -1906,8 +1908,14 @@ export const documents = pgTable(
     gross: integer("gross").notNull().default(0),
     /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
     asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
-    /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
+    /** Beim Buchen festgehalten: false ohne Vorsteuerabzug (Kleinunternehmer, Firmenvorgabe oder am Beleg), dann ist die Steuer Teil des Aufwands */
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
+    /**
+     * Abziehbarer Anteil der Vorsteuer in Basispunkten (10000 = voll, 0 = kein Abzug); null = Vorgabe der Firmendaten.
+     * Beim Buchen mit dem angewandten Wert festgehalten, zusammen mit vorsteuerAbzug (= Anteil > 0), den ältere Belege
+     * allein tragen. Stufe 1 (#852) nimmt nur 0 und 10000; Teilabzug nach § 15 Abs. 4 UStG folgt mit #433.
+     */
+    vorsteuerAnteil: smallint("vorsteuer_anteil"),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
     /**
@@ -1950,6 +1958,7 @@ export const documents = pgTable(
   // in 0011 und 0016 von Hand angelegt
   (t) => [
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
+    check("documents_vorsteuer_anteil_range", sql`${t.vorsteuerAnteil} between 0 and 10000`),
     foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
     // Externe Referenz nur vollständig: Quelle und Kennung zusammen
     check("documents_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),

@@ -1597,6 +1597,13 @@
       "when": 1794601897072,
       "tag": "0227_gutschrift_erstattet_bezahltes",
       "breakpoints": true
+    },
+    {
+      "idx": 228,
+      "version": "7",
+      "when": 1794607203598,
+      "tag": "0228_vorsteuerabzug_vorgabe",
+      "breakpoints": true
     }
   ]
 }
