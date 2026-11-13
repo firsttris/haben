@@ -131,6 +131,7 @@ Seiten der Doku:
 - **Front Matter:** `title:` (für Suchmaschinen, höchstens etwa 60 Zeichen; die Navigation nimmt den Namen aus `mkdocs.yml`) und `description:` (höchstens etwa 160 Zeichen, Pflicht). Daraus setzt `overrides/main.html` Beschreibung und Open Graph.
 - **Hinweise** im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile); die deutschen Titel setzt `scripts/doku-hinweise`.
 - **Kurz halten:** Die Doku sagt Menschen, was gilt und warum. Schritte für Agenten stehen in den Skills unter `.claude/skills/`, wie ein Skript intern entscheidet, in dessen Kommentaren. Keine Sätze, die nur wiederholen, ankündigen oder zusammenfassen.
+- **Unterseiten statt langer Seiten:** Eine Seite bleibt unter etwa 8.000 Wörtern. Was nur ein Teil der Leser braucht (ein Anbieter, eine Rechtsform, ein Sonderfall, eine Nachschlagetabelle), steht auf einer eigenen Seite mit flachem Namen wie `bank-zahlungsdienstleister.md`, denn wegen `use_directory_urls: false` brechen in Unterordnern die relativen Bildpfade. Die Anker bleiben gleich; an der alten Stelle steht ein kurzer Abschnitt mit den alten Ankern als `<a id>` und einem Verweis, damit Links aus ausgelieferten Versionen und von außen weiter treffen. Navigation in `mkdocs.yml` und `ueberblick.md` ändern sich zusammen.
 - Was der Build sonst ergänzt (Änderungsdatum, Weiterleitungen, kanonische Startseite), machen die Skripte `scripts/doku-*`; Tests mit `python -m unittest discover -s scripts/<ordner>`.
 
 ## Tests

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBody, checkTitle, growthHints, hints, isBot, reviewHint } from "./regel.ts";
+import { checkBody, checkTitle, countWords, docPageHints, growthHints, hints, isBot, reviewHint } from "./regel.ts";
 
 describe("checkTitle", () => {
   it.each([
@@ -65,6 +65,44 @@ describe("growthHints", () => {
         { file: "apps/web/src/server/db/schema.ts", before: 2879, after: 3002 },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("docPageHints", () => {
+  it("weist auf eine Doku-Seite hin, die über die Grenze wächst, auch auf eine neue", () => {
+    expect(
+      docPageHints([
+        { file: "docs/belege.md", before: 7900, after: 8100 },
+        { file: "docs/neu.md", before: 0, after: 8001 },
+      ]),
+    ).toEqual([
+      { level: "warning", message: expect.stringContaining("docs/belege.md hat 8100 Wörter") },
+      { level: "warning", message: expect.stringContaining("docs/neu.md hat 8001 Wörter") },
+    ]);
+  });
+
+  it("weist auf eine lange Seite hin, die noch deutlich wächst", () => {
+    expect(docPageHints([{ file: "docs/rechnungen.md", before: 9800, after: 10_100 }])).toEqual([
+      { level: "warning", message: expect.stringContaining("docs/rechnungen.md hat 10100 Wörter") },
+    ]);
+  });
+
+  it("schweigt bei kurzen Seiten, kleinen Änderungen an langen Seiten, Seiten außerhalb docs/ und ADRs", () => {
+    expect(
+      docPageHints([
+        { file: "docs/fristen.md", before: 1500, after: 1800 },
+        { file: "docs/rechnungen.md", before: 9800, after: 9950 },
+        { file: "README.md", before: 7000, after: 9000 },
+        { file: "docs/adr/journal-als-quelle.md", before: 7000, after: 9000 },
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe("countWords", () => {
+  it("zählt Wörter wie wc -w", () => {
+    expect(countWords("# Titel\n\nEin  kurzer\tSatz.\n")).toBe(5);
+    expect(countWords("")).toBe(0);
   });
 });
 
