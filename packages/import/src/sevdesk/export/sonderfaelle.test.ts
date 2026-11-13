@@ -47,6 +47,18 @@ describe("Sonderfälle im Export von sevDesk", () => {
     expect(data.vouchers.every((v) => v.guid === null && v.document === null)).toBe(true);
   });
 
+  it("Beleg ohne BEDI: gleiche Nummer und gleiches Datum bei zwei Lieferanten bleiben zwei Belege", () => {
+    const beleg = ohneBeleglink(ausgabe);
+    const andererLieferant = beleg.replace(";70002;4985;9;", ";70004;4985;9;");
+    expect(andererLieferant).not.toBe(beleg);
+    const data = ok(read({ [STAPEL]: stapel(beleg, andererLieferant), [EINGANG]: eingangDoc() }));
+    expect(data.vouchers).toHaveLength(2);
+    expect(data.vouchers.map((v) => [v.amount, v.lines.map((l) => l.booking.account)])).toEqual([
+      [10000, ["70002"]],
+      [10000, ["70004"]],
+    ]);
+  });
+
   it("Zahlung mit auf 36 Zeichen gekürztem Belegfeld wird kein Beleg, auch nicht mit Satz in Beleginfo", () => {
     const mitSatz = zahlung.replace('"Umsatzsteuerprozent";;', '"Umsatzsteuerprozent";19;');
     expect(mitSatz).not.toBe(zahlung);
