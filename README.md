@@ -223,7 +223,7 @@ es nicht. Siehe [Buchhaltung in Haben](https://haben.app/buchhaltung.html).
 Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://haben.app/elster-abgabe.html)):
 - **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
   aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert Tage bis Wochen
-  ([Erste Schritte](https://haben.app/einrichtung.html#elster-einrichten)).
+  ([ELSTER einrichten](https://haben.app/einrichtung-elster.html)).
 - **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
   die Browser-Erweiterung [Haben für Mein ELSTER](https://haben.app/elster-mit-erweiterung.html)
   ein, oder ein [KI-Assistent](https://haben.app/elster-mit-assistent.html) wie Claude in Chrome.
@@ -292,7 +292,8 @@ Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist ein
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
 - **Einstieg:** [Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify), [Backup und Updates](https://haben.app/installation-backup.html),
-  [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
+  [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten),
+  [ELSTER einrichten](https://haben.app/einrichtung-elster.html) (Zertifikat und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
   [Architektur](https://haben.app/architektur.html) · [Entwicklung](https://haben.app/entwicklung.html) und [Roadmap](https://haben.app/roadmap.html)

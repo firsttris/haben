@@ -34,7 +34,7 @@ Befunde `eric`, `eric-<Version>-entfernt`.
 2. Neben dem bisherigen installieren: `ERIC_DIR=/var/tmp/eric-<Version> bun packages/elster/src/install-cli.ts --lizenz-akzeptiert <Version>`.
 3. In der Dokumentation `ERiC-Releasenotes.pdf`, `Datenartversionmatrix.ods` und die Schemas unter `Datenarten/` lesen; `include/` mit der alten Version vergleichen (`diff -r`). Entfallene Datenart-Versionen und geänderte Signaturen in `packages/elster` anpassen, neue Jahre in `KAPESTA_JAHRE`, `LSTA_JAHRE`, `GEWST_JAHRE`, `KST_JAHRE`, `EBILANZ_TAXONOMIEN`, `LSTB_SCHNITTSTELLEN`. `lstb.test.ts` prüft die Nutzdaten von ElsterLohn gegen die Schemas, wenn `ERIC_DOKU` auf `Dokumentation` des entpackten Pakets zeigt (braucht `java`).
 4. Die Tests mit dem neuen ERiC laufen lassen (`docs/entwicklung.md`, „Tests mit echtem ERiC“), auch die neuen Jahre in `eric-echt.test.ts`, und mit dem alten gegenprüfen.
-5. `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` nur auf eine für Echtfälle freigegebene Version heben, nach einer geglückten Testübermittlung (die macht der Maintainer), und die Tabelle in `docs/einrichtung.md` („Welche ERiC-Version“) nachziehen.
+5. `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` nur auf eine für Echtfälle freigegebene Version heben, nach einer geglückten Testübermittlung (die macht der Maintainer), und die Tabelle in `docs/einrichtung-elster.md` („Welche ERiC-Version“) nachziehen.
 
 ## Taxonomie der E-Bilanz
 

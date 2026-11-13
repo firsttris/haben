@@ -15,7 +15,7 @@ Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal au
 
 - **Firmendaten** mit Name, Anschrift, Bundesland und einer Steuernummer, die zum Bundesland passt. Fehlt etwas, zeigt die Seite „Firmendaten unvollständig: …“ und Prüfen und Senden bleiben gesperrt. Siehe [einrichtung.md](einrichtung.md).
 - **Versteuerungsart** (Ist oder Soll) in den Firmendaten.
-- Zum Übermitteln ein **ELSTER-Zertifikat** (.pfx aus einem ELSTER-Konto mit Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht), hochgeladen unter Einstellungen, und dessen PIN. Siehe [Zertifikatsdatei statt ELSTER Secure](einrichtung.md#zertifikatsdatei-statt-elster-secure).
+- Zum Übermitteln ein **ELSTER-Zertifikat** (.pfx aus einem ELSTER-Konto mit Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht), hochgeladen unter Einstellungen, und dessen PIN. Siehe [Zertifikatsdatei statt ELSTER Secure](einrichtung-elster.md#zertifikatsdatei-statt-elster-secure).
 - Mit ERiC einmal die bestätigten **Datenschutzhinweise der Finanzverwaltung** (Einstellungen › ELSTER › ERiC).
 - Für echte Übermittlungen ein eingerichtetes **ERiC** (von Haben unter Einstellungen › ELSTER › ERiC heruntergeladen oder von Hand über `ERIC_HOME` eingebunden) und eine eigene **Hersteller-ID** (`ELSTER_HERSTELLER_ID`). Siehe [ERiC einbinden](installation-anbindungen.md#eric-einbinden).
 
