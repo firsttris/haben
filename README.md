@@ -142,8 +142,10 @@ docker compose up -d
 Öffne **https://deine-domain**, leg dein Konto an und richte Firmendaten, Nummernkreis und ELSTER ein, wie in
 [Erste Schritte](https://haben.app/einrichtung.html) beschrieben.
 
-Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Umgebungsvariablen stehen in
-[Betrieb und Installation](https://haben.app/installation.html).
+Podman Quadlets stehen in [Installation](https://haben.app/installation.html), ERiC für die ELSTER-Übermittlung in
+[Anbindungen](https://haben.app/installation-anbindungen.html), Backup und Updates in
+[Backup und Updates](https://haben.app/installation-backup.html), alle Umgebungsvariablen in
+[Konfiguration](https://haben.app/installation-konfiguration.html).
 
 > [!IMPORTANT]
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) und das
@@ -286,7 +288,7 @@ Was das nicht ersetzt: die fachliche Prüfung durch eine Steuerberatung. Ist ein
 
 Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-- **Einstieg:** [Betrieb und Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify, Backup, Updates),
+- **Einstieg:** [Installation](https://haben.app/installation.html) (Docker Compose, Podman, Synology, TrueNAS, Unraid, Coolify), [Backup und Updates](https://haben.app/installation-backup.html),
   [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
 - **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
