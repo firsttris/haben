@@ -35,7 +35,6 @@ export {
   importStatement,
   storeStatement,
   type ImportResult,
-  invoiceLastSettledOn,
   invoiceLosses,
   invoiceWrittenOff,
   invoicePayments,
@@ -142,3 +141,4 @@ export {
   settlementSchema,
   type SettlementInput,
 } from "./verrechnung.ts";
+export { invoiceLastSettledOn } from "./zahldatum.ts";
