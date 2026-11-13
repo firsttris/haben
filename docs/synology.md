@@ -92,8 +92,9 @@ Im Router gibst du nichts frei. Stattdessen zeigt derselbe Name im Heimnetz auf 
   `192.168.178.20 haben.deinname.synology.me`. Unter Windows ist das `C:\Windows\System32\drivers\etc\hosts`, mit dem
   Editor als Administrator geöffnet, unter macOS und Linux `/etc/hosts`.
 - **Alle Geräte, auch Handys:** ein DNS-Eintrag im Heimnetz, etwa mit dem Paket **DNS Server** der Synology, mit Pi-hole
-  oder AdGuard Home, den der Router als DNS-Server verteilt. Eine Fritzbox lässt die Antwort mit einer Adresse aus dem
-  Heimnetz nur durch, wenn der Name beim DNS-Rebind-Schutz als Ausnahme eingetragen ist.
+  oder AdGuard Home, den der Router als DNS-Server verteilt. Fragt stattdessen eine Fritzbox diesen DNS-Server für ihre
+  Geräte, lässt sie die Antwort mit einer Adresse aus dem Heimnetz nur durch, wenn der Name beim DNS-Rebind-Schutz als
+  Ausnahme eingetragen ist.
 
 Das Zertifikat bleibt gültig, weil der Name derselbe ist. Die IP der Synology oder ein selbst signiertes Zertifikat
 reichen nicht: Der Browser warnt, Passkeys verweigert er, und die Anmeldung erwartet die Adresse aus `BETTER_AUTH_URL`.
