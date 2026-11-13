@@ -203,6 +203,26 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");
 });
 
+test("Datenbankzugriff: tatsächliche Verbindungsrollen in den Einstellungen anzeigen (#619)", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Datenbankzugriff", exact: true });
+  await expect(card).toBeVisible();
+  const sql = postgres(databaseUrlFuer("belege-steuern"), { max: 1 });
+  try {
+    const [connection] = await sql<{ role: string; login_role: string }[]>`select current_user as role, session_user as login_role`;
+    await expect(card.locator("dt")).toHaveText(["Aktuelle Rolle", "Anmelderolle"]);
+    await expect(card.locator("dd")).toHaveText([connection!.role, connection!.login_role]);
+    await expect(card).toContainText(/Appbetrieb mit eingeschränkten Rechten|Verbindung mit weitergehenden Rechten/);
+    await expect(card.getByRole("link", { name: "Getrennte Datenbankrollen einrichten" })).toHaveAttribute(
+      "href",
+      "https://haben.app/installation.html#getrennte-datenbankrollen",
+    );
+    await expect(card.locator("input, textarea, select, button")).toHaveCount(0);
+  } finally {
+    await sql.end();
+  }
+});
+
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
   await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });
