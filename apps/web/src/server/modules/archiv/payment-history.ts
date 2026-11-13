@@ -62,9 +62,12 @@ export function effectivePayment(alias: string): SQL<LegacyPayment | null> {
     from (select ${payment} as p) eff)`;
 }
 
-/** Belegte Einzelzahlungen erklären den Zahlungsstand nur, wenn sie in eine Richtung gehen und genau aufgehen. */
+/**
+ * Belegte Einzelzahlungen erklären den Zahlungsstand nur, wenn sie in eine Richtung gehen und genau aufgehen. Eine Zuordnung
+ * über 0 € hat keine Richtung (#472).
+ */
 function historyIssue(gross: number, payment: LegacyPayment): string | null {
-  const signs = new Set(payment.items.map((i) => Math.sign(i.amount)));
+  const signs = new Set(payment.items.filter((i) => i.amount !== 0).map((i) => Math.sign(i.amount)));
   if (signs.size > 1)
     return "sevDesk-Zahlungshistorie unvollständig: Die Einzelzahlungen enthalten Zahlung und Rückbuchung; Monatswerte und Stand am Stichtag müssen geklärt werden";
   const sum = payment.items.reduce((s, i) => s + Math.abs(i.amount), 0);
