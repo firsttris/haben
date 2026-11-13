@@ -4,7 +4,8 @@ import type { ReconciliationCheck } from "./lexoffice.ts";
 
 /*
  * Gutschriften mit `bookingCategory` ACCOUNTING_TYPE bucht sevDesk nach dem gewählten Konto: mit Erlöskonto als
- * Erlösminderung (DATEV: Soll 8200, BU 3), mit Aufwandskonto wie Honorar (Soll 3100, BU 9), belegt am DATEV-Export (#472).
+ * Erlösminderung (DATEV: Soll 8200, BU 3, belegt am DATEV-Export), mit Aufwandskonto analog Honorar (Soll 3100, BU 9) nach der
+ * Entscheidung in #472; ein Export dieser Gutschrift mit Aufwandskonto liegt nicht vor.
  * Die Gutschrift nennt nur die ID des Kontos; dessen Nummern stehen im Kontostamm (GET /AccountingType/{id}), den der Abruf
  * in sevdesk_accounting_types ablegt. Die Art folgt zur Laufzeit daraus, die Archivkopie bleibt unverändert.
  *
