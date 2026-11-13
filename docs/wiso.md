@@ -67,7 +67,7 @@ Wähle für die gesamte Datei den **Übernahmestichtag 01.01.** des ersten Haben
 | --- | --- |
 | Nr. und Bezeichnung | **Bezeichnung**, etwa `Konferenzstuhl [WISO 142]`; die Nummer zusätzlich in **Notiz** aufbewahren |
 | Anschaffungsdatum | **Anschaffungsdatum**, nicht der Umzugstag |
-| Anschaffungskosten | **Anschaffungskosten** netto; Veränderungen gesondert prüfen |
+| Anschaffungskosten | **Anschaffungskosten** wie in WISO geführt; [Vorsteueranteil beachten](csv-import.md#anlagen), nicht nach heutigem Kleinunternehmerstatus umrechnen; Veränderungen gesondert prüfen |
 | ND | **Nutzungsdauer (Jahre)** bzw. Monate passend zum bisherigen Plan |
 | Abschreibungsplan | **Art** und **Abschreibung** ausdrücklich passend wählen |
 | RBW 31.12. des letzten WISO-Jahres | **Restbuchwert** |

@@ -110,7 +110,7 @@ Der Import ist eine [Übernahme aus der bisherigen Buchhaltung](anlagen.md#über
 | Art | Art, Anlagenart, Kategorie | Fahrzeug (auch Pkw, Lkw), Computer (auch Hardware, Software, Laptop), Büromöbel, Sonstige Transportmittel (auch Anhänger, Lastenrad; ein Transporter ist ein Fahrzeug), Sonstiges. Leer ist Sonstiges |
 | Abschreibung | Abschreibung, AfA-Art, AfA-Methode | linear, degressiv, Elektro (§ 7 Abs. 2a EStG, nur Fahrzeuge im Einzelunternehmen), GWG, Sammelposten oder digital (Computer mit einem Jahr). Leer: der Vorschlag zur Art ([Art und Abschreibung](anlagen.md#art-und-abschreibung)) |
 | Anschaffungsdatum | Anschaffungsdatum, Kaufdatum, Zugangsdatum | Pflicht, vor dem Stichtag |
-| Anschaffungskosten | Anschaffungskosten, AK, AHK | Pflicht, netto |
+| Anschaffungskosten | Anschaffungskosten, AK, AHK | Pflicht; Anschaffungskosten aus der bisherigen Buchhaltung ohne damals abziehbare und einschließlich damals nicht abziehbarer Vorsteuer ([§ 9b Abs. 1 EStG](https://www.gesetze-im-internet.de/estg/__9b.html)) |
 | Nutzungsdauer | Nutzungsdauer (Jahre), Nutzungsdauer (Monate) | Bei linearer und degressiver AfA Pflicht; in Jahren auch als Bruchteil, solange ganze Monate herauskommen (`2,5` = 30 Monate) |
 | Degressiver Satz | Degressiver Satz, AfA-Satz | In Prozent (`25`, `23,07`); leer: der Höchstsatz ([Degressive AfA](anlagen.md#degressive-afa)) |
 | Restbuchwert zum Stichtag | Restbuchwert, Buchwert | Buchwert am Tag vor dem Stichtag, also zum 31.12. des Vorjahres |
