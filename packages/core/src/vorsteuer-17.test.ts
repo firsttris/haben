@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { documentSplitPosting } from "./document-split.ts";
 import { computeInvoiceTotals } from "./invoice.ts";
-import { ACCOUNTS, documentPosting, EXPENSE_CATEGORIES } from "./posting.ts";
+import { ACCOUNTS, documentPosting, EXPENSE_CATEGORIES, settlementTaxShares, vorsteuerAusgleichPosting } from "./posting.ts";
 
 /*
  * Gutschrift, die bereits Bezahltes erstattet (#786): Die Vorsteuerminderung hängt nicht an der Versteuerungsart, sondern
@@ -16,9 +16,9 @@ const gutschrift = computeInvoiceTotals([{ quantity: 1000, unitPrice: -10_000, t
 /** Gutschrift über 100,00 € netto, 7 % */
 const gutschrift7 = computeInvoiceTotals([{ quantity: 1000, unitPrice: -10_000, taxRate: 700 }]);
 
-const KONTEN: Record<"SKR03" | "SKR04", { zwischen: string; vorsteuer: string }> = {
-  SKR03: { zwischen: "1548", vorsteuer: "1576" },
-  SKR04: { zwischen: "1434", vorsteuer: "1406" },
+const KONTEN: Record<"SKR03" | "SKR04", { zwischen: string; vorsteuer: string; vorsteuer7: string }> = {
+  SKR03: { zwischen: "1548", vorsteuer: "1576", vorsteuer7: "1571" },
+  SKR04: { zwischen: "1434", vorsteuer: "1406", vorsteuer7: "1401" },
 };
 
 describe("documentPosting: Gutschrift mit „erstattet bereits Bezahltes“", () => {
@@ -90,4 +90,45 @@ describe("documentPosting: Gutschrift mit „erstattet bereits Bezahltes“", ()
     expect(lines).toContainEqual({ account: "1434", debit: 0, credit: 1_900, taxCode: "VSt19" });
     expect(lines.some((l) => l.account === "1406")).toBe(false);
   });
+});
+
+describe("vorsteuerAusgleichPosting: Umbuchung beim Ausgleich", () => {
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    const k = KONTEN[kontenrahmen];
+
+    it(`${kontenrahmen}: 19 % geht vom Zwischenkonto auf die Vorsteuer, mit Steuerschlüssel und Bemessungsgrundlage`, () => {
+      const shares = settlementTaxShares(gutschrift, 0, [], 11_900);
+      expect(vorsteuerAusgleichPosting(shares, kontenrahmen)).toEqual([
+        { account: k.zwischen, debit: 1_900, credit: 0, taxCode: "VSt19", basis: 10_000 },
+        { account: k.vorsteuer, debit: 0, credit: 1_900, taxCode: "VSt19" },
+      ]);
+    });
+
+    it(`${kontenrahmen}: 7 % mit dem Steuerschlüssel des Satzes`, () => {
+      const shares = settlementTaxShares(gutschrift7, 0, [], 10_700);
+      expect(vorsteuerAusgleichPosting(shares, kontenrahmen)).toEqual([
+        { account: k.zwischen, debit: 700, credit: 0, taxCode: "VSt7", basis: 10_000 },
+        { account: k.vorsteuer7, debit: 0, credit: 700, taxCode: "VSt7" },
+      ]);
+    });
+
+    it(`${kontenrahmen}: eine Gegenbuchung dreht beide Seiten und die Bemessungsgrundlage`, () => {
+      const shares = settlementTaxShares(gutschrift, 0, [], 11_900);
+      const gegen = vorsteuerAusgleichPosting(shares, kontenrahmen).map((l) => ({
+        ...l,
+        debit: l.credit,
+        credit: l.debit,
+        ...(l.basis != null ? { basis: -l.basis } : {}),
+      }));
+      expect(gegen).toEqual([
+        { account: k.zwischen, debit: 0, credit: 1_900, taxCode: "VSt19", basis: -10_000 },
+        { account: k.vorsteuer, debit: 1_900, credit: 0, taxCode: "VSt19" },
+      ]);
+    });
+
+    it(`${kontenrahmen}: 0 % hat nichts auf dem Zwischenkonto, also wird nichts umgebucht`, () => {
+      const ohneSteuer = computeInvoiceTotals([{ quantity: 1000, unitPrice: -10_000, taxRate: 0 }]);
+      expect(vorsteuerAusgleichPosting(settlementTaxShares(ohneSteuer, 0, [], 10_000), kontenrahmen)).toEqual([]);
+    });
+  }
 });

@@ -163,10 +163,18 @@ export type DocumentInput = z.input<typeof documentInputSchema>;
  * mindert, und wird ausdrücklich gesetzt, nie aus dem Zahlungsstand abgeleitet: Der kann sich nach dem Belegdatum noch
  * ändern, und die Voranmeldung des Belegmonats ist dann womöglich schon abgegeben (#786).
  */
-function erstattetBezahltesProblem(summen: { gross: Cents }, reverseCharge: string | null, category?: string | null): string | null {
+function erstattetBezahltesProblem(
+  summen: { gross: Cents },
+  reverseCharge: string | null,
+  payment: "bank" | "privat" | "kasse",
+  category?: string | null,
+): string | null {
   if (summen.gross >= 0) return "„Erstattet bereits Bezahltes“ gibt es nur an einer Gutschrift, also an einem negativen Beleg";
   if (reverseCharge) return "„Erstattet bereits Bezahltes“ gibt es nicht bei § 13b oder innergemeinschaftlichem Erwerb";
   if (category === "einfuhrumsatzsteuer") return "„Erstattet bereits Bezahltes“ gibt es nicht beim Bescheid des Zolls";
+  // Ausgleichen geht nur über die Bank (Erstattung, Verrechnung, Ausbuchung); privat oder bar bezahlt käme die
+  // Vorsteuerminderung nie vom Zwischenkonto herunter
+  if (payment !== "bank") return "„Erstattet bereits Bezahltes“ gibt es nur an Belegen, die über die Bank bezahlt sind";
   return null;
 }
 
@@ -514,7 +522,7 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
     if (parsed.erstattetBezahltes) {
-      const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.category);
+      const problem = erstattetBezahltesProblem(totalsOf(amounts, parsed.reverseCharge), parsed.reverseCharge, parsed.payment, parsed.category);
       if (problem) throw new DocumentError(problem);
       // Dieselbe Sperre wie bei jeder Änderung am gebuchten Beleg: Ein gemeldeter Zeitraum bleibt unberührt (#786)
       if (!previous.erstattetBezahltes && parsed.documentDate && (await periodReported(tx, parsed.documentDate))) {
@@ -721,7 +729,7 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
   // Gutschrift, die bereits Bezahltes erstattet (#786): nur an einer Gutschrift und nur im noch nicht gemeldeten Zeitraum
   if (doc.erstattetBezahltes) {
-    const problem = erstattetBezahltesProblem(totalsOf(amounts, doc.reverseCharge), doc.reverseCharge, doc.category);
+    const problem = erstattetBezahltesProblem(totalsOf(amounts, doc.reverseCharge), doc.reverseCharge, doc.payment, doc.category);
     if (problem) issues.push(problem);
     else if (doc.documentDate && (await periodReported(tx, doc.documentDate))) {
       issues.push("Der Belegmonat ist schon gemeldet; die Vorsteuerminderung nach § 17 Abs. 1 Satz 2 UStG lässt sich nicht mehr in ihm ziehen");

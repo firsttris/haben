@@ -476,8 +476,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           payment,
           note,
           privateShare: privateShareValue,
-          // Nur an einer Gutschrift sinnvoll; ein positiver Beleg schickt immer „nein“ (#786)
-          erstattetBezahltes: gross !== null && gross < 0 ? erstattetBezahltes : false,
+          // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
+          erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
           reverseCharge,
           currency: currencyCode,
           exchangeRate: foreign ? exchangeRate : null,
@@ -1017,8 +1017,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />
           Bar aus der Kasse (Zeile im Kassenbuch)
         </label>
-        {/* Nur an einer Gutschrift: sie mindert ein schon bezahltes Entgelt, die Vorsteuer wartet auf den Ausgleich */}
-        {gross !== null && gross < 0 && (
+        {/* Nur an einer Gutschrift über die Bank: sie mindert ein schon bezahltes Entgelt, die Vorsteuer wartet auf den Ausgleich */}
+        {gross !== null && gross < 0 && payment === "bank" && (
           <div>
             <label className="checkbox">
               <input type="checkbox" checked={erstattetBezahltes} onChange={(e) => touch(setErstattetBezahltes)(e.target.checked)} />

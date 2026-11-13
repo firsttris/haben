@@ -360,7 +360,8 @@ berichtigt wird, nicht die Versteuerungsart: Ist und Soll regeln nach § 20 UStG
 Umsätze, der Vorsteuerabzug hängt nicht an der Zahlung. Bei einem schon bezahlten Entgelt ist die Berichtigung erst
 fällig, wenn das Geld zurückkommt oder verrechnet wird (§ 17 Abs. 1 Satz 2 und 8 UStG).
 
-Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen. Haben
+Deshalb setzt du an der Gutschrift den Haken **Erstattet bereits Bezahltes**. Er steht nur an negativen Belegen, die über
+die Bank bezahlt sind — nur sie lassen sich ausgleichen. Haben
 bucht die Vorsteuerminderung dann nicht im Belegmonat auf die Vorsteuer, sondern auf ein Zwischenkonto, mit
 Steuerschlüssel und Bemessungsgrundlage:
 
@@ -376,8 +377,22 @@ Belegmonat. Den Haken setzt du ausdrücklich; Haben leitet ihn nicht aus dem Zah
 dem Belegdatum noch ändern.
 
 Ein gemeldeter Zeitraum nimmt die Angabe nicht mehr an: Steht der Belegmonat schon in einer abgegebenen Voranmeldung
-oder ist das Jahr abgeschlossen, lehnt Haben das Speichern und das Buchen ab. Das Ausgleichen einer solchen Gutschrift
-bucht den Anteil noch nicht vom Zwischenkonto auf die Vorsteuer um; das folgt.
+oder ist das Jahr abgeschlossen, lehnt Haben das Speichern und das Buchen ab.
+
+Ausgeglichen wird die Gutschrift über die Bank (Erstattung), über eine [Verrechnung](#verrechnung-zweier-belege) mit
+einem Beleg desselben Lieferanten oder über eine Ausbuchung wie eine Kursdifferenz. Dabei bucht Haben den Anteil vom
+Zwischenkonto auf die Vorsteuer um, mit Steuerschlüssel und Bemessungsgrundlage; Kz 66 mindert sich in diesem Zeitraum:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1548 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 1434 Vorsteuer in Folgeperiode/im Folgejahr abziehbar | 19,00 | |
+| 1576 Vorsteuer 19 % | 1406 Vorsteuer 19 % | | 19,00 |
+
+Bei einer Teilerstattung nimmt jeder Ausgleich seinen Anteil je Steuersatz, mehrere zusammen ergeben genau die
+Vorsteuer des Belegs. Ausgebuchtes **Skonto** ist die Ausnahme: Was niemand mehr erstattet, wird vom Zwischenkonto
+abgeschrieben und nicht als Vorsteuer gezogen. Wird eine Zuordnung storniert, geht die Umbuchung mit zurück, gebucht am
+Tag des Stornos. Der Saldo des Kontos ist ein Bestand und läuft ins nächste Jahr: Eine Gutschrift aus Dezember und die
+Erstattung im Januar mindern die Voranmeldung im Januar, nicht rückwirkend im Dezember.
 
 ## Belege nacheinander prüfen
 
@@ -452,6 +467,22 @@ Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechn
 | Storniert | Gebucht und per Gegenbuchung aufgehoben, siehe [Stornieren und neu erfassen](#stornieren-und-neu-erfassen). |
 
 Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hochgeladen hast. Für XML und HEIC zeigt Haben keine Vorschau, sondern einen Link zum Öffnen der Datei.
+
+## Verrechnen ohne Zahlung
+
+Manche Rechnungen werden nie bezahlt, sondern gegen eine Gutschrift des Lieferanten aufgerechnet. Typisch sind Abschläge und Jahresabrechnungen: Der Versorger schreibt ein Guthaben gut und verrechnet es in den Folgemonaten, abgebucht wird nichts mehr. Bis dahin blieben Rechnung und Gutschrift offen.
+
+Auf der Belegseite eines gebuchten Belegs steht dafür unter **Verrechnung**, wie viel noch offen ist und der Knopf **Mit einem Beleg verrechnen**. Dort wählst du den Gegenbeleg, also die Gutschrift desselben Lieferanten, den Betrag, den Tag der Aufrechnung und einen Grund. Tag und Grund sind Pflicht, weil die Verrechnung steuerlich an diesem Tag wirkt. Das Datum darf nicht vor dem jüngeren der beiden Belege liegen und nicht in der Zukunft; in der Oberfläche ist heute vorbelegt. Vorgeschlagen wird der kleinere der beiden offenen Beträge; bei Teilverrechnung bleibt der Rest offen und lässt sich später mit einer weiteren Rechnung ausgleichen.
+
+Haben verrechnet nur, was zusammenpasst:
+
+- Beide Belege sind gebucht, laufen über die Bank und sind nicht storniert.
+- Sie gehören demselben Lieferanten und zeigen in verschiedene Richtungen, also eine Rechnung und eine Gutschrift.
+- Der Betrag überschreitet keinen der beiden offenen Reste.
+
+Verrechnungen bewegen kein Geld: Es entsteht kein Bankumsatz, kein Kassenstand ändert sich, und die Buchungen beider Belege bleiben, wie sie sind. Beide Belege zählen danach als erledigt, die Verrechnung steht bei beiden mit Datum, Gegenbeleg und Grund. **Aufheben** setzt sie zurück, wie bei den Ausbuchungen mit einer Gegenzeile, damit die Spur erhalten bleibt. Dabei gibst du den Tag der Aufhebung an: Die Gegenzeile wirkt an diesem Tag, nicht rückwirkend auf den Tag der Verrechnung. Ein bereits gemeldetes Jahr bleibt damit unverändert.
+
+Für die Auswertungen zählt die Verrechnung wie eine Zahlung, und zwar am Tag der Aufrechnung. Das folgt der Rechtsprechung: Die Aufrechnung mit einer fälligen Gegenforderung ist eine Leistung im Sinne des § 11 Abs. 2 EStG (H 11 EStH „Aufrechnung“, BFH vom 19.04.1977, BStBl II S. 601). In der EÜR wirkt sie deshalb auf beide Belege: Der Aufwand der Rechnung und die Minderung aus der Gutschrift fließen in den Zeitraum, in dem aufgerechnet wird, nicht in den des Rechnungsdatums. Eigene Buchungen erzeugt sie nicht — außer der Umbuchung, wenn der Gegenbeleg eine Gutschrift mit **Erstattet bereits Bezahltes** ist: Dann mindert der verrechnete Anteil im Monat der Aufrechnung die Vorsteuer (§ 17 Abs. 1 Satz 2 UStG, siehe [Gutschrift für schon Bezahltes](#gutschrift-für-schon-bezahltes)).
 
 ## Grenzen
 

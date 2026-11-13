@@ -6,8 +6,10 @@ import { db, schema } from "../../db/index.ts";
  * Zu welcher Rechnung bzw. welchem Beleg eine Buchung gehört, für den DATEV-Export: Rechnungen und Belege direkt,
  * Zahlungen (allocation), Ausbuchungen wie Skonto und Forderungsausfall (ausbuchung) und Bareinnahmen im Kassenbuch
  * (kasse) über die zugeordnete Rechnung bzw. den Beleg. Daraus kommen Belegfeld 1 und das Personenkonto (#327).
- * Verrechnungen zweier Belege (#274) stehen nicht hier: Sie buchen nichts (Verbindlichkeiten an Verbindlichkeiten) und
- * erzeugen keine Zeile in `journal_entries`; der Stapel enthält deshalb keinen Vorgang, dem sie zuzuordnen wären.
+ * Verrechnungen zweier Belege (#274) stehen nicht hier: Sie buchen nichts (Verbindlichkeiten an Verbindlichkeiten).
+ * Seit #786 erzeugen sie nur dann eine Zeile in `journal_entries`, wenn sie die Vorsteuer einer Gutschrift aus dem
+ * Zwischenkonto umbuchen; ein Personenkonto bekommt diese Buchung mit der Verrechnung als zwei Buchungen je Belegseite
+ * (#785). Bis dahin bleibt sie im Stapel ohne Bezug.
  */
 
 type Entry = Pick<typeof schema.journalEntries.$inferSelect, "sourceType" | "sourceId">;

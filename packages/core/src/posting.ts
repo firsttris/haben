@@ -718,8 +718,18 @@ export function invoiceWriteOffPosting(
  * Erhaltenes Skonto auf einen Beleg, amount mit dem Vorzeichen einer Zahlung (Ausgang negativ):
  * Verbindlichkeiten an erhaltene Skonti und Vorsteuer, anteilig je Steuersatz. Ohne Vorsteuerabzug
  * (Kleinunternehmer) mindert das Skonto den Aufwand in voller Höhe.
+ *
+ * `erstattetBezahltes` (#786): Der Beleg ist eine Gutschrift, deren Vorsteuerminderung noch auf dem Zwischenkonto steht.
+ * Der ausgebuchte Rest erstattet nichts mehr, seine Steuer wird also nicht gezogen, sondern vom Zwischenkonto
+ * abgeschrieben — mit Steuerschlüssel und Bemessungsgrundlage, in der Richtung der bisherigen Steuerzeile.
  */
-export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, kontenrahmen: Kontenrahmen, vorsteuerAbzug: boolean): PostingLine[] {
+export function documentWriteOffPosting(
+  totals: InvoiceTotals,
+  amount: Cents,
+  kontenrahmen: Kontenrahmen,
+  vorsteuerAbzug: boolean,
+  erstattetBezahltes = false,
+): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.verbindlichkeiten, -amount, true, null)];
   for (const { rate, base, tax } of paidTaxShares(totals, -amount)) {
@@ -729,9 +739,32 @@ export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, ko
     }
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(accounts.skontiErhalten, base, false, code));
-    if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+    if (tax !== 0) {
+      if (!erstattetBezahltes) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+      // Auf dem Zwischenkonto mit der Bemessungsgrundlage, wie die Umbuchung beim Ausgleich (#786)
+      else lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, false, code), basis: base });
+    }
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Umbuchung beim Ausgleich einer Gutschrift, die bereits Bezahltes erstattet (#786): Der Anteil, der beim Buchen auf dem
+ * Zwischenkonto stand, geht auf das Vorsteuerkonto, mit Steuerschlüssel und Bemessungsgrundlage, damit Kz 66 die
+ * Minderung genau dann sieht. `shares` sind die Anteile des Ausgleichs in der Richtung der Berichtigung: bei einer
+ * Gutschrift positiv, also Soll Zwischenkonto / Haben Vorsteuer; eine Gegenbuchung dreht beide Seiten (reverseLines).
+ * Sätze ohne Steuer (0 %) bleiben weg, sie haben nichts auf dem Zwischenkonto.
+ */
+export function vorsteuerAusgleichPosting(shares: readonly TaxShare[], kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [];
+  for (const { rate, base, tax } of shares) {
+    if (tax === 0) continue;
+    const code = inputTaxCode(rate);
+    lines.push({ ...side(accounts.vorsteuerNochNichtAbziehbar, tax, true, code), basis: base });
+    lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
+  }
+  return lines;
 }
 
 /**

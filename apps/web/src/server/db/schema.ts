@@ -1734,7 +1734,23 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
+      enum: [
+        "invoice",
+        "document",
+        "allocation",
+        "asset",
+        "pauschale",
+        "kasse",
+        "ausbuchung",
+        "manuell",
+        "eroeffnung",
+        "ausschuettung",
+        "lohn",
+        "import",
+        // Verrechnung zweier Belege (#274): bisher ohne Buchung; seit #786 trägt sie die Umbuchung der Vorsteuer aus dem
+        // Zwischenkonto, mit #785 kommen die zwei Buchungen je Belegseite dazu
+        "verrechnung",
+      ],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),

@@ -120,6 +120,27 @@ describe.skipIf(!testDatabaseUrl)("Beleg: Gutschrift „erstattet bereits Bezahl
     await expect(documents.bookDocument(actor, id)).rejects.toThrow(/schon gemeldet/);
   });
 
+  it("nur über die Bank: bar oder privat bezahlt ließe sich die Minderung nie ausgleichen", async () => {
+    await reset("SKR03", "soll");
+    fileSeq++;
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, fileSeq % 256, Math.floor(fileSeq / 256), 74]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: `kasse-${fileSeq}.jpg` });
+    await expect(
+      documents.updateDocument(actor, id, {
+        supplierName: "Stadtwerke Beispiel GmbH",
+        supplierUstId: "",
+        invoiceNumber: "GS-KASSE",
+        documentDate: "2026-09-15",
+        dueDate: null,
+        category: "software",
+        payment: "kasse",
+        note: "",
+        erstattetBezahltes: true,
+        amounts: [{ taxRate: 1900, net: -10_000, tax: -1_900 }],
+      }),
+    ).rejects.toThrow(/über die Bank bezahlt/);
+  });
+
   it("Kleinunternehmer: keine Vorsteuer, also auch nichts auf dem Zwischenkonto", async () => {
     await reset("SKR03", "ist", true);
     const id = await gutschrift(true);

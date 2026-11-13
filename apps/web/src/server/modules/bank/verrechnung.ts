@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { formatEuro } from "@haben/core";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { formatEuro, type Kontenrahmen, type PostingLine } from "@haben/core";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
-import { settledOn } from "./bank.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
+import { reverseLinesIn, settledOn } from "./bank.ts";
+import { belegTotals, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 
 /*
  * Verrechnung zweier Eingangsbelege ohne Zahlung (#274): eine Gutschrift des Lieferanten gleicht eine
@@ -53,9 +55,12 @@ async function beleg(tx: Tx, id: string, sperren = false) {
       id: schema.documents.id,
       date: schema.documents.documentDate,
       supplier: schema.documents.supplierName,
+      net: schema.documents.net,
+      tax: schema.documents.tax,
       gross: schema.documents.gross,
       payment: schema.documents.payment,
       status: schema.documents.status,
+      erstattetBezahltes: schema.documents.erstattetBezahltes,
     })
     .from(schema.documents)
     .where(eq(schema.documents.id, id));
@@ -136,6 +141,18 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
     const date = parsed.date;
     // Gemeinsame Kennung für beide Zeilen: die Aufhebung findet das Paar damit eindeutig
     const settlementId = randomUUID();
+    // Vorsteuer einer Gutschrift „erstattet bereits Bezahltes“ (#786): Die Aufrechnung ist der Ausgleich, der sie mindert,
+    // also geht der verrechnete Anteil vom Zwischenkonto auf die Vorsteuer (§ 17 Abs. 1 Satz 2 und 8 UStG). Gebucht wird
+    // nur diese Umbuchung; die Verrechnung selbst bleibt ohne Buchung, die zwei Buchungen je Belegseite folgen mit #785.
+    // Die Zeilen stehen vor dem Einfügen der Verrechnung fest: sonst zählte der verrechnete Betrag schon als erledigt.
+    const company = await openBooks(tx);
+    const umbuchungen: { seite: number; doc: typeof a; lines: PostingLine[] }[] = [];
+    for (const [seite, doc] of [a, b].entries()) {
+      if (!doc.erstattetBezahltes) continue;
+      const betrag = -Math.sign(seite === 0 ? restA : restB) * parsed.amount;
+      const lines = await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), betrag, company.kontenrahmen);
+      if (lines.length > 0) umbuchungen.push({ seite, doc, lines });
+    }
     // Das Vorzeichen kommt aus dem offenen Rest, nicht aus der Rolle des Belegs: die Zeile muss den Rest
     // gegen Null bewegen. Fest an documentId/counterDocumentId gebunden waere es falsch, sobald der geoeffnete
     // Beleg die Gutschrift ist (negativer Rest) — dann waechst der offene Rest auf beiden Seiten.
@@ -146,7 +163,49 @@ export async function settleDocuments(actor: string, input: SettlementInput) {
         { documentId: b.id, counterDocumentId: a.id, settlementId, date, amount: -Math.sign(restB) * parsed.amount, note: parsed.note, createdBy: actor },
       ])
       .returning({ id: schema.documentSettlements.id });
+    for (const { seite, doc, lines } of umbuchungen) {
+      await post(tx, company, {
+        date,
+        description: `Vorsteuer aus Verrechnung · Beleg ${doc.date ?? ""} · ${doc.supplier}`,
+        sourceType: "verrechnung",
+        sourceId: rows[seite]!.id,
+        lines,
+      });
+    }
     return { ids: rows.map((r) => r.id), amount: parsed.amount, date };
+  });
+}
+
+/** Gegenbuchung der Umbuchung einer Verrechnung (#786): dieselben Zeilen, Soll und Haben getauscht, am Tag der Aufhebung */
+async function storniereUmbuchung(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, verrechnungId: string, gegenId: string, date: string): Promise<void> {
+  const [original] = await tx
+    .select({ id: schema.journalEntries.id, description: schema.journalEntries.description, kontenrahmen: schema.journalEntries.kontenrahmen })
+    .from(schema.journalEntries)
+    .where(
+      and(eq(schema.journalEntries.sourceType, "verrechnung"), eq(schema.journalEntries.sourceId, verrechnungId), isNull(schema.journalEntries.reversesId)),
+    );
+  if (!original) return;
+  const zeilen = await tx
+    .select({
+      account: schema.journalLines.account,
+      debit: schema.journalLines.debit,
+      credit: schema.journalLines.credit,
+      taxCode: schema.journalLines.taxCode,
+      basis: schema.journalLines.basis,
+    })
+    .from(schema.journalLines)
+    .where(eq(schema.journalLines.entryId, original.id));
+  await post(tx, company, {
+    date,
+    description: `Storno: ${original.description}`,
+    sourceType: "verrechnung",
+    sourceId: gegenId,
+    reversesId: original.id,
+    lines: reverseLinesIn(
+      original.kontenrahmen as Kontenrahmen,
+      company.kontenrahmen,
+      zeilen.map((l) => ({ ...l, taxCode: l.taxCode as PostingLine["taxCode"] })),
+    ),
   });
 }
 
@@ -193,28 +252,34 @@ export async function reverseSettlement(actor: string, id: string, date: string,
     const aufhebung = (alt: string) => (parsed.note ? `Aufhebung: ${alt} (${parsed.note})` : `Aufhebung: ${alt}`);
     // Die Gegenzeilen sind selbst ein Paar: beide mit derselben, neuen Kennung
     const settlementId = randomUUID();
-    await tx.insert(schema.documentSettlements).values([
-      {
-        documentId: row.documentId,
-        counterDocumentId: row.counterDocumentId,
-        settlementId,
-        date: parsed.date,
-        amount: -row.amount,
-        note: aufhebung(row.note),
-        reversesId: row.id,
-        createdBy: actor,
-      },
-      {
-        documentId: partner.documentId,
-        counterDocumentId: partner.counterDocumentId,
-        settlementId,
-        date: parsed.date,
-        amount: -partner.amount,
-        note: aufhebung(partner.note),
-        reversesId: partner.id,
-        createdBy: actor,
-      },
-    ]);
+    const gegen = await tx
+      .insert(schema.documentSettlements)
+      .values([
+        {
+          documentId: row.documentId,
+          counterDocumentId: row.counterDocumentId,
+          settlementId,
+          date: parsed.date,
+          amount: -row.amount,
+          note: aufhebung(row.note),
+          reversesId: row.id,
+          createdBy: actor,
+        },
+        {
+          documentId: partner.documentId,
+          counterDocumentId: partner.counterDocumentId,
+          settlementId,
+          date: parsed.date,
+          amount: -partner.amount,
+          note: aufhebung(partner.note),
+          reversesId: partner.id,
+          createdBy: actor,
+        },
+      ])
+      .returning({ id: schema.documentSettlements.id });
+    // Die Umbuchung vom Zwischenkonto (#786) fällt mit der Aufhebung: Gegenbuchung am Tag der Aufhebung, nicht rückwirkend
+    const company = await openBooks(tx);
+    for (const [i, verrechnung] of [row, partner].entries()) await storniereUmbuchung(tx, company, verrechnung.id, gegen[i]!.id, parsed.date);
     return { ok: true as const, date: parsed.date };
   });
 }
