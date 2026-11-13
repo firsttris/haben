@@ -92,6 +92,7 @@ function DocumentsPage() {
                     : doc.splitCount > 0
                       ? `Aufgeteilt auf ${doc.splitCount} Zeilen`
                       : "–"}
+                  {doc.ownAccount && <div className="muted">{doc.ownAccount}</div>}
                 </div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
                 <div>

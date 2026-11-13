@@ -476,6 +476,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .article-cols { grid-template-columns: minmax(0, 1fr) 160px 60px auto; }
 .service-cols { grid-template-columns: 90px minmax(0, 1fr) 90px 90px 100px auto; }
 .proof-cols { grid-template-columns: 90px minmax(0, 1fr) 90px; }
+.own-account-cols { grid-template-columns: 70px minmax(0, 1fr) minmax(0, 0.8fr) auto; }
 .contact-cols { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 200px; }
 .table-row .row-title { font-weight: 500; color: var(--accent-ink); }
 .plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }
@@ -530,6 +531,10 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .service-cols > :nth-child(1), .service-cols > :nth-child(2), .service-cols > :nth-child(6) { grid-column: 1 / -1; }
   .service-cols > :nth-child(6) { justify-content: flex-start !important; }
   .table-row.head.service-cols { display: none; }
+  .own-account-cols { grid-template-columns: 70px minmax(0, 1fr); row-gap: 6px; }
+  .own-account-cols > :nth-child(3), .own-account-cols > :nth-child(4) { grid-column: 1 / -1; }
+  .own-account-cols > :nth-child(4) { justify-content: flex-start !important; }
+  .table-row.head.own-account-cols { display: none; }
   .contact-cols { grid-template-columns: minmax(0, 1fr) auto; padding-top: 8px; padding-bottom: 8px; }
   .contact-cols > :nth-child(2), .contact-cols > :nth-child(4) { display: none; }
   .table-row.head.contact-cols { display: none; }

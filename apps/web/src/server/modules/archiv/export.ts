@@ -23,6 +23,7 @@ import { accountName, openingCash } from "../buchhaltung/index.ts";
 import { loadFile } from "../../storage.ts";
 import { cashBookCsv } from "../bank/index.ts";
 import { splitsByDocument } from "../belege/index.ts";
+import { loadOwnAccountNumbers } from "../eigene-konten/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 import { externalImportArchive } from "./external-import-archive.ts";
@@ -488,6 +489,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       documentDate: schema.documents.documentDate,
       dueDate: schema.documents.dueDate,
       category: schema.documents.category,
+      ownAccountId: schema.documents.ownAccountId,
       payment: schema.documents.payment,
       note: schema.documents.note,
       currency: schema.documents.currency,
@@ -521,6 +523,23 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     : [];
   const amountsByDocument = groupBy(amounts, (a) => a.documentId);
   const splits = await splitsByDocument(documents.map((d) => d.id));
+  // Eigene Sachkonten (#270): Nummer am Beleg bzw. je Zeile der Aufteilung, zusätzlich zur Kategorie
+  const ownNumbers = await loadOwnAccountNumbers();
+  const splitOwnAccounts = groupBy(
+    documents.length === 0
+      ? []
+      : await db
+          .select({ documentId: schema.documentSplits.documentId, ownAccountId: schema.documentSplits.ownAccountId })
+          .from(schema.documentSplits)
+          .where(
+            inArray(
+              schema.documentSplits.documentId,
+              documents.map((d) => d.id),
+            ),
+          )
+          .orderBy(asc(schema.documentSplits.documentId), asc(schema.documentSplits.position)),
+    (l) => l.documentId,
+  );
   const usedDocumentPaths = new Set<string>();
   const documentPaths = new Map<string, string>();
   const documentRows: CsvValue[][] = [];
@@ -546,6 +565,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       doc.invoiceNumber,
       // Aufgeteilt (#271): Kategorie, Satz und Netto je Zeile, z. B. „wareneinkauf 19 % 100,00 | software 19 % 50,00“
       doc.category ?? (splits.get(doc.id) ?? []).map((l) => `${l.category} ${l.taxRate / 100} % ${money(l.net)}`).join(" | "),
+      // Eigenes Konto: am Beleg die Nummer, bei einer Aufteilung je Zeile in derselben Reihenfolge wie die Kategorien, leer ohne eigenes Konto
+      doc.ownAccountId
+        ? (ownNumbers.get(doc.ownAccountId) ?? "")
+        : (splitOwnAccounts.get(doc.id) ?? []).some((l) => l.ownAccountId)
+          ? (splitOwnAccounts.get(doc.id) ?? []).map((l) => (l.ownAccountId ? (ownNumbers.get(l.ownAccountId) ?? "") : "–")).join(" | ")
+          : "",
       money(rate(1900)?.net),
       money(rate(1900)?.tax),
       money(rate(700)?.net),
@@ -590,6 +615,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         "USt-IdNr.",
         "Rechnungsnummer",
         "Kategorie",
+        "Eigenes Konto",
         "Netto 19 %",
         "Vorsteuer 19 %",
         "Netto 7 %",

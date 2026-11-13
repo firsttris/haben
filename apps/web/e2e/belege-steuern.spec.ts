@@ -2059,6 +2059,85 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await expect(page.getByRole("region", { name: "Umsatzsteuererklärung", exact: true }).getByText(`Außerhalb abgegeben 02.01.${jahr + 1}`)).toBeVisible();
 });
 
+test("Eigene Konten: anlegen, am Beleg und in der Aufteilung wählen, buchen, archivieren (#270)", async ({ browser }) => {
+  await go("/einstellungen?bereich=konten");
+  const karte = page.getByRole("region", { name: "Eigene Konten", exact: true });
+  const neu = karte.getByRole("form", { name: "Neues Konto" });
+  await expect(karte).toContainText("Noch keine eigenen Konten.");
+  // Dieselbe Regel wie im Server: eine Nummer, die Haben schon belegt, wird vor dem Anlegen abgelehnt
+  await neu.getByLabel("Elternkategorie").selectOption("software");
+  await neu.getByLabel("Kontonummer").fill("4964");
+  await neu.getByLabel("Name", { exact: true }).fill("Software: Entwicklung");
+  await expect(neu).toContainText("in Haben schon belegt");
+  await expect(neu.getByRole("button", { name: "Konto anlegen" })).toBeDisabled();
+  await neu.getByLabel("Kontonummer").fill("4999");
+  await expect(neu.getByRole("button", { name: "Konto anlegen" })).toBeEnabled();
+  await neu.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByText("Konto 4999 angelegt.")).toBeVisible();
+  const liste = karte.getByRole("group", { name: "Eigene Konten der Firma" });
+  await expect(liste).toContainText("4999");
+  await expect(liste).toContainText("Software: Entwicklung");
+  await ohneAxeVerstoesse(page, ["/einstellungen?bereich=konten"]);
+
+  // Am Beleg: nur zur gewählten Kategorie, leer heißt das Konto der Kategorie
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "codewerk.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Codewerk GmbH") }]);
+  await expect(page.getByText("codewerk.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /codewerk\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Codewerk GmbH");
+  await page.getByLabel("Belegdatum").fill(day(-3));
+  await page.getByLabel("Kategorie").selectOption("buero");
+  await expect(page.getByLabel("Eigenes Konto")).toHaveCount(0);
+  await page.getByLabel("Kategorie").selectOption("software");
+  await page.getByLabel("Eigenes Konto").selectOption({ label: "4999 Software: Entwicklung" });
+  await page.getByRole("group", { name: "Beträge je Steuersatz" }).getByLabel("Netto", { exact: true }).fill("100,00");
+  // Kategorie gewechselt: das Konto gehört nicht mehr dazu und fällt weg
+  await page.getByLabel("Kategorie").selectOption("buero");
+  await expect(page.getByLabel("Eigenes Konto")).toHaveCount(0);
+  await page.getByLabel("Kategorie").selectOption("software");
+  await expect(page.getByLabel("Eigenes Konto")).toHaveValue("");
+
+  // Aufgeteilt: je Zeile wählbar
+  await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
+  await split.getByLabel("Eigenes Konto").first().selectOption({ label: "4999 Software: Entwicklung" });
+  await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("60,00");
+  await split.getByLabel("Kategorie").nth(1).selectOption("buero");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("40,00");
+  await expect(split.getByLabel("Eigenes Konto")).toHaveCount(1);
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText(/aufgeteilt auf 2 Zeilen/)).toBeVisible();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("group", { name: "Aufteilung auf Kategorien" }).getByLabel("Eigenes Konto").first()).toHaveValue(/.+/);
+
+  // Gebucht: die Buchung steht auf 4999, in der Belegliste neben der Aufteilung
+  // Auf dem Beleg bleiben: Ein anderer Test lässt einen Beleg offen, zu dem Haben sonst weiterspringt
+  await page.getByLabel("Nach dem Buchen zum nächsten offenen Beleg").uncheck();
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await bestaetigen(page, "Buchen");
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+  await go(`/konten/4999?jahr=${YEAR}`);
+  await expect(page.getByText("Software: Entwicklung").first()).toBeVisible();
+
+  // Archiviert: nicht mehr zur Wahl, der gebuchte Beleg behält es
+  await go("/einstellungen?bereich=konten");
+  await page.getByRole("button", { name: "Konto 4999 archivieren" }).click();
+  await expect(page.getByText("Konto 4999 archiviert.")).toBeVisible();
+  await expect(karte).toContainText("Archiviert");
+  // Ein Konto mit Belegen lässt sich nicht löschen
+  await page.getByRole("button", { name: "Konto 4999 löschen" }).click();
+  await bestaetigen(page, "Löschen");
+  await expect(page.getByText(/wird in Belegen verwendet/)).toBeVisible();
+});
+
 test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
   await ohneAxeVerstoesse(page, [
     "/belege",

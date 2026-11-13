@@ -37,6 +37,7 @@ import {
   settlementSchema,
 } from "../modules/bank/index.ts";
 import { authMiddleware, readMiddleware } from "../middleware.ts";
+import { ownAccountsOverview } from "../modules/eigene-konten/index.ts";
 import { listContactChoices, loadCompany } from "../modules/stammdaten/index.ts";
 import { documentBankAllocations, documentIbanCheck, documentSepaTransfers } from "../modules/bank/index.ts";
 import { db, schema } from "../db/index.ts";
@@ -102,6 +103,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       paymentHint: result.document.lockedAt ? null : await supplierPayment(result.document),
       aiAvailable: extractionAvailable(),
       categories: categoryOptions,
+      // Eigene Sachkonten (#270) zur Wahl bei der Kategorie und je Zeile der Aufteilung
+      ownAccounts: (await ownAccountsOverview()).accounts,
       // Vorschlag für „Neuen Lieferanten anlegen“ aus E-Rechnung oder Auslesung; die IBAN nur zum ausdrücklichen Übernehmen (#329)
       supplierSuggestion: result.document.lockedAt ? null : await supplierSuggestion(data),
       // Lieferanten aus den Kontakten zur Auswahl im Beleg
