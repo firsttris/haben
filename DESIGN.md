@@ -89,7 +89,7 @@ Seine gemessene Höhe steht in `--page-head-height` (`usePageHeadHeight` in `lib
 
 Auf dem Handy steht der Kopf kompakt: die Aktionen in einer Zeile, die seitlich scrollt; im Belegeditor (`.editor-actions`) brechen sie um, damit Speichern und Festschreiben sichtbar bleiben.
 
-Der Kontaktdialog (`NewContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
+Der Kontaktdialog (`NewContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen. Formular-Dialoge laufen über `FormDialog`, und der setzt Rand, Abstände und die stehende Knopfzeile selbst: Das Formular darin ist ein schlichtes `<form>` mit Feldern und als letztem Kind einer `.actions`-Zeile, ohne eigene Klassen für Rand oder Fußzeile. Abschnitte (`form-section`) und die Knopfzeile reichen bis an den Rand des Dialogs.
 
 ### Rückfragen
 

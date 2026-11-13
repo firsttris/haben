@@ -81,6 +81,7 @@ import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
 import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 import { kategorieAngabeSchema, kategoriebuchung } from "./direkt-kategorie.ts";
 import { quellenHinweis } from "./quellen.ts";
+import { belegTotals, vorsteuerAbschreibung, vorsteuerAusgleich } from "./vorsteuer-ausgleich.ts";
 import { STANDARD_SORTIERUNG, umsatzReihenfolge, type UmsatzSortierung } from "./umsatzliste.ts";
 
 export class BankError extends UserError {}
@@ -1231,6 +1232,10 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
       throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
     }
     lines = documentPaymentPosting(part.amount, company.kontenrahmen);
+    // Gutschrift „erstattet bereits Bezahltes“ (#786): der erstattete Anteil geht vom Zwischenkonto auf die Vorsteuer
+    if (doc.erstattetBezahltes) {
+      lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), part.amount, company.kontenrahmen)));
+    }
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
   } else if (part.kind === "ustva") {
@@ -1527,6 +1532,10 @@ export async function bookWriteOff(
       await assertNotCancelled(tx, doc.id);
       amount = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
       lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
+      // Die Steuer bleibt beim Kurs des Belegs; der ausgeglichene Anteil geht trotzdem vom Zwischenkonto (#786)
+      if (doc.erstattetBezahltes) {
+        lines.push(...(await vorsteuerAusgleich(tx, doc, await belegTotals(tx, doc), amount, company.kontenrahmen)));
+      }
       description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
       target = { invoiceId: null, documentId: doc.id };
     }
@@ -1547,7 +1556,9 @@ export async function bookWriteOff(
     const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
     const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax })).sort((a, b) => b.rate - a.rate);
     const totals = { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
-    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug);
+    // Gutschrift „erstattet bereits Bezahltes“ (#786): Der Rest erstattet nichts mehr, die Steuerzeile schreibt den Rest
+    // des Zwischenkontos ab; aus dem Betrag dieses Skontos allein gerechnet bliebe ein Cent darauf stehen
+    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug, await vorsteuerAbschreibung(tx, doc, totals, amount));
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { invoiceId: null, documentId: doc.id };
   } else {

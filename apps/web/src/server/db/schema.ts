@@ -1734,7 +1734,23 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
+      enum: [
+        "invoice",
+        "document",
+        "allocation",
+        "asset",
+        "pauschale",
+        "kasse",
+        "ausbuchung",
+        "manuell",
+        "eroeffnung",
+        "ausschuettung",
+        "lohn",
+        "import",
+        // Verrechnung zweier Belege (#274): bisher ohne Buchung; seit #786 trägt sie die Umbuchung der Vorsteuer aus dem
+        // Zwischenkonto, mit #785 kommen die zwei Buchungen je Belegseite dazu
+        "verrechnung",
+      ],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1894,6 +1910,13 @@ export const documents = pgTable(
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
+    /**
+     * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+     * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
+     * zurückkommt oder verrechnet wird, und steht bis dahin auf dem Zwischenkonto. Ausdrückliche Angabe, nicht aus dem
+     * Zahlungsstand abgeleitet. Nur an Gutschriften (negativer Beleg).
+     */
+    erstattetBezahltes: boolean("erstattet_bezahltes").notNull().default(false),
     /**
      * § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (ig_erwerb, § 1a UStG): Die Steuer schuldest du selbst.
      * Die Beträge tragen die selbst berechnete Steuer, gezahlt wird nur netto (gross = net).
@@ -2910,6 +2933,24 @@ export const legacyVoucherPayments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_voucher_payments_source_external").on(t.source, t.externalId), index("legacy_voucher_payments_voucher").on(t.voucherId)],
+);
+
+/**
+ * Kontostamm eines Buchungskontos aus sevDesk (GET /AccountingType/{id}), unverändert. Gutschriften mit `bookingCategory`
+ * ACCOUNTING_TYPE folgen zur Laufzeit dessen Kontonummern (#472). Nur anhängen; ein gleicher Stand kommt nur einmal an.
+ */
+export const sevdeskAccountingTypes = pgTable(
+  "sevdesk_accounting_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    accountingTypeId: text("accounting_type_id").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
 );
 
 /** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */

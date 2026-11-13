@@ -314,6 +314,39 @@ jobs:
         env:
           COMPOSE_PROJECT_NAME: haben-ci-rollen
           HABEN_TEST_PORT: 3000
+      # Werkzeug für mehrere Instanzen (#504) mit dem Image dieses Laufs: zwei Firmen, getrennte Datenbanken.
+      # Es läuft wie beim Betreiber mit Bun direkt aus dem Checkout, ohne bun install
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - name: Mehrere Instanzen
+        env:
+          HABEN_INSTANZEN: ${{ runner.temp }}/haben
+        run: |
+          set -x
+          docker tag haben:ci tristanteu/haben:latest
+          bun deploy/instanzen/haben-instanzen.ts neu firma1 firma1.haben.test --eigener-proxy
+          bun deploy/instanzen/haben-instanzen.ts neu firma2 firma2.haben.test --eigener-proxy
+          # Ein Beleg in Firma 1 ist in Firma 2 nicht zu finden
+          sha="$(echo beleg | sha256sum | cut -d' ' -f1)"
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -qc \
+            "INSERT INTO documents (sha256, filename, mime_type, size, net, tax, gross) VALUES ('$sha', 'beleg.pdf', 'application/pdf', 6, 0, 0, 0)")
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -Atc 'SELECT count(*) FROM documents')" = 1
+          test "$(cd "$HABEN_INSTANZEN/firma2" && docker compose exec -T db psql -U haben -d haben -Atc 'SELECT count(*) FROM documents')" = 0
+          # Die App läuft als eingeschränkte Rolle haben_app, nicht als Eigentümer (#816)
+          (cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app sh -c 'case "$DATABASE_URL" in postgres://haben_app:*) ;; *) exit 1 ;; esac')
+          test "$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T db psql -U haben -d haben -Atc "SELECT count(*) FROM pg_roles WHERE rolname = 'haben_app' AND NOT rolsuper")" = 1
+          # Ein Proxy im Netz haben-proxy erreicht jede App unter ihrem eigenen Namen
+          for n in firma1 firma2; do
+            docker run --rm --network haben-proxy --entrypoint bun haben:ci \
+              -e "fetch('http://haben-$n:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+          done
+          # Der Befehl haben im Image nennt die Version aus package.json, status zeigt sie je Instanz
+          version="$(cd "$HABEN_INSTANZEN/firma1" && docker compose exec -T app haben status --json | jq -r .version)"
+          test "$version" = "$(jq -r .version package.json)"
+          bun deploy/instanzen/haben-instanzen.ts status | tee "$RUNNER_TEMP/status.txt"
+          grep -E "^firma1 +firma1\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
+          grep -E "^firma2 +firma2\.haben\.test +${version//./\\.} " "$RUNNER_TEMP/status.txt"
 
   # Die Entwicklungsumgebung aus compose.yml im Hauptordner: startet sie, läuft der Dev-Server mit Datenbank
   dev-compose:

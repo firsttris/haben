@@ -15,6 +15,7 @@ Ein Update lässt sich nicht einfach zurücknehmen: Migrationen ändern die Date
 | Zeitplan | Dienst `backup`, täglich um `BACKUP_TIME` (Standard 03:15, Zeitzone Europe/Berlin) | `haben-backup.timer` startet `haben-backup.container` täglich um 03:15 Uhr, ein verpasster Lauf wird nachgeholt (`Persistent=true`) |
 | Backup jetzt | `docker compose exec backup backup.sh` | `systemctl --user start haben-backup` |
 | Protokoll | `docker compose logs backup` | `journalctl --user -u haben-backup` |
+| Stand | `docker compose exec app haben status`: Version, ERiC und letzte erfolgreiche Sicherung, mit Hinweis, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner gelang (`--json` für Skripte) | `podman exec haben-app haben status` |
 | Passwort des Backups | `RESTIC_PASSWORD` in `.env` | Secret `haben-restic-password` |
 | Repository auf einem zweiten System | `RESTIC_REPOSITORY` in `.env` | `RESTIC_REPOSITORY` in `~/.config/haben/backup.env` |
 | Test-Restore | alle `RESTORE_CHECK_DAYS` Tage (`.env`, Standard 7) | alle `RESTORE_CHECK_DAYS` Tage (`backup.env`, Standard 7) |

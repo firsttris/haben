@@ -48,6 +48,13 @@ function SourcePill({ entry }: { entry: Entry }) {
         {label}
       </Link>
     );
+  // Verrechnung zweier Belege (#786): je Belegseite eine Buchung, der Link führt auf ihren Beleg
+  if (entry.sourceType === "verrechnung" && entry.documentId)
+    return (
+      <Link to="/belege/$id" params={{ id: entry.documentId }} className="pill">
+        {label}
+      </Link>
+    );
   if (entry.sourceType === "asset")
     return (
       <Link to="/anlagen/$id" params={{ id }} className="pill">

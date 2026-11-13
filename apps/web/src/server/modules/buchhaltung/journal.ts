@@ -103,12 +103,25 @@ export async function loadJournal(year: number, month: number) {
         ).map((r) => r.id),
       )
     : new Set<string | null>();
+  // Verrechnung zweier Belege (#786): Die Buchung je Seite hängt an ihrer Zeile in document_settlements, die Zeile am Beleg.
+  // Das Journal verlinkt damit auf den Beleg statt auf die Bank.
+  const verrechnungIds = entries.flatMap((e) => (e.sourceType === "verrechnung" ? [e.sourceId] : []));
+  const verrechnungBelege = new Map<string, string>();
+  if (verrechnungIds.length > 0) {
+    const rows = await db
+      .select({ id: schema.documentSettlements.id, documentId: schema.documentSettlements.documentId })
+      .from(schema.documentSettlements)
+      .where(inArray(schema.documentSettlements.id, verrechnungIds));
+    for (const row of rows) verrechnungBelege.set(row.id, row.documentId);
+  }
   return entries.map((entry) => ({
     id: entry.id,
     date: entry.date,
     description: entry.description,
     sourceType: entry.sourceType,
     sourceId: entry.sourceId,
+    // Beleg einer Verrechnungsbuchung (#786): ihre Quelle ist die Zeile in document_settlements, die am Beleg hängt
+    documentId: verrechnungBelege.get(entry.sourceId) ?? null,
     reversal: entry.reversesId !== null,
     reversed: reversedIds.has(entry.id),
     lines: lines.filter((l) => l.entryId === entry.id).map((l) => ({ ...l, name: accountName(entry.kontenrahmen, l.account) })),
