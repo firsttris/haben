@@ -214,6 +214,9 @@ function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
     invoiceNumber: invoice.number,
     documentDate: invoice.issueDate,
     dueDate: invoice.dueDate ?? null,
+    // BT-73/BT-74 der E-Rechnung: der Leistungszeitraum ist die beste Vorbelegung, die ein Beleg mitbringt (#693)
+    serviceFrom: invoice.serviceFrom ?? null,
+    serviceTo: invoice.serviceTo ?? null,
     currency: invoice.currency,
     category: "sonstiges",
     amounts,

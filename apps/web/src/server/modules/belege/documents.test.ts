@@ -191,6 +191,9 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       issueDate: "2026-09-30",
       dueDate: "2026-10-14",
       paymentTermDays: 14,
+      // Leistungszeitraum in der E-Rechnung (BT-73/BT-74): kommt als Vorbelegung an den Beleg (#693)
+      serviceFrom: "2026-09-01",
+      serviceTo: "2026-09-30",
       currency: "EUR",
       seller: {
         name: "Hetzner Online GmbH",
@@ -218,6 +221,8 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       supplierName: sample.seller.name,
       invoiceNumber: sample.number,
       documentDate: sample.issueDate,
+      serviceFrom: "2026-09-01",
+      serviceTo: "2026-09-30",
       gross: sample.totals.gross,
       category: null,
     });
