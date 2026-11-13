@@ -57,9 +57,13 @@ Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Au
 
 ### Reihenfolge der Knöpfe
 
-In einer Knopfzeile (`.actions`, auch `.form-footer` und Dialoge) steht die Hauptaktion (`btn-primary`) als letzter Knopf, rechts; Abbrechen und Nebenaktionen („Entwurf speichern“, „Nur prüfen“) stehen davor, ein Gefahrknopf (`btn-danger`: Löschen, Entfernen) ganz vorn, weit weg von der Hauptaktion. Die Folge steht so im Markup, nicht per `order` oder `flex-direction: row-reverse`: Die Tab-Reihenfolge folgt dem DOM und soll der sichtbaren gleichen (WCAG 2.4.3).
+In einer Knopfzeile (`.actions`, auch `.form-footer` und Dialoge) steht die Hauptaktion (`btn-primary`) als letzter Knopf, rechts; Abbrechen und Nebenaktionen („Entwurf speichern“, „Nur prüfen“) stehen davor. Das Überlaufmenü `⋯` ist keine Aktion der Zeile und zählt dabei nicht mit: Am Laptop steht es ganz rechts hinter der Hauptaktion, am Handy links neben der Vorschau (#355, Variante E).
 
-Ausrichtung: auf der Seite linksbündig an der Kante der Felder, im Dialog rechtsbündig (`dialog .form-footer`), im Seitenkopf rechts. Auf dem Handy füllen die Knöpfe die Zeile und brechen bei Bedarf um, die Hauptaktion bleibt rechts; kleine Knöpfe (`btn-sm`) in Tabellen und Bannern bleiben so breit wie ihr Text. Kein Stapeln mit der Hauptaktion oben: Das ginge nur gegen die DOM-Reihenfolge. Einzige, gewollte Ausnahme ist das Blatt von `ConfirmDialog` am Handy (siehe Rückfragen). `e2e/knopfreihenfolge.spec.ts` prüft das (#394).
+Ein Gefahrknopf (`btn-danger`: Löschen, Entfernen, Trennen) steht ganz vorn, links, so weit wie möglich von der Hauptaktion weg: Ein Klick oder Tipp, der die Hauptaktion knapp verfehlt, trifft dann einen harmlosen Knopf. Löscht er Gespeichertes oder lässt sich die Folge nicht zurücknehmen, öffnet er erst den `ConfirmDialog` (siehe Rückfragen). Das ist nötig, weil er vorn auch der erste Tab-Stopp der Zeile ist: Tab aus dem letzten Feld und Enter dürfen nichts löschen. Ohne Rückfrage bleiben nur Umkehrbares (Ausschalten, das sich wieder einschalten lässt) und das Entfernen einer Zeile aus einem noch nicht gespeicherten Formular.
+
+Die Tab-Reihenfolge folgt dem Markup und gleicht der sichtbaren (WCAG 1.3.2 und 2.4.3). Die Folge steht deshalb so im Markup; nicht per `order` oder `flex-direction: row-reverse` umdrehen und keinen positiven `tabindex` setzen, um den Fokus zuerst auf die Hauptaktion zu lenken: Ein positiver `tabindex` zieht den Knopf vor alle übrigen Elemente der Seite, Sprunglink und Navigation eingeschlossen, und Screenreader lesen die Zeile in anderer Folge vor, als sie zu sehen ist. Aus dem letzten Feld speichert Enter das Formular ohnehin direkt.
+
+Ausrichtung: auf der Seite linksbündig an der Kante der Felder, im Dialog rechtsbündig (`dialog .form-footer`), im Seitenkopf rechts. Auf dem Handy füllen die Knöpfe die Zeile und brechen bei Bedarf um, die Hauptaktion bleibt rechts; kleine Knöpfe (`btn-sm`) in Tabellen und Bannern bleiben so breit wie ihr Text. Kein Stapeln mit der Hauptaktion oben: Das ginge nur gegen die DOM-Reihenfolge. Einzige, gewollte Ausnahme ist das Blatt von `ConfirmDialog` am Handy (siehe Rückfragen). `e2e/knopfreihenfolge.spec.ts` prüft Reihenfolge, Gefahrknopf vorn und dass weder CSS noch `tabindex` die Folge ändern (#394).
 
 ### Symbole
 
@@ -147,6 +151,7 @@ Der Code hält diese Regeln noch nicht überall ein. Neuer Code hält sich an di
 
 - **4px-Raster:** In `apps/web/src/**/*.css` haben manche `padding`, `margin` und `gap` px-Werte, die nicht durch 4 teilbar sind (meist 1 oder 2px, auch 6, 10 oder 14px).
 - **Farben:** Einige Regeln setzen einen festen Hex-Wert statt einer Variable, meist `#fff` für Text auf Akzent- und Navigationsflächen (`.btn-primary`, `.brand`, `.nav-link:hover`).
+- **Gefahrknöpfe ohne Rückfrage:** „Entfernen“ an Logo und Bildern (`components/ImageUpload.tsx`) und „Entwurf löschen“ an der Lohnabrechnung (`components/lohn/AbrechnungKarte.tsx`) löschen sofort.
 - **Schriftgrößen:** `components/IbanCheck.tsx` setzt an zwei Überschriften `fontSize: 15`.
 - **Verläufe:** `styles.css` nutzt `linear-gradient` für den auslaufenden Rand des Blatts in der Vorschau (`.preview-pane-body`, `.preview-dialog-body`, `.sheet-frame::before` und `::after`) und `conic-gradient` für das Farbfeld „Eigene Farbe“ (`.color-swatch-custom`).
 - **Symbole:** Als Unicode-Zeichen statt über `Icon` stehen `▾` und `▸` (mit `aria-hidden`) im aufklappbaren Abschnitt in `routes/_app/umsatzsteuer/$zeitraum.tsx`, `›` als Aufklapp-Pfeil (`.chevron` in `components/BilanzGuv.tsx`, `routes/_app/konten/index.tsx`, `routes/_app/buchungen/index.tsx`; `.est-block > summary::before` in `styles/auswertungen.css`), `›` als Trenner im Pfad über dem Seitentitel und `→` in `routes/_app/kasse.tsx`.
