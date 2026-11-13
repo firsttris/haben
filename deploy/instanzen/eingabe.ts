@@ -7,27 +7,36 @@ import { abbrechen } from "./kontext.ts";
 
 const STRG_C = 0x03;
 const STRG_D = 0x04;
+const STRG_U = 0x15;
 const RUECK = [0x08, 0x7f];
 const ENTER = [0x0a, 0x0d];
 
 /**
  * Setzt eine Zeile aus einzelnen Bytes zusammen, bis Enter, Strg+D oder das Ende kommt. Rücktaste löscht ein ganzes
- * Zeichen, auch wenn es in UTF-8 mehrere Bytes hat; Strg+C bricht ab.
+ * Zeichen, auch wenn es in UTF-8 mehrere Bytes hat; Strg+U verwirft die Eingabe, Strg+C bricht ab. Andere
+ * Steuerzeichen (Pfeiltasten, Tab) kämen ungesehen ins Secret: Die Zeile wird zu Ende gelesen und dann abgelehnt.
  */
 export function zeileAusBytes(naechstes: () => number | null): string {
   const bytes: number[] = [];
+  let steuerzeichen = false;
   for (;;) {
     const b = naechstes();
     if (b === null || b === STRG_D || ENTER.includes(b)) break;
     if (b === STRG_C) abbrechen("Abgebrochen.");
+    if (b === STRG_U) {
+      bytes.length = 0;
+      continue;
+    }
     if (!RUECK.includes(b)) {
-      bytes.push(b);
+      if (b < 0x20) steuerzeichen = true;
+      else bytes.push(b);
       continue;
     }
     // Folgebytes (10xxxxxx) gehören zum Zeichen davor
     while (bytes.length > 0 && ((bytes.at(-1) ?? 0) & 0xc0) === 0x80) bytes.pop();
     bytes.pop();
   }
+  if (steuerzeichen) abbrechen("Die Eingabe enthält Steuerzeichen, etwa von einer Pfeiltaste; nichts übernommen.");
   return Buffer.from(bytes).toString("utf8");
 }
 
