@@ -117,8 +117,8 @@ describe("needsEdgeOnNav", () => {
     expect(needsEdgeOnNav("#696969")).toBe(false);
   });
 
-  it("kennt die Navigation aller sechs Themes", () => {
-    expect(NAV_BACKGROUNDS).toHaveLength(6);
+  it("kennt die Navigation der vier Farben hell und des dunklen Modus", () => {
+    expect(NAV_BACKGROUNDS).toHaveLength(5);
     for (const bg of NAV_BACKGROUNDS) expect(bg).toMatch(ACCENT_PATTERN);
   });
 });

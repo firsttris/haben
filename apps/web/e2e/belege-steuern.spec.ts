@@ -296,17 +296,24 @@ test("Bank verbinden: die markierte Bank ist gewählt, auch als einziger Treffer
   }
 });
 
-test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
+test("Farbe und Modus wechseln, bleiben nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/ })).toBeVisible();
-  await nav.getByLabel("Theme").selectOption("tiefsee");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
+  const html = page.locator("html");
+  await nav.getByLabel("Farbe").selectOption("pflaume");
+  await nav.getByLabel("Modus").selectOption("dunkel");
+  await expect(html).toHaveAttribute("data-theme", "pflaume");
+  await expect(html).toHaveAttribute("data-mode", "dark");
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
-  await expect(nav.getByLabel("Theme")).toHaveValue("tiefsee");
-  await nav.getByLabel("Theme").selectOption("wald");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "wald");
+  await expect(html).toHaveAttribute("data-theme", "pflaume");
+  await expect(html).toHaveAttribute("data-mode", "dark");
+  await expect(nav.getByLabel("Farbe")).toHaveValue("pflaume");
+  await expect(nav.getByLabel("Modus")).toHaveValue("dunkel");
+  await nav.getByLabel("Farbe").selectOption("wald");
+  await nav.getByLabel("Modus").selectOption("hell");
+  await expect(html).toHaveAttribute("data-theme", "wald");
+  await expect(html).toHaveAttribute("data-mode", "light");
 });
 
 test("Fristen und Kalender-Abo", async () => {

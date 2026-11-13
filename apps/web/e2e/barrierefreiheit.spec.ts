@@ -12,7 +12,8 @@ import { ANONYMOUS, chunks, currentYear, fakeEigeneSeite, firstLink, SESSION, US
 
 test.use({ storageState: SESSION });
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
-const THEMES = ["wald", "ozean", "pflaume", "graphit", "nacht", "tiefsee"];
+/** Jede Farbe hell und dunkel, als „Farbe“ oder „Farbe:dunkel“ (withTheme) */
+const THEMES = ["wald", "ozean", "pflaume", "graphit", "wald:dunkel", "ozean:dunkel", "pflaume:dunkel", "graphit:dunkel"];
 
 const YEAR = currentYear();
 
@@ -148,9 +149,13 @@ async function axe(p: Page, rules?: string[]) {
   );
 }
 
-/** Theme vor dem ersten Laden setzen; das Skript im Kopf der Seite liest es aus localStorage */
+/** Farbe und Modus vor dem ersten Laden setzen; das Skript im Kopf der Seite liest sie aus localStorage */
 async function withTheme(p: Page, theme: string) {
-  await p.addInitScript((t) => localStorage.setItem("haben-theme", t), theme);
+  await p.addInitScript((t) => {
+    const [farbe, modus = "hell"] = t.split(":");
+    localStorage.setItem("haben-theme", farbe!);
+    localStorage.setItem("haben-modus", modus);
+  }, theme);
 }
 
 test("Anmeldeseite ohne Verstöße", async ({ browser }) => {
@@ -216,7 +221,7 @@ function fieldsOffSurface(p: Page) {
   });
 }
 
-for (const theme of THEMES.filter((t) => t === "nacht" || t === "tiefsee")) {
+for (const theme of THEMES.filter((t) => t.endsWith(":dunkel"))) {
   test(`Eingabefelder auf der Theme-Fläche im Theme ${theme}`, async ({ page }) => {
     await withTheme(page, theme);
     for (const path of FIELD_PAGES) {
@@ -685,7 +690,7 @@ test("Dateiwähler im Graph-Versand: Klick öffnet den Dialog, Hinweis gehört z
 // Steuer nebeneinander; nichts läuft unter ein Feld, keine Zeile wird zehnmal so hoch wie am Desktop
 test("Kennzahlen der Voranmeldung am Handy: Bezeichnung über die volle Breite, nichts unter einem Feld", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await withTheme(page, "nacht");
+  await withTheme(page, "wald:dunkel");
   let gefunden = false;
   for (const candidate of [`/umsatzsteuer/${YEAR}-Q1`, `/umsatzsteuer/${YEAR}-03`, `/umsatzsteuer/${YEAR - 1}-03`, `/umsatzsteuer/${YEAR + 1}-03`]) {
     await open(page, candidate);

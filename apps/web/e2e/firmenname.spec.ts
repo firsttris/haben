@@ -114,20 +114,36 @@ test("„Haben“ bleibt, wie es ist, der Name steht kleiner darunter", async ({
 });
 
 // axe misst den Kontrast sonst nur im Standard-Theme; die Navigation hat in jedem Theme eigene Farben
-test("Name und „Haben“ sind in jedem Theme kontrastreich genug", async ({ page }) => {
+test("Name und „Haben“ sind in jeder Farbe hell und dunkel kontrastreich genug", async ({ page }) => {
   const verstoesse: string[] = [];
-  for (const { id } of THEMES.filter((t) => t.id !== "auto")) {
-    for (const breite of [1280, 375]) {
-      await page.setViewportSize({ width: breite, height: 812 });
-      await page.goto("/");
-      await page.evaluate((theme) => localStorage.setItem("haben-theme", theme), id);
-      await page.reload();
-      await expect(page.locator("html")).toHaveAttribute("data-theme", id);
-      await expect(nav(page).getByText(FIRMA)).toBeVisible();
-      const { violations } = await new AxeBuilder({ page }).include("nav .brand").withRules(["color-contrast"]).analyze();
-      verstoesse.push(...violations.flatMap((v) => v.nodes.map((n) => `${id} ${breite}px: ${n.target.join(" ")}`)));
+  for (const { id } of THEMES) {
+    for (const [modus, mode] of [
+      ["hell", "light"],
+      ["dunkel", "dark"],
+    ] as const) {
+      for (const breite of [1280, 375]) {
+        await page.setViewportSize({ width: breite, height: 812 });
+        await page.goto("/");
+        await page.evaluate(
+          ([theme, m]) => {
+            localStorage.setItem("haben-theme", theme);
+            localStorage.setItem("haben-modus", m);
+          },
+          [id, modus] as const,
+        );
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-theme", id);
+        await expect(page.locator("html")).toHaveAttribute("data-mode", mode);
+        await expect(nav(page).getByText(FIRMA)).toBeVisible();
+        const { violations } = await new AxeBuilder({ page }).include("nav .brand").withRules(["color-contrast"]).analyze();
+        verstoesse.push(...violations.flatMap((v) => v.nodes.map((n) => `${id} ${modus} ${breite}px: ${n.target.join(" ")}`)));
+      }
     }
   }
+  await page.evaluate(() => {
+    localStorage.removeItem("haben-theme");
+    localStorage.removeItem("haben-modus");
+  });
   expect(verstoesse).toEqual([]);
 });
 
