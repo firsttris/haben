@@ -1,8 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
+import { type Browser, expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { day, fullPageScreenshot, USER, vorschauAnheften, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
 import { dkb, kundeWaehlen, type Rechnung, rechnungFestschreiben } from "./einrichtung.ts";
+import { mitRahmen } from "./bildrahmen.ts";
 
 /**
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
@@ -23,8 +25,10 @@ const DESKTOP = { width: 1440, height: 900 };
 const MOBIL = { width: 390, height: 844 };
 
 let page: Page;
+let browserFuerRahmen: Browser;
 
 test.beforeAll(async ({ browser }) => {
+  browserFuerRahmen = browser;
   page = await browser.newPage({ viewport: DESKTOP, locale: "de-DE", timezoneId: "Europe/Berlin" });
   // Das Bild „Rechnung schreiben mit Vorschau“ zeigt Formular und Vorschau nebeneinander
   await vorschauAnheften(page);
@@ -71,7 +75,7 @@ async function einrichtungshinweiseAusblenden() {
   }, EINRICHTUNGSHINWEISE);
 }
 
-/** Jedes Bild in Wald hell und dunkel; README und Doku zeigen das passende zur Systemeinstellung */
+/** Jedes Bild in Wald hell und dunkel; README und Doku zeigen das passende zur Systemeinstellung, beide mit Rahmen (bildrahmen.ts) */
 async function shot(name: string, fullPage = false) {
   await einrichtungshinweiseAusblenden();
   for (const [id, suffix] of [
@@ -80,8 +84,10 @@ async function shot(name: string, fullPage = false) {
   ] as const) {
     await theme(id);
     // Kein blinkender Cursor, keine halb abgelaufene Animation im Bild
-    const options = { path: `${DOCS}/screenshot-${name}${suffix}.png`, animations: "disabled", caret: "hide" } as const;
-    await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
+    const options = { animations: "disabled", caret: "hide" } as const;
+    const png = await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
+    const radius = page.viewportSize()?.width === MOBIL.width ? 36 : 16;
+    await writeFile(`${DOCS}/screenshot-${name}${suffix}.png`, await mitRahmen(browserFuerRahmen, png, id === "dark" ? "dunkel" : "hell", { radius }));
   }
   await theme("light");
 }
@@ -246,6 +252,8 @@ test("Umsatzsteuer, Auswertungen und Archiv", async () => {
   await go("/auswertungen");
   await shot("auswertungen");
   await go("/archiv");
+  // Der obere Teil für die Startseite der Doku, mit eigenem Rahmen; die ganze Seite für die übrigen Seiten
+  await shot("archiv-oben");
   await shot("archiv", true);
 });
 
