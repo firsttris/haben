@@ -1,8 +1,8 @@
 ---
 title: "Haben auf Unraid installieren"
 description: >-
-  Haben auf Unraid mit drei Docker-Vorlagen: App, Datenbank und Backup, dazu Netzwerk, Ordner und Schlüssel aus einem
-  Terminal-Befehl und HTTPS über einen Reverse Proxy.
+  Haben auf Unraid mit drei Docker-Vorlagen für App, Datenbank und Backup: Netzwerk, Ordner und Schlüssel per Terminal,
+  HTTPS über einen Reverse Proxy.
 ---
 
 # Unraid

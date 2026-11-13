@@ -1,8 +1,8 @@
 ---
 title: "Haben auf TrueNAS SCALE installieren"
 description: >-
-  Haben auf TrueNAS SCALE als eigene App aus einer YAML-Datei: Adresse eintragen, installieren, HTTPS über Nginx Proxy
-  Manager. Die Schlüssel erzeugt die App beim ersten Start.
+  Haben auf TrueNAS SCALE als eigene App aus einer YAML-Datei: Adresse eintragen, installieren, HTTPS über einen
+  Reverse Proxy. Die Schlüssel erzeugt die App selbst.
 ---
 
 # TrueNAS SCALE
