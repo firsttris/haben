@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { type ChildProcess, spawn } from "node:child_process";
 import { createConnection, createServer, type Server, type Socket } from "node:net";
+import { appDatabaseUrlFuer } from "./durchlaeufe.ts";
+import { serverEnvironment } from "./server-env.ts";
 
 /*
  * Der gebaute Server darf eine Anfrage nicht abbrechen, nur weil die Antwort länger als zehn Sekunden braucht
@@ -11,7 +13,7 @@ import { createConnection, createServer, type Server, type Socket } from "node:n
  */
 
 const command = process.env.E2E_SERVER_COMMAND;
-const databaseUrl = new URL(process.env.E2E_DATABASE_URL ?? "postgres://localhost/haben_e2e");
+const databaseUrl = new URL(appDatabaseUrlFuer(undefined, "langsame-anfrage") || "postgres://localhost/haben_e2e");
 const port = Number(process.env.E2E_PORT ?? 3100) + 7;
 const DELAY_MS = 12_000;
 
@@ -76,7 +78,7 @@ test.beforeAll(async () => {
   // exec: kill() trifft den Server selbst, nicht nur die Shell
   server = spawn("sh", ["-c", `exec ${command}`], {
     stdio: "ignore",
-    env: {
+    env: serverEnvironment({
       ...process.env,
       DATABASE_URL: viaProxy.toString(),
       PORT: String(port),
@@ -85,7 +87,7 @@ test.beforeAll(async () => {
       HABEN_ENCRYPTION_KEY: process.env.HABEN_ENCRYPTION_KEY ?? Buffer.alloc(32, 7).toString("base64"),
       HABEN_SCHEDULER: "off",
       HABEN_SETUP_CODE: "e2e-einrichtungscode",
-    },
+    }),
   });
   await waitForServer(`http://localhost:${port}/api/auth/get-session`);
 });

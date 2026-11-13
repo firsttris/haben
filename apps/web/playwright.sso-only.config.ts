@@ -1,5 +1,6 @@
 import { ssoTestTls } from "./e2e/sso-tls.ts";
 import { defineConfig } from "@playwright/test";
+import { appDatabaseUrlFuer } from "./e2e/durchlaeufe.ts";
 
 /** Getrennter Durchlauf: keine vorhandene Entwicklungsinstanz oder Datenbank wird verwendet. */
 const database = process.env.E2E_DATABASE_URL;
@@ -34,7 +35,7 @@ export default defineConfig({
     },
     {
       // Produktionslauf: TLS-Reverse-Proxy und lokaler TLS-Testanbieter; kein HTTP-Schalter im Betriebscode.
-      command: `bun e2e/reset-db.ts && bun run db:migrate && ${production ? "bun e2e/sso-production-server.ts" : "bun --preload ./e2e/oidc-preload.ts --bun vite dev --port 3218"}`,
+      command: "bun e2e/reset-db.ts && bun run db:migrate && bun e2e/start-server.ts",
       url: `${baseURL}/login`,
       ignoreHTTPSErrors: production,
       timeout: 180_000,
@@ -42,7 +43,9 @@ export default defineConfig({
       env: {
         ...process.env,
         ...tlsEnv,
-        DATABASE_URL: database,
+        DATABASE_URL: appDatabaseUrlFuer(undefined, "sso"),
+        MIGRATION_DATABASE_URL: process.env.E2E_APP_DATABASE_URL ? database : "",
+        E2E_SERVER_COMMAND: production ? "bun e2e/sso-production-server.ts" : "bun --preload ./e2e/oidc-preload.ts --bun vite dev --port 3218",
         E2E_DATABASE_URL: database,
         BETTER_AUTH_URL: baseURL,
         BETTER_AUTH_SECRET: "e2e-oidc-secret-mindestens-32-zeichen",
