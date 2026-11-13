@@ -55,7 +55,7 @@ import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseErro
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { monatsschluessel } from "./aufhebung-vorbelegung.ts";
+import { gesendeteMonate } from "./aufhebung-vorbelegung.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -1804,5 +1804,6 @@ export async function gemeldeteVoranmeldungen(): Promise<string[]> {
     .select({ jahr: schema.vatReturns.year, monat: schema.vatReturns.month })
     .from(schema.vatReturns)
     .where(eq(schema.vatReturns.status, "sent"));
-  return rows.map((r) => monatsschluessel(r.jahr, r.monat));
+  // Q1 liegt als month = 41 in vat_returns: erst in die Zahlungsmonate auflösen (#782)
+  return gesendeteMonate(rows);
 }
