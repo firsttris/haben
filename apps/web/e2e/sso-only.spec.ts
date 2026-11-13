@@ -3,6 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import postgres from "postgres";
 import { spawn } from "node:child_process";
+import { serverEnvironment } from "./server-env.ts";
 
 /*
  * SSO-Modus im Browser (playwright.sso-only.config.ts): Ersteinrichtung nur durch die Inhaber-Gruppe, automatische
@@ -265,7 +266,7 @@ test("SSO: API/MCP und Kalender nach Herabstufung übernehmen und reaktivieren",
 test("Produktionsserver beendet sich bei fehlgeschlagener Datenbank-Startprüfung", async () => {
   test.skip(!process.env.E2E_SERVER_COMMAND, "Nur gegen den Produktionsbuild");
   const child = spawn("bun", [".output/server/index.mjs"], {
-    env: {
+    env: serverEnvironment({
       ...process.env,
       DATABASE_URL: "postgres://test@127.0.0.1:1/startup_failure",
       BETTER_AUTH_URL: BASE,
@@ -273,7 +274,7 @@ test("Produktionsserver beendet sich bei fehlgeschlagener Datenbank-Startprüfun
       HABEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
       OIDC_ONLY: "false",
       PORT: "3298",
-    },
+    }),
     stdio: "ignore",
   });
   let timer: ReturnType<typeof setTimeout> | undefined;
