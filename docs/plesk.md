@@ -61,6 +61,7 @@ beschrieben:
 ```sh
 docker compose up -d --wait db
 docker compose exec db createuser -U haben --login --no-superuser --no-createdb --no-createrole --pwprompt haben_app
+# Zweimal das App-Passwort aus DATABASE_URL eingeben; die Rolle nur einmal anlegen.
 docker compose up -d
 docker compose logs -f app   # bis „Listening on …“, darüber steht der Einrichtungscode
 ```
