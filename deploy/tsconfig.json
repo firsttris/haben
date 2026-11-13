@@ -1,0 +1,7 @@
+{
+  // deploy/ ist kein Workspace: das Werkzeug für mehrere Instanzen läuft ohne bun install aus dem Checkout. Die Typen
+  // für Node kommen aus den Dev-Abhängigkeiten der Wurzel, der benutzte Teil von Bun steht in instanzen/bun.d.ts
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "types": ["node"] },
+  "include": ["instanzen"]
+}

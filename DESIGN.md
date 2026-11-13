@@ -57,6 +57,16 @@ Knöpfe und Karten tragen einen feinen Schatten (`--shadow-xs`), randlose Knöpf
 
 Der Fokusring der Knöpfe steht mit 2px Abstand außen. Bei Feldern (Eingabe, Auswahlliste, Textfeld, Combobox) liegt er auf dem eigenen Rahmen, der dabei die Akzentfarbe annimmt, statt als zweiter Rahmen daneben.
 
+### Reihenfolge der Knöpfe
+
+In einer Knopfzeile (`.actions`, auch `.form-footer` und Dialoge) steht die Hauptaktion (`btn-primary`) als letzter Knopf, rechts; Abbrechen und Nebenaktionen („Entwurf speichern“, „Nur prüfen“) stehen davor. Das Überlaufmenü `⋯` ist keine Aktion der Zeile und zählt dabei nicht mit: Am Laptop steht es ganz rechts hinter der Hauptaktion, am Handy links neben der Vorschau (#355, Variante E).
+
+In einer Zeile mit Hauptaktion steht ein Gefahrknopf (`btn-danger`: Löschen, Entfernen, Trennen) ganz vorn, links, so weit wie möglich von ihr weg: Ein Klick oder Tipp, der die Hauptaktion knapp verfehlt, trifft dann einen harmlosen Knopf. Löscht er Gespeichertes oder lässt sich die Folge nicht zurücknehmen, öffnet er erst den `ConfirmDialog` (siehe Rückfragen). Das ist nötig, weil er vorn auch der erste Tab-Stopp der Zeile ist: Tab aus dem letzten Feld und Enter dürfen nichts löschen. Ohne Rückfrage bleiben nur Umkehrbares (Ausschalten, das sich wieder einschalten lässt) und das Entfernen einer Zeile aus einem noch nicht gespeicherten Formular. In Zeilen ohne Hauptaktion, etwa „Bearbeiten · Entfernen“ an einem Listeneintrag, ist die Folge frei; die Rückfrage gilt dort genauso.
+
+Die Tab-Reihenfolge folgt dem Markup und gleicht der sichtbaren (WCAG 1.3.2 und 2.4.3). Die Folge steht deshalb so im Markup; nicht per `order` oder `flex-direction: row-reverse` umdrehen und keinen positiven `tabindex` setzen, um den Fokus zuerst auf die Hauptaktion zu lenken: Ein positiver `tabindex` zieht den Knopf vor alle übrigen Elemente der Seite, Sprunglink und Navigation eingeschlossen, und Screenreader lesen die Zeile in anderer Folge vor, als sie zu sehen ist.
+
+Ausrichtung: auf der Seite linksbündig an der Kante der Felder, im Dialog rechtsbündig (`dialog .form-footer`), im Seitenkopf rechts. Auf dem Handy füllen die Knöpfe die Zeile und brechen bei Bedarf um, die Hauptaktion bleibt rechts; kleine Knöpfe (`btn-sm`) in Tabellen und Bannern bleiben so breit wie ihr Text. Kein Stapeln mit der Hauptaktion oben: Das ginge nur gegen die DOM-Reihenfolge. Einzige, gewollte Ausnahme ist das Blatt von `ConfirmDialog` am Handy (siehe Rückfragen). `e2e/knopfreihenfolge.spec.ts` prüft in Zeilen mit Hauptaktion Reihenfolge, Gefahrknopf vorn und dass weder CSS noch `tabindex` die Folge ändern (#394).
+
 ### Symbole
 
 Symbole kommen aus der `Icon`-Komponente, nicht als Emoji oder Unicode-Zeichen.
@@ -81,7 +91,7 @@ Seine gemessene Höhe steht in `--page-head-height` (`usePageHeadHeight` in `lib
 
 Auf dem Handy steht der Kopf kompakt: die Aktionen in einer Zeile, die seitlich scrollt; im Belegeditor (`.editor-actions`) brechen sie um, damit Speichern und Festschreiben sichtbar bleiben.
 
-Der Kontaktdialog (`NewContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen.
+Der Kontaktdialog (`NewContactDialog`) folgt demselben Muster: Titel in Seitentitelgröße oben und die Knöpfe unten stehen, nur das Formular dazwischen scrollt; der Dialog ist selbst die Karte, das Formular darin hat keinen eigenen Rahmen. Formular-Dialoge laufen über `FormDialog`, und der setzt Rand, Abstände und die stehende Knopfzeile selbst: Das Formular darin ist ein schlichtes `<form>` mit Feldern und als letztem Kind einer `.actions`-Zeile, ohne eigene Klassen für Rand oder Fußzeile. Abschnitte (`form-section`) und die Knopfzeile reichen bis an den Rand des Dialogs.
 
 ### Rückfragen
 
@@ -89,7 +99,7 @@ Folgenreiches bestätigt der Dialog `ConfirmDialog` (#404), nie ein zweiter Klic
 
 Geht es um Geld oder das Finanzamt, nennt `facts` über den Folgen, was bestätigt wird: beim Festschreiben einer Rechnung Nummer, Kunde und Betrag, bei ELSTER Steuerart, Zeitraum und Zahllast, beim Lohn Person, Brutto und Auszahlung, beim Beleg Lieferant, Datum und Betrag; ein Storno nennt dasselbe wie das, was es zurücknimmt. Ein Häkchen (`acknowledge`) gibt es nur beim Jahresabschluss, Eintippen gar nicht.
 
-Am Handy ist der Dialog ein Blatt von unten mit der Aktion über „Abbrechen“; an Griff oder Titel nach unten gewischt schließt es wie „Abbrechen“. Fokus beim Öffnen auf „Abbrechen“, danach zurück auf den Auslöser; Esc führt nichts aus.
+Am Handy ist der Dialog ein Blatt von unten mit der Aktion über „Abbrechen“. Das ist eine gewollte Ausnahme von der Reihenfolge der Knöpfe: „Abbrechen“ liegt unten im Daumenbereich, damit man Löschen oder Festschreiben nicht aus Versehen trifft. Die Knöpfe stehen dafür per `column-reverse` umgedreht, im Markup kommt „Abbrechen“ zuerst. Weil der Fokus beim Öffnen dort liegt, schadet die abweichende Tab-Folge nicht. An Griff oder Titel nach unten gewischt, schließt es wie „Abbrechen“. Fokus beim Öffnen auf „Abbrechen“, danach zurück auf den Auslöser; Esc führt nichts aus.
 
 Rot (`danger`) sind Löschen, Stornieren, Entfernen, Widerrufen, Trennen, endgültiges Beenden und Abschließen, grün der erwartete nächste Schritt wie Festschreiben, Buchen und Senden. Der Dialog schließt vor der Aktion; das Ergebnis meldet die Seite. Tastenkürzel der Seite fragen `isDialogOpen()`.
 

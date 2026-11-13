@@ -238,12 +238,12 @@ function KalenderAbo() {
             {(control) => <input {...control} readOnly value={url} onFocus={(e) => e.currentTarget.select()} />}
           </Field>
           <div className="actions" style={{ flexWrap: "wrap" }}>
-            <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true))}>
-              {copied ? "Kopiert" : "Link kopieren"}
-            </button>
             <a className="btn" href={url.replace(/^https?:/, "webcal:")}>
               Im Kalender öffnen
             </a>
+            <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true))}>
+              {copied ? "Kopiert" : "Link kopieren"}
+            </button>
           </div>
           <p className="small muted" style={{ margin: 0 }}>
             Wer den Link hat, sieht deine Fristen. Gib ihn nicht weiter; ein neuer Link macht den alten ungültig.

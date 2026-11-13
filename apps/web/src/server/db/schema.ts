@@ -1269,6 +1269,10 @@ export const invoices = pgTable(
     variant: text("variant", { enum: ["abschlag", "schluss"] }),
     /** null: vor #622 festgeschriebener Abschlag; dessen bisherige Versteuerung bleibt erhalten. */
     advanceType: text("advance_type", { enum: ["anzahlung", "teilleistung"] }),
+    /** null: bisheriges Bilanzverfahren; neue GmbH-/UG-Anzahlungen werden erst mit der Leistung als Erlös gebucht. */
+    advanceAccounting: text("advance_accounting", { enum: ["deferred"] }),
+    /** Ersatz einer stornierten Schlussrechnung; deren bereits realisierte Leistung bleibt bestehen (#750). */
+    replacesInvoiceId: uuid("replaces_invoice_id"),
     /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
     quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
     /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
@@ -1320,6 +1324,11 @@ export const invoices = pgTable(
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_advance_type", sql`${t.advanceType} is null or (${t.variant} = 'abschlag' and ${t.advanceType} in ('anzahlung', 'teilleistung'))`),
+    check("invoices_advance_accounting", sql`${t.advanceAccounting} is null or ${t.advanceAccounting} = 'deferred'`),
+    check(
+      "invoices_replaces_schluss",
+      sql`${t.replacesInvoiceId} is null or (${t.replacesInvoiceId} <> ${t.id} and ${t.kind} = 'rechnung' and ${t.variant} is not distinct from 'schluss' and ${t.advanceAccounting} is not distinct from 'deferred' and ${t.correctsId} is null)`,
+    ),
     check("invoices_quote_kind", sql`${t.quoteId} is null or ${t.kind} = 'rechnung'`),
     check("invoices_plan_row", sql`${t.paymentPlanRow} is null or (${t.variant} = 'abschlag' and ${t.quoteId} is not null and ${t.paymentPlanRow} >= 0)`),
     check("invoices_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
@@ -1332,7 +1341,9 @@ export const invoices = pgTable(
     index("invoices_quote").on(t.quoteId),
     // höchstens ein festgeschriebenes Storno je Rechnung
     uniqueIndex("invoices_one_storno").on(t.correctsId).where(sql`${t.kind} = 'storno' and ${t.status} = 'final'`),
+    uniqueIndex("invoices_one_final_replacement").on(t.replacesInvoiceId).where(sql`${t.status} = 'final'`),
     foreignKey({ name: "invoices_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),
+    foreignKey({ name: "invoices_replaces_fk", columns: [t.replacesInvoiceId], foreignColumns: [t.id] }),
     // in 0011 und 0018 von Hand angelegt
     foreignKey({ name: "invoices_recurring_fk", columns: [t.recurringId], foreignColumns: [recurringInvoices.id] }),
     foreignKey({ name: "invoices_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
@@ -1723,7 +1734,23 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn", "import"],
+      enum: [
+        "invoice",
+        "document",
+        "allocation",
+        "asset",
+        "pauschale",
+        "kasse",
+        "ausbuchung",
+        "manuell",
+        "eroeffnung",
+        "ausschuettung",
+        "lohn",
+        "import",
+        // Verrechnung zweier Belege (#274): bisher ohne Buchung; seit #786 trägt sie die Umbuchung der Vorsteuer aus dem
+        // Zwischenkonto, mit #785 kommen die zwei Buchungen je Belegseite dazu
+        "verrechnung",
+      ],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1883,6 +1910,13 @@ export const documents = pgTable(
     vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
+    /**
+     * Gutschrift erstattet bereits Bezahltes (#786), etwa ein Guthaben aus der Jahresabrechnung oder ein Bonus auf eine
+     * schon bezahlte Rechnung: Die Vorsteuerminderung wird nach § 17 Abs. 1 Satz 2 und 8 UStG erst gezogen, wenn das Geld
+     * zurückkommt oder verrechnet wird, und steht bis dahin auf dem Zwischenkonto. Ausdrückliche Angabe, nicht aus dem
+     * Zahlungsstand abgeleitet. Nur an Gutschriften (negativer Beleg).
+     */
+    erstattetBezahltes: boolean("erstattet_bezahltes").notNull().default(false),
     /**
      * § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (ig_erwerb, § 1a UStG): Die Steuer schuldest du selbst.
      * Die Beträge tragen die selbst berechnete Steuer, gezahlt wird nur netto (gross = net).
@@ -2899,6 +2933,24 @@ export const legacyVoucherPayments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("legacy_voucher_payments_source_external").on(t.source, t.externalId), index("legacy_voucher_payments_voucher").on(t.voucherId)],
+);
+
+/**
+ * Kontostamm eines Buchungskontos aus sevDesk (GET /AccountingType/{id}), unverändert. Gutschriften mit `bookingCategory`
+ * ACCOUNTING_TYPE folgen zur Laufzeit dessen Kontonummern (#472). Nur anhängen; ein gleicher Stand kommt nur einmal an.
+ */
+export const sevdeskAccountingTypes = pgTable(
+  "sevdesk_accounting_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    accountingTypeId: text("accounting_type_id").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sevdesk_accounting_types_stand").on(t.accountingTypeId, sql`md5(${t.raw}::text)`)],
 );
 
 /** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */

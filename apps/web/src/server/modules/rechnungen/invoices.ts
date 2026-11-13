@@ -55,6 +55,9 @@ import { directDebitFor, directDebitIssues, draftMandateProblem, paymentColumns 
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { invoiceVatDate, invoicePostingMode } from "./invoice-tax.ts";
 import { lockInvoice, withAdvanceVatChange } from "./advance-vat.ts";
+import { advanceProcedure } from "./advance-procedure.ts";
+import { advanceInvoicePosting } from "./advance-invoice.ts";
+import { paperCancellationIds } from "./advance-payment-group.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
 import {
@@ -766,6 +769,10 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     rows.filter((r) => r.status === "final").map((r) => r.id),
     q,
   );
+  const paperStornos = await paperCancellationIds(
+    rows.filter((r) => r.kind === "storno").map((r) => r.id),
+    q,
+  );
   return rows.map(({ cancelled, ...row }) => {
     const facts = {
       ...row,
@@ -780,7 +787,7 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       customer: row.buyerName ?? row.contactName ?? "–",
       listStatus: invoiceListStatus(facts, today),
       paid: facts.paid,
-      open: invoiceOpen(facts),
+      open: paperStornos.has(row.id) ? 0 : invoiceOpen(facts),
     };
   });
 }
@@ -1109,6 +1116,11 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
+  invoice = { ...invoice, ...(await advanceProcedure(invoice, lines, company, tx)) };
+  if (invoice.advanceAccounting === "deferred" && invoice.kind === "rechnung" && invoice.variant === "schluss") {
+    const performed = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
+    if (performed > invoice.issueDate) throw new InvoiceError("Das Leistungsdatum der Schlussrechnung liegt nach dem Rechnungsdatum.");
+  }
 
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
@@ -1142,6 +1154,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       .set({
         status: "final",
         advanceType: invoice.advanceType,
+        advanceAccounting: invoice.advanceAccounting,
+        replacesInvoiceId: invoice.replacesInvoiceId,
         number,
         numberYear: circle,
         numberCounter: counter,
@@ -1163,17 +1177,27 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   );
 
   const versteuerung = await invoicePostingMode(invoice, tx);
-  await post(tx, company, {
-    date: await invoiceVatDate(invoice, tx),
-    description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
-    sourceType: "invoice",
-    sourceId: id,
-    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern. Auch das Storno einer
-    // Korrektur dazu: Maßgeblich ist die Rechnung am Anfang der Kette, nicht die direkt korrigierte
-    lines: (await correctsLegacyInvoice(tx, corrects))
-      ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
-      : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
-  });
+  const bookings =
+    invoice.advanceAccounting === "deferred"
+      ? await advanceInvoicePosting(invoice, totals, company.kontenrahmen, tx)
+      : [
+          {
+            date: await invoiceVatDate(invoice, tx),
+            // Übernommene Erlöse stehen in den alten Büchern; auch spätere Korrektur-Stornos folgen deren Ursprung.
+            lines: (await correctsLegacyInvoice(tx, corrects))
+              ? legacyCorrectionPosting(totals, company.kontenrahmen, versteuerung)
+              : invoicePosting(totals, company.kontenrahmen, versteuerung, invoice.taxTreatment),
+          },
+        ];
+  for (const booking of bookings)
+    if (booking.lines.length)
+      await post(tx, company, {
+        date: booking.date,
+        description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
+        sourceType: "invoice",
+        sourceId: id,
+        lines: booking.lines,
+      });
   // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
   await syncQuoteBilling(tx, quoteIds);
 

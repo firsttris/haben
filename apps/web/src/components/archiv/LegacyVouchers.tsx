@@ -96,6 +96,12 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
               <div className="num">{formatEuro(row.net)}</div>
               <div className="num">{formatEuro(row.gross)}</div>
               <div className="num">{row.files === 0 ? <span className="pill pill-warn">keine</span> : row.files}</div>
+              {/* Eigene Zeile im Raster: in der gekürzten Spalte Kontakt · Art wäre sie am Handy abgeschnitten */}
+              {row.accountingTypeUnclear && (
+                <div className="legacy-flag">
+                  <span className="pill pill-warn">Buchungskonto nicht erkannt</span>
+                </div>
+              )}
             </Link>
           ))}
           {direction === "alle" ? (

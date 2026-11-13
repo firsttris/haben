@@ -327,6 +327,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
   const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
+  // Gutschrift erstattet bereits Bezahltes (#786): die Vorsteuerminderung wartet auf den Ausgleich
+  const [erstattetBezahltes, setErstattetBezahltes] = useState(doc.erstattetBezahltes);
   // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
   const [assetName, setAssetName] = useState(doc.asset?.name ?? "");
   const [assetKind, setAssetKind] = useState<AssetKind>(doc.asset?.kind ?? "edv");
@@ -474,6 +476,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           payment,
           note,
           privateShare: privateShareValue,
+          // Nur an einer Gutschrift über die Bank sinnvoll; sonst schickt der Editor immer „nein“ (#786)
+          erstattetBezahltes: gross !== null && gross < 0 && payment === "bank" ? erstattetBezahltes : false,
           reverseCharge,
           currency: currencyCode,
           exchangeRate: foreign ? exchangeRate : null,
@@ -1013,6 +1017,19 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />
           Bar aus der Kasse (Zeile im Kassenbuch)
         </label>
+        {/* Nur an einer Gutschrift über die Bank: sie mindert ein schon bezahltes Entgelt, die Vorsteuer wartet auf den Ausgleich */}
+        {gross !== null && gross < 0 && payment === "bank" && (
+          <div>
+            <label className="checkbox">
+              <input type="checkbox" checked={erstattetBezahltes} onChange={(e) => touch(setErstattetBezahltes)(e.target.checked)} />
+              Erstattet bereits Bezahltes (Guthaben aus einer Jahresabrechnung, Bonus)
+            </label>
+            <span className="small muted">
+              Dann mindert die Gutschrift die Vorsteuer erst, wenn das Geld zurückkommt oder verrechnet wird; bis dahin steht sie auf dem Zwischenkonto (SKR03
+              1548, SKR04 1434). Ohne Haken mindert sie die Vorsteuer im Belegmonat.
+            </span>
+          </div>
+        )}
         {data.paymentHint && (
           <span className="small">
             Bisher{" "}
@@ -1067,8 +1084,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         <div className="actions doc-actions">
           {/* In der stehenden Leiste: davor läge die Meldung beim Scrollen hinter ihr. Jede Aktion mit Meldung sitzt hier */}
           <NoticeBanner notice={notice} />
-          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
-            Bestätigen und buchen
+          <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
+            Löschen
           </button>
           <button type="submit" className="btn" disabled={busy || running || !valid || !dirty}>
             Speichern
@@ -1078,8 +1095,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)} disabled={busy || running}>
-            Löschen
+          <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)} disabled={busy || running || !valid} title="Strg+Enter">
+            Bestätigen und buchen
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
             <input type="checkbox" checked={continueAfterBooking} onChange={(e) => writeContinuePreference(e.target.checked)} />

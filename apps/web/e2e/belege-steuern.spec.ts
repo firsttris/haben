@@ -20,6 +20,7 @@ import {
   neuenLieferantenOeffnen,
   ohneAxeVerstoesse,
   trefferliste,
+  randImDialog,
 } from "./einrichtung.ts";
 import { LAPTOP, sichtbar } from "./kopfzeile.ts";
 import { receiptJpeg } from "./belegbild.ts";
@@ -2020,6 +2021,83 @@ test("IBAN aus der E-Rechnung ohne Kontakt-IBAN: gesperrt bis zur Bestätigung, 
   await expect(page.getByLabel("IBAN")).toHaveValue(/DE02\s?1203/);
 });
 
+test("Abgabe vermerken bei niedrigem Fenster: Tab hält jedes Feld über der Knopfzeile, der Dialog selbst scrollt nicht (WCAG 2.4.11)", async () => {
+  const jahr = YEAR - 1;
+  for (const [breite, hoehe] of [
+    [1280, 420],
+    [375, 600],
+  ] as const) {
+    await page.setViewportSize({ width: breite, height: hoehe });
+    await go(`/jahreserklaerung/${jahr}`);
+    const karte = page.getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true });
+    await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` });
+    // Das Datumsfeld hat drei Tab-Stopps (Tag, Monat, Jahr); der Lauf beginnt beim Ticket
+    await dialog.getByLabel("Transferticket", { exact: true }).focus();
+    for (const name of ["Betrag", "Begründung", "Übermittlungsprotokoll (PDF, optional)"]) {
+      await page.keyboard.press("Tab");
+      const lage = await dialog.evaluate((d) => {
+        const aktiv = document.activeElement as HTMLInputElement;
+        // Der FilePicker versteckt sein <input type="file">; zu sehen ist der Knopf daneben
+        const sichtbar = (aktiv.closest(".file-picker") ?? aktiv).getBoundingClientRect();
+        return {
+          label: aktiv.labels?.[0]?.textContent ?? aktiv.tagName,
+          unten: sichtbar.bottom,
+          knopfzeile: d.querySelector(":scope > form > .actions:last-child")!.getBoundingClientRect().top,
+          dialogScroll: d.scrollTop,
+        };
+      });
+      const wo = `${breite}×${hoehe}, ${name}`;
+      expect(lage.label, wo).toBe(name);
+      expect(lage.unten, `${wo}: hinter der Knopfzeile`).toBeLessThanOrEqual(lage.knopfzeile + 0.5);
+      expect(lage.dialogScroll, `${wo}: der Dialog selbst scrollt`).toBe(0);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  }
+  // Wie playwright.config.ts (chromium), damit die folgenden Tests im selben Fenster laufen
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
+test("Formular-Dialog bei niedrigem Fenster: Beim Öffnen bleibt das erste Feld oben sichtbar, das Formular scrollt nicht (#880)", async () => {
+  const jahr = YEAR - 1;
+  await page.setViewportSize({ width: 1280, height: 420 });
+  const pruefen = async (dialog: ReturnType<Page["getByRole"]>, erstesFeld: string) => {
+    await expect(dialog).toBeVisible();
+    // Chrome macht das scrollende Formular selbst fokussierbar, showModal() fokussiert dann das Formular, kein Feld.
+    // Zwei Frames abwarten, damit ein Scrollen danach schon passiert ist
+    const lage = await dialog.evaluate(async (d, feld) => {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const form = d.querySelector(":scope > form") as HTMLElement;
+      const label = [...d.querySelectorAll("label")].find((l) => l.textContent?.startsWith(feld))!;
+      return {
+        scrollTop: form.scrollTop,
+        feldOben: label.getBoundingClientRect().top,
+        formOben: form.getBoundingClientRect().top,
+        scrollbar: form.scrollHeight > form.clientHeight,
+        fokusAufFeld: label.control !== null && label.control === document.activeElement,
+      };
+    }, erstesFeld);
+    expect(lage.scrollbar, `${erstesFeld}: das Formular muss scrollen, sonst prüft der Test nichts`).toBe(true);
+    expect(lage.scrollTop, `${erstesFeld}: das Formular ist beim Öffnen schon gescrollt`).toBe(0);
+    expect(lage.feldOben, `${erstesFeld}: liegt über dem oberen Rand`).toBeGreaterThanOrEqual(lage.formOben);
+    // Der Fokus steht auf dem ersten Feld, nicht auf dem Formular als Scrollbereich
+    expect(lage.fokusAufFeld, `${erstesFeld}: hat beim Öffnen den Fokus`).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  };
+  await go(`/jahreserklaerung/${jahr}`);
+  await page
+    .getByRole("region", { name: `Abgabe außerhalb von Haben: Anlage EÜR ${jahr}`, exact: true })
+    .getByRole("button", { name: "Abgabe vermerken", exact: true })
+    .click();
+  await pruefen(page.getByRole("dialog", { name: `Anlage EÜR ${jahr} als abgegeben vermerken` }), "Tag der Abgabe");
+  await go("/dauerbelege/neu");
+  await neuenLieferantenOeffnen(page);
+  await pruefen(page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" }), "Name oder Firma");
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und ohne zweiten Vermerk", async () => {
   const jahr = YEAR - 1;
   await go(`/jahreserklaerung/${jahr}`);
@@ -2029,6 +2107,7 @@ test("Jahreserklärung: Abgabe außerhalb von Haben vermerken, mit Protokoll und
   await karte.getByRole("button", { name: "Abgabe vermerken", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: `Umsatzsteuererklärung ${jahr} als abgegeben vermerken` });
+  await randImDialog(dialog, [dialog.getByLabel("Transferticket", { exact: true }), dialog.getByRole("button", { name: "Vermerken", exact: true })]);
   // Der Abgabetag liegt im Folgejahr: eine Jahreserklärung kann nicht vor dem Jahresende abgegeben werden
   await dialog.getByLabel("Tag der Abgabe", { exact: true }).fill(`${jahr + 1}-01-02`);
   await dialog.getByLabel("Transferticket", { exact: true }).fill("et9f3k2m7q1x");

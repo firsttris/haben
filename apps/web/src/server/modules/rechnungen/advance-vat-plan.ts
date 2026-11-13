@@ -1,8 +1,19 @@
-import { advanceVatPlan, recordedTaxShares, type AdvanceVatEvent, type AdvanceVatChange } from "@haben/core";
+import {
+  advanceBalancePlan,
+  advanceUsesPayments,
+  advanceVatPlan,
+  advanceVatDifference,
+  recordedTaxShares,
+  type AdvanceBalanceChange,
+  type AdvanceBalanceEvent,
+  type AdvanceVatEvent,
+  type AdvanceVatChange,
+} from "@haben/core";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
 import { invoiceTaxReader } from "./invoice-tax.ts";
+import { UserError } from "../../errors.ts";
 
 type Invoice = typeof schema.invoices.$inferSelect;
 
@@ -23,7 +34,7 @@ async function family(originalId: string, q: Db | Tx): Promise<Invoice[]> {
     );
 }
 
-async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceVatEvent[]> {
+async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceBalanceEvent[]> {
   const ids = invoices.map((i) => i.id);
   const totals = await invoiceTotalsById(ids, q);
   const rows = await q.execute<{
@@ -33,12 +44,15 @@ async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceVa
     tax_shares: typeof schema.allocations.$inferSelect.taxShares;
     tax_shares_invoice_id: string | null;
     written_off: boolean;
+    kind: "skonto" | "forderungsausfall" | null;
   }>(sql`select a.invoice_id, b.booking_date::text as date, a.amount, a.tax_shares, a.tax_shares_invoice_id, false as written_off
+    , null::text as kind
     from allocations a join bank_transactions b on b.id = a.transaction_id where a.invoice_id in ${ids}
-    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, false from cash_entries where invoice_id in ${ids}
-    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, true from write_offs where invoice_id in ${ids}`);
+    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, false, null from cash_entries where invoice_id in ${ids}
+    union all select invoice_id, date::text, amount, tax_shares, tax_shares_invoice_id, true, kind from write_offs where invoice_id in ${ids}`);
   return [...rows].map((r) => ({
     date: r.date,
+    ...(r.kind ? { kind: r.kind } : {}),
     [r.written_off ? "writtenOff" : "paid"]: recordedTaxShares(
       totals.get(r.invoice_id)!,
       r.amount,
@@ -47,15 +61,30 @@ async function paymentEvents(invoices: Invoice[], q: Db | Tx): Promise<AdvanceVa
   }));
 }
 
-/** Der Leistungszeitpunkt einer Schlussrechnung und ihre spätere Aufhebung sind eigenständige Ereignisse. */
-async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnType<typeof invoiceTaxReader>): Promise<AdvanceVatEvent[]> {
+/** Beim neuen Bilanzverfahren bleibt eine tatsächlich erbrachte Leistung auch nach bloßem Rechnungsaustausch bestehen. */
+async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnType<typeof invoiceTaxReader>) {
   const finals = await q
     .selectDistinct({ invoice: schema.invoices })
     .from(schema.invoiceLines)
     .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.invoiceId))
     .where(and(eq(schema.invoiceLines.deductionOf, original.id), eq(schema.invoices.kind, "rechnung"), eq(schema.invoices.status, "final")));
   const events: AdvanceVatEvent[] = [];
+  const balanceEvents: AdvanceBalanceEvent[] = [];
   for (const { invoice } of finals) {
+    if (original.advanceAccounting === "deferred" || invoice.advanceAccounting === "deferred") {
+      // Ein Ersatz dokumentiert denselben Leistungsstand, nicht eine zweite Ausführung.
+      if (invoice.replacesInvoiceId) continue;
+      const date = invoice.serviceTo ?? invoice.serviceFrom ?? invoice.issueDate;
+      // Die neue Schlussleistung besteht auch für abgezogene Altanzahlungen fort (§ 13 UStG); nur neue Originale
+      // benötigen die Nettoabgrenzung. Alte Erlöse und Siegel bleiben erhalten. Entscheidung in #750:
+      // https://github.com/firsttris/haben/issues/750#issuecomment-6837873675
+      // Steuerzeitpunkt: https://www.gesetze-im-internet.de/ustg_1980/__13.html
+      if (original.advanceAccounting === "deferred") balanceEvents.push({ date, performance: 1 });
+      if (!advanceUsesPayments(original.taxTreatment) || (await taxes.companyMode(invoice)) === "soll") {
+        events.push({ date: advanceUsesPayments(original.taxTreatment) ? date : await taxes.date(invoice), performance: 1 });
+      }
+      continue;
+    }
     if ((await taxes.companyMode(invoice)) !== "soll") continue;
     events.push({ date: await taxes.date(invoice), performance: 1 });
     const cancellations = await q
@@ -64,28 +93,55 @@ async function performanceEvents(original: Invoice, q: Db | Tx, taxes: ReturnTyp
       .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
     events.push(...cancellations.map((c) => ({ date: c.issueDate, performance: -1 as const })));
   }
-  return events;
+  return { vat: events, balance: balanceEvents };
 }
 
 export interface ManagedAdvancePlan {
   original: Invoice;
   invoiceIds: Set<string>;
   changes: AdvanceVatChange[];
+  /** Sonderumsätze: normale Ausbuchungsbasis abziehen, damit deren Neutralisierung nicht doppelt gemeldet wird. */
+  postingChanges: AdvanceVatChange[];
+  balanceChanges: AdvanceBalanceChange[];
 }
 
 /** Gegenprobe aus den Nebenbüchern, ausdrücklich ohne Journalzeilen zu lesen. */
-export async function loadAdvanceVatPlan(original: Invoice, q: Db | Tx = db, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan> {
+export async function loadAdvanceVatPlan(reference: Pick<Invoice, "id">, q: Db | Tx = db, taxes = invoiceTaxReader(q)): Promise<ManagedAdvancePlan> {
+  // Die Festschreibung kann den Verfahrensmarker gerade erst gesetzt haben; der Vorher-Lader hält noch den Entwurf.
+  const [original] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, reference.id));
+  if (!original) throw new UserError("Die ursprüngliche Anzahlungsrechnung fehlt.");
   const invoices = await family(original.id, q);
   const totals = await invoiceTotalsById(
     invoices.map((i) => i.id),
     q,
   );
   const events = await paymentEvents(invoices, q);
-  events.push(...(await performanceEvents(original, q, taxes)));
+  const performance = await performanceEvents(original, q, taxes);
   for (const invoice of invoices) {
     if (invoice.id !== original.id) events.push({ date: invoice.issueDate, correction: totals.get(invoice.id)!.taxes });
   }
-  return { original, invoiceIds: new Set(invoices.map((i) => i.id)), changes: advanceVatPlan(totals.get(original.id)!.taxes, events) };
+  const total = totals.get(original.id)!.taxes;
+  const [company] = await q.select({ kontenrahmen: schema.company.kontenrahmen }).from(schema.company).where(eq(schema.company.id, 1));
+  // Sonderumsätze verwenden denselben Plan, aber keine Zahlungsereignisse (§ 18b UStG).
+  const special = original.advanceAccounting === "deferred" && ["reverse_charge", "ig_lieferung", "drittland"].includes(original.taxTreatment);
+  const changes = advanceUsesPayments(original.taxTreatment)
+    ? advanceVatPlan(total, [...events, ...performance.vat])
+    : special
+      ? advanceVatPlan(total, [...events.filter((event) => !event.paid), ...performance.vat])
+      : [];
+  const normalWriteOffs = events.flatMap((event) =>
+    event.writtenOff?.length ? [{ date: event.date, shares: event.writtenOff.map((share) => ({ ...share, base: -share.base, tax: -share.tax })) }] : [],
+  );
+  return {
+    original,
+    invoiceIds: new Set(invoices.map((i) => i.id)),
+    changes,
+    postingChanges: special ? advanceVatDifference(normalWriteOffs, changes) : changes,
+    balanceChanges:
+      original.advanceAccounting === "deferred"
+        ? advanceBalancePlan(total, [...events, ...performance.balance], company!.kontenrahmen, original.taxTreatment)
+        : [],
+  };
 }
 
 /** Nur neue Anzahlungen: Bestandsbelege laufen unverändert durch ihre bisherigen Nebenbücher. */
@@ -96,7 +152,8 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
   // Historie je Quartal ausrechnen: Nur Kandidaten-IDs ermitteln, dann deren zusammenhängenden Plan laden.
   const candidates = await q.execute<{ id: string }>(sql`with recursive family(root_id, id) as (
     select id, id from invoices where advance_type = 'anzahlung' and status = 'final'
-      and tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
+      and (tax_treatment in ('regulaer', 'steuerfrei', 'ausfuhr')
+        or (advance_accounting = 'deferred' and tax_treatment in ('reverse_charge', 'ig_lieferung', 'drittland')))
     union all select f.root_id, i.id from family f join invoices i on i.corrects_id = f.id where i.status = 'final'
   ), relevant as (
     select f.root_id from family f join invoices i on i.id = f.id where i.issue_date >= ${start} and i.issue_date < ${end}
@@ -108,6 +165,7 @@ export async function advanceVatPlans(q: Db | Tx, year: number, taxes = invoiceT
       join invoices i on i.id = l.invoice_id and i.status = 'final'
       left join invoices c on c.corrects_id = i.id and c.kind = 'storno' and c.status = 'final'
       where (coalesce(i.service_to, i.service_from, i.issue_date) >= ${start} and coalesce(i.service_to, i.service_from, i.issue_date) < ${end})
+        or (i.issue_date >= ${start} and i.issue_date < ${end})
         or (c.issue_date >= ${start} and c.issue_date < ${end})
   ) select distinct root_id as id from relevant`);
   if (!candidates.length) return [];

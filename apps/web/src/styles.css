@@ -257,6 +257,8 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-actions > .banner { flex: 0 0 100%; }
+/* Knopfzeilen (#394, DESIGN.md): Hauptaktion zuletzt im Markup; im Dialog rechtsbündig, sonst an der Kante der Felder */
+dialog .form-footer, .form-dialog > form > .actions:last-child { justify-content: flex-end; }
 /* Ein Hauch Schatten hebt die Karte vom Grund ab; auf Dunkel trägt ihn kaum etwas, dort hält die Linie die Kante */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-xs); }
 /* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
@@ -827,6 +829,9 @@ fieldset.card > legend + * { clear: both; }
 .kpi-value { white-space: nowrap; }
 
 @media (max-width: 720px) {
+  /* Knopfzeilen: Knöpfe füllen die Zeile, die Hauptaktion steht rechts im Daumenbereich; kleine Knöpfe in Tabellen bleiben.
+     Vor dem Kopf, damit dessen gleich spezifische Regeln gewinnen: dort scrollt die Zeile seitlich statt zu schrumpfen */
+  .actions > .btn:not(.btn-sm) { flex: 1 1 auto; }
   /* Kopf kompakt, weil er stehen bleibt: Titel oben, Aktionen darunter in einer Zeile, die seitlich scrollt, statt
      mehrerer Zeilen voller Knöpfe. Wenige Knöpfe füllen die Breite wie bisher. 4px Innenabstand halten den Fokusrahmen
      in der scrollenden Zeile sichtbar */
@@ -895,7 +900,8 @@ fieldset.card > legend + * { clear: both; }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
 
 /* Dateiauswahl: der Knopf sieht aus wie .btn, Text daneben senkrecht mittig */
-.file-picker { display: flex; align-items: center; gap: 12px; min-height: var(--control-h); padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
+/* position: relative hält das versteckte <input type="file"> beim Knopf: Beim Fokus scrollt sonst der nächste positionierte Vorfahr, im Dialog der Dialog selbst */
+.file-picker { position: relative; display: flex; align-items: center; gap: 12px; min-height: var(--control-h); padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .file-picker .btn { flex-shrink: 0; white-space: nowrap; }
 .file-picker:hover .btn { border-color: var(--muted); }
 .file-picker:has(input:disabled) { cursor: default; opacity: 0.6; }
@@ -976,15 +982,21 @@ summary { cursor: pointer; min-height: 24px; }
   .confirm-dialog-actions .btn { width: 100%; min-height: 48px; }
 }
 /* Wie der feste Seitenkopf (#356): Titel oben und Knöpfe unten stehen, nur das Formular dazwischen scrollt.
-   Der Dialog ist selbst die Karte; das Formular verliert ihren Rahmen, sonst stünde Karte in Karte. */
-.form-dialog { --dialog-footer: 73px; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; }
+   Der Dialog ist selbst die Karte; das Formular verliert ihren Rahmen, sonst stünde Karte in Karte.
+   Rand, Abstände und die stehende Knopfzeile setzt der Dialog selbst (DESIGN.md, Formular-Dialoge): Das Formular
+   darin braucht keine eigene Klasse; Abschnitte (.form-section) und die letzte Knopfzeile reichen bis an den Rand. */
+.form-dialog { --dialog-footer: 73px; --dialog-pad: 24px; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; }
 .form-dialog[open] { display: flex; flex-direction: column; }
 .form-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .form-dialog > h2 { flex: none; padding: 20px 24px 16px; font-size: 24px; border-bottom: 1px solid var(--line); }
-.form-dialog > .contact-form { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; border: 0; border-radius: 0; background: none; scroll-padding-top: 16px; scroll-padding-bottom: calc(var(--dialog-footer) + 16px); }
-.form-dialog .form-footer { position: sticky; bottom: 0; min-height: var(--dialog-footer); margin-top: auto; background: var(--surface); }
+.form-dialog > form { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; display: flex; flex-direction: column; gap: 16px; padding: 0 var(--dialog-pad); border: 0; border-radius: 0; background: none; box-shadow: none; scroll-padding-top: 16px; scroll-padding-bottom: calc(var(--dialog-footer) + 16px); }
+.form-dialog > form.form-card { gap: 0; }
+.form-dialog > form > :first-child:not(.form-section) { margin-top: 20px; }
+.form-dialog > form > .form-section { margin-inline: calc(-1 * var(--dialog-pad)); padding-inline: var(--dialog-pad); }
+.form-dialog > form > .banner { margin-inline: 0; }
+.form-dialog > form > .actions:last-child { position: sticky; bottom: 0; min-height: var(--dialog-footer); margin: auto calc(-1 * var(--dialog-pad)) 0; padding: 16px var(--dialog-pad); border-top: 1px solid var(--line); align-items: center; background: var(--surface); }
 @media (max-width: 640px) {
-  .form-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .form-dialog { --dialog-pad: 16px; width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .form-dialog > h2 { padding: 16px; }
 }
 

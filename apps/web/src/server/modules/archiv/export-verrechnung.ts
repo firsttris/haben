@@ -4,8 +4,8 @@ import { db, schema } from "../../db/index.ts";
 /*
  * Verrechnungen zweier Eingangsbelege (#274): Eine Gutschrift gleicht eine Rechnung ohne Zahlung aus. Je Verrechnung
  * stehen zwei Zeilen (negativ beim Beleg, positiv bei der Gutschrift), eine Aufhebung ist eine Gegenzeile mit dem Datum
- * der Aufhebung. Wie die Verrechnungen von Umsätzen (bank/verrechnungen.csv) haben sie keinen Bankumsatz und keine
- * Buchung; ohne eigene Datei wäre der Vorgang im Archiv nicht nachvollziehbar.
+ * der Aufhebung. Sie haben keinen Bankumsatz; gebucht wird je Belegseite gegen das Verrechnungskonto (#786), und ohne
+ * eigene Datei wäre der Vorgang, der beide offenen Posten zugleich verändert, im Archiv nicht nachvollziehbar.
  */
 
 export const VERRECHNUNGEN_HEADER = ["Datum", "Beleg", "Gegenbeleg", "Betrag", "Notiz", "Hebt auf", "Angelegt", "Beleg-ID", "Gegenbeleg-ID", "Verrechnungs-ID"];

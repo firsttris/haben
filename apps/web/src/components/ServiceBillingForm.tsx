@@ -135,11 +135,11 @@ export function ServiceBillingForm({
         </div>
       )}
       <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || !valid || result === null || empty || missing}>
-          Rechnungsentwurf anlegen
-        </button>
         <button type="button" className="btn" onClick={onClose}>
           Abbrechen
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={busy || !valid || result === null || empty || missing}>
+          Rechnungsentwurf anlegen
         </button>
       </div>
     </form>

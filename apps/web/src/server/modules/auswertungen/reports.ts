@@ -28,6 +28,7 @@ import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 import { ustvaPosten } from "../umsatzsteuer/index.ts";
+import { advanceOpenPositions } from "./advance-open-positions.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
 
@@ -474,6 +475,8 @@ export interface OpenPosition {
   open: number;
   /** Tage seit Fälligkeit; 0 = heute fällig, negativ = noch nicht fällig */
   daysOverdue: number;
+  /** Neues Bilanzverfahren: Anforderung, bilanzierter Anspruch, Papierzwischenraum oder echte Anzahlungs-Erstattung. */
+  balanceKind?: "request" | "receivable" | "unbilled" | "refund";
 }
 
 function daysBetween(from: string, to: string): number {
@@ -499,18 +502,23 @@ async function paidSums(ids: string[]) {
  * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
  */
 export async function openPositions(today: string) {
-  const receivables: OpenPosition[] = (await listInvoices(today))
-    .filter((i) => i.status === "final" && i.open !== 0)
-    .map((i) => ({
-      id: i.id,
-      number: i.number ?? "",
-      party: i.customer,
-      date: i.issueDate,
-      dueDate: i.dueDate,
-      gross: i.gross,
-      open: i.open,
-      daysOverdue: daysBetween(i.dueDate, today),
-    }));
+  const { invoiceIds, receivables: newReceivables, ...advances } = await advanceOpenPositions(today);
+  const separate = new Set(invoiceIds);
+  const receivables: OpenPosition[] = [
+    ...(await listInvoices(today))
+      .filter((i) => i.status === "final" && i.open !== 0 && !separate.has(i.id))
+      .map((i) => ({
+        id: i.id,
+        number: i.number ?? "",
+        party: i.customer,
+        date: i.issueDate,
+        dueDate: i.dueDate,
+        gross: i.gross,
+        open: i.open,
+        daysOverdue: daysBetween(i.dueDate, today),
+      })),
+    ...newReceivables,
+  ];
 
   const documents = await db
     .select({
@@ -567,11 +575,12 @@ export async function openPositions(today: string) {
   const total = (items: OpenPosition[]) => items.reduce((s, i) => s + i.open, 0);
   const overdue = (items: OpenPosition[]) => items.filter((i) => i.daysOverdue > 0);
   return {
+    ...advances,
     receivables,
     payables,
-    receivablesTotal: total(receivables),
+    receivablesTotal: total(receivables) + advances.unbilledReceivablesTotal,
     payablesTotal: total(payables),
-    receivablesOverdue: total(overdue(receivables)),
+    receivablesOverdue: total(overdue([...receivables, ...advances.unbilledReceivables])),
     payablesOverdue: total(overdue(payables)),
     vat,
     vatTotal: total(vat),
