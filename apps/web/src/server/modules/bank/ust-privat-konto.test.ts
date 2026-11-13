@@ -36,6 +36,11 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
     return (account as { id: string }).id;
   }
 
+  /** Kontenrahmen, Rechtsform und Versteuerung des Betriebs; die Buchung muss in beiden Rahmen und in GmbH und UG stimmen */
+  async function firma(kontenrahmen: "SKR03" | "SKR04", rechtsform: "einzelunternehmen" | "gmbh", versteuerung: "ist" | "soll" = "ist") {
+    await sql`update company set kontenrahmen = ${kontenrahmen}, rechtsform = ${rechtsform}, versteuerung = ${versteuerung} where id = 1`;
+  }
+
   async function umsatz(accountId: string, date: string, amount: number): Promise<string> {
     const [import_] = await sql`
       insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
@@ -119,6 +124,44 @@ describe.skipIf(!testDatabaseUrl)("USt-Erstattung auf privatem Konto (Postgres)"
     expect(await zeilen(transaction)).toEqual([
       { account: "1790", debit: 0, credit: 503_68 },
       { account: "1800", debit: 503_68, credit: 0 },
+    ]);
+  });
+
+  it("bucht im SKR04 bei Soll-Versteuerung die Privatentnahme 2100 gegen 3820", async () => {
+    await firma("SKR04", "einzelunternehmen", "soll");
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-10-12", 87_73);
+
+    await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: 87_73 });
+
+    expect(await zeilen(transaction)).toEqual([
+      { account: "2100", debit: 87_73, credit: 0 },
+      { account: "3820", debit: 0, credit: 87_73 },
+    ]);
+  });
+
+  it("bucht in der GmbH gegen das Gesellschafter-Verrechnungskonto", async () => {
+    await firma("SKR03", "gmbh");
+    const account = await konto("privat", "Gesellschafter privat", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-10-12", 87_73);
+
+    await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: 87_73 });
+
+    expect(await zeilen(transaction)).toEqual([
+      { account: "0730", debit: 87_73, credit: 0 },
+      { account: "1780", debit: 0, credit: 87_73 },
+    ]);
+  });
+
+  it("bucht eine Zahlung an das Finanzamt vom privaten Konto als Einlage", async () => {
+    const account = await konto("privat", "DKB Girokonto", "DE13120300000012099776");
+    const transaction = await umsatz(account, "2026-10-12", -87_73);
+
+    await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: transaction, amount: -87_73 });
+
+    expect(await zeilen(transaction)).toEqual([
+      { account: "1780", debit: 87_73, credit: 0 },
+      { account: "1890", debit: 0, credit: 87_73 },
     ]);
   });
 });
