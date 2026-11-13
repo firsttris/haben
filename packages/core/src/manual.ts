@@ -88,6 +88,8 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
     [a.kasse, "Kassenbuch"],
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i): [string, string] => [paymentProviderAccount(kontenrahmen, i), "Bank (Zahlungsdienstleister)"]),
     [a.geldtransit, "Bank (Geldtransit)"],
+    // Verrechnung zweier Belege ohne Zahlung (#274, #786): nur Haben bucht darauf, ein freies Sachkonto bräche den Ausgleich
+    [a.verrechnung, "Verrechnung (durchlaufende Posten)"],
     [a.forderungen, "Rechnungen (offene Posten)"],
     [a.verbindlichkeiten, "Belege (offene Posten)"],
     ...[

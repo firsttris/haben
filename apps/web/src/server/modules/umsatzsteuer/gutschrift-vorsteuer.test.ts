@@ -60,7 +60,11 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
   type BelegBetrag = { taxRate: 1900 | 700; net: number; tax: number; originalNet?: number; originalTax?: number };
 
   /** Bucht einen Beleg; negative Beträge sind eine Gutschrift */
-  async function beleg(date: string, amounts: BelegBetrag[], extra: { payment?: "bank" | "kasse"; currency?: string; exchangeRate?: string } = {}) {
+  async function beleg(
+    date: string,
+    amounts: BelegBetrag[],
+    extra: { payment?: "bank" | "kasse"; currency?: string; exchangeRate?: string; erstattetBezahltes?: boolean } = {},
+  ) {
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ++lauf, 16, 74, 70]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: `beleg-${lauf}.jpg` });
     await documents.updateDocument(actor, id, {
@@ -72,6 +76,8 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
       category: "telefon",
       payment: extra.payment ?? "bank",
       note: "",
+      // Eine Gutschrift über die Bank trägt die Angabe „erstattet bereits Bezahltes“; nur dann parkt Haben die Vorsteuer
+      erstattetBezahltes: extra.erstattetBezahltes ?? (amounts.some((a) => a.net < 0) && (extra.payment ?? "bank") === "bank"),
       ...(extra.currency ? { currency: extra.currency, exchangeRate: extra.exchangeRate } : {}),
       amounts,
     });
@@ -93,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
   it("Gutschrift im Februar, Erstattung im März: Februar ohne, März mit der Vorsteuer", async () => {
     await beleg("2026-02-10", [{ taxRate: 1900, net: 100_000, tax: 19_000 }]);
     // Jahresabrechnung des Versorgers: 439,56 € brutto, davon 70,18 € Vorsteuer
-    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }]);
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }], { erstattetBezahltes: true });
 
     const vorher = await figures.computeVatFigures(februar);
     expect(vorher.kz66).toBe(19_000);
@@ -109,9 +115,21 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     expect((await figures.computeVatFigures(februar)).kz66 + nachher.kz66).toBe(19_000 - 7_018);
   }, 60_000);
 
+  it("Gutschrift ohne die Angabe „erstattet bereits Bezahltes“: die Vorsteuer zählt im Belegmonat", async () => {
+    await beleg("2026-02-10", [{ taxRate: 1900, net: 100_000, tax: 19_000 }]);
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }], {
+      erstattetBezahltes: false,
+    });
+
+    // Ohne die Angabe gilt das Belegdatum, auch wenn das Geld erst im März zurückkommt
+    const imFebruar = await figures.computeVatFigures(februar);
+    expect(imFebruar.kz66).toBe(19_000 - 7_018);
+    expect(imFebruar.inputTax.map((r) => r.documentId)).toContain(gutschrift);
+  }, 60_000);
+
   it("Verrechnung mit einer Rechnung: die Vorsteuer mindert sich im Monat der Aufrechnung", async () => {
     await beleg("2026-02-10", [{ taxRate: 1900, net: 10_000, tax: 1_900 }]);
-    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }]);
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -3_000, tax: -570 }], { erstattetBezahltes: true });
     const rechnung = await beleg("2026-02-20", [{ taxRate: 1900, net: 5_000, tax: 950 }]);
     await verrechnung.settleDocuments(actor, {
       documentId: rechnung,
@@ -132,23 +150,27 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
 
   it("Teilerstattung und Ausbuchung: je Vorgang anteilig nach Steuersatz", async () => {
     // Gutschrift über 1.297,00 € brutto: 1.000,00 € zu 19 % und 100,00 € zu 7 %
-    const gutschrift = await beleg("2026-02-16", [
-      { taxRate: 1900, net: -100_000, tax: -19_000 },
-      { taxRate: 700, net: -10_000, tax: -700 },
-    ]);
+    const gutschrift = await beleg(
+      "2026-02-16",
+      [
+        { taxRate: 1900, net: -100_000, tax: -19_000 },
+        { taxRate: 700, net: -10_000, tax: -700 },
+      ],
+      { erstattetBezahltes: true },
+    );
     await zahle("15.03.26", "Teilerstattung", 64_850, gutschrift);
     const maerz66 = (await figures.computeVatFigures(maerz)).kz66;
     expect(maerz66).toBe(-9_850);
 
-    // Den Rest bucht die Ausbuchung im April aus (§ 17 Abs. 1 UStG), die Vorsteuer folgt dort
+    // Den Rest bucht eine Ausbuchung im April aus. Ausgebuchtes Skonto erstattet nichts, sondern erlässt den Rest:
+    // Die Buchung schreibt es vom Zwischenkonto ab, ohne die Vorsteuer zu ziehen (vorsteuer-ausgleich.ts), und die
+    // Voranmeldung folgt derselben Regel — die geparkte Vorsteuer von 98,50 € bleibt stehen und wird nicht abgezogen.
     await bank.writeOff(actor, { kind: "skontoErhalten", documentId: gutschrift, date: "2026-04-30" });
     const april = await figures.computeVatFigures({ year: 2026, month: 4 });
-    expect(april.kz66).toBe(-9_850);
-    expect(april.inputTax.map((r) => [r.rate, r.base, r.tax])).toEqual([
-      [1900, -50_000, -9_500],
-      [700, -5_000, -350],
-    ]);
-    expect(maerz66 + april.kz66).toBe(-19_700);
+    expect(april.kz66).toBe(0);
+    expect(april.inputTax).toEqual([]);
+    // Abgezogen ist genau das, was erstattet wurde
+    expect(maerz66 + april.kz66).toBe(-9_850);
   }, 60_000);
 
   it("Bar bezahlte Gutschrift: das Geld ist mit der Buchung zurück, die Vorsteuer zählt im Belegmonat", async () => {
@@ -167,6 +189,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: 0, tax: 0, originalNet: -10_000, originalTax: -1_900 }], {
       currency: "USD",
       exchangeRate: "1,0812",
+      erstattetBezahltes: true,
     });
     await bank.importStatement(actor, { bytes: dkbCsv([eingang("15.03.26", "Erstattung Acme", "100,00")]), filename: "kurs.csv" }, null);
     const [tx] = await sql`select id from bank_transactions where purpose = ${"Erstattung Acme"}`;
@@ -183,17 +206,21 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
     expect(imMaerz.inputTax.reduce((summe, zeile) => summe + zeile.tax, 0)).toBe(-1_757);
   }, 60_000);
 
-  it("Grenze: ab dem Stichjahr kommt Kz 66 aus dem Journal und kennt den Versatz nicht (#786)", async () => {
-    // Stichjahr auf das Buchungsjahr ziehen: die Voranmeldung rechnet dann aus dem Journal statt aus den Nebenbüchern
+  it("ab dem Stichjahr rechnet die Voranmeldung aus dem Journal und kommt zum selben Ergebnis", async () => {
+    // Stichjahr auf das Buchungsjahr ziehen: die Voranmeldung rechnet dann aus dem Journal statt aus den Nebenbüchern.
+    // Die Buchung legt die Vorsteuer beim Buchen auf das Zwischenkonto und zieht sie erst beim Ausgleich auf die
+    // Vorsteuer (belegbuchung.ts, vorsteuer-ausgleich.ts) — deshalb zeigen beide Quellen dieselben Monate.
     await sql`update company set journal_ab = 2026`;
-    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }]);
-    await zahle("15.03.26", "Erstattung Stadtwerke", 43_956, gutschrift);
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }], { erstattetBezahltes: true });
+    const februar66 = (await figures.computeVatFigures(februar)).kz66;
+    expect(februar66).toBe(0);
+    expect((await figures.computeVatFigures(februar)).nebenbuecher?.kz66).toBe(0);
 
-    // Bekannte Grenze: das Journal bucht die Vorsteuer der Gutschrift am Belegdatum und kennt den Ausgleich nicht.
-    // Deshalb steht sie hier im Februar statt im März — die Verteilung aus #777 greift nur vor dem Stichjahr.
-    // Wird die Journal-Seite aus #786 gebaut, muss dieser Test rot werden und die Erwartung wandern.
-    expect((await figures.computeVatFigures(februar)).kz66).toBe(-7_018);
-    expect((await figures.computeVatFigures(maerz)).kz66).toBe(0);
+    await zahle("15.03.26", "Erstattung Stadtwerke", 43_956, gutschrift);
+    const maerz66 = (await figures.computeVatFigures(maerz)).kz66;
+    expect(maerz66).toBe(-7_018);
+    // Und die Gegenprobe aus den Nebenbüchern sagt dasselbe
+    expect((await figures.computeVatFigures(maerz)).nebenbuecher?.kz66).toBe(-7_018);
   }, 60_000);
 
   it("Aus einem Umzug übernommener Beleg: die Steuer ist anderswo angemeldet, Haben mindert nichts", async () => {
@@ -232,7 +259,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
   it("Drei Raten auf eine Gutschrift: die Anteile ergeben zusammen genau die Vorsteuer", async () => {
     // 119,00 € brutto, 19,00 € Vorsteuer, in drei Raten zu 39,67 / 39,67 / 39,66 €.
     // Einzeln gerundet wären es 6,33 + 6,33 + 6,33 = 18,99 €; die Fortschreibung muss auf 19,00 € kommen.
-    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -10_000, tax: -1_900 }]);
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -10_000, tax: -1_900 }], { erstattetBezahltes: true });
     await zahle("15.03.26", "Rate 1", 3_967, gutschrift);
     await zahle("15.04.26", "Rate 2", 3_967, gutschrift);
     await zahle("15.05.26", "Rate 3", 3_966, gutschrift);
@@ -249,7 +276,7 @@ describe.skipIf(!testDatabaseUrl)("Vorsteuer aus Gutschriften erst mit der Ersta
   it("SKR04 mit Soll-Versteuerung: dieselbe Verteilung wie SKR03 mit Ist", async () => {
     // Wechsel vor der ersten Buchung des Jahres, sonst sperrt company_settings_lock die Umstellung
     await sql`update company set kontenrahmen = 'SKR04', versteuerung = 'soll'`;
-    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }]);
+    const gutschrift = await beleg("2026-02-16", [{ taxRate: 1900, net: -36_938, tax: -7_018 }], { erstattetBezahltes: true });
     await zahle("15.03.26", "Erstattung Stadtwerke", 43_956, gutschrift);
 
     // Die Vorsteuer einer Gutschrift hängt am Ausgleich, nicht an der Versteuerungsart: die betrifft nur eigene Umsätze

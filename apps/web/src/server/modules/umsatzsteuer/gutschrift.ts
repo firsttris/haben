@@ -3,12 +3,13 @@ import { and, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
 /*
- * Vorsteuer aus einer Gutschrift, also einem Beleg mit negativen Beträgen (#690). Eine Gutschrift erstattet ein schon
+ * Vorsteuer aus einer Gutschrift „erstattet bereits Bezahltes“ (#690, #786). Eine solche Gutschrift erstattet ein schon
  * bezahltes Entgelt; die Vorsteuer mindert sich deshalb nicht im Belegmonat, sondern erst, wenn das Geld tatsächlich
  * zurückkommt oder der Posten verrechnet wird: je Zahlung (allocations), Verrechnung (document_settlements) und
- * Ausbuchung (write_offs; erhaltenes Skonto, Kursdifferenz) ein Anteil mit dem Datum dieses Vorgangs (§ 17 Abs. 1
- * Satz 2 und Satz 8 UStG, UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich,
- * UStAE 13.6 Abs. 1 Satz 12).
+ * Kursdifferenz (write_offs) ein Anteil mit dem Datum dieses Vorgangs (§ 17 Abs. 1 Satz 2 und Satz 8 UStG,
+ * UStAE 17.1 Abs. 2 Satz 3; die Aufrechnung steht der Zahlung gleich, UStAE 13.6 Abs. 1 Satz 12).
+ * Ausgebuchtes Skonto zählt nicht mit: Es erstattet nichts, sondern erlässt den Rest, und wird deshalb vom
+ * Zwischenkonto abgeschrieben, ohne die Vorsteuer zu ändern (vorsteuer-ausgleich.ts).
  * Anteilig je Steuersatz wie beim erhaltenen Skonto, aber fortgeschrieben wie eine Teilzahlung (settlementTaxShares):
  * Alle Vorgänge einer Gutschrift ergeben zusammen genau ihre Vorsteuer, auch über mehrere Zeiträume und nach einer
  * Aufhebung.
@@ -39,17 +40,17 @@ const beleg = {
 };
 
 /**
- * Nur Gutschriften mit Vorsteuerabzug, die über die Bank laufen: negativer, gebuchter Beleg ohne § 13b-Steuer.
+ * Nur Belege mit der Angabe „Erstattet bereits Bezahltes“: dieselbe Angabe, an der die Buchung die Vorsteuer auf das
+ * Zwischenkonto legt (belegbuchung.ts). Sie wird nur an einer Gutschrift über die Bank zugelassen
+ * (documents.ts, erstattetBezahltesProblem), und ohne sie gilt wie bei jedem Beleg das Belegdatum — die
+ * Voranmeldung und die Buchung entscheiden damit an derselben Angabe.
  *
- * Bar oder privat bezahlt gibt es keinen offenen Posten, den eine Erstattung ausgleichen könnte; das Geld ist mit der
- * Buchung zurück, die Vorsteuer zählt dort im Belegmonat (vat-figures.ts). Aus einem Umzug übernommene Belege lässt
- * Haben aus, weil ihre Steuer im bisherigen Programm schon angemeldet ist.
+ * Aus einem Umzug übernommene Belege lässt Haben aus, weil ihre Steuer im bisherigen Programm schon angemeldet ist.
  */
 const nurGutschrift = and(
-  lt(schema.documents.gross, 0),
+  eq(schema.documents.erstattetBezahltes, true),
   eq(schema.documents.vorsteuerAbzug, true),
   eq(schema.documents.status, "gebucht"),
-  eq(schema.documents.payment, "bank"),
   isNull(schema.documents.reverseCharge),
   isNull(schema.documents.lexofficeVoucherId),
 );
@@ -88,12 +89,13 @@ export async function gutschriftAnteile(period: VatPeriod, q: Db | Tx = db): Pro
     .from(schema.documentSettlements)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentSettlements.documentId))
     .where(and(nurGutschrift, lt(schema.documentSettlements.date, end)));
-  // Erhaltenes Skonto und Kursdifferenz gleichen den Rest des offenen Postens ohne Geldbewegung aus
+  // Eine Kursdifferenz gleicht den Rest des offenen Postens ohne Geldbewegung aus; Skonto tut das auch, ändert aber die
+  // Vorsteuer nicht (Kopf dieser Datei)
   const ausbuchungen = await q
     .select({ ...beleg, date: schema.writeOffs.date, amount: schema.writeOffs.amount })
     .from(schema.writeOffs)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
-    .where(and(nurGutschrift, inArray(schema.writeOffs.kind, ["skontoErhalten", "kursdifferenz"]), lt(schema.writeOffs.date, end)));
+    .where(and(nurGutschrift, eq(schema.writeOffs.kind, "kursdifferenz"), lt(schema.writeOffs.date, end)));
   const vorgaenge: Vorgang[] = [...zahlungen, ...verrechnungen, ...ausbuchungen].sort((a, b) => a.date.localeCompare(b.date));
   if (vorgaenge.length === 0) return [];
   const rows = await q
