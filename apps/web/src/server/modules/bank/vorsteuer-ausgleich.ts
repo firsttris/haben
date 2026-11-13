@@ -120,12 +120,7 @@ export async function vorsteuerAbschreibung(
 }
 
 /** Der Anteil dieses Ausgleichs je Steuersatz, mit dem Vorzeichen des Ausgleichs; null ohne Zwischenkonto-Buchung */
-async function vorsteuerRest(
-  tx: Tx,
-  doc: { id: string; erstattetBezahltes: boolean },
-  totals: InvoiceTotals,
-  amount: number,
-): Promise<TaxShare[] | null> {
+async function vorsteuerRest(tx: Tx, doc: { id: string; erstattetBezahltes: boolean }, totals: InvoiceTotals, amount: number): Promise<TaxShare[] | null> {
   if (!doc.erstattetBezahltes) return null;
   // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; die Umbuchung selbst
   // bucht dann im eingestellten Rahmen, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht

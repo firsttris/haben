@@ -140,9 +140,7 @@ describe("documentWriteOffPosting: Skonto auf eine Gutschrift „erstattet berei
   const klein = { net: -780, tax: -148, gross: -928, taxes: [{ rate: 1900 as const, base: -780, tax: -148 }] };
 
   it("schreibt den Rest des Zwischenkontos ab, mit der Bemessungsgrundlage des Skontos", () => {
-    const anteile = [
-      { rate: 1900 as const, base: -293, tax: -55 },
-    ];
+    const anteile = [{ rate: 1900 as const, base: -293, tax: -55 }];
     expect(documentWriteOffPosting(klein, 348, "SKR03", true, anteile)).toEqual([
       { account: ACCOUNTS.SKR03.verbindlichkeiten, debit: 0, credit: 348, taxCode: null },
       { account: ACCOUNTS.SKR03.skontiErhalten, debit: 293, credit: 0, taxCode: "VSt19" },

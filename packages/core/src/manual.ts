@@ -97,6 +97,9 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
       a.ustNichtFaellig[700],
       a.vorsteuer[1900],
       a.vorsteuer[700],
+      // Zwischenkonto der Gutschrift „erstattet bereits Bezahltes“ (#786): Der Saldo ist die geparkte Vorsteuer, eine
+      // Sachbuchung daran vorbei bräche den Ausgleich (dieselbe Sperre wie für den Steuerschlüssel)
+      a.vorsteuerNochNichtAbziehbar,
       a.ustRc,
       a.vorsteuerRc,
       ...Object.values(a.ustIge),
