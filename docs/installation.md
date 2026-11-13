@@ -423,7 +423,7 @@ Das Werkzeug liest die Werte jeder Instanz nur aus ihrer `.env`: In der Shell ge
 
 Jede Instanz hat ein eigenes Netz zum Proxy, `haben-proxy-<name>`: Der Caddy hängt in allen, jede App nur in ihrem. So erreicht keine App eine andere auf Port 3000 am Proxy vorbei. Die Netze des Caddy stehen in `proxy/compose.override.yml`, die `docker compose up -d` in `proxy/` mitliest. `neu` schreibt die Datei aus den Instanzen neu und baut den Caddy-Container neu auf; dabei sind alle Instanzen einige Sekunden nicht erreichbar.
 
-Wer eine Instanz löscht, entfernt auch ihre Datei in `proxy/sites/` und ihr Netz: die beiden Einträge in `proxy/compose.override.yml`, dann `docker compose up -d` in `proxy/` und `docker network rm haben-proxy-<name>`.
+Wer eine Instanz löscht, entfernt auch ihre Datei in `proxy/sites/` und ihr Netz: die beiden Einträge in `proxy/compose.override.yml` (war es das einzige Netz darin, die Datei), dann `docker compose up -d` in `proxy/` und `docker network rm haben-proxy-<name>`.
 
 `update` und `status` erfassen auch Instanzen, die du vorher von Hand nach dem Muster unten angelegt hast: Verzeichnisse `haben-…` unter der Basis mit gleichnamigem `COMPOSE_PROJECT_NAME`.
 

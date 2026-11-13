@@ -94,6 +94,12 @@ export async function pruefeTrennung(k: Kontext, name: string, domain: string): 
   const netz = netzFuer(name);
   const netze = await docker(k, ["network", "ls", "--format", "{{.Name}}"]);
   if (netze.code !== 0) abbrechen(DOCKER_TOT);
-  if (netze.stdout.split("\n").some((n) => n.trim() === netz))
-    abbrechen(`Das Netz ${netz} gibt es schon; nichts angelegt. Ist es von einer gelöschten Instanz übrig: docker network rm ${netz}`);
+  if (!netze.stdout.split("\n").some((n) => n.trim() === netz)) return;
+  // Steht es noch in der Netzliste des gemeinsamen Caddy, hängt er darin, und docker network rm scheitert daran
+  const override = join(proxyDir(k), "compose.override.yml");
+  const amCaddy = existsSync(override) && (await readFile(override, "utf8")).split("\n").some((z) => z.trim() === `name: ${netz}`);
+  const vorher = amCaddy
+    ? `Der gemeinsame Caddy hängt noch darin: in ${override} die beiden Einträge des Netzes entfernen (steht kein anderes darin, die Datei löschen), cd ${proxyDir(k)} && docker compose up -d, dann`
+    : "Ist es von einer gelöschten Instanz übrig:";
+  abbrechen(`Das Netz ${netz} gibt es schon; nichts angelegt. ${vorher} docker network rm ${netz}`);
 }
