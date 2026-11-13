@@ -439,6 +439,11 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols):not(.head) > :last-child .status { flex-direction: row; align-items: baseline; gap: 6px; min-height: 0; max-width: 100%; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-label { flex: none; }
   :is(.invoice-cols, .invoice-cols-compact, .document-cols) > :last-child .status-detail { padding-left: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Rechnungen und Angebote: die Auskunft vorn, das Wort an der rechten Kante unter dem Betrag. Die Fläche des dringenden
+     Worts ragt nach rechts in den Rand, damit das Wort mit dem Betrag fluchtet; davor etwas mehr Luft zur Auskunft */
+  :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status { flex-direction: row-reverse; }
+  :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status-urgent { gap: 8px; }
+  :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status-urgent .status-label { margin-left: 0; margin-right: -8px; }
 }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
