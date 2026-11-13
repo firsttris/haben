@@ -102,8 +102,8 @@ function AufhebenDialog({ ziel, onConfirm, onClose }: { ziel: AufzuhebendeZuordn
       </Field>
       {ziel.gemeldet && (
         <p className="small muted" style={{ margin: 0 }}>
-          Der Zeitraum der Zahlung ist schon gemeldet. Die Gegenbuchung wirkt deshalb heute und lässt die abgegebene Voranmeldung
-          unberührt; wird sie gebraucht, reichst du sie als berichtigte Anmeldung nach.
+          Der Zeitraum der Zahlung ist schon gemeldet. Die Gegenbuchung wirkt deshalb heute und lässt die abgegebene Voranmeldung unberührt; wird sie gebraucht,
+          reichst du sie als berichtigte Anmeldung nach.
         </p>
       )}
     </ConfirmDialog>

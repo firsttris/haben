@@ -426,4 +426,3 @@ describe.skipIf(!testDatabaseUrl)("Aufhebung einer Zuordnung am Tag der Aufhebun
     expect(ergebnis).toBeTruthy();
   }, 30_000);
 });
-
