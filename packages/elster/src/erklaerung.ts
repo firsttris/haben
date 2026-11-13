@@ -425,11 +425,13 @@ export const EUER_FIELDS: Record<
  * als „DezimalzahlOhneFuehrNull…“ mit optionalem Minus steht. ERiC 45.1.5.0 antwortet auf -190,00: „Unzulässiges
  * Vorzeichen. Geldbeträge müssen ohne Vorzeichen eingetragen werden.“ Wie der Betrag stattdessen einzutragen ist
  * (andere Zeile, Berichtigung des Vorjahres), ist eine steuerliche Frage und wird hier nicht entschieden.
+ * Zeilennummern nach der Anleitung zur Anlage EÜR 2024 und 2025 (Zeile 18 und 58; 2023 waren es Zeile 17 und 56). Ein
+ * negativer Betrag entsteht erst im Jahr nach einer aus Haben übermittelten EÜR (#706), frühestens 2024.
  */
 export function euerVorzeichenMeldungen(f: EuerFigures): string[] {
   const felder = [
-    { wert: f.gezahlteUst, kz: "E6005101", zeile: 58, label: "An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer" },
-    { wert: f.erstatteteUst, kz: "E6000701", zeile: 18, label: "Vom Finanzamt erstattete und ggf. verrechnete Umsatzsteuer" },
+    { wert: f.gezahlteUst, zeile: 58, ...EUER_FIELDS.gezahlteUst },
+    { wert: f.erstatteteUst, zeile: 18, ...EUER_FIELDS.erstatteteUst },
   ];
   return felder
     .filter((feld) => (feld.wert ?? 0) < 0)
