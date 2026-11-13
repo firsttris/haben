@@ -12,6 +12,7 @@ import {
   type LohnZahlung,
   lohnZahlungKonto,
   directPosting,
+  ustPrivatPosting,
   documentOpen,
   documentWriteOffPosting,
   exchangeDifferenceBankPosting,
@@ -1098,6 +1099,7 @@ export async function lockTransaction(tx: Tx, id: string) {
       counterpartyName: schema.bankTransactions.counterpartyName,
       counterpartyIban: schema.bankTransactions.counterpartyIban,
       ledgerIndex: schema.bankAccounts.ledgerIndex,
+      purpose: schema.bankAccounts.purpose,
       open: openAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)
@@ -1208,7 +1210,10 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
   } else if (part.kind === "ustva") {
     // Buchung wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820); neu ist nur der Bezug auf die Voranmeldung
     const label = await assertUstvaOffen(tx, part.vatReturnId, part.amount);
-    lines = directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
+    lines =
+      bank.purpose === "privat"
+        ? ustPrivatPosting(part.amount, company.kontenrahmen, company.rechtsform)
+        : directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
     description = `${label} · ${bank.counterpartyName || "Finanzamt"}`;
     target = { vatReturnId: part.vatReturnId };
   } else if (part.kind === "darlehen") {
@@ -1222,7 +1227,10 @@ export async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBo
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
   } else {
     if (isLohnZahlung(part.kind)) await assertLohnOffen(tx, part.kind, part.amount, company.kontenrahmen);
-    lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
+    lines =
+      part.kind === "ustVorauszahlung" && bank.purpose === "privat"
+        ? ustPrivatPosting(part.amount, company.kontenrahmen, company.rechtsform)
+        : directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
     // In GmbH und UG ist „privat“ das Gesellschafter-Verrechnungskonto; so steht es auch im Buchungstext
     const label = part.kind === "privat" && isKapitalgesellschaft(company.rechtsform) ? "gesellschafter" : part.kind;
     description = `${bank.counterpartyName || "Bankumsatz"} · ${label}`;
