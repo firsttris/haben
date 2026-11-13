@@ -21,31 +21,31 @@ export type UnzipResult = { ok: true; files: Record<string, Uint8Array> } | { ok
 
 const megabytes = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
-/** Entpackt die Einträge, die `wanted` auswählt; Ordner und alles andere zählen nur als Eintrag */
+/**
+ * Entpackt die Einträge, die `wanted` auswählt; Ordner und alles andere zählen nur als Eintrag. fflate ruft `filter`
+ * für jeden Eintrag auf, den das Ende der ZIP nennt (bei ZIP64 bis 2³²−1), auch ohne Daten dahinter. Deshalb bricht
+ * `filter` an der Grenze mit einer Ausnahme ab, statt nur `false` zu liefern.
+ */
 export function unzipLimited(archive: Uint8Array, budget: Budget, wanted: (name: string) => boolean): UnzipResult {
   let exceeded: string | null = null;
+  const stop = (reason: string): never => {
+    exceeded = reason;
+    throw new Error(reason);
+  };
   const filter = (file: UnzipFileInfo) => {
-    if (exceeded) return false;
     budget.entries += 1;
-    if (budget.entries > budget.limits.maxEntries) {
-      exceeded = `Die ZIP-Datei hat mehr als ${budget.limits.maxEntries} Einträge.`;
-      return false;
-    }
+    if (budget.entries > budget.limits.maxEntries) stop(`Die ZIP-Datei hat mehr als ${budget.limits.maxEntries} Einträge.`);
     if (file.name.endsWith("/") || !wanted(file.name)) return false;
     budget.bytes += Math.max(file.size, file.originalSize);
-    if (budget.bytes > budget.limits.maxUnpackedBytes) {
-      exceeded = `Die ZIP-Datei ist entpackt größer als ${megabytes(budget.limits.maxUnpackedBytes)}.`;
-      return false;
-    }
+    if (budget.bytes > budget.limits.maxUnpackedBytes) stop(`Die ZIP-Datei ist entpackt größer als ${megabytes(budget.limits.maxUnpackedBytes)}.`);
     return true;
   };
-  let files: Record<string, Uint8Array>;
   try {
-    files = unzipSync(archive, { filter });
+    return { ok: true, files: unzipSync(archive, { filter }) };
   } catch {
+    if (exceeded) return { ok: false, reason: exceeded, limit: true };
     return { ok: false, reason: "Die Datei ist keine ZIP-Datei oder beschädigt.", limit: false };
   }
-  return exceeded ? { ok: false, reason: exceeded, limit: true } : { ok: true, files };
 }
 
 /** Dateiname ohne Ordner */
