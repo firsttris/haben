@@ -1,7 +1,7 @@
 ---
 title: "Buchungslogik: Konten, Buchungssätze und GoBD"
 description: >-
-  Wie Haben bucht: Konten nach SKR03 und SKR04, Buchungssätze je Vorgang, doppelte Buchführung im
+  Wie Haben bucht: Konten nach SKR03 und SKR04, Steuerschlüssel, doppelte Buchführung im
   Hintergrund und die GoBD-Unveränderbarkeit per Hash-Kette.
 ---
 

@@ -214,7 +214,7 @@ Wähle den Stichtag vor der ersten Übernahme. Sobald ein Posten übernommen ist
 
 ### Wie gebucht wird
 
-Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben bucht deshalb nicht noch einmal Erlös oder Aufwand, sondern gegen den Saldenvortrag (Konto 9000), mit dem Tag nach dem Stichtag, dem ersten Tag in Haben (meist dem 1. Januar). Schon vorher übernommene Posten behalten ihre Buchung. Die genauen Buchungssätze stehen in [Buchhaltung in Haben](buchhaltung-buchungssaetze.md#eröffnungsbuchungen-für-offene-posten-aus-lexoffice).
+Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben bucht deshalb nicht noch einmal Erlös oder Aufwand, sondern gegen den Saldenvortrag (Konto 9000), mit dem Tag nach dem Stichtag, dem ersten Tag in Haben (meist dem 1. Januar). Schon vorher übernommene Posten behalten ihre Buchung. Die genauen Buchungssätze stehen in [Buchungssätze](buchhaltung-buchungssaetze.md#eröffnungsbuchungen-für-offene-posten-aus-lexoffice).
 
 | Fall | Buchung | Umsatz- bzw. Vorsteuer |
 | --- | --- | --- |

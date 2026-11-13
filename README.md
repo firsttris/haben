@@ -287,7 +287,7 @@ Alles im Detail, mit Suche: **https://haben.app/**. Jede Funktion oben verlinkt 
 - **Einstieg:** [Erste Schritte](https://haben.app/einrichtung.html) (Konto, Firmendaten),
   [ELSTER einrichten](https://haben.app/einrichtung-elster.html) (Zertifikat und Hersteller-ID) und
   [Abgabe an ELSTER](https://haben.app/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
-- **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
+- **Hintergrund:** [Buchhaltung in Haben](https://haben.app/buchhaltung.html) (GoBD, Kontenrahmen) und [Buchungssätze](https://haben.app/buchhaltung-buchungssaetze.html),
   [Architektur](https://haben.app/architektur.html) · [Agentic Engineering](https://haben.app/agentic-engineering.html) und [Roadmap](https://haben.app/roadmap.html)
 
 ## Entwicklung

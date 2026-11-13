@@ -1,13 +1,13 @@
 ---
 title: "Buchungssätze in Haben: was bei jedem Vorgang gebucht wird"
 description: >-
-  Die Buchungssätze von Haben je Vorgang, in SKR03 und SKR04: Rechnung, Storno, Zahlungseingang, Beleg,
-  Zahlung, Bankumsatz ohne Beleg, Anlagen und AfA, Pauschalen und Lohn.
+  Buchungssätze von Haben je Vorgang in SKR03 und SKR04: Rechnung, Storno, Zahlung, Beleg, Bankumsatz
+  ohne Beleg, Lexoffice-Übernahme, Anlagen, Pauschalen, Lohn.
 ---
 
 # Buchungssätze
 
-Die Tabellen zeigen je Vorgang die Zeilen einer Buchung. Bei mehreren Steuersätzen entstehen Erlös-, Aufwands- und Steuerzeilen je Satz; Zeilen mit 0 € entfallen. Negative Beträge (Storno, Korrektur, Gutschrift, Rückzahlung) drehen Soll und Haben.
+Die Tabellen zeigen je Vorgang die Zeilen einer Buchung. Bei mehreren Steuersätzen entstehen Erlös-, Aufwands- und Steuerzeilen je Satz; Zeilen mit 0 € entfallen. Negative Beträge (Storno, Korrektur, Gutschrift, Rückzahlung) drehen Soll und Haben. Kontenrahmen, Ist- und Soll-Versteuerung und Steuerschlüssel erklärt [Buchhaltung in Haben](buchhaltung.md).
 
 ## Rechnung festschreiben
 

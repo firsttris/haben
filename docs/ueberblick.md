@@ -97,7 +97,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | | |
 |---|---|
 | [Buchhaltung in Haben](buchhaltung.md) | Grundsätze, GoBD und Festschreibung, Ist und Soll, Kontenrahmen, Steuerschlüssel |
-| [Buchungssätze](buchhaltung-buchungssaetze.md) | Was bei jedem Vorgang gebucht wird: Rechnung, Storno, Zahlung, Beleg, Bankumsatz ohne Beleg, Anlagen, Pauschalen, Lohn |
+| [Buchungssätze](buchhaltung-buchungssaetze.md) | Was bei jedem Vorgang gebucht wird: Rechnung, Storno, Zahlung, Beleg, Bankumsatz ohne Beleg, Übernahme aus Lexoffice, Anlagen, Pauschalen, Lohn |
 | [Architektur](architektur.md) | Module, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
 | [Datenmodell](architektur-datenmodell.md) | Alle Tabellen nach Bereichen, mit Zweck und Schutz durch Trigger |
 | [Anmeldung und SSO-Modus](architektur-anmeldung.md) | Rollen Inhaber und Steuerberatung, Passwort, Passkeys, SSO über OpenID Connect |
