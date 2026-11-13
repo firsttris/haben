@@ -394,6 +394,25 @@ abgeschrieben und nicht als Vorsteuer gezogen. Wird eine Zuordnung storniert, ge
 Tag des Stornos. Der Saldo des Kontos ist ein Bestand und läuft ins nächste Jahr: Eine Gutschrift aus Dezember und die
 Erstattung im Januar mindern die Voranmeldung im Januar, nicht rückwirkend im Dezember.
 
+Was das Zwischenkonto für die Auswertungen bedeutet:
+
+- **Voranmeldung aus dem Journal** (ab dem Stichjahr): Kz 66 sieht die Minderung genau im Zeitraum des Ausgleichs. Die
+  Zeile auf 1548/1434 trägt ihren Steuerschlüssel, aber keine Kennzahl.
+- **Voranmeldung aus den Nebenbüchern** (davor): Sie zieht die Vorsteuer im Belegmonat, denn Rechnungen und Belege kennt
+  das Zwischenkonto nicht. Der [Abgleich](buchhaltung.md#abgleich-von-journal-umsatzsteuer-und-eür) meldet die
+  Abweichung in Kz 66 deshalb mit Betrag, Konto und Ursache („… ist in diesem Zeitraum auf 1548 (SKR04 1434) geparkt“).
+  Ob die Nebenbücher es künftig mitlesen sollen, ist eine eigene Entscheidung; solange sie es nicht tun, steht der
+  Hinweis neben jeder betroffenen Zeile.
+- **EÜR:** 1548/1434 ist ein Bestandskonto und ändert die EÜR nicht — weder Einnahmen noch Ausgaben. Die Vorsteuerzeile
+  der EÜR folgt der Umbuchung.
+- **E-Bilanz:** Das Konto steht unter den sonstigen Vermögensgegenständen aus Umsatzsteuer, mit Haben-Saldo (die
+  Berichtigung ist noch nicht gezogen) unter den Verbindlichkeiten aus Umsatzsteuer — nie in einer Erfolgszeile.
+- **DATEV:** Die Zeile geht mit ihrem Gegenkonto und **ohne** BU-Schlüssel raus. 1548/1434 ist wie „Umsatzsteuer nicht
+  fällig“ kein Automatikkonto; ein Schlüssel 8/9 würde DATEV veranlassen, aus 19,00 € noch einmal Steuer zu rechnen.
+- **Kontenrahmenwechsel:** Gebuchte Belege bleiben in ihrem Rahmen. Wird die Gutschrift erst nach dem Wechsel
+  ausgeglichen, bucht die Umbuchung im neuen Rahmen (1434 an 1406) und findet den geparkten Betrag trotzdem; der Saldo
+  des alten Kontos bleibt als Bestand stehen.
+
 ## Belege nacheinander prüfen
 
 Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohne Umweg über die Liste abarbeitest, steht oben in der Detailansicht **‹ Vorheriger**, die Position („3 von 17“) und **Nächster ›**. Die Reihenfolge ist die der Liste: offene zuerst, dann nach Belegdatum.

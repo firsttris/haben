@@ -32,13 +32,19 @@ function satzZumSchluessel(code: string | null): number | null {
   return null;
 }
 
+/**
+ * Beide Konten dieses Zwischenkontos: SKR03 1548 und SKR04 1434. Nach einem Wechsel des Kontenrahmens zum Jahreswechsel
+ * steht die Buchung des Belegs noch im alten Rahmen; gesucht wird deshalb in beiden, gebucht wird im eingestellten.
+ */
+const ZWISCHENKONTEN = [ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar, ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar];
+
 /** Steht die Vorsteuer dieses Belegs auf dem Zwischenkonto? Die Buchung selbst ist der Beleg dafür */
-async function aufDemZwischenkonto(tx: Tx, documentId: string, konto: string): Promise<boolean> {
+async function aufDemZwischenkonto(tx: Tx, documentId: string): Promise<boolean> {
   const [row] = await tx.execute<{ anzahl: number }>(sql`
     select count(*)::int as anzahl
       from journal_lines l
       join journal_entries e on e.id = l.entry_id
-     where l.account = ${konto} and e.source_type = 'document' and e.source_id = ${documentId} and e.reverses_id is null`);
+     where (l.account = ${ZWISCHENKONTEN[0]!} or l.account = ${ZWISCHENKONTEN[1]!}) and e.source_type = 'document' and e.source_id = ${documentId} and e.reverses_id is null`);
   return Number(row?.anzahl ?? 0) > 0;
 }
 
@@ -62,12 +68,12 @@ async function steuerlichAusgeglichen(tx: Tx, documentId: string): Promise<numbe
  * fortgeschriebene Anteil auch dann, wenn ein Ausgleich vor dieser Umbuchung lag — der Saldo des Kontos ist die Wahrheit
  * über das, was noch offen ist.
  */
-async function bisherUmgebucht(tx: Tx, documentId: string, konto: string): Promise<TaxShare[]> {
+async function bisherUmgebucht(tx: Tx, documentId: string): Promise<TaxShare[]> {
   const rows = await tx.execute<{ tax_code: string | null; bewegt: number; basis: number }>(sql`
     select l.tax_code, sum(l.debit - l.credit)::int as bewegt, sum(coalesce(l.basis, 0))::int as basis
       from journal_lines l
       join journal_entries e on e.id = l.entry_id
-     where l.account = ${konto}
+     where (l.account = ${ZWISCHENKONTEN[0]!} or l.account = ${ZWISCHENKONTEN[1]!})
        and ((e.source_type = 'allocation' and e.source_id in (select id from allocations where document_id = ${documentId}))
          or (e.source_type = 'verrechnung' and e.source_id in (select id from document_settlements where document_id = ${documentId}))
          or (e.source_type = 'ausbuchung' and e.source_id in
@@ -93,8 +99,9 @@ export async function vorsteuerAusgleich(
   kontenrahmen: Kontenrahmen,
 ): Promise<PostingLine[]> {
   if (!doc.erstattetBezahltes) return [];
-  const konto = ACCOUNTS[kontenrahmen].vorsteuerNochNichtAbziehbar;
-  if (!(await aufDemZwischenkonto(tx, doc.id, konto))) return [];
-  const bisher = await bisherUmgebucht(tx, doc.id, konto);
+  // Der Saldo kann nach einem Wechsel des Kontenrahmens auf dem Konto des alten Rahmens stehen; gebucht wird die
+  // Umbuchung im eingestellten, mit dessen Vorsteuerkonto, damit Kz 66 sie sieht
+  if (!(await aufDemZwischenkonto(tx, doc.id))) return [];
+  const bisher = await bisherUmgebucht(tx, doc.id);
   return vorsteuerAusgleichPosting(settlementTaxShares(totals, await steuerlichAusgeglichen(tx, doc.id), bisher, amount), kontenrahmen);
 }

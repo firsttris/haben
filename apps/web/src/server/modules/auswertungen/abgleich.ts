@@ -23,7 +23,7 @@ import {
 import { and, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { bemessungsZeilen, journalBuchungen, type JournalBuchung } from "./abgleich-kennzahlen.ts";
+import { bemessungsZeilen, journalBuchungen, zwischenkontoHinweis, type JournalBuchung } from "./abgleich-kennzahlen.ts";
 import { gewinnNachDatevFormel } from "./euer-formel.ts";
 import { verschobeneBuchungen } from "./euer-jahreswechsel.ts";
 import type { Buchung } from "./euer-journal-buchungen.ts";
@@ -113,7 +113,7 @@ function vatRows(
   sums: Summe[],
   buchungen: readonly JournalBuchung[],
   voranmeldung: Awaited<ReturnType<typeof computeVatFigures>>,
-): AbgleichZeile[] {
+): { zeilen: AbgleichZeile[]; hinweise: string[] } {
   // Ab dem Stichjahr sind die Kennzahlen der Voranmeldung die aus dem Journal; verglichen wird dann mit den Nebenbüchern
   // als Gegenprobe (#542, docs/adr/journal-als-quelle.md)
   const figures = voranmeldung.nebenbuecher ? { ...voranmeldung, ...voranmeldung.nebenbuecher } : voranmeldung;
@@ -124,7 +124,7 @@ function vatRows(
   const keinAnlagenbuch = (s: Summe) => s.sourceType !== "asset";
   const entnahme = figures.revenue.filter((r) => r.type === "entnahme").reduce((sum, r) => sum + r.tax, 0);
   const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "ustva", zeitraum, posten, journal, quelle });
-  return [
+  const zeilen = [
     row("Umsatzsteuer 19 % (Kz 81)", -saldo(monat, ust(1900), keinAnlagenbuch), figures.tax81 - entnahme),
     row("Umsatzsteuer 7 % (Kz 86)", -saldo(monat, ust(700), keinAnlagenbuch), figures.tax86),
     row("Umsatzsteuer § 13b (Kz 47, 85)", -saldo(monat, (kr) => [ACCOUNTS[kr].ustRc]), figures.kz47 + figures.kz85),
@@ -153,6 +153,13 @@ function vatRows(
       .filter((z) => z.journal !== 0 || z.quelle !== 0)
       .map((z) => row(z.posten, z.journal, z.quelle)),
   ];
+  const vorsteuer = zeilen.find((z) => z.posten === "Vorsteuer (Kz 66)")!;
+  const hinweis = zwischenkontoHinweis(
+    saldo(monat, (kr) => [ACCOUNTS[kr].vorsteuerNochNichtAbziehbar]),
+    vorsteuer.journal,
+    vorsteuer.quelle,
+  );
+  return { zeilen, hinweise: hinweis ? [hinweis] : [] };
 }
 
 /** Zeilen der EÜR nach Zahlung, die nur der Abgleich aus dem Journal prüft (dazu die Ausgaben je Kategorie) */
@@ -171,7 +178,7 @@ const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-0
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
   const { from, to } = yearRange(period.year);
   const [sums, buchungen] = await Promise.all([journalSums(from, to), journalBuchungen(from, to)]);
-  return { zeilen: vatRows(period, sums, buchungen, await computeVatFigures(period)), hinweise: [] };
+  return vatRows(period, sums, buchungen, await computeVatFigures(period));
 }
 
 /** Abgleich für die EÜR eines Jahres */
@@ -348,12 +355,15 @@ export async function abgleichJahr(year: number, today: string, q: Db | Tx = db)
   const buchungen = await journalBuchungen(from, to, q);
   const zeilen: AbgleichZeile[] = [];
   const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
+  const hinweise: string[] = [];
   for (let month = 1; month <= lastMonth; month++) {
-    zeilen.push(...vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q)));
+    const rows = vatRows({ year, month }, sums, buchungen, await computeVatFigures({ year, month }, q));
+    zeilen.push(...rows.zeilen);
+    hinweise.push(...rows.hinweise);
   }
   const euer = await euerAbgleich(year, q);
   const opos = await oposAbgleichJahr(year, today, q);
-  return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...euer.hinweise, ...opos.hinweise] };
+  return { zeilen: [...zeilen, ...euer.zeilen, ...opos.zeilen], hinweise: [...hinweise, ...euer.hinweise, ...opos.hinweise] };
 }
 
 /**

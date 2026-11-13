@@ -93,6 +93,7 @@ Nicht verglichen werden:
 - **Belege mit § 13b oder innergemeinschaftlichem Erwerb, deren Steuer nicht voll abziehbar ist** (Privatanteil, ohne Vorsteuerabzug), bei den Bemessungsgrundlagen Kz 46, 84, 89 und 93: Ältere Buchungen trennen den privaten Teil bzw. die Steuer nicht mit Steuerschlüssel von der Bemessungsgrundlage. Die Steuerbeträge dieser Belege werden verglichen.
 - **Ältere Korrekturen übernommener Lexoffice-Rechnungen** bei den Bemessungsgrundlagen: Sie buchen das Netto gegen den Saldenvortrag, bis [#542](https://github.com/firsttris/haben/issues/542) ohne Steuerschlüssel. Seitdem trägt die Zeile bei Soll-Versteuerung je Steuersatz den Steuerschlüssel und wird verglichen.
 - **Eröffnungen.** Was eine Eröffnung (etwa aus dem DATEV-Stapel) auf Umsatz- und Vorsteuer vorträgt, ist in den Voranmeldungen der bisherigen Buchhaltung angemeldet und gehört nicht zum Januar.
+- **Das Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“** ([SKR03 1548, SKR04 1434](belege.md#gutschrift-für-schon-bezahltes)). Vor dem Stichjahr zieht die Voranmeldung aus den Nebenbüchern die Vorsteuer im Belegmonat, weil Rechnungen und Belege das Konto nicht kennen; das Journal zieht sie erst beim Ausgleich. Die Zeile „Vorsteuer (Kz 66)“ weicht deshalb aus, und der Abgleich nennt daneben den Betrag, das Konto und den Grund („… ist in diesem Zeitraum auf 1548 (SKR04 1434) geparkt“ bzw. „… vom Zwischenkonto … auf die Vorsteuer umgebucht“). Die Rechnung aus den Nebenbüchern liest das Konto bewusst nicht mit.
 
 **Wo der Abgleich erscheint:** in der [Vorprüfung](umsatzsteuer.md#vorprüfung) der Voranmeldung, unter **Einstellungen › Export › Änderungsprotokoll prüfen** und in der wöchentlichen Mail mit dem Prüfwert. Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern. Kläre ihn, bevor du die Voranmeldung sendest.
 
@@ -132,6 +133,8 @@ Steuerzeitpunkt und Leistungsjahr nach einem Verfahrenswechsel folgen weiterhin 
 ## Kontenrahmen
 
 Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/posting.ts` (`ACCOUNTS`, `ACCOUNT_NAMES`, `EXPENSE_CATEGORIES`).
+
+Ein Wechsel zum Jahreswechsel gilt nur für künftige Buchungen. Ein noch offenes [Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“](belege.md#gutschrift-für-schon-bezahltes) (SKR03 1548, SKR04 1434) zieht nicht mit: Der Altsaldo bleibt im alten Rahmen stehen, die Umbuchung beim Ausgleich bucht im neuen Rahmen (1434 an 1406) und findet den geparkten Betrag trotzdem, ohne ihn ein zweites Mal umzubuchen.
 
 > [!IMPORTANT]
 > Die Konten sind sorgfältig gewählt, aber nicht von einer Steuerberatung abgenommen. Sie sollten vor dem Echtbetrieb mit der Steuerberatung abgeglichen werden, besonders wenn diese mit den Daten weiterarbeitet.

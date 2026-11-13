@@ -1,5 +1,6 @@
 import {
   ACCOUNTS,
+  formatEuro,
   kennzahlenAusJournal,
   monthsOfPeriod,
   type Cents,
@@ -184,4 +185,21 @@ export function bemessungsZeilen(
     journal: journal.get(feld) ?? 0,
     quelle: quelle.get(feld) ?? 0,
   }));
+}
+
+/**
+ * Das Zwischenkonto einer Gutschrift „erstattet bereits Bezahltes“ (#786) kennt die Rechnung aus den Nebenbüchern nicht:
+ * Die Belege ziehen die Vorsteuer im Belegmonat, das Journal erst beim Ausgleich. Vor dem Stichjahr rechnet die
+ * Voranmeldung aus den Nebenbüchern; die Zeile „Vorsteuer (Kz 66)“ weicht dann ab. Ohne diesen Hinweis stünde in der
+ * Vorprüfung nur, dass etwas abweicht, nicht warum. `bewegung` ist die Bewegung des Kontos im Zeitraum (Soll − Haben),
+ * also negativ, solange die Vorsteuer geparkt ist.
+ */
+export function zwischenkontoHinweis(bewegung: Cents, journal: Cents, quelle: Cents): string | null {
+  if (journal === quelle || bewegung === 0) return null;
+  const konto = `${ACCOUNTS.SKR03.vorsteuerNochNichtAbziehbar} (SKR04 ${ACCOUNTS.SKR04.vorsteuerNochNichtAbziehbar})`;
+  const was =
+    bewegung < 0
+      ? `Vorsteuer von ${formatEuro(-bewegung)} ist in diesem Zeitraum auf ${konto} geparkt`
+      : `Vorsteuer von ${formatEuro(bewegung)} ist in diesem Zeitraum vom Zwischenkonto ${konto} auf die Vorsteuer umgebucht`;
+  return `Gutschrift „erstattet bereits Bezahltes“: ${was}. Die Voranmeldung aus den Belegen zieht sie im Belegmonat, das Journal erst beim Ausgleich; deshalb weicht „Vorsteuer (Kz 66)“ ab: Buchungen ${formatEuro(journal)}, Belege ${formatEuro(quelle)}.`;
 }
