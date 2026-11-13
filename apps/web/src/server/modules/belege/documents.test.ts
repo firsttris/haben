@@ -128,6 +128,30 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect(document.supplierContactId).toBeNull();
   });
 
+  it("erneutes Auslesen mit anderer Kategorie setzt das eigene Konto zurück (#270)", async () => {
+    const konten = await import("../eigene-konten/index.ts");
+    await leeren(sql)`truncate own_accounts cascade`;
+    const own = await konten.createOwnAccount(actor, { account: "4999", name: "Software: Entwicklung", parentCategory: "software" });
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 93]), filename: "eigenes-konto.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Softwarehaus Nord GmbH",
+      supplierUstId: "",
+      invoiceNumber: "SN-1",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software",
+      ownAccountId: own,
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 1_000, tax: 190 }],
+    });
+    expect((await documents.getDocument(id))!.document.ownAccountId).toBe(own);
+    // Die Auslesung (Mock) liefert „telefon“: das Konto der Elternkategorie „software“ passt nicht mehr
+    await documents.runExtraction(actor, id);
+    const { document } = (await documents.getDocument(id))!;
+    expect(document).toMatchObject({ category: "telefon", ownAccountId: null });
+  });
+
   it("von Hand eingetragener Tabellenkurs: der später veröffentlichte amtliche Kurs gilt auch für ungebuchte Belege", async () => {
     const stammdaten = await import("../stammdaten/index.ts");
     await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.08" }], "manuell");
