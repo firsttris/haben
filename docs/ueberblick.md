@@ -42,6 +42,7 @@ Den Rundgang in Bildern gibt die [Startseite](index.md), den schnellen
 | [Umzug aus sevDesk](sevdesk.md) | API-Abruf aus sevDesk ins selbe Archiv, Unterschiede zu Lexoffice |
 | [Umzug aus BuchhaltungsButler](buchhaltungsbutler.md) | BB Standardexport, DATEV-Stapel und Original-PDFs mit Testlauf archivieren |
 | [Umzug aus Accountable](accountable.md) | Exportdatei hochladen, DATEV-Buchungsstapel und Belege verknüpfen, ohne API-Zugang |
+| [Umzug aus WISO EÜR & Kasse](wiso.md) | Wechsel zum 1. Januar vorbereiten, Originalexporte sichern, Kontakte, Artikel und Anlagen per CSV übernehmen, Grenzen bei offenen Posten |
 | [Belegimport](belegimport.md) | Geprüfte Bestände als JSON-Paket per Betreiber-CLI übernehmen, mit Herkunft und Prüflauf |
 | [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
 | [CSV-Import](csv-import.md) | Kontakte, Artikel und Anlagen aus CSV: Trennzeichen und Kodierung erkennen, Spalten zuordnen, Vorschau mit Fehlern je Zeile, Dubletten überspringen |

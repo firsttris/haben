@@ -11,6 +11,8 @@ Kontakte, Artikel und Anlagen übernimmst du aus einer CSV-Datei, etwa aus einem
 
 Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug aus Lexoffice](lexoffice.md), aus [sevDesk](sevdesk.md), aus [BuchhaltungsButler](buchhaltungsbutler.md) und aus [Accountable](accountable.md) sowie den [vorbereiteten Betreiberimport](belegimport.md). Kontoauszüge kommen über den [Bankimport](bank.md).
 
+Für selbst vorbereitete Listen aus WISO EÜR & Kasse beachtest du die [Hinweise zum Jahreswechsel, zu Ländern und Anlagen](wiso.md).
+
 ## So gehst du vor
 
 1. **Datei wählen.** Bis 5 MB und 5.000 Zeilen; die erste nicht leere Zeile enthält die Spaltennamen. Trennzeichen und Kodierung erkennt Haben selbst, du kannst sie aber festlegen.
