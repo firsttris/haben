@@ -1934,6 +1934,38 @@ test("CSV-Import: Debitoren und Kreditoren aus DATEV-Stammdaten, Vorschlag nur m
   await expect(liste.getByText("Nordlicht Design GmbH")).toHaveCount(1);
 });
 
+test("CSV-Import: Bei mehr als 200 Zeilen bleibt jeder Vorschlag aus DATEV-Stammdaten bestätigbar (#472)", async () => {
+  // 201 vorhandene Kontakte mit Kundennummer, der GP-Stamm nennt sie mit Debitor: jede Zeile ein Vorschlag
+  const anzahl = 201;
+  const spalten = readFileSync(new URL("../../../packages/import/test-fixtures/sevdesk/buchhaltung-2.0/extf-gp-stamm.csv", import.meta.url), "utf-8")
+    .split(/\r?\n/)[1]!
+    .split(";");
+  const zeile = (werte: Record<string, string>) => spalten.map((name) => werte[name] ?? "").join(";");
+  const nummern = Array.from({ length: anzahl }, (_, i) => i + 1);
+  const gpStamm = [
+    `"EXTF";700;16;"Debitoren/Kreditoren";5;;;;;;1;1;${YEAR}0101;4;;;;;;;;;;;;;;;;;`,
+    spalten.join(";"),
+    ...nummern.map((n) => zeile({ Konto: String(12000 + n), "Name (Adressatentyp Unternehmen)": `Vorschlagskunde ${n}`, Kundennummer: `VS-${n}` })),
+  ].join("\r\n");
+  const sql = postgres(databaseUrlFuer("rechnungen"), { max: 1 });
+  try {
+    const angelegt = await sql<{ id: string }[]>`insert into contacts (name, land, kundennummer, is_customer, is_supplier)
+      select 'Vorschlagskunde ' || n, 'DE', 'VS-' || n, true, false from generate_series(1, ${anzahl}) as n returning id`;
+    try {
+      await go("/csv-import?art=kontakte");
+      await page.getByLabel("CSV-Datei").setInputFiles([{ name: `EXTF_GP_Stamm_${YEAR}.csv`, mimeType: "text/csv", buffer: Buffer.from(gpStamm) }]);
+      await page.getByRole("button", { name: "Vorschau" }).click();
+      const preview = page.getByRole("region", { name: "Vorschau" });
+      await expect(preview).toContainText(`0 neu, ${anzahl} Vorschläge zum Bestätigen`);
+      await expect(preview.getByRole("checkbox", { name: "Bestätigen" })).toHaveCount(anzahl);
+    } finally {
+      await sql`update contacts set archived_at = now() where id in ${sql(angelegt.map((k) => k.id))}`;
+    }
+  } finally {
+    await sql.end();
+  }
+});
+
 test("Ein langes Wort im Titel des Dialogs wird umbrochen, nicht abgeschnitten", async () => {
   const name = "Warenwirtschaftsbestelluebersichtsseiten"; // 40 Zeichen, mehr nimmt das Formular nicht
   await go("/einstellungen?bereich=seiten");
