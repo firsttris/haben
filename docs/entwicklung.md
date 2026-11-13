@@ -349,7 +349,7 @@ Zwischen RC und fertiger Version nur Fixes mergen, sonst geht Ungetestetes mit r
 
 ## Mitwirken
 
-<a id="etwas-übernehmen"></a><a id="branches-titel-und-commits"></a><a id="mit-ki-werkzeugen"></a><a id="leitplanken-für-agenten"></a><a id="automatische-prüfungen-der-regeln"></a><a id="wenn-eine-prüfung-anschlägt"></a><a id="issues-schreiben"></a><a id="beiträge-annehmen"></a><a id="review"></a><a id="doku-prüfung"></a>Wie ein Beitrag entsteht und geprüft wird, von der Aufgabe im Board über Branch, Commits und die automatischen Prüfungen bis zu Review und Merge, steht unter [Mitwirken](mitwirken.md).
+<a id="etwas-übernehmen"></a><a id="branches-titel-und-commits"></a><a id="mit-ki-werkzeugen"></a><a id="leitplanken-für-agenten"></a><a id="automatische-prüfungen-der-regeln"></a><a id="wenn-eine-prüfung-anschlägt"></a><a id="issues-schreiben"></a><a id="beiträge-annehmen"></a><a id="review"></a><a id="doku-prüfung"></a>Wie ein Beitrag entsteht und geprüft wird, steht unter [Mitwirken](mitwirken.md).
 
 ## SSO entwickeln und prüfen
 
