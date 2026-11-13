@@ -124,13 +124,14 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, auch für `run`,
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, hell und dunkel, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)), danach Vorschaubild und Hero |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
-| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
+| `bun run docs:hero` | Rendert `scripts/hero/hero.html` nach `docs/hero-hell.png` und `docs/hero-dunkel.png` (1280 × 360 bei doppelter Auflösung, mit Rahmen wie die Screenshots, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku); Bild oben in der README; Slogan in IBM Plex Serif aus `packages/einvoice/fonts`) |
 
 Seiten der Doku:
 
 - **Front Matter:** `title:` (für Suchmaschinen, höchstens etwa 60 Zeichen; die Navigation nimmt den Namen aus `mkdocs.yml`) und `description:` (höchstens etwa 160 Zeichen, Pflicht). Daraus setzt `overrides/main.html` Beschreibung und Open Graph.
 - **Hinweise** im Stil von GitHub (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` allein in der ersten Zeile); die deutschen Titel setzt `scripts/doku-hinweise`.
 - **Kurz halten:** Die Doku sagt Menschen, was gilt und warum. Schritte für Agenten stehen in den Skills unter `.claude/skills/`, wie ein Skript intern entscheidet, in dessen Kommentaren. Keine Sätze, die nur wiederholen, ankündigen oder zusammenfassen.
+- **Unterseiten statt langer Seiten:** Eine Seite bleibt unter etwa 8.000 Wörtern. Was nur ein Teil der Leser braucht (ein Anbieter, eine Rechtsform, ein Sonderfall, eine Nachschlagetabelle), steht auf einer eigenen Seite mit flachem Namen wie `bank-zahlungsdienstleister.md`, nicht in einem Unterordner: Kurzlinks wie `haben.app/bank/` legt `scripts/doku-kurzlinks` nur für Seiten direkt unter `docs/` an, und ein Ordner `bank/` nähme `bank.md` den Kurzlink. Die Anker bleiben gleich; an der alten Stelle steht ein kurzer Abschnitt mit den alten Ankern als `<a id>` und einem Verweis, damit Links aus ausgelieferten Versionen und von außen weiter treffen. Navigation in `mkdocs.yml` und `ueberblick.md` ändern sich zusammen.
 - Was der Build sonst ergänzt (Änderungsdatum, Weiterleitungen, kanonische Startseite), machen die Skripte `scripts/doku-*`; Tests mit `python -m unittest discover -s scripts/<ordner>`.
 
 ## Tests
@@ -226,7 +227,7 @@ Ein neuer Test gehört in den Durchlauf seines Themas; nach `app.spec.ts` nur, w
 
 ### Bilder für README und Doku
 
-Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; `bun run docs:screenshots` startet nur diese beiden Dateien, nicht die ganze Suite. Ohne `DOKU_SCREENSHOTS=1` überspringt sich die Spec, die CI wird also nicht langsamer. Jedes Bild entsteht in Wald hell und dunkel (`screenshot-<name>-dunkel.png`); die README wählt per `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark`. Die Hinweise zur Einrichtung von ERiC und Hersteller-ID blendet die Spec aus, damit die Bilder Haben eingerichtet zeigen.
+Die Bilder in README und Doku (`docs/screenshot-*.png`) nimmt `e2e/zz-doku-screenshots.spec.ts` mit den Daten von `app.spec.ts` auf; `bun run docs:screenshots` startet nur diese beiden Dateien, nicht die ganze Suite. Ohne `DOKU_SCREENSHOTS=1` überspringt sich die Spec, die CI wird also nicht langsamer. Jedes Bild entsteht in Wald hell und dunkel (`screenshot-<name>-dunkel.png`), mit Kante, Schatten (hell) oder Schein (dunkel) und transparentem Rand im Bild (`e2e/bildrahmen.ts`), weil GitHub kein CSS annimmt; die README wählt per `<picture>` und `prefers-color-scheme`, die Doku per `#only-light` und `#only-dark`. Die Hinweise zur Einrichtung von ERiC und Hersteller-ID blendet die Spec aus, damit die Bilder Haben eingerichtet zeigen.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
@@ -355,7 +356,7 @@ Zwischen RC und fertiger Version nur Fixes mergen, sonst geht Ungetestetes mit r
 
 ## SSO entwickeln und prüfen
 
-Die SSO-Anbindung nutzt Better Auth 1.7.14 (`genericOAuth`, `addOAuthServerContext`, `getOAuthState`). Bei Updates besonders prüfen: Signatur- und Nonce-Prüfung vor `getUserInfo`, Reihenfolge von State, Codeaustausch und Kontoanlage im Callback (`oauth2/callback.mjs`), das Rate-Limit für `/sign-in/*` und dass Fehler weiterhin als Redirect mit `error` enden (darauf baut das Rollback in `auth-transaction.ts`). Keine Sicherheitsoption abschalten, um einen Anbieter passend zu machen. Aufbau: [Architektur › SSO-Modus](architektur.md#sso-modus).
+Die SSO-Anbindung nutzt Better Auth 1.7.14 (`genericOAuth`, `addOAuthServerContext`, `getOAuthState`). Bei Updates besonders prüfen: Signatur- und Nonce-Prüfung vor `getUserInfo`, Reihenfolge von State, Codeaustausch und Kontoanlage im Callback (`oauth2/callback.mjs`), das Rate-Limit für `/sign-in/*` und dass Fehler weiterhin als Redirect mit `error` enden (darauf baut das Rollback in `auth-transaction.ts`). Keine Sicherheitsoption abschalten, um einen Anbieter passend zu machen. Aufbau: [SSO-Modus](architektur-anmeldung.md#sso-modus).
 
 | Test | Was er prüft |
 | --- | --- |

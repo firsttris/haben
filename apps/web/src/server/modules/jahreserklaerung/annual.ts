@@ -24,6 +24,7 @@ import {
   splitStrasse,
   ERSTES_ERKLAERUNGSJAHR,
   euerTotals,
+  euerVorzeichenMeldungen,
   ustErklaerungResult,
   type AveuerAnlage,
   type ElsterClient,
@@ -365,8 +366,10 @@ export async function euerYear(year: number): Promise<EuerYear> {
   return { figures, ...euerTotals(figures), anlagen, pendingAssets, lohnUmJahreswechsel, ustUmJahreswechsel, vorauszahlungHinweis, zehnTage };
 }
 
-function euerIssues(company: Company, data: EuerYear): Issue[] {
+export function euerIssues(company: Company, data: EuerYear): Issue[] {
   const issues: Issue[] = [];
+  // Zeile 18 und 58 der Anlage EÜR nehmen kein Vorzeichen an; sonst lehnt ERiC beim Senden ab (#708)
+  for (const text of euerVorzeichenMeldungen(data.figures)) issues.push({ tone: "fehler", text, link: "/bank" });
   if (!company.einkunftsart || !company.taetigkeit.trim()) {
     issues.push({ tone: "fehler", text: "Für die Anlage EÜR fehlen Einkunftsart und Art des Betriebs.", link: "/einstellungen" });
   }

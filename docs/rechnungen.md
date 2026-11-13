@@ -16,15 +16,15 @@ Haben schreibt Ausgangsrechnungen als E-Rechnung: ZUGFeRD (PDF/A-3 mit eingebett
 Bevor du die erste Rechnung festschreibst, brauchst du:
 
 - **Firmendaten** unter Einstellungen: Firmenname, Anschrift, E-Mail-Adresse, IBAN und Steuernummer oder USt-IdNr. Fehlt etwas, zeigt der Editor oben „Vor dem Festschreiben: …“ mit einem Link „Firmendaten ergänzen“. Siehe [einrichtung.md](einrichtung.md).
-- **Einen Kontakt** für den Kunden (siehe [Kontakte](#kontakte)).
+- **Einen Kontakt** für den Kunden (siehe [Kontakte](kontakte.md)).
 - Für XRechnung zusätzlich eine **Telefonnummer** in den Firmendaten und beim Kunden eine **E-Mail-Adresse oder Leitweg-ID**.
 
 ## So gehst du vor
 
 1. Unter **Rechnungen** auf **Neue Rechnung** klicken.
 2. **Kunde** wählen: Das Feld sucht beim Tippen nach Name, Kundennummer und Ort (Serienrechnungen haben dieselbe Auswahl; bei Textbausteinen bedeutet ein leeres Feld „für alle Kunden“); Pfeiltasten und Enter wählen einen Treffer, Escape schließt die Liste. Ohne Auswahl bleibt der bisherige Kunde, ein geleertes Feld nimmt ihn weg. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um. Fehlt der Kunde noch, legst du ihn über den letzten Eintrag der Trefferliste an: **Neuen Kontakt anlegen**, oder nach dem Tippen **„…“ als neuen Kunden anlegen** mit dem getippten Namen. Beides geht, ohne den Entwurf zu verlassen: Im Dialog ist die Rolle **Kunde** angehakt, nach dem Speichern ist er gewählt, und die Eingaben im Entwurf bleiben stehen, auch wenn du abbrichst. Gibt es schon einen Kontakt mit derselben USt-IdNr., weist der Dialog darauf hin: Ist er ein Kunde und nicht archiviert, kannst du ihn wählen, statt eine Dublette anzulegen; sonst verweist der Hinweis auf den Kontakt, um dort die Rolle zu ergänzen oder ihn wiederherzustellen. Das gilt ebenso im Angebot.
-3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum (siehe [Fälligkeit](#fälligkeit)). Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
-   Optional **Skonto**: je Stufe Satz und Frist in Tagen, vorbelegt vom Kunden oder aus den Firmendaten (siehe [Skonto](#skonto)).
+3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum (siehe [Fälligkeit](rechnungen-zahlung.md#fälligkeit)). Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
+   Optional **Skonto**: je Stufe Satz und Frist in Tagen, vorbelegt vom Kunden oder aus den Firmendaten (siehe [Skonto](rechnungen-zahlung.md#skonto)).
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“. Bei einem Zeitraum übernimmt Haben im XML die Kundenanschrift als Lieferanschrift mit Lieferland. Eine abweichende Lieferanschrift kennt Haben nicht.
    Optional **Bestellnummer**, **Eigene Auftragsnummer** und **Lieferscheinnummer** (siehe [Bestellnummer, Auftrag und Lieferschein](#bestellnummer-auftrag-und-lieferschein)).
 5. **E-Rechnungsformat** prüfen.
@@ -59,7 +59,7 @@ Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemein
 **Entwurf als PDF** lädt den Entwurf als echtes PDF herunter, etwa zur Prüfung durch die Steuerberatung. Es entsteht aus derselben Vorlage wie das PDF beim Festschreiben, mit Umbruch, Fußzeile und Logo, und zeigt so auch, wie eine mehrseitige Rechnung aussieht. Das geht für Rechnungen, Abschlags-, Schluss- und Korrekturrechnungen, sobald ein Kunde gewählt ist; was für das Festschreiben noch fehlt, darf fehlen.
 
 - Auf jeder Seite steht groß und schräg **ENTWURF** (auf englischen Rechnungen **DRAFT**). Der Vermerk liegt als eigene Ebene über Inhalt und Hintergrund, keine Gestaltung kann ihn verdecken; der Inhalt bleibt lesbar.
-- Statt der Rechnungsnummer steht „ENTWURF“ im Kopf. Statt des [GiroCodes](#girocode) steht ein gestrichelter Platzhalter gleicher Größe: Der Umbruch ist wie im endgültigen PDF, aber niemand kann einen Entwurf per Scan bezahlen.
+- Statt der Rechnungsnummer steht „ENTWURF“ im Kopf. Statt des [GiroCodes](rechnungen-zahlung.md#girocode) steht ein gestrichelter Platzhalter gleicher Größe: Der Umbruch ist wie im endgültigen PDF, aber niemand kann einen Entwurf per Scan bezahlen.
 - Der Dateiname nennt Belegart, „Entwurf“ und Rechnungsdatum, etwa `Rechnung-Entwurf-2026-10-02.pdf` oder `Invoice-Draft-2026-10-02.pdf`.
 - Hast du seit dem letzten Speichern etwas geändert, heißt der Knopf **Speichern und als PDF**: Er speichert zuerst, damit das PDF zeigt, was im Formular steht. Jeder weitere Download zeigt den neuen Stand.
 - Der Download vergibt keine Nummer, bucht nichts, versendet nichts und bettet kein XML ein. Das endgültige PDF beim Festschreiben hat keinen Vermerk.
@@ -153,14 +153,14 @@ In der Einleitung, im mehrzeiligen Text zu einer Position und im Hinweis stehen 
 | `__Text__` | unterstrichen |
 | `___Text___` | kursiv und unterstrichen |
 
-Du musst die Zeichen nicht tippen: Sobald du Text markierst, erscheinen direkt darüber die Knöpfe **F**, **K** und **U**, am Handy rechts über dem Feld. Oder nimm <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>B</kbd>, <kbd>I</kbd> oder <kbd>U</kbd>; ohne Markierung gilt das Kürzel für das Wort unter dem Cursor. Ein zweiter Klick nimmt die Auszeichnung zurück. Die Knöpfe zeichnen immer ganze Wörter aus, auch wenn nur ein Teil markiert ist. <kbd>Esc</kbd> blendet die Knöpfe aus. Du findest sie auch bei Artikeln, Textbausteinen, den Standard-Einleitungen und in Einleitung und Schluss einer [Mahnung](#mahnwesen).
+Du musst die Zeichen nicht tippen: Sobald du Text markierst, erscheinen direkt darüber die Knöpfe **F**, **K** und **U**, am Handy rechts über dem Feld. Oder nimm <kbd>Strg</kbd>/<kbd>⌘</kbd>+<kbd>B</kbd>, <kbd>I</kbd> oder <kbd>U</kbd>; ohne Markierung gilt das Kürzel für das Wort unter dem Cursor. Ein zweiter Klick nimmt die Auszeichnung zurück. Die Knöpfe zeichnen immer ganze Wörter aus, auch wenn nur ein Teil markiert ist. <kbd>Esc</kbd> blendet die Knöpfe aus. Du findest sie auch bei Artikeln, Textbausteinen, den Standard-Einleitungen und in Einleitung und Schluss einer [Mahnung](rechnungen-zahlung.md#mahnwesen).
 
 Die Vorschau und das PDF zeigen dieselbe Formatierung. Kombinationen wie `*_fett und kursiv_*` sind möglich.
 Leerzeilen bleiben Absätze. Die Zeichen müssen den Text direkt umschließen; `* Text *` bleibt wörtlich.
 Dateinamen und Pfade wie `backup_2026_final.zip` bleiben unverändert. Mit `\*` bzw. `\_` lässt sich ein Zeichen wörtlich schreiben; innerhalb von Pfaden ist das nicht nötig, dort bleibt auch der Backslash stehen.
 HTML, Links und sonstige Markdown- oder Typst-Befehle werden nicht ausgeführt.
 
-Die Formatierung gilt auch im Angebot, in eingefügten Textbausteinen und in der [Mahnung](#mahnwesen). Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
+Die Formatierung gilt auch im Angebot, in eingefügten Textbausteinen und in der [Mahnung](rechnungen-zahlung.md#mahnwesen). Im E-Rechnungs-XML steht der lesbare Klartext ohne Auszeichnungszeichen.
 Die Zeichen zählen bei der Grenze von 2000 Zeichen mit. Bereits festgeschriebene PDFs und XML-Dateien werden nicht neu erzeugt.
 
 ### Textbausteine
@@ -316,9 +316,9 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 > [!IMPORTANT]
 > Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
 
-## Fälligkeit
+## Zahlung und Mahnung
 
-Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, gilt der nächste Werktag (§ 193 BGB). Haben kennt nur Feiertage, die im ganzen Bundesland gelten; Feiertage einzelner Gemeinden (Fronleichnam in Teilen Sachsens und Thüringens, Mariä Himmelfahrt in Bayern, Augsburger Friedensfest) zählen nicht. Ohne Bundesland zählen nur die bundesweiten Feiertage. Bei Zahlungsziel 0 ist die Rechnung am Rechnungsdatum fällig, auch an einem Wochenende. Die Berechnung steht in `packages/core/src/holidays.ts`.
+<a id="fälligkeit"></a><a id="skonto"></a><a id="girocode"></a><a id="lastschrift"></a><a id="sammeldatei-für-die-bank"></a><a id="mahnwesen"></a>Fälligkeit, Skonto, GiroCode, Lastschrift und Mahnwesen stehen unter [Zahlung und Mahnung](rechnungen-zahlung.md).
 
 ## Rabatte
 
@@ -329,7 +329,7 @@ Einen Nachlass gibst du als **Positionsrabatt** auf einzelne Positionen oder als
 - **Netto oder brutto:** Ein Betrag gilt im Preismodus der Rechnung, bei Bruttopreisen also brutto.
 - **Mehrere Steuersätze:** Der Gesamtrabatt teilt sich je Steuersatz auf. Prozent gilt für jeden Satz gleich, ein Betrag im Verhältnis der Summen je Satz; den Rundungsrest trägt der größte Satz. Die Umsatzsteuer rechnet Haben je Satz auf den Betrag nach Rabatt (§ 10 Abs. 1 UStG: Bemessungsgrundlage ist das, was der Kunde aufwendet).
 - **Schlussrechnung:** Der Gesamtrabatt gilt nur für die Leistung, nicht für die Abzüge der Abschlagsrechnungen. Storno und Rechnungskorrektur einer Schlussrechnung übernehmen die Abzüge als solche, ebenfalls ohne Rabatt; in der Korrektur stehen sie fest unter den Positionen.
-- **Skonto** bleibt davon getrennt: Er gilt für den Betrag nach Rabatt und nur bei früher Zahlung (siehe [Skonto](#skonto)).
+- **Skonto** bleibt davon getrennt: Er gilt für den Betrag nach Rabatt und nur bei früher Zahlung (siehe [Skonto](rechnungen-zahlung.md#skonto)).
 
 Im **PDF** steht der Positionsrabatt unter der Bezeichnung („abzüglich 10 % Rabatt (95,00 €)“), der Zeilenbetrag nach Rabatt. Mit Gesamtrabatt stehen über der Summe netto die **Zwischensumme** und der **Gesamtrabatt**; bei Bruttopreisen über dem Gesamtbetrag.
 
@@ -343,58 +343,6 @@ In der **E-Rechnung** nach EN 16931:
 Bei Bruttopreisen stehen im XML die Netto-Beträge der Abzüge; Prozent und Grundlage fehlen dort, weil der Abzug netto nicht genau Grundlage × Prozent ist. Der KoSIT-Validator nimmt Rechnungen mit Rabatten in allen drei Formaten an, auch Storno, Schlussrechnung, Reverse Charge und Kleinunternehmer.
 
 **Gebucht** wird das Netto nach Rabatt auf das Erlöskonto, die Umsatzsteuer darauf; ein eigenes Konto für Rabatte gibt es nicht, denn der Rabatt mindert das Entgelt schon auf der Rechnung. Storno und Rechnungskorrektur übernehmen die Rabatte, ein fester Betrag mit umgekehrtem Vorzeichen, sodass das Storno die Rechnung auf den Cent aufhebt. Wiederkehrende Rechnungen und die REST-API kennen keine Rabatte; ein Entwurf mit Rabatten behält sie, wenn die API andere Felder ändert.
-
-## Skonto
-
-Skonto ist ein Abzug, den der Kunde machen darf, wenn er früh zahlt, etwa 2 % bei Zahlung innerhalb von 10 Tagen. Im Rechnungseditor stehen unter dem Zahlungsziel bis zu drei **Skontostufen**, je mit **Skonto in %** (bis zu zwei Nachkommastellen) und **Frist in Tagen**. Neben jeder Stufe zeigt der Editor das Datum, den Skontobetrag und den Zahlbetrag. Mit **+ Skontostufe hinzufügen** kommt eine weitere Stufe dazu, das Kreuz entfernt eine; ohne Stufe hat die Rechnung kein Skonto.
-
-- **Vorgabe:** Das Skonto eines neuen Entwurfs kommt vom Kunden, wenn dort ein eigenes eingetragen ist (siehe [Kontakte](#kontakte)), sonst aus den [Firmendaten](einrichtung.md). Stufen mit einer Frist länger als das Zahlungsziel der Rechnung lässt Haben dabei weg. Dasselbe gilt für Rechnungen aus einem Angebot, wiederkehrende Rechnungen und Entwürfe aus der [REST-API](api.md).
-- **Regeln:** Die Frist zählt ab dem Rechnungsdatum und endet spätestens mit dem Zahlungsziel; eine Stufe mit längerer Frist braucht einen kleineren Satz. Skonto gilt immer für den ganzen Rechnungsbetrag. Es gibt es nur bei Rechnungen in Euro, nicht bei Storno und Rechnungskorrektur.
-- **Bis zum Festschreiben änderbar:** Danach ist das Skonto wie die ganze Rechnung gesperrt.
-- **Auf dem PDF** steht unter der Zahlungsaufforderung je Stufe ein Satz wie „Bei Zahlung bis zum 05.10.2026 gewähren wir 2 % Skonto (95,20 €); Sie überweisen dann 4.664,80 €.“ Die Frist ist hier ein Datum: Rechnungsdatum plus Tage, ohne Verschiebung auf den nächsten Werktag. Fällt dieses Datum auf ein Wochenende oder einen Feiertag, gilt eine Zahlung am nächsten Werktag nach § 193 BGB trotzdem noch als rechtzeitig; so wertet sie der [Bankabgleich](bank.md#skonto-auf-eigene-rechnungen). Der GiroCode bleibt beim vollen Betrag, denn welches Skonto der Kunde nutzt, steht vorher nicht fest.
-- **In der E-Rechnung** beginnen die Zahlungsbedingungen (BT-20) mit einer Zeile je Stufe im Format der XRechnung, Regel BR-DE-18: `#SKONTO#TAGE=10#PROZENT=2.00#`, danach ein Zeilenumbruch und derselbe Inhalt als Satz. So lesen Buchhaltungsprogramme des Kunden das Skonto maschinell, in XRechnung (UBL und CII) wie in ZUGFeRD.
-- **In der E-Mail** nennt der Platzhalter `{zahlbar}` die Skontofristen mit, etwa „zahlbar bis zum 09.10.2026 ohne Abzug oder bis zum 05.10.2026 abzüglich 2 % Skonto“.
-
-Zahlt der Kunde in der Frist den Betrag abzüglich Skonto, erkennt der [Bankabgleich](bank.md#skonto-auf-eigene-rechnungen) die Zahlung und bucht das Skonto mit einem Klick aus; bei einer [Barzahlung](kasse.md#rechnung-bar-bezahlt) im Kassenbuch ebenso. Wie das Skonto Erlöse und Umsatzsteuer mindert, steht unter [Ausbuchen](#ausbuchen). Nach der Fälligkeit gilt der volle Betrag: [Mahnungen](#mahnwesen) fordern den ganzen offenen Betrag und weisen darauf hin, dass das Skonto entfallen ist.
-
-## GiroCode
-
-Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Code nach dem Standard des European Payments Council. Der Kunde scannt ihn mit der Banking-App, und die Überweisung ist ausgefüllt:
-
-- Empfänger, IBAN und BIC aus den Firmendaten; als Empfänger steht der **Kontoinhaber**, ohne Angabe der Firmenname,
-- der Rechnungsbetrag,
-- der Verwendungszweck „Rechnung 2026-001“.
-
-Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unter **Einstellungen › Firma** den **Kontoinhaber** ein. Die Bank deines Kunden vergleicht den Empfängernamen bei der Überweisung mit dem Inhaber des Kontos (Empfängerüberprüfung, seit Oktober 2025) und warnt sonst. Der Kontoinhaber steht auch in der Bankspalte der Fußzeile und in der E-Rechnung als Name des Zahlungskontos (BT-85).
-
-Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen, Rechnungen per [Lastschrift](#lastschrift) auch nicht. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen. Im [Entwurfs-PDF](#entwurf-als-pdf) steht an seiner Stelle ein Platzhalter.
-
-## Lastschrift
-
-Statt auf die Überweisung zu warten, ziehst du den Betrag per SEPA-Lastschrift ein. Dafür braucht es die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten) und ein gültiges [Mandat des Kunden](#sepa-lastschriftmandate).
-
-Im Rechnungseditor stellst du die **Zahlungsart** auf **SEPA-Lastschrift**; das jüngste gültige Mandat des Kunden ist vorgewählt. Eingezogen wird am Fälligkeitstag, also Rechnungsdatum plus Zahlungsziel.
-
-**Hinweis auf der Rechnung.** Statt der Bitte um Überweisung steht unter der Summe: „Den Betrag von … ziehen wir am … per SEPA-Lastschrift von Ihrem Konto … ein (Mandatsreferenz …, Gläubiger-ID …).“ Das ist die Vorabankündigung (Pre-notification) mit Betrag und Tag, die das Rulebook vor jedem Einzug verlangt; sie darf Teil der Rechnung sein ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) v1.2, PT-04.02; [Clarification Paper](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf) EPC132-17 v5.1, Kap. 2.6). Ohne andere Absprache mit dem Kunden muss sie spätestens 14 Kalendertage vor dem Einzug bei ihm sein (Kap. 4.3.4); ein kürzeres Zahlungsziel setzt eine solche Absprache voraus, etwa im Mandat. Einen GiroCode gibt es dann nicht, damit der Kunde nicht doppelt zahlt.
-
-**In der E-Rechnung** steht die Zahlungsart 59 (SEPA-Lastschrift nach UNTDID 4461) mit Mandatsreferenz (BT-89), Gläubiger-ID (BT-90) und IBAN des Kunden (BT-91), ohne die eigene Bankverbindung, wie es XRechnung verlangt (BR-DE-25-a, BR-DE-25-b, BR-DE-30, BR-DE-31). Die Zahlungsbedingungen (BT-20) enthalten denselben Hinweis wie das PDF. Der KoSIT-Validator prüft das in der CI.
-
-**Vor dem Festschreiben** prüft Haben: Gläubiger-ID vorhanden, Mandat des Kunden der Rechnung, Mandat am Einzugstag gültig (nicht widerrufen, nicht nach 36 Monaten ohne Einzug abgelaufen), Rechnung in Euro und ohne Skonto, denn eingezogen wird der volle Betrag. Storno und Rechnungskorrektur werden nie eingezogen; sie bekommen die Zahlungsart Überweisung.
-
-**Wiederkehrende Rechnungen** haben dieselbe Zahlungsart. Jede Rechnung nimmt das jüngste Mandat des Kunden, das an ihrem Fälligkeitstag gilt; so geht es nach einem neuen Mandat ohne Änderung an der Vorlage weiter. Gibt es keins, entsteht für den Termin keine Rechnung; die Vorlage zeigt den Grund, und der nächste Lauf holt den Termin nach, sobald ein Mandat da ist. Liegt der Fälligkeitstag des nachgeholten Termins dann schon zurück, nimmt die Rechnung das am Tag des Laufs gültige Mandat; Rechnungsdatum und Zahlungsziel passt du vor dem Festschreiben an, denn eingezogen wird erst nach der Vorabankündigung.
-
-### Sammeldatei für die Bank
-
-Unter **Verkauf › Lastschriften** stehen alle festgeschriebenen, offenen Rechnungen mit Zahlungsart Lastschrift, die noch in keiner Datei waren. Du wählst das **Gläubigerkonto** und die Rechnungen und lädst mit **Lastschriftdatei erzeugen** eine SEPA-Datei im Format pain.008.001.08 herunter, die du im Online-Banking hochlädst. Das Format folgt der [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version) der Deutschen Kreditwirtschaft (Version 3.9, Schema `pain.008.001.08_GBIC_5.xsd`; Version 26.11 behält es ab 15. November 2026 bei); ein Test prüft jede Datei gegen dieses Schema und das von ISO 20022.
-
-- **Einzugstag** ist die Fälligkeit der Rechnung, frühestens der zweite TARGET-Geschäftstag nach heute. Die Bank muss die Lastschrift spätestens einen TARGET-Tag vor Fälligkeit an die Bank des Kunden geben ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) v1.2, Kap. 4.3.4). TARGET-Tage sind Montag bis Freitag außer Neujahr, Karfreitag, Ostermontag, 1. Mai, 25. und 26. Dezember ([Bundesbank](https://www.bundesbank.de/resource/blob/749314/edbf269e7e236ff9dcf3e95dab122a0b/472B63F073F071307366337C94F8C870/feiertage-in-deutschland-1-data.pdf)). Hat deine Bank eine frühere Annahmeschlusszeit, lade die Datei entsprechend früher hoch.
-- **Frühestens 14 Kalendertage vor Fälligkeit** lässt sich eine Lastschrift einreichen (Kap. 4.3.4); spätere Rechnungen stehen mit dem Tag in der Liste, ab dem sie gehen.
-- **Erst- oder Folgelastschrift:** Die erste Lastschrift aus Haben auf ein neues Mandat ist eine Erstlastschrift (FRST), alle weiteren und die auf übernommene Mandate Folgelastschriften (RCUR). FRST ist seit 2016 optional; die Banken nehmen auch eine erste Lastschrift mit RCUR an ([Clarification Paper](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf) EPC132-17 v5.1, Kap. 2.7; Anlage 3, Kap. 2.2.2.5).
-- **Ein Sammler je Einzugstag, Verfahren und Sequenz.** Die Bank schreibt jeden Sammler als eine Summe gut (Sammelbuchung); der Bankabgleich teilt sie auf die Rechnungen auf. Im Verwendungszweck steht „Rechnung“ und die Nummer. Basis- und Firmenlastschriften (CORE und B2B) erzeugst du in getrennten Dateien; eine pain.008-Datei darf sie nicht mischen (Anlage 3, `LclInstrm`).
-- **Mandat:** Es muss am Einzugstag gelten. Jede Lastschrift aus Haben zählt als Einzug, auch wenn sie später zurückkommt; ab ihrem Einzugstag laufen die 36 Monate bis zum Verfall neu.
-- Lastschriften gehen nur von Konten im EWR; außerhalb verlangt die Deutsche Kreditwirtschaft die Anschrift des Zahlungspflichtigen.
-
-Gebucht wird beim Erzeugen nichts. Die Rechnung bleibt offen, bis der Bankabgleich die Gutschrift zuordnet. Unter **Erzeugte Dateien** lädst du jede Datei erneut herunter; Datei und Lastschriften lassen sich nicht ändern oder löschen.
 
 ## Rechnungen in Fremdwährung
 
@@ -412,14 +360,20 @@ In Fremdwährung gibt es keinen GiroCode (SEPA kennt nur Euro), keine Abschlags-
 
 Bei größeren Aufträgen rechnest du in Teilen ab: zuerst Abschlagsrechnungen, am Ende eine Schlussrechnung über alles.
 
-1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung). Gibt es ein Angebot zum Auftrag, wählst du es unter **Angebot** aus, oder du legst den Abschlag gleich im Angebot mit **Abschlagsrechnung erstellen** an (siehe [angebote.md](angebote.md#in-abschlägen-abrechnen)). Hat das Angebot einen [Zahlungsplan](angebote.md#zahlungsplan), rechnet Haben den Betrag je Zeile selbst aus, anteilig je Steuersatz.
+1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird festgeschrieben, kann bezahlt und gemahnt werden. Für reine Anforderungen von GmbH und UG gilt die [Bilanzierung vor Leistung](buchhaltung.md#anzahlungen-vor-leistung). Im XML trägt sie den Typ 326 (Teilrechnung). Gibt es ein Angebot zum Auftrag, wählst du es unter **Angebot** aus, oder du legst den Abschlag gleich im Angebot mit **Abschlagsrechnung erstellen** an (siehe [angebote.md](angebote.md#in-abschlägen-abrechnen)). Hat das Angebot einen [Zahlungsplan](angebote.md#zahlungsplan), rechnet Haben den Betrag je Zeile selbst aus, anteilig je Steuersatz.
 2. **Schlussrechnung:** In der festgeschriebenen Abschlagsrechnung bzw. im Angebot auf **Schlussrechnung erstellen** klicken oder bei einer neuen Rechnung „Schlussrechnung“ wählen. Gehört die Schlussrechnung zu einem Angebot, schlägt Haben dessen offene Abschlagsrechnungen zum Abzug vor, sonst alle offenen Abschlagsrechnungen des Kunden. Per Häkchen wählst du sie ab oder wieder an, auch die anderer Aufträge. Unter **Positionen** steht die gesamte Leistung.
 
-Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. Die Schlussrechnung weist den Restbetrag aus und verweist im XML auf jede abgezogene Abschlagsrechnung. Offene Abschlagsforderungen bleiben separat bestehen.
+Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. Die Schlussrechnung weist den Restbetrag aus und verweist im XML auf jede abgezogene Abschlagsrechnung. Noch offene Abschläge bleiben eigene Posten.
 
 Ein neuer Abschlag ist vorbelegt eine **Anzahlung vor Leistung**. Bei regulärer Besteuerung entsteht seine Umsatzsteuer mit dem tatsächlichen Zahlungseingang, bei Teilzahlungen anteilig; bei Soll-Versteuerung spätestens mit der Schlussleistung. Für eine schon erbrachte Teilleistung setzt du **Teilleistung bereits erbracht** und trägst den Leistungstag unter **Leistung von** ein; bei einem Zeitraum zählt **Leistung bis**. Bei Soll entsteht die Steuer dann mit der Teilleistung. Das Datum darf nicht nach dem Rechnungsdatum liegen. Grundlage sind [§ 13 Abs. 1 Nr. 1 Buchst. a UStG](https://www.gesetze-im-internet.de/ustg_1980/__13.html) und [Abschnitt 13.5 UStAE](https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-5.html).
 
-Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue Anzahlungsrechnungen fällig; spätere Zahlungen versteuern sie nicht nochmals. Für eine solche Schlussrechnung zählt der eingetragene Leistungstag, sonst ihr Rechnungsdatum. Bei der Übernahme aus einem Angebot schlägt der Entwurf dafür den heutigen Tag vor; geplante Leistungsdaten des Angebots gelten nicht automatisch als tatsächlich erbrachte Schlussleistung. Prüfe das Datum und passe es vor der Festschreibung an den tatsächlichen Leistungstag beziehungsweise das Ende des Leistungszeitraums an. Ist-Versteuerung bleibt zahlungsbezogen. Bei neuen erbrachten Teil- und Schlussleistungen bleibt nach einem Verfahrenswechsel das Verfahren des Leistungsjahres maßgeblich ([UStAE 13.6 Abs. 3](https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-6.html)). Ausdrücklich erbrachte EU-Teilleistungen mit Reverse Charge werden unabhängig von Ist/Soll im Leistungsmonat gemeldet ([§ 18b Satz 3 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18b.html)). Die übrigen Auslands-Meldezeitpunkte bleiben erhalten. Vor diesem Update festgeschriebene Abschläge und ihre Korrekturen behalten ihre bisherige Versteuerung. Die Buchung und den Umgang mit später zugeordneten Zahlungen beschreibt [Buchhaltung](buchhaltung.md#anzahlungen-vor-leistung).
+Mit der Schlussleistung wird bei Soll auch die Steuer auf noch unbezahlte neue Anzahlungsrechnungen fällig; spätere Zahlungen versteuern sie nicht nochmals. Für eine solche Schlussrechnung zählt der eingetragene Leistungstag, sonst ihr Rechnungsdatum. Bei der Übernahme aus einem Angebot schlägt der Entwurf dafür den heutigen Tag vor; geplante Leistungsdaten des Angebots gelten nicht automatisch als tatsächlich erbrachte Schlussleistung. Prüfe das Datum und passe es vor der Festschreibung an den tatsächlichen Leistungstag beziehungsweise das Ende des Leistungszeitraums an. Ist-Versteuerung bleibt zahlungsbezogen. Bei neuen erbrachten Teil- und Schlussleistungen bleibt nach einem Verfahrenswechsel das Verfahren des Leistungsjahres maßgeblich ([UStAE 13.6 Abs. 3](https://ao.bundesfinanzministerium.de/usth/2023/A-Umsatzsteuergesetz/IV-Steuer-und-Vorsteuer/Paragraf-13/ae-13-6.html)). Für EU-Leistungen mit Reverse Charge gelten unabhängig von Ist/Soll die [Meldezeitpunkte nach Leistung](umsatzsteuer.md#umsätze-ohne-steuer-kz-21-41-43-45-und-48). Die übrigen Auslands-Meldezeitpunkte bleiben erhalten. Vor diesem Update festgeschriebene Abschläge und ihre Korrekturen behalten ihre bisherige Versteuerung. Die Buchung und den Umgang mit später zugeordneten Zahlungen beschreibt [Buchhaltung](buchhaltung.md#anzahlungen-vor-leistung).
+
+**Schlussrechnung bei GmbH und UG ersetzen:** Im neuen Bilanzverfahren bleibt die bereits erbrachte Schlussleistung beim bloßen Rechnungsstorno bestehen. Für einen Ersatz nach diesem Storno müssen dieselben Abschläge, derselbe Kunde, dieselbe Steuerbehandlung, derselbe Leistungstag und dieselben Netto-/Steuerbeträge je Satz vorliegen. Haben verbindet den Ersatz mit dem eindeutigen Vorgänger; bisherige Zahlungen zählen auf den offenen Rest, ihre Zuordnungen bleiben am ursprünglichen Beleg. Das Papierstorno eröffnet keine Erstattung. Eine echte Rückzahlung nach Storno einer Anforderung vor Leistung bleibt möglich ([bestätigter Ablauf in #750](https://github.com/firsttris/haben/issues/750#issuecomment-6837873675)).
+
+Abweichende Beträge oder Abzüge, eine mehrdeutige Vorgängerkette und bereits vorhandene Entgeltkorrekturen werden beim Ersatz abgelehnt. Eine echte Entgeltminderung braucht eine eigene datierte Korrektur im Zeitraum der Änderung; das Datum des Ersatzbelegs weist diesen Zeitpunkt nicht nach ([§ 17 Abs. 1 Satz 8 UStG](https://www.gesetze-im-internet.de/ustg_1980/__17.html)). Für den Ausfall einer noch unbilanzierten Anforderung gilt die Grenze unter [Anzahlungen vor Leistung](buchhaltung.md#anzahlungen-vor-leistung).
+
+Bei neuen Bilanz-Schlussketten von GmbH und UG lässt sich eine Bank- oder Barzahlung vor dem tatsächlichen Leistungstag beziehungsweise Leistungsende nicht zuordnen. Verwende dafür eine Abschlagsrechnung. Zahlungen am Leistungstag bleiben möglich; unmarkierte Altbelege und die EÜR behalten ihre bisherigen Zahlungswege. Der allgemeine Vorauszahlungsfall auf normalen Rechnungen ist als [#853](https://github.com/firsttris/haben/issues/853) abgegrenzt.
 
 Regeln:
 
@@ -458,7 +412,7 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
 | Aktiv | Ohne Häkchen erzeugt die Vorlage keine Rechnungen. |
 | Kunde, Einleitung, Positionen mit Text zur Position, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis, Aufbewahrungshinweis | wie im Rechnungseditor |
-| Zahlungsart | Überweisung oder SEPA-Lastschrift; bei Lastschrift wählt jeder Lauf das Mandat selbst, siehe [Lastschrift](#lastschrift) |
+| Zahlungsart | Überweisung oder SEPA-Lastschrift; bei Lastschrift wählt jeder Lauf das Mandat selbst, siehe [Lastschrift](rechnungen-zahlung.md#lastschrift) |
 
 In Einleitung, Beschreibungen, Texten zur Position und Hinweis ersetzt Haben Platzhalter:
 
@@ -476,41 +430,6 @@ Bezug ist der Leistungszeitraum, ohne Leistungszeitraum das Rechnungsdatum. „W
 Scheitert das Festschreiben, etwa weil in den Firmendaten die IBAN fehlt, bleibt die Rechnung als Entwurf stehen. Scheitert nur der E-Mail-Versand (kein E-Mail-Zugang, keine Adresse beim Kunden, Server nicht erreichbar), ist die Rechnung festgeschrieben und du schickst sie auf ihrer Seite von Hand. Die Vorlage zeigt den Fehler, bis du sie das nächste Mal speicherst.
 
 Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt sich eine Vorlage nur, solange daraus keine Rechnung entstanden ist; sonst deaktivierst du sie.
-
-## Mahnwesen
-
-Unter **Rechnungen › Mahnwesen** stehen alle überfälligen Rechnungen: festgeschrieben, nicht storniert, mit offenem Betrag und abgelaufener Fälligkeit. Ob eine Rechnung bezahlt ist, ergibt sich aus den Zuordnungen im [Bankabgleich](bank.md) und den Bareinnahmen im [Kassenbuch](kasse.md#rechnung-bar-bezahlt). Je Rechnung siehst du, wie viele Tage sie überfällig ist, den offenen Betrag und die letzte Mahnung mit ihrer Frist.
-
-Der Knopf rechts schlägt die nächste Stufe vor:
-
-| Stufe | Titel auf dem Schreiben |
-|---|---|
-| Zahlungserinnerung | Zahlungserinnerung |
-| 1. Mahnung | Mahnung |
-| Letzte Mahnung | Letzte Mahnung, mit Hinweis auf gerichtliche Schritte |
-
-Läuft die Frist der letzten Mahnung noch, ist der Knopf hell. Mahnen kannst du trotzdem.
-
-Gemahnt wird immer der volle offene Betrag. Bot die Rechnung [Skonto](#skonto) an, ist dessen Frist bei der Mahnung vorbei (sie endet spätestens mit dem Zahlungsziel); das Schreiben sagt deshalb unter der Zahlungsaufforderung, dass das Skonto entfallen ist.
-
-Im Formular legst du fest:
-
-| Feld | Bedeutung |
-|---|---|
-| Stufe | Vorschlag ist die nächste; beim Wechsel tauscht Haben Einleitung und Schluss gegen die Vorlage der Stufe |
-| Neue Zahlungsfrist | Vorschlag: heute plus die Frist aus den Einstellungen (10 Tage) |
-| Mahngebühr | Vorschlag je Stufe aus den Einstellungen |
-| Verzugszinsen | Geschäftskunde: Basiszinssatz plus 9 Prozentpunkte, Verbraucher: plus 5 (§ 288 BGB). Taggenau ab dem Tag nach der Fälligkeit bis heute, auf 365 Tage, auf den offenen Betrag. Nur mit Basiszinssatz in den Einstellungen. |
-| Verzugspauschale | 40 € nach § 288 Abs. 5 BGB, nur gegenüber Geschäftskunden |
-| Einleitung und Schluss | Vorlage je Stufe, frei änderbar, auch [fett, kursiv und unterstrichen](#fett-kursiv-und-unterstrichen) |
-
-Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung, in der aktuellen Gestaltung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue. Bereits erstellte Mahnungen behalten ihr PDF; Zeichen wie `*`, die dort als Text stehen, bleiben also stehen.
-
-Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
-
-**Gebühren und Zinsen buchen:** Sie sind keine Rechnung und erhöhen nicht die Forderung. Zahlt der Kunde mehr als die Rechnung, ordnest du im Bankabgleich die Rechnung und den Rest als **Mahngebühren und Verzugszinsen** zu. Gebucht wird Bank an 2650 bzw. 7100 „Sonstige Zinsen und ähnliche Erträge“, ohne Umsatzsteuer (Schadensersatz, kein Entgelt). In der EÜR zählt das als umsatzsteuerfreie Betriebseinnahme.
-
-Jede Mahnung lässt sich auf der Seite der Rechnung **per E-Mail** schicken, mit dem PDF der Mahnung im Anhang (siehe [Per E-Mail versenden](#per-e-mail-versenden)).
 
 ## Rechnungsliste und Status
 
@@ -576,7 +495,7 @@ Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufge
 
 ## Per E-Mail versenden
 
-Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtung.md#e-mail)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
+Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtung-email.md)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
 
 1. **Rechnung senden** (die Schaltfläche nennt die Art, etwa „Stornorechnung senden“; nach einem erfolgreichen Versand heißt sie **Erneut senden**) öffnet das Formular. Vorbelegt sind alle E-Mail-Adressen aus dem Kontakt (etwa Rechnungseingang und Freigeber), sonst die Adresse auf der Rechnung, dazu Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
 2. Hat die Rechnung [zusätzliche Anhänge](#zusätzliche-anhänge), stehen sie unter **Zusätzliche Anhänge mitsenden**, alle angehakt. Was nicht mitgehen soll, hakst du ab.
@@ -641,7 +560,7 @@ Für beide gilt:
 - Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
 - War die Rechnung schon (teilweise) bezahlt, ist die Stornorechnung im Bankabgleich mit dem gezahlten Betrag offen. Die Rückzahlung an den Kunden ordnest du dort der Stornorechnung zu; bei Ist-Versteuerung mindert sie im Monat der Rückzahlung die Umsatzsteuer.
 
-Der Zahlungssatz im Storno richtet sich nach dem Zahlstand beim Erstellen: Ohne Zahlung steht dort „Es ist keine Zahlung erforderlich“, bei Teil- oder Vollzahlung „Bereits geleistete Zahlungen werden erstattet“. Eine Rechnungskorrektur beschreibt die Minderung der ursprünglichen Rechnung und sagt keine pauschale Auszahlung zu. PDF und E-Rechnung verwenden denselben Inhalt; das englische PDF entsprechend übersetzt. Bereits gespeicherte Belege behalten ihren bisherigen Text.
+Auf neuen Stornobelegen steht „Die ursprüngliche Rechnung wird storniert.“ Das gilt unabhängig von Zahlungen und Erstattungen, auch für das positive Storno einer Rechnungskorrektur. Der Hinweis nennt keinen Kundensaldo und sagt keine Auszahlung zu. Eine Rechnungskorrektur beschreibt die Minderung der ursprünglichen Rechnung. PDF und E-Rechnung verwenden denselben Inhalt, das englische PDF entsprechend übersetzt. Bereits gespeicherte Belege behalten ihren bisherigen Text.
 
 Die ursprüngliche Rechnung zeigt unter **Korrekturen** alle Stornos und Korrekturen, die sich auf sie beziehen, eine stornierte Rechnung zusätzlich einen roten Hinweis mit Link zur Stornorechnung.
 
@@ -649,73 +568,7 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 ## Kontakte
 
-Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kundennummer, E-Mail, Telefon und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
-
-| Feld | Hinweis |
-| --- | --- |
-| Name oder Firma | Pflicht |
-| Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md) und Dauerbelegen. Das prüft auch der Server, etwa bei einem Aufruf über die API: Ein Kontakt ohne die passende Rolle lässt sich dort nicht zuordnen, die Meldung nennt die Rolle. Geprüft wird beim Zuordnen und beim Wechsel des Kontakts; ein bestehender Verweis auf einen Kontakt, der die Rolle inzwischen nicht mehr hat, bleibt beim Speichern anderer Felder stehen. |
-| Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
-| Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. Mit einem Format unter **Einstellungen › Rechnungen › Kundennummern** vergibt Haben sie beim Anlegen selbst, wenn du das Feld leer lässt (siehe unten). |
-| DATEV-Debitor, DATEV-Kreditor | Personenkonten für die Steuerberatung, getrennt von Kunden- und Lieferantennummer; ein Kontakt mit beiden Rollen kann beide tragen. Fünfstellig wie bei DATEV mit vierstelligen Sachkonten: Debitoren 10000 bis 69999, Kreditoren 70000 bis 99999 ([DATEV-Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) und [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf) 2026, jeweils S. 36). Andere Längen lehnt Haben ab, statt sie zu kürzen. Jede Nummer gehört genau einem Kontakt; ist sie schon vergeben, nennt das Formular den Kontakt. Mit [Personenkonten im DATEV-Export](auswertungen.md#personenkonten) steht sie im Buchungsstapel und ist ab dem ersten Export fest; leer vergibt sie der Export, wenn der Kontakt eine braucht. |
-| E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
-| Telefon | Frei, mit Ziffern, Leerzeichen und `+ ( ) / - .`, z. B. `+49 941 123456`. Steht in der Kontaktliste unter der E-Mail und lässt sich suchen, aber nicht auf Rechnungen; für eine Person bei der Firma gibt es die [Ansprechpartner](#ansprechpartner). |
-| Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
-| Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
-| USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. Gibt es sie schon bei einem anderen Kontakt, auch einem archivierten, weist Haben nach dem Tippen darauf hin, mit Link auf den Kontakt, statt einen zweiten anzulegen; gespeichert wird trotzdem, zusammengeführt nichts. |
-| IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
-| Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
-| Standardformat für Rechnungen | ZUGFeRD, XRechnung (CII), XRechnung (UBL) oder „wie in den Einstellungen“. |
-| Sprache von Rechnungen und Angeboten | Deutsch oder Englisch, siehe [Rechnungen auf Englisch](#rechnungen-auf-englisch). |
-| Skonto | „wie in den Einstellungen“ oder „eigenes für diesen Kunden“ mit bis zu drei Stufen; ohne Stufe bekommt der Kunde kein Skonto (siehe [Skonto](#skonto)). |
-
-**Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Platzhalter wie beim [Nummernformat](einrichtung.md#nummernformat), das Jahr ist hier aber nicht nötig, weil der Zähler nicht jährlich neu beginnt. Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
-
-### Ansprechpartner
-
-Auf der Detailseite eines Kontakts steht die Karte **Ansprechpartner**: eine oder mehrere Personen mit Name, E-Mail, Telefon und Funktion (etwa „Einkauf“). Im Entwurf von Rechnung und Angebot wählst du unter **Kunde** den **Ansprechpartner**; das Feld erscheint nur, wenn der Kunde Personen hat, und setzt sich beim Wechsel des Kunden zurück.
-
-- **PDF:** Hinter dem Firmennamen steht eine Zeile **z. Hd. <Name>**, englisch **FAO <Name>**; Firmenname und Anschrift bleiben. Das gilt für Rechnung, Angebot, Auftragsbestätigung, Lieferschein und Mahnung, in der Vorschau wie im PDF. Die Zeile kommt als Eintrag im Feld `recipient` bei der Vorlage an, auch bei [eigenen Belegvorlagen](belegvorlagen.md).
-- **E-Rechnung:** Der Name steht als **BT-56** (Ansprechpartner des Käufers), in XRechnung (CII und UBL) und in ZUGFeRD. Die E-Mail des Kontakts bleibt BT-49 und BT-58; E-Mail, Telefon und Funktion der Person stehen nicht in der Datei und nicht im PDF.
-- **Festschreiben:** Mit der Rechnung oder dem Angebot wird der **Stand der Person** festgehalten. Ändert sich ihr Name später oder wird sie deaktiviert, bleiben Beleg und Siegel unverändert; Storno, Korrektur, Mahnung und Lieferschein nennen dieselbe Person wie die Rechnung. Die Rechnung aus einem Angebot und die Kopie eines Angebots übernehmen die Person, solange sie aktiv ist.
-- **Deaktivieren statt löschen:** Eine Person lässt sich nicht löschen, denn sie kann an Entwürfen und an festgeschriebenen Belegen hängen. **Deaktivieren** nimmt sie aus der Auswahl; ein Entwurf, der sie schon gewählt hat, behält sie. Jede Änderung steht im Änderungsprotokoll.
-- **Nicht dabei:** wiederkehrende Rechnungen (sie tragen keine Person), die REST-API (ein PATCH lässt die gewählte Person unverändert, außer der Kunde wechselt: dann entfällt sie) und der Umzug aus anderen Programmen.
-
-**Versionen.** Jede Änderung erhöht die Versionsnummer, der vorige Stand bleibt als Version erhalten. Die Detailseite listet alle Versionen mit Zeitpunkt.
-
-**Aus einer Liste übernehmen.** **CSV importieren** über der Liste übernimmt Kunden und Lieferanten aus einer CSV-Datei, etwa dem Kontakt-Export von Lexware Office, mit Vorschau und ohne Dubletten ([CSV-Import](csv-import.md#kontakte)).
-
-**Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
-
-### Rechnungen und Belege am Kontakt
-
-Unter dem Formular zeigt die Detailseite, was mit dem Kontakt gelaufen ist ([#587](https://github.com/firsttris/haben/issues/587)):
-
-- **Umsatz und Rechnungen** (Kunde): festgeschriebene Rechnungen aus Haben und die Einnahmen aus dem Archiv des Umzugs. Entwürfe zählen nicht. Stornorechnung, Rechnungskorrektur und Gutschrift mindern mit ihrem negativen Betrag, und zwar im Jahr ihres eigenen Datums: Ein Storno im Januar zu einer Rechnung vom Dezember mindert das neue Jahr.
-- **Ausgaben und Belege** (Lieferant): gebuchte [Belege](belege.md) und die Ausgaben aus dem Archiv. Ein stornierter Beleg steht in der Liste, zählt aber nicht; ungebuchte Belege fehlen.
-
-Oben stehen die Summen je Jahr, netto und brutto, mit dem Anteil aus dem Altbestand und bei mehreren Jahren einer Zeile **Gesamt**. Ab zwei Jahren zeigt ein Säulendiagramm darüber die Nettosummen, in den Farben der Einnahmen bzw. Ausgaben wie unter [Auswertungen](auswertungen.md#einnahmen-und-ausgaben-je-monat); Zeigen oder Fokus nennt netto, brutto und den Anteil aus dem Altbestand. Ein Klick auf ein Jahr in der Tabelle oder auf seine Säule (per Tastatur mit Enter) zeigt seine Einträge darunter; ohne Wahl ist es das neueste Jahr mit Einträgen. Jede Zeile führt zur Rechnung, zum Beleg oder zum archivierten Beleg.
-
-- **Zugeordnet wird nur über den Kontakt**, nie über den Namen: Ein zweiter Kontakt mit gleichem Namen zählt nicht mit, ebenso wenig eine Rechnung, ein Beleg oder ein archivierter Beleg ohne Kontakt.
-- **Das Jahr ist das Rechnungs- bzw. Belegdatum.** Die Seite ist eine Übersicht, keine EÜR: Zahlungsdatum, Ist- und Soll-Versteuerung spielen keine Rolle.
-- **Der Altbestand rechnet wie unter Archiv › Belege**, Gutschriften negativ. Ein [übernommener offener Posten](lexoffice.md#schritt-3-offene-posten-übernehmen) steht nur einmal da, als Rechnung bzw. Beleg in Haben.
-- Ein Abschnitt erscheint mit der Rolle oder sobald es Einträge gibt: Ein Lieferant, dem du früher auch Rechnungen geschrieben hast, zeigt beide.
-
-### SEPA-Lastschriftmandate
-
-Ziehst du Rechnungen per Lastschrift ein, hinterlegst du das Mandat des Kunden auf seiner Detailseite unter **SEPA-Lastschriftmandate**. Dafür braucht es zuerst die Gläubiger-ID in den [Firmendaten](einrichtung.md#firmendaten). Mandate gibt es nur von Kunden.
-
-| Feld | Hinweis |
-| --- | --- |
-| Mandatsreferenz | Wie auf dem Mandat; bis 35 Zeichen aus `A–Z a–z 0–9`, Leerzeichen und `+ ? / - : ( ) . , '` (Schema der Deutschen Kreditwirtschaft, [Anlage 3 des DFÜ-Abkommens](https://www.ebics.de/de/datenformate/gueltige-version), Kap. 2.3.1). Jede Referenz gibt es nur einmal, ohne Rücksicht auf Groß- und Kleinschreibung (Kap. 2.2.2). Sie beginnt und endet nicht mit `/` und enthält kein `//` ([Clarification Paper EPC132-17](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC132-17%20v5.1%20Clarification%20Paper%20SDD%20Core%20and%20SDD%20B2B%20scheme%20rulebooks.pdf), Kap. 2.1). |
-| Unterschrieben am | Datum der Unterschrift; nicht in der Zukunft. |
-| Verfahren | Basislastschrift (CORE) oder Firmenlastschrift (B2B). Eine Firmenlastschrift setzt voraus, dass der Kunde kein Verbraucher ist und das Mandat auch seiner Bank vorliegt. |
-| Kontoinhaber, IBAN, BIC | Das Konto, von dem eingezogen wird; vorbelegt mit Name und IBAN des Kontakts. Die IBAN muss aus dem EWR sein, wie bei SEPA-Überweisungen: Das Konto muss in SEPA liegen (Rulebook, Kap. 2.2), und außerhalb des EWR verlangt das Mandat die Anschrift des Zahlungspflichtigen. Die BIC ist optional. |
-| Schon eingezogen | Für ein Mandat, auf das vor Haben schon Lastschriften liefen: Der nächste Einzug ist dann eine Folgelastschrift. Mit dem Tag des letzten Einzugs rechnet Haben den Verfall richtig. |
-
-**Verfall nach 36 Monaten.** Ein Mandat, auf das 36 Monate lang keine Lastschrift eingereicht wurde, darf nicht mehr genutzt werden; gezählt ab dem letzten Einzug, auch wenn er zurückgegeben wurde ([SDD Core Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC016-06%202025%20SDD%20Core%20Rulebook%20version%201.2.pdf) und [SDD B2B Rulebook](https://www.europeanpaymentscouncil.eu/sites/default/files/kb/file/2026-09/EPC222-07%202025%20SDD%20B2B%20Rulebook%20version%201.2.pdf) des EPC, Version 1.2, Kap. 4.2). Als Einzug zählt der letzte Einzug vor Haben und jede festgeschriebene Rechnung per [Lastschrift](#lastschrift) mit ihrem Fälligkeitstag, außer sie ist storniert. Für ein Mandat ohne Einzug nennt das Rulebook keinen Beginn; Haben zählt dann vorsichtig ab der Unterschrift. Der Status neben jedem Mandat zeigt, bis wann es gilt oder seit wann es abgelaufen ist; für einen neuen Einzug braucht es dann ein neues Mandat.
-
-**Nichts wird überschrieben.** Mandate, ihre PDFs und Widerrufe lassen sich nur anlegen, nicht ändern oder löschen; jede Zeile steht im Audit-Log. Ändert sich etwas am Mandat, etwa die Bankverbindung, legst du ein neues an. **PDF hinterlegen** speichert das unterschriebene Mandat; ein späteres PDF ersetzt es in der Anzeige, das frühere bleibt gespeichert. **Widerrufen** beendet ein Mandat ab heute, nach einer Rückfrage.
+<a id="ansprechpartner"></a><a id="rechnungen-und-belege-am-kontakt"></a><a id="sepa-lastschriftmandate"></a>Kunden und Lieferanten, Ansprechpartner und SEPA-Lastschriftmandate stehen unter [Kontakte](kontakte.md).
 
 ## Entwürfe aus der REST-API
 
@@ -738,5 +591,5 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 - Ausfuhrlieferungen nur an Kunden mit Anschrift außerhalb der EU; den Ausfuhrnachweis führt Haben nicht.
 - Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zuschläge auf Belegebene; Abschläge auf Belegebene nur als [Gesamtrabatt](#rabatte).
 - Höchstens 200 Positionen je Rechnung.
-- Rechnungen gehen per E-Mail über deinen SMTP-Zugang oder über [Microsoft 365](einrichtung.md#e-mail-über-microsoft-365), nicht über Peppol oder die Portale öffentlicher Auftraggeber. Über Microsoft 365 gehen Anhänge nur bis 2,5 MB zusammen.
+- Rechnungen gehen per E-Mail über deinen SMTP-Zugang oder über [Microsoft 365](einrichtung-email.md#e-mail-über-microsoft-365), nicht über Peppol oder die Portale öffentlicher Auftraggeber. Über Microsoft 365 gehen Anhänge nur bis 2,5 MB zusammen.
 - Zusätzliche Anhänge nur als PDF, bis 20 MB je Datei und zehn je Rechnung. Viele Mailserver nehmen Mails ab etwa 25 MB nicht mehr an; das Versandprotokoll zeigt dann die Meldung des Servers. Anhänge lassen sich nur in Haben hochladen, nicht über die [REST-API](api.md); [wiederkehrende Rechnungen](#wiederkehrende-rechnungen) haben keine Anhänge und versenden ohne sie. Mahnungen gehen ohne die Anhänge der Rechnung.

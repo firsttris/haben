@@ -123,7 +123,7 @@
 				</ram:EndDateTime>
 			</ram:BillingSpecifiedPeriod>
 			<ram:SpecifiedTradePaymentTerms>
-				<ram:Description>Es ist keine Zahlung erforderlich.</ram:Description>
+				<ram:Description>Die ursprüngliche Rechnung wird storniert.</ram:Description>
 			</ram:SpecifiedTradePaymentTerms>
 			<ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 				<ram:LineTotalAmount>100.00</ram:LineTotalAmount>

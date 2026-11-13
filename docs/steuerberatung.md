@@ -26,7 +26,7 @@ Die Steuerberatung sieht:
 
 Nicht für die Steuerberatung sind: buchen, festschreiben, stornieren, ändern, löschen, hochladen, senden an ELSTER oder per E-Mail, die Einstellungen (Firmendaten, Nummernkreise, E-Mail, Eigene Seiten), ELSTER-Zertifikat und PIN, Bankzugang und SEPA-Überweisungen, API-Tokens für [KI-Assistenten](ki-assistenten.md) und die [REST-API](api.md), die Verwaltung der Zugänge. Ebenfalls beim Inhaber bleiben in dieser ersten Stufe Angebote, Bank, Kasse, Anlagen, Lohn, Umsatzsteuer, Jahreserklärungen, Finanzamt, Jahresabschluss und das Archiv aus dem Umzug; was davon für die Steuerberatung zählt, steht im Jahresarchiv.
 
-Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber nichts: Der Server prüft bei jeder Anfrage die Rolle (siehe [Architektur](architektur.md#anmeldung)) und lehnt alles Schreibende der Steuerberatung ab, auch wenn jemand die Anfrage von Hand stellt.
+Was die Steuerberatung nicht darf, blendet Haben aus. Das allein schützt aber nichts: Der Server prüft bei jeder Anfrage die Rolle (siehe [Anmeldung](architektur-anmeldung.md#anmeldung)) und lehnt alles Schreibende der Steuerberatung ab, auch wenn jemand die Anfrage von Hand stellt.
 
 ## Einladen
 

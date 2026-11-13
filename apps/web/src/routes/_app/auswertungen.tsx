@@ -31,7 +31,8 @@ function ReportsPage() {
   const year = euer.year;
   const netIn = euer.monthly.einnahmen.reduce((s, v) => s + v, 0);
   const netOut = euer.monthly.ausgaben.reduce((s, v) => s + v, 0);
-  const overdueCount = open.receivables.filter((r) => r.daysOverdue > 0).length;
+  const receivables = [...open.receivables, ...open.unbilledReceivables].sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number));
+  const overdueCount = receivables.filter((r) => r.daysOverdue > 0).length;
   const yearOptions = [...new Set([...years, year, currentYear()])].sort((a, b) => b - a);
 
   return (
@@ -102,7 +103,7 @@ function ReportsPage() {
           <div className="kpi-label">Offene Forderungen</div>
           <div className="kpi-value">{formatEuro(open.receivablesTotal)}</div>
           <div className="small" style={{ color: overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
-            {open.receivables.length} Posten
+            {receivables.length} Posten
             {overdueCount ? ` · ${overdueCount} überfällig` : ""} · Stand {formatDate(today)}
           </div>
         </div>
@@ -175,11 +176,13 @@ function ReportsPage() {
         title="Offene Forderungen"
         empty="Keine offenen Rechnungen."
         partyLabel="Kunde"
-        items={open.receivables}
+        items={receivables}
         total={open.receivablesTotal}
         overdue={open.receivablesOverdue}
         kind="invoice"
+        hint={open.unbilledReceivables.length ? "„Ersatzrechnung offen“: Die Leistung ist erbracht; die Nummer öffnet den bisherigen Schlussbeleg." : undefined}
       />
+      <AdvanceOpenTables open={open} />
       <OpenTable
         id="payables"
         title="Offene Verbindlichkeiten"
@@ -200,6 +203,38 @@ function ReportsPage() {
         overdue={open.vatOverdue}
         kind="ustva"
       />
+    </>
+  );
+}
+
+function AdvanceOpenTables({ open }: { open: Data["open"] }) {
+  return (
+    <>
+      {open.advanceRequests.length > 0 && (
+        <OpenTable
+          id="advance-requests"
+          title="Offene Anzahlungsanforderungen"
+          empty="Keine offenen Anzahlungsanforderungen."
+          partyLabel="Kunde"
+          items={open.advanceRequests}
+          total={open.advanceRequestsTotal}
+          overdue={open.advanceRequests.filter((p) => p.daysOverdue > 0).reduce((sum, p) => sum + p.open, 0)}
+          kind="invoice"
+          hint="Diese Anforderungen sind noch keine bilanzierten Forderungen."
+        />
+      )}
+      {open.advanceRefunds.length > 0 && (
+        <OpenTable
+          id="advance-refunds"
+          title="Erstattungen aus Anzahlungen"
+          empty="Keine offenen Erstattungen."
+          partyLabel="Kunde"
+          items={open.advanceRefunds}
+          total={open.advanceRefundsTotal}
+          overdue={0}
+          kind="invoice"
+        />
+      )}
     </>
   );
 }
@@ -281,6 +316,7 @@ function OpenTable(props: {
   total: number;
   overdue: number;
   kind: "invoice" | "document" | "ustva";
+  hint?: string;
 }) {
   const { id, title, items, kind } = props;
   return (
@@ -297,6 +333,11 @@ function OpenTable(props: {
           )}
         </div>
       </div>
+      {props.hint && (
+        <p className="small muted" style={{ margin: 0 }}>
+          {props.hint}
+        </p>
+      )}
       {items.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           {props.empty}
@@ -345,7 +386,9 @@ function OpenTable(props: {
                   <td>{formatDate(item.dueDate)}</td>
                   <td className="num">{formatEuro(item.gross)}</td>
                   <td className="num">{formatEuro(item.open)}</td>
-                  <td>{kind === "ustva" && item.open < 0 ? <span className="pill">Erstattung erwartet</span> : <DueStatus days={item.daysOverdue} />}</td>
+                  <td>
+                    <OpenStatus item={item} kind={kind} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -354,6 +397,13 @@ function OpenTable(props: {
       )}
     </section>
   );
+}
+
+function OpenStatus({ item, kind }: { item: OpenPosition; kind: "invoice" | "document" | "ustva" }) {
+  if (item.balanceKind === "unbilled") return <span className="pill pill-info">Ersatzrechnung offen</span>;
+  if (item.balanceKind === "refund") return <span className="pill">Erstattung offen</span>;
+  if (kind === "ustva" && item.open < 0) return <span className="pill">Erstattung erwartet</span>;
+  return <DueStatus days={item.daysOverdue} />;
 }
 
 function DueStatus({ days }: { days: number }) {

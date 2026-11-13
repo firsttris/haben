@@ -60,19 +60,7 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
-## Leitplanken für Agenten
-
-Dass kein ungeprüfter Code nach `main` kommt, hängt nicht davon ab, ob ein Agent die Regeln kennt, sondern davon, dass ein Fehler vor dem Merge auffällt:
-
-- **Regeln an einer Stelle:** diese Seite und [`DESIGN.md`](https://github.com/firsttris/haben/blob/main/DESIGN.md); `CLAUDE.md` verweist nur darauf, die Abläufe stehen als Skills in `.claude/skills/`.
-- **Fehlerklassen ausgeschlossen:** Geld in Cent statt Gleitkomma; Postgres-Trigger und Hashkette schützen Festgeschriebenes auch vor fehlerhaftem Code ([Konventionen](entwicklung.md#konventionen)).
-- **Tests für jede Änderung,** keiner abgeschwächt, Übersprungenes genannt ([Mitwirken](mitwirken.md)).
-- **Fremde Maßstäbe:** [KoSIT-Validator](entwicklung.md#kosit-validator), [SEPA-Schemas](entwicklung.md#schemas-der-sepa-überweisung-und--lastschrift), WCAG 2.2 AA; fachliche Details nach der Primärquelle im Code.
-- **Regeln als Skript,** wo sie sich sicher entscheiden lassen ([Automatische Prüfungen der Regeln](#automatische-prüfungen-der-regeln)).
-- **Unabhängiges Review mit rotem Test** ([Review](#review)).
-- **Ein Mensch entscheidet** über den Merge.
-
-Was das nicht leistet: Die Leitplanken fangen Fehler, die ein Test zeigen kann. Ist die fachliche Annahme selbst falsch, etwa bei einer Steuerregel, sind Code und Test gemeinsam falsch und trotzdem grün. Dagegen helfen nur die Primärquelle im Code, Rückmeldungen aus echten Abgaben und die Prüfung durch eine Steuerberatung. Ein unabhängiges Audit der Software oder ihrer Fachlogik gibt es bisher nicht.
+<a id="leitplanken-für-agenten"></a>Warum dem Ergebnis trotzdem zu trauen ist und wie der Ablauf an einem Beispiel aussieht, steht unter [Agentic Engineering](agentic-engineering.md#leitplanken-für-agenten).
 
 ## Automatische Prüfungen der Regeln
 
@@ -87,6 +75,7 @@ Was sich sicher entscheiden lässt, prüft ein Skript; was nicht, erscheint als 
 | Formularfelder über `Field`, kein eigenes Element mit der Klasse `field` (außer `<fieldset className="field">` für eine Gruppe) | `scripts/felder/` (Biome-Regel) in `bun run lint`; dazu der Test „Alle Felder stammen aus der gemeinsamen Komponente“ in `e2e/barrierefreiheit.spec.ts` | Fehler |
 | Auswahllisten über `Field`, kein `<select>` außerhalb | `scripts/felder/keine-nackte-auswahl.grit` (Biome-Regel) in `bun run lint`; Ausnahmen mit `// biome-ignore lint/plugin: Grund` | Fehler |
 | Alte große Datei wächst um 20 Zeilen oder mehr (außer `schema.ts`) | `scripts/pr-regeln/` | Hinweis |
+| Seite unter `docs/` wächst über 8.000 Wörter oder darüber um 300 und mehr ([Seiten der Doku](entwicklung.md#befehle)) | `scripts/pr-regeln/` | Hinweis |
 | Titel `Bereich: was sich ändert`, `(#Issue)` falls es eins gibt | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Issues mit `Umgesetzt #…` oder `Refs #…`, nicht `Closes` oder `Fixes` | `scripts/pr-regeln/`, Workflow „PR-Regeln“ | Fehler |
 | Doku zum geänderten Verhalten | `scripts/pr-regeln/`: Code unter `apps/web/src` oder `packages/*/src` ohne Änderung in `docs/` | Hinweis |
@@ -112,7 +101,7 @@ Titel, Issue-Verweise, Dateigröße und Selbstprüfung sagen in der Meldung selb
 - **Seitenabdeckung:** die neue Seite in beide Spec-Dateien aufnehmen, nicht in `scripts/seitenabdeckung/ausnahmen.ts`; dort stehen nur Seiten mit Grund, etwa reine Weiterleitungen. Wer eine mit „noch offen“ markierte Seite in die Spec aufnimmt, streicht ihre Ausnahme.
 - **Funktionslänge:** in neuem Code einen Teil in eine eigene Funktion mit Namen auslagern; ältere lange Funktionen werden nur in einem eigenen Pull Request geteilt.
 - **Felder und Auswahllisten:** das Feld in `Field` setzen; eine bewusst allein stehende Liste bekommt `// biome-ignore lint/plugin: Grund`.
-- **Alte große Datei wächst, Code ohne Doku, Fix ohne Test:** beheben, oder der Grund steht in der Beschreibung (bleibt in der Datei, weil …; Refactor ohne neues Verhalten; Fix an nichts Testbarem wie der CI).
+- **Alte große Datei wächst, Doku-Seite zu lang, Code ohne Doku, Fix ohne Test:** beheben, oder der Grund steht in der Beschreibung (bleibt in der Datei, weil …; Refactor ohne neues Verhalten; Fix an nichts Testbarem wie der CI).
 
 Wie die Prüfungen im Einzelnen entscheiden und wo sie nicht hinsehen, steht in den Kommentaren der Skripte.
 
