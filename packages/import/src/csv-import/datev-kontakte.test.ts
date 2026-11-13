@@ -81,6 +81,14 @@ describe("datevContactCandidates", () => {
     expect(rows[0]!.value).toMatchObject({ name: "Müller GmbH", strasse: "Hauptstraße 5", iban: "DE89370400440532013000" });
   });
 
+  it("übernimmt die Adresse samt Land aus derselben Zeile, wenn sie nur der Kreditor trägt", () => {
+    const [kontakt] = datevContactCandidates([
+      gp(3, { nr: 10001, name: "Atelier Lumière SARL", ustId: "FR12345678901" }),
+      gp(4, { nr: 70001, name: "Atelier Lumière SARL", ustId: "FR12345678901", strasse: "1 Rue de l’Exemple", plz: "75001", ort: "Paris", land: "FR" }),
+    ]);
+    expect(kontakt!.value).toMatchObject({ strasse: "1 Rue de l’Exemple", plz: "75001", ort: "Paris", land: "FR" });
+  });
+
   it("führt bei gleichem Namen allein nicht zusammen (#327): eigener Kontakt mit Hinweis", () => {
     const rows = datevContactCandidates([gp(3, { nr: 10001, name: "Müller GmbH" }), gp(4, { nr: 70001, name: "müller gmbh" })]);
     expect(rows.map((r) => [r.lines, r.value?.debitorNr ?? r.value?.kreditorNr, r.hints])).toEqual([
