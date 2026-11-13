@@ -261,6 +261,9 @@ function PreviewCard({
   };
   const order = { fehler: 0, zuordnen: 1, dublette: 2, neu: 3 } as const;
   const rows = [...preview.rows].sort((a, b) => order[a.status] - order[b.status] || a.line - b.line);
+  // Vorschläge stehen alle in der Liste, sonst ließe sich einer jenseits der Grenze nicht bestätigen; die Grenze gilt für den Rest
+  const limited = new Set(rows.filter((r) => r.status !== "zuordnen").slice(0, SHOWN_ROWS));
+  const shown = rows.filter((r) => r.status === "zuordnen" || limited.has(r));
   return (
     <section className="card stack" aria-labelledby="csv-preview-heading">
       <h2 id="csv-preview-heading">Vorschau</h2>
@@ -292,7 +295,7 @@ function PreviewCard({
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, SHOWN_ROWS).map((row) => (
+          {shown.map((row) => (
             <tr key={row.line}>
               <td className="num">{row.lines.join(", ")}</td>
               <td style={{ overflowWrap: "anywhere" }}>{row.title}</td>
@@ -318,9 +321,9 @@ function PreviewCard({
           ))}
         </tbody>
       </ScrollTable>
-      {rows.length > SHOWN_ROWS && (
+      {rows.length > shown.length && (
         <p className="small muted" style={{ margin: 0 }}>
-          Weitere {rows.length - SHOWN_ROWS} neue Zeilen sind nicht aufgeführt.
+          Weitere {rows.length - shown.length} neue Zeilen sind nicht aufgeführt.
         </p>
       )}
       <div className="actions">
