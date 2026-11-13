@@ -442,9 +442,14 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   /* Rechnungen und Angebote: die Auskunft vorn, das Wort an der rechten Kante unter dem Betrag. Die Fläche des dringenden
      Worts ragt nach rechts in den Rand, damit das Wort mit dem Betrag fluchtet; davor etwas mehr Luft zur Auskunft */
   :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status { flex-direction: row-reverse; }
+  /* Das Brief-Symbol „per E-Mail versendet“ steht vor der Auskunft, damit das Wort an der Kante bleibt */
+  .invoice-cols:not(.head) > :last-child:has(.mail-mark) { display: flex; flex-direction: row-reverse; align-items: baseline; gap: 6px; }
+  .invoice-cols:not(.head) > :last-child .mail-mark { margin-left: 0; }
   :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status-urgent { gap: 8px; }
   :is(.invoice-cols, .invoice-cols-compact):not(.head) > :last-child .status-urgent .status-label { margin-left: 0; margin-right: -8px; }
 }
+/* Brief-Symbol neben dem Status in Rechnungs- und Angebotsliste */
+.mail-mark { margin-left: 8px; vertical-align: middle; }
 /* Merkmal: Eigenschaft ohne Zustand (Lieferant, Rolle, archiviert) */
 .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); font-size: 12px; line-height: 1; color: var(--muted); white-space: nowrap; vertical-align: 1px; }
 

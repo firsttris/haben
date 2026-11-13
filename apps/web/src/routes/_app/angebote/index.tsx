@@ -56,7 +56,7 @@ function QuotesPage() {
                 <div>
                   <QuoteStatus quote={quote} />
                   {quote.mailed && (
-                    <span className="small muted" title="per E-Mail versendet" style={{ marginLeft: 8, verticalAlign: "middle" }}>
+                    <span className="small muted mail-mark" title="per E-Mail versendet">
                       <Icon name="mail" size={14} />
                       <span className="visually-hidden"> per E-Mail versendet</span>
                     </span>
