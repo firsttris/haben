@@ -8,28 +8,57 @@ const cases = [
   {
     name: "Sollsaldo",
     balance: 50,
-    de: "Nach dieser Stornierung übersteigen die offenen Rechnungsbeträge rechnerisch Ihr Guthaben.",
-    en: "After this cancellation, the calculated outstanding invoice amounts exceed your credits.",
+    de: "Ihr Kundenkonto weist einen Forderungsbestand i.H.v. 0,50\u00a0€ aus.",
+    en: "Your customer account currently has an outstanding balance of €0.50.",
   },
   {
     name: "Habensaldo",
     balance: -50,
-    de: "Nach dieser Stornierung verbleibt rechnerisch ein Guthaben zu Ihren Gunsten.",
-    en: "After this cancellation, the calculated balance is a credit in your favour.",
+    de: "Ihr Kundenkonto weist aktuell ein Guthaben i.H.v. 0,50\u00a0€ aus.",
+    en: "Your customer account currently has a credit balance of €0.50.",
   },
   {
     name: "Nullsaldo",
     balance: 0,
-    de: "Nach dieser Stornierung ist der Saldo Ihrer offenen Rechnungen und Gutschriften rechnerisch ausgeglichen.",
-    en: "After this cancellation, the calculated balance of your open invoices and credits is zero.",
+    de: "Ihr Kundenkonto ist ausgeglichen.",
+    en: "Your customer account is balanced.",
   },
   { name: "unbekannter Saldo", balance: undefined, de: "Die ursprüngliche Rechnung wird storniert.", en: "The original invoice is cancelled." },
+  {
+    name: "Forderung mit Tausender und exakten Cent",
+    balance: 123456,
+    de: "Ihr Kundenkonto weist einen Forderungsbestand i.H.v. 1.234,56\u00a0€ aus.",
+    en: "Your customer account currently has an outstanding balance of €1,234.56.",
+  },
+  {
+    name: "Guthaben mit Tausender und exakten Cent",
+    balance: -123456,
+    de: "Ihr Kundenkonto weist aktuell ein Guthaben i.H.v. 1.234,56\u00a0€ aus.",
+    en: "Your customer account currently has a credit balance of €1,234.56.",
+  },
+  {
+    name: "Forderung von einem Cent",
+    balance: 1,
+    de: "Ihr Kundenkonto weist einen Forderungsbestand i.H.v. 0,01\u00a0€ aus.",
+    en: "Your customer account currently has an outstanding balance of €0.01.",
+  },
+  {
+    name: "Guthaben von einem Cent",
+    balance: -1,
+    de: "Ihr Kundenkonto weist aktuell ein Guthaben i.H.v. 0,01\u00a0€ aus.",
+    en: "Your customer account currently has a credit balance of €0.01.",
+  },
 ] as const;
 
 describe("Saldoabhängiger Stornohinweis ohne Erstattungszusage", () => {
   for (const entry of cases) {
-    it.each(["de", "en"] as const)(`${entry.name}: PDF auf %s`, (language) => {
-      const doc = { ...sampleDocument({ kind: "storno" }), customerBalance: entry.balance, hasPayments: true, language };
+    it.each([
+      ["de", "EUR"],
+      ["en", "EUR"],
+      ["de", "USD"],
+      ["en", "USD"],
+    ] as const)(`${entry.name}: PDF auf %s mit Belegwährung %s, Saldo in EUR`, (language, currency) => {
+      const doc = { ...sampleDocument({ kind: "storno" }), customerBalance: entry.balance, hasPayments: true, language, currency };
       expect(pdfData(doc).payment).toBe(entry[language]);
     });
 

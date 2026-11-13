@@ -5,9 +5,9 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { leeren, setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
-const debit = "Nach dieser Stornierung übersteigen die offenen Rechnungsbeträge rechnerisch Ihr Guthaben.";
-const credit = "Nach dieser Stornierung verbleibt rechnerisch ein Guthaben zu Ihren Gunsten.";
-const balanced = "Nach dieser Stornierung ist der Saldo Ihrer offenen Rechnungen und Gutschriften rechnerisch ausgeglichen.";
+const debit = (amount: string) => `Ihr Kundenkonto weist einen Forderungsbestand i.H.v. ${amount} € aus.`;
+const credit = (amount: string) => `Ihr Kundenkonto weist aktuell ein Guthaben i.H.v. ${amount} € aus.`;
+const balanced = "Ihr Kundenkonto ist ausgeglichen.";
 
 describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () => {
   let sql: postgres.Sql;
@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     }
     const text = execFileSync("pdftotext", ["-", "-"], { input: invoice.pdf!, encoding: "utf8" }).replace(/\s+/g, " ");
     expect(text).toContain(sentence);
-    expect(invoice.xml).toContain(sentence);
+    expect(invoice.xml).toContain(sentence.replace(" €", "\u00a0€"));
     expect(text).not.toMatch(/wird Ihnen erstattet|Zahlungen werden erstattet|Bitte überweisen/);
     expect(invoice.xml).not.toMatch(/wird Ihnen erstattet|Zahlungen werden erstattet|Bitte überweisen/);
   }
@@ -104,12 +104,13 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
   }
 
   it.each([
-    { payment: 100, other: 150, balance: 50, sentence: debit },
+    { payment: 100, other: 150, balance: 50, sentence: debit("0,50") },
     { payment: 100, other: 100, balance: 0, sentence: balanced },
-    { payment: 100, other: 50, balance: -50, sentence: credit },
-    { payment: 50, other: 25, balance: -25, sentence: credit },
-    { payment: 0, other: 25, balance: 25, sentence: debit },
+    { payment: 100, other: 50, balance: -50, sentence: credit("0,50") },
+    { payment: 50, other: 25, balance: -25, sentence: credit("0,25") },
+    { payment: 0, other: 25, balance: 25, sentence: debit("0,25") },
     { payment: 0, other: 0, balance: 0, sentence: balanced },
+    { payment: 1, other: 123457, balance: 123456, sentence: debit("1.234,56") },
   ])("$payment Cent Zahlung und $other Cent weitere Forderung ergeben $balance Cent", async ({ payment, other, balance, sentence }) => {
     const invoice = await original(100, payment);
     if (other) await original(other);
@@ -129,11 +130,11 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     const reduction = await correction(invoice.id, 20);
     await original(110);
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-11-12");
-    verify(storno, debit);
+    verify(storno, debit("0,10"));
     const [correctionStorno] = await sql<{ pdf: Buffer; xml: string; gross: number }[]>`
       select pdf, xml, gross from invoices where corrects_id = ${reduction.id} and kind = 'storno'`;
     expect(correctionStorno!.gross).toBe(20);
-    verify(correctionStorno!, debit);
+    verify(correctionStorno!, debit("0,10"));
     expect(await customerOpen()).toBe(10);
   });
 
@@ -142,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     const priorStorno = await invoices.cancelInvoice(actor, paid.id, "2026-11-12");
     await transfer(priorStorno.id, -40);
     const unpaid = await original();
-    verify(await invoices.cancelInvoice(actor, unpaid.id, "2026-11-13"), credit);
+    verify(await invoices.cancelInvoice(actor, unpaid.id, "2026-11-13"), credit("0,60"));
     expect(await customerOpen()).toBe(-60);
   });
 
@@ -151,7 +152,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     const other = (await contact("10002")).id;
     await original(500, 0, other);
     await invoices.createDraft(actor, input(1000));
-    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-12"), credit);
+    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-12"), credit("1,00"));
     expect(await customerOpen()).toBe(-100);
   });
 
@@ -160,7 +161,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     const other = await original(80, 20);
     await correction(other.id, 30);
     await original(40);
-    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-12"), debit);
+    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-12"), debit("0,20"));
     expect(await customerOpen()).toBe(20);
   });
 
@@ -170,7 +171,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     expect(invoice.gross).toBe(100);
     await transfer(invoice.id, 100);
     await original(150);
-    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-13"), debit);
+    verify(await invoices.cancelInvoice(actor, invoice.id, "2026-11-13"), debit("0,50"));
     expect(await customerOpen()).toBe(50);
   });
 
@@ -178,7 +179,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     const invoice = await original(100, 100);
     const other = await original(150);
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-11-12");
-    verify(storno, debit);
+    verify(storno, debit("0,50"));
     await transfer(other.id, 150);
     expect(await customerOpen()).toBe(-100);
     const rows = await sql<{ id: string; pdf: Buffer; xml: string; pdf_sha256: string; xml_sha256: string }[]>`
@@ -192,6 +193,6 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
         xml_sha256: original.xmlSha256,
       });
     }
-    verify(rows.find((r) => r.id === storno.id)!, debit);
+    verify(rows.find((r) => r.id === storno.id)!, debit("0,50"));
   });
 });
