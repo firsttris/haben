@@ -74,7 +74,7 @@ dein Konto an; weiter geht es in [Erste Schritte](einrichtung.md).
 `haben-backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr mit restic nach `/mnt/user/appdata/haben/backups`, also
 auf denselben Server. Gegen den Verlust des Servers trägst du unter **Show more settings** bei `RESTIC_REPOSITORY` ein
 zweites System ein, siehe [Repository auf einem zweiten System](installation.md#repository-auf-einem-zweiten-system).
-Das Plugin Appdata Backup ersetzt das nicht: Es kopiert die Dateien der laufenden Datenbank, ohne Test-Restore.
+Das Plugin Appdata Backup ersetzt das nicht: Es stoppt die Container und kopiert ihre Ordner, ohne Test-Restore.
 
 Ein Backup von Hand, etwa vor einem Update: **Docker › `haben-backup` › Console**, dort `backup.sh`.
 
