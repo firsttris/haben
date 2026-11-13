@@ -83,11 +83,14 @@ describe.skipIf(!testDatabaseUrl)("Zahlungssatz bei Storno und Korrektur (Postgr
     expect(preserved!.xml).toBe(invoice.xml);
   });
 
-  it.each([50, 100])("beschreibt bei %i Cent Zahlung das Guthaben ohne Erstattungszusage", async (payment) => {
+  it.each([
+    [50, "0,50"],
+    [100, "1,00"],
+  ] as const)("beschreibt bei %i Cent Zahlung das Guthaben ohne Erstattungszusage", async (payment, amount) => {
     const invoice = await original(payment);
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-11-12");
-    expect(textOf(storno.pdf!)).toContain("Nach dieser Stornierung verbleibt rechnerisch ein Guthaben zu Ihren Gunsten.");
-    expect(storno.xml).toContain("Nach dieser Stornierung verbleibt rechnerisch ein Guthaben zu Ihren Gunsten.");
+    expect(textOf(storno.pdf!)).toContain(`Ihr Kundenkonto weist aktuell ein Guthaben i.H.v. ${amount} € aus.`);
+    expect(storno.xml).toContain(`Ihr Kundenkonto weist aktuell ein Guthaben i.H.v. ${amount}\u00a0€ aus.`);
     expect(storno.xml).not.toContain("Bereits geleistete Zahlungen werden erstattet.");
     expect(textOf(storno.pdf!)).not.toContain("Der Betrag wird Ihnen erstattet.");
   });

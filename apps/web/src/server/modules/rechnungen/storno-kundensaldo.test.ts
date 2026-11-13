@@ -116,7 +116,7 @@ describe.skipIf(!testDatabaseUrl)("Kundensaldo im Stornohinweis (Postgres)", () 
     if (other) await original(other);
     const [before] = await sql`select (select count(*)::int from allocations) as allocations, (select count(*)::int from cash_entries) as cash`;
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-11-12");
-    verify(storno, sentence, payment === 100 && other === 150 ? "storno-soll" : undefined);
+    verify(storno, sentence, payment === 100 && other === 150 ? "storno-soll" : `storno-${payment}-${other}`);
     expect(await customerOpen()).toBe(balance);
     const [after] = await sql`select (select count(*)::int from allocations) as allocations, (select count(*)::int from cash_entries) as cash`;
     expect(after).toEqual(before);

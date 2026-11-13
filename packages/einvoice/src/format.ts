@@ -1,5 +1,5 @@
 import { skontoFristen, type SkontoFrist } from "@haben/core";
-import { TEXTS, type Texts } from "./i18n.ts";
+import { texts, type Texts } from "./i18n.ts";
 import type { DirectDebit, InvoiceDocument, OrderReferences, Seller } from "./types.ts";
 
 /** "2026-10-02" → "02.10.2026" */
@@ -44,13 +44,13 @@ export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
 }
 
 /** Zahlungssatz unter der Summe, mit Skonto je Stufe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
-export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string {
+export function paymentSentence(doc: PaymentFields, t = texts("de")): string {
   // Rechnerischer OPOS-Saldo, keine Aufrechnung oder Zahlungszusage (§§ 387, 388 BGB, siehe storno-saldo.ts).
   // Auch das positive Storno einer Korrektur beschreibt den gemeinsamen Endstand, nicht seinen Belegbetrag als Zahlziel.
   if (doc.kind === "storno") {
     if (doc.customerBalance === undefined) return t.cancellation;
-    if (doc.customerBalance > 0) return t.cancellationDebit;
-    if (doc.customerBalance < 0) return t.cancellationCredit;
+    if (doc.customerBalance > 0) return t.cancellationDebit(t.euro(Math.abs(doc.customerBalance)));
+    if (doc.customerBalance < 0) return t.cancellationCredit(t.euro(Math.abs(doc.customerBalance)));
     return t.cancellationBalanced;
   }
   // Eine Rechnungskorrektur belegt eine Minderung, noch keine Auszahlung (Verrechnung: #274).
