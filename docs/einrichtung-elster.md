@@ -48,7 +48,7 @@ Eine offizielle Aussage der Finanzverwaltung zu Open-Source-Projekten haben wir 
 
 ## Warum Lexoffice ohne dein Zertifikat sendet
 
-Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigenen Zertifikat (Datenübermittlung im Auftrag, § 87d AO). Der Anbieter muss dafür seine Auftraggeber identifizieren und die Übermittlungen aufbewahren. Haben läuft auf deinem eigenen Server, ohne Anbieter dazwischen: Du sendest selbst und brauchst dein eigenes Zertifikat.
+Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigenen Zertifikat (Datenübermittlung im Auftrag, [§ 87d AO](https://www.gesetze-im-internet.de/ao_1977/__87d.html)). Der Anbieter muss sich dafür vor der Übermittlung Gewissheit über Person und Anschrift jedes Auftraggebers verschaffen und das festhalten. Diese Aufzeichnungen bewahrt er fünf Jahre auf, gerechnet ab dem Ende des Jahres der letzten Übermittlung, und kann so lange jederzeit sagen, wer Auftraggeber war (Abs. 2). Die Daten legt er dem Auftraggeber in leicht nachprüfbarer Form zur Zustimmung vor (Abs. 3). Haben läuft auf deinem eigenen Server, ohne Anbieter dazwischen: Du sendest selbst und brauchst dein eigenes Zertifikat.
 
 ## Schritte
 
