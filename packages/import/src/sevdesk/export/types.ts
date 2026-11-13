@@ -56,8 +56,10 @@ export interface SevExportLine {
   stack: string;
   booking: DatevBooking;
   info: SevBelegInfo;
-  /** Umsatz mit dem Vorzeichen des Belegs (siehe `SevExportVoucher.amount`) */
+  /** Umsatz in Euro mit dem Vorzeichen des Belegs (siehe `SevExportVoucher.amount`); bei Fremdwährung aus Beleginfo */
   amount: Cents;
+  /** Umsatz in Fremdwährung mit demselben Vorzeichen; null bei Euro */
+  foreignAmount: Cents | null;
 }
 
 export interface SevExportVoucher {
@@ -76,10 +78,12 @@ export interface SevExportVoucher {
   /** Währung aller Zeilen; null, wenn sie sich unterscheiden */
   currency: string | null;
   /**
-   * Summe der Zeilen. Positiv ist ein Erlös im Haben bzw. ein Aufwand im Soll; eine Gutschrift auf
+   * Summe der Zeilen in Euro (bei Fremdwährung aus Beleginfo, ohne sie in der Fremdwährung). Positiv ist ein Erlös im Haben bzw. ein Aufwand im Soll; eine Gutschrift auf
    * dem Erlöskonto wird so negativ. Ohne Erlös- oder Aufwandskonto entscheidet die Richtung.
    */
   amount: Cents;
+  /** Summe der Zeilen in der Fremdwährung `currency`; null bei Euro oder verschiedenen Währungen */
+  foreignAmount: Cents | null;
   /** Summe aus Beleginfo je Zeile; null, wenn keine Zeile den Wert trägt */
   net: Cents | null;
   tax: Cents | null;

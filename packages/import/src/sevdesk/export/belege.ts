@@ -1,4 +1,4 @@
-import { formatDecimal } from "@haben/core";
+import { type Cents, formatDecimal } from "@haben/core";
 import { datevAccountKind, isPersonenkonto, type DatevBooking, type Kontenrahmen } from "../../datev.ts";
 import { parseGermanAmount } from "../../text.ts";
 import type { SevBelegInfo, SevExportDirection, SevExportDocument, SevExportLine, SevExportStack, SevExportVoucher } from "./types.ts";
@@ -69,14 +69,15 @@ function groupLines(stacks: SevExportStack[], hints: string[]): Map<string, Grou
     const accountLength = stack.header.accountLength || 4;
     for (const booking of stack.bookings) {
       const where = `${name}, Zeile ${booking.row}`;
-      if (booking.currency !== "EUR") hints.push(`${where}: Umsatz in ${booking.currency}, nicht in Euro umgerechnet.`);
       const guid = BEDI.exec(booking.documentLink)?.[1] ?? null;
       if (!guid && booking.documentLink !== "") hints.push(`${where}: Beleglink „${booking.documentLink}“ ist kein BEDI-Verweis.`);
       const info = belegInfo(booking.raw);
+      const euro = booking.currency === "EUR";
+      if (!euro && info.net === null && info.tax === null) hints.push(`${where}: Umsatz in ${booking.currency}, nicht in Euro umgerechnet.`);
       const sach = sachkontoOf(booking, kontenrahmen, accountLength);
       const withInfo = info.net !== null || info.tax !== null || info.rate !== null;
       if (!guid && !(withInfo && sach.kind)) continue;
-      if (info.net !== null && info.tax !== null && Math.abs(info.net + info.tax) !== booking.amount) {
+      if (euro && info.net !== null && info.tax !== null && Math.abs(info.net + info.tax) !== booking.amount) {
         hints.push(
           `${where}: Netto ${formatDecimal(info.net)} und Steuer ${formatDecimal(info.tax)} aus Beleginfo ergeben nicht den Umsatz ${formatDecimal(booking.amount)}.`,
         );
@@ -90,6 +91,12 @@ function groupLines(stacks: SevExportStack[], hints: string[]): Map<string, Grou
   }
   return groups;
 }
+
+/**
+ * Euro-Betrag einer Zeile in Fremdwährung: Netto und Steuer der Beleginfo stehen in Euro (sumGross), der Umsatz in der
+ * Fremdwährung (sumGrossForeignCurrency); Kurs und Basis-Umsatz lässt sevDesk leer (echte Exporte, #472). Null ohne Beleginfo.
+ */
+const euroOf = (info: SevBelegInfo): Cents | null => (info.net === null && info.tax === null ? null : Math.abs((info.net ?? 0) + (info.tax ?? 0)));
 
 /** Summe der Werte, die da sind; null, wenn keiner da ist */
 const sumOf = (values: (number | null)[]) => (values.some((v) => v !== null) ? values.reduce<number>((sum, v) => sum + (v ?? 0), 0) : null);
@@ -107,12 +114,11 @@ function voucherOf(key: string, group: Group, document: SevExportDocument | null
   if (document?.direction && sach?.kind && KIND_DIRECTION[sach.kind] !== document.direction) {
     hints.push(`${label}: liegt im ${FOLDER[document.direction]}, gebucht auf ${KIND_NAME[sach.kind]} ${sach.account}; Richtung prüfen.`);
   }
-  const lines: SevExportLine[] = group.lines.map(({ stack, booking, info, sach: s }) => ({
-    stack,
-    booking,
-    info,
-    amount: signOf(s, direction) * booking.amount,
-  }));
+  const lines: SevExportLine[] = group.lines.map(({ stack, booking, info, sach: s }) => {
+    const sign = signOf(s, direction);
+    if (booking.currency === "EUR") return { stack, booking, info, amount: sign * booking.amount, foreignAmount: null };
+    return { stack, booking, info, amount: sign * (euroOf(info) ?? booking.amount), foreignAmount: sign * booking.amount };
+  });
   const currency = sameOf(lines.map((l) => l.booking.currency));
   if (currency === null) hints.push(`${label}: Zeilen in verschiedenen Währungen.`);
   const rates = lines.map((l) => l.info.rate).filter((r) => r !== null);
@@ -126,6 +132,7 @@ function voucherOf(key: string, group: Group, document: SevExportDocument | null
     accountKind,
     currency,
     amount: lines.reduce((sum, l) => sum + l.amount, 0),
+    foreignAmount: currency !== null && currency !== "EUR" ? lines.reduce((sum, l) => sum + (l.foreignAmount ?? 0), 0) : null,
     net: sumOf(lines.map((l) => l.info.net)),
     tax: sumOf(lines.map((l) => l.info.tax)),
     rate: sameOf(rates),

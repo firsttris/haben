@@ -85,10 +85,10 @@ describe("Sonderfälle im Export von sevDesk", () => {
     expect(data.hints).toContain(`${EINGANG}: Datei ${name} (GUID ${guid(2)}) steht in document.xml, fehlt aber in der ZIP.`);
   });
 
-  it("meldet Fremdwährung und lässt den Betrag unverändert", () => {
+  it("behält bei Fremdwährung den Betrag in Fremdwährung neben dem Euro-Betrag", () => {
     const data = ok(read({ [STAPEL]: unmaskedStack10(), [EINGANG]: innerZip(fixture("buchhaltung-1.0/document-rechnungseingang.xml")) }));
-    expect(data.vouchers.find((v) => v.guid === guid(2))).toMatchObject({ currency: "USD", amount: 10000 });
-    expect(data.hints.filter((h) => h.includes("nicht in Euro umgerechnet"))).toEqual([`${STAPEL}, Zeile 4: Umsatz in USD, nicht in Euro umgerechnet.`]);
+    expect(data.vouchers.find((v) => v.guid === guid(2))).toMatchObject({ currency: "USD", amount: 20000, foreignAmount: 10000 });
+    expect(data.vouchers.filter((v) => v.currency === "EUR").every((v) => v.foreignAmount === null)).toBe(true);
   });
 
   // Echte Exporte (#472, Kommentar in #810): Bei Fremdwährung steht im Umsatz der Betrag in Fremdwährung
@@ -103,13 +103,19 @@ describe("Sonderfälle im Export von sevDesk", () => {
   });
 
   it("nimmt bei Fremdwährung ohne Steuer das Netto aus Beleginfo als Euro-Betrag", () => {
-    const usd = ausgabe.replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";').replace('"Steuerbetrag";15,97;', '"Steuerbetrag";;').replace('"Nettobetrag";84,03;', '"Nettobetrag";100,00;');
+    const usd = ausgabe
+      .replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";')
+      .replace('"Steuerbetrag";15,97;', '"Steuerbetrag";;')
+      .replace('"Nettobetrag";84,03;', '"Nettobetrag";100,00;');
     const data = ok(read({ [STAPEL]: stapel(usd), [EINGANG]: eingangDoc() }));
     expect(data.vouchers[0]).toMatchObject({ currency: "USD", amount: 10000, foreignAmount: 10600 });
   });
 
   it("lässt den Betrag bei Fremdwährung ohne Beleginfo in Fremdwährung und meldet das", () => {
-    const usd = ausgabe.replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";').replace('"Steuerbetrag";15,97;', '"Steuerbetrag";;').replace('"Nettobetrag";84,03;', '"Nettobetrag";;');
+    const usd = ausgabe
+      .replace(/^100,00;"H";"EUR";/, '106,00;"H";"USD";')
+      .replace('"Steuerbetrag";15,97;', '"Steuerbetrag";;')
+      .replace('"Nettobetrag";84,03;', '"Nettobetrag";;');
     const data = ok(read({ [STAPEL]: stapel(usd), [EINGANG]: eingangDoc() }));
     expect(data.vouchers[0]).toMatchObject({ currency: "USD", amount: 10600, foreignAmount: 10600 });
     expect(data.hints.filter((h) => h.includes("nicht in Euro umgerechnet"))).toHaveLength(1);

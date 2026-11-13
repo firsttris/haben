@@ -69,9 +69,9 @@ describe("Export aus Buchhaltungsversion 1.0", () => {
     expect(data.files.size).toBe(4);
   });
 
-  it("meldet die Zeile in US-Dollar, ohne umzurechnen", () => {
-    expect(byGuid(data, guid(2))).toMatchObject({ currency: "USD", amount: 10000 });
-    expect(data.hints).toContain(`EXTF_Buchungsstapel_${ZEITRAUM}.csv, Zeile 4: Umsatz in USD, nicht in Euro umgerechnet.`);
+  it("nimmt bei der Zeile in US-Dollar den Euro-Betrag aus Beleginfo (maskiert 100,00 + 100,00)", () => {
+    expect(byGuid(data, guid(2))).toMatchObject({ currency: "USD", amount: 20000, foreignAmount: 10000 });
+    expect(data.hints.filter((h) => h.includes("nicht in Euro umgerechnet"))).toEqual([]);
   });
 
   it("meldet maskierte Beleginfo, die nicht zum Umsatz passt", () => {
